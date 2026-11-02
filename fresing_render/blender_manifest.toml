@@ -1,0 +1,36 @@
+schema_version = "1.0.0"
+
+id = "fresing_render"
+version = "0.1.0"
+name = "Fresing Render"
+tagline = "Photo-realistic renders of large STEP assemblies"
+maintainer = "Fresing"
+type = "add-on"
+
+tags = ["Import-Export", "Render", "Material"]
+
+# The app is pinned to one Blender LTS line. A release that needs a newer
+# Blender raises these numbers and ships with a new installer.
+blender_version_min = "5.2.0"
+blender_version_max = "5.3.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 Fresing"]
+
+platforms = ["windows-x64"]
+
+# OpenCascade (STEP reading) without the VTK viewer parts.
+wheels = [
+  "./wheels/cadquery_ocp_novtk-8.0.1.1.0-cp313-cp313-win_amd64.whl",
+  "./wheels/cadquery_ocp_proxy-8.0.1.1.0-py3-none-any.whl",
+]
+
+[permissions]
+files = "Import STEP files, write the import cache and save renders"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "*.pyc",
+  "/.git/",
+]
