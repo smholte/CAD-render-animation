@@ -67,6 +67,24 @@ def main(report_path: str | None = None) -> bool:
         return "OpenCascade loaded"
 
     check("STEP reader (OpenCascade)", _occ)
+
+    def _template():
+        import subprocess
+        exe = bpy.app.binary_path
+        if not exe or not os.path.basename(exe).lower().startswith("blender"):
+            return "skipped (not started from Blender)"
+        code = ("import bpy\n"
+                "if not any(k.endswith('fresing_render') for k in bpy.context.preferences.addons.keys()):\n"
+                "    raise SystemError('not enabled')\n")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        r = subprocess.run([exe, "--background", "--app-template", "fresing_render", "--python-exit-code", "3",
+                            "--python-expr", code], capture_output=True, text=True, timeout=300, creationflags=flags)
+        if r.returncode != 0:
+            raise RuntimeError("the app opens without the Fresing panel: run Install.bat again "
+                               f"(exit code {r.returncode})")
+        return "the Fresing panel loads in the app"
+
+    check("App start (Desktop shortcut)", _template)
     check("Graphics card", lambda: render.setup_gpu())
 
     def _import():
