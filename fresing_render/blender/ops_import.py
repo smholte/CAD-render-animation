@@ -49,7 +49,29 @@ def finish_import(context, cache_dir: str, up_axis: str = "Z") -> bpy.types.Obje
     if not cameras.fr_cameras(scene):
         cameras.add_camera(scene, "ISO")
     world.apply(scene, s)
+    frame_views(context, scene)
     return root
+
+
+def frame_views(context, scene) -> None:
+    """Point every 3D view at the model (after an import the view may be anywhere)."""
+    if bpy.app.background:
+        return
+    from mathutils import Vector
+    mn, mx = logic.cached_bounds(scene)
+    centre = Vector(((mn + mx) / 2).tolist())
+    size = max((Vector(mx.tolist()) - Vector(mn.tolist())).length, 0.1)
+    for win in getattr(context.window_manager, "windows", []):
+        for area in win.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            r3d = area.spaces.active.region_3d
+            if r3d is None or r3d.view_perspective == "CAMERA":
+                continue
+            r3d.view_location = centre
+            r3d.view_distance = size * 1.2
+            area.spaces.active.clip_end = max(area.spaces.active.clip_end, size * 20)
+            area.tag_redraw()
 
 
 class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):

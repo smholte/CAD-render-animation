@@ -168,7 +168,12 @@ def start(context) -> str:
     os.makedirs(out_dir, exist_ok=True)
     qdir = os.path.join(out_dir, "_queue", time.strftime("%Y-%m-%d_%H%M%S"))
     os.makedirs(qdir, exist_ok=True)
-    stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "project"
+    stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+    if not stem:                             # not saved yet: name the renders after the model
+        from . import build
+        roots = build.model_roots(scene)
+        src = roots[0].get(build.PROP_SOURCE, "") if roots else ""
+        stem = os.path.splitext(os.path.basename(src))[0] or "project"
     blend = os.path.join(qdir, f"{render._safe(stem)}.blend")
     jobs = []
     for j in waiting:

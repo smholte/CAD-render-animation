@@ -704,8 +704,9 @@ class FRESING_OT_anim_add(bpy.types.Operator):
 
     def execute(self, context):
         s = context.scene.fresing
+        name = animation.unique_name(context.scene)     # before adding: the new item is called "Animation"
         a = s.animations.add()
-        a.name = animation.unique_name(context.scene)
+        a.name = name
         if s.active_shot and s.active_shot in s.shots:
             a.start_shot = s.active_shot
         s.animations_index = len(s.animations) - 1

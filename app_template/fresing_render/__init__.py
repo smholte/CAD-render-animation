@@ -67,6 +67,23 @@ def _enable_fresing_render() -> str:
     return ""
 
 
+def _show_fresing_tab():
+    """Open the side panel on the Fresing tab (the tab only exists once the extension is on)."""
+    done = False
+    for win in bpy.context.window_manager.windows:
+        for area in win.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for region in area.regions:
+                if region.type == "UI":
+                    try:
+                        region.active_panel_category = "Fresing"
+                        done = True
+                    except (AttributeError, TypeError, ValueError):
+                        pass
+    return None if done else 0.5            # timer: try again until the panel has been drawn
+
+
 @persistent
 def _after_load(_dummy=None):
     # runs once the start-up file is read and the extension system is ready
@@ -75,6 +92,15 @@ def _after_load(_dummy=None):
         _enable_fresing_render()
     except Exception as exc:  # never stop Blender from starting
         print("Fresing Render: could not enable the extension:", exc)
+    if not bpy.app.background and not bpy.data.filepath:     # a new project: start on the Fresing tab
+        tries = {"n": 0}
+
+        def _tab():
+            tries["n"] += 1
+            res = _show_fresing_tab()
+            return None if res is None or tries["n"] > 20 else res
+
+        bpy.app.timers.register(_tab, first_interval=0.3)
 
 
 _HANDLERS = ((bpy.app.handlers.load_factory_startup_post, _setup_new_file),
