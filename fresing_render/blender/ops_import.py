@@ -70,6 +70,8 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         items=[("draft", "Draft", "Fast, coarse curves"), ("normal", "Normal", "Good for most renders"),
                ("fine", "Fine", "Smooth curves for close-ups")])
     up_axis: EnumProperty(name="Up axis", default="Z", items=[("Z", "Z up", ""), ("Y", "Y up", "")])
+    # UPDATE: replace this model by a new revision of the file and keep all work
+    update_root: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
 
     _timer = None
     _job: ImportJob | None = None
@@ -82,6 +84,12 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             if len(self.files) > 1:
                 self.report({"WARNING"}, "Several files dropped: importing the first one")
             return self.execute(context)
+        root = bpy.data.objects.get(self.update_root) if self.update_root else None
+        if root is not None:
+            src = root.get(build.PROP_SOURCE, "")
+            self.quality = root.get("fr_quality", self.quality)
+            if src:
+                self.filepath = src            # the file browser opens on the current file
         return ImportHelper.invoke(self, context, event)
 
     def _path(self) -> str:
@@ -103,11 +111,13 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             if not _ACTIVE_JOB.done:
                 self.report({"WARNING"}, "An import is already running")
                 return {"CANCELLED"}
+        if self.update_root and bpy.data.objects.get(self.update_root) is None:
+            self.report({"ERROR"}, "The model to update is no longer in the project")
+            return {"CANCELLED"}
         job = ImportJob(path, self.quality, cache_root())
         if job.cached:
-            finish_import(context, job.cache_dir, self.up_axis)
-            self.report({"INFO"}, "Imported from cache (file unchanged since last import)")
-            return {"FINISHED"}
+            self._job = job
+            return self._finish(context, cached=True)
         job.start()
         self._job = job
         _ACTIVE_JOB = job
@@ -144,15 +154,26 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         self._cleanup(context)
         return self._finish(context)
 
-    def _finish(self, context):
+    def _finish(self, context, cached: bool = False):
         job = self._job
+        s = context.scene.fresing
         if job.error:
             self.report({"ERROR"}, f"Import failed: {job.error}")
-            context.scene.fresing.last_message = f"Import failed: {job.error}"
+            s.last_message = f"Import failed: {job.error}"
             return {"CANCELLED"}
-        finish_import(context, job.cache_dir, self.up_axis)
-        context.scene.fresing.last_message = f"Imported {os.path.basename(job.step_path)}"
-        self.report({"INFO"}, context.scene.fresing.last_message)
+        old_root = bpy.data.objects.get(self.update_root) if self.update_root else None
+        if old_root is not None:
+            from . import reimport
+            res = reimport.update_model(context, old_root, job.cache_dir)
+            res["root"]["fr_quality"] = self.quality
+            s.last_message = s.report_title
+            self.report({"INFO"}, s.last_message)
+            return {"FINISHED"}
+        root = finish_import(context, job.cache_dir, self.up_axis)
+        root["fr_quality"] = self.quality
+        s.last_message = f"Imported {os.path.basename(job.step_path)}" + (
+            " (from cache: file unchanged since last import)" if cached else "")
+        self.report({"INFO"}, s.last_message)
         return {"FINISHED"}
 
     def _cleanup(self, context):

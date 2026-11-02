@@ -37,14 +37,22 @@ def _on_active_changed():
         _IGNORE.discard(ob.name)
         return
     _IGNORE.clear()
+    if ob is not None and ob.get(build.PROP_KIND) in build.JOINT_KINDS:
+        s = scene.fresing                    # clicking a joint arrow selects it in the joint list
+        for i, j in enumerate(s.joints):
+            if ob is j.frame or ob is j.motion:
+                s.joints_index = i
+                break
+        return
     if scene.fresing.pick_mode != "SUBASSEMBLY":
         return
     if ob is None or ob.get(build.PROP_KIND) != "part" or not ob.select_get():
         return
-    sub = logic.subassembly_for_pick(ob)
+    tree = logic.Tree(scene)
+    sub = logic.subassembly_for_pick(ob, tree)
     if sub is None or sub is ob:
         return
-    for d in [sub] + logic.descendants(sub, logic.Tree(scene)):
+    for d in [sub] + logic.descendants(sub, tree):
         if d.visible_get() and not d.hide_select:
             d.select_set(True)
     s = scene.fresing
@@ -69,6 +77,15 @@ def _subscribe():
 def _on_load(_dummy=None):
     _IGNORE.clear()
     _subscribe()
+    try:                                     # a render queue started earlier may still be going
+        scene = bpy.context.scene
+        if scene is not None and hasattr(scene, "fresing") and scene.fresing.queue_dir:
+            from . import queue
+            queue.sync(scene)
+            if scene.fresing.queue_pid:
+                queue.ensure_polling()
+    except Exception:
+        pass
 
 
 @persistent

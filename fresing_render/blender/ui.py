@@ -1,4 +1,4 @@
-"""Side panel in the 3D viewport: 1 Import, 2 Structure, 3 Looks, 4 Scene & Render."""
+"""Side panel in the 3D viewport: 1 Import, 2 Structure, 3 Looks, (4 Motion,) 5 Scene & Render."""
 
 from __future__ import annotations
 
@@ -34,6 +34,13 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
+        from . import project_lock
+        busy = project_lock.warning()
+        if busy:
+            box = layout.box()
+            box.alert = True
+            box.label(text=f"In use by {busy}", icon="ERROR")
+            box.label(text="Save your changes under another name (File > Save As)")
         col = layout.column(align=True)
         row = col.row(align=True)
         row.scale_y = 1.4
@@ -53,6 +60,23 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 box.label(text=f"{st.get('placed_parts', 0)} parts ({st.get('unique_parts', 0)} different), "
                                f"{st.get('triangles_unique', 0) / 1e6:.1f} M triangles")
                 box.label(text=f"Read in {st.get('seconds_total', 0):.0f} s")
+            op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
+            op.update_root = root.name
+        if s.report_title:
+            box = layout.box()
+            row = box.row()
+            row.label(text=s.report_title, icon="INFO")
+            row.operator("fresing.report_clear", text="", icon="X", emboss=False)
+            if len(s.report_new):
+                box.label(text=f"New ({len(s.report_new)}): " + ", ".join(x.text for x in list(s.report_new)[:6])
+                               + (" …" if len(s.report_new) > 6 else ""))
+                box.operator("fresing.report_select_new", icon="RESTRICT_SELECT_OFF")
+            if len(s.report_missing):
+                box.label(text=f"Missing ({len(s.report_missing)}): "
+                               + ", ".join(x.text for x in list(s.report_missing)[:6])
+                               + (" …" if len(s.report_missing) > 6 else ""))
+            for note in s.report_notes:
+                box.label(text=note.text, icon="ERROR")
         if s.last_message:
             layout.label(text=s.last_message)
         layout.operator("fresing.clear_cache", icon="TRASH")
@@ -135,6 +159,31 @@ class FRESING_PT_cleanup(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("fresing.exclude_selected", icon="TRASH")
         row.operator("fresing.restore_excluded", icon="LOOP_BACK")
+
+
+class FRESING_UL_visibility(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "name", text="", emboss=False, icon="HIDE_OFF")
+        row.label(text=f"{len(item.hidden)} hidden")
+        row.operator("fresing.vis_apply", text="Use", icon="CHECKMARK").name = item.name
+
+
+class FRESING_PT_visibility(_Panel, bpy.types.Panel):
+    bl_label = "Visibility sets"
+    bl_parent_id = "FRESING_PT_structure"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        s = context.scene.fresing
+        layout.label(text="Save which parts are hidden, switch back in one click")
+        row = layout.row()
+        row.template_list("FRESING_UL_visibility", "", s, "visibility_sets", s, "visibility_index", rows=3)
+        col = row.column(align=True)
+        col.operator("fresing.vis_save", text="", icon="ADD")
+        col.operator("fresing.vis_remove", text="", icon="REMOVE")
+        col.operator("fresing.vis_update", text="", icon="FILE_REFRESH")
 
 
 # =============================================================================
@@ -284,8 +333,8 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
 
 
 class FRESING_PT_scene(_Panel, bpy.types.Panel):
-    bl_label = "4  Scene & Render"
-    bl_order = 3
+    bl_label = "5  Scene & Render"
+    bl_order = 4
 
     @classmethod
     def poll(cls, context):
@@ -395,7 +444,7 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
 
 
 CLASSES = (
-    FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes,
-    FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_looks, FRESING_PT_rules,
-    FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
+    FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes, FRESING_UL_visibility,
+    FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_visibility, FRESING_PT_looks,
+    FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
 )

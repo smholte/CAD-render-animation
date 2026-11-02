@@ -147,8 +147,11 @@ class Tree:
         scene = scene or bpy.context.scene
         self.kids: dict[str, list] = {}
         for ob in scene.objects:
-            if ob.parent is not None:
-                self.kids.setdefault(ob.parent.name, []).append(ob)
+            if ob.get(build.PROP_KIND) in build.JOINT_KINDS:
+                continue                       # joints are not part of the CAD structure
+            p = build.logical_parent(ob)
+            if p is not None:
+                self.kids.setdefault(p.name, []).append(ob)
 
     def children(self, ob):
         return self.kids.get(ob.name, [])
@@ -171,12 +174,14 @@ def part_count(ob, tree: Tree | None = None) -> int:
     return sum(1 for d in descendants(ob, tree) if d.get(build.PROP_KIND) == "part")
 
 
-def top_level(root):
+def top_level(root, tree: Tree | None = None):
     """Skip single-child chains (e.g. a wrapper assembly around the whole machine)."""
+    tree = tree or Tree()
     top = root
     while True:
-        asm_children = [c for c in top.children if c.get(build.PROP_KIND) == "assembly"]
-        part_children = [c for c in top.children if c.get(build.PROP_KIND) == "part"]
+        kids = tree.children(top)
+        asm_children = [c for c in kids if c.get(build.PROP_KIND) == "assembly"]
+        part_children = [c for c in kids if c.get(build.PROP_KIND) == "part"]
         if len(asm_children) == 1 and not part_children:
             top = asm_children[0]
         else:
@@ -184,24 +189,24 @@ def top_level(root):
 
 
 def root_of(ob):
-    while ob.parent is not None:
-        ob = ob.parent
-    return ob
+    while True:
+        p = build.logical_parent(ob)
+        if p is None:
+            return ob
+        ob = p
 
 
-def subassembly_for_pick(ob):
+def subassembly_for_pick(ob, tree: Tree | None = None):
     """The subassembly a click on part ``ob`` should select (Inventor-like 'component priority')."""
     root = root_of(ob)
-    top = top_level(root)
+    top = top_level(root, tree)
     node = ob
-    chain = []
     while node is not None:
-        chain.append(node)
-        node = node.parent
-    # chain: part ... top ... root ; pick the child of `top` on the chain
-    for i, n in enumerate(chain):
-        if n.parent is top:
-            return n
+        # walk the CAD chain part ... top ... root; pick the child of `top` on it
+        p = build.logical_parent(node)
+        if p is top:
+            return node
+        node = p
     return ob
 
 
@@ -342,3 +347,4 @@ def set_up_axis(root, axis: str) -> None:
     """Rotate the model root so the CAD 'up' axis points up in Blender."""
     if axis == "Y":
         root.matrix_basis = Matrix.Rotation(math.radians(90), 4, "X") @ root.matrix_basis
+    build.set_mat(root, build.PROP_REST_BASIS, root.matrix_basis)   # turning the model is not a "free move"

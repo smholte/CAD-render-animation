@@ -31,7 +31,7 @@ QUALITY = {
     "fine": (0.0006, 0.18),
 }
 
-CACHE_VERSION = 2
+CACHE_VERSION = 3          # 3: axes of round faces (joint picking), instance names
 MM_TO_M = 0.001
 
 
@@ -67,6 +67,8 @@ def _occ():
     from OCP.collections import Sequence_TDF_Label
     from OCP.TopoDS import TopoDS_Compound
     from OCP.BRep import BRep_Builder
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_SurfaceType
     return locals()
 
 
@@ -78,6 +80,14 @@ def _label_name(occ, label) -> str:
         except Exception:  # pragma: no cover - odd encodings
             return ""
     return ""
+
+
+def _instance_name(occ, inst_label) -> str:
+    """Occurrence name ("Frame:1" from Inventor). OpenCascade's own "=>[0:1:1:6]" placeholders are dropped."""
+    if inst_label is None:
+        return ""
+    name = _label_name(occ, inst_label)
+    return "" if name.startswith("=>[") else name
 
 
 def _label_entry(occ, label) -> str:
@@ -130,13 +140,71 @@ def _face_colors(occ, stool, ctool, label):
     return result
 
 
-def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False):
+MAX_AXES = 400   # per unique part
+
+
+def _face_axis(occ, face):
+    """Axis of a round face (cylinder, cone, torus, revolved surface) as (origin, direction, radius) in mm."""
+    try:
+        surf = occ["BRepAdaptor_Surface"](face, True)
+        st = occ["GeomAbs_SurfaceType"]
+        t = surf.GetType()
+        if t == st.GeomAbs_Cylinder:
+            c = surf.Cylinder()
+            ax, r = c.Axis(), c.Radius()
+        elif t == st.GeomAbs_Cone:
+            c = surf.Cone()
+            ax, r = c.Axis(), c.RefRadius()
+        elif t == st.GeomAbs_Torus:
+            c = surf.Torus()
+            ax, r = c.Axis(), c.MajorRadius()
+        elif t == st.GeomAbs_SurfaceOfRevolution:
+            ax, r = surf.AxeOfRevolution(), 0.0
+        else:
+            return None
+    except Exception:
+        return None
+    lo, d = ax.Location(), ax.Direction()
+    return np.array((lo.X(), lo.Y(), lo.Z())), np.array((d.X(), d.Y(), d.Z())), float(r)
+
+
+class _Axes:
+    """Unique axes of one part; faces on the same line share one axis."""
+
+    def __init__(self):
+        self.keys: dict = {}
+        self.axes: list[list[float]] = []      # ox, oy, oz, dx, dy, dz, radius (metres)
+        self.faces: list[int] = []             # tri_start, tri_count, axis index (flat)
+
+    def add(self, origin, direction, radius, tri_start: int, tri_count: int) -> None:
+        d = direction / (np.linalg.norm(direction) or 1.0)
+        nz = np.nonzero(np.abs(d) > 1e-9)[0]
+        if len(nz) and d[nz[0]] < 0:
+            d = -d                              # one sign per line
+        foot = origin - d * float(np.dot(origin, d))   # point on the line closest to the part origin
+        key = (tuple(np.round(d, 4)), tuple(np.round(foot, 3)))
+        idx = self.keys.get(key)
+        if idx is None:
+            if len(self.axes) >= MAX_AXES:
+                return
+            idx = len(self.axes)
+            self.keys[key] = idx
+            o = foot * MM_TO_M
+            self.axes.append([float(o[0]), float(o[1]), float(o[2]), float(d[0]), float(d[1]), float(d[2]),
+                              radius * MM_TO_M])
+        else:
+            self.axes[idx][6] = max(self.axes[idx][6], radius * MM_TO_M)
+        self.faces.extend((tri_start, tri_count, idx))
+
+
+def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False, axes: _Axes | None = None):
     """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours)."""
     if not already_meshed:
         occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
     positions, normals, tris, tri_col = [], [], [], []
     palette = []
     offset = 0
+    tri_offset = 0
     exp = occ["TopExp_Explorer"](shape, occ["TopAbs_FACE"])
     BRep_Tool = occ["BRep_Tool"]
     TopLoc_Location = occ["TopLoc_Location"]
@@ -192,11 +260,16 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False):
                         palette.append(colr)
                     cidx = palette.index(colr)
                     break
+        if axes is not None:
+            fa = _face_axis(occ, face)
+            if fa is not None:
+                axes.add(fa[0], fa[1], fa[2], tri_offset, n_tris)
         positions.append(pts)
         normals.append(nrm)
         tris.append(t + offset)
         tri_col.append(np.full(n_tris, cidx, dtype=np.int16))
         offset += n_nodes
+        tri_offset += n_tris
     if not positions:
         return None
     pos = np.concatenate(positions) * MM_TO_M
@@ -266,7 +339,7 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
         node = {
             "uid": uid,
             "name": name,
-            "instance": _label_name(occ, inst_label) if inst_label is not None else "",
+            "instance": _instance_name(occ, inst_label),
             "parent": parent,
             "matrix": _trsf_to_matrix(trsf) if trsf is not None else None,
             "kind": "assembly",
@@ -330,12 +403,14 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
     for mid, label in enumerate(mesh_labels):
         shape = shapes[mid]
         face_cols = _face_colors(occ, stool, ctool, label)
+        axes = _Axes()
         try:
-            res = _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=premeshed)
+            res = _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=premeshed, axes=axes)
         except Exception as exc:  # keep going, report the part
             emit("warning", 30 + 65 * mid / total, f"Could not mesh {mesh_names[mid]}: {exc}")
             res = None
-        meta = {"name": mesh_names[mid], "tris": 0, "palette": [], "bbox": None}
+        meta = {"name": mesh_names[mid], "tris": 0, "palette": [], "bbox": None,
+                "axes": axes.axes if res is not None else [], "axis_faces": axes.faces if res is not None else []}
         if res is not None:
             pos, nrm, tri, tcol, palette = res
             arrays[f"p{mid}"] = pos
