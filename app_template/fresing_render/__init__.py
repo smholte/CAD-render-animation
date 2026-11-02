@@ -22,6 +22,7 @@ def _tidy_screens():
                 space.shading.color_type = "MATERIAL"
                 space.shading.light = "STUDIO"
                 space.overlay.show_floor = True
+                space.overlay.show_relationship_lines = False    # no dotted parent lines across the model
                 space.clip_start = 0.01              # 10 mm..1 km: no flicker on touching CAD faces
                 space.clip_end = 1000.0
             for region in area.regions:
