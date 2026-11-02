@@ -98,7 +98,7 @@ def main() -> None:
     shutil.rmtree(rel, ignore_errors=True)
     os.makedirs(rel)
     shutil.copy2(ext_zip, rel)
-    for f in ("Install.bat", "Install-FresingRender.ps1", "Uninstall-FresingRender.ps1"):
+    for f in ("Install.bat", "Install-FresingRender.ps1", "Uninstall.bat", "Uninstall-FresingRender.ps1"):
         shutil.copy2(os.path.join(ROOT, "installer", f), rel)
     shutil.copytree(os.path.join(ROOT, "app_template"), os.path.join(rel, "app_template"),
                     ignore=shutil.ignore_patterns("__pycache__"))
