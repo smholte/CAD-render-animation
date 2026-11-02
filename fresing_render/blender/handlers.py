@@ -26,6 +26,33 @@ def ignore_next(ob) -> None:
         _IGNORE.add(ob.name)
 
 
+_LAST = {"key": None}
+
+
+def _key():
+    """What a click changes: the active object and whether it is selected."""
+    try:
+        vl = bpy.context.view_layer
+        ob = vl.objects.active if vl is not None else None
+        return (ob.name, ob.select_get()) if ob is not None else None
+    except (AttributeError, ReferenceError, RuntimeError):
+        return None
+
+
+def _on_change():
+    """Shared by both triggers; whichever comes first does the work, the other sees no change."""
+    key = _key()
+    if key != _LAST["key"]:
+        _on_active_changed()
+
+
+@persistent
+def _on_depsgraph(scene, _depsgraph=None):
+    # Second trigger next to the message bus: the bus is only handled when the next input
+    # event arrives; a selection change updates the scene straight away.
+    _on_change()
+
+
 def _on_active_changed():
     ctx = bpy.context
     scene = getattr(ctx, "scene", None)
@@ -33,6 +60,7 @@ def _on_active_changed():
     if scene is None or view_layer is None or not hasattr(scene, "fresing"):
         return
     ob = view_layer.objects.active
+    _LAST["key"] = _key()
     if ob is not None and ob.name in _IGNORE:
         _IGNORE.discard(ob.name)
         return
@@ -68,7 +96,7 @@ def _subscribe():
         key=(bpy.types.LayerObjects, "active"),
         owner=_OWNER,
         args=(),
-        notify=_on_active_changed,
+        notify=_on_change,
         options={"PERSISTENT"},
     )
 
@@ -129,6 +157,8 @@ def register():
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         if _after_undo not in lst:
             lst.append(_after_undo)
+    if _on_depsgraph not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(_on_depsgraph)
     atexit.register(_at_exit)
 
 
@@ -142,4 +172,6 @@ def unregister():
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         while _after_undo in lst:
             lst.remove(_after_undo)
+    while _on_depsgraph in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(_on_depsgraph)
     atexit.unregister(_at_exit)
