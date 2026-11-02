@@ -67,16 +67,38 @@ def is_running(scene) -> bool:
     return _pid_alive(s.queue_pid)
 
 
+_ALIVE_CACHE: dict[int, tuple[float, bool]] = {}
+
+
 def _pid_alive(pid: int) -> bool:
+    """Cheap enough to call from panel drawing (cached for a second)."""
     if pid <= 0:
         return False
+    proc = _PROCS.get(pid)
+    if proc is not None:                     # started by this session: ask the process object
+        return proc.poll() is None
+    hit = _ALIVE_CACHE.get(pid)
+    if hit is not None and time.time() - hit[0] < 1.0:
+        return hit[1]
+    alive = _pid_alive_os(pid)
+    _ALIVE_CACHE[pid] = (time.time(), alive)
+    return alive
+
+
+def _pid_alive_os(pid: int) -> bool:
     if sys.platform == "win32":
-        try:
-            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True,
-                                 timeout=5, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
-            return str(pid) in out
-        except Exception:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
             return False
+        try:
+            code = ctypes.c_ulong()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return False
+            return code.value == 259                              # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except OSError:

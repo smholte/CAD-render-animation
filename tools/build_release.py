@@ -116,6 +116,8 @@ def main() -> None:
     # static update repository
     repo = os.path.join(DIST, "update-repo")
     os.makedirs(repo, exist_ok=True)
+    for old in glob.glob(os.path.join(repo, "fresing_render-*.zip")):
+        os.remove(old)             # one version per repository: Blender offers the newest anyway
     shutil.copy2(ext_zip, repo)
     run([sys.executable, ext_tool, "server-generate", "--repo-dir", repo, "--html"])
 

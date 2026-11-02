@@ -104,19 +104,20 @@ def main(report_path: str | None = None) -> bool:
         scene = bpy.context.scene
         cover = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.ASM")
         plate = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.PLATE")
-        before = plate.matrix_world.translation.copy()
-        j = joints.create(scene, "ROTATE", [cover], before, Vector((0, 0, 1)))
+        corner = Vector((0.4, 0.3, 0.0))          # far corner of the 400 x 300 mm plate
+        before = plate.matrix_world @ corner
+        j = joints.create(scene, "ROTATE", [cover], plate.matrix_world.translation, Vector((0, 0, 1)))
         a = scene.fresing.animations.add()
         a.name = "Self-test"
         b = a.blocks.add()
         b.kind, b.joint, b.duration, b.use_from, b.to_angle = "JOINT", j.name, 1.0, False, math.radians(90)
         info = animation.bake(scene, a)
         scene.frame_set(info["frames"])
-        moved = (plate.matrix_world.translation - before).length
+        moved = (plate.matrix_world @ corner - before).length
         animation.clear_keys(scene)
         joints.remove(scene, j)
         bpy.context.view_layer.update()
-        back = (plate.matrix_world.translation - before).length
+        back = (plate.matrix_world @ corner - before).length
         if moved < 0.01 or back > 1e-4:
             raise RuntimeError(f"joint did not move as expected (moved {moved:.3f} m, back {back:.5f} m)")
         return f"{info['frames']} frames, cover turned and returned"
