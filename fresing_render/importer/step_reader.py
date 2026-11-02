@@ -65,6 +65,8 @@ def _occ():
     from OCP.Quantity import Quantity_Color, Quantity_TOC_sRGB
     from OCP.IFSelect import IFSelect_RetDone
     from OCP.collections import Sequence_TDF_Label
+    from OCP.TopoDS import TopoDS_Compound
+    from OCP.BRep import BRep_Builder
     return locals()
 
 
@@ -128,9 +130,10 @@ def _face_colors(occ, stool, ctool, label):
     return result
 
 
-def _mesh_shape(occ, shape, lin_rel, ang, face_cols):
+def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False):
     """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours)."""
-    occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
+    if not already_meshed:
+        occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
     positions, normals, tris, tri_col = [], [], [], []
     palette = []
     offset = 0
@@ -317,11 +320,16 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
     total = max(1, len(mesh_labels))
     tri_total = 0
     t1 = time.time()
+    # Each part is tessellated on its own: the deflection is relative to the part's size,
+    # so small parts (bolts) stay smooth next to big frames. OpenCascade still uses all
+    # cores within each part.
+    shapes = [occ["XCAFDoc_ShapeTool"].GetShape_s(label) for label in mesh_labels]
+    premeshed = False
     for mid, label in enumerate(mesh_labels):
-        shape = occ["XCAFDoc_ShapeTool"].GetShape_s(label)
+        shape = shapes[mid]
         face_cols = _face_colors(occ, stool, ctool, label)
         try:
-            res = _mesh_shape(occ, shape, lin_rel, ang, face_cols)
+            res = _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=premeshed)
         except Exception as exc:  # keep going, report the part
             emit("warning", 30 + 65 * mid / total, f"Could not mesh {mesh_names[mid]}: {exc}")
             res = None

@@ -544,6 +544,50 @@ class FRESING_OT_pick_ral(bpy.types.Operator):
 # =============================================================================
 
 
+def _library_hdris():
+    from . import prefs
+    folder = prefs.library_dir("HDRI")
+    found = []
+    if folder:
+        for dirpath, _dirs, files in os.walk(folder):
+            for f in sorted(files):
+                if f.lower().endswith((".exr", ".hdr")):
+                    full = os.path.join(dirpath, f)
+                    found.append((full, os.path.splitext(os.path.relpath(full, folder))[0].replace(os.sep, " / ")))
+    return found
+
+
+class FRESING_OT_pick_hdri(bpy.types.Operator):
+    """Pick a 360° photo from the shared library (Preferences > Add-ons > Fresing Render)"""
+
+    bl_idname = "fresing.pick_hdri"
+    bl_label = "360° photo from library"
+    bl_property = "path"
+
+    def _items(self, context):
+        items = [(p, label, p) for p, label in _library_hdris()]
+        return items or [("NONE", "No library set (Preferences > Fresing Render)", "")]
+
+    path: EnumProperty(items=_items)
+    target: EnumProperty(items=[("BACKGROUND", "Background", ""), ("LIGHT", "Light", "")],
+                         default="BACKGROUND", options={"SKIP_SAVE"})
+
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        if self.path == "NONE":
+            self.report({"WARNING"}, "Set the shared library folder in the add-on preferences")
+            return {"CANCELLED"}
+        s = context.scene.fresing
+        if self.target == "LIGHT":
+            s.light_hdri_path = self.path
+        else:
+            s.hdri_path = self.path
+        return {"FINISHED"}
+
+
 class FRESING_OT_world_apply(bpy.types.Operator):
     """Rebuild background, light and floor"""
 
@@ -779,7 +823,7 @@ CLASSES = (
     FRESING_OT_group_assign, FRESING_OT_group_unassign, FRESING_OT_rule_add, FRESING_OT_rule_remove,
     FRESING_OT_rule_move, FRESING_OT_rules_reset, FRESING_OT_scheme_save, FRESING_OT_scheme_apply,
     FRESING_OT_scheme_remove, FRESING_OT_template_export, FRESING_OT_template_import, FRESING_OT_pick_ral,
-    FRESING_OT_world_apply, FRESING_OT_camera_add, FRESING_OT_camera_activate, FRESING_OT_camera_fit,
+    FRESING_OT_pick_hdri, FRESING_OT_world_apply, FRESING_OT_camera_add, FRESING_OT_camera_activate, FRESING_OT_camera_fit,
     FRESING_OT_camera_remove, FRESING_OT_camera_dof, FRESING_OT_preview, FRESING_OT_render,
     FRESING_OT_open_folder,
 )

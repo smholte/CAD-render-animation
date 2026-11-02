@@ -297,13 +297,17 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
         if s.background == "COLOR":
             col.prop(s, "background_color", text="")
         elif s.background == "HDRI":
-            col.prop(s, "hdri_path", text="")
+            row = col.row(align=True)
+            row.prop(s, "hdri_path", text="")
+            row.operator("fresing.pick_hdri", text="", icon="ASSET_MANAGER").target = "BACKGROUND"
         if s.background in ("COLOR", "TRANSPARENT"):
             col.separator()
             col.label(text="Lighting")
             col.prop(s, "lighting", text="")
             if s.lighting == "HDRI":
-                col.prop(s, "light_hdri_path", text="")
+                row = col.row(align=True)
+                row.prop(s, "light_hdri_path", text="")
+                row.operator("fresing.pick_hdri", text="", icon="ASSET_MANAGER").target = "LIGHT"
         col.separator()
         col.prop(s, "light_rotation")
         col.prop(s, "light_strength")
