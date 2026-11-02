@@ -39,10 +39,19 @@ def main(report_path: str | None = None) -> bool:
 
     lines: list[str] = []
     ok = True
+    report_path = report_path or os.path.join(_desktop(), "Fresing Render self-test.txt")
+    try:
+        report = open(report_path, "w", encoding="utf-8")
+    except OSError as exc:
+        print("Could not write report:", exc)
+        report = None
 
     def log(msg: str) -> None:
         print(msg)
         lines.append(msg)
+        if report is not None:               # written as we go: a crash still leaves a report
+            report.write(msg + "\n")
+            report.flush()
 
     def check(name: str, fn):
         nonlocal ok
@@ -205,13 +214,9 @@ def main(report_path: str | None = None) -> bool:
         check("Render queue (second Blender in the background)", _queue)
 
     log("RESULT: " + ("ALL OK" if ok else "PROBLEMS FOUND (see above)"))
-    report_path = report_path or os.path.join(_desktop(), "Fresing Render self-test.txt")
-    try:
-        with open(report_path, "w", encoding="utf-8") as fh:
-            fh.write("\n".join(lines) + "\n")
+    if report is not None:
+        report.close()
         print("Report written to", report_path)
-    except OSError as exc:
-        print("Could not write report:", exc)
     return ok
 
 

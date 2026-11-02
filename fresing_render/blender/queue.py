@@ -110,7 +110,16 @@ def _pid_alive_os(pid: int) -> bool:
     if sys.platform == "win32":
         import ctypes
         from ctypes import wintypes
-        kernel32 = ctypes.windll.kernel32
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                        ctypes.POINTER(wintypes.DWORD)]
+        kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
         handle = kernel32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
         if not handle:
             return False
@@ -166,6 +175,7 @@ def start(context) -> str:
         raise RuntimeError("Nothing to render: add images or animations to the queue first")
     out_dir = bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
     os.makedirs(out_dir, exist_ok=True)
+    _tidy_old_queues(os.path.join(out_dir, "_queue"))
     qdir = os.path.join(out_dir, "_queue", time.strftime("%Y-%m-%d_%H%M%S"))
     os.makedirs(qdir, exist_ok=True)
     stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
@@ -209,6 +219,25 @@ def start(context) -> str:
 
 
 _PROCS: dict[int, subprocess.Popen] = {}
+
+
+def _tidy_old_queues(root: str) -> None:
+    """Remove project copies left by queues that were killed (they can be big on a share)."""
+    if not os.path.isdir(root):
+        return
+    for name in os.listdir(root):
+        qd = os.path.join(root, name)
+        if not os.path.isdir(qd):
+            continue
+        st = read_status(qd)
+        if st.get("running") and _pid_alive_os(int(st.get("pid", 0))):
+            continue                         # a queue that is really still running
+        for f in os.listdir(qd):
+            if f.endswith(".blend") or f.endswith(".blend1"):
+                try:
+                    os.remove(os.path.join(qd, f))
+                except OSError:
+                    pass
 
 
 def stop(scene) -> None:

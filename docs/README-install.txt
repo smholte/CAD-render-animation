@@ -5,6 +5,8 @@ Install (once per PC, no admin rights needed)
 ---------------------------------------------
 1. Unzip this folder anywhere (e.g. Downloads).
 2. Double-click  Install.bat   (close Fresing Render first when upgrading)
+   If Windows shows "Windows protected your PC": click "More info", then "Run anyway".
+   Unpacking Blender takes a few minutes without a progress bar; let it finish.
    - downloads Blender 5.2.3 LTS (about 400 MB) and checks it
    - installs Fresing Render in  %LOCALAPPDATA%\FresingRender
      (separate from any other Blender on this PC)
@@ -33,6 +35,8 @@ Remove
 ------
 Double-click Uninstall.bat (close Fresing Render first).
 Projects (.blend files) and renders are not touched.
+If you installed into another folder with -InstallDir, give the same folder:
+    Uninstall.bat -InstallDir "D:\Apps\FresingRender"
 
 Company PCs
 -----------

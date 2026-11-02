@@ -55,6 +55,18 @@ try { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::Def
 
 function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
 
+# Virus scanners briefly lock freshly unpacked files: retry moves/deletes for a few seconds.
+function Retry([scriptblock]$Action, [string]$What) {
+    for ($i = 1; $i -le 15; $i++) {
+        try { & $Action; return } catch {
+            if ($i -eq 15) {
+                throw "$What failed: $($_.Exception.Message) Close Explorer windows on the install folder and run the installer again."
+            }
+            Start-Sleep -Seconds 1
+        }
+    }
+}
+
 $BlenderDir = Join-Path $InstallDir "blender-$BlenderVersion-windows-x64"
 $BlenderExe = Join-Path $BlenderDir "blender.exe"
 $Portable   = Join-Path $BlenderDir "portable"
@@ -78,7 +90,9 @@ function Invoke-Blender([string[]]$BlenderArgs, [string]$What, [switch]$AllowFai
 $running = Get-Process -Name blender, blender-launcher -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
 if ($running) {
-    throw "Fresing Render is still open. Close it (save your work first) and run the installer again."
+    throw ("Fresing Render is still open, or a render queue is still running in the background. " +
+           "Close Fresing Render (save your work first); a running render queue can be stopped in the app " +
+           "(panel 7) or ended in Task Manager (blender.exe). Then run the installer again.")
 }
 
 # ---- 1. Blender -----------------------------------------------------------------
@@ -120,7 +134,7 @@ if (Test-Path -LiteralPath $BlenderExe) {
     # Unpack into a staging folder first: the Blender folder only appears once it is complete,
     # so an interrupted unpack is redone on the next run instead of looking "installed".
     $Staging = Join-Path $InstallDir "_unpack"
-    if (Test-Path -LiteralPath $Staging) { Remove-Item -LiteralPath $Staging -Recurse -Force }
+    if (Test-Path -LiteralPath $Staging) { Retry { Remove-Item -LiteralPath $Staging -Recurse -Force } "Removing an old unpack folder" }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $Staging)
     $unpacked = Join-Path $Staging "blender-$BlenderVersion-windows-x64"
@@ -128,10 +142,12 @@ if (Test-Path -LiteralPath $BlenderExe) {
     if (Test-Path -LiteralPath $BlenderDir) {
         # damaged earlier install (e.g. blender.exe quarantined): keep its settings
         $keep = Join-Path $BlenderDir "portable"
-        if (Test-Path -LiteralPath $keep) { Move-Item -LiteralPath $keep -Destination (Join-Path $unpacked "portable") }
-        Remove-Item -LiteralPath $BlenderDir -Recurse -Force
+        if (Test-Path -LiteralPath $keep) {
+            Retry { Move-Item -LiteralPath $keep -Destination (Join-Path $unpacked "portable") } "Keeping the old settings"
+        }
+        Retry { Remove-Item -LiteralPath $BlenderDir -Recurse -Force } "Removing the damaged Blender folder"
     }
-    Move-Item -LiteralPath $unpacked -Destination $BlenderDir
+    Retry { Move-Item -LiteralPath $unpacked -Destination $BlenderDir } "Moving Blender into place"
     Remove-Item -LiteralPath $Staging -Recurse -Force -ErrorAction SilentlyContinue
     if (-not (Test-Path -LiteralPath $BlenderExe)) { throw "Blender was not unpacked to $BlenderDir" }
     if ($zip.StartsWith($InstallDir)) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
@@ -224,7 +240,10 @@ Write-Host "   Fresing Render $ver installed"
 Step "Installing the Fresing Render app layout"
 $TemplateSrc = Join-Path $Here "app_template\fresing_render"
 $TemplateDst = Join-Path $Portable "scripts\startup\bl_app_templates_user\fresing_render"
-if (Test-Path -LiteralPath $TemplateDst) { Remove-Item -LiteralPath $TemplateDst -Recurse -Force }
+if (-not (Test-Path -LiteralPath (Join-Path $TemplateSrc "__init__.py"))) {
+    throw "The app_template folder is missing next to the installer: unzip the whole folder and run Install.bat again."
+}
+if (Test-Path -LiteralPath $TemplateDst) { Retry { Remove-Item -LiteralPath $TemplateDst -Recurse -Force } "Replacing the app layout" }
 New-Item -ItemType Directory -Force -Path $TemplateDst | Out-Null
 Get-ChildItem -LiteralPath $TemplateSrc | Copy-Item -Destination $TemplateDst -Recurse -Force
 
@@ -235,7 +254,7 @@ import bpy
 p = bpy.context.preferences
 p.filepaths.use_relative_paths = True
 p.view.show_tooltips_python = False
-if $Online:
+if ${Online}:
     p.system.use_online_access = True          # needed for the update check
     for repo in p.extensions.repos:
         if repo.module == "fresing":

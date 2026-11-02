@@ -81,6 +81,8 @@ class ImportJob:
             shutil.rmtree(self.tmp_dir, ignore_errors=True)
         os.makedirs(os.path.dirname(self.cache_dir), exist_ok=True)
         env = dict(os.environ)
+        for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
+            env.pop(var, None)              # another program's Python settings must not leak in
         env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
         env["PYTHONUNBUFFERED"] = "1"
         flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW

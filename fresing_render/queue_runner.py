@@ -19,8 +19,21 @@ def _args():
     return argv[0], argv[1]
 
 
+def _keep_awake() -> None:
+    """Windows: no sleep while the queue renders (released automatically when the process ends)."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+    except Exception:
+        pass
+
+
 def main() -> int:
     qdir, package = _args()
+    _keep_awake()
     import bpy
 
     import addon_utils

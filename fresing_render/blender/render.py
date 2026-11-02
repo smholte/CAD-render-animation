@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import time
 
 import bpy
@@ -50,45 +51,87 @@ def setup_gpu() -> str:
     return "CPU"
 
 
+def _set(data, attr: str, value) -> None:
+    """Assign only when the value changes: every assignment runs Blender's update code,
+    and changing e.g. the render engine stops running preview jobs."""
+    try:
+        if getattr(data, attr) == value:
+            return
+    except AttributeError:
+        pass
+    setattr(data, attr, value)
+
+
 def apply_output(scene, s) -> presets.OutputSize:
     size = presets.compute(s.out_format, s.out_resolution, s.out_orientation, int(s.out_dpi),
                            s.out_bleed_mm if s.out_use_bleed else 0.0, s.out_custom_w, s.out_custom_h)
-    scene.render.resolution_x = size.width
-    scene.render.resolution_y = size.height
-    scene.render.resolution_percentage = 100
-    scene.render.pixel_aspect_x = scene.render.pixel_aspect_y = 1.0
+    r = scene.render
+    _set(r, "resolution_x", size.width)
+    _set(r, "resolution_y", size.height)
+    _set(r, "resolution_percentage", 100)
+    _set(r, "pixel_aspect_x", 1.0)
+    _set(r, "pixel_aspect_y", 1.0)
     return size
 
 
 def apply_quality(scene, quality: str, use_gpu: bool = True) -> str:
     samples, pct, threshold = QUALITY.get(quality, QUALITY["final"])
-    scene.render.engine = "CYCLES"
+    c = scene.cycles
+    _set(scene.render, "engine", "CYCLES")
     device = setup_gpu() if use_gpu else "CPU"
-    scene.cycles.device = "GPU" if device.startswith("GPU") else "CPU"
-    scene.cycles.samples = samples
-    scene.cycles.use_adaptive_sampling = True
-    scene.cycles.adaptive_threshold = threshold
-    scene.cycles.use_denoising = True
+    _set(c, "device", "GPU" if device.startswith("GPU") else "CPU")
+    _set(c, "samples", samples)
+    _set(c, "use_adaptive_sampling", True)
+    _set(c, "adaptive_threshold", threshold)
+    _set(c, "use_denoising", True)
     try:
-        scene.cycles.denoiser = "OPENIMAGEDENOISE"
+        _set(c, "denoiser", "OPENIMAGEDENOISE")
     except TypeError:
         pass
-    scene.cycles.max_bounces = 12
-    scene.cycles.transmission_bounces = 12
-    scene.cycles.glossy_bounces = 6
-    scene.render.resolution_percentage = pct
-    scene.view_settings.view_transform = "AgX"
+    _set(c, "max_bounces", 12)
+    _set(c, "transmission_bounces", 12)
+    _set(c, "glossy_bounces", 6)
+    _set(scene.render, "resolution_percentage", pct)
+    _set(scene.view_settings, "view_transform", "AgX")
     try:
-        scene.view_settings.look = "AgX - Medium High Contrast"
+        _set(scene.view_settings, "look", "AgX - Medium High Contrast")
     except TypeError:
         pass
     return device
 
 
+def pictures_dir() -> str:
+    """The user's Pictures folder (on Windows asked from the system: OneDrive may have moved it)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            import uuid
+            from ctypes import wintypes
+
+            class GUID(ctypes.Structure):
+                _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD), ("Data3", wintypes.WORD),
+                            ("Data4", ctypes.c_ubyte * 8)]
+
+            u = uuid.UUID("33E28130-4E1E-4676-835A-98395C3BC3BB")      # FOLDERID_Pictures
+            guid = GUID(u.fields[0], u.fields[1], u.fields[2], (ctypes.c_ubyte * 8)(*u.bytes[8:]))
+            path = ctypes.c_wchar_p()
+            shell32 = ctypes.WinDLL("shell32")
+            shell32.SHGetKnownFolderPath.argtypes = [ctypes.POINTER(GUID), wintypes.DWORD, wintypes.HANDLE,
+                                                     ctypes.POINTER(ctypes.c_wchar_p)]
+            if shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path)) == 0 and path.value:
+                result = path.value
+                ctypes.windll.ole32.CoTaskMemFree(path)
+                if os.path.isdir(result):
+                    return result
+        except Exception:
+            pass
+    return os.path.join(os.path.expanduser("~"), "Pictures")
+
+
 def default_output_dir() -> str:
     if bpy.data.filepath:
         return bpy.path.abspath("//Renders")
-    return os.path.join(os.path.expanduser("~"), "Pictures", "Fresing Render")
+    return os.path.join(pictures_dir(), "Fresing Render")
 
 
 def _safe(text: str) -> str:
