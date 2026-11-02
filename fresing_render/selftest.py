@@ -77,6 +77,45 @@ def main(report_path: str | None = None) -> bool:
 
     check("STEP reader (OpenCascade)", _occ)
 
+    def _fast_import():
+        """The reader with two meshing helpers gives the same model as on one core."""
+        import json as _json
+        import tempfile
+        from .importer import runner
+        stats = {}
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            for mode in ("0", "2"):
+                saved = os.environ.get("FRESING_IMPORT_WORKERS")
+                os.environ["FRESING_IMPORT_WORKERS"] = mode
+                try:
+                    job = runner.ImportJob(TEST_STEP, "normal", os.path.join(tmp, mode))
+                    job.start()
+                finally:
+                    if saved is None:
+                        os.environ.pop("FRESING_IMPORT_WORKERS", None)
+                    else:
+                        os.environ["FRESING_IMPORT_WORKERS"] = saved
+                end = time.time() + 180
+                while not job.poll():
+                    if time.time() > end:
+                        job.cancel()
+                        raise RuntimeError("the reader did not finish within 3 minutes")
+                    time.sleep(0.1)
+                if job.error:
+                    raise RuntimeError(job.error)
+                with open(os.path.join(job.cache_dir, "tree.json"), encoding="utf-8") as fh:
+                    stats[mode] = _json.load(fh)["stats"]
+        if stats["2"].get("mesh_helpers") != 2:
+            raise RuntimeError(f"the meshing helpers did not start ({stats['2'].get('mesh_helpers')} of 2)")
+        if stats["2"]["triangles_unique"] != stats["0"]["triangles_unique"]:
+            raise RuntimeError("the helpers gave a different mesh")
+        n = runner.step_reader.worker_count()
+        if n == 0:
+            return f"helpers work; this PC has {os.cpu_count()} cores, so big models are meshed on one"
+        return f"big models are meshed on {n} cores at once ({os.cpu_count()} in this PC)"
+
+    check("Fast import (all cores)", _fast_import)
+
     def _template():
         import subprocess
         exe = bpy.app.binary_path

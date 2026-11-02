@@ -48,7 +48,9 @@ Install-FresingRender.ps1 once, or to install into an allowed folder:
 Using it (short)
 ----------------
 Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
-1 Import          Import STEP... or drag a .step file onto the view.
+1 Import          Import STEP... or drag a .step file onto the view. Big files are meshed on
+                  all processor cores at once (one is left free, so the PC stays usable).
+                  A second import of an unchanged file comes from the stored copy.
                   "Update to new revision..." loads a newer STEP of the same machine and keeps
                   all work (colours, hidden parts, joints, poses, scenes); a report lists new
                   and missing parts.

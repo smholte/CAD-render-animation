@@ -14,6 +14,16 @@ sets are light configurations.
 2. The reader walks the XCAF document: assemblies, components (with placement), parts.
    Each unique part is tessellated once (`BRepMesh_IncrementalMesh`, relative deflection),
    normals from OpenCascade are kept for smooth CAD shading.
+   For files over 3 MB the reader starts helper processes (all cores but one, at most 24,
+   as free memory allows) right at the start, so they load OpenCascade while the file is
+   read. Each unique part goes to a helper as OpenCascade binary BRep (`BinTools`, in
+   memory), biggest first; the helper meshes it and returns the arrays (length-prefixed
+   pickles over stdin/stdout). Helpers run below normal priority without a console
+   window and stop when the reader stops (Cancel kills only the reader). A part a helper
+   dies on is reported as "Could not mesh" and skipped; parts no helper could take are
+   meshed in the reader. `FRESING_IMPORT_WORKERS=0` turns helpers off (any number sets it).
+   A part meshed from its binary copy can get a different triangle order (OpenCascade walks
+   some maps in memory order) - same counts, colours and axes, and the same result each run.
 3. It writes `tree.json` (nodes with stable IDs `Parent#1/Child#2`) and `meshes.npz`
    into the cache (`<extension user dir>/cache/<name>_<hash>`). The hash covers path, size,
    modified time, quality and cache version, so a changed STEP is re-read.
@@ -28,7 +38,11 @@ Units: STEP millimetres become Blender metres; the scene shows millimetres.
 
 EGR cooler inspection line, 78 MB AP203 STEP, 2,789 placed parts, 584 unique, 4.2 M
 unique triangles (17 M placed): read 42 s, tessellate 43 s, build objects 3 s.
-A normal 8-16 core workstation is several times faster.
+A normal 8-16 core workstation is several times faster. Fresing's 24-core PC (0.2.2, one
+core meshing): import 50-52 s Normal, 40 s Draft. 0.2.3 meshes on all cores; on the 2-core
+test machine 2 helpers take tessellation from 40 s to 30 s. The biggest EGR part
+("COMPOUND", 8,600 faces, 39 % of all triangles) needs 5.7 s meshing + 5.6 s arrays there
+and sets the floor on many cores.
 
 ## Tests
 

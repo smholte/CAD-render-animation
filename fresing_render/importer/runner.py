@@ -186,6 +186,10 @@ class ImportJob:
     def cancel(self) -> None:
         if self.proc and self.proc.poll() is None:
             self.proc.kill()
+            try:
+                self.proc.wait(timeout=5)       # the reader must let go of its files before they are removed
+            except Exception:
+                pass
         self.error = "Cancelled"
         self.done = True
         shutil.rmtree(self.tmp_dir, ignore_errors=True)

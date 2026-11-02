@@ -59,7 +59,9 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
             if st:
                 box.label(text=f"{st.get('placed_parts', 0)} parts ({st.get('unique_parts', 0)} different), "
                                f"{st.get('triangles_unique', 0) / 1e6:.1f} M triangles")
-                box.label(text=f"Read in {st.get('seconds_total', 0):.0f} s")
+                helpers = st.get("mesh_helpers", 0)
+                box.label(text=f"Read in {st.get('seconds_total', 0):.0f} s"
+                               + (f", meshed on {helpers} cores" if helpers else ""))
             op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
             op.update_root = root.name
         if s.report_title:

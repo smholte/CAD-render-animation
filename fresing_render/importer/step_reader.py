@@ -17,9 +17,15 @@ Run directly:
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
+import pickle
+import queue
+import struct
+import subprocess
 import sys
+import threading
 import time
 
 import numpy as np
@@ -69,6 +75,8 @@ def _occ():
     from OCP.BRep import BRep_Builder
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     from OCP.GeomAbs import GeomAbs_SurfaceType
+    from OCP.BinTools import BinTools, BinTools_FormatVersion
+    from OCP.TopoDS import TopoDS_Shape
     return locals()
 
 
@@ -197,22 +205,55 @@ class _Axes:
         self.faces.extend((tri_start, tri_count, idx))
 
 
-def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False, axes: _Axes | None = None):
-    """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours)."""
+def _faces(occ, shape):
+    """The faces of a shape in OpenCascade's own order (the same order after a binary copy)."""
+    exp = occ["TopExp_Explorer"](shape, occ["TopAbs_FACE"])
+    to_face = getattr(occ["TopoDS"], "Face", None) or getattr(occ["TopoDS"], "Face_s")
+    while exp.More():
+        yield to_face(exp.Current())
+        exp.Next()
+
+
+def _face_colour_list(occ, shape, face_cols):
+    """Colour per face (by position in _faces order), None for faces without their own colour.
+
+    Returns None when the part has no individually coloured faces (the usual case)."""
+    if not face_cols:
+        return None
+    out = []
+    for face in _faces(occ, shape):
+        colr = None
+        for sub_shape, c in face_cols:
+            if sub_shape.IsSame(face):
+                colr = c
+                break
+        out.append(colr)
+    return out if any(c is not None for c in out) else None
+
+
+def _trsf_arrays(trsf):
+    """gp_Trsf -> (3x4 matrix incl. scale, 3x3 rotation, scale factor) for numpy."""
+    m = np.array([[trsf.Value(r, c) for c in range(1, 5)] for r in range(1, 4)], dtype=np.float64)
+    hv = trsf.HVectorialPart()
+    rot = np.array([[hv.Value(r, c) for c in range(1, 4)] for r in range(1, 4)], dtype=np.float64)
+    return m, rot, trsf.ScaleFactor()
+
+
+def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=False, axes: _Axes | None = None):
+    """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours).
+
+    ``face_colours``: from _face_colour_list (a colour or None per face), or None."""
     if not already_meshed:
         occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
     positions, normals, tris, tri_col = [], [], [], []
     palette = []
     offset = 0
     tri_offset = 0
-    exp = occ["TopExp_Explorer"](shape, occ["TopAbs_FACE"])
     BRep_Tool = occ["BRep_Tool"]
     TopLoc_Location = occ["TopLoc_Location"]
     compute_normals = occ["BRepLib_ToolTriangulatedShape"].ComputeNormals_s
-    to_face = getattr(occ["TopoDS"], "Face", None) or getattr(occ["TopoDS"], "Face_s")
-    while exp.More():
-        face = to_face(exp.Current())
-        exp.Next()
+    REVERSED = occ["TopAbs_REVERSED"]
+    for face_no, face in enumerate(_faces(occ, shape)):
         loc = TopLoc_Location()
         tri = BRep_Tool.Triangulation_s(face, loc)
         if tri is None:
@@ -226,40 +267,40 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False, axes:
                 compute_normals(face, tri)
             except Exception:
                 pass
-        trsf = loc.Transformation()
-        identity = loc.IsIdentity()
-        reversed_ = face.Orientation() == occ["TopAbs_REVERSED"]
-        pts = np.empty((n_nodes, 3), dtype=np.float64)
-        nrm = np.zeros((n_nodes, 3), dtype=np.float64)
+        reversed_ = face.Orientation() == REVERSED
+        # one call per node / triangle; numpy does the rest
+        node = tri.Node
+        pts = np.array([node(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
         has_n = tri.HasNormals()
-        for i in range(1, n_nodes + 1):
-            p = tri.Node(i)
-            if not identity:
-                p = p.Transformed(trsf)
-            pts[i - 1] = (p.X(), p.Y(), p.Z())
-            if has_n:
-                d = tri.Normal(i)
-                if not identity:
-                    d = d.Transformed(trsf)
-                nrm[i - 1] = (d.X(), d.Y(), d.Z())
+        if has_n:
+            normal = tri.Normal
+            nrm = np.array([normal(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
+        else:
+            nrm = np.zeros((n_nodes, 3), dtype=np.float64)
+        if not loc.IsIdentity():
+            m, rot, scale = _trsf_arrays(loc.Transformation())
+            pts = pts @ m[:, :3].T + m[:, 3]
+            if has_n:                          # as gp_Dir.Transform: rotate, normalise, flip on negative scale
+                nrm = nrm @ rot.T
+                ln = np.linalg.norm(nrm, axis=1, keepdims=True)
+                ln[ln == 0] = 1.0
+                nrm /= ln
+                if scale < 0:
+                    nrm = -nrm
         if reversed_ and has_n:
             nrm = -nrm
-        t = np.empty((n_tris, 3), dtype=np.int64)
-        for j in range(1, n_tris + 1):
-            a, b, c = tri.Triangle(j).Get()
-            if reversed_:
-                t[j - 1] = (a - 1, c - 1, b - 1)
-            else:
-                t[j - 1] = (a - 1, b - 1, c - 1)
+        triangle = tri.Triangle
+        t = np.array([triangle(j).Get() for j in range(1, n_tris + 1)], dtype=np.int64) - 1
+        if reversed_:
+            t = t[:, (0, 2, 1)]
         # face colour
         cidx = -1
-        if face_cols:
-            for sub_shape, colr in face_cols:
-                if sub_shape.IsSame(face):
-                    if colr not in palette:
-                        palette.append(colr)
-                    cidx = palette.index(colr)
-                    break
+        if face_colours:
+            colr = face_colours[face_no] if face_no < len(face_colours) else None
+            if colr is not None:
+                if colr not in palette:
+                    palette.append(colr)
+                cidx = palette.index(colr)
         if axes is not None:
             fa = _face_axis(occ, face)
             if fa is not None:
@@ -296,10 +337,353 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=False, axes:
 
 
 # --------------------------------------------------------------------------
+# Meshing on all cores
+# --------------------------------------------------------------------------
+# Reading the file and building the assembly happen in this process. Each unique part is
+# then copied (OpenCascade's own binary format, in memory) to helper processes that mesh
+# it and turn the triangles into arrays: one part per core at a time, biggest first.
+
+PARALLEL_MIN_BYTES = 3_000_000      # smaller STEP files are done in well under a second anyway
+MAX_WORKERS = 24
+_JOB, _RESULT, _READY = b"FRJ1", b"FRR1", b"FRW1"
+_HEAD = struct.Struct(">4sQ")
+
+
+HELPER_MEMORY = 400 * 1024 * 1024   # OpenCascade plus one part being meshed, generous
+
+
+def _free_memory() -> int | None:
+    """Free physical memory in bytes, None if unknown."""
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            st = MEMORYSTATUSEX()
+            st.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+            k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            k32.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(MEMORYSTATUSEX)]
+            k32.GlobalMemoryStatusEx.restype = ctypes.c_int
+            return int(st.ullAvailPhys) if k32.GlobalMemoryStatusEx(ctypes.byref(st)) else None
+        return os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+    except Exception:
+        return None
+
+
+def worker_count() -> int:
+    """Helper processes for meshing (0 = mesh in this process).
+
+    Automatic: all cores but one, as far as free memory allows.
+    FRESING_IMPORT_WORKERS overrides the automatic choice."""
+    if os.path.basename(sys.executable).lower().startswith("blender"):
+        return 0                       # not started as a plain Python: no helpers
+    env = os.environ.get("FRESING_IMPORT_WORKERS", "").strip()
+    if env.isdigit():
+        n = int(env)
+    else:
+        cores = getattr(os, "process_cpu_count", os.cpu_count)() or 1   # cores this process may use
+        n = cores - 1
+        free = _free_memory()
+        if free is not None:
+            n = min(n, int(free // HELPER_MEMORY) - 2)   # keep room for the model itself
+    n = min(n, MAX_WORKERS)
+    return n if n >= 2 else 0
+
+
+def _send(stream, tag: bytes, obj) -> None:
+    data = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+    stream.write(_HEAD.pack(tag, len(data)))
+    stream.write(data)
+    stream.flush()
+
+
+def _recv(stream, tag: bytes):
+    head = stream.read(_HEAD.size)
+    if len(head) < _HEAD.size:
+        raise EOFError("helper stopped")
+    got, size = _HEAD.unpack(head)
+    if got != tag:
+        raise RuntimeError("helper sent something unexpected")
+    data = stream.read(size)
+    if len(data) < size:
+        raise EOFError("helper stopped")
+    return pickle.loads(data)
+
+
+# ---- in a helper process ------------------------------------------------------
+
+def _exit_with_parent(parent_pid: int) -> None:
+    """A helper stops at once when the reader stops (also when Cancel kills it)."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        k32.WaitForSingleObject.restype = wintypes.DWORD
+        handle = k32.OpenProcess(0x00100000, False, parent_pid)          # SYNCHRONIZE
+        if not handle:
+            os._exit(0)                                                   # already gone
+
+        def watch():
+            k32.WaitForSingleObject(handle, 0xFFFFFFFF)                    # INFINITE
+            os._exit(0)
+    else:
+        def watch():
+            while os.getppid() == parent_pid:
+                time.sleep(0.5)
+            os._exit(0)
+    threading.Thread(target=watch, daemon=True).start()
+
+
+def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: float):
+    """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error)."""
+    if os.environ.get("FRESING_TEST_CRASH_PART") == str(mid):
+        os._exit(3)                                  # tests: a helper that dies on one part
+    try:
+        if os.environ.get("FRESING_TEST_FAIL_PART") == str(mid):
+            raise MemoryError("test")                # tests: a part that fails in a helper
+        shape = occ["TopoDS_Shape"]()
+        occ["BinTools"].Read_s(shape, io.BytesIO(blob))
+        axes = _Axes()
+        res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes)
+    except Exception as exc:
+        return mid, None, [], [], str(exc) or exc.__class__.__name__
+    return mid, res, axes.axes, axes.faces, None
+
+
+def _no_crash_dialog() -> None:
+    """Windows: a crash ends the process at once instead of waiting on an error-report window."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            k32.SetErrorMode.argtypes = [ctypes.c_uint]
+            k32.SetErrorMode.restype = ctypes.c_uint
+            k32.SetErrorMode(0x0001 | 0x0002)        # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
+        except Exception:
+            pass
+
+
+def worker_main(parent_pid: int) -> int:
+    """Helper loop: jobs come in on stdin, results go out on stdout, until stdin closes."""
+    _no_crash_dialog()
+    _exit_with_parent(parent_pid)
+    if os.name != "nt":
+        try:
+            os.nice(5)               # Windows: the reader starts helpers below normal priority
+        except OSError:
+            pass
+    out_fd = os.dup(1)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, 1)              # anything OpenCascade prints must not end up in the result stream
+    sys.stdout = open(os.devnull, "w")
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.setmode(0, os.O_BINARY)
+        msvcrt.setmode(out_fd, os.O_BINARY)
+    out = os.fdopen(out_fd, "wb")
+    inp = sys.stdin.buffer
+    occ = _occ()
+    _send(out, _READY, os.getpid())
+    while True:
+        try:
+            job = _recv(inp, _JOB)
+        except EOFError:
+            return 0
+        _send(out, _RESULT, _mesh_job(occ, *job))
+
+
+# ---- in the reader ----------------------------------------------------------------
+
+def _kill_on_close_job():
+    """Windows job object that ends its processes when the reader ends (also when it is killed)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class IO_COUNTERS(ctypes.Structure):
+        _fields_ = [(n, ctypes.c_ulonglong) for n in (
+            "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+            "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+
+    class BASIC_LIMITS(ctypes.Structure):
+        _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                    ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                    ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                    ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                    ("SchedulingClass", wintypes.DWORD)]
+
+    class EXTENDED_LIMITS(ctypes.Structure):
+        _fields_ = [("BasicLimitInformation", BASIC_LIMITS), ("IoInfo", IO_COUNTERS),
+                    ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                    ("PeakProcessMemoryLimit", ctypes.c_size_t), ("PeakJobMemoryLimit", ctypes.c_size_t)]
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+    k32.CreateJobObjectW.restype = wintypes.HANDLE
+    k32.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    k32.SetInformationJobObject.restype = wintypes.BOOL
+    k32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    k32.AssignProcessToJobObject.restype = wintypes.BOOL
+    job = k32.CreateJobObjectW(None, None)
+    if not job:
+        return None, None
+    info = EXTENDED_LIMITS()
+    info.BasicLimitInformation.LimitFlags = 0x00002000            # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    if not k32.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info)):   # ExtendedLimitInformation
+        return None, None
+
+    def assign(proc) -> None:
+        if not k32.AssignProcessToJobObject(job, int(proc._handle)):
+            sys.stderr.write(f"helper not in job (error {ctypes.get_last_error()}); it stops by itself\n")
+    return job, assign
+
+
+def _die_with_parent() -> None:            # Linux: runs in the helper just before it starts
+    import ctypes
+    import signal
+    ctypes.CDLL(None, use_errno=True).prctl(1, int(signal.SIGKILL))   # PR_SET_PDEATHSIG
+
+
+class _Helpers:
+    """Helper processes started at the beginning, so they load OpenCascade while the file is read."""
+
+    def __init__(self, n: int):
+        self.procs: list[subprocess.Popen] = []
+        self.started = 0
+        self._job = None                     # kept open as long as the reader runs
+        kwargs: dict = {}
+        assign = None
+        if os.name == "nt":
+            kwargs["creationflags"] = 0x08000000 | 0x00004000   # CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS
+            try:
+                self._job, assign = _kill_on_close_job()
+            except Exception:
+                assign = None                # the helpers still stop by themselves, a bit later
+        elif sys.platform.startswith("linux"):
+            kwargs["preexec_fn"] = _die_with_parent
+        cmd = [sys.executable, os.path.abspath(__file__), "--worker", str(os.getpid())]
+        for _ in range(n):
+            try:
+                proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, **kwargs)
+            except OSError:
+                break
+            if assign is not None:
+                try:
+                    assign(proc)
+                except Exception:
+                    pass
+            self.procs.append(proc)
+
+    def run(self, jobs: list, on_result) -> tuple:
+        """Hand out ``jobs`` (biggest first); ``on_result`` is called here for every result.
+
+        Returns (mid, reason) for parts a helper stopped on, and the jobs nobody took.
+        ``self.started``: helpers that came up."""
+        todo: "queue.Queue" = queue.Queue()
+        for job in jobs:
+            todo.put(job)
+        results: "queue.Queue" = queue.Queue()
+        threads = [threading.Thread(target=self._feed, args=(p, todo, results), daemon=True) for p in self.procs]
+        for t in threads:
+            t.start()
+        lost = []
+        self.started = 0
+        while any(t.is_alive() for t in threads) or not results.empty():
+            try:
+                kind, payload = results.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if kind == "ok":
+                on_result(payload)
+            elif kind == "ready":
+                self.started += 1
+            else:
+                lost.append(payload)
+        left = []
+        while True:
+            try:
+                left.append(todo.get_nowait())
+            except queue.Empty:
+                break
+        return lost, left
+
+    @staticmethod
+    def _feed(proc, todo, results) -> None:
+        try:
+            _recv(proc.stdout, _READY)
+        except Exception:
+            return                                   # helper did not start: it takes no work
+        results.put(("ready", None))
+        while True:
+            try:
+                job = todo.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                _send(proc.stdin, _JOB, job)
+            except Exception:
+                todo.put(job)                         # this helper is gone: the part goes to another one
+                return
+            mid = job[0]
+            del job[1:]                               # free the part copy while it is being meshed
+            try:
+                reply = _recv(proc.stdout, _RESULT)
+            except Exception as exc:
+                results.put(("lost", (mid, str(exc) or "helper stopped")))
+                return
+            results.put(("ok", reply))
+
+    def close(self) -> None:
+        for p in self.procs:
+            try:
+                p.stdin.close()
+            except Exception:
+                pass
+        end = time.time() + 3.0
+        for p in self.procs:
+            try:
+                p.wait(timeout=max(0.1, end - time.time()))
+            except Exception:
+                p.kill()
+            for s in (p.stdout,):
+                try:
+                    s.close()
+                except Exception:
+                    pass
+
+
+def _part_blob(occ, shape) -> bytes:
+    buf = io.BytesIO()
+    occ["BinTools"].Write_s(shape, buf, False, False, occ["BinTools_FormatVersion"].BinTools_FormatVersion_CURRENT)
+    return buf.getvalue()
+
+
+# --------------------------------------------------------------------------
 # Main reader
 # --------------------------------------------------------------------------
 
-def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
+def read_step(path: str, out_dir: str, quality: str = "normal", workers: int | None = None) -> dict:
+    """``workers``: helper processes for meshing; None = automatic (all cores but one, big files only)."""
+    if workers is None:
+        workers = worker_count()
+        if os.path.getsize(path) < PARALLEL_MIN_BYTES and not os.environ.get("FRESING_IMPORT_WORKERS"):
+            workers = 0
+    helpers = _Helpers(workers) if workers >= 2 else None
+    try:
+        return _read_step(path, out_dir, quality, helpers)
+    finally:
+        if helpers is not None:
+            helpers.close()
+
+
+def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None") -> dict:
     t0 = time.time()
     occ = _occ()
     lin_rel, ang = QUALITY.get(quality, QUALITY["normal"])
@@ -396,21 +780,67 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
     tri_total = 0
     t1 = time.time()
     # Each part is tessellated on its own: the deflection is relative to the part's size,
-    # so small parts (bolts) stay smooth next to big frames. OpenCascade still uses all
-    # cores within each part.
+    # so small parts (bolts) stay smooth next to big frames. With helper processes every
+    # core meshes its own part; OpenCascade also uses all cores within a big part.
     shapes = [occ["XCAFDoc_ShapeTool"].GetShape_s(label) for label in mesh_labels]
-    premeshed = False
-    for mid, label in enumerate(mesh_labels):
-        shape = shapes[mid]
-        face_cols = _face_colors(occ, stool, ctool, label)
+    face_colours = [_face_colour_list(occ, shapes[mid], _face_colors(occ, stool, ctool, label))
+                    for mid, label in enumerate(mesh_labels)]
+    results: list = [None] * len(mesh_labels)       # (mesh result, axes, axis faces, error)
+    counter = [0]
+    where = [""]
+
+    def store(reply) -> None:
+        mid, res, ax, af, err = reply
+        results[mid] = (res, ax, af, err)
+        counter[0] += 1
+        done = counter[0]
+        if done % 10 == 1 or done == total:
+            emit("mesh", 30 + 65 * done / total, f"Meshing part {done} of {total}{where[0]}")
+
+    used_helpers = 0
+    t_copy = 0.0
+    if helpers is not None and helpers.procs and len(mesh_labels) >= 2:
+        tc = time.time()
+        jobs, pending = [], []
+        for mid in range(len(shapes)):
+            try:
+                jobs.append([mid, _part_blob(occ, shapes[mid]), face_colours[mid], lin_rel, ang])
+            except Exception:                           # (out of memory...) this part is meshed here instead
+                pending.append(mid)
+        jobs.sort(key=lambda j: -len(j[1]))            # biggest parts first: no core waits at the end
+        t_copy = time.time() - tc
+        where[0] = f" on {len(helpers.procs)} cores"
+        retry = []
+
+        def from_helper(reply) -> None:
+            if reply[4] is not None:                    # failed in a helper (e.g. memory while all cores
+                retry.append(reply[0])                  # were busy): try it again here, on its own
+            else:
+                store(reply)
+
+        lost, left = helpers.run(jobs, from_helper)
+        used_helpers = helpers.started
+        del jobs
+        for mid, reason in lost:                        # OpenCascade stopped on this part: skip it, keep the rest
+            store((mid, None, [], [], f"the mesher stopped on this part ({reason})"))
+        pending = sorted(pending + retry + [job[0] for job in left])   # left: no helper could take these
+        where[0] = ""
+    else:
+        pending = list(range(len(mesh_labels)))
+    for mid in pending:
         axes = _Axes()
         try:
-            res = _mesh_shape(occ, shape, lin_rel, ang, face_cols, already_meshed=premeshed, axes=axes)
+            res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes)
+            store((mid, res, axes.axes, axes.faces, None))
         except Exception as exc:  # keep going, report the part
-            emit("warning", 30 + 65 * mid / total, f"Could not mesh {mesh_names[mid]}: {exc}")
-            res = None
+            store((mid, None, [], [], str(exc)))
+
+    for mid in range(len(mesh_labels)):
+        res, ax, af, err = results[mid]
+        if err:
+            emit("warning", 95, f"Could not mesh {mesh_names[mid]}: {err}")
         meta = {"name": mesh_names[mid], "tris": 0, "palette": [], "bbox": None,
-                "axes": axes.axes if res is not None else [], "axis_faces": axes.faces if res is not None else []}
+                "axes": ax if res is not None else [], "axis_faces": af if res is not None else []}
         if res is not None:
             pos, nrm, tri, tcol, palette = res
             arrays[f"p{mid}"] = pos
@@ -423,8 +853,6 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
             meta["bbox"] = [pos.min(axis=0).tolist(), pos.max(axis=0).tolist()]
             tri_total += len(tri)
         mesh_meta.append(meta)
-        if mid % 10 == 0 or mid == total - 1:
-            emit("mesh", 30 + 65 * (mid + 1) / total, f"Meshing part {mid + 1} of {total}")
     t_mesh = time.time() - t1
 
     # part colour: own colour > dominant face colour > colour of an enclosing assembly
@@ -459,6 +887,8 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
             "triangles_unique": int(tri_total),
             "seconds_read": round(t_read, 1),
             "seconds_mesh": round(t_mesh, 1),
+            "mesh_helpers": used_helpers,
+            "seconds_copy": round(t_copy, 1),
             "seconds_total": round(time.time() - t0, 1),
         },
     }
@@ -469,6 +899,10 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
 
 
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    _no_crash_dialog()
+    if argv[:1] == ["--worker"]:
+        return worker_main(int(argv[1]))
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("step")
     ap.add_argument("out_dir")
