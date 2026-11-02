@@ -49,55 +49,84 @@ def look_at(ob: bpy.types.Object, target: Vector) -> None:
     ob.rotation_quaternion = direction.to_track_quat("-Z", "Y")
 
 
-def fit(ob: bpy.types.Object, scene, direction=None, margin: float = 1.08) -> None:
-    """Move the camera along its view direction so the whole model fits the frame."""
-    mn, mx = _bounds(scene)
-    center = Vector(((mn + mx) / 2).tolist())
-    corners = [Vector((x, y, z)) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])]
+def _points(scene) -> np.ndarray:
+    """World-space bounding-box corners of every visible part (tighter than one big box)."""
+    parts = [ob for ob in build.iter_parts(scene) if ob.visible_get()] or list(build.iter_parts(scene))
+    pts = []
+    for ob in parts:
+        if ob.type != "MESH" or ob.data is None:
+            continue
+        mw = np.array(ob.matrix_world)
+        bb = np.array([list(c) + [1.0] for c in ob.bound_box])
+        pts.append((mw @ bb.T).T[:, :3])
+    if not pts:
+        return np.array([[-1.0, -1.0, 0.0], [1.0, 1.0, 1.0]])
+    return np.concatenate(pts)
+
+
+def fit(ob: bpy.types.Object, scene, direction=None, margin: float = 1.06) -> None:
+    """Aim the camera along its view direction so the visible model fills the frame."""
+    pts = _points(scene)
+    center = (pts.min(axis=0) + pts.max(axis=0)) / 2
     if direction is None:
         bpy.context.view_layer.update()
         d = (ob.matrix_world.to_quaternion() @ Vector((0, 0, 1))).normalized()
     else:
         d = Vector(direction).normalized()
     cam = ob.data
-    rx, ry = scene.render.resolution_x * scene.render.pixel_aspect_x, scene.render.resolution_y * scene.render.pixel_aspect_y
+    rx = scene.render.resolution_x * scene.render.pixel_aspect_x
+    ry = scene.render.resolution_y * scene.render.pixel_aspect_y
     aspect = rx / max(1, ry)
-    # horizontal / vertical half field of view
+
+    rot = (-d).to_track_quat("-Z", "Y")
+    R = np.array(rot.to_matrix())              # columns: camera x, y, z axes in world space
+    dvec = np.array(d)
+
+    def camera_coords(c):
+        return (pts - c) @ R                    # (N, 3) in camera axes, z towards the camera
+
     if cam.type == "ORTHO":
-        ob.location = center + d * (np.linalg.norm(mx - mn) * 2 + 1)
-        look_at(ob, center)
-        rot = ob.rotation_quaternion.to_matrix().inverted()
-        pts = [rot @ (c - ob.location) for c in corners]
-        w = max(abs(p.x) for p in pts) * 2
-        h = max(abs(p.y) for p in pts) * 2
+        for _ in range(2):
+            P = camera_coords(center)
+            mid = (P.min(axis=0) + P.max(axis=0)) / 2
+            center = center + R[:, 0] * mid[0] + R[:, 1] * mid[1]
+        P = camera_coords(center)
+        w = (P[:, 0].max() - P[:, 0].min())
+        h = (P[:, 1].max() - P[:, 1].min())
+        depth = float(np.ptp(P[:, 2])) + 1.0
+        ob.location = Vector((center + dvec * (depth * 2)).tolist())
+        ob.rotation_mode = "QUATERNION"
+        ob.rotation_quaternion = rot
         cam.ortho_scale = max(w, h * aspect) * margin
-        cam.clip_end = max(cam.clip_end, (ob.location - center).length * 3)
+        cam.clip_end = max(cam.clip_end, depth * 4)
         return
-    sensor = cam.sensor_width
-    fov_long = 2 * math.atan(sensor / (2 * cam.lens))
+
+    fov_long = 2 * math.atan(cam.sensor_width / (2 * cam.lens))
     if aspect >= 1:
-        fov_x = fov_long
-        fov_y = 2 * math.atan(math.tan(fov_long / 2) / aspect)
+        tx = math.tan(fov_long / 2)
+        ty = tx / aspect
     else:
-        fov_y = fov_long
-        fov_x = 2 * math.atan(math.tan(fov_long / 2) * aspect)
-    # orientation looking at the centre from direction d
-    ob.location = center + d * 10.0
-    look_at(ob, center)
-    rot_inv = ob.rotation_quaternion.to_matrix().inverted()   # matrix_world is not updated yet
-    right_axis = Vector((1, 0, 0))
-    up_axis = Vector((0, 1, 0))
-    dist_needed = 0.0
-    for c in corners:
-        p = rot_inv @ (c - center)            # camera-aligned offset from centre
-        depth_offset = -p.z                   # positive = further from camera
-        tx = math.tan(fov_x / 2) / margin
-        ty = math.tan(fov_y / 2) / margin
-        dist_needed = max(dist_needed, abs(p.dot(right_axis)) / tx - depth_offset,
-                          abs(p.dot(up_axis)) / ty - depth_offset)
-    dist = max(dist_needed, 0.1)
-    ob.location = center + d * dist
-    look_at(ob, center)
+        ty = math.tan(fov_long / 2)
+        tx = ty * aspect
+    tx /= margin
+    ty /= margin
+
+    dist = 1.0
+    for _ in range(3):
+        P = camera_coords(center)
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        dist = float(max(np.max(np.abs(x) / tx + z), np.max(np.abs(y) / ty + z), 0.1))
+        # re-centre on the projected extents so the model sits in the middle of the frame
+        depth = np.maximum(dist - z, 1e-6)
+        u, v = x / depth, y / depth
+        du = (u.max() + u.min()) / 2
+        dv = (v.max() + v.min()) / 2
+        center = center + R[:, 0] * du * dist + R[:, 1] * dv * dist
+    P = camera_coords(center)
+    dist = float(max(np.max(np.abs(P[:, 0]) / tx + P[:, 2]), np.max(np.abs(P[:, 1]) / ty + P[:, 2]), 0.1))
+    ob.location = Vector((center + dvec * dist).tolist())
+    ob.rotation_mode = "QUATERNION"
+    ob.rotation_quaternion = rot
     cam.clip_start = max(0.001, dist * 0.002)
     cam.clip_end = max(100.0, dist * 10)
     if cam.dof.use_dof:

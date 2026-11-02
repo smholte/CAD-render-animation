@@ -84,12 +84,13 @@ class FRESING_UL_tree(bpy.types.UIList):
 
     def filter_items(self, context, data, propname):
         items = getattr(data, propname)
-        flags = [self.bitflag_filter_item] * len(items)
-        if self.filter_name:
+        max_depth = getattr(data, "tree_depth", 99)
+        flags = [self.bitflag_filter_item if it.depth < max_depth else 0 for it in items]
+        if self.filter_name:  # searching shows matches at any level
             needle = self.filter_name.lower()
             for i, it in enumerate(items):
-                if it.obj is None or needle not in it.obj.name.lower():
-                    flags[i] = 0
+                hit = it.obj is not None and needle in it.obj.name.lower()
+                flags[i] = self.bitflag_filter_item if hit else 0
         return flags, []
 
 
@@ -107,6 +108,7 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.label(text="Click selects:")
         row.prop(s, "pick_mode", expand=True)
+        layout.prop(s, "tree_depth")
         row = layout.row()
         row.template_list("FRESING_UL_tree", "", s, "tree", s, "tree_index", rows=8)
         col = row.column(align=True)
@@ -272,6 +274,7 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("fresing.template_import", icon="FILE_FOLDER")
         row.operator("fresing.template_export", icon="FILE_TICK")
+        layout.operator("fresing.template_from_library", icon="ASSET_MANAGER")
 
 
 # =============================================================================

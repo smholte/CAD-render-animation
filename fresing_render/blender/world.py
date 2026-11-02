@@ -20,6 +20,7 @@ import numpy as np
 from . import build
 
 WORLD_NAME = "FR World"
+GROUND_RADIANCE = 4.0   # ground brightness under the physical sky (before the 0.08 strength)
 FLOOR_NAME = "FR Floor"
 STUDIO_IMAGE = "FR Studio"
 FLOOR_MATERIAL = "FR Floor"
@@ -102,10 +103,31 @@ def _env_branch(nt, kind: str, hdri_path: str, rotation_deg: float, strength: fl
         if hasattr(sky, "sun_elevation"):
             sky.sun_elevation = math.radians(sun_elev_deg)
             sky.sun_rotation = math.radians(rotation_deg)
+        # Below the horizon the physical sky is black; looking down at a machine that reads
+        # as night. Show a neutral ground there instead. (The physical sky types ignore the
+        # vector input, so the ground is a colour scaled to the sky's brightness.)
+        coord = nt.nodes.new("ShaderNodeTexCoord")
+        coord.location = (-1100, y)
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        sep.location = (-900, y)
+        nt.links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+        below = nt.nodes.new("ShaderNodeMath")
+        below.operation = "LESS_THAN"
+        below.inputs[1].default_value = 0.0
+        below.location = (-700, y + 120)
+        nt.links.new(sep.outputs["Z"], below.inputs[0])
+        ground = nt.nodes.new("ShaderNodeMix")
+        ground.data_type = "RGBA"
+        ground.blend_type = "MIX"
+        ground.location = (-250, y)
+        g = GROUND_RADIANCE
+        ground.inputs["B"].default_value = (g * 1.0, g * 0.97, g * 0.92, 1.0)
+        nt.links.new(below.outputs["Value"], ground.inputs["Factor"])
+        nt.links.new(sky.outputs["Color"], ground.inputs["A"])
         bg = nt.nodes.new("ShaderNodeBackground")
-        bg.location = (-150, y)
-        bg.inputs["Strength"].default_value = 0.25 * strength
-        nt.links.new(sky.outputs["Color"], bg.inputs["Color"])
+        bg.location = (-50, y)
+        bg.inputs["Strength"].default_value = 0.08 * strength
+        nt.links.new(ground.outputs["Result"], bg.inputs["Color"])
         return bg.outputs["Background"]
 
     img = _load_hdri(hdri_path) if kind == "HDRI" else None

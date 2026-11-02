@@ -167,13 +167,16 @@ def test_camera_fit_frames_model(scene):
     bpy.context.view_layer.update()
     # project all bound-box corners: they must land inside the frame
     from bpy_extras.object_utils import world_to_camera_view
-    mn, mx = build.world_bounds(list(build.iter_parts(scene)))
     from mathutils import Vector
-    for x in (mn[0], mx[0]):
-        for y in (mn[1], mx[1]):
-            for z in (mn[2], mx[2]):
-                co = world_to_camera_view(scene, cam, Vector((x, y, z)))
-                assert -0.001 <= co.x <= 1.001 and -0.001 <= co.y <= 1.001 and co.z > 0
+    us, vs = [], []
+    for pt in cameras._points(scene):
+        co = world_to_camera_view(scene, cam, Vector(pt.tolist()))
+        assert -0.001 <= co.x <= 1.001 and -0.001 <= co.y <= 1.001 and co.z > 0
+        us.append(co.x)
+        vs.append(co.y)
+    # the model is centred and fills the frame in at least one direction
+    assert abs((min(us) + max(us)) / 2 - 0.5) < 0.03 and abs((min(vs) + max(vs)) / 2 - 0.5) < 0.03
+    assert max(max(us) - min(us), max(vs) - min(vs)) > 0.85
 
 
 def test_output_presets_apply(scene):

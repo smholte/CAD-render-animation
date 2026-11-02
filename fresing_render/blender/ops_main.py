@@ -515,6 +515,43 @@ class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
         return {"FINISHED"}
 
 
+class FRESING_OT_template_from_library(bpy.types.Operator):
+    """Load a template from the shared library (Preferences > Add-ons > Fresing Render)"""
+
+    bl_idname = "fresing.template_from_library"
+    bl_label = "Template from library"
+    bl_property = "path"
+
+    def _items(self, context):
+        from . import prefs
+        folder = prefs.library_dir("Templates")
+        items = []
+        if folder:
+            for f in sorted(os.listdir(folder)):
+                if f.lower().endswith(".json"):
+                    items.append((os.path.join(folder, f), os.path.splitext(f)[0], ""))
+        return items or [("NONE", "No templates in the library", "")]
+
+    path: EnumProperty(items=_items)
+
+    def invoke(self, context, event):
+        context.window_manager.invoke_search_popup(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        if self.path == "NONE":
+            self.report({"WARNING"}, "Set the shared library folder in the add-on preferences")
+            return {"CANCELLED"}
+        try:
+            t = Template.load(self.path)
+        except (OSError, ValueError) as exc:
+            self.report({"ERROR"}, f"Could not load template: {exc}")
+            return {"CANCELLED"}
+        apply_template(context.scene, t)
+        self.report({"INFO"}, f"Template loaded: {t.name}")
+        return {"FINISHED"}
+
+
 class FRESING_OT_pick_ral(bpy.types.Operator):
     """Pick a RAL colour for the active group"""
 
@@ -822,7 +859,8 @@ CLASSES = (
     FRESING_OT_apply_rules, FRESING_OT_group_add, FRESING_OT_group_remove, FRESING_OT_group_select,
     FRESING_OT_group_assign, FRESING_OT_group_unassign, FRESING_OT_rule_add, FRESING_OT_rule_remove,
     FRESING_OT_rule_move, FRESING_OT_rules_reset, FRESING_OT_scheme_save, FRESING_OT_scheme_apply,
-    FRESING_OT_scheme_remove, FRESING_OT_template_export, FRESING_OT_template_import, FRESING_OT_pick_ral,
+    FRESING_OT_scheme_remove, FRESING_OT_template_export, FRESING_OT_template_import,
+    FRESING_OT_template_from_library, FRESING_OT_pick_ral,
     FRESING_OT_pick_hdri, FRESING_OT_world_apply, FRESING_OT_camera_add, FRESING_OT_camera_activate, FRESING_OT_camera_fit,
     FRESING_OT_camera_remove, FRESING_OT_camera_dof, FRESING_OT_preview, FRESING_OT_render,
     FRESING_OT_open_folder,

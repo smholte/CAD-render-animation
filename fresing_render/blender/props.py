@@ -135,6 +135,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- structure ----
     tree: CollectionProperty(type=FRTreeItem)
     tree_index: IntProperty(default=0)
+    tree_depth: IntProperty(name="Levels", default=3, min=1, max=20,
+                            description="How many levels of the assembly tree to show")
     pick_mode: EnumProperty(
         name="Click selects", default="SUBASSEMBLY",
         items=[("SUBASSEMBLY", "Subassembly", "A click selects the whole subassembly"),
@@ -171,7 +173,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     light_rotation: FloatProperty(name="Rotate light", default=0.0, min=-360, max=360, update=_world_changed,
                                   description="Turn the light / 360° photo around the model (degrees)")
     light_strength: FloatProperty(name="Light strength", default=1.0, min=0.0, soft_max=5.0, update=_world_changed)
-    sun_elevation: FloatProperty(name="Sun height", default=35.0, min=0.0, max=90.0, update=_world_changed)
+    sun_elevation: FloatProperty(name="Sun height", default=45.0, min=0.0, max=90.0, update=_world_changed)
     exposure: FloatProperty(name="Exposure", default=0.0, soft_min=-3, soft_max=3, update=_world_changed)
     floor: EnumProperty(
         name="Floor", default="SHADOW", update=_world_changed,
