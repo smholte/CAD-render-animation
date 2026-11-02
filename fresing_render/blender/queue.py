@@ -94,12 +94,16 @@ def queue_root() -> str:
     return os.path.join(render.default_output_dir(), "_queue")
 
 
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def runner_command(queue_dir: str) -> list[str]:
     exe = bpy.app.binary_path
     if exe and os.path.basename(exe).lower().startswith("blender"):
         return [exe, "--background", "--python", RUNNER, "--", queue_dir, PACKAGE]
-    # Blender as a Python module (tests): run the runner with this Python
-    return [sys.executable, RUNNER, queue_dir, PACKAGE]
+    # Blender as a Python module (tests): run the runner with this Python and import the
+    # package by its folder name (Blender's "bl_ext" namespace only exists inside Blender)
+    return [sys.executable, RUNNER, queue_dir, os.path.basename(PACKAGE_DIR)]
 
 
 def start(context) -> str:
@@ -134,7 +138,7 @@ def start(context) -> str:
     if cmd[0] == sys.executable:
         # Blender as a Python module: only the folder that holds this package (Blender's own
         # script folders on sys.path would shadow the real bpy module)
-        env["PYTHONPATH"] = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        env["PYTHONPATH"] = os.path.dirname(PACKAGE_DIR)
     kwargs = {}
     if sys.platform == "win32":
         # its own process group without a window: keeps running when the app closes

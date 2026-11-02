@@ -97,6 +97,73 @@ def main(report_path: str | None = None) -> bool:
 
     imported = check("Import and sort test model", _import)
 
+    def _motion():
+        import math
+        from mathutils import Vector
+        from .blender import animation, joints
+        scene = bpy.context.scene
+        cover = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.ASM")
+        plate = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.PLATE")
+        before = plate.matrix_world.translation.copy()
+        j = joints.create(scene, "ROTATE", [cover], before, Vector((0, 0, 1)))
+        a = scene.fresing.animations.add()
+        a.name = "Self-test"
+        b = a.blocks.add()
+        b.kind, b.joint, b.duration, b.use_from, b.to_angle = "JOINT", j.name, 1.0, False, math.radians(90)
+        info = animation.bake(scene, a)
+        scene.frame_set(info["frames"])
+        moved = (plate.matrix_world.translation - before).length
+        animation.clear_keys(scene)
+        joints.remove(scene, j)
+        bpy.context.view_layer.update()
+        back = (plate.matrix_world.translation - before).length
+        if moved < 0.01 or back > 1e-4:
+            raise RuntimeError(f"joint did not move as expected (moved {moved:.3f} m, back {back:.5f} m)")
+        return f"{info['frames']} frames, cover turned and returned"
+
+    def _video():
+        import tempfile
+        import numpy as np
+        from .blender import queue
+        folder = tempfile.mkdtemp(prefix="fresing_video_")
+        for i in range(3):
+            img = bpy.data.images.new(f"fr_test_{i}", 64, 36, alpha=True)
+            px = np.zeros((36, 64, 4), np.float32)
+            px[..., i] = 1.0
+            px[..., 3] = 1.0
+            img.pixels.foreach_set(px.ravel())
+            img.filepath_raw = os.path.join(folder, f"frame_{i + 1:04d}.png")
+            img.file_format = "PNG"
+            img.save()
+            bpy.data.images.remove(img)
+        out = queue.encode_mp4(folder, os.path.join(folder, "test.mp4"), 64, 36, 25)
+        size = os.path.getsize(out)
+        if size < 200:
+            raise RuntimeError("video file is empty")
+        return f"{size} bytes"
+
+    def _queue():
+        import tempfile
+        from .blender import queue, states
+        scene = bpy.context.scene
+        s = scene.fresing
+        if scene.camera is None:
+            raise RuntimeError("no camera")
+        folder = tempfile.mkdtemp(prefix="fresing_queue_")
+        s.out_folder = folder
+        s.out_format, s.out_resolution, s.quality = "presentation", "preview", "draft"
+        states.save_shot(scene, "Self-test")
+        queue.add_job(scene, "STILL", shot="Self-test", quality="draft")
+        qdir = queue.start(bpy.context)
+        t0 = time.time()
+        while queue.is_running(scene) and time.time() - t0 < 300:
+            time.sleep(1.0)
+        queue.sync(scene)
+        job = s.queue[-1]
+        if job.status != "DONE":
+            raise RuntimeError(f"{job.status}: {job.message} | log: {queue.log_tail(qdir, 12)}")
+        return f"{time.time() - t0:.0f} s -> {job.output}"
+
     if imported:
         def _render(gpu: bool, resolution: str, quality: str):
             scene = bpy.context.scene
@@ -114,6 +181,9 @@ def main(report_path: str | None = None) -> bool:
 
         check("Render HD on graphics card", lambda: _render(True, "hd", "preview"))
         check("Small render on processor (for comparison)", lambda: _render(False, "preview", "draft"))
+        check("Joints and animation", _motion)
+        check("Video encoder (MP4)", _video)
+        check("Render queue (second Blender in the background)", _queue)
 
     log("RESULT: " + ("ALL OK" if ok else "PROBLEMS FOUND (see above)"))
     report_path = report_path or os.path.join(_desktop(), "Fresing Render self-test.txt")

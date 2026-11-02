@@ -324,10 +324,10 @@ class FRAnimation(bpy.types.PropertyGroup):
     blocks: CollectionProperty(type=FRAnimBlock)
     blocks_index: IntProperty(default=0)
     out_resolution: EnumProperty(name="Video size", default="hd", items=[
-        ("preview", "Small (640 × 360)", ""), ("hd", "HD (1920 × 1080)", ""), ("qhd", "QHD (2560 × 1440)", ""),
+        ("preview", "Small (960 × 540)", ""), ("hd", "HD (1920 × 1080)", ""), ("qhd", "QHD (2560 × 1440)", ""),
         ("4k", "4K (3840 × 2160)", "")])
     out_format: EnumProperty(name="Shape", default="presentation", items=[
-        ("presentation", "16:9", ""), ("square", "1:1", ""), ("social", "4:5 / 9:16 (portrait)", "")])
+        ("presentation", "16:9", ""), ("square", "1:1", ""), ("social", "9:16 (phone, upright)", "")])
     video: EnumProperty(name="Save as", default="MP4", items=[
         ("MP4", "MP4 video", "Video file (plus the single frames)"),
         ("PNG", "PNG frames only", "Numbered images, keeps transparency")])

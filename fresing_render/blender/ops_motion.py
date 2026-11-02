@@ -908,8 +908,10 @@ class FRESING_OT_queue_add(bpy.types.Operator):
                 return {"CANCELLED"}
             # the current view: saved as a hidden scene so the queue renders exactly this
             name = states.unique_shot_name(scene, f"Queue {scene.camera.name}")
+            keep_index = s.shots_index
             shot = states.save_shot(scene, name)
-            shot["fr_queue_only"] = True
+            shot["fr_queue_only"] = True          # hidden from the scene list
+            s.shots_index = keep_index
             queue.add_job(scene, "STILL", shot=name)
         if self.start and not queue.is_running(scene):
             return bpy.ops.fresing.queue_start()

@@ -110,7 +110,7 @@ class FRESING_OT_hide_selected(bpy.types.Operator):
     def execute(self, context):
         tree = logic.Tree(context.scene)
         for ob in context.selected_objects:
-            if ob.get(build.PROP_KIND):
+            if ob.get(build.PROP_KIND) in build.MODEL_KINDS:
                 logic.set_hidden(ob, True, tree)
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
@@ -125,7 +125,7 @@ class FRESING_OT_show_all(bpy.types.Operator):
 
     def execute(self, context):
         for ob in context.scene.objects:      # every object once, no recursion
-            if ob.get(build.PROP_KIND) and not ob.get(build.PROP_EXCLUDED):
+            if ob.get(build.PROP_KIND) in build.MODEL_KINDS and not ob.get(build.PROP_EXCLUDED):
                 try:
                     ob.hide_set(False)
                 except RuntimeError:
@@ -144,7 +144,7 @@ class FRESING_OT_exclude_selected(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        n = logic.exclude([ob for ob in context.selected_objects if ob.get(build.PROP_KIND)], True)
+        n = logic.exclude([ob for ob in context.selected_objects if ob.get(build.PROP_KIND) in build.MODEL_KINDS], True)
         self.report({"INFO"}, f"Removed {n} parts (Restore removed parts brings them back)")
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}

@@ -45,12 +45,28 @@ Using it (short)
 ----------------
 Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
 1 Import          Import STEP... or drag a .step file onto the view.
+                  "Update to new revision..." loads a newer STEP of the same machine and keeps
+                  all work (colours, hidden parts, joints, poses, scenes); a report lists new
+                  and missing parts.
 2 Structure       Subassemblies: lock/unlock, show/hide, select. Clean-up removes
-                  parts that never show (internal parts, tiny parts).
+                  parts that never show. Visibility sets save which parts are hidden.
 3 Looks           Parts are sorted into material groups automatically (fasteners by
                   type and finish, CAD colours). Pick a material and RAL colour per
                   group. Sorting rules and paint schemes are in the sub-panels.
-4 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
+4 Motion          Joints: click the subassembly that should move, press "Add rotate joint"
+                  (or slide) and click its pivot hole or shaft on the model. Drag the slider.
+                  "Sits on" makes a joint ride on another subassembly (trolley on a boom).
+                  Poses save all joint positions; Explode moves pieces apart.
+5 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
                   image size (16:9 HD/4K, A4/A3 at 300 dpi...), Render image.
+                  Saved scenes = colours + pose + visibility + camera + background in one click.
+6 Animation       Steps on a timeline: move a joint, go to a pose, camera cut / move / orbit,
+                  show or hide a subassembly. "Build & play" plays it in the view (Space).
+                  "Render animation" makes an MP4 (and the single frames) in the queue.
+7 Render queue    Images and animations rendered by a second Blender in the background:
+                  keep working, or close the app and let it run overnight.
 Renders are saved in a "Renders" folder next to the saved project
 (or Pictures\Fresing Render when the project is not saved yet).
+
+Projects on a shared folder: while you have a project open, others who open it see
+"In use by <name> on <computer>" in panel 1.

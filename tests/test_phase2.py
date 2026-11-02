@@ -428,3 +428,34 @@ def test_ui_motion_panels_draw(scene):
         for item in getattr(data, prop):
             cls.draw_item(None, bpy.context, FL(errors), data, item, 0, data, "", 0)
     assert not errors, errors
+
+
+def test_operators_smoke(scene):
+    """Every phase 2 button that works without a mouse click runs without errors."""
+    s = scene.fresing
+    boom = ob(scene, "BOOM.ASM")
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    boom.select_set(True)
+    bpy.context.view_layer.objects.active = boom
+    assert bpy.ops.fresing.joint_add(kind="ROTATE", axis="Y", origin="CENTER") == {"FINISHED"}
+    assert len(s.joints) == 1
+    for op, kw in (("joint_flip", {}), ("joint_axis_preset", {"axis": "Z"}), ("joint_kind", {"kind": "SLIDE"}),
+                   ("joint_kind", {"kind": "ROTATE"}), ("joint_value", {"target": "ZERO"}),
+                   ("joint_members", {"action": "SELECT"}), ("pose_save", {"name": "A"}),
+                   ("pose_apply", {"name": "A"}), ("pose_update", {}), ("explode", {}), ("pose_reset", {}),
+                   ("vis_save", {"name": "V"}), ("vis_apply", {"name": "V"}), ("vis_update", {}),
+                   ("shot_save", {"name": "S", "scheme": "__current__", "pose": "__keep__",
+                                  "visibility": "__current__"}),
+                   ("shot_apply", {"name": "S"}), ("shot_update", {}),
+                   ("anim_add", {}), ("block_add", {"kind": "JOINT"}), ("block_add", {"kind": "POSE"}),
+                   ("block_add", {"kind": "CAMERA"}), ("block_add", {"kind": "HIDE"}), ("block_duplicate", {}),
+                   ("block_move", {"direction": "UP"}), ("block_target", {}), ("anim_build", {}),
+                   ("anim_clear", {}), ("queue_add", {"kind": "STILL"}), ("queue_add", {"kind": "SHOT", "name": "S"}),
+                   ("queue_add", {"kind": "ANIMATION"}), ("queue_remove", {}), ("block_remove", {}),
+                   ("report_clear", {}), ("joint_remove", {}), ("pose_remove", {}), ("vis_remove", {}),
+                   ("shot_remove", {}), ("anim_remove", {})):
+        res = getattr(bpy.ops.fresing, op)(**kw)
+        assert res == {"FINISHED"}, (op, res)
+    assert s.shots.get("S") is None and len(s.joints) == 0
+    assert len(s.queue) == 2
