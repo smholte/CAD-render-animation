@@ -35,6 +35,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is very slow with its progress bar
+# Full path without a trailing slash, so folder comparisons below are reliable.
+$InstallDir = [IO.Path]::GetFullPath($InstallDir.TrimEnd('\', '/'))
 
 # ---- pinned Blender -----------------------------------------------------------
 $BlenderVersion = "5.2.3"
@@ -74,7 +76,7 @@ function Invoke-Blender([string[]]$BlenderArgs, [string]$What, [switch]$AllowFai
 
 # ---- 0. Fresing Render must not be running ------------------------------------------
 $running = Get-Process -Name blender, blender-launcher -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase) }
+    Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
 if ($running) {
     throw "Fresing Render is still open. Close it (save your work first) and run the installer again."
 }
@@ -109,12 +111,28 @@ if (Test-Path -LiteralPath $BlenderExe) {
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
     if ($hash -ne $BlenderSha256) {
         if ($downloaded -or $zip.StartsWith($InstallDir)) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
-        throw "The Blender zip ($zip) is damaged or not the expected version (checksum mismatch). Run the installer again."
+        if ($downloaded -or $zip.StartsWith($InstallDir)) {
+            throw "The Blender download was damaged (checksum mismatch). Run the installer again."
+        }
+        throw "The Blender zip next to the installer ($zip) is damaged or the wrong version. Delete or replace it, then run the installer again."
     }
     Step "Unpacking Blender"
-    if (Test-Path -LiteralPath $BlenderDir) { Remove-Item -LiteralPath $BlenderDir -Recurse -Force }   # half-finished earlier attempt
+    # Unpack into a staging folder first: the Blender folder only appears once it is complete,
+    # so an interrupted unpack is redone on the next run instead of looking "installed".
+    $Staging = Join-Path $InstallDir "_unpack"
+    if (Test-Path -LiteralPath $Staging) { Remove-Item -LiteralPath $Staging -Recurse -Force }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $InstallDir)
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $Staging)
+    $unpacked = Join-Path $Staging "blender-$BlenderVersion-windows-x64"
+    if (-not (Test-Path -LiteralPath (Join-Path $unpacked "blender.exe"))) { throw "The Blender zip did not contain blender.exe" }
+    if (Test-Path -LiteralPath $BlenderDir) {
+        # damaged earlier install (e.g. blender.exe quarantined): keep its settings
+        $keep = Join-Path $BlenderDir "portable"
+        if (Test-Path -LiteralPath $keep) { Move-Item -LiteralPath $keep -Destination (Join-Path $unpacked "portable") }
+        Remove-Item -LiteralPath $BlenderDir -Recurse -Force
+    }
+    Move-Item -LiteralPath $unpacked -Destination $BlenderDir
+    Remove-Item -LiteralPath $Staging -Recurse -Force -ErrorAction SilentlyContinue
     if (-not (Test-Path -LiteralPath $BlenderExe)) { throw "Blender was not unpacked to $BlenderDir" }
     if ($zip.StartsWith($InstallDir)) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
 }
@@ -123,7 +141,7 @@ if (Test-Path -LiteralPath $BlenderExe) {
 # When upgrading Blender, carry the settings (extension, preferences, library paths, cache) over
 # from the previous Blender folder and remove that folder.
 $older = Get-ChildItem -LiteralPath $InstallDir -Directory -Filter "blender-*-windows-x64" |
-    Where-Object { $_.FullName -ne $BlenderDir }
+    Where-Object { $_.Name -ne (Split-Path -Leaf $BlenderDir) }
 foreach ($old in $older) {
     $oldPortable = Join-Path $old.FullName "portable"
     if ((Test-Path -LiteralPath $oldPortable) -and -not (Test-Path -LiteralPath $Portable)) {
@@ -139,50 +157,68 @@ New-Item -ItemType Directory -Force -Path $Portable | Out-Null
 $ExtRoot = Join-Path $Portable "extensions"
 function Installed-Manifest([string]$repo) { Join-Path $ExtRoot "$repo\fresing_render\blender_manifest.toml" }
 
-if ($UpdateUrl) {
-    Step "Connecting to the update repository"
-    $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-    $repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"
-    $ErrorActionPreference = $old
-    if ($repoList -notmatch "(?m)^fresing:") {
+$old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+$repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"
+$ErrorActionPreference = $old
+$hasRepo = $repoList -match "(?m)^fresing:"
+
+# The zip next to this script (newest version if there are several)
+$zipExt = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" |
+    Where-Object { $_.Name -match '^fresing_render-(\d+(\.\d+)*)' } |
+    Sort-Object { [version]([regex]::Match($_.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value) } |
+    Select-Object -Last 1
+
+function Install-FromZip {
+    if (-not $zipExt) { throw "fresing_render-<version>.zip not found next to the installer" }
+    Step "Installing $($zipExt.Name)"
+    Invoke-Blender @("--command", "extension", "install-file", "--repo", "user_default", "--enable", $zipExt.FullName) "Installing the extension" | Out-Null
+    return @((Installed-Manifest "user_default"), [regex]::Match($zipExt.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value)
+}
+
+# Update-server mode when a URL is given now, or was set up before (repairs keep using it).
+if ($UpdateUrl -or $hasRepo) {
+    if ($UpdateUrl) {
+        Step "Connecting to the update repository"
+        if ($hasRepo) {   # refresh URL / access token
+            Invoke-Blender @("--command", "extension", "repo-remove", "fresing") "Refreshing the update repository" -AllowFailure | Out-Null
+        }
         $repoArgs = @("--command", "extension", "repo-add", "--name", "Fresing", "--url", $UpdateUrl)
         if ($AccessToken) { $repoArgs += @("--access-token", $AccessToken) }
         $repoArgs += @("fresing")
         Invoke-Blender $repoArgs "Adding the update repository" | Out-Null
     } else {
-        Write-Host "   Update repository already set up"
-    }
-    if (Test-Path -LiteralPath (Installed-Manifest "user_default")) {
-        Invoke-Blender @("--command", "extension", "remove", "user_default.fresing_render") "Removing the zip-installed copy" -AllowFailure | Out-Null
+        Write-Host "   Using the update repository set up earlier"
     }
     if (Test-Path -LiteralPath (Installed-Manifest "fresing")) {
         Step "Updating Fresing Render"
-        Invoke-Blender @("--online-mode", "--command", "extension", "update", "--sync") "Updating the extension" | Out-Null
+        $ok = Invoke-Blender @("--online-mode", "--command", "extension", "update", "--sync") "Updating the extension" -AllowFailure
     } else {
         Step "Installing Fresing Render from the update repository"
-        Invoke-Blender @("--online-mode", "--command", "extension", "install", "--sync", "--enable", "fresing_render") "Installing the extension" | Out-Null
+        $ok = Invoke-Blender @("--online-mode", "--command", "extension", "install", "--sync", "--enable", "fresing.fresing_render") "Installing the extension" -AllowFailure
     }
-    $Manifest = Installed-Manifest "fresing"
-    $Expected = ""
+    if ($ok -and (Test-Path -LiteralPath (Installed-Manifest "fresing"))) {
+        if (Test-Path -LiteralPath (Installed-Manifest "user_default")) {   # one copy only
+            Invoke-Blender @("--command", "extension", "remove", "user_default.fresing_render") "Removing the zip-installed copy" -AllowFailure | Out-Null
+        }
+        $Manifest = Installed-Manifest "fresing"
+        $Expected = ""
+    } elseif ($zipExt) {
+        Write-Host "   WARNING: the update server could not be used; installing the version from this folder instead." -ForegroundColor Yellow
+        $Manifest, $Expected = Install-FromZip
+    } else {
+        throw "Could not install from the update server (check the URL, the access token and the internet connection)."
+    }
 } else {
-    $ext = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" | Sort-Object Name | Select-Object -Last 1
-    if (-not $ext) { throw "fresing_render-<version>.zip not found next to the installer" }
-    if (Test-Path -LiteralPath (Installed-Manifest "fresing")) {
-        Invoke-Blender @("--command", "extension", "remove", "fresing.fresing_render") "Removing the repository copy" -AllowFailure | Out-Null
-    }
-    Step "Installing $($ext.Name)"
-    Invoke-Blender @("--command", "extension", "install-file", "--repo", "user_default", "--enable", $ext.FullName) "Installing the extension" | Out-Null
-    $Manifest = Installed-Manifest "user_default"
-    $Expected = ($ext.BaseName -replace "^fresing_render-", "")
+    $Manifest, $Expected = Install-FromZip
 }
 
 # Blender can report success even when the install failed: check the files.
 if (-not (Test-Path -LiteralPath $Manifest)) { throw "The extension was not installed (missing $Manifest)." }
-if ($Expected) {
-    $ver = (Select-String -LiteralPath $Manifest -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
-    if ($ver -ne $Expected) { throw "Installed version is $ver, expected $Expected." }
-    Write-Host "   Fresing Render $ver installed"
-}
+$m = Select-String -LiteralPath $Manifest -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+if (-not $m) { throw "The installed extension looks damaged (no version in $Manifest)." }
+$ver = $m.Matches[0].Groups[1].Value
+if ($Expected -and $ver -ne $Expected) { throw "Installed version is $ver, expected $Expected." }
+Write-Host "   Fresing Render $ver installed"
 
 # ---- 3. App template + preferences -----------------------------------------------------
 Step "Installing the Fresing Render app layout"
@@ -204,9 +240,13 @@ if $Online:
     for repo in p.extensions.repos:
         if repo.module == "fresing":
             repo.use_sync_on_startup = True    # show "update available" at start-up
+import addon_utils
+names = [m.__name__ for m in addon_utils.modules() if m.__name__.endswith(".fresing_render")]
+for name in names:
+    addon_utils.enable(name, default_set=True)   # repairs a disabled extension
 bpy.ops.wm.save_userpref()
 "@ | Set-Content -LiteralPath $PrefsScript -Encoding ASCII
-Invoke-Blender @("--background", "--python", $PrefsScript) "Setting preferences" -AllowFailure | Out-Null
+Invoke-Blender @("--background", "--python-exit-code", "1", "--python", $PrefsScript) "Setting preferences" | Out-Null
 
 # ---- 4. Self-test launcher + shortcuts ------------------------------------------------
 $Desktop = [Environment]::GetFolderPath("Desktop")

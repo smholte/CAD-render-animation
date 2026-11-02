@@ -20,7 +20,9 @@ Tip: if a PC has no internet access, put blender-5.2.3-windows-x64.zip
 Updates
 -------
 - With an update server: install once with
-      Install.bat -UpdateUrl https://<server>/index.json [-AccessToken <token>]
+      Install.bat -UpdateUrl "https://<server>/index.json" -AccessToken "<token>"
+  (keep the quotes). Later runs of Install.bat keep using the update server; run it
+  again with -UpdateUrl / -AccessToken to change the address or a new token.
   New versions then show up in Blender as "update available" (Edit > Preferences >
   Get Extensions). One click updates.
 - Without an update server: run the new installer over the old one.

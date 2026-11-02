@@ -101,14 +101,15 @@ def main(report_path: str | None = None) -> bool:
         def _render(gpu: bool, resolution: str, quality: str):
             scene = bpy.context.scene
             s = scene.fresing
+            if gpu and not render.setup_gpu().startswith("GPU"):
+                raise RuntimeError("no supported graphics card found; renders will use the processor (slow). "
+                                   "Update the NVIDIA driver (535 or newer) and run the self-test again")
             s.use_gpu = gpu
             s.out_format = "presentation"
             s.out_resolution = resolution
             s.out_folder = os.path.join(_desktop(), "Fresing Render self-test")
             s.background = "COLOR"
             info = render.render_still(scene, s, quality)
-            if gpu and not info["device"].startswith("GPU"):
-                raise RuntimeError("no supported graphics card found; renders will use the processor (slow)")
             return f"{info['size'][0]}x{info['size'][1]} in {info['seconds']} s on {info['device']} -> {info['path']}"
 
         check("Render HD on graphics card", lambda: _render(True, "hd", "preview"))
