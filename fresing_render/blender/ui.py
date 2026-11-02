@@ -55,6 +55,7 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 box.label(text=f"Read in {st.get('seconds_total', 0):.0f} s")
         if s.last_message:
             layout.label(text=s.last_message)
+        layout.operator("fresing.clear_cache", icon="TRASH")
 
 
 # =============================================================================
