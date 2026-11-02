@@ -52,13 +52,43 @@ def _set_preferences(_dummy=None):
     prefs.filepaths.use_relative_paths = True
 
 
+def _enable_fresing_render() -> str:
+    """Blender keeps a separate list of enabled add-ons for every app template, so the
+    template switches the Fresing Render extension on itself (and keeps it in that list)."""
+    import addon_utils
+    prefs = bpy.context.preferences
+    for mod in addon_utils.modules():
+        name = mod.__name__
+        if name == "fresing_render" or name.endswith(".fresing_render"):
+            if name not in prefs.addons:
+                addon_utils.enable(name, default_set=True, persistent=True)
+            return name
+    print("Fresing Render: the extension is not installed (run Install.bat again)")
+    return ""
+
+
+@persistent
+def _after_load(_dummy=None):
+    # runs once the start-up file is read and the extension system is ready
+    # (too early in register(): the template's add-on list is set up after it)
+    try:
+        _enable_fresing_render()
+    except Exception as exc:  # never stop Blender from starting
+        print("Fresing Render: could not enable the extension:", exc)
+
+
+_HANDLERS = ((bpy.app.handlers.load_factory_startup_post, _setup_new_file),
+             (bpy.app.handlers.load_factory_preferences_post, _set_preferences),
+             (bpy.app.handlers.load_post, _after_load))
+
+
 def register():
-    bpy.app.handlers.load_factory_startup_post.append(_setup_new_file)
-    bpy.app.handlers.load_factory_preferences_post.append(_set_preferences)
+    for lst, fn in _HANDLERS:
+        if fn not in lst:
+            lst.append(fn)
 
 
 def unregister():
-    for lst, fn in ((bpy.app.handlers.load_factory_startup_post, _setup_new_file),
-                    (bpy.app.handlers.load_factory_preferences_post, _set_preferences)):
-        if fn in lst:
+    for lst, fn in _HANDLERS:
+        while fn in lst:
             lst.remove(fn)
