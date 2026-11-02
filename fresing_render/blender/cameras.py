@@ -67,9 +67,22 @@ def _points(scene) -> np.ndarray:
     return np.concatenate(pts)
 
 
-def fit(ob: bpy.types.Object, scene, direction=None, margin: float = 1.06) -> None:
+def points_over_frames(scene, frames) -> np.ndarray:
+    """Model corners at several animation frames (to frame a camera on the whole motion)."""
+    current = scene.frame_current
+    out = []
+    try:
+        for f in frames:
+            scene.frame_set(int(f))
+            out.append(_points(scene))
+    finally:
+        scene.frame_set(current)
+    return np.concatenate(out) if out else _points(scene)
+
+
+def fit(ob: bpy.types.Object, scene, direction=None, margin: float = 1.06, points=None) -> None:
     """Aim the camera along its view direction so the visible model fills the frame."""
-    pts = _points(scene)
+    pts = _points(scene) if points is None else points
     center = (pts.min(axis=0) + pts.max(axis=0)) / 2
     if direction is None:
         bpy.context.view_layer.update()

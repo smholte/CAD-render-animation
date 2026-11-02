@@ -42,11 +42,19 @@ def selected_movers(context) -> list:
     return out
 
 
+SEP = "\x1f"          # between object names passed to the pick tool (names may contain commas)
+
+
 def _active_joint(context):
     s = context.scene.fresing
     if 0 <= s.joints_index < len(s.joints):
         return s.joints[s.joints_index]
     return None
+
+
+def _valid_joint(context) -> bool:
+    j = _active_joint(context)
+    return j is not None and joints.is_valid(j)
 
 
 def _target_subassembly(context):
@@ -163,7 +171,7 @@ class FRESING_OT_joint_add(bpy.types.Operator):
             self.report({"WARNING"}, "First click the subassembly (or subassemblies) that should move")
             return {"CANCELLED"}
         if self.axis == "PICK":
-            names = ",".join(ob.name for ob in movers)
+            names = SEP.join(ob.name for ob in movers)
             bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="NEW", kind=self.kind, movers=names)
             return {"CANCELLED"}             # the pick tool finishes the job (and the undo step)
         return self.execute(context)
@@ -184,14 +192,26 @@ class FRESING_OT_joint_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _inside(r, event) -> bool:
+    return r.x <= event.mouse_x < r.x + r.width and r.y <= event.mouse_y < r.y + r.height
+
+
+def over_panel(context, event) -> bool:
+    """True when the mouse is over the side panel, header or toolbar (they overlap the 3D view)."""
+    area = context.area
+    if area is None:
+        return False
+    return any(r.type in ("UI", "HEADER", "TOOLS", "TOOL_HEADER", "ASSET_SHELF", "ASSET_SHELF_HEADER")
+               and r.width > 1 and r.height > 1 and _inside(r, event) for r in area.regions)
+
+
 def _raycast(context, event):
     """Ray-cast from the mouse into the scene. Returns (object, polygon, location, normal) or None."""
     from bpy_extras import view3d_utils
     area = context.area
     if area is None or area.type != "VIEW_3D":
         return None
-    region = next((r for r in area.regions if r.type == "WINDOW"
-                   and r.x <= event.mouse_x < r.x + r.width and r.y <= event.mouse_y < r.y + r.height), None)
+    region = next((r for r in area.regions if r.type == "WINDOW" and _inside(r, event)), None)
     if region is None:
         return None
     rv3d = region.data
@@ -221,14 +241,15 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
         if context.area is None or context.area.type != "VIEW_3D":
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
-        if self.mode == "EDIT" and _active_joint(context) is None:
+        if self.mode == "EDIT" and not _valid_joint(context):
+            self.report({"WARNING"}, "This joint is broken (its arrow was deleted): remove it and add it again")
             return {"CANCELLED"}
         if self.mode == "NEW" and not self.movers:
             movers = selected_movers(context)
             if not movers:
                 self.report({"WARNING"}, "First click the subassembly (or subassemblies) that should move")
                 return {"CANCELLED"}
-            self.movers = ",".join(ob.name for ob in movers)
+            self.movers = SEP.join(ob.name for ob in movers)
         context.window.cursor_modal_set("EYEDROPPER")
         context.workspace.status_text_set(
             "Click a hole or shaft (axis through its centre) or a flat face (axis at right angles to it).  "
@@ -244,18 +265,19 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
-        if event.type != "LEFTMOUSE" or event.value != "PRESS":
+        if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
         res = _raycast(context, event)
-        if res is None:
-            return {"RUNNING_MODAL"}           # missed the model: keep waiting
+        if res is None or res[0].get(build.PROP_KIND) != "part":
+            context.workspace.status_text_set("Missed the model (or hit the floor): click a part. Esc: cancel")
+            return {"RUNNING_MODAL"}           # keep waiting
         ob, index, loc, normal = res
         origin, direction, desc = joints.axis_from_hit(ob, index, loc, normal)
         self._end(context)
         scene = context.scene
         try:
             if self.mode == "NEW":
-                movers = [bpy.data.objects.get(n) for n in self.movers.split(",") if n]
+                movers = [bpy.data.objects.get(n) for n in self.movers.split(SEP) if n]
                 j = joints.create(scene, self.kind, [m for m in movers if m], origin, direction, ref=ob)
                 msg = f"Joint '{j.name}' added on a {desc}"
             else:
@@ -296,7 +318,7 @@ class FRESING_OT_joint_flip(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_joint(context) is not None
+        return _valid_joint(context)
 
     def execute(self, context):
         joints.flip(context.scene, _active_joint(context))
@@ -314,7 +336,7 @@ class FRESING_OT_joint_axis_preset(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_joint(context) is not None
+        return _valid_joint(context)
 
     def execute(self, context):
         j = _active_joint(context)
@@ -334,7 +356,7 @@ class FRESING_OT_joint_kind(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_joint(context) is not None
+        return _valid_joint(context)
 
     def execute(self, context):
         joints.set_kind(context.scene, _active_joint(context), self.kind)
@@ -353,7 +375,7 @@ class FRESING_OT_joint_members(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_joint(context) is not None
+        return _valid_joint(context)
 
     def execute(self, context):
         j = _active_joint(context)
@@ -391,7 +413,7 @@ class FRESING_OT_joint_value(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_joint(context) is not None
+        return _valid_joint(context)
 
     def execute(self, context):
         j = _active_joint(context)
@@ -853,6 +875,39 @@ class FRESING_OT_anim_build(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_anim_fit_camera(bpy.types.Operator):
+    """Zoom the start camera out so the model stays in view during the whole animation"""
+
+    bl_idname = "fresing.anim_fit_camera"
+    bl_label = "Fit camera to the whole motion"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return _active_anim(context) is not None
+
+    def execute(self, context):
+        from . import cameras
+        scene = context.scene
+        a = _active_anim(context)
+        info = animation.bake(scene, a)
+        cam = bpy.data.objects.get(scene.fresing.anim_restore_camera)
+        if a.start_shot and a.start_shot in scene.fresing.shots and scene.fresing.shots[a.start_shot].camera:
+            cam = scene.fresing.shots[a.start_shot].camera
+        if cam is None or cam.type != "CAMERA":
+            animation.clear_keys(scene)
+            self.report({"WARNING"}, "No start camera: pick a camera or a start scene first")
+            return {"CANCELLED"}
+        n = info["frames"]
+        frames = sorted({1, n} | {1 + round(k * (n - 1) / 15) for k in range(16)})
+        pts = cameras.points_over_frames(scene, frames)
+        animation.clear_keys(scene)
+        cameras.fit(cam, scene, points=pts)
+        animation.bake(scene, a)
+        self.report({"INFO"}, f"'{cam.name}' fitted on {len(frames)} moments of the animation")
+        return {"FINISHED"}
+
+
 class FRESING_OT_anim_clear(bpy.types.Operator):
     """Remove the animation keys and put the model back as it was before building"""
 
@@ -1018,7 +1073,7 @@ CLASSES = (
     FRESING_OT_shot_save, FRESING_OT_shot_apply, FRESING_OT_shot_update, FRESING_OT_shot_remove,
     FRESING_OT_anim_add, FRESING_OT_anim_remove, FRESING_OT_block_add, FRESING_OT_block_remove,
     FRESING_OT_block_move, FRESING_OT_block_duplicate, FRESING_OT_block_target, FRESING_OT_anim_build,
-    FRESING_OT_anim_clear,
+    FRESING_OT_anim_fit_camera, FRESING_OT_anim_clear,
     FRESING_OT_queue_add, FRESING_OT_queue_start, FRESING_OT_queue_stop, FRESING_OT_queue_remove,
     FRESING_OT_queue_open, FRESING_OT_queue_log,
 )

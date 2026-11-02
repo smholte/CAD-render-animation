@@ -60,17 +60,27 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
     return job
 
 
-def is_running(scene) -> bool:
-    s = scene.fresing
-    if not s.queue_pid:
-        return False
-    return _pid_alive(s.queue_pid)
-
-
+# Runtime state of the queue in this session. Kept outside the scene so undo cannot
+# make the app forget a running renderer; the scene copy is for reopening the project.
+_RUNTIME = {"pid": 0, "dir": "", "killed": False}
 _ALIVE_CACHE: dict[int, tuple[float, bool]] = {}
 
 
-def _pid_alive(pid: int) -> bool:
+def current(scene) -> tuple[int, str]:
+    s = scene.fresing
+    if _RUNTIME["pid"]:
+        return _RUNTIME["pid"], _RUNTIME["dir"]
+    return s.queue_pid, s.queue_dir
+
+
+def is_running(scene) -> bool:
+    pid, qdir = current(scene)
+    if not pid:
+        return False
+    return _pid_alive(pid, qdir)
+
+
+def _pid_alive(pid: int, qdir: str = "") -> bool:
     """Cheap enough to call from panel drawing (cached for a second)."""
     if pid <= 0:
         return False
@@ -80,23 +90,40 @@ def _pid_alive(pid: int) -> bool:
     hit = _ALIVE_CACHE.get(pid)
     if hit is not None and time.time() - hit[0] < 1.0:
         return hit[1]
-    alive = _pid_alive_os(pid)
+    alive = _status_says_running(qdir, pid) and _pid_alive_os(pid)
     _ALIVE_CACHE[pid] = (time.time(), alive)
     return alive
 
 
+def _status_says_running(qdir: str, pid: int) -> bool:
+    """The runner writes its pid and running=False when it ends; a reused pid is not ours."""
+    if not qdir:
+        return False
+    st = read_status(qdir)
+    if not st:
+        return os.path.isfile(os.path.join(qdir, "queue.json"))     # just started, no status yet
+    return bool(st.get("running")) and int(st.get("pid", 0)) == pid
+
+
 def _pid_alive_os(pid: int) -> bool:
+    """True if ``pid`` is a running Blender (or Python, in tests) process."""
     if sys.platform == "win32":
         import ctypes
+        from ctypes import wintypes
         kernel32 = ctypes.windll.kernel32
         handle = kernel32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
         if not handle:
             return False
         try:
-            code = ctypes.c_ulong()
-            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            code = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) or code.value != 259:  # STILL_ACTIVE
                 return False
-            return code.value == 259                              # STILL_ACTIVE
+            buf = ctypes.create_unicode_buffer(1024)
+            size = wintypes.DWORD(1024)
+            if not kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+                return False
+            exe = os.path.basename(buf.value).lower()
+            return exe.startswith("blender") or exe.startswith("python")
         finally:
             kernel32.CloseHandle(handle)
     try:
@@ -154,7 +181,6 @@ def start(context) -> str:
     bpy.ops.wm.save_as_mainfile(filepath=blend, copy=True, compress=False, relative_remap=True)
     with open(os.path.join(qdir, "queue.json"), "w", encoding="utf-8") as fh:
         json.dump({"blend": blend, "project": bpy.data.filepath, "jobs": jobs}, fh, indent=1)
-    log = open(os.path.join(qdir, "log.txt"), "w", encoding="utf-8")
     env = dict(os.environ)
     cmd = runner_command(qdir)
     if cmd[0] == sys.executable:
@@ -168,10 +194,11 @@ def start(context) -> str:
                                    | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
     else:
         kwargs["start_new_session"] = True
-    proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env,
-                            cwd=qdir, **kwargs)
+    with open(os.path.join(qdir, "log.txt"), "w", encoding="utf-8") as log:   # the child keeps its own handle
+        proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=qdir, **kwargs)
     s.queue_pid = proc.pid
     _PROCS[proc.pid] = proc
+    _RUNTIME.update(pid=proc.pid, dir=qdir, killed=False)
     ensure_polling()
     return qdir
 
@@ -180,10 +207,10 @@ _PROCS: dict[int, subprocess.Popen] = {}
 
 
 def stop(scene) -> None:
-    s = scene.fresing
-    if s.queue_dir:
+    _pid, qdir = current(scene)
+    if qdir:
         try:
-            open(os.path.join(s.queue_dir, "stop"), "w").close()
+            open(os.path.join(qdir, "stop"), "w").close()
         except OSError:
             pass
 
@@ -191,17 +218,21 @@ def stop(scene) -> None:
 def kill(scene) -> None:
     """Stop at once (the frame being rendered is lost)."""
     s = scene.fresing
-    pid = s.queue_pid
+    pid, _qdir = current(scene)
     stop(scene)
-    if pid and _pid_alive(pid):
-        try:
+    proc = _PROCS.get(pid)
+    try:
+        if proc is not None:
+            proc.kill()
+        elif pid and _pid_alive_os(pid):          # checked: it is a Blender, not a reused number
             if sys.platform == "win32":
                 subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=10,
                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             else:
                 os.kill(pid, 15)
-        except Exception:
-            pass
+    except Exception:
+        pass
+    _RUNTIME["killed"] = True
     for j in s.queue:
         if j.status in ("RUNNING", "WAITING"):
             j.status = "STOPPED"
@@ -225,33 +256,57 @@ def log_tail(qdir: str, lines: int = 6) -> str:
         return ""
 
 
+def _queued_jobs(qdir: str) -> list[dict]:
+    try:
+        with open(os.path.join(qdir, "queue.json"), encoding="utf-8") as fh:
+            return json.load(fh).get("jobs", [])
+    except (OSError, ValueError):
+        return []
+
+
 def sync(scene) -> bool:
     """Copy the runner's status into the job list. Returns True while the runner is going."""
     s = scene.fresing
-    if not s.queue_dir:
+    pid, qdir = current(scene)
+    if not qdir:
         return False
-    st = read_status(s.queue_dir)
+    if _RUNTIME["pid"]:                      # after an undo the scene may have lost these
+        s.queue_pid, s.queue_dir = pid, qdir
+    st = read_status(qdir)
+    jobs_info = st.get("jobs", {})
+    known = {j.job_id for j in s.queue}
+    for qj in _queued_jobs(qdir):            # jobs the scene lost (undo) are shown again
+        if qj["id"] not in known and qj["id"] in jobs_info:
+            j = s.queue.add()
+            j.job_id, j.kind, j.label = qj["id"], qj["kind"], qj.get("label", "")
+            j.shot, j.animation, j.camera, j.quality = qj["shot"], qj["animation"], qj["camera"], qj["quality"]
+    killed = _RUNTIME["killed"]
     for j in s.queue:
-        info = st.get("jobs", {}).get(j.job_id)
-        if info:
-            j.status = info.get("status", j.status)
-            j.progress = float(info.get("progress", j.progress))
-            j.message = info.get("message", j.message)
-            j.output = info.get("output", j.output)
+        info = jobs_info.get(j.job_id)
+        if not info:
+            continue
+        status = info.get("status", j.status)
+        if killed and status in ("RUNNING", "WAITING"):
+            status = "STOPPED"
+        j.status = status
+        j.progress = float(info.get("progress", j.progress))
+        j.message = "Stopped" if killed and status == "STOPPED" else info.get("message", j.message)
+        j.output = info.get("output", j.output)
     alive = is_running(scene)
     if not alive:
-        proc = _PROCS.pop(s.queue_pid, None)
+        proc = _PROCS.pop(pid, None)
         if proc is not None:
             try:
                 proc.wait(timeout=0)
             except Exception:
                 pass
-        if s.queue_pid:
+        if pid:
             s.queue_pid = 0
+            _RUNTIME["pid"] = 0
             for j in s.queue:
                 if j.status == "RUNNING":       # the runner died while rendering
-                    j.status = "FAILED"
-                    j.message = "Renderer stopped unexpectedly: " + log_tail(s.queue_dir)
+                    j.status = "STOPPED" if killed else "FAILED"
+                    j.message = "Stopped" if killed else "Renderer stopped unexpectedly: " + log_tail(qdir)
     return alive
 
 
@@ -352,12 +407,15 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         if os.path.exists(final):              # resume after a stop
             continue
         scene.frame_set(f)
-        target = final[:-4] + ".tmp.png" if composite else final
+        target = final[:-4] + ".tmp.png"      # a frame cut off by "Stop now" never looks finished
         r.filepath = target
         bpy.ops.render.render(write_still=True, scene=scene.name)
         if composite:
-            render._composite_over_color(target, col, final, "PNG")
+            render._composite_over_color(target, col, final[:-4] + ".part.png", "PNG")
             os.remove(target)
+            os.replace(final[:-4] + ".part.png", final)
+        else:
+            os.replace(target, final)
         done += 1
         per = (time.time() - t0) / done
         left = per * (f_end - f)
@@ -382,8 +440,12 @@ def _duration(seconds: float) -> str:
 
 def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int, white_under: bool = False) -> str:
     """Put numbered PNG frames into an H.264 MP4 with Blender's own video encoder."""
-    files = sorted(f for f in os.listdir(frames_dir) if f.startswith("frame_") and f.endswith(".png")
-                   and not f.endswith(".tmp.png"))
+    def number(name: str) -> int:
+        digits = "".join(ch for ch in name if ch.isdigit())
+        return int(digits) if digits else 0
+
+    files = sorted((f for f in os.listdir(frames_dir) if f.startswith("frame_") and f.endswith(".png")
+                    and not f.endswith((".tmp.png", ".part.png"))), key=number)
     if not files:
         raise RuntimeError("No frames to put in the video")
     enc = bpy.data.scenes.new("FR encode")

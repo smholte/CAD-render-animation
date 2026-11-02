@@ -283,15 +283,22 @@ def lock_all(scene) -> None:
                 ob[build.PROP_LOCKED] = True
 
 
+def set_visible_flags(ob, hidden: bool) -> None:
+    """Hide/show in the view and the render. ``hide_set`` is slow on big scenes: only call it on a change."""
+    try:
+        if ob.hide_get() != hidden:
+            ob.hide_set(hidden)
+    except RuntimeError:
+        pass
+    if ob.hide_render != hidden:
+        ob.hide_render = hidden
+
+
 def set_hidden(ob, hidden: bool, tree: Tree | None = None) -> None:
     for target in [ob] + descendants(ob, tree):
         if target.get(build.PROP_EXCLUDED) and not hidden:
             continue
-        try:
-            target.hide_set(hidden)
-        except RuntimeError:
-            pass
-        target.hide_render = hidden
+        set_visible_flags(target, hidden)
     ob["fr_hidden"] = hidden
 
 
@@ -310,11 +317,7 @@ def exclude(objs, excluded: bool = True) -> int:
                 continue
             seen.add(t.name)
             t[build.PROP_EXCLUDED] = excluded
-            try:
-                t.hide_set(excluded)
-            except RuntimeError:
-                pass
-            t.hide_render = excluded
+            set_visible_flags(t, excluded)
             t.hide_select = excluded
             n += 1
     return n
@@ -325,11 +328,7 @@ def restore_excluded(scene) -> int:
     for ob in objs:
         ob[build.PROP_EXCLUDED] = False
         ob.hide_select = False
-        try:
-            ob.hide_set(False)
-        except RuntimeError:
-            pass
-        ob.hide_render = False
+        set_visible_flags(ob, False)
     return len(objs)
 
 

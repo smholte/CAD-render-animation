@@ -112,6 +112,53 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     count: IntProperty(name="Parts", default=0)
 
 
+def _renamer(kind: str):
+    """Update callback: when a pose / visibility set / scene / animation / scheme is renamed,
+    everything that refers to it by name follows."""
+
+    def update(self, context):
+        old = self.get("_old_name", "")
+        new = self.name
+        self["_old_name"] = new
+        if not old or old == new or context is None or context.scene is None:
+            return
+        s = context.scene.fresing
+        if kind == "pose":
+            for shot in s.shots:
+                if shot.pose == old:
+                    shot.pose = new
+            for a in s.animations:
+                for b in a.blocks:
+                    if b.pose == old:
+                        b.pose = new
+        elif kind == "visibility":
+            for shot in s.shots:
+                if shot.visibility == old:
+                    shot.visibility = new
+        elif kind == "scheme":
+            for shot in s.shots:
+                if shot.scheme == old:
+                    shot.scheme = new
+        elif kind == "shot":
+            for a in s.animations:
+                if a.start_shot == old:
+                    a.start_shot = new
+            for j in s.queue:
+                if j.shot == old:
+                    j.shot = new
+            if s.active_shot == old:
+                s.active_shot = new
+        elif kind == "animation":
+            for j in s.queue:
+                if j.animation == old:
+                    j.animation = new
+                    j.label = f"Animation: {new}"
+            if s.anim_baked == old:
+                s.anim_baked = new
+
+    return update
+
+
 class FRSchemeLook(bpy.types.PropertyGroup):
     group: StringProperty()
     material: StringProperty()
@@ -119,7 +166,7 @@ class FRSchemeLook(bpy.types.PropertyGroup):
 
 
 class FRScheme(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Scheme")
+    name: StringProperty(name="Name", default="Scheme", update=_renamer("scheme"))
     looks: CollectionProperty(type=FRSchemeLook)
 
 
@@ -223,7 +270,7 @@ class FRPlace(bpy.types.PropertyGroup):
 
 
 class FRPose(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Pose")
+    name: StringProperty(name="Name", default="Pose", update=_renamer("pose"))
     joints: CollectionProperty(type=FRPoseJoint)
     places: CollectionProperty(type=FRPlace)
 
@@ -233,7 +280,7 @@ class FRUid(bpy.types.PropertyGroup):
 
 
 class FRVisSet(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Visibility")
+    name: StringProperty(name="Name", default="Visibility", update=_renamer("visibility"))
     hidden: CollectionProperty(type=FRUid)
 
 
@@ -269,7 +316,7 @@ def _choices(coll, what: str) -> list:
 
 
 class FRShot(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Scene")
+    name: StringProperty(name="Name", default="Scene", update=_renamer("shot"))
     scheme: StringProperty()
     pose: StringProperty()
     visibility: StringProperty()
@@ -316,7 +363,7 @@ class FRAnimBlock(bpy.types.PropertyGroup):
 
 
 class FRAnimation(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Animation")
+    name: StringProperty(name="Name", default="Animation", update=_renamer("animation"))
     fps: EnumProperty(name="Frame rate", default="25", items=[(v, f"{v} fps", "") for v in ("24", "25", "30", "50", "60")])
     start_shot: StringProperty(name="Start from scene",
                                description="Scene (colours, pose, visibility, camera, background) at the first frame")

@@ -57,7 +57,12 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         side.prop(s, "show_joints", text="", icon="EMPTY_SINGLE_ARROW")
 
         j = s.joints[s.joints_index] if 0 <= s.joints_index < len(s.joints) else None
-        if j is not None and j.motion is not None:
+        if j is not None and not joints.is_valid(j):
+            box = layout.box()
+            box.alert = True
+            box.label(text="This joint is broken (its arrow was deleted)", icon="ERROR")
+            box.operator("fresing.joint_remove", text="Remove it (parts go back to their place)")
+        elif j is not None:
             box = layout.box()
             row = box.row(align=True)
             for kind, label in (("ROTATE", "Rotate"), ("SLIDE", "Slide")):
@@ -296,6 +301,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
         row.scale_y = 1.3
         row.operator("fresing.anim_build", text="Build & play", icon="PLAY").play = True
         row.operator("fresing.anim_clear", text="", icon="CANCEL")
+        layout.operator("fresing.anim_fit_camera", icon="FULLSCREEN_ENTER")
         if s.anim_baked:
             layout.label(text=f"Keys built for '{s.anim_baked}' · Space plays · scrub the timeline", icon="CHECKMARK")
 

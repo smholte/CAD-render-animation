@@ -126,12 +126,9 @@ class FRESING_OT_show_all(bpy.types.Operator):
     def execute(self, context):
         for ob in context.scene.objects:      # every object once, no recursion
             if ob.get(build.PROP_KIND) in build.MODEL_KINDS and not ob.get(build.PROP_EXCLUDED):
-                try:
-                    ob.hide_set(False)
-                except RuntimeError:
-                    pass
-                ob.hide_render = False
-                ob["fr_hidden"] = False
+                logic.set_visible_flags(ob, False)
+                if ob.get("fr_hidden"):
+                    ob["fr_hidden"] = False
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 

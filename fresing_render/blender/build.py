@@ -64,6 +64,19 @@ def rest_basis(ob) -> Matrix:
     return m if m is not None else cad_basis(ob)
 
 
+def ensure_bases(scene) -> int:
+    """Projects made before version 0.2 have no stored CAD matrices: store the current ones.
+
+    Only for objects that are still in their CAD parent (no joint was ever added)."""
+    n = 0
+    for ob in scene.objects:
+        if ob.get(PROP_KIND) in MODEL_KINDS and PROP_CAD_BASIS not in ob and PROP_CAD_PARENT not in ob:
+            set_mat(ob, PROP_CAD_BASIS, ob.matrix_basis)
+            set_mat(ob, PROP_REST_BASIS, ob.matrix_basis)
+            n += 1
+    return n
+
+
 def logical_parent(ob):
     """Parent in the CAD structure (skips the empties a joint inserts)."""
     p = ob.get(PROP_CAD_PARENT)

@@ -150,8 +150,9 @@ def clear_keys(scene, restore: bool = True) -> None:
         if ob.type == "CAMERA" and ob.data is not None and ob.data.get(TAG):
             _drop_action(ob.data)
             del ob.data[TAG]
-    for act in [a for a in bpy.data.actions if a.get(TAG) and a.users == 0]:
-        bpy.data.actions.remove(act)
+    orphans = [a for a in bpy.data.actions if a.get(TAG) and a.users == 0]
+    if orphans:
+        bpy.data.batch_remove(orphans)          # one by one is slow with thousands of actions
     s.anim_baked = ""
     if was_baked:
         for m in [m for m in scene.timeline_markers if m.name.startswith("▸ ")]:
@@ -178,10 +179,7 @@ def _drop_action(id_block) -> None:
     ad = id_block.animation_data
     if ad is None:
         return
-    act = ad.action
-    ad.action = None
-    if act is not None and act.get(TAG) and act.users == 0:
-        bpy.data.actions.remove(act)
+    ad.action = None                         # the action itself is removed in one batch afterwards
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +319,12 @@ def bake(scene, anim) -> dict:
     uids = states.by_uid(scene)
     ident = Matrix.Identity(4)
 
+    busy_until: dict[str, int] = {}
+
     def joint_move(j, v_from, v_to, f0, f1, easing):
+        if busy_until.get(j.name, 0) > f0:
+            warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
+        busy_until[j.name] = max(f1, f0 + 1)
         keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
         interp, ez = EASING.get(easing, EASING["SMOOTH"])
         _merge(keys, f0, v_from, interp, ez)

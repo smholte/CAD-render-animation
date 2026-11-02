@@ -83,6 +83,11 @@ def main() -> int:
     status["running"] = False
     status["finished"] = time.time()
     write()
+    try:                                     # the copy of the project is not needed any more
+        bpy.ops.wm.read_homefile(use_empty=True)
+        os.remove(q["blend"])
+    except Exception:
+        pass
     return 0
 
 

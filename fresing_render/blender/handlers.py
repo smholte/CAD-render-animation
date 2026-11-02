@@ -77,6 +77,12 @@ def _subscribe():
 def _on_load(_dummy=None):
     _IGNORE.clear()
     _subscribe()
+    try:
+        for sc in bpy.data.scenes:           # projects from before 0.2: store the CAD matrices once
+            if hasattr(sc, "fresing") and sc.fresing.model_count:
+                build.ensure_bases(sc)
+    except Exception:
+        pass
     try:                                     # a render queue started earlier may still be going
         scene = bpy.context.scene
         if scene is not None and hasattr(scene, "fresing") and scene.fresing.queue_dir:
@@ -84,6 +90,17 @@ def _on_load(_dummy=None):
             queue.sync(scene)
             if scene.fresing.queue_pid:
                 queue.ensure_polling()
+    except Exception:
+        pass
+
+
+@persistent
+def _after_undo(_dummy=None):
+    try:
+        from . import queue
+        if queue._RUNTIME["pid"]:
+            queue.sync(bpy.context.scene)    # put the running queue back into the restored scene
+            queue.ensure_polling()
     except Exception:
         pass
 
@@ -109,6 +126,9 @@ def register():
         bpy.app.handlers.load_post.append(_on_load)
     if _before_load not in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.append(_before_load)
+    for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
+        if _after_undo not in lst:
+            lst.append(_after_undo)
     atexit.register(_at_exit)
 
 
@@ -119,4 +139,7 @@ def unregister():
         bpy.app.handlers.load_post.remove(_on_load)
     if _before_load in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.remove(_before_load)
+    for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
+        while _after_undo in lst:
+            lst.remove(_after_undo)
     atexit.unregister(_at_exit)

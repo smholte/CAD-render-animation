@@ -187,12 +187,9 @@ def save_visibility(scene, name: str):
 def show_all(scene) -> None:
     for ob in scene.objects:
         if ob.get(build.PROP_KIND) in build.MODEL_KINDS and not ob.get(build.PROP_EXCLUDED):
-            try:
-                ob.hide_set(False)
-            except RuntimeError:
-                pass
-            ob.hide_render = False
-            ob["fr_hidden"] = False
+            logic.set_visible_flags(ob, False)
+            if ob.get("fr_hidden"):
+                ob["fr_hidden"] = False
     scene.fresing.bounds_valid = False
 
 
@@ -276,7 +273,10 @@ def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visi
     shot.scheme = scheme
     shot.pose = pose
     shot.visibility = visibility
-    shot.camera = camera if camera is not None else scene.camera
+    cam = camera if camera is not None else scene.camera
+    if cam is not None and cam.get("fr_anim_camera"):      # never the camera an animation moves
+        cam = bpy.data.objects.get(s.anim_restore_camera) or cam
+    shot.camera = cam
     if scheme == CURRENT:
         shot.own_scheme.looks.clear()
         for g in s.groups:
@@ -294,12 +294,14 @@ def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visi
 
 def apply_shot(scene, name: str) -> list[str]:
     """Switch to a saved scene. Returns warnings (missing pose, camera...)."""
+    from . import animation
     from . import logic as L
     s = scene.fresing
     shot = s.shots.get(name)
     warnings: list[str] = []
     if shot is None:
         return [f"No scene called '{name}'"]
+    animation.clear_keys(scene)            # animation keys would override the scene's pose and visibility
     # looks
     if shot.scheme == CURRENT:
         for look in shot.own_scheme.looks:

@@ -67,6 +67,24 @@ def records(objs) -> list[dict]:
     return out
 
 
+def _candidates(olds: list[dict], news: list[dict], k: int = 8) -> list[tuple[float, int, int]]:
+    """(distance, old index, new index) pairs, nearest first. Big groups (1,000 identical bolts)
+    use a k-d tree and only the k nearest neighbours instead of every pair."""
+    if len(olds) * len(news) <= 40000:
+        return sorted(((o["pos"] - n["pos"]).length, i, j) for i, o in enumerate(olds) for j, n in enumerate(news))
+    from mathutils.kdtree import KDTree
+    tree = KDTree(len(news))
+    for j, n in enumerate(news):
+        tree.insert(n["pos"], j)
+    tree.balance()
+    cand = []
+    for i, o in enumerate(olds):
+        for _co, j, dist in tree.find_n(o["pos"], min(k, len(news))):
+            cand.append((dist, i, j))
+    cand.sort()
+    return cand
+
+
 def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> list[tuple[dict, dict]]:
     """Pair old and new records. Returns [(old, new)]."""
     pairs: list[tuple[dict, dict]] = []
@@ -105,15 +123,22 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
             if tol is None and len(olds) == 1 and len(news) == 1:
                 take(olds[0], news[0])
                 continue
-            cand = sorted(((o["pos"] - n["pos"]).length, i, j)
-                          for i, o in enumerate(olds) for j, n in enumerate(news))
-            for dist, i, j in cand:
-                o, n = olds[i], news[j]
-                if id(o) in used_old or id(n) in used_new:
-                    continue
-                if tol is not None and dist > tol:
+            while True:                      # repeat: the k-d tree only offers the nearest few
+                rem_o = [o for o in olds if id(o) not in used_old]
+                rem_n = [n for n in news if id(n) not in used_new]
+                if not rem_o or not rem_n:
                     break
-                take(o, n)
+                progress = False
+                for dist, i, j in _candidates(rem_o, rem_n):
+                    o, n = rem_o[i], rem_n[j]
+                    if id(o) in used_old or id(n) in used_new:
+                        continue
+                    if tol is not None and dist > tol:
+                        break
+                    take(o, n)
+                    progress = True
+                if not progress or tol is not None:
+                    break
     return pairs
 
 
@@ -129,7 +154,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     animation.clear_keys(scene)
 
     # 1. joints off (parts back in the CAD tree), remember free moves by part ID
-    specs = joints.dissolve_all(scene)
+    build.ensure_bases(scene)
+    specs = joints.dissolve_all(scene, root=old_root)       # joints of other models stay
     tree = logic.Tree(scene)
     old_objs = _model_objects_of(old_root, tree)
     old_set = {ob.name for ob in old_objs}
@@ -154,6 +180,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     pairs = match(old_recs, new_recs)
     mapping = {old_root.get(build.PROP_UID): new_root.get(build.PROP_UID)}
     by_uid_new = {old_root.get(build.PROP_UID): new_root}
+    for r in old_recs:                       # parts that are gone: their IDs must not hit a new part
+        mapping[r["ob"].get(build.PROP_UID)] = "gone:" + r["ob"].get(build.PROP_UID, "")
     for o, n in pairs:
         mapping[o["ob"].get(build.PROP_UID)] = n["ob"].get(build.PROP_UID)
         by_uid_new[o["ob"].get(build.PROP_UID)] = n["ob"]

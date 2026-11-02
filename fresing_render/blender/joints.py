@@ -348,6 +348,7 @@ def create(scene, kind: str, objs, origin, direction, name: str = "", base=None,
     if reason:
         raise RuntimeError(reason)
     s = scene.fresing
+    build.ensure_bases(scene)
     label = objs[0].get(build.PROP_NAME, objs[0].name)
     name = unique_name(scene, name or f"{label} {'rotate' if kind == 'ROTATE' else 'slide'}")
     size = _model_size(scene) * 0.08
@@ -576,14 +577,15 @@ def axis_from_hit(ob, polygon_index: int, hit: Vector, normal: Vector):
 # re-import support: joints as plain data
 # ---------------------------------------------------------------------------
 
-def to_specs(scene, values: dict | None = None) -> list[dict]:
+def to_specs(scene, values: dict | None = None, only=None) -> list[dict]:
     """Joints as plain data (object references by stable part ID). Call in the CAD pose."""
     out = []
     for j in scene.fresing.joints:
-        if not is_valid(j):
+        if not is_valid(j) or (only is not None and j.name not in only):
             continue
         base = j.frame.parent
         out.append({
+            "world": build.mat_to_list(j.frame.matrix_world),
             "name": j.name, "kind": j.kind, "value": (values or {}).get(j.name, get_value(j)),
             "use_limits": j.use_limits, "rot_min": j.rot_min, "rot_max": j.rot_max,
             "slide_min": j.slide_min, "slide_max": j.slide_max,
@@ -594,19 +596,39 @@ def to_specs(scene, values: dict | None = None) -> list[dict]:
     return out
 
 
-def dissolve_all(scene) -> list[dict]:
-    """Remove every joint (parts back in the CAD tree) and return them as specs."""
+def _root(ob):
+    while True:
+        p = build.logical_parent(ob)
+        if p is None:
+            return ob
+        ob = p
+
+
+def dissolve_all(scene, root=None) -> list[dict]:
+    """Remove the joints (of the model under ``root``, or all) and return them as specs."""
     s = scene.fresing
+
+    def belongs(j) -> bool:
+        if root is None:
+            return True
+        objs = members(j) + ([j.frame.parent] if j.frame is not None and j.frame.parent is not None else [])
+        return any(_root(o) is root for o in objs)
+
+    chosen = {j.name for j in s.joints if belongs(j)}
     values = {j.name: get_value(j) for j in s.joints}
     with cad_pose(scene):
-        specs = to_specs(scene, values)
-        for j in list(s.joints):
+        specs = to_specs(scene, values, only=chosen)
+        for i in reversed(range(len(s.joints))):
+            j = s.joints[i]
+            if j.name not in chosen:
+                continue
             for ob in members(j):
                 _detach(ob)
             for ob in (j.motion, j.frame):
                 if ob is not None:
                     bpy.data.objects.remove(ob, do_unlink=True)
-        s.joints.clear()
+            s.joints.remove(i)
+        s.joints_index = min(s.joints_index, max(0, len(s.joints) - 1))
     return specs
 
 
@@ -629,12 +651,9 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             base = None
         if base is None:
             base = default_base(objs)
-            local = None
+            world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
         else:
-            local = build.list_to_mat(sp["base_local"])
-        base_world = base.matrix_world if base is not None else Matrix.Identity(4)
-        world = base_world @ local if local is not None else _world_axis(
-            base, build.list_to_mat(sp["base_local"]))
+            world = base.matrix_world @ build.list_to_mat(sp["base_local"])
         origin = world.translation
         direction = world.to_3x3() @ Vector((0, 0, 1))
         try:

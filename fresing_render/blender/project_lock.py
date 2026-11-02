@@ -126,6 +126,8 @@ def _before_load(_dummy=None):
 @persistent
 def _after_save(_dummy=None):
     path = bpy.data.filepath
+    if not path or bpy.app.background:      # unsaved project (e.g. a copy for the render queue)
+        return
     if path != _STATE.get("path"):
         if _STATE.get("path"):
             release(_STATE["path"])         # "Save as": the old file is free again

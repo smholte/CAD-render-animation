@@ -450,7 +450,7 @@ def test_operators_smoke(scene):
                    ("shot_apply", {"name": "S"}), ("shot_update", {}),
                    ("anim_add", {}), ("block_add", {"kind": "JOINT"}), ("block_add", {"kind": "POSE"}),
                    ("block_add", {"kind": "CAMERA"}), ("block_add", {"kind": "HIDE"}), ("block_duplicate", {}),
-                   ("block_move", {"direction": "UP"}), ("block_target", {}), ("anim_build", {}),
+                   ("block_move", {"direction": "UP"}), ("block_target", {}), ("anim_build", {}), ("anim_fit_camera", {}),
                    ("anim_clear", {}), ("queue_add", {"kind": "STILL"}), ("queue_add", {"kind": "SHOT", "name": "S"}),
                    ("queue_add", {"kind": "ANIMATION"}), ("queue_remove", {}), ("block_remove", {}),
                    ("report_clear", {}), ("joint_remove", {}), ("pose_remove", {}), ("vis_remove", {}),
@@ -459,3 +459,90 @@ def test_operators_smoke(scene):
         assert res == {"FINISHED"}, (op, res)
     assert s.shots.get("S") is None and len(s.joints) == 0
     assert len(s.queue) == 2
+
+
+# ---- review fixes ----------------------------------------------------------
+
+
+def test_scene_wins_over_built_animation(scene):
+    j = boom_joint(scene)
+    states.save_shot(scene, "Flat")                        # joint at 0
+    a = _anim(scene, j)
+    animation.bake(scene, a)
+    scene.frame_set(40)
+    assert joints.get_value(j) > 0.5
+    states.apply_shot(scene, "Flat")
+    scene.frame_set(40)                                   # keys are gone, the scene's pose stays
+    assert abs(joints.get_value(j)) < 1e-9 and not scene.fresing.anim_baked
+
+
+def test_update_keeps_joints_of_other_models(scene):
+    machine = os.path.join(HERE, "data", "test_machine.step")
+    assert bpy.ops.fresing.import_step(filepath=machine, quality="draft") == {"FINISHED"}
+    cover = ob(scene, "COVER.ASM")
+    jm = joints.create(scene, "ROTATE", [cover], cover.matrix_world.translation, Vector((0, 0, 1)))
+    boom_joint(scene)
+    crane = next(r for r in build.model_roots(scene) if r.get(build.PROP_NAME) == "TEST.CRANE")
+    assert bpy.ops.fresing.import_step(filepath=CRANE_B, quality="draft", update_root=crane.name) == {"FINISHED"}
+    names = {j.name for j in scene.fresing.joints}
+    assert jm.name in names and len(names) == 2 and not len(scene.fresing.report_notes)
+
+
+def test_gone_part_does_not_hit_a_new_one(scene):
+    bolts = sorted((o for o in build.iter_parts(scene) if o[build.PROP_NAME].startswith("ISO 4017")),
+                   key=lambda o: (round(o.matrix_world.translation.x, 3), round(o.matrix_world.translation.y, 3)))
+    gone = bolts[0]                                      # (50, 50): not in revision B
+    assert close(gone.matrix_world.translation, (0.05, 0.05, 0.1))
+    logic.set_hidden(gone, True)
+    states.save_visibility(scene, "V")
+    root = build.model_roots(scene)[0]
+    assert bpy.ops.fresing.import_step(filepath=CRANE_B, quality="draft", update_root=root.name) == {"FINISHED"}
+    assert not [o for o in build.iter_parts(scene) if logic.is_hidden(o)]
+    states.apply_visibility(scene, "V")
+    assert not [o for o in build.iter_parts(scene) if logic.is_hidden(o)]
+
+
+def test_project_from_before_phase2(scene):
+    for o in scene.objects:                             # what a 0.1 project looks like
+        for key in (build.PROP_CAD_BASIS, build.PROP_REST_BASIS):
+            if key in o:
+                del o[key]
+    j = boom_joint(scene)
+    joints.set_value(j, math.radians(30))
+    joints.remove(scene, j)
+    update(scene)
+    assert close(tip(scene), (1.6, 0.3, 0.4))
+
+
+def test_renames_follow(scene):
+    s = scene.fresing
+    states.save_pose(scene, "Up")
+    states.save_visibility(scene, "V")
+    states.save_shot(scene, "Hero", pose="Up", visibility="V")
+    a = s.animations.add()
+    a.name = "A"
+    a.start_shot = "Hero"
+    queue.add_job(scene, "ANIMATION", animation="A")
+    s.poses["Up"].name = "Raised"
+    s.visibility_sets["V"].name = "No cover"
+    s.shots["Hero"].name = "Hero shot"
+    a.name = "Luffing"
+    shot = s.shots["Hero shot"]
+    assert shot.pose == "Raised" and shot.visibility == "No cover"
+    assert a.start_shot == "Hero shot" and s.queue[0].animation == "Luffing"
+    assert not states.apply_shot(scene, "Hero shot")
+
+
+def test_big_groups_match_fast():
+    from fresing_render.blender import reimport
+    import random
+    random.seed(1)
+    pts = [Vector((random.random() * 10, random.random() * 10, 0)) for _ in range(1500)]
+    olds = [{"kind": "part", "key_a": None, "key_b": ("bolt",), "leaf": "bolt", "pos": p} for p in pts]
+    news = [{"kind": "part", "key_a": None, "key_b": ("bolt",), "leaf": "bolt", "pos": p + Vector((0.0001, 0, 0))}
+            for p in reversed(pts[:1400])]
+    t0 = time.time()
+    pairs = reimport.match(olds, news)
+    assert time.time() - t0 < 3.0
+    assert len(pairs) == 1400
+    assert all((o["pos"] - n["pos"]).length < 0.001 for o, n in pairs)
