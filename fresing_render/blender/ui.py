@@ -96,8 +96,8 @@ class FRESING_UL_tree(bpy.types.UIList):
         row = layout.row(align=True)
         for _ in range(item.depth):
             row.separator(factor=1.2)
-        row.label(text=ob.get(build.PROP_NAME, ob.name), icon="OUTLINER_COLLECTION" if item.depth == 0 else "MESH_CUBE")
-        row.label(text=str(item.parts))
+        row.label(text=f"{ob.get(build.PROP_NAME, ob.name)}  ({item.parts})",
+                  icon="OUTLINER_COLLECTION" if item.depth == 0 else "MESH_CUBE")
         locked = ob.get(build.PROP_LOCKED, True)
         op = row.operator("fresing.toggle_lock", text="", icon="LOCKED" if locked else "UNLOCKED", emboss=False)
         op.name = ob.name
@@ -138,7 +138,7 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
         row.template_list("FRESING_UL_tree", "", s, "tree", s, "tree_index", rows=8)
         col = row.column(align=True)
         col.operator("fresing.tree_refresh", text="", icon="FILE_REFRESH")
-        layout.label(text="Unlock a subassembly to move it on its own", icon="INFO")
+        layout.label(text="Unlock to move a subassembly", icon="INFO")
         row = layout.row(align=True)
         row.operator("fresing.hide_selected", icon="HIDE_ON")
         row.operator("fresing.show_all", icon="HIDE_OFF")
@@ -177,7 +177,7 @@ class FRESING_PT_visibility(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        layout.label(text="Save which parts are hidden, switch back in one click")
+        layout.label(text="Which parts are hidden, in one click")
         row = layout.row()
         row.template_list("FRESING_UL_visibility", "", s, "visibility_sets", s, "visibility_index", rows=3)
         col = row.column(align=True)

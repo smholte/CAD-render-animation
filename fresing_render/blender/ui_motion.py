@@ -37,8 +37,8 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         s = scene.fresing
         if animation.has_keys(scene):
             box = layout.box()
-            box.label(text=f"Animation '{s.anim_baked}' is playing back", icon="INFO")
-            box.label(text="Joints follow its keys; stop it to pose by hand")
+            box.label(text=f"Animation '{s.anim_baked}' is built", icon="INFO")
+            box.label(text="Stop it to move joints by hand")
             box.operator("fresing.anim_clear", icon="CANCEL")
         col = layout.column(align=True)
         row = col.row(align=True)
@@ -47,7 +47,8 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         op.mode, op.kind = "NEW", "ROTATE"
         op = row.operator("fresing.joint_pick_axis", text="Add slide joint", icon="CON_LOCLIKE")
         op.mode, op.kind = "NEW", "SLIDE"
-        col.label(text="Click what should move, then Add joint and click its pivot hole or shaft", icon="INFO")
+        col.label(text="1. Click the part that should move", icon="INFO")
+        col.label(text="2. Add joint, click its pivot hole")
 
         row = layout.row()
         row.template_list("FRESING_UL_joints", "", s, "joints", s, "joints_index", rows=4)
@@ -95,9 +96,9 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
             row.operator("fresing.joint_members", text="", icon="RESTRICT_SELECT_OFF").action = "SELECT"
             row = box.row(align=True)
             row.label(text="Axis")
-            op = row.operator("fresing.joint_pick_axis", text="Pick", icon="EYEDROPPER")
+            op = row.operator("fresing.joint_pick_axis", text="", icon="EYEDROPPER")
             op.mode = "EDIT"
-            row.operator("fresing.joint_flip", text="Flip", icon="ARROW_LEFTRIGHT")
+            row.operator("fresing.joint_flip", text="", icon="ARROW_LEFTRIGHT")
             for ax in ("X", "Y", "Z"):
                 row.operator("fresing.joint_axis_preset", text=ax).axis = ax
         layout.operator("fresing.pose_reset", icon="LOOP_BACK")
@@ -117,7 +118,7 @@ class FRESING_PT_poses(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        layout.label(text="A pose = all joint positions + moved subassemblies")
+        layout.label(text="Pose: joint positions + moved parts")
         row = layout.row()
         row.template_list("FRESING_UL_poses", "", s, "poses", s, "poses_index", rows=3)
         col = row.column(align=True)
@@ -133,7 +134,7 @@ class FRESING_PT_poses(_Panel, bpy.types.Panel):
         row.prop(s, "explode_direction", text="")
         row.prop(s, "explode_factor")
         box.operator("fresing.explode", icon="FULLSCREEN_EXIT")
-        box.label(text="Then save it as a pose; 'Back to CAD position' undoes it")
+        box.label(text="Save it as a pose to keep it")
 
 
 # =============================================================================
@@ -165,7 +166,7 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        layout.label(text="Colours + pose + visibility + camera + background + size")
+        layout.label(text="Colours, pose, camera, background…")
         row = layout.row()
         row.template_list("FRESING_UL_shots", "", s, "shots", s, "shots_index", rows=3)
         col = row.column(align=True)
@@ -303,7 +304,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
         row.operator("fresing.anim_clear", text="", icon="CANCEL")
         layout.operator("fresing.anim_fit_camera", icon="FULLSCREEN_ENTER")
         if s.anim_baked:
-            layout.label(text=f"Keys built for '{s.anim_baked}' · Space plays · scrub the timeline", icon="CHECKMARK")
+            layout.label(text="Built · Space plays it", icon="CHECKMARK")
 
         box = layout.box()
         box.label(text="Video")
@@ -380,7 +381,7 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         if running:
             row.operator("fresing.queue_stop", text="Stop after this frame", icon="PAUSE")
             row.operator("fresing.queue_stop", text="Stop now", icon="CANCEL").now = True
-            layout.label(text="Renders in the background, also when the app is closed", icon="INFO")
+            layout.label(text="Keeps going if you close the app", icon="INFO")
         else:
             row.operator("fresing.queue_start", icon="PLAY")
         if s.queue_dir:
