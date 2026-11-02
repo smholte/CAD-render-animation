@@ -29,6 +29,9 @@ from . import build
 
 VALUE = "fr_value"
 EPS = 1e-7
+# Matrices are stored in single precision by Blender: differences below this are rounding,
+# not a move (1e-5 m = 0.01 mm; 1e-5 in a rotation entry = 0.0006 degrees).
+MOVE_EPS = 1e-5
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +151,11 @@ def model_objects(scene):
 
 def _is_identity(m: Matrix) -> bool:
     ident = Matrix.Identity(4)
-    return all(abs(m[r][c] - ident[r][c]) < EPS for r in range(4) for c in range(4))
+    return all(abs(m[r][c] - ident[r][c]) < MOVE_EPS for r in range(4) for c in range(4))
+
+
+def _same(a: Matrix, b: Matrix) -> bool:
+    return all(abs(a[r][c] - b[r][c]) < MOVE_EPS for r in range(3) for c in range(4))
 
 
 def free_moves(scene) -> dict:
@@ -156,8 +163,11 @@ def free_moves(scene) -> dict:
     out = {}
     for ob in model_objects(scene):
         rest = build.rest_basis(ob)
+        basis = ob.matrix_basis
+        if _same(basis, rest):              # cheap test first: almost nothing is moved
+            continue
         try:
-            delta = rest.inverted() @ ob.matrix_basis
+            delta = rest.inverted() @ basis
         except ValueError:
             continue
         if not _is_identity(delta):
@@ -172,7 +182,7 @@ def apply_free_moves(scene, deltas: dict, reset_others: bool = True) -> None:
             ob.matrix_basis = build.rest_basis(ob) @ d
         elif reset_others:
             rest = build.rest_basis(ob)
-            if not _is_identity(rest.inverted() @ ob.matrix_basis):
+            if not _same(ob.matrix_basis, rest):
                 ob.matrix_basis = rest
 
 

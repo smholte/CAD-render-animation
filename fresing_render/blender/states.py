@@ -54,8 +54,9 @@ def capture_pose(scene, pose) -> None:
         v = pose.joints.add()
         v.joint = j.name
         v.value = joints.get_value(j)
+    objs = {ob.name: ob for ob in scene.objects}      # one pass: objects.get() searches every time
     for name, delta in joints.free_moves(scene).items():
-        ob = bpy.data.objects.get(name)
+        ob = objs.get(name)
         if ob is None:
             continue
         p = pose.places.add()

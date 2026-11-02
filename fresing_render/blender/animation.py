@@ -104,6 +104,22 @@ def _channelbag(id_block, id_type: str):
     return anim_utils.action_ensure_channelbag_for_slot(act, slot)
 
 
+def _shared_visibility(objs, rows, n: int) -> None:
+    """One action + slot with hide keys, assigned to every object in ``objs``."""
+    from bpy_extras import anim_utils
+    act = bpy.data.actions.new(f"FR visibility {n + 1}")
+    act[TAG] = True
+    slot = act.slots.new(id_type="OBJECT", name=f"Visibility {n + 1}")
+    cb = anim_utils.action_ensure_channelbag_for_slot(act, slot)
+    _write(cb, "hide_viewport", 0, rows)
+    _write(cb, "hide_render", 0, rows)
+    for ob in objs:
+        ad = ob.animation_data or ob.animation_data_create()
+        ad.action = act
+        ad.action_slot = slot
+        ob[TAG] = True
+
+
 def _write(cb, path: str, index: int, keys) -> None:
     """keys: list of (frame, value, interpolation, easing)."""
     fc = cb.fcurves.find(path, index=index)
@@ -145,7 +161,8 @@ def clear_keys(scene, restore: bool = True) -> None:
             _drop_action(ob)
             del ob[TAG]
             if ob.get("fr_anim_hide"):
-                ob.hide_viewport = False
+                if ob.hide_viewport:
+                    ob.hide_viewport = False
                 del ob["fr_anim_hide"]
         if ob.type == "CAMERA" and ob.data is not None and ob.data.get(TAG):
             _drop_action(ob.data)
@@ -379,6 +396,7 @@ def bake(scene, anim) -> dict:
                 _merge(keys, f0, hidden, "CONSTANT")
 
     # ---- write keys ----------------------------------------------------------
+    by_name = {o.name: o for o in scene.objects}         # objects.get() searches every time
     for name, keys in jkeys.items():
         j = s.joints.get(name)
         if j is None or j.motion is None:
@@ -386,7 +404,7 @@ def bake(scene, anim) -> dict:
         cb = _channelbag(j.motion, "OBJECT")
         _write(cb, f'["{joints.VALUE}"]', 0, keys)
     for name, keys in okeys.items():
-        ob = bpy.data.objects.get(name)
+        ob = by_name.get(name)
         if ob is None:
             continue
         rest = build.rest_basis(ob)
@@ -404,19 +422,28 @@ def bake(scene, anim) -> dict:
             _write(cb, "location", i, [(f, loc[i], it, ez) for f, loc, _r, it, ez in rows])
         for i in range(4):
             _write(cb, "rotation_quaternion", i, [(f, rot[i], it, ez) for f, _l, rot, it, ez in rows])
+    # Parts that only appear/disappear, all at the same moments, share ONE action and slot:
+    # a subassembly of 1,000 parts then costs one action instead of 1,000.
+    shared: dict[tuple, list] = {}
     for name, keys in vkeys.items():
-        ob = bpy.data.objects.get(name)
+        ob = by_name.get(name)
         if ob is None:
             continue
         try:
-            ob.hide_set(False)         # the viewport follows the keys from now on
+            if ob.hide_get():          # the viewport follows the keys from now on (hide_set is slow)
+                ob.hide_set(False)
         except RuntimeError:
             pass
         ob["fr_anim_hide"] = True
-        cb = _channelbag(ob, "OBJECT")
         rows = [(f, 1.0 if h else 0.0, "CONSTANT", "AUTO") for f, h, _i, _e in keys]
-        _write(cb, "hide_viewport", 0, rows)
-        _write(cb, "hide_render", 0, rows)
+        if name in okeys:              # it also moves: its own action holds both
+            cb = _channelbag(ob, "OBJECT")
+            _write(cb, "hide_viewport", 0, rows)
+            _write(cb, "hide_render", 0, rows)
+        else:
+            shared.setdefault(tuple((r[0], r[1]) for r in rows), []).append(ob)
+    for n, (sig, obs) in enumerate(shared.items()):
+        _shared_visibility(obs, [(f, v, "CONSTANT", "AUTO") for f, v in sig], n)
 
     # ---- camera -------------------------------------------------------------
     start_cam = scene.camera
