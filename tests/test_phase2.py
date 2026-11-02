@@ -546,3 +546,31 @@ def test_big_groups_match_fast():
     assert time.time() - t0 < 3.0
     assert len(pairs) == 1400
     assert all((o["pos"] - n["pos"]).length < 0.001 for o, n in pairs)
+
+
+def test_update_matches_inventor_occurrence_names(tmp_path):
+    """Inventor names every placed part ("BOLT:3"). Those names win over positions: here bolts 3
+    and 4 swapped places and bolt 1 was deleted (positions alone would mix them up)."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.fresing.out_folder = str(tmp_path)
+    inv_a = os.path.join(HERE, "data", "test_crane_inv_a.step")
+    inv_c = os.path.join(HERE, "data", "test_crane_inv_c.step")
+    assert bpy.ops.fresing.import_step(filepath=inv_a, quality="draft") == {"FINISHED"}
+
+    def bolt(occ):
+        return next(o for o in build.iter_parts(sc) if o.get(build.PROP_INSTANCE) == f"ISO 4017 M12 x 40 - 8.8 HDG:{occ}")
+
+    assert close(bolt(3).matrix_world.translation, (0.05, 0.55, 0.1))
+    logic.set_hidden(bolt(3), True)
+    bolt(4)["fr_group_manual"] = "Bolt four"
+    root = build.model_roots(sc)[0]
+    assert bpy.ops.fresing.import_step(filepath=inv_c, quality="draft", update_root=root.name) == {"FINISHED"}
+    s = sc.fresing
+    assert close(bolt(3).matrix_world.translation, (0.93, 0.54, 0.1)), "bolt 3 moved in revision C"
+    assert close(bolt(4).matrix_world.translation, (0.05, 0.56, 0.1)), "bolt 4 moved where bolt 3 was"
+    assert logic.is_hidden(bolt(3)) and not logic.is_hidden(bolt(4)) and not logic.is_hidden(bolt(2))
+    assert bolt(4).get("fr_group_manual") == "Bolt four" and bolt(3).get("fr_group_manual") is None
+    assert [x.text for x in s.report_new] == ["BOOM.LAMP"]
+    assert [x.text for x in s.report_missing] == ["ISO 4017 M12 x 40 - 8.8 HDG"]
