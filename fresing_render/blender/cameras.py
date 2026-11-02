@@ -149,10 +149,18 @@ def fit(ob: bpy.types.Object, scene, direction=None, margin: float = 1.06, point
         cam.dof.focus_distance = dist
 
 
+def display_size(scene) -> float:
+    """Camera gizmo size in the viewport: small next to the model (Blender's default is 1 m)."""
+    pts = _points(scene)
+    size = float(np.linalg.norm(pts.max(axis=0) - pts.min(axis=0))) if len(pts) else 1.0
+    return max(0.02, min(1.0, size * 0.04))
+
+
 def add_camera(scene, view: str = "ISO", lens: float = 50.0, name: str | None = None) -> bpy.types.Object:
     label, direction = VIEWS.get(view, VIEWS["ISO"])
     cam_data = bpy.data.cameras.new(name or label)
     cam_data.lens = lens
+    cam_data.display_size = display_size(scene)
     ob = bpy.data.objects.new(name or label, cam_data)
     ob["fr_camera"] = True
     collection(scene).objects.link(ob)
@@ -169,6 +177,7 @@ def add_from_view(context, name: str = "View") -> bpy.types.Object | None:
     r3d = area.spaces.active.region_3d
     scene = context.scene
     cam_data = bpy.data.cameras.new(name)
+    cam_data.display_size = display_size(scene)
     # the viewport's lens value assumes a 72 mm wide sensor; cameras use 36 mm
     cam_data.lens = area.spaces.active.lens / 2
     ob = bpy.data.objects.new(name, cam_data)

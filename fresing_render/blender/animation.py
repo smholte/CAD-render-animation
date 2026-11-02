@@ -262,6 +262,7 @@ def _anim_camera(scene, like) -> bpy.types.Object:
         cameras.collection(scene).objects.link(ob)
     d, src = ob.data, like.data
     d.type = src.type
+    d.display_size = src.display_size
     d.sensor_width, d.sensor_height, d.sensor_fit = src.sensor_width, src.sensor_height, src.sensor_fit
     d.clip_start, d.clip_end = src.clip_start, src.clip_end
     d.dof.use_dof = src.dof.use_dof
