@@ -75,7 +75,7 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         s = context.scene.fresing
         self.quality = s.import_quality
         self.up_axis = s.import_up_axis
-        if self.filepath and os.path.isfile(self.filepath):   # drag & drop
+        if os.path.isfile(self._path()):   # drag & drop (filepath or directory + files is set)
             return self.execute(context)
         return ImportHelper.invoke(self, context, event)
 
