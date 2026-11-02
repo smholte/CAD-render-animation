@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 
 # --------------------------------------------------------------------------
 # Types and families
@@ -376,8 +377,13 @@ def _find_class(s: str):
     return m.group(1) if m else None
 
 
+@lru_cache(maxsize=65536)
 def parse(name: str) -> FastenerInfo | None:
-    """Recognise a standard part from its name. Returns None if it is not one."""
+    """Recognise a standard part from its name. Returns None if it is not one.
+
+    Cached: an assembly repeats the same bolt name hundreds of times. Treat the
+    result as read-only.
+    """
     s = _normalise(name)
     if not s.strip():
         return None

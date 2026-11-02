@@ -54,7 +54,7 @@ class FRESING_OT_select_subassembly(bpy.types.Operator):
         if not self.extend:
             for o in context.selected_objects:
                 o.select_set(False)
-        for d in [ob] + logic.descendants(ob):
+        for d in [ob] + logic.descendants(ob, logic.Tree(context.scene)):
             if d.visible_get() and not d.hide_select:
                 d.select_set(True)
         try:
@@ -96,6 +96,7 @@ class FRESING_OT_toggle_hide(bpy.types.Operator):
         if ob is None:
             return {"CANCELLED"}
         logic.set_hidden(ob, not logic.is_hidden(ob))
+        context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
@@ -107,9 +108,11 @@ class FRESING_OT_hide_selected(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        tree = logic.Tree(context.scene)
         for ob in context.selected_objects:
             if ob.get(build.PROP_KIND):
-                logic.set_hidden(ob, True)
+                logic.set_hidden(ob, True, tree)
+        context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
@@ -121,9 +124,15 @@ class FRESING_OT_show_all(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        for ob in context.scene.objects:
+        for ob in context.scene.objects:      # every object once, no recursion
             if ob.get(build.PROP_KIND) and not ob.get(build.PROP_EXCLUDED):
-                logic.set_hidden(ob, False)
+                try:
+                    ob.hide_set(False)
+                except RuntimeError:
+                    pass
+                ob.hide_render = False
+                ob["fr_hidden"] = False
+        context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
@@ -137,6 +146,7 @@ class FRESING_OT_exclude_selected(bpy.types.Operator):
     def execute(self, context):
         n = logic.exclude([ob for ob in context.selected_objects if ob.get(build.PROP_KIND)], True)
         self.report({"INFO"}, f"Removed {n} parts (Restore removed parts brings them back)")
+        context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
@@ -150,6 +160,7 @@ class FRESING_OT_restore_excluded(bpy.types.Operator):
     def execute(self, context):
         n = logic.restore_excluded(context.scene)
         self.report({"INFO"}, f"Restored {n} parts")
+        context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
@@ -232,6 +243,9 @@ class FRESING_OT_group_remove(bpy.types.Operator):
         s.groups.remove(s.groups_index)
         s.groups_index = max(0, s.groups_index - 1)
         logic.apply_rules(context.scene)
+        if s.groups.get(name) is not None:
+            self.report({"WARNING"}, f"'{name}' came back: a sorting rule still puts parts in it. "
+                                     "Switch that rule off or change its group")
         return {"FINISHED"}
 
 
@@ -255,6 +269,8 @@ class FRESING_OT_group_select(bpy.types.Operator):
                 ob.select_set(True)
                 last = ob
         if last:
+            from . import handlers
+            handlers.ignore_next(last)          # keep exactly the group selected
             context.view_layer.objects.active = last
         self.report({"INFO"}, f"{len(objs)} parts")
         return {"FINISHED"}
@@ -273,8 +289,9 @@ class FRESING_OT_group_assign(bpy.types.Operator):
             return {"CANCELLED"}
         group = s.groups[s.groups_index].name
         n = 0
+        tree = logic.Tree(context.scene)
         for ob in context.selected_objects:
-            targets = [ob] + logic.descendants(ob)
+            targets = [ob] + tree.descendants(ob)
             for t in targets:
                 if t.get(build.PROP_KIND) == "part" and t.type == "MESH":
                     t["fr_group_manual"] = group
@@ -293,8 +310,9 @@ class FRESING_OT_group_unassign(bpy.types.Operator):
 
     def execute(self, context):
         n = 0
+        tree = logic.Tree(context.scene)
         for ob in context.selected_objects:
-            for t in [ob] + logic.descendants(ob):
+            for t in [ob] + tree.descendants(ob):
                 if "fr_group_manual" in t:
                     del t["fr_group_manual"]
                     n += 1
@@ -491,7 +509,11 @@ class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
     filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
     def execute(self, context):
-        _template_from_scene(context.scene).save(self.filepath)
+        try:
+            _template_from_scene(context.scene).save(self.filepath)
+        except OSError as exc:
+            self.report({"ERROR"}, f"Could not save the template: {exc}")
+            return {"CANCELLED"}
         self.report({"INFO"}, f"Template saved: {self.filepath}")
         return {"FINISHED"}
 
@@ -523,14 +545,17 @@ class FRESING_OT_template_from_library(bpy.types.Operator):
     bl_property = "path"
 
     def _items(self, context):
-        from . import prefs
-        folder = prefs.library_dir("Templates")
-        items = []
-        if folder:
-            for f in sorted(os.listdir(folder)):
-                if f.lower().endswith(".json"):
-                    items.append((os.path.join(folder, f), os.path.splitext(f)[0], ""))
-        return items or [("NONE", "No templates in the library", "")]
+        def scan():
+            from . import prefs
+            folder = prefs.library_dir("Templates")
+            found = []
+            if folder:
+                for f in sorted(os.listdir(folder)):
+                    if f.lower().endswith(".json"):
+                        found.append((os.path.join(folder, f), os.path.splitext(f)[0], ""))
+            return found or [("NONE", "No templates in the library", "")]
+        _DYNAMIC_ITEMS["templates"] = _cached_scan("templates", scan)
+        return _DYNAMIC_ITEMS["templates"]
 
     path: EnumProperty(items=_items)
 
@@ -552,6 +577,26 @@ class FRESING_OT_template_from_library(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# Enum items must stay alive in Python while Blender shows them: keep them in module globals.
+from ..core import ral as _ral  # noqa: E402
+
+RAL_ITEMS = [(c, f"RAL {c} {n}", h) for c, n, h in _ral.RAL_CLASSIC]
+_DYNAMIC_ITEMS: dict[str, list] = {}
+_LIBRARY_SCAN: dict[str, tuple] = {}
+
+
+def _cached_scan(key: str, scan, max_age: float = 15.0) -> list:
+    """Scan a (network) folder at most every few seconds while a menu is open."""
+    import time
+    now = time.time()
+    hit = _LIBRARY_SCAN.get(key)
+    if hit and now - hit[0] < max_age:
+        return hit[1]
+    result = scan()
+    _LIBRARY_SCAN[key] = (now, result)
+    return result
+
+
 class FRESING_OT_pick_ral(bpy.types.Operator):
     """Pick a RAL colour for the active group"""
 
@@ -559,11 +604,7 @@ class FRESING_OT_pick_ral(bpy.types.Operator):
     bl_label = "RAL colour"
     bl_property = "code"
 
-    def _items(self, context):
-        from ..core import ral
-        return [(c, f"RAL {c} {n}", h) for c, n, h in ral.RAL_CLASSIC]
-
-    code: EnumProperty(items=_items)
+    code: EnumProperty(items=RAL_ITEMS)
 
     def invoke(self, context, event):
         context.window_manager.invoke_search_popup(self)
@@ -602,8 +643,11 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
     bl_property = "path"
 
     def _items(self, context):
-        items = [(p, label, p) for p, label in _library_hdris()]
-        return items or [("NONE", "No library set (Preferences > Fresing Render)", "")]
+        def scan():
+            found = [(p, label, p) for p, label in _library_hdris()]
+            return found or [("NONE", "No library set (Preferences > Fresing Render)", "")]
+        _DYNAMIC_ITEMS["hdri"] = _cached_scan("hdri", scan)
+        return _DYNAMIC_ITEMS["hdri"]
 
     path: EnumProperty(items=_items)
     target: EnumProperty(items=[("BACKGROUND", "Background", ""), ("LIGHT", "Light", "")],
@@ -747,52 +791,22 @@ class FRESING_OT_preview(bpy.types.Operator):
         return {"FINISHED"}
 
 
-_PENDING_RENDER: dict = {}
+_RENDER_STATE: dict = {}
 
 
-def _on_render_done(scene, *args):
-    info = _PENDING_RENDER.pop("job", None)
-    try:
-        bpy.app.handlers.render_complete.remove(_on_render_done)
-    except ValueError:
-        pass
-    try:
-        bpy.app.handlers.render_cancel.remove(_on_render_cancel)
-    except ValueError:
-        pass
-    if not info:
-        return
-    s = scene.fresing
-    img = bpy.data.images.get("Render Result")
-    if img is None:
-        return
-    tmp = info["tmp"]
-    img.save_render(tmp, scene=scene)
-    final = info["path"]
-    if s.background == "COLOR":
-        col = tuple(render.linear_to_srgb(c) for c in s.background_color[:3])
-        render._composite_over_color(tmp, col, final, s.out_file_type)
-        os.remove(tmp)
-        scene.render.film_transparent = False
-    elif s.out_file_type == "JPEG":
-        render._composite_over_color(tmp, (1, 1, 1), final, "JPEG")
-        os.remove(tmp)
-    else:
-        os.replace(tmp, final)
-    s.last_message = f"Saved {final}"
-    print("Fresing Render: saved", final)
+def _on_render_complete(scene, *args):
+    _RENDER_STATE["done"] = True        # only a flag: saving happens on the main thread
 
 
 def _on_render_cancel(scene, *args):
-    _PENDING_RENDER.pop("job", None)
-    for h, lst in ((_on_render_done, bpy.app.handlers.render_complete),
+    _RENDER_STATE["cancelled"] = True
+
+
+def _remove_render_handlers():
+    for h, lst in ((_on_render_complete, bpy.app.handlers.render_complete),
                    (_on_render_cancel, bpy.app.handlers.render_cancel)):
-        try:
+        while h in lst:
             lst.remove(h)
-        except ValueError:
-            pass
-    if scene.fresing.background == "COLOR":
-        scene.render.film_transparent = False
 
 
 class FRESING_OT_render(bpy.types.Operator):
@@ -803,6 +817,8 @@ class FRESING_OT_render(bpy.types.Operator):
 
     quality: EnumProperty(items=[("draft", "Draft", ""), ("preview", "Preview", ""), ("final", "Final", ""),
                                  ("best", "Best", ""), ("SETTING", "From settings", "")], default="SETTING")
+
+    _timer = None
 
     def execute(self, context):
         scene = context.scene
@@ -815,21 +831,48 @@ class FRESING_OT_render(bpy.types.Operator):
             info = render.render_still(scene, s, quality)
             self.report({"INFO"}, f"Saved {info['path']} ({info['seconds']} s, {info['device']})")
             return {"FINISHED"}
-        render.apply_output(scene, s)
-        device = render.apply_quality(scene, quality, s.use_gpu)
-        world.apply(scene, s)
-        path = render.output_path(scene, s, "" if quality == "final" else f"_{quality}")
-        scene.render.image_settings.file_format = "PNG"
-        scene.render.image_settings.color_mode = "RGBA"
-        if s.background == "COLOR":
-            scene.render.film_transparent = True
-        _PENDING_RENDER["job"] = {"path": path, "tmp": path + ".tmp.png"}
-        if _on_render_done not in bpy.app.handlers.render_complete:
-            bpy.app.handlers.render_complete.append(_on_render_done)
-        if _on_render_cancel not in bpy.app.handlers.render_cancel:
-            bpy.app.handlers.render_cancel.append(_on_render_cancel)
+        if bpy.app.is_job_running("RENDER"):
+            self.report({"WARNING"}, "A render is already running")
+            return {"CANCELLED"}
+        final, target, device = render.prepare_still(scene, s, quality)
+        self._final, self._target = final, target
+        _RENDER_STATE.clear()
+        _remove_render_handlers()
+        bpy.app.handlers.render_complete.append(_on_render_complete)
+        bpy.app.handlers.render_cancel.append(_on_render_cancel)
         s.last_message = f"Rendering on {device}..."
         bpy.ops.render.render("INVOKE_DEFAULT")
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.5, window=context.window)
+        wm.modal_handler_add(self)
+        return {"RUNNING_MODAL"}
+
+    def modal(self, context, event):
+        if event.type != "TIMER":
+            return {"PASS_THROUGH"}
+        if not (_RENDER_STATE.get("done") or _RENDER_STATE.get("cancelled")):
+            return {"PASS_THROUGH"}
+        if bpy.app.is_job_running("RENDER"):
+            return {"PASS_THROUGH"}
+        context.window_manager.event_timer_remove(self._timer)
+        _remove_render_handlers()
+        scene = context.scene
+        s = scene.fresing
+        if _RENDER_STATE.get("cancelled") or not _RENDER_STATE.get("done"):
+            scene.render.film_transparent = s.background == "TRANSPARENT"
+            s.last_message = "Render cancelled"
+            self.report({"WARNING"}, "Render cancelled")
+            return {"CANCELLED"}
+        img = bpy.data.images.get("Render Result")
+        try:
+            img.save_render(self._target, scene=scene)
+            render.finish_still(scene, s, self._target, self._final)
+        except Exception as exc:
+            s.last_message = f"Could not save the render: {exc}"
+            self.report({"ERROR"}, s.last_message)
+            return {"CANCELLED"}
+        s.last_message = f"Saved {self._final}"
+        self.report({"INFO"}, s.last_message)
         return {"FINISHED"}
 
 

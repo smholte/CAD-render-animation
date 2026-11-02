@@ -16,12 +16,11 @@ from ..core import rules as R
 
 def _material_items(self, context):
     items = []
-    n = 0
     for cat, mats in materials_lib.items_by_category():
         items.append(("", cat, ""))
         for key, label in mats:
-            items.append((key, label, materials_lib.MATERIALS[key]["category"], n))
-            n += 1
+            # the 4th value is what Blender stores in the file: a fixed number per material
+            items.append((key, label, materials_lib.MATERIALS[key]["category"], materials_lib.UIDS[key]))
     return items
 
 
@@ -53,10 +52,27 @@ def _group_look_changed(self, context):
     _ = mat
 
 
+def _remember_rename(scene, old: str, new: str) -> None:
+    """Rules keep producing the old name; remember that it now means the new one."""
+    s = scene.fresing
+    found = False
+    for a in s.group_aliases:
+        if a.target == old:
+            a.target = new
+            found = True
+    if not found:
+        a = s.group_aliases.add()
+        a.source, a.target = old, new
+    for i in reversed(range(len(s.group_aliases))):   # renamed back: no alias needed
+        if s.group_aliases[i].source == s.group_aliases[i].target:
+            s.group_aliases.remove(i)
+
+
 def _group_renamed(self, context):
     from . import materials
     old = self.get("_old_name", "")
     if old and old != self.name:
+        _remember_rename(context.scene, old, self.name)
         mat = bpy.data.materials.get(materials.material_name(old))
         if mat is not None:
             mat.name = materials.material_name(self.name)
@@ -115,6 +131,11 @@ class FRRule(bpy.types.PropertyGroup):
     count: IntProperty(name="Matches", default=0)
 
 
+class FRGroupAlias(bpy.types.PropertyGroup):
+    source: StringProperty()     # name the rules produce
+    target: StringProperty()     # name the user gave the group
+
+
 class FRTreeItem(bpy.types.PropertyGroup):
     obj: PointerProperty(type=bpy.types.Object)
     depth: IntProperty()
@@ -147,6 +168,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- looks ----
     groups: CollectionProperty(type=FRMaterialGroup)
     groups_index: IntProperty(default=0)
+    group_aliases: CollectionProperty(type=FRGroupAlias)
     rules: CollectionProperty(type=FRRule)
     rules_index: IntProperty(default=0)
     schemes: CollectionProperty(type=FRScheme)
@@ -208,9 +230,14 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     use_gpu: BoolProperty(name="Use graphics card", default=True)
 
     last_message: StringProperty(default="")
+    # cached so panels and sliders don't scan thousands of objects on every redraw
+    model_count: IntProperty(default=0)
+    bounds_valid: BoolProperty(default=False)
+    bounds_min: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    bounds_max: FloatVectorProperty(size=3, default=(1.0, 1.0, 1.0))
 
 
-CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRTreeItem, FRSceneSettings)
+CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRSceneSettings)
 
 
 def register():

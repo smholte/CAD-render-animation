@@ -120,9 +120,14 @@ def output_path(scene, s, suffix: str = "") -> str:
 
 
 def _composite_over_color(png_path: str, color_srgb, out_path: str, file_type: str) -> None:
-    """Put a transparent render on an exact background colour (no tone mapping on the colour)."""
+    """Put a transparent render on an exact background colour (no tone mapping on the colour).
+
+    The input is an 8-bit PNG straight from the renderer (display values); it is read
+    as data so Blender does not convert it, and written back as display values.
+    """
     img = bpy.data.images.load(png_path, check_existing=False)
     try:
+        img.colorspace_settings.is_data = True
         w, h = img.size
         px = np.empty(w * h * 4, dtype=np.float32)
         img.pixels.foreach_get(px)
@@ -132,6 +137,7 @@ def _composite_over_color(png_path: str, color_srgb, out_path: str, file_type: s
         rgb = px[:, :, :3] * a + bg * (1 - a)
         out = np.concatenate([rgb, np.ones((h, w, 1), np.float32)], axis=2)
         res = bpy.data.images.new("fr_out", w, h, alpha=False)
+        res.colorspace_settings.is_data = True
         res.pixels.foreach_set(out.ravel())
         res.filepath_raw = out_path
         res.file_format = "JPEG" if file_type == "JPEG" else "PNG"
@@ -145,8 +151,12 @@ def linear_to_srgb(c: float) -> float:
     return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
 
 
-def render_still(scene, s, quality: str = "final", filepath: str | None = None) -> dict:
-    """Render the active camera to a file. Returns info (path, seconds, device)."""
+def needs_composite(s) -> bool:
+    return s.background == "COLOR" or s.out_file_type == "JPEG"
+
+
+def prepare_still(scene, s, quality: str) -> tuple[str, str, str]:
+    """Set up output, quality, world and file settings. Returns (final path, file to render to, device)."""
     from . import world
 
     if scene.camera is None:
@@ -154,26 +164,42 @@ def render_still(scene, s, quality: str = "final", filepath: str | None = None) 
     apply_output(scene, s)
     device = apply_quality(scene, quality, s.use_gpu)
     world.apply(scene, s)
-    filepath = filepath or output_path(scene, s, "" if quality == "final" else f"_{quality}")
-    solid_color = s.background == "COLOR"
-
+    final = output_path(scene, s, "" if quality == "final" else f"_{quality}")
     r = scene.render
     r.image_settings.file_format = "PNG"
     r.image_settings.color_mode = "RGBA"
-    r.image_settings.color_depth = "16" if not solid_color else "8"
-    if solid_color:
+    # 8-bit when the image is composited afterwards (exact colours); 16-bit otherwise
+    r.image_settings.color_depth = "8" if needs_composite(s) else "16"
+    if s.background == "COLOR":
         r.film_transparent = True
-    t0 = time.time()
-    tmp = filepath + ".tmp.png" if solid_color or s.out_file_type == "JPEG" else filepath
-    r.filepath = tmp
-    bpy.ops.render.render(write_still=True, scene=scene.name)
-    if solid_color:
+    target = final + ".tmp.png" if needs_composite(s) else final
+    return final, target, device
+
+
+def finish_still(scene, s, rendered: str, final: str) -> None:
+    """Composite the background colour / convert to JPEG where needed."""
+    if s.background == "COLOR":
         col = tuple(linear_to_srgb(c) for c in s.background_color[:3])
-        _composite_over_color(tmp, col, filepath, s.out_file_type)
-        os.remove(tmp)
-        r.film_transparent = False
+        _composite_over_color(rendered, col, final, s.out_file_type)
+        os.remove(rendered)
+        scene.render.film_transparent = False
     elif s.out_file_type == "JPEG":
-        _composite_over_color(tmp, (1, 1, 1), filepath, "JPEG")
-        os.remove(tmp)
-    return {"path": filepath, "seconds": round(time.time() - t0, 1), "device": device,
+        _composite_over_color(rendered, (1, 1, 1), final, "JPEG")
+        os.remove(rendered)
+    elif rendered != final:
+        os.replace(rendered, final)
+
+
+def render_still(scene, s, quality: str = "final", filepath: str | None = None) -> dict:
+    """Render the active camera to a file and wait for it (scripts, self-test, background mode)."""
+    final, target, device = prepare_still(scene, s, quality)
+    if filepath:
+        final = filepath
+        target = final + ".tmp.png" if needs_composite(s) else final
+    r = scene.render
+    t0 = time.time()
+    r.filepath = target
+    bpy.ops.render.render(write_still=True, scene=scene.name)
+    finish_still(scene, s, target, final)
+    return {"path": final, "seconds": round(time.time() - t0, 1), "device": device,
             "size": (r.resolution_x * r.resolution_percentage // 100, r.resolution_y * r.resolution_percentage // 100)}

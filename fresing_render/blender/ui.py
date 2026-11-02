@@ -19,7 +19,7 @@ class _Panel:
 
 
 def _has_model(context) -> bool:
-    return bool(build.model_roots(context.scene))
+    return context.scene.fresing.model_count > 0
 
 
 # =============================================================================

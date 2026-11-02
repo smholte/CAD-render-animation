@@ -18,6 +18,11 @@ TEST_STEP = os.path.join(HERE, "data", "test_machine.step")
 
 
 def _desktop() -> str:
+    # The installer passes the real Desktop (OneDrive may redirect it) after "--".
+    if "--" in sys.argv:
+        extra = sys.argv[sys.argv.index("--") + 1:]
+        if extra and os.path.isdir(extra[0]):
+            return extra[0]
     for cand in (os.path.join(os.path.expanduser("~"), "Desktop"),
                  os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop"),
                  os.path.expanduser("~")):
@@ -66,6 +71,18 @@ def main(report_path: str | None = None) -> bool:
 
     def _import():
         bpy.ops.wm.read_homefile(use_empty=True)
+        from .blender import prefs as fr_prefs
+        p = fr_prefs.get()
+        saved_template = p.default_template if p else ""
+        if p:
+            p.default_template = ""      # the test checks the built-in sorting
+        try:
+            return _import_inner()
+        finally:
+            if p:
+                p.default_template = saved_template
+
+    def _import_inner():
         scene = bpy.context.scene
         res = bpy.ops.fresing.import_step(filepath=TEST_STEP, quality="normal")
         if res != {"FINISHED"}:

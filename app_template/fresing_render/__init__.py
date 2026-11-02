@@ -22,8 +22,7 @@ def _tidy_screens():
                 space.shading.color_type = "MATERIAL"
                 space.shading.light = "STUDIO"
                 space.overlay.show_floor = True
-                space.overlay.show_extras = False    # hide empties of the assembly tree
-                space.clip_start = 0.001
+                space.clip_start = 0.01              # 10 mm..1 km: no flicker on touching CAD faces
                 space.clip_end = 1000.0
             for region in area.regions:
                 if region.type == "UI" and hasattr(region, "active_panel_category"):
@@ -46,11 +45,6 @@ def _setup_new_file(_dummy=None):
 
 
 @persistent
-def _setup_any_file(_dummy=None):
-    _tidy_screens()
-
-
-@persistent
 def _set_preferences(_dummy=None):
     prefs = bpy.context.preferences
     prefs.view.show_splash = True
@@ -60,13 +54,11 @@ def _set_preferences(_dummy=None):
 
 def register():
     bpy.app.handlers.load_factory_startup_post.append(_setup_new_file)
-    bpy.app.handlers.load_post.append(_setup_any_file)
     bpy.app.handlers.load_factory_preferences_post.append(_set_preferences)
 
 
 def unregister():
     for lst, fn in ((bpy.app.handlers.load_factory_startup_post, _setup_new_file),
-                    (bpy.app.handlers.load_post, _setup_any_file),
                     (bpy.app.handlers.load_factory_preferences_post, _set_preferences)):
         if fn in lst:
             lst.remove(fn)

@@ -40,6 +40,7 @@ def finish_import(context, cache_dir: str, up_axis: str = "Z") -> bpy.types.Obje
             print("Fresing Render: default template not loaded:", exc)
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
+    logic.update_bounds(scene)
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.length_unit = "MILLIMETERS"
     render.apply_output(scene, s)
@@ -56,9 +57,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
 
     bl_idname = "fresing.import_step"
     bl_label = "Import STEP"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}   # no "Adjust last operation": re-running a background import is not supported
 
     filename_ext = ".step"
+    # Not remembered between calls, so the button always opens the file browser.
+    filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE", "HIDDEN"})
     filter_glob: StringProperty(default="*.step;*.stp;*.STEP;*.STP", options={"HIDDEN"})
     directory: StringProperty(subtype="DIR_PATH", options={"SKIP_SAVE", "HIDDEN"})
     files: CollectionProperty(type=bpy.types.OperatorFileListElement, options={"SKIP_SAVE", "HIDDEN"})
@@ -75,7 +78,9 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         s = context.scene.fresing
         self.quality = s.import_quality
         self.up_axis = s.import_up_axis
-        if os.path.isfile(self._path()):   # drag & drop (filepath or directory + files is set)
+        if self.directory and self.files and self.files[0].name:   # drag & drop
+            if len(self.files) > 1:
+                self.report({"WARNING"}, "Several files dropped: importing the first one")
             return self.execute(context)
         return ImportHelper.invoke(self, context, event)
 
@@ -91,8 +96,13 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             self.report({"ERROR"}, f"File not found: {path}")
             return {"CANCELLED"}
         if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
-            self.report({"WARNING"}, "An import is already running")
-            return {"CANCELLED"}
+            try:
+                _ACTIVE_JOB.poll()
+            except Exception:
+                _ACTIVE_JOB.done = True
+            if not _ACTIVE_JOB.done:
+                self.report({"WARNING"}, "An import is already running")
+                return {"CANCELLED"}
         job = ImportJob(path, self.quality, cache_root())
         if job.cached:
             finish_import(context, job.cache_dir, self.up_axis)
@@ -108,21 +118,24 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
                 time.sleep(0.2)
             return self._finish(context)
         self._timer = wm.event_timer_add(0.25, window=context.window)
-        wm.progress_begin(0, 100)
         wm.modal_handler_add(self)
         context.scene.fresing.last_message = "Import started"
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
-        if event.type == "ESC":
+        if event.type == "ESC" and event.value == "PRESS":
             self._job.cancel()
             self._cleanup(context)
             self.report({"WARNING"}, "Import cancelled")
             return {"CANCELLED"}
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
-        finished = self._job.poll()
-        context.window_manager.progress_update(int(self._job.pct))
+        try:
+            finished = self._job.poll()
+        except Exception as exc:   # never leave a stuck modal operator behind
+            self._job.error = self._job.error or str(exc)
+            self._job.done = True
+            finished = True
         msg = f"Importing {os.path.basename(self._job.step_path)}: {self._job.message} ({self._job.pct:.0f}%) - Esc to cancel"
         context.workspace.status_text_set(msg)
         context.scene.fresing.last_message = msg
@@ -146,7 +159,7 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         wm = context.window_manager
         if self._timer:
             wm.event_timer_remove(self._timer)
-        wm.progress_end()
+            self._timer = None
         try:
             context.workspace.status_text_set(None)
         except Exception:
@@ -177,6 +190,9 @@ class FRESING_OT_clear_cache(bpy.types.Operator):
 
     def execute(self, context):
         import shutil
+        if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
+            self.report({"WARNING"}, "Wait until the import has finished")
+            return {"CANCELLED"}
         root = cache_root()
         n = 0
         for name in os.listdir(root):
@@ -184,6 +200,12 @@ class FRESING_OT_clear_cache(bpy.types.Operator):
             n += 1
         self.report({"INFO"}, f"Removed {n} cached imports")
         return {"FINISHED"}
+
+
+def cancel_running_job(*_args) -> None:
+    """Stop a running import (file closed, new file opened, Blender quitting)."""
+    if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
+        _ACTIVE_JOB.cancel()
 
 
 CLASSES = (FRESING_OT_import_step, FRESING_FH_step, FRESING_OT_clear_cache)

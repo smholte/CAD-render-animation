@@ -31,7 +31,7 @@ QUALITY = {
     "fine": (0.0006, 0.18),
 }
 
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 MM_TO_M = 0.001
 
 
@@ -281,6 +281,8 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
         if col is None:
             col = _color_of(occ, ctool, label)
         node["color"] = col
+        # colour set on an assembly occurrence applies to everything inside it
+        node["inherited_color"] = col or (nodes[parent].get("inherited_color") if parent >= 0 else None)
 
         if occ["XCAFDoc_ShapeTool"].IsAssembly_s(label):
             comps = occ["Sequence_TDF_Label"]()
@@ -350,7 +352,7 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
             emit("mesh", 30 + 65 * (mid + 1) / total, f"Meshing part {mid + 1} of {total}")
     t_mesh = time.time() - t1
 
-    # dominant face colour as part colour when the part itself has none
+    # part colour: own colour > dominant face colour > colour of an enclosing assembly
     for node in nodes:
         if node["kind"] == "part" and node["color"] is None:
             pal = mesh_meta[node["mesh"]]["palette"]
@@ -360,6 +362,10 @@ def read_step(path: str, out_dir: str, quality: str = "normal") -> dict:
                 idx = idx[idx >= 0]
                 if len(idx):
                     node["color"] = pal[int(np.bincount(idx).argmax())]
+        if node["kind"] == "part" and node["color"] is None:
+            node["color"] = node.get("inherited_color")
+    for node in nodes:
+        node.pop("inherited_color", None)
 
     emit("write", 96, "Writing cache")
     np.savez(os.path.join(out_dir, "meshes.npz"), **arrays)

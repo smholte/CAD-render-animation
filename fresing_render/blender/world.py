@@ -225,9 +225,9 @@ def update_floor(scene, s) -> None:
             floor.hide_render = True
             floor.hide_viewport = True
         return
-    parts = [ob for ob in build.iter_parts(scene) if ob.visible_get()] or list(build.iter_parts(scene))
-    mn, mx = build.world_bounds(parts)
-    size = float(np.max(mx - mn)) if parts else 2.0
+    from . import logic
+    mn, mx = logic.cached_bounds(scene)
+    size = float(np.max(mx - mn)) if s.bounds_valid else 2.0
     center = (mn + mx) / 2
     if floor is None:
         me = bpy.data.meshes.new(FLOOR_NAME)

@@ -146,3 +146,11 @@ def test_template_rejects_other_json(tmp_path):
     except ValueError:
         return
     raise AssertionError("expected ValueError")
+
+
+def test_material_uids_fixed_and_unique():
+    assert set(materials_lib.UIDS) == set(materials_lib.MATERIALS)
+    assert len(set(materials_lib.UIDS.values())) == len(materials_lib.UIDS)
+    # a few anchors that must never change once projects are saved
+    assert materials_lib.UIDS["paint_gloss"] == 1
+    assert materials_lib.UIDS["black_oxide"] == 23

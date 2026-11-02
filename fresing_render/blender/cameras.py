@@ -35,7 +35,10 @@ def collection(scene) -> bpy.types.Collection:
 
 
 def fr_cameras(scene) -> list[bpy.types.Object]:
-    return [ob for ob in scene.objects if ob.type == "CAMERA" and ob.get("fr_camera")]
+    col = bpy.data.collections.get(COLLECTION)   # cheap: no scan over every part
+    if col is None:
+        return []
+    return [ob for ob in col.objects if ob.type == "CAMERA" and ob.get("fr_camera")]
 
 
 def _bounds(scene):
@@ -153,7 +156,8 @@ def add_from_view(context, name: str = "View") -> bpy.types.Object | None:
     r3d = area.spaces.active.region_3d
     scene = context.scene
     cam_data = bpy.data.cameras.new(name)
-    cam_data.lens = area.spaces.active.lens
+    # the viewport's lens value assumes a 72 mm wide sensor; cameras use 36 mm
+    cam_data.lens = area.spaces.active.lens / 2
     ob = bpy.data.objects.new(name, cam_data)
     ob["fr_camera"] = True
     collection(scene).objects.link(ob)

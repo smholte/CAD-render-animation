@@ -91,6 +91,44 @@ MATERIALS: dict[str, dict] = {
                            emission=True, emission_strength=6.0),
 }
 
+# Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
+# give new materials the next free number. (Blender saves enum choices as numbers.)
+UIDS: dict[str, int] = {
+    "paint_gloss": 1,
+    "paint_satin": 2,
+    "paint_matte": 3,
+    "powder_coat": 4,
+    "paint_marine": 5,
+    "steel_machined": 6,
+    "steel_raw": 7,
+    "stainless_brushed": 8,
+    "stainless_polished": 9,
+    "aluminium_machined": 10,
+    "aluminium_anodized": 11,
+    "aluminium_anodized_color": 12,
+    "aluminium_profile": 13,
+    "cast_iron": 14,
+    "chrome": 15,
+    "copper": 16,
+    "brass": 17,
+    "bronze": 18,
+    "galvanized": 19,
+    "zinc_plated": 20,
+    "zinc_yellow": 21,
+    "zinc_flake": 22,
+    "black_oxide": 23,
+    "rubber_black": 24,
+    "plastic_gloss": 25,
+    "plastic_matte": 26,
+    "pom_white": 27,
+    "cable_black": 28,
+    "glass_clear": 29,
+    "polycarbonate_clear": 30,
+    "glass_tinted": 31,
+    "acrylic_frosted": 32,
+    "emission_light": 33,
+}
+
 DEFAULT_COLOR = "RAL 7035"
 
 

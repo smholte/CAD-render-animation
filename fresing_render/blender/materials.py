@@ -145,7 +145,8 @@ def assign(ob: bpy.types.Object, mat: bpy.types.Material) -> None:
     slot = ob.material_slots[0]
     if slot.link != "OBJECT":
         slot.link = "OBJECT"
-    slot.material = mat
+    if slot.material is not mat:
+        slot.material = mat
 
 
 def preview_rgb(material_id: str, color_text: str = ""):

@@ -45,7 +45,24 @@ $BlenderSha256  = "723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc
 
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# Older Windows 10 PowerShell may default to TLS 1.0; download.blender.org needs TLS 1.2+.
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
 function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
+
+# Run Blender's command line. Blender writes warnings to stderr; in Windows PowerShell that
+# would count as an error under "Stop", so errors are judged by the exit code instead.
+function Invoke-Blender([string[]]$BlenderArgs, [string]$What) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $BlenderExe @BlenderArgs 2>&1 | ForEach-Object { Write-Host "   $_" }
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $old
+    }
+    if ($code -ne 0) { throw "$What failed (Blender exit code $code). See the messages above." }
+}
 
 # ---- 1. Blender -----------------------------------------------------------------
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
@@ -87,14 +104,18 @@ if ($UpdateUrl) {
     $repoArgs = @("--command", "extension", "repo-add", "--name", "Fresing", "--url", $UpdateUrl)
     if ($AccessToken) { $repoArgs += @("--access-token", $AccessToken) }
     $repoArgs += @("fresing")
-    & $BlenderExe @repoArgs 2>&1 | ForEach-Object { Write-Host "   $_" }
+    try {
+        Invoke-Blender $repoArgs "Adding the update repository"
+    } catch {
+        Write-Host "   (repository already added - continuing)"
+    }
     Step "Installing Fresing Render from the update repository"
-    & $BlenderExe --command extension install --sync --enable fresing_render 2>&1 | ForEach-Object { Write-Host "   $_" }
+    Invoke-Blender @("--command", "extension", "install", "--sync", "--enable", "fresing_render") "Installing the extension"
 } else {
     $ext = Get-ChildItem -Path $Here -Filter "fresing_render-*.zip" | Sort-Object Name | Select-Object -Last 1
     if (-not $ext) { throw "fresing_render-<version>.zip not found next to the installer" }
     Step "Installing $($ext.Name)"
-    & $BlenderExe --command extension install-file --repo user_default --enable $ext.FullName 2>&1 | ForEach-Object { Write-Host "   $_" }
+    Invoke-Blender @("--command", "extension", "install-file", "--repo", "user_default", "--enable", $ext.FullName) "Installing the extension"
 }
 
 # ---- 3. App template ------------------------------------------------------------------

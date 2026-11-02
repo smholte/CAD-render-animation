@@ -285,3 +285,29 @@ def test_ui_panels_draw(scene):
         for item in getattr(data, prop):
             cls.draw_item(None, bpy.context, FakeLayout(errors), data, item, 0, data, "", 0)
     assert not errors, errors
+
+
+def test_renamed_group_survives_resort(scene):
+    s = scene.fresing
+    g = s.groups["Colour #F9A800"]
+    g.name = "Frame"
+    logic.apply_rules(scene)
+    assert _part(scene, "FRAME")[build.PROP_GROUP] == "Frame"
+    assert s.groups.get("Colour #F9A800") is None
+    assert s.groups["Frame"].count == 1
+    g = s.groups["Frame"]
+    g.name = "Main frame"          # second rename follows the chain
+    logic.apply_rules(scene)
+    assert _part(scene, "FRAME")[build.PROP_GROUP] == "Main frame"
+
+
+def test_tree_counts_and_bounds(scene):
+    s = scene.fresing
+    assert s.model_count == 1
+    root_item = s.tree[0]
+    assert root_item.parts == 11
+    tree = logic.Tree(scene)
+    cover = next(it.obj for it in s.tree if it.obj[build.PROP_NAME] == "COVER.ASM")
+    assert len([d for d in tree.descendants(cover) if d.get(build.PROP_KIND) == "part"]) == 3
+    assert s.bounds_valid
+    assert abs((s.bounds_max[0] - s.bounds_min[0]) - 1.0) < 1e-3

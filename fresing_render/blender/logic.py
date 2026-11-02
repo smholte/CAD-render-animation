@@ -67,8 +67,10 @@ def apply_rules(scene) -> dict:
         s.rules[i].count = c
     s.unmatched = len(unmatched)
 
+    aliases = {a.source: a.target for a in s.group_aliases}
     per_group: dict[str, int] = {}
     for ob, g in zip(parts, groups):
+        g = aliases.get(g, g)                # groups the user renamed keep their new name
         manual = ob.get("fr_group_manual")
         if manual:
             g = manual
@@ -134,22 +136,39 @@ def apply_scheme(scene, name: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def children_of(ob):
-    return [c for c in ob.children]
+class Tree:
+    """Parent -> children map built in one pass.
+
+    ``Object.children`` scans every object in the file on each call, so walking a
+    5,000-part assembly with it is quadratic. Build one Tree per operation instead.
+    """
+
+    def __init__(self, scene=None):
+        scene = scene or bpy.context.scene
+        self.kids: dict[str, list] = {}
+        for ob in scene.objects:
+            if ob.parent is not None:
+                self.kids.setdefault(ob.parent.name, []).append(ob)
+
+    def children(self, ob):
+        return self.kids.get(ob.name, [])
+
+    def descendants(self, ob):
+        out = []
+        stack = list(self.children(ob))
+        while stack:
+            c = stack.pop()
+            out.append(c)
+            stack.extend(self.children(c))
+        return out
 
 
-def descendants(ob):
-    out = []
-    stack = list(ob.children)
-    while stack:
-        c = stack.pop()
-        out.append(c)
-        stack.extend(c.children)
-    return out
+def descendants(ob, tree: Tree | None = None):
+    return (tree or Tree()).descendants(ob)
 
 
-def part_count(ob) -> int:
-    return sum(1 for d in descendants(ob) if d.get(build.PROP_KIND) == "part")
+def part_count(ob, tree: Tree | None = None) -> int:
+    return sum(1 for d in descendants(ob, tree) if d.get(build.PROP_KIND) == "part")
 
 
 def top_level(root):
@@ -189,22 +208,59 @@ def subassembly_for_pick(ob):
 def rebuild_tree(scene) -> None:
     s = scene.fresing
     s.tree.clear()
-    for root in build.model_roots(scene):
-        def walk(node, depth):
-            item = s.tree.add()
-            item.obj = node
-            item.depth = depth
-            item.parts = part_count(node)
-            subs = sorted((c for c in node.children if c.get(build.PROP_KIND) == "assembly"),
-                          key=lambda c: c.name.lower())
-            for c in subs:
-                walk(c, depth + 1)
+    tree = Tree(scene)
+    counts: dict[str, int] = {}
+
+    def count(node) -> int:          # parts below a node, computed once per node
+        if node.name in counts:
+            return counts[node.name]
+        n = 0
+        for c in tree.children(node):
+            n += 1 if c.get(build.PROP_KIND) == "part" else count(c)
+        counts[node.name] = n
+        return n
+
+    def walk(node, depth):
+        item = s.tree.add()
+        item.obj = node
+        item.depth = depth
+        item.parts = count(node)
+        subs = sorted((c for c in tree.children(node) if c.get(build.PROP_KIND) == "assembly"),
+                      key=lambda c: c.name.lower())
+        for c in subs:
+            walk(c, depth + 1)
+
+    roots = build.model_roots(scene)
+    for root in roots:
         walk(root, 0)
+    s.model_count = len(roots)
 
 
-def set_locked(ob, locked: bool) -> None:
+def update_bounds(scene):
+    """Recompute and cache the size of the visible model (used by the floor)."""
+    s = scene.fresing
+    try:
+        bpy.context.view_layer.update()      # world matrices of freshly placed parts
+    except Exception:
+        pass
+    parts = [ob for ob in build.iter_parts(scene) if ob.visible_get()] or list(build.iter_parts(scene))
+    mn, mx = build.world_bounds(parts)
+    s.bounds_min, s.bounds_max = mn.tolist(), mx.tolist()
+    s.bounds_valid = bool(parts)
+    return mn, mx
+
+
+def cached_bounds(scene):
+    import numpy as np
+    s = scene.fresing
+    if not s.bounds_valid:
+        return update_bounds(scene)
+    return np.array(s.bounds_min), np.array(s.bounds_max)
+
+
+def set_locked(ob, locked: bool, tree: Tree | None = None) -> None:
     ob[build.PROP_LOCKED] = locked
-    for target in [ob] + [d for d in descendants(ob)]:
+    for target in [ob] + descendants(ob, tree):
         if target is not ob and target.get(build.PROP_KIND) == "assembly":
             continue  # children keep their own lock state
         target.lock_location = (locked,) * 3
@@ -222,8 +278,8 @@ def lock_all(scene) -> None:
                 ob[build.PROP_LOCKED] = True
 
 
-def set_hidden(ob, hidden: bool) -> None:
-    for target in [ob] + descendants(ob):
+def set_hidden(ob, hidden: bool, tree: Tree | None = None) -> None:
+    for target in [ob] + descendants(ob, tree):
         if target.get(build.PROP_EXCLUDED) and not hidden:
             continue
         try:
@@ -240,11 +296,14 @@ def is_hidden(ob) -> bool:
 
 def exclude(objs, excluded: bool = True) -> int:
     n = 0
+    tree = Tree()
+    seen = set()
     for ob in objs:
-        targets = [ob] + descendants(ob)
+        targets = [ob] + tree.descendants(ob)
         for t in targets:
-            if t.get(build.PROP_KIND) not in ("part", "assembly"):
+            if t.get(build.PROP_KIND) not in ("part", "assembly") or t.name in seen:
                 continue
+            seen.add(t.name)
             t[build.PROP_EXCLUDED] = excluded
             try:
                 t.hide_set(excluded)
