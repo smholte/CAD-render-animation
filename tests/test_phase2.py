@@ -429,7 +429,11 @@ def test_ui_motion_panels_draw(scene):
         s.animations[0].blocks_index = blk
         for cls in ui_motion.CLASSES + ui.CLASSES:
             if issubclass(cls, bpy.types.Panel):
-                cls.draw(type("P", (), {"layout": FL(errors)})(), bpy.context)
+                fake = type("P", (), {"layout": FL(errors)})()
+                cls.draw(fake, bpy.context)
+                for extra in ("draw_header", "draw_header_preset"):
+                    if hasattr(cls, extra):
+                        getattr(cls, extra)(fake, bpy.context)
     for cls, data, prop in ((ui_motion.FRESING_UL_joints, s, "joints"), (ui_motion.FRESING_UL_poses, s, "poses"),
                             (ui_motion.FRESING_UL_shots, s, "shots"), (ui_motion.FRESING_UL_anims, s, "animations"),
                             (ui_motion.FRESING_UL_blocks, s.animations[0], "blocks"),

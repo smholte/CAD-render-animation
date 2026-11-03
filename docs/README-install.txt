@@ -47,7 +47,9 @@ Install-FresingRender.ps1 once, or to install into an allowed folder:
 
 Using it (short)
 ----------------
-Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
+Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden).
+Work top to bottom: in every section what you choose comes first, the main button is the
+big blue one, and the header of a closed section shows its state (parts, joints, queue...).
 1 Import          Import STEP... or drag a .step file onto the view. Big files are meshed on
                   all processor cores at once (one is left free, so the PC stays usable).
                   A second import of an unchanged file comes from the stored copy.
@@ -61,7 +63,7 @@ Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
                   group. Sorting rules and paint schemes are in the sub-panels.
 4 Motion          Joints: click the subassembly that should move, press "Add rotate joint"
                   (or slide) and click its pivot hole or shaft on the model. Drag the slider.
-                  "Sits on" makes a joint ride on another subassembly (trolley on a boom).
+                  "Sits on" (under Set-up) makes a joint ride on another subassembly.
                   Poses save all joint positions; Explode moves pieces apart.
 5 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
                   image size (16:9 HD/4K, A4/A3 at 300 dpi...), Render image.
@@ -69,16 +71,16 @@ Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
 6 Animation       Steps on a timeline: move a joint, go to a pose, camera cut / move / orbit,
                   show or hide a subassembly. "Build & play" plays it in the view (Space).
                   "Render animation" makes an MP4 (and the single frames) in the queue.
-                  "Time test" renders two frames first and shows how long the whole
+                  "Time test (2 frames)" renders two frames first and shows how long the whole
                   animation will take (and the test frame, to check the look).
                   Quality "Fast preview (EEVEE)" is minutes instead of hours, to check motion.
 7 Render queue    Images and animations rendered by a second Blender in the background:
                   keep working, or close the app and let it run overnight.
-                  Select a finished item: "Open result" plays/opens it, "Show in folder"
+                  Select a finished item: "Open" plays/opens it, "Show in folder"
                   opens File Explorer with the file selected.
 Renders are saved in a "Renders" folder next to the saved project
 (or Pictures\Fresing Render when the project is not saved yet).
-After "Render image": "Open image" and "Show in folder" appear under the button.
+After "Render image": "Open" and "Show in folder" appear under the button.
 
 Projects on a shared folder: while you have a project open, others who open it see
 "In use by <name> on <computer>" in panel 1.

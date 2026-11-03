@@ -237,6 +237,12 @@ class FakeLayout:
     def label(self, *a, **k):
         pass
 
+    def panel(self, idname, default_closed=False):
+        return FakeLayout(self.errors), FakeLayout(self.errors)     # draw the folded part too
+
+    def progress(self, *a, **k):
+        pass
+
     def separator(self, *a, **k):
         pass
 
@@ -289,6 +295,9 @@ def test_ui_panels_draw(scene, tmp_path):
             continue
         fake = type("P", (), {"layout": FakeLayout(errors)})()
         cls.draw(fake, bpy.context)
+        for extra in ("draw_header", "draw_header_preset"):
+            if hasattr(cls, extra):
+                getattr(cls, extra)(fake, bpy.context)
     # list item drawing
     s = scene.fresing
     for cls, data, prop in ((ui.FRESING_UL_tree, s, "tree"), (ui.FRESING_UL_groups, s, "groups"),
