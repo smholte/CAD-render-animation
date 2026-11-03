@@ -321,6 +321,14 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
         row.scale_y = 1.3
         op = row.operator("fresing.queue_add", text="Render animation", icon="RENDER_ANIMATION")
         op.kind, op.name, op.start = "ANIMATION", a.name, True
+        op = row.operator("fresing.queue_add", text="Time test", icon="TIME")
+        op.kind, op.name, op.start = "TEST", a.name, True
+        test = queue.last_time_test(scene, a.name)
+        if test is not None:
+            if test.status == "DONE":
+                box.label(text=test.message, icon="TIME")
+            elif test.status in ("WAITING", "RUNNING"):
+                box.label(text="Time test: " + (test.message or "waiting in the queue"), icon="TIME")
 
 
 # =============================================================================
@@ -375,7 +383,9 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
             if job.message:
                 box.label(text=job.message)
             if job.output:
-                box.operator("fresing.queue_open", icon="FILE_FOLDER")
+                row = box.row(align=True)
+                row.operator("fresing.queue_open", icon="PLAY" if job.kind == "ANIMATION" else "IMAGE")
+                row.operator("fresing.show_in_folder", icon="FILE_FOLDER").path = job.output
         row = layout.row(align=True)
         row.scale_y = 1.3
         if running:

@@ -4,14 +4,12 @@ visibility sets, saved scenes, animation and the render queue."""
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 
 import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 from mathutils import Vector
 
-from . import animation, build, joints, logic, props, queue, states
+from . import animation, build, files, joints, logic, props, queue, states
 
 # =============================================================================
 # helpers
@@ -76,12 +74,7 @@ def _has_model(context) -> bool:
 
 
 def _open_path(path: str) -> None:
-    if sys.platform == "win32":
-        os.startfile(path)  # noqa: S606 - opening a file or folder for the user
-    elif sys.platform == "darwin":
-        subprocess.Popen(["open", path])
-    else:
-        subprocess.Popen(["xdg-open", path])
+    files.open_path(path)
 
 
 # =============================================================================
@@ -937,7 +930,9 @@ class FRESING_OT_queue_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     kind: EnumProperty(items=[("STILL", "Image", ""), ("ANIMATION", "Animation", ""),
-                              ("SHOT", "Saved scene", ""), ("ALL_SHOTS", "Every saved scene", "")],
+                              ("SHOT", "Saved scene", ""), ("ALL_SHOTS", "Every saved scene", ""),
+                              ("TEST", "Time test", "Render two frames of the animation to see how long "
+                                                    "the whole animation will take")],
                        default="STILL")
     name: StringProperty(options={"SKIP_SAVE"})
     start: BoolProperty(name="Start now", default=False, options={"SKIP_SAVE"})
@@ -945,11 +940,11 @@ class FRESING_OT_queue_add(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         s = scene.fresing
-        if self.kind == "ANIMATION":
+        if self.kind in ("ANIMATION", "TEST"):
             a = s.animations.get(self.name) if self.name else _active_anim(context)
             if a is None:
                 return {"CANCELLED"}
-            queue.add_job(scene, "ANIMATION", animation=a.name)
+            queue.add_job(scene, self.kind, animation=a.name)
         elif self.kind == "SHOT":
             name = self.name or (s.shots[s.shots_index].name if 0 <= s.shots_index < len(s.shots) else "")
             if not name:
@@ -1049,6 +1044,38 @@ class FRESING_OT_queue_open(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_open_file(bpy.types.Operator):
+    """Open this render"""
+
+    bl_idname = "fresing.open_file"
+    bl_label = "Open"
+
+    path: StringProperty(options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        if not self.path or not os.path.exists(self.path):
+            self.report({"WARNING"}, "The file is not there any more")
+            return {"CANCELLED"}
+        files.open_path(self.path)
+        return {"FINISHED"}
+
+
+class FRESING_OT_show_in_folder(bpy.types.Operator):
+    """Open the folder of this render, with the file selected"""
+
+    bl_idname = "fresing.show_in_folder"
+    bl_label = "Show in folder"
+
+    path: StringProperty(options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        if not self.path or not os.path.exists(self.path):
+            self.report({"WARNING"}, "The file is not there any more")
+            return {"CANCELLED"}
+        files.show_in_folder(self.path)
+        return {"FINISHED"}
+
+
 class FRESING_OT_queue_log(bpy.types.Operator):
     """Open the queue's log file (useful when a job failed)"""
 
@@ -1076,5 +1103,5 @@ CLASSES = (
     FRESING_OT_block_move, FRESING_OT_block_duplicate, FRESING_OT_block_target, FRESING_OT_anim_build,
     FRESING_OT_anim_fit_camera, FRESING_OT_anim_clear,
     FRESING_OT_queue_add, FRESING_OT_queue_start, FRESING_OT_queue_stop, FRESING_OT_queue_remove,
-    FRESING_OT_queue_open, FRESING_OT_queue_log,
+    FRESING_OT_queue_open, FRESING_OT_queue_log, FRESING_OT_open_file, FRESING_OT_show_in_folder,
 )

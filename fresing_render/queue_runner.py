@@ -85,8 +85,9 @@ def main() -> int:
         try:
             # every job starts from the saved project, so jobs do not affect each other
             bpy.ops.wm.open_mainfile(filepath=q["blend"], load_ui=False)
-            out = queue.run_job(bpy.context.scene, job, progress, should_stop)
-            st.update(status="DONE", progress=100.0, message="Saved " + os.path.basename(out), output=out)
+            res = queue.run_job(bpy.context.scene, job, progress, should_stop)
+            out, msg = res if isinstance(res, tuple) else (res, "Saved " + os.path.basename(res))
+            st.update(status="DONE", progress=100.0, message=msg, output=out)
         except queue.Stopped:
             st.update(status="STOPPED", message="Stopped (start the queue again to continue)")
         except Exception as exc:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import bpy
 
@@ -442,6 +443,12 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.scale_y = 1.5
         row.operator("fresing.render", icon="RENDER_STILL")
+        if s.last_render and os.path.exists(s.last_render):
+            box = layout.box()
+            box.label(text=os.path.basename(s.last_render), icon="IMAGE_DATA")
+            row = box.row(align=True)
+            row.operator("fresing.open_file", text="Open image", icon="IMAGE").path = s.last_render
+            row.operator("fresing.show_in_folder", icon="FILE_FOLDER").path = s.last_render
         layout.operator("fresing.open_folder", icon="FILE_FOLDER")
 
 

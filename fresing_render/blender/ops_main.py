@@ -826,6 +826,7 @@ class FRESING_OT_render(bpy.types.Operator):
         quality = s.quality if self.quality == "SETTING" else self.quality
         if bpy.app.background or context.window is None:  # no UI / scripted
             info = render.render_still(scene, s, quality)
+            s.last_render = info["path"]
             self.report({"INFO"}, f"Saved {info['path']} ({info['seconds']} s, {info['device']})")
             return {"FINISHED"}
         if bpy.app.is_job_running("RENDER"):
@@ -869,6 +870,7 @@ class FRESING_OT_render(bpy.types.Operator):
             self.report({"ERROR"}, s.last_message)
             return {"CANCELLED"}
         s.last_message = f"Saved {self._final}"
+        s.last_render = self._final
         self.report({"INFO"}, s.last_message)
         return {"FINISHED"}
 

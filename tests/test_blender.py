@@ -249,10 +249,18 @@ class FakeLayout:
     def operator(self, idname, *a, **k):
         mod, op = idname.split(".")
         try:
-            getattr(getattr(bpy.ops, mod), op).get_rna_type()
+            rna = getattr(getattr(bpy.ops, mod), op).get_rna_type()
         except Exception:
             self.errors.append(f"missing operator {idname}")
-        return type("OpProps", (), {})()
+            return type("OpProps", (), {})()
+        errors = self.errors
+
+        class OpProps:                       # setting an option the operator does not have is an error
+            def __setattr__(self, name, value):
+                if name not in rna.properties:
+                    errors.append(f"operator {idname} has no option {name}")
+                object.__setattr__(self, name, value)
+        return OpProps()
 
     def operator_menu_enum(self, idname, prop, *a, **k):
         return self.operator(idname)
@@ -269,10 +277,13 @@ class FakeLayout:
         return 0
 
 
-def test_ui_panels_draw(scene):
+def test_ui_panels_draw(scene, tmp_path):
     from fresing_render.blender import ui
     errors = []
     bpy.context.view_layer.objects.active = _part(scene, "FRAME")
+    last = tmp_path / "last render.png"
+    last.write_bytes(b"x")
+    scene.fresing.last_render = str(last)      # draws "Open image" / "Show in folder"
     for cls in ui.CLASSES:
         if not issubclass(cls, bpy.types.Panel):
             continue
@@ -311,3 +322,34 @@ def test_tree_counts_and_bounds(scene):
     assert len([d for d in tree.descendants(cover) if d.get(build.PROP_KIND) == "part"]) == 3
     assert s.bounds_valid
     assert abs((s.bounds_max[0] - s.bounds_min[0]) - 1.0) < 1e-3
+
+
+def test_show_in_folder(scene, tmp_path, monkeypatch):
+    from fresing_render.blender import files
+    calls = []
+    monkeypatch.setattr(files.subprocess, "Popen", lambda *a, **k: calls.append(a[0]))
+    f = tmp_path / "My renders é" / "frame 1.png"
+    f.parent.mkdir()
+    f.write_bytes(b"x")
+    assert bpy.ops.fresing.show_in_folder(path=str(f)) == {"FINISHED"}
+    assert calls == [["xdg-open", str(f.parent)]]
+    assert bpy.ops.fresing.show_in_folder(path=str(tmp_path / "gone.png")) == {"CANCELLED"}
+    # Windows: Explorer opens with the file selected; the path goes in quotes after /select,
+    cmd = files.explorer_select_command(r"C:\Users\Seb\Pictures\Fresing Render\a b.mp4")
+    assert cmd.startswith('explorer /select,"') and cmd.endswith('a b.mp4"')
+
+
+def test_animation_frame_settings(scene):
+    from fresing_render.blender import render
+    sc = bpy.context.scene
+    render.apply_quality(sc, "preview", use_gpu=False)
+    c = sc.cycles
+    assert c.caustics_reflective and c.max_bounces == 12 and abs(c.adaptive_threshold - 0.03) < 1e-6
+    render.apply_motion_settings(sc)
+    assert not c.caustics_reflective and not c.caustics_refractive
+    assert (c.max_bounces, c.diffuse_bounces, c.glossy_bounces) == (8, 3, 4)
+    assert abs(c.adaptive_threshold - 0.05) < 1e-6
+    render.apply_quality(sc, "preview", use_gpu=False)        # stills get their own settings back
+    assert c.caustics_reflective and c.diffuse_bounces == 4 and abs(c.adaptive_threshold - 0.03) < 1e-6
+    if hasattr(c, "denoising_use_gpu"):
+        assert c.denoising_use_gpu is False                   # no graphics card here

@@ -387,7 +387,8 @@ class FRAnimation(bpy.types.PropertyGroup):
 class FRQueueJob(bpy.types.PropertyGroup):
     job_id: StringProperty()
     label: StringProperty(name="Job")
-    kind: EnumProperty(items=[("STILL", "Image", ""), ("ANIMATION", "Animation", "")], default="STILL")
+    kind: EnumProperty(items=[("STILL", "Image", ""), ("ANIMATION", "Animation", ""), ("TEST", "Time test", "")],
+                       default="STILL")
     shot: StringProperty()
     camera: StringProperty()
     animation: StringProperty()
@@ -492,6 +493,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         items=[("draft", "Draft", "Fast check, half size"), ("preview", "Preview", "Full size, fewer samples"),
                ("final", "Final", "Clean result"), ("best", "Best", "Very clean, slow")])
     use_gpu: BoolProperty(name="Use graphics card", default=True)
+    last_render: StringProperty(name="Last render", description="The image saved by the last Render image")
 
     # ---- motion ----
     joints: CollectionProperty(type=FRJoint)

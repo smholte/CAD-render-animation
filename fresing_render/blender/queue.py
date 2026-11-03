@@ -48,16 +48,24 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
     job.shot = shot
     job.animation = animation
     job.camera = camera
-    if kind == "ANIMATION":
+    if kind in ("ANIMATION", "TEST"):
         anim = s.animations.get(animation)
         job.quality = quality or (anim.quality if anim else "preview")
-        job.label = f"Animation: {animation}"
+        job.label = f"{'Time test' if kind == 'TEST' else 'Animation'}: {animation}"
     else:
         job.quality = quality or s.quality
         job.label = f"Image: {shot or camera or 'current view'}"
     job.status = "WAITING"
     s.queue_index = len(s.queue) - 1
     return job
+
+
+def last_time_test(scene, animation: str):
+    """The newest time test of an animation in the queue list, or None."""
+    for job in reversed(scene.fresing.queue):
+        if job.kind == "TEST" and job.animation == animation:
+            return job
+    return None
 
 
 # Runtime state of the queue in this session. Kept outside the scene so undo cannot
@@ -366,7 +374,8 @@ def ensure_polling() -> None:
 # ---------------------------------------------------------------------------
 
 
-def run_job(scene, job: dict, progress, should_stop) -> str:
+def run_job(scene, job: dict, progress, should_stop):
+    """Returns the output path, or (output path, message) for a time test."""
     from . import states
     s = scene.fresing
     s.out_folder = job["out_dir"]
@@ -383,10 +392,13 @@ def run_job(scene, job: dict, progress, should_stop) -> str:
         progress(5, "Rendering image")
         info = render.render_still(scene, s, job.get("quality") or s.quality)
         return info["path"]
+    if job["kind"] == "TEST":
+        return time_test(scene, job, progress, should_stop)
     return render_animation(scene, job, progress, should_stop)
 
 
-def render_animation(scene, job: dict, progress, should_stop) -> str:
+def _setup_animation(scene, job: dict, progress) -> dict:
+    """Bake the animation and set up engine, size and files exactly as for the real render."""
     from ..core import presets
     from . import animation, world
 
@@ -410,6 +422,7 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         device = "EEVEE"
     else:
         device = render.apply_quality(scene, quality, s.use_gpu)
+        render.apply_motion_settings(scene)   # animation frames: less time on light bouncing around
         r.use_persistent_data = True          # keep the scene on the GPU between frames
     r.resolution_percentage = 100
     world.apply(scene, s)
@@ -428,10 +441,37 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
     im.color_mode = "RGBA"
     im.color_depth = "8"
     stem = render._safe(os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "animation")
-    folder = os.path.join(job["out_dir"], f"{stem}_{render._safe(anim.name)}_{size.width}x{size.height}_{quality}_{job['id']}")
+    return {"anim": anim, "frames": info["frames"], "quality": quality, "size": size, "device": device,
+            "composite": composite, "color": tuple(render.linear_to_srgb(c) for c in s.background_color[:3]),
+            "name": f"{stem}_{render._safe(anim.name)}_{size.width}x{size.height}_{quality}"}
+
+
+def _render_frame(scene, setup: dict, f: int, final: str) -> tuple[float, float]:
+    """Render frame ``f`` to ``final``. Returns (seconds rendering, seconds saving)."""
+    r = scene.render
+    t0 = time.time()
+    scene.frame_set(f)
+    target = final[:-4] + ".tmp.png"          # a frame cut off by "Stop now" never looks finished
+    r.filepath = target
+    bpy.ops.render.render(write_still=True, scene=scene.name)
+    t1 = time.time()
+    if setup["composite"]:
+        render._composite_over_color(target, setup["color"], final[:-4] + ".part.png", "PNG")
+        os.remove(target)
+        os.replace(final[:-4] + ".part.png", final)
+    else:
+        os.replace(target, final)
+    t2 = time.time()
+    print(f"frame {f}: render {t1 - t0:.1f} s, save {t2 - t1:.1f} s", flush=True)
+    return t1 - t0, t2 - t1
+
+
+def render_animation(scene, job: dict, progress, should_stop) -> str:
+    setup = _setup_animation(scene, job, progress)
+    anim, f_end, device = setup["anim"], setup["frames"], setup["device"]
+    size = setup["size"]
+    folder = os.path.join(job["out_dir"], f"{setup['name']}_{job['id']}")
     os.makedirs(folder, exist_ok=True)
-    col = tuple(render.linear_to_srgb(c) for c in s.background_color[:3])
-    f_end = info["frames"]
     t0 = time.time()
     done = 0
     for f in range(1, f_end + 1):
@@ -440,16 +480,7 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         final = os.path.join(folder, f"frame_{f:04d}.png")
         if os.path.exists(final):              # resume after a stop
             continue
-        scene.frame_set(f)
-        target = final[:-4] + ".tmp.png"      # a frame cut off by "Stop now" never looks finished
-        r.filepath = target
-        bpy.ops.render.render(write_still=True, scene=scene.name)
-        if composite:
-            render._composite_over_color(target, col, final[:-4] + ".part.png", "PNG")
-            os.remove(target)
-            os.replace(final[:-4] + ".part.png", final)
-        else:
-            os.replace(target, final)
+        _render_frame(scene, setup, f, final)
         done += 1
         per = (time.time() - t0) / done
         left = per * (f_end - f)
@@ -459,9 +490,40 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         progress(96, "Making the video")
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
-                   white_under=s.background == "TRANSPARENT")
+                   white_under=scene.fresing.background == "TRANSPARENT")
         return mp4
     return folder
+
+
+def time_test(scene, job: dict, progress, should_stop) -> tuple[str, str]:
+    """Render the first frame and one from the middle with the real settings.
+
+    The first frame includes loading the model onto the graphics card; the middle one is
+    what every further frame costs. Returns (the middle frame, the estimate)."""
+    setup = _setup_animation(scene, job, progress)
+    f_end, size = setup["frames"], setup["size"]
+    folder = os.path.join(job["out_dir"], "_time_tests")
+    os.makedirs(folder, exist_ok=True)
+    progress(5, "Rendering the first frame (includes loading the model)")
+    first = os.path.join(folder, f"{setup['name']}_{job['id']}_frame_0001.png")
+    r1, s1 = _render_frame(scene, setup, 1, first)
+    if f_end < 2:
+        return first, f"Time test: {r1 + s1:.0f} s for the only frame"
+    if should_stop():
+        raise Stopped()
+    mid = max(2, (f_end + 1) // 2)
+    progress(50, f"Rendering frame {mid} (a typical frame)")
+    path = os.path.join(folder, f"{setup['name']}_{job['id']}_frame_{mid:04d}.png")
+    r2, s2 = _render_frame(scene, setup, mid, path)
+    try:
+        os.remove(first)
+    except OSError:
+        pass
+    per = r2 + s2
+    total = r1 + s1 + per * (f_end - 1)
+    msg = (f"{per:.1f} s per frame on {setup['device']}: about {_duration(total)} for {f_end} frames "
+           f"at {size.width}x{size.height}")
+    return path, msg
 
 
 def _duration(seconds: float) -> str:

@@ -69,10 +69,16 @@ Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden):
 6 Animation       Steps on a timeline: move a joint, go to a pose, camera cut / move / orbit,
                   show or hide a subassembly. "Build & play" plays it in the view (Space).
                   "Render animation" makes an MP4 (and the single frames) in the queue.
+                  "Time test" renders two frames first and shows how long the whole
+                  animation will take (and the test frame, to check the look).
+                  Quality "Fast preview (EEVEE)" is minutes instead of hours, to check motion.
 7 Render queue    Images and animations rendered by a second Blender in the background:
                   keep working, or close the app and let it run overnight.
+                  Select a finished item: "Open result" plays/opens it, "Show in folder"
+                  opens File Explorer with the file selected.
 Renders are saved in a "Renders" folder next to the saved project
 (or Pictures\Fresing Render when the project is not saved yet).
+After "Render image": "Open image" and "Show in folder" appear under the button.
 
 Projects on a shared folder: while you have a project open, others who open it see
 "In use by <name> on <computer>" in panel 1.

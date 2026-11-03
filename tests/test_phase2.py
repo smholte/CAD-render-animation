@@ -347,6 +347,7 @@ def test_render_queue_still_and_video(scene, tmp_path):
     b.kind, b.joint, b.duration, b.to_angle = "JOINT", j.name, 0.08, math.radians(20)
     queue.add_job(scene, "STILL", shot="Side")
     queue.add_job(scene, "ANIMATION", animation="Short")
+    queue.add_job(scene, "TEST", animation="Short")
     for job in s.queue:
         job.quality = "draft"
     bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "q.blend"))
@@ -362,6 +363,12 @@ def test_render_queue_still_and_video(scene, tmp_path):
     assert os.path.isfile(video) and video.endswith(".mp4") and os.path.getsize(video) > 1000
     frames = os.path.splitext(video)[0]
     assert sorted(os.listdir(frames)) == ["frame_0001.png", "frame_0002.png", "frame_0003.png"]
+    test = s.queue[2]                                   # time test: the middle frame and an estimate
+    assert test.label == "Time test: Short" and queue.last_time_test(scene, "Short") == test
+    assert os.path.isfile(test.output) and test.output.endswith("_frame_0002.png"), test.output
+    assert "_time_tests" in test.output
+    assert "s per frame on CPU" in test.message and "for 3 frames at" in test.message, test.message
+    assert os.listdir(os.path.dirname(test.output)) == [os.path.basename(test.output)]   # first frame removed
 
 
 def test_project_lock(tmp_path):
@@ -393,6 +400,8 @@ def test_ui_motion_panels_draw(scene):
         b = s.animations[0].blocks.add()
         b.kind = kind
     queue.add_job(scene, "STILL", shot="S")
+    t = queue.add_job(scene, "TEST", animation=s.animations[0].name)
+    t.status, t.message, t.output = "DONE", "15.2 s per frame on GPU: about 1.0 h for 236 frames", __file__
     errors = []
 
     class FL(FakeLayout):
@@ -452,13 +461,14 @@ def test_operators_smoke(scene):
                    ("block_add", {"kind": "CAMERA"}), ("block_add", {"kind": "HIDE"}), ("block_duplicate", {}),
                    ("block_move", {"direction": "UP"}), ("block_target", {}), ("anim_build", {}), ("anim_fit_camera", {}),
                    ("anim_clear", {}), ("queue_add", {"kind": "STILL"}), ("queue_add", {"kind": "SHOT", "name": "S"}),
-                   ("queue_add", {"kind": "ANIMATION"}), ("queue_remove", {}), ("block_remove", {}),
+                   ("queue_add", {"kind": "ANIMATION"}), ("queue_add", {"kind": "TEST"}),
+                   ("queue_remove", {}), ("block_remove", {}),
                    ("report_clear", {}), ("joint_remove", {}), ("pose_remove", {}), ("vis_remove", {}),
                    ("shot_remove", {}), ("anim_remove", {})):
         res = getattr(bpy.ops.fresing, op)(**kw)
         assert res == {"FINISHED"}, (op, res)
     assert s.shots.get("S") is None and len(s.joints) == 0
-    assert len(s.queue) == 2
+    assert len(s.queue) == 3
 
 
 # ---- review fixes ----------------------------------------------------------

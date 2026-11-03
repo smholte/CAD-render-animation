@@ -44,6 +44,14 @@ test machine 2 helpers take tessellation from 40 s to 30 s. The biggest EGR part
 ("COMPOUND", 8,600 faces, 39 % of all triangles) needs 5.7 s meshing + 5.6 s arrays there
 and sets the floor on many cores.
 
+Animation frames (0.2.4): 2560x1440 "Preview" on the RTX 3090 took about 15 s per frame
+(236 frames in about an hour). Changes: OpenImageDenoise on the graphics card (Blender's
+default is the processor); for animation frames no caustics, fewer bounces (8/3/4/8) and
+adaptive threshold x5/3 - measured on an EGR interior close-up (CPU, 480x270): 36.9 s ->
+20.8 s per frame, mean difference 1.3/255. Fast GI was tried: 27 s but 7.7/255 darker,
+rejected. Colour-background compositing costs ~0.5 s per 1440p frame (kept). The log
+prints "frame N: render X s, save Y s" per frame.
+
 ## Tests
 
 * `tests/test_fasteners.py`, `tests/test_core.py`: pure Python.
