@@ -44,6 +44,13 @@ test machine 2 helpers take tessellation from 40 s to 30 s. The biggest EGR part
 ("COMPOUND", 8,600 faces, 39 % of all triangles) needs 5.7 s meshing + 5.6 s arrays there
 and sets the floor on many cores.
 
+0.2.6: the arrays come from OpenCascade in one block (`BinTools_ShapeSet.WriteTriangulation`,
+one bare face per triangulation so the records keep the face order; parsed with numpy)
+instead of one Python call per node. Biggest EGR part: 2.6 s -> 0.3 s. Whole EGR line,
+same 2-core machine (a faster one than above): meshing 24.0 -> 17.7 s on one core,
+17.7 -> 14.8 s with 2 helpers; caches identical to the last bit. If the block does not match
+the faces, the part is read node by node as before.
+
 Animation frames (0.2.4): 2560x1440 "Preview" on the RTX 3090 took about 15 s per frame
 (236 frames in about an hour). Changes: OpenImageDenoise on the graphics card (Blender's
 default is the processor); for animation frames no caustics, fewer bounces (8/3/4/8) and

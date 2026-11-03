@@ -276,3 +276,84 @@ def test_worker_count_setting(monkeypatch):
     assert step_reader.worker_count() == 0              # one helper is slower than none
     monkeypatch.setenv("FRESING_IMPORT_WORKERS", "99")
     assert step_reader.worker_count() == step_reader.MAX_WORKERS
+
+
+# ---- triangles read in one block ------------------------------------------------------
+
+
+def _test_shapes():
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut
+    from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder
+    from OCP.STEPControl import STEPControl_Reader
+    from OCP.TopAbs import TopAbs_EDGE
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopLoc import TopLoc_Location
+    from OCP.TopoDS import TopoDS
+    from OCP.gp import gp_Ax1, gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf
+    box = BRepPrimAPI_MakeBox(100.0, 60.0, 20.0).Shape()        # opposite faces: same counts
+    fil = BRepFilletAPI_MakeFillet(box)
+    e = TopExp_Explorer(box, TopAbs_EDGE)
+    while e.More():
+        fil.Add(3.0, TopoDS.Edge(e.Current()))
+        e.Next()
+    block = fil.Shape()
+    for x, y in ((20, 20), (50, 30), (80, 40)):
+        block = BRepAlgoAPI_Cut(block, BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(x, y, -5), gp_Dir(0, 0, 1)),
+                                                                6.0, 40.0).Shape()).Shape()
+    rd = STEPControl_Reader()
+    rd.ReadFile(STEP)
+    rd.TransferRoots()
+    mirror = gp_Trsf()
+    mirror.SetMirror(gp_Ax1(gp_Pnt(10, 0, 0), gp_Dir(1, 0, 0)))
+    moved = BRepPrimAPI_MakeBox(30.0, 20.0, 10.0).Shape().Moved(TopLoc_Location(mirror))
+    return {"box": BRepPrimAPI_MakeBox(100.0, 60.0, 20.0).Shape(), "filleted drilled block": block,
+            "test machine": rd.OneShape(), "mirrored box": moved}
+
+
+def test_block_records_belong_to_their_own_face():
+    """Every record of the block is the triangulation of the face it is matched with
+    (with the real faces, a plain box already came back in another order)."""
+    occ = step_reader._occ()
+    lin, ang = step_reader.QUALITY["normal"]
+    for name, shape in _test_shapes().items():
+        occ["BRepMesh_IncrementalMesh"](shape, lin, True, ang, True)
+        entries = []
+        for f in step_reader._faces(occ, shape):
+            loc = occ["TopLoc_Location"]()
+            t = occ["BRep_Tool"].Triangulation_s(f, loc)
+            if t is not None and t.NbNodes():
+                occ["BRepLib_ToolTriangulatedShape"].ComputeNormals_s(f, t)
+                entries.append((f, t))
+        recs = step_reader._bulk_triangulations(occ, entries)
+        assert recs is not None, f"{name}: the block was not used"
+        for (f, t), (nodes, tris, nrm) in zip(entries, recs):
+            assert np.array_equal(nodes, [t.Node(i).Coord() for i in range(1, t.NbNodes() + 1)]), name
+            assert np.array_equal(tris, [t.Triangle(j).Get() for j in range(1, t.NbTriangles() + 1)]), name
+            if nrm is not None:
+                assert np.allclose(nrm, [t.Normal(i).Coord() for i in range(1, t.NbNodes() + 1)], atol=1e-6), name
+
+
+def test_block_and_node_by_node_give_the_same_mesh(monkeypatch):
+    occ = step_reader._occ()
+    lin, ang = step_reader.QUALITY["normal"]
+    for name, shape in _test_shapes().items():
+        slow = step_reader._mesh_shape(occ, shape, lin, ang, bulk=False, axes=step_reader._Axes())
+        fast = step_reader._mesh_shape(occ, shape, lin, ang, already_meshed=True, axes=step_reader._Axes())
+        for a, b in zip(slow[:4], fast[:4]):
+            assert np.array_equal(a, b), name
+    # a block that cannot be read: the part is read node by node, same result
+    monkeypatch.setattr(step_reader, "_parse_triangulations", lambda data: (_ for _ in ()).throw(ValueError("x")))
+    shape = _test_shapes()["box"]
+    again = step_reader._mesh_shape(occ, shape, lin, ang)
+    ref = step_reader._mesh_shape(occ, shape, lin, ang, already_meshed=True, bulk=False)
+    for a, b in zip(again[:4], ref[:4]):
+        assert np.array_equal(a, b)
+
+
+def test_block_parser_rejects_damaged_data():
+    with pytest.raises(ValueError):
+        step_reader._parse_triangulations(b"Something else 1\n")
+    good_head = b"Triangulations 1\n" + np.array([3, 1], "<i4").tobytes() + b"\x00\x00" + np.zeros(1, "<f8").tobytes()
+    with pytest.raises(ValueError):
+        step_reader._parse_triangulations(good_head + b"\x00" * 10)          # too short

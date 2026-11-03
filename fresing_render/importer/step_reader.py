@@ -75,8 +75,8 @@ def _occ():
     from OCP.BRep import BRep_Builder
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     from OCP.GeomAbs import GeomAbs_SurfaceType
-    from OCP.BinTools import BinTools, BinTools_FormatVersion
-    from OCP.TopoDS import TopoDS_Shape
+    from OCP.BinTools import BinTools, BinTools_FormatVersion, BinTools_ShapeSet
+    from OCP.TopoDS import TopoDS_Shape, TopoDS_Face
     return locals()
 
 
@@ -239,10 +239,108 @@ def _trsf_arrays(trsf):
     return m, rot, trsf.ScaleFactor()
 
 
-def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=False, axes: _Axes | None = None):
+def _parse_triangulations(data: bytes) -> list:
+    """OpenCascade's binary triangulation block -> [(nodes Nx3 f8, triangles Mx3 i4, normals Nx3 f4 or None)].
+
+    Layout (BinTools format 4, x86): "Triangulations <n>\\n", then per triangulation: nodes,
+    triangles (int32), has-UV and has-normals (1 byte each), deflection (f8), nodes (3 f8),
+    UV (2 f8, if any), triangles (3 i4, 1-based), normals (3 f4, if any)."""
+    nl = data.index(b"\n")
+    head = data[:nl].split()
+    if len(head) != 2 or head[0] != b"Triangulations":
+        raise ValueError("not a triangulation block")
+    pos = nl + 1
+    out = []
+    for _ in range(int(head[1])):
+        nn, nt = (int(v) for v in np.frombuffer(data, "<i4", 2, pos))
+        has_uv, has_n = data[pos + 8], data[pos + 9]
+        if nn < 0 or nt < 0 or has_uv > 1 or has_n > 1:
+            raise ValueError("unexpected triangulation record")
+        pos += 18                                          # counts, flags, deflection
+        nodes = np.frombuffer(data, "<f8", nn * 3, pos).reshape(nn, 3)
+        pos += nn * 24 + (nn * 16 if has_uv else 0)
+        tris = np.frombuffer(data, "<i4", nt * 3, pos).reshape(nt, 3)
+        pos += nt * 12
+        nrm = None
+        if has_n:
+            nrm = np.frombuffer(data, "<f4", nn * 3, pos).reshape(nn, 3)
+            pos += nn * 12
+        out.append((nodes, tris, nrm))
+    if pos != len(data):
+        raise ValueError("triangulation block has an unexpected length")
+    return out
+
+
+def _bulk_triangulations(occ, entries) -> list | None:
+    """Nodes, triangles and normals of all faces in one call (instead of one call per node).
+
+    ``entries``: (face, triangulation) in face order. Returns one record per entry, or None
+    when the block does not match the faces (then the caller reads node by node)."""
+    try:
+        ss = occ["BinTools_ShapeSet"]()
+        ss.SetWithTriangles(True)
+        ss.SetWithNormals(True)
+        builder = occ["BRep_Builder"]()
+        index: dict = {}                                   # triangulation -> record (faces of repeated
+        for _face, tri in entries:                         # sub-shapes share one triangulation)
+            if tri in index:
+                continue
+            index[tri] = len(index)
+            # a bare face holding only this triangulation: the real face's edges would also
+            # bring in the neighbours' triangulations and mix up the order
+            bare = occ["TopoDS_Face"]()
+            builder.MakeFace(bare, tri)
+            ss.Add(bare)
+        buf = io.BytesIO()
+        ss.WriteTriangulation(buf)
+        unique = _parse_triangulations(buf.getvalue())
+    except Exception:
+        return None
+    if len(unique) != len(index):
+        return None
+    records = [unique[index[tri]] for _face, tri in entries]
+    for (face, tri), (nodes, tris, _nrm) in zip(entries, records):
+        if len(nodes) != tri.NbNodes() or len(tris) != tri.NbTriangles():
+            return None
+    for k in {0, len(entries) - 1} if entries else ():   # spot check: the block holds the same numbers
+        tri = entries[k][1]
+        if tuple(records[k][0][0]) != tri.Node(1).Coord() or tuple(records[k][1][-1]) != \
+                tri.Triangle(tri.NbTriangles()).Get():
+            return None
+    return records
+
+
+def _is_plane(occ, face) -> bool:
+    try:
+        return occ["BRepAdaptor_Surface"](face, True).GetType() == occ["GeomAbs_SurfaceType"].GeomAbs_Plane
+    except Exception:
+        return False
+
+
+def _record_normals(occ, face, tri, rec_normals, n_nodes: int):
+    """Normals of one face: from the block, else (the block leaves them out for some faces) from OpenCascade."""
+    if rec_normals is not None:                            # normalised in double, as OpenCascade's gp_Dir does
+        n = rec_normals.astype(np.float64)
+        ln = np.sqrt(n[:, 0] * n[:, 0] + n[:, 1] * n[:, 1] + n[:, 2] * n[:, 2])
+        ok = ln > 0
+        n[ok] /= ln[ok, None]
+        return n
+    if not tri.HasNormals():
+        return None
+    if _is_plane(occ, face):                               # a plane: one normal for every node
+        first, last = tri.Normal(1).Coord(), tri.Normal(n_nodes).Coord()
+        if first == last:
+            return np.tile(np.array(first, dtype=np.float64), (n_nodes, 1))
+    normal = tri.Normal
+    return np.array([normal(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
+
+
+def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=False, axes: _Axes | None = None,
+                bulk: bool = True):
     """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours).
 
-    ``face_colours``: from _face_colour_list (a colour or None per face), or None."""
+    ``face_colours``: from _face_colour_list (a colour or None per face), or None.
+    ``bulk``: read the triangles in one block (False: node by node, the old way)."""
     if not already_meshed:
         occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
     positions, normals, tris, tri_col = [], [], [], []
@@ -253,29 +351,40 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
     TopLoc_Location = occ["TopLoc_Location"]
     compute_normals = occ["BRepLib_ToolTriangulatedShape"].ComputeNormals_s
     REVERSED = occ["TopAbs_REVERSED"]
+    faces = []                                             # (face number, face, location, triangulation)
     for face_no, face in enumerate(_faces(occ, shape)):
         loc = TopLoc_Location()
         tri = BRep_Tool.Triangulation_s(face, loc)
-        if tri is None:
-            continue
-        n_nodes = tri.NbNodes()
-        n_tris = tri.NbTriangles()
-        if n_nodes == 0 or n_tris == 0:
+        if tri is None or tri.NbNodes() == 0 or tri.NbTriangles() == 0:
             continue
         if not tri.HasNormals():
             try:
                 compute_normals(face, tri)
             except Exception:
                 pass
+        faces.append((face_no, face, loc, tri))
+    records = _bulk_triangulations(occ, [(f, t) for _n, f, _l, t in faces]) if bulk else None
+    for k, (face_no, face, loc, tri) in enumerate(faces):
+        n_nodes = tri.NbNodes()
+        n_tris = tri.NbTriangles()
         reversed_ = face.Orientation() == REVERSED
-        # one call per node / triangle; numpy does the rest
-        node = tri.Node
-        pts = np.array([node(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
-        has_n = tri.HasNormals()
-        if has_n:
-            normal = tri.Normal
-            nrm = np.array([normal(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
+        if records is not None:
+            rec_nodes, rec_tris, rec_nrm = records[k]
+            pts = rec_nodes.astype(np.float64)
+            t = rec_tris.astype(np.int64) - 1
+            nrm = _record_normals(occ, face, tri, rec_nrm, n_nodes)
         else:
+            # one call per node / triangle; numpy does the rest
+            node = tri.Node
+            pts = np.array([node(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
+            nrm = None
+            if tri.HasNormals():
+                normal = tri.Normal
+                nrm = np.array([normal(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
+            triangle = tri.Triangle
+            t = np.array([triangle(j).Get() for j in range(1, n_tris + 1)], dtype=np.int64) - 1
+        has_n = nrm is not None
+        if not has_n:
             nrm = np.zeros((n_nodes, 3), dtype=np.float64)
         if not loc.IsIdentity():
             m, rot, scale = _trsf_arrays(loc.Transformation())
@@ -289,8 +398,6 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
                     nrm = -nrm
         if reversed_ and has_n:
             nrm = -nrm
-        triangle = tri.Triangle
-        t = np.array([triangle(j).Get() for j in range(1, n_tris + 1)], dtype=np.int64) - 1
         if reversed_:
             t = t[:, (0, 2, 1)]
         # face colour

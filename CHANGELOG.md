@@ -3,6 +3,14 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.6 – 3 Nov 2026 – faster import, self-test checks the new features
+
+- The STEP reader takes each part's triangles from OpenCascade in one block instead of one
+  point at a time. EGR line on the 2-core test machine: meshing 24.0 s → 17.7 s on one core,
+  17.7 s → 14.8 s with 2 helpers; the result is identical to before, to the last bit.
+- Self-test: new line "Animation time test (queue)" (the Time test button, run on your PC);
+  the HD render line says whether noise removal ran on the graphics card.
+
 ## 0.2.5 – 3 Nov 2026 – side panel redesigned
 
 Commit `e85321b`.

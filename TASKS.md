@@ -18,7 +18,6 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 | 0004 | Decide where renders go: "Renders" next to the project (now) or Pictures\Fresing Render\<project> | owner | open | – |
 | 0005 | Choose where the update server lives (see docs/UPDATES.md) | owner | open | – |
 | 0006 | Phase 3, when projects need it: motion paths, link loops, several machines in one scene, props, clash warning, project templates | worker (per feature) | open | – |
-| 0007 | Idea, low priority: faster array extraction for very big single parts (EGR "COMPOUND", 39 % of all triangles, sets the import floor on many cores) | lead | open | – |
 
 ## Done
 
@@ -28,6 +27,7 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 | – | STEP import on all cores | 0.2.3 |
 | – | Faster animation renders, Time test, Show in folder | 0.2.4 |
 | – | Side panel redesigned section by section | 0.2.5 |
+| 0007 | Triangles read in one block (biggest EGR part 2.6 s → 0.3 s); self-test checks Time test and noise removal | 0.2.6 |
 | – | Code on GitHub; CLAUDE.md, TASKS.md, CHANGELOG.md; way of working agreed | – |
 
 Details per version: `CHANGELOG.md`.

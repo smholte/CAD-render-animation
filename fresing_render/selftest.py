@@ -231,6 +231,37 @@ def main(report_path: str | None = None) -> bool:
             raise RuntimeError(f"{job.status}: {job.message} | log: {queue.log_tail(qdir, 12)}")
         return f"{time.time() - t0:.0f} s -> {job.output}"
 
+    def _time_test():
+        """The Time test button of 6 Animation: two frames of an animation through the queue."""
+        import math
+        import tempfile
+        from mathutils import Vector
+        from .blender import joints, queue
+        scene = bpy.context.scene
+        s = scene.fresing
+        cover = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.ASM")
+        plate = next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER.PLATE")
+        j = joints.create(scene, "ROTATE", [cover], plate.matrix_world.translation, Vector((0, 0, 1)),
+                          name="Self-test hinge")
+        a = s.animations.add()
+        a.name = "Self-test time"
+        a.tail = 0.0
+        a.quality = "draft"
+        a.out_resolution = "preview"
+        b = a.blocks.add()
+        b.kind, b.joint, b.duration, b.use_from, b.to_angle = "JOINT", j.name, 0.4, False, math.radians(30)
+        s.out_folder = tempfile.mkdtemp(prefix="fresing_timetest_")
+        queue.add_job(scene, "TEST", animation=a.name, quality="draft")
+        qdir = queue.start(bpy.context)
+        t0 = time.time()
+        while queue.is_running(scene) and time.time() - t0 < 300:
+            time.sleep(1.0)
+        queue.sync(scene)
+        job = s.queue[-1]
+        if job.status != "DONE" or "s per frame" not in job.message:
+            raise RuntimeError(f"{job.status}: {job.message} | log: {queue.log_tail(qdir, 12)}")
+        return job.message
+
     if imported:
         def _render(gpu: bool, resolution: str, quality: str):
             scene = bpy.context.scene
@@ -244,13 +275,16 @@ def main(report_path: str | None = None) -> bool:
             s.out_folder = os.path.join(_desktop(), "Fresing Render self-test")
             s.background = "COLOR"
             info = render.render_still(scene, s, quality)
-            return f"{info['size'][0]}x{info['size'][1]} in {info['seconds']} s on {info['device']} -> {info['path']}"
+            denoise = "graphics card" if getattr(scene.cycles, "denoising_use_gpu", False) else "processor"
+            return (f"{info['size'][0]}x{info['size'][1]} in {info['seconds']} s on {info['device']}, "
+                    f"noise removal on the {denoise} -> {info['path']}")
 
         check("Render HD on graphics card", lambda: _render(True, "hd", "preview"))
         check("Small render on processor (for comparison)", lambda: _render(False, "preview", "draft"))
         check("Joints and animation", _motion)
         check("Video encoder (MP4)", _video)
         check("Render queue (second Blender in the background)", _queue)
+        check("Animation time test (queue)", _time_test)
 
     log("RESULT: " + ("ALL OK" if ok else "PROBLEMS FOUND (see above)"))
     if report is not None:
