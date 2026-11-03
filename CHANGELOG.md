@@ -5,6 +5,8 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.6 – 3 Nov 2026 – faster import, self-test checks the new features
 
+Commit `b414a73`.
+
 - The STEP reader takes each part's triangles from OpenCascade in one block instead of one
   point at a time. EGR line on the 2-core test machine: meshing 24.0 s → 17.7 s on one core,
   17.7 s → 14.8 s with 2 helpers; the result is identical to before, to the last bit.
