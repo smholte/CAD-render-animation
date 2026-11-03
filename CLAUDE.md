@@ -145,7 +145,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging changes.
 4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
    first time) -> `dist/FresingRender-<version>-windows.zip`.
-5. Commit, tag `v<version>`, push `main` and the tag.
+5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`.
+   (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
+   Releases on github.com if he wants them.)
 6. Send the owner the installer zip with short install/test steps; update the project progress note.
 
 ## 8. Things learned the hard way

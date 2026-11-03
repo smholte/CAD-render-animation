@@ -1,9 +1,11 @@
 # Changelog
 
-What changed in each version, in plain words. Newest first. Versions from 0.2.2 on are
-tagged in Git (`v0.2.2`, ...).
+What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
+installer of that version was built from (tags cannot be pushed from the AI chats).
 
 ## 0.2.5 – 3 Nov 2026 – side panel redesigned
+
+Commit `e85321b`.
 
 - Every section reads top to bottom: what you choose comes before its button.
 - The main button of each section is big and blue: Import STEP, Render image,
@@ -19,6 +21,8 @@ tagged in Git (`v0.2.2`, ...).
 
 ## 0.2.4 – 3 Nov 2026 – faster animation renders
 
+Commit `08a0f08`.
+
 - Noise removal runs on the graphics card (Blender's default was the processor).
 - Animation frames use lighter light-bounce settings: 44 % less render time per frame on
   the EGR line test, no visible difference.
@@ -28,11 +32,15 @@ tagged in Git (`v0.2.2`, ...).
 
 ## 0.2.3 – 3 Nov 2026 – import on all processor cores
 
+Commit `72dce5e`.
+
 - Big STEP files are meshed on all cores but one, at below-normal priority.
 - A part that cannot be meshed is reported and skipped; the rest of the import goes on.
 - Self-test line "Fast import (all cores)"; the import panel shows how many cores were used.
 
 ## 0.2.2 – 2 Nov 2026 – first working installer
+
+Commit `0e21353`.
 
 - Installer fixed: every earlier installer stopped with a PowerShell error before installing.
 - Live preview and Render image no longer freeze the app.
