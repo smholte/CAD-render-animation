@@ -1,11 +1,16 @@
 # Fresing Render
 
-Photo-realistic renders of large STEP assemblies (hundreds to thousands of parts),
-built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
+Photo-realistic renders and animations of large STEP assemblies (hundreds to thousands of
+parts), built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
 
-Plan and decisions: see the "STEP Render App — Plan" document.
+- **CLAUDE.md** – how the AI works on this project (read first)
+- **TASKS.md** – open and finished tasks; one file per larger task in `tasks/`
+- **CHANGELOG.md** – what changed in each version
+- **docs/README-install.txt** – install and use (shipped with the installer)
 
-## What it does (version 0.1, phase 1: stills)
+## What it does
+
+Phase 1 (stills):
 
 1. **Import** a STEP file (Inventor, Fusion, any CAD). OpenCascade reads it in a separate
    process; the assembly tree, part names and CAD colours are kept, repeated parts (bolts)
@@ -21,6 +26,10 @@ Plan and decisions: see the "STEP Render App — Plan" document.
    background; built-in studio light; shadow-only or visible floor; cameras fitted to the
    model; formats by use (16:9, 21:9, square, 9:16, A4/A5/A3 at 150/300 dpi with bleed)
    x resolution (540p to 8K); GPU picked automatically (OptiX, CUDA, HIP...).
+
+Phase 2 (motion): joints, poses, exploded views, visibility sets, saved scenes, animations
+and a background render queue; model updates to a new STEP revision keep all work.
+See CHANGELOG.md.
 
 ## Layout
 
@@ -43,7 +52,7 @@ docs/                    install readme, update channel, development notes
 ```
 python -m venv venv
 venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pytest
-venv/bin/python -m pytest tests/          # 69 tests, ~20 s
+venv/bin/python -m pytest tests/          # 108 tests, about 5 minutes
 venv/bin/python tools/build_release.py    # dist/: extension zip, installer zip, update repo
 ```
 
