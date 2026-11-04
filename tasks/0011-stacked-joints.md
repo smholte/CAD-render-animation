@@ -40,7 +40,7 @@ sits at X +500 / Y +1000 from where it started. This works together with all oth
    position", Explode, free moves, animation steps (one step per joint; steps in sequence and in
    parallel), Fit camera to the whole motion, limits, flip, joint types, removing a joint from the
    middle of a stack (the joints above it move down onto what it sat on), undo.
-5. **UI (5 Motion):** when the selection already moves with a joint, Add joint says it adds a
+5. **UI (4 Motion):** when the selection already moves with a joint, Add joint says it adds a
    joint on top ("Adds a second joint on top of 'Joint A'"); the joint list shows stacked joints
    indented under the one they ride on. Follow the layout rules in `blender/ui.py`.
 
@@ -51,7 +51,7 @@ sits at X +500 / Y +1000 from where it started. This works together with all oth
 - [ ] Stacks survive: pose save/apply, animation bake (both steps in one animation), model update
       (`tests/data` crane revisions), save + reopen, undo; removing the middle joint of three
 - [ ] Real-app click test step added (`tools/ui_test_app2.py`): add two joints on one subassembly
-      through the buttons; screenshots of 5 Motion checked with `tools/ui_screens.py`
+      through the buttons; screenshots of 4 Motion checked with `tools/ui_screens.py`
 - [ ] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7)
 
 ## Not in this task

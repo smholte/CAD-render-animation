@@ -4,7 +4,12 @@ A rule says: *if* a fact about the part matches, *then* the part goes to
 ``target``. Rules are checked top to bottom; the first one that matches wins.
 Parts no rule matches go to the fallback group ("Unsorted").
 
-Targets can use placeholders: {color}, {finish}, {kind}, {family}, {name}.
+Targets can use placeholders: {color}, {finish}, {kind}, {family}, {name}, {part_type},
+{cad_material}.
+
+Default order: fasteners (by finish) -> part type from the part-type library
+(``part_types.py``) -> material or appearance name from the CAD file -> CAD colour ->
+"Unsorted". The part-type library sits behind one rule, so the list stays short.
 """
 
 from __future__ import annotations
@@ -13,7 +18,7 @@ import fnmatch
 import re
 from dataclasses import asdict, dataclass, field
 
-from . import fasteners
+from . import cad_materials, fasteners, part_types
 
 FIELDS = {
     "name": "Part name",
@@ -27,6 +32,9 @@ FIELDS = {
     "standard": "Standard (DIN/ISO)",
     "size": "Thread size",
     "property_class": "Property class",
+    # appended at the end: Blender stores the position of each choice in saved projects
+    "part_type": "Part type",
+    "cad_material": "CAD material",
 }
 
 OPS = {
@@ -74,6 +82,8 @@ class PartFacts:
     path: str = ""
     assembly: str = ""
     color: str = ""                       # '#RRGGBB' or ''
+    cad_material: str = ""                # material/appearance name from the CAD file, '' if unknown
+    part_type: str = ""                   # group from the part-type library, '' if none
     fastener: fasteners.FastenerInfo | None = field(default=None, repr=False)
 
     def get(self, key: str) -> str:
@@ -85,6 +95,10 @@ class PartFacts:
             return self.assembly
         if key == "color":
             return self.color
+        if key == "part_type":
+            return self.part_type
+        if key == "cad_material":
+            return self.cad_material
         f = self.fastener
         if key == "is_standard":
             return "yes" if f else ""
@@ -103,11 +117,19 @@ class PartFacts:
             "finish": (f.finish if f and f.finish else "default"),
             "kind": (f.label if f else ""),
             "family": (f.family if f else ""),
+            "part_type": self.part_type,
+            "cad_material": part_types.cad_group(self.cad_material, self.color) or self.cad_material,
         }
 
 
-def facts_for(name: str, path: str = "", color: str = "", assembly: str = "") -> PartFacts:
-    return PartFacts(name=name, path=path, assembly=assembly, color=color, fastener=fasteners.parse(name))
+def facts_for(name: str, path: str = "", color: str = "", assembly: str = "", cad_material: str = "") -> PartFacts:
+    """Facts about one part. ``cad_material``: the material or appearance name the CAD file
+    gives the part; only names the library knows are kept ("Default", "Generic" and unknown
+    names count as no material, so the CAD colour still decides)."""
+    cad = cad_material if cad_material and cad_materials.lookup(cad_material) else ""
+    return PartFacts(name=name, path=path, assembly=assembly, color=color, cad_material=cad,
+                     part_type=part_types.classify(name, path, assembly, cad, color),
+                     fastener=fasteners.parse(name))
 
 
 def _matches(rule: Rule, facts: PartFacts) -> bool:
@@ -167,7 +189,7 @@ def classify(parts: list[PartFacts], rules: list[Rule], fallback: str = FALLBACK
     return groups, counts, unmatched
 
 
-def default_rules() -> list[Rule]:
+def _fastener_rules() -> list[Rule]:
     return [
         Rule("Fasteners stainless", "finish", "equals", "stainless", note="A2/A4, RVS, INOX..."),
         Rule("Fasteners black", "finish", "equals", "black", note="black oxide, 12.9, socket screws"),
@@ -175,8 +197,30 @@ def default_rules() -> list[Rule]:
         Rule("Fasteners zinc", "finish", "equals", "zinc", note="zinc plated"),
         Rule("Fasteners zinc flake", "finish", "equals", "zinc_flake", note="Geomet, Delta"),
         Rule("Fasteners default", "is_standard", "any", "", note="standard parts without a finish"),
+    ]
+
+
+def default_rules() -> list[Rule]:
+    return _fastener_rules() + [
+        Rule("{part_type}", "part_type", "any", "",
+             note="part-type library: profiles, seals, cylinders, sensors, motors..."),
+        Rule("{cad_material}", "cad_material", "any", "", note="material or appearance from the CAD file"),
         Rule("Colour {color}", "color", "any", "", note="one group per CAD colour"),
     ]
+
+
+def old_default_rules() -> list[Rule]:
+    """The default list before the part-type library (versions up to 0.2.6)."""
+    return _fastener_rules() + [Rule("Colour {color}", "color", "any", "", note="one group per CAD colour")]
+
+
+def upgraded_rules(rules: list[Rule]) -> list[Rule] | None:
+    """The new default list when ``rules`` is still the untouched old default list, else None.
+    For projects saved before the part-type library: the app can offer (or do) the upgrade
+    without losing rules the user changed."""
+    if rules_to_list(rules) == rules_to_list(old_default_rules()):
+        return default_rules()
+    return None
 
 
 # Material that a new group starts with (library id, colour or '').
@@ -192,8 +236,13 @@ DEFAULT_GROUP_MATERIAL = {
 
 
 def default_material_for_group(group: str) -> tuple[str, str]:
+    """Starting material (library id, colour) for a new group: fasteners and Unsorted, groups
+    of the part-type library, groups named after a CAD material, then a CAD colour in the name."""
     if group in DEFAULT_GROUP_MATERIAL:
         return DEFAULT_GROUP_MATERIAL[group]
+    look = part_types.look_for_group(group) or part_types.cad_look_for_group(group)
+    if look:
+        return look
     m = re.search(r"#[0-9A-Fa-f]{6}", group)
     if m:
         return "paint_satin", m.group(0).upper()

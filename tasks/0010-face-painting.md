@@ -1,6 +1,6 @@
 # 0010 – Paint single faces of a part
 
-**Who:** worker · **Status:** waiting (0008) · **Branch:** `task/0010-face-painting`
+**Who:** worker · **Status:** open – can start (0008 merged in 0.2.8) · **Branch:** `task/0010-face-painting`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Looks · **Area:** `importer/step_reader.py` (only
 if face numbers per triangle are missing from the cache), `blender/build.py`, `blender/materials.py`,
 `blender/logic.py`, `blender/reimport.py` (face sets only), 3 Looks part of `blender/ui.py`,

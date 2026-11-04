@@ -30,6 +30,14 @@ import time
 
 import numpy as np
 
+try:                                   # inside the package (tests, Blender)
+    from . import step_meta
+    from ..core import cad_materials
+except ImportError:                    # run as a script by the import job
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core"))
+    import step_meta                   # noqa: E402  (next to this file)
+    import cad_materials               # noqa: E402
+
 # Linear deflection relative to each part's size, angular deflection in radians.
 QUALITY = {
     "draft": (0.004, 0.50),
@@ -37,7 +45,7 @@ QUALITY = {
     "fine": (0.0006, 0.18),
 }
 
-CACHE_VERSION = 3          # 3: axes of round faces (joint picking), instance names
+CACHE_VERSION = 4          # 3: axes of round faces (joint picking), instance names; 4: CAD material names
 MM_TO_M = 0.001
 
 
@@ -813,6 +821,15 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         raise RuntimeError("STEP transfer failed")
     t_read = time.time() - t0
 
+    # material and appearance names per product, straight from the file text (empty for AP203)
+    tm = time.time()
+    try:
+        cad_meta = step_meta.read(path)
+    except Exception as exc:  # never let names stop an import
+        cad_meta = {}
+        emit("warning", 26, f"Could not read material names: {exc}")
+    t_meta = time.time() - tm
+
     stool = occ["XCAFDoc_DocumentTool"].ShapeTool_s(doc.Main())
     ctool = occ["XCAFDoc_DocumentTool"].ColorTool_s(doc.Main())
 
@@ -822,7 +839,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     mesh_names: list[str] = []
 
     def add_node(label, parent: int, trsf, inst_label, sibling_counts: dict):
-        name = _label_name(occ, label) or (_label_name(occ, inst_label) if inst_label is not None else "") or "Unnamed"
+        own_name = _label_name(occ, label)
+        name = own_name or (_label_name(occ, inst_label) if inst_label is not None else "") or "Unnamed"
         count = sibling_counts.get(name, 0) + 1
         sibling_counts[name] = count
         parent_uid = nodes[parent]["uid"] if parent >= 0 else ""
@@ -837,6 +855,17 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             "mesh": -1,
             "color": None,
         }
+        meta = cad_meta.get(own_name.strip()) if cad_meta and own_name else None
+        if meta:
+            # "material": the name that decides the look (a known appearance, else the material);
+            # the raw names are kept as well
+            look = cad_materials.pick(meta["appearance"], meta["material"])
+            if look:
+                node["material"] = look
+            if meta["material"]:
+                node["material_name"] = meta["material"]
+            if meta["appearance"]:
+                node["appearance"] = meta["appearance"]
         idx = len(nodes)
         nodes.append(node)
         col = None
@@ -993,6 +1022,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             "placed_parts": n_parts,
             "triangles_unique": int(tri_total),
             "seconds_read": round(t_read, 1),
+            "seconds_material_names": round(t_meta, 2),
+            "parts_with_material": sum(1 for n in nodes if n["kind"] == "part" and n.get("material")),
             "seconds_mesh": round(t_mesh, 1),
             "mesh_helpers": used_helpers,
             "seconds_copy": round(t_copy, 1),

@@ -116,6 +116,35 @@ def main(report_path: str | None = None) -> bool:
 
     check("Fast import (all cores)", _fast_import)
 
+    def _cad_materials():
+        """Material and appearance names from a STEP file, and the part-type library."""
+        import json as _json
+        import tempfile
+        from .core import rules as R
+        from .importer import runner
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            job = runner.ImportJob(os.path.join(HERE, "data", "test_materials.step"), "draft", tmp)
+            job.start()
+            end = time.time() + 120
+            while not job.poll():
+                if time.time() > end:
+                    job.cancel()
+                    raise RuntimeError("the reader did not finish within 2 minutes")
+                time.sleep(0.1)
+            if job.error:
+                raise RuntimeError(job.error)
+            with open(os.path.join(job.cache_dir, "tree.json"), encoding="utf-8") as fh:
+                nodes = _json.load(fh)["nodes"]
+        names = {n["name"]: n.get("material", "") for n in nodes if n["kind"] == "part"}
+        if names.get("PLATE") != "Aluminum - Satin" or names.get("SEAL RING") != "Rubber - Soft":
+            raise RuntimeError(f"material names not read: {names}")
+        group = R.classify_one(R.facts_for("_MGPM32-75Z_ROD"), R.default_rules())[0]
+        if group != "Chrome rods & linear shafts":
+            raise RuntimeError(f"part-type library gave {group!r}")
+        return "names read; part-type library works"
+
+    check("CAD material names and part types", _cad_materials)
+
     def _template():
         import subprocess
         exe = bpy.app.binary_path

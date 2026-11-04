@@ -40,7 +40,7 @@ simply run: "turn at 12 rpm for 5 s".
 - [ ] Tests: each coupling type against hand-calculated values, chain of three, loop refused,
       coupled joints after a model update, save + reopen, file with scripts disabled still moves
       (check the drivers are simple expressions), motor step: 12 rpm for 5 s = 1 turn
-- [ ] Real-app click test step and screenshots of 5 Motion checked
+- [ ] Real-app click test step and screenshots of 4 Motion checked
 - [ ] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7)
 
 ## Not in this task
