@@ -125,6 +125,13 @@ def s_start():
         for k in range(1, 11):
             win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x0 - 25 * k, y=y0)
         win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x0 - 250, y=y0)
+    return 1.0
+
+
+@step
+def s_import():
+    # A step of its own: simulated events are queued, so an Esc sent in the same step reaches the
+    # import's modal handler and cancels it (only an import from the cache escaped that).
     with override():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
@@ -134,6 +141,10 @@ def s_start():
 def s_wait_import():
     s = bpy.context.scene.fresing
     if s.model_count == 0:
+        if _wait_start[0] and time.time() - _wait_start[0] > 300:      # the crane takes seconds
+            check("import in the app (background reader + modal)", False,
+                  "not finished after 5 minutes: " + s.last_message)
+            return 0.5
         return "wait"
     check("import in the app (background reader + modal)", s.model_count == 1, s.last_message)
     win, area, region = ui()

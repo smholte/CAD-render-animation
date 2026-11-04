@@ -90,7 +90,7 @@ def show(run, log_filter: str | None) -> int:
             except RuntimeError:
                 pass
             if not log_filter:
-                log = _log(job["id"])
+                log = _log(job["id"]).split("\nPost job cleanup.")[0]      # git clean-up noise after it
                 tail = [ln for ln in log.splitlines() if ln.strip()][-40:]
                 print("         --- last lines of the log ---")
                 for ln in tail:

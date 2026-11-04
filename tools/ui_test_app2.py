@@ -111,6 +111,12 @@ def step(fn):
 def s_start():
     win, area, region = ui()
     key("ESC")
+    return 1.0
+
+
+@step
+def s_import():
+    # A step of its own: the queued Esc above would otherwise cancel the import's modal handler.
     with override():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
@@ -119,6 +125,9 @@ def s_start():
 @step
 def s_wait():
     if bpy.context.scene.fresing.model_count == 0:
+        if _w[0] and time.time() - _w[0] > 300:                         # the crane takes seconds
+            check("import", False, "not finished after 5 minutes: " + bpy.context.scene.fresing.last_message)
+            return 0.5
         return "wait"
     check("import", True)
     return 0.5
