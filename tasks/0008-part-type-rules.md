@@ -247,8 +247,10 @@ Dutch for shaft, too short to trust).
   add keywords (`part_types_data.py`) or module words where needed.
 - **Privacy:** the first commits of this task's branch (before the lead removed the owner's part
   names from the brief) had some of the owner's part names in the tests. `main` got the task as
-  one squashed commit without them, and the branch was moved onto that commit. GitHub can still
-  show the old commits to someone who has their exact link; making the repository private (or
-  asking GitHub support to purge them) closes that. Files from earlier chats still name the
+  one squashed commit without them (`4fd1d3b`), but the branch `task/0008-part-type-rules` on
+  GitHub still has those early commits (the chat's git policy refused moving or deleting it).
+  The owner or lead can delete that branch on github.com (repository → Branches → bin icon next
+  to it); everything in it is in `main`. Even then GitHub can show the old commits to someone
+  who has their exact link; making the repository private closes that. Files from earlier chats still name the
   owner's EGR model (`CLAUDE.md`, and an EGR-style part name in `tests/test_fasteners.py`) – for
   the lead to decide.
