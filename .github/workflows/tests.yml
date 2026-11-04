@@ -14,7 +14,9 @@ on:
 
 concurrency:
   group: tests-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}   # every main run finishes
+  # A started run on main is never stopped (a main run still waiting is replaced by a newer
+  # one); on other branches a newer push stops the older run.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -40,7 +42,9 @@ jobs:
           cache-dependency-path: tools/requirements-dev.txt
 
       - name: Install packages
-        run: python -m pip install -r tools/requirements-dev.txt
+        run: |
+          python -m pip install -r tools/requirements-dev.txt
+          python -c "import bpy, OCP; print('bpy', bpy.app.version_string, '- OCP loads')"
 
       - name: Test suite (pytest)
         run: >
@@ -49,7 +53,7 @@ jobs:
 
       - name: Test suite verdict
         if: ${{ !cancelled() }}
-        run: python tools/ci_pytest_summary.py test-results/pytest.xml
+        run: python tools/ci_pytest_summary.py test-results/pytest.xml --max-skipped 1   # 1: "no /bin/false" on odd systems
 
       - name: Packaged self-test (extension zip installed the way users get it)
         if: ${{ !cancelled() }}
@@ -63,7 +67,7 @@ jobs:
           python tools/ci_check_selftest.py test-results/selftest-linux.txt --title "Linux packaged self-test"
 
       - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
+        if: always()                 # also after a timeout: the logs show where it stuck
         with:
           name: linux-test-suite
           path: |
@@ -99,8 +103,10 @@ jobs:
 
       - name: Download Blender (only when not cached)
         if: steps.cache-blender.outputs.cache-hit != 'true'
+        env:
+          v: ${{ steps.pin.outputs.version }}
         run: |
-          v=${{ steps.pin.outputs.version }}; s=${v%.*}; f=blender-$v-linux-x64.tar.xz
+          s=${v%.*}; f=blender-$v-linux-x64.tar.xz
           cd "$RUNNER_TEMP"
           curl -sSfL --retry 3 -o "$f" "https://download.blender.org/release/Blender$s/$f"
           curl -sSfL --retry 3 "https://download.blender.org/release/Blender$s/blender-$v.sha256" | grep " $f\$" > blender.sha256
@@ -114,15 +120,17 @@ jobs:
             libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1
 
       - name: Real-app tests
+        env:
+          BLENDER_VERSION: ${{ steps.pin.outputs.version }}
         run: |
           python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" \
             --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 \
             -d "$RUNNER_TEMP/linux-wheels"
-          python tools/ci_real_app.py --blender ~/blender/blender-${{ steps.pin.outputs.version }}-linux-x64/blender \
-            --wheels "$RUNNER_TEMP/linux-wheels" --out real-app-results
+          python tools/ci_real_app.py --blender ~/blender/blender-$BLENDER_VERSION-linux-x64/blender \
+            --wheels "$RUNNER_TEMP/linux-wheels" --out real-app-results --timeout-min 15
 
       - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
+        if: always()                 # also after a timeout: the logs show where it stuck
         with:
           name: linux-real-app
           path: real-app-results/
@@ -191,33 +199,38 @@ jobs:
 
       - name: Download Blender (only when not cached)
         if: steps.cache-blender.outputs.cache-hit != 'true'
+        env:
+          BLENDER_VERSION: ${{ steps.pin.outputs.version }}
+          BLENDER_SHA256: ${{ steps.pin.outputs.sha }}
         run: |
-          $v = "${{ steps.pin.outputs.version }}"; $s = $v.Substring(0, $v.LastIndexOf('.'))
+          $v = $env:BLENDER_VERSION; $s = $v.Substring(0, $v.LastIndexOf('.'))
           $dir = Join-Path $env:RUNNER_TEMP "blender-zip"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           $zip = Join-Path $dir "blender-$v-windows-x64.zip"
           curl.exe -sSfL --retry 3 -o $zip "https://download.blender.org/release/Blender$s/blender-$v-windows-x64.zip"
           if ($LASTEXITCODE -ne 0) { throw "download failed" }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
-          if ($hash -ne "${{ steps.pin.outputs.sha }}") { Remove-Item $zip; throw "checksum mismatch: $hash" }
+          if ($hash -ne $env:BLENDER_SHA256) { Remove-Item $zip; throw "checksum mismatch: $hash" }
 
       - name: Install (Install.bat, unattended, twice) and self-test
+        env:
+          BLENDER_VERSION: ${{ steps.pin.outputs.version }}
         run: |
           $release = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
-          $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-${{ steps.pin.outputs.version }}-windows-x64.zip"
+          $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-$($env:BLENDER_VERSION)-windows-x64.zip"
           ./tools/ci_windows_install.ps1 -ReleaseZip $release.FullName -BlenderZip $blender `
             -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
 
       - name: Self-test verdict
         if: ${{ !cancelled() }}
-        run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test"
+        run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test" --strict
 
       - name: Uninstall (Uninstall.bat)
         if: ${{ !cancelled() }}
         run: ./tools/ci_windows_install.ps1 -Uninstall -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
 
       - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
+        if: always()                 # also after a timeout: the logs show where it stuck
         with:
           name: windows-install
           path: windows-results/

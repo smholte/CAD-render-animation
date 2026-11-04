@@ -182,7 +182,7 @@ def main(report_path: str | None = None) -> bool:
 
     def _gpu():
         info = render.setup_gpu()
-        if not info.startswith("GPU") and _no_gpu_expected():
+        if info == "CPU" and _no_gpu_expected():       # not for "CPU (Cycles add-on not loaded)"
             raise Skipped("skipped: no graphics card")
         return info
 
@@ -319,8 +319,9 @@ def main(report_path: str | None = None) -> bool:
         def _render(gpu: bool, resolution: str, quality: str):
             scene = bpy.context.scene
             s = scene.fresing
-            if gpu and not render.setup_gpu().startswith("GPU"):
-                if _no_gpu_expected():
+            device = render.setup_gpu() if gpu else ""
+            if gpu and not device.startswith("GPU"):
+                if device == "CPU" and _no_gpu_expected():
                     raise Skipped("skipped: no graphics card")
                 raise RuntimeError("no supported graphics card found; renders will use the processor (slow). "
                                    "Update the NVIDIA driver (535 or newer) and run the self-test again")
@@ -341,7 +342,7 @@ def main(report_path: str | None = None) -> bool:
         check("Render queue (second Blender in the background)", _queue)
         check("Animation time test (queue)", _time_test)
 
-    note = f" ({skipped} skipped)" if skipped else ""
+    note = f" ({skipped} skipped because {NO_GPU_ENV}=1)" if skipped else ""
     log("RESULT: " + ("ALL OK" + note if ok else "PROBLEMS FOUND (see above)"))
     if report is not None:
         report.close()

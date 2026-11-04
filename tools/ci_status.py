@@ -1,7 +1,7 @@
 """Show the result of the automatic tests on GitHub, from a chat (or any machine with `gh`).
 
-    python3 tools/ci_status.py                      # newest run of the current commit (or branch)
-    python3 tools/ci_status.py --branch main        # newest run on main
+    python3 tools/ci_status.py                      # run of the current commit (HEAD)
+    python3 tools/ci_status.py --branch main        # run of the newest commit on main (on GitHub)
     python3 tools/ci_status.py --sha 1a2b3c4        # run of one commit
     python3 tools/ci_status.py --wait               # wait until the run has finished (max 90 min)
     python3 tools/ci_status.py --run 123456789 --log "Windows"   # whole log of the job(s) matching "Windows"
@@ -36,20 +36,24 @@ def _git(*args) -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+WORKFLOW = "tests.yml"
+
+
 def find_run(args):
+    """The run of exactly one commit: --sha, or the newest commit of --branch on GitHub, or HEAD.
+
+    Never an older commit's run: right after a push GitHub needs a few seconds to create the
+    run, and an older green run must not stand in for it."""
     if args.run:
         return gh(f"repos/{REPO}/actions/runs/{args.run}")
     if args.sha:
         sha = _git("rev-parse", args.sha) or args.sha
-        runs = gh(f"repos/{REPO}/actions/runs?head_sha={sha}&per_page=20")["workflow_runs"]
+    elif args.branch:
+        sha = gh(f"repos/{REPO}/commits/{args.branch}")["sha"]
     else:
-        branch = args.branch or _git("rev-parse", "--abbrev-ref", "HEAD")
-        if not args.branch:
-            sha = _git("rev-parse", "HEAD")
-            runs = gh(f"repos/{REPO}/actions/runs?head_sha={sha}&per_page=20")["workflow_runs"]
-            if runs:
-                return _prefer_push(runs)
-        runs = gh(f"repos/{REPO}/actions/runs?branch={branch}&per_page=20")["workflow_runs"]
+        sha = _git("rev-parse", "HEAD")
+    runs = gh(f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=20")["workflow_runs"]
+    runs = [r for r in runs if r["head_sha"] == sha]
     return _prefer_push(runs) if runs else None
 
 
@@ -129,7 +133,8 @@ def main() -> int:
             if args.wait and time.time() < end:
                 time.sleep(15)
                 continue
-            print("No run found (GitHub starts one a few seconds after a push).")
+            print("No run for this commit yet (GitHub starts one a few seconds after a push; "
+                  "an unpushed commit has none).")
             return 2
         if args.wait and run["status"] != "completed" and time.time() < end:
             time.sleep(30)

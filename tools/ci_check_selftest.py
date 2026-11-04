@@ -1,13 +1,15 @@
 """Judge a self-test report for the automatic tests on GitHub (and print it readably).
 
-    python tools/ci_check_selftest.py <report.txt> [--title "Windows self-test"]
+    python tools/ci_check_selftest.py <report.txt> [--title "Windows self-test"] [--strict]
 
 Passes (exit code 0) when:
   - every check line is "[ OK ]", except graphics-card checks, which may be
     "[SKIP] ...: skipped: no graphics card" (GitHub's runners have no graphics card; the
     self-test only skips them when FRESING_SELFTEST_NO_GPU=1 is set);
   - the report ends with "RESULT: ALL OK" (no RESULT line = the self-test crashed half-way);
-  - there are at least MIN_CHECKS checks (a self-test that silently did nothing fails).
+  - there are at least MIN_CHECKS checks (a check that silently disappears fails);
+  - with --strict (the real Windows install) no OK line may say "skipped" either: there the
+    "App start" check must really start the app.
 
 The verdict is printed as a table, written to the GitHub job summary ($GITHUB_STEP_SUMMARY)
 and every problem becomes an error annotation on the run page.
@@ -20,14 +22,14 @@ import os
 import re
 import sys
 
-MIN_CHECKS = 10
+MIN_CHECKS = 12          # raise it when the self-test gets new lines
 LINE = re.compile(r"^\[(?P<tag> OK |FAIL|SKIP)\] (?P<rest>.*)$")
 OK_REST = re.compile(r"^(?P<name>.*?) \((?P<secs>[\d.]+) s\)(?:: (?P<detail>.*))?$")
 ALLOWED_SKIP = re.compile(r"graphics card", re.I)
 SKIP_TEXT = "skipped: no graphics card"
 
 
-def judge(text: str) -> tuple[list[tuple[str, str, str]], list[str]]:
+def judge(text: str, strict: bool = False) -> tuple[list[tuple[str, str, str]], list[str]]:
     """Return (rows, problems). Rows are (state, check name, detail)."""
     rows: list[tuple[str, str, str]] = []
     problems: list[str] = []
@@ -46,6 +48,8 @@ def judge(text: str) -> tuple[list[tuple[str, str, str]], list[str]]:
             if ok:
                 rows.append(("OK", ok.group("name"), f"{ok.group('secs')} s" +
                              (f": {ok.group('detail')}" if ok.group("detail") else "")))
+                if strict and (ok.group("detail") or "").startswith("skipped"):
+                    problems.append(f"{ok.group('name')}: {ok.group('detail')} (must really run here)")
             else:
                 rows.append(("OK", rest, ""))
         elif tag == "SKIP":
@@ -87,6 +91,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("report")
     ap.add_argument("--title", default="Self-test")
+    ap.add_argument("--strict", action="store_true")
     args = ap.parse_args(argv)
     if not os.path.isfile(args.report):
         msg = f"report not found: {args.report} (the self-test did not start or could not write it)"
@@ -98,7 +103,7 @@ def main(argv=None) -> int:
     print(f"----- {args.report} -----")
     print(text)
     print("-" * 40)
-    rows, problems = judge(text)
+    rows, problems = judge(text, strict=args.strict)
     summary = _summary(args.title, rows, problems)
     print(summary)
     _write_summary(summary)

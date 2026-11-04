@@ -193,21 +193,60 @@ def first_header():
     by it takes the next click in the view)."""
     win, area, region = ui()
     sidebar = next(r for r in area.regions if r.type == "UI")
-    px = bpy.context.preferences.system.pixel_size
-    return sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height - int(19 * px)
+    scale = bpy.context.preferences.system.ui_scale or 1.0
+    return sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height - int(19 * scale)
+
+
+def ray_hits_part(x, y):
+    """Does the view show a part at window position (x, y)? (what the pick tool would hit)"""
+    win, area, region = ui()
+    co = (x - region.x, y - region.y)
+    o = view3d_utils.region_2d_to_origin_3d(region, region.data, co)
+    d = view3d_utils.region_2d_to_vector_3d(region, region.data, co)
+    hit, _loc, _n, _i, ob, _m = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(), o, d)
+    return bool(hit and ob is not None and getattr(ob, "original", ob).get("fr_kind") == "part")
+
+
+_saved_view = []
+
+
+@step
+def s_view_behind_sidebar():
+    # A click on the side panel must not create a joint on the part behind it (the side panel
+    # lies over the view). First move the view so the boom lies right behind the spot to click
+    # (the view's matrices follow at the next redraw, so the click is the next step).
+    win, area, region = ui()
+    rv3d = region.data
+    x, y = first_header()
+    target = find("BOOM").matrix_world @ Vector((1.0, 0, 0.05))
+    _saved_view[:] = [rv3d.view_location.copy()]
+    behind = view3d_utils.region_2d_to_location_3d(region, rv3d, (x - region.x, y - region.y), target)
+    rv3d.view_location += target - behind
+    region.tag_redraw()
+    return 0.5
 
 
 @step
 def s_click_sidebar_during_pick():
-    # a click on the side panel must not create a joint behind it (the side panel lies over the view)
-    click(*first_header())
+    x, y = first_header()
+    check("a part lies behind the clicked spot of the side panel", ray_hits_part(x, y))
+    click(x, y)
+    return 0.5
+
+
+@step
+def s_view_back():
+    s = bpy.context.scene.fresing
+    check("side-panel click ignored by the pick tool", len(s.joints) == 0)
+    win, area, region = ui()
+    if _saved_view:
+        region.data.view_location = _saved_view[0]       # the view as it was
+        region.tag_redraw()
     return 0.5
 
 
 @step
 def s_click_pin():
-    s = bpy.context.scene.fresing
-    check("side-panel click ignored by the pick tool", len(s.joints) == 0)
     pin = find("BOOM.PIN")
     # a point on top of the pin's round face (Ø40 along Y), in front of the pedestal
     x, y = to_window(pin.matrix_world @ Vector((0, -0.085, 0.0199)))

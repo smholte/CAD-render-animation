@@ -26,7 +26,7 @@ param(
     [string]$BlenderZip,
     [Parameter(Mandatory)] [string]$WorkDir,
     [Parameter(Mandatory)] [string]$OutDir,
-    [int]$SelfTestMinutes = 30,
+    [int]$SelfTestMinutes = 15,      # measured: about 1.5-2 minutes on GitHub's runner
     [switch]$Uninstall
 )
 
@@ -51,7 +51,7 @@ function Problem([string]$text) {
     Write-Host "::error title=Windows install::$text"
 }
 
-function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 20) {
+function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10) {   # measured: 3-21 s
     # The .bat ends with "pause": an empty file as keyboard input ends the pause at once.
     $empty = Join-Path $WorkDir "no_keyboard.txt"
     Set-Content -LiteralPath $empty -Value "" -NoNewline
@@ -102,7 +102,9 @@ if ($Uninstall) {
     if (-not $bat) { throw "Install.bat not found in $ReleaseZip" }
     $Here = $bat.DirectoryName
     $zipExt = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" | Select-Object -First 1
+    if (-not $zipExt) { throw "fresing_render-<version>.zip not found in $ReleaseZip" }
     $Expected = [regex]::Match($zipExt.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value
+    if (-not $Expected) { throw "no version in the name $($zipExt.Name)" }
     Note "Version in the zip: $Expected"
     if ($BlenderZip) { Copy-Item -LiteralPath $BlenderZip -Destination $Here }
 

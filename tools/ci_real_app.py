@@ -34,6 +34,10 @@ import test_install_linux  # noqa: E402
 
 SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
+# Fewest checks each test must report: a check that silently disappears turns the run red.
+# Raise these when a test gets new checks (never lower them without saying why in the commit).
+MIN_CHECKS = {"ui1": 23, "ui2": 29, "paths": 8}
+MIN_CHECKS_QUICK = {"ui1": 18}           # UITEST_QUICK=1 skips the renders of ui1
 
 
 def run(cmd, env, log_path, timeout):
@@ -57,7 +61,10 @@ def run(cmd, env, log_path, timeout):
         try:
             code = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)    # Blender, xvfb and any queue Blender it started
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)    # Blender and xvfb (a render queue has its own session)
+            except ProcessLookupError:
+                pass
             proc.wait()
             code = None
         reader.join(timeout=30)
@@ -71,12 +78,44 @@ def install(blender: str, wheels: str, user_res: str, work: str) -> str:
     env = dict(os.environ, BLENDER_USER_RESOURCES=user_res)
     zip_path = test_install_linux.build_linux_zip(wheels, os.path.join(work, "build"), blender=blender)
     subprocess.check_call([blender, "--factory-startup", "--command", "extension", "install-file",
-                           "-r", "user_default", "-e", zip_path], env=env)
+                           "-r", "user_default", "-e", zip_path], env=env, timeout=600)
     dst = os.path.join(user_res, "scripts", "startup", "bl_app_templates_user", "fresing_render")
     shutil.rmtree(dst, ignore_errors=True)
     shutil.copytree(os.path.join(ROOT, "app_template", "fresing_render"), dst,
                     ignore=shutil.ignore_patterns("__pycache__"))
     return zip_path
+
+
+def judge(key: str, code, text: str, timeout_min: float, quick: bool = False):
+    """Verdict of one test from its exit code (None = stopped at the timeout) and its output.
+
+    Returns (passed, detail, failure lines)."""
+    lines = text.splitlines()
+    fails = [ln.strip() for ln in lines if re.match(r"^(\[UITEST\] )?FAIL ", ln.strip()) or "ERROR in" in ln]
+    m = None
+    for m in RESULT_RE.finditer(text):
+        pass
+    # Python errors outside the test steps (a panel that fails to draw, a handler, an operator)
+    # do not show up as a failed check: count them separately.
+    stray = [i for i, ln in enumerate(lines) if "Traceback (most recent call last)" in ln and "ERROR in" not in ln]
+    minimum = (MIN_CHECKS_QUICK if quick else {}).get(key, MIN_CHECKS[key])
+    if code is None:
+        verdict, detail = False, f"did not finish within {timeout_min:.0f} minutes"
+    elif m is None:
+        verdict, detail = False, f"no RESULT line (Blender exit code {code}): it stopped half-way"
+    else:
+        passed, total = int(m.group(1)), int(m.group(2))
+        verdict = passed == total and total >= minimum
+        detail = f"{passed}/{total} passed"
+        if total < minimum:
+            detail += f", but at least {minimum} checks expected"
+    if stray:
+        verdict = False
+        i = stray[0]
+        err = next((ln.strip() for ln in lines[i + 1:i + 40] if re.match(r"^\w*(Error|Exception)\b", ln.strip())), "")
+        detail += f"; {len(stray)} Python error(s) outside the test steps"
+        fails.append(f"Python error: {err or lines[i].strip()} (see blender_output.log)")
+    return verdict, detail, fails
 
 
 def main(argv=None) -> int:
@@ -85,7 +124,7 @@ def main(argv=None) -> int:
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
     ap.add_argument("--only", default="ui1,ui2,paths")
-    ap.add_argument("--timeout-min", type=float, default=40)
+    ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
     blender = os.path.abspath(args.blender)
@@ -113,8 +152,10 @@ def main(argv=None) -> int:
         env = dict(base_env, UITEST_OUT=folder)
         script_path = os.path.join(ROOT, "tools", script)
         if gui:
+            # --python-exit-code: an error while loading the script closes Blender instead of
+            # leaving it open with nothing to drive it until the timeout
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--app-template", "fresing_render",
-                   "--enable-event-simulate", "--python", script_path]
+                   "--enable-event-simulate", "--python-exit-code", "1", "--python", script_path]
         else:
             pdir = os.path.join(work, "pad test", "Mijn Projecten é ü", "Klant O'Brien – 2026")
             os.makedirs(pdir, exist_ok=True)
@@ -122,22 +163,10 @@ def main(argv=None) -> int:
                               ("test_crane_b.step", "Kraan ontwerp – rev B é.step")):
                 shutil.copy2(os.path.join(ROOT, "tests", "data", src), os.path.join(pdir, name))
             env["PATHS_TEST_DIR"] = pdir
-            cmd = [blender, "--background", "--python", script_path]
+            cmd = [blender, "--background", "--python-exit-code", "1", "--python", script_path]
         print(f"\n== {title}", flush=True)
         code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
-        fails = [ln.strip() for ln in text.splitlines()
-                 if re.match(r"^(\[UITEST\] )?FAIL ", ln.strip()) or "ERROR in" in ln]
-        m = None
-        for m in RESULT_RE.finditer(text):
-            pass
-        if code is None:
-            verdict, detail = False, f"did not finish within {args.timeout_min:.0f} minutes"
-        elif m is None:
-            verdict, detail = False, f"no RESULT line (Blender exit code {code}): it stopped half-way"
-        else:
-            passed, total = int(m.group(1)), int(m.group(2))
-            verdict = passed == total and total > 0
-            detail = f"{passed}/{total} passed"
+        verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
         rows.append((title, verdict, detail, secs, fails))
         print(f"== {title}: {'PASS' if verdict else 'FAIL'} - {detail} ({secs:.0f} s)", flush=True)
 
