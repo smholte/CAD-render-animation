@@ -86,7 +86,22 @@ the installer.
   `get_rna_type()`, see-through side panel in screenshots, no Pillow in Blender's Python).
 
 **Tested and measured** (name the machine and the model):
-- TEST_RESULTS_PLACEHOLDER
+All on the 2-core Linux test machine without a graphics card, test models only:
+- Full suite: 1,261 passed (9 new in `tests/test_user_guide.py`).
+- Real app, Help menu (`tools/guide_test_app.py`, guide inside the installed extension): 8/8 –
+  entry is the first item of Help, clicking it opens `<extension>/guide/user_guide.html`, a missing
+  guide gives "run Install.bat again" and opens nothing.
+- Real app, side panel clicks: `ui_test_app.py` 22/22, `ui_test_app2.py` 29/29; paths with spaces,
+  accents, apostrophe and dash (`paths_test_blender.py`): 8/8.
+- Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
+  (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
+- Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
+  `fresing_render-0.2.9.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
+- Guide page looked at in a browser at desktop and phone width (no sideways scrolling, no outside
+  links or fonts: works offline). All 22 pictures checked by eye: test crane only.
+- Windows-only code (installer shortcut, `os.startfile` in the Help entry) reviewed by an
+  independent helper: no blocking problems; its one small point (installer header comment) fixed.
+  Not tested on Windows: the owner's PC confirms (open points).
 
 **Open points / follow-up tasks:**
 - The lanes write the 114 tooltips in `docs/TOOLTIPS-TODO.md` for their own panels (Looks 35,
@@ -102,3 +117,9 @@ the installer.
 - On the owner's PC (cannot be tested here): Help > Fresing Render user guide opens the guide in
   the web browser; the Start-menu shortcut "Fresing Render - User guide" works.
 - The Inventor export advice (AP214) is still not checked with an Inventor file (same as 0008).
+- For the Quality lane (0019): `tools/ui_test_app.py` only passes with a warm import cache. Its
+  first step sends Esc (to close the splash) and then starts the import; the Esc is handled after
+  the import has started and cancels it, so the test waits 30 minutes for a model that never comes.
+  Reinstalling the extension empties the cache, and a fresh machine (GitHub) never has one. Fix:
+  send the Esc and the panel drag in one step and start the import in the next. Not changed here
+  (another lane's file); lesson added to `CLAUDE.md` section 8.

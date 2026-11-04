@@ -211,3 +211,7 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
   another state, register a copy under a new name (`tools/guide_screens.py` does this).
 - Blender's own Python has numpy but no Pillow: real-app tools crop and save pictures with numpy
   and ImageMagick.
+- `tools/ui_test_app.py` needs the test crane in the import cache: its Esc (to close the splash) is
+  handled after the import has started and cancels a real import, and the test then waits 30 min.
+  Reinstalling the extension empties the cache. Import the crane once first (background Blender:
+  `bpy.ops.fresing.import_step(filepath=<crane>, quality="normal")`), or fix the test.
