@@ -68,6 +68,9 @@ big blue one, and the header of a closed section shows its state (parts, joints,
 4 Motion          Joints: click the subassembly that should move, press "Add rotate joint"
                   (or slide) and click its pivot hole or shaft on the model. Drag the slider.
                   "Sits on" (under Set-up) makes a joint ride on another subassembly.
+                  A second joint on the same subassembly goes on top of the first: the
+                  moves add up (Y 1000 mm, then X 500 mm = X 500 / Y 1000). The newer one
+                  rides on the older one; "Swap order" turns that round.
                   Poses save all joint positions; Explode moves pieces apart.
 5 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
                   image size (16:9 HD/4K, A4/A3 at 300 dpi...), Render image.

@@ -163,6 +163,10 @@ class FRESING_OT_joint_add(bpy.types.Operator):
         if not movers:
             self.report({"WARNING"}, "First click the subassembly (or subassemblies) that should move")
             return {"CANCELLED"}
+        _below, reason = joints.stack_info(context.scene, movers)
+        if reason:
+            self.report({"WARNING"}, reason)
+            return {"CANCELLED"}
         if self.axis == "PICK":
             names = SEP.join(ob.name for ob in movers)
             bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="NEW", kind=self.kind, movers=names)
@@ -243,6 +247,12 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
                 self.report({"WARNING"}, "First click the subassembly (or subassemblies) that should move")
                 return {"CANCELLED"}
             self.movers = SEP.join(ob.name for ob in movers)
+        if self.mode == "NEW":
+            movers = [bpy.data.objects.get(n) for n in self.movers.split(SEP) if n]
+            _below, reason = joints.stack_info(context.scene, [m for m in movers if m])
+            if reason:                               # say so before the click on the pivot, not after
+                self.report({"WARNING"}, reason)
+                return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
         context.workspace.status_text_set(
             "Click a hole or shaft (axis through its centre) or a flat face (axis at right angles to it).  "
@@ -287,7 +297,8 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
 
 
 class FRESING_OT_joint_remove(bpy.types.Operator):
-    """Remove the joint (its parts go back to their CAD position)"""
+    """Remove the joint. Its parts go back to the joint it rode on, or to their CAD position;
+    joints riding on it move down"""
 
     bl_idname = "fresing.joint_remove"
     bl_label = "Remove joint"
@@ -298,7 +309,53 @@ class FRESING_OT_joint_remove(bpy.types.Operator):
         return _active_joint(context) is not None
 
     def execute(self, context):
-        joints.remove(context.scene, _active_joint(context))
+        scene = context.scene
+        j = _active_joint(context)
+        name = j.name
+        below = joints.rides_on(scene, j)
+        below = below.name if below is not None else ""      # names only: removing shifts the list items
+        above = [r.name for r in joints.riders(scene, j)]
+        joints.remove(scene, j)
+        if above:
+            onto = f"'{below}'" if below else "what it sat on"
+            listed = ", ".join("'" + a + "'" for a in above)
+            msg = f"Joint '{name}' removed; {listed} now ride{'s' if len(above) == 1 else ''} on {onto}"
+            scene.fresing.last_message = msg
+            self.report({"INFO"}, msg)
+        return {"FINISHED"}
+
+
+class FRESING_OT_joint_swap(bpy.types.Operator):
+    """Swap the order of this joint and the one it rides on: the other one then rides on this one.
+    With two slides nothing changes; with a rotation it does (turn then slide, or slide then turn)"""
+
+    bl_idname = "fresing.joint_swap"
+    bl_label = "Swap order"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return _valid_joint(context) and joints.rides_on(context.scene, _active_joint(context)) is not None
+
+    @classmethod
+    def description(cls, context, properties):
+        j = _active_joint(context)
+        reason = joints.swap_check(context.scene, j) if j is not None and joints.is_valid(j) else ""
+        return reason or " ".join(cls.__doc__.split())
+
+    def execute(self, context):
+        scene = context.scene
+        j = _active_joint(context)
+        name, below = j.name, joints.rides_on(scene, j).name
+        try:
+            joints.swap(scene, j)
+        except RuntimeError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        msg = f"'{below}' now rides on '{name}'"
+        scene.fresing.last_message = msg
+        scene.fresing.bounds_valid = False
+        self.report({"INFO"}, msg)
         return {"FINISHED"}
 
 
@@ -377,7 +434,7 @@ class FRESING_OT_joint_members(bpy.types.Operator):
             for ob in context.selected_objects:
                 ob.select_set(False)
             tree = logic.Tree(scene)
-            for m in joints.members(j):
+            for m in joints.moved_objects(scene, j):          # also what rides on it in a stack
                 for d in [m] + tree.descendants(m):
                     if d.visible_get() and not d.hide_select:
                         d.select_set(True)
@@ -387,7 +444,18 @@ class FRESING_OT_joint_members(bpy.types.Operator):
             if self.action == "ADD":
                 n = joints.add_members(scene, j, movers)
             else:
+                # parts that ride on this joint through a joint on top are removed there, not here
+                via = [(ob, joints.joint_of_object(scene, ob)) for ob in movers if ob not in joints.members(j)]
+                via = [(ob, o) for ob, o in via if o is not None and o.name in
+                       {r.name for r in joints.all_riders(scene, j)}]
                 n = joints.remove_members(scene, j, movers)
+                if n == 0 and via:
+                    ob, o = via[0]
+                    msg = (f"'{ob.get(build.PROP_NAME, ob.name)}' moves with '{o.name}' (on top of this joint): "
+                           f"select '{o.name}' in the list and remove it there")
+                    scene.fresing.last_message = msg
+                    self.report({"WARNING"}, msg)
+                    return {"CANCELLED"}
         except RuntimeError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
@@ -1095,7 +1163,8 @@ class FRESING_OT_queue_log(bpy.types.Operator):
 
 CLASSES = (
     FRESING_OT_report_select_new, FRESING_OT_report_clear,
-    FRESING_OT_joint_add, FRESING_OT_joint_pick_axis, FRESING_OT_joint_remove, FRESING_OT_joint_flip,
+    FRESING_OT_joint_add, FRESING_OT_joint_pick_axis, FRESING_OT_joint_remove, FRESING_OT_joint_swap,
+    FRESING_OT_joint_flip,
     FRESING_OT_joint_axis_preset, FRESING_OT_joint_kind, FRESING_OT_joint_members, FRESING_OT_joint_value,
     FRESING_OT_pose_save, FRESING_OT_pose_apply, FRESING_OT_pose_update, FRESING_OT_pose_remove,
     FRESING_OT_pose_reset, FRESING_OT_explode,

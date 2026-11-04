@@ -378,6 +378,21 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
 - **−** next to the list removes the joint; its parts go back to their CAD position.
 - **Everything back to CAD position** puts every joint and moved subassembly back.
 
+**Two or more joints on one subassembly**
+
+A subassembly can have several joints, and their moves add up: a carriage that slides 1000 mm in Y
+and then 500 mm in X ends up at X +500 / Y +1000; a crane jib slews and then luffs.
+
+1. Click a subassembly that already moves with a joint and click **Add rotate joint** or **Add slide
+   joint** as usual. Above the buttons it says "Adds a joint on top of '…': the moves add up".
+2. The new joint rides on the older one: its axis moves along with it. In the list it is indented
+   under that joint, and its details say "Rides on '…'".
+3. **Swap order** lets the other joint ride on this one instead. With two slides nothing changes; with
+   a rotation it does (turn then slide, or slide then turn).
+
+Removing a joint from such a stack gives what it moved back to the joint under it. In **Set-up** of
+the lower joint, "Moves:" lists everything it moves and "Carries:" names the joints riding on it.
+
 > When an animation is built (6 Animation), the joints follow it. **Stop it to move joints by hand**
 > (in the red box) frees them.
 

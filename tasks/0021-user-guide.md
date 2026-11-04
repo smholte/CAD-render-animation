@@ -1,6 +1,6 @@
 # 0021 – User guide (and the tooltip standard)
 
-**Who:** worker · **Status:** done (0.2.10) · **Branch:** `task/0021-user-guide`
+**Who:** worker · **Status:** done (0.2.11) · **Branch:** `task/0021-user-guide`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Docs (only `docs/`, `tools/` screenshot helpers,
 `installer/` to ship the guide, the app template for a Help-menu link) – no clash with other lanes.
 
@@ -54,7 +54,7 @@ the installer.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker chat, 4–5 Nov 2026 → version 0.2.10
+**Chat / date:** worker chat, 4–5 Nov 2026 → version 0.2.11
 
 **What changed:**
 - `docs/USER-GUIDE.md`: the user guide – how the app is laid out, getting started (install, moving
@@ -63,8 +63,9 @@ the installer.
   renders go, missing tab, import and render problems). 23 pictures in `docs/img/`, all of the
   generic test crane (`tests/data/test_crane_a.step`). Includes what 0.2.9 (task 0010) added:
   "Paint faces" (own chapter and picture), faces painted in CAD, the CAD material of a clicked part,
-  painted faces in the model-update report, and old default rules upgrading themselves. Every claim was checked against the code
-  (cameras, cores, Esc, stay-awake, render folders, time-test folder).
+  painted faces in the model-update report, and old default rules upgrading themselves; and what
+  0.2.10 (task 0011) added: several joints on one subassembly (4 Motion). Every claim was checked
+  against the code (cameras, cores, Esc, stay-awake, render folders, time-test folder, face painting).
 - The **tooltip style guide** is the HTML comment at the top of `USER-GUIDE.md` (12 rules + good
   examples); it is not shown in the guide. `CLAUDE.md` section 6 points to it.
 - `tools/build_guide.py`: Markdown → one self-contained HTML page (pictures inside, contents list,
@@ -74,6 +75,9 @@ the installer.
 - **Help > Fresing Render user guide** (first entry of the Help menu, in the app template): opens
   the guide shipped inside the installed extension (`<extension>/guide/user_guide.html`), so an
   update brings the matching guide. Missing file → message "run Install.bat again".
+- Automatic tests on GitHub (0019): `markdown` added to `tools/requirements-dev.txt` and installed in
+  the two jobs that build the extension (real app, Windows installer), because every extension zip
+  now contains the guide.
 - Release: `tools/build_release.py` builds the guide into the extension and puts
   "User guide.html" next to Install.bat; the installer adds a Start-menu shortcut
   "Fresing Render - User guide". `README-install.txt` mentions it.
@@ -99,12 +103,11 @@ after merging `main` with 0.2.9 (task 0010):
   guide gives "run Install.bat again" and opens nothing.
 - Real app, side panel clicks: `ui_test_app.py` 22/22, `ui_test_app2.py` 29/29, face painting
   (`ui_test_faces.py`) 10/10; paths with spaces, accents, apostrophe and dash
-  (`paths_test_blender.py`): 8/8. (`ui_test_app.py` first hung at the import with a cold cache –
-  see open points; with the crane in the cache it passes.)
+  (`paths_test_blender.py`): 8/8.
 - Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
   (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
 - Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
-  `fresing_render-0.2.10.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
+  `fresing_render-0.2.11.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
 - Guide page looked at in a browser at desktop and phone width (no sideways scrolling, no outside
   links or fonts: works offline). All 23 pictures checked by eye: test crane only.
 - Windows-only code (installer shortcut, `os.startfile` in the Help entry) reviewed by an
@@ -123,13 +126,9 @@ after merging `main` with 0.2.9 (task 0010):
   Install.bat copies. An in-app update of the extension brings the new guide file, but changes to
   the app template (this entry included) arrive only by running Install.bat. 0020 should either
   update the template too or move such entries into the extension. (Found by the independent
-  review.) For 0.2.10 the owner installs with Install.bat, so the entry is there.
+  review.) For 0.2.11 the owner installs with Install.bat, so the entry is there.
 - On the owner's PC (cannot be tested here): Help > Fresing Render user guide opens the guide in
   the web browser; the Start-menu shortcut "Fresing Render - User guide" works.
 - The Inventor export advice (AP214) is still not checked with an Inventor file (same as 0008).
-- For the Quality lane (0019): `tools/ui_test_app.py` only passes with a warm import cache. Its
-  first step sends Esc (to close the splash) and then starts the import; the Esc is handled after
-  the import has started and cancels it, so the test waits 30 minutes for a model that never comes.
-  Reinstalling the extension empties the cache, and a fresh machine (GitHub) never has one. Fix:
-  send the Esc and the panel drag in one step and start the import in the next. Not changed here
-  (another lane's file); lesson added to `CLAUDE.md` section 8.
+- Found while testing, fixed on `main` meanwhile by 0011/0019: `tools/ui_test_app.py` hung at the
+  import with an empty import cache (the Esc that closes the splash cancelled the import).
