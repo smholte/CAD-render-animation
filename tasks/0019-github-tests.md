@@ -144,6 +144,9 @@ before 0.2.2 had a PowerShell error that no Linux test could see). Several chats
   | Windows - install + self-test | 3.1 min (install 20 s, repair 5 s, self-test 135 s, uninstall 2 s); RESULT "ALL OK (2 skipped because FRESING_SELFTEST_NO_GPU=1)" |
 
   Run times vary by ±30 % between runs on GitHub's shared machines.
+- After the merge, first run on `main` (ef54d3a, run 41935861802): all four jobs green (suite
+  5.0 min, real app 10.2 min, build 0.6 min, Windows 2.8 min). Blender is now cached for all
+  branches.
 
 **Open points / follow-up tasks:**
 - The owner deletes the scratch branch `scratch/0019-red-check` on github.com (chats cannot).
