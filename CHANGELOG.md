@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 
-Commit `(see below)`.
+Commit `4fd1d3b`.
 
 3 Looks – sorting at import
 - A library of 63 part types sorts most parts by their name: aluminium profiles (anodised),
