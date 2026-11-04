@@ -56,6 +56,10 @@ KINDS: tuple[Kind, ...] = (
          "A warehouse with pallet racks and pallets around the machine"),
 )
 KIND = {k.id: k for k in KINDS}
+# short names for the panel header (at most 12 characters: the panel title must stay readable)
+SHORT = {"COLOR": "Solid colour", "TRANSPARENT": "Transparent", "SKY": "Sky", "HDRI": "360° photo",
+         "SEA": "Open sea", "DECK": "Vessel deck", "QUAY": "Quayside", "FACTORY": "Factory",
+         "CNC": "CNC hall", "ASSEMBLY": "Assembly", "WAREHOUSE": "Warehouse"}
 GROUP_LABELS = {"studio": "Studio", "photo": "Photo", "offshore": "Offshore", "workshop": "Workshop"}
 
 BUILT = tuple(k.id for k in KINDS if k.group in ("offshore", "workshop"))   # made in 3D by the app
@@ -160,6 +164,16 @@ def place(shapes, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0, rot: float 
 
 def recolor(shapes, mapping: dict) -> list:
     return [replace(s, mat=mapping.get(s.mat, s.mat)) for s in shapes]
+
+
+def quad_normal(q: Quad) -> tuple[float, float, float]:
+    """Unit normal of a panel's front side (the side that is drawn)."""
+    p0, p1, p2 = q.pts[0], q.pts[1], q.pts[2]
+    a = [p1[i] - p0[i] for i in range(3)]
+    b = [p2[i] - p1[i] for i in range(3)]
+    n = (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+    length = math.sqrt(sum(c * c for c in n)) or 1.0
+    return tuple(c / length for c in n)
 
 
 def footprint(shape) -> tuple[float, float, float, float, float, float]:
@@ -328,6 +342,7 @@ class Layout:
     extent: float = 50.0                         # radius that holds everything (camera clip)
     hall: tuple | None = None                    # (half x, half y, height) of a hall
     view_radius: float = 0.0                     # the default camera's side stays open this far
+    roof_z: float = 0.0                          # halls: lowest point of the light lines (0 = no hall)
 
     def add(self, role: str, shapes) -> None:
         self.parts.setdefault(role, []).extend(shapes)
@@ -563,8 +578,9 @@ def _hall(lay: Layout, kind: str, w, d, h, detailed, rng) -> None:
         nx, ny = -(y1 - y0), x1 - x0              # inward normal of the wall when walked anticlockwise
         n = math.hypot(nx, ny)
         ox, oy = nx / n * inset, ny / n * inset
-        return Quad(mat, ((x0 + ox, y0 + oy, z0), (x1 + ox, y1 + oy, z0), (x1 + ox, y1 + oy, z1),
-                          (x0 + ox, y0 + oy, z1)))
+        # corner order: up first, then along, so the front side (right-hand rule) faces inwards
+        return Quad(mat, ((x0 + ox, y0 + oy, z0), (x0 + ox, y0 + oy, z1), (x1 + ox, y1 + oy, z1),
+                          (x1 + ox, y1 + oy, z0)))
 
     corners = [(-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)]
     shell = []
@@ -579,8 +595,7 @@ def _hall(lay: Layout, kind: str, w, d, h, detailed, rng) -> None:
     shell.append(Quad("roof", ((-hx, -hy, hh), (-hx, hy, hh), (hx, hy, hh), (hx, -hy, hh))))
     # roller door in the far end wall (-x)
     door_w, door_h = min(6.0, hy), min(5.5, hh - 1.5)
-    shell.append(Quad("door", ((-hx + 0.03, door_w / 2 + 2, 0.0), (-hx + 0.03, -door_w / 2 + 2, 0.0),
-                               (-hx + 0.03, -door_w / 2 + 2, door_h), (-hx + 0.03, door_w / 2 + 2, door_h))))
+    shell.append(wall(-hx, door_w / 2 + 2, -hx, -door_w / 2 + 2, 0.0, door_h, "door", 0.03))
     lay.add("shell", shell)
 
     # columns along the long walls, trusses across
@@ -619,6 +634,7 @@ def _hall(lay: Layout, kind: str, w, d, h, detailed, rng) -> None:
                 lights.append(Quad("skylight", ((xa + 0.6, y - 1.0, hh - 0.02), (xa + 0.6, y + 1.0, hh - 0.02),
                                                 (xb - 0.6, y + 1.0, hh - 0.02), (xb - 0.6, y - 1.0, hh - 0.02))))
     lay.add("lights", lights)
+    lay.roof_z = z_light
 
     # floor markings: the machine's area, and walkways along it
     marks = _rect_lines("line_yellow", kx, ky, 0.1)

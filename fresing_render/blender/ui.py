@@ -631,7 +631,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         kind = env.KIND.get(context.scene.fresing.background)
         if kind is not None:
-            header_status(self.layout, kind.label, limit=18)
+            header_status(self.layout, env.SHORT.get(kind.id, kind.label), limit=12)
 
     def draw(self, context):
         layout = self.layout
@@ -662,9 +662,9 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
             row.prop(s, "sea_state", text="Sea", expand=True)
             if bg == "SEA":
                 col.prop(s, "water_level", text="Water level")
-            row = col.row(align=True)
-            row.prop(s, "sea_foam", text="Foam", toggle=True)
-            row.prop(s, "sea_moving", text="Moving waves", toggle=True)
+            row = col.row(heading="Waves")
+            row.prop(s, "sea_foam", text="Foam")
+            row.prop(s, "sea_moving", text="Moving")
         if bg in env.BUILT:
             row = col.row(align=True)
             row.prop(s, "env_detail", text="Detail", expand=True)

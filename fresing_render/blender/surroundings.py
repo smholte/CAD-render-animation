@@ -37,7 +37,14 @@ PROPS_COLLECTION = "FR Props"
 MAT_PREFIX = "FR_env "
 TAG = "fr_env"                     # on every object made here (value: its role)
 PROP_TAG = "fr_prop"               # on props (value: prop kind)
-MAT_VERSION = 1
+MAT_VERSION = 3
+TRANSPARENT_STEPS = 128
+CUT_ROLES = ("structure", "high", "lights", "contents")   # halls: what may stand in the camera's way
+# materials of floors and walls: never between the camera and the machine (both are inside the hall,
+# or the near wall is see-through from outside), so they get no cut-away nodes (they cost render time)
+NEVER_IN_THE_WAY = ("floor_epoxy", "floor_epoxy_green", "floor_concrete", "concrete", "deck", "line_yellow",
+                    "line_white", "rail_steel", "water", "wall_panel", "wall_panel_out", "wall_dado", "roof",
+                    "door", "window", "skylight")
 WAVES_GROUP = "FR_env waves"
 PHOTO_DEFAULT_HEIGHT = 1.7
 
@@ -179,9 +186,20 @@ def _root(scene) -> bpy.types.Object:
 
 
 def _model_box(scene) -> tuple[np.ndarray, np.ndarray]:
-    from . import logic
-    scene.fresing.bounds_valid = False
-    return logic.cached_bounds(scene)
+    """Size and place of the whole machine: every part except those removed in clean-up.
+
+    Parts that are only hidden for now (Show only, a saved scene's visibility set) count too, so the
+    floor stays where it is when a scene hides the machine's base or covers."""
+    from . import build, logic
+    try:
+        bpy.context.view_layer.update()
+    except Exception:
+        pass
+    parts = [ob for ob in build.iter_parts(scene) if not ob.get(build.PROP_EXCLUDED)]
+    if not parts:
+        scene.fresing.bounds_valid = False
+        return logic.cached_bounds(scene)
+    return build.world_bounds(parts)
 
 
 def _build(scene, s, kind: str, key: str, models: str) -> None:
@@ -197,9 +215,16 @@ def _build(scene, s, kind: str, key: str, models: str) -> None:
         far = _build_photo(scene, s, root, col, size)
     else:
         lay = S.build(kind, tuple(float(v) for v in size), s.env_detail, s.water_level)
+        centre = (0.0, 0.0, s.floor_offset + float(size[2]) / 2)
+        radius = float(np.linalg.norm(size)) / 2
         for role, shapes in lay.parts.items():
             if shapes:
-                _shapes_object(f"FR {S.KIND[kind].label}: {role}", role, shapes, col, root)
+                ob = _shapes_object(f"FR {S.KIND[kind].label}: {role}", role, shapes, col, root)
+                if lay.hall is not None and role in CUT_ROLES:
+                    ob["fr_cut_c"] = centre
+                    ob["fr_cut_r"] = radius
+                    if role in ("high", "lights") and lay.roof_z:
+                        ob["fr_roof"] = lay.roof_z
         if lay.water_level is not None:
             _build_sea(s, col, root, lay.water_level, float(max(size[0], size[1])), kind)
         far = lay.extent * 1.3
@@ -221,6 +246,13 @@ def _update_live(scene, s, root) -> None:
             root.location.z = z
     if root.get("fr_kind") == "PHOTO":
         _photo_update(s)
+    if root.get("fr_kind") in S.HALL_KINDS:
+        # a view ray may pass many cut-away beams and see-through walls: each is a step through
+        # something transparent, and Cycles shows black when it runs out of them (default 8)
+        c = getattr(scene, "cycles", None)
+        if c is not None and getattr(c, "transparent_max_bounces", 999) < TRANSPARENT_STEPS:
+            from . import render
+            render._set(c, "transparent_max_bounces", TRANSPARENT_STEPS)
     far = float(root.get("fr_far", 0.0))
     if far > 0:
         fix_clip(scene, far)
@@ -505,11 +537,79 @@ def _emission(t: _NT, color, strength):
     return e.outputs["Emission"]
 
 
-def _output(t: _NT, shader, one_sided: bool = False):
+def _cutaway(t: _NT):
+    """1 where this surface must not be seen by the camera, else 0 (halls only: see CUT_ROLES).
+
+    The camera always sees the machine: everything inside a cone from the camera around the
+    machine, nearer than the machine, is left out of the picture; so is the roof structure when
+    the camera is above the roof. Only camera rays: light, shadows and reflections stay as they
+    are. Objects without the 'fr_cut_r' property are never cut."""
+    def sock(n, i, v):
+        if isinstance(v, bpy.types.NodeSocket):
+            t.link(v, n.inputs[i])
+        else:
+            n.inputs[i].default_value = v
+
+    def vec(op, a, b=None):
+        n = t.node("ShaderNodeVectorMath", _operation=op)
+        sock(n, 0, a)
+        if b is not None:
+            sock(n, 1, b)
+        return n.outputs["Value"] if op in ("DOT_PRODUCT", "LENGTH") else n.outputs["Vector"]
+
+    def scale(a, f):
+        n = t.node("ShaderNodeVectorMath", _operation="SCALE")
+        sock(n, 0, a)
+        sock(n, "Scale", f)
+        return n.outputs["Vector"]
+
+    def math(op, a, b=None, c=None):
+        n = t.node("ShaderNodeMath", _operation=op)
+        for i, v in enumerate((a, b, c)):
+            if v is not None:
+                sock(n, i, v)
+        return n.outputs[0]
+
+    def attr(name, out):
+        return t.node("ShaderNodeAttribute", _attribute_type="OBJECT", _attribute_name=name).outputs[out]
+
+    centre = attr("fr_cut_c", "Vector")          # machine centre (object space)
+    radius = attr("fr_cut_r", "Fac")             # machine radius; 0 = never cut
+    roof = attr("fr_roof", "Fac")                # height of the roof structure; 0 = not roof structure
+    p = t.node("ShaderNodeTexCoord").outputs["Object"]
+    incoming = t.node("ShaderNodeNewGeometry").outputs["Incoming"]      # from the point to the camera
+    dist = t.node("ShaderNodeCameraData").outputs["View Distance"]
+    # the camera: back from the point along the view ray (also right after a see-through wall)
+    c = vec("ADD", p, scale(incoming, dist))
+    to_m = vec("SUBTRACT", centre, c)
+    length = vec("LENGTH", to_m)
+    # q = cos of the angle between the view ray and the line camera -> machine centre
+    k = vec("DOT_PRODUCT", incoming, vec("NORMALIZE", to_m))         # = -q
+    q = math("MULTIPLY", k, -1.0)
+    sin = math("SQRT", math("MAXIMUM", math("MULTIPLY_ADD", q, k, 1.0), 0.0))
+    # in the cone (half angle: atan((1.15 x radius + 0.3 m) / distance)) and nearer than the centre
+    in_cone = math("LESS_THAN", math("MULTIPLY", sin, length),
+                   math("MULTIPLY", math("MULTIPLY_ADD", radius, 1.15, 0.3), q))
+    nearer = math("LESS_THAN", math("MULTIPLY", dist, q), length)
+    sep = t.node("ShaderNodeSeparateXYZ")
+    t.link(c, sep.inputs[0])
+    above = math("MULTIPLY", math("GREATER_THAN", roof, 0.0), math("GREATER_THAN", sep.outputs["Z"], roof))
+    cut = math("MAXIMUM", math("MULTIPLY", in_cone, nearer), above)
+    camera_ray = t.node("ShaderNodeLightPath").outputs["Is Camera Ray"]
+    return math("MULTIPLY", math("MULTIPLY", math("GREATER_THAN", radius, 0.0), camera_ray), cut)
+
+
+def _output(t: _NT, shader, one_sided: bool = False, cutaway: bool = True):
     if one_sided:                   # seen from behind: see-through (halls seen from outside)
         geo = t.node("ShaderNodeNewGeometry")
         tr = t.node("ShaderNodeBsdfTransparent")
         mix = t.node("ShaderNodeMixShader", Fac=geo.outputs["Backfacing"])
+        t.link(shader, mix.inputs[1])
+        t.link(tr.outputs[0], mix.inputs[2])
+        shader = mix.outputs[0]
+    if cutaway:
+        tr = t.node("ShaderNodeBsdfTransparent")
+        mix = t.node("ShaderNodeMixShader", Fac=_cutaway(t))
         t.link(shader, mix.inputs[1])
         t.link(tr.outputs[0], mix.inputs[2])
         shader = mix.outputs[0]
@@ -528,6 +628,7 @@ def _make(key: str, mat) -> None:
     t = _NT(mat)
     one_sided = False
     emission = False
+    cutaway = True
     if key in ("floor_epoxy", "floor_epoxy_green"):
         base = _srgb(0.70, 0.71, 0.70) if key == "floor_epoxy" else _srgb(0.42, 0.52, 0.47)
         n = _noise(t, 0.6, 4.0, 0.6, _coords(t))
@@ -558,6 +659,7 @@ def _make(key: str, mat) -> None:
         shader = _principled(t, col, 0.75, normal=_bump(t, h.outputs[0], 0.25, 0.01))
     elif key == "water":
         shader = _water_shader(t, mat)
+        cutaway = False
     elif key in ("wall_panel", "wall_panel_out"):
         seams = _lines(t, 1.0, 1.0, 0.012)
         shader = _principled(t, _srgb(0.86, 0.87, 0.86), 0.5, normal=_bump(t, seams, 0.4, 0.01))
@@ -628,7 +730,7 @@ def _make(key: str, mat) -> None:
         }
         colour, rough = colours.get(key, ("RAL 7035", 0.5))
         shader = _paint(t, _ral(colour), rough)
-    _output(t, shader, one_sided)
+    _output(t, shader, one_sided, cutaway and not one_sided and key not in NEVER_IN_THE_WAY)
     mat.use_backface_culling = one_sided
     if emission:
         for owner in (mat, getattr(mat, "cycles", None)):
@@ -939,7 +1041,7 @@ def _photo_materials(s, img):
     em = t.node("ShaderNodeEmission")
     em.name = "fr_strength"
     t.link(env.outputs["Color"], em.inputs["Color"])
-    _output(t, em.outputs[0], one_sided=True)
+    _output(t, em.outputs[0], one_sided=True, cutaway=False)
     dome.use_backface_culling = True
     t = _NT(ground)
     env = _photo_direction(t, 0.0)
@@ -947,7 +1049,7 @@ def _photo_materials(s, img):
     scale.name = "fr_albedo"
     diff = t.node("ShaderNodeBsdfDiffuse")
     t.link(scale.outputs["Vector"], diff.inputs["Color"])
-    _output(t, diff.outputs[0])
+    _output(t, diff.outputs[0], cutaway=False)
     for mat in (dome, ground):
         mat["fr_env"] = "photo"
     return dome, ground

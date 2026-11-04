@@ -61,6 +61,22 @@ def test_layout_keeps_machine_space_and_view_free(kind, detail, size):
         assert lay.water_level is None
 
 
+@pytest.mark.parametrize("kind", S.HALL_KINDS)
+@pytest.mark.parametrize("detail", ["SIMPLE", "DETAILED"])
+def test_hall_panels_face_inwards(kind, detail):
+    """Walls, door, windows, roof and skylights are drawn on their inner side only: a camera inside
+    sees them, a camera outside looks through them at the machine."""
+    lay = S.build(kind, (6.4, 2.4, 2.0), detail)
+    hx, hy, hh = lay.hall
+    quads = [sh for role in ("shell", "lights") for sh in lay.parts.get(role, []) if isinstance(sh, S.Quad)]
+    assert len(quads) >= 6
+    for q in quads:
+        c = [sum(p[i] for p in q.pts) / 4 for i in range(3)]
+        to_inside = (0.0 - c[0], 0.0 - c[1], hh / 2 - c[2])
+        n = S.quad_normal(q)
+        assert sum(n[i] * to_inside[i] for i in range(3)) > 0, (q.mat, q.pts, n)
+
+
 def test_detailed_has_more_than_simple():
     for kind in ("DECK", "QUAY", "FACTORY", "CNC", "ASSEMBLY", "WAREHOUSE"):
         n = {d: sum(1 for _ in S.build(kind, (6.4, 2.4, 2.0), d).all_shapes()) for d in ("SIMPLE", "DETAILED")}
@@ -202,6 +218,45 @@ def test_each_surrounding_builds_and_renders(scene, kind, tmp_path):
         assert px[:, :, 3].min() > 0.99, "surroundings fill the background"
 
 
+def test_hall_cut_away_keeps_the_machine_in_view(scene, tmp_path):
+    """Whatever stands between the camera and the machine in a hall is left out of the picture."""
+    from mathutils import Vector
+    s = scene.fresing
+    s.background = "FACTORY"
+    s.out_custom_w, s.out_custom_h = 24, 24
+    root = surroundings.root_object()
+    mn, mx = logic.cached_bounds(scene)
+    centre = (mn + mx) / 2
+    cam = scene.camera
+    cam.location = (centre[0], centre[1] - 9.0, centre[2] + 3.0)  # in front of the machine, a little above
+    cam.rotation_mode = "QUATERNION"
+    cam.rotation_quaternion = (Vector(centre.tolist()) - cam.location).to_track_quat("-Z", "Y")
+    cam.data.lens = 400.0                                         # the 1 m test machine fills the picture
+
+    def middle(name):
+        path = str(tmp_path / f"{name}.png")
+        render.render_still(scene, s, "preview", filepath=path)
+        px, _ = _pixels(path)
+        return px[10:14, 10:14, :3].mean(axis=(0, 1))
+
+    free = middle("free")
+    # a column halfway, in the hall's own material and object, with the hall's cut-away settings
+    local = (centre[0] - root.location.x, centre[1] - 4.5 - root.location.y, 0.0)
+    col = bpy.data.collections[surroundings.COLLECTION]
+    ob = surroundings._shapes_object("test column", "structure",
+                                     [S.Box("crane_yellow", local[0], local[1], 0.0, 1.2, 0.4, 6.0)], col, root)
+    hall_ob = _env_objects(scene, "structure")[0]
+    for k in ("fr_cut_c", "fr_cut_r"):
+        ob[k] = hall_ob[k]
+    ob.update_tag()
+    cut = middle("cut")
+    del ob["fr_cut_r"]                            # the same column without the cut-away
+    ob.update_tag()
+    blocked = middle("blocked")
+    assert np.abs(blocked - free).max() > 0.08, (blocked, free)      # the column is really in the way
+    assert np.abs(cut - free).max() < 0.04, (cut, free)
+
+
 def test_rebuilt_only_when_settings_change(scene):
     s = scene.fresing
     s.background = "FACTORY"
@@ -231,6 +286,27 @@ def test_floor_gap_and_put_on_floor_again(scene):
     bpy.context.view_layer.update()
     assert bpy.ops.fresing.env_place() == {"FINISHED"}
     assert abs(surroundings.root_object().location.z - (mn[2] + 2.0)) < 1e-4
+
+
+def test_floor_stays_when_parts_are_hidden(scene):
+    """A saved scene that hides the machine's base must not lift the floor: the machine stands where it
+    stands. Parts removed in clean-up (excluded) do not count."""
+    s = scene.fresing
+    s.background = "FACTORY"
+    z0 = surroundings.root_object().location.z
+    parts = sorted(build.iter_parts(scene), key=lambda ob: build.world_bounds([ob])[0][2])
+    lowest = [ob for ob in parts if build.world_bounds([ob])[0][2] < z0 + 1e-4]
+    for ob in lowest:
+        logic.set_hidden(ob, True)
+    s.bounds_valid = False
+    assert logic.cached_bounds(scene)[0][2] > z0 + 1e-3, "test needs a part that alone sets the lowest point"
+    s.env_detail = "DETAILED"                     # rebuilt with the base hidden
+    assert abs(surroundings.root_object().location.z - z0) < 1e-5
+    for ob in lowest:
+        logic.set_hidden(ob, False)
+    logic.exclude(lowest, True)                   # removed in clean-up: the floor follows the rest
+    assert bpy.ops.fresing.env_place() == {"FINISHED"}
+    assert surroundings.root_object().location.z > z0 + 1e-3
 
 
 def test_saved_scene_and_template_keep_the_surroundings(scene, tmp_path):
@@ -404,12 +480,17 @@ def test_queue_renders_the_surroundings(scene, tmp_path):
     s.out_format = "presentation"
     states.save_shot(scene, "Deck")
     s.background = "COLOR"                        # the queue must switch to the deck itself
+    s.background_color = (1.0, 1.0, 1.0)
     a = s.animations.add()
     a.name = "Waves"
-    a.tail = 0.08
     a.out_resolution = "preview"
+    a.out_format = "square"                       # 540 x 540: the smallest video
+    a.video = "PNG"
     a.quality = "draft"
     a.start_shot = "Deck"
+    a.tail = 0.0
+    b = a.blocks.add()                            # one instant step: the video is 2 frames long
+    b.kind, b.camera_mode, b.camera, b.start = "CAMERA", "CUT", scene.camera, 0.04
     queue.add_job(scene, "STILL", shot="Deck")
     queue.add_job(scene, "ANIMATION", animation="Waves")
     for job in s.queue:
@@ -422,12 +503,18 @@ def test_queue_renders_the_surroundings(scene, tmp_path):
     queue.sync(scene)
     st = [(x.label, x.status, x.message) for x in s.queue]
     assert all(x.status == "DONE" for x in s.queue), (st, queue.log_tail(qdir, 40))
-    still = s.queue[0].output
-    px, size = _pixels(still)
-    assert px[:, :, 3].min() > 0.99 and px[:, :, :3].std() > 0.02
+    log = open(os.path.join(qdir, "log.txt"), encoding="utf-8").read() if os.path.isfile(
+        os.path.join(qdir, "log.txt")) else ""
+    assert "surroundings not built" not in log, log[-2000:]
+    still, _ = _pixels(s.queue[0].output)
+    assert still[:, :, 3].min() > 0.99 and still[:, :, :3].std() > 0.02
     frames = os.path.splitext(s.queue[1].output)[0]
-    names = sorted(os.listdir(frames))
-    assert len(names) >= 2
-    first, _ = _pixels(os.path.join(frames, names[0]))
-    last, _ = _pixels(os.path.join(frames, names[-1]))
-    assert np.abs(first - last).max() > 0.02, "the sea moves between frames"
+    names = sorted(n for n in os.listdir(frames) if n.endswith(".png"))
+    assert len(names) == 2, names
+    for name in names:
+        px, size = _pixels(os.path.join(frames, name))
+        assert size == (540, 540)
+        assert px[:, :, 3].min() > 0.99 and px[:, :, :3].std() > 0.02
+        # the deck, not the white studio background of the scene the file was saved with
+        # (frames are 8-bit sRGB; the still is a 16-bit PNG, which loads as linear values)
+        assert 0.2 < px[:, :, :3].mean() < 0.85
