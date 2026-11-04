@@ -19,7 +19,7 @@ updates its branch to `main`.
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (running) → 0015
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (running) → 0012 → 0013 → 0014
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
-- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (can start) → 0020
+- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (running) → 0020
 - **Docs lane** (`docs/`, Help-menu link): 0021 (can start)
 
 ## Open and running
@@ -35,7 +35,7 @@ updates its branch to `main`.
 | 0016 | Scene & Render lane: surroundings – sea, vessel deck, quayside, clean factory, CNC hall, assembly hall, warehouse; 360° photos with shadow floor; props for scale | worker | running | `task/0016-surroundings`, tasks/0016-surroundings.md |
 | 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | waiting (0016) | tasks/0017-studio-cameras.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
-| 0019 | Quality lane: automatic tests on GitHub at every push, Linux and a Windows install + self-test | worker | open – can start | tasks/0019-github-tests.md |
+| 0019 | Quality lane: automatic tests on GitHub at every push, Linux and a Windows install + self-test | worker | running | `task/0019-github-tests`, tasks/0019-github-tests.md |
 | 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | waiting (0019) | tasks/0020-updates-from-github.md |
 | 0021 | Docs lane: user guide (Help menu, shipped with the installer) + tooltip style guide and check | worker | open – can start | tasks/0021-user-guide.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |

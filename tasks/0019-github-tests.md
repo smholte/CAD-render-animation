@@ -1,6 +1,6 @@
 # 0019 – Automatic tests on GitHub, including a Windows install
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0019-github-tests`
+**Who:** worker · **Status:** running · **Branch:** `task/0019-github-tests`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Quality & delivery · **Area:** `.github/`,
 `tools/` (test runners), `installer/` (only switches needed to run unattended), `README.md`,
 `CLAUDE.md` sections 4–5 and 7. **No app code** (`fresing_render/`), so no clash with other lanes.
