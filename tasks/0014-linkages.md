@@ -31,7 +31,7 @@ drives the input; every link follows.
    slider-crank, scissor stage); a general iterative solve (starting from the last solution, so
    the mechanism never flips to the other assembly mode) for the rest. Clear message when a
    position cannot be reached (limit), instead of jumping.
-2. "Add mechanism" in 5 Motion with a guided set-up per type (scissor: pick the stages; four-bar:
+2. "Add mechanism" in 4 Motion with a guided set-up per type (scissor: pick the stages; four-bar:
    pick the four pins; general: pins and links one by one), shown as a step list like the rest
    of the panel.
 3. Scissor lift: n stages, input height or cylinder stroke (cylinder from task 0013 drives it).

@@ -16,7 +16,7 @@ can run at the same time, in two worker chats. Shared files (`blender/props.py`,
 `blender/reimport.py`): additive changes only; whoever merges second updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (running) → 0010 → 0015
-- **Motion lane** (joints, poses, animation, 5 Motion): 0011 (running) → 0012 → 0013 → 0014
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (running) → 0012 → 0013 → 0014
 
 ## Open and running
 

@@ -20,7 +20,7 @@ out so both eyes stay on their pins. And the other way round: the owner sets the
 
 ## What to build
 
-1. **Add cylinder** (5 Motion): pick the barrel (subassembly), the rod (subassembly), then the pin
+1. **Add cylinder** (4 Motion): pick the barrel (subassembly), the rod (subassembly), then the pin
    at the barrel end (on the base side) and the pin at the rod end (on the moving part). Check that
    the two pin axes are parallel (planar cylinder); warn if not.
 2. **Follow mode:** something else moves (a rotate joint of the arm, a stack, a coupling); the
