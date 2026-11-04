@@ -174,16 +174,20 @@ def _code_text(text: str) -> str:
     return "".join(ch for ch in s if not unicodedata.combining(ch))
 
 
-def _pick_best(hits: list):
-    """The hit that names the part.
+def _pick_best(hits: list, code_hits: list = ()):
+    """The hit that names the part (``hits``: keywords, ``code_hits``: vendor part numbers).
 
     1. A keyword inside a longer one does not count on its own ("SHAFT" in "SHAFT SEAL").
     2. A generic shape beats a bought product named next to it, in either word order:
        "SENSOR BRACKET" and "BRACKET SENSOR" are both brackets, "FLANGE MOTOR" is a flange.
-    3. Otherwise the hit that ends furthest right wins (English and German/Dutch compounds
+    3. A vendor part number names a bought component exactly: it beats a word for another
+       component or product next to it ("LMUW20 BUSHING" is a Misumi linear bushing, not a plain
+       bushing; "MCKL20-5-10 MOTOR SIDE" a coupling). A generic shape word still counts (rule 4).
+    4. Otherwise the hit that ends furthest right wins (English and German/Dutch compounds
        put the noun last), then the longest, then the type listed first."""
-    keep = [h for h in hits
-            if not any(o[1] > h[1] and o[0] - o[1] <= h[0] - h[1] and h[0] <= o[0] for o in hits)]
+    everything = list(hits) + list(code_hits)
+    keep = [h for h in everything
+            if not any(o[1] > h[1] and o[0] - o[1] <= h[0] - h[1] and h[0] <= o[0] for o in everything)]
     levels = {TYPES[h[3]].level for h in keep}
     if "shape" in levels and "product" in levels:
         keep = [h for h in keep if TYPES[h[3]].level != "product"]
@@ -191,6 +195,9 @@ def _pick_best(hits: list):
     if any(h[3] == "alu_profile" for h in keep) and any(
             h[3] != "alu_profile" and TYPES[h[3]].level != "shape" for h in keep):
         keep = [h for h in keep if h[3] != "alu_profile"]
+    codes = {id(h) for h in code_hits}
+    if any(id(h) in codes and TYPES[h[3]].level == "component" for h in keep):
+        keep = [h for h in keep if id(h) in codes or TYPES[h[3]].level == "shape"]
     return max(keep, key=lambda h: (h[0], h[1], -h[2]))
 
 
@@ -231,7 +238,7 @@ def analyse(name: str) -> NameInfo:
     best = None
     best_span = (0, 0)
     if hits or code_hits:
-        top = _pick_best(hits + code_hits)
+        top = _pick_best(hits, code_hits)
         best, best_span = top[3], (top[0] - top[1], top[0])
     # a module word that is not part of a keyword ("O-RING FITTING UNIT", not "BEARING UNIT")
     spans = [(h[0] - h[1], h[0]) for h in hits + code_hits] + quals

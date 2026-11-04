@@ -583,3 +583,81 @@ def test_speed_on_a_big_model():
         name = names[i % len(names)]
         part_types.classify(name, f"LINE#1/STATION {i % 40}#1/SUB {i % 7}#1/{name}#{i}")
     assert time.perf_counter() - t < 3.0
+
+
+# ---- supplier catalogue codes (task 0022) ----------------------------------------------------
+# Invented codes in the real catalogue formats (Misumi above all), as a part is named when it is
+# downloaded from the supplier's CAD library: alone, with an economy/pack prefix, with a word or an
+# occurrence number. Never a customer's names.
+
+SUPPLIER_CODES = [
+    # aluminium frame (Misumi)
+    ("HFS5-2040-650", PROF), ("KHFS5-2020-310", PROF), ("HFC30A5", CAP), ("HNTT5-6", CON), ("HNTAJ6-5", CON),
+    ("PACK-HNTA5-4", CON), ("HNTLSN5-6-15", CON),
+    # shafts, collars, spacers, pins, plungers, stoppers, keys
+    ("PSFGD25-120-F30-B20-P15", CHROME), ("SFJZ12-180", CHROME), ("SAFS16-250", CHROME), ("PSFRZ15-140", CHROME),
+    ("SFRX25-400-F15", CHROME), ("PSCS16-12", ROD), ("SCSPJ12-8", ROD), ("SSCSJ25", ROD), ("PSCSW10-12", ROD),
+    ("PSCC8", ROD), ("PLSBF10-85-M5-N5", ROD), ("LSBWF17-120", ROD), ("SBSPO10-40", ROD), ("NCLB16-22-10", ROD),
+    ("CLJHM12-18-15.0", ROD), ("SGPW20-80", ROD), ("MS5-20", ROD), ("MSTH6-25", ROD), ("MSC8-30", ROD),
+    ("JPLB8-P10.5-B8", ROD), ("JPNG10-P6.5-B12", ROD), ("ELANA8-P5-B6-L10", ROD), ("STPASU8-L14.5", ROD),
+    ("CLBRU8-45.0", ROD), ("SCCG10-60", ROD), ("STEHN10", ROD), ("BPJ12", ROD), ("BPRJ6", ROD), ("PJL10-12", ROD),
+    ("UST8-30", ROD), ("PUSS12-50", ROD), ("SANH6-40", ROD), ("KES6-20", ROD), ("PETGS25-180-SC120", ROD),
+    # linear motion (Misumi, THK)
+    ("SHA25", LIN), ("SHAK16", LIN), ("SHFTL20", LIN), ("SHASSN25", LIN), ("STHCN16", LIN), ("E-STHXC12", LIN),
+    ("LMU25", LIN), ("LMUW12", LIN), ("LMKW16", LIN), ("LHFRW25", LIN), ("LHIFR16", LIN), ("LHFRW-MX20", LIN),
+    ("C-LHBB16", LIN), ("LHSS20", LIN), ("BSX2005", LIN), ("MTSRX20-600-F45", LIN), ("BSW15", LIN),
+    ("SHS30LC2SS+880LP", LIN),
+    # bearings, holders, bushings, couplings, pulleys, belts, rollers
+    ("B6005ZZ", BRG), ("FL6801ZZ", BRG), ("BGRR6204ZZ", HSG), ("HDH20", HSG), ("MPBZ16-20", BUSH), ("MPFZ12-15", BUSH),
+    ("JZB10-12", BUSH), ("JBHN16-12", BUSH), ("SOB20-28-25", BUSH), ("80F-2530", BUSH), ("MCKL25-8-12", CPL),
+    ("MCOWK25-10-14", CPL), ("CPDW32-12-14", CPL), ("SCOC32-10-12", CPL), ("MJC-40CS-RD-10-12", CPL),
+    ("HTCPA32-S5M100-12", PUL), ("AHTFW40-S5M150-12", PUL), ("C-AHTF32-S3M100-8", PUL), ("HTBN900S5M-150", BELT),
+    ("RORPOS50", ROLL), ("UMHS25-8", ROLL),
+    # rubber, shock absorbers, feet, casters, hinges, handles, clear plate, cables, stands
+    ("AXFH-D25-L15-V8", RUB), ("USBYS16-12-M5", RUB), ("MAKC1412L", GAS), ("C-MAKS2016", GAS),
+    ("LEMNT20-150", FOOT), ("HNFJR60-16-100", FOOT), ("NFJN16", FOOT), ("CAZL100", CAST), ("HCFTF100-8", CAST),
+    ("HHPSN8-SET", HINGE), ("HHS40", HINGE), ("C-HHSN30", HINGE), ("MGCST20", HINGE), ("HKPB8-H30", HINGE),
+    ("UWANS12-160-30", HANDLE), ("GRAMS10", HANDLE), ("NKBC8-20-25", HANDLE), ("NOOS10-20", HANDLE),
+    ("PXSL16", HANDLE), ("ACA-200-150-5", WIN), ("C-MPU15-10-28-20", ECH), ("TRVVP-0.5-4-200", CAB),
+    ("YSBP300-B200-H250", WELD), ("RBBW40-40-8", PLATE), ("AJSLCM6-30", PLATE),
+    # how names really look: with a word, a file suffix, an occurrence number or the supplier's name
+    ("PSCS20-15_COLLAR", ROD), ("SHAFT_SFJ20-350", CHROME), ("Misumi_SHA16", LIN), ("LMUW25 bushing", LIN),
+    ("MSTH8-20 pin", ROD), ("HFS5-2020-800:1", PROF), ("PSCS12.stp", ROD), ("LMU16_1", LIN),
+    ("MISUMI-HFS6-3030-450", PROF), ("BPJ8 (MISUMI)", ROD),
+]
+
+# Look-alikes: in-house numbers, steel sections, other suppliers' codes and plain words keep what
+# they were before (nothing, or their own type).
+CODE_LOOKALIKES = [
+    ("MS12-3456", ""), ("MS-1042", ""), ("SHA-2020-04", ""), ("LMU-0042", ""), ("PSC-100", ""), ("1234-5678-01", ""),
+    ("DWG-4471", ""), ("A-10023-R2", ""), ("P00412", ""), ("SHAFT20", ROD), ("SHFT 20", ""),
+    ("SHS 100X100X5", WELD), ("HFS 200X200X10", ""), ("MS6-LFR-1/2-D7", VALVE), ("SPB 1250", BELT),
+    ("SFU1605-600", LIN), ("SFC-030DA2", CPL), ("CB6-20", ""), ("GRAM", ""), ("ANSI FLANGE", PLATE),
+]
+
+
+@pytest.mark.parametrize("name,group", SUPPLIER_CODES, ids=[n for n, _ in SUPPLIER_CODES])
+def test_supplier_code_gives_group(name, group):
+    assert part_types.classify(name) == group
+
+
+@pytest.mark.parametrize("name,group", CODE_LOOKALIKES, ids=[n for n, _ in CODE_LOOKALIKES])
+def test_code_lookalikes_keep_their_group(name, group):
+    # "CB6-20" is a Misumi screw: the fastener rules take it, the part library says nothing
+    assert part_types.classify(name) == group
+
+
+def test_supplier_codes_are_matched_by_their_own_type_only():
+    """A supplier code is not also taken by a pattern of another group (another supplier's code)."""
+    for name, group in SUPPLIER_CODES:
+        text = part_types._code_text(name)
+        groups = {part_types.TYPES[tid].group for pattern, tid, _o in part_types._CODES if pattern.search(text)}
+        assert groups == {group}, (name, groups)
+
+
+def test_supplier_code_assemblies_pass_their_type_on():
+    # a Misumi bushing housing downloaded as an assembly: housing + bushing + retaining ring
+    assert part_types.classify("HOUSING", "M#1/LHFRW20#1/HOUSING#1") == "Linear guides & ball screws"
+    assert part_types.classify("BUSHING", "M#1/LHFRW20#1/BUSHING#1") == "Linear guides & ball screws"
+    # a code on a generic shape gives way to a product named next to it
+    assert part_types.classify("MCKL20-5-10 MOTOR SIDE") == "Couplings & brakes"

@@ -164,20 +164,22 @@ TYPES = [
       "BOSCHPROFIEL|ITEMPROFIEL|NUTPROFIL|SYSTEMPROFIL|STRANGPRESSPROFIL|FRAMING|T SLOT|TSLOT",
       codes=[R + r"0\.0\.\d{3}\.\d{2}" + E,                        # item  0.0.026.23
              R + r"3842\s?\d{3}\s?\d{3}" + E,                       # Bosch Rexroth 3842 990 720
-             R + r"[HNG]FS[A-Z]{0,2}\d{1,2}-\d{4}",                 # Misumi HFS5-2020-500
+             R + r"K?[HNG]FS[A-Z]{0,2}\d{1,2}-\d{4}",               # Misumi HFS5-2020-500, KHFS5-2040-…
              ]),
     T("profile_cap", "Profile caps & covers", "shape",
       "END CAP|ENDCAP|PROFILE CAP|ABDECKKAPPE|EINDKAP|AFDEKKAP|EINDDOP|AFDEKDOP|COVER CAP|SLOT COVER|"
       "COVER STRIP|COVER PROFILE|NUTABDECKUNG|NUTABDECKPROFIL|AFDEKPROFIEL|ABDECKPROFIL|AFDEKSTRIP|"
       "ABDECKLEISTE|CLIP STRIP|END COVER|PROFIELDOP|CAP PROFILE|END CAP PROFILE|AFDEKKAP PROFIEL|"
       "EINDKAP PROFIEL|ABDECKKAPPE PROFIL",
-      codes=[R + r"HFC\d-\d{4}"]),
+      codes=[R + r"HFC\d-\d{4}", R + r"HFC\d{2}[A-Z]\d" + E]),                       # Misumi HFC5-2020, HFC30A5
     T("profile_connector", "Profile connectors & brackets", "component",
       "ANGLE BRACKET|CORNER BRACKET|HOEKVERBINDER|HOEKBEUGEL|HOEKSTEUN|WINKEL|*WINKEL|NUTENWINKEL|"
       "PROFILE CONNECTOR|PROFIELVERBINDER|PROFILVERBINDER|NUTVERBINDER|CENTRAL CONNECTOR|AUTOMATIC FASTENER|"
       "STANDARD FASTENER|ANGLE FASTENER|UNIVERSAL FASTENER|CORNER CUBE|CUBE CONNECTOR|GUSSET|KNOTENBLECH|"
       "CONNECTION SET|VERBINDUNGSSATZ|WINKELSATZ|BUTT FASTENER|STOOTVERBINDER|T CONNECTOR|L CONNECTOR",
-      codes=[R + r"HBL[A-Z]{1,5}\d"]),
+      codes=[R + r"HBL[A-Z]{1,5}\d",
+             R + r"HNT[A-Z]{1,4}\d{1,2}(?:-\d{1,2})?" + E,                  # Misumi slot nuts HNTT5-5, PACK-HNTA6-6
+             ]),
 
     # ---- generic shapes ----------------------------------------------------------------------------
     T("plate", "Plates, blocks & brackets", "shape",
@@ -192,7 +194,10 @@ TYPES = [
       "*FUEHRUNG|SIDE GUIDE|ZIJGELEIDER|SEITENFUEHRUNG|JAW|BEK|BACKE|*BACKE|FINGER|FINGERS|"
       "MANIFOLD|VERTEILER|VERDEELBLOK|ADAPTER|ADAPTOR|BALKJE|RIB|RIBBE|RIPPE|"
       "TAB|BOSS|NAAF|HUB|NABE|*NABE|WEDGE|WIG|KEIL|CARRIER|DRAGER|TRAEGERPLATTE|SLIDE|SLEDE|SCHLITTEN|"
-      "TABLE|TAFEL|TISCH|TABLE TOP|TAFELBLAD|TISCHPLATTE"),
+      "TABLE|TAFEL|TISCH|TABLE TOP|TAFELBLAD|TISCHPLATTE",
+      codes=[  # Misumi configurable plates, ribs, shims, adjusting blocks, belt clamp plates
+             R + r"(?:RBBW|AJSLCM|AJSL)\d{1,3}-\d", R + r"ASFFR-A\d", R + r"TBCR-S\d",
+             ]),
     T("rod", "Shafts, pins & spacers", "shape",
       "SHAFT|SHAFTS|AXLE|WELLE|*WELLE|AXE|ROD|RODS|STANG|STANGE|STAAF|ROUND BAR|RONDSTAAF|RUNDSTAB|PIN|PINS|"
       "PEN|STIFT|*STIFT|KEY|SHAFT KEY|SPACER|SPACERS|DISTANCE|DISTANCE PIECE|DISTANCE BUSH|AFSTANDSBUS|"
@@ -200,12 +205,26 @@ TYPES = [
       "DISTANZ|DISTANZBOLZEN|STANDOFF|STAND OFF|SLEEVE|HULS|HUELSE|HULSE|*HUELSE|*HULSE|RING|COLLAR|"
       "SET COLLAR|STELRING|STELLRING|ADJUSTING RING|SHAFT COLLAR|KLEMRING|KLEMMRING|AXIS PIN|PIVOT|"
       "SPINDLE|SPIL|SPINDEL|TRUNNION|BOLT PIN|HINGE PIN|SCHARNIERPEN|PLUNGER|DRUKSTUK|DRUCKSTUECK|"
-      "DRUCKSTUCK|SPRING PLUNGER|BALL PLUNGER"),
+      "DRUCKSTUCK|SPRING PLUNGER|BALL PLUNGER",
+      codes=[  # Misumi: set collars PSCS10-10, SCSPJ10-6, SSCC20
+             R + r"(?:[PS]?SCS(?:PJ|[JWAP])?|[PS]?SCC|SCCN)\d{1,2}(?:-\d{1,3})?" + E,
+             # spacers, posts and collars PLSBG7-120-M4-N3, SASPL6-30, NCLC20-30-20, CLJJ5-12-13.0
+             R + r"[PS]?LSB[A-Z]{0,3}\d{1,2}-\d", R + r"(?:SASPL|SBSPO|PDSPO|PETGS|STNQ)\d{1,2}-\d",
+             R + r"(?:NCL[CBM]|CLBU|CLBPS|CLJJ|CLJHM|FCLJH|SGPW)\d{1,2}-\d",
+             # pins: dowel MSTH5-10, locating JPLR6-P8.5, hinge/pivot CLBRU10-66.0, stop SSTEH8
+             R + r"(?:MSTM|MSTH|MST|MSC|MS)\d{1,2}-\d{1,3}" + E,
+             R + r"(?:JP[A-Z]{1,4}|FPT|ELANA|SLPSQAG|STPASU)\s?(?:[A-Z]{1,2}\s)?\d{1,2}(?:\.\d)?-[A-Z0-9]",
+             R + r"(?:CLBRU|PCLBGHNU|CLKGH|SCCG|FCBDR)\d{1,2}-\d", R + r"(?:SSTEH|STEHN)\d{1,2}" + E,
+             # ball and spring plungers BPJ16, PJL8-10; stopper bolts UST5-25, ANS4-25; keys KESS5-16
+             R + r"(?:BPJLS|BPRJ|BPJ|BPU|TBPJ|PJL)\d{1,2}[A-Z]?(?:-\d{1,3})?" + E,
+             R + r"(?:UST|PUSS|STRC|UNAHM|UNBH|ANS|SANH|STBBS)\d{1,2}-\d{1,3}" + E, R + r"KESS?\d{1,2}-\d{1,3}" + E,
+             ]),
     T("linear_shaft", "Chrome rods & linear shafts", "component",
       "PISTON ROD|PISTONROD|ZUIGERSTANG|KOLBENSTANGE|GUIDE ROD|GUIDE SHAFT|LINEAR SHAFT|LINEAR ROD|"
       "GELEIDEAS|FUEHRUNGSWELLE|FUHRUNGSWELLE|PRAEZISIONSWELLE|PRECISION SHAFT|CHROME ROD|CHROMED ROD|"
       "VERCHROOMDE AS|CYLINDER ROD|PLUNJER|LINEARWELLE|*LINEARWELLE|LINEAIRE AS",
-      codes=[R + r"P?S?SF[JGHMRWTLUX]{0,3}\d{1,2}-\d{2,4}"]),        # Misumi PSFJ20-300, SFJ16-200
+      codes=[R + r"P?S?SF[JGHMRWTLUXDZK]{0,4}\d{1,2}-\d{2,4}",      # Misumi PSFJ20-300, SFJ16-200, PSFGD20-69
+             R + r"(?:SAFS|SFRX|PSFRZ|PSFHKRW)\d{1,2}-\d{2,4}"]),         # Misumi shafts, rotary shafts
     T("cover", "Covers & panels", "shape",
       "COVER|COVERS|AFDEKKING|AFDEKPLAAT|ABDECKUNG|*ABDECKUNG|ABDECKPLATTE|ABDECKBLECH|COVER PLATE|"
       "PANEL|PANELS|PANEEL|PANEELEN|*PANEEL|PANEL SIDE|SIDE PANEL|ZIJPANEEL|SEITENWAND|WAND|WALL|"
@@ -233,7 +252,8 @@ TYPES = [
       "VIERKANTROHR|RECHTECKROHR|VIERKANTBUIS|SQUARE TUBE|RECTANGULAR TUBE|BOX SECTION|HOLLOW SECTION|"
       "RHS|SHS|CHS|ANGLE|ANGLE IRON|CHANNEL|FLAT STEEL|FLACHSTAHL|STRIPSTAAL|PLATSTAAL|STRIP STEEL",
       codes=[R + r"(?:HE[ABM]|IPE|IPN|INP|UNP|UPN|UPE|HD|UAP)\s?-?\d{2,4}" + E,       # HEA200, IPE 160
-             R + r"(?:RHS|SHS|CHS)\s?\d{2,3}\s?[X*]\s?\d", R + r"L\s?\d{2,3}\s?[X*]\s?\d{2,3}\s?[X*]\s?\d{1,2}" + E]),
+             R + r"(?:RHS|SHS|CHS)\s?\d{2,3}\s?[X*]\s?\d", R + r"L\s?\d{2,3}\s?[X*]\s?\d{2,3}\s?[X*]\s?\d{1,2}" + E,
+             R + r"YSBP\d{3}-"]),                                                                 # Misumi welded stands
     T("wear_strip", "Wear strips", "component",
       "WEAR STRIP|WEARSTRIP|SLIJTSTRIP|SLIJTLIJST|GLEITLEISTE|GLEITPROFIL|WEAR PLATE|SLIJTPLAAT|"
       "VERSCHLEISSPLATTE|CHAIN GUIDE|KETTINGGELEIDER|KETTENFUEHRUNG|KETTENFUHRUNG|SLIDE STRIP|GLIJSTRIP|"
@@ -291,7 +311,8 @@ TYPES = [
       "DAEMPFER|DAMPFER|*DAEMPFER|*DAMPFER|*DEMPER|DASHPOT|OIL DAMPER|VELOCITY CONTROLLER",
       codes=[R + r"RBC?Q?\d{4}" + E,                                   # SMC RB
              R + r"(?:MC|SC|MA|PMCN)\d{2,4}(?:EUM|M)(?:-\d)?" + E,          # ACE
-             R + r"STABILUS" + E],
+             R + r"STABILUS" + E,
+             R + r"MAK[CS]\d{3,4}[A-Z]{0,2}" + E],                          # Misumi MAKC1008L
       roles={"rod": "cylinder_rod", "linear_shaft": "cylinder_rod"}),
     T("valve", "Valves & valve terminals", "product",
       "VALVE|VALVES|VENTIEL|VENTIELEN|VENTIL|*VENTIL|*VENTIEL|KLEP|*KLEP|SOLENOID VALVE|MAGNEETVENTIEL|"
@@ -306,9 +327,9 @@ TYPES = [
                  r"AF|AFM|AFD|AV|AMG|AMH|AMD)\d{2,5}[A-Z]{0,3}-",                 # SMC
              R + r"(?:SY|SYJ|VQ|VQC|VF|JSY)\d{3,4}" + E,
              R + r"(?:VUVG|VUVS|VUVB|VUWG|VSVA|VSNC|VZWF|VZWM|VZWD|VMPA|VMPAL|VTUG|VTUB|VTUS|VTSA|VTEM|CPX|CPE|"
-                 r"MPA|MPAL|MPA-L|MHE|MHA|MHP|VUVE|VAD|VN|OVEM|OVEL|VADM|VAK|LFR|LFRS|LFMA|LFMB|MS[46912]|"
+                 r"MPA|MPAL|MPA-L|MHE|MHA|MHP|VUVE|VAD|VN|OVEM|OVEL|VADM|VAK|LFR|LFRS|LFMA|LFMB|"
                  r"MSB[46]|FRC|LOE|HE|HEE|GRLA|GRLO|GRLZ|GRXA|GRO|VBQF|VFOF|VZQA|VZBA|VZPR)-[A-Z]{0,2}\d",  # Festo
-             R + r"MS[46912]-[A-Z]",
+             R + r"MS[46912]-[A-Z]",                                            # Festo MS6-LFR (MS6-10: Misumi pin)
              R + r"(?:CPV|CPX|VTSA|VTUG|MPA)\d{0,2}-",
              R + r"(?:AV03|AV05|HF0[234]|CL03)" + E,                         # Aventics, Norgren
              ],
@@ -409,7 +430,15 @@ TYPES = [
                  r"MTSKR|MTSTR|MTW|MTWK)\d{2,4}(?:[A-Z]{0,4})?(?:-\d{1,4})?" + E,         # ball screws, rails
              R + r"(?:BK|BF|FK|FF|EK|EF|WBK|WBF)\d{2}" + E,                              # screw support units
              R + r"R\d{2}-\d{1,2}[A-Z]\d" + E,                                           # HIWIN ball screw R16-5T3
-             ]),
+             # Misumi shaft supports SHA20, SHFTL16, STHCN20; linear bushings LMUW20, LHFRW-MX16, C-LHBB10;
+             # ball and lead screws BSX1605, MTSRX16-456; support units BSW12
+             R + r"SH(?:FTL?|FML?|FSSL?|FDL?|FL?|AKD|AKS?|ASSN?|ATN?|AMN?|AN?|FR|FC|FB|FS|BS|KCS)\d{1,2}(?!\d)",
+             R + r"(?:STHCN|STHX[RC]|SHSTMH)\d{1,2}(?!\d)",
+             R + r"S?L(?:MU[WTD]?|MKW|HI?F[RSC]W?|HI[RS]W|HMRW|HFRD|HRK|HKRL|HSS|HG[SW]|HBBW?)\d{1,2}(?!\d)",
+             R + r"LH[A-Z]{2,4}-MX\d{1,2}", R + r"(?:BSX\d{4}|MTS[A-Z]{1,4}\d{2}-\d)", R + r"(?:BSW|BRW|BUN|BUR)\d{2}" + E,
+             R + r"(?:SHS|SSR|HSR|SR|NR|SHW|HRW|RSR|SRS)\d{2}[A-Z]{1,3}\d?[A-Z0-9]*\+\d{3,4}L",      # THK rail + length
+             ],
+      roles={"bushing": "linear_guide"}),          # the BUSHING inside a linear bushing housing (LHFRW20)
     T("bearing", "Bearings", "component",
       "BEARING|BEARINGS|BALL BEARING|ROLLER BEARING|NEEDLE BEARING|THRUST BEARING|SPHERICAL BEARING|"
       "ANGULAR CONTACT BEARING|TAPERED ROLLER BEARING|DEEP GROOVE|KOGELLAGER|ROLLAGER|NAALDLAGER|TAATSLAGER|"
@@ -430,6 +459,7 @@ TYPES = [
              R + r"2[1-4]\d{3}\s?(?:E|EK|EJA|CC|CCK|CA|CAK|MB|MBK)(?:/W33|/C3)?" + E,   # spherical roller
              R + r"(?:RKS|RD|RA|RB|RE|RU|CRBH|CRBC|CRBF|XU|XR|KRB|YRT|YRTS|ZKLF|ZKLN|SX|RTS|VSU|VSA|VSI|KD|KH|KX|"
                  r"KA|XSU|XSA|XSI|MTO|MTE|MT)\d{3,6}" + E,                                  # slewing/crossed roller
+             R + r"(?:B|FL)(?:6[0-4]\d{1,2}|6[7-9]\d{2})(?:ZZ|VV|DDU?|LLU|LLB|2RS|RS|Z)" + E,  # Misumi B6206ZZ, FL608ZZ
              ]),
     T("bearing_housing", "Bearing housings & units", "component",
       "PILLOW BLOCK|PLUMMER BLOCK|BEARING HOUSING|BEARING UNIT|BEARING UNITS|FLANGE BEARING|FLANGED BEARING|"
@@ -441,7 +471,8 @@ TYPES = [
                  r"WR|RM|TF/VA|TDT|TDR|M|KF)" + E,                                           # SKF Y-units
              R + r"(?:SNL|SNV|SAF|SNH|SD|SOFN|FNL|SE|SNG|SONL|SYNT|FYNT|BND|RCJ|RASE|RSAO|RME|PASE|PCJ|TCJ|"
                  r"GRAE|GYE|GE|RCJT|RHE|PCJT|PB|PHE|PSHE|RAK)\s?\d{3,5}" + E,
-             R + r"(?:BGRBB|BGRBS|BGSBB|BGHBB|BGFAB|BGCHB|BGFAC|BGHC)\d{2,4}"]),
+             R + r"(?:BGRBB|BGRBS|BGSBB|BGHBB|BGFAB|BGCHB|BGFAC|BGHC|BGRR)\d{2,4}",
+             R + r"HDH\d{2}" + E]),                                                       # Misumi bearing holders
     T("rod_end", "Rod ends & clevises", "component",
       "ROD END|RODEND|ROD ENDS|ROD END BEARING|GELENKKOPF|*GELENKKOPF|STANGENKOPF|STANGKOP|KOGELGEWRICHT|"
       "KOGELKOP|BALL JOINT|KUGELGELENK|*KUGELGELENK|WINKELGELENK|AXIAL JOINT|AXIALGELENK|CLEVIS|CLEVISES|"
@@ -459,7 +490,10 @@ TYPES = [
       "SINTERED BUSH|SINTERBUCHSE|DU BUSH|DU BUSHING|BRONZE BUSH|BRONZEBUS|COLLAR BUSH|FLANGED BUSHING|"
       "KRAAGBUS|BUNDBUCHSE|DRILL BUSH|BOORBUS|BOHRBUCHSE|GUIDE BUSH|GELEIDEBUS|FUEHRUNGSBUCHSE|FUHRUNGSBUCHSE",
       codes=[R + r"PCM\d{6}" + E, R + r"(?:PAP|PRM|MB)\s?\d{4,6}\s?(?:P10|P14|P20|DU|DX)" + E,
-             R + r"(?:MPBZ|MPBZB|LFZ|LFB|LFDS|BZ|OCR|BUSHB)\d{1,3}-\d{1,3}"]),
+             R + r"(?:MPBZ|MPBZB|LFZ|LFB|LFDS|BZ|OCR|BUSHB)\d{1,3}-\d{1,3}",
+             R + r"(?:MPFZU?|JZB|SMZF?|JBAFS|JBAM|JBA|JBHN)\d{1,2}-[A-Z0-9]",            # Misumi MPFZU8-10, JBA10-15
+             R + r"SOB-?\d{2}-\d{2}-\d{2}" + E,                                        # Sankyo Oilless
+             R + r"(?:\d{2,3}F-\d{4}|SPB-\d{4,6}|500SP\d?-)"]),                        # Oiles 80F-3840, #500SP
     T("plastic_bearing", "Plastic plain bearings", "product",
       "IGLIDUR|IGUBAL|DRYLIN|IGUS BEARING|KUNSTSTOFFGLEITLAGER|KUNSTSTOF GLIJLAGER|PLASTIC BUSHING|"
       "PLASTIC BEARING|POLYMER BEARING|POLYMER BUSHING|POM BUSH|NYLON BUSH|GLEITLAGER KUNSTSTOFF|"
@@ -481,7 +515,9 @@ TYPES = [
                  r"BIPEX)" + E,
              R + r"(?:CPU|CPS|CPE|MCO|MCOC|MCS|MCSC|SCPW|SCXW|MCGS|MCKS|MCSS|SCJ|SJC|XGT|XGS|MFC|MSTS|MOR|"
                  r"MCL|MCLC|MCGL|SFC|SFS|SRB|XHW|XBW)\d{2}[A-Z]{0,3}-\d",
-             R + r"(?:SFC|SFS|SFF|SFM|SFH|CHP|ALS|XGL)-\d{3}"]),                                # Miki Pulley
+             R + r"(?:SFC|SFS|SFF|SFM|SFH|CHP|ALS|XGL)-\d{3}",                                  # Miki Pulley
+             # Misumi couplings with two bores: MCKL20-5-10, CPDW40-16-19, SCOC25-8-10; NBK MJC-30CS
+             R + r"(?:MC[A-Z]{1,6}|CP[A-Z]{2,4}|SCOC)\d{2}-\d{1,2}(?:\.\d{1,2})?-\d{1,2}", R + r"MJC-\d{2}"]),
     T("gear", "Gears & sprockets", "component",
       "GEAR|GEARS|GEAR WHEEL|GEARWHEEL|SPUR GEAR|HELICAL GEAR|BEVEL GEAR|RING GEAR|PINION|RONDSEL|TANDWIEL|"
       "TANDWIELEN|*TANDWIEL|ZAHNRAD|*ZAHNRAD|ZAHNRAEDER|ZAHNRADER|STIRNRAD|KEGELRAD|*KEGELRAD|RITZEL|"
@@ -497,8 +533,9 @@ TYPES = [
       "RIEMENSCHEIBE|ZAHNRIEMENSCHEIBE|ZAHNRIEMENRAD|*RIEMENSCHEIBE|TANDRIEMSCHIJF|TANDRIEMWIEL|"
       "SPANROL|SPANNROLLE|UMLENKROLLE|KEERROL|KEERWIEL|TENSION PULLEY|DEFLECTION PULLEY|V PULLEY|"
       "KEILRIEMENSCHEIBE|V SNAARSCHIJF",
-      codes=[R + r"(?:HTPA|HTPB|HTPK|HTPT|HTPN|TPA|TPB|GPA|GPB|ATP|MTPA|MTPB|HTBN|HTPAB|PBA|PBB|PTA|STPA|"
-                 r"RTPA|TTPA|BTPA|GTPA|TTPB|HTPHK)\d{2,3}[A-Z]{1,4}\d{0,3}"]),
+      codes=[R + r"(?:HTPA|HTPB|HTPK|HTPT|HTPN|TPA|TPB|GPA|GPB|ATP|MTPA|MTPB|HTPAB|PBA|PBB|PTA|STPA|"
+                 r"RTPA|TTPA|BTPA|GTPA|TTPB|HTPHK)\d{2,3}[A-Z]{1,4}\d{0,3}",
+             R + r"(?:HTCPA|AHTFW?)\d{2,3}-?[A-Z]"]),                                      # Misumi HTCPA40, AHTFW28
     T("chain", "Chains", "component",
       "CHAIN|CHAINS|KETTING|KETTINGEN|KETTE|KETTEN|*KETTE|ROLLER CHAIN|ROLLENKETTE|ROLKETTING|"
       "LIFTING CHAIN|HIJSKETTING|HEBEKETTE|ANCHOR CHAIN|ANKERKETTING|CONVEYOR CHAIN|TRANSPORTKETTING|"
@@ -511,7 +548,8 @@ TYPES = [
       "MODULAR BELT|MATTOP|MAT TOP|ROUND BELT|RONDSNAAR|RUNDRIEMEN",
       codes=[R + r"\d{3,5}\s?-?\s?(?:[2358]M|14M|XL|AT\d{1,2}|T\d{1,2})\s?-?\s?\d{1,3}" + E,  # 1200-8M-30
              R + r"(?:HTD|GT2|GT3|GT5|RPP|STD)\s?-?\d{3,5}",
-             R + r"(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC)\s?\d{3,5}(?:\s?(?:LW|LD|LI|LA|MM))?" + E]),
+             R + r"(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC)\s?\d{3,5}(?:\s?(?:LW|LD|LI|LA|MM))?" + E,
+             R + r"HTBN\d{3,4}[A-Z]{0,2}\d?M"]),                                          # Misumi HTBN1350S5M-250
     T("spring", "Springs", "component",
       "SPRING|SPRINGS|COMPRESSION SPRING|TENSION SPRING|EXTENSION SPRING|TORSION SPRING|VEER|VEREN|*VEER|"
       "DRUKVEER|TREKVEER|TORSIEVEER|SCHROEFVEER|FEDER|FEDERN|*FEDER|DRUCKFEDER|ZUGFEDER|SCHENKELFEDER|"
@@ -544,7 +582,8 @@ TYPES = [
       "KANTBESCHERMING|KANTENSCHUTZ|KANTENSCHUTZPROFIL|KEDER|BELLOWS|BALG|*BALG|FALTENBALG|VOUWBALG|"
       "HARMONICABALG|GAITER|BOOT|STOFHOES|SCHUTZBALG|RUBBER STRIP|RUBBERSTRIP|GUMMISTREIFEN|RUBBER SHEET|"
       "RUBBERMAT|GUMMIMATTE|RUBBER MAT|FENDER|FENDERS|STOOTRUBBER|STOOTBUFFER|STOSSPUFFER|BRUSH|BRUSHES|"
-      "BORSTEL|BORSTELS|BUERSTE|BURSTE|BUERSTENLEISTE|BRUSH STRIP|BORSTELSTRIP|DEFLECTOR RUBBER"),
+      "BORSTEL|BORSTELS|BUERSTE|BURSTE|BUERSTENLEISTE|BRUSH STRIP|BORSTELSTRIP|DEFLECTOR RUBBER",
+      codes=[R + r"(?:AXFH|CXF|AAFS)-?[A-Z]?\d", R + r"USBYS\d{1,2}-"]),                 # Misumi urethane bumpers
 
     # ---- electrical -------------------------------------------------------------------------------
     T("cable", "Cables", "component",
@@ -559,7 +598,7 @@ TYPES = [
              R + r"(?:EVC|EVF|EVT)\d{3,4}" + E, R + r"E1\d{4}" + E,                                 # ifm
              R + r"(?:YF2A|YG2A|YM2A|YF2B|YG2B)\d{2}-\d{3}", R + r"(?:DOL|DSL|STL|STE)-\d{4}",    # Sick
              R + r"(?:\d{1,2}G\d{1,3}(?:[.,]\d{1,2})?|\d{1,2}\s?X\s?\d{1,3}(?:[.,]\d{1,2})?\s?MM2)" + E,  # 4G1.5
-             R + r"(?:6XV|6ES7\s?901|6FX\d{4})-?\d"]),
+             R + r"(?:6XV|6ES7\s?901|6FX\d{4})-?\d", R + r"(?:TRVVP|AVVR)-\d"]),            # Misumi cables
     T("cable_chain", "Cable chains", "product",
       "CABLE CHAIN|CABLECHAIN|ENERGY CHAIN|ENERGYCHAIN|E CHAIN|ECHAIN|DRAG CHAIN|DRAGCHAIN|CABLE CARRIER|"
       "CABLE TRACK|ENERGIEKETTE|ENERGIEFUEHRUNGSKETTE|SCHLEPPKETTE|KABELSCHLEPP|KABELSLEPKETTING|"
@@ -568,7 +607,8 @@ TYPES = [
       codes=[R + r"E[2346]\.?\d{1,3}\.\d{2,3}(?:\.\d{2,3})?(?:\.\d)?" + E, R + r"E[2346]/\d{3}",
              R + r"(?:B|Z|TRE|TRC|TRL|E2C|E2K)\d{2,3}\.\d{2,3}(?:\.\d{2,4})?" + E,
              R + r"(?:UNIFLEX|QUANTUM|PROTUM|MICROTRAX|EASYTRAX|TKP|TKR|TKHD)\s?\d{2,4}",       # Kabelschlepp
-             R + r"IGUS[_ -]?\d{2,4}\.\d{2}\.\d{2,3}"],                                       # igus 2400.05.075
+             R + r"IGUS[_ -]?\d{2,4}\.\d{2}\.\d{2,3}",                                       # igus 2400.05.075
+             R + r"(?:MPU|MSU)\d{2}-\d{2}-\d{2}"],                                             # Misumi C-MPU10-10-18
       absorb="all"),
     T("cable_gland", "Cable glands", "component",
       "CABLE GLAND|CABLEGLAND|GLAND|GLANDS|WARTEL|WARTELS|KABELWARTEL|KABELVERSCHRAUBUNG|*KABELVERSCHRAUBUNG|"
@@ -776,20 +816,22 @@ TYPES = [
       "POOT|POTEN|FUSS|FUESSE|*FUSS|BODENPLATTE FUSS|ANCHOR FOOT|VLOERVOET",
       codes=[R + r"LV\.F" + E, R + r"LV\.[A-Z]-?\d{2}", R + r"(?:GN\s?343|GN\s?344|GN\s?345|GN\s?348|GN\s?338|GN\s?339|GN\s?340|"
              r"GN\s?346)(?:\.\d)?" + E,
-             R + r"(?:ADP|ADJF|ADJS|ADJB|ADJH|ADJW|ADPG|LEFS|LEFM|LEMS|LEML|LEPS|LEPM)\d{1,2}-"]),
+             R + r"(?:ADP|ADJF|ADJS|ADJB|ADJH|ADJW|ADPG|LEFS|LEFM|LEMS|LEML|LEPS|LEPM)\d{1,2}-",
+             R + r"(?:LEMNT|LEMN|HNFJR|NFJN)\d{2,3}(?!\d)"]),                                # Misumi levelling mounts
     T("caster", "Casters & wheels", "component",
       "CASTER|CASTERS|CASTOR|CASTORS|SWIVEL CASTER|FIXED CASTER|WHEEL|WHEELS|WIEL|WIELEN|*WIEL|ZWENKWIEL|"
       "ZWENKWIELEN|BOKWIEL|BOKWIELEN|ZWENKROL|LENKROLLE|LENKROLLEN|BOCKROLLE|BOCKROLLEN|TRANSPORTROLLE|"
       "RAD|RAEDER|RADER|*RAD|LAUFRAD|LAUFRAEDER|TROLLEY WHEEL|LOOPWIEL|TRACK WHEEL|KRAANWIEL|KRANRAD|"
       "TYRE|TIRE|BAND WIEL|BANDEN WIEL|REIFEN|ROLLER WHEEL|POLYURETHANE WHEEL|PU WHEEL|NYLON WHEEL",
-      codes=[R + r"(?:TENTE|BLICKLE|COLSON|GUITEL|WICKE|ROLLCO)" + E]),
+      codes=[R + r"(?:TENTE|BLICKLE|COLSON|GUITEL|WICKE|ROLLCO)" + E, R + r"(?:HCFTF|CAZL)\d{2,3}"]),
     T("roller", "Conveyor rollers", "component",
       "CONVEYOR ROLLER|CONVEYORROLLER|TRANSPORT ROLLER|TRANSPORTROL|TRANSPORTROLLEN|ROLLENBAAN|ROLLERBAAN|"
       "ROL|ROLLEN|*ROL|ROLLER|ROLLERS|ROLLE|*ROLLE|TRAGROLLE|FOERDERROLLE|FORDERROLLE|DRIVE ROLLER|AANDRIJFROL|"
       "ANTRIEBSROLLE|IDLER ROLLER|MOTOR ROLLER|MOTORROLLER|MOTORROL|BALL TRANSFER|KOGELROL|KUGELROLLE|"
       "KUGELROLLER|BALL TRANSFER UNIT|GUIDE ROLLER|GELEIDEROL|FUEHRUNGSROLLE|PRESSURE ROLLER|DRUKROL|"
       "ANDRUCKROLLE|SUPPORT ROLLER|STEUNROL|STUETZROLLE|NIP ROLLER|DRUM ROLLER",
-      codes=[R + r"(?:INTERROLL|ROLLEX|ITOH DENKI|RULMECA|VAN DER GRAAF)" + E, R + r"(?:EC5000|EC310)" + E]),
+      codes=[R + r"(?:INTERROLL|ROLLEX|ITOH DENKI|RULMECA|VAN DER GRAAF)" + E, R + r"(?:EC5000|EC310)" + E,
+             R + r"(?:RORPOS|UMHS)\d{2}"]),                                                # Misumi rollers
     T("hinge", "Hinges & latches", "component",
       "HINGE|HINGES|SCHARNIER|SCHARNIEREN|*SCHARNIER|DOOR HINGE|DEURSCHARNIER|TUERSCHARNIER|BAND SCHARNIER|"
       "PIANO HINGE|PIANOSCHARNIER|STANGENSCHARNIER|LATCH|LATCHES|SLUITING|*SLUITING|VERSCHLUSS|*VERSCHLUSS|"
@@ -799,7 +841,9 @@ TYPES = [
       "DOOR STAY|DEURSTOP|TUERFESTSTELLER|DOOR HOLDER|DEURHOUDER|TUERHALTER|COMPRESSION LATCH|"
       "SPANNSCHLOSS SCHRANK|CAM LOCK|CAMLOCK|PADLOCK|HANGSLOT|VORHAENGESCHLOSS|STRIKER|SLUITPLAAT|SCHLIESSBLECH",
       codes=[R + r"(?:GN\s?7\d{3}|GN\s?115|GN\s?119|GN\s?161|GN\s?237|GN\s?337|GN\s?7233)(?:\.\d)?" + E,
-             R + r"(?:SOUTHCO|DIRAK|EMKA)" + E, R + r"(?:HHPM|HHPN|HHPS|HHPE|HHSS|HHSL)\d{2}"]),
+             R + r"(?:SOUTHCO|DIRAK|EMKA)" + E, R + r"(?:HHPM|HHPN|HHPS|HHPE|HHSS|HHSL)\d{2}",
+             # Misumi hinges HHPSN6, HHS25, E-HNG90; magnet catches MGCST30, HMEN-T; hinge bases HKPB6
+             R + r"(?:HHPSN|HHSN|HHS|HHKS|HNG|MGCST|MGCC|MGCEJ|HKPB|HGCNB)\d{1,3}(?!\d)", R + r"HMEN-"]),
     T("handle", "Handles & knobs", "component",
       "HANDLE|HANDLES|HANDLE BAR|HANDLEBAR|BOW HANDLE|PULL HANDLE|TUBULAR HANDLE|HANDGREEP|HANDGREPEN|GREEP|GREPEN|*GREEP|"
       "TREKGREEP|BEUGELGREEP|GRIFF|GRIFFE|*GRIFF|BUEGELGRIFF|BUGELGRIFF|HANDGRIFF|ROHRGRIFF|MULDENGRIFF|"
@@ -812,14 +856,19 @@ TYPES = [
       "RECESSED HANDLE|INBOUWGREEP|ELESA|GANTER|NORELEM|KIPP|HEINRICH KIPP|WDS",
       codes=[R + r"GN\s?\d{3}(?:\.\d)?" + E, R + r"GN\s?\d{3}(?:\.\d)?-\d",
              R + r"(?:M\.\d{3}|MPR|ERX|ECX|EBR|EWX|EBP|EBL|EWB|ERD|VCT|VDS|IZN|IZD|IZR)[.\-+]?\d{1,3}",  # Elesa
-             R + r"K\d{4}\.\d{2,4}" + E]),                                                     # Kipp
+             R + r"K\d{4}\.\d{2,4}" + E,                                                       # Kipp
+             # Misumi handles UWANS10-120, GRAMS12; knobs NKBC6-16, NOOS8; handwheels PHSN; indexing plungers PXSL20
+             R + r"(?:UWANS|UWAPN|UHFSN|GRAMS|GRAM|HHDS|UGFN|HFHDL|NKBC|NKBB|NKSM|NOOS|NMM|SKN|PHSN|AHSN|PHSM|"
+                 r"AHSK)\d{1,3}(?!\d)",
+             R + r"(?:PXSL|PXNK|PXNAN|SXPP|SXNA)\d{1,2}"]),
     T("window", "Windows & clear parts", "component",
       "WINDOW|WINDOWS|VENSTER|VENSTERS|*VENSTER|FENSTER|*FENSTER|SICHTFENSTER|KIJKVENSTER|KIJKGLAS|KIJKRUIT|"
       "SCHAUGLAS|VIEWING WINDOW|VIEW WINDOW|INSPECTION WINDOW|INSPECTIEVENSTER|RUIT|RUITEN|*RUIT|SCHEIBE GLAS|"
       "GLAZING|BEGLAZING|VERGLASUNG|GLASS PANEL|GLASPANEEL|GLASSCHEIBE|SAFETY GLASS|VEILIGHEIDSGLAS|"
       "SICHERHEITSGLAS|WINDSCREEN|WINDSHIELD|VOORRUIT|WINDSCHUTZSCHEIBE|SIGHT GLASS PANEL|CLEAR PANEL|"
       "CLEAR COVER|CLEAR GUARD|TRANSPARENT COVER|TRANSPARANTE KAP|TRANSPARENT PANEL|VISOR|VIZIER|"
-      "PC PLATE|PC PANEL|PC SHEET|PC PLAAT|PMMA PLATE|LEXAN PLATE|PLEXIPLAAT|PLEXIGLASPLAAT|POLYCARB"),
+      "PC PLATE|PC PANEL|PC SHEET|PC PLAAT|PMMA PLATE|LEXAN PLATE|PLEXIPLAAT|PLEXIGLASPLAAT|POLYCARB",
+      codes=[R + r"ACA-\d{2,4}-\d{2,4}-\d"]),                                                # Misumi acrylic plates
     T("wire_mesh", "Wire mesh & fences", "component",
       "WIRE MESH|WIREMESH|MESH|MESH PANEL|MESHPANEL|GAAS|GAASPANEEL|GAASPANELEN|DRAADGAAS|GAASWERK|GITTER|"
       "*GITTER|DRAHTGITTER|GITTERPANEEL|GITTERELEMENT|FENCE|FENCES|FENCING|HEK|HEKKEN|HEKWERK|*HEKWERK|"
