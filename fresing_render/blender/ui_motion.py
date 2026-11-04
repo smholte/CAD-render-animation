@@ -18,14 +18,34 @@ from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, 
 
 
 class FRESING_UL_joints(bpy.types.UIList):
+    """Joints; a joint riding on another one is listed right under it, indented."""
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
+        d = joints.depth(context.scene, item)
+        if d:
+            row.separator(factor=1.2 * d)
         row.prop(item, "name", text="", emboss=False,
                  icon="CON_ROTLIKE" if item.kind == "ROTATE" else "CON_LOCLIKE")
+        sub = row.row(align=True)
+        sub.ui_units_x = 4.2                   # room for "-1234 mm"; the name gets the rest of the row
         if item.motion is not None:
-            row.prop(item.motion, f'["{joints.VALUE}"]', text="")
+            sub.prop(item.motion, f'["{joints.VALUE}"]', text="")
         else:
-            row.label(text="(broken)", icon="ERROR")
+            sub.label(text="(broken)", icon="ERROR")
+
+    def filter_items(self, context, data, propname):
+        items = getattr(data, propname)
+        flags = [self.bitflag_filter_item] * len(items)
+        if self.filter_name:
+            needle = self.filter_name.lower()
+            flags = [f if needle in it.name.lower() else 0 for f, it in zip(flags, items)]
+        order, _depths = joints.tree_order(context.scene)
+        neworder = [0] * len(items)
+        for pos, i in enumerate(order):
+            if i < len(neworder):
+                neworder[i] = pos
+        return flags, neworder
 
 
 def _names(objs, n: int = 2) -> str:
@@ -67,6 +87,11 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         movers = selected_movers(context)
         if movers:
             wrap(layout, context, f"Selected: {_names(movers)}", icon="RESTRICT_SELECT_OFF")
+            below, reason = joints.stack_info(scene, movers)
+            if reason:
+                wrap(layout, context, reason, icon="ERROR", alert=True)
+            elif below is not None:
+                wrap(layout, context, f"Adds a joint on top of '{below.name}': the moves add up", icon="LINKED")
         else:
             wrap(layout, context, "Nothing selected: click what should move", icon="RESTRICT_SELECT_ON", alert=True)
         row = big_row(layout, MEDIUM)
@@ -100,6 +125,13 @@ def _draw_joints(context, layout, s):
     elif j is not None:
         box = layout.box()
         box.label(text=j.name, icon="CON_ROTLIKE" if j.kind == "ROTATE" else "CON_LOCLIKE")
+        below = joints.rides_on(context.scene, j)
+        if below is not None:
+            # in a stack: the order matters for rotations, so it is shown with the swap right under it
+            wrap(box, context, f"Rides on '{below.name}'", icon="LINKED", inset=12)
+            sub = box.row(align=True)
+            sub.enabled = not joints.swap_check(context.scene, j)      # the tooltip says why not
+            sub.operator("fresing.joint_swap", text="Swap order", icon="UV_SYNC_SELECT")
         row = box.row(align=True)
         row.scale_y = BIG
         row.prop(j.motion, f'["{joints.VALUE}"]', text="Angle" if j.kind == "ROTATE" else "Distance")
@@ -121,8 +153,12 @@ def _draw_joints(context, layout, s):
         # a fold needs the full panel width, so it sits right under the box
         body = fold(layout, "fr_joint_setup", "Set-up: what moves, axis, type", icon="PREFERENCES")
         if body:
-            mem = joints.members(j)
-            body.label(text=f"Moves: {_names(mem, 3) or 'nothing'}", icon="OBJECT_DATA")
+            mem = joints.moved_objects(context.scene, j)
+            wrap(body, context, f"Moves: {_names(mem, 3) or 'nothing'}", icon="OBJECT_DATA")
+            above = joints.riders(context.scene, j)
+            if above:
+                names = ", ".join("'" + r.name + "'" for r in above)
+                wrap(body, context, f"Carries: {names}", icon="LINKED")
             row = body.row(align=True)
             row.operator("fresing.joint_members", text="Add", icon="ADD").action = "ADD"
             row.operator("fresing.joint_members", text="Remove", icon="REMOVE").action = "REMOVE"
@@ -140,8 +176,9 @@ def _draw_joints(context, layout, s):
             for kind, label in (("ROTATE", "Rotate"), ("SLIDE", "Slide")):
                 op = row.operator("fresing.joint_kind", text=label, depress=j.kind == kind)
                 op.kind = kind
-            col = split_props(body)
-            col.prop(j, "base", text="Sits on")
+            if below is None:                         # a joint in a stack sits on the joint under it
+                col = split_props(body)
+                col.prop(j, "base", text="Sits on")
 
 
 class FRESING_UL_poses(bpy.types.UIList):

@@ -1,12 +1,12 @@
 # 0022 – More parts sorted on import: supplier catalogue codes
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0022-more-supplier-codes`
+**Who:** worker · **Status:** running · **Branch:** `task/0022-more-supplier-codes`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Part library (only `core/part_types_data.py`,
 `core/part_types.py`, `tests/test_part_types.py`; no UI, no `blender/`) – runs next to 0015.
 
 ## Goal
 
-More parts get the right material on their own. On the owner's EGR model the library sorts 55 %
+More parts get the right material on their own. On the EGR test model (GrabCAD) the library sorts 55 %
 of the placed parts (1,540 of 2,789; task 0010's report); 1,247 stay Unsorted, many of them with
 supplier catalogue numbers the library does not know yet (Misumi above all). Raise that number
 without sorting things wrongly.
@@ -15,12 +15,15 @@ without sorting things wrongly.
 
 - Read the reports of 0008 (how the library matches: words, vendor-code patterns, parent
   assemblies, machine modules) and 0010 (the EGR measurement).
-- The owner attaches the EGR STEP in this chat (ask him). **Its names never go into the
-  repository** (public): not in tests, data, comments or commit messages. Write generic patterns
-  and invented example codes in the same format instead.
-- In-house abbreviations of the owner's company (or his clients) do not belong in the built-in
-  library: they go into his own rule set once task 0015 is done. List them for him in the chat
-  (top unknown words with counts – in the chat only), so he can say what they mean.
+- The owner attaches the EGR STEP in this chat (ask him). It is a **public GrabCAD model** made
+  by someone else (not the owner's or his clients'): do not commit the file or lists of its
+  names; write generic patterns and invented example codes in the same format.
+- Its unknown abbreviations are its maker's in-house words, not the owner's: do not tune the
+  library to them. Tune only to public knowledge (supplier catalogues, common machine-building
+  words in EN/NL/DE) – the EGR file is a measuring stick, not the target.
+- Ask the owner whether he can also attach **one of his own models** (Inventor or Fusion, chat
+  only, never committed) – a second measuring stick with his own naming. Unknown words in his
+  own model: list them for him in the chat; his company words go into his own rule set (0015).
 
 ## What to build
 
@@ -41,7 +44,8 @@ without sorting things wrongly.
 - [ ] EGR coverage before/after in the report (numbers only); spot check of wrong groups
 - [ ] Independent check numbers in the report
 - [ ] Full suite passes; report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
-- [ ] List of the owner's unknown in-house words given to him in the chat (not committed)
+- [ ] If the owner attached one of his own models: its coverage too, and its unknown words
+      listed for him in the chat (not committed)
 
 ## Not in this task
 

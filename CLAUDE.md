@@ -126,9 +126,11 @@ Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
 
-Big test model: the owner's "EGR line" STEP (78 MB, 2,789 placed / 584 unique
-parts, 4.2 M triangles) is **not** in the repository. Ask the owner to attach it when a task
-needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
+Big test model: the "EGR line" STEP (78 MB, 2,789 placed / 584 unique parts, 4.2 M triangles)
+is a public model from GrabCAD, **not** the owner's or his clients' design. It is not in the
+repository (its maker's rights: do not redistribute it). Ask the owner to attach it when a task
+needs it. Its part names follow its maker's conventions, not the owner's: for sorting coverage
+on the owner's own naming, ask him for one of his own models (attached in the chat only). Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
 `tools/make_test_crane.py`).
 
 ## 6. Rules for changes
@@ -193,3 +195,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Python references to items of a collection property (`scene.fresing.joints[i]`) become
+  invalid when that collection grows or shrinks: keep names (or the joint's Objects) and look
+  the item up again; compare items with `==` or by name, never with `is`.
+- A joint axis made from a point + direction leaves the arrow's turn about its own axis open
+  (and unstable for a vertical axis). Joints riding on it (stacks, task 0011) depend on that
+  turn: when rebuilding, pass the whole frame matrix (`joints.create(frame_world=...)`).

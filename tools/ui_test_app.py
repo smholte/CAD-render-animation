@@ -125,6 +125,12 @@ def s_start():
         for k in range(1, 11):
             win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x0 - 25 * k, y=y0)
         win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x0 - 250, y=y0)
+    return 1.0
+
+
+@step
+def s_import():
+    # one step after the Esc: with no splash open, that Esc would reach the import and cancel it
     with override():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
