@@ -172,9 +172,11 @@ download them on the run page. A chat may push files under `.github/workflows/`,
 delete branches on GitHub (refused, like tag pushes): name leftover branches in the report so
 the owner can delete them on github.com (Code → branches → bin icon).
 
-Big test model: the owner's "EGR line" STEP (78 MB, 2,789 placed / 584 unique
-parts, 4.2 M triangles) is **not** in the repository. Ask the owner to attach it when a task
-needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
+Big test model: the "EGR line" STEP (78 MB, 2,789 placed / 584 unique parts, 4.2 M triangles)
+is a public model from GrabCAD, **not** the owner's or his clients' design. It is not in the
+repository (its maker's rights: do not redistribute it). Ask the owner to attach it when a task
+needs it. Its part names follow its maker's conventions, not the owner's: for sorting coverage
+on the owner's own naming, ask him for one of his own models (attached in the chat only). Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
 `tools/make_test_crane.py`).
 
 ## 6. Rules for changes
@@ -251,3 +253,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
   load the wrong modules: clear it for the child (`tools/ci_windows_install.ps1` does).
 - GitHub caches made on a branch are only seen by that branch; caches made on `main` are seen
   by all branches. The first run of a new branch may download Blender again (about 1 minute).
+- Python references to items of a collection property (`scene.fresing.joints[i]`) become
+  invalid when that collection grows or shrinks: keep names (or the joint's Objects) and look
+  the item up again; compare items with `==` or by name, never with `is`.
+- A joint axis made from a point + direction leaves the arrow's turn about its own axis open
+  (and unstable for a vertical axis). Joints riding on it (stacks, task 0011) depend on that
+  turn: when rebuilding, pass the whole frame matrix (`joints.create(frame_world=...)`).

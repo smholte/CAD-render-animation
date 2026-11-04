@@ -183,7 +183,7 @@ PRESETS = [
     # id, label, library material, colour
     ("profile", "Aluminium profile", "aluminium_profile", ""),
     ("alu", "Aluminium, anodised", "aluminium_anodized", ""),
-    ("alu_black", "Aluminium, black anodised", "aluminium_anodized_color", "RAL 9005"),
+    ("alu_black", "Aluminium, black anodised", "aluminium_anodized_black", ""),
     ("alu_machined", "Aluminium, machined", "aluminium_machined", ""),
     ("stainless", "Stainless, brushed", "stainless_brushed", ""),
     ("steel", "Steel, machined", "steel_machined", ""),
@@ -199,6 +199,7 @@ PRESETS = [
     ("plastic_black", "Plastic, black matte", "plastic_matte", "RAL 9005"),
     ("cable", "Cable / hose, black", "cable_black", ""),
     ("pc_clear", "Polycarbonate, clear (guards)", "polycarbonate_clear", ""),
+    ("wire_mesh", "Wire mesh panel, black (see-through)", "wire_mesh", "RAL 9005"),
     ("glass_tinted", "Glass / PC, tinted grey", "glass_tinted", "RAL 7016"),
     ("paint_7035", "Paint RAL 7035 light grey", "paint_satin", "RAL 7035"),
     ("paint_7016", "Paint RAL 7016 anthracite", "paint_satin", "RAL 7016"),

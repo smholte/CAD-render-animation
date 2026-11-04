@@ -109,6 +109,12 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "")
         nt.links.new(bn.outputs["Fac"], bnode.inputs["Height"])
         nt.links.new(bnode.outputs["Normal"], bsdf.inputs["Normal"])
 
+    grid = spec.get("grid")
+    if grid:
+        _grid_holes(nt, bsdf, grid)
+        if hasattr(mat, "surface_render_method"):
+            mat.surface_render_method = "DITHERED"
+
     # viewport (solid mode) look
     mat.diffuse_color = (*lin, 1.0)
     mat.metallic = float(spec.get("metallic", 0.0))
@@ -119,6 +125,57 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "")
             mat.surface_render_method = "BLENDED"
     mat["fr_material"] = material_id
     mat["fr_color"] = color_text
+
+
+def _math(nt, op: str, a, b=None, x: float = 0.0, y: float = 0.0):
+    """A Math node; ``a``/``b`` are sockets or numbers."""
+    node = nt.nodes.new("ShaderNodeMath")
+    node.operation = op
+    node.location = (x, y)
+    for i, v in enumerate((a, b)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            node.inputs[i].default_value = v
+        else:
+            nt.links.new(v, node.inputs[i])
+    return node.outputs[0]
+
+
+def _grid_holes(nt, bsdf, grid: dict) -> None:
+    """Holes of a wire mesh in a plate: Alpha = 1 on the wires, 0 in between.
+
+    The wires run along the two object axes that lie in the face (picked from the face normal),
+    every ``spacing`` metres, ``wire`` thick; object coordinates, so every copy looks the same."""
+    spacing, wire = grid.get("spacing", 0.025), grid.get("wire", 0.003)
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    coord.location = (-1600, -500)
+    pos = nt.nodes.new("ShaderNodeSeparateXYZ")
+    pos.location = (-1400, -450)
+    nt.links.new(coord.outputs["Object"], pos.inputs[0])
+    nrm = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nrm.location = (-1400, -750)
+    nt.links.new(coord.outputs["Normal"], nrm.inputs[0])
+    near, along = [], []
+    for k in range(3):
+        y = -400 - 120 * k
+        wrapped = nt.nodes.new("ShaderNodeMath")
+        wrapped.operation = "WRAP"
+        wrapped.location = (-1200, y)
+        nt.links.new(pos.outputs[k], wrapped.inputs[0])
+        wrapped.inputs[1].default_value = spacing
+        wrapped.inputs[2].default_value = 0.0
+        near.append(_math(nt, "LESS_THAN", wrapped.outputs[0], wire, -1000, y))        # on a wire of this axis
+        absn = _math(nt, "ABSOLUTE", nrm.outputs[k], None, -1200, y - 400)
+        along.append(_math(nt, "GREATER_THAN", absn, 0.577, -1000, y - 400))         # the face looks along it
+    total = None
+    for k in range(3):
+        i, j = [a for a in range(3) if a != k]
+        either = _math(nt, "MAXIMUM", near[i], near[j], -800, -400 - 120 * k)
+        term = _math(nt, "MULTIPLY", along[k], either, -600, -400 - 120 * k)
+        total = term if total is None else _math(nt, "ADD", total, term, -400, -400 - 120 * k)
+    alpha = _math(nt, "MINIMUM", total, 1.0, -200, -500)
+    nt.links.new(alpha, bsdf.inputs["Alpha"])
 
 
 def ensure_material(group: str, material_id: str, color_text: str = "") -> bpy.types.Material:

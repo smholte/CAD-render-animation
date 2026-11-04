@@ -132,6 +132,15 @@ def facts_for(name: str, path: str = "", color: str = "", assembly: str = "", ca
                      fastener=fasteners.parse(name))
 
 
+def face_facts(color: str = "", cad_material: str = "") -> PartFacts:
+    """Facts about faces painted in the CAD file (a face set of a part): only their colour and
+    appearance count. Name rules, part types and fasteners are about whole parts, so they never
+    sort single faces; a rule on the colour or the CAD material does ("Colour is #C0C0C0 ->
+    Anodised"). Without such a rule a face set lands in "Colour #RRGGBB" (or its appearance)."""
+    cad = cad_material if cad_material and cad_materials.lookup(cad_material) else ""
+    return PartFacts(name="", color=color, cad_material=cad)
+
+
 def _matches(rule: Rule, facts: PartFacts) -> bool:
     value = facts.get(rule.field)
     v = value.upper()

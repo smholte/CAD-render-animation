@@ -3,6 +3,57 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.10 – 5 Nov 2026 – Several joints on one subassembly (task 0011)
+
+Commit `2d89872`.
+
+4 Motion
+- A subassembly can now have more than one joint, and the moves add up. Example: joint 1
+  slides it 1000 mm in Y, joint 2 slides it 500 mm in X: it ends up at X +500 / Y +1000.
+  Works for any mix of rotate and slide, and for three or more joints.
+- How: click a subassembly that already moves with a joint and press Add rotate joint or
+  Add slide joint as usual. Above the buttons it says "Adds a joint on top of '…': the moves
+  add up". The new joint rides on the older one: its axis moves along with it (like a crane:
+  slew, then luff).
+- The joint list shows a joint that rides on another one indented right under it. The
+  details of that joint show "Rides on '…'" and a "Swap order" button: the other joint then
+  rides on this one. With two slides nothing changes; with a rotation it does (turn then
+  slide, or slide then turn). Swap works when the lower joint moves only what the upper one
+  moves (otherwise the button is grey and its tooltip says why).
+- Removing a joint from a stack: what it moved goes back to the joint under it, and joints
+  riding on it move down. Taking a part out of the top joint ("Remove" under Set-up) puts it
+  back on the joint under it.
+- Set-up of the lower joint: "Moves:" lists what it moves through the joints on it, and
+  "Carries:" names those joints. "Select" selects all of it.
+- Poses, "Everything back to CAD position", Explode, animation steps (one after the other
+  or at the same time), Fit camera, limits, Flip, rotate/slide, undo and model updates all
+  work with stacks. A joint list keeps its order after a model update.
+- A selection where one part already moves with a joint and another does not (or with
+  another joint) is refused with an explanation, before you click the pivot.
+- Projects made with earlier versions open unchanged.
+
+## 0.2.9 – 5 Nov 2026 – painted faces
+
+Commit `2f35b33`.
+
+3 Looks – paint single faces
+- Faces painted in CAD come in painted. A face with its own colour (or its own Fusion/Inventor
+  appearance) keeps it; the rest of the part keeps the part's material. A sorting rule on the
+  colour can give such faces another material (for example "Colour is #C0C0C0 → anodised").
+- New fold "Paint faces" in 3 Looks: pick a group, press "Paint faces…", click faces on the
+  model. A click paints the whole CAD face; Shift+click gives it back the look of the part;
+  Enter or right-click ends. Undo works.
+- Every copy of a part gets the same painted faces; "Only this copy" paints one copy only.
+  Each painted face set can get another group ("Other group…") or go back ("Whole part").
+- A model update keeps painted faces of parts whose faces did not change; the report lists the
+  parts that lost them.
+- Wire mesh panels now have real holes (25 mm mesh), so you can see through them.
+- "Aluminium, black anodised" (ready-made materials) uses the new black anodised material.
+- Projects made before 0.2.8 that still had the old standard rules get the new rules (part types,
+  CAD materials) when opened; projects with their own rules keep them.
+- The part you clicked shows its CAD material name too; every button and setting in sections
+  1–3 has a tooltip.
+
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 
 Commit `4fd1d3b`.

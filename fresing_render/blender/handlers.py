@@ -108,6 +108,11 @@ def _on_load(_dummy=None):
         for sc in bpy.data.scenes:           # projects from before 0.2: store the CAD matrices once
             if hasattr(sc, "fresing") and sc.fresing.model_count:
                 build.ensure_bases(sc)
+                sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
+                from . import logic
+                if logic.ensure_default_rules(sc.fresing):   # untouched rules of before 0.2.8
+                    sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
+                                               "CAD materials): press 'Sort parts into groups' to use them")
     except Exception:
         pass
     try:                                     # a render queue started earlier may still be going

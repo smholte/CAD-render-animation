@@ -276,6 +276,11 @@ class FakeLayout:
     def operator_menu_enum(self, idname, prop, *a, **k):
         return self.operator(idname)
 
+    def prop_search(self, data, name, search_data, search_prop, *a, **k):
+        self.prop(data, name)
+        if search_prop not in search_data.bl_rna.properties:
+            self.errors.append(f"missing search list {search_prop}")
+
     def template_list(self, listtype, _id, data, prop, active_data, active_prop, *a, **k):
         if prop not in data.bl_rna.properties:
             self.errors.append(f"missing list {prop}")

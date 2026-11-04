@@ -6,7 +6,8 @@ Parts of the old and the new model are matched:
     3. by part name anywhere, when the part only moved to another subassembly
 Matched parts keep: manual material group, hidden / removed, unlocked, free moves,
 joints (moving parts and the part they sit on), poses, visibility sets, scenes and
-animation targets. New and missing parts are listed in a report.
+animation targets, and painted faces when the part's faces did not change. New and missing
+parts, and parts that lost painted faces, are listed in a report.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import re
 import bpy
 from mathutils import Matrix
 
-from . import build, joints, logic, states
+from . import build, faces, joints, logic, states
 
 _VERSION_SUFFIX = re.compile(r"\s+v\d+$", re.I)       # Fusion: "Bracket v12"
 _COUNT_SUFFIX = re.compile(r"[:#]\d+$")               # Inventor: "Frame:1"
@@ -208,6 +209,7 @@ def update_model(context, old_root, cache_dir: str) -> dict:
         logic.exclude(to_exclude, True)
     for ob in to_hide:
         logic.set_hidden(ob, True, tree)
+    lost_faces = faces.carry_over([(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"])
 
     matched_new = {id(n) for _o, n in pairs}
     matched_old = {id(o) for o, _n in pairs}
@@ -249,6 +251,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
         line.text, line.uid = name, uid
     for n in notes:
         s.report_notes.add().text = n
+    for name in lost_faces:
+        s.report_notes.add().text = f"{name}: its faces changed, the faces painted on it are gone (paint them again)"
     kept = sum(1 for o, _n in pairs if o["kind"] == "part")
     s.report_title = f"Model updated: {kept} parts kept, {len(new_parts)} new, {len(missing)} missing"
     return {"kept": kept, "new": len(new_parts), "missing": len(missing), "notes": notes, "root": new_root}
