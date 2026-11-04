@@ -1,6 +1,6 @@
 # 0016 – Surroundings: offshore, quayside and factory backgrounds
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0016-surroundings`
+**Who:** worker · **Status:** running · **Branch:** `task/0016-surroundings`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/world.py`,
 new `blender/surroundings.py` (+ data in `core/` if useful), `blender/prefs.py` (library folders),
 the **5 Scene & Render** part of `blender/ui.py`, `blender/ops_main.py` (background operators
