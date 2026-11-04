@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.10 – 5 Nov 2026 – Several joints on one subassembly (task 0011)
 
-Commit: see below (added after the push).
+Commit `2d89872`.
 
 4 Motion
 - A subassembly can now have more than one joint, and the moves add up. Example: joint 1
