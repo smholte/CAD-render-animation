@@ -22,7 +22,14 @@ project.
   background and output settings.
 - Hand assignments (`fr_group_manual`, from "Put selected in", Find & sort parts, "Move to
   group") must survive any switch.
-- Read the reports of 0008 and 0010 first: both change the sorting and the materials.
+- Read the reports of 0008 and 0010 first: both change the sorting and the materials (0010 also
+  sorts single faces through the rules: a switch of rule set re-sorts face sets too).
+- In-house abbreviations of the owner's company or his clients belong in his own rule sets, not
+  in the built-in library (task 0022 runs at the same time in `core/part_types_data.py` – do not
+  touch that file).
+- If the owner attaches a small Fusion 360 STEP with one face painted in another appearance,
+  check that the face comes in painted (task 0010 wrote that STEP structure by hand) – numbers in
+  the report, file not committed.
 
 ## What to build
 

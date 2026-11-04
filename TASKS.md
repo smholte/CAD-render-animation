@@ -21,12 +21,14 @@ updates its branch to `main`.
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (running) → 0020
 - **Docs lane** (`docs/`, Help-menu link): 0021 (running)
+- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (can start)
 
 ## Open and running
 
 | # | Task | Who | Status | Branch / file |
 | --- | --- | --- | --- | --- |
 | 0015 | Looks lane: rule sets – one naming scheme per company, chosen per project, switchable | worker | open – can start | tasks/0015-rule-sets.md |
+| 0022 | Part library lane: more parts sorted on import – supplier catalogue codes (Misumi and others); owner attaches the EGR file | worker | open – can start | tasks/0022-more-supplier-codes.md |
 | 0011 | Motion lane: several joints on one subassembly, moves add up | worker | running | `task/0011-stacked-joints`, tasks/0011-stacked-joints.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | waiting (0011) | tasks/0012-couplings-motors.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |

@@ -15,6 +15,8 @@ the installer.
 - The side panel: 1 Import, 2 Structure, 3 Looks (with Find & sort parts, sorting rules, schemes
   & templates), 4 Motion, 5 Scene & Render, 6 Animation, 7 Render queue. `CHANGELOG.md` says what
   each version added; `docs/README-install.txt` covers installing.
+- 0.2.9 (task 0010) added "Paint faces" to 3 Looks and painted faces from CAD: describe them
+  (see the report in `tasks/0010-face-painting.md`).
 - Other chats are changing panels right now (lanes in `TASKS.md`). Write the guide for what is in
   `main`; each later task updates its own section (rule in `CLAUDE.md`).
 - **Tooltips** (owner's wish: hovering over a button shows what it does and how to use it): the
