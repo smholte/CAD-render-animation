@@ -3,6 +3,35 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.9 – 4 Nov 2026 – Several joints on one subassembly (task 0011)
+
+Commit: see below (added after the push).
+
+4 Motion
+- A subassembly can now have more than one joint, and the moves add up. Example: joint 1
+  slides it 1000 mm in Y, joint 2 slides it 500 mm in X: it ends up at X +500 / Y +1000.
+  Works for any mix of rotate and slide, and for three or more joints.
+- How: click a subassembly that already moves with a joint and press Add rotate joint or
+  Add slide joint as usual. Above the buttons it says "Adds a joint on top of '…': the moves
+  add up". The new joint rides on the older one: its axis moves along with it (like a crane:
+  slew, then luff).
+- The joint list shows a joint that rides on another one indented right under it. The
+  details of that joint show "Rides on '…'" and a "Swap order" button: the other joint then
+  rides on this one. With two slides nothing changes; with a rotation it does (turn then
+  slide, or slide then turn). Swap works when the lower joint moves only what the upper one
+  moves (otherwise the button is grey and its tooltip says why).
+- Removing a joint from a stack: what it moved goes back to the joint under it, and joints
+  riding on it move down. Taking a part out of the top joint ("Remove" under Set-up) puts it
+  back on the joint under it.
+- Set-up of the lower joint: "Moves:" lists what it moves through the joints on it, and
+  "Carries:" names those joints. "Select" selects all of it.
+- Poses, "Everything back to CAD position", Explode, animation steps (one after the other
+  or at the same time), Fit camera, limits, Flip, rotate/slide, undo and model updates all
+  work with stacks. A joint list keeps its order after a model update.
+- A selection where one part already moves with a joint and another does not (or with
+  another joint) is refused with an explanation, before you click the pivot.
+- Projects made with earlier versions open unchanged.
+
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 
 Commit `4fd1d3b`.
