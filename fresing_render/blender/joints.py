@@ -138,6 +138,19 @@ def depth(scene, j) -> int:
     return d
 
 
+def all_riders(scene, j) -> list:
+    """Every joint above ``j`` in its stack."""
+    out, todo, seen = [], riders(scene, j), {j.name}
+    while todo:
+        r = todo.pop(0)
+        if r.name in seen:
+            continue
+        seen.add(r.name)
+        out.append(r)
+        todo += riders(scene, r)
+    return out
+
+
 def moved_objects(scene, j) -> list:
     """Everything ``j`` moves directly: its members and, through the joints riding on it, theirs."""
     out = []
@@ -580,6 +593,14 @@ def add_members(scene, j, objs) -> int:
     reason = check_members(scene, objs, j.frame.parent if j.frame else None, j)
     if reason:
         raise RuntimeError(reason)
+    above = {x.name for x in all_riders(scene, j)}
+    for ob in objs:
+        other = joint_of_object(scene, ob)
+        if other is not None and other.name in above:
+            # it already moves with this joint, through the joint on top: taking it off that one
+            # would lose that move
+            raise RuntimeError(f"'{ob.get(build.PROP_NAME, ob.name)}' already moves with this joint, through "
+                               f"'{other.name}' on top of it")
     with cad_pose(scene):
         for ob in objs:
             other = joint_of_object(scene, ob)
@@ -618,11 +639,38 @@ def remove_members(scene, j, objs) -> int:
     return len(objs)
 
 
+def _true_frame_world(scene, r, seen=None):
+    """Where ``r``'s frame belongs in the CAD pose, worked out from a part it moves (needed when
+    the joint under it is broken: its own matrices then hang somewhere in the world)."""
+    seen = seen or set()
+    if r.name in seen:
+        return None
+    seen.add(r.name)
+    for o in members(r):
+        cad_parent = build.logical_parent(o)
+        if cad_parent is None:
+            continue
+        cad_world = cad_parent.matrix_world @ build.cad_basis(o)
+        return cad_world @ build.rest_basis(o).inverted()      # its motion sits on its frame in the CAD pose
+    for up in riders(scene, r):
+        w = _true_frame_world(scene, up, seen)
+        if w is not None:
+            return w @ up.frame.matrix_basis.inverted()
+    return None
+
+
 def _take_out(scene, j) -> None:
     """Everything ``j`` carries goes down onto what it sat on (call in the CAD pose)."""
-    seat = j.frame.parent if j.frame is not None else None
+    if j.frame is not None:
+        seat = j.frame.parent
+        above = [(r.frame, r.frame.matrix_world.copy()) for r in riders(scene, j)]
+    else:
+        # broken joint (its arrow was deleted): the joints on it go onto the CAD parent of what they
+        # move, at the place their parts say
+        moved = moved_objects(scene, j)
+        seat = default_base(moved) if moved else None
+        above = [(r.frame, _true_frame_world(scene, r) or r.frame.matrix_world.copy()) for r in riders(scene, j)]
     seat_world = seat.matrix_world.copy() if seat is not None else Matrix.Identity(4)
-    above = [(r.frame, r.frame.matrix_world.copy()) for r in riders(scene, j)]
     below = rides_on(scene, j)
     objs = members(j)
     j.members.clear()
@@ -703,7 +751,10 @@ def swap_check(scene, j) -> str:
     below = rides_on(scene, j)
     if below is None:
         return f"'{j.name}' does not ride on another joint"
-    others = [ob.get(build.PROP_NAME, ob.name) for ob in members(below)]
+    if not is_valid(below) or not is_valid(j):
+        broken = j.name if not is_valid(j) else below.name
+        return f"'{broken}' is broken (its arrow was deleted): remove it first"
+    others =[ob.get(build.PROP_NAME, ob.name) for ob in members(below)]
     others += [f"joint '{r.name}'" for r in riders(scene, below) if r.name != j.name]
     if others:
         listed = ", ".join(others[:2]) + (f" +{len(others) - 2}" if len(others) > 2 else "")
@@ -857,10 +908,17 @@ def dissolve_all(scene, root=None) -> list[dict]:
     def belongs(j) -> bool:
         if root is None:
             return True
-        objs = members(j) + ([j.frame.parent] if j.frame is not None and j.frame.parent is not None else [])
+        # a bottom joint moves nothing itself: what rides on it tells which model it belongs to
+        objs = moved_objects(scene, j) + ([j.frame.parent] if j.frame is not None and j.frame.parent is not None
+                                          else [])
         return any(_root(o) is root for o in objs)
 
     chosen = {j.name for j in s.joints if belongs(j)}
+    for name in list(chosen):                 # never split a stack from below: take the joints under it too
+        below = rides_on(scene, find(scene, name))
+        while below is not None and below.name not in chosen:
+            chosen.add(below.name)
+            below = rides_on(scene, below)
     values = {j.name: get_value(j) for j in s.joints}
     with cad_pose(scene):
         specs = to_specs(scene, values, only=chosen)

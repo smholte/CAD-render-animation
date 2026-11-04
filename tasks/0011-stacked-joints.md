@@ -108,7 +108,7 @@ sits at X +500 / Y +1000 from where it started. This works together with all oth
   joint; animation with three steps (two together, one after) checked at five frames; save +
   reopen; model update A → B with a 4-joint set-up (stack of three + boom luff), normal and
   swapped order; a stack whose parts are gone.
-- Full suite on the branch after merging main 0.2.8: 1,269 passed (the render-queue test timed
+- Full suite on the branch after merging main 0.2.8: 1,269 passed before the review fixes (the render-queue test timed
   out once while two real-app Blenders shared the CPU; passed alone, 6 min).
 - Real app (Blender 5.2.3 Linux, virtual screen, packaged extension): `ui_test_app2.py` 39/39
   (new: first joint with Add slide joint, second joint with Add rotate joint + a click on the
@@ -119,7 +119,23 @@ sits at X +500 / Y +1000 from where it started. This works together with all oth
 - No speed numbers: stacking adds no work to playback or rendering (plain parenting and drivers);
   the joint list does one pass over the joints per redraw.
 
+**Independent review** (a separate agent that did not write the code; joint diff, scratch runs):
+- Fixed, each with a test that failed before: (1) a model update left out a bottom joint whose
+  "Sits on" was cleared (it moves nothing itself), so the joint on top lost its move – the update
+  now judges a joint by everything it moves and never splits a stack from below; (2) Swap order
+  crashed when the joint below was broken (arrow deleted) – now greyed out with the reason;
+  (3) removing a broken bottom joint left the joint on top hanging in the world – it now goes onto
+  the CAD parent at the place its parts say; (4) Add on a bottom joint took the part off the joint
+  on top (losing that move) – refused with the reason; Remove there says where to remove it.
+- Checked fine by the review: no list items held across list changes, CAD-pose maths of take-out,
+  swap and axis changes, `frame_world` rebuild, `filter_items` order, loops, old projects.
+- Left as is: with a filter text typed in the joint list, a joint on top whose bottom joint is
+  filtered out still draws indented (cosmetic).
+
 **Open points / follow-up tasks:**
+- Joints whose moving parts come from two different models (possible since phase 2): a model
+  update of one model drops the other model's parts from the joint (before stacks too), and a
+  stack spanning both models is rebuilt only partly. Rare; a follow-up if the owner ever does it.
 - Owner test on his PC: two joints on one subassembly of a real machine (steps in the chat).
 - "Axis stays fixed in the world" for a stacked joint, if the owner ever needs it.
 - Swap order only works when the lower joint moves nothing but the upper one; a "split" (move the

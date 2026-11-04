@@ -444,7 +444,18 @@ class FRESING_OT_joint_members(bpy.types.Operator):
             if self.action == "ADD":
                 n = joints.add_members(scene, j, movers)
             else:
+                # parts that ride on this joint through a joint on top are removed there, not here
+                via = [(ob, joints.joint_of_object(scene, ob)) for ob in movers if ob not in joints.members(j)]
+                via = [(ob, o) for ob, o in via if o is not None and o.name in
+                       {r.name for r in joints.all_riders(scene, j)}]
                 n = joints.remove_members(scene, j, movers)
+                if n == 0 and via:
+                    ob, o = via[0]
+                    msg = (f"'{ob.get(build.PROP_NAME, ob.name)}' moves with '{o.name}' (on top of this joint): "
+                           f"select '{o.name}' in the list and remove it there")
+                    scene.fresing.last_message = msg
+                    self.report({"WARNING"}, msg)
+                    return {"CANCELLED"}
         except RuntimeError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}

@@ -526,3 +526,70 @@ def test_swap_and_remove_buttons(scene):
     assert len(s.joints) == 1 and joints.rides_on(scene, s.joints[0]) is None
     assert "now rides on what it sat on" in s.last_message
     assert logic.part_count(build.model_roots(scene)[0]) == 12
+
+
+# ---------------------------------------------------------------------------
+# found in the independent review
+# ---------------------------------------------------------------------------
+
+
+def test_update_keeps_a_stack_whose_bottom_sits_on_nothing(scene):
+    """The bottom joint moves nothing itself; with its 'Sits on' cleared, a model update left it
+    out and the joint on top lost the bottom joint's move."""
+    q0 = trolley_point(scene)
+    two_slides(scene, y_first=0.2)
+    joints.set_base(scene, J(scene, "Lift Y"), None)
+    joints.set_value(J(scene, "Travel X"), 0.1)
+    update()
+    assert close(trolley_point(scene) - q0, (0.1, 0.2, 0))
+    root = build.model_roots(scene)[0]
+    assert bpy.ops.fresing.import_step(filepath=CRANE_B, quality="draft", update_root=root.name) == {"FINISHED"}
+    update()
+    s = scene.fresing
+    assert len(s.joints) == 2 and not len(s.report_notes), [n.text for n in s.report_notes]
+    assert joints.rides_on(scene, J(scene, "Travel X")).name == "Lift Y"
+    assert joints.members(J(scene, "Travel X")) == [ob(scene, "TROLLEY.ASM")]
+    assert close(trolley_point(scene) - q0, (0.1, 0.2, 0))
+
+
+def test_broken_bottom_joint(scene):
+    """The bottom joint's arrow is deleted: Swap order says so (no crash), and removing it puts
+    the joint on top where its parts belong."""
+    q0 = trolley_point(scene)
+    two_slides(scene, y_first=0.2)
+    joints.set_value(J(scene, "Travel X"), 0.1)
+    update()
+    bpy.data.objects.remove(J(scene, "Lift Y").frame, do_unlink=True)      # the user deletes the arrow
+    update()
+    s = scene.fresing
+    top = J(scene, "Travel X")
+    assert "broken" in joints.swap_check(scene, top)
+    s.joints_index = list(s.joints).index(top)
+    with pytest.raises(RuntimeError, match="broken"):     # the error message (a report in the app)
+        bpy.ops.fresing.joint_swap()
+    joints.remove(scene, J(scene, "Lift Y"))
+    update()
+    top = J(scene, "Travel X")
+    assert joints.is_valid(top) and joints.rides_on(scene, top) is None
+    assert top.frame.parent is build.model_roots(scene)[0]
+    assert close(trolley_point(scene) - q0, (0.1, 0, 0)), trolley_point(scene) - q0
+    joints.set_value(top, 0.0)
+    update()
+    assert close(trolley_point(scene), q0)
+
+
+def test_add_and_remove_on_the_bottom_joint(scene):
+    """Add on the bottom joint must not take the part off the joint on top (that move would be
+    lost); Remove there says where the part really is."""
+    tr = ob(scene, "TROLLEY.ASM")
+    two_slides(scene)
+    with pytest.raises(RuntimeError, match="through 'Travel X'"):
+        joints.add_members(scene, J(scene, "Lift Y"), [tr])
+    assert joints.members(J(scene, "Travel X")) == [tr]
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    tr.select_set(True)
+    s = scene.fresing
+    s.joints_index = list(s.joints).index(J(scene, "Lift Y"))
+    assert bpy.ops.fresing.joint_members(action="REMOVE") == {"CANCELLED"}
+    assert "remove it there" in s.last_message and joints.members(J(scene, "Travel X")) == [tr]
