@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.9 – 5 Nov 2026 – painted faces
 
-Commit `(see below)`.
+Commit `2f35b33`.
 
 3 Looks – paint single faces
 - Faces painted in CAD come in painted. A face with its own colour (or its own Fusion/Inventor
