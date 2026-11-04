@@ -1,0 +1,561 @@
+<!--
+=====================================================================================================
+NOTES FOR THE CHATS THAT EDIT THIS GUIDE (an HTML comment: not shown in the guide itself)
+=====================================================================================================
+
+Who reads it: Sebastian (the owner) and his colleagues. Engineers, not programmers, not Blender users.
+
+Rules for the guide
+- A task that changes what the owner sees updates its chapter here, in the same commit (CLAUDE.md
+  section 6). Write for what is in main after your merge.
+- Plain words, short sentences, the words on the screen (button names in **bold**, exactly as shown).
+  Numbered steps for anything done in order; say what the user sees when it worked.
+- One chapter per side-panel section, in the order of the panel. Each chapter: what it is for (one or
+  two sentences), the panel picture, the steps, then the other buttons.
+- Pictures: docs/img/, made with tools/guide_screens.py from the generic test crane only (the repository
+  is public: never the owner's machines, part names or renders). Re-run the "panels" mode after
+  changing a panel and replace the pictures of your sections; look at them before committing.
+- Never promise numbers that were not measured; say where a measurement was made.
+- Check the result: ~/venv/bin/python tools/build_guide.py, then open dist/guide/user_guide.html.
+
+TOOLTIP STYLE GUIDE (every button and setting, CLAUDE.md section 6)
+Blender shows the operator's docstring (or its description() for a button with options) and a
+property's description when the mouse rests on it. The check: tools/tooltip_report.py; the list of
+tooltips still to do: docs/TOOLTIPS-TODO.md.
+
+ 1. First what it does, starting with a verb ("Puts…", "Shows…", "Saves…"); for a setting, what it
+    changes ("How finely round faces are turned into triangles").
+ 2. Then how to use it, or what happens next / where the result goes ("Then pick its material below",
+    "Find it in 7 Render queue").
+ 3. The owner's words: part, subassembly, group, view, render, queue. No Blender or programming words
+    (object, collection, operator, keyframe, viewport, enum, ID).
+ 4. Name other buttons exactly as they are labelled ("Show all brings them back").
+ 5. Numbers: unit and meaning ("in mm", "0 = CAD position", "lower = more blur").
+ 6. Say what cannot be undone and what is kept ("Parts you hid yourself stay hidden").
+ 7. One or two sentences, about 10–30 words. No full stop at the very end: Blender adds one.
+ 8. Never only the label again ("Open: Open this render" tells nothing).
+ 9. One operator on several buttons that do different things (Add / Remove / Select, Stop / Stop now,
+    the queue_add buttons): give the operator a description(cls, context, properties) classmethod
+    with one text per variant. Same text on different buttons = weak.
+10. Icon-only buttons (+, −, ↻, arrows, ×, eyedropper): the tooltip is all the user gets: always say
+    what it does to which item ("Removes the selected pose; the model does not move").
+11. Choices (EnumProperty items) get their own description too: shown on each button of a row of
+    choices and in the drop-down list.
+12. Name fields in lists: give the PropertyGroup's `name` a description ("Name of the pose, used in
+    saved scenes and animations. Double-click to rename"); without one the tooltip is empty, or
+    Blender's programmer text "Unique name used in the code and scripting…".
+
+Good examples
+- Max size (mm): "Parts whose largest side is smaller than this (in mm) are picked by Select the small
+  parts"   (now: "Size in mm" – too short)
+- Render animation: "Renders this animation in the background and starts the queue (7 Render queue).
+  Keep working, or close the app: it keeps going"   (now: "Add a render to the queue", shared by five
+  buttons)
+- Stop now: "Stops the render at once; the frame being rendered is lost. Start queue continues an
+  animation where it stopped"   (now: the text of Stop after this frame – wrong for this button)
+- ↻ next to Find in the tree: "Reads the model tree again (after parts were added, removed or
+  renamed). Open and closed subassemblies stay as they are"   (now: "Rebuild the subassembly list")
+- Detail (Draft / Normal / Fine): "How finely round faces are turned into triangles. Normal suits most
+  renders; Fine for close-ups (slower import, more memory)"   (now: none)
+=====================================================================================================
+-->
+
+# Fresing Render user guide
+
+Fresing Render makes photo-realistic pictures and videos of large STEP assemblies – machines with
+thousands of parts – without any 3D modelling. It is built on Blender, but you only need its
+**Fresing** tab: work through the sections 1 to 7 from top to bottom.
+
+<img class="wide" src="img/render_crane.jpg" alt="A render of the small test crane">
+
+*All pictures in this guide show the small test crane that comes with the app's tests.*
+
+<a id="layout"></a>
+## How the app is laid out
+
+<img class="wide" src="img/app_after_import.png" alt="The Fresing Render window after an import">
+
+- The big area in the middle is the **view**: your model in 3D.
+- On its right edge is the **side panel** with the **Fresing** tab. Hidden? Move the mouse over the
+  view and press <kbd>N</kbd>.
+- The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
+  them.
+
+<img class="panel" src="img/sidebar_sections.png" alt="The seven sections, closed">
+
+The side panel has seven sections. Click a section's name to open or close it. A closed section still
+shows its state on the right: the model, the number of parts, unsorted parts (in red), joints, the
+length of the animation, the progress of the queue.
+
+Every section works the same way:
+
+- Work from top to bottom: what you choose comes before the button that uses it.
+- The main button of a section is big and blue.
+- Click an item in a list; its details appear right under the list. Double-click a name to rename it.
+- Rarely used settings are in folds that start closed (for example **More**).
+- Rest the mouse on a button or setting to see what it does.
+- <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes almost everything, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>
+  redoes it.
+
+This guide is in the app under **Help > Fresing Render user guide**, and in the Start menu under
+Fresing Render.
+
+<img class="small" src="img/help_menu.png" alt="Help menu with Fresing Render user guide at the top">
+
+<a id="start"></a>
+## Getting started: your first render in 10 minutes
+
+### Install (once per PC)
+
+1. Unzip the installer folder (FresingRender-…-windows.zip) anywhere, for example in Downloads.
+2. Double-click **Install.bat**. If Windows says "Windows protected your PC", click **More info**, then
+   **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
+3. Start **Fresing Render** from the Desktop.
+4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
+   "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
+   (see [Troubleshooting](#troubleshooting)).
+
+README.txt in the installer folder has the details: company PCs, updates, removing the app.
+
+### Moving around in the view
+
+| To | Mouse | Without a middle mouse button |
+| --- | --- | --- |
+| Turn the view | hold the wheel (middle button) and drag | drag the coloured axis ball, top right of the view |
+| Slide the view | <kbd>Shift</kbd> + wheel button, drag | drag the hand icon under the axis ball |
+| Zoom | turn the wheel | drag the magnifier icon |
+| Zoom to what is selected | numpad <kbd>.</kbd> | **Zoom to it** in 2 Structure |
+| Everything in view | <kbd>Home</kbd> | View menu > Frame All |
+
+### Your first render
+
+<img class="panel" src="img/panel_1_import_start.png" alt="1 Import before the first import">
+
+1. In **1 Import**, leave Detail on **Normal** and Up axis on **Z up**. Click **Import STEP…**, pick
+   your .step file and click **Import STEP** in the file window. (Or drag the file from Explorer onto
+   the view.)
+2. A progress bar shows while the model is read; a big machine takes a minute or two. Then the model
+   appears in the view and the sections 2 to 7 appear under 1 Import.
+3. Save the project: **File > Save As**, in the folder of the job. Renders then go to a folder
+   "Renders" next to the project file.
+4. Look at the header of **3 Looks**. Most parts already have a material. Red "… unsorted"? That can
+   wait for a first try; [3 Looks](#looks) explains it.
+5. In **5 Scene & Render**, pick a **Background**: **Sky** looks good straight away. The import has
+   already added a camera ("Iso front-right").
+6. Under **Image size & render**: Format **Presentation 16:9**, Size **HD (1080p)**, Quality
+   **Preview** for a quick first look. Click **Render image**.
+7. A render window opens and the picture builds up. When it is finished it is saved by itself;
+   **Open** and **Show in folder** appear under the button.
+
+For a better picture: Quality **Final**, another camera angle (**Add camera > Low hero**, or turn the
+view and use **Add camera > Current view**), and **Live preview** to judge the light first.
+
+<a id="import"></a>
+## 1 Import – bring in the STEP model
+
+<img class="panel" src="img/panel_1_import.png" alt="1 Import after a model update">
+
+Reads a STEP assembly from Inventor, Fusion or any other CAD program, with its assembly tree, part
+names, colours and material names. Later it updates the model to a new revision without losing
+your work.
+
+**Import**
+
+1. **Detail**: **Draft** (fast, coarse curves), **Normal** (good for most renders) or **Fine** (smooth
+   curves for close-ups; slower, more memory).
+2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back.
+3. Click **Import STEP…** and pick the file, or drag a .step file onto the view.
+4. Wait for the progress bar. Big files are read on all processor cores but one, so the PC stays
+   usable. <kbd>Esc</kbd> with the mouse over the view cancels.
+
+The box under the button then shows the model: its parts (placed, and how many different), its
+triangles and how long the import took. An unchanged file imports again in seconds, from a stored
+copy (**More > Clear import cache** throws those copies away if disk space is short).
+
+**Update to a new revision**
+
+1. Click **Update to new revision…** under the model's name and pick the new STEP file.
+2. Your work stays: materials, hidden parts, joints, poses, saved scenes and animations.
+3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
+   a material) and **Missing**. × closes the report.
+
+> **Projects on a shared drive:** when someone else has the project open, a red box "In use by
+> *name* on *computer*" appears here. Save your changes under another name (File > Save As).
+
+<a id="structure"></a>
+## 2 Structure – find, select, hide and lock parts
+
+<img class="panel" src="img/panel_2_structure.png" alt="2 Structure with the tree">
+
+The tree shows the model like Windows Explorer: subassemblies with the parts inside them.
+
+- **A click in the view selects a**: **Subassembly** (the whole subassembly of the part you click) or
+  **Part** (only that part).
+- Open or close a subassembly with its arrow. The two arrows next to the search box open or close all;
+  ↻ reads the tree again.
+- **Find in the tree**: type part of a name. The tree shows the matches with the subassemblies above
+  them.
+- Click a row to select it in the view. The arrow at the end of a row adds it to the selection, so you
+  can select several. The eye hides or shows it (also in renders).
+- Click a part in the view: the tree opens down to it and marks its row.
+- Identical parts next to each other are one row ("× 4"). Identical subassemblies get a number at the
+  end (":1", ":2"). The coloured ball is the part's material.
+- Under the list: the selected row, **Zoom to it** and, for a subassembly, its lock. **Locked in place**
+  (the normal state): it moves only with the subassembly it is in. Click it to unlock: it can then be
+  moved on its own.
+- **Hide** hides what is selected. **Show only** hides everything else; a red box "Showing only: …"
+  with **Show everything again** brings the rest back. **Show all** shows everything you hid.
+
+### Clean-up
+
+<img class="panel" src="img/panel_2_cleanup.png" alt="Clean-up">
+
+Removes parts that are never seen (inside parts, tiny screws), so renders get faster.
+
+1. Select the parts, or set **Max size (mm)** and click **Select the small parts**.
+2. Click **Remove selected**. They disappear from the view and from every render, but stay in the
+   project: **Restore all** brings them back.
+
+### Visibility sets
+
+<img class="panel" src="img/panel_2_visibility.png" alt="Visibility sets">
+
+Saves which parts are hidden, under a name such as "Without cover".
+
+1. Hide parts (the eye in the tree, or **Hide**).
+2. Click **+** and type a name.
+3. Later, **Use** hides and shows the parts exactly as saved. ↻ overwrites the selected set with what is
+   hidden now, − removes the set.
+
+<a id="looks"></a>
+## 3 Looks – materials and colours
+
+<img class="panel" src="img/panel_3_looks.png" alt="3 Looks with the material groups">
+
+Every part is in a **material group**, and every group has one material. The import sorts the parts
+into groups by itself, using:
+
+- **fasteners** – bolts, nuts, washers recognised by their DIN/ISO names – by type and finish
+  (galvanised, stainless, black…);
+- **part types** by name: profiles, shafts, chrome rods, cylinders, bearings, hoses, cables, cable
+  chains, motors, sensors, guards and many more – also Dutch and German names and supplier order
+  codes;
+- the **material name** in the STEP file (Fusion writes it);
+- the **CAD colour**.
+
+A part that fits nothing goes to **Unsorted**; the header then says "… unsorted" in red.
+
+**Give a group its material**
+
+1. Click the group in the list (the number is how many parts it has).
+2. **Ready-made material…**: pick a machine material (aluminium profile, anodised, stainless, chrome,
+   galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
+   plastics, a **Colour**: a RAL code (RAL 5010) or a hex code (#13447C). The magnifier picks from the
+   RAL list.
+3. The view shows the new colour at once (the real material in **Live preview**, 5 Scene & Render).
+
+**More in this section**
+
+- **Select its parts**, **Show only these** (**Show all** in 2 Structure brings back the rest).
+- **Put selected in**: the parts selected in the view go into this group, whatever the rules say.
+  **Back to the rules**: the rules decide again for them.
+- **Rule: all of … → this group** (shown when a subassembly is selected in 2 Structure): every part in
+  that subassembly goes into this group, also in later revisions.
+- **+** adds a group; **−** removes the selected group (its parts are sorted again by the rules).
+- Click a part in the view (with **Part** chosen in 2 Structure): a box shows its group and CAD colour,
+  with **Move selected to group…**.
+- **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
+  stay there.
+
+### Find & sort parts
+
+<img class="panel" src="img/panel_3_find.png" alt="Find & sort parts">
+
+The quickest way to sort the unsorted parts, or to give one kind of part its own look.
+
+1. Type a word of the part name. Several words: all must be in the name. `*` stands for any text, as
+   in `M6*20`.
+2. The list shows the names found, how many parts, and their group now. Tick the ones you want (the
+   two buttons on the right tick or untick all of them).
+3. **Put ticked in new group '…'** makes a new group named after your search; **Put ticked in a
+   group…** uses an existing one. Then give the group its material (above).
+4. **Make it a rule → …** saves the search as a sorting rule for the selected group: the next
+   revision sorts itself the same way.
+
+Also here: **Common words in unsorted parts** (only when parts are unsorted; one click searches for
+the word) and **Only inside …** (searches only the subassembly selected in 2 Structure). **Show only
+the unsorted parts** (above, in red) shows what still needs a group.
+
+### Sorting rules
+
+<img class="panel" src="img/panel_3_rules.png" alt="Sorting rules">
+
+The rules decide each part's group. They are checked from the top, and the first rule that fits a part
+decides. The order is: fasteners → part type → CAD material → CAD colour → Unsorted.
+
+- The tick switches a rule on or off; the number shows how many parts it caught.
+- Click a rule to change it: **If** [*what*: part name, assembly path, CAD colour, finish, part type,
+  CAD material…] [*test*: contains, is, starts with, matches pattern…] [*value*] → **Group**. A group
+  name may hold {color}, {finish} or {kind}: then you get one group per colour, finish or type.
+- **+** adds a rule, **From active part** makes one from the part you clicked, the arrows move a rule
+  up or down, **−** removes it.
+- **Defaults** replaces all rules with the built-in list. (Projects made before version 0.2.8 keep
+  their old rules until you click it.)
+- After changing rules, click **Sort parts into groups** in 3 Looks.
+
+### Paint schemes & templates
+
+<img class="panel" src="img/panel_3_schemes.png" alt="Paint schemes & templates">
+
+- A **paint scheme** stores the material and colour of every group, for example "Customer blue" and
+  "Fresing grey". **+** saves the colours you have now; **Use** switches every group at once.
+- A **template** keeps the rules, groups, paint schemes, background and image settings for the next
+  project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
+  library.
+- The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos)
+  and a folder `Templates`. Set it once: Edit > Preferences > Add-ons > Fresing Render > **Shared
+  library**. **Default template** there is used for every new import.
+
+<a id="motion"></a>
+## 4 Motion – joints, poses and exploded views
+
+<img class="panel" src="img/panel_4_motion_start.png" alt="4 Motion before the first joint">
+
+A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a cylinder rod).
+
+**Add a joint**
+
+1. Click what should move. With **Subassembly** chosen in 2 Structure, one click takes the whole
+   subassembly. "Selected: …" shows what you clicked.
+2. Click **Add rotate joint** or **Add slide joint**.
+3. Click the pivot on the model: a **hole or shaft** (the axis goes through its centre) or a **flat
+   face** (the axis stands at right angles to it). The line at the bottom of the window says what to
+   do; you can still turn and zoom the view. <kbd>Esc</kbd> or a right-click cancels.
+
+<img class="small" src="img/view_joints.png" alt="The boom of the test crane raised 20° by its joint">
+
+<img class="panel" src="img/panel_4_motion.png" alt="4 Motion with two joints">
+
+**Use a joint**
+
+- Drag its slider in the list, or the big **Angle** / **Distance** field, or type a value. 0 is the
+  position in the CAD file.
+- **CAD (0)**, **Min** and **Max** jump to those positions. **Limits** keeps the joint between the two
+  values next to it.
+- **Show joint arrows in the view** shows or hides the joints' axes.
+- **Set-up** (the fold): what moves (**Add** and **Remove** use the selected parts, **Select** selects
+  what the joint moves), the axis (eyedropper: click a new pivot; ⇆ turns the direction around; **X Y Z**), the type (**Rotate**
+  / **Slide**) and **Sits on**: the subassembly this joint is mounted on, so it moves along with it –
+  the crane's trolley sits on the boom.
+- **−** next to the list removes the joint; its parts go back to their CAD position.
+- **Everything back to CAD position** puts every joint and moved subassembly back.
+
+> When an animation is built (6 Animation), the joints follow it. **Stop it to move joints by hand**
+> (in the red box) frees them.
+
+### Poses & exploded views
+
+<img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">
+
+A **pose** stores every joint position and every moved subassembly: "Working", "Transport",
+"Exploded".
+
+1. Set the joints (and explode, if you want).
+2. Click **+** and type a name.
+3. **Use** puts the model in that pose again; ↻ overwrites the selected pose with the positions now.
+
+**Exploded view**
+
+1. Select the subassembly to explode, in the view or in 2 Structure. "Explodes: …" shows which.
+2. **Pieces**: **Subassemblies** (those inside it) or **Every part**. **Direction**: **Outwards**,
+   **Along X**, **Along Y** or **Up / down**. **Distance**: 0.5 moves each piece half its distance
+   from the centre.
+3. Click **Explode**. To keep it, save it as a pose (**+** above). **Everything back to CAD position**
+   (4 Motion) puts it together again.
+
+<a id="scene"></a>
+## 5 Scene & Render – background, light, camera and image
+
+Everything around the model – background, light, floor, cameras – and the picture itself: its size,
+its quality, and the render.
+
+### Background & light
+
+<img class="panel" src="img/panel_5_scene.png" alt="5 Scene & Render">
+
+- **Background**: **Solid colour**, **360° photo** (a photo all around the model that is both
+  background and light), **Sky** (daylight with sun) or **None (transparent)** (a PNG for slides).
+- **Light**, with a solid colour or no background: **Studio** (soft studio lamps), **360° photo** or
+  **Sky**.
+- **Turn light** turns the light or the photo around the model. **Strength** and **Exposure** make the
+  picture lighter or darker; **Sun height** sets the sun for Sky.
+- **Floor**: **None** (the model floats), **Shadow only** (an invisible floor that only shows
+  shadows: the usual choice) or **Visible floor** (with **Own colour** if you want). **Gap** moves the
+  floor a little away from the model.
+- The small icon next to **Photo** picks a 360° photo from the shared library.
+
+### Camera
+
+- Each camera is a button: click it to look through it and render from it. × removes it.
+- **Add camera**: Iso front-right, Iso front-left, Iso back-right, Front, Side, Back, Top, Low hero –
+  or **Current view**: turn the view until it looks right, then add a camera there.
+- **Fit model** moves the active camera so the visible model fills the picture.
+- **Lens**: 50 mm looks natural; 24–35 mm shows more and looks wider; 85–135 mm makes the model look
+  flatter.
+- **Blur** blurs what is in front of and behind the middle of the model; a lower **Blur f-stop** blurs
+  more.
+
+### Image size & render
+
+<img class="panel" src="img/panel_5_output.png" alt="Image size & render">
+
+1. **Format**: for screens (Presentation 16:9, Widescreen 21:9, Classic 4:3, Photo 3:2, Website square
+   1:1, Social story 9:16, Web banner 3:1), for print (Brochure A4, Flyer A5, Poster A3 and A2, US
+   Letter) or **Custom size**.
+2. **Size** for screen formats; **Resolution** (150 or 300 dpi) and **Bleed** for print; and
+   **Orientation**. The line under it shows the size in pixels.
+3. **Quality**: **Draft** (quick check, half size), **Preview**, **Final** (clean) or **Best** (very
+   clean, slow).
+4. **Live preview** shows real materials and light in the view; click again to switch it off. Use it
+   to judge light and colours before you render.
+5. **Render image**. A render window shows the picture building up; it is saved by itself. **Open**
+   and **Show in folder** appear under the button.
+
+**Files & graphics card** (the fold): **File** PNG (sharp; transparency possible) or JPEG (small
+files); **Folder** (empty: "Renders" next to the saved project, or Pictures\Fresing Render while the
+project is not saved yet); **Graphics card** (on: render on the graphics card; off: on the processor);
+**Open render folder**. A file is named after the project, the camera and the size, for example
+`crane_Low_hero_1920x1080.png`; an earlier render is never overwritten (a number is added).
+
+### Saved scenes
+
+<img class="panel" src="img/panel_5_shots.png" alt="Saved scenes">
+
+A **saved scene** keeps a whole set-up under one name: colours (paint scheme), pose, visibility,
+camera, background and image size.
+
+1. Set everything up the way it should look.
+2. Click **+**. In the small window, type a name, and choose for colours, pose and visibility: **As it
+   is now** (stored with the scene), **Leave as it is** (switching to the scene does not change it)
+   or one of your saved schemes, poses or sets.
+3. **Use** switches to the scene; ↻ overwrites it with what you see now.
+4. **Queue this** or **Queue all** put the scene(s) in 7 Render queue: a set of pictures overnight.
+
+<a id="animation"></a>
+## 6 Animation – make a video
+
+<img class="panel" src="img/panel_6_animation.png" alt="6 Animation">
+
+An animation is a list of **steps** on a timeline. Steps that overlap in time play together.
+
+1. Make the joints and poses first (4 Motion), and a saved scene to start from (5 Scene & Render).
+2. Click **+** next to the animation list. Double-click its name to rename it.
+3. **Start from**: the saved scene at the first frame. **Frame rate**: 25 fps is usual in Europe.
+   **Hold at end**: how many seconds the last picture stays.
+4. Add steps with **+** next to the list of steps and pick the kind of step. A new step starts when the
+   one before it ends:
+
+    - **Move joint**: a joint goes from where it is (or **From** a value) **To** a value.
+    - **Go to pose**: everything moves to a saved pose.
+    - **Camera**: **Cut to** a camera, **Move to** a camera (a smooth flight) or **Orbit** (turn around
+      the model by an angle).
+    - **Show** / **Hide**: a subassembly appears or disappears (select it, then **Use selected**).
+
+5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
+   stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
+   out. The arrows change the order; the copy button copies a step (the copy starts when the original
+   ends).
+6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
+   takes the animation off the model, so the joints can be moved by hand again.
+7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
+
+**Make the video**
+
+1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones),
+   **File** (**MP4 video**, plus the single frames; or **PNG frames only**) and **Quality**.
+2. First check the motion with Quality **Fast preview (EEVEE)**: minutes instead of hours. Render the
+   real video with **Preview** or **Final**.
+3. **Time test (2 frames)** renders the first frame and a typical one with these settings, then shows
+   how long the whole video will take. The test frame is kept, so you can check the look.
+4. **Render animation** puts the video in 7 Render queue and starts the queue.
+
+<a id="queue"></a>
+## 7 Render queue – render in the background
+
+<img class="panel" src="img/panel_7_queue.png" alt="7 Render queue">
+
+The queue renders pictures and videos with a second copy of the app in the background. Keep working,
+or close the app and let it run overnight: the PC stays awake while it renders.
+
+- **Current view** adds a picture of the model as it is now, from the active camera; **All scenes** adds
+  one per saved scene.
+  Videos come from **Render animation** in 6.
+- **Start queue** starts rendering. While it runs: **Stop after this frame**, or **Stop now** (the
+  frame being rendered is lost). **Start queue** later continues a video where it stopped.
+- Click a job to see its progress and messages; when it is done, **Open** plays or opens it and
+  **Show in folder** opens Explorer with the file selected.
+- **−** removes the selected job; the brush removes all finished jobs.
+- **Open log** shows the time per frame and any errors.
+
+<a id="tips"></a>
+## Tips
+
+### Exporting from Inventor and Fusion
+
+- **Inventor**: File > Export > CAD Format, file type STEP, then **Options**: set the Application
+  Protocol to **214 – Automotive Design** (or 242). The older AP203 carries no colours or material
+  names: everything comes in grey and unsorted.
+- **Fusion**: the normal STEP export is fine. It writes colours, material names and appearance names
+  ("Aluminum - Satin", "Rubber - Soft"), and Fresing Render uses them.
+- One CAD colour per finish (for example all galvanised parts the same grey), plus one sorting rule,
+  gives every revision the right materials by itself.
+- Clear part names help the sorting: "PLATE RVS", "SHAFT D40", supplier order codes.
+
+### Faster renders
+
+- **Clean-up** inside parts and small screws nobody sees.
+- Check with Quality **Draft** or **Preview**; check animations with **Fast preview (EEVEE)**.
+- **Time test** before a long video, and render it overnight in the queue.
+- Big overview pictures rarely need Detail **Fine**.
+
+<a id="troubleshooting"></a>
+## Troubleshooting
+
+### The self-test
+
+Start menu > Fresing Render > **Fresing Render - Self test** runs for a few minutes without a window
+and writes "Fresing Render self-test.txt" on the Desktop. Each line checks one thing: the STEP reader,
+importing on all cores, CAD material names, the app start, the graphics card, a test import, a render
+on the graphics card and one on the processor, joints and animation, the video encoder, the render
+queue and the time test. A line with `[FAIL]` says what went wrong: send the file along when you ask
+for help.
+
+### Where are my renders?
+
+- Project saved: in the folder **Renders** next to the project file. Not saved yet: in
+  Pictures\Fresing Render. Unless a **Folder** is set (Image size & render > Files & graphics card).
+- Videos: an MP4 file and a folder with the single frames. Time-test frames: in `Renders\_time_tests`.
+- Quickest: **Show in folder** under Render image, or on a finished job in the queue.
+
+### The side panel or the Fresing tab is gone
+
+- Move the mouse over the view and press <kbd>N</kbd>, then click the **Fresing** tab on the right
+  edge.
+- Still missing? Run Install.bat again (it repairs the installation; projects and renders are not
+  touched).
+
+### Import problems
+
+- The model lies on its back: import again with Up axis **Y up**.
+- Round edges look coarse: Detail **Fine**.
+- Everything grey and unsorted: the STEP file is probably AP203; export with AP214 (see Tips).
+- "Could not mesh …": that part is left out, the rest is imported.
+
+### Render problems
+
+- Slow: is **Graphics card** on (Image size & render > Files & graphics card)? The self-test line
+  "Graphics card" should name your graphics card. Lower the Quality or Size, or Clean-up parts nobody
+  sees.
+- "Add a camera first": add one in 5 Scene & Render.
+- Too dark or too light: **Exposure** and **Strength** in 5 Scene & Render.
+- A job in the queue failed: click it to read its message, and **Open log**.

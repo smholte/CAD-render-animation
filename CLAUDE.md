@@ -92,7 +92,8 @@ app_template/fresing_render/   app template: layout, units, switches the extensi
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, test-model makers, real-app tests, screenshot tool
 tests/                     pytest suite (pure Python + Blender as a Python module)
-docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md
+docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md,
+                           USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do)
 ```
 
 `docs/DEVELOPMENT.md` explains how an import works and has measured timings.
@@ -105,7 +106,7 @@ are blocked.
 ```bash
 git clone https://github.com/smholte/CAD-render-animation fresing-render
 python3.13 -m venv ~/venv
-~/venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pillow pytest
+~/venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pillow pytest markdown
 cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 5 minutes, all must pass
 ```
 
@@ -121,6 +122,10 @@ say so and run the pytest suite only) and `xvfb-run` + ImageMagick (`import`, `c
 | Packaged install + self-test (Linux build of the zip) | `BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
 | Real app, simulated clicks (install the extension and app template first, see the script's docstring) | `xvfb-run -a -s "-screen 0 1800x2600x24" blender --app-template fresing_render --enable-event-simulate --python tools/ui_test_app.py` (and `ui_test_app2.py`, `paths_test_blender.py`) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
+| User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
+| User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
+| Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
@@ -150,9 +155,13 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - **Tooltips:** every button and setting has one (operator docstring/`description`, property
   `description`): first what it does, then how to use it or what happens next, in plain words
   ("Puts the ticked parts in a new group named after your search. Then pick its material
-  below."). Style guide: top of `docs/USER-GUIDE.md` (task 0021).
-- **User guide:** a task that changes what the owner sees updates its section of
-  `docs/USER-GUIDE.md` (once it exists) with the same commit.
+  below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
+  `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
+  suggested texts (delete your rows when done).
+- **User guide:** a task that changes what the owner sees updates its chapter of
+  `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
+  (`tools/guide_screens.py`, test crane only). The guide is built into the release by
+  `tools/build_release.py` (needs `markdown`); it opens from Help > Fresing Render user guide.
 - Commit messages say what changed and why, in plain words, and end with the attribution
   lines the chat's instructions give.
 
@@ -164,7 +173,8 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 2. Add the version to `CHANGELOG.md` (plain words, for the owner).
 3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging changes.
 4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
-   first time) -> `dist/FresingRender-<version>-windows.zip`.
+   first time; builds the user guide into the extension and as "User guide.html" next to
+   Install.bat) -> `dist/FresingRender-<version>-windows.zip`.
 5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
@@ -193,3 +203,11 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Operator tooltips: `bpy.types.X_OT_y.bl_rna.description` is empty; ask
+  `bpy.ops.x.y.get_rna_type().description`. A property group that defines its own `name` has two
+  `name` properties in `bl_rna.properties`; the UI uses its own (the last one).
+- Real-app screenshots: switch `preferences.system.use_region_overlap` off, or the side panel is
+  see-through. A panel's open/closed state is kept per panel name once drawn; to picture it in
+  another state, register a copy under a new name (`tools/guide_screens.py` does this).
+- Blender's own Python has numpy but no Pillow: real-app tools crop and save pictures with numpy
+  and ImageMagick.

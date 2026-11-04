@@ -20,7 +20,7 @@ updates its branch to `main`.
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (running) → 0012 → 0013 → 0014
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (running) → 0020
-- **Docs lane** (`docs/`, Help-menu link): 0021 (running)
+- **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.9); later tasks keep their own chapter up to date
 
 ## Open and running
 
@@ -37,7 +37,6 @@ updates its branch to `main`.
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
 | 0019 | Quality lane: automatic tests on GitHub at every push, Linux and a Windows install + self-test | worker | running | `task/0019-github-tests`, tasks/0019-github-tests.md |
 | 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | waiting (0019) | tasks/0020-updates-from-github.md |
-| 0021 | Docs lane: user guide (Help menu, shipped with the installer) + tooltip style guide and check | worker | running | `task/0021-user-guide`, tasks/0021-user-guide.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | open | – |
@@ -56,5 +55,6 @@ updates its branch to `main`.
 | – | Code on GitHub; CLAUDE.md, TASKS.md, CHANGELOG.md; way of working agreed | – |
 | 0009 | Structure and Looks: explorer tree, highlight, find & sort parts, show only, ready-made materials (owner's points 1–3, 5–16) | 0.2.7 |
 | 0008 | Part-type library (63 types, ~3,300 keywords, ~170 order-code patterns) and CAD material/appearance names from STEP (owner's points 17–18) | 0.2.8 |
+| 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 114 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.9 |
 
 Details per version: `CHANGELOG.md`.

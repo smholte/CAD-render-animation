@@ -16,6 +16,10 @@ Install (once per PC, no admin rights needed)
    It checks the graphics card, imports a small test model, renders it, and writes
    "Fresing Render self-test.txt" on the Desktop.
 
+User guide: "User guide.html" in this folder (opens in your web browser, works offline).
+After installing it is also in the app (Help > Fresing Render user guide) and in the
+Start menu (Fresing Render > "Fresing Render - User guide").
+
 Tip: if a PC has no internet access, put blender-5.2.3-windows-x64.zip
 (from https://download.blender.org/release/Blender5.2/) next to Install.bat.
 
@@ -45,8 +49,8 @@ IT policy blocks PowerShell scripts or programs in %LOCALAPPDATA%. Ask IT to all
 Install-FresingRender.ps1 once, or to install into an allowed folder:
     Install.bat -InstallDir "D:\Apps\FresingRender"
 
-Using it (short)
-----------------
+Using it (short) - the user guide explains every step with pictures
+-------------------------------------------------------------------
 Side panel on the right of the 3D view, tab "Fresing" (press N if it is hidden).
 Work top to bottom: in every section what you choose comes first, the main button is the
 big blue one, and the header of a closed section shows its state (parts, joints, queue...).

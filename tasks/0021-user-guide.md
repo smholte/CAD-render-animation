@@ -1,6 +1,6 @@
 # 0021 – User guide (and the tooltip standard)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0021-user-guide`
+**Who:** worker · **Status:** done (0.2.9) · **Branch:** `task/0021-user-guide`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Docs (only `docs/`, `tools/` screenshot helpers,
 `installer/` to ship the guide, the app template for a Help-menu link) – no clash with other lanes.
 
@@ -39,10 +39,10 @@ the installer.
 
 ## Done when
 
-- [ ] Guide complete for the current `main`, screenshots from test models only; opens from the
+- [x] Guide complete for the current `main`, screenshots from test models only; opens from the
       Help menu in the real app (Linux test) and is in the installer zip
-- [ ] Tooltip report made; `CLAUDE.md` rule references the style guide
-- [ ] Report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
+- [x] Tooltip report made; `CLAUDE.md` rule references the style guide
+- [x] Report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
 
 ## Not in this task
 
@@ -52,10 +52,53 @@ the installer.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat, 4 Nov 2026 → version 0.2.9
 
 **What changed:**
+- `docs/USER-GUIDE.md`: the user guide – how the app is laid out, getting started (install, moving
+  around, first render), one chapter per section 1–7 with numbered steps, tips (Inventor/Fusion
+  export: AP214/AP242, from 0008's report; faster renders), troubleshooting (self-test, where
+  renders go, missing tab, import and render problems). 22 pictures in `docs/img/`, all of the
+  generic test crane (`tests/data/test_crane_a.step`). Every claim was checked against the code
+  (cameras, cores, Esc, stay-awake, render folders, time-test folder).
+- The **tooltip style guide** is the HTML comment at the top of `USER-GUIDE.md` (12 rules + good
+  examples); it is not shown in the guide. `CLAUDE.md` section 6 points to it.
+- `tools/build_guide.py`: Markdown → one self-contained HTML page (pictures inside, contents list,
+  no internet needed, prints to PDF). 0.8 MB.
+- `tools/guide_screens.py`: makes the guide's pictures in the real app (modes panels / window /
+  render). Each lane re-runs it for its own panels.
+- **Help > Fresing Render user guide** (first entry of the Help menu, in the app template): opens
+  the guide shipped inside the installed extension (`<extension>/guide/user_guide.html`), so an
+  update brings the matching guide. Missing file → message "run Install.bat again".
+- Release: `tools/build_release.py` builds the guide into the extension and puts
+  "User guide.html" next to Install.bat; the installer adds a Start-menu shortcut
+  "Fresing Render - User guide". `README-install.txt` mentions it.
+- `tools/tooltip_report.py`: reads every button and setting the side panel draws and grades its
+  tooltip (missing / weak / fine, with the reason). `docs/TOOLTIPS-TODO.md`: the snapshot on `main`
+  `e8365b8` – 203 buttons and settings, **83 without a tooltip, 31 weak**, 89 fine – split per lane,
+  each with a suggested text checked against the code.
+- `tests/test_user_guide.py` (new tests): guide builds with every chapter in order, pictures
+  inside, notes kept out, no unused or oversized pictures, missing picture is an error, the
+  Help-menu operator finds and opens the guide (and reports a missing one), the tooltip report reads
+  the panels.
+- `CLAUDE.md`: test table (guide pictures, guide page, tooltip check, Help-menu test), guide and
+  tooltip rules, `markdown` in the set-up line, three lessons learned (operator tooltips via
+  `get_rna_type()`, see-through side panel in screenshots, no Pillow in Blender's Python).
 
 **Tested and measured** (name the machine and the model):
+- TEST_RESULTS_PLACEHOLDER
 
 **Open points / follow-up tasks:**
+- The lanes write the 114 tooltips in `docs/TOOLTIPS-TODO.md` for their own panels (Looks 35,
+  Scene & Render 25, Motion 54) and delete their rows when done.
+- Each later task that changes a panel updates its guide chapter and pictures (rule in
+  `CLAUDE.md` section 6). Panels changed by the running tasks 0010, 0011, 0016 and 0019 are not in
+  this guide yet.
+- For task 0020 (updates from GitHub): the Help-menu entry lives in the app template, which only
+  Install.bat copies. An in-app update of the extension brings the new guide file, but changes to
+  the app template (this entry included) arrive only by running Install.bat. 0020 should either
+  update the template too or move such entries into the extension. (Found by the independent
+  review.) For 0.2.9 the owner installs with Install.bat, so the entry is there.
+- On the owner's PC (cannot be tested here): Help > Fresing Render user guide opens the guide in
+  the web browser; the Start-menu shortcut "Fresing Render - User guide" works.
+- The Inventor export advice (AP214) is still not checked with an Inventor file (same as 0008).

@@ -25,6 +25,9 @@ def build_linux_zip(wheel_dir: str, out_dir: str) -> str:
     stage = os.path.join(out_dir, "fresing_render")
     shutil.copytree(os.path.join(ROOT, "fresing_render"), stage, ignore=shutil.ignore_patterns("__pycache__"))
     os.makedirs(os.path.join(stage, "wheels"))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import build_guide                                     # the guide ships inside the extension
+    build_guide.build(os.path.join(stage, "guide", build_guide.GUIDE_FILE))
     names = []
     for whl in glob.glob(os.path.join(wheel_dir, "*.whl")):
         shutil.copy2(whl, os.path.join(stage, "wheels"))
@@ -43,6 +46,8 @@ def main():
     zip_path = build_linux_zip(wheel_dir, tmp)
     print("built", zip_path)
 
+    import importlib
+
     import bpy
     import addon_utils
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -52,7 +57,10 @@ def main():
     mods = [m.__name__ for m in addon_utils.modules() if m.__name__.endswith("fresing_render")]
     print("installed module:", mods)
     assert mods and mods[0].startswith("bl_ext."), mods
-    import importlib
+    pkg_dir = os.path.dirname(importlib.import_module(mods[0]).__file__)
+    guide = os.path.join(pkg_dir, "guide", "user_guide.html")
+    assert os.path.isfile(guide), "user guide missing in the installed extension"
+    print("user guide:", guide, f"({os.path.getsize(guide) / 1e6:.1f} MB)")
     st = importlib.import_module(mods[0] + ".selftest")
     ok = st.main(report_path=os.path.join(tmp, "report.txt"))
     print(open(os.path.join(tmp, "report.txt")).read())

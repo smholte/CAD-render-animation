@@ -3,6 +3,20 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.9 – 4 Nov 2026 – user guide
+
+Commit: (filled in after the merge).
+
+- A user guide: what each section 1–7 is for and how to work through it, step by step, with
+  pictures of every panel; getting started (your first render in 10 minutes), export tips for
+  Inventor and Fusion (AP214/AP242), and a troubleshooting page (self-test, where renders go,
+  the queue). One page that works offline; it prints well (Print > Save as PDF).
+- Open it from the app: **Help > Fresing Render user guide**. Also in the Start menu
+  (Fresing Render > "Fresing Render - User guide") and as "User guide.html" next to Install.bat.
+- The guide ships inside the extension, so an update always brings the guide of that version.
+- For the other chats: a tooltip style guide, a tooltip check (`tools/tooltip_report.py`) and a
+  list of the 114 tooltips still to write, with suggested texts (`docs/TOOLTIPS-TODO.md`).
+
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 
 Commit `4fd1d3b`.
