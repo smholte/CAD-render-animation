@@ -19,7 +19,8 @@ import bpy
 from mathutils import Vector
 
 OUT = os.environ.get("UISHOT_OUT", os.path.join(os.path.expanduser("~"), "fresing_ui_screens"))
-CRANE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests", "data", "test_crane_a.step")
+CRANE = os.environ.get("UISHOT_MODEL") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests",
+                                                       "data", "test_crane_a.step")
 SIDEBAR_W = int(os.environ.get("UISHOT_SIDEBAR", "430"))
 os.makedirs(OUT, exist_ok=True)
 LOG = open(os.path.join(OUT, "ui_screens.log"), "w")
@@ -124,7 +125,18 @@ def s_wait_import():
 def s_state():
     """A project in the middle of the work: joints, poses, scenes, an animation, a queue.
 
-    UISHOT_EMPTY=1: right after the import (what a new user sees first)."""
+    UISHOT_EMPTY=1: right after the import (what a new user sees first).
+    UISHOT_FOLLOW_LAST=1 (any model): the last part is clicked, so the tree must open and scroll to it."""
+    if os.environ.get("UISHOT_FOLLOW_LAST"):
+        sc = bpy.context.scene
+        last = sc.fresing.tree[len(sc.fresing.tree) - 1].obj
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        sc.fresing.pick_mode = "PART"
+        last.select_set(True)
+        bpy.context.view_layer.objects.active = last
+        log("clicked", last.get("fr_name"))
+        return 1.0
     if os.environ.get("UISHOT_EMPTY"):
         return 1.0
     sc = bpy.context.scene
@@ -161,9 +173,11 @@ def s_state():
     q.status, q.progress, q.message = "RUNNING", 42.0, "Frame 53 of 125 on GPU (6.1 s per frame, about 7 min left)"
     s.queue_index = 1
     s.last_render = CRANE
+    mod("blender.tree").follow_view(sc, ob("BOOM.PIN"))      # tree opened down to a part
+    s.find_text = "boom"                                     # a search in Find & sort parts
     for o in bpy.context.selected_objects:
         o.select_set(False)
-    boom = ob("BOOM.ASM")
+    boom = ob(os.environ.get("UISHOT_ACTIVE", "BOOM.ASM"))      # UISHOT_ACTIVE=BOOM.PIN: a part clicked
     boom.select_set(True)
     bpy.context.view_layer.objects.active = boom
     return 1.0

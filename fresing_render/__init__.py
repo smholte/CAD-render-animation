@@ -6,15 +6,15 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 _modules = []
 
 
 def _classes():
-    from .blender import ops_import, ops_main, ops_motion, prefs, ui, ui_motion
-    return (prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ui.CLASSES
-            + ui_motion.CLASSES)
+    from .blender import ops_import, ops_main, ops_motion, ops_panels, prefs, ui, ui_motion
+    return (prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ops_panels.CLASSES
+            + ui.CLASSES + ui_motion.CLASSES)
 
 
 def register():

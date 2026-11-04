@@ -209,6 +209,8 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
 
 
 class FRESING_UL_tree(bpy.types.UIList):
+    """Explorer-like tree: open/close per assembly, identical parts as one row, colour dot per part."""
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         ob = item.obj
         if ob is None:
@@ -216,28 +218,38 @@ class FRESING_UL_tree(bpy.types.UIList):
             return
         row = layout.row(align=True)
         for _ in range(item.depth):
-            row.separator(factor=1.2)
-        row.label(text=f"{ob.get(build.PROP_NAME, ob.name)}  ({item.parts})",
-                  icon="OUTLINER_COLLECTION" if item.depth == 0 else "MESH_CUBE")
-        locked = ob.get(build.PROP_LOCKED, True)
-        op = row.operator("fresing.toggle_lock", text="", icon="LOCKED" if locked else "UNLOCKED", emboss=False)
-        op.name = ob.name
+            row.separator(factor=0.7)
+        if item.has_kids:
+            op = row.operator("fresing.tree_toggle", text="", emboss=False,
+                              icon="DISCLOSURE_TRI_DOWN" if item.expanded else "DISCLOSURE_TRI_RIGHT")
+            op.index = index
+        else:
+            row.label(text="", icon="BLANK1")
+        if item.is_part:
+            mat = ob.active_material
+            text = item.label + (f"  ×{item.same}" if item.same > 1 else "")
+            if mat is not None:
+                row.label(text=text, icon_value=layout.icon(mat))
+            else:
+                row.label(text=text, icon="MESH_CUBE")
+        else:
+            row.label(text=f"{item.label}  ({item.parts})",
+                      icon="OUTLINER_COLLECTION" if item.depth == 0 else "FILE_FOLDER")
+        # few buttons per row, so long names fit; zoom and lock are under the list
+        sub = row.row(align=True)
+        sub.alignment = "RIGHT"
+        if not item.is_part and not ob.get(build.PROP_LOCKED, True):
+            sub.label(text="", icon="UNLOCKED")
         hidden = ob.get("fr_hidden", False)
-        op = row.operator("fresing.toggle_hide", text="", icon="HIDE_ON" if hidden else "HIDE_OFF", emboss=False)
-        op.name = ob.name
-        op = row.operator("fresing.select_subassembly", text="", icon="RESTRICT_SELECT_OFF", emboss=False)
-        op.name = ob.name
+        op = sub.operator("fresing.tree_row", text="", icon="HIDE_ON" if hidden else "HIDE_OFF", emboss=False)
+        op.index, op.action = index, "HIDE"
+        op = sub.operator("fresing.tree_row", text="", icon="RESTRICT_SELECT_OFF", emboss=False)
+        op.index, op.action = index, "ADD"
 
     def filter_items(self, context, data, propname):
-        items = getattr(data, propname)
-        max_depth = getattr(data, "tree_depth", 99)
-        flags = [self.bitflag_filter_item if it.depth < max_depth else 0 for it in items]
-        if self.filter_name:  # searching shows matches at any level
-            needle = self.filter_name.lower()
-            for i, it in enumerate(items):
-                hit = it.obj is not None and needle in it.obj.name.lower()
-                flags[i] = self.bitflag_filter_item if hit else 0
-        return flags, []
+        from . import tree as tree_mod
+        vis = tree_mod.visible_rows(data, data.tree_search.strip())
+        return [self.bitflag_filter_item if v else 0 for v in vis], []
 
 
 class FRESING_PT_structure(_Panel, bpy.types.Panel):
@@ -252,27 +264,53 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
         self.layout.label(icon="OUTLINER")
 
     def draw_header_preset(self, context):
+        s = context.scene.fresing
+        if s.isolated:
+            header_status(self.layout, "showing a part", alert=True)
+            return
         n = sum(1 for _ in build.iter_parts(context.scene))
         header_status(self.layout, f"{n} parts")
 
     def draw(self, context):
+        from . import tree as tree_mod
         layout = self.layout
         s = context.scene.fresing
         layout.label(text="A click in the view selects a:", icon="RESTRICT_SELECT_OFF")
         row = layout.row(align=True)
         row.prop(s, "pick_mode", expand=True)
-        visible = sum(1 for it in s.tree if it.depth < s.tree_depth)
-        row = layout.row()
-        row.template_list("FRESING_UL_tree", "", s, "tree", s, "tree_index", rows=list_rows(visible, 4, 10))
-        col = row.column(align=True)
-        col.operator("fresing.tree_refresh", text="", icon="FILE_REFRESH")
+
         row = layout.row(align=True)
-        row.prop(s, "tree_depth", text="Levels shown")
-        wrap(layout, context, "Open lock: the subassembly can be moved", icon="UNLOCKED")
+        row.prop(s, "tree_search", text="", icon="VIEWZOOM", placeholder="Find in the tree")
+        row.operator("fresing.tree_open_all", text="", icon="DISCLOSURE_TRI_DOWN").open = True
+        row.operator("fresing.tree_open_all", text="", icon="DISCLOSURE_TRI_RIGHT").open = False
+        row.operator("fresing.tree_refresh", text="", icon="FILE_REFRESH")
+        visible = sum(tree_mod.visible_rows(s, s.tree_search.strip()))
+        layout.template_list("FRESING_UL_tree", "", s, "tree", s, "tree_index", rows=list_rows(visible, 5, 14))
+        wrap(layout, context, "Click a row to select it in the view. The arrow at the end adds it to the "
+                              "selection.", icon="INFO")
+        if 0 <= s.tree_index < len(s.tree) and s.tree[s.tree_index].obj is not None:
+            it = s.tree[s.tree_index]
+            box = layout.box()
+            text = it.label + (f"  ×{it.same}" if it.same > 1 else "") + ("" if it.is_part else f"  ({it.parts} parts)")
+            box.label(text=text, icon="MESH_CUBE" if it.is_part else "FILE_FOLDER")
+            row = box.row(align=True)
+            op = row.operator("fresing.tree_row", text="Zoom to it", icon="ZOOM_SELECTED")
+            op.index, op.action = s.tree_index, "FRAME"
+            if not it.is_part:
+                locked = it.obj.get(build.PROP_LOCKED, True)
+                row.operator("fresing.toggle_lock", text="Locked in place" if locked else "Unlocked: can be moved",
+                             icon="LOCKED" if locked else "UNLOCKED", depress=not locked).name = it.obj.name
+
+        if s.isolated:
+            box = layout.box()
+            box.alert = True
+            box.label(text=f"Showing only: {s.isolated}", icon="HIDE_ON")
+            box.operator("fresing.show_only_end", text="Show everything again", icon="HIDE_OFF")
         row = layout.row(align=True)
         row.scale_y = MEDIUM
-        row.operator("fresing.hide_selected", icon="HIDE_ON")
-        row.operator("fresing.show_all", icon="HIDE_OFF")
+        row.operator("fresing.hide_selected", text="Hide", icon="HIDE_ON")
+        row.operator("fresing.show_only_selected", text="Show only", icon="SELECT_SET")
+        row.operator("fresing.show_all", text="Show all", icon="HIDE_OFF")
 
 
 class FRESING_PT_cleanup(_Panel, bpy.types.Panel):
@@ -386,12 +424,14 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         row = big_row(layout, MEDIUM)
         row.operator("fresing.apply_rules", text="Sort parts into groups", icon="SORTALPHA")
         if s.unmatched:
-            wrap(layout, context, f"{s.unmatched} parts match no rule: they are in 'Unsorted'", icon="ERROR",
-                 alert=True)
+            wrap(layout, context, f"{s.unmatched} parts match no rule: they are in 'Unsorted'. "
+                                  "Find & sort parts (below) helps.", icon="ERROR", alert=True)
+            layout.operator("fresing.show_only_group", text="Show only the unsorted parts",
+                            icon="HIDE_OFF").group = ""
         wrap(layout, context, "Material groups: pick one, then set its material", icon="MATERIAL")
         row = layout.row()
         row.template_list("FRESING_UL_groups", "", s, "groups", s, "groups_index",
-                          rows=list_rows(len(s.groups), 3, 8))
+                          rows=list_rows(len(s.groups), 3, 10))
         col = row.column(align=True)
         col.operator("fresing.group_add", text="", icon="ADD")
         col.operator("fresing.group_remove", text="", icon="REMOVE")
@@ -399,6 +439,8 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             g = s.groups[s.groups_index]
             box = layout.box()
             box.label(text=f"{g.name}  ·  {g.count} parts", icon="MATERIAL")
+            box.operator_menu_enum("fresing.group_preset", "preset", text="Ready-made material…",
+                                   icon="PRESET")
             col = split_props(box)
             col.prop(g, "material", text="Material")
             if materials_lib.needs_color(g.material):
@@ -407,8 +449,14 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
             row = box.row(align=True)
             row.operator("fresing.group_select", text="Select its parts", icon="RESTRICT_SELECT_OFF")
+            row.operator("fresing.show_only_group", text="Show only these", icon="HIDE_OFF").group = g.name
+            row = box.row(align=True)
             row.operator("fresing.group_assign", text="Put selected in", icon="IMPORT")
-            box.operator("fresing.group_unassign", text="Selected back to the rules", icon="LOOP_BACK")
+            row.operator("fresing.group_unassign", text="Back to the rules", icon="LOOP_BACK")
+            if 0 <= s.tree_index < len(s.tree) and not s.tree[s.tree_index].is_part:
+                sub = s.tree[s.tree_index]
+                box.operator("fresing.rule_from_subassembly",
+                             text=f"Rule: all of {sub.label} → this group", icon="FILTER")
         ob = context.active_object
         if ob is not None and ob.get(build.PROP_KIND) == "part":
             box = layout.box()
@@ -422,6 +470,72 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             col.label(text=f"Group: {g}{manual}")
             if ob.get(build.PROP_COLOR):
                 col.label(text=f"CAD colour: {ob[build.PROP_COLOR]}")
+            box.operator_menu_enum("fresing.part_move_group", "group", text="Move selected to group…",
+                                   icon="FORWARD")
+
+
+class FRESING_UL_found(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "use", text="")
+        row.label(text=item.part_name)
+        sub = row.row()
+        sub.alignment = "RIGHT"
+        sub.label(text=f"×{item.count}" if item.count > 1 else "")
+        sub.label(text=item.groups)
+
+
+class FRESING_PT_find(_Panel, bpy.types.Panel):
+    bl_label = "Find & sort parts"
+    bl_parent_id = "FRESING_PT_looks"
+
+    def draw_header(self, context):
+        self.layout.label(icon="VIEWZOOM")
+
+    def draw(self, context):
+        from . import finder
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        if s.unmatched:
+            words = finder.suggestions(scene)
+            if words:
+                layout.label(text="Common words in unsorted parts:", icon="LIGHT")
+                grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+                for w, n in words:
+                    grid.operator("fresing.find_word", text=f"{w}  {n}").word = w
+        steps(layout, context, ["Type a word of the part name (all words must fit; * = any text)",
+                                "Tick the parts you want",
+                                "Put them in a group. 'Make it a rule' sorts them in new revisions too"])
+        layout.prop(s, "find_text", text="", icon="VIEWZOOM", placeholder="e.g. seal, profile 40x40, M6*20")
+        sub_row = finder.scope_row(s)
+        if sub_row is not None and sub_row.depth > 0:
+            layout.prop(s, "find_in_selected", text=f"Only inside {sub_row.label}")
+        else:
+            row = layout.row()
+            row.active = False
+            row.prop(s, "find_in_selected", text="Only inside a subassembly (pick it in 2)")
+        if not s.find_text.strip():
+            return
+        if not s.found:
+            layout.label(text="Nothing found", icon="INFO")
+            return
+        total = sum(it.count for it in s.found)
+        ticked = sum(it.count for it in s.found if it.use)
+        layout.label(text=f"{len(s.found)} names, {total} parts · {ticked} ticked", icon="CHECKBOX_HLT")
+        row = layout.row()
+        row.template_list("FRESING_UL_found", "", s, "found", s, "found_index", rows=list_rows(len(s.found), 3, 10))
+        col = row.column(align=True)
+        col.operator("fresing.find_tick", text="", icon="CHECKBOX_HLT").tick = True
+        col.operator("fresing.find_tick", text="", icon="CHECKBOX_DEHLT").tick = False
+        layout.operator("fresing.find_select", text="Select the ticked parts in the view",
+                        icon="RESTRICT_SELECT_OFF")
+        name = finder.group_name_for(s.find_text)
+        primary(layout, "fresing.find_new_group", f"Put ticked in new group '{name}'", "ADD", MEDIUM)
+        layout.operator_menu_enum("fresing.find_assign", "group", text="Put ticked in a group…", icon="IMPORT")
+        if 0 <= s.groups_index < len(s.groups):
+            layout.operator("fresing.find_rule", text=f"Make it a rule → {s.groups[s.groups_index].name}",
+                            icon="FILTER")
 
 
 class FRESING_PT_rules(_Panel, bpy.types.Panel):
@@ -629,6 +743,7 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
 
 CLASSES = (
     FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes, FRESING_UL_visibility,
+    FRESING_UL_found,
     FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_visibility, FRESING_PT_looks,
-    FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
+    FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
 )

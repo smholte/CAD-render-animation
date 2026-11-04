@@ -9,6 +9,11 @@ Looks panel, render/queue.
 Owner's point 4 (4 Nov 2026): a part is painted as a whole by default, but faces can be picked on
 the model (add/remove) and given their own material or colour.
 
+Also asked (4 Nov 2026): paint and finishes from Inventor (appearances, Finish features) and
+Fusion 360 appearances. STEP carries them as colours, also per face. **Faces painted in CAD must
+come in painted** (from the cached face colours), and rules may give such a face colour its own
+material (e.g. colour X → anodised aluminium) while the rest of the part keeps its own.
+
 ## Background / design notes (lead)
 
 - Copies of a part share one mesh; materials are linked per object (`material_slots[0].link =

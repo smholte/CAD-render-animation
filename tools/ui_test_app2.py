@@ -393,6 +393,62 @@ def s_undo_update():
 
 
 @step
+def s_structure_rows():
+    """2 Structure / 3 Looks (task 0009) in the real window: row click, zoom, show only, find & group."""
+    s = bpy.context.scene.fresing
+    row = next(i for i, it in enumerate(s.tree) if it.label == "BOOM.ASM")
+    s.tree_index = row
+    sel = {o.get("fr_name") for o in bpy.context.selected_objects}
+    check("a row click highlights its subassembly", {"BOOM", "BOOM.PIN"} <= sel and "BASE" not in sel, sorted(sel))
+    win, area, region = ui()
+    globals()["_view0"] = (region.data.view_location.copy(), region.data.view_distance)
+    r = op("fresing.tree_row", index=row, action="FRAME")
+    check("zoom to it (button runs)", r == {"FINISHED"}, r)
+    return 1.5
+
+
+@step
+def s_structure_zoom_check():
+    s = bpy.context.scene.fresing
+    win, area, region = ui()
+    loc0, dist0 = globals()["_view0"]
+    moved = (region.data.view_location - loc0).length + abs(region.data.view_distance - dist0)
+    check("zoom to it moves the view onto the row", moved > 1e-3, f"{moved:.4f}")
+    row = next(i for i, it in enumerate(s.tree) if it.label == "BOOM.ASM")
+    op("fresing.tree_row", index=row, action="ONLY")
+    base = find("BASE")
+    check("show only this hides the rest", s.isolated == "BOOM.ASM" and base.hide_get() and not find("BOOM").hide_get())
+    wiggle()
+    return 1.0
+
+
+@step
+def s_structure_find():
+    shot("05_show_only")
+    s = bpy.context.scene.fresing
+    base = find("BASE")
+    op("fresing.show_all")
+    check("show all brings it back", not s.isolated and not base.hide_get())
+    # find & group
+    s.find_text = "boom"
+    names = sorted(it.part_name for it in s.found)
+    check("find parts by name", "BOOM" in names and "BOOM.PIN" in names, names)
+    r = op("fresing.find_new_group")
+    check("ticked parts go into a new group", r == {"FINISHED"} and find("BOOM").get("fr_group") == "Boom",
+          find("BOOM").get("fr_group"))
+    r = op("fresing.find_rule")
+    check("search made into a rule (on top)", r == {"FINISHED"} and s.rules[0].value == "BOOM", s.rules[0].value)
+    wiggle()
+    return 1.0
+
+
+@step
+def s_structure_shot():
+    shot("06_find_group")
+    return 0.5
+
+
+@step
 def s_finish():
     failed = [r for r in RESULTS if not r[1]]
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")

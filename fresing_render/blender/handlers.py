@@ -72,22 +72,21 @@ def _on_active_changed():
                 s.joints_index = i
                 break
         return
-    if scene.fresing.pick_mode != "SUBASSEMBLY":
+    from . import tree as tree_mod
+    if ob is None or ob.get(build.PROP_KIND) not in build.MODEL_KINDS or not ob.select_get():
         return
-    if ob is None or ob.get(build.PROP_KIND) != "part" or not ob.select_get():
+    if scene.fresing.pick_mode != "SUBASSEMBLY" or ob.get(build.PROP_KIND) != "part":
+        tree_mod.follow_view(scene, ob)      # the list opens down to what was clicked
         return
     tree = logic.Tree(scene)
     sub = logic.subassembly_for_pick(ob, tree)
     if sub is None or sub is ob:
+        tree_mod.follow_view(scene, ob)
         return
     for d in [sub] + logic.descendants(sub, tree):
         if d.visible_get() and not d.hide_select:
             d.select_set(True)
-    s = scene.fresing
-    for i, item in enumerate(s.tree):
-        if item.obj is sub:
-            s.tree_index = i
-            break
+    tree_mod.follow_view(scene, sub)
 
 
 def _subscribe():

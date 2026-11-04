@@ -211,34 +211,9 @@ def subassembly_for_pick(ob, tree: Tree | None = None):
 
 
 def rebuild_tree(scene) -> None:
-    s = scene.fresing
-    s.tree.clear()
-    tree = Tree(scene)
-    counts: dict[str, int] = {}
-
-    def count(node) -> int:          # parts below a node, computed once per node
-        if node.name in counts:
-            return counts[node.name]
-        n = 0
-        for c in tree.children(node):
-            n += 1 if c.get(build.PROP_KIND) == "part" else count(c)
-        counts[node.name] = n
-        return n
-
-    def walk(node, depth):
-        item = s.tree.add()
-        item.obj = node
-        item.depth = depth
-        item.parts = count(node)
-        subs = sorted((c for c in tree.children(node) if c.get(build.PROP_KIND) == "assembly"),
-                      key=lambda c: c.name.lower())
-        for c in subs:
-            walk(c, depth + 1)
-
-    roots = build.model_roots(scene)
-    for root in roots:
-        walk(root, 0)
-    s.model_count = len(roots)
+    """Rebuild the structure list (2 Structure): see tree.py."""
+    from . import tree as tree_mod
+    tree_mod.rebuild(scene)
 
 
 def update_bounds(scene):

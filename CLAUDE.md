@@ -167,6 +167,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - Cycles denoises on the processor by default (`denoising_use_gpu` is False): set it.
 - Joint values: always through `joints.set_value` (drivers need the update tag).
 - float32 rounding made ~2,000 parts look "moved" after an import: compare with `MOVE_EPS`.
+- `logic.Tree(scene)` walks the whole scene: make it once per operation, never inside a loop
+  (one per tree row cost 4.6 s on the EGR model). In `UIList.filter_items` and other code that
+  runs at every redraw, read collection columns with `foreach_get`, not row by row.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.

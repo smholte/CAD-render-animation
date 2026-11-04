@@ -3,6 +3,36 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.7 – 4 Nov 2026 – Structure and Looks: tree, find & sort
+
+Commit: (filled in after the push).
+
+2 Structure
+- The list is a tree like Windows Explorer: open and close each subassembly with its arrow
+  (or all at once). "Levels shown" is gone.
+- Click a row: that part or subassembly lights up in the view. The arrow at the end of a row
+  adds it to the selection, so several rows can be selected.
+- Click a part in the view: the tree opens down to it and marks its row.
+- Identical parts next to each other are one row ("× 4"). Identical subassemblies get their
+  number (":1", ":2", or the occurrence name from the CAD file).
+- Every part row shows its material colour.
+- "Find in the tree" filters the tree and keeps the subassemblies above each match.
+- Under the list: the selected row with "Zoom to it" and its lock.
+- "Show only" hides everything else; a red box and "Show everything again" bring it back.
+  Parts you hid yourself stay hidden.
+
+3 Looks
+- New fold "Find & sort parts": type a word (several words: all must fit; * = any text),
+  tick the parts you want, put them in a new group (named after the search) or an existing
+  one. "Make it a rule" puts the search on top of the rules, so the next revision is sorted
+  the same way. "Only inside …" searches one subassembly.
+- "Common words in unsorted parts": one click searches for the word.
+- "Show only the unsorted parts", and "Show only these" per group.
+- "Ready-made material…" per group: 28 machine materials (aluminium profile, anodised,
+  stainless, chrome, galvanised, rubber, POM, polycarbonate, RAL paints, LED, …).
+- "Rule: all of <subassembly> → this group" for the subassembly selected in 2 Structure.
+- A part clicked in the view shows its group, with "Move selected to group…".
+
 ## 0.2.6 – 3 Nov 2026 – faster import, self-test checks the new features
 
 Commit `b414a73`.

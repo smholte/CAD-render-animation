@@ -124,11 +124,15 @@ class FRESING_OT_show_all(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        from .tree import ISO_HIDDEN
         for ob in context.scene.objects:      # every object once, no recursion
             if ob.get(build.PROP_KIND) in build.MODEL_KINDS and not ob.get(build.PROP_EXCLUDED):
                 logic.set_visible_flags(ob, False)
                 if ob.get("fr_hidden"):
                     ob["fr_hidden"] = False
+            if ISO_HIDDEN in ob:
+                del ob[ISO_HIDDEN]
+        context.scene.fresing.isolated = ""
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 

@@ -199,6 +199,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
             to_hide.append(ob_new)
         if ob_old.get(build.PROP_KIND) == "assembly" and not ob_old.get(build.PROP_LOCKED, True):
             logic.set_locked(ob_new, False, tree)
+        if "fr_tree_open" in ob_old:             # open/closed rows in 2 Structure
+            ob_new["fr_tree_open"] = ob_old["fr_tree_open"]
         d = deltas.get(ob_old.get(build.PROP_UID))
         if d is not None and ob_new is not new_root:
             ob_new.matrix_basis = build.rest_basis(ob_new) @ d

@@ -19,7 +19,6 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 | 0005 | Choose where the update server lives (see docs/UPDATES.md) | owner | open | – |
 | 0006 | Phase 3, when projects need it: motion paths, link loops, several machines in one scene, props, clash warning, project templates | worker (per feature) | open | – |
 | 0008 | Automatic materials for most parts: large part-type library + CAD material names from the STEP (owner's points 17–18) | worker | open | `task/0008-part-type-rules`, tasks/0008-part-type-rules.md |
-| 0009 | Structure and Looks panels: tree, highlight, search, grouping tools (owner's points 1–3, 5–16) | lead | running | `task/0009-structure-looks`, tasks/0009-structure-looks-panels.md |
 | 0010 | Paint single faces of a part (owner's point 4) – after 0008 and 0009 | open | open | tasks/0010-face-painting.md |
 
 ## Done
@@ -32,5 +31,6 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 | – | Side panel redesigned section by section | 0.2.5 |
 | 0007 | Triangles read in one block (biggest EGR part 2.6 s → 0.3 s); self-test checks Time test and noise removal | 0.2.6 |
 | – | Code on GitHub; CLAUDE.md, TASKS.md, CHANGELOG.md; way of working agreed | – |
+| 0009 | Structure and Looks: explorer tree, highlight, find & sort parts, show only, ready-made materials (owner's points 1–3, 5–16) | 0.2.7 |
 
 Details per version: `CHANGELOG.md`.

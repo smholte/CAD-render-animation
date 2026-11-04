@@ -232,7 +232,7 @@ class FakeLayout:
     def _child(self, *a, **k):
         return FakeLayout(self.errors)
 
-    row = column = box = split = _child
+    row = column = box = split = grid_flow = _child
 
     def label(self, *a, **k):
         pass
@@ -300,10 +300,18 @@ def test_ui_panels_draw(scene, tmp_path):
                 getattr(cls, extra)(fake, bpy.context)
     # list item drawing
     s = scene.fresing
+    s.find_text = "iso"                        # fills the Find list
     for cls, data, prop in ((ui.FRESING_UL_tree, s, "tree"), (ui.FRESING_UL_groups, s, "groups"),
-                            (ui.FRESING_UL_rules, s, "rules")):
+                            (ui.FRESING_UL_rules, s, "rules"), (ui.FRESING_UL_found, s, "found")):
+        assert len(getattr(data, prop)), prop
         for item in getattr(data, prop):
             cls.draw_item(None, bpy.context, FakeLayout(errors), data, item, 0, data, "", 0)
+    # panels again with a search result, a "show only" and a subassembly row selected
+    s.isolated = "COVER.ASM"
+    s.tree_index = next(i for i, it in enumerate(s.tree) if not it.is_part and it.depth == 1)
+    for cls in ui.CLASSES:
+        if issubclass(cls, bpy.types.Panel):
+            cls.draw(type("P", (), {"layout": FakeLayout(errors)})(), bpy.context)
     assert not errors, errors
 
 

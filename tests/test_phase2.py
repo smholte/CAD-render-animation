@@ -94,7 +94,7 @@ def test_rotate_joint_moves_boom_and_keeps_structure(scene):
     assert close(tip(scene), expected), (tip(scene), expected)
     # the structure list and click-selection still follow the CAD tree
     logic.rebuild_tree(scene)
-    names = [it.obj.get(build.PROP_NAME) for it in scene.fresing.tree]
+    names = [it.obj.get(build.PROP_NAME) for it in scene.fresing.tree if not it.is_part]
     assert names == ["TEST.CRANE", "BOOM.ASM", "TROLLEY.ASM"]
     assert logic.subassembly_for_pick(ob(scene, "BOOM")) is boom_asm
     assert logic.part_count(build.model_roots(scene)[0]) == 12

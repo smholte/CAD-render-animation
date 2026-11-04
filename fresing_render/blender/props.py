@@ -188,7 +188,31 @@ class FRGroupAlias(bpy.types.PropertyGroup):
 class FRTreeItem(bpy.types.PropertyGroup):
     obj: PointerProperty(type=bpy.types.Object)
     depth: IntProperty()
-    parts: IntProperty()
+    parts: IntProperty()                 # parts below an assembly
+    parent_index: IntProperty(default=-1)
+    is_part: BoolProperty()
+    same: IntProperty(default=1)         # identical parts side by side shown as one row ("x 24")
+    has_kids: BoolProperty()
+    expanded: BoolProperty()
+    label: StringProperty()              # name, with ":2" for the second of identical subassemblies
+
+
+class FRFoundPart(bpy.types.PropertyGroup):
+    """One part name found by the Looks search (all placed parts with that name)."""
+    part_name: StringProperty()
+    count: IntProperty()
+    groups: StringProperty()             # the group(s) these parts are in now
+    use: BoolProperty(name="Tick", default=True)
+
+
+def _tree_index_changed(self, context):
+    from . import tree as tree_mod
+    tree_mod.on_index_changed(context)
+
+
+def _find_changed(self, context):
+    from . import finder
+    finder.run_search(context.scene)
 
 
 # ---------------------------------------------------------------------------
@@ -420,9 +444,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
     # ---- structure ----
     tree: CollectionProperty(type=FRTreeItem)
-    tree_index: IntProperty(default=0)
+    tree_index: IntProperty(default=0, update=_tree_index_changed)
     tree_depth: IntProperty(name="Levels", default=3, min=1, max=20,
-                            description="How many levels of the assembly tree to show")
+                            description="How many levels of the assembly tree to show (older versions)")
+    tree_search: StringProperty(name="Find in the tree", options={"TEXTEDIT_UPDATE"},
+                                description="Shows every subassembly and part whose name contains this text")
+    isolated: StringProperty(description="What 'Show only' is showing now ('' = everything)")
     pick_mode: EnumProperty(
         name="Click selects", default="SUBASSEMBLY",
         items=[("SUBASSEMBLY", "Subassembly", "A click selects the whole subassembly"),
@@ -433,6 +460,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- looks ----
     groups: CollectionProperty(type=FRMaterialGroup)
     groups_index: IntProperty(default=0)
+    find_text: StringProperty(name="Find parts", update=_find_changed,
+                              description="Part names containing all these words (* = any text)")
+    find_in_selected: BoolProperty(name="Only in the selected subassembly", default=False,
+                                   update=_find_changed)
+    found: CollectionProperty(type=FRFoundPart)
+    found_index: IntProperty(default=0)
     group_aliases: CollectionProperty(type=FRGroupAlias)
     rules: CollectionProperty(type=FRRule)
     rules_index: IntProperty(default=0)
@@ -556,7 +589,7 @@ def _show_joints(context):
                 pass
 
 
-CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem,
+CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRUid, FRVisSet, FRShot, FRAnimBlock, FRAnimation,
            FRQueueJob, FRReportLine, FRSceneSettings)
 
