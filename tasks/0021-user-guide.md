@@ -1,6 +1,6 @@
 # 0021 – User guide (and the tooltip standard)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0021-user-guide`
+**Who:** worker · **Status:** running · **Branch:** `task/0021-user-guide`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Docs (only `docs/`, `tools/` screenshot helpers,
 `installer/` to ship the guide, the app template for a Help-menu link) – no clash with other lanes.
 
