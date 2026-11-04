@@ -16,7 +16,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (can start)
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (running) → 0012 → 0013 → 0014
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (running) → 0020
@@ -27,7 +27,7 @@ updates its branch to `main`.
 
 | # | Task | Who | Status | Branch / file |
 | --- | --- | --- | --- | --- |
-| 0015 | Looks lane: rule sets – one naming scheme per company, chosen per project, switchable | worker | open – can start | tasks/0015-rule-sets.md |
+| 0015 | Looks lane: rule sets – one naming scheme per company, chosen per project, switchable | worker | running | `task/0015-rule-sets`, tasks/0015-rule-sets.md |
 | 0022 | Part library lane: more parts sorted on import – supplier catalogue codes (Misumi and others); owner attaches the EGR file | worker | open – can start | tasks/0022-more-supplier-codes.md |
 | 0011 | Motion lane: several joints on one subassembly, moves add up | worker | running | `task/0011-stacked-joints`, tasks/0011-stacked-joints.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | waiting (0011) | tasks/0012-couplings-motors.md |
