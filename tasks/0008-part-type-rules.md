@@ -70,10 +70,16 @@ large and wide set of rules to automate most parts colouring".
    with base colour/metallic/roughness if present). Store per node in `tree.json` as `material`
    (bump `CACHE_VERSION`, old caches are re-read), map common names to library materials
    ("Aluminum 6061", "Aluminium", "Steel", "Stainless Steel", "Rubber", "ABS Plastic", "Glass" …).
-   The owner will attach a small Inventor STEP (an assembly with e.g. one aluminium and one rubber
-   part) in this chat: check whether Inventor's export contains material names and/or visual
-   materials and say so in the report. Also test with a STEP written by OpenCascade with a material
-   set, so the path is covered by a test without the owner's file.
+   The owner has no Inventor access at the moment, only **Fusion 360**: he will attach a small
+   Fusion 360 STEP (an assembly with e.g. one aluminium and one rubber part, exported with
+   File > Export > STEP) in this chat. Check whether it contains colours, material names and/or
+   visual materials and say so in the report; Inventor follows when he has access again.
+   Known: his big Inventor model ("EGR…", 78 MB) is STEP **AP203** (`CONFIG_CONTROL_DESIGN`, written
+   by an AutoCAD Mechanical Desktop 2009 / PDElib translator) and has no colours and no
+   `MATERIAL_DESIGNATION` at all – AP203 cannot carry them. Write in the report which export
+   setting (AP214 / AP242) the owner should use in Inventor and Fusion to keep colours/materials.
+   Also test with a STEP written by OpenCascade with a material set, so the path is covered by a
+   test without the owner's file.
 4. **Materials:** add library materials that are needed (e.g. nickel-plated brass, black anodised
    aluminium, timing belt rubber, foam, wire mesh, mannequin matte). **Append new ids at the end of
    the stable number table in `core/materials_lib.py`**, never renumber (saved projects use them).
