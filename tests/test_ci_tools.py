@@ -108,3 +108,8 @@ def test_self_test_skips_graphics_card_only_when_asked(monkeypatch, value, expec
     else:
         monkeypatch.setenv(st.NO_GPU_ENV, value)
     assert st._no_gpu_expected() is expected
+
+
+def test_deliberately_broken_for_the_red_run_check():
+    """Scratch branch only: proves a failing test turns the GitHub run red."""
+    assert 1 + 1 == 3

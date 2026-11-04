@@ -258,6 +258,7 @@ def main(report_path: str | None = None) -> bool:
             bpy.data.images.remove(img)
         out = queue.encode_mp4(folder, os.path.join(folder, "test.mp4"), 64, 36, 25)
         size = os.path.getsize(out)
+        raise RuntimeError("deliberately broken on a scratch branch (red-run check)")
         if size < 200:
             raise RuntimeError("video file is empty")
         return f"{size} bytes"
