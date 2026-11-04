@@ -86,6 +86,15 @@ def click(x, y, shift=False):
     win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y, shift=shift)
     win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x + 3, y=y + 3)    # people move the mouse after a click
 
+def close_splash():
+    """Blender's start-up splash (shown on a fresh install) takes every event, also the timer of
+    a running import: Esc with the mouse over the middle of the window closes it."""
+    win = bpy.context.window_manager.windows[0]
+    x, y = win.width // 2, win.height // 2
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    win.event_simulate(type="ESC", value="PRESS", x=x, y=y)
+    win.event_simulate(type="ESC", value="RELEASE", x=x, y=y)
+
 
 def find(name, n=0):
     hits = sorted((o for o in bpy.context.scene.objects if o.get("fr_name") == name), key=lambda o: o.get("fr_uid"))
@@ -106,6 +115,7 @@ def step(fn):
 
 @step
 def s_start():
+    close_splash()
     check("add-on enabled", pkg() is not None and pkg() in bpy.context.preferences.addons, pkg())
     check("app template: units mm", bpy.context.scene.unit_settings.length_unit == "MILLIMETERS")
     win, area, region = ui()
