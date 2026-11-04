@@ -26,13 +26,16 @@ How to work with him:
 ## 2. How the work is organised
 
 **One lead chat** (the chat in the claude.ai project "STEP rendering App" that the owner
-works with) plans, writes task briefs, does small and medium tasks itself (with helper
-agents inside the chat when useful), reviews and merges results, builds releases and talks
-with the owner.
+works with) plans, writes task briefs, answers the owner's questions, keeps `TASKS.md` and the
+progress note current, and reads the reports and changes of finished tasks.
+**The lead does not build or test** (owner's rule, 4 Nov 2026): anything expected to take more
+than about 5 minutes of work goes to a worker chat – features, fixes, tests, measurements,
+releases. Planning and writing briefs stay with the lead, also when they take longer. Small
+edits to `CLAUDE.md`, `TASKS.md` and task files are fine for the lead.
 
-**Worker chats** take one large, separate task each (a new feature, hours of benchmarks, an
-independent review). The owner starts them by hand. **The lead tells the owner when a task
-should go to another chat and gives the exact sentence to paste**, for example:
+**Worker chats** take one task each (a feature, a fix, benchmarks, an independent review). The
+owner starts them by hand. **The lead tells the owner when a task should go to another chat
+and gives the exact sentence to paste**, for example:
 
 > Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0007.
 
@@ -42,9 +45,13 @@ file, the code.
 
 Rules:
 - `main` is always the tested, working version. Installers are built only from `main`.
-- Every larger task gets its own branch `task/NNNN-short-name` and a pull request into
-  `main`. The lead (or a review chat) reviews and merges it. Small lead-chat changes may go
-  to `main` directly, but only with all tests passing.
+- Every task gets its own branch `task/NNNN-short-name`. **The worker finishes the task
+  completely:** all tests pass, report filled in, then it updates its branch to the newest
+  `main` (tests again if `main` moved), merges into `main`, pushes, and does the release steps
+  (section 7) so the owner gets the installer in that chat. Exception: a task file that says
+  "lead review before merge" – then the worker stops at a pushed branch and the lead decides.
+- The lead reads each finished task's report and changes afterwards and writes a follow-up
+  task if something is off. Lead edits to documents may go to `main` directly.
 - Two chats never work on the same area at the same time (for example two chats both in
   `blender/ui*.py`). `TASKS.md` says who works where.
 - A task is done when its "Done when" list is met, the tests pass and the **Report** in its
@@ -140,8 +147,10 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - Commit messages say what changed and why, in plain words, and end with the attribution
   lines the chat's instructions give.
 
-## 7. Release procedure (lead chat)
+## 7. Release procedure (the worker chat that finishes a task)
 
+0. `git pull` first: another chat may have released in the meantime; take the next free
+   version number.
 1. Raise the version in `fresing_render/__init__.py` **and** `fresing_render/blender_manifest.toml`.
 2. Add the version to `CHANGELOG.md` (plain words, for the owner).
 3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging changes.
@@ -150,7 +159,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
-6. Send the owner the installer zip with short install/test steps; update the project progress note.
+6. Send the owner the installer zip with short install/test steps (numbered, click by click);
+   add a short entry to the project progress note `claude/render-app-progress.md` (if the chat
+   cannot reach it, say so: the lead will add it).
 
 ## 8. Things learned the hard way
 

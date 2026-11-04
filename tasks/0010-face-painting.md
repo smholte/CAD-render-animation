@@ -1,6 +1,6 @@
 # 0010 – Paint single faces of a part
 
-**Who:** to be decided (after 0008 and 0009 are merged) · **Status:** open
+**Who:** worker (starts when 0008 is merged; 0009 is merged) · **Status:** waiting
 **Area:** `blender/build.py`, `blender/materials.py`, `blender/logic.py`, `blender/reimport.py`,
 Looks panel, render/queue.
 

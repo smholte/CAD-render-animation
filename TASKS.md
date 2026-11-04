@@ -3,7 +3,8 @@
 The shared to-do list of all chats working on Fresing Render. How tasks work: see
 `CLAUDE.md` section 2. One file per larger task in `tasks/` (copy `tasks/TEMPLATE.md`).
 
-**Who:** *lead* = the lead chat · *worker* = a separate chat the owner starts for this task ·
+**Who:** *lead* = the lead chat (plans only, no building or testing) · *worker* = a separate chat
+the owner starts for this task; it finishes with merge and release (CLAUDE.md section 2) ·
 *owner* = Sebastian (decision or test on his PC).
 
 **Status:** open · running · waiting (on someone) · done
@@ -19,7 +20,8 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 | 0005 | Choose where the update server lives (see docs/UPDATES.md) | owner | open | – |
 | 0006 | Phase 3, when projects need it: motion paths, link loops, several machines in one scene, props, clash warning, project templates | worker (per feature) | open | – |
 | 0008 | Automatic materials for most parts: large part-type library + CAD material names from the STEP (owner's points 17–18) | worker | open | `task/0008-part-type-rules`, tasks/0008-part-type-rules.md |
-| 0010 | Paint single faces of a part (owner's point 4) – after 0008 and 0009 | open | open | tasks/0010-face-painting.md |
+| 0010 | Paint single faces of a part (owner's point 4); faces painted in CAD come in painted – starts when 0008 is merged (same files) | worker | waiting (0008) | tasks/0010-face-painting.md |
+| – | Owner's ideas of 4 Nov under discussion: several joints on one part (stacked moves), rule sets per machine (naming schemes), couplings/constraints between joints | lead | planning | – |
 
 ## Done
 

@@ -98,7 +98,9 @@ Allowed outside `core/` and `importer/` (the lead works in `blender/` at the sam
       style) → expected type, plus negatives that must stay unsorted (e.g. "FRAME", "PRODUCT INFO")
 - [ ] A coverage number for the owner's attached model (share of parts that get a type), names
       **not** written anywhere in the repository
-- [ ] Full test suite passes (`CLAUDE.md` section 5); no version bump (the lead releases)
+- [ ] Full test suite passes (`CLAUDE.md` section 5)
+- [ ] Merged into `main` and released by this chat (rule changed 4 Nov 2026, `CLAUDE.md`
+  sections 2 and 7; task 0009 is merged in `main` as 0.2.7 – update the branch to it first)
 - [ ] Report below filled in; pull request into `main` (or the branch pushed, if a PR cannot be
       opened from the chat)
 
