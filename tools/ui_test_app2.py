@@ -476,6 +476,8 @@ def s_stack_first():
     globals()["j1name"] = j1.name
     joints.set_value(j1, 0.1)                    # slid out 100 mm along Y before the second joint is added
     bpy.context.view_layer.update()
+    with override():
+        bpy.ops.ed.undo_push(message="slide out")   # what dragging the slider records
     below, reason = joints.stack_info(sc, [tr])
     check("stack: the panel says the next joint goes on top", below is not None and below.name == j1.name and not reason,
           reason)
@@ -516,9 +518,10 @@ def s_stack_made():
           f"{tuple(round(v, 4) for v in o)} dir {tuple(round(v, 3) for v in d)}")
     sign = 1 if d.z > 0 else -1
     globals()["sign"] = sign
+    globals()["axis_o"] = o.copy()                # where the click really landed (the nearest pixel)
     joints.set_value(j2, math.radians(90))
     bpy.context.view_layer.update()
-    c = pick_pt - Vector((0, 0.1, 0))             # the axis point in the CAD position of the slide
+    c = axis_o - Vector((0, 0.1, 0))              # the axis point in the CAD position of the slide
     want = _turned(w0, c, sign * math.pi / 2) + Vector((0, 0.1, 0))
     check("stack: moves add up (100 mm slide, then 90° turn on it)", (wheel() - want).length < 1e-4,
           f"{tuple(round(v, 4) for v in wheel())} want {tuple(round(v, 4) for v in want)}")
@@ -569,7 +572,7 @@ def s_stack_after_redo():
     r = op("fresing.joint_swap")
     bpy.context.view_layer.update()
     j1, j2 = joints.find(sc, j1name), joints.find(sc, j2name)
-    c = pick_pt - Vector((0, 0.1, 0))
+    c = axis_o - Vector((0, 0.1, 0))
     want = _turned(w0 + Vector((0, 0.1, 0)), c, sign * math.pi / 2)     # now: slide first, then everything turns
     ok = r == {"FINISHED"} and joints.rides_on(sc, j1) is not None and joints.rides_on(sc, j1).name == j2name \
         and (wheel() - want).length < 1e-4
