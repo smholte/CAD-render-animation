@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.7 – 4 Nov 2026 – Structure and Looks: tree, find & sort
 
-Commit: (filled in after the push).
+Commit `552a654`.
 
 2 Structure
 - The list is a tree like Windows Explorer: open and close each subassembly with its arrow
