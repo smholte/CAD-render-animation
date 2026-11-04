@@ -12,12 +12,15 @@ The shared to-do list of all chats working on Fresing Render. How tasks work: se
 
 | # | Task | Who | Status | Branch / file |
 | --- | --- | --- | --- | --- |
-| 0001 | Owner's list of interface wishes: compare with what 0.2.5 already changed, then do the rest | lead | waiting (owner's list) | – |
+| 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | open | – |
 | 0004 | Decide where renders go: "Renders" next to the project (now) or Pictures\Fresing Render\<project> | owner | open | – |
 | 0005 | Choose where the update server lives (see docs/UPDATES.md) | owner | open | – |
 | 0006 | Phase 3, when projects need it: motion paths, link loops, several machines in one scene, props, clash warning, project templates | worker (per feature) | open | – |
+| 0008 | Automatic materials for most parts: large part-type library + CAD material names from the STEP (owner's points 17–18) | worker | open | `task/0008-part-type-rules`, tasks/0008-part-type-rules.md |
+| 0009 | Structure and Looks panels: tree, highlight, search, grouping tools (owner's points 1–3, 5–16) | lead | running | `task/0009-structure-looks`, tasks/0009-structure-looks-panels.md |
+| 0010 | Paint single faces of a part (owner's point 4) – after 0008 and 0009 | open | open | tasks/0010-face-painting.md |
 
 ## Done
 

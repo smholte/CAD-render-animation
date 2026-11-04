@@ -123,6 +123,8 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 
 ## 6. Rules for changes
 
+- **The repository is public.** Never commit the owner's STEP files, part-name lists, renders
+  or screenshots of his (or his clients') machines. Generic examples only; numbers in reports.
 - New behaviour gets a test. A bug fix gets a test that failed before.
 - Speed claims are measured, with the model and machine named. Before/after numbers in the
   task report.
