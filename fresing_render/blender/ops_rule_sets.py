@@ -12,7 +12,7 @@ from ..core import rule_sets as RS
 from . import rule_sets
 
 # Blender keeps only references to enum item strings: they live in module globals.
-_ITEMS: dict[str, list] = {"all": [], "library": [], "editable": []}
+_ITEMS: dict[str, list] = {"all": [], "default": [], "library": [], "editable": []}
 _PREVIEW: dict[str, list[str]] = {"lines": [], "warning": []}
 
 
@@ -25,11 +25,18 @@ def _describe(rs: RS.RuleSet) -> str:
     return f"{rs.note} ({text})" if rs.note else text
 
 
-def _all_items(self, context):
-    """Standard, the rule sets in the library, and this project's own one if it is not in the library."""
+def _default_items(self, context):
+    """Standard and the rule sets in the library (a project's own copy cannot start other projects)."""
     items = [(RS.STANDARD, RS.STANDARD, _describe(RS.standard()), "LOCKED", 0)]
     for i, (name, (_path, rs)) in enumerate(sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold())):
         items.append((name, name, _describe(rs), "FILE", i + 1))
+    _ITEMS["default"] = items
+    return items
+
+
+def _all_items(self, context):
+    """Standard, the rule sets in the library, and this project's own one if it is not in the library."""
+    items = list(_default_items(self, context))
     s = context.scene.fresing if context and context.scene else None
     if s is not None and s.rule_set and s.rule_set != RS.STANDARD and s.rule_set not in rule_sets.library():
         items.append((s.rule_set, f"{s.rule_set} (only in this project)",
@@ -323,7 +330,7 @@ class FRESING_OT_rule_set_default(bpy.types.Operator):
     bl_label = "Default rule set"
     bl_property = "name"
 
-    name: EnumProperty(name="Rule set", items=_all_items, description="The rule set new projects start with")
+    name: EnumProperty(name="Rule set", items=_default_items, description="The rule set new projects start with")
 
     def execute(self, context):
         from . import prefs
