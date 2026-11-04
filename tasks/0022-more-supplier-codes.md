@@ -6,7 +6,7 @@
 
 ## Goal
 
-More parts get the right material on their own. On the owner's EGR model the library sorts 55 %
+More parts get the right material on their own. On the EGR test model (GrabCAD) the library sorts 55 %
 of the placed parts (1,540 of 2,789; task 0010's report); 1,247 stay Unsorted, many of them with
 supplier catalogue numbers the library does not know yet (Misumi above all). Raise that number
 without sorting things wrongly.
