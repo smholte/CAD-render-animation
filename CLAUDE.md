@@ -95,8 +95,10 @@ fresing_render/            the Blender extension (Python package)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, test-model makers, real-app tests, screenshot tool
+tools/                     build_release.py, test-model makers, real-app tests, screenshot tool,
+                           ci_*.py / ci_windows_install.ps1 (automatic tests), requirements-dev.txt
 tests/                     pytest suite (pure Python + Blender as a Python module)
+.github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md
 ```
 
@@ -138,14 +140,14 @@ cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux
 
 `.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
-run; runs on `main` always finish. Four jobs, about RUNTIME_TABLE:
+run; runs on `main` always finish. Four jobs; the whole run takes about 10 minutes (measured 4 Nov 2026):
 
 | Job | What it does | Time |
 | --- | --- | --- |
-| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | SUITE_TIME |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb | REALAPP_TIME |
-| Build the Windows installer zip | `tools/build_release.py`, as for a release | BUILD_TIME |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | WINDOWS_TIME |
+| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 8.3 min (pytest 5.5) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb | 9.8 min (ui1 6.1, ui2 0.7, paths 2.0) |
+| Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2.0 min (install 15 s, repair 3 s, self-test 79 s) |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
@@ -238,3 +240,12 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Real-app tests: `event_simulate` only queues events. An Esc sent in the same step as a modal
+  operator reaches that operator (it cancelled the import); give it a step of its own. A click
+  "somewhere in the side panel" lands on whatever button the layout puts there (an open
+  drop-down then eats the next click): click a fixed spot such as a section's title row.
+  These only showed up on GitHub because its runners start with an empty import cache.
+- Windows PowerShell 5.1 started from PowerShell 7 inherits PowerShell 7's `PSModulePath` and can
+  load the wrong modules: clear it for the child (`tools/ci_windows_install.ps1` does).
+- GitHub caches made on a branch are only seen by that branch; caches made on `main` are seen
+  by all branches. The first run of a new branch may download Blender again (about 1 minute).
