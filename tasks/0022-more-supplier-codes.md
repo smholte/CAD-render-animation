@@ -1,6 +1,6 @@
 # 0022 – More parts sorted on import: supplier catalogue codes
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0022-more-supplier-codes`
+**Who:** worker · **Status:** running · **Branch:** `task/0022-more-supplier-codes`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Part library (only `core/part_types_data.py`,
 `core/part_types.py`, `tests/test_part_types.py`; no UI, no `blender/`) – runs next to 0015.
 
