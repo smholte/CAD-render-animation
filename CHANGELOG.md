@@ -3,6 +3,37 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.8 – 4 Nov 2026 – most parts get their material on import
+
+Commit `(see below)`.
+
+3 Looks – sorting at import
+- A library of 63 part types sorts most parts by their name: aluminium profiles (anodised),
+  caps, connectors, plates and brackets, shafts and pins, chrome piston rods and guide shafts,
+  covers, sheet metal, welded frames, pneumatic cylinders and grippers, valves, fittings,
+  hoses, pipes, linear guides, ball screws, bearings and bearing units, bushings, couplings,
+  gears, pulleys, chains, belts, springs, seals and O-rings, rubber buffers, cables, cable
+  chains, cable glands, sensors, light curtains, motors and gearboxes, cabinets, electrical
+  parts, push buttons, emergency stops, signal towers, robots, handles, levelling feet,
+  casters, conveyor rollers, hinges, windows and plexiglass, wire mesh, gratings and stairs,
+  labels, mannequins, tooling, shackles and wire ropes, winches and sheaves. Each gets its own
+  group with a fitting material.
+- It reads English, Dutch and German names, common typing errors, and order codes of many
+  suppliers (SMC, Festo, igus, SKF, HIWIN, Sick, ifm, Rittal, Siemens, Ganter and more).
+- Parts inside a bought assembly follow it: the "BODY" of an SMC cylinder is the cylinder
+  (anodised), its "ROD" the chrome piston rod; a motor or sensor stays one colour. Machine
+  stations ("… UNIT", "… SYSTEM", "… STATION") never pass their name on to their parts.
+- A material in the name is used: "PLATE RVS" is stainless, "BLOK POM ZWART" black POM.
+- Material and appearance names from the STEP file are used (Fusion 360 writes them, for
+  example "Aluminum - Satin", "Rubber - Soft", "Paint - Enamel Glossy (Red)").
+- The CAD colour only colours paints and plastics; metal, rubber and glass keep their look.
+- New order of the sorting rules: fasteners → part type → CAD material → CAD colour →
+  Unsorted. Projects made before keep their own rules; "Defaults" in the rules fold gives the
+  new list.
+- 8 new materials: nickel plated, black anodised aluminium, zinc die-cast, belt rubber, foam,
+  felt, mannequin, wood.
+- Self-test: new line "CAD material names and part types".
+
 ## 0.2.7 – 4 Nov 2026 – Structure and Looks: tree, find & sort
 
 Commit `552a654`.

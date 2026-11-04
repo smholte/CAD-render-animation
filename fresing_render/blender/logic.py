@@ -40,6 +40,7 @@ def facts_for_object(ob) -> R.PartFacts:
         path=build.path_of(ob),
         color=ob.get(build.PROP_COLOR, ""),
         assembly=asm.get(build.PROP_NAME, asm.name) if asm else "",
+        cad_material=ob.get(build.PROP_CAD_MATERIAL, ""),
     )
 
 

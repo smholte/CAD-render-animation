@@ -175,18 +175,22 @@ def test_rule_for_a_whole_subassembly(scene):
 
 def test_suggestions_for_unsorted_parts(scene):
     s = scene.fresing
-    for name in ("FRAME", "SIGNAL.LAMP", "COVER.PLATE"):
+    for i, name in enumerate(("FRAME", "SIGNAL.LAMP", "COVER.PLATE")):
         ob = _part(scene, name)
-        ob[build.PROP_NAME] = "SEAL RING " + name
+        ob[build.PROP_NAME] = f"ZYLO WIDGET {i}"         # words the part-type library does not know
         ob[build.PROP_COLOR] = ""
     logic.apply_rules(scene)
     words = dict(finder.suggestions(scene))
-    assert words.get("SEAL") == 3 and words.get("RING") == 3
+    assert words.get("ZYLO") == 3 and words.get("WIDGET") == 3
     assert "ASM" not in words
 
 
 def test_show_only_unsorted_and_group(scene):
     s = scene.fresing
+    lamp = _part(scene, "SIGNAL.LAMP")
+    lamp[build.PROP_NAME] = "ZYLO WIDGET"                # the library sorts the lamp: make one part unsorted
+    logic.apply_rules(scene)
+    assert lamp.get(build.PROP_GROUP) == R.FALLBACK_GROUP
     assert bpy.ops.fresing.show_only_group(group="") == {"FINISHED"}
     unsorted = finder.unsorted_parts(scene)
     assert unsorted and all(not o.hide_get() for o in unsorted)

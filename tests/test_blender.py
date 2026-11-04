@@ -69,7 +69,12 @@ def test_sorting_and_materials(scene):
     assert _part(scene, "DIN 912 M10x30 - 12.9")[build.PROP_GROUP] == "Fasteners black"
     assert _part(scene, "ISO 7380 M6x12")[build.PROP_GROUP] == "Fasteners black"
     assert _part(scene, "FRAME")[build.PROP_GROUP] == "Colour #F9A800"
-    assert _part(scene, "SIGNAL.LAMP")[build.PROP_GROUP] == "Unsorted"
+    # part-type library (task 0008): the lamp is a signal lamp, the blue cover plate a painted cover
+    assert _part(scene, "SIGNAL.LAMP")[build.PROP_GROUP] == "Signal towers & lamps"
+    assert groups["Signal towers & lamps"].material == "plastic_gloss"
+    cover = _part(scene, "COVER.PLATE")[build.PROP_GROUP]
+    assert cover.startswith("Covers & panels #") and groups[cover].material == "paint_satin"
+    assert groups[cover].color == cover.split(" ")[-1]
     assert groups["Colour #F9A800"].material == "paint_satin"
     assert groups["Colour #F9A800"].color == "#F9A800"
     assert groups["Fasteners galvanized"].count == 4

@@ -9,7 +9,7 @@ Entries with ``needs_color=True`` take their colour from the material group
 
 from __future__ import annotations
 
-CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", "Light")
+CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", "Light", "Other")
 
 # Keys understood by the node builder:
 #   base_color, metallic, roughness, coat, coat_roughness, transmission, ior,
@@ -89,6 +89,25 @@ MATERIALS: dict[str, dict] = {
     # ---- light ---------------------------------------------------------------
     "emission_light": dict(label="Light / LED (glowing)", category="Light", needs_color=True, roughness=0.3,
                            emission=True, emission_strength=6.0),
+
+    # ---- added for the part-type library (task 0008) ---------------------------
+    "nickel_plated": dict(label="Nickel plated (brass fittings)", category="Metal", base_color=(0.80, 0.79, 0.76),
+                          metallic=1.0, roughness=0.17),
+    "aluminium_anodized_black": dict(label="Aluminium, black anodized", category="Metal",
+                                     base_color=(0.035, 0.035, 0.04), metallic=1.0, roughness=0.36),
+    "zinc_diecast": dict(label="Zinc die-cast", category="Metal", base_color=(0.70, 0.71, 0.72), metallic=1.0,
+                         roughness=0.42),
+    "belt_rubber": dict(label="Belt rubber (timing / flat belts)", category="Plastic & rubber",
+                        base_color=(0.03, 0.03, 0.03), roughness=0.62, specular=0.35,
+                        bump=dict(scale=400.0, strength=0.03)),
+    "foam": dict(label="Foam", category="Plastic & rubber", base_color=(0.20, 0.20, 0.21), roughness=0.95,
+                 specular=0.2, bump=dict(scale=300.0, strength=0.15)),
+    "felt": dict(label="Felt", category="Plastic & rubber", base_color=(0.35, 0.35, 0.36), roughness=1.0,
+                 specular=0.15, bump=dict(scale=800.0, strength=0.08)),
+    "mannequin_matte": dict(label="Mannequin, matte", category="Plastic & rubber", base_color=(0.78, 0.74, 0.68),
+                            roughness=0.55, specular=0.4),
+    "wood": dict(label="Wood (pallets, plywood)", category="Other", base_color=(0.62, 0.46, 0.30), roughness=0.7,
+                 variation=dict(scale=6.0, roughness_min=0.6, roughness_max=0.8, color_amount=0.2)),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -127,6 +146,14 @@ UIDS: dict[str, int] = {
     "glass_tinted": 31,
     "acrylic_frosted": 32,
     "emission_light": 33,
+    "nickel_plated": 34,
+    "aluminium_anodized_black": 35,
+    "zinc_diecast": 36,
+    "belt_rubber": 37,
+    "foam": 38,
+    "felt": 39,
+    "mannequin_matte": 40,
+    "wood": 41,
 }
 
 DEFAULT_COLOR = "RAL 7035"

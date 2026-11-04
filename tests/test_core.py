@@ -20,14 +20,18 @@ def test_default_rules_sort_fasteners_by_finish():
         _facts("DIN 125-A 13"),
         _facts("FRAME.WELDMENT", color="#F9A800"),
         _facts("COVER"),
+        _facts("FRAME", color="#F9A800"),
+        _facts("FRAME"),
     ]
     groups, counts, unmatched = R.classify(parts, rules)
     assert groups == [
         "Fasteners galvanized", "Fasteners black", "Fasteners stainless", "Fasteners default",
+        # since 0.2.8 the part-type library sorts what it knows; paint-type groups take the CAD colour
+        "Welded frames & structures #F9A800", "Covers & panels",
         "Colour #F9A800", R.FALLBACK_GROUP,
     ]
-    assert unmatched == [5]
-    assert sum(counts) == 5
+    assert unmatched == [7]
+    assert sum(counts) == 7
 
 
 def test_rule_order_first_match_wins():
