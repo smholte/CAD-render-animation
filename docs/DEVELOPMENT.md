@@ -61,7 +61,7 @@ its own copy); the working state stays in `rules`, `group_aliases` and `groups`.
 starts with the saved copy's look for its name, else the built-in one (`logic.start_look`).
 Switching (`rule_sets.switch`): load rules/renames, sort, set looks (the set's, else built-in for
 rule-filled groups, hand-only groups keep theirs), remove groups left empty; `preview` runs the
-same sort without writing (`logic.sort_plan`, `faces.plan`). Projects saved before 0.2.10 get
+same sort without writing (`logic.sort_plan`, `faces.plan`). Projects saved before 0.2.11 get
 their rule set on open (`rule_sets.on_load` -> `adopt`: "Standard" when the rules are the
 untouched defaults, else "From this project"; nothing is re-sorted). Templates carry
 `rule_set` (name + copy): the library version wins, the copy is the fallback; templates without
@@ -94,7 +94,7 @@ adaptive threshold x5/3 - measured on an EGR interior close-up (CPU, 480x270): 3
 rejected. Colour-background compositing costs ~0.5 s per 1440p frame (kept). The log
 prints "frame N: render X s, save Y s" per frame.
 
-Rule sets (0.2.10), synthetic 2,800-part scene (test model copied with generic names, 70 parts
+Rule sets (0.2.11), synthetic 2,800-part scene (test model copied with generic names, 70 parts
 put in a group by hand), 2-core test machine: preview of a switch 0.02-0.03 s, switch 0.04-0.06 s,
 the "changed" check the panel makes at every redraw 0.12 ms.
 

@@ -110,7 +110,7 @@ def _on_load(_dummy=None):
                 build.ensure_bases(sc)
                 sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
                 from . import rule_sets
-                if rule_sets.on_load(sc):        # no rule set yet (before 0.2.10); untouched rules of before 0.2.8
+                if rule_sets.on_load(sc):        # no rule set yet (before 0.2.11); untouched rules of before 0.2.8
                     sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
                                                "CAD materials): press 'Sort parts into groups' to use them")
     except Exception:

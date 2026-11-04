@@ -508,7 +508,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     face_painting: BoolProperty(default=False,
                                 description="'Paint faces' is running in the view")
     # rule set (task 0015): the name of the rule set this project uses ('' = a project made before
-    # 0.2.10, adopted on open) and the rule set as it was last loaded or saved (JSON), which is the
+    # 0.2.11, adopted on open) and the rule set as it was last loaded or saved (JSON), which is the
     # project's own copy: the project opens without the library, and "changed" compares with it
     rule_set: StringProperty(name="Rule set", description="The rule set this project uses")
     rule_set_data: StringProperty()

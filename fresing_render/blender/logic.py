@@ -29,7 +29,7 @@ def load_rules_into_scene(s, rules: list[R.Rule]) -> None:
 
 
 def ensure_default_rules(s) -> bool:
-    """For projects without a rule set (made before 0.2.10): default rules when there are none;
+    """For projects without a rule set (made before 0.2.11): default rules when there are none;
     a rule list that is still the untouched default of a version before 0.2.8 gets the new default
     list (part types, CAD materials). True if changed. A project with a rule set keeps its rules,
     also none at all (a rule set started empty)."""
