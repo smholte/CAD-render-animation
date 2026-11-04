@@ -53,7 +53,10 @@ Rules:
 - The lead reads each finished task's report and changes afterwards and writes a follow-up
   task if something is off. Lead edits to documents may go to `main` directly.
 - Two chats never work on the same area at the same time (for example two chats both in
-  `blender/ui*.py`). `TASKS.md` says who works where.
+  `blender/ui*.py`). `TASKS.md` groups the tasks in **lanes**: one running task per lane.
+- A worker that starts a task sets it to "running" in `TASKS.md` and pushes that change to
+  `main` right away. When it finishes, it moves the task to "Done" and sets the next task in
+  its lane to "open – can start", so the owner can start the next chat.
 - A task is done when its "Done when" list is met, the tests pass and the **Report** in its
   task file is filled in (what changed, what was tested and measured, what is left open).
 - Each new chat needs push access to the repository; the owner approves that once per chat.

@@ -18,9 +18,9 @@ large and wide set of rules to automate most parts colouring".
   from names by `core/fasteners.py`: DIN/ISO, finish) and CAD colours ("Colour #RRGGBB" groups,
   satin paint in that colour). Everything else goes to "Unsorted" (satin paint RAL 7035).
 - On the owner's latest model (2,745 parts, an Inventor STEP without colours) 2,694 parts ended up
-  Unsorted. Names look like typical machine-building parts: vendor part numbers (e.g. SMC guided
-  cylinder parts like `_MGG25-150(0)_ROD`), assembly names like `CONVEYOR.SYSTEM`,
-  `GASCKET.ASSY.UNIT.AS` (sic), aluminium profile frames, sensors, plexiglass guards, a mannequin.
+  Unsorted. Names look like typical machine-building parts: vendor part numbers (pneumatic
+  cylinder parts, guides), assembly names with typing errors, aluminium profile frames, sensors,
+  plexiglass guards, a mannequin. (No real part names in this public repository.)
 - Sorting runs automatically after every import (`blender/logic.py: apply_rules`): rules are checked
   top to bottom, the first match decides the group; a group gets its starting material from
   `core/rules.py: default_material_for_group`. Materials are in `core/materials_lib.py`.
