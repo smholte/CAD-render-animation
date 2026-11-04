@@ -14,7 +14,9 @@ Commit: (filled in after the push).
   adds it to the selection, so several rows can be selected.
 - Click a part in the view: the tree opens down to it and marks its row.
 - Identical parts next to each other are one row ("× 4"). Identical subassemblies get their
-  number (":1", ":2", or the occurrence name from the CAD file).
+  number (":1", ":2", or the occurrence number from the CAD file), at the right end of the
+  row so it stays visible when a long name is cut off. The full name is in the box under
+  the list.
 - Every part row shows its material colour.
 - "Find in the tree" filters the tree and keeps the subassemblies above each match.
 - Under the list: the selected row with "Zoom to it" and its lock.

@@ -218,26 +218,34 @@ class FRESING_UL_tree(bpy.types.UIList):
             return
         row = layout.row(align=True)
         for _ in range(item.depth):
-            row.separator(factor=0.7)
+            row.separator(factor=0.5)
         if item.has_kids:
             op = row.operator("fresing.tree_toggle", text="", emboss=False,
                               icon="DISCLOSURE_TRI_DOWN" if item.expanded else "DISCLOSURE_TRI_RIGHT")
             op.index = index
         else:
             row.label(text="", icon="BLANK1")
+        # the name may be cut off at the end; what tells copies apart stays visible on the right
+        name = ob.get(build.PROP_NAME, ob.name)
+        if item.label.startswith(name):
+            tag = item.label[len(name):].strip()            # ":2" of identical subassemblies
+        else:
+            name, tag = item.label, ""
         if item.is_part:
             mat = ob.active_material
-            text = item.label + (f"  ×{item.same}" if item.same > 1 else "")
             if mat is not None:
-                row.label(text=text, icon_value=layout.icon(mat))
+                row.label(text=name, icon_value=layout.icon(mat))
             else:
-                row.label(text=text, icon="MESH_CUBE")
+                row.label(text=name, icon="MESH_CUBE")
+            if item.same > 1:
+                tag = f"×{item.same}"
         else:
-            row.label(text=f"{item.label}  ({item.parts})",
-                      icon="OUTLINER_COLLECTION" if item.depth == 0 else "FILE_FOLDER")
+            row.label(text=name, icon="OUTLINER_COLLECTION" if item.depth == 0 else "FILE_FOLDER")
         # few buttons per row, so long names fit; zoom and lock are under the list
         sub = row.row(align=True)
         sub.alignment = "RIGHT"
+        if tag:
+            sub.label(text=tag)
         if not item.is_part and not ob.get(build.PROP_LOCKED, True):
             sub.label(text="", icon="UNLOCKED")
         hidden = ob.get("fr_hidden", False)

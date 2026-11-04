@@ -129,7 +129,9 @@ def s_state():
     UISHOT_FOLLOW_LAST=1 (any model): the last part is clicked, so the tree must open and scroll to it."""
     if os.environ.get("UISHOT_FOLLOW_LAST"):
         sc = bpy.context.scene
-        last = sc.fresing.tree[len(sc.fresing.tree) - 1].obj
+        rows = sc.fresing.tree
+        deepest = max(it.depth for it in rows)
+        last = [it for it in rows if it.depth == deepest][-1].obj    # far down a closed tree
         for o in bpy.context.selected_objects:
             o.select_set(False)
         sc.fresing.pick_mode = "PART"
@@ -241,7 +243,7 @@ def driver():
     if r == "wait":
         if not _wait[0]:
             _wait[0] = time.time()
-        if time.time() - _wait[0] > 120:
+        if time.time() - _wait[0] > float(os.environ.get("UISHOT_WAIT", "120")):
             log(fn.__name__, "timeout")
             _i[0] += 1
             _wait[0] = 0.0
