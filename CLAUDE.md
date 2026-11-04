@@ -140,14 +140,14 @@ cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux
 
 `.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
-run; runs on `main` always finish. Four jobs; the whole run takes about 10 minutes (measured 4 Nov 2026):
+run; runs on `main` always finish. Four jobs; the whole run takes about 12 minutes (measured 5 Nov 2026):
 
 | Job | What it does | Time |
 | --- | --- | --- |
-| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 8.3 min (pytest 5.5) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 9.8 min (ui1 6.1, ui2 0.7, paths 2.0) |
+| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 12.2 min (ui1 7.9, ui2 0.8, faces 0.3, paths 2.6) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2.0 min (install 15 s, repair 3 s, self-test 79 s) |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is

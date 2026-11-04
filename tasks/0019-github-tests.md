@@ -123,7 +123,27 @@ before 0.2.2 had a PowerShell error that no Linux test could see). Several chats
   ALL OK (2 skipped, 2.3 min); with a fresh settings folder ui1 failed 14/17 before the test
   fixes and passed 17/17 after (quick mode, no renders; the full 22/22 ran on GitHub), ui2 29/29,
   paths 8/8.
-- MAIN_RUN_LINE
+- Independent review (a helper that did not write the code) before the merge: 1 blocker, 4
+  should-fix, 6 minor/no-problem. All fixed except where noted under open points:
+  `ci_status.py` could show an older commit's green run right after a push (now only the exact
+  commit); the side-panel click hit no part, so it tested nothing (the view is now moved so the
+  boom lies behind the click, proved with a ray; removing the side-panel guard in the app turned
+  the test red); skipped tests (bpy/OCP not loading) could look green (package check + at most 1
+  skip); Python errors outside the test steps and checks that silently disappear now fail;
+  shorter limits so a stuck test cannot use up the whole job; files uploaded also after a
+  timeout; the self-test skip only for a plain "CPU" result; strict check on Windows (App start
+  must really run).
+- Merged the newest `main` (0.2.9, 0.2.10) into the branch; the runner now also runs
+  `ui_test_faces.py`. Final branch run 9ce40a6 (run 41934041369), all green:
+
+  | Job | Time |
+  | --- | --- |
+  | Linux - test suite + packaged self-test | 9.2 min (1,302 passed, 0 skipped, 6.3 min) |
+  | Linux - real app | 12.2 min, Blender from the cache (ui1 23/23 in 7.9 min, ui2 39/39 in 0.8, faces 10/10 in 0.3, paths 8/8 in 2.6) |
+  | Build the Windows installer zip | 0.4 min |
+  | Windows - install + self-test | 3.1 min (install 20 s, repair 5 s, self-test 135 s, uninstall 2 s); RESULT "ALL OK (2 skipped because FRESING_SELFTEST_NO_GPU=1)" |
+
+  Run times vary by ±30 % between runs on GitHub's shared machines.
 
 **Open points / follow-up tasks:**
 - The owner deletes the scratch branch `scratch/0019-red-check` on github.com (chats cannot).
@@ -134,3 +154,6 @@ before 0.2.2 had a PowerShell error that no Linux test could see). Several chats
 - The GitHub run page shows the self-test report, screenshots and logs as downloadable files
   (14 days); chats only see what the logs print.
 - Branch caches: a new branch's first run downloads Blender again (~1 min) until `main` has a run.
+- From the review, not done (small): pushes to a branch with an open pull request run twice;
+  the Linux Blender checksum is read from blender.org instead of being pinned; actions are
+  pinned by version tag, not by commit.
