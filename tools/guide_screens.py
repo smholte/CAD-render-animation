@@ -413,6 +413,7 @@ if MODE == "panels":
         ("panel_3_find", [("FRESING_PT_find", False, True)]),
         ("panel_3_rules", [("FRESING_PT_rules", False, True)]),
         ("panel_3_schemes", [("FRESING_PT_schemes", False, True)]),
+        ("panel_3_faces", [("FRESING_PT_faces", False, True)]),
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
@@ -436,6 +437,15 @@ if MODE == "panels":
                 grp = ob("BOOM").get("fr_group", "")
                 idx = next((i for i, g in enumerate(sc.fresing.groups) if g.name == grp), 0)
                 sc.fresing.groups_index = idx
+            elif name == "panel_3_faces":               # one face of the boom painted by hand, boom clicked
+                s = sc.fresing
+                logic, faces = mod("blender.logic"), mod("blender.faces")
+                logic.ensure_group(s, "Warning red")
+                s.face_group = "Warning red"
+                faces.paint(ob("BOOM"), [0], "Warning red")
+                logic.apply_rules(sc)
+                sc.fresing.pick_mode = "PART"
+                select_only(ob("BOOM"))
             elif name == "panel_2_structure":
                 sc.fresing.pick_mode = "SUBASSEMBLY"
                 select_only(ob("BOOM.ASM"))

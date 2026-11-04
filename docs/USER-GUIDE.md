@@ -175,9 +175,11 @@ copy (**More > Clear import cache** throws those copies away if disk space is sh
 **Update to a new revision**
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
-2. Your work stays: materials, hidden parts, joints, poses, saved scenes and animations.
+2. Your work stays: materials, painted faces, hidden parts, joints, poses, saved scenes and
+   animations.
 3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
-   a material) and **Missing**. × closes the report.
+   a material) and **Missing**, and parts whose faces changed so their painted faces are gone (paint
+   them again). × closes the report.
 
 > **Projects on a shared drive:** when someone else has the project open, a red box "In use by
 > *name* on *computer*" appears here. Save your changes under another name (File > Save As).
@@ -245,9 +247,13 @@ into groups by itself, using:
 
 A part that fits nothing goes to **Unsorted**; the header then says "… unsorted" in red.
 
+Faces painted in CAD come in painted: a face with its own colour or appearance in Inventor or Fusion
+keeps it, and the rest of the part gets the part's material (see [Paint faces](#faces)).
+
 **Give a group its material**
 
-1. Click the group in the list (the number is how many parts it has).
+1. Click the group in the list (the number is how many parts it has; a brush with a number: a group
+   used only by painted faces).
 2. **Ready-made material…**: pick a machine material (aluminium profile, anodised, stainless, chrome,
    galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
    plastics, a **Colour**: a RAL code (RAL 5010) or a hex code (#13447C). The magnifier picks from the
@@ -262,10 +268,32 @@ A part that fits nothing goes to **Unsorted**; the header then says "… unsorte
 - **Rule: all of … → this group** (shown when a subassembly is selected in 2 Structure): every part in
   that subassembly goes into this group, also in later revisions.
 - **+** adds a group; **−** removes the selected group (its parts are sorted again by the rules).
-- Click a part in the view (with **Part** chosen in 2 Structure): a box shows its group and CAD colour,
-  with **Move selected to group…**.
+- Click a part in the view (with **Part** chosen in 2 Structure): a box shows its group, CAD colour
+  and CAD material, with **Move selected to group…**.
 - **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
   stay there.
+
+<a id="faces"></a>
+### Paint faces
+
+<img class="panel" src="img/panel_3_faces.png" alt="Paint faces, with one face of the boom painted">
+
+Gives single faces of a part another look: a painted end face, a coloured edge strip, a label area.
+
+1. **Paint with**: the group whose look the faces get. Empty: the group selected in the list above.
+   For a new colour, first add a group with **+** and give it its material.
+2. **Only this copy**: tick it to paint only the copy you click. Unticked, every copy of the part gets
+   the same painted faces.
+3. Click **Paint faces…**, then click faces on the model. A click paints the whole CAD face under the
+   mouse; <kbd>Shift</kbd>+click gives a face back the look of its part. You can still turn and zoom
+   the view. <kbd>Enter</kbd>, <kbd>Esc</kbd>, a right-click or **Done** ends and keeps what you
+   painted; <kbd>Ctrl</kbd>+<kbd>Z</kbd> afterwards takes the painting back.
+4. Click a part to see its painted faces under the button. **Other group…** gives a set of faces the
+   look of another group; **Whole part** makes them look like the rest of the part again.
+
+Faces painted in CAD are listed the same way. A sorting rule on their colour can give them another
+material, for example "CAD colour is #C0C0C0 → Anodised"; only colour and CAD-material rules act on
+single faces. A model update keeps the painted faces of parts whose faces did not change.
 
 ### Find & sort parts
 
@@ -299,8 +327,8 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
   name may hold {color}, {finish} or {kind}: then you get one group per colour, finish or type.
 - **+** adds a rule, **From active part** makes one from the part you clicked, the arrows move a rule
   up or down, **−** removes it.
-- **Defaults** replaces all rules with the built-in list. (Projects made before version 0.2.8 keep
-  their old rules until you click it.)
+- **Defaults** replaces all rules with the built-in list. Projects made before version 0.2.8 that
+  still had the old built-in rules get the new ones when they are opened; your own rules are kept.
 - After changing rules, click **Sort parts into groups** in 3 Looks.
 
 ### Paint schemes & templates

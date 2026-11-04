@@ -60,8 +60,10 @@ the installer.
 - `docs/USER-GUIDE.md`: the user guide – how the app is laid out, getting started (install, moving
   around, first render), one chapter per section 1–7 with numbered steps, tips (Inventor/Fusion
   export: AP214/AP242, from 0008's report; faster renders), troubleshooting (self-test, where
-  renders go, missing tab, import and render problems). 22 pictures in `docs/img/`, all of the
-  generic test crane (`tests/data/test_crane_a.step`). Every claim was checked against the code
+  renders go, missing tab, import and render problems). 23 pictures in `docs/img/`, all of the
+  generic test crane (`tests/data/test_crane_a.step`). Includes what 0.2.9 (task 0010) added:
+  "Paint faces" (own chapter and picture), faces painted in CAD, the CAD material of a clicked part,
+  painted faces in the model-update report, and old default rules upgrading themselves. Every claim was checked against the code
   (cameras, cores, Esc, stay-awake, render folders, time-test folder).
 - The **tooltip style guide** is the HTML comment at the top of `USER-GUIDE.md` (12 rules + good
   examples); it is not shown in the guide. `CLAUDE.md` section 6 points to it.
@@ -77,8 +79,9 @@ the installer.
   "Fresing Render - User guide". `README-install.txt` mentions it.
 - `tools/tooltip_report.py`: reads every button and setting the side panel draws and grades its
   tooltip (missing / weak / fine, with the reason). `docs/TOOLTIPS-TODO.md`: the snapshot on `main`
-  `e8365b8` – 203 buttons and settings, **83 without a tooltip, 31 weak**, 89 fine – split per lane,
-  each with a suggested text checked against the code.
+  `5936ed9` (after 0010) – 209 buttons and settings, **65 without a tooltip, 28 weak**, 116 fine –
+  split per lane, each with a suggested text checked against the code. (On `e8365b8`, before 0010:
+  203, 83 missing, 31 weak; 0010 fixed 21 of the Looks lane's 35.)
 - `tests/test_user_guide.py` (new tests): guide builds with every chapter in order, pictures
   inside, notes kept out, no unused or oversized pictures, missing picture is an error, the
   Help-menu operator finds and opens the guide (and reports a missing one), the tooltip report reads
@@ -88,28 +91,33 @@ the installer.
   `get_rna_type()`, see-through side panel in screenshots, no Pillow in Blender's Python).
 
 **Tested and measured** (name the machine and the model):
-All on the 2-core Linux test machine without a graphics card, test models only:
-- Full suite: 1,261 passed (9 new in `tests/test_user_guide.py`).
+All on the 2-core Linux test machine without a graphics card, test models only, on this branch
+after merging `main` with 0.2.9 (task 0010):
+- Full suite: 1,275 passed (9 new in `tests/test_user_guide.py`).
 - Real app, Help menu (`tools/guide_test_app.py`, guide inside the installed extension): 8/8 –
   entry is the first item of Help, clicking it opens `<extension>/guide/user_guide.html`, a missing
   guide gives "run Install.bat again" and opens nothing.
-- Real app, side panel clicks: `ui_test_app.py` 22/22, `ui_test_app2.py` 29/29; paths with spaces,
-  accents, apostrophe and dash (`paths_test_blender.py`): 8/8.
+- Real app, side panel clicks: `ui_test_app.py` 22/22, `ui_test_app2.py` 29/29, face painting
+  (`ui_test_faces.py`) 10/10; paths with spaces, accents, apostrophe and dash
+  (`paths_test_blender.py`): 8/8. (`ui_test_app.py` first hung at the import with a cold cache –
+  see open points; with the crane in the cache it passes.)
 - Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
   (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
 - Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
   `fresing_render-0.2.10.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
 - Guide page looked at in a browser at desktop and phone width (no sideways scrolling, no outside
-  links or fonts: works offline). All 22 pictures checked by eye: test crane only.
+  links or fonts: works offline). All 23 pictures checked by eye: test crane only.
 - Windows-only code (installer shortcut, `os.startfile` in the Help entry) reviewed by an
   independent helper: no blocking problems; its one small point (installer header comment) fixed.
   Not tested on Windows: the owner's PC confirms (open points).
 
 **Open points / follow-up tasks:**
-- The lanes write the 114 tooltips in `docs/TOOLTIPS-TODO.md` for their own panels (Looks 35,
-  Scene & Render 25, Motion 54) and delete their rows when done.
+- The lanes write the 93 tooltips in `docs/TOOLTIPS-TODO.md` for their own panels (Looks 14 –
+  mostly one text shared by two buttons that do different things –, Scene & Render 25, Motion 54)
+  and delete their rows when done.
+- Looks lane, small: the Paint faces header says "1 face sets" (plural for one).
 - Each later task that changes a panel updates its guide chapter and pictures (rule in
-  `CLAUDE.md` section 6). Panels changed by the running tasks 0010, 0011, 0016 and 0019 are not in
+  `CLAUDE.md` section 6). Panels changed by the running tasks (0011, 0015, 0016, 0019, 0022) are not in
   this guide yet.
 - For task 0020 (updates from GitHub): the Help-menu entry lives in the app template, which only
   Install.bat copies. An in-app update of the extension brings the new guide file, but changes to

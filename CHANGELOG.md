@@ -15,7 +15,7 @@ Commit: (filled in after the merge).
   (Fresing Render > "Fresing Render - User guide") and as "User guide.html" next to Install.bat.
 - The guide ships inside the extension, so an update always brings the guide of that version.
 - For the other chats: a tooltip style guide, a tooltip check (`tools/tooltip_report.py`) and a
-  list of the 114 tooltips still to write, with suggested texts (`docs/TOOLTIPS-TODO.md`).
+  list of the 93 tooltips still to write, with suggested texts (`docs/TOOLTIPS-TODO.md`).
 
 ## 0.2.9 – 5 Nov 2026 – painted faces
 
