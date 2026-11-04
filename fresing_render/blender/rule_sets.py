@@ -194,8 +194,9 @@ def library_differs(s) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def load_into(scene, rs: RS.RuleSet) -> None:
-    """Make ``rs`` the project's rule set (rules, group renames, saved copy) without sorting."""
+def load_into(scene, rs: RS.RuleSet, saved: RS.RuleSet | None = None) -> None:
+    """Make ``rs`` the project's rule set (rules, group renames, saved copy) without sorting.
+    ``saved``: the version it counts as saved (default ``rs`` itself, i.e. not changed)."""
     s = scene.fresing
     logic.load_rules_into_scene(s, rs.rules)
     s.group_aliases.clear()
@@ -203,7 +204,7 @@ def load_into(scene, rs: RS.RuleSet) -> None:
         if src and dst and src != dst:
             a = s.group_aliases.add()
             a.source, a.target = src, dst
-    set_saved(s, rs)
+    set_saved(s, saved if saved is not None else rs)
 
 
 _NOTICE = {"text": ""}
@@ -326,11 +327,12 @@ def describe_preview(p: dict) -> list[str]:
     return lines
 
 
-def switch(scene, rs: RS.RuleSet) -> dict:
+def switch(scene, rs: RS.RuleSet, saved: RS.RuleSet | None = None) -> dict:
     """Use rule set ``rs`` from now on: its rules, renames and group looks. Parts put in a group by
-    hand stay there (and so do their groups); groups left without parts go away."""
+    hand stay there (and so do their groups); groups left without parts go away. ``saved``: see
+    ``load_into`` (a template's copy with changes counts as changed against the library version)."""
     s = scene.fresing
-    load_into(scene, rs)
+    load_into(scene, rs, saved)
     logic.apply_rules(scene)
     for g in s.groups:
         target = _target_look(g, rs, g.by_rules)

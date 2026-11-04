@@ -439,6 +439,33 @@ def test_template_refers_to_its_rule_set_by_name(scene, lib, tmp_path):
     assert logic.rules_from_scene(s) == R.default_rules()
 
 
+def test_template_keeps_changes_not_saved_to_the_library(scene, lib, tmp_path):
+    from fresing_render.blender.ops_main import _template_from_scene, apply_template
+    from fresing_render.core.template import Template
+    s = scene.fresing
+    s.groups["Fasteners black"].material = "chrome"             # Standard, changed in this project
+    path = str(tmp_path / "t.json")
+    _template_from_scene(scene).save(path)
+    sc = _new_project()
+    apply_template(sc, Template.load(path))
+    s = sc.fresing
+    assert s.rule_set == "Standard" and s.groups["Fasteners black"].material == "chrome"
+    assert rule_sets.differences(s) == {"rules": 0, "looks": 1, "renames": 0}
+    # a library rule set with changes, and the library moves on afterwards: the library version wins
+    assert bpy.ops.fresing.rule_set_save_as(name="Fresing") == {"FINISHED"}
+    s.groups["Fasteners galvanized"].material = "zinc_flake"
+    _template_from_scene(sc).save(path)
+    newer = RS.RuleSet.load(str(lib / "Fresing.json"))
+    newer.rules.insert(0, R.Rule("Lamps", "name", "contains", "LAMP"))
+    RS.save_in(str(lib), newer)
+    rule_sets.forget_scan()
+    sc = _new_project()
+    apply_template(sc, Template.load(path))
+    s = sc.fresing
+    assert s.rule_set == "Fresing" and not rule_sets.is_changed(s) and s.rules[0].target == "Lamps"
+    assert s.groups["Fasteners galvanized"].material == "galvanized" and "newer in the library" in s.last_message
+
+
 def test_library_has_a_newer_version(scene, lib):
     s = scene.fresing
     assert bpy.ops.fresing.rule_set_save_as(name="Fresing") == {"FINISHED"}

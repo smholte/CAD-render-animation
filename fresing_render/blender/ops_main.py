@@ -471,7 +471,9 @@ def _template_from_scene(scene) -> Template:
     t = Template(name=os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "Template")
     t.rules = logic.rules_from_scene(s)
     rule_sets.ensure(scene)
-    t.rule_set = rule_sets.current(s).to_dict()        # the rule set it uses, with a copy
+    t.rule_set = rule_sets.current(s).to_dict()        # the rule set it uses, as it is in this project
+    base = rule_sets.saved(s)
+    t.rule_set_base = base.to_dict() if base is not None else None
     current = Scheme("Current", {g.name: GroupLook(g.material, g.color) for g in s.groups})
     t.schemes = [current] + [Scheme(sc.name, {lk.group: GroupLook(lk.material, lk.color) for lk in sc.looks})
                              for sc in s.schemes]
@@ -492,11 +494,19 @@ def apply_template(scene, t: Template) -> None:
     s = scene.fresing
     if t.rule_set:
         try:
-            copy = RuleSet.from_dict(t.rule_set)
+            work = RuleSet.from_dict(t.rule_set)
+            base = RuleSet.from_dict(t.rule_set_base) if t.rule_set_base else work
         except ValueError:
-            copy = None
-        if copy is not None:
-            rule_sets.switch(scene, rule_sets.find(copy.name) or copy)
+            work = base = None
+        if work is not None:
+            lib = rule_sets.find(work.name)
+            if lib is not None and not lib.same_content(base):
+                rule_sets.switch(scene, lib)        # the library moved on since the template was saved
+                if not work.same_content(base):
+                    s.last_message = (f"Rule set '{lib.name}' is newer in the library than in the template: "
+                                      "the template's own changes to it were not used")
+            else:                                   # the template's copy, with its changes shown as such
+                rule_sets.switch(scene, work, saved=lib or base)
     else:
         s.rule_set = ""
         logic.load_rules_into_scene(s, t.rules)
