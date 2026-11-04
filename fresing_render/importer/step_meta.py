@@ -15,6 +15,9 @@ What is read
 * Appearance names: the name of the surface style on a part's body
   (``STYLED_ITEM`` -> ``FILL_AREA_STYLE('Aluminum - Satin',...)``). Autodesk writes its
   appearance names there; most other programs leave them empty.
+* Appearance names of single faces (a style on one face of a body, e.g. a Fusion appearance
+  dragged onto a face): OpenCascade gives the colour of such a face but not the name, so the
+  names are returned by colour (``faces``); a colour used with two names is left out.
 
 AP203 files (``CONFIG_CONTROL_DESIGN``) carry neither; the scan then stops after a quick
 look at the file.
@@ -35,7 +38,8 @@ _WANTED = (
     "SHAPE_DEFINITION_REPRESENTATION", "SHAPE_REPRESENTATION_RELATIONSHIP",
     "PROPERTY_DEFINITION", "PROPERTY_DEFINITION_REPRESENTATION", "REPRESENTATION",
     "DESCRIPTIVE_REPRESENTATION_ITEM", "MATERIAL_DESIGNATION",
-    "STYLED_ITEM", "PRESENTATION_STYLE_ASSIGNMENT", "PRESENTATION_STYLE_BY_CONTEXT", "SURFACE_STYLE_USAGE",
+    "STYLED_ITEM", "OVER_RIDING_STYLED_ITEM", "PRESENTATION_STYLE_ASSIGNMENT", "PRESENTATION_STYLE_BY_CONTEXT",
+    "SURFACE_STYLE_USAGE",
     "SURFACE_SIDE_STYLE", "SURFACE_STYLE_FILL_AREA", "FILL_AREA_STYLE", "FILL_AREA_STYLE_COLOUR", "COLOUR_RGB",
 )
 # longest names first, so the alternation never stops at a shorter prefix ("PRODUCT" in "PRODUCT_DEFINITION")
@@ -179,18 +183,21 @@ def _refs(value) -> list:
     return []
 
 
-def read(path: str) -> dict:
+def read(path: str, faces: dict | None = None) -> dict:
     """{product name: {"material": name or "", "appearance": name or ""}} for the products in
     a STEP file that carry a material or an appearance name. Products whose name is used by
-    several products with different materials are left out (no guessing)."""
+    several products with different materials are left out (no guessing).
+
+    ``faces``: if given, filled with {(r, g, b): appearance name} for styles on single faces
+    (sRGB 0-1, rounded to 3 decimals)."""
     with open(path, "rb") as fh:
         data = fh.read()
     if not _worth_reading(data):
         return {}
-    return read_text(data.decode("latin-1"))
+    return read_text(data.decode("latin-1"), faces)
 
 
-def read_text(text: str) -> dict:
+def read_text(text: str, faces: dict | None = None) -> dict:
     product: dict[int, str] = {}           # PRODUCT -> name (or id when the name is empty)
     formation: dict[int, int] = {}         # formation -> PRODUCT
     pdef: dict[int, int] = {}              # PRODUCT_DEFINITION -> formation
@@ -210,6 +217,7 @@ def read_text(text: str) -> dict:
     fas: dict[int, tuple] = {}
     fasc: dict[int, tuple] = {}
     rgb: dict[int, str] = {}
+    rgb_values: dict[int, tuple] = {}
 
     for eid, etype, a in _entities(text):
         try:
@@ -235,7 +243,7 @@ def read_text(text: str) -> dict:
                 dri[eid] = (_text_of(a[0]), _text_of(a[1]))
             elif etype == "MATERIAL_DESIGNATION":
                 designations.append((_text_of(a[0]), _refs(a[1])))
-            elif etype == "STYLED_ITEM":
+            elif etype.endswith("STYLED_ITEM"):
                 styled.append((_refs(a[1]), a[2]))
             elif etype.startswith("PRESENTATION_STYLE"):
                 psa[eid] = _refs(a[0])
@@ -251,6 +259,8 @@ def read_text(text: str) -> dict:
                 fasc[eid] = (_text_of(a[0]), a[1])
             elif etype == "COLOUR_RGB":
                 rgb[eid] = _text_of(a[0])
+                if all(isinstance(v, float) for v in a[1:4]):
+                    rgb_values[eid] = (round(a[1], 3), round(a[2], 3), round(a[3], 3))
         except (IndexError, TypeError):
             continue                              # a damaged or unusual entity: skip it
 
@@ -333,16 +343,35 @@ def read_text(text: str) -> dict:
                 return side_name
         return ""
 
+    def style_colour(assignment: int):
+        for usage in psa.get(assignment, ()):
+            side = ssu.get(usage)
+            for el in sss.get(side, ("", ()))[1]:
+                fill = ssfa.get(el)
+                for c in fas.get(fill, ("", ()))[1]:
+                    if c in fasc and fasc[c][1] in rgb_values:
+                        return rgb_values[fasc[c][1]]
+        return None
+
     looks: dict[int, Counter] = {}
+    face_names: dict[tuple, set] = {}
     for assignments, item in styled:
         pd = pd_of_item.get(item)
-        if pd is None:
-            continue
         for a in assignments:
             n = style_name(a)
-            if n:
+            if not n:
+                continue
+            if pd is not None:
                 looks.setdefault(pd, Counter())[n] += 1
-                break
+            elif faces is not None:              # a style on one face (or another sub-item)
+                c = style_colour(a)
+                if c is not None:
+                    face_names.setdefault(c, set()).add(n)
+            break
+    if faces is not None:
+        for c, names in face_names.items():
+            if len(names) == 1:
+                faces[c] = next(iter(names))
 
     # ---- per product name ----------------------------------------------------------------------
     out: dict[str, dict] = {}

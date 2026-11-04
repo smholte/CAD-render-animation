@@ -388,7 +388,10 @@ class FRESING_UL_groups(bpy.types.UIList):
         row.prop(item, "name", text="", emboss=False)
         sub = row.row()
         sub.alignment = "RIGHT"
-        sub.label(text=str(item.count))
+        if item.faces and not item.count:
+            sub.label(text=str(item.faces), icon="BRUSH_DATA")        # used by painted faces only
+        else:
+            sub.label(text=str(item.count))
 
 
 class FRESING_UL_rules(bpy.types.UIList):
@@ -446,7 +449,9 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         if 0 <= s.groups_index < len(s.groups):
             g = s.groups[s.groups_index]
             box = layout.box()
-            box.label(text=f"{g.name}  ·  {g.count} parts", icon="MATERIAL")
+            parts_txt = f"{g.count} part{'s' if g.count != 1 else ''}"
+            faces_txt = f" and {g.faces} painted face set{'s' if g.faces != 1 else ''}" if g.faces else ""
+            wrap(box, context, f"{g.name}  ·  {parts_txt}{faces_txt}", icon="MATERIAL", inset=12)
             box.operator_menu_enum("fresing.group_preset", "preset", text="Ready-made material…",
                                    icon="PRESET")
             col = split_props(box)
@@ -480,6 +485,74 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 col.label(text=f"CAD colour: {ob[build.PROP_COLOR]}")
             box.operator_menu_enum("fresing.part_move_group", "group", text="Move selected to group…",
                                    icon="FORWARD")
+
+
+class FRESING_PT_faces(_Panel, bpy.types.Panel):
+    bl_label = "Paint faces"
+    bl_parent_id = "FRESING_PT_looks"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.label(icon="BRUSH_DATA")
+
+    def draw_header_preset(self, context):
+        s = context.scene.fresing
+        if s.face_painting:
+            header_status(self.layout, "painting…", alert=True)
+        else:
+            n = sum(g.faces for g in s.groups)
+            if n:
+                header_status(self.layout, f"{n} face sets")
+
+    def draw(self, context):
+        from . import faces
+        from .ops_panels import paint_group
+        layout = self.layout
+        s = context.scene.fresing
+        if s.face_painting:
+            box = layout.box()
+            wrap(box, context, f"Click faces in the view: they get the look of '{paint_group(s)}'. "
+                               "Shift+click: back to the look of the part. Enter or right-click: done.",
+                 icon="BRUSH_DATA", alert=True)
+            primary(layout, "fresing.paint_faces_done", "Done", "CHECKMARK", MEDIUM)
+        else:
+            steps(layout, context, ["Pick the group whose look the faces get (or make one above)",
+                                    "Press 'Paint faces' and click faces on the model",
+                                    "Faces painted in CAD come in painted: they are listed below"])
+            col = split_props(layout)
+            col.prop_search(s, "face_group", s, "groups", text="Paint with",
+                            results_are_suggestions=False)
+            if not s.face_group and paint_group(s):
+                hint = wrap(layout, context, f"Empty: paints with the group selected above, {paint_group(s)}")
+                hint.active = False
+            layout.prop(s, "face_only_copy")
+            primary(layout, "fresing.paint_faces", "Paint faces…", "BRUSH_DATA", MEDIUM)
+        ob = context.active_object
+        if ob is None or ob.get(build.PROP_KIND) != "part" or ob.type != "MESH" or ob.data is None:
+            return
+        sets = faces.get_sets(ob.data)
+        name = ob.get(build.PROP_NAME, ob.name)
+        if not sets:
+            layout.label(text=f"{name}: painted as a whole", icon="OBJECT_DATA")
+            return
+        layout.label(text=f"Painted faces of {name}:", icon="OBJECT_DATA")
+        groups = faces.groups_on(ob)
+        copy = faces.get_copy(ob)
+        for k, st in enumerate(sets):
+            box = layout.box()
+            n = len(st.get("faces", []))
+            icon = "COLOR" if st.get("kind") == "cad" else "BRUSH_DATA"
+            wrap(box, context, f"{faces.label(st)}  ·  {n} face{'s' if n != 1 else ''}", icon=icon, inset=12)
+            g = groups[k] if k < len(groups) else ""
+            chosen = copy.get(st["key"]) or st.get("group") or ""
+            text = "like the rest of the part" if chosen == faces.SAME_AS_PART else (g or "?")
+            if st["key"] in copy:
+                text += " (this copy only)"
+            wrap(box, context, f"Look: {text}", icon="MATERIAL", inset=12)
+            row = box.row(align=True)
+            props = row.operator_menu_enum("fresing.face_set_group", "group", text="Other group…", icon="FORWARD")
+            props.key = st["key"]
+            row.operator("fresing.face_set_remove", text="Whole part", icon="X").key = st["key"]
 
 
 class FRESING_UL_found(bpy.types.UIList):
@@ -753,5 +826,5 @@ CLASSES = (
     FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes, FRESING_UL_visibility,
     FRESING_UL_found,
     FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_visibility, FRESING_PT_looks,
-    FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
+    FRESING_PT_faces, FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
 )
