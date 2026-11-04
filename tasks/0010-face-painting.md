@@ -42,6 +42,22 @@ material (e.g. colour X → anodised aluminium) while the rest of the part keeps
 4. **Model update:** face sets stay when the part did not change (same faces); when it did, the
    update report says which parts lost face sets.
 5. Old projects and caches keep working (bump `CACHE_VERSION` only if the cache must change).
+6. Faces with their own **appearance name** in the STEP (a style on single faces – Fusion/Inventor
+   write them) get that appearance's material, like whole parts do since 0.2.8
+   (`importer/step_meta.py`, `core/cad_materials.py`).
+
+**Small follow-ups from task 0008's report, also in this task** (same lane and files):
+- Old projects: replace their untouched old default rules by the new ones automatically
+  (`rules.upgraded_rules()`, hook in `blender/logic.ensure_default_rules` or a load handler).
+- Wire mesh: real holes through a grid texture in the material (`blender/materials.py`).
+- Ready-made material "Aluminium, black anodised" (`blender/finder.py` PRESETS) → the new
+  `aluminium_anodized_black`.
+- If the owner attaches his big Inventor model: measure how many parts the part-type library
+  sorts (number in the report and the progress note only, never names).
+- Privacy: `tests/test_fasteners.py` contains a name from the owner's model ("THETA3…"); replace
+  it with a generic name.
+- **Tooltips** for every button and setting in panels 1 Import, 2 Structure and 3 Looks, also the
+  existing ones (`CLAUDE.md` section 6).
 
 ## Done when
 

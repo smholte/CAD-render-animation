@@ -1,0 +1,61 @@
+# 0021 – User guide (and the tooltip standard)
+
+**Who:** worker · **Status:** open – can start · **Branch:** `task/0021-user-guide`
+**Started by:** lead chat, 4 Nov 2026 · **Lane:** Docs (only `docs/`, `tools/` screenshot helpers,
+`installer/` to ship the guide, the app template for a Help-menu link) – no clash with other lanes.
+
+## Goal
+
+A short, clear user guide for the owner and his colleagues: what each section 1–7 is for and how
+to work through it step by step, with pictures. Opened from the app (Help menu) and shipped with
+the installer.
+
+## Background
+
+- The side panel: 1 Import, 2 Structure, 3 Looks (with Find & sort parts, sorting rules, schemes
+  & templates), 4 Motion, 5 Scene & Render, 6 Animation, 7 Render queue. `CHANGELOG.md` says what
+  each version added; `docs/README-install.txt` covers installing.
+- Other chats are changing panels right now (lanes in `TASKS.md`). Write the guide for what is in
+  `main`; each later task updates its own section (rule in `CLAUDE.md`).
+- **Tooltips** (owner's wish: hovering over a button shows what it does and how to use it): the
+  rule is in `CLAUDE.md` section 6; each lane adds them for its own panels (0010: panels 1–3,
+  0012: panels 4, 6, 7, 0016: panel 5). Not in this task's files – but this task writes the
+  **tooltip style guide** (examples of good tooltips) at the top of the guide's source, and at the
+  end lists buttons that still have a weak or missing tooltip (a script can read every operator
+  and property description) as follow-ups for the lanes.
+- Public repository: screenshots and examples only with the generic test models
+  (`tests/data/`), never the owner's machines.
+
+## What to build
+
+1. `docs/USER-GUIDE.md` (source) and a nicely laid out HTML or PDF made from it: getting started
+   (install, first import, first render in 10 minutes), then one chapter per section 1–7 with
+   numbered steps and screenshots (`tools/ui_screens.py` and real-app shots of the test crane),
+   tips (export settings for Inventor/Fusion: AP214/AP242 – see task 0008's report), and a
+   troubleshooting page (self-test, where renders go, queue).
+2. Help menu entry "Fresing Render user guide" (app template or extension registration) that
+   opens the shipped guide; the installer copies it next to the app.
+3. Tooltip style guide + the list of weak/missing tooltips (as above).
+
+## Done when
+
+- [ ] Guide complete for the current `main`, screenshots from test models only; opens from the
+      Help menu in the real app (Linux test) and is in the installer zip
+- [ ] Tooltip report made; `CLAUDE.md` rule references the style guide
+- [ ] Report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
+
+## Not in this task
+
+- Changing tooltips in `blender/` files (the lanes do that).
+
+---
+
+## Report (filled in by the chat that did the task)
+
+**Chat / date:**
+
+**What changed:**
+
+**Tested and measured** (name the machine and the model):
+
+**Open points / follow-up tasks:**
