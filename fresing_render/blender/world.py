@@ -4,9 +4,11 @@ What the camera sees (background) and what lights the model (lighting) are
 set separately, so a solid colour or transparent background can still have
 realistic studio or HDRI light and reflections.
 
-Background: COLOR | HDRI | SKY | TRANSPARENT
-Lighting:   STUDIO | HDRI | SKY
-Floor:      NONE | SHADOW (shadow catcher) | VISIBLE
+Background: COLOR | HDRI | SKY | TRANSPARENT, or a built-in surrounding (sea, vessel deck, quayside,
+            factory halls, warehouse: see surroundings.py)
+Lighting:   STUDIO | HDRI | SKY  (offshore surroundings are always lit by the sky)
+Floor:      NONE | SHADOW (shadow catcher) | VISIBLE  (not used when a surrounding or the ground
+            of a 360° photo is the floor)
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ import os
 import bpy
 import numpy as np
 
+from ..core import surroundings as env
 from . import build
 
 WORLD_NAME = "FR World"
@@ -168,14 +171,14 @@ def apply(scene, settings) -> None:
     light_kind = s.lighting
     if bg_mode == "HDRI":
         light_kind = "HDRI"
-    elif bg_mode == "SKY":
+    elif bg_mode == "SKY" or bg_mode in env.SEA_KINDS:
         light_kind = "SKY"
     light_path = s.hdri_path if bg_mode == "HDRI" else s.light_hdri_path
     light = _env_branch(nt, light_kind, light_path, s.light_rotation, s.light_strength, s.sun_elevation, 0)
 
     scene.render.film_transparent = bg_mode == "TRANSPARENT"
 
-    if bg_mode in ("HDRI", "SKY", "TRANSPARENT"):
+    if bg_mode in ("HDRI", "SKY", "TRANSPARENT") or bg_mode in env.BUILT:
         nt.links.new(light, out.inputs["Surface"])
     else:  # solid colour seen by the camera, studio/HDRI light everywhere else
         cam_bg = nt.nodes.new("ShaderNodeBackground")
@@ -192,6 +195,11 @@ def apply(scene, settings) -> None:
         nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
 
     scene.view_settings.exposure = s.exposure
+    from . import surroundings
+    try:
+        surroundings.ensure(scene, s)
+    except Exception as exc:            # a broken surrounding must never stop a render
+        print("Fresing Render: surroundings not built:", exc)
     update_floor(scene, s)
 
 
@@ -219,8 +227,9 @@ def _floor_material(color) -> bpy.types.Material:
 
 
 def update_floor(scene, s) -> None:
+    from . import surroundings
     floor = bpy.data.objects.get(FLOOR_NAME)
-    if s.floor == "NONE":
+    if s.floor == "NONE" or surroundings.wanted(s):     # the surroundings bring their own floor
         if floor is not None:
             floor.hide_render = True
             floor.hide_viewport = True
