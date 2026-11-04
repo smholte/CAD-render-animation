@@ -118,9 +118,14 @@ def step(fn):
 
 
 @step
-def s_start():
-    win, area, region = ui()
+def s_close_splash():
     close_splash()
+    return 1.0
+
+
+@step
+def s_start():
+    # one step after the Esc: with no splash open, that Esc would reach the import and cancel it
     with override():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
