@@ -8,7 +8,7 @@ import bpy
 from mathutils import Matrix
 
 from ..core import rules as R
-from . import build, materials
+from . import build, faces, materials
 
 # ---------------------------------------------------------------------------
 # rules <-> scene
@@ -28,9 +28,17 @@ def load_rules_into_scene(s, rules: list[R.Rule]) -> None:
     s.rules_index = 0
 
 
-def ensure_default_rules(s) -> None:
+def ensure_default_rules(s) -> bool:
+    """Default rules for a new project; projects whose rule list is still the untouched default of
+    a version before 0.2.8 get the new default list (part types, CAD materials). True if changed."""
     if len(s.rules) == 0:
         load_rules_into_scene(s, R.default_rules())
+        return True
+    new = R.upgraded_rules(rules_from_scene(s))
+    if new is not None:
+        load_rules_into_scene(s, new)
+        return True
+    return False
 
 
 def facts_for_object(ob) -> R.PartFacts:
@@ -64,8 +72,6 @@ def apply_rules(scene) -> dict:
     parts = list(build.iter_parts(scene))
     facts = [facts_for_object(ob) for ob in parts]
     groups, counts, unmatched = R.classify(facts, rules)
-    for i, c in enumerate(counts):
-        s.rules[i].count = c
     s.unmatched = len(unmatched)
 
     aliases = {a.source: a.target for a in s.group_aliases}
@@ -77,14 +83,20 @@ def apply_rules(scene) -> dict:
             g = manual
         ob[build.PROP_GROUP] = g
         per_group[g] = per_group.get(g, 0) + 1
-    for name in per_group:
+    per_face_group = faces.sort(parts, rules, aliases, counts)     # faces with a look of their own
+    for i, c in enumerate(counts):
+        s.rules[i].count = c
+    for name in list(per_group) + list(per_face_group):
         ensure_group(s, name)
     for g in s.groups:
         g.count = per_group.get(g.name, 0)
+        g.faces = per_face_group.get(g.name, 0)
     mats = {g.name: materials.ensure_material(g.name, g.material, g.color) for g in s.groups}
     for ob in parts:
         materials.assign(ob, mats[ob[build.PROP_GROUP]])
-    return {"parts": len(parts), "groups": len(per_group), "unmatched": len(unmatched)}
+        faces.assign(ob, mats)
+    return {"parts": len(parts), "groups": len(set(per_group) | set(per_face_group)),
+            "unmatched": len(unmatched), "face_sets": sum(per_face_group.values())}
 
 
 def refresh_group_materials(scene) -> None:
@@ -94,6 +106,7 @@ def refresh_group_materials(scene) -> None:
         g = ob.get(build.PROP_GROUP)
         if g in mats:
             materials.assign(ob, mats[g])
+        faces.assign(ob, mats)
 
 
 def parts_in_group(scene, group: str):

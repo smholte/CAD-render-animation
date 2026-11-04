@@ -41,8 +41,8 @@ def test_parse(name, kind, size, length, pclass, finish):
 
 
 @pytest.mark.parametrize("name", [
-    "CONV.FR.1", "BEARING.HOUSING1", "COMPRESSION.SPRING.WL16-25", "BALL SCREW SFU1605",
-    "NUT HOUSING", "LM.MOUNT11", "GUIDE.BLOCK", "THETA3.EGR.COOLER.WORK", "", "O-RING 20x2",
+    "SIDE.FRAME.1", "BEARING.HOUSING1", "COMPRESSION.SPRING.WL16-25", "BALL SCREW SFU1605",
+    "NUT HOUSING", "RAIL.MOUNT11", "GUIDE.BLOCK", "LINE3.TEST.CELL.WORK", "", "O-RING 20x2",
     "DOOR.HINGE", "Frame weldment", "CABLEVEYOR.BRACKET1",
 ])
 def test_not_fastener(name):
