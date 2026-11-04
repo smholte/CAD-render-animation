@@ -185,22 +185,22 @@ def s_after_click():
     return 0.5
 
 
-@step
-def s_click_sidebar_during_pick():
-    # a click on the side panel must not create a joint behind it
+def first_header():
+    """Window position of the title row of the first side-panel section (1 Import).
+
+    A click there only folds that section, whatever the panels below look like; a click in the
+    middle of the side panel lands on whatever button the layout puts there (a drop-down opened
+    by it takes the next click in the view)."""
     win, area, region = ui()
     sidebar = next(r for r in area.regions if r.type == "UI")
-    click(sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height // 2)
-    return 0.5
+    px = bpy.context.preferences.system.pixel_size
+    return sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height - int(19 * px)
 
 
 @step
-def s_back_to_the_view():
-    # The click above can land on a drop-down (where depends on the panel layout); a person then
-    # moves the mouse back to the view, which closes it. Otherwise the open menu takes the next click.
-    win, area, region = ui()
-    for k in range(1, 6):
-        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=region.x + 80 * k, y=region.y + region.height // 2)
+def s_click_sidebar_during_pick():
+    # a click on the side panel must not create a joint behind it (the side panel lies over the view)
+    click(*first_header())
     return 0.5
 
 
@@ -226,6 +226,7 @@ def s_joint_made():
         detail = f"axis through {tuple(round(v, 3) for v in o)} dir {tuple(round(v, 3) for v in d)}"
         ok = abs(abs(d.y) - 1) < 1e-3 and abs(o.x - 0.1) < 1e-3 and abs(o.z - 0.4) < 1e-3
     check("click on the pin hole gives the pin axis", ok, detail + " | " + s.last_message)
+    click(*first_header())                 # unfold section 1 again
     if len(s.joints):
         joints = mod("blender.joints")
         joints.set_value(s.joints[0], math.radians(-30) * (1 if joints.axis_world(s.joints[0])[1].y > 0 else -1))
