@@ -1,8 +1,14 @@
-"""Run inside the real Blender (background) with the installed extension: paths with spaces, accents, apostrophes, dashes."""
+"""Run inside the real Blender (background) with the installed extension: paths with spaces, accents, apostrophes, dashes.
+
+The folder D must hold copies of tests/data/test_crane_a.step and test_crane_b.step named
+"Kraan ontwerp – rev A é.step" and "Kraan ontwerp – rev B é.step" (tools/ci_real_app.py sets this up).
+D defaults to the folder below; PATHS_TEST_DIR overrides it.
+"""
 import os, sys, time, math, importlib, addon_utils, traceback
 import bpy
 from mathutils import Vector
-D = "/home/claude/pad test/Mijn Projecten é ü/Klant O'Brien – 2026"
+DEFAULT_DIR = "/home/claude/pad test/Mijn Projecten é ü/Klant O'Brien – 2026"
+D = os.environ.get("PATHS_TEST_DIR") or DEFAULT_DIR
 RES = []
 def check(name, ok, detail=""):
     RES.append(ok); print(("PASS " if ok else "FAIL ") + name, detail, flush=True)
