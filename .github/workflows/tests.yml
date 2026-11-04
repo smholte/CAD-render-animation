@@ -44,7 +44,7 @@ jobs:
 
       - name: Test suite (pytest)
         run: >
-          python -m pytest tests/ -q -rfE --durations=15 -p no:cacheprovider
+          python -m pytest tests/ -q -rfE --durations=15 --disable-warnings -p no:cacheprovider
           --junitxml=test-results/pytest.xml
 
       - name: Test suite verdict

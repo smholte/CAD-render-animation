@@ -86,13 +86,16 @@ def show(run, log_filter: str | None) -> int:
             try:
                 for a in gh(f"repos/{REPO}/check-runs/{job['id']}/annotations"):
                     if a.get("annotation_level") == "failure":
-                        print(f"         ! {a.get('title') or ''}: {a.get('message', '')[:300]}")
+                        title = f"{a['title']}: " if a.get("title") else ""
+                        print(f"         ! {title}{a.get('message', '')[:300]}")
             except RuntimeError:
                 pass
             if not log_filter:
-                log = _log(job["id"]).split("\nPost job cleanup.")[0]      # git clean-up noise after it
-                tail = [ln for ln in log.splitlines() if ln.strip()][-40:]
-                print("         --- last lines of the log ---")
+                lines = [ln for ln in _log(job["id"]).splitlines() if ln.strip()]
+                errors = [i for i, ln in enumerate(lines) if "##[error]" in ln]
+                end = errors[0] + 1 if errors else len(lines)      # the lines that lead to the first error
+                tail = lines[max(0, end - 40):end]
+                print("         --- the log up to the first error ---")
                 for ln in tail:
                     print("         " + ln[:240])
         if log_filter and log_filter.lower() in job["name"].lower():

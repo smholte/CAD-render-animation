@@ -168,7 +168,9 @@ end of its log. Each job also prints its verdict as a table (which test, which s
 in the log and on the run page ("Summary"). The chats can read runs, jobs, logs and
 annotations through the GitHub API, but **cannot download the run's files** (artifacts:
 screenshots, self-test reports, logs) - their storage is blocked by the proxy; the owner can
-download them on the run page. A chat may push files under `.github/workflows/`.
+download them on the run page. A chat may push files under `.github/workflows/`, but cannot
+delete branches on GitHub (refused, like tag pushes): name leftover branches in the report so
+the owner can delete them on github.com (Code → branches → bin icon).
 
 Big test model: the owner's "EGR line" STEP (78 MB, 2,789 placed / 584 unique
 parts, 4.2 M triangles) is **not** in the repository. Ask the owner to attach it when a task
