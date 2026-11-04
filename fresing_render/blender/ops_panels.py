@@ -5,7 +5,7 @@ from __future__ import annotations
 import bpy
 from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
-from . import build, finder, logic
+from . import build, faces, finder, logic
 from . import tree as tree_mod
 
 # =============================================================================
@@ -351,7 +351,219 @@ class FRESING_OT_part_move_group(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# =============================================================================
+# 3 Looks: paint single faces
+# =============================================================================
+
+_FACE_GROUP_ITEMS: list = []
+
+
+def _face_group_items(self, context):
+    _FACE_GROUP_ITEMS.clear()
+    s = context.scene.fresing if context and context.scene else None
+    _FACE_GROUP_ITEMS.append((faces.SAME_AS_PART, "Like the rest of the part",
+                              "These faces get the look of their part again"))
+    if s is not None:
+        for g in s.groups:
+            _FACE_GROUP_ITEMS.append((g.name, g.name, f"These faces get the look of {g.name}"))
+    return _FACE_GROUP_ITEMS
+
+
+def paint_group(s) -> str:
+    """The group 'Paint faces' paints with: the chosen one, else the one selected in the list."""
+    if s.face_group and s.groups.get(s.face_group) is not None:
+        return s.face_group
+    if 0 <= s.groups_index < len(s.groups):
+        return s.groups[s.groups_index].name
+    return ""
+
+
+def _region_under_mouse(context, event):
+    """(region, 3D view data) of the 3D view under the mouse, or (None, None) (side panel, header...)."""
+    for area in context.window.screen.areas:
+        if area.type != "VIEW_3D":
+            continue
+        for region in area.regions:
+            if (region.type == "WINDOW" and region.x <= event.mouse_x < region.x + region.width
+                    and region.y <= event.mouse_y < region.y + region.height):
+                rv3d = region.data if getattr(region, "data", None) is not None else area.spaces.active.region_3d
+                # the side panel lies over the view: a click on it is not a click on the model
+                for other in area.regions:
+                    if (other.type == "UI" and other.width > 1 and other.x <= event.mouse_x < other.x + other.width
+                            and other.y <= event.mouse_y < other.y + other.height):
+                        return None, None
+                return region, rv3d
+    return None, None
+
+
+def face_under_mouse(context, region, rv3d, x: int, y: int):
+    """(part object, CAD face number) under the point (x, y) of a 3D view region, or (None, -1)."""
+    from bpy_extras import view3d_utils
+    origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, (x, y))
+    direction = view3d_utils.region_2d_to_vector_3d(region, rv3d, (x, y))
+    depsgraph = context.evaluated_depsgraph_get()
+    hit, _loc, _nrm, index, ob, _m = context.scene.ray_cast(depsgraph, origin, direction)
+    if not hit or ob is None:
+        return None, -1
+    ob = getattr(ob, "original", ob)
+    if ob.get(build.PROP_KIND) != "part" or ob.type != "MESH" or ob.data is None:
+        return None, -1
+    return ob, faces.face_of_polygon(ob.data, index)
+
+
+def paint_click(context, ob, face: int, remove: bool = False) -> str:
+    """What one click in 'Paint faces' does. Returns a message."""
+    s = context.scene.fresing
+    name = ob.get(build.PROP_NAME, ob.name)
+    if remove:
+        n = faces.unpaint(ob, [face])
+        msg = f"{name}: face back to the look of the part" if n else f"{name}: that face was not painted"
+    else:
+        group = paint_group(s)
+        if not group:
+            return "Pick a group to paint with first"
+        logic.ensure_group(s, group)
+        faces.paint(ob, [face], group, s.face_only_copy)
+        msg = f"{name}: face painted with {group}" + (" (this copy)" if s.face_only_copy else "")
+    logic.apply_rules(context.scene)
+    return msg
+
+
+class FRESING_OT_paint_faces(bpy.types.Operator):
+    """Click faces of parts in the view to give them the look of the chosen group (a whole CAD face
+    per click). Shift+click: that face looks like the rest of its part again. Enter, Esc or
+    right-click: done"""
+
+    bl_idname = "fresing.paint_faces"
+    bl_label = "Paint faces"
+    bl_options = {"REGISTER", "UNDO"}
+
+    _HINT = "Paint faces: click a face  ·  Shift+click: back to the part  ·  Enter / right-click: done"
+
+    @classmethod
+    def poll(cls, context):
+        return context.window is not None and context.scene.fresing.model_count > 0
+
+    def invoke(self, context, event):
+        s = context.scene.fresing
+        if not paint_group(s):
+            self.report({"WARNING"}, "Pick a group to paint with first")
+            return {"CANCELLED"}
+        if s.face_painting:                       # pressed again: stop
+            s.face_painting = False
+            return {"CANCELLED"}
+        s.face_painting = True
+        self.painted = 0
+        context.window_manager.modal_handler_add(self)
+        try:
+            context.workspace.status_text_set(self._HINT)
+        except Exception:
+            pass
+        context.window.cursor_modal_set("PAINT_BRUSH")
+        self._redraw(context)
+        return {"RUNNING_MODAL"}
+
+    def _redraw(self, context):
+        for area in context.window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+
+    def _finish(self, context):
+        s = context.scene.fresing
+        s.face_painting = False
+        try:
+            context.workspace.status_text_set(None)
+        except Exception:
+            pass
+        context.window.cursor_modal_restore()
+        self._redraw(context)
+        if self.painted:
+            self.report({"INFO"}, f"{self.painted} faces changed")
+        return {"FINISHED"}
+
+    def modal(self, context, event):
+        s = context.scene.fresing
+        if not s.face_painting:                   # "Done" in the side panel
+            return self._finish(context)
+        if event.value == "PRESS" and event.type in {"RET", "NUMPAD_ENTER", "ESC", "RIGHTMOUSE"}:
+            region, _rv3d = _region_under_mouse(context, event)
+            if event.type != "RIGHTMOUSE" or region is not None:
+                return self._finish(context)
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            region, rv3d = _region_under_mouse(context, event)
+            if region is None:
+                return {"PASS_THROUGH"}          # buttons in the side panel keep working
+            ob, face = face_under_mouse(context, region, rv3d, event.mouse_x - region.x, event.mouse_y - region.y)
+            if ob is not None and face >= 0:
+                self.report({"INFO"}, paint_click(context, ob, face, remove=event.shift))
+                self.painted += 1
+                self._redraw(context)
+            return {"RUNNING_MODAL"}
+        return {"PASS_THROUGH"}                   # turn, pan and zoom the view as usual
+
+
+class FRESING_OT_paint_faces_done(bpy.types.Operator):
+    """Stop painting faces (Enter, Esc or right-click in the view does the same)"""
+
+    bl_idname = "fresing.paint_faces_done"
+    bl_label = "Done"
+    bl_options = {"INTERNAL"}
+
+    def execute(self, context):
+        context.scene.fresing.face_painting = False
+        return {"FINISHED"}
+
+
+def _active_part(context):
+    ob = context.active_object
+    if ob is not None and ob.get(build.PROP_KIND) == "part" and ob.type == "MESH" and ob.data is not None:
+        return ob
+    return None
+
+
+class FRESING_OT_face_set_group(bpy.types.Operator):
+    """Choose the group of these faces: their material and colour come from that group. With
+    'Only this copy' ticked, only the active copy of the part changes"""
+
+    bl_idname = "fresing.face_set_group"
+    bl_label = "Group of these faces"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_property = "group"
+
+    key: StringProperty(options={"SKIP_SAVE"})
+    group: EnumProperty(name="Group", items=_face_group_items)
+
+    def execute(self, context):
+        ob = _active_part(context)
+        if ob is None or not self.key:
+            return {"CANCELLED"}
+        s = context.scene.fresing
+        faces.set_group(ob, self.key, self.group, s.face_only_copy)
+        logic.apply_rules(context.scene)
+        return {"FINISHED"}
+
+
+class FRESING_OT_face_set_remove(bpy.types.Operator):
+    """Back to the whole part: these faces get the look of the rest of the part again. With 'Only
+    this copy' ticked, only on the active copy"""
+
+    bl_idname = "fresing.face_set_remove"
+    bl_label = "Back to whole part"
+    bl_options = {"REGISTER", "UNDO"}
+
+    key: StringProperty(options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        ob = _active_part(context)
+        if ob is None or not self.key:
+            return {"CANCELLED"}
+        faces.remove(ob, self.key, context.scene.fresing.face_only_copy)
+        logic.apply_rules(context.scene)
+        return {"FINISHED"}
+
+
 CLASSES = (
+    FRESING_OT_paint_faces, FRESING_OT_paint_faces_done, FRESING_OT_face_set_group, FRESING_OT_face_set_remove,
     FRESING_OT_tree_toggle, FRESING_OT_tree_open_all, FRESING_OT_tree_row, FRESING_OT_show_only_selected,
     FRESING_OT_show_only_end, FRESING_OT_find_tick, FRESING_OT_find_word, FRESING_OT_find_select,
     FRESING_OT_find_assign, FRESING_OT_find_new_group, FRESING_OT_find_rule, FRESING_OT_rule_from_subassembly,

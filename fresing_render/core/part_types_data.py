@@ -111,7 +111,7 @@ GROUPS: dict[str, tuple[str, str, str]] = {
     "Casters & wheels": ("rubber_black", "", "plastic_matte"),
     "Hinges & latches": ("zinc_diecast", "", ""),
     "Windows & clear parts": ("polycarbonate_clear", "", ""),
-    "Wire mesh & fences": ("powder_coat", "RAL 9005", "powder_coat"),
+    "Wire mesh & fences": ("wire_mesh", "RAL 9005", "wire_mesh"),
     "Gratings, stairs & railings": ("galvanized", "", "paint_satin"),
     "Labels & signs": ("plastic_gloss", "RAL 9016", "plastic_gloss"),
     "Mannequins": ("mannequin_matte", "", ""),

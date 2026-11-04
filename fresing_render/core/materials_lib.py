@@ -108,6 +108,9 @@ MATERIALS: dict[str, dict] = {
                             roughness=0.55, specular=0.4),
     "wood": dict(label="Wood (pallets, plywood)", category="Other", base_color=(0.62, 0.46, 0.30), roughness=0.7,
                  variation=dict(scale=6.0, roughness_min=0.6, roughness_max=0.8, color_amount=0.2)),
+    # a guard panel drawn as a plate: the material cuts the holes (25 mm mesh, 3 mm wire)
+    "wire_mesh": dict(label="Wire mesh panel, powder coated (see-through)", category="Paint", needs_color=True,
+                      roughness=0.48, specular=0.5, grid=dict(spacing=0.025, wire=0.003)),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -154,6 +157,7 @@ UIDS: dict[str, int] = {
     "felt": 39,
     "mannequin_matte": 40,
     "wood": 41,
+    "wire_mesh": 42,
 }
 
 DEFAULT_COLOR = "RAL 7035"

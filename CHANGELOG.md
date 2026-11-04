@@ -3,7 +3,7 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
-## 0.2.9 – 4 Nov 2026 – user guide
+## 0.2.10 – 5 Nov 2026 – user guide
 
 Commit: (filled in after the merge).
 
@@ -16,6 +16,28 @@ Commit: (filled in after the merge).
 - The guide ships inside the extension, so an update always brings the guide of that version.
 - For the other chats: a tooltip style guide, a tooltip check (`tools/tooltip_report.py`) and a
   list of the 114 tooltips still to write, with suggested texts (`docs/TOOLTIPS-TODO.md`).
+
+## 0.2.9 – 5 Nov 2026 – painted faces
+
+Commit `2f35b33`.
+
+3 Looks – paint single faces
+- Faces painted in CAD come in painted. A face with its own colour (or its own Fusion/Inventor
+  appearance) keeps it; the rest of the part keeps the part's material. A sorting rule on the
+  colour can give such faces another material (for example "Colour is #C0C0C0 → anodised").
+- New fold "Paint faces" in 3 Looks: pick a group, press "Paint faces…", click faces on the
+  model. A click paints the whole CAD face; Shift+click gives it back the look of the part;
+  Enter or right-click ends. Undo works.
+- Every copy of a part gets the same painted faces; "Only this copy" paints one copy only.
+  Each painted face set can get another group ("Other group…") or go back ("Whole part").
+- A model update keeps painted faces of parts whose faces did not change; the report lists the
+  parts that lost them.
+- Wire mesh panels now have real holes (25 mm mesh), so you can see through them.
+- "Aluminium, black anodised" (ready-made materials) uses the new black anodised material.
+- Projects made before 0.2.8 that still had the old standard rules get the new rules (part types,
+  CAD materials) when opened; projects with their own rules keep them.
+- The part you clicked shows its CAD material name too; every button and setting in sections
+  1–3 has a tooltip.
 
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 

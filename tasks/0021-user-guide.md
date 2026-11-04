@@ -1,6 +1,6 @@
 # 0021 – User guide (and the tooltip standard)
 
-**Who:** worker · **Status:** done (0.2.9) · **Branch:** `task/0021-user-guide`
+**Who:** worker · **Status:** done (0.2.10) · **Branch:** `task/0021-user-guide`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Docs (only `docs/`, `tools/` screenshot helpers,
 `installer/` to ship the guide, the app template for a Help-menu link) – no clash with other lanes.
 
@@ -15,6 +15,8 @@ the installer.
 - The side panel: 1 Import, 2 Structure, 3 Looks (with Find & sort parts, sorting rules, schemes
   & templates), 4 Motion, 5 Scene & Render, 6 Animation, 7 Render queue. `CHANGELOG.md` says what
   each version added; `docs/README-install.txt` covers installing.
+- 0.2.9 (task 0010) added "Paint faces" to 3 Looks and painted faces from CAD: describe them
+  (see the report in `tasks/0010-face-painting.md`).
 - Other chats are changing panels right now (lanes in `TASKS.md`). Write the guide for what is in
   `main`; each later task updates its own section (rule in `CLAUDE.md`).
 - **Tooltips** (owner's wish: hovering over a button shows what it does and how to use it): the
@@ -52,7 +54,7 @@ the installer.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker chat, 4 Nov 2026 → version 0.2.9
+**Chat / date:** worker chat, 4–5 Nov 2026 → version 0.2.10
 
 **What changed:**
 - `docs/USER-GUIDE.md`: the user guide – how the app is laid out, getting started (install, moving
@@ -96,7 +98,7 @@ All on the 2-core Linux test machine without a graphics card, test models only:
 - Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
   (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
 - Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
-  `fresing_render-0.2.9.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
+  `fresing_render-0.2.10.zip`; extension zip 48.6 MB, of which the guide is 0.8 MB.
 - Guide page looked at in a browser at desktop and phone width (no sideways scrolling, no outside
   links or fonts: works offline). All 22 pictures checked by eye: test crane only.
 - Windows-only code (installer shortcut, `os.startfile` in the Help entry) reviewed by an
@@ -113,7 +115,7 @@ All on the 2-core Linux test machine without a graphics card, test models only:
   Install.bat copies. An in-app update of the extension brings the new guide file, but changes to
   the app template (this entry included) arrive only by running Install.bat. 0020 should either
   update the template too or move such entries into the extension. (Found by the independent
-  review.) For 0.2.9 the owner installs with Install.bat, so the entry is there.
+  review.) For 0.2.10 the owner installs with Install.bat, so the entry is there.
 - On the owner's PC (cannot be tested here): Help > Fresing Render user guide opens the guide in
   the web browser; the Start-menu shortcut "Fresing Render - User guide" works.
 - The Inventor export advice (AP214) is still not checked with an Inventor file (same as 0008).

@@ -16,18 +16,19 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (running) → 0015
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (running) → 0012 → 0013 → 0014
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (running) → 0020
-- **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.9); later tasks keep their own chapter up to date
+- **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.10); later tasks keep their own chapter up to date
+- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
 
 ## Open and running
 
 | # | Task | Who | Status | Branch / file |
 | --- | --- | --- | --- | --- |
-| 0010 | Looks lane: paint single faces; faces painted in CAD come in painted (owner's point 4) | worker | running | `task/0010-face-painting`, tasks/0010-face-painting.md |
-| 0015 | Looks lane: rule sets – one naming scheme per company, chosen per project, switchable | worker | waiting (0010) | tasks/0015-rule-sets.md |
+| 0015 | Looks lane: rule sets – one naming scheme per company, chosen per project, switchable | worker | running | `task/0015-rule-sets`, tasks/0015-rule-sets.md |
+| 0022 | Part library lane: more parts sorted on import – supplier catalogue codes (Misumi and others); owner attaches the EGR file | worker | running | `task/0022-more-supplier-codes`, tasks/0022-more-supplier-codes.md |
 | 0011 | Motion lane: several joints on one subassembly, moves add up | worker | running | `task/0011-stacked-joints`, tasks/0011-stacked-joints.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | waiting (0011) | tasks/0012-couplings-motors.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
@@ -55,6 +56,7 @@ updates its branch to `main`.
 | – | Code on GitHub; CLAUDE.md, TASKS.md, CHANGELOG.md; way of working agreed | – |
 | 0009 | Structure and Looks: explorer tree, highlight, find & sort parts, show only, ready-made materials (owner's points 1–3, 5–16) | 0.2.7 |
 | 0008 | Part-type library (63 types, ~3,300 keywords, ~170 order-code patterns) and CAD material/appearance names from STEP (owner's points 17–18) | 0.2.8 |
-| 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 114 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.9 |
+| 0010 | Painted faces: faces painted in CAD come in painted, paint faces by hand (whole CAD faces, per copy), kept through model updates; wire mesh with holes; old default rules upgraded (owner's point 4) | 0.2.9 |
+| 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 114 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.10 |
 
 Details per version: `CHANGELOG.md`.

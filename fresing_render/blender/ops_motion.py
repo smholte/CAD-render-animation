@@ -572,6 +572,8 @@ class FRESING_OT_vis_update(bpy.types.Operator):
 
 
 class FRESING_OT_vis_remove(bpy.types.Operator):
+    """Delete the selected visibility set. What is hidden now stays hidden"""
+
     bl_idname = "fresing.vis_remove"
     bl_label = "Remove visibility set"
     bl_options = {"REGISTER", "UNDO"}
