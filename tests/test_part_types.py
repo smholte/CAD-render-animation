@@ -624,6 +624,18 @@ SUPPLIER_CODES = [
     ("PSCS20-15_COLLAR", ROD), ("SHAFT_SFJ20-350", CHROME), ("Misumi_SHA16", LIN), ("LMUW25 bushing", LIN),
     ("MSTH8-20 pin", ROD), ("HFS5-2020-800:1", PROF), ("PSCS12.stp", ROD), ("LMU16_1", LIN),
     ("MISUMI-HFS6-3030-450", PROF), ("BPJ8 (MISUMI)", ROD),
+    # more families found by the independent check
+    ("SFAN30-300-F25", CHROME), ("STHWR12", LIN), ("SHTMH20", LIN), ("SHSTM10-30", LIN), ("LHBBWF25", LIN),
+    ("SX2R20-500", LIN), ("PSCSM10-10", ROD), ("MPBZU12-15", BUSH), ("ELANA8T-P6.5-B20-L10", ROD),
+    ("SLPSTAG4-L12", ROD), ("FSPDQ10-L12-P9.5", ROD), ("BPJL10", ROD), ("PXVBK12-8", HANDLE), ("C-USANS100", HANDLE),
+    ("E-LKNBSP10", HANDLE), ("GN 6336.13-32-M6-20-A", HANDLE), ("HHMU120", HINGE), ("PKWSA2", HINGE),
+    ("UPWH8-30", RUB), ("C-USLH10", RUB), ("MAC2015L", GAS), ("C-AC0806S", GAS), ("FJGN20-80", FOOT),
+    ("AFCLA50-N", CAST), ("HTPL40S5M150-E-10", PUL), ("MTPL24L100-F-12", PUL), ("BGCBB6005ZZ-40", HSG),
+    ("HFCL8-4040", CAP), ("GFC8-4080", CAP), ("GEAB1.0-30-5-B-8", GEAR), ("SP35B15-N-12", GEAR),
+    ("ZP3-T20UMN-A8", VAC), ("PASE25-XL-N", HSG), ("IGA2008-BPKG", SENS), ("GN 343.4-50-M10-A", FOOT),
+    # a code beats the plain word next to it
+    ("PSFJ12-250_SHAFT", CHROME), ("HBLTD5 bracket", CON), ("UPWH6-20 urethane stopper", RUB),
+    ("MCKL20-5-10 MOTOR SIDE", CPL),
 ]
 
 # Look-alikes: in-house numbers, steel sections, other suppliers' codes and plain words keep what
@@ -659,5 +671,3 @@ def test_supplier_code_assemblies_pass_their_type_on():
     # a Misumi bushing housing downloaded as an assembly: housing + bushing + retaining ring
     assert part_types.classify("HOUSING", "M#1/LHFRW20#1/HOUSING#1") == "Linear guides & ball screws"
     assert part_types.classify("BUSHING", "M#1/LHFRW20#1/BUSHING#1") == "Linear guides & ball screws"
-    # a code on a generic shape gives way to a product named next to it
-    assert part_types.classify("MCKL20-5-10 MOTOR SIDE") == "Couplings & brakes"

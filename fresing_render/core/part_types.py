@@ -180,9 +180,10 @@ def _pick_best(hits: list, code_hits: list = ()):
     1. A keyword inside a longer one does not count on its own ("SHAFT" in "SHAFT SEAL").
     2. A generic shape beats a bought product named next to it, in either word order:
        "SENSOR BRACKET" and "BRACKET SENSOR" are both brackets, "FLANGE MOTOR" is a flange.
-    3. A vendor part number names a bought component exactly: it beats a word for another
-       component or product next to it ("LMUW20 BUSHING" is a Misumi linear bushing, not a plain
-       bushing; "MCKL20-5-10 MOTOR SIDE" a coupling). A generic shape word still counts (rule 4).
+    3. A vendor part number names a bought component exactly: it beats the words next to it
+       ("LMUW20 BUSHING" is a Misumi linear bushing, not a plain bushing, "PSFJ16-400_SHAFT" a
+       linear shaft, "HBLTD6 BRACKET" a profile bracket, "MCKL20-5-10 MOTOR SIDE" a coupling),
+       just as a product code makes "_MGPM32-75Z_PLATE" part of the cylinder.
     4. Otherwise the hit that ends furthest right wins (English and German/Dutch compounds
        put the noun last), then the longest, then the type listed first."""
     everything = list(hits) + list(code_hits)
@@ -197,7 +198,7 @@ def _pick_best(hits: list, code_hits: list = ()):
         keep = [h for h in keep if h[3] != "alu_profile"]
     codes = {id(h) for h in code_hits}
     if any(id(h) in codes and TYPES[h[3]].level == "component" for h in keep):
-        keep = [h for h in keep if id(h) in codes or TYPES[h[3]].level == "shape"]
+        keep = [h for h in keep if id(h) in codes]
     return max(keep, key=lambda h: (h[0], h[1], -h[2]))
 
 
