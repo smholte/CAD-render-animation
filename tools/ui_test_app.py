@@ -195,6 +195,16 @@ def s_click_sidebar_during_pick():
 
 
 @step
+def s_back_to_the_view():
+    # The click above can land on a drop-down (where depends on the panel layout); a person then
+    # moves the mouse back to the view, which closes it. Otherwise the open menu takes the next click.
+    win, area, region = ui()
+    for k in range(1, 6):
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=region.x + 80 * k, y=region.y + region.height // 2)
+    return 0.5
+
+
+@step
 def s_click_pin():
     s = bpy.context.scene.fresing
     check("side-panel click ignored by the pick tool", len(s.joints) == 0)

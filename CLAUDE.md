@@ -57,8 +57,13 @@ Rules:
 - A worker that starts a task sets it to "running" in `TASKS.md` and pushes that change to
   `main` right away. When it finishes, it moves the task to "Done" and sets the next task in
   its lane to "open – can start", so the owner can start the next chat.
-- A task is done when its "Done when" list is met, the tests pass and the **Report** in its
-  task file is filled in (what changed, what was tested and measured, what is left open).
+- **GitHub tests every push by itself** (section 5). The worker checks the run of its branch
+  before merging and the run on `main` after merging (`python3 tools/ci_status.py --wait`).
+  **A red run on `main` comes first:** the chat that turned it red fixes it before anything
+  else; a chat that finds `main` red at its start says so to the owner.
+- A task is done when its "Done when" list is met, the tests pass (also on GitHub) and the
+  **Report** in its task file is filled in (what changed, what was tested and measured, what
+  is left open).
 - Each new chat needs push access to the repository; the owner approves that once per chat.
 - The lead keeps the progress note in the claude.ai project
   (`claude/render-app-progress.md`) up to date for the owner.
@@ -105,26 +110,63 @@ are blocked.
 ```bash
 git clone https://github.com/smholte/CAD-render-animation fresing-render
 python3.13 -m venv ~/venv
-~/venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pillow pytest
-cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 5 minutes, all must pass
+~/venv/bin/pip install -r fresing-render/tools/requirements-dev.txt     # pinned versions
+cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 6 minutes, all must pass
 ```
 
 Real-app tests also need the real Blender program (Linux build of 5.2.3,
 `blender-5.2.3-linux-x64.tar.xz` from download.blender.org; if the download is blocked,
 say so and run the pytest suite only) and `xvfb-run` + ImageMagick (`import`, `convert`).
+GitHub runs all of them at every push anyway (section 5), so a chat that cannot run them
+locally pushes its branch and reads the run.
 
 ## 5. Tests – what to run when
 
 | What | Command | When |
 | --- | --- | --- |
-| Full suite (108+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
-| Packaged install + self-test (Linux build of the zip) | `BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks (install the extension and app template first, see the script's docstring) | `xvfb-run -a -s "-screen 0 1800x2600x24" blender --app-template fresing_render --enable-event-simulate --python tools/ui_test_app.py` (and `ui_test_app2.py`, `paths_test_blender.py`) | UI, operators, before a release |
+| Full suite (1,260+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
+| Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
+| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (one test: `--only ui1`, `ui2` or `paths`) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
+| **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
+
+### Automatic tests on GitHub
+
+`.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
+free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
+run; runs on `main` always finish. Four jobs, about RUNTIME_TABLE:
+
+| Job | What it does | Time |
+| --- | --- | --- |
+| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | SUITE_TIME |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb | REALAPP_TIME |
+| Build the Windows installer zip | `tools/build_release.py`, as for a release | BUILD_TIME |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | WINDOWS_TIME |
+
+Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
+cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
+enough. On the runners `FRESING_SELFTEST_NO_GPU=1` turns the two graphics-card checks of the
+self-test into "skipped: no graphics card"; every other self-test line must be OK
+(`tools/ci_check_selftest.py`).
+
+**Reading the results from a chat** (the `gh` command works through the chat's proxy):
+
+```bash
+python3 tools/ci_status.py --wait              # run of the current commit; waits until it is done
+python3 tools/ci_status.py --branch main       # newest run on main
+python3 tools/ci_status.py --run <id> --log "Windows"   # whole log of the jobs matching "Windows"
+```
+
+It lists every job with its time; for a failed job the failing step, the error lines and the
+end of its log. Each job also prints its verdict as a table (which test, which self-test line)
+in the log and on the run page ("Summary"). The chats can read runs, jobs, logs and
+annotations through the GitHub API, but **cannot download the run's files** (artifacts:
+screenshots, self-test reports, logs) - their storage is blocked by the proxy; the owner can
+download them on the run page. A chat may push files under `.github/workflows/`.
 
 Big test model: the owner's "EGR line" STEP (78 MB, 2,789 placed / 584 unique
 parts, 4.2 M triangles) is **not** in the repository. Ask the owner to attach it when a task
@@ -162,10 +204,13 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
    version number.
 1. Raise the version in `fresing_render/__init__.py` **and** `fresing_render/blender_manifest.toml`.
 2. Add the version to `CHANGELOG.md` (plain words, for the owner).
-3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging changes.
+3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging
+   changes. The GitHub run of the branch must be green (section 5).
 4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
    first time) -> `dist/FresingRender-<version>-windows.zip`.
-5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`.
+5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`. Check
+   the GitHub run on `main` (`python3 tools/ci_status.py --branch main --wait`); send the
+   installer only when it is green.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
 6. Send the owner the installer zip with short install/test steps (numbered, click by click);
