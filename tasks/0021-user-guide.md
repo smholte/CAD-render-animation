@@ -83,7 +83,7 @@ the installer.
   "Fresing Render - User guide". `README-install.txt` mentions it.
 - `tools/tooltip_report.py`: reads every button and setting the side panel draws and grades its
   tooltip (missing / weak / fine, with the reason). `docs/TOOLTIPS-TODO.md`: the snapshot on `main`
-  `5936ed9` (after 0010) – 209 buttons and settings, **65 without a tooltip, 28 weak**, 116 fine –
+  `ef54d3a` (after 0010 and 0011) – 210 buttons and settings, **65 without a tooltip, 28 weak**, 117 fine –
   split per lane, each with a suggested text checked against the code. (On `e8365b8`, before 0010:
   203, 83 missing, 31 weak; 0010 fixed 21 of the Looks lane's 35.)
 - `tests/test_user_guide.py` (new tests): guide builds with every chapter in order, pictures
