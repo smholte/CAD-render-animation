@@ -480,9 +480,11 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 wrap(col, context, fasteners.describe(info), icon="TOOL_SETTINGS", inset=12)
             g = ob.get(build.PROP_GROUP, "")
             manual = " (put in by hand)" if ob.get("fr_group_manual") else ""
-            col.label(text=f"Group: {g}{manual}")
+            wrap(col, context, f"Group: {g}{manual}", inset=12)
             if ob.get(build.PROP_COLOR):
                 col.label(text=f"CAD colour: {ob[build.PROP_COLOR]}")
+            if ob.get(build.PROP_CAD_MATERIAL):
+                wrap(col, context, f"CAD material: {ob[build.PROP_CAD_MATERIAL]}", inset=12)
             box.operator_menu_enum("fresing.part_move_group", "group", text="Move selected to group…",
                                    icon="FORWARD")
 

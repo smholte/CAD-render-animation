@@ -1,6 +1,6 @@
 # 0015 – Rule sets: one naming scheme per company, chosen per project
 
-**Who:** worker · **Status:** waiting (0008, then 0010) · **Branch:** `task/0015-rule-sets`
+**Who:** worker · **Status:** open – can start (0010 merged in 0.2.9) · **Branch:** `task/0015-rule-sets`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Looks · **Area:** `core/rules.py`,
 `core/template.py`, new `core/rule_sets.py`, `blender/logic.py`, `blender/ops_main.py` (templates),
 `blender/ops_panels.py` and the 3 Looks part of `blender/ui.py`, `blender/props.py` (additive),
