@@ -128,7 +128,7 @@ locally pushes its branch and reads the run.
 | --- | --- | --- |
 | Full suite (1,260+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
 | Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (one test: `--only ui1`, `ui2` or `paths`) | UI, operators, before a release |
+| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,faces`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
 | **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
 
@@ -145,7 +145,7 @@ run; runs on `main` always finish. Four jobs; the whole run takes about 10 minut
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 8.3 min (pytest 5.5) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb | 9.8 min (ui1 6.1, ui2 0.7, paths 2.0) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 9.8 min (ui1 6.1, ui2 0.7, paths 2.0) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2.0 min (install 15 s, repair 3 s, self-test 79 s) |
 
@@ -158,13 +158,13 @@ self-test into "skipped: no graphics card"; every other self-test line must be O
 **Reading the results from a chat** (the `gh` command works through the chat's proxy):
 
 ```bash
-python3 tools/ci_status.py --wait              # run of the current commit; waits until it is done
-python3 tools/ci_status.py --branch main       # newest run on main
+python3 tools/ci_status.py --wait              # run of the current commit (HEAD); waits until it is done
+python3 tools/ci_status.py --branch main --wait  # run of the newest commit on main
 python3 tools/ci_status.py --run <id> --log "Windows"   # whole log of the jobs matching "Windows"
 ```
 
-It lists every job with its time; for a failed job the failing step, the error lines and the
-end of its log. Each job also prints its verdict as a table (which test, which self-test line)
+It only shows the run of exactly that commit (never an older one), lists every job with its
+time and, for a failed job, the failing step, the error lines and the log up to the error. Each job also prints its verdict as a table (which test, which self-test line)
 in the log and on the run page ("Summary"). The chats can read runs, jobs, logs and
 annotations through the GitHub API, but **cannot download the run's files** (artifacts:
 screenshots, self-test reports, logs) - their storage is blocked by the proxy; the owner can
