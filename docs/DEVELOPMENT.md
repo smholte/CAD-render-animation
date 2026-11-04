@@ -46,6 +46,27 @@ time (colours equal to the part colour are skipped) and are sorted by the rules 
 no face list: faces are found as connected pieces (two CAD faces never share vertices).
 A model update keeps sets of parts whose per-face triangle counts are unchanged.
 
+**Rule sets** (task 0015, `core/rule_sets.py` file format and library, `blender/rule_sets.py`
+project side, `blender/ops_rule_sets.py` operators): a rule set = name + rules + group looks
+(group -> material, colour) + group renames (rule name -> shown name). Files: one JSON per rule
+set in `<shared library>/Rule sets/` (marker `fresing_render_rule_set`; the name inside the file
+counts, the file name is only a safe version of it); without a shared library
+`Documents\Fresing Render\Rule sets` on the PC (`FRESING_RULE_SETS_DIR` overrides both, for tests).
+"Standard" is built in (`rule_sets.standard()`: the default rules, no own looks). The project
+keeps `scene.fresing.rule_set` (name) and `rule_set_data` (the set as last loaded or saved =
+its own copy); the working state stays in `rules`, `group_aliases` and `groups`. "Changed" =
+`current(s)` differs from the saved copy, where looks only count when they differ from
+`rules.default_material_for_group` (so Standard has none) and only for groups the rules fill
+(`group.by_rules`; a group holding only hand-picked parts belongs to the project). A new group
+starts with the saved copy's look for its name, else the built-in one (`logic.start_look`).
+Switching (`rule_sets.switch`): load rules/renames, sort, set looks (the set's, else built-in for
+rule-filled groups, hand-only groups keep theirs), remove groups left empty; `preview` runs the
+same sort without writing (`logic.sort_plan`, `faces.plan`). Projects saved before 0.2.10 get
+their rule set on open (`rule_sets.on_load` -> `adopt`: "Standard" when the rules are the
+untouched defaults, else "From this project"; nothing is re-sorted). Templates carry
+`rule_set` (name + copy): the library version wins, the copy is the fallback; templates without
+it load as before (rule set "From template '<name>'").
+
 Units: STEP millimetres become Blender metres; the scene shows millimetres.
 
 ## Measured (test machine: 2 slow cores, no GPU)
@@ -72,6 +93,10 @@ adaptive threshold x5/3 - measured on an EGR interior close-up (CPU, 480x270): 3
 20.8 s per frame, mean difference 1.3/255. Fast GI was tried: 27 s but 7.7/255 darker,
 rejected. Colour-background compositing costs ~0.5 s per 1440p frame (kept). The log
 prints "frame N: render X s, save Y s" per frame.
+
+Rule sets (0.2.10), synthetic 2,800-part scene (test model copied with generic names, 70 parts
+put in a group by hand), 2-core test machine: preview of a switch 0.02-0.03 s, switch 0.04-0.06 s,
+the "changed" check the panel makes at every redraw 0.12 ms.
 
 ## Tests
 

@@ -2,6 +2,11 @@
 
 A template lets the next machine start mostly set up. It is plain JSON so it
 can live on a network share and be edited by hand if needed.
+
+Since 0.2.10 a template names the rule set it uses and keeps a copy of it (``rule_set``, a
+``rule_sets.RuleSet`` as a dict): loading it uses that rule set from the library, or the copy when
+the library does not have it. ``rules`` is still written, for older versions of the app.
+Templates without ``rule_set`` (older ones) load as before.
 """
 
 from __future__ import annotations
@@ -33,9 +38,10 @@ class Template:
     schemes: list[Scheme] = field(default_factory=list)
     background: dict = field(default_factory=dict)
     output: dict = field(default_factory=dict)
+    rule_set: dict | None = None          # the rule set it uses (name + copy); None in older templates
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "fresing_render_template": TEMPLATE_VERSION,
             "name": self.name,
             "rules": R.rules_to_list(self.rules),
@@ -45,6 +51,9 @@ class Template:
             "background": self.background,
             "output": self.output,
         }
+        if self.rule_set:
+            d["rule_set"] = self.rule_set
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Template":
@@ -61,6 +70,7 @@ class Template:
             schemes=schemes,
             background=d.get("background", {}),
             output=d.get("output", {}),
+            rule_set=d.get("rule_set") if isinstance(d.get("rule_set"), dict) else None,
         )
 
     def save(self, path: str) -> None:

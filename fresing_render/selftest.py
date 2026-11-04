@@ -145,6 +145,29 @@ def main(report_path: str | None = None) -> bool:
 
     check("CAD material names and part types", _cad_materials)
 
+    def _rule_sets():
+        """The rule-set folder (shared library, or Documents on this PC) can be written and read."""
+        import tempfile
+        from .blender import rule_sets as project_rule_sets
+        from .core import rule_sets as RS
+        path, shared, problem = project_rule_sets.folder()
+        if problem:
+            raise RuntimeError(problem)
+        os.makedirs(path, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".selftest-", suffix=".json", dir=path)   # hidden from the list
+        os.close(fd)
+        try:
+            rs = RS.standard().copy("Self-test")
+            rs.save(tmp)
+            if not RS.RuleSet.load(tmp).same_content(rs):
+                raise RuntimeError("a rule set did not read back the same")
+        finally:
+            os.remove(tmp)
+        n = len(RS.scan(path))
+        return f"{'shared library' if shared else 'this PC'}: {path} ({n} rule set{'s' if n != 1 else ''})"
+
+    check("Rule sets folder", _rule_sets)
+
     def _template():
         import subprocess
         exe = bpy.app.binary_path

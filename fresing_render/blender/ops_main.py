@@ -385,7 +385,8 @@ class FRESING_OT_rule_move(bpy.types.Operator):
 
 
 class FRESING_OT_rules_reset(bpy.types.Operator):
-    """Replace all rules with the built-in defaults"""
+    """Replace all rules with those of the built-in Standard rule set. The project's rule set then shows
+    'changed': save it, or pick the rule set again at the top of 3 Looks to go back"""
 
     bl_idname = "fresing.rules_reset"
     bl_label = "Reset rules to defaults"
@@ -466,8 +467,11 @@ def _plain(value):
 
 def _template_from_scene(scene) -> Template:
     s = scene.fresing
+    from . import rule_sets
     t = Template(name=os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "Template")
     t.rules = logic.rules_from_scene(s)
+    rule_sets.ensure(scene)
+    t.rule_set = rule_sets.current(s).to_dict()        # the rule set it uses, with a copy
     current = Scheme("Current", {g.name: GroupLook(g.material, g.color) for g in s.groups})
     t.schemes = [current] + [Scheme(sc.name, {lk.group: GroupLook(lk.material, lk.color) for lk in sc.looks})
                              for sc in s.schemes]
@@ -480,10 +484,26 @@ def _template_from_scene(scene) -> Template:
 
 
 def apply_template(scene, t: Template) -> None:
+    """Load a template into the project. Its rule set comes from the library when the library has
+    it, otherwise from the template's own copy; templates made before rule sets load their rules and
+    group looks as before (as a rule set "From template '<name>'")."""
+    from ..core.rule_sets import RuleSet
+    from . import rule_sets
     s = scene.fresing
-    logic.load_rules_into_scene(s, t.rules)
+    if t.rule_set:
+        try:
+            copy = RuleSet.from_dict(t.rule_set)
+        except ValueError:
+            copy = None
+        if copy is not None:
+            rule_sets.switch(scene, rule_sets.find(copy.name) or copy)
+    else:
+        s.rule_set = ""
+        logic.load_rules_into_scene(s, t.rules)
     for sch in t.schemes:
         if sch.name == "Current":
+            if t.rule_set:
+                continue                       # the rule set gives the group looks
             for gname, look in sch.looks.items():
                 g = logic.ensure_group(s, gname)
                 g.material, g.color = look.material, look.color
@@ -507,12 +527,15 @@ def apply_template(scene, t: Template) -> None:
         except (AttributeError, TypeError, ValueError):
             pass
     s.live_update = live
+    if not t.rule_set:
+        rule_sets.adopt(scene, f"From template '{t.name}'")
     logic.apply_rules(scene)
     world.apply(scene, s)
 
 
 class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
-    """Save rules, groups, paint schemes, background and output settings as a template"""
+    """Save the rule set this project uses, paint schemes, background and output settings as a template
+    (.json) for the next project"""
 
     bl_idname = "fresing.template_export"
     bl_label = "Save template"
@@ -530,7 +553,8 @@ class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
 
 
 class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
-    """Load a template: rules, groups, paint schemes, background and output settings"""
+    """Load a template: its rule set (from the library, or the template's own copy), paint schemes,
+    background and output settings. Parts you put in a group by hand stay there"""
 
     bl_idname = "fresing.template_import"
     bl_label = "Load template"

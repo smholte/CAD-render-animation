@@ -109,8 +109,8 @@ def _on_load(_dummy=None):
             if hasattr(sc, "fresing") and sc.fresing.model_count:
                 build.ensure_bases(sc)
                 sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
-                from . import logic
-                if logic.ensure_default_rules(sc.fresing):   # untouched rules of before 0.2.8
+                from . import rule_sets
+                if rule_sets.on_load(sc):        # no rule set yet (before 0.2.10); untouched rules of before 0.2.8
                     sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
                                                "CAD materials): press 'Sort parts into groups' to use them")
     except Exception:

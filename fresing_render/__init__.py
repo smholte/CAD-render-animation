@@ -12,9 +12,9 @@ _modules = []
 
 
 def _classes():
-    from .blender import ops_import, ops_main, ops_motion, ops_panels, prefs, ui, ui_motion
+    from .blender import ops_import, ops_main, ops_motion, ops_panels, ops_rule_sets, prefs, ui, ui_motion
     return (prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ops_panels.CLASSES
-            + ui.CLASSES + ui_motion.CLASSES)
+            + ops_rule_sets.CLASSES + ui.CLASSES + ui_motion.CLASSES)
 
 
 def register():

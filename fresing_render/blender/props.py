@@ -118,6 +118,9 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     count: IntProperty(name="Parts", default=0)
     faces: IntProperty(name="Face sets", default=0,
                        description="Painted faces of parts in this group (faces with a look of their own)")
+    # the rules put parts or faces in this group (False: only parts put in by hand). Its look then
+    # belongs to the rule set; a group that only holds hand-picked parts belongs to the project
+    by_rules: BoolProperty(default=False)
 
 
 def _renamer(kind: str):
@@ -504,6 +507,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                     "only; the other copies of this part keep their look")
     face_painting: BoolProperty(default=False,
                                 description="'Paint faces' is running in the view")
+    # rule set (task 0015): the name of the rule set this project uses ('' = a project made before
+    # 0.2.10, adopted on open) and the rule set as it was last loaded or saved (JSON), which is the
+    # project's own copy: the project opens without the library, and "changed" compares with it
+    rule_set: StringProperty(name="Rule set", description="The rule set this project uses")
+    rule_set_data: StringProperty()
 
     # ---- background & light ----
     live_update: BoolProperty(name="Live update", default=True)
