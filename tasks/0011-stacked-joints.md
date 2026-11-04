@@ -1,6 +1,6 @@
 # 0011 – Several joints on one subassembly (moves add up)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0011-stacked-joints`
+**Who:** worker · **Status:** running · **Branch:** `task/0011-stacked-joints`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** `blender/joints.py`,
 `blender/states.py`, `blender/animation.py`, `blender/ops_motion.py`, `blender/ui_motion.py`,
 `blender/reimport.py` (joint part only), `blender/props.py` (joint properties only, additive), `tests/`.
