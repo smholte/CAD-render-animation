@@ -187,3 +187,9 @@ needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Python references to items of a collection property (`scene.fresing.joints[i]`) become
+  invalid when that collection grows or shrinks: keep names (or the joint's Objects) and look
+  the item up again; compare items with `==` or by name, never with `is`.
+- A joint axis made from a point + direction leaves the arrow's turn about its own axis open
+  (and unstable for a vertical axis). Joints riding on it (stacks, task 0011) depend on that
+  turn: when rebuilding, pass the whole frame matrix (`joints.create(frame_world=...)`).

@@ -448,6 +448,144 @@ def s_structure_shot():
     return 0.5
 
 
+# ---- task 0011: two joints on one subassembly (a stack) --------------------
+
+
+def wheel():
+    return find("WHEEL", 1).matrix_world.translation.copy()
+
+
+@step
+def s_stack_first():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    op("fresing.pose_reset")                     # boom down: nothing in front of the trolley
+    tr = find("TROLLEY.ASM")
+    with override():
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        tr.select_set(True)
+        bpy.context.view_layer.objects.active = tr
+    bpy.context.view_layer.update()
+    globals()["w0"] = wheel()
+    globals()["n0"] = len(s.joints)
+    r = op("fresing.joint_add", kind="SLIDE", axis="Y", origin="CENTER")
+    check("stack: first joint on the trolley (Add slide joint)", r == {"FINISHED"} and len(s.joints) == n0 + 1, r)
+    j1 = s.joints[-1]
+    globals()["j1name"] = j1.name
+    joints.set_value(j1, 0.1)                    # slid out 100 mm along Y before the second joint is added
+    bpy.context.view_layer.update()
+    below, reason = joints.stack_info(sc, [tr])
+    check("stack: the panel says the next joint goes on top", below is not None and below.name == j1.name and not reason,
+          reason)
+    with override():
+        res = bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="NEW", kind="ROTATE")
+    check("stack: Add rotate joint starts the pick tool", "RUNNING_MODAL" in res, res)
+    return 0.5
+
+
+@step
+def s_stack_click():
+    # the trolley's top face (150 x 150 x 60 mm box), 30 mm in from a corner: a flat face -> vertical axis
+    pt = find("TROLLEY").matrix_world @ Vector((0.03, 0.03, 0.06))
+    globals()["pick_pt"] = pt.copy()
+    x, y = to_window(pt)
+    click(x, y)
+    return 0.8
+
+
+def _turned(q, c, angle):
+    from mathutils import Matrix
+    return c + Matrix.Rotation(angle, 3, "Z") @ (q - c)
+
+
+@step
+def s_stack_made():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    tops = [j for j in s.joints if joints.rides_on(sc, j) is not None and joints.rides_on(sc, j).name == j1name]
+    check("stack: click on the moved trolley adds a joint riding on the first", len(tops) == 1, s.last_message)
+    if not tops:
+        return 0.5
+    j2 = tops[0]
+    globals()["j2name"] = j2.name
+    o, d = joints.axis_world(j2)
+    check("stack: its axis goes through the clicked point", (o - pick_pt).length < 2e-3 and abs(abs(d.z) - 1) < 1e-3,
+          f"{tuple(round(v, 4) for v in o)} dir {tuple(round(v, 3) for v in d)}")
+    sign = 1 if d.z > 0 else -1
+    globals()["sign"] = sign
+    joints.set_value(j2, math.radians(90))
+    bpy.context.view_layer.update()
+    c = pick_pt - Vector((0, 0.1, 0))             # the axis point in the CAD position of the slide
+    want = _turned(w0, c, sign * math.pi / 2) + Vector((0, 0.1, 0))
+    check("stack: moves add up (100 mm slide, then 90° turn on it)", (wheel() - want).length < 1e-4,
+          f"{tuple(round(v, 4) for v in wheel())} want {tuple(round(v, 4) for v in want)}")
+    s.joints_index = list(s.joints).index(j2)
+    shot("07_stack")
+    with override():
+        bpy.ops.ed.undo_push(message="values")
+        bpy.ops.ed.undo()
+    return 0.8
+
+
+@step
+def s_stack_undo():
+    with override():
+        bpy.ops.ed.undo()                         # undo the second joint
+    return 0.8
+
+
+@step
+def s_stack_after_undo():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    bpy.context.view_layer.update()
+    j1 = joints.find(sc, j1name)
+    ok = len(s.joints) == n0 + 1 and j1 is not None and joints.members(j1) == [find("TROLLEY.ASM")] \
+        and (wheel() - (w0 + Vector((0, 0.1, 0)))).length < 1e-4
+    check("stack: undo takes the second joint off, the trolley stays on the first", ok,
+          f"joints {len(s.joints)}, wheel {tuple(round(v, 4) for v in wheel())}")
+    with override():
+        bpy.ops.ed.redo()
+    return 0.8
+
+
+@step
+def s_stack_after_redo():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    j2 = joints.find(sc, j2name) if "j2name" in globals() else None
+    ok = j2 is not None and joints.rides_on(sc, j2) is not None and joints.rides_on(sc, j2).name == j1name
+    check("stack: redo brings the second joint back on top", ok)
+    if not ok:
+        return 0.5
+    joints.set_value(j2, math.radians(90))
+    bpy.context.view_layer.update()
+    s.joints_index = list(s.joints).index(j2)
+    r = op("fresing.joint_swap")
+    bpy.context.view_layer.update()
+    j1, j2 = joints.find(sc, j1name), joints.find(sc, j2name)
+    c = pick_pt - Vector((0, 0.1, 0))
+    want = _turned(w0 + Vector((0, 0.1, 0)), c, sign * math.pi / 2)     # now: slide first, then everything turns
+    ok = r == {"FINISHED"} and joints.rides_on(sc, j1) is not None and joints.rides_on(sc, j1).name == j2name \
+        and (wheel() - want).length < 1e-4
+    check("stack: Swap order (button) – the slide now rides on the turn", ok,
+          f"{r} {tuple(round(v, 4) for v in wheel())} want {tuple(round(v, 4) for v in want)}")
+    shot("08_stack_swapped")
+    s.joints_index = list(s.joints).index(j2)    # the bottom one
+    r = op("fresing.joint_remove")
+    bpy.context.view_layer.update()
+    j1 = joints.find(sc, j1name)
+    ok = r == {"FINISHED"} and j1 is not None and joints.rides_on(sc, j1) is None \
+        and (wheel() - (w0 + Vector((0, 0.1, 0)))).length < 1e-4
+    check("stack: removing the bottom joint keeps the one on it (button)", ok, s.last_message)
+    return 0.5
+
+
 @step
 def s_finish():
     failed = [r for r in RESULTS if not r[1]]
