@@ -140,7 +140,7 @@ def _read(tmp_path):
 def test_reader_stores_material_names(tmp_path):
     from fresing_render.importer import step_reader
     info = _read(tmp_path)
-    assert info["version"] == step_reader.CACHE_VERSION == 4
+    assert info["version"] == step_reader.CACHE_VERSION == 5
     parts = {n["name"]: n for n in info["nodes"] if n["kind"] == "part"}
     assert parts["PLATE"]["material"] == "Aluminum - Satin"             # the appearance decides the look
     assert parts["PLATE"]["material_name"] == "Aluminium 6082"

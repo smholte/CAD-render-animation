@@ -45,7 +45,8 @@ QUALITY = {
     "fine": (0.0006, 0.18),
 }
 
-CACHE_VERSION = 4          # 3: axes of round faces (joint picking), instance names; 4: CAD material names
+CACHE_VERSION = 5          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
+                           # 5: triangle range of every face (f<mesh>), appearance names of face colours
 MM_TO_M = 0.001
 
 
@@ -125,6 +126,14 @@ def _color_of(occ, ctool, label):
             r, g, b = col.Values(occ["Quantity_TOC_sRGB"])
             return (round(r, 4), round(g, 4), round(b, 4))
     return None
+
+
+def _face_look(colour, face_looks: dict) -> str:
+    """Appearance name of a face colour (sRGB), from the styles of single faces in the file."""
+    for rgb, name in face_looks.items():
+        if all(abs(a - b) <= 0.002 for a, b in zip(colour, rgb)):
+            return name
+    return ""
 
 
 def _trsf_to_matrix(trsf) -> list:
@@ -344,11 +353,13 @@ def _record_normals(occ, face, tri, rec_normals, n_nodes: int):
 
 
 def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=False, axes: _Axes | None = None,
-                bulk: bool = True):
+                bulk: bool = True, face_starts: list | None = None):
     """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours).
 
     ``face_colours``: from _face_colour_list (a colour or None per face), or None.
-    ``bulk``: read the triangles in one block (False: node by node, the old way)."""
+    ``bulk``: read the triangles in one block (False: node by node, the old way).
+    ``face_starts``: filled with the first triangle of every meshed face, plus the total at the
+    end (the triangles of a face are one block): picking a whole CAD face with a click."""
     if not already_meshed:
         occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
     positions, normals, tris, tri_col = [], [], [], []
@@ -420,12 +431,16 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
             fa = _face_axis(occ, face)
             if fa is not None:
                 axes.add(fa[0], fa[1], fa[2], tri_offset, n_tris)
+        if face_starts is not None:
+            face_starts.append(tri_offset)
         positions.append(pts)
         normals.append(nrm)
         tris.append(t + offset)
         tri_col.append(np.full(n_tris, cidx, dtype=np.int16))
         offset += n_nodes
         tri_offset += n_tris
+    if face_starts is not None:
+        face_starts.append(tri_offset)
     if not positions:
         return None
     pos = np.concatenate(positions) * MM_TO_M
@@ -558,7 +573,7 @@ def _exit_with_parent(parent_pid: int) -> None:
 
 
 def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: float):
-    """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error)."""
+    """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error, face starts)."""
     if os.environ.get("FRESING_TEST_CRASH_PART") == str(mid):
         os._exit(3)                                  # tests: a helper that dies on one part
     try:
@@ -567,10 +582,11 @@ def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: flo
         shape = occ["TopoDS_Shape"]()
         occ["BinTools"].Read_s(shape, io.BytesIO(blob))
         axes = _Axes()
-        res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes)
+        starts: list = []
+        res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes, face_starts=starts)
     except Exception as exc:
-        return mid, None, [], [], str(exc) or exc.__class__.__name__
-    return mid, res, axes.axes, axes.faces, None
+        return mid, None, [], [], str(exc) or exc.__class__.__name__, []
+    return mid, res, axes.axes, axes.faces, None, starts
 
 
 def _no_crash_dialog() -> None:
@@ -823,10 +839,12 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
 
     # material and appearance names per product, straight from the file text (empty for AP203)
     tm = time.time()
+    face_looks: dict = {}                    # colour of a single painted face -> its appearance name
     try:
-        cad_meta = step_meta.read(path)
+        cad_meta = step_meta.read(path, faces=face_looks)
     except Exception as exc:  # never let names stop an import
         cad_meta = {}
+        face_looks = {}
         emit("warning", 26, f"Could not read material names: {exc}")
     t_meta = time.time() - tm
 
@@ -921,13 +939,13 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     shapes = [occ["XCAFDoc_ShapeTool"].GetShape_s(label) for label in mesh_labels]
     face_colours = [_face_colour_list(occ, shapes[mid], _face_colors(occ, stool, ctool, label))
                     for mid, label in enumerate(mesh_labels)]
-    results: list = [None] * len(mesh_labels)       # (mesh result, axes, axis faces, error)
+    results: list = [None] * len(mesh_labels)       # (mesh result, axes, axis faces, error, face starts)
     counter = [0]
     where = [""]
 
     def store(reply) -> None:
-        mid, res, ax, af, err = reply
-        results[mid] = (res, ax, af, err)
+        mid, res, ax, af, err = reply[:5]
+        results[mid] = (res, ax, af, err, reply[5] if len(reply) > 5 else [])
         counter[0] += 1
         done = counter[0]
         if done % 10 == 1 or done == total:
@@ -958,21 +976,22 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         used_helpers = helpers.started
         del jobs
         for mid, reason in lost:                        # OpenCascade stopped on this part: skip it, keep the rest
-            store((mid, None, [], [], f"the mesher stopped on this part ({reason})"))
+            store((mid, None, [], [], f"the mesher stopped on this part ({reason})", []))
         pending = sorted(pending + retry + [job[0] for job in left])   # left: no helper could take these
         where[0] = ""
     else:
         pending = list(range(len(mesh_labels)))
     for mid in pending:
         axes = _Axes()
+        starts: list = []
         try:
-            res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes)
-            store((mid, res, axes.axes, axes.faces, None))
+            res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes, face_starts=starts)
+            store((mid, res, axes.axes, axes.faces, None, starts))
         except Exception as exc:  # keep going, report the part
-            store((mid, None, [], [], str(exc)))
+            store((mid, None, [], [], str(exc), []))
 
     for mid in range(len(mesh_labels)):
-        res, ax, af, err = results[mid]
+        res, ax, af, err, starts = results[mid]
         if err:
             emit("warning", 95, f"Could not mesh {mesh_names[mid]}: {err}")
         meta = {"name": mesh_names[mid], "tris": 0, "palette": [], "bbox": None,
@@ -984,6 +1003,11 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             arrays[f"t{mid}"] = tri
             if palette:
                 arrays[f"c{mid}"] = tcol
+                names = [_face_look(c, face_looks) for c in palette]
+                if any(names):
+                    meta["palette_names"] = names        # appearance name of a face colour (Autodesk)
+            if len(starts) >= 2 and starts[-1] == len(tri):
+                arrays[f"f{mid}"] = np.asarray(starts, dtype=np.int32)
             meta["tris"] = int(len(tri))
             meta["palette"] = palette
             meta["bbox"] = [pos.min(axis=0).tolist(), pos.max(axis=0).tolist()]

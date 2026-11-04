@@ -32,6 +32,20 @@ sets are light configurations.
 5. Rules run (`blender/logic.py` -> `core/rules.py`), materials are built
    (`blender/materials.py` from `core/materials_lib.py`).
 
+Per unique part the cache holds `p`/`n`/`t` (positions, normals, triangles), `c` (palette index
+of every triangle, only for parts with individually coloured faces; `palette` and, from
+Autodesk styles on single faces, `palette_names` in `tree.json`) and `f` (cache version 5: the
+first triangle of every CAD face plus the total; a face's triangles are one block).
+
+**Painted faces** (`blender/faces.py`, task 0010): a face set is a list of CAD face numbers with
+its own material slot (slot k+1, polygon `material_index`); stored as JSON on the mesh
+(`fr_face_sets`, shared by every copy) with per-copy choices on the object (`fr_face_copy`).
+Every slot is object-linked, so copies can differ. Faces painted in CAD become sets at build
+time (colours equal to the part colour are skipped) and are sorted by the rules with
+`rules.face_facts` (colour and CAD material only, no name rules). Meshes made before 0.2.9 have
+no face list: faces are found as connected pieces (two CAD faces never share vertices).
+A model update keeps sets of parts whose per-face triangle counts are unchanged.
+
 Units: STEP millimetres become Blender metres; the scene shows millimetres.
 
 ## Measured (test machine: 2 slow cores, no GPU)

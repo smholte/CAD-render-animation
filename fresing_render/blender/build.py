@@ -134,8 +134,14 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         bpy.context.scene.collection.children.link(collection)
 
     # ---- meshes (one per unique part) ------------------------------------------
+    from . import faces
     mesh_blocks: dict[int, bpy.types.Mesh] = {}
     used = {n["mesh"] for n in nodes if n["kind"] == "part" and n["mesh"] >= 0}
+    part_colours: dict[int, dict] = {}          # colours of the copies of each part: faces in it need no set
+    for n in nodes:
+        if n["kind"] == "part" and n.get("color"):
+            c = part_colours.setdefault(n["mesh"], {})
+            c[tuple(n["color"])] = c.get(tuple(n["color"]), 0) + 1
     total = max(1, len(used))
     for k, mid in enumerate(sorted(used)):
         key = f"p{mid}"
@@ -147,6 +153,12 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
             # round faces of the part, for picking joint axes with a click
             me["fr_axes"] = [v for ax in meta["axes"] for v in ax]
             me["fr_axis_faces"] = meta.get("axis_faces", [])
+        if f"f{mid}" in arrays:
+            # CAD faces (for picking whole faces) and faces painted in the CAD file
+            cols = part_colours.get(mid)
+            faces.cad_sets(me, arrays[f"f{mid}"], arrays[f"c{mid}"] if f"c{mid}" in arrays else None,
+                           meta.get("palette") or [], meta.get("palette_names") or [],
+                           max(cols, key=cols.get) if cols else None)
         mesh_blocks[mid] = me
         if progress and k % 25 == 0:
             progress(k / total * 0.7, f"Creating part {k + 1} of {total}")
@@ -159,7 +171,7 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
             data = mesh_blocks.get(n["mesh"])
             ob = bpy.data.objects.new(n["name"], data)
             if data is not None:
-                ob.material_slots[0].link = "OBJECT"
+                faces.link_slots(ob)
         else:
             ob = bpy.data.objects.new(n["name"], None)
             ob.empty_display_type = "PLAIN_AXES"

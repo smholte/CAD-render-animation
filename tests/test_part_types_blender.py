@@ -67,3 +67,55 @@ def test_new_materials_build_in_blender(scene):
                    "mannequin_matte", "wood"):
         mat = materials.ensure_material(f"Test {mat_id}", mat_id, "")
         assert mat["fr_material"] == mat_id and mat.node_tree.nodes
+
+
+def test_untouched_old_rules_become_the_new_defaults_on_open(scene, tmp_path):
+    s = scene.fresing
+    logic.load_rules_into_scene(s, R.old_default_rules())
+    path = str(tmp_path / "old.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    s = bpy.context.scene.fresing
+    assert logic.rules_from_scene(s) == R.default_rules()
+    assert "new defaults" in s.last_message
+    # rules the user changed are left alone
+    rules = R.old_default_rules()
+    rules[0].target = "My stainless bolts"
+    logic.load_rules_into_scene(s, rules)
+    assert not logic.ensure_default_rules(s) and logic.rules_from_scene(s)[0].target == "My stainless bolts"
+
+
+def test_ready_made_black_anodised_uses_the_black_anodised_material():
+    from fresing_render.blender import finder
+    preset = next(p for p in finder.PRESETS if p[0] == "alu_black")
+    assert preset[2:] == ("aluminium_anodized_black", "")
+    assert R.default_material_for_group("Wire mesh & fences") == ("wire_mesh", "RAL 9005")
+
+
+def test_wire_mesh_material_cuts_holes(tmp_path):
+    """A guard panel drawn as a plate: the material lets the background through between the wires."""
+    import numpy as np
+    from fresing_render.blender import materials
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    bpy.ops.mesh.primitive_plane_add(size=0.2)                    # 200 x 200 mm, facing up
+    plate = bpy.context.active_object
+    plate.data.materials.append(materials.ensure_material("Mesh", "wire_mesh", "RAL 9005"))
+    assert plate.active_material.node_tree.nodes["Principled BSDF"].inputs["Alpha"].is_linked
+    cam = bpy.data.objects.new("Cam", bpy.data.cameras.new("Cam"))
+    sc.collection.objects.link(cam)
+    cam.location = (0, 0, 1)
+    cam.data.type, cam.data.ortho_scale = "ORTHO", 0.1
+    sc.camera = cam
+    sc.render.engine = "CYCLES"
+    sc.cycles.samples = 4
+    sc.cycles.use_denoising = False
+    sc.render.film_transparent = True
+    sc.render.resolution_x = sc.render.resolution_y = 100
+    sc.render.filepath = str(tmp_path / "mesh.png")
+    bpy.ops.render.render(write_still=True)
+    img = bpy.data.images.load(sc.render.filepath)
+    alpha = np.array(img.pixels[:]).reshape(100, 100, 4)[..., 3]
+    holes, wires = (alpha < 0.1).mean(), (alpha > 0.9).mean()
+    assert 0.5 < holes < 0.9 and wires > 0.1, (holes, wires)          # 25 mm mesh, 3 mm wire: ~77 % open

@@ -140,6 +140,10 @@ def s_state():
         log("clicked", last.get("fr_name"))
         return 1.0
     if os.environ.get("UISHOT_EMPTY"):
+        if os.environ.get("UISHOT_ACTIVE"):                   # a part clicked (e.g. painted faces listed)
+            part = ob(os.environ["UISHOT_ACTIVE"])
+            part.select_set(True)
+            bpy.context.view_layer.objects.active = part
         return 1.0
     sc = bpy.context.scene
     s = sc.fresing

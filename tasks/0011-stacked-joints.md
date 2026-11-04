@@ -1,6 +1,6 @@
 # 0011 – Several joints on one subassembly (moves add up)
 
-**Who:** worker · **Status:** done (0.2.9) · **Branch:** `task/0011-stacked-joints`
+**Who:** worker · **Status:** done (0.2.10) · **Branch:** `task/0011-stacked-joints`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** `blender/joints.py`,
 `blender/states.py`, `blender/animation.py`, `blender/ops_motion.py`, `blender/ui_motion.py`,
 `blender/reimport.py` (joint part only), `blender/props.py` (joint properties only, additive), `tests/`.
@@ -108,7 +108,8 @@ sits at X +500 / Y +1000 from where it started. This works together with all oth
   joint; animation with three steps (two together, one after) checked at five frames; save +
   reopen; model update A → B with a 4-joint set-up (stack of three + boom luff), normal and
   swapped order; a stack whose parts are gone.
-- Full suite on the branch after merging main 0.2.8: 1,269 passed before the review fixes (the render-queue test timed
+- Full suite on the branch after merging main 0.2.8 and the review fixes: 1,272 passed (an earlier run:
+  1,269 passed before the review fixes (the render-queue test timed
   out once while two real-app Blenders shared the CPU; passed alone, 6 min).
 - Real app (Blender 5.2.3 Linux, virtual screen, packaged extension): `ui_test_app2.py` 39/39
   (new: first joint with Add slide joint, second joint with Add rotate joint + a click on the

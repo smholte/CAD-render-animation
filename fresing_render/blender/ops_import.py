@@ -75,7 +75,8 @@ def frame_views(context, scene) -> None:
 
 
 class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
-    """Import a STEP assembly (runs in the background, the app stays responsive)"""
+    """Import a STEP assembly: pick the file, it is read in the background (the app stays usable).
+    Choose the detail and up axis above first"""
 
     bl_idname = "fresing.import_step"
     bl_label = "Import STEP"
@@ -94,6 +95,13 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
     up_axis: EnumProperty(name="Up axis", default="Z", items=[("Z", "Z up", ""), ("Y", "Y up", "")])
     # UPDATE: replace this model by a new revision of the file and keep all work
     update_root: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.update_root:
+            return ("Read a new revision of this model's STEP file. Parts are matched with the old ones and keep "
+                    "their groups, painted faces, joints, poses and scenes; a report lists what is new or missing")
+        return cls.__doc__.replace("\n    ", " ")
 
     _timer = None
     _job: ImportJob | None = None

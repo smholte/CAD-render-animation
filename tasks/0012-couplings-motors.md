@@ -34,6 +34,8 @@ simply run: "turn at 12 rpm for 5 s".
    conveyor rollers).
 3. Saved data: couplings and motor flag in specs (model update), poses store only free joints,
    old projects open unchanged.
+4. **Tooltips** for every button and setting in panels 4 Motion, 6 Animation and 7 Render queue,
+   also the existing ones (`CLAUDE.md` section 6).
 
 ## Done when
 
