@@ -1,6 +1,6 @@
 # 0015 – Rule sets: one naming scheme per company, chosen per project
 
-**Who:** worker · **Status:** waiting (0008, then 0010) · **Branch:** `task/0015-rule-sets`
+**Who:** worker · **Status:** running (worker chat, 4 Nov 2026) · **Branch:** `task/0015-rule-sets`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Looks · **Area:** `core/rules.py`,
 `core/template.py`, new `core/rule_sets.py`, `blender/logic.py`, `blender/ops_main.py` (templates),
 `blender/ops_panels.py` and the 3 Looks part of `blender/ui.py`, `blender/props.py` (additive),
@@ -22,7 +22,14 @@ project.
   background and output settings.
 - Hand assignments (`fr_group_manual`, from "Put selected in", Find & sort parts, "Move to
   group") must survive any switch.
-- Read the reports of 0008 and 0010 first: both change the sorting and the materials.
+- Read the reports of 0008 and 0010 first: both change the sorting and the materials (0010 also
+  sorts single faces through the rules: a switch of rule set re-sorts face sets too).
+- In-house abbreviations of the owner's company or his clients belong in his own rule sets, not
+  in the built-in library (the EGR test model is a public GrabCAD model, not his naming) (task 0022 runs at the same time in `core/part_types_data.py` – do not
+  touch that file).
+- If the owner attaches a small Fusion 360 STEP with one face painted in another appearance,
+  check that the face comes in painted (task 0010 wrote that STEP structure by hand) – numbers in
+  the report, file not committed.
 
 ## What to build
 

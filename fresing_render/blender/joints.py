@@ -15,6 +15,17 @@ motion's Z rotation or Z location. Animation keys go on ``fr_value``.
 Joints whose base is moved by another joint follow it: that gives chains
 (a trolley on a luffing boom). Changes to the joint structure are made in the
 CAD pose (every joint at 0, no free moves) and the pose is restored after.
+
+Stacks (several joints on one subassembly, the moves add up): a new joint added
+to objects that already move with joint A *rides on* A – its frame is parented
+to A's motion empty and the chosen objects move to the new joint's motion:
+
+    A frame └─ A motion └─ B frame └─ B motion └─ the subassembly
+
+The newer joint's axis moves with the older one (slew, then luff). Nothing extra
+is stored: "B rides on A" is ``B.frame.parent is A.motion``, so projects made
+before stacks open unchanged. Removing a joint from a stack puts what it moved
+and the joints riding on it down onto what it sat on.
 """
 
 from __future__ import annotations
@@ -87,6 +98,125 @@ def joint_for_empty(scene, ob):
 
 def members(j) -> list:
     return [m.obj for m in j.members if m.obj is not None]
+
+
+# ---------------------------------------------------------------------------
+# stacks: joints riding on other joints
+# ---------------------------------------------------------------------------
+
+def _is_motion(ob) -> bool:
+    return ob is not None and ob.get(build.PROP_KIND) == "joint"
+
+
+def rides_on(scene, j):
+    """The joint whose motion carries ``j`` (``j`` sits on top of it in a stack), or None."""
+    p = j.frame.parent if j.frame is not None else None
+    if not _is_motion(p):
+        return None
+    for other in scene.fresing.joints:
+        if other.motion is p:
+            return other
+    return None
+
+
+def riders(scene, j) -> list:
+    """Joints riding directly on ``j`` (their frame sits on its motion)."""
+    if j.motion is None:
+        return []
+    return [r for r in scene.fresing.joints if r.frame is not None and r.frame.parent is j.motion]
+
+
+def depth(scene, j) -> int:
+    """How many joints ``j`` rides on (0 for a joint that sits on a part)."""
+    d = 0
+    seen = {j.name}
+    below = rides_on(scene, j)
+    while below is not None and below.name not in seen:
+        d += 1
+        seen.add(below.name)
+        below = rides_on(scene, below)
+    return d
+
+
+def all_riders(scene, j) -> list:
+    """Every joint above ``j`` in its stack."""
+    out, todo, seen = [], riders(scene, j), {j.name}
+    while todo:
+        r = todo.pop(0)
+        if r.name in seen:
+            continue
+        seen.add(r.name)
+        out.append(r)
+        todo += riders(scene, r)
+    return out
+
+
+def moved_objects(scene, j) -> list:
+    """Everything ``j`` moves directly: its members and, through the joints riding on it, theirs."""
+    out = []
+    todo, seen = [j], set()
+    while todo:
+        x = todo.pop(0)
+        if x.name in seen:
+            continue
+        seen.add(x.name)
+        out += members(x)
+        todo += riders(scene, x)
+    return out
+
+
+def tree_order(scene) -> tuple[list[int], dict[int, int]]:
+    """Joint indices in list order with every stack under the joint it rides on, and each one's depth."""
+    js = list(scene.fresing.joints)
+    by_motion = {j.motion.name: i for i, j in enumerate(js) if j.motion is not None}
+    kids: dict[int, list] = {}
+    roots = []
+    for i, j in enumerate(js):
+        p = j.frame.parent if j.frame is not None else None
+        below = by_motion.get(p.name) if _is_motion(p) else None
+        if below is None or below == i:
+            roots.append(i)
+        else:
+            kids.setdefault(below, []).append(i)
+    order: list[int] = []
+    depths: dict[int, int] = {}
+
+    def walk(i, d):
+        if i in depths:
+            return
+        order.append(i)
+        depths[i] = d
+        for k in kids.get(i, []):
+            walk(k, d + 1)
+
+    for r in roots:
+        walk(r, 0)
+    for i in range(len(js)):            # a broken loop (never made by the app): still list everything
+        if i not in depths:
+            walk(i, 0)
+    return order, depths
+
+
+def stack_info(scene, objs) -> tuple:
+    """(joint, reason): the joint a new joint on ``objs`` would ride on (all of them move directly
+    with it), or None; reason is non-empty when that cannot be decided (a mixed selection)."""
+    owners = [(ob, joint_of_object(scene, ob)) for ob in objs if ob is not None]
+    moving = [(ob, o) for ob, o in owners if o is not None]
+    if not moving:
+        return None, ""
+    first_ob, first = moving[0]
+
+    def label(ob):
+        return ob.get(build.PROP_NAME, ob.name)
+
+    for ob, o in owners:
+        if o is None:
+            return None, (f"'{label(first_ob)}' already moves with joint '{first.name}' and '{label(ob)}' "
+                          "does not: add the joint to them one at a time")
+        if o.name != first.name:                     # (list items are new Python objects each time: no 'is')
+            return None, (f"'{label(first_ob)}' moves with joint '{first.name}' and '{label(ob)}' with "
+                          f"'{o.name}': add the joint to them one at a time")
+    return first, ""
 
 
 # ---------------------------------------------------------------------------
@@ -317,9 +447,11 @@ def unique_name(scene, base: str) -> str:
     return f"{base} {n}"
 
 
-def check_members(scene, objs, base, joint=None) -> str:
-    """'' if ``objs`` can be moved by a joint sitting on ``base``, else a reason."""
-    if not objs:
+def check_members(scene, objs, base, joint=None, allow_empty: bool = False) -> str:
+    """'' if ``objs`` can be moved by a joint sitting on ``base``, else a reason.
+
+    ``allow_empty``: a joint may move nothing directly (the bottom of a stack moves the joints on it)."""
+    if not objs and not allow_empty:
         return "Select the subassemblies that should move"
     for ob in objs:
         if ob.get(build.PROP_KIND) not in build.MODEL_KINDS:
@@ -343,29 +475,49 @@ def default_base(objs):
 # public operations
 # ---------------------------------------------------------------------------
 
-def create(scene, kind: str, objs, origin, direction, name: str = "", base=None, ref=None):
+def create(scene, kind: str, objs, origin, direction, name: str = "", base=None, ref=None,
+           stack: bool = True, allow_empty: bool = False, frame_world: Matrix | None = None):
     """New joint moving ``objs`` about/along the axis. Returns the joint item.
 
     ``origin``/``direction`` are world space in the current pose; they are stored relative
     to ``ref`` (the part that was clicked, default the base), so picking works with other
     joints moved or the model turned.
+
+    ``stack``: when no base is given and the objects already move with joint A, the new joint
+    rides on A (its frame on A's motion) and the moves add up. ``allow_empty``: build a joint that
+    moves nothing directly (model updates rebuild the bottom of a stack that way).
+    ``frame_world``: the exact axis matrix (world, current pose) instead of origin + direction. A
+    direction alone leaves the turn of the arrow about its own axis open (unstable for a vertical
+    axis); a joint riding on it would turn with it, so model updates pass the whole matrix.
     """
     objs = [ob for ob in objs if ob is not None]
     # members inside other members move with them anyway
     objs = [ob for ob in objs if not any(o is not ob and _is_cad_ancestor(o, ob) for o in objs)]
-    base = base or default_base(objs)
-    reason = check_members(scene, objs, base)
+    if base is None and stack and objs:
+        below, reason = stack_info(scene, objs)
+        if reason:
+            raise RuntimeError(reason)
+        if below is not None:
+            base = below.motion                 # an Object: stays valid when the joint list grows
+    if base is None and objs:
+        base = default_base(objs)
+    reason = check_members(scene, objs, base, allow_empty=allow_empty)
     if reason:
         raise RuntimeError(reason)
+    if not objs and base is None:
+        raise RuntimeError("A joint that moves nothing needs something to sit on")
     s = scene.fresing
     build.ensure_bases(scene)
-    label = objs[0].get(build.PROP_NAME, objs[0].name)
+    label = objs[0].get(build.PROP_NAME, objs[0].name) if objs else (name or "Joint")
     name = unique_name(scene, name or f"{label} {'rotate' if kind == 'ROTATE' else 'slide'}")
     size = _model_size(scene) * 0.08
     collection = (base.users_collection[0] if base is not None and base.users_collection
                   else objs[0].users_collection[0])
     ref = ref if ref is not None else base
-    local = _local_axis(ref, origin, direction)
+    if frame_world is not None:
+        local = ref.matrix_world.inverted() @ frame_world if ref is not None else frame_world.copy()
+    else:
+        local = _local_axis(ref, origin, direction)
     with cad_pose(scene):
         for ob in objs:                         # an object is moved directly by one joint only
             other = joint_of_object(scene, ob)
@@ -441,6 +593,14 @@ def add_members(scene, j, objs) -> int:
     reason = check_members(scene, objs, j.frame.parent if j.frame else None, j)
     if reason:
         raise RuntimeError(reason)
+    above = {x.name for x in all_riders(scene, j)}
+    for ob in objs:
+        other = joint_of_object(scene, ob)
+        if other is not None and other.name in above:
+            # it already moves with this joint, through the joint on top: taking it off that one
+            # would lose that move
+            raise RuntimeError(f"'{ob.get(build.PROP_NAME, ob.name)}' already moves with this joint, through "
+                               f"'{other.name}' on top of it")
     with cad_pose(scene):
         for ob in objs:
             other = joint_of_object(scene, ob)
@@ -455,42 +615,106 @@ def add_members(scene, j, objs) -> int:
     return len(objs)
 
 
+def _release(scene, below, objs) -> None:
+    """Objects leave their joint (call in the CAD pose): onto the joint ``below`` it when it rode
+    on one (the moves of the stack under it stay), else back to their CAD parent."""
+    for ob in objs:
+        _detach(ob)
+    if below is None or not objs:
+        return
+    _update(scene)
+    world = below.motion.matrix_world.copy()
+    for ob in objs:
+        _attach(ob, below.motion, world)
+        below.members.add().obj = ob
+
+
 def remove_members(scene, j, objs) -> int:
     objs = [ob for ob in objs if ob in members(j)]
     with cad_pose(scene):
+        below = rides_on(scene, j)
         for ob in objs:
             _remove_member(j, ob)
-            _detach(ob)
+        _release(scene, below, objs)
     return len(objs)
 
 
+def _true_frame_world(scene, r, seen=None):
+    """Where ``r``'s frame belongs in the CAD pose, worked out from a part it moves (needed when
+    the joint under it is broken: its own matrices then hang somewhere in the world)."""
+    seen = seen or set()
+    if r.name in seen:
+        return None
+    seen.add(r.name)
+    for o in members(r):
+        cad_parent = build.logical_parent(o)
+        if cad_parent is None:
+            continue
+        cad_world = cad_parent.matrix_world @ build.cad_basis(o)
+        return cad_world @ build.rest_basis(o).inverted()      # its motion sits on its frame in the CAD pose
+    for up in riders(scene, r):
+        w = _true_frame_world(scene, up, seen)
+        if w is not None:
+            return w @ up.frame.matrix_basis.inverted()
+    return None
+
+
+def _take_out(scene, j) -> None:
+    """Everything ``j`` carries goes down onto what it sat on (call in the CAD pose)."""
+    if j.frame is not None:
+        seat = j.frame.parent
+        above = [(r.frame, r.frame.matrix_world.copy()) for r in riders(scene, j)]
+    else:
+        # broken joint (its arrow was deleted): the joints on it go onto the CAD parent of what they
+        # move, at the place their parts say
+        moved = moved_objects(scene, j)
+        seat = default_base(moved) if moved else None
+        above = [(r.frame, _true_frame_world(scene, r) or r.frame.matrix_world.copy()) for r in riders(scene, j)]
+    seat_world = seat.matrix_world.copy() if seat is not None else Matrix.Identity(4)
+    below = rides_on(scene, j)
+    objs = members(j)
+    j.members.clear()
+    _release(scene, below, objs)
+    for frame, world in above:
+        frame.parent = seat
+        frame.matrix_parent_inverse = Matrix.Identity(4)
+        frame.matrix_basis = seat_world.inverted() @ world
+
+
 def remove(scene, j) -> None:
+    """Remove a joint. What it moved goes back to the joint it rode on (or its CAD place);
+    joints riding on it move down onto what it sat on."""
     s = scene.fresing
     with cad_pose(scene):
-        for ob in members(j):
-            _detach(ob)
+        _take_out(scene, j)
         for ob in (j.motion, j.frame):
             if ob is not None:
                 bpy.data.objects.remove(ob, do_unlink=True)
         idx = next(i for i, x in enumerate(s.joints) if x == j)
         s.joints.remove(idx)
+        for r in s.joints:                         # the joints that rode on it show their new seat
+            if r.frame is not None:
+                sync_base(r)
     s.joints_index = min(s.joints_index, len(s.joints) - 1)
 
 
 def sync_base(j) -> None:
-    """Show the frame's parent in the 'Sits on' field without triggering a move."""
+    """Show the frame's parent in the 'Sits on' field without triggering a move.
+
+    A joint riding on another joint sits on no part: the field stays empty."""
     from . import props
     key = ("base", j.as_pointer())
     props._BUSY.add(key)
     try:
-        j.base = j.frame.parent if j.frame is not None else None
+        p = j.frame.parent if j.frame is not None else None
+        j.base = None if _is_motion(p) else p
     finally:
         props._BUSY.discard(key)
 
 
 def set_base(scene, j, base) -> None:
     """Make the joint sit on (move with) another subassembly."""
-    reason = check_members(scene, members(j), base, j)
+    reason = check_members(scene, members(j), base, j, allow_empty=True)
     if reason:
         raise RuntimeError(reason)
     with cad_pose(scene):
@@ -512,11 +736,70 @@ def set_axis(scene, j, origin, direction, ref=None) -> None:
     local = _local_axis(ref, origin, direction)
     with cad_pose(scene):
         worlds = {ob.name: ob.matrix_world.copy() for ob in members(j)}
+        above = [(r.frame, r.frame.matrix_world.copy()) for r in riders(scene, j)]
         new_world = _world_axis(ref, local)
         _set_world(j.frame, new_world)
         for ob in members(j):
             ob.matrix_basis = new_world.inverted() @ worlds[ob.name]
             build.set_mat(ob, build.PROP_REST_BASIS, ob.matrix_basis)
+        for frame, world in above:                  # joints riding on it stay where they are too
+            frame.matrix_basis = new_world.inverted() @ world
+
+
+def swap_check(scene, j) -> str:
+    """'' if ``j`` can swap places with the joint it rides on, else the reason."""
+    below = rides_on(scene, j)
+    if below is None:
+        return f"'{j.name}' does not ride on another joint"
+    if not is_valid(below) or not is_valid(j):
+        broken = j.name if not is_valid(j) else below.name
+        return f"'{broken}' is broken (its arrow was deleted): remove it first"
+    others =[ob.get(build.PROP_NAME, ob.name) for ob in members(below)]
+    others += [f"joint '{r.name}'" for r in riders(scene, below) if r.name != j.name]
+    if others:
+        listed = ", ".join(others[:2]) + (f" +{len(others) - 2}" if len(others) > 2 else "")
+        return (f"'{below.name}' also moves {listed}: swapping would make that move with '{j.name}' too. "
+                f"Swap works when '{below.name}' moves only what '{j.name}' moves")
+    return ""
+
+
+def swap(scene, j) -> None:
+    """Swap ``j`` with the joint it rides on: ``j`` moves to the bottom, the other one rides on it.
+
+    Built in the CAD pose; both keep their axis, type, limits and value. With two slides the
+    result is the same; with a rotation it changes (turn-then-slide becomes slide-then-turn)."""
+    reason = swap_check(scene, j)
+    if reason:
+        raise RuntimeError(reason)
+    below = rides_on(scene, j)
+    with cad_pose(scene):
+        seat = below.frame.parent
+        seat_world = seat.matrix_world.copy() if seat is not None else Matrix.Identity(4)
+        wj = j.frame.matrix_world.copy()           # in the CAD pose a motion sits exactly on its frame
+        wb = below.frame.matrix_world.copy()
+        objs = [(ob, ob.matrix_world.copy()) for ob in members(j)]
+        above = [(r.frame, r.frame.matrix_world.copy()) for r in riders(scene, j)]
+        # j goes down onto the seat, the other joint onto j's motion
+        j.frame.parent = seat
+        j.frame.matrix_parent_inverse = Matrix.Identity(4)
+        j.frame.matrix_basis = seat_world.inverted() @ wj
+        below.frame.parent = j.motion
+        below.frame.matrix_parent_inverse = Matrix.Identity(4)
+        below.frame.matrix_basis = wj.inverted() @ wb
+        # what j carried now rides on the top joint
+        for ob, world in objs:
+            ob.parent = below.motion
+            ob.matrix_parent_inverse = Matrix.Identity(4)
+            ob.matrix_basis = wb.inverted() @ world
+            build.set_mat(ob, build.PROP_REST_BASIS, ob.matrix_basis)
+            below.members.add().obj = ob
+        j.members.clear()
+        for frame, world in above:
+            frame.parent = below.motion
+            frame.matrix_parent_inverse = Matrix.Identity(4)
+            frame.matrix_basis = wb.inverted() @ world
+    sync_base(j)
+    sync_base(below)
 
 
 def flip(scene, j) -> None:
@@ -588,18 +871,22 @@ def axis_from_hit(ob, polygon_index: int, hit: Vector, normal: Vector):
 # ---------------------------------------------------------------------------
 
 def to_specs(scene, values: dict | None = None, only=None) -> list[dict]:
-    """Joints as plain data (object references by stable part ID). Call in the CAD pose."""
+    """Joints as plain data (object references by stable part ID). Call in the CAD pose.
+
+    A joint riding on another joint stores that joint's name in ``base_joint`` (and no part)."""
     out = []
     for j in scene.fresing.joints:
         if not is_valid(j) or (only is not None and j.name not in only):
             continue
         base = j.frame.parent
+        below = rides_on(scene, j)
         out.append({
             "world": build.mat_to_list(j.frame.matrix_world),
             "name": j.name, "kind": j.kind, "value": (values or {}).get(j.name, get_value(j)),
             "use_limits": j.use_limits, "rot_min": j.rot_min, "rot_max": j.rot_max,
             "slide_min": j.slide_min, "slide_max": j.slide_max,
-            "base": base.get(build.PROP_UID) if base is not None else None,
+            "base": base.get(build.PROP_UID) if base is not None and below is None else None,
+            "base_joint": below.name if below is not None else None,
             "base_local": build.mat_to_list(j.frame.matrix_basis),
             "members": [ob.get(build.PROP_UID) for ob in members(j)],
         })
@@ -621,19 +908,39 @@ def dissolve_all(scene, root=None) -> list[dict]:
     def belongs(j) -> bool:
         if root is None:
             return True
-        objs = members(j) + ([j.frame.parent] if j.frame is not None and j.frame.parent is not None else [])
+        # a bottom joint moves nothing itself: what rides on it tells which model it belongs to
+        objs = moved_objects(scene, j) + ([j.frame.parent] if j.frame is not None and j.frame.parent is not None
+                                          else [])
         return any(_root(o) is root for o in objs)
 
     chosen = {j.name for j in s.joints if belongs(j)}
+    for name in list(chosen):                 # never split a stack from below: take the joints under it too
+        below = rides_on(scene, find(scene, name))
+        while below is not None and below.name not in chosen:
+            chosen.add(below.name)
+            below = rides_on(scene, below)
     values = {j.name: get_value(j) for j in s.joints}
     with cad_pose(scene):
         specs = to_specs(scene, values, only=chosen)
-        for i in reversed(range(len(s.joints))):
+        # top of each stack first: a joint is never removed while another one still rides on it
+        _order, depths = tree_order(scene)
+
+        def key(x):                                   # list positions shift on removal; objects do not
+            return x.motion or x.frame or x.name
+
+        by_depth = sorted(range(len(s.joints)), key=lambda i: -depths.get(i, 0))
+        todo = [key(s.joints[i]) for i in by_depth if s.joints[i].name in chosen]
+        for k in todo:
+            i = next(n for n, x in enumerate(s.joints) if key(x) == k)
             j = s.joints[i]
-            if j.name not in chosen:
-                continue
             for ob in members(j):
                 _detach(ob)
+            seat = j.frame.parent if j.frame is not None else None
+            for r in riders(scene, j):               # (only when a stack spans two models)
+                w = r.frame.matrix_world.copy()
+                r.frame.parent = seat
+                r.frame.matrix_parent_inverse = Matrix.Identity(4)
+                _set_world(r.frame, w, seat.matrix_world if seat is not None else Matrix.Identity(4))
             for ob in (j.motion, j.frame):
                 if ob is not None:
                     bpy.data.objects.remove(ob, do_unlink=True)
@@ -642,32 +949,84 @@ def dissolve_all(scene, root=None) -> list[dict]:
     return specs
 
 
+def _stack_order(specs: list[dict]) -> list[dict]:
+    """Specs with every joint after the joint it rides on (the order of the list otherwise kept)."""
+    names = {sp["name"] for sp in specs}
+    out, done, pending = [], set(), list(specs)
+    while pending:
+        ready = [sp for sp in pending if not sp.get("base_joint") or sp["base_joint"] not in names
+                 or sp["base_joint"] in done]
+        if not ready:                               # a loop (never made by the app): keep the rest as is
+            ready = pending[:]
+        for sp in ready:
+            out.append(sp)
+            done.add(sp["name"])
+            pending.remove(sp)
+    return out
+
+
+def _find_last(scene, name: str):
+    """The newest joint with this name (a rebuilt joint is added at the end of the list)."""
+    for j in reversed(list(scene.fresing.joints)):
+        if j.name == name:
+            return j
+    return None
+
+
 def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
-    """Re-create joints on a new model revision. Returns warnings."""
+    """Re-create joints on a new model revision (stacks in the right order). Returns warnings."""
     warnings = []
     values: dict[str, float] = {}
+    built: list[str] = []
+    riders_of: dict[str, list] = {}
     for sp in specs:
-        objs = [by_uid.get(u) for u in sp["members"]]
-        missing = sum(1 for o in objs if o is None)
-        objs = [o for o in objs if o is not None]
-        if not objs:
+        if sp.get("base_joint"):
+            riders_of.setdefault(sp["base_joint"], []).append(sp)
+
+    def present(sp) -> list:
+        return [o for o in (by_uid.get(u) for u in sp["members"]) if o is not None]
+
+    def stack_objs(sp, seen=None) -> list:
+        """What this joint moves, also through the joints riding on it."""
+        seen = seen or set()
+        if sp["name"] in seen:
+            return []
+        seen.add(sp["name"])
+        out = present(sp)
+        for r in riders_of.get(sp["name"], []):
+            out += stack_objs(r, seen)
+        return out
+
+    for sp in _stack_order(specs):
+        objs = present(sp)
+        missing = len(sp["members"]) - len(objs)
+        carries = bool(stack_objs(sp)) and not objs     # moves nothing itself, but carries other joints
+        if not objs and not carries:
             warnings.append(f"Joint '{sp['name']}' removed: its moving parts are no longer in the model")
             continue
         if missing:
             warnings.append(f"Joint '{sp['name']}': {missing} moving part(s) no longer in the model")
-        base = by_uid.get(sp["base"]) if sp["base"] else None
-        if sp["base"] and base is None:
-            warnings.append(f"Joint '{sp['name']}': the part it sat on is gone; it now sits on its CAD parent")
-            base = None
-        if base is None:
-            base = default_base(objs)
-            world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
-        else:
+        below = _find_last(scene, sp["base_joint"]) if sp.get("base_joint") and sp["base_joint"] in built else None
+        base = by_uid.get(sp["base"]) if sp.get("base") else None
+        if below is not None:
+            base = below.motion
             world = base.matrix_world @ build.list_to_mat(sp["base_local"])
+        else:
+            if sp.get("base_joint"):
+                warnings.append(f"Joint '{sp['name']}': the joint it rode on ('{sp['base_joint']}') is gone; "
+                                "it now sits on its CAD parent")
+            elif sp.get("base") and base is None:
+                warnings.append(f"Joint '{sp['name']}': the part it sat on is gone; it now sits on its CAD parent")
+            if base is None:
+                base = default_base(objs or stack_objs(sp))
+                world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
+            else:
+                world = base.matrix_world @ build.list_to_mat(sp["base_local"])
         origin = world.translation
         direction = world.to_3x3() @ Vector((0, 0, 1))
         try:
-            j = create(scene, sp["kind"], objs, origin, direction, name=sp["name"], base=base)
+            j = create(scene, sp["kind"], objs, origin, direction, name=sp["name"], base=base, stack=False,
+                       allow_empty=carries, frame_world=world)
         except RuntimeError as exc:
             warnings.append(f"Joint '{sp['name']}' could not be rebuilt: {exc}")
             continue
@@ -680,8 +1039,18 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
         j.slide_min, j.slide_max = sp["slide_min"], sp["slide_max"]
         apply_limits(j, _model_size(scene))
         values[j.name] = sp["value"]
+        built.append(sp["name"])
+    s = scene.fresing
+    n = len(s.joints)
+    rebuilt = [x for x in (sp["name"] for sp in specs) if x in built]
+    if len(rebuilt) == len(built) and n >= len(built):
+        # the list in the order it had before the update (stacks were built bottom first)
+        tail = list(range(n - len(built), n))
+        for name in rebuilt:
+            i = next(k for k in tail if s.joints[k].name == name)
+            s.joints.move(i, n - 1)
     for name, v in values.items():          # values last: every joint was built in the CAD pose
-        jj = find(scene, name)
+        jj = _find_last(scene, name)
         if jj is not None:
             set_value(jj, v)
     return warnings

@@ -331,7 +331,7 @@ def s_queue():
         a.quality = "eevee"                     # the fast preview engine: waves, see-through walls, cut-away
         a.tail = 0.0
         b = a.blocks.add()
-        b.kind, b.camera_mode, b.camera, b.start = "CAMERA", "CUT", sc.camera, 0.08
+        b.kind, b.camera_mode, b.camera, b.start = "CAMERA", "CUT", sc.camera, 0.04   # 2 frames
     with override():
         bpy.ops.fresing.queue_add(kind="SHOT", name="On deck")
         s.queue[-1].quality = "draft"

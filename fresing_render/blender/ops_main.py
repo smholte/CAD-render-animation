@@ -27,7 +27,7 @@ def _active_tree_obj(context):
 
 
 class FRESING_OT_tree_refresh(bpy.types.Operator):
-    """Rebuild the subassembly list"""
+    """Build the list again from the model (when it no longer matches what is in the view)"""
 
     bl_idname = "fresing.tree_refresh"
     bl_label = "Refresh"
@@ -203,7 +203,8 @@ class FRESING_OT_apply_rules(bpy.types.Operator):
 
 
 class FRESING_OT_group_add(bpy.types.Operator):
-    """Add a new material group"""
+    """Add a new, empty material group. Then give it a name and a material, and put parts in it
+    (Put selected in, or Find & sort parts)"""
 
     bl_idname = "fresing.group_add"
     bl_label = "New group"
@@ -241,6 +242,8 @@ class FRESING_OT_group_remove(bpy.types.Operator):
         for ob in build.iter_parts(context.scene):
             if ob.get("fr_group_manual") == name:
                 del ob["fr_group_manual"]
+        from . import faces
+        faces.forget_group(name)
         s.groups.remove(s.groups_index)
         s.groups_index = max(0, s.groups_index - 1)
         logic.apply_rules(context.scene)
@@ -347,6 +350,8 @@ class FRESING_OT_rule_add(bpy.types.Operator):
 
 
 class FRESING_OT_rule_remove(bpy.types.Operator):
+    """Delete the selected sorting rule. Press 'Sort parts into groups' to sort again without it"""
+
     bl_idname = "fresing.rule_remove"
     bl_label = "Remove rule"
     bl_options = {"REGISTER", "UNDO"}
@@ -360,6 +365,9 @@ class FRESING_OT_rule_remove(bpy.types.Operator):
 
 
 class FRESING_OT_rule_move(bpy.types.Operator):
+    """Move the selected rule up or down. Rules are checked from the top: the first rule that fits
+    a part decides its group"""
+
     bl_idname = "fresing.rule_move"
     bl_label = "Move rule"
     bl_options = {"REGISTER", "UNDO"}
@@ -432,6 +440,8 @@ class FRESING_OT_scheme_apply(bpy.types.Operator):
 
 
 class FRESING_OT_scheme_remove(bpy.types.Operator):
+    """Delete the selected paint scheme. The groups keep the materials they have now"""
+
     bl_idname = "fresing.scheme_remove"
     bl_label = "Delete scheme"
     bl_options = {"REGISTER", "UNDO"}
@@ -600,7 +610,7 @@ def _cached_scan(key: str, scan, max_age: float = 15.0) -> list:
 
 
 class FRESING_OT_pick_ral(bpy.types.Operator):
-    """Pick a RAL colour for the active group"""
+    """Pick a RAL colour for the selected group from the list. All its parts change at once"""
 
     bl_idname = "fresing.pick_ral"
     bl_label = "RAL colour"

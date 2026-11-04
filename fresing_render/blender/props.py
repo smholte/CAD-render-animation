@@ -87,6 +87,8 @@ def _group_renamed(self, context):
                 ob["fr_group"] = self.name
             if ob.get("fr_group_manual") == old:
                 ob["fr_group_manual"] = self.name
+        from . import faces
+        faces.rename_group(old, self.name)
     self["_old_name"] = self.name
 
 
@@ -119,11 +121,17 @@ def _output_changed(self, context):
 # ---------------------------------------------------------------------------
 
 class FRMaterialGroup(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", update=_group_renamed)
-    material: EnumProperty(name="Material", items=material_items, update=_group_look_changed)
-    color: StringProperty(name="Colour", description="RAL code (e.g. RAL 5010) or hex (#13447C)",
-                          update=_group_look_changed)
+    name: StringProperty(name="Name", update=_group_renamed,
+                         description="Name of the group. Rename it freely: the rules keep sorting parts into it")
+    material: EnumProperty(name="Material", items=material_items, update=_group_look_changed,
+                           description="Material of every part (and painted face) in this group. "
+                                       "All of them change at once")
+    color: StringProperty(name="Colour", update=_group_look_changed,
+                          description="Colour of the group: a RAL code (e.g. RAL 5010) or a hex colour (#13447C). "
+                                      "The magnifier next to it opens the RAL list")
     count: IntProperty(name="Parts", default=0)
+    faces: IntProperty(name="Face sets", default=0,
+                       description="Painted faces of parts in this group (faces with a look of their own)")
 
 
 def _renamer(kind: str):
@@ -185,12 +193,20 @@ class FRScheme(bpy.types.PropertyGroup):
 
 
 class FRRule(bpy.types.PropertyGroup):
-    target: StringProperty(name="Group", description="Material group; may use {color}, {finish}, {kind}")
-    field: EnumProperty(name="If", items=FIELD_ITEMS, default="name")
-    op: EnumProperty(name="Test", items=OP_ITEMS, default="contains")
-    value: StringProperty(name="Value")
-    enabled: BoolProperty(name="On", default=True)
-    note: StringProperty(name="Note")
+    target: StringProperty(name="Group",
+                           description="The group the parts go to. {color}, {finish}, {kind}, {part_type} or "
+                                       "{cad_material} in the name make one group per value")
+    field: EnumProperty(name="If", items=FIELD_ITEMS, default="name",
+                        description="What the rule looks at: the part name, its CAD colour, the fastener finish, "
+                                    "the part type, the CAD material…")
+    op: EnumProperty(name="Test", items=OP_ITEMS, default="contains",
+                     description="How it is compared with the value ('contains', 'is', 'starts with'…)")
+    value: StringProperty(name="Value",
+                          description="The text to look for (capitals do not matter). Not used by "
+                                      "'has any value' and 'has no value'")
+    enabled: BoolProperty(name="On", default=True,
+                          description="Switch the rule on or off. A rule that is off is skipped when sorting")
+    note: StringProperty(name="Note", description="Your own note about this rule (not used for sorting)")
     count: IntProperty(name="Matches", default=0)
 
 
@@ -216,7 +232,8 @@ class FRFoundPart(bpy.types.PropertyGroup):
     part_name: StringProperty()
     count: IntProperty()
     groups: StringProperty()             # the group(s) these parts are in now
-    use: BoolProperty(name="Tick", default=True)
+    use: BoolProperty(name="Tick", default=True,
+                      description="Ticked part names go into the group when you press one of the buttons below")
 
 
 def _tree_index_changed(self, context):
@@ -449,11 +466,13 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
         name="Quality", default="normal",
+        description="How finely round shapes are made into triangles. Choose it before pressing Import STEP",
         items=[("draft", "Draft", "Fast, coarse curves"),
                ("normal", "Normal", "Good for most renders"),
                ("fine", "Fine", "Smooth curves for close-ups (slower, more memory)")])
     import_up_axis: EnumProperty(
         name="Up axis", default="Z",
+        description="Which axis points up in the CAD file. Choose it before pressing Import STEP",
         items=[("Z", "Z up", "Most STEP files"), ("Y", "Y up", "Inventor parts drawn with Y up")])
 
     # ---- structure ----
@@ -466,10 +485,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     isolated: StringProperty(description="What 'Show only' is showing now ('' = everything)")
     pick_mode: EnumProperty(
         name="Click selects", default="SUBASSEMBLY",
+        description="What a click on the model selects: its whole subassembly (like Inventor) or one part",
         items=[("SUBASSEMBLY", "Subassembly", "A click selects the whole subassembly"),
                ("PART", "Part", "A click selects one part")])
     small_part_mm: FloatProperty(name="Smaller than", default=6.0, min=0.1, soft_max=100.0, unit="NONE",
-                                 description="Size in mm")
+                                 description="Parts whose biggest side is smaller than this (in mm) are selected "
+                                             "by 'Select the small parts'")
 
     # ---- looks ----
     groups: CollectionProperty(type=FRMaterialGroup)
@@ -477,7 +498,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     find_text: StringProperty(name="Find parts", update=_find_changed,
                               description="Part names containing all these words (* = any text)")
     find_in_selected: BoolProperty(name="Only in the selected subassembly", default=False,
-                                   update=_find_changed)
+                                   update=_find_changed,
+                                   description="Search only inside the subassembly selected in 2 Structure")
     found: CollectionProperty(type=FRFoundPart)
     found_index: IntProperty(default=0)
     group_aliases: CollectionProperty(type=FRGroupAlias)
@@ -486,6 +508,16 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     schemes: CollectionProperty(type=FRScheme)
     schemes_index: IntProperty(default=0)
     unmatched: IntProperty(default=0)
+    face_group: StringProperty(
+        name="Paint with",
+        description="The group whose look the faces you click get. Pick a group, then press "
+                    "'Paint faces' and click faces on the model. Empty: the group selected in the list above")
+    face_only_copy: BoolProperty(
+        name="Only this copy", default=False,
+        description="Paint faces, choose a face group or go back to the whole part on the clicked copy "
+                    "only; the other copies of this part keep their look")
+    face_painting: BoolProperty(default=False,
+                                description="'Paint faces' is running in the view")
 
     # ---- background & light (and the surroundings: task 0016) ----
     live_update: BoolProperty(name="Live update", default=True)
