@@ -126,9 +126,11 @@ Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
 
-Big test model: the owner's "EGR line" STEP (78 MB, 2,789 placed / 584 unique
-parts, 4.2 M triangles) is **not** in the repository. Ask the owner to attach it when a task
-needs it. Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
+Big test model: the "EGR line" STEP (78 MB, 2,789 placed / 584 unique parts, 4.2 M triangles)
+is a public model from GrabCAD, **not** the owner's or his clients' design. It is not in the
+repository (its maker's rights: do not redistribute it). Ask the owner to attach it when a task
+needs it. Its part names follow its maker's conventions, not the owner's: for sorting coverage
+on the owner's own naming, ask him for one of his own models (attached in the chat only). Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
 `tools/make_test_crane.py`).
 
 ## 6. Rules for changes
