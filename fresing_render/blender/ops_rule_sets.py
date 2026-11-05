@@ -10,6 +10,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core import rule_sets as RS
+from ..core.words import plural
 from . import rule_sets
 
 # Blender keeps only references to enum item strings: they live in module globals.
@@ -19,10 +20,10 @@ _PREVIEW: dict[str, list[str]] = {"lines": [], "warning": []}
 
 def _describe(rs: RS.RuleSet) -> str:
     n = len(rs.rules)
-    text = f"{n} rule{'s' if n != 1 else ''}"
+    text = plural(n, "rule")
     own = len(rs.own_looks())
     if own:
-        text += f", {own} own group look{'s' if own != 1 else ''}"
+        text += f", {plural(own, 'own group look')}"
     return f"{rs.note} ({text})" if rs.note else text
 
 
@@ -173,7 +174,8 @@ class FRESING_OT_rule_set_switch(bpy.types.Operator):
             self.report({"WARNING"}, f"Rule set '{self.name}' not found (is the library reachable?)")
             return {"CANCELLED"}
         res = rule_sets.switch(context.scene, rs)
-        self.report({"INFO"}, f"Rule set '{rs.name}': {res['groups']} groups, {res['unsorted']} unsorted parts")
+        self.report({"INFO"}, f"Rule set '{rs.name}': {plural(res['groups'], 'group')}, "
+                              f"{plural(res['unsorted'], 'unsorted part')}")
         _redraw(context)
         return {"FINISHED"}
 
@@ -287,7 +289,7 @@ class FRESING_OT_rule_set_new_empty(bpy.types.Operator):
         except (OSError, ValueError) as exc:
             return _report_error(self, exc)
         res = rule_sets.switch(context.scene, rs)
-        self.report({"INFO"}, f"Rule set '{rs.name}' started: {res['unsorted']} parts unsorted")
+        self.report({"INFO"}, f"Rule set '{rs.name}' started: {plural(res['unsorted'], 'part')} unsorted")
         _redraw(context)
         return {"FINISHED"}
 
