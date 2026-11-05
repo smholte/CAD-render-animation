@@ -45,6 +45,10 @@ new installer each time. Updates are stored on GitHub (owner's decision, 4 Nov 2
    entry for the user guide lives there). Either the update also refreshes the template, or such
    entries move into the extension. Test it: old template + in-app update → new template behaviour.
 
+6. Small, from the lead (5 Nov 2026): pushes that change only the task list (`TASKS.md`,
+   `tasks/**`) start a full 12-minute run too, and with six chats pushing, runs queue up. Skip the
+   test run for such pushes (`paths-ignore`), but never for a push that also changes anything else.
+
 ## Done when
 
 - [ ] A test release goes all the way: version bump on `main` → release on GitHub → an installed

@@ -24,6 +24,22 @@ New versions with one click
 **Once more by hand:** this is the first version that can update itself. Run this installer once
 over the old version on every PC; from then on updates come with **Update now**.
 
+## 0.2.14 – 5 Nov 2026 – more parts sorted by supplier codes (task 0022)
+
+Commit `2f7bf7a`.
+
+3 Looks – sorting on import
+- Many more supplier catalogue codes are recognised, Misumi above all (shafts, collars, pins,
+  linear bushings, shaft supports, guides, cam followers, bushings, couplings, pulleys, urethane
+  washers and bumpers, hinges, handles, toggle clamps, floating joints, frame nuts…), plus SMC
+  JCQ cylinders, THK blocks, Omron RFID and more. Also when the code sits in a longer name
+  ("PSFJ20-300_SHAFT", "_LMUW20_1").
+- The switch of an SMC cylinder ("JCDQ-M9B") is a switch, not the cylinder body.
+- Fewer wrong groups: a part called "PALLET" (a conveyor's workpiece pallet) is no longer made of
+  wood (wooden and Euro pallets still are), "LINK" is a link bar instead of a chain, a "SENSOR
+  POST" is a post.
+- On the EGR test model (GrabCAD): 67 % of the placed parts sorted (was 55 %).
+
 ## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
 
 Commit `b5d716b`.
