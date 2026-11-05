@@ -735,6 +735,42 @@ animation "Turntable" are replaced.
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
 
+### Brand kit & logo
+
+<img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
+
+A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
+line. You work for your own company and for others, so there is one kit per company; every project uses
+one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
+shared library it is in your Documents folder, under Fresing Render).
+
+1. Type a name in **Kit** (the company).
+2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
+   best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
+3. **Card colour** is the background of the title and end card, **Text colour** the colour of the words on
+   them. **Font** is optional (a .ttf or .otf file); empty uses the app's own font. **Contact** is the line
+   under the logo on the end card, for example the website and e-mail address.
+4. **Save kit** puts it in the library. The arrow next to **Kit** lists the saved kits: pick one to fill in
+   everything at once. This project keeps its own copy, so it still opens the same on a PC without the
+   library. **Delete** removes the saved kit from the library only.
+
+**Logo on images** puts the logo in a corner of every still image you render (**Corner**, **Size**).
+
+### Watermark
+
+<img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
+
+Words across the picture, for a draft you send before the final render.
+
+1. **Words**: **DRAFT**, **CONFIDENTIAL** or **Own text**. **Size** is how tall the letters are,
+   **See-through** how strong they are (1 = solid).
+2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
+   while it is on gets the watermark; the job remembers it (its name says "with watermark").
+3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The
+   project does not change.
+
+It works for stills and for MP4 videos (not for PNG frames).
+
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -813,9 +849,33 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
 
+**Finishing: ready to post or send**
+
+<img class="panel" src="img/panel_6_finishing.png" alt="Finishing">
+
+The **Finishing** fold at the end of this panel turns the MP4 into a video you can post or send as it is.
+The look comes from the brand kit (5 Scene & Render > **Brand kit & logo**). It applies to MP4 videos, not
+to PNG frames.
+
+- **Shape** and **Framing**: for **1:1** and **9:16** videos, **Extend** keeps everything you see from side
+  to side in the 16:9 picture and shows more above and below; **Crop** keeps what you see from top to
+  bottom and cuts the sides. The cameras are not changed: only the copy that is rendered.
+- **Logo**: a corner (top left, top right, bottom left, bottom right) and a **Logo size**, over the whole
+  animation.
+- **Title card**: a card with a **Title** and **Subtitle** in the kit's colours in front of the video;
+  **Seconds** says how long it stays.
+- **End card**: a card with the logo and the contact line at the end; **Seconds** says how long.
+- **Captions from the step labels**: the **Label** of each step is shown at the bottom while that step
+  happens, with a short fade. Only steps that have a label typed in get a caption; a caption stays
+  at least a second and a half, and never runs into the next one.
+
+The last line shows how long the finished video is: the cards come on top of the animation's own
+length.
+
 **Make the video**
 
-1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones),
+1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones; the
+   **Finishing** fold has the framing for the last two),
    **File** (**MP4 video**, plus the single frames; or **PNG frames only**) and **Quality**.
 2. First check the motion with Quality **Fast preview (EEVEE)**: minutes instead of hours. Render the
    real video with **Preview** or **Final**.
