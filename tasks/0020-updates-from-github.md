@@ -40,6 +40,10 @@ new installer each time. Updates are stored on GitHub (owner's decision, 4 Nov 2
    through one last manual install (say so in the changelog).
 4. `CLAUDE.md` section 7 rewritten: the worker bumps the version and merges; GitHub publishes;
    the worker gives the owner the release link (and still the zip in the chat).
+5. **The app template must update too** (found in task 0021's review): today only Install.bat
+   copies it, so an in-app update brings a new extension but an old template (e.g. the Help-menu
+   entry for the user guide lives there). Either the update also refreshes the template, or such
+   entries move into the extension. Test it: old template + in-app update → new template behaviour.
 
 ## Done when
 

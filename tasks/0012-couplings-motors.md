@@ -35,7 +35,9 @@ simply run: "turn at 12 rpm for 5 s".
 3. Saved data: couplings and motor flag in specs (model update), poses store only free joints,
    old projects open unchanged.
 4. **Tooltips** for every button and setting in panels 4 Motion, 6 Animation and 7 Render queue,
-   also the existing ones (`CLAUDE.md` section 6).
+   and the "Saved scenes" sub-panel of panel 5 (its code is in this lane's files), also the
+   existing ones: the Motion rows of `docs/TOOLTIPS-TODO.md` (54), delete them when done.
+5. User guide chapters 4 and 6 and their pictures (`CLAUDE.md` section 6).
 
 ## Done when
 
