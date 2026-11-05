@@ -3,7 +3,7 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
-## 0.2.14 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
+## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
 
 Commit `…`.
 
@@ -29,6 +29,21 @@ User guide
 - Chapters 1–3 checked against the app: **Make it a rule** for a whole subassembly, the
   placeholders a group name can hold, where **+** puts a new rule and **Select the ticked parts in
   the view** were out of date or missing. New picture of Paint faces and Sorting rules.
+## 0.2.14 – 5 Nov 2026 – more parts sorted by supplier codes (task 0022)
+
+Commit `2f7bf7a`.
+
+3 Looks – sorting on import
+- Many more supplier catalogue codes are recognised, Misumi above all (shafts, collars, pins,
+  linear bushings, shaft supports, guides, cam followers, bushings, couplings, pulleys, urethane
+  washers and bumpers, hinges, handles, toggle clamps, floating joints, frame nuts…), plus SMC
+  JCQ cylinders, THK blocks, Omron RFID and more. Also when the code sits in a longer name
+  ("PSFJ20-300_SHAFT", "_LMUW20_1").
+- The switch of an SMC cylinder ("JCDQ-M9B") is a switch, not the cylinder body.
+- Fewer wrong groups: a part called "PALLET" (a conveyor's workpiece pallet) is no longer made of
+  wood (wooden and Euro pallets still are), "LINK" is a link bar instead of a chain, a "SENSOR
+  POST" is a post.
+- On the EGR test model (GrabCAD): 67 % of the placed parts sorted (was 55 %).
 
 ## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
 

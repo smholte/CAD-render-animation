@@ -242,7 +242,8 @@ into groups by itself, with the project's **rule set** (at the top of 3 Looks, s
   (galvanised, stainless, black…);
 - **part types** by name: profiles, shafts, chrome rods, cylinders, bearings, hoses, cables, cable
   chains, motors, sensors, guards and many more – also Dutch and German names and supplier order
-  codes;
+  codes (Misumi, SMC, Festo, igus, HIWIN, THK, SKF, Sick, Omron and many more), also when the code
+  sits inside a longer name such as "PSFJ20-300_SHAFT" or "_LMUW20_1";
 - the **material name** in the STEP file (Fusion writes it);
 - the **CAD colour**.
 

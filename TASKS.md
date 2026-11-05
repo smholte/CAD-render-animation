@@ -16,23 +16,22 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.14) → 0024 decals (can start)
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0026 G-code → 0013 → 0014
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (can start)
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0013 cylinders → 0014 linkages → 0026 G-code
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018 → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (running)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
-- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
-- **Machining lane** (new files `machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (can start) → 0028 chips → 0029 later
+- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (done, 0.2.14)
+- **Machining lane** (new files `machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (running) → 0028 chips → 0029 later
 
 ## Open and running
 
 | # | Task | Who | Status | Branch / file |
 | --- | --- | --- | --- | --- |
-| 0022 | Part library lane: more parts sorted on import – supplier catalogue codes (Misumi and others); owner attaches the EGR file | worker | running | `task/0022-more-supplier-codes`, tasks/0022-more-supplier-codes.md |
 | 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | open – can start | tasks/0024-decals.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | running | `task/0012-couplings-motors`, tasks/0012-couplings-motors.md |
-| 0026 | Motion lane: G-code drives the machine – X/Y/Z joints + spindle motor follow a CNC program (Fusion CAM output) | worker | waiting (0012) | tasks/0026-gcode-motion.md |
-| 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | open – can start | tasks/0027-material-removal.md |
+| 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | waiting (0014) | tasks/0026-gcode-motion.md |
+| 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | running | `task/0027-material-removal`, tasks/0027-material-removal.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | waiting (0027) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | later | tasks/0029-milling-later.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
@@ -65,6 +64,7 @@ updates its branch to `main`.
 | 0015 | Rule sets: one naming scheme per company (rules + group looks + group names), a file per rule set in the shared library, picked per project with a preview before switching; Standard built in; templates and old projects keep working | 0.2.13 |
 | 0019 | Automatic tests on GitHub at every push: Linux suite + real app, Windows install + self-test + uninstall (about 10 min per run) | – (no release needed) |
 | 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 93 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.11 |
-| 0023 | Looks lane clean-up: every button and setting of sections 1–3 has its own tooltip, "1 part" not "1 parts", tooltips no longer break mid-sentence (all lanes), guide chapters 1–3 current | 0.2.14 |
+| 0022 | Supplier catalogue codes (Misumi and others); fewer wrong groups (PALLET, LINK, sensor posts); EGR 55 % → 67 % sorted | 0.2.14 |
+| 0023 | Looks lane clean-up: every button and setting of sections 1–3 has its own tooltip, "1 part" not "1 parts", tooltips no longer break mid-sentence (all lanes), guide chapters 1–3 current | 0.2.15 |
 
 Details per version: `CHANGELOG.md`.

@@ -1,6 +1,6 @@
 # 0026 – G-code drives the machine: CNC programs as animations
 
-**Who:** worker · **Status:** waiting (0012) · **Branch:** `task/0026-gcode-motion`
+**Who:** worker · **Status:** waiting (0014 – owner wants cylinders and linkages first) · **Branch:** `task/0026-gcode-motion`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Motion · **Area:** new `blender/gcode.py` and
 `core/gcode.py` (parser, no Blender), `blender/animation.py` (one new step type), `blender/joints.py`
 (only if needed), `ui_motion.py` (panels 4/6), `blender/props.py` (additive), `docs/USER-GUIDE.md`
@@ -21,10 +21,16 @@ program would, at a speed he chooses.
 - Fusion 360's post-processors usually write the tool list as comments at the top of the program
   (tool number, diameter, corner radius, type) – read them when present (the material removal of
   task 0027 uses them).
-- **Ask the owner first:** which control his machine uses (Fanuc/ISO style, LinuxCNC, GRBL,
-  Mach3/4, Siemens, Heidenhain – Heidenhain's own language is not G-code and would be a separate
-  reader), and for one real program of his machine plus the machine's STEP (chat only, **never
-  committed**). Tests use G-code the worker writes itself.
+- **The owner's machines run LinuxCNC** (5 Nov 2026). He is building a new version of his mill
+  with an automatic tool changer (ATC); the older, smaller one has none. He has **no real
+  program yet**: the tests use G-code the worker writes in LinuxCNC style. Later he can make one
+  with Fusion's LinuxCNC post-processor for any test part, and attach it with the machine's STEP
+  (chat only, **never committed**).
+- LinuxCNC's dialect (RS274NGC) adds to plain G-code: `#` parameters and `[ ]` expressions,
+  O-word subroutines, loops and if/else, `G43` tool length offset with a tool table
+  (`tool.tbl`: tool number, diameter, length), `G41`/`G42` cutter compensation (CAM programs
+  usually leave it off), `G64` path blending. Support what CAM posts and hand-written programs
+  commonly use; report the rest with line numbers.
 
 ## What to build
 
@@ -39,7 +45,9 @@ program would, at a speed he chooses.
    the workpiece that is the program's zero (as in the CAM set-up). Saved with the project.
 3. **Animation step "Run G-code program"** (6 Animation): file, from/to line, speed (real time,
    ×N faster, or "fit into N seconds"; rapids may be shown faster), spindle follows S/M3/M4/M5,
-   tool changes optional (show the tool of each T number when the model has them). The step's
+   tool changes: M6 shows the tool of that T number (from the model, or a simple tool shape
+   made from the tool table) and can play a saved motion sequence for the **ATC** (tool-changer
+   arm/carousel moving) – the owner's new machine has one. The step's
    length follows from the program; arcs are smooth (sampled per frame, not per G-code line).
 4. **Toolpath preview:** the path as a line in the view (rapids dashed), optional in renders,
    with the part already milled shown in a colour (for presentations).
