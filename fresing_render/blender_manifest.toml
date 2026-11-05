@@ -19,10 +19,11 @@ copyright = ["2026 Fresing"]
 
 platforms = ["windows-x64"]
 
-# OpenCascade (STEP reading) without the VTK viewer parts.
+# OpenCascade (STEP reading) without the VTK viewer parts; Manifold (mesh booleans for milling).
 wheels = [
   "./wheels/cadquery_ocp_novtk-8.0.1.1.0-cp313-cp313-win_amd64.whl",
   "./wheels/cadquery_ocp_proxy-8.0.1.1.0-py3-none-any.whl",
+  "./wheels/manifold3d-3.5.4-cp313-cp313-win_amd64.whl",
 ]
 
 [permissions]

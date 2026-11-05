@@ -26,6 +26,7 @@ env:
   PYTHONUTF8: "1"
   FRESING_SELFTEST_NO_GPU: "1"     # GitHub's runners have no graphics card: those checks say "skipped"
   OCP_VERSION: "8.0.1.1.0"
+  MANIFOLD_VERSION: "3.5.4"         # bundled for milling (task 0027): keep equal to tools/build_release.py
 
 jobs:
   suite:
@@ -60,7 +61,7 @@ jobs:
         env:
           BLENDER_USER_RESOURCES: ${{ runner.temp }}/fr_user
         run: |
-          python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" \
+          python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" "manifold3d==$MANIFOLD_VERSION" \
             --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 \
             -d "$RUNNER_TEMP/linux-wheels"
           python tools/test_install_linux.py "$RUNNER_TEMP/linux-wheels" test-results/selftest-linux.txt || true
@@ -124,7 +125,7 @@ jobs:
           BLENDER_VERSION: ${{ steps.pin.outputs.version }}
         run: |
           python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)"   # the guide goes into the zip
-          python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" \
+          python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" "manifold3d==$MANIFOLD_VERSION" \
             --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 \
             -d "$RUNNER_TEMP/linux-wheels"
           python tools/ci_real_app.py --blender ~/blender/blender-$BLENDER_VERSION-linux-x64/blender \

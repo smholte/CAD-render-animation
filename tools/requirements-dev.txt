@@ -3,6 +3,8 @@
 # bpy and cadquery-ocp must match the Blender and OpenCascade versions the app ships with.
 bpy==5.2.3
 cadquery-ocp==8.0.1.1.0
+# manifold3d: mesh booleans for milling (task 0027); the same version is bundled in the extension
+manifold3d==3.5.4
 numpy==2.5.4
 pillow==13.0.0
 pytest==9.2.0

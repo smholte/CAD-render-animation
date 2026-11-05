@@ -185,6 +185,37 @@ def main(report_path: str | None = None) -> bool:
 
     check("Rule sets folder", _rule_sets)
 
+    def _milling():
+        """The Manifold library (bundled wheel) loads and cuts a slot of the right size."""
+        import math as _math
+
+        import numpy as np
+
+        from .core import machining as mach
+        if not mach.available():
+            raise RuntimeError("the Manifold library did not load: install this version again with Install.bat")
+        import manifold3d as mf
+        block = mf.Manifold.cube((0.2, 0.2, 0.04)).translate((-0.1, -0.1, 0.0))
+        pts = [np.array(p) * 0.001 for p in ((-50, 0, 50), (-50, 0, 35), (50, 0, 35), (50, 0, 50))]
+        o = [pts[0]]
+        for a, b in zip(pts[:-1], pts[1:]):
+            n = max(1, int(np.ceil(np.linalg.norm(b - a) / 0.0013)))
+            o += [a + (b - a) * k / n for k in range(1, n + 1)]
+        o = np.array(o)
+        path = mach.Path(np.arange(len(o), dtype=float), o, np.tile([0.0, 0.0, 1.0], (len(o), 1)))
+        tl = mach.Timeline(mach.Workpiece(block), [mach.Cutter(mach.Tool("FLAT", radius=0.005))], [path])
+        t0 = time.perf_counter()
+        for f in range(len(o)):
+            v, _t, _s = tl.mesh_at(float(f))
+        ms = (time.perf_counter() - t0) * 1000 / len(o)
+        gone = (block.volume() - mach.volume(tl.at(float(len(o) - 1)))) * 1e9
+        want = (100 * 10 + _math.pi * 25) * 5
+        if abs(gone - want) > 0.005 * want:
+            raise RuntimeError(f"slot volume {gone:.0f} mm³, expected {want:.0f} mm³")
+        return f"slot cut right ({gone:.0f} mm³), {ms:.1f} ms per frame over {len(o)} frames"
+
+    check("Milling (Manifold library)", _milling)
+
     def _template():
         import subprocess
         exe = bpy.app.binary_path
