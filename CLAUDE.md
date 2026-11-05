@@ -164,6 +164,11 @@ fresing_render/            the Blender extension (Python package)
   update_helper.py         installs a downloaded update while Blender is closed, starts the app again
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)
+  pccheck/                 PC check (task 0032): every main function tested on the owner's PC after an update;
+                           checks.py = the lines (one per function), core.py (no Blender: history, speed and
+                           picture flags, text block, HTML report), runner.py, launcher.py (Start-menu shortcuts,
+                           Help > Fresing Render PC check…), ops.py
+  data/                    test models that ship with the extension (copies of tests/data, checked by a test)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
@@ -217,6 +222,7 @@ locally pushes its branch and reads the run.
 | User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
 | User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
 | Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| PC check, your lines (bpy module, no graphics card) | `FRESING_SELFTEST_NO_GPU=1 FRESING_PCCHECK_DIR=/tmp/pc FRESING_PCCHECK_ONLY=<line ids> ~/venv/bin/python -c "…runner.run('full', '/tmp/pc', open_report=False)"` (see `tests/test_pccheck.py` for the set-up) | you added or changed a PC-check line |
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
@@ -234,9 +240,9 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 3-4 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
@@ -294,6 +300,12 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
   `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
   suggested texts (delete your rows when done).
+- **PC check line** (owner's rule, task 0032): a task that adds something the owner can see adds its line to
+  `fresing_render/pccheck/checks.py` in the same task – `@line("area.name", "Title", since="<the version it
+  comes in>", modes=(F,))`, testing the feature on a test model in `fresing_render/data/` the way a user would,
+  raising with a plain reason when it does not work; a render adds `ctx.picture(...)`, a speed `ctx.metric(...)`.
+  Raise `MIN_LINES_FULL` in `tools/ci_check_pccheck.py`. The owner runs the check after each update and sends
+  back its text block; GitHub runs it at every push.
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
