@@ -26,6 +26,19 @@ The newer joint's axis moves with the older one (slew, then luff). Nothing extra
 is stored: "B rides on A" is ``B.frame.parent is A.motion``, so projects made
 before stacks open unchanged. Removing a joint from a stack puts what it moved
 and the joints riding on it down onto what it sat on.
+
+Couplings (task 0012): a joint can *follow* another one (gears, telescopes, jaws,
+spindles, racks, rolling wheels). The follower's ``fr_value`` gets a driver
+``a * k + c`` reading the leader's ``fr_value``: a *simple expression*, which
+Blender evaluates without Python, so files work with "Auto Run Python Scripts" off.
+``k`` is the ratio in internal units (rad / m), worked out from what the owner
+types (turns per turn, mm per mm, mm per turn, degrees per mm); ``c`` is the
+offset. Chains A -> B -> C work (B's value is driven, C reads it); loops are refused.
+A follower is never moved by hand, by poses or by animation steps; its limits only
+warn. The structure is changed in the CAD pose with the coupling drivers muted.
+
+Motors: a rotate joint marked "Motor" has no limits and turns without end; the
+"Run motor" animation step turns it at a speed (rpm) for a while.
 """
 
 from __future__ import annotations
@@ -223,6 +236,18 @@ def stack_info(scene, objs) -> tuple:
 # values and limits
 # ---------------------------------------------------------------------------
 
+TURN = 2.0 * math.pi
+# A motor turns without end. Blender keeps animation keys and driver results in single
+# precision: 10,000 turns (62,832 rad) is still to 0.004 rad, and 12 rpm for 13 hours.
+MOTOR_RANGE = 10000 * TURN
+# A follower is never stopped by its limits (they only warn): the value keeps this range.
+FOLLOW_RANGE = (10000 * TURN, 100000.0)
+
+
+def is_motor(j) -> bool:
+    return j.kind == "ROTATE" and bool(j.is_motor)
+
+
 def get_value(j) -> float:
     if j.motion is None:
         return 0.0
@@ -230,10 +255,22 @@ def get_value(j) -> float:
 
 
 def limits(j) -> tuple[float, float]:
+    """The range the joint may be set to (rad / m)."""
+    if is_motor(j):
+        return (-MOTOR_RANGE, MOTOR_RANGE)
     if not j.use_limits:
         return (-math.radians(3600), math.radians(3600)) if j.kind == "ROTATE" else (-1000.0, 1000.0)
     lo, hi = (j.rot_min, j.rot_max) if j.kind == "ROTATE" else (j.slide_min, j.slide_max)
     return (min(lo, hi), max(lo, hi))
+
+
+def outside_limits(j, value: float) -> bool:
+    """True when ``value`` is beyond the limits the owner set (a little rounding allowed)."""
+    if not j.use_limits or is_motor(j):
+        return False
+    lo, hi = limits(j)
+    tol = 1e-6 if j.kind == "ROTATE" else 1e-7
+    return value < lo - tol or value > hi + tol
 
 
 def clamp(j, value: float) -> float:
@@ -251,24 +288,318 @@ def set_value(j, value: float, use_limits: bool = True) -> float:
 
 
 def apply_limits(j, model_size: float = 10.0) -> None:
-    """Push the joint limits into the slider of the value property."""
+    """Push the joint limits into the slider of the value property.
+
+    Blender clamps keyed and driven values to the property's min/max: a motor gets a range
+    without a practical end, a follower one its limits never cut (they only warn)."""
     if j.motion is None:
         return
     lo, hi = limits(j)
+    following = bool(j.follows)
     if j.kind == "ROTATE":
-        soft = (lo, hi) if j.use_limits else (-math.pi, math.pi)
+        soft = (lo, hi) if j.use_limits and not is_motor(j) else (-math.pi, math.pi)
         subtype = "ANGLE"
+        if following:
+            lo, hi = -FOLLOW_RANGE[0], FOLLOW_RANGE[0]
     else:
         reach = max(0.1, model_size)
         soft = (lo, hi) if j.use_limits else (-reach, reach)
         subtype = "DISTANCE"
+        if following:
+            lo, hi = -FOLLOW_RANGE[1], FOLLOW_RANGE[1]
+    if following:
+        desc = "Follows another joint: move that one (this joint's set-up shows which)"
+    elif is_motor(j):
+        desc = "Motor angle, in degrees (turns without end; 360° is one turn). Drag it, or type a number"
+    elif j.kind == "ROTATE":
+        desc = "Angle of the joint, in degrees (0 = CAD position). Drag it, or type a number"
+    else:
+        desc = "Position of the joint, in mm (0 = CAD position). Drag it, or type a number"
     ui = j.motion.id_properties_ui(VALUE)
     ui.update(min=lo, max=hi, soft_min=soft[0], soft_max=soft[1], subtype=subtype,
               step=100 if j.kind == "ROTATE" else 1, precision=1 if j.kind == "ROTATE" else 1,
-              description="Joint position (drag, or type a number)")
+              description=desc)
     cur = get_value(j)
-    if j.use_limits and (cur < lo or cur > hi):
+    if not following and j.use_limits and (cur < lo or cur > hi):
         set_value(j, cur)
+
+
+# ---------------------------------------------------------------------------
+# couplings: one joint follows another
+# ---------------------------------------------------------------------------
+
+# what the owner types as the ratio, per (leader type, follower type)
+RATIO_UNITS = {
+    ("ROTATE", "ROTATE"): "turns per turn",
+    ("SLIDE", "SLIDE"): "mm per mm",
+    ("ROTATE", "SLIDE"): "mm per turn",
+    ("SLIDE", "ROTATE"): "° per mm",
+}
+DEFAULT_RATIOS = {
+    ("ROTATE", "ROTATE"): 1.0,                     # same speed
+    ("SLIDE", "SLIDE"): 1.0,                       # telescope section: as far again
+    ("ROTATE", "SLIDE"): 5.0,                      # a 5 mm ball screw
+    ("SLIDE", "ROTATE"): 360.0 / (math.pi * 100),  # a wheel of Ø100 mm rolling along
+}
+COUPLING_PATH = f'["{VALUE}"]'
+
+
+def leader(scene, j):
+    """The joint ``j`` follows, or None (it moves by itself, or the leader is gone)."""
+    return scene.fresing.joints.get(j.follows) if j.follows else None
+
+
+def followers(scene, j) -> list:
+    """Joints that follow ``j`` directly."""
+    return [x for x in scene.fresing.joints if x.follows and x.follows == j.name]
+
+
+def all_followers(scene, j) -> list:
+    """Every joint ``j`` drives, also through other followers (A drives B drives C)."""
+    out, todo, seen = [], followers(scene, j), {j.name}
+    while todo:
+        x = todo.pop(0)
+        if x.name in seen:
+            continue
+        seen.add(x.name)
+        out.append(x)
+        todo += followers(scene, x)
+    return out
+
+
+def driver_of(scene, j):
+    """The joint at the top of ``j``'s chain of leaders (the one that really moves it): ``j`` itself
+    when it moves by itself; None when the chain is broken (a leader gone) or loops."""
+    x, seen = j, set()
+    while x is not None and x.follows:
+        if x.name in seen:
+            return None
+        seen.add(x.name)
+        x = leader(scene, x)
+    return x
+
+
+def ratio_unit(lead_kind: str, kind: str) -> str:
+    return RATIO_UNITS[(lead_kind, kind)]
+
+
+def default_ratio(lead_kind: str, kind: str) -> float:
+    return DEFAULT_RATIOS[(lead_kind, kind)]
+
+
+def factor(lead_kind: str, kind: str, ratio: float) -> float:
+    """The ratio as the owner types it -> follower value per leader value in internal units."""
+    if lead_kind == kind:
+        return float(ratio)
+    if lead_kind == "ROTATE":                       # mm per turn -> m per rad
+        return float(ratio) / 1000.0 / TURN
+    return math.radians(float(ratio)) * 1000.0      # degrees per mm -> rad per m
+
+
+def offset(j) -> float:
+    """The follower's value when its leader is at 0 (rad / m)."""
+    return float(j.couple_offset_angle if j.kind == "ROTATE" else j.couple_offset_dist)
+
+
+def expression(k: float, c: float) -> str:
+    """The driver expression: plain arithmetic, so Blender evaluates it without Python."""
+    e = f"a * {float(k)!r}"
+    if c > 0:
+        e += f" + {float(c)!r}"
+    elif c < 0:
+        e += f" - {-float(c)!r}"
+    return e
+
+
+def follow_check(scene, j, name: str) -> str:
+    """'' when ``j`` may follow the joint called ``name`` ('' = by itself), else the reason."""
+    if not name:
+        return ""
+    if name == j.name:
+        return "A joint cannot follow itself: pick another joint"
+    lead = find(scene, name)
+    if lead is None:
+        return f"There is no joint called '{name}'"
+    if not is_valid(lead):
+        return f"'{name}' is broken (its arrow was deleted): remove it first"
+    chain = [name]
+    x = lead
+    while x is not None and x.follows:
+        if x.follows == j.name:
+            via = " → ".join(f"'{n}'" for n in chain[1:])
+            through = f" (through {via})" if via else ""
+            return (f"'{name}' already follows '{j.name}'{through}: two joints cannot follow each other. "
+                    f"Let one of them move by itself")
+        if x.follows in chain:
+            break                                   # an old loop further up: not this joint's doing
+        chain.append(x.follows)
+        x = find(scene, x.follows)
+    return ""
+
+
+def _coupling_fcurve(j):
+    ad = j.motion.animation_data if j.motion is not None else None
+    return ad.drivers.find(COUPLING_PATH) if ad is not None else None
+
+
+def _remove_coupling_driver(j) -> None:
+    if j.motion is None:
+        return
+    try:
+        j.motion.driver_remove(COUPLING_PATH)
+    except TypeError:
+        pass
+
+
+def write_coupling(scene, j) -> bool:
+    """Make ``j``'s coupling driver match its settings (none for a joint that moves by itself).
+    Returns False when the leader is missing (the driver is then left out)."""
+    _remove_coupling_driver(j)
+    if not j.follows or j.motion is None:
+        return True
+    lead = leader(scene, j)
+    if lead is None or lead.motion is None:
+        return False
+    fc = j.motion.driver_add(COUPLING_PATH)
+    for m in list(fc.modifiers):                    # (Blender may add an identity generator)
+        fc.modifiers.remove(m)
+    drv = fc.driver
+    drv.type = "SCRIPTED"
+    for v in list(drv.variables):
+        drv.variables.remove(v)
+    var = drv.variables.new()
+    var.name = "a"
+    var.type = "SINGLE_PROP"
+    var.targets[0].id_type = "OBJECT"
+    var.targets[0].id = lead.motion
+    var.targets[0].data_path = COUPLING_PATH
+    drv.expression = expression(factor(lead.kind, j.kind, j.couple_ratio), offset(j))
+    j.motion.update_tag()
+    return True
+
+
+def _set_raw(j, **values) -> None:
+    """Set joint settings without their update callbacks (no re-check, no driver rebuild)."""
+    for k, v in values.items():
+        j[k] = v
+        if k == "follows":
+            j["_old_follows"] = v           # the panel's callback goes back to this one when refused
+
+
+def set_follows(scene, j, name: str, ratio: float | None = None, offset_value: float | None = None) -> None:
+    """Make ``j`` follow the joint called ``name``, or move by itself again (``name`` = '').
+
+    A new combination of joint types starts with its usual ratio (1, 5 mm per turn...) and no
+    offset; ``ratio`` / ``offset_value`` (as typed: turns per turn, mm per turn, ° per mm...;
+    offset in rad / m) set them at once. Raises RuntimeError with the reason when not allowed."""
+    reason = follow_check(scene, j, name)
+    if reason:
+        raise RuntimeError(reason)
+    old = leader(scene, j)
+    if name:
+        lead = find(scene, name)
+        if old is None or old.kind != lead.kind:
+            _set_raw(j, couple_ratio=default_ratio(lead.kind, j.kind), couple_offset_angle=0.0,
+                     couple_offset_dist=0.0)
+        if ratio is not None:
+            _set_raw(j, couple_ratio=float(ratio))
+        if offset_value is not None:
+            _set_raw(j, **{"couple_offset_angle" if j.kind == "ROTATE" else "couple_offset_dist": float(offset_value)})
+    _set_raw(j, follows=name)
+    write_coupling(scene, j)
+    apply_limits(j, _model_size(scene))
+    _update(scene)
+
+
+def refresh_couplings(scene) -> list[str]:
+    """Rewrite every coupling driver (after a model update, a type change...). A follower whose
+    leader is gone (or which would loop) moves by itself from then on; returns those warnings."""
+    warnings = []
+    size = _model_size(scene)
+    for j in scene.fresing.joints:
+        if j.motion is None:
+            continue
+        if not j.follows:
+            if _coupling_fcurve(j) is not None:
+                _remove_coupling_driver(j)
+            continue
+        reason = follow_check(scene, j, j.follows)
+        if reason:
+            warnings.append(f"Joint '{j.name}' followed '{j.follows}', which is gone or not possible any more: "
+                            "it moves by itself now")
+            _set_raw(j, follows="")
+            _remove_coupling_driver(j)
+        else:
+            write_coupling(scene, j)
+        apply_limits(j, size)
+    _update(scene)
+    return warnings
+
+
+def driven_value(scene, j, values: dict | None = None) -> float:
+    """The value ``j`` has when the joints that move by themselves are at ``values`` (name -> value;
+    a joint not in it: its current value). Works without the scene being updated."""
+    values = values or {}
+    chain = []
+    x = j
+    while x is not None and x.follows:
+        if any(c.name == x.name for c in chain):
+            return get_value(j)                     # a loop (never made by the app)
+        chain.append(x)
+        x = leader(scene, x)
+    if x is None:                                   # a leader is gone: the driver is stale too
+        return get_value(j)
+    v = values.get(x.name, get_value(x))
+    for c in reversed(chain):
+        below = leader(scene, c)
+        v = factor(below.kind, c.kind, c.couple_ratio) * v + offset(c)
+    return v
+
+
+def coupling_text(scene, j) -> str:
+    """'B = 2.5 × A' style summary for the panel, in the owner's units."""
+    lead = leader(scene, j)
+    if lead is None:
+        return ""
+    unit = ratio_unit(lead.kind, j.kind)
+    c = offset(j)
+    text = f"{j.couple_ratio:g} {unit}"
+    if abs(c) > 1e-12:
+        text += f", {to_display(j.kind, c):+g} {unit_label(j.kind)}"
+    return text
+
+
+def couplings_simple(scene) -> bool:
+    """True when every coupling driver is a simple expression (works with scripts disabled)."""
+    for j in scene.fresing.joints:
+        fc = _coupling_fcurve(j) if j.motion is not None else None
+        if fc is not None and not fc.driver.is_simple_expression:
+            return False
+    return True
+
+
+def _mute_couplings(scene, mute: bool, only=None) -> list[str]:
+    """Mute (or un-mute) the coupling drivers; returns the motion names whose driver changed."""
+    changed = []
+    for j in scene.fresing.joints:
+        if j.motion is None or (only is not None and j.motion.name not in only):
+            continue
+        fc = _coupling_fcurve(j)
+        if fc is not None and fc.mute != mute:
+            fc.mute = mute
+            changed.append(j.motion.name)
+            j.motion.update_tag()
+    return changed
+
+
+def set_motor(scene, j, on: bool) -> None:
+    """Mark a rotate joint as a motor: no limits, it turns without end."""
+    if on and j.kind != "ROTATE":
+        raise RuntimeError("Only a rotate joint can be a motor")
+    _set_raw(j, is_motor=bool(on))
+    if on:
+        _set_raw(j, use_limits=False)
+    apply_limits(j, _model_size(scene))
 
 
 # ---------------------------------------------------------------------------
@@ -328,8 +659,9 @@ def cad_pose(scene):
     """Temporarily put the model in its CAD pose; restore joint values and free moves after."""
     from . import animation
     animation.clear_keys(scene)            # baked keys would fight the pose; rebuilt on demand
-    values = {j.name: get_value(j) for j in scene.fresing.joints}
+    values = {j.name: get_value(j) for j in scene.fresing.joints if not j.follows}
     deltas = free_moves(scene)
+    muted = _mute_couplings(scene, True)     # a follower with an offset is not at 0 when its leader is
     for j in scene.fresing.joints:
         set_value(j, 0.0, use_limits=False)      # through set_value: tags the driver for an update
     apply_free_moves(scene, {}, reset_others=True)
@@ -341,6 +673,7 @@ def cad_pose(scene):
         for j in scene.fresing.joints:
             if j.name in values and j.motion is not None:
                 set_value(j, values[j.name], use_limits=False)
+        _mute_couplings(scene, False, only=muted)
         _update(scene)
 
 
@@ -681,10 +1014,19 @@ def _take_out(scene, j) -> None:
         frame.matrix_basis = seat_world.inverted() @ world
 
 
-def remove(scene, j) -> None:
+def remove(scene, j) -> list[str]:
     """Remove a joint. What it moved goes back to the joint it rode on (or its CAD place);
-    joints riding on it move down onto what it sat on."""
+    joints riding on it move down onto what it sat on; joints that followed it move by themselves
+    from now on (they stay where they are). Returns the names of those joints."""
     s = scene.fresing
+    freed = [x.name for x in followers(scene, j)]
+    for name in freed:                             # before the leader's motion goes: keep their place
+        x = find(scene, name)
+        v = get_value(x)
+        _set_raw(x, follows="")
+        _remove_coupling_driver(x)
+        set_value(x, v, use_limits=False)
+        apply_limits(x, _model_size(scene))
     with cad_pose(scene):
         _take_out(scene, j)
         for ob in (j.motion, j.frame):
@@ -696,6 +1038,7 @@ def remove(scene, j) -> None:
             if r.frame is not None:
                 sync_base(r)
     s.joints_index = min(s.joints_index, len(s.joints) - 1)
+    return freed
 
 
 def sync_base(j) -> None:
@@ -808,12 +1151,26 @@ def flip(scene, j) -> None:
 
 
 def set_kind(scene, j, kind: str) -> None:
+    """Switch between rotate and slide. Couplings of this joint (as follower or leader) start again
+    from the usual ratio of the new combination: the old number meant something else."""
+    old_kind = j.kind
     with cad_pose(scene):
         j.kind = kind
         _add_driver(j.motion, kind)
         j.motion.matrix_basis = Matrix.Identity(4)
+    if kind != "ROTATE":
+        _set_raw(j, is_motor=False)
     set_value(j, 0.0, use_limits=False)
     apply_limits(j, _model_size(scene))
+    if old_kind != kind:
+        touched = ([j] if j.follows else []) + followers(scene, j)
+        for x in touched:
+            lead = leader(scene, x)
+            if lead is not None:
+                _set_raw(x, couple_ratio=default_ratio(lead.kind, x.kind), couple_offset_angle=0.0,
+                         couple_offset_dist=0.0)
+        if touched:
+            refresh_couplings(scene)
 
 
 def rename(scene, j, old: str) -> None:
@@ -832,6 +1189,9 @@ def rename(scene, j, old: str) -> None:
         for b in anim.blocks:
             if b.joint == old:
                 b.joint = j.name
+    for x in scene.fresing.joints:                # followers name their leader (the driver needs no change)
+        if x.follows and x.follows == old:
+            _set_raw(x, follows=j.name)
 
 
 def reset_all(scene) -> None:
@@ -889,6 +1249,9 @@ def to_specs(scene, values: dict | None = None, only=None) -> list[dict]:
             "base_joint": below.name if below is not None else None,
             "base_local": build.mat_to_list(j.frame.matrix_basis),
             "members": [ob.get(build.PROP_UID) for ob in members(j)],
+            # couplings and motors (task 0012); specs without them come from older versions
+            "follows": j.follows, "ratio": j.couple_ratio, "offset_angle": j.couple_offset_angle,
+            "offset_dist": j.couple_offset_dist, "motor": bool(j.is_motor),
         })
     return out
 
@@ -1037,8 +1400,10 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
         j.use_limits = sp["use_limits"]
         j.rot_min, j.rot_max = sp["rot_min"], sp["rot_max"]
         j.slide_min, j.slide_max = sp["slide_min"], sp["slide_max"]
+        _set_raw(j, is_motor=bool(sp.get("motor", False)) and sp["kind"] == "ROTATE")
         apply_limits(j, _model_size(scene))
-        values[j.name] = sp["value"]
+        if not sp.get("follows"):
+            values[j.name] = sp["value"]            # a follower's value comes from its leader
         built.append(sp["name"])
     s = scene.fresing
     n = len(s.joints)
@@ -1049,8 +1414,23 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
         for name in rebuilt:
             i = next(k for k in tail if s.joints[k].name == name)
             s.joints.move(i, n - 1)
+    # couplings after every joint is there (a leader may be built after its follower)
+    for sp in specs:
+        if sp["name"] not in built or not sp.get("follows"):
+            continue
+        jj = _find_last(scene, sp["name"])
+        if jj is None:
+            continue
+        if find(scene, sp["follows"]) is None:
+            warnings.append(f"Joint '{sp['name']}' followed '{sp['follows']}', which is gone: "
+                            "it moves by itself now")
+            continue
+        _set_raw(jj, follows=sp["follows"], couple_ratio=sp.get("ratio", 1.0),
+                 couple_offset_angle=sp.get("offset_angle", 0.0), couple_offset_dist=sp.get("offset_dist", 0.0))
     for name, v in values.items():          # values last: every joint was built in the CAD pose
         jj = _find_last(scene, name)
         if jj is not None:
             set_value(jj, v)
+    # every coupling driver again: also those of other models whose leader was just rebuilt
+    warnings += refresh_couplings(scene)
     return warnings

@@ -17,19 +17,28 @@ from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, 
 # =============================================================================
 
 
+def joint_icon(j) -> str:
+    if joints.is_motor(j):
+        return "FORCE_VORTEX"
+    return "CON_ROTLIKE" if j.kind == "ROTATE" else "CON_LOCLIKE"
+
+
 class FRESING_UL_joints(bpy.types.UIList):
-    """Joints; a joint riding on another one is listed right under it, indented."""
+    """Joints; a joint riding on another one is listed right under it, indented. A joint that follows
+    another one shows its value greyed out (it cannot be moved by hand) after a link icon."""
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         d = joints.depth(context.scene, item)
         if d:
             row.separator(factor=1.2 * d)
-        row.prop(item, "name", text="", emboss=False,
-                 icon="CON_ROTLIKE" if item.kind == "ROTATE" else "CON_LOCLIKE")
+        row.prop(item, "name", text="", emboss=False, icon=joint_icon(item))
+        if item.follows:
+            row.label(text="", icon="LINKED")
         sub = row.row(align=True)
         sub.ui_units_x = 4.2                   # room for "-1234 mm"; the name gets the rest of the row
         if item.motion is not None:
+            sub.enabled = not item.follows
             sub.prop(item.motion, f'["{joints.VALUE}"]', text="")
         else:
             sub.label(text="(broken)", icon="ERROR")
@@ -123,32 +132,46 @@ def _draw_joints(context, layout, s):
         box.label(text="This joint is broken (its arrow was deleted)", icon="ERROR")
         box.operator("fresing.joint_remove", text="Remove it (parts go back to their place)")
     elif j is not None:
+        scene = context.scene
         box = layout.box()
-        box.label(text=j.name, icon="CON_ROTLIKE" if j.kind == "ROTATE" else "CON_LOCLIKE")
-        below = joints.rides_on(context.scene, j)
+        box.label(text=j.name, icon=joint_icon(j))
+        below = joints.rides_on(scene, j)
         if below is not None:
             # in a stack: the order matters for rotations, so it is shown with the swap right under it
             wrap(box, context, f"Rides on '{below.name}'", icon="LINKED", inset=12)
             sub = box.row(align=True)
-            sub.enabled = not joints.swap_check(context.scene, j)      # the tooltip says why not
+            sub.enabled = not joints.swap_check(scene, j)      # the tooltip says why not
             sub.operator("fresing.joint_swap", text="Swap order", icon="UV_SYNC_SELECT")
+        lead = joints.leader(scene, j)
         row = box.row(align=True)
         row.scale_y = BIG
+        row.enabled = not j.follows
         row.prop(j.motion, f'["{joints.VALUE}"]', text="Angle" if j.kind == "ROTATE" else "Distance")
-        row = box.row(align=True)
-        for t, label in (("ZERO", "CAD (0)"), ("MIN", "Min"), ("MAX", "Max")):
-            sub = row.row(align=True)
-            sub.enabled = t == "ZERO" or j.use_limits
-            sub.operator("fresing.joint_value", text=label).target = t
-        row = box.row(align=True)
-        row.prop(j, "use_limits", text="Limits")
-        if j.use_limits:
-            if j.kind == "ROTATE":
-                row.prop(j, "rot_min", text="")
-                row.prop(j, "rot_max", text="")
-            else:
-                row.prop(j, "slide_min", text="")
-                row.prop(j, "slide_max", text="")
+        if joints.is_motor(j):
+            box.label(text=f"= {joints.get_value(j) / joints.TURN:.2f} turns", icon="FORCE_VORTEX")
+        if j.follows:
+            if j.use_limits and joints.outside_limits(j, joints.get_value(j)):
+                wrap(box, context, "Beyond its limits now: check the ratio, or the limits", icon="ERROR",
+                     alert=True, inset=12)
+        else:
+            row = box.row(align=True)
+            for t, label in (("ZERO", "CAD (0)"), ("MIN", "Min"), ("MAX", "Max")):
+                sub = row.row(align=True)
+                sub.enabled = t == "ZERO" or (j.use_limits and not joints.is_motor(j))
+                sub.operator("fresing.joint_value", text=label).target = t
+        if not joints.is_motor(j):
+            row = box.row(align=True)
+            row.prop(j, "use_limits", text="Limits")
+            if j.use_limits:
+                if j.kind == "ROTATE":
+                    row.prop(j, "rot_min", text="")
+                    row.prop(j, "rot_max", text="")
+                else:
+                    row.prop(j, "slide_min", text="")
+                    row.prop(j, "slide_max", text="")
+        if j.kind == "ROTATE":
+            box.prop(j, "is_motor")
+        _draw_coupling(context, box, s, j, lead)
 
         # a fold needs the full panel width, so it sits right under the box
         body = fold(layout, "fr_joint_setup", "Set-up: what moves, axis, type", icon="PREFERENCES")
@@ -179,6 +202,52 @@ def _draw_joints(context, layout, s):
             if below is None:                         # a joint in a stack sits on the joint under it
                 col = split_props(body)
                 col.prop(j, "base", text="Sits on")
+
+
+def _draw_coupling(context, box, s, j, lead) -> None:
+    """How the joint moves: by itself, or following another joint at a ratio (task 0012)."""
+    scene = context.scene
+    box.separator(factor=0.5)
+    row = box.row(align=True)
+    row.label(text="Moves")
+    row.operator("fresing.joint_follow", text="By itself", depress=not j.follows).mode = "FREE"
+    row.operator("fresing.joint_follow", text="Follows a joint", depress=bool(j.follows)).mode = "FOLLOW"
+    if j.follows:
+        col = split_props(box)
+        col.prop_search(j, "follows", s, "joints", text="Joint", icon="LINKED")
+        if lead is not None:
+            col.prop(j, "couple_ratio", text="Ratio")
+            # the unit under the field (a label after it would squeeze the number at the default width)
+            unit = joints.ratio_unit(lead.kind, j.kind)
+            col.label(text=f"{unit} of '{lead.name}'")
+            col.prop(j, "couple_offset_angle" if j.kind == "ROTATE" else "couple_offset_dist", text="Offset")
+            hint = _ratio_hint(lead, j)
+            if hint:
+                wrap(box, context, hint, icon="INFO", inset=12)
+        else:
+            wrap(box, context, f"'{j.follows}' is not there any more: pick another joint, or By itself",
+                 icon="ERROR", alert=True, inset=12)
+    err = j.get("_follow_error", "")
+    if err:
+        wrap(box, context, err, icon="ERROR", alert=True, inset=12)
+    driven = joints.followers(scene, j)
+    if driven:
+        names = ", ".join("'" + x.name + "'" for x in driven)
+        wrap(box, context, f"Drives {names}", icon="LINKED", inset=12)
+
+
+def _ratio_hint(lead, j) -> str:
+    """The ratio in other words: what a rolling wheel or pinion of that size does."""
+    r = j.couple_ratio
+    if lead.kind == "SLIDE" and j.kind == "ROTATE" and abs(r) > 1e-9:
+        per_turn = 360.0 / abs(r)                     # mm of travel for one turn
+        return f"One turn every {per_turn:.1f} mm: a wheel of Ø{per_turn / 3.141592653589793:.1f} mm rolling along"
+    if lead.kind == "ROTATE" and j.kind == "SLIDE" and abs(r) > 1e-9:
+        return (f"{abs(r):g} mm for each turn: a screw with that pitch, or a pinion of "
+                f"Ø{abs(r) / 3.141592653589793:.1f} mm on a rack")
+    if lead.kind == j.kind and r < 0:
+        return "Negative: it moves the other way (gears, gripper jaws)"
+    return ""
 
 
 class FRESING_UL_poses(bpy.types.UIList):
@@ -287,7 +356,18 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 # =============================================================================
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
-              "HIDE": "HIDE_ON"}
+              "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX"}
+
+
+def _follower_note(context, box, scene, j) -> bool:
+    """A step cannot move a joint that follows another one: say which one to move instead."""
+    if j is None or not j.follows:
+        return False
+    top = joints.driver_of(scene, j)
+    who = f"'{top.name}'" if top is not None else "the joint it follows"
+    wrap(box, context, f"'{j.name}' follows another joint and moves with it: pick {who} here instead",
+         icon="ERROR", alert=True, inset=12)
+    return True
 
 
 class FRESING_UL_anims(bpy.types.UIList):
@@ -370,10 +450,31 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
             box = layout.box()
             box.label(text=animation.block_label(b), icon=_KIND_ICON.get(b.kind, "DOT"))
             col = split_props(box)
-            if b.kind == "JOINT":
+            if b.kind == "MOTOR":
+                col.prop_search(b, "joint", s, "joints", text="Joint", icon="FORCE_VORTEX")
+                j = s.joints.get(b.joint)
+                if j is not None and not _follower_note(context, box, scene, j):
+                    col = split_props(box)
+                    sub = col.row(align=True)
+                    sub.scale_y = MEDIUM
+                    if j.kind == "ROTATE":
+                        sub.prop(b, "speed_rpm", text="Speed (rpm)")
+                        turns = animation.motor_total(j, b) / joints.TURN
+                        text = f"{turns:.2f} turns in this step"
+                        if not joints.is_motor(j) and abs(turns) > 0.5:
+                            text += ". Tick 'Motor' on the joint in 4 Motion so it can turn without end"
+                    else:
+                        sub.prop(b, "speed_mms", text="Speed (mm/s)")
+                        text = f"{animation.motor_total(j, b) * 1000.0:.0f} mm in this step"
+                    wrap(box, context, text, icon="INFO", inset=12)
+                    n = len(joints.all_followers(scene, j))
+                    if n:
+                        wrap(box, context, f"{n} joint{'s' if n != 1 else ''} follow{'s' if n == 1 else ''} it",
+                             icon="LINKED", inset=12)
+            elif b.kind == "JOINT":
                 col.prop_search(b, "joint", s, "joints", text="Joint", icon="CON_PIVOT")
                 j = s.joints.get(b.joint)
-                if j is not None:
+                if j is not None and not _follower_note(context, box, scene, j):
                     col.prop(b, "use_from", text="From where it is")
                     if j.kind == "ROTATE":
                         if not b.use_from:
@@ -409,6 +510,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
             if b.kind not in ("SHOW", "HIDE") and not (b.kind == "CAMERA" and b.camera_mode == "CUT"):
                 col.prop(b, "duration", text="Duration (s)")
                 col.prop(b, "easing", text="Motion")
+                if b.kind == "MOTOR" and b.easing != "LINEAR":
+                    col.prop(b, "ramp", text="Ramp (s)")
             col.prop(b, "name", text="Label")
 
         # -- check it
