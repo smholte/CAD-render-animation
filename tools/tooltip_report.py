@@ -32,7 +32,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
 UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
-            "fresing_render/blender/ui_machining.py", "fresing_render/blender/updates.py"]
+            "fresing_render/blender/ui_machining.py", "fresing_render/blender/ui_decals.py",
+            "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 
 # Which lane owns which panel (TASKS.md): the report is a to-do list per lane.
@@ -46,6 +47,7 @@ LANE_OF_PANEL = {
     "Props for scale": "Scene & Render lane",
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane",
+    "Logos & stickers": "Looks lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
@@ -53,6 +55,7 @@ OWNER_TYPES = {
     "s": "FRSceneSettings", "g": "FRMaterialGroup", "r": "FRRule", "j": "FRJoint", "b": "FRAnimBlock",
     "a": "FRAnimation", "shot": "FRShot", "scene.camera.data": "Camera", "scene.camera.data.dof": "CameraDOFSettings",
     "m": "FRMilling", "bit": "FRMillBit",                     # 4 Motion > Milling (ui_machining.py)
+    "d": "FRDecalSettings", "it": "FRDecal",                  # 3 Looks > Logos & stickers (ui_decals.py)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -333,6 +336,8 @@ def fill_tooltips(items: list[Item]) -> None:
     _STRUCTS.clear()            # the types of an earlier registration are gone (a second check in one run)
     try:
         _walk_structs(bpy.types.Scene.bl_rna.properties["fresing"].fixed_type)
+        _walk_structs(bpy.types.Scene.bl_rna.properties["fresing_decal"].fixed_type)    # decals (task 0024)
+        _walk_structs(bpy.types.Mesh.bl_rna.properties["fresing_decals"].fixed_type)
         prop_types = dict(_STRUCTS)
         for it in items:
             if it.kind == "button":
@@ -389,6 +394,8 @@ def _fill_setting(it: Item, prop_types: dict) -> None:
     tname = OWNER_TYPES.get(owner)
     if owner == "item":
         tname = ITEM_TYPES.get(it.panel.replace("list ", ""), None)
+        if tname is None and it.panel == "Logos & stickers":
+            tname = "FRDecal"
     rna = _struct(tname) if tname else None
     if rna is None or pname not in rna.properties:
         hits = [n for n, r in prop_types.items() if pname in r.properties]

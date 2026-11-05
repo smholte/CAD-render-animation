@@ -1,6 +1,6 @@
 # 0028 – Chips: flying chips that depend on the bit and the material
 
-**Who:** worker · **Model:** Opus · **Status:** done (0.2.21) · **Branch:** `task/0028-chips`
+**Who:** worker · **Model:** Opus · **Status:** done (0.2.22) · **Branch:** `task/0028-chips`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Machining · **Area:** `blender/machining.py`,
 new `blender/chips.py`, `core/` data for chip presets, `blender/ui_machining.py`,
 `blender/props.py` (additive), the user guide's Milling chapter, `tests/`.
@@ -47,7 +47,7 @@ from an engraving bit.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker chat, 5–6 Nov 2026 (Opus). Version 0.2.21, no installer (usage rule).
+**Chat / date:** worker chat, 5–6 Nov 2026 (Opus). Version 0.2.22, no installer (usage rule).
 
 **Choice:** not Blender particles or a Geometry Nodes simulation zone, but a flight worked out in numpy
 (`core/chips.py`, no Blender) and shown as two point clouds with a small Geometry Nodes instancer. Why: the
