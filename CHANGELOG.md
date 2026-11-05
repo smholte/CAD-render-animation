@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.11 – 5 Nov 2026 – user guide (task 0021)
 
-Commit: (filled in after the merge).
+Commit `45af7cc`.
 
 - A user guide: what each section 1–7 is for and how to work through it, step by step, with
   pictures of every panel; getting started (your first render in 10 minutes), export tips for
