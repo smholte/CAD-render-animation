@@ -116,16 +116,18 @@ def test_self_test_skips_graphics_card_only_when_asked(monkeypatch, value, expec
 
 def test_real_app_verdicts():
     import ci_real_app as R
-    ok = "".join(f"[UITEST] PASS check {i}\n" for i in range(39)) + "[UITEST] RESULT 39/39 passed\n"
+    n = R.MIN_CHECKS["ui2"]                 # (raised whenever the test gets new checks)
+    ok = "".join(f"[UITEST] PASS check {i}\n" for i in range(n)) + f"[UITEST] RESULT {n}/{n} passed\n"
     assert R.judge("ui2", 0, ok, 15)[0] is True
     # a failing check, a crash before RESULT, a timeout
-    v, detail, fails = R.judge("ui2", 0, ok.replace("RESULT 39/39", "RESULT 38/39") + "[UITEST] FAIL undo\n", 15)
+    v, detail, fails = R.judge("ui2", 0, ok.replace(f"RESULT {n}/{n}", f"RESULT {n - 1}/{n}") +
+                               "[UITEST] FAIL undo\n", 15)
     assert v is False and fails == ["[UITEST] FAIL undo"]
     assert "stopped half-way" in R.judge("ui2", 1, "[UITEST] PASS a\n", 15)[1]
     assert "did not finish" in R.judge("ui2", None, ok, 15)[1]
     # checks that silently disappear
     v, detail, _ = R.judge("ui2", 0, "[UITEST] RESULT 20/20 passed\n", 15)
-    assert v is False and "at least 39 checks" in detail
+    assert v is False and f"at least {n} checks" in detail
     assert R.judge("ui1", 0, "[UITEST] RESULT 18/18 passed\n", 15, quick=True)[0] is True
     # a Python error outside the steps (e.g. a panel that fails to draw) turns it red ...
     stray = ok + "Traceback (most recent call last):\n  File \"ui.py\", line 3, in draw\nAttributeError: 'NoneType'\n"
