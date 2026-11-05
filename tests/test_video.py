@@ -72,6 +72,36 @@ def test_kit_refuses_a_logo_that_blender_cannot_read(tmp_path):
         brand.save_kit(str(tmp_path / "k"), BrandKit(name="X"), str(tmp_path / "missing.png"))
 
 
+# NOTE: kept first among the tests that draw text. Blender as a Python module keeps font data across
+# read_factory_settings(); a text strip drawn in this process *before* a reset then draws nothing after it
+# (and can crash). The app never resets mid-session, so only the tests are affected.
+def test_the_queue_puts_watermark_and_logo_on_stills_only_when_asked(tmp_path):
+    sc = _scene(tmp_path)
+    s = sc.fresing
+    s.still_logo = "BL"
+    s.brand_logo = _logo(tmp_path)
+    s.still_logo_size = 0.25
+    s.wm_kind, s.wm_size, s.wm_opacity = "CUSTOM", 0.3, 1.0
+    s.wm_text = "REVIEW"
+    s.out_file_type = "PNG"
+    s.background = "COLOR"
+    s.background_color = (0.2, 0.2, 0.2)
+    out = {}
+    for mark in (False, True):
+        job = {"id": f"j{int(mark)}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+               "out_dir": str(tmp_path / "out"), "label": "x", "watermark": mark}
+        path = queue.run_job(sc, job, lambda *a: None, lambda: False)
+        out[mark] = _pixels(path)
+    sh, sw = out[True].shape[:2]                 # draft quality renders at half size
+    assert out[False].shape == out[True].shape
+    centre = (slice(sh // 4, 3 * sh // 4), slice(sw // 6, 5 * sw // 6))
+    x, y, lw, lh = brand.logo_box("BL", sw, sh, 80, 40, 0.25)
+    for mark in (False, True):
+        assert _near(out[mark][sh - (y + lh // 2), x + lw // 2], (230, 20, 20), 8), "the logo is on both"
+    assert np.abs(out[True] - out[False])[centre].max() > 15, "only the second has the watermark"
+    assert np.abs(out[True] - out[False])[:8, sw - 8:].max() < 3
+
+
 def test_time_line_is_title_plus_animation_plus_end():
     fin = Finishing(title_on=True, title_seconds=2.0, end_on=True, end_seconds=1.5)
     pl = brand.plan(fin, body_frames=100, fps=25)
@@ -448,33 +478,6 @@ def test_watermark_is_remembered_per_queue_job(tmp_path):
     assert "watermark" in j1.label and "watermark" not in j2.label
     s.wm_on = True
     assert not queue.add_job(sc, "TEST", animation=_anim(sc).name).watermark, "a time test never has one"
-
-
-def test_the_queue_puts_watermark_and_logo_on_stills_only_when_asked(tmp_path):
-    sc = _scene(tmp_path)
-    s = sc.fresing
-    s.still_logo = "BL"
-    s.brand_logo = _logo(tmp_path)
-    s.still_logo_size = 0.25
-    s.wm_kind, s.wm_size, s.wm_opacity = "CUSTOM", 0.3, 1.0
-    s.wm_text = "REVIEW"
-    s.out_file_type = "PNG"
-    s.background = "COLOR"
-    s.background_color = (0.2, 0.2, 0.2)
-    out = {}
-    for mark in (False, True):
-        job = {"id": f"j{int(mark)}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
-               "out_dir": str(tmp_path / "out"), "label": "x", "watermark": mark}
-        path = queue.run_job(sc, job, lambda *a: None, lambda: False)
-        out[mark] = _pixels(path)
-    sh, sw = out[True].shape[:2]                 # draft quality renders at half size
-    assert out[False].shape == out[True].shape
-    centre = (slice(sh // 4, 3 * sh // 4), slice(sw // 6, 5 * sw // 6))
-    x, y, lw, lh = brand.logo_box("BL", sw, sh, 80, 40, 0.25)
-    for mark in (False, True):
-        assert _near(out[mark][sh - (y + lh // 2), x + lw // 2], (230, 20, 20), 8), "the logo is on both"
-    assert np.abs(out[True] - out[False])[centre].max() > 15, "only the second has the watermark"
-    assert np.abs(out[True] - out[False])[:8, sw - 8:].max() < 3
 
 
 def test_a_queued_animation_with_every_option_makes_the_whole_video(tmp_path):
