@@ -1,6 +1,6 @@
 # 0025 – Labels pointing at parts, picture cards and music in videos
 
-**Who:** worker · **Status:** waiting (0018) · **Branch:** `task/0025-callouts-pictures-music`
+**Who:** worker · **Model:** Sonnet · **Status:** waiting (0018) · **Branch:** `task/0025-callouts-pictures-music`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/video.py`
 (from 0018), new `blender/callouts.py`, `blender/render.py`, `queue.py` / `queue_runner.py` (video
 assembly only), the 5 Scene & Render part of `blender/ui.py`, `blender/props.py` (additive),

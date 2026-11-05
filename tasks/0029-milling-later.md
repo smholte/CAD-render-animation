@@ -1,6 +1,6 @@
 # 0029 – Milling, later: no-CAM toolpaths and 4/5-axis
 
-**Who:** worker · **Status:** later (after 0026–0028; owner decides) ·
+**Who:** worker · **Model:** Opus · **Status:** later (after 0026–0028; owner decides) ·
 **Branch:** `task/0029-milling-later` · **Started by:** lead chat, 5 Nov 2026 · **Lane:** Machining
 
 ## Goal (to be detailed when it starts)

@@ -925,7 +925,9 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         add_node(lab, -1, loc.Transformation(), None, root_counts)
 
     n_parts = sum(1 for n in nodes if n["kind"] == "part")
-    emit("structure", 30, f"{len(mesh_labels)} unique parts, {n_parts} placed parts")
+    n_unique = len(mesh_labels)
+    emit("structure", 30, f"{n_unique} unique part{'s' if n_unique != 1 else ''}, "
+                          f"{n_parts} placed part{'s' if n_parts != 1 else ''}")
 
     # ---- tessellate unique parts -------------------------------------------
     arrays: dict[str, np.ndarray] = {}
@@ -963,7 +965,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
                 pending.append(mid)
         jobs.sort(key=lambda j: -len(j[1]))            # biggest parts first: no core waits at the end
         t_copy = time.time() - tc
-        where[0] = f" on {len(helpers.procs)} cores"
+        where[0] = f" on {len(helpers.procs)} core{'s' if len(helpers.procs) != 1 else ''}"
         retry = []
 
         def from_helper(reply) -> None:

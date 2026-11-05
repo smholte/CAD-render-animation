@@ -2,7 +2,7 @@
 
     python tools/release_tools.py plan --ref refs/heads/main --run 123
         -> prints version=…, tag=…, prerelease=…, publish=true|false (for $GITHUB_OUTPUT)
-    python tools/release_tools.py prepare --repo-dir <update-repo> --out <dir> --tag v0.2.15 --repository owner/name
+    python tools/release_tools.py prepare --repo-dir <update-repo> --out <dir> --tag v0.2.16 --repository owner/name
         -> <dir>/index.json (full download addresses), changelog.json, notes.md (release text)
 
 plan: on main the tag is v<version>; when that release exists already nothing is published (a version is

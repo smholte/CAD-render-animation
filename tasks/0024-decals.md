@@ -1,6 +1,6 @@
 # 0024 – Decals: logos, text and pictures on the model
 
-**Who:** worker · **Status:** waiting (0023) · **Branch:** `task/0024-decals`
+**Who:** worker · **Model:** Opus · **Status:** waiting (0023) · **Branch:** `task/0024-decals`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Looks · **Area:** new `blender/decals.py`,
 `blender/faces.py` / `blender/materials.py` (only where decals hook in), `blender/reimport.py`
 (decals only), the 3 Looks part of `blender/ui.py`, `blender/ops_panels.py`, `blender/props.py`

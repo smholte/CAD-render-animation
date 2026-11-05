@@ -71,6 +71,33 @@ Rules:
 Task files: `tasks/NNNN-short-name.md`, made from `tasks/TEMPLATE.md`. `TASKS.md` is the
 overview (number, title, status, who, branch).
 
+### Saving usage (owner's request, 5 Nov 2026)
+
+The owner's AI usage is limited; every chat works economically:
+- **Tests:** locally run only the tests of what you changed (`pytest tests/test_<area>.py`, the
+  one real-app test of your panel). GitHub runs the full suite, all real-app tests and the
+  Windows install at every push – read its result instead of repeating it locally.
+- **Pictures cost a lot:** look only at the screenshots of the panel you changed, cropped small.
+- **Helper agents** (independent reviews, independent test lists) only for Windows-only code and
+  for risky changes; say in the report when one was skipped.
+- **Update your branch to `main` once**, right before merging – not after every other release.
+- **No installer per task:** bump the version, write the changelog, merge, check the GitHub run.
+  Build and send the installer only when the owner asks for one (once task 0020 is done, GitHub
+  publishes releases by itself).
+- Read only the files and earlier reports your task needs; keep reports short (numbers, open points).
+- Small follow-ups go into the next task of the same lane, not into a new chat.
+- The lead chat is restarted when its conversation gets long: everything it needs is in this
+  file, `TASKS.md`, the task files and the project note.
+- **The lead picks the model for every task** (owner's rule, 5 Nov 2026) and writes it in the
+  task file's header (`**Model:** Sonnet` or `Opus`), in the Model column of `TASKS.md` and next
+  to the sentence it gives the owner, who picks that model in the new chat before sending the
+  first message. **Sonnet** (uses less of the owner's usage) for routine work: tooltips, texts and
+  the user guide, data and word lists, small fixes, extra tests, one-panel UI changes along an
+  existing pattern. **Opus** for hard work: new algorithms and geometry (joints, cylinders,
+  linkages, milling, chips), several modules at once, Windows-only code, performance work,
+  anything where a wrong design is expensive. When unsure: Sonnet, and the owner switches the
+  chat to Opus if it gets stuck (the same tests failing again and again, going in circles).
+
 ## 3. Repository layout
 
 ```
@@ -220,6 +247,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
   `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
   suggested texts (delete your rows when done).
+- **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
+  (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
   `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
   (`tools/guide_screens.py`, test crane only). The guide is built into the release by
@@ -230,7 +259,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 ## 7. Release procedure (the worker chat that finishes a task)
 
 GitHub publishes the release itself (task 0020, `docs/UPDATES.md`): the worker bumps the version and
-merges; every installed app (0.2.15 and newer) then offers the update at its next start.
+merges; every installed app (0.2.16 and newer) then offers the update at its next start.
 
 0. `git pull` first: another chat may have released in the meantime; take the next free
    version number.
@@ -238,20 +267,19 @@ merges; every installed app (0.2.15 and newer) then offers the update at its nex
 2. Add the version to `CHANGELOG.md` at the top (plain words, for the owner): the app shows this text
    under "What's new", the release page too. Heading: `## <version> – <date> – <short title>`. No
    "Commit" line needed any more (the release page shows the commit).
-3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging
-   changes. The GitHub run of the branch must be green (section 5).
-4. Merge into `main` and push. GitHub tests `main` once more, then publishes the release and checks on
-   Windows that an installed old version updates itself to it. Wait for it:
-   `python3 tools/ci_status.py --branch main --wait` – every job green, including "Publish the
+3. Locally the tests of what you changed ("Saving usage", section 2); the GitHub run of the branch
+   must be green (section 5): it runs the full suite, the real app and the Windows install.
+4. Merge into `main` and push. GitHub tests `main` once more, then publishes the release, checks on
+   Windows that an installed old version updates itself to it, and offers it to the apps. Wait for
+   it: `python3 tools/ci_status.py --branch main --wait` – every job green, including "Publish the
    release", "Windows - an installed old version updates itself from the release" and "Offer the
    release to the apps". When the release job did not run (it only runs with all tests green), fix
-   `main` first. Then `python3 tools/ci_update_test.py --github --expect <version> --blender <blender>
-   --wheels <dir> --out <dir>` checks the real address from the chat machine.
-5. Give the owner the release link (`https://github.com/smholte/CAD-render-animation/releases/tag/v<version>`)
-   and, as before, the installer zip in the chat: build it locally with
-   `~/venv/bin/python tools/build_release.py` (same files as the release; or download it from the
-   release page) and send `dist/FresingRender-<version>-windows.zip` with short steps: for installed
-   PCs "start the app, click **Update now**", for new PCs "unzip, Install.bat".
+   `main` first.
+5. Give the owner the release link (`https://github.com/smholte/CAD-render-animation/releases/tag/v<version>`):
+   installed PCs (0.2.16 and newer) get it with **Update now**; new PCs use the installer zip on that
+   page. (Only when the owner asks for an installer in the chat – see "Saving usage" in section 2 –
+   build it with `~/venv/bin/python tools/build_release.py` and send
+   `dist/FresingRender-<version>-windows.zip` with short numbered steps.)
 6. Add a short entry to the project progress note `claude/render-app-progress.md` (if the chat cannot
    reach it, say so: the lead will add it).
 
@@ -316,6 +344,9 @@ the release → Delete); the next run on `main` publishes it again.
 - 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
   of the same bit depth in tests.
 - An animation without steps lasts 1 s (26 frames): a test video needs one short step.
+- Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
+  the source showed a sentence broken in the middle. `register()` joins the lines (test:
+  `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.
 - In-app updates: a panel's place in the side panel follows `bl_order` and, for equal numbers, the order
   of registration; a negative `bl_order` does not put it on top (the update notice is registered first).
 - `wm.quit_blender` in a background Blender only closes it when the running script ends.

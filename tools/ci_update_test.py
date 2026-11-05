@@ -2,7 +2,7 @@
 and usable on a chat machine:
 
     python3 tools/ci_update_test.py --blender <blender> --wheels <linux wheels dir> --out <dir> [--gui]
-    python3 tools/ci_update_test.py --blender <blender> --wheels <dir> --out <dir> --github [--expect 0.2.15]
+    python3 tools/ci_update_test.py --blender <blender> --wheels <dir> --out <dir> --github [--expect 0.2.16]
 
 What it does:
  1. builds this code twice with Linux wheels: as an "old" version 0.0.1 that ships the app template of 0.2.10

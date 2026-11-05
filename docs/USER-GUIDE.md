@@ -138,7 +138,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 - A project that was never saved has to be saved first (**File > Save As**): the app says so. While the
   render queue runs or a STEP file is being imported, the update waits until you start it again.
 - Your projects, renders, templates and settings stay as they are.
-- Versions before 0.2.15 cannot do this yet: run the newest installer once over them
+- Versions before 0.2.16 cannot do this yet: run the newest installer once over them
   ([Install](#start)). A version that needs a newer Blender also comes as an installer; the app then
   says so and links to its release page.
 - The check needs internet access to github.com. Switch it off in **Edit > Preferences > Add-ons >
@@ -291,11 +291,12 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 
 **More in this section**
 
-- **Select its parts**, **Show only these** (**Show all** in 2 Structure brings back the rest).
+- **Select its parts** selects them in the view; **Show only these** hides all other parts
+  (**Show everything again** in 2 Structure brings them back).
 - **Put selected in**: the parts selected in the view go into this group, whatever the rules say.
   **Back to the rules**: the rules decide again for them.
-- **Rule: all of … → this group** (shown when a subassembly is selected in 2 Structure): every part in
-  that subassembly goes into this group, also in later revisions.
+- **Make it a rule** under "Everything in … to this group" (shown when a subassembly is selected in
+  2 Structure): every part in that subassembly goes into this group, also in later revisions.
 - **+** adds a group; **−** removes the selected group (its parts are sorted again by the rules).
 - Click a part in the view (with **Part** chosen in 2 Structure): a box shows its group, CAD colour
   and CAD material, with **Move selected to group…**.
@@ -387,7 +388,8 @@ The quickest way to sort the unsorted parts, or to give one kind of part its own
 1. Type a word of the part name. Several words: all must be in the name. `*` stands for any text, as
    in `M6*20`.
 2. The list shows the names found, how many parts, and their group now. Tick the ones you want (the
-   two buttons on the right tick or untick all of them).
+   two buttons on the right tick or untick all of them). **Select the ticked parts in the view** shows
+   where they are.
 3. **Put ticked in new group '…'** makes a new group named after your search; **Put ticked in a
    group…** uses an existing one. Then give the group its material (above).
 4. **Make it a rule → …** saves the search as a sorting rule for the selected group: the next
@@ -408,9 +410,11 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
 - The tick switches a rule on or off; the number shows how many parts it caught.
 - Click a rule to change it: **If** [*what*: part name, assembly path, CAD colour, finish, part type,
   CAD material…] [*test*: contains, is, starts with, matches pattern…] [*value*] → **Group**. A group
-  name may hold {color}, {finish} or {kind}: then you get one group per colour, finish or type.
-- **+** adds a rule, **From active part** makes one from the part you clicked, the arrows move a rule
-  up or down, **−** removes it.
+  name may hold {color}, {finish}, {kind}, {part_type} or {cad_material}: then you get one group per
+  colour, finish, type or material. Rest the mouse on a choice in the lists to see what it means.
+- **+** adds a rule at the top of the list (so it wins) for the group selected in 3 Looks; **From
+  clicked part** adds one "Part name contains *the name of the part you clicked*". The arrows move the
+  selected rule up or down, **−** removes it.
 - **Defaults** replaces all rules with those of Standard. Projects made before version 0.2.8 that
   still had the old built-in rules get the new ones when they are opened; your own rules are kept.
 - After changing rules, click **Sort parts into groups** in 3 Looks.

@@ -1,6 +1,6 @@
 # 0018 – Video finishing: logo, title and end card, captions, formats
 
-**Who:** worker · **Status:** waiting (0017) · **Branch:** `task/0018-video-finishing`
+**Who:** worker · **Model:** Sonnet · **Status:** waiting (0017) · **Branch:** `task/0018-video-finishing`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/render.py`,
 `blender/queue.py` and `queue_runner.py` (video assembly only), new `blender/video.py`, the 5 Scene
 & Render part of `blender/ui.py`, `blender/props.py` (additive), `tests/`.
@@ -34,6 +34,9 @@ the right shape for LinkedIn/website (16:9, 1:1, 9:16).
    videos, size and see-through amount adjustable; on/off per render job, so a draft can be sent
    and the final rendered clean without changing the project.
 5. Tooltips for every new button and setting; user guide chapter for all of it.
+
+6. Small, from task 0023: "1 props deleted" (`ops_surroundings.py`) and any other count in this
+   lane's messages: use `core/words.plural()`.
 
 ## Done when
 

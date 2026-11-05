@@ -186,7 +186,7 @@ $zipExt = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" |
     Select-Object -Last 1
 if (-not $zipExt) { throw "fresing_render-<version>.zip not found next to the installer" }
 
-# Before 0.2.15 an install with -UpdateUrl used a Blender extension repository called "fresing".
+# Before 0.2.16 an install with -UpdateUrl used a Blender extension repository called "fresing".
 # The app now updates itself (Update now), always from the copy in "user_default": remove the old one.
 $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
 $repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"

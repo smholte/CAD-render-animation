@@ -35,7 +35,7 @@ PKG_ID = "fresing_render"
 URL_ENV = "FRESING_UPDATE_URL"           # tests (and special cases): another update address
 URL_FILE = "fresing_update.json"         # in Blender's config folder: {"url": ...} written by Install.bat -UpdateUrl
 TIMEOUT = 20                             # seconds per network call
-SELF_UPDATING_SINCE = "0.2.15"           # the first version with Update now (older ones need the installer once)
+SELF_UPDATING_SINCE = "0.2.16"           # the first version with Update now (older ones need the installer once)
 
 
 # ---------------------------------------------------------------------------
