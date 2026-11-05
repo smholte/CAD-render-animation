@@ -268,6 +268,14 @@ def _camera_poll(self, ob):
 def _joint_renamed(self, context):
     from . import joints
     old = self.get("_old_name", "")
+    new = self.name.strip()
+    # animation steps, poses and couplings find a joint by its name: never empty, never twice
+    taken = sum(1 for j in context.scene.fresing.joints if j.name == new) > 1
+    if old and (not new or taken):
+        self["name"] = old
+        return
+    if new != self.name:
+        self["name"] = new
     if old and old != self.name:
         joints.rename(context.scene, self, old)
     self["_old_name"] = self.name

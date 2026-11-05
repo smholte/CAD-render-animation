@@ -469,7 +469,7 @@ def bake(scene, anim) -> dict:
             joint_move(j, v_from, joints.clamp(j, z), f0, f1, b.easing)
         elif b.kind == "MOTOR":
             j = free_joint(b)
-            if j is None:
+            if j is None or b.duration <= 0.0:          # (a run of 0 s does nothing)
                 continue
             motor_run(j, b, f0, f1)
         elif b.kind == "POSE":

@@ -369,16 +369,19 @@ def test_drivers_are_simple_expressions(scene):
     J(scene, "Wheel 1").couple_offset_angle = -0.25
     joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=1e-7)
     for j in scene.fresing.joints:
-        fc = joints._coupling_fcurve(j)
+        fcs = joints._coupling_fcurves(j)
         if j.follows:
-            assert fc is not None and fc.driver.is_simple_expression, (j.name, fc.driver.expression)
-            assert not fc.driver.use_self and fc.driver.type == "SCRIPTED"
+            # its value and its motion, both from the joint at the top of the chain
+            assert len(fcs) == 2, j.name
+            for fc in fcs:
+                assert fc.driver.type == "SCRIPTED" and fc.driver.is_simple_expression, fc.driver.expression
+                top = joints.driver_of(scene, j)
+                assert not fc.driver.use_self and fc.driver.variables[0].targets[0].id == top.motion, j.name
         else:
-            assert fc is None
-    # the motion drivers of every joint stay plain AVERAGE (no expression at all)
-    for j in scene.fresing.joints:
-        drivers = [d for d in j.motion.animation_data.drivers if d.data_path != joints.COUPLING_PATH]
-        assert drivers and all(d.driver.type == "AVERAGE" for d in drivers)
+            assert fcs == [] and joints._coupling_fcurve(j) is None
+            # a joint that moves by itself: its motion follows its own value, no expression at all
+            drivers = [d for d in j.motion.animation_data.drivers if d.data_path != joints.COUPLING_PATH]
+            assert drivers and all(d.driver.type == "AVERAGE" for d in drivers)
     assert joints.couplings_simple(scene)
     assert joints.expression(2.0, -0.1) == "a * 2.0 - 0.1" and joints.expression(-1.0, 0.0) == "a * -1.0"
 
@@ -669,3 +672,134 @@ def test_animation_panel_shows_the_motor_step(scene):
     assert "Ramp (s)" in _texts(ui_motion.FRESING_PT_animation.draw, bpy.context)
     b.joint = "Rope"                                              # a follower: say which joint to run instead
     assert "pick 'Drum' here instead" in _texts(ui_motion.FRESING_PT_animation.draw, bpy.context)
+
+
+# ---------------------------------------------------------------------------
+# found by the independent review
+# ---------------------------------------------------------------------------
+
+
+def test_followers_never_lag_a_frame(scene):
+    """Blender evaluates drivers on several threads. A follower whose motion read its own driven value
+    (or a leader in between) was sometimes moved with the value of one update earlier (reproduced
+    12-249 times in 1000-3000 updates). Every follower now reads the top of its chain directly."""
+    import random
+    trolley_and_wheels(scene)
+    cover = ob(scene, "COVER")
+    joints.create(scene, "ROTATE", [cover], pos(cover), X, name="Motor")
+    joints.set_follows(scene, J(scene, "Trolley"), "Motor", ratio=50.0, offset_value=0.01)
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50), offset_value=0.2)
+    joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=-1.0)
+    tr, w2 = ob(scene, "TROLLEY.ASM"), ob(scene, "WHEEL", 1)
+    move(scene, "Motor", 0.0)                       # trolley at its 10 mm offset, wheels turned by it
+    t0, w0 = pos(tr), w2.matrix_world.to_3x3().copy()
+    turn0 = -(0.01 / WHEEL_R + 0.2)
+    rnd = random.Random(12)
+    wrong = []
+    for n in range(1000):
+        v = rnd.uniform(-3, 3) * TURN
+        move(scene, "Motor", v)
+        travel = v / TURN * 0.050 + 0.01
+        turn = -(travel / WHEEL_R + 0.2)
+        if not (close(pos(tr) - t0, (travel - 0.01, 0, 0), 2e-5) and abs(V(scene, "Wheel 2") - turn) < 2e-3 and
+                close_m(w2.matrix_world.to_3x3(), Matrix.Rotation(turn - turn0, 3, Y) @ w0, 2e-3)):
+            wrong.append(n)
+    assert not wrong, f"{len(wrong)} of 1000 updates left a follower behind"
+    # and while an animation plays: 12 rpm for 10 s, every frame
+    move(scene, "Motor", 0.0)
+    a = scene.fresing.animations.add()
+    a.fps = "25"
+    b = a.blocks.add()
+    b.kind, b.joint, b.duration, b.speed_rpm, b.easing = "MOTOR", "Motor", 10.0, 12.0, "LINEAR"
+    animation.bake(scene, a)
+    for f in range(1, 252):
+        scene.frame_set(f)
+        v = min(f - 1, 250) / 25 * 0.2 * TURN
+        travel = v / TURN * 0.050 + 0.01
+        turn = -(travel / WHEEL_R + 0.2)
+        if not (close(pos(tr) - t0, (travel - 0.01, 0, 0), 2e-5) and
+                close_m(w2.matrix_world.to_3x3(), Matrix.Rotation(turn - turn0, 3, Y) @ w0, 2e-3)):
+            wrong.append(f)
+    assert not wrong, f"{len(wrong)} of 251 frames showed a follower behind"
+
+
+def test_model_update_leader_gone_follower_stays(scene):
+    jaws(scene)
+    move(scene, "Jaw A", 0.03)
+    b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    before = pos(b)
+    specs = joints.dissolve_all(scene)
+    by_uid = {o.get(build.PROP_UID): o for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS}
+    del by_uid[ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 0).get(build.PROP_UID)]
+    joints.rebuild_from_specs(scene, specs, by_uid)
+    update()
+    assert abs(V(scene, "Jaw B") + 0.03) < TOL and close(pos(b), before)
+
+
+def test_freed_follower_beyond_its_limits_stays(scene):
+    """'Moves by itself' (and removing the leader) keeps the follower where it is, even beyond its
+    limits: no jump to the limit."""
+    jaws(scene)
+    jb = J(scene, "Jaw B")
+    jb.use_limits, jb.slide_min, jb.slide_max = True, -0.01, 0.01
+    move(scene, "Jaw A", 0.03)
+    b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    before = pos(b)
+    scene.fresing.joints_index = 1
+    assert bpy.ops.fresing.joint_follow(mode="FREE") == {"FINISHED"}
+    update()
+    assert abs(V(scene, "Jaw B") + 0.03) < TOL and close(pos(b), before)
+    # the same through removing the leader
+    joints.set_follows(scene, J(scene, "Jaw B"), "Jaw A", ratio=-1.0)
+    update()
+    joints.remove(scene, J(scene, "Jaw A"))
+    update()
+    assert abs(V(scene, "Jaw B") + 0.03) < TOL and close(pos(b), before)
+
+
+def test_remove_leader_while_an_animation_is_built(scene):
+    """The animation comes off first: every joint goes back to where it was before Build, the
+    follower too (it used to keep its animated place)."""
+    jaws(scene)
+    a = scene.fresing.animations.add()
+    b = a.blocks.add()
+    b.kind, b.joint, b.duration, b.use_from, b.to_dist = "JOINT", "Jaw A", 1.0, False, 0.04
+    animation.bake(scene, a)
+    scene.frame_set(26)
+    assert abs(V(scene, "Jaw B") + 0.04) < TOL
+    joints.remove(scene, J(scene, "Jaw A"))
+    update()
+    assert abs(V(scene, "Jaw B")) < TOL and not animation.has_keys(scene)
+
+
+def test_joint_names_never_empty_or_twice(scene):
+    jaws(scene)
+    ja = J(scene, "Jaw A")
+    ja.name = ""
+    assert J(scene, "Jaw A") is not None and J(scene, "Jaw B").follows == "Jaw A"
+    J(scene, "Jaw A").name = "Jaw B"
+    assert [j.name for j in scene.fresing.joints] == ["Jaw A", "Jaw B"]
+    J(scene, "Jaw A").name = "  Left jaw "
+    assert J(scene, "Left jaw") is not None and J(scene, "Jaw B").follows == "Left jaw"
+
+
+def test_motor_off_keeps_the_angle(scene):
+    pin = ob(scene, "BOOM.PIN")
+    joints.create(scene, "ROTATE", [ob(scene, "BOOM.ASM")], pos(pin), Y, name="Drum")
+    joints.set_motor(scene, J(scene, "Drum"), True)
+    boom = ob(scene, "BOOM")
+    move(scene, "Drum", 25.25 * TURN)
+    m0 = boom.matrix_world.copy()
+    J(scene, "Drum").is_motor = False                  # the tick box
+    update()
+    assert abs(V(scene, "Drum") - 0.25 * TURN) < 1e-4
+    assert close_m(boom.matrix_world, m0, 1e-4) and close(boom.matrix_world.translation, m0.translation, 1e-4)
+
+
+def test_run_motor_of_zero_seconds_does_nothing(scene):
+    a, b = motor_setup(scene)
+    b.duration = 0.0
+    nb = a.blocks.add()
+    nb.kind, nb.joint, nb.start, nb.duration, nb.speed_rpm = "MOTOR", "Drum", 0.0, 2.0, 12.0
+    info = animation.bake(scene, a)
+    assert not info["warnings"], info
