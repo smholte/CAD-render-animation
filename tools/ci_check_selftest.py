@@ -22,7 +22,7 @@ import os
 import re
 import sys
 
-MIN_CHECKS = 12          # raise it when the self-test gets new lines
+MIN_CHECKS = 13          # raise it when the self-test gets new lines
 LINE = re.compile(r"^\[(?P<tag> OK |FAIL|SKIP)\] (?P<rest>.*)$")
 OK_REST = re.compile(r"^(?P<name>.*?) \((?P<secs>[\d.]+) s\)(?:: (?P<detail>.*))?$")
 ALLOWED_SKIP = re.compile(r"graphics card", re.I)

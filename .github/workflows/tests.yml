@@ -2,9 +2,15 @@ name: Tests
 
 # Runs by itself at every push and pull request:
 #   - Linux: the full test suite and the packaged self-test
-#   - Linux: the real app on a virtual screen (simulated clicks) and the accented-paths test
-#   - Windows: the installer zip is built, Install.bat runs unattended, then the self-test
-#     (started like its Start-menu shortcut) and Uninstall.bat
+#   - Linux: the real app on a virtual screen (simulated clicks), the accented-paths test and the in-app update
+#   - Windows: the installer zip is built; an old build is installed and updates itself in the app from a
+#     local copy of the update listing; Install.bat runs unattended over it, then the self-test (started
+#     like its Start-menu shortcut) and Uninstall.bat
+# On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
+# the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json) and checks on
+# Windows that an installed old version finds it and updates itself from GitHub (task 0020).
+# A branch push whose commit message holds "[release rehearsal]" does the same as a pre-release
+# v<version>-rehearsal.<run>, checks it, and deletes it again.
 # How to read the results from a chat: CLAUDE.md section 5.
 
 on:
@@ -155,10 +161,25 @@ jobs:
           python -m pip install "$(grep -E '^bpy==' tools/requirements-dev.txt)" "$(grep -E '^markdown==' tools/requirements-dev.txt)"
           python tools/build_release.py
 
+      - name: Build an old version to update from (the same code as 0.0.1, with the 0.2.10 app template)
+        run: python tools/build_release.py --dist dist-old --version-as 0.0.1 --template-from tests/data/old_app_template
+
       - uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: dist/FresingRender-*-windows.zip
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: update-listing
+          path: dist/update-repo/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer-old
+          path: dist-old/FresingRender-0.0.1-windows.zip
           retention-days: 7
 
   windows:
@@ -180,6 +201,16 @@ jobs:
         with:
           name: windows-installer
           path: ${{ runner.temp }}/release
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-installer-old
+          path: ${{ runner.temp }}/release-old
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: update-listing
+          path: ${{ runner.temp }}/update-listing
 
       - name: Blender version and checksum (pinned in the installer)
         id: pin
@@ -213,13 +244,15 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
           if ($hash -ne $env:BLENDER_SHA256) { Remove-Item $zip; throw "checksum mismatch: $hash" }
 
-      - name: Install (Install.bat, unattended, twice) and self-test
+      - name: Old version updates itself in the app; Install.bat (unattended, twice) over it; self-test
         env:
           BLENDER_VERSION: ${{ steps.pin.outputs.version }}
         run: |
           $release = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
+          $old = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release-old") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
           $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-$($env:BLENDER_VERSION)-windows-x64.zip"
           ./tools/ci_windows_install.ps1 -ReleaseZip $release.FullName -BlenderZip $blender `
+            -OldReleaseZip $old.FullName -UpdateRepo (Join-Path $env:RUNNER_TEMP "update-listing") `
             -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
 
       - name: Self-test verdict
@@ -236,3 +269,140 @@ jobs:
           name: windows-install
           path: windows-results/
           retention-days: 14
+
+  release:
+    name: Publish the release (new version on main)
+    needs: [suite, real-app, build, windows]
+    if: >-
+      ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main'
+      || contains(github.event.head_commit.message, '[release rehearsal]')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write                # this job only: create the tag and the release
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Is there something to publish?
+        id: plan
+        run: |
+          args=""
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then args="--rehearsal"; fi
+          python tools/release_tools.py plan --ref "$GITHUB_REF" --run "$GITHUB_RUN_ID" $args | tee -a "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v8
+        if: steps.plan.outputs.publish == 'true'
+        with:
+          name: windows-installer
+          path: release-in
+
+      - uses: actions/download-artifact@v8
+        if: steps.plan.outputs.publish == 'true'
+        with:
+          name: update-listing
+          path: update-listing
+
+      - name: Publish (tag, installer, extension, index.json, changelog.json, release text)
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+        run: |
+          python tools/release_tools.py prepare --repo-dir update-listing --out release-out --tag "$TAG" \
+            --repository "$GITHUB_REPOSITORY"
+          cp release-in/FresingRender-*-windows.zip release-out/
+          flags=""
+          if [ "$PRERELEASE" = "true" ]; then flags="--prerelease"; else flags="--latest"; fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "Fresing Render $VERSION" \
+            --notes-file release-out/notes.md $flags \
+            release-out/FresingRender-*-windows.zip release-out/fresing_render-*.zip \
+            release-out/index.json release-out/changelog.json
+          url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          echo "### Published: [Fresing Render $VERSION]($url)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release: $url"
+
+  release-check:
+    name: Windows - an installed old version updates itself from the release
+    needs: [release]
+    if: ${{ needs.release.outputs.publish == 'true' }}
+    runs-on: windows-2025
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-installer-old
+          path: ${{ runner.temp }}/release-old
+
+      - name: Blender version (pinned in the installer)
+        id: pin
+        run: |
+          $ps1 = Get-Content -Raw installer/Install-FresingRender.ps1
+          $v = [regex]::Match($ps1, '\$BlenderVersion\s*=\s*"([^"]+)"').Groups[1].Value
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Blender zip from the cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/blender-zip
+          key: blender-${{ steps.pin.outputs.version }}-windows-x64-zip
+
+      - name: Install the old version, let it find the release on GitHub and update itself
+        env:
+          BLENDER_VERSION: ${{ steps.pin.outputs.version }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
+          PRERELEASE: ${{ needs.release.outputs.prerelease }}
+        run: |
+          $old = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release-old") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
+          $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-$($env:BLENDER_VERSION)-windows-x64.zip"
+          if (-not (Test-Path -LiteralPath $blender)) { $blender = "" }     # not cached: Install.bat downloads it
+          # a pre-release is never "latest": ask its own address; a release: the address every PC uses
+          $from = if ($env:PRERELEASE -eq "true") { "https://github.com/$($env:GITHUB_REPOSITORY)/releases/download/$($env:TAG)/index.json" } else { "github" }
+          ./tools/ci_windows_install.ps1 -OldReleaseZip $old.FullName -BlenderZip $blender -UpdateFrom $from `
+            -Expect $env:VERSION -OnlyUpdate -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir release-check-results
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: release-check
+          path: release-check-results/
+          retention-days: 14
+
+  release-rehearsal-cleanup:
+    name: Delete the rehearsal pre-release
+    needs: [release, release-check]
+    if: ${{ always() && needs.release.outputs.publish == 'true' && needs.release.outputs.prerelease == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Delete the pre-release and its tag
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: gh release delete "$TAG" --yes --cleanup-tag

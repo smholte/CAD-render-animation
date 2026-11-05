@@ -6,33 +6,36 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.13"
+__version__ = "0.2.14"
 
 _modules = []
 
 
 def _classes():
     from .blender import (ops_import, ops_main, ops_motion, ops_panels, ops_rule_sets, ops_surroundings, prefs, ui,
-                          ui_motion)
-    return (prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ops_panels.CLASSES
+                          ui_motion, updates)
+    # the update notice first: a panel registered first sits on top of the Fresing tab
+    return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ops_panels.CLASSES
             + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ui.CLASSES + ui_motion.CLASSES)
 
 
 def register():
     import bpy
 
-    from .blender import handlers, project_lock, props
+    from .blender import handlers, project_lock, props, updates
     props.register()
     for cls in _classes():
         bpy.utils.register_class(cls)
     handlers.register()
     project_lock.register()
+    updates.register()
 
 
 def unregister():
     import bpy
 
-    from .blender import handlers, project_lock, props
+    from .blender import handlers, project_lock, props, updates
+    updates.unregister()
     project_lock.unregister()
     handlers.unregister()
     for cls in reversed(_classes()):

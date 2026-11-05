@@ -25,15 +25,19 @@ Tip: if a PC has no internet access, put blender-5.2.3-windows-x64.zip
 
 Updates
 -------
-- With an update server: install once with
-      Install.bat -UpdateUrl "https://<server>/index.json" -AccessToken "<token>"
-  (keep the quotes). Later runs of Install.bat keep using the update server; run it
-  again with -UpdateUrl / -AccessToken to change the address or a new token.
-  New versions then show up in Blender as "update available" (Edit > Preferences >
-  Get Extensions). One click updates.
-- Without an update server: run the new installer over the old one.
-- A version that needs a newer Blender comes with a new installer. Update all PCs
-  together: projects saved in a newer Blender may not open in an older one.
+- The app looks for a new version on GitHub a few seconds after it starts. When there is
+  one, the Fresing tab shows "Update available" with what's new. Click "Update now": the
+  app saves your project, closes, installs the update and opens again (about a minute).
+  Help > "Check for Fresing Render updates" asks at any time.
+- Versions before 0.2.14 cannot do this yet: run this installer once over the old one.
+- The check needs internet access to github.com (and its download servers). It can be
+  switched off: Edit > Preferences > Add-ons > Fresing Render > "Check for updates at
+  start-up". Without internet: run the new installer over the old one.
+- Another update address (for example a network folder with the files of a release):
+      Install.bat -UpdateUrl "file://SERVER/share/fresing/index.json"
+  (keep the quotes; -UpdateUrl default goes back to GitHub).
+- A version that needs a newer Blender comes with a new installer (the app says so). Update
+  all PCs together: projects saved in a newer Blender may not open in an older one.
 
 Remove
 ------
