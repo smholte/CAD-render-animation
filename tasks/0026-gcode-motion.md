@@ -1,6 +1,6 @@
 # 0026 – G-code drives the machine: CNC programs as animations
 
-**Who:** worker · **Model:** Opus · **Status:** waiting (0014 – owner wants cylinders and linkages first) · **Branch:** `task/0026-gcode-motion`
+**Who:** worker · **Model:** Opus · effort High · **Status:** waiting (0014 – owner wants cylinders and linkages first) · **Branch:** `task/0026-gcode-motion`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Motion · **Area:** new `blender/gcode.py` and
 `core/gcode.py` (parser, no Blender), `blender/animation.py` (one new step type), `blender/joints.py`
 (only if needed), `ui_motion.py` (panels 4/6), `blender/props.py` (additive), `docs/USER-GUIDE.md`
