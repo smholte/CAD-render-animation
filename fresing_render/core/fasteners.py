@@ -187,7 +187,8 @@ _KEYWORDS: list[tuple[str, str]] = [
     ("SET SCREW", "set_screw"), ("SETSCREW", "set_screw"), ("GRUB", "set_screw"), ("STELSCHROEF", "set_screw"),
     ("MADENSCHRAUBE", "set_screw"), ("GEWINDESTIFT", "set_screw"), ("SSS", "set_screw"),
     ("SOCKET HEAD CAP", "socket_cap"), ("SOCKET HEAD", "socket_cap"), ("SOCKET CAP", "socket_cap"),
-    ("SOCKET SCREW", "socket_cap"), ("SHCS", "socket_cap"),
+    ("SOCKET SCREW", "socket_cap"), ("SHCS", "socket_cap"), ("WRENCHBOLT", "socket_cap"),
+    ("WRENCH BOLT", "socket_cap"),
     ("INBUS", "socket_cap"), ("INBUSBOUT", "socket_cap"), ("INBUSSCHROEF", "socket_cap"),
     ("BINNENZESKANT", "socket_cap"), ("INNENSECHSKANT", "socket_cap"), ("CILINDERKOPSCHROEF", "socket_cap"),
     ("ZYLINDERSCHRAUBE", "socket_cap"), ("CAP SCREW", "socket_cap"), ("CAPSCREW", "socket_cap"),
@@ -253,7 +254,19 @@ _MISUMI = [
     (re.compile(r"^(S?)HB(\d{1,2})-(\d{1,3})\b"), "hex_bolt"),
 ]
 
-_ALLOWED_DECIMAL_SIZES = {"1.2", "1.4", "1.6", "1.7", "2.2", "2.3", "2.5", "2.6", "3.5", "4.5"}
+# Other supplier notation (Misumi set screws, Korean / Japanese catalogues): a code or a
+# word glued to the thread size, e.g. MSSF5-5 (set screw M5, 5 long), BOLT5-20, WRENCHBOLT6-15,
+# NUT5, WASHER6. Size is the number after the letters, length the number after the dash.
+_SUPPLIER = [
+    (re.compile(r"^M?SS(?:F|S|SF|CP|CS|FP|DP|EB|EBS)?(\d{1,2})-(\d{1,3})\b"), "set_screw"),
+    (re.compile(r"^WRENCH[ _.]?BOLT[ _.]*(\d{1,2})(?:[-X×](\d{1,3}))?\b"), "socket_cap"),
+    (re.compile(r"^(?:BOLT|SCREW)[ _.]*(\d{1,2})[-X×](\d{1,3})\b"), "bolt"),
+    (re.compile(r"^BOLT(\d{1,2})\b"), "bolt"),
+    (re.compile(r"^NUT[ _.]*(\d{1,2})\b"), "nut"),
+    (re.compile(r"^WASHER[ _.]*(\d{1,2})\b"), "washer"),
+]
+
+_ALLOWED_DECIMAL_SIZES ={"1.2", "1.4", "1.6", "1.7", "2.2", "2.3", "2.5", "2.6", "3.5", "4.5"}
 _PROPERTY_CLASSES = ("12.9", "10.9", "9.8", "8.8", "6.8", "5.8", "5.6", "4.8", "4.6")
 
 _FINISH_PATTERNS: list[tuple[str, re.Pattern]] = [
@@ -396,6 +409,8 @@ def parse(name: str) -> FastenerInfo | None:
     matched_by = "standard" if kind else "keyword"
 
     misumi_stainless = False
+    vendor_black = False                     # Misumi codes: black oxide unless the name says otherwise
+    supplier_size = supplier_length = None
     if kind is None:
         compact = s.strip().lstrip("~_ ")
         for pattern, k in _MISUMI:
@@ -403,7 +418,17 @@ def parse(name: str) -> FastenerInfo | None:
             if m:
                 kind, matched_by = k, "vendor"
                 misumi_stainless = bool(m.group(1))
+                vendor_black = True
                 break
+        if kind is None:
+            for pattern, k in _SUPPLIER:
+                m = pattern.match(compact)
+                if m:
+                    kind, matched_by = k, "vendor"
+                    supplier_size = f"M{m.group(1)}"
+                    if m.lastindex and m.lastindex >= 2 and m.group(2):
+                        supplier_length = float(m.group(2))
+                    break
 
     if kind is None:
         for phrase, k in _KEYWORDS:
@@ -415,7 +440,9 @@ def parse(name: str) -> FastenerInfo | None:
         return None
 
     size, length = _find_size_length(s)
-    if matched_by == "vendor" and size is None:
+    if supplier_size and size is None:
+        size, length = supplier_size, supplier_length
+    elif matched_by == "vendor" and size is None:
         m = re.search(r"(\d{1,2})-(\d{1,3})", s)
         if m:
             size, length = f"M{m.group(1)}", float(m.group(2))
@@ -425,7 +452,7 @@ def parse(name: str) -> FastenerInfo | None:
     finish_source = "name" if finish else None
     if finish is None and misumi_stainless:
         finish, finish_source = "stainless", "name"
-    if finish is None and matched_by == "vendor":
+    if finish is None and vendor_black:
         finish, finish_source = "black", "type"
     if finish is None and pclass == "12.9":
         finish, finish_source = "black", "class"
