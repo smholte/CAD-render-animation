@@ -35,6 +35,9 @@ the right shape for LinkedIn/website (16:9, 1:1, 9:16).
    and the final rendered clean without changing the project.
 5. Tooltips for every new button and setting; user guide chapter for all of it.
 
+6. Small, from task 0023: "1 props deleted" (`ops_surroundings.py`) and any other count in this
+   lane's messages: use `core/words.plural()`.
+
 ## Done when
 
 - [ ] Tests: a queued animation with all options produces an MP4 of the right size and length

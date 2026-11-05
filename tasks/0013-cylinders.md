@@ -35,6 +35,9 @@ out so both eyes stay on their pins. And the other way round: the owner sets the
    how in the report (a test model is enough).
 5. Saved data: cylinders in specs (model update), old projects open unchanged.
 
+6. Small, from task 0023: messages in this lane's files still say "1 subassemblies added"
+   (joint members) and "1 pieces … moved apart" (Explode): use `core/words.plural()`.
+
 ## Done when
 
 - [ ] Generic test model with an arm, pivot and cylinder (new `tools/make_test_*.py`, no owner
