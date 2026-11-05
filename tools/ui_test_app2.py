@@ -134,6 +134,9 @@ def s_start():
 @step
 def s_wait():
     if bpy.context.scene.fresing.model_count == 0:
+        if _w[0] and time.time() - _w[0] > 300:                         # the crane takes seconds
+            check("import", False, "not finished after 5 minutes: " + bpy.context.scene.fresing.last_message)
+            return 0.5
         return "wait"
     check("import", True)
     return 0.5

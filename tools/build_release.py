@@ -4,7 +4,8 @@
 
 Produces in dist/:
     fresing_render-<version>.zip                 the Blender extension (with OpenCascade wheels)
-    FresingRender-<version>-windows/             installer folder (Install.bat, app layout, extension)
+    FresingRender-<version>-windows/             installer folder (Install.bat, app layout, extension,
+                                                 "User guide.html")
     FresingRender-<version>-windows.zip          the same folder zipped, to hand out
     update-repo/                                 static update repository (index.json + zips)
                                                  -> upload this folder to the update server or share
@@ -85,6 +86,10 @@ def main() -> None:
     os.makedirs(os.path.join(stage, "wheels"), exist_ok=True)
     for _, _, fname in WHEELS:
         shutil.copy2(os.path.join(WHEEL_CACHE, fname), os.path.join(stage, "wheels", fname))
+    # the user guide goes inside the extension: Help > Fresing Render user guide opens it from there,
+    # and an update of the extension brings the guide of that version along
+    import build_guide
+    guide = build_guide.build(os.path.join(stage, "guide", build_guide.GUIDE_FILE))
 
     os.makedirs(DIST, exist_ok=True)
     for old in glob.glob(os.path.join(DIST, "fresing_render-*.zip")):
@@ -103,6 +108,7 @@ def main() -> None:
     shutil.copytree(os.path.join(ROOT, "app_template"), os.path.join(rel, "app_template"),
                     ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy2(os.path.join(ROOT, "docs", "README-install.txt"), os.path.join(rel, "README.txt"))
+    shutil.copy2(guide, os.path.join(rel, "User guide.html"))           # to read before installing
 
     rel_zip = rel + ".zip"
     if os.path.exists(rel_zip):
@@ -123,6 +129,7 @@ def main() -> None:
 
     shutil.rmtree(os.path.join(DIST, "stage"), ignore_errors=True)
     print()
+    print("user guide:", os.path.join(rel, "User guide.html"))
     print("extension :", ext_zip, f"({os.path.getsize(ext_zip) / 1e6:.1f} MB)")
     print("installer :", rel_zip, f"({os.path.getsize(rel_zip) / 1e6:.1f} MB)")
     print("update repo:", repo)

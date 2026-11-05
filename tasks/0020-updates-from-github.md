@@ -1,6 +1,6 @@
 # 0020 – Updates from GitHub: new versions with one click in the app
 
-**Who:** worker · **Status:** waiting (0019) · **Branch:** `task/0020-updates-from-github`
+**Who:** worker · **Status:** open – can start · **Branch:** `task/0020-updates-from-github`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Quality & delivery · **Area:** `.github/`,
 `tools/build_release.py`, `installer/`, `blender/prefs.py` (update settings only), `docs/UPDATES.md`,
 `CLAUDE.md` section 7, the app template (an update notice if needed). Replaces task 0005.
@@ -22,6 +22,12 @@ new installer each time. Updates are stored on GitHub (owner's decision, 4 Nov 2
   workflow (task 0019) runs with GitHub's own permissions and can create the tag and release
   itself when the version on `main` changes. Check first whether that works; if a step can only be
   done by the owner, give him numbered click steps.
+- Found in 0019: chats may push `.github/workflows/` files; they can read runs, jobs and logs
+  (`tools/ci_status.py`) but cannot download run artifacts, cannot read
+  `actions/permissions`, and cannot delete branches. The Windows install test is
+  `tools/ci_windows_install.ps1` (puts the cached Blender zip next to Install.bat); the
+  `build` job already makes the installer zip with `tools/build_release.py`. The workflow has
+  `permissions: contents: read` – a release job needs `contents: write` for itself only.
 
 ## What to build
 

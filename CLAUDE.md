@@ -57,8 +57,13 @@ Rules:
 - A worker that starts a task sets it to "running" in `TASKS.md` and pushes that change to
   `main` right away. When it finishes, it moves the task to "Done" and sets the next task in
   its lane to "open – can start", so the owner can start the next chat.
-- A task is done when its "Done when" list is met, the tests pass and the **Report** in its
-  task file is filled in (what changed, what was tested and measured, what is left open).
+- **GitHub tests every push by itself** (section 5). The worker checks the run of its branch
+  before merging and the run on `main` after merging (`python3 tools/ci_status.py --wait`).
+  **A red run on `main` comes first:** the chat that turned it red fixes it before anything
+  else; a chat that finds `main` red at its start says so to the owner.
+- A task is done when its "Done when" list is met, the tests pass (also on GitHub) and the
+  **Report** in its task file is filled in (what changed, what was tested and measured, what
+  is left open).
 - Each new chat needs push access to the repository; the owner approves that once per chat.
 - The lead keeps the progress note in the claude.ai project
   (`claude/render-app-progress.md`) up to date for the owner.
@@ -70,7 +75,8 @@ overview (number, title, status, who, branch).
 
 ```
 fresing_render/            the Blender extension (Python package)
-  core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates
+  core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
+                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -81,18 +87,23 @@ fresing_render/            the Blender extension (Python package)
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
     render.py world.py cameras.py materials.py
+    surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
-    ops_*.py               operators;  ui.py ui_motion.py  side panel (sections 1-7)
+    ops_*.py               operators (ops_surroundings.py: props, put on floor);  ui.py ui_motion.py  side panel (1-7)
     files.py               open a file / show it in Explorer
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, test-model makers, real-app tests, screenshot tool
+tools/                     build_release.py, test-model makers, real-app tests, screenshot tool,
+                           ci_*.py / ci_windows_install.ps1 (automatic tests), requirements-dev.txt
 tests/                     pytest suite (pure Python + Blender as a Python module)
-docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md
+.github/workflows/tests.yml  automatic tests on GitHub (section 5)
+docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md,
+                           USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do),
+                           SURROUNDINGS.md (surroundings, props, free 360° photos and how to add them)
 ```
 
 `docs/DEVELOPMENT.md` explains how an import works and has measured timings.
@@ -105,26 +116,69 @@ are blocked.
 ```bash
 git clone https://github.com/smholte/CAD-render-animation fresing-render
 python3.13 -m venv ~/venv
-~/venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pillow pytest
-cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 5 minutes, all must pass
+~/venv/bin/pip install -r fresing-render/tools/requirements-dev.txt     # pinned versions
+cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 6 minutes, all must pass
 ```
 
 Real-app tests also need the real Blender program (Linux build of 5.2.3,
 `blender-5.2.3-linux-x64.tar.xz` from download.blender.org; if the download is blocked,
 say so and run the pytest suite only) and `xvfb-run` + ImageMagick (`import`, `convert`).
+GitHub runs all of them at every push anyway (section 5), so a chat that cannot run them
+locally pushes its branch and reads the run.
 
 ## 5. Tests – what to run when
 
 | What | Command | When |
 | --- | --- | --- |
-| Full suite (108+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
-| Packaged install + self-test (Linux build of the zip) | `BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks (install the extension and app template first, see the script's docstring) | `xvfb-run -a -s "-screen 0 1800x2600x24" blender --app-template fresing_render --enable-event-simulate --python tools/ui_test_app.py` (and `ui_test_app2.py`, `paths_test_blender.py`) | UI, operators, before a release |
+| Full suite (1,360+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
+| Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
+| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
+| **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
+| User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
+| User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
+| Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
+
+### Automatic tests on GitHub
+
+`.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
+free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
+run; runs on `main` always finish. Four jobs; the whole run takes about 12 minutes (measured 5 Nov 2026):
+
+| Job | What it does | Time |
+| --- | --- | --- |
+| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
+| Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
+
+Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
+cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
+enough. On the runners `FRESING_SELFTEST_NO_GPU=1` turns the two graphics-card checks of the
+self-test into "skipped: no graphics card"; every other self-test line must be OK
+(`tools/ci_check_selftest.py`).
+
+**Reading the results from a chat** (the `gh` command works through the chat's proxy):
+
+```bash
+python3 tools/ci_status.py --wait              # run of the current commit (HEAD); waits until it is done
+python3 tools/ci_status.py --branch main --wait  # run of the newest commit on main
+python3 tools/ci_status.py --run <id> --log "Windows"   # whole log of the jobs matching "Windows"
+```
+
+It only shows the run of exactly that commit (never an older one), lists every job with its
+time and, for a failed job, the failing step, the error lines and the log up to the error. Each job also prints its verdict as a table (which test, which self-test line)
+in the log and on the run page ("Summary"). The chats can read runs, jobs, logs and
+annotations through the GitHub API, but **cannot download the run's files** (artifacts:
+screenshots, self-test reports, logs) - their storage is blocked by the proxy; the owner can
+download them on the run page. A chat may push files under `.github/workflows/`, but cannot
+delete branches on GitHub (refused, like tag pushes): name leftover branches in the report so
+the owner can delete them on github.com (Code → branches → bin icon).
 
 Big test model: the "EGR line" STEP (78 MB, 2,789 placed / 584 unique parts, 4.2 M triangles)
 is a public model from GrabCAD, **not** the owner's or his clients' design. It is not in the
@@ -152,9 +206,13 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **Tooltips:** every button and setting has one (operator docstring/`description`, property
   `description`): first what it does, then how to use it or what happens next, in plain words
   ("Puts the ticked parts in a new group named after your search. Then pick its material
-  below."). Style guide: top of `docs/USER-GUIDE.md` (task 0021).
-- **User guide:** a task that changes what the owner sees updates its section of
-  `docs/USER-GUIDE.md` (once it exists) with the same commit.
+  below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
+  `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
+  suggested texts (delete your rows when done).
+- **User guide:** a task that changes what the owner sees updates its chapter of
+  `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
+  (`tools/guide_screens.py`, test crane only). The guide is built into the release by
+  `tools/build_release.py` (needs `markdown`); it opens from Help > Fresing Render user guide.
 - Commit messages say what changed and why, in plain words, and end with the attribution
   lines the chat's instructions give.
 
@@ -164,10 +222,14 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
    version number.
 1. Raise the version in `fresing_render/__init__.py` **and** `fresing_render/blender_manifest.toml`.
 2. Add the version to `CHANGELOG.md` (plain words, for the owner).
-3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging changes.
+3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging
+   changes. The GitHub run of the branch must be green (section 5).
 4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
-   first time) -> `dist/FresingRender-<version>-windows.zip`.
-5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`.
+   first time; builds the user guide into the extension and as "User guide.html" next to
+   Install.bat) -> `dist/FresingRender-<version>-windows.zip`.
+5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`. Check
+   the GitHub run on `main` (`python3 tools/ci_status.py --branch main --wait`); send the
+   installer only when it is green.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
 6. Send the owner the installer zip with short install/test steps (numbered, click by click);
@@ -195,9 +257,34 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Operator tooltips: `bpy.types.X_OT_y.bl_rna.description` is empty; ask
+  `bpy.ops.x.y.get_rna_type().description`. A property group that defines its own `name` has two
+  `name` properties in `bl_rna.properties`; the UI uses its own (the last one).
+- Real-app screenshots: switch `preferences.system.use_region_overlap` off, or the side panel is
+  see-through. A panel's open/closed state is kept per panel name once drawn; to picture it in
+  another state, register a copy under a new name (`tools/guide_screens.py` does this).
+- Blender's own Python has numpy but no Pillow: real-app tools crop and save pictures with numpy
+  and ImageMagick.
+- Real-app tests: `event_simulate` only queues events. An Esc sent in the same step as a modal
+  operator reaches that operator (it cancelled the import); give it a step of its own. A click
+  "somewhere in the side panel" lands on whatever button the layout puts there (an open
+  drop-down then eats the next click): click a fixed spot such as a section's title row.
+  These only showed up on GitHub because its runners start with an empty import cache.
+- Windows PowerShell 5.1 started from PowerShell 7 inherits PowerShell 7's `PSModulePath` and can
+  load the wrong modules: clear it for the child (`tools/ci_windows_install.ps1` does).
+- GitHub caches made on a branch are only seen by that branch; caches made on `main` are seen
+  by all branches. The first run of a new branch may download Blender again (about 1 minute).
 - Python references to items of a collection property (`scene.fresing.joints[i]`) become
   invalid when that collection grows or shrinks: keep names (or the joint's Objects) and look
   the item up again; compare items with `==` or by name, never with `is`.
 - A joint axis made from a point + direction leaves the arrow's turn about its own axis open
   (and unstable for a vertical axis). Joints riding on it (stacks, task 0011) depend on that
   turn: when rebuilding, pass the whole frame matrix (`joints.create(frame_world=...)`).
+- A flat panel's visible side follows the right-hand rule of its corners: hall walls were drawn
+  facing out, so a hall looked solid grey from outside and see-through from inside. Test the
+  normals (`tests/test_surroundings.py`), and always look at renders from several camera spots.
+- Cycles stops a ray after 8 transparent steps by default and shows black: see-through walls
+  and cut-away beams need more (`scene.cycles.transparent_max_bounces`).
+- 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
+  of the same bit depth in tests.
+- An animation without steps lasts 1 s (26 frames): a test video needs one short step.

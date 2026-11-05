@@ -104,6 +104,67 @@ def _after_load(_dummy=None):
         bpy.app.timers.register(_tab, first_interval=0.3)
 
 
+# ---------------------------------------------------------------------------
+# Help > Fresing Render user guide
+# ---------------------------------------------------------------------------
+
+GUIDE_FILE = "user_guide.html"
+
+
+def guide_path() -> str:
+    """The user guide shipped inside the installed extension (so it always matches the installed
+    version); a copy in this template folder is the fallback. '' when there is none."""
+    import addon_utils
+    import os
+    places = []
+    for mod in addon_utils.modules():
+        name = mod.__name__
+        if name == "fresing_render" or name.endswith(".fresing_render"):
+            places.append(os.path.join(os.path.dirname(mod.__file__), "guide", GUIDE_FILE))
+    places.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "guide", GUIDE_FILE))
+    return next((p for p in places if os.path.isfile(p)), "")
+
+
+def open_path(path: str) -> None:
+    """Open a file with the program Windows (or Linux) uses for it: the web browser for the guide."""
+    import os
+    import subprocess
+    import sys
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606 - opening the user guide for the user
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+class FRESING_OT_user_guide(bpy.types.Operator):
+    """Open the user guide in your web browser: what each section 1–7 is for and how to work through it,
+    step by step, with pictures. Works without internet"""
+
+    bl_idname = "fresing.user_guide"
+    bl_label = "Fresing Render user guide"
+
+    def execute(self, context):
+        path = guide_path()
+        if not path:
+            self.report({"ERROR"}, "The user guide is missing: run Install.bat again")
+            return {"CANCELLED"}
+        try:
+            open_path(path)
+        except OSError as exc:
+            self.report({"ERROR"}, f"Could not open the user guide ({exc}). It is here: {path}")
+            return {"CANCELLED"}
+        self.report({"INFO"}, "User guide opened in your web browser")
+        return {"FINISHED"}
+
+
+def _draw_help_menu(self, context):
+    layout = self.layout
+    layout.operator(FRESING_OT_user_guide.bl_idname, icon="HELP")
+    layout.separator()
+
+
 _HANDLERS = ((bpy.app.handlers.load_factory_startup_post, _setup_new_file),
              (bpy.app.handlers.load_factory_preferences_post, _set_preferences),
              (bpy.app.handlers.load_post, _after_load))
@@ -113,9 +174,20 @@ def register():
     for lst, fn in _HANDLERS:
         if fn not in lst:
             lst.append(fn)
+    try:
+        bpy.utils.register_class(FRESING_OT_user_guide)
+    except ValueError:           # already registered (template loaded twice)
+        pass
+    bpy.types.TOPBAR_MT_help.remove(_draw_help_menu)
+    bpy.types.TOPBAR_MT_help.prepend(_draw_help_menu)
 
 
 def unregister():
     for lst, fn in _HANDLERS:
         while fn in lst:
             lst.remove(fn)
+    bpy.types.TOPBAR_MT_help.remove(_draw_help_menu)
+    try:
+        bpy.utils.unregister_class(FRESING_OT_user_guide)
+    except RuntimeError:
+        pass

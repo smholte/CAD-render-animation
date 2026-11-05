@@ -1115,7 +1115,7 @@ class FRESING_OT_queue_open(bpy.types.Operator):
 
 
 class FRESING_OT_open_file(bpy.types.Operator):
-    """Open this render"""
+    """Opens the rendered picture or video in the program Windows uses for that kind of file"""
 
     bl_idname = "fresing.open_file"
     bl_label = "Open"

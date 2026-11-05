@@ -130,7 +130,8 @@ def s_start():
 
 @step
 def s_import():
-    # one step after the Esc: with no splash open, that Esc would reach the import and cancel it
+    # A step of its own: simulated events are queued, so an Esc sent in the same step reaches the
+    # import's modal handler and cancels it (only an import from the cache escaped that).
     with override():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
@@ -140,6 +141,10 @@ def s_import():
 def s_wait_import():
     s = bpy.context.scene.fresing
     if s.model_count == 0:
+        if _wait_start[0] and time.time() - _wait_start[0] > 300:      # the crane takes seconds
+            check("import in the app (background reader + modal)", False,
+                  "not finished after 5 minutes: " + s.last_message)
+            return 0.5
         return "wait"
     check("import in the app (background reader + modal)", s.model_count == 1, s.last_message)
     win, area, region = ui()
@@ -180,19 +185,68 @@ def s_after_click():
     return 0.5
 
 
-@step
-def s_click_sidebar_during_pick():
-    # a click on the side panel must not create a joint behind it
+def first_header():
+    """Window position of the title row of the first side-panel section (1 Import).
+
+    A click there only folds that section, whatever the panels below look like; a click in the
+    middle of the side panel lands on whatever button the layout puts there (a drop-down opened
+    by it takes the next click in the view)."""
     win, area, region = ui()
     sidebar = next(r for r in area.regions if r.type == "UI")
-    click(sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height // 2)
+    scale = bpy.context.preferences.system.ui_scale or 1.0
+    return sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height - int(19 * scale)
+
+
+def ray_hits_part(x, y):
+    """Does the view show a part at window position (x, y)? (what the pick tool would hit)"""
+    win, area, region = ui()
+    co = (x - region.x, y - region.y)
+    o = view3d_utils.region_2d_to_origin_3d(region, region.data, co)
+    d = view3d_utils.region_2d_to_vector_3d(region, region.data, co)
+    hit, _loc, _n, _i, ob, _m = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(), o, d)
+    return bool(hit and ob is not None and getattr(ob, "original", ob).get("fr_kind") == "part")
+
+
+_saved_view = []
+
+
+@step
+def s_view_behind_sidebar():
+    # A click on the side panel must not create a joint on the part behind it (the side panel
+    # lies over the view). First move the view so the boom lies right behind the spot to click
+    # (the view's matrices follow at the next redraw, so the click is the next step).
+    win, area, region = ui()
+    rv3d = region.data
+    x, y = first_header()
+    target = find("BOOM").matrix_world @ Vector((1.0, 0, 0.05))
+    _saved_view[:] = [rv3d.view_location.copy()]
+    behind = view3d_utils.region_2d_to_location_3d(region, rv3d, (x - region.x, y - region.y), target)
+    rv3d.view_location += target - behind
+    region.tag_redraw()
+    return 0.5
+
+
+@step
+def s_click_sidebar_during_pick():
+    x, y = first_header()
+    check("a part lies behind the clicked spot of the side panel", ray_hits_part(x, y))
+    click(x, y)
+    return 0.5
+
+
+@step
+def s_view_back():
+    s = bpy.context.scene.fresing
+    check("side-panel click ignored by the pick tool", len(s.joints) == 0)
+    win, area, region = ui()
+    if _saved_view:
+        region.data.view_location = _saved_view[0]       # the view as it was
+        region.tag_redraw()
     return 0.5
 
 
 @step
 def s_click_pin():
-    s = bpy.context.scene.fresing
-    check("side-panel click ignored by the pick tool", len(s.joints) == 0)
     pin = find("BOOM.PIN")
     # a point on top of the pin's round face (Ø40 along Y), in front of the pedestal
     x, y = to_window(pin.matrix_world @ Vector((0, -0.085, 0.0199)))
@@ -211,6 +265,7 @@ def s_joint_made():
         detail = f"axis through {tuple(round(v, 3) for v in o)} dir {tuple(round(v, 3) for v in d)}"
         ok = abs(abs(d.y) - 1) < 1e-3 and abs(o.x - 0.1) < 1e-3 and abs(o.z - 0.4) < 1e-3
     check("click on the pin hole gives the pin axis", ok, detail + " | " + s.last_message)
+    click(*first_header())                 # unfold section 1 again
     if len(s.joints):
         joints = mod("blender.joints")
         joints.set_value(s.joints[0], math.radians(-30) * (1 if joints.axis_world(s.joints[0])[1].y > 0 else -1))

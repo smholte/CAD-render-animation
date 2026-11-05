@@ -12,7 +12,8 @@
     3. installs the Fresing Render extension: from the update repository when -UpdateUrl
        is given (later updates are then one click), otherwise from the zip next to this script
     4. installs the app layout (application template) and sets a few preferences
-    5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts
+    5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts, and a Start-menu
+       shortcut "Fresing Render - User guide" (the guide inside the installed extension)
 
   Running it again repairs or upgrades an installation; projects and renders are not touched.
 
@@ -301,6 +302,20 @@ Step "Creating shortcuts"
 MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 MakeShortcut (Join-Path $StartMenu "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 MakeShortcut (Join-Path $StartMenu "Fresing Render - Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
+
+# The user guide lives inside the installed extension (Help > Fresing Render user guide opens the same
+# file), so it always matches the installed version. The shortcut opens it in the web browser.
+$Guide = Join-Path (Split-Path -Parent $Manifest) "guide\user_guide.html"
+$GuideLnk = Join-Path $StartMenu "Fresing Render - User guide.lnk"
+if (Test-Path -LiteralPath $Guide) {
+    $lnk = $Shell.CreateShortcut($GuideLnk)
+    $lnk.TargetPath = $Guide
+    $lnk.Description = "How to use Fresing Render, step by step"
+    $lnk.Save()
+} else {
+    Write-Host "   (no user guide in this version)"
+    Remove-Item -LiteralPath $GuideLnk -Force -ErrorAction SilentlyContinue
+}
 
 Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdate URL: $UpdateUrl"
 

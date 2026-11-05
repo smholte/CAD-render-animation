@@ -479,7 +479,8 @@ def _template_from_scene(scene) -> Template:
                              for sc in s.schemes]
     t.background = {k: _plain(getattr(s, k)) for k in (
         "background", "background_color", "lighting", "light_rotation", "light_strength", "sun_elevation",
-        "exposure", "floor", "floor_use_own_color", "floor_color")}
+        "exposure", "floor", "floor_use_own_color", "floor_color",
+        "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height")}
     t.output = {k: getattr(s, k) for k in ("out_format", "out_resolution", "out_orientation", "out_dpi",
                                           "out_use_bleed", "out_bleed_mm", "out_file_type", "quality")}
     return t
@@ -681,7 +682,8 @@ def _library_hdris():
 
 
 class FRESING_OT_pick_hdri(bpy.types.Operator):
-    """Pick a 360° photo from the shared library (Preferences > Add-ons > Fresing Render)"""
+    """Lists the 360° photos in the shared library: type to search, click one to use it.
+    The library folder is set once in Edit > Preferences > Add-ons > Fresing Render"""
 
     bl_idname = "fresing.pick_hdri"
     bl_label = "360° photo from library"
@@ -715,7 +717,7 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
 
 
 class FRESING_OT_world_apply(bpy.types.Operator):
-    """Rebuild background, light and floor"""
+    """Builds the background, light, floor and surroundings again from the settings above"""
 
     bl_idname = "fresing.world_apply"
     bl_label = "Update background"
@@ -727,7 +729,8 @@ class FRESING_OT_world_apply(bpy.types.Operator):
 
 
 class FRESING_OT_camera_add(bpy.types.Operator):
-    """Add a camera that frames the whole model"""
+    """Adds a camera that frames the whole machine from the side you pick (or where you look now).
+    It becomes the active camera: Render image uses it"""
 
     bl_idname = "fresing.camera_add"
     bl_label = "Add camera"
@@ -752,7 +755,7 @@ class FRESING_OT_camera_add(bpy.types.Operator):
 
 
 class FRESING_OT_camera_activate(bpy.types.Operator):
-    """Render from this camera and look through it"""
+    """Makes this the active camera and looks through it in the view. Render image uses it"""
 
     bl_idname = "fresing.camera_activate"
     bl_label = "Use camera"
@@ -772,7 +775,8 @@ class FRESING_OT_camera_activate(bpy.types.Operator):
 
 
 class FRESING_OT_camera_fit(bpy.types.Operator):
-    """Move the active camera so the visible model fills the frame"""
+    """Moves the active camera closer or further so the visible machine just fills the picture.
+    It keeps looking from the same side"""
 
     bl_idname = "fresing.camera_fit"
     bl_label = "Fit model in frame"
@@ -788,6 +792,8 @@ class FRESING_OT_camera_fit(bpy.types.Operator):
 
 
 class FRESING_OT_camera_remove(bpy.types.Operator):
+    """Deletes this camera. Saved scenes that used it then have no camera (Ctrl+Z brings it back)"""
+
     bl_idname = "fresing.camera_remove"
     bl_label = "Delete camera"
     bl_options = {"REGISTER", "UNDO"}
@@ -802,7 +808,8 @@ class FRESING_OT_camera_remove(bpy.types.Operator):
 
 
 class FRESING_OT_camera_dof(bpy.types.Operator):
-    """Turn background blur (depth of field) on or off for the active camera"""
+    """Blurs what is in front of and behind the machine, like a photo camera (on or off).
+    The f-stop below sets how much: a lower number blurs more"""
 
     bl_idname = "fresing.camera_dof"
     bl_label = "Background blur"
@@ -817,7 +824,8 @@ class FRESING_OT_camera_dof(bpy.types.Operator):
 
 
 class FRESING_OT_preview(bpy.types.Operator):
-    """Toggle a live render preview in the viewport"""
+    """Shows the real render in the 3D view, updated as you change things (on or off).
+    Use it to judge light and materials; it is slower to work in"""
 
     bl_idname = "fresing.preview"
     bl_label = "Live preview"
@@ -855,7 +863,8 @@ def _remove_render_handlers():
 
 
 class FRESING_OT_render(bpy.types.Operator):
-    """Render the active camera and save the image"""
+    """Renders the picture of the active camera at the size and quality above and saves it.
+    Open it or show it in its folder in the box that appears below"""
 
     bl_idname = "fresing.render"
     bl_label = "Render image"
@@ -924,7 +933,7 @@ class FRESING_OT_render(bpy.types.Operator):
 
 
 class FRESING_OT_open_folder(bpy.types.Operator):
-    """Open the folder where renders are saved"""
+    """Opens the folder where renders are saved, in Explorer"""
 
     bl_idname = "fresing.open_folder"
     bl_label = "Open render folder"
