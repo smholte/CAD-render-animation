@@ -143,6 +143,39 @@ Owner's guide: `docs/SURROUNDINGS.md`.
 
 Render time: see `docs/SURROUNDINGS.md` (measured on the 2-core test machine).
 
+## Light looks, camera views, blur, turntable (task 0017)
+
+* `core/studio.py` (no Blender): the light designs, the five one-click looks, light in plain
+  words, background blur and turntable numbers. Directions are azimuths seen from above: 0° =
+  from the right (+X), 90° = from the back (+Y), -90° = from the front (-Y, where the Front
+  camera stands). Blender shows column `lon` of a 360° picture at azimuth `-lon` and turns it
+  clockwise (seen from above) by "Turn light"; its sky puts the sun at the back (+Y) at turn 0
+  (both measured with a panoramic render). The Light choices are stored by number: Studio 0,
+  360° photo 1, Sky 2 stay; Product 3, White 4, Dark 5 are new. Soft studio is the old picture
+  (`world._studio_pixels`, unchanged).
+* The new light pictures (`world.LOOK_IMAGES`) are made once, packed into the project (EXR,
+  the bright softboxes survive saving). Overcast is a CIE overcast sky (zenith 3 × horizon),
+  used for the sky wherever the sky lights the machine (`sky_weather`).
+* A look sets settings only (`studio.look_settings`); the button stays pressed while
+  `studio.look_matches`. Exposures were calibrated on the test crane: sun -1 EV.
+* Views (`cameras.VIEWS`): Isometric is orthographic along (1, -1, 1). `cameras.fit` takes the
+  points to frame (whole model or selection) and the space (`SPACE`); an orthographic camera in
+  a portrait picture now gets its scale from the height (it cut the sides off before).
+* Blur: per camera `fr_blur` (NONE/LITTLE/STRONG). The f-stop is worked out so that a point far
+  behind the sharp spot blurs to 0.4 % / 1.2 % of the picture width, whatever the machine's size
+  (thin lens: N = f² / (share × sensor × (S − f))). `cameras.update_blur` runs after a fit, a
+  lens change (the Lens field is a get/set setting on the camera), a new sharp spot and before
+  every still. Cameras made before task 0017 (no `fr_blur`) keep their own f-stop. The sharp
+  spot is an empty with a Child Of constraint on the clicked part (it follows joints), used as
+  the camera's focus object; `focus_distance` is kept in step for animations, whose camera
+  copies the distance, not the object.
+* Turntable (`blender/turntable.py`): camera "Turntable camera" aimed at a point on the upright
+  axis through the middle of the visible machine (the axis the Orbit step of `animation.py`
+  turns around), fitted for the video's shape on the model turned in 15° steps; the saved
+  scene "Turntable" and the animation "Turntable" (tagged `fr_turntable`) with one linear
+  Orbit step of 360 × (N−1)/N degrees over N frames, so frame N+1 would be frame 1 (seamless
+  loop). In a turntable the middle of the machine is sharp (the same distance all round).
+
 ## Tests
 
 * `tests/test_fasteners.py`, `tests/test_core.py`: pure Python.

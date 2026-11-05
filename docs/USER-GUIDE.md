@@ -167,15 +167,15 @@ a newer version. When there is one, **Update available** appears at the top of t
    "Renders" next to the project file.
 4. Look at the header of **3 Looks**. Most parts already have a material. Red "… unsorted"? That can
    wait for a first try; [3 Looks](#looks) explains it.
-5. In **5 Scene & Render**, pick a **Background**: **Sky** looks good straight away. The import has
-   already added a camera ("Iso front-right").
+5. In **5 Scene & Render**, click a **Light look**: **Product studio** looks good straight away. The
+   import has already added a camera ("Iso front-right").
 6. Under **Image size & render**: Format **Presentation 16:9**, Size **HD (1080p)**, Quality
    **Preview** for a quick first look. Click **Render image**.
 7. A render window opens and the picture builds up. When it is finished it is saved by itself;
    **Open** and **Show in folder** appear under the button.
 
-For a better picture: Quality **Final**, another camera angle (**Add camera > Low hero**, or turn the
-view and use **Add camera > Current view**), and **Live preview** to judge the light first.
+For a better picture: Quality **Final**, another camera angle (**3/4 hero, low** under **Camera**, or
+turn the view and click **Where I look now**), and **Live preview** to judge the light first.
 
 <a id="import"></a>
 ## 1 Import – bring in the STEP model
@@ -511,12 +511,28 @@ A **pose** stores every joint position and every moved subassembly: "Working", "
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 
-Everything around the model – background, light, floor, cameras – and the picture itself: its size,
-its quality, and the render.
+Everything around the model – light, background, floor, cameras – and the picture itself: its size,
+its quality, and the render. Also the one-click **turntable video**.
 
-### Background & surroundings
+### Light look
 
 <img class="panel" src="img/panel_5_scene.png" alt="5 Scene & Render">
+
+The quickest start: click one of the five **Light look** buttons at the top. Each sets the light, the
+background and the floor in one go; change anything below afterwards. The button of the look you see
+stays pressed.
+
+| Look | What you get |
+| --- | --- |
+| **Product studio** | A classic product photo: big soft main light from the front left, a soft fill from the right, two rim lights behind that outline the edges; light grey background with a soft shadow. |
+| **White, endless** | The machine on an endless pure-white background with a soft shadow under it, in bright soft light. The background in the picture is exactly white (good for brochures and web shops). |
+| **Dark studio** | Black background, a main light from the front left and bright rim lights behind: shiny edges, dramatic. |
+| **Outdoor sun** | Blue sky, the sun from the front left, sharp shadows. On the sea, the deck or the quay only the weather changes. |
+| **Overcast** | Grey, cloudy sky without sun: soft light, soft shadows, calm and true colours. On the sea, the deck or the quay only the weather changes. |
+
+<img src="img/looks.jpg" alt="The five light looks on the test crane">
+
+### Background & surroundings
 
 **Background** says where the machine stands. The list has four groups:
 
@@ -552,12 +568,18 @@ Their settings appear under the choice:
   machine changed (a new revision, parts removed in Clean-up). Parts you only hide do not move the
   floor.
 
-Light:
+### Light
 
-- **Light**, with a solid colour, no background or a hall: **Studio** (soft studio lamps),
-  **360° photo** or **Sky**. Offshore is always lit by the sky.
-- **Turn light** (or **Turn sun**, **Turn photo**) turns the light around the machine. **Strength**
-  and **Exposure** make the picture lighter or darker; **Sun height** sets the sun.
+- **Light**, with a solid colour, no background or a hall: **Product studio**, **White studio**,
+  **Dark studio**, **Soft studio** (the soft studio light of earlier versions; old projects keep it),
+  **360° photo** or **Sky**. A 360° photo background gives its own light; Sky and offshore are lit by
+  the sky.
+- **Weather** (wherever the sky gives the light): **Sun** or **Overcast**. With sun: **Sun height**
+  (low = long shadows and warm light).
+- **Turn light** (or **Turn sun**, **Turn photo**) turns the light around the machine. **Brightness**
+  and **Exposure** make the picture lighter or darker.
+- The line under them says it in words, for example "Main light from the front left, high · normal
+  brightness". Front is where the **Front** camera looks from.
 - **Floor** (studio backgrounds only): **None** (the model floats), **Shadow only** (an invisible
   floor that only shows shadows: the usual choice) or **Visible floor** (with **Own colour** if you
   want). **Gap** moves the floor a little away from the model.
@@ -578,14 +600,59 @@ Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Eu
 
 ### Camera
 
-- Each camera is a button: click it to look through it and render from it. × removes it.
-- **Add camera**: Iso front-right, Iso front-left, Iso back-right, Front, Side, Back, Top, Low hero –
-  or **Current view**: turn the view until it looks right, then add a camera there.
-- **Fit model** moves the active camera so the visible model fills the picture.
-- **Lens**: 50 mm looks natural; 24–35 mm shows more and looks wider; 85–135 mm makes the model look
-  flatter.
-- **Blur** blurs what is in front of and behind the middle of the model; a lower **Blur f-stop** blurs
-  more.
+<img class="panel" src="img/panel_5_camera.png" alt="Camera">
+
+Each camera is a button: click it to look through it and render from it. × removes it.
+
+**Add a camera** in one click:
+
+1. **Whole model**, or **Selection** (click a subassembly on the model first: only that fills the
+   picture). **Space around**: **Tight**, **Normal** or **Roomy** (room for a title or logo).
+2. Click a view: **Isometric** (the technical view without perspective: parallel edges stay parallel),
+   **Front**, **Side**, **Top**, **3/4 hero, low** (low from the front right: the machine looks big)
+   or **3/4 hero, high**. **More** has Iso front-right, Iso front-left, Iso back-right and Back.
+3. Or turn the view until it looks right and click **Where I look now**.
+
+The new camera becomes the active one and the view looks through it.
+
+For the active camera:
+
+- **Fit to the picture** moves it closer or further so the machine (or the selection) just fills the
+  picture, keeping the side it looks from.
+- **Lens (mm)**: 50 looks natural; 24–35 shows more and looks wider; 85–135 makes the machine look
+  flatter. Press **Fit to the picture** after changing it.
+- **Background blur**: **None**, **A little** (the background goes soft; the machine stays sharp) or
+  **Strong** (like a product photo; parts far from the sharp spot go soft too). It looks the same on
+  a small gearbox and on a 25 m crane. Each camera keeps its own. Not for Isometric (no perspective).
+- **Sharp at**: the middle of the machine, until you click the eyedropper and then the spot that
+  should be sharp (for example the gripper). A small ball marks it in the view; in pictures it moves
+  with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
+  middle sharp again.
+
+### Turntable video
+
+<img class="panel" src="img/panel_5_turntable.png" alt="Turntable video">
+
+A video of the camera going once round the machine, as it looks now – in one click.
+
+1. **Length (s)**: one full turn (10 s is a good start). **Camera height**: **Low**, **Middle** or
+   **High**. **Quality**: try **Fast preview (EEVEE)** first; a turntable has hundreds of frames.
+2. Click **Make turntable video**. It goes into 7 Render queue and the queue starts; keep working, or
+   close the app. The line under the button shows how far it is.
+3. The video loops: its end joins its start without a jump, so it can play on repeat on a screen or
+   a website.
+
+It starts on the side the active camera looks from and keeps the whole machine in the picture all the
+way round, with the active camera's lens and background blur (in a turntable, the middle of the
+machine stays sharp). The button makes three things you can also look at yourself: the camera
+**Turntable camera**, the saved scene **Turntable** and the animation **Turntable** in 6 Animation.
+To change the video's size, shape, frame rate or file: change them there, then click **Make
+turntable video** again (it fits the camera and the turn to them). Also click it again after
+changing the machine or the background; it makes the turn anew, so steps you added to the
+animation "Turntable" are replaced.
+
+In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
+on a test PC without a graphics card) and offers **Use Simple (faster)**.
 
 ### Image size & render
 
@@ -701,6 +768,8 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 - Big overview pictures rarely need Detail **Fine**.
 - In a hall, choose **Simple** for long videos; a 360° photo with **Stand on its ground** costs no
   more time than the studio.
+- A turntable of 10 s has 250 frames: check it with **Fast preview (EEVEE)** first, and run a
+  **Time test** of the animation "Turntable" in 6 Animation before a Final video.
 
 <a id="troubleshooting"></a>
 ## Troubleshooting
@@ -750,6 +819,6 @@ along when you ask for help.
 - Slow: is **Graphics card** on (Image size & render > Files & graphics card)? The self-test line
   "Graphics card" should name your graphics card. Lower the Quality or Size, or Clean-up parts nobody
   sees.
-- "Add a camera first": add one in 5 Scene & Render.
-- Too dark or too light: **Exposure** and **Strength** in 5 Scene & Render.
+- "Add a camera first": click a view under **Camera** in 5 Scene & Render.
+- Too dark or too light: **Exposure** and **Brightness** in 5 Scene & Render, or another **Light look**.
 - A job in the queue failed: click it to read its message, and **Open log**.

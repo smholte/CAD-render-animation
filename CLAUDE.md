@@ -103,7 +103,8 @@ The owner's AI usage is limited; every chat works economically:
 ```
 fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
-                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale)
+                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
+                           studio.py (light looks, light in words, blur and turntable numbers)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -113,11 +114,13 @@ fresing_render/            the Blender extension (Python package)
     joints.py states.py    joints (drivers), poses, visibility sets, saved scenes
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
-    render.py world.py cameras.py materials.py
+    render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
     surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
+    turntable.py           one-click turntable: camera, saved scene and animation "Turntable"
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
-    ops_*.py               operators (ops_surroundings.py: props, put on floor);  ui.py ui_motion.py  side panel (1-7)
+    ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
+                           spot, turntable);  ui.py ui_motion.py  side panel (1-7)
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -187,7 +190,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |

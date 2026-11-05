@@ -6,7 +6,9 @@ realistic studio or HDRI light and reflections.
 
 Background: COLOR | HDRI | SKY | TRANSPARENT, or a built-in surrounding (sea, vessel deck, quayside,
             factory halls, warehouse: see surroundings.py)
-Lighting:   STUDIO | HDRI | SKY  (offshore surroundings are always lit by the sky)
+Lighting:   PRODUCT | WHITE | DARK | STUDIO (studio light pictures) | HDRI | SKY (offshore surroundings
+            are always lit by the sky). The sky is sunny or overcast (sky_weather). The light designs
+            and the one-click looks are in core/studio.py (task 0017).
 Floor:      NONE | SHADOW (shadow catcher) | VISIBLE  (not used when a surrounding or the ground
             of a 360° photo is the floor)
 """
@@ -19,6 +21,7 @@ import os
 import bpy
 import numpy as np
 
+from ..core import studio
 from ..core import surroundings as env
 from . import build
 
@@ -72,6 +75,23 @@ def studio_image() -> bpy.types.Image:
     w, h = 2048, 1024
     img = bpy.data.images.new(STUDIO_IMAGE, w, h, alpha=True, float_buffer=True)
     img.pixels.foreach_set(_studio_pixels(w, h).ravel())
+    img.pack()
+    return img
+
+
+# the light pictures of the looks (task 0017): made once, kept inside the project file
+LOOK_IMAGES = {"PRODUCT": ("FR Light product studio", 2048), "WHITE": ("FR Light white studio", 1024),
+               "DARK": ("FR Light dark studio", 2048), "OVERCAST": ("FR Light overcast sky", 1024)}
+
+
+def look_image(kind: str) -> bpy.types.Image:
+    name, w = LOOK_IMAGES[kind]
+    img = bpy.data.images.get(name)
+    if img is not None and img.size[0] > 0:
+        return img
+    h = w // 2
+    img = bpy.data.images.new(name, w, h, alpha=True, float_buffer=True)
+    img.pixels.foreach_set(studio.env_pixels(kind, w, h).ravel())
     img.pack()
     return img
 
@@ -134,6 +154,8 @@ def _env_branch(nt, kind: str, hdri_path: str, rotation_deg: float, strength: fl
         return bg.outputs["Background"]
 
     img = _load_hdri(hdri_path) if kind == "HDRI" else None
+    if kind in LOOK_IMAGES:
+        img = look_image(kind)
     if img is None:
         img = studio_image()
     coord = nt.nodes.new("ShaderNodeTexCoord")
@@ -173,6 +195,8 @@ def apply(scene, settings) -> None:
         light_kind = "HDRI"
     elif bg_mode == "SKY" or bg_mode in env.SEA_KINDS:
         light_kind = "SKY"
+    if light_kind == "SKY" and s.sky_weather == "OVERCAST":
+        light_kind = "OVERCAST"
     light_path = s.hdri_path if bg_mode == "HDRI" else s.light_hdri_path
     light = _env_branch(nt, light_kind, light_path, s.light_rotation, s.light_strength, s.sun_elevation, 0)
 

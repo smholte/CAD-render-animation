@@ -15,6 +15,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   render   a finished render of the crane (Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=render blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
+  looks    the crane in each of the five light looks, side by side (looks.jpg; Cycles on the processor):
+      BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=looks blender -b --app-template fresing_render \\
+          --python tools/guide_screens.py
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
 installed, see tools/ui_test_app.py. Needs xvfb-run and ImageMagick (import). A lane that changes its
@@ -482,8 +485,10 @@ if MODE == "panels":
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
+        ("panel_5_camera", [("FRESING_PT_camera", False, True)]),
         ("panel_5_props", [("FRESING_PT_props", False, True)]),
         ("panel_5_output", [("FRESING_PT_output", False, True)]),
+        ("panel_5_turntable", [("FRESING_PT_turntable", False, True)]),
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
@@ -522,8 +527,18 @@ if MODE == "panels":
             elif name in ("panel_4_motion", "panel_4_poses"):
                 sc.fresing.pick_mode = "SUBASSEMBLY"
                 select_only(ob("BOOM.ASM"))
+            elif name == "panel_5_scene":               # a light look picked: its button pressed
+                with override():
+                    bpy.ops.fresing.light_look(look="PRODUCT")
             elif name == "panel_5_surroundings":        # a built-in surrounding: its settings below the choice
                 sc.fresing.background = "DECK"
+            elif name == "panel_5_camera":              # strong blur, sharp at the trolley (picked on the model)
+                cams = mod("blender.cameras")
+                cam = next(c for c in cams.fr_cameras(sc) if c.name.startswith("Iso"))
+                sc.camera = cam
+                sc.fresing.camera_blur = "STRONG"
+                trolley = ob("TROLLEY")
+                cams.set_focus(cam, sc, trolley, trolley.matrix_world.translation)
             elif name == "panel_5_props":               # two props next to the machine
                 sur = mod("blender.surroundings")
                 if not sur.props(sc):
@@ -644,7 +659,7 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE == "render":
+elif MODE in ("render", "looks"):
     pass
 
 
@@ -681,6 +696,33 @@ def driver():
     return r if r is not None else None
 
 
+def render_looks():
+    """The test crane in each light look (task 0017), one small render each, side by side."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    studio = mod("core.studio")
+    cams = mod("blender.cameras")
+    sc.camera = cams.add_camera(sc, "LOW", 35.0)
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 480, 270, False, SCRATCH
+    tiles = []
+    for look, (label, _icon, _tip) in studio.LOOKS.items():
+        bpy.ops.fresing.light_look(look=look)
+        t = time.time()
+        path = os.path.join(SCRATCH, f"look_{look}.png")
+        mod("blender.render").render_still(sc, s, "preview", filepath=path)
+        log("look", look, f"{time.time() - t:.0f} s")
+        tiles += ["-label", label, path]
+    sheet = os.path.join(SCRATCH, "looks.png")
+    subprocess.run(["montage", *tiles, "-tile", "3x2", "-geometry", "+6+6", "-pointsize", "18",
+                    "-background", "white", sheet], check=True)
+    out = os.path.join(OUT, "looks.jpg")
+    subprocess.run(["convert", sheet, "-strip", "-quality", "86", out], check=True)
+    log("saved looks", f"{os.path.getsize(out) // 1024} KB")
+
+
 def render_crane():
     """A finished render of the test crane, the way a user makes one (background mode, processor)."""
     import addon_utils
@@ -714,9 +756,9 @@ def render_crane():
     log("saved render_crane", f"{os.path.getsize(path) // 1024} KB")
 
 
-if MODE == "render":
+if MODE in ("render", "looks"):
     try:
-        render_crane()
+        render_crane() if MODE == "render" else render_looks()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)
