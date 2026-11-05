@@ -1,6 +1,6 @@
 # 0032 – PC check: one click tests a new version on the owner's PC
 
-**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** open – can start
+**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** running
 **Branch:** `task/0032-pc-check`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** PC check (new files `fresing_render/pccheck/`,
 `tests/test_pccheck.py`; additive: one shortcut in `installer/Install-FresingRender.ps1`, one Help-menu
