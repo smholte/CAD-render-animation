@@ -35,7 +35,8 @@ where the focus should be, and make a 360° turntable video with one click.
 6. Small, from task 0015's review: `render.pictures_dir()` makes a new ctypes structure type per
    call – cache it like `core/rule_sets.documents_dir`.
 7. Halls render 1.4–2.8× slower than the studio on the processor (task 0016's report): when a
-   hall is the background, the turntable and the "Time test" should say so and offer Simple.
+   hall is the background, the turntable button says so and offers Simple (the "Time test" is
+   in panel 6, Motion lane: leave it).
 
 ## Done when
 
