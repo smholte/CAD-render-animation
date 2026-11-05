@@ -1,6 +1,6 @@
 # 0030 – Fasteners in supplier notation
 
-**Who:** worker · **Model:** Sonnet · **Status:** open – can start · **Branch:** `task/0030-fasteners-supplier-notation`
+**Who:** worker · **Model:** Sonnet · **Status:** running (worker chat, 5 Nov 2026) · **Branch:** `task/0030-fasteners-supplier-notation`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Part library (`core/fasteners.py` and its tests
 only) · Small task.
 

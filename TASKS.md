@@ -21,7 +21,7 @@ updates its branch to `main`.
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (running) → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
-- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (can start)
+- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (running)
 - **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (running) → 0029 later
 
 ## Open and running
@@ -32,7 +32,7 @@ updates its branch to `main`.
 | 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus | waiting (0014) | tasks/0026-gcode-motion.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus | later | tasks/0029-milling-later.md |
-| 0030 | Part library lane: fasteners in supplier notation (Misumi set screws, WRENCHBOLT, BOLT5-20) | worker | Sonnet | open – can start | tasks/0030-fasteners-supplier-notation.md |
+| 0030 | Part library lane: fasteners in supplier notation (Misumi set screws, WRENCHBOLT, BOLT5-20) | worker | Sonnet | running (worker chat, 5 Nov 2026) | tasks/0030-fasteners-supplier-notation.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke; also the "Show joint arrows" NameError | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus | waiting (0013) | tasks/0014-linkages.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | running (worker chat, 5 Nov 2026) | tasks/0018-video-finishing.md |
