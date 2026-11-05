@@ -25,16 +25,22 @@
   Optional: another update address for the app (an index.json made by tools/build_release.py),
   e.g. file://SERVER/share/fresing/index.json. Without it the app uses GitHub (the newest release
   of github.com/smholte/CAD-render-animation); an address set earlier is kept.
-  "-UpdateUrl default" goes back to GitHub.
+  "-UpdateUrl default" goes back to GitHub. A plain network path works too:
+  \\SERVER\share\fresing\index.json
+
+.PARAMETER AccessToken
+  No longer used (updates come from the public GitHub releases); accepted so old command lines still run.
 #>
 [CmdletBinding()]
 param(
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"),
-    [string]$UpdateUrl = ""
+    [string]$UpdateUrl = "",
+    [string]$AccessToken = ""
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is very slow with its progress bar
+if ($AccessToken) { Write-Host "Note: -AccessToken is no longer used and is ignored." -ForegroundColor Yellow }
 # Full path without a trailing slash, so folder comparisons below are reliable.
 $InstallDir = [IO.Path]::GetFullPath($InstallDir.TrimEnd('\', '/'))
 
@@ -185,7 +191,14 @@ if (-not $zipExt) { throw "fresing_render-<version>.zip not found next to the in
 $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
 $repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"
 $ErrorActionPreference = $old
+$OldRepoUrl = ""
 if ($repoList -match "(?m)^fresing:") {
+    # keep its address: the app asks there instead of GitHub (unless -UpdateUrl says otherwise)
+    $inRepo = $false
+    foreach ($line in ($repoList -split "`n")) {
+        if ($line -match '^\S') { $inRepo = ($line -match '^fresing:') ; continue }
+        if ($inRepo -and $line -match '^\s+url:\s*"([^"]+)"') { $OldRepoUrl = $Matches[1] }
+    }
     Step "Removing the old update repository (the app now updates itself)"
     if (Test-Path -LiteralPath (Installed-Manifest "fresing")) {
         Invoke-Blender @("--command", "extension", "remove", "fresing.fresing_render") "Removing the old copy" -AllowFailure | Out-Null
@@ -221,6 +234,9 @@ Get-ChildItem -LiteralPath $TemplateSrc | Copy-Item -Destination $TemplateDst -R
 $ConfigDir = Join-Path $Portable "config"
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
 $UrlFile = Join-Path $ConfigDir "fresing_update.json"
+if (-not $UpdateUrl -and $OldRepoUrl -and -not (Test-Path -LiteralPath $UrlFile)) {
+    $UpdateUrl = $OldRepoUrl                    # the address of the old update repository
+}
 if ($UpdateUrl -eq "default") {
     Remove-Item -LiteralPath $UrlFile -Force -ErrorAction SilentlyContinue
 } elseif ($UpdateUrl) {

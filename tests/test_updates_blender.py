@@ -239,10 +239,11 @@ def test_update_now_downloads_saves_starts_helper_and_closes(monkeypatch, tmp_pa
     assert bpy.ops.fresing.update_install() == {"FINISHED"}
     assert closed == [True] and not dirty["now"] and project.stat().st_mtime_ns > t0     # saved, then closed
     cmd, kw = started[0]
-    assert cmd[1] == "-I" and cmd[2].endswith("update_helper.py") and cmd[3].endswith("plan.json")
-    assert os.path.dirname(cmd[2]) == updates.update_dir()             # a copy outside the extension
+    assert cmd[1:4] == ["-I", "-X", "utf8"]                             # any character of a path can be printed
+    assert cmd[4].endswith("update_helper.py") and cmd[5].endswith("plan.json")
+    assert os.path.dirname(cmd[4]) == updates.update_dir()             # a copy outside the extension
     assert kw["cwd"] == updates.update_dir()
-    plan = json.loads(pathlib.Path(cmd[3]).read_text(encoding="utf-8"))
+    plan = json.loads(pathlib.Path(cmd[5]).read_text(encoding="utf-8"))
     assert plan["expected_version"] == "9.9.9" and plan["old_version"] == __version__
     assert plan["repo"] == "user_default" and plan["wait_pid"] == os.getpid()
     assert plan["ext_dir"] == updates.PKG_DIR and plan["template_dir"] == str(tdir)
@@ -311,3 +312,29 @@ def test_help_menu_entry_under_the_user_guide():
     finally:
         tmpl.unregister()
     assert bpy.ops.fresing.update_check.get_rna_type().description.startswith("Look on GitHub")
+
+
+def test_app_started_while_an_update_installs(clean_state, monkeypatch):
+    """Found in the review: someone double-clicks the Desktop icon while the helper installs."""
+    import subprocess
+    monkeypatch.setenv(updates.RESTART_ENV, "[]")
+    busy = pathlib.Path(updates.update_dir()) / update_helper.BUSY_FILE
+    busy.parent.mkdir(parents=True, exist_ok=True)
+    helper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        busy.write_text(json.dumps({"pid": helper.pid, "to": "9.9.9"}), encoding="utf-8")
+        status = pathlib.Path(updates.status_path())
+        status.write_text(json.dumps({"ok": True, "to": "9.9.9", "message": "x"}), encoding="utf-8")
+        updates.read_status()
+        assert updates._status.get("installing") and "being installed" in updates._status["message"]
+        assert status.exists()                                     # left for the app the helper starts
+        errors: list[str] = []
+        _draw_panel(errors)
+        assert not errors, errors
+    finally:
+        helper.kill()
+        helper.wait()
+    updates._status.clear()
+    busy.write_text(json.dumps({"pid": helper.pid, "to": "9.9.9"}), encoding="utf-8")     # helper gone: ignored
+    updates.read_status()
+    assert not updates._status.get("installing")

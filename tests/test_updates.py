@@ -293,6 +293,7 @@ def test_helper_installs_copies_template_and_restarts(helper_env, tmp_path):
 def test_helper_failure_keeps_old_version_and_still_restarts(helper_env, monkeypatch):
     plan, marker = helper_env
     monkeypatch.setenv("FAKE_BLENDER_FAIL", "1")
+    plan["retry_waits"] = [0.1, 0.1]
     assert not update_helper.run(plan)
     st = _status(plan)
     assert not st["ok"] and "exit code 3" in st["message"] and st["installed"] == "0.2.14"
@@ -304,10 +305,11 @@ def test_helper_failure_keeps_old_version_and_still_restarts(helper_env, monkeyp
 def test_helper_wrong_version_after_install(helper_env, tmp_path):
     plan, _marker = helper_env
     plan["expected_version"] = "0.2.16"                             # the zip holds 0.2.15
+    plan["retry_waits"] = [0.1, 0.1, 0.1]
     t0 = time.time()
     assert not update_helper.run(plan)
     assert "instead of 0.2.16" in _status(plan)["message"]
-    assert (tmp_path / "fake.log").read_text().count("install-file") == 2     # tried twice
+    assert (tmp_path / "fake.log").read_text().count("install-file") == 4     # tried four times
     assert time.time() - t0 < 30
 
 
@@ -466,3 +468,137 @@ def test_release_files_and_text(tmp_path):
     assert "Update now" in notes and f"FresingRender-{__version__}-windows.zip" in notes
     entry = U.parse_changelog((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))[0]
     assert entry["text"].splitlines()[0] in notes
+
+
+# ---- review findings (task 0020) ----------------------------------------------------------------
+
+def test_local_paths_of_update_addresses():
+    lp = U.local_path
+    assert lp("https://github.com/x/index.json") == ""
+    assert lp("file:///C:/Fresing/update%20listing%20%C3%A9/index.json", windows=True) == \
+        "C:\\Fresing\\update listing é\\index.json"
+    assert lp("file://SERVER/share/fresing/index.json", windows=True) == "\\\\SERVER\\share\\fresing\\index.json"
+    assert lp("file:////SERVER/share/index.json", windows=True) == "\\\\SERVER\\share\\index.json"
+    assert lp("file://localhost/C:/x/index.json", windows=True) == "C:\\x\\index.json"
+    assert lp("\\\\SERVER\\share\\index.json", windows=True) == "\\\\SERVER\\share\\index.json"     # plain paths
+    assert lp("C:\\x\\index.json", windows=True) == "C:\\x\\index.json"
+    assert lp("file:///srv/fresing/index.json", windows=False) == "/srv/fresing/index.json"
+    assert U.archive_url("\\\\SERVER\\share\\index.json", "./z.zip") == "\\\\SERVER\\share\\z.zip"
+
+
+def test_check_and_download_from_a_plain_path(tmp_path):
+    data = b"zipdata"
+    (tmp_path / "fresing_render-9.0.0.zip").write_bytes(data)
+    item = _item("9.0.0")
+    item.update(archive_size=len(data), archive_hash="sha256:" + hashlib.sha256(data).hexdigest())
+    (tmp_path / "index.json").write_bytes(b"\xef\xbb\xbf" + json.dumps({"data": [item]}).encode())   # with a BOM
+    res = U.check(str(tmp_path / "index.json"), "0.2.15", (5, 2, 3), platform_name="windows-x64")
+    assert res["state"] == "available" and res["url"] == str(tmp_path / "fresing_render-9.0.0.zip")
+    U.download(res["url"], str(tmp_path / "dl" / "x.zip"), size=res["size"], sha256=res["sha256"])
+    assert (tmp_path / "dl" / "x.zip").read_bytes() == data
+    assert "could not reach" in U.check(str(tmp_path / "nope" / "index.json"), "0.2.15")["message"]
+
+
+def test_helper_survives_a_console_that_cannot_print_every_character(helper_env, tmp_path, monkeypatch):
+    """Blocker found in the review: a hidden console's code page cannot print '–' or 'é'; printing raised,
+    the error handler marked a good update as failed and started the app a second time."""
+    import io
+    plan, marker = helper_env
+    count = tmp_path / "starts.txt"
+    plan["restart"] = [sys.executable, "-c", f"open({str(count)!r}, 'a').write('x')", "Kraan – é ř ’.blend"]
+    ascii_out = io.TextIOWrapper(io.BytesIO(), encoding="cp437", errors="strict")
+    monkeypatch.setattr(sys, "stdout", ascii_out)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(json.dumps(plan), encoding="utf-8")
+    assert update_helper.main([str(plan_file)]) == 0
+    assert _status(plan)["ok"]
+    assert _wait_for(count)
+    time.sleep(1.0)
+    assert count.read_text() == "x"                                 # started once, not twice
+    assert "Kraan – é ř ’.blend" in pathlib.Path(plan["log_file"]).read_text(encoding="utf-8")
+
+
+def test_helper_restart_happens_once_even_after_an_error(helper_env, tmp_path, monkeypatch):
+    plan, marker = helper_env
+    count = tmp_path / "starts.txt"
+    plan["restart"] = [sys.executable, "-c", f"open({str(count)!r}, 'a').write('x')"]
+    real_restart = update_helper.restart
+
+    calls = []
+
+    def restart_then_fail(p):
+        calls.append(1)
+        real_restart(p)                       # the real one starts the app only once
+        if len(calls) == 1:
+            raise RuntimeError("something after the restart")
+    monkeypatch.setattr(update_helper, "restart", restart_then_fail)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(json.dumps(plan), encoding="utf-8")
+    assert update_helper.main([str(plan_file)]) == 1
+    assert len(calls) == 2                    # asked twice (after the error too)
+    assert _status(plan)["ok"]                                       # the good result stays
+    assert _wait_for(count)
+    time.sleep(1.0)
+    assert count.read_text() == "x"
+
+
+def test_helper_tries_again_when_the_installer_fails(helper_env, tmp_path, monkeypatch):
+    """A virus scanner or an Explorer window can hold a file for a moment: Blender's installer then stops
+    with an error. The helper waits and tries again."""
+    plan, marker = helper_env
+    flag = tmp_path / "fail_once"
+    flag.write_text("1")
+    fake = pathlib.Path(plan["blender"])
+    fake.write_text(fake.read_text().replace(
+        'if os.environ.get("FAKE_BLENDER_FAIL"):',
+        f'if os.path.exists({str(flag)!r}):\n    os.remove({str(flag)!r})\n    print("locked by another process")\n'
+        '    sys.exit(1)\nif os.environ.get("FAKE_BLENDER_FAIL"):'))
+    plan["retry_waits"] = [0.2, 0.2]
+    assert update_helper.run(plan)
+    log = pathlib.Path(plan["log_file"]).read_text(encoding="utf-8")
+    assert "exit code 1: trying again" in log and _status(plan)["installed"] == "0.2.15"
+    assert (tmp_path / "fake.log").read_text().count("install-file") == 2
+
+
+def test_helper_marks_itself_busy_while_installing(helper_env, tmp_path, monkeypatch):
+    plan, _marker = helper_env
+    seen = {}
+    real = update_helper.run_install
+
+    def spy(p):
+        busy = os.path.join(os.path.dirname(p["status_file"]), update_helper.BUSY_FILE)
+        seen["busy"] = json.loads(pathlib.Path(busy).read_text())
+        return real(p)
+    monkeypatch.setattr(update_helper, "run_install", spy)
+    assert update_helper.run(plan)
+    assert seen["busy"] == {"pid": os.getpid(), "to": "0.2.15"}
+    assert not os.path.exists(os.path.join(os.path.dirname(plan["status_file"]), update_helper.BUSY_FILE))
+
+
+def test_check_and_download_over_http(tmp_path):
+    """Web addresses (GitHub) go through urllib; a local web server stands in for GitHub."""
+    import functools
+    import http.server
+    import threading
+    data = b"zip over http"
+    (tmp_path / "fresing_render-9.0.0.zip").write_bytes(data)
+    item = _item("9.0.0")
+    item.update(archive_size=len(data), archive_hash="sha256:" + hashlib.sha256(data).hexdigest())
+    (tmp_path / "index.json").write_text(json.dumps({"data": [item]}), encoding="utf-8")
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(tmp_path))
+    handler.log_message = lambda *a: None
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        old = {k: os.environ.pop(k, None) for k in ("http_proxy", "HTTP_PROXY")}
+        url = f"http://127.0.0.1:{srv.server_address[1]}/index.json"
+        res = U.check(url, "0.2.15", (5, 2, 3), platform_name="windows-x64")
+        assert res["state"] == "available", res
+        U.download(res["url"], str(tmp_path / "dl" / "x.zip"), size=res["size"], sha256=res["sha256"])
+        assert (tmp_path / "dl" / "x.zip").read_bytes() == data
+        assert "HTTP 404" in U.check(url.replace("index.json", "nope.json"), "0.2.15")["message"]
+    finally:
+        srv.shutdown()
+        for k, v in old.items():
+            if v is not None:
+                os.environ[k] = v

@@ -163,8 +163,9 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
-| Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text | < 1 min |
-| Windows - an installed old version updates itself from the release | the old build, update address GitHub (default), must find and install the new release | 2-3 min |
+| Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
+| Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
+| Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
 | Delete the rehearsal pre-release | only after a `[release rehearsal]` branch push (docs/UPDATES.md) | < 1 min |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
@@ -242,8 +243,10 @@ merges; every installed app (0.2.15 and newer) then offers the update at its nex
 4. Merge into `main` and push. GitHub tests `main` once more, then publishes the release and checks on
    Windows that an installed old version updates itself to it. Wait for it:
    `python3 tools/ci_status.py --branch main --wait` – every job green, including "Publish the
-   release" and "Windows - an installed old version updates itself from the release". When the release
-   job did not run (it only runs with all tests green), fix `main` first.
+   release", "Windows - an installed old version updates itself from the release" and "Offer the
+   release to the apps". When the release job did not run (it only runs with all tests green), fix
+   `main` first. Then `python3 tools/ci_update_test.py --github --expect <version> --blender <blender>
+   --wheels <dir> --out <dir>` checks the real address from the chat machine.
 5. Give the owner the release link (`https://github.com/smholte/CAD-render-animation/releases/tag/v<version>`)
    and, as before, the installer zip in the chat: build it locally with
    `~/venv/bin/python tools/build_release.py` (same files as the release; or download it from the

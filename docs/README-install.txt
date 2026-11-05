@@ -34,8 +34,10 @@ Updates
   switched off: Edit > Preferences > Add-ons > Fresing Render > "Check for updates at
   start-up". Without internet: run the new installer over the old one.
 - Another update address (for example a network folder with the files of a release):
-      Install.bat -UpdateUrl "file://SERVER/share/fresing/index.json"
+      Install.bat -UpdateUrl "\\SERVER\share\fresing\index.json"
   (keep the quotes; -UpdateUrl default goes back to GitHub).
+- Company proxy that asks for a login: the check may not get through (the self-test line
+  "Update check" says so). Ask IT to allow github.com, or run new installers by hand.
 - A version that needs a newer Blender comes with a new installer (the app says so). Update
   all PCs together: projects saved in a newer Blender may not open in an older one.
 

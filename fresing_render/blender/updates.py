@@ -318,7 +318,9 @@ def launch_helper(context, zip_path: str, version: str) -> dict:
     with open(plan_path, "w", encoding="utf-8") as fh:
         json.dump(plan, fh, indent=1)
     import subprocess
-    cmd = [python_executable(), "-I", helper, plan_path]
+    # -X utf8: the helper's console output may hold any character of a path (a hidden console's code
+    # page cannot); -I: nothing from the environment or from its folder is loaded
+    cmd = [python_executable(), "-I", "-X", "utf8", helper, plan_path]
     kwargs = dict(cwd=work, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                   close_fds=True)
     if sys.platform == "win32":
@@ -388,6 +390,12 @@ def _close_when_saved():
 
 def quit_app(context) -> None:
     """Close Blender (the project is saved by then); update_helper.py waits for this."""
+    if sys.platform == "win32":                 # let the app that the helper starts come to the front
+        try:
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)        # ASFW_ANY
+        except Exception:  # noqa: BLE001
+            pass
     with context.temp_override(**_window_override()):
         bpy.ops.wm.quit_blender()
 
@@ -416,6 +424,18 @@ def read_status() -> None:
     global _status
     if bpy.app.background and not os.environ.get(RESTART_ENV):
         return
+    busy = os.path.join(update_dir(), update_helper.BUSY_FILE)
+    try:
+        with open(busy, encoding="utf-8") as fh:
+            info = json.load(fh)
+        if update_helper.pid_alive(int(info.get("pid", 0))):
+            _status = {"ok": False, "installing": True, "to": info.get("to", ""),
+                       "message": f"Fresing Render {info.get('to', '')} is being installed right now. Close this "
+                                  "window without saving; the app opens again by itself in a moment."}
+            print("Fresing Render: an update is being installed")
+            return
+    except (OSError, ValueError, TypeError):
+        pass
     path = status_path()
     try:
         with open(path, encoding="utf-8") as fh:
@@ -639,7 +659,9 @@ class FRESING_PT_update(bpy.types.Panel):
 
     def draw_header(self, context):
         kind = notice_kind()
-        if kind == "status":
+        if kind == "status" and _status.get("installing"):
+            self.layout.label(text=f"Installing {_status.get('to', '')}…", icon="SORTTIME")
+        elif kind == "status":
             ok = _status.get("ok")
             self.layout.label(text=f"Updated to {_status.get('to')}" if ok else "The update did not work",
                               icon="CHECKMARK" if ok else "ERROR")
@@ -652,6 +674,11 @@ class FRESING_PT_update(bpy.types.Panel):
         from .ui import fold, primary, wrap
         layout = self.layout
         kind = notice_kind()
+        if kind == "status" and _status.get("installing"):
+            box = layout.box()
+            box.alert = True
+            wrap(box, context, _status.get("message", ""), inset=12)
+            return
         if kind == "status":
             box = layout.box()
             box.alert = not _status.get("ok")

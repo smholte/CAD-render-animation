@@ -22,6 +22,7 @@ import os
 import platform
 import re
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -224,10 +225,63 @@ def _request(url: str, version: str):
     return urllib.request.Request(url, headers={"User-Agent": user_agent(version), "Accept": "*/*"})
 
 
+def local_path(address: str, windows: bool | None = None) -> str:
+    """The file behind an update address on a disk or network share, '' for a web address.
+
+    Accepts plain paths (C:\\x\\index.json, \\\\SERVER\\share\\index.json, /srv/x/index.json) and file:
+    addresses (file:///C:/x/index.json, file://SERVER/share/index.json, file:////SERVER/share/…), with
+    %-escapes. urllib itself cannot open file://SERVER/… (it says "file not on local host")."""
+    windows = sys.platform == "win32" if windows is None else windows
+    if not address.lower().startswith("file:"):
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]+://", address):
+            return ""                                  # http(s) and the like
+        return address                                 # a plain path
+    parts = urllib.parse.urlsplit(address)
+    host = parts.netloc if parts.netloc.lower() not in ("", "localhost") else ""
+    path = urllib.parse.unquote(parts.path)
+    if windows:
+        if host:
+            return "\\\\" + host + path.replace("/", "\\")
+        path = path.replace("/", "\\")
+        if re.match(r"^\\[a-zA-Z]:", path):          # \C:\x -> C:\x
+            path = path[1:]
+        elif path.startswith("\\\\"):                 # file:////SERVER/share (any number of slashes) -> \\SERVER\share
+            path = "\\\\" + path.lstrip("\\")
+        return path
+    return ("//" + host + path) if host else path
+
+
+class _LocalFile:
+    """A file on disk with the little of urlopen's answer that is used here."""
+
+    def __init__(self, path: str):
+        self._fh = open(path, "rb")
+        self.headers = {"Content-Length": str(os.path.getsize(path))}
+
+    def read(self, n: int = -1) -> bytes:
+        return self._fh.read(n)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._fh.close()
+
+
+def _open(url: str, version: str, timeout: float):
+    path = local_path(url)
+    if path:
+        try:
+            return _LocalFile(path)
+        except OSError as exc:
+            raise urllib.error.URLError(exc) from exc
+    return urllib.request.urlopen(_request(url, version), timeout=timeout)      # noqa: S310 - update address
+
+
 def fetch_json(url: str, version: str = "", timeout: float = TIMEOUT) -> dict:
-    with urllib.request.urlopen(_request(url, version), timeout=timeout) as resp:      # noqa: S310 - fixed https address
+    with _open(url, version, timeout) as resp:
         data = resp.read(5_000_000)
-    return json.loads(data.decode("utf-8"))
+    return json.loads(data.decode("utf-8-sig"))
 
 
 def describe_error(exc: BaseException) -> str:
@@ -265,8 +319,7 @@ def download(url: str, dest: str, *, size: int = 0, sha256: str = "", version: s
     digest = hashlib.sha256()
     done = 0
     try:
-        with urllib.request.urlopen(_request(url, version), timeout=timeout) as resp, \
-                open(part, "wb") as fh:  # noqa: S310
+        with _open(url, version, timeout) as resp, open(part, "wb") as fh:
             total = size or int(resp.headers.get("Content-Length") or 0)
             while True:
                 if should_stop and should_stop():

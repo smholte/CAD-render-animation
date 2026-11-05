@@ -9,16 +9,18 @@ merged into `main` is published by GitHub, and every installed app offers it at 
    `fresing_render/blender_manifest.toml`), adds it to `CHANGELOG.md` and merges into `main`
    (CLAUDE.md section 7).
 2. GitHub tests `main` (`.github/workflows/tests.yml`). When every test passed and there is no release
-   for this version yet, the job **Publish the release** creates it: tag `v<version>` on the tested
-   commit, title "Fresing Render <version>", the version's `CHANGELOG.md` section as text, and the files
+   for this version yet, the job **Publish the release** creates it (not yet "latest"): tag
+   `v<version>` on the tested commit, title "Fresing Render <version>", the version's `CHANGELOG.md`
+   section as text, and the files
    - `FresingRender-<version>-windows.zip` – the installer, for new PCs (and PCs before 0.2.15)
    - `fresing_render-<version>.zip` – the extension, which the app downloads
    - `index.json` – Blender's standard extension listing, with the full download address of the zip,
      its size and SHA-256
    - `changelog.json` – every version's changes, for "What's new" in the app
 3. The job **Windows - an installed old version updates itself from the release** then installs an old
-   build on a GitHub Windows machine, lets it find the new release on GitHub and update itself, and
-   checks the result (version, app template, update log).
+   build on a GitHub Windows machine, lets it find the new release (its own address) and update
+   itself, and checks the result (version, app template, update log, the project reopened). Only when
+   that passes, **Offer the release to the apps** makes it the newest ("latest") release.
 4. On the PCs: a few seconds after the app starts, it reads
    `https://github.com/smholte/CAD-render-animation/releases/latest/download/index.json` (GitHub sends
    that address to the newest release). Newer than the installed version → **Update available** at
@@ -52,10 +54,17 @@ brings the right template too.
 ## Other update addresses
 
 `Install.bat -UpdateUrl "<address of an index.json>"` writes the address to
-`<Blender folder>\portable\config\fresing_update.json`; the app then asks there instead of GitHub (for
-example a network folder with the files of a release: `file://SERVER/share/fresing/index.json`).
-Later runs of Install.bat keep it; `-UpdateUrl default` goes back to GitHub. For tests the environment
-variable `FRESING_UPDATE_URL` does the same.
+`<Blender folder>\portable\config\fresing_update.json`; the app then asks there instead of GitHub, for
+example a network folder with the files of a release (`index.json`, `changelog.json`, the extension
+zip): `\\SERVER\share\fresing\index.json` (a `file://SERVER/…` address works too). Later runs of
+Install.bat keep it; `-UpdateUrl default` goes back to GitHub. An install that used the old Blender
+update repository keeps that address. For tests the environment variable `FRESING_UPDATE_URL` does
+the same.
+
+Company proxies: the app uses the Windows proxy setting (Internet Options). A proxy that needs a
+Windows login, or one set by a script (PAC/WPAD), may block the check; the self-test line "Update
+check" says so. Then IT can allow github.com and its download servers, or the PC gets new versions
+by running the installer.
 
 ## Tests
 

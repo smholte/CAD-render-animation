@@ -33,6 +33,8 @@ import time
 TEMPLATE_FILES_DIR = "app_template_files"     # inside the extension: the app template of that version
 WAIT_SECONDS = 300                            # for the app to close
 INSTALL_SECONDS = 900
+RETRY_WAITS = (3.0, 5.0, 8.0)                 # seconds before each new try of Blender's installer
+BUSY_FILE = "installing.json"                 # next to the status file while the helper works
 
 # Windows process flags
 CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -41,8 +43,13 @@ CREATE_BREAKAWAY_FROM_JOB = 0x01000000
 
 
 def _log(plan: dict, text: str) -> None:
+    """The log file is what counts (UTF-8). The console may not print every character (a hidden
+    console's code page): printing never stops the update."""
     line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  {text}"
-    print(line, flush=True)
+    try:
+        print(line, flush=True)
+    except Exception:  # noqa: BLE001 - UnicodeEncodeError, a closed stdout
+        pass
     path = plan.get("log_file")
     if path:
         try:
@@ -56,29 +63,38 @@ def _log(plan: dict, text: str) -> None:
 # waiting for the app to close
 # ---------------------------------------------------------------------------
 
+def _kernel32():
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    k.GetExitCodeProcess.restype = wintypes.BOOL
+    k.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    k.WaitForSingleObject.restype = wintypes.DWORD
+    k.CloseHandle.argtypes = [wintypes.HANDLE]
+    k.CloseHandle.restype = wintypes.BOOL
+    return k
+
+
 def pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
     if sys.platform == "win32":
         import ctypes
         from ctypes import wintypes
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-        kernel32.OpenProcess.restype = wintypes.HANDLE
-        kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-        kernel32.GetExitCodeProcess.restype = wintypes.BOOL
-        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-        kernel32.CloseHandle.restype = wintypes.BOOL
-        handle = kernel32.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
+        k = _kernel32()
+        handle = k.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
         if not handle:
-            return False
+            return ctypes.get_last_error() != 87             # ERROR_INVALID_PARAMETER: no such process
         try:
             code = wintypes.DWORD()
-            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
-                return False
-            return code.value == 259                                # STILL_ACTIVE
+            if not k.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return True
+            return code.value == 259                         # STILL_ACTIVE
         finally:
-            kernel32.CloseHandle(handle)
+            k.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -101,7 +117,25 @@ def pid_alive(pid: int) -> bool:
         return True
 
 
+def _wait_windows(pid: int, seconds: float):
+    """Windows: hold the process once and wait on it (no mix-up with a new process that gets the same
+    number). True/False, or None when the process cannot be held (then the caller polls)."""
+    import ctypes
+    k = _kernel32()
+    handle = k.OpenProcess(0x00100000 | 0x1000, False, pid)     # SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return True if ctypes.get_last_error() == 87 else None
+    try:
+        return k.WaitForSingleObject(handle, int(seconds * 1000)) == 0      # WAIT_OBJECT_0
+    finally:
+        k.CloseHandle(handle)
+
+
 def wait_for_exit(pid: int, seconds: float, poll: float = 0.25) -> bool:
+    if sys.platform == "win32":
+        done = _wait_windows(pid, seconds)
+        if done is not None:
+            return done
     end = time.time() + seconds
     while time.time() < end:
         if not pid_alive(pid):
@@ -137,7 +171,7 @@ def run_install(plan: dict) -> tuple[bool, str]:
                               creationflags=_child_flags())
     except (OSError, subprocess.SubprocessError) as exc:
         return False, f"Blender could not be started to install the update ({exc})"
-    text = proc.stdout.decode("utf-8", "replace") if proc.stdout else ""
+    text = proc.stdout.decode("utf-8", "replace") if proc.stdout else ""     # (the log file is UTF-8)
     for line in text.splitlines():
         _log(plan, "   " + line)
     if proc.returncode != 0:
@@ -179,9 +213,11 @@ def copy_template(src: str, dst: str) -> list[str]:
 
 
 def restart(plan: dict) -> str:
+    """Start the app again, once (also when called a second time after an error)."""
     cmd = plan.get("restart") or []
-    if not cmd:
+    if not cmd or plan.get("_restarted"):
         return ""
+    plan["_restarted"] = True
     kwargs = dict(cwd=os.path.dirname(os.path.abspath(cmd[0])) or None, stdin=subprocess.DEVNULL,
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
     if sys.platform == "win32":
@@ -193,6 +229,28 @@ def restart(plan: dict) -> str:
     else:
         subprocess.Popen(cmd, start_new_session=True, **kwargs)
     return " ".join(cmd)
+
+
+def _busy_path(plan: dict) -> str:
+    st = plan.get("status_file") or ""
+    return os.path.join(os.path.dirname(st), BUSY_FILE) if st else ""
+
+
+def mark_busy(plan: dict, busy: bool) -> None:
+    """While the helper works, a file says so: an app started meanwhile (Desktop icon) tells the user to
+    wait instead of starting on half-installed files."""
+    path = _busy_path(plan)
+    if not path:
+        return
+    try:
+        if busy:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump({"pid": os.getpid(), "to": plan.get("expected_version", "")}, fh)
+        elif os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
 
 
 def write_status(plan: dict, ok: bool, message: str, version: str) -> None:
@@ -220,19 +278,14 @@ def run(plan: dict) -> bool:
         if not wait_for_exit(pid, float(plan.get("wait_seconds") or WAIT_SECONDS)):
             _log(plan, "it did not close: nothing was changed")
             write_status(plan, False, "Fresing Render did not close, so the update was not installed. "
-                                      "Press Update again.", plan.get("old_version", ""))
+                                      "Press Update now again.", plan.get("old_version", ""))
             return False
         time.sleep(1.0)                       # let Windows release the files
-    ok, message = run_install(plan)
-    version = installed_version(plan["ext_dir"])
-    expected = plan.get("expected_version", "")
-    if ok and expected and version != expected:
-        _log(plan, f"installed version is '{version}', expected {expected}: trying once more")
-        time.sleep(3.0)
-        ok, message = run_install(plan)
-        version = installed_version(plan["ext_dir"])
-    if ok and expected and version != expected:
-        ok, message = False, f"after installing, the version is '{version or 'missing'}' instead of {expected}"
+    mark_busy(plan, True)
+    try:
+        ok, message, version = _install_with_retries(plan)
+    finally:
+        mark_busy(plan, False)
     if not version:
         _log(plan, "WARNING: no installed extension found after the update")
     if ok:
@@ -259,6 +312,23 @@ def run(plan: dict) -> bool:
     return ok
 
 
+def _install_with_retries(plan: dict) -> tuple[bool, str, str]:
+    """Blender's installer, tried again after a pause when it fails or leaves another version (a virus
+    scanner or an Explorer window can hold a file for a moment). The old version stays until the swap."""
+    expected = plan.get("expected_version", "")
+    waits = list(plan.get("retry_waits", RETRY_WAITS))
+    while True:
+        ok, message = run_install(plan)
+        version = installed_version(plan["ext_dir"])
+        if ok and expected and version != expected:
+            ok, message = False, f"after installing, the version is '{version or 'missing'}' instead of {expected}"
+        if ok or not waits:
+            return ok, message, version
+        wait = waits.pop(0)
+        _log(plan, f"{message}: trying again in {wait:.0f} s")
+        time.sleep(wait)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
@@ -268,9 +338,12 @@ def main(argv: list[str] | None = None) -> int:
         plan = json.load(fh)
     try:
         return 0 if run(plan) else 1
-    except Exception as exc:  # noqa: BLE001 - always leave a status and restart the app
+    except Exception as exc:  # noqa: BLE001 - always leave a status and start the app again (once)
         _log(plan, f"FAILED: {type(exc).__name__}: {exc}")
-        write_status(plan, False, f"The update stopped with an error ({exc}).", installed_version(plan.get("ext_dir", "")))
+        if not plan.get("_restarted"):           # an error after the restart must not undo a good result
+            write_status(plan, False, f"The update stopped with an error ({exc}).",
+                         installed_version(plan.get("ext_dir", "")))
+        mark_busy(plan, False)
         try:
             restart(plan)
         except OSError:

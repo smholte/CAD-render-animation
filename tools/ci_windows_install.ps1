@@ -182,8 +182,15 @@ if ($Uninstall) {
             Note "Waiting for update_helper.py to install and start the app again"
             $deadline = (Get-Date).AddMinutes(10)
             while (-not (Test-Path -LiteralPath $after) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
-            Start-Sleep -Seconds 2
             $secs = [math]::Round(((Get-Date) - $t0).TotalSeconds)
+            # the app started again (and the helper) must be gone before Install.bat runs over it
+            $gone = (Get-Date).AddSeconds(90)
+            do {
+                $left = Get-Process -Name blender, blender-launcher, python -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
+                if ($left) { Start-Sleep -Seconds 1 }
+            } while ($left -and (Get-Date) -lt $gone)
+            if ($left) { Problem "still running 90 s after the update: $($left.Path -join ', ')" }
             foreach ($f in @($before, $after)) {
                 $label = if ($f -eq $before) { "old app" } else { "after the update" }
                 if (-not (Test-Path -LiteralPath $f)) { Problem "$label wrote no results ($(Split-Path -Leaf $f))"; continue }
