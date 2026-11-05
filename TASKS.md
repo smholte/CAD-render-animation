@@ -17,7 +17,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (can start)
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0013 cylinders → 0014 linkages → 0026 G-code
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 cylinders (can start) → 0014 linkages → 0026 G-code
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (can start) → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
@@ -29,13 +29,12 @@ updates its branch to `main`.
 | # | Task | Who | Model | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | Opus | open – can start | tasks/0024-decals.md |
-| 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | (running) | running | `task/0012-couplings-motors`, tasks/0012-couplings-motors.md |
 | 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus | waiting (0014) | tasks/0026-gcode-motion.md |
 | 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | (running) | running | `task/0027-material-removal`, tasks/0027-material-removal.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | Opus | waiting (0027) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus | later | tasks/0029-milling-later.md |
 | 0030 | Part library lane: fasteners in supplier notation (Misumi set screws, WRENCHBOLT, BOLT5-20) | worker | Sonnet | open – can start | tasks/0030-fasteners-supplier-notation.md |
-| 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | Opus | waiting (0012) | tasks/0013-cylinders.md |
+| 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | Opus | open – can start | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus | waiting (0013) | tasks/0014-linkages.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | open – can start | tasks/0018-video-finishing.md |
 | 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet | waiting (0018) | tasks/0025-callouts-pictures-music.md |
@@ -67,5 +66,6 @@ updates its branch to `main`.
 | 0022 | Supplier catalogue codes (Misumi and others); fewer wrong groups (PALLET, LINK, sensor posts); EGR 55 % → 67 % sorted | 0.2.14 |
 | 0023 | Looks lane clean-up: every button and setting of sections 1–3 has its own tooltip, "1 part" not "1 parts", tooltips no longer break mid-sentence (all lanes), guide chapters 1–3 current | 0.2.15 |
 | 0017 | Light looks (product, white endless, dark, sun, overcast), light in words, one-click camera views framing model or selection, background blur with a clicked sharp spot, one-click turntable video into the queue | 0.2.17 |
+| 0012 | Couplings (a joint follows another: gears, telescopes, jaws, spindles, racks, rolling wheels) and motors with the Run motor step; works with scripts off; every tooltip of panels 4, 6, 7 and Saved scenes | 0.2.18 |
 
 Details per version: `CHANGELOG.md`.

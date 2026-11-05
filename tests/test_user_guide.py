@@ -154,4 +154,7 @@ def test_tooltip_check_reads_every_section():
     assert len(stops) == 2 and (all(i.verdict == "weak" for i in stops)
                                 or stops[0].tooltip != stops[1].tooltip)
     text = t.report(items, show_all=False)
-    assert text.startswith("Buttons and settings found:") and "### " in text
+    assert text.startswith("Buttons and settings found:")
+    # sections are listed when something is missing or weak (since 0.2.16: nothing), and always with --all
+    assert ("### " in text) == any(i.verdict != "ok" for i in items)
+    assert "### 4 Motion" in t.report(items, show_all=True)

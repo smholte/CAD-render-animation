@@ -111,7 +111,7 @@ fresing_render/            the Blender extension (Python package)
   blender/                 bpy code
     build.py               builds objects from the cache (one mesh per unique part)
     logic.py               sorting rules, groups, structure, exclusion
-    joints.py states.py    joints (drivers), poses, visibility sets, saved scenes
+    joints.py states.py    joints (drivers), stacks, couplings and motors; poses, visibility sets, saved scenes
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
     render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
@@ -347,6 +347,17 @@ the release → Delete); the next run on `main` publishes it again.
 - 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
   of the same bit depth in tests.
 - An animation without steps lasts 1 s (26 frames): a test video needs one short step.
+- Blender clamps keyed and driven values of a custom property to the property's min/max
+  (`id_properties_ui`): a motor needs a wide range, a follower too (its limits only warn).
+- Files must work with "Auto Run Python Scripts" off: drivers are AVERAGE or *simple expressions*
+  (`driver.is_simple_expression`, e.g. `a * 0.0008 + 0.1`). Blender as a Python module runs every
+  Python driver anyway, and real Blender with `-Y` still runs "safe-looking" Python (`len()`,
+  `max()`): to prove scripts were off, a control driver needs an attribute lookup
+  (`bpy.app.version`) – see `tools/coupling_check_noscripts.py`.
+- Blender runs drivers on several threads and does not always finish a *driven* value before
+  another driver reads it (a follower one frame behind, 1–3 % of updates on 2 cores). A driver
+  reads only plain or keyed values: each follower reads the top joint of its chain directly. The
+  copy a driver writes into a custom property can be stale too: compute it (`joints.get_value`).
 - Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
   the source showed a sentence broken in the middle. `register()` joins the lines (test:
   `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.

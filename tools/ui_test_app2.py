@@ -607,6 +607,181 @@ def s_stack_after_redo():
     return 0.5
 
 
+# ---- task 0012: couplings and motors -------------------------------------------
+# A wheel (Ø50 mm) rolls along with the trolley's slide; a motor (the cover, about Z) drives the
+# slide like a spindle (50 mm per turn); a Run motor step turns it at 12 rpm for 5 s = 1 turn.
+
+
+def wheel_turn(n=0):
+    """The angle of WHEEL n about its axle (Y), from its matrix (no joint values)."""
+    m = find("WHEEL", n).matrix_world.to_3x3()
+    return math.atan2(m[0][2], m[0][0])
+
+
+def select_only(o):
+    with override():
+        for x in bpy.context.selected_objects:
+            x.select_set(False)
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+
+
+@step
+def s_couple():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    op("fresing.anim_clear")
+    slide = joints.find(sc, j1name)
+    joints.set_value(slide, 0.0)
+    s.pick_mode = "PART"
+    select_only(find("WHEEL", 0))
+    r = op("fresing.joint_add", kind="ROTATE", axis="Y", origin="CENTER")
+    w = s.joints[-1]
+    globals()["wname"] = w.name
+    check("coupling: a rotate joint on the wheel (button)", r == {"FINISHED"} and w.kind == "ROTATE", r)
+    s.joints_index = len(s.joints) - 1
+    r = op("fresing.joint_follow", mode="FOLLOW")
+    w = joints.find(sc, wname)
+    check("coupling: 'Follows a joint' (button) makes it follow a joint", r == {"FINISHED"} and w.follows, w.follows)
+    w.follows = j1name                            # what picking the trolley's joint in the search field does
+    w.couple_ratio = 360.0 / (math.pi * 50)       # ° per mm of a Ø50 mm wheel
+    joints.set_value(joints.find(sc, j1name), 0.1)
+    bpy.context.view_layer.update()
+    w = joints.find(sc, wname)
+    turn = joints.get_value(w)
+    check("coupling: 100 mm of travel turns the Ø50 mm wheel 4 rad (229.2°)",
+          w.follows == j1name and abs(turn - 4.0) < 1e-3 and abs(abs(wheel_turn()) - abs(math.remainder(4.0, 2 * math.pi)))
+          < 2e-3, f"value {math.degrees(turn):.2f}°, matrix {math.degrees(wheel_turn()):.2f}°")
+    # a loop through the panel's field: refused, the reason under the field
+    joints.find(sc, j1name).follows = wname
+    sl = joints.find(sc, j1name)
+    check("coupling: following each other is refused with the reason", sl.follows == "" and
+          "cannot follow each other" in sl.get("_follow_error", ""), sl.get("_follow_error", ""))
+    s.joints_index = list(s.joints).index(joints.find(sc, wname))
+    s.pick_mode = "SUBASSEMBLY"
+    wiggle()
+    with override():
+        bpy.ops.ed.undo_push(message="coupled")
+    return 1.0
+
+
+@step
+def s_couple_shot():
+    shot("09_coupling")
+    with override():
+        bpy.ops.ed.undo()                         # back to before the 100 mm move
+        bpy.ops.ed.undo()                         # ... and before the coupling
+    return 0.8
+
+
+@step
+def s_couple_after_undo():
+    sc = bpy.context.scene
+    joints = mod("blender.joints")
+    w = joints.find(sc, wname)
+    check("coupling: undo takes the coupling off", w is not None and not w.follows, w.follows if w else None)
+    with override():
+        bpy.ops.ed.redo()
+        bpy.ops.ed.redo()
+    return 0.8
+
+
+@step
+def s_couple_after_redo():
+    sc = bpy.context.scene
+    joints = mod("blender.joints")
+    w = joints.find(sc, wname)
+    joints.set_value(joints.find(sc, j1name), 0.05)
+    bpy.context.view_layer.update()
+    check("coupling: redo brings it back and it still follows", w is not None and w.follows == j1name and
+          abs(joints.get_value(w) - 2.0) < 1e-3, joints.get_value(w) if w else None)
+    return 0.5
+
+
+@step
+def s_motor():
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints = mod("blender.joints")
+    joints.set_value(joints.find(sc, j1name), 0.0)
+    select_only(find("COVER"))
+    r = op("fresing.joint_add", kind="ROTATE", axis="Z", origin="CENTER")
+    m = s.joints[-1]
+    globals()["mname"] = m.name
+    m.is_motor = True                             # the tick box
+    sl = joints.find(sc, j1name)
+    sl.follows = mname                            # the trolley's slide is the spindle nut: 50 mm per turn
+    sl.couple_ratio = 50.0
+    m = joints.find(sc, mname)
+    check("motor: ticked, no limits, the slide follows it", r == {"FINISHED"} and joints.is_motor(m) and
+          not m.use_limits and joints.find(sc, j1name).follows == mname)
+    op("fresing.anim_add")
+    s.joints_index = 0                            # not the motor: Run motor still picks the motor
+    r = op("fresing.block_add", kind="MOTOR")
+    a = mod("blender.animation").active(sc)
+    b = a.blocks[-1]
+    check("motor: + Run motor adds a step for the motor", r == {"FINISHED"} and b.kind == "MOTOR" and b.joint == mname,
+          (r, b.kind, b.joint))
+    b.speed_rpm, b.duration, b.easing, b.start = 12.0, 5.0, "LINEAR", 0.0
+    a.fps = "25"
+    r = op("fresing.anim_build")
+    sc.frame_set(126)                             # 5 s at 25 fps
+    m, sl, w = joints.find(sc, mname), joints.find(sc, j1name), joints.find(sc, wname)
+    turns = joints.get_value(m) / (2 * math.pi)
+    check("motor: Run motor at 12 rpm for 5 s = 1 turn; the slide and the wheel follow",
+          r == {"FINISHED"} and abs(turns - 1.0) < 1e-4 and abs(joints.get_value(sl) - 0.05) < 1e-5 and
+          abs(joints.get_value(w) - 2.0) < 1e-3,
+          f"{turns:.5f} turns, slide {joints.get_value(sl) * 1000:.3f} mm, wheel {joints.get_value(w):.4f} rad")
+    sc.frame_set(63)
+    check("motor: halfway (2.48 s) 0.496 turn", abs(joints.get_value(m) / (2 * math.pi) - 0.496) < 1e-4)
+    shot("10_run_motor")
+    return 0.5
+
+
+@step
+def s_noscripts():
+    """The saved project in the real program with scripts disabled (-Y): the couplings still move,
+    while a Python-only control driver is refused."""
+    sc = bpy.context.scene
+    joints = mod("blender.joints")
+    op("fresing.anim_clear")
+    ctrl = bpy.data.objects.new("NOSCRIPTS control", None)
+    sc.collection.objects.link(ctrl)
+    ctrl["v"] = -1.0
+    fc = ctrl.driver_add('["v"]')
+    fc.driver.type = "SCRIPTED"
+    var = fc.driver.variables.new()
+    var.name = "a"
+    var.targets[0].id = joints.find(sc, mname).motion
+    var.targets[0].data_path = '["fr_value"]'
+    fc.driver.expression = "a * float(bpy.app.version[0])"
+    joints.set_value(joints.find(sc, mname), 0.0)
+    bpy.context.view_layer.update()
+    saved = float(ctrl["v"])                      # (-1, or 0 when this app runs Python drivers)
+    path = os.path.join(OUT, "noscripts_check.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.data.objects.remove(ctrl)
+    simple = joints.couplings_simple(sc)
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coupling_check_noscripts.py")
+    res = subprocess.run([bpy.app.binary_path, "--factory-startup", "-b", "-Y", path, "--python", script, "--",
+                          mname, str(4 * math.pi), j1name, wname], capture_output=True, text=True, timeout=300)
+    vals = {}
+    for line in res.stdout.splitlines():
+        if line.startswith("NOSCRIPTS "):
+            name, value = line[len("NOSCRIPTS "):].rsplit(" ", 1)     # joint names have spaces
+            vals[name] = value
+    log("noscripts output:", vals, "control saved as", saved)
+    try:
+        ok = (abs(float(vals[j1name]) - 0.1) < 1e-5 and abs(float(vals[wname]) - 4.0) < 1e-3
+              and vals.get("autoexec_fail") == "True" and abs(float(vals["control"]) - saved) < 1e-9)
+    except (KeyError, ValueError):
+        ok = False
+    check("scripts disabled (blender -Y): 2 turns move the slide 100 mm and the wheel 4 rad; Python drivers refused",
+          simple and ok, f"simple {simple}, {vals}, exit {res.returncode}")
+    return 0.5
+
+
 @step
 def s_finish():
     failed = [r for r in RESULTS if not r[1]]
