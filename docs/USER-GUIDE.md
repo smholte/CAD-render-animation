@@ -435,7 +435,8 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
   what the joint moves), the axis (eyedropper: click a new pivot; ⇆ turns the direction around; **X Y Z**), the type (**Rotate**
   / **Slide**) and **Sits on**: the subassembly this joint is mounted on, so it moves along with it –
   the crane's trolley sits on the boom.
-- **−** next to the list removes the joint; its parts go back to their CAD position.
+- **−** next to the list removes the joint; its parts go back to their CAD position. Joints that
+  followed it stay where they are and move by themselves from then on.
 - **Everything back to CAD position** puts every joint and moved subassembly back.
 
 **Two or more joints on one subassembly**
@@ -455,6 +456,47 @@ the lower joint, "Moves:" lists everything it moves and "Carries:" names the joi
 
 > When an animation is built (6 Animation), the joints follow it. **Stop it to move joints by hand**
 > (in the red box) frees them.
+
+### One joint moves others: couplings
+
+<img class="panel" src="img/panel_4_coupling.png" alt="A wheel that follows the trolley: 2.2918° per mm, a wheel of Ø50 mm rolling along">
+
+A joint can **follow** another joint: when that one moves, this one moves with it. One joint then
+drives a whole mechanism – and one animation step moves it all.
+
+| Mechanism | Leader → follower | Ratio to type |
+| --- | --- | --- |
+| Gear pair, belt, chain | rotate → rotate | **turns per turn**: −0.5 for a meshing gear twice as big (meshing gears turn the other way); 1 for a belt over two equal wheels |
+| Telescope section, gripper jaws | slide → slide | **mm per mm**: 1 for a telescope section; −1 for the second jaw |
+| Spindle, ball screw, rack and pinion, winch rope | rotate → slide | **mm per turn**: the pitch (5 for a 5 mm screw); π × Ø for a pinion or drum |
+| Rolling wheel, pinion on a fixed rack | slide → rotate | **° per mm**: 360 ÷ (π × Ø) |
+
+1. Select the joint that should follow (the gear, the second jaw, the nut, the wheel) in the joint list.
+2. Click **Follows a joint**. It picks a joint to follow; change it in the **Joint** field.
+3. Type the **ratio** (its label says the unit, e.g. **° per mm**). The line under it says it in other
+   words: "One turn every 157.1 mm: a wheel of Ø50.0 mm rolling along". **Offset** is where it stands
+   when the joint it follows is at 0 (usually 0).
+4. Move the leading joint: the follower moves along. Its own value is purple and cannot be dragged.
+
+- **Chains** work: a motor drives a spindle, the nut carries a trolley, the trolley's wheels roll.
+- **Telescope**: add the second section's joint to a section that already moves with the first one
+  (it rides on it, see above), then **Follows a joint** picks the first section by itself. With
+  ratio 1 the second section goes twice as far.
+- Two joints that follow each other are refused, with the reason in red under the field.
+- A following joint is not moved by hand, by poses or by animation steps: move the joint it follows.
+  Poses only store the joints that move by themselves.
+- Its **Limits** do not stop it: they warn ("Beyond its limits now"), and so does Build & play.
+- **Moves by itself** ends the coupling; the joint stays where it is. The leading joint shows
+  "Drives '…'".
+
+**Motors**
+
+Tick **Motor (turns without end)** on a rotate joint (a drum, a fan, a drive): it has no limits and
+the angle is also shown in turns ("= 2.50 turns"). In 6 Animation, the step **Run motor** turns it at a
+speed you set.
+
+Couplings, motors and their settings stay through a model update (1 Import) and in saved projects,
+also when the PC does not allow scripts in project files.
 
 ### Poses & exploded views
 
@@ -610,11 +652,25 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
     - **Camera**: **Cut to** a camera, **Move to** a camera (a smooth flight) or **Orbit** (turn around
       the model by an angle).
     - **Show** / **Hide**: a subassembly appears or disappears (select it, then **Use selected**).
+    - **Run motor**: a motor turns at a speed (**Speed (rpm)**; a slide joint: **Speed (mm/s)**) for
+      the step's duration. Joints that follow it move along (see couplings in 4 Motion).
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
    out. The arrows change the order; the copy button copies a step (the copy starts when the original
-   ends).
+   ends). A step for a joint that follows another joint is red: pick the joint it follows instead.
+
+**Run a motor**
+
+<img class="panel" src="img/panel_6_motor.png" alt="A Run motor step: 12 rpm for 5 s with 0.5 s ramps, 0.90 turns">
+
+1. Tick **Motor** on the joint in 4 Motion (needed for more than 10 turns).
+2. Add a step **Run motor**. It takes the motor (or the selected joint) and lasts 5 s.
+3. Set **Speed (rpm)**; negative turns the other way. The line under it says how far it goes:
+   12 rpm for 5 s at **Constant speed** is "1.00 turns in this step".
+4. **Motion** sets the ramps: **Smooth** speeds up at the start and slows down at the end, **Slow
+   start** / **Slow stop** only one of them, **Constant speed** none. **Ramp (s)** is how long speeding
+   up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
 6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.

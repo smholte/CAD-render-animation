@@ -635,8 +635,8 @@ def test_motion_panel_shows_couplings_and_motors(scene):
     s = scene.fresing
     s.joints_index = 1                                          # Wheel 1: follows the trolley
     text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
-    assert "Follows a joint" in text and "By itself" in text and "Ratio" in text
-    assert "° per mm of 'Trolley'" in text and "a wheel of Ø100.0 mm" in text, text
+    assert "Follows a joint" in text and "Moves by itself" in text and "° per mm" in text
+    assert "a wheel of Ø100.0 mm" in text, text
     assert "CAD (0)" not in text, "a follower has no CAD/Min/Max buttons"
     s.joints_index = 0                                          # the trolley drives it
     assert "Drives 'Wheel 1'" in _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)

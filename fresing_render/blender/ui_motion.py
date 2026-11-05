@@ -209,18 +209,18 @@ def _draw_coupling(context, box, s, j, lead) -> None:
     scene = context.scene
     box.separator(factor=0.5)
     row = box.row(align=True)
-    row.label(text="Moves")
-    row.operator("fresing.joint_follow", text="By itself", depress=not j.follows).mode = "FREE"
+    row.operator("fresing.joint_follow", text="Moves by itself", depress=not j.follows).mode = "FREE"
     row.operator("fresing.joint_follow", text="Follows a joint", depress=bool(j.follows)).mode = "FOLLOW"
     if j.follows:
         col = split_props(box)
         col.prop_search(j, "follows", s, "joints", text="Joint", icon="LINKED")
         if lead is not None:
-            col.prop(j, "couple_ratio", text="Ratio")
-            # the unit under the field (a label after it would squeeze the number at the default width)
-            unit = joints.ratio_unit(lead.kind, j.kind)
-            col.label(text=f"{unit} of '{lead.name}'")
-            col.prop(j, "couple_offset_angle" if j.kind == "ROTATE" else "couple_offset_dist", text="Offset")
+            # the unit is the label: "mm per turn" (of the joint picked right above)
+            col.prop(j, "couple_ratio", text=joints.ratio_unit(lead.kind, j.kind))
+            if j.kind == "ROTATE":
+                col.prop(j, "couple_offset_angle", text="Offset")
+            else:
+                col.prop(j, "couple_offset_dist", text="Offset")
             hint = _ratio_hint(lead, j)
             if hint:
                 wrap(box, context, hint, icon="INFO", inset=12)
@@ -382,6 +382,9 @@ class FRESING_UL_anims(bpy.types.UIList):
 class FRESING_UL_blocks(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
+        if item.kind in ("JOINT", "MOTOR") and item.joint:
+            j = context.scene.fresing.joints.get(item.joint)
+            row.alert = j is not None and bool(j.follows)          # it would do nothing: the details say why
         row.prop(item, "enabled", text="")
         row.label(text=animation.block_label(item), icon=_KIND_ICON.get(item.kind, "DOT"))
         sub = row.row()

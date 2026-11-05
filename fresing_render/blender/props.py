@@ -371,8 +371,8 @@ class FRJoint(bpy.types.PropertyGroup):
     couple_ratio: FloatProperty(
         name="Ratio", default=1.0, soft_min=-1000.0, soft_max=1000.0, precision=4, step=10,
         update=_joint_coupling_changed,
-        description="How far this joint moves for each turn or mm of the joint it follows (the unit is shown "
-                    "next to it). Negative: the other way round, like two gears or two gripper jaws")
+        description="How far this joint moves for each turn or mm of the joint it follows (the unit is its "
+                    "label). Negative: the other way round, like two gears or two gripper jaws")
     couple_offset_angle: FloatProperty(
         name="Offset", subtype="ANGLE", default=0.0, update=_joint_coupling_changed,
         description="Angle this joint is at when the joint it follows is at 0, in degrees. Usually 0")

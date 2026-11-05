@@ -247,6 +247,16 @@ def scan_ui() -> list[Item]:
                 for sub in ast.walk(node):
                     if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name):
                         helpers.setdefault(sub.func.id, panels[node.name])
+        # ... and the helpers those call (e.g. _draw_coupling from _draw_joints), to any depth
+        funcs = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+        todo = [n for n in helpers if n in funcs]
+        while todo:
+            name = todo.pop()
+            for sub in ast.walk(funcs[name]):
+                if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id in funcs
+                        and sub.func.id not in helpers):
+                    helpers[sub.func.id] = helpers[name]
+                    todo.append(sub.func.id)
         sc = _Scan(rel, panels, helpers)
         sc.visit(tree)
         items += sc.items
@@ -361,9 +371,10 @@ def _fill_button(it: Item) -> None:
 def _fill_setting(it: Item, prop_types: dict) -> None:
     owner, pname = it.props["__owner__"], it.props["__prop__"]
     if pname.startswith("[") or pname.startswith("f'") or pname.startswith('f"'):
-        # a joint's value slider: a custom property with its own description (joints.py)
+        # a joint's value slider: a custom property with its own description (joints.apply_limits;
+        # the text depends on the joint: rotate, slide, motor or following another joint)
         it.ident = f"{owner}[joint value]"
-        it.tooltip = "Joint position (drag, or type a number)"
+        it.tooltip = "Angle of the joint, in degrees (0 = CAD position). Drag it, or type a number"
         it.verdict, it.why = judge(it.label, "value", it.tooltip)
         return
     tname = OWNER_TYPES.get(owner)

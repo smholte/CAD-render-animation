@@ -71,12 +71,16 @@ big blue one, and the header of a closed section shows its state (parts, joints,
                   A second joint on the same subassembly goes on top of the first: the
                   moves add up (Y 1000 mm, then X 500 mm = X 500 / Y 1000). The newer one
                   rides on the older one; "Swap order" turns that round.
+                  "Follows a joint": one joint moves others at a ratio (gears, telescope
+                  sections, gripper jaws, spindles, racks, rolling wheels).
+                  "Motor" on a rotate joint: no limits, it turns without end.
                   Poses save all joint positions; Explode moves pieces apart.
 5 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
                   image size (16:9 HD/4K, A4/A3 at 300 dpi...), Render image.
                   Saved scenes = colours + pose + visibility + camera + background in one click.
 6 Animation       Steps on a timeline: move a joint, go to a pose, camera cut / move / orbit,
-                  show or hide a subassembly. "Build & play" plays it in the view (Space).
+                  show or hide a subassembly, run a motor (12 rpm for 5 s = 1 turn).
+                  "Build & play" plays it in the view (Space).
                   "Render animation" makes an MP4 (and the single frames) in the queue.
                   "Time test (2 frames)" renders two frames first and shows how long the whole
                   animation will take (and the test frame, to check the look).
