@@ -7,7 +7,7 @@ installer of that version was built from.
 
 ## 0.2.19 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
 
-Commit: (written after the merge).
+Commit: 5f8bd88 (merge into main).
 
 4 Motion > Milling (new)
 - Click the milling bit in the view and **Use as bit**, click the raw block and **Use as workpiece**:
