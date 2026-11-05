@@ -110,6 +110,77 @@ def test_library_folder_scan_save_rename_delete(tmp_path):
         RS.delete_in(lib, "Client B")
 
 
+def test_damaged_files_are_skipped_and_never_break_the_list(tmp_path):
+    """Review 0015: a hand-edited file with lists where the format has tables broke 3 Looks."""
+    lib = tmp_path / "Rule sets"
+    RS.save_in(str(lib), RS.RuleSet("Good", [R.Rule("A", "name", "contains", "A")]))
+    bad = {"groups": [["Frame", "RAL 5010"]], "renames": ["x"], "rules": ["not a rule"], "rules2": [{"field": "name"}]}
+    for i, (key, value) in enumerate(bad.items()):
+        d = {RS.MARKER: 1, "name": f"Bad {i}", key.rstrip("2"): value}
+        (lib / f"bad{i}.json").write_text(json.dumps(d), encoding="utf-8")
+    (lib / "list.json").write_text("[1, 2]", encoding="utf-8")
+    (lib / "binary.json").write_bytes(b"\xff\xfe\x00garbage")
+    # Notepad's "UTF-8 with BOM", and values of the wrong type that still make sense
+    d = {RS.MARKER: 1, "name": "Notepad", "rules": [{"target": 5, "value": 12, "enabled": 0}]}
+    (lib / "notepad.json").write_bytes(b"\xef\xbb\xbf" + json.dumps(d).encode("utf-8"))
+    found = RS.scan(str(lib))
+    assert sorted(found) == ["Good", "Notepad"]
+    r = found["Notepad"][1].rules[0]
+    assert (r.target, r.value, r.enabled) == ("5", "12", False)
+    for value in ([], {"groups": {}}, {RS.MARKER: 1, "groups": [1]}, {RS.MARKER: 1, "renames": "x"}, {RS.MARKER: 1, "rules": [None]}):
+        with pytest.raises(ValueError):
+            RS.RuleSet.from_dict(value)
+
+
+def test_saving_never_overwrites_another_rule_sets_file(tmp_path):
+    """Review 0015: names that differ can give the same file name ('A/B' and 'A_B')."""
+    lib = str(tmp_path / "Rule sets")
+    pairs = [("Fresing", "Fresing."), ("Client A_B", "Client A/B"), ("CON", "_CON")]
+    for first, second in pairs:
+        RS.save_in(lib, RS.RuleSet(first, [R.Rule(first, "name", "contains", "1")]))
+        RS.save_in(lib, RS.RuleSet(second, [R.Rule(second, "name", "contains", "2")]))
+    found = RS.scan(lib)
+    for first, second in pairs:
+        assert found[first][1].rules[0].target == first and found[second][1].rules[0].target == second
+        assert found[first][0] != found[second][0]
+    assert os.path.basename(found["Fresing."][0]) == "Fresing (2).json"
+    # a file that is no rule set is never overwritten either
+    (tmp_path / "Rule sets" / "Notes.json").write_text('{"mine": 1}', encoding="utf-8")
+    RS.save_in(lib, RS.RuleSet("Notes", []))
+    assert json.loads((tmp_path / "Rule sets" / "Notes.json").read_text(encoding="utf-8")) == {"mine": 1}
+    # renaming onto a file name in use takes the next free one
+    RS.rename_in(lib, "Notes", "Client A/B 2")
+    RS.rename_in(lib, "Client A/B 2", "Fresing.. ")
+    found = RS.scan(lib)
+    assert {"Fresing", "Fresing.", "Fresing..", "Client A_B", "Client A/B"} <= set(found)
+    assert len({p for p, _rs in found.values()}) == len(found)
+    assert json.loads((tmp_path / "Rule sets" / "Notes.json").read_text(encoding="utf-8")) == {"mine": 1}
+
+
+def test_a_copy_made_in_explorer_does_not_take_over(tmp_path):
+    """Review 0015: 'Fresing - Copy.json' sorts before 'Fresing.json'; saves must still go to the original."""
+    import shutil
+    lib = tmp_path / "Rule sets"
+    RS.save_in(str(lib), RS.RuleSet("Fresing", []))
+    shutil.copy(lib / "Fresing.json", lib / "Fresing - Copy.json")
+    assert RS.scan(str(lib))["Fresing"][0].endswith(os.sep + "Fresing.json")
+    RS.save_in(str(lib), RS.RuleSet("Fresing", [R.Rule("A", "name", "contains", "A")]))
+    assert RS.RuleSet.load(str(lib / "Fresing.json")).rules and not RS.RuleSet.load(str(lib / "Fresing - Copy.json")).rules
+
+
+def test_a_rule_without_group_survives_saving():
+    """Review 0015: it was dropped when read back, so the project showed 'changed: 1 rule' for ever."""
+    rs = RS.RuleSet("A", [R.Rule("", "name", "contains", "X"), R.Rule("B", "name", "contains", "B")])
+    again = RS.RuleSet.from_json(rs.to_json())
+    assert len(again.rules) == 2 and not any(RS.differences(again, rs).values())
+
+
+def test_names_need_a_letter_or_digit():
+    assert "letters or digits" in RS.name_problem("...")
+    assert "letters or digits" in RS.name_problem("/?*")
+    assert RS.name_problem("Ü") == "" and RS.name_problem("7") == ""
+
+
 def test_template_keeps_its_rule_set_and_old_templates_have_none(tmp_path):
     from fresing_render.core.template import Template
     t = Template(name="T", rule_set=RS.RuleSet("Fresing", []).to_dict())
@@ -579,3 +650,85 @@ def test_sorting_cost_of_the_changed_check(scene):
     for _ in range(200):
         rule_sets.is_changed(s)
     assert (time.perf_counter() - t) / 200 < 0.005
+
+
+def test_menu_numbers_stay_with_their_rule_set(lib):
+    """Review 0015: Blender keeps the number of the picked menu item. Numbered by position, a rule set a
+    colleague adds while a dialog is open made Delete remove another rule set."""
+    from fresing_render.blender import ops_rule_sets
+    for name in ("Beta", "Gamma"):
+        RS.save_in(str(lib), RS.RuleSet(name, []))
+    rule_sets.forget_scan()
+
+    class Holder(bpy.types.PropertyGroup):
+        pick: bpy.props.EnumProperty(items=ops_rule_sets._library_items)
+    bpy.utils.register_class(Holder)
+    bpy.types.WindowManager.fr_test_pick = bpy.props.PointerProperty(type=Holder)
+    try:
+        holder = bpy.context.window_manager.fr_test_pick
+        holder.pick = "Beta"
+        RS.save_in(str(lib), RS.RuleSet("Alpha", []))          # a colleague adds one; the list is read again
+        rule_sets.forget_scan()
+        assert [it[0] for it in ops_rule_sets._library_items(None, bpy.context)] == ["Alpha", "Beta", "Gamma"]
+        assert holder.pick == "Beta"
+    finally:
+        del bpy.types.WindowManager.fr_test_pick
+        bpy.utils.unregister_class(Holder)
+    numbers = [it[4] for it in ops_rule_sets._all_items(None, bpy.context)]
+    assert numbers[0] == 0 and len(set(numbers)) == len(numbers)
+
+
+def test_save_warns_before_replacing_a_newer_library_version(scene, lib):
+    """Review 0015: 'Save changes' replaced a colleague's newer version without a word."""
+    s = scene.fresing
+    assert bpy.ops.fresing.rule_set_save_as(name="Fresing") == {"FINISHED"}
+    s.groups[0].material = "paint_gloss"
+    text, careful = rule_sets.save_question(s)
+    assert not careful and "1 group look" in text
+    newer = RS.RuleSet.load(str(lib / "Fresing.json"))
+    newer.rules.insert(0, R.Rule("Lamps", "name", "contains", "LAMP"))
+    RS.save_in(str(lib), newer)                                 # no forget_scan: the dialog reads the folder itself
+    text, careful = rule_sets.save_question(s)
+    assert careful and "lost" in text and "Save as new" in text
+
+
+def test_shared_folder_is_checked_at_most_every_few_seconds(monkeypatch, tmp_path):
+    """Review 0015: the panel asked the (network) folder at every redraw; an unreachable server froze it."""
+    from fresing_render.blender import prefs
+    share = tmp_path / "share"
+    share.mkdir()
+
+    class Prefs:
+        library_path = str(share)
+        default_rule_set = "Standard"
+        default_template = ""
+    monkeypatch.delenv(rule_sets.ENV_FOLDER, raising=False)
+    monkeypatch.setattr(prefs, "get", lambda: Prefs)
+    rule_sets.forget_scan()
+    asked = []
+    real = os.path.isdir
+    monkeypatch.setattr(os.path, "isdir", lambda p: (asked.append(p), real(p))[1])
+    for _ in range(50):
+        assert rule_sets.folder()[2] == ""
+    assert asked.count(str(share)) == 1
+    share.rmdir()                                               # the server goes away
+    assert rule_sets.folder()[2] == ""                          # not asked again yet
+    assert "cannot be reached" in rule_sets.folder(fresh=True)[2]
+    with pytest.raises(OSError):
+        rule_sets.new_empty("X")                                # saving always asks the folder itself
+    rule_sets.forget_scan()
+    assert hasattr(rule_sets.documents_dir, "cache_info")      # Documents: asked from Windows once
+
+
+def test_damaged_files_never_stop_the_panel_drawing(scene, lib):
+    from test_blender import FakeLayout
+    from fresing_render.blender import ui
+    s = scene.fresing
+    lib.mkdir(parents=True, exist_ok=True)
+    (lib / "bad.json").write_text(json.dumps({RS.MARKER: 1, "name": "Bad", "groups": [1]}), encoding="utf-8")
+    rule_sets.forget_scan()
+    s.rule_set_data = json.dumps({RS.MARKER: 1, "name": "Mine", "renames": ["x"]})     # a damaged own copy
+    errors = []
+    fake = type("P", (), {"layout": FakeLayout(errors)})()
+    ui.FRESING_PT_looks.draw(fake, bpy.context)
+    assert not errors and "Bad" not in rule_sets.library()

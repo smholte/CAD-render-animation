@@ -17,6 +17,7 @@ Files: ``<shared library>/Rule sets/*.json``; without a shared library a folder 
 
 from __future__ import annotations
 
+import functools
 import os
 import sys
 import time
@@ -35,8 +36,11 @@ SCAN_SECONDS = 15.0                          # a network folder is read at most 
 # ---------------------------------------------------------------------------
 
 
+@functools.lru_cache(maxsize=1)
 def documents_dir() -> str:
-    """The user's Documents folder (on Windows asked from the system: OneDrive may have moved it)."""
+    """The user's Documents folder (on Windows asked from the system: OneDrive may have moved it).
+    Asked once per session: the panel needs it at every redraw, and each ctypes structure type made
+    here stays in memory for good."""
     if sys.platform == "win32":
         try:
             import ctypes
@@ -64,21 +68,29 @@ def documents_dir() -> str:
     return os.path.join(os.path.expanduser("~"), "Documents")
 
 
-def folder() -> tuple[str, bool, str]:
+_FOLDER: dict = {"key": None, "time": 0.0, "ok": True}
+
+
+def folder(fresh: bool = False) -> tuple[str, bool, str]:
     """(folder, shared, problem): the "Rule sets" folder, whether it is in the shared library, and
-    why it cannot be used right now ('' = fine)."""
+    why it cannot be used right now ('' = fine). Whether the shared library can be reached is
+    checked at most every few seconds (an unreachable server can take seconds to answer, and the
+    panel asks at every redraw); ``fresh``: check now (before saving, renaming, deleting)."""
     override = os.environ.get(ENV_FOLDER)
     if override:
         return override, True, ""
     from . import prefs
     p = prefs.get()
     lib = bpy.path.abspath(p.library_path) if p is not None and p.library_path else ""
-    if lib:
-        path = os.path.join(lib, RS.FOLDER)
-        if not os.path.isdir(lib):
-            return path, True, f"The shared library cannot be reached ({lib})"
-        return path, True, ""
-    return os.path.join(documents_dir(), "Fresing Render", RS.FOLDER), False, ""
+    if not lib:
+        return os.path.join(documents_dir(), "Fresing Render", RS.FOLDER), False, ""
+    now = time.monotonic()
+    if fresh or _FOLDER["key"] != lib or now - _FOLDER["time"] > SCAN_SECONDS:
+        _FOLDER.update(key=lib, time=now, ok=os.path.isdir(lib))
+    path = os.path.join(lib, RS.FOLDER)
+    if not _FOLDER["ok"]:
+        return path, True, f"The shared library cannot be reached ({lib})"
+    return path, True, ""
 
 
 _SCAN: dict = {"key": None, "time": 0.0, "found": {}}
@@ -86,7 +98,7 @@ _SCAN: dict = {"key": None, "time": 0.0, "found": {}}
 
 def library(force: bool = False) -> dict[str, tuple[str, RS.RuleSet]]:
     """{name: (file, rule set)} in the rule-set folder (read again at most every few seconds)."""
-    path, _shared, problem = folder()
+    path, _shared, problem = folder(fresh=force)
     if problem:
         return {}
     now = time.monotonic()
@@ -97,6 +109,7 @@ def library(force: bool = False) -> dict[str, tuple[str, RS.RuleSet]]:
 
 def forget_scan() -> None:
     _SCAN["key"] = None
+    _FOLDER["key"] = None
 
 
 def find(name: str) -> RS.RuleSet | None:
@@ -130,7 +143,7 @@ def saved(s) -> RS.RuleSet | None:
     if rs is None:
         try:
             rs = RS.RuleSet.from_json(text)
-        except (ValueError, TypeError):
+        except Exception:                    # damaged copy: an empty one, so the panel still draws
             rs = RS.RuleSet(s.rule_set or RS.FROM_PROJECT)
         if len(_PARSED) > 8:
             _PARSED.clear()
@@ -359,10 +372,23 @@ def switch(scene, rs: RS.RuleSet, saved: RS.RuleSet | None = None) -> dict:
 
 
 def _writable_folder() -> str:
-    path, _shared, problem = folder()
+    path, _shared, problem = folder(fresh=True)
     if problem:
         raise OSError(problem)
     return path
+
+
+def save_question(s) -> tuple[str, bool]:
+    """(text, careful) for the confirm dialog of "Save changes": what is saved, and whether it
+    replaces a newer version in the library (a colleague's changes would be lost)."""
+    what = RS.describe_differences(differences(s)) or "no changes"
+    library(force=True)
+    if library_differs(s):
+        return (f"Careful: '{s.rule_set}' in the library was changed after this project loaded it (by a "
+                f"colleague?). Saving replaces that version and its changes are lost. To keep both, cancel "
+                f"and use 'Save as new…'. Your changes: {what}.", True)
+    return (f"Changes: {what}. Other projects that use '{s.rule_set}' keep their own copy until they load "
+            "it again.", False)
 
 
 def save_to_library(scene) -> str:

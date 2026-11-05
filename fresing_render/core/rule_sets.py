@@ -104,15 +104,22 @@ class RuleSet:
 
     @classmethod
     def from_dict(cls, d: dict) -> "RuleSet":
+        """Read a rule set; anything that is not a rule set (or is damaged) raises ValueError."""
         if not isinstance(d, dict) or MARKER not in d:
             raise ValueError("Not a Fresing Render rule set")
+        groups, renames, rules = d.get("groups") or {}, d.get("renames") or {}, d.get("rules") or []
+        if not isinstance(groups, dict) or not isinstance(renames, dict) or not isinstance(rules, list):
+            raise ValueError("Damaged rule set file")
         looks = {}
-        for g, look in (d.get("groups") or {}).items():
+        for g, look in groups.items():
             if isinstance(look, dict):
                 looks[str(g)] = (str(look.get("material") or "paint_satin"), str(look.get("color") or ""))
-        renames = {str(k): str(v) for k, v in (d.get("renames") or {}).items() if k and v}
-        rules = [r for r in R.rules_from_list(d.get("rules") or []) if r.target]
-        return cls(name=str(d.get("name") or "Rule set"), rules=rules, looks=looks, renames=renames,
+        try:
+            rule_list = [_rule(r) for r in rules]
+        except (TypeError, ValueError, KeyError) as exc:
+            raise ValueError(f"Damaged rule in the rule set file: {exc}") from None
+        return cls(name=str(d.get("name") or "Rule set"), rules=rule_list, looks=looks,
+                   renames={str(k): str(v) for k, v in renames.items() if k and v},
                    note=str(d.get("note") or ""))
 
     def to_json(self) -> str:
@@ -140,11 +147,21 @@ class RuleSet:
 
     @classmethod
     def load(cls, path: str) -> "RuleSet":
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8-sig") as fh:       # -sig: Notepad's "UTF-8 with BOM" too
             return cls.from_dict(json.load(fh))
 
     def copy(self, name: str | None = None) -> "RuleSet":
         return RuleSet.from_dict({**self.to_dict(), "name": name or self.name})
+
+
+def _rule(d) -> R.Rule:
+    """One rule from a file, with the types the sorting expects (a hand-edited file may differ)."""
+    if not isinstance(d, dict) or "target" not in d:
+        raise ValueError("a rule without a group")
+    out = {k: str(d[k]) for k in ("target", "field", "op", "value", "note") if k in d and d[k] is not None}
+    if "enabled" in d:
+        out["enabled"] = bool(d["enabled"])
+    return R.Rule.from_dict(out)
 
 
 def standard() -> RuleSet:
@@ -215,7 +232,7 @@ def name_problem(name: str, existing: list[str] | tuple = ()) -> str:
         return "'Standard' is the built-in rule set: pick another name"
     if any(name.casefold() == e.casefold() for e in existing):
         return f"There is already a rule set called '{name}': pick another name"
-    if not file_name(name).strip(". "):
+    if not any(ch.isalnum() for ch in name):
         return "Use letters or digits in the name"
     return ""
 
@@ -229,7 +246,9 @@ def file_name(name: str) -> str:
 
 
 def scan(folder: str) -> dict[str, tuple[str, RuleSet]]:
-    """{name: (path, rule set)} of the rule sets in a folder; other or damaged files are skipped."""
+    """{name: (path, rule set)} of the rule sets in a folder; other or damaged files are skipped.
+    Two files with the same rule set inside (a copy made in Explorer): the one whose file name
+    belongs to the name counts."""
     found: dict[str, tuple[str, RuleSet]] = {}
     if not folder or not os.path.isdir(folder):
         return found
@@ -243,19 +262,37 @@ def scan(folder: str) -> dict[str, tuple[str, RuleSet]]:
         path = os.path.join(folder, f)
         try:
             rs = RuleSet.load(path)
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        except Exception:             # unreadable, damaged or not a rule set: one bad file never stops the rest
             continue
-        if rs.builtin or rs.name in found:
-            continue                  # 'Standard' is always the built-in one; first file of a name wins
+        if rs.builtin:
+            continue                  # 'Standard' is always the built-in one
+        if rs.name in found and f.casefold() != file_name(rs.name).casefold():
+            continue
         found[rs.name] = (path, rs)
     return found
+
+
+def _same_file(a: str, b: str) -> bool:
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def free_path(folder: str, name: str, own: str = "") -> str:
+    """A file for rule set ``name`` that holds no other file: 'Name.json', else 'Name (2).json'...
+    (different names can give the same file name, e.g. 'A/B' and 'A_B'). ``own``: its current file."""
+    base = file_name(name)[:-5]
+    k = 1
+    while True:
+        path = os.path.join(folder, f"{base}.json" if k == 1 else f"{base} ({k}).json")
+        if not os.path.exists(path) or (own and _same_file(path, own)):
+            return path
+        k += 1
 
 
 def path_for(folder: str, name: str, known: dict | None = None) -> str:
     """Where the rule set ``name`` is (or would be) saved in ``folder``."""
     known = scan(folder) if known is None else known
     hit = known.get(name)
-    return hit[0] if hit else os.path.join(folder, file_name(name))
+    return hit[0] if hit else free_path(folder, name)
 
 
 def save_in(folder: str, rs: RuleSet) -> str:
@@ -275,14 +312,10 @@ def rename_in(folder: str, old: str, new: str) -> str:
         raise ValueError(problem)
     path, rs = known[old]
     rs.name = clean_name(new)
-    target = os.path.join(folder, file_name(rs.name))
-    if os.path.normcase(os.path.abspath(target)) == os.path.normcase(os.path.abspath(path)):
-        rs.save(path)
-        return path
-    if os.path.exists(target):
-        target = os.path.join(folder, file_name(rs.name)[:-5] + " (2).json")
+    target = free_path(folder, rs.name, own=path)
     rs.save(target)
-    os.remove(path)
+    if not _same_file(target, path):
+        os.remove(path)
     return target
 
 

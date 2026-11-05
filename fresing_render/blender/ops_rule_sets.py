@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import textwrap
+import zlib
 
 import bpy
 from bpy.props import EnumProperty, StringProperty
@@ -25,40 +26,65 @@ def _describe(rs: RS.RuleSet) -> str:
     return f"{rs.note} ({text})" if rs.note else text
 
 
+def _number(name: str, used: set[int]) -> int:
+    """A number for a menu item that stays the same while the list changes. Blender keeps the number
+    of the picked item, not its name: with numbers by position, a rule set a colleague adds while a
+    dialog is open would shift the list and the dialog would act on another rule set."""
+    n = zlib.crc32(name.encode("utf-8")) & 0x7FFFFFFF or 1
+    while n in used:
+        n = (n % 0x7FFFFFFF) + 1
+    used.add(n)
+    return n
+
+
+def _library_entries() -> list:
+    return [(name, name, _describe(rs), "FILE")
+            for name, (_p, rs) in sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold())]
+
+
+def _numbered(entries: list, first=None) -> list:
+    used = {0}
+    items = [first] if first else []
+    items += [(*e, _number(e[0], used)) for e in entries]
+    return items
+
+
+def _project_entry(context):
+    """This project's own rule set when it is not in the library (or None)."""
+    s = context.scene.fresing if context and context.scene else None
+    if s is not None and s.rule_set and s.rule_set != RS.STANDARD and s.rule_set not in rule_sets.library():
+        return (s.rule_set, f"{s.rule_set} (only in this project)",
+                "Not in the library: the project keeps its own copy", "FILE_BLEND")
+    return None
+
+
 def _default_items(self, context):
     """Standard and the rule sets in the library (a project's own copy cannot start other projects)."""
-    items = [(RS.STANDARD, RS.STANDARD, _describe(RS.standard()), "LOCKED", 0)]
-    for i, (name, (_path, rs)) in enumerate(sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold())):
-        items.append((name, name, _describe(rs), "FILE", i + 1))
+    items = _numbered(_library_entries(), first=(RS.STANDARD, RS.STANDARD, _describe(RS.standard()), "LOCKED", 0))
     _ITEMS["default"] = items
     return items
 
 
 def _all_items(self, context):
     """Standard, the rule sets in the library, and this project's own one if it is not in the library."""
-    items = list(_default_items(self, context))
-    s = context.scene.fresing if context and context.scene else None
-    if s is not None and s.rule_set and s.rule_set != RS.STANDARD and s.rule_set not in rule_sets.library():
-        items.append((s.rule_set, f"{s.rule_set} (only in this project)",
-                      "Not in the library: the project keeps its own copy", "FILE_BLEND", len(items)))
+    own = _project_entry(context)
+    items = _numbered(_library_entries() + ([own] if own else []),
+                      first=(RS.STANDARD, RS.STANDARD, _describe(RS.standard()), "LOCKED", 0))
     _ITEMS["all"] = items
     return items
 
 
 def _library_items(self, context):
     """Only the rule sets in the library (what can be deleted)."""
-    items = [(name, name, _describe(rs), "FILE", i)
-             for i, (name, (_p, rs)) in enumerate(sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold()))]
+    items = _numbered(_library_entries())
     _ITEMS["library"] = items or [("", "No rule sets in the library yet", "Copy Standard to make one", "INFO", 0)]
     return _ITEMS["library"]
 
 
 def _editable_items(self, context):
     """Rule sets that can be renamed: those in the library, and this project's own one."""
-    items = list(_library_items(self, context)) if rule_sets.library() else []
-    s = context.scene.fresing if context and context.scene else None
-    if s is not None and s.rule_set and s.rule_set != RS.STANDARD and s.rule_set not in rule_sets.library():
-        items.append((s.rule_set, f"{s.rule_set} (only in this project)", "", "FILE_BLEND", len(items)))
+    own = _project_entry(context)
+    items = _numbered(_library_entries() + ([own] if own else []))
     _ITEMS["editable"] = items or [("", "Nothing to rename: copy Standard first", "", "INFO", 0)]
     return _ITEMS["editable"]
 
@@ -158,12 +184,10 @@ class FRESING_OT_rule_set_save(bpy.types.Operator):
 
     def invoke(self, context, event):
         s = context.scene.fresing
-        what = RS.describe_differences(rule_sets.differences(s)) or "no changes"
+        message, careful = rule_sets.save_question(s)
         return context.window_manager.invoke_confirm(
-            self, event, title=f"Save to rule set '{s.rule_set}'?",
-            message=f"Changes: {what}. Other projects that use '{s.rule_set}' keep their own copy until they "
-                    "load it again.",
-            confirm_text="Save")
+            self, event, title=f"Save to rule set '{s.rule_set}'?", message=message,
+            confirm_text="Replace" if careful else "Save", icon="WARNING" if careful else "NONE")
 
     def execute(self, context):
         try:
