@@ -425,10 +425,12 @@ def face_under_mouse(context, region, rv3d, x: int, y: int):
     origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, (x, y))
     direction = view3d_utils.region_2d_to_vector_3d(region, rv3d, (x, y))
     depsgraph = context.evaluated_depsgraph_get()
-    hit, _loc, _nrm, index, ob, _m = context.scene.ray_cast(depsgraph, origin, direction)
+    hit, loc, nrm, index, ob, _m = context.scene.ray_cast(depsgraph, origin, direction)
     if not hit or ob is None:
         return None, -1
     ob = getattr(ob, "original", ob)
+    from . import decals
+    ob, index, _loc, _nrm = decals.through(ob, index, loc, nrm)     # a sticker: the face under it
     if ob.get(build.PROP_KIND) != "part" or ob.type != "MESH" or ob.data is None:
         return None, -1
     return ob, faces.face_of_polygon(ob.data, index)

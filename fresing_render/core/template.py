@@ -9,6 +9,9 @@ library), ``rule_set_base`` the version from the library it was based on. Loadin
 library version when the library has moved on since, otherwise the template's copy (so its
 changes come back as "changed"). ``rules`` is still written, for older versions of the app.
 Templates without ``rule_set`` (older ones) load as before.
+
+A template can also hold decals (task 0024): logos, text and stickers with the name of the
+part they are on; using the template puts them on parts of the same name (``blender/decals.py``).
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ class Template:
     output: dict = field(default_factory=dict)
     rule_set: dict | None = None          # the rule set it uses (name + copy); None in older templates
     rule_set_base: dict | None = None     # the library version that copy was based on
+    decals: list = field(default_factory=list)   # decals on parts, by part name (task 0024)
 
     def to_dict(self) -> dict:
         d = {
@@ -58,6 +62,8 @@ class Template:
             d["rule_set"] = self.rule_set
             if self.rule_set_base:
                 d["rule_set_base"] = self.rule_set_base
+        if self.decals:
+            d["decals"] = self.decals
         return d
 
     @classmethod
@@ -77,6 +83,7 @@ class Template:
             output=d.get("output", {}),
             rule_set=d.get("rule_set") if isinstance(d.get("rule_set"), dict) else None,
             rule_set_base=d.get("rule_set_base") if isinstance(d.get("rule_set_base"), dict) else None,
+            decals=[x for x in d.get("decals", []) if isinstance(x, dict)] if isinstance(d.get("decals"), list) else [],
         )
 
     def save(self, path: str) -> None:

@@ -12,19 +12,24 @@ _modules = []
 
 
 def _classes():
-    from .blender import (ops_import, ops_machining, ops_main, ops_motion, ops_panels, ops_rule_sets, ops_scene,
-                          ops_surroundings, prefs, ui, ui_machining, ui_motion, updates)
+    from .blender import (ops_decals, ops_import, ops_machining, ops_main, ops_motion, ops_panels, ops_rule_sets,
+                          ops_scene, ops_surroundings, prefs, ui, ui_decals, ui_machining, ui_motion, updates)
+    # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
+    looks = list(ui.CLASSES)
+    at = looks.index(ui.FRESING_PT_faces) + 1
+    looks[at:at] = ui_decals.PANELS
     # the update notice first: a panel registered first sits on top of the Fresing tab
     return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ops_scene.CLASSES
-            + ops_machining.CLASSES + ui.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES)
+            + ops_machining.CLASSES + ops_decals.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES)
 
 
 def register():
     import bpy
 
-    from .blender import handlers, machining, project_lock, props, updates
+    from .blender import decals, handlers, machining, project_lock, props, updates
     props.register()
+    decals.register()
     for cls in _classes():
         if issubclass(cls, bpy.types.Operator) and cls.__doc__ and "\n" in cls.__doc__:
             # the docstring is the tooltip: Blender keeps its line breaks, so a docstring wrapped in the
@@ -40,7 +45,7 @@ def register():
 def unregister():
     import bpy
 
-    from .blender import handlers, machining, project_lock, props, updates
+    from .blender import decals, handlers, machining, project_lock, props, updates
     updates.unregister()
     machining.unregister()
     project_lock.unregister()
@@ -50,4 +55,5 @@ def unregister():
             bpy.utils.unregister_class(cls)
         except RuntimeError:
             pass
+    decals.unregister()
     props.unregister()
