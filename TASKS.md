@@ -18,7 +18,7 @@ updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 cylinders (running) → 0014 linkages → 0026 G-code
-- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (can start) → 0025
+- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (running) → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (can start)
@@ -35,7 +35,7 @@ updates its branch to `main`.
 | 0030 | Part library lane: fasteners in supplier notation (Misumi set screws, WRENCHBOLT, BOLT5-20) | worker | Sonnet | open – can start | tasks/0030-fasteners-supplier-notation.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke; also the "Show joint arrows" NameError | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus | waiting (0013) | tasks/0014-linkages.md |
-| 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | open – can start | tasks/0018-video-finishing.md |
+| 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | running (worker chat, 5 Nov 2026) | tasks/0018-video-finishing.md |
 | 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet | waiting (0018) | tasks/0025-callouts-pictures-music.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | open | – |
