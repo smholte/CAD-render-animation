@@ -95,15 +95,21 @@ the installer.
   `get_rna_type()`, see-through side panel in screenshots, no Pillow in Blender's Python).
 
 **Tested and measured** (name the machine and the model):
-All on the 2-core Linux test machine without a graphics card, test models only, on this branch
-after merging `main` with 0.2.9 (task 0010):
-- Full suite: 1,275 passed (9 new in `tests/test_user_guide.py`).
-- Real app, Help menu (`tools/guide_test_app.py`, guide inside the installed extension): 8/8 –
-  entry is the first item of Help, clicking it opens `<extension>/guide/user_guide.html`, a missing
-  guide gives "run Install.bat again" and opens nothing.
-- Real app, side panel clicks: `ui_test_app.py` 22/22, `ui_test_app2.py` 29/29, face painting
-  (`ui_test_faces.py`) 10/10; paths with spaces, accents, apostrophe and dash
-  (`paths_test_blender.py`): 8/8.
+On the 2-core Linux test machine without a graphics card (test models only), on this branch after
+merging `main` with 0.2.10 (tasks 0010, 0011, 0019):
+- Full suite: 1,311 passed (9 new in `tests/test_user_guide.py`).
+- Real app, Help menu (`tools/guide_test_app.py`, guide inside the installed 0.2.11 extension):
+  8/8 – entry is the first item of Help, clicking it opens `<extension>/guide/user_guide.html`, a
+  missing guide gives "run Install.bat again" and opens nothing.
+- Real app, side panel clicks (after merging 0.2.9): `ui_test_app.py` 22/22, `ui_test_app2.py`
+  29/29, face painting (`ui_test_faces.py`) 10/10, paths with spaces, accents, apostrophe and dash
+  (`paths_test_blender.py`) 8/8. On the final commit these four ran on GitHub (below); the local
+  rerun was cut off by a restart of the chat machine.
+- GitHub run 41937795567 on the branch (`85db1ba`): all four jobs green – test suite + packaged
+  self-test, real app (the four tests above, fresh settings folder), Windows installer build, and
+  **Windows install + self-test**: Install.bat ran twice without error and did not print "(no user
+  guide in this version)", so it found the guide inside the installed extension and made the
+  Start-menu shortcut.
 - Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
   (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
 - Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
@@ -112,7 +118,7 @@ after merging `main` with 0.2.9 (task 0010):
   links or fonts: works offline). All 23 pictures checked by eye: test crane only.
 - Windows-only code (installer shortcut, `os.startfile` in the Help entry) reviewed by an
   independent helper: no blocking problems; its one small point (installer header comment) fixed.
-  Not tested on Windows: the owner's PC confirms (open points).
+  Opening the guide in a Windows web browser is not tested: the owner's PC confirms (open points).
 
 **Open points / follow-up tasks:**
 - The lanes write the 93 tooltips in `docs/TOOLTIPS-TODO.md` for their own panels (Looks 14 –
@@ -130,5 +136,7 @@ after merging `main` with 0.2.9 (task 0010):
 - On the owner's PC (cannot be tested here): Help > Fresing Render user guide opens the guide in
   the web browser; the Start-menu shortcut "Fresing Render - User guide" works.
 - The Inventor export advice (AP214) is still not checked with an Inventor file (same as 0008).
+- The branch `task/0021-user-guide` stays on GitHub after the merge (chats cannot delete branches):
+  the owner can delete it on github.com (Code → branches → bin icon).
 - Found while testing, fixed on `main` meanwhile by 0011/0019: `tools/ui_test_app.py` hung at the
   import with an empty import cache (the Esc that closes the splash cancelled the import).
