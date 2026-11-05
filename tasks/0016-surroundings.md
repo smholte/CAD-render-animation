@@ -101,7 +101,7 @@ with the work uncommitted on disk; the second reviewed it, fixed what follows an
 
 **Tested and measured** (name the machine and the model):
 All on the 2-core Linux test machine (no graphics card), generic test models only.
-- Full pytest suite: see the release commit (new: 75 tests in `tests/test_surroundings.py`:
+- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min). New: 75 tests in `tests/test_surroundings.py`:
   layouts for 3 machine sizes × 7 surroundings × Simple/Detailed keep the machine's space and
   the camera's view free; hall panels face inwards; every surrounding builds and renders a
   small CPU frame with no image files, machine on the floor; rebuilt only on real changes;
@@ -112,7 +112,8 @@ All on the 2-core Linux test machine (no graphics card), generic test models onl
   light; tooltips; **background queue** renders a vessel deck still + 2-frame video (80 s)).
 - Real app (Blender 5.2.3 Linux, `tools/ui_test_surroundings.py`). Run 1: 22/23 (the click check
   looked before the app finished the pick on the next mouse move: test fixed); run 2 after the
-  panel fixes, without the queue part: 17/17. Covered:
+  panel fixes, without the queue part: 17/17. On GitHub (run 41937731835, merged branch, 4 cores):
+  23/23 in 3.6 min, all other jobs green too. Covered:
   every surrounding chosen in the app (build 0.01–0.28 s each), live preview of a hall, props
   added / undo / redo, a click through the hall selects the boom's subassembly (the hall
   cannot be clicked), Show props, Put on the floor again, queue in a background Blender: deck

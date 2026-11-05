@@ -129,7 +129,7 @@ locally pushes its branch and reads the run.
 
 | What | Command | When |
 | --- | --- | --- |
-| Full suite (1,260+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
+| Full suite (1,360+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
 | Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
 | Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
@@ -148,7 +148,7 @@ run; runs on `main` always finish. Four jobs; the whole run takes about 12 minut
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 12.2 min (ui1 7.9, ui2 0.8, faces 0.3, paths 2.6) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
 
