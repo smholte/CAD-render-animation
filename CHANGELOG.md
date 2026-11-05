@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
 
-Commit `…`.
+Commit `ea65ef1`.
 
 1 Import, 2 Structure, 3 Looks
 - Every button and setting in these sections explains itself when you rest the mouse on it.
