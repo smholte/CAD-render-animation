@@ -105,7 +105,8 @@ fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
                            surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
                            studio.py (light looks, light in words, blur and turntable numbers),
-                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles)
+                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
+                           cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -113,6 +114,8 @@ fresing_render/            the Blender extension (Python package)
     build.py               builds objects from the cache (one mesh per unique part)
     logic.py               sorting rules, groups, structure, exclusion
     joints.py states.py    joints (drivers), stacks, couplings and motors; poses, visibility sets, saved scenes
+    cylinders.py           cylinders: barrel aims at the rod pin, rod eye on its pin (constraints), drive mode,
+                           telescopic stages; ops_cylinders.py; panel 4 Motion > Cylinders in ui_motion.py
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
     render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
@@ -193,7 +196,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
@@ -378,6 +381,13 @@ the release → Delete); the next run on `main` publishes it again.
   through `scene.fresing.milling` each time (undo replaces the datablocks).
 - "Build animation" remembers how things looked when it was first built (visibility, camera) and the
   render queue builds again: hide parts and set the camera *before* building, or the queue shows them.
+- Property definitions (`update=`, `get=`, `set=`) in a file with `from __future__ import annotations`: Blender
+  evaluates them while the file is read, so the function must be defined *above* the class. A lambda calling a
+  function defined further down raised NameError ("Show joint arrows", 0.2.19; test
+  `test_show_joint_arrows_toggle`).
+- A new or newly parented object has no world matrix until the next update (`matrix_world` is still the
+  identity): when building a chain of new empties, pass the parent's world matrix yourself
+  (`cylinders._place(..., parent_world)`); the rod's empty first landed twice as far out.
 - Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
   5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
   (`"EXEC_DEFAULT", True`), which pushes the undo step.

@@ -53,6 +53,7 @@ OWNER_TYPES = {
     "s": "FRSceneSettings", "g": "FRMaterialGroup", "r": "FRRule", "j": "FRJoint", "b": "FRAnimBlock",
     "a": "FRAnimation", "shot": "FRShot", "scene.camera.data": "Camera", "scene.camera.data.dof": "CameraDOFSettings",
     "m": "FRMilling", "bit": "FRMillBit",                     # 4 Motion > Milling (ui_machining.py)
+    "cyl": "FRCylinder",                                      # 4 Motion > Cylinders
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -60,7 +61,7 @@ ITEM_TYPES = {
     "FRESING_UL_visibility": "FRVisSet", "FRESING_UL_found": "FRFoundPart", "FRESING_UL_joints": "FRJoint",
     "FRESING_UL_poses": "FRPose", "FRESING_UL_shots": "FRShot", "FRESING_UL_anims": "FRAnimation",
     "FRESING_UL_blocks": "FRAnimBlock", "FRESING_UL_queue": "FRQueueJob", "FRESING_UL_tree": "FRTreeItem",
-    "FRESING_UL_mill_bits": "FRMillBit",
+    "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
 }
 
 
@@ -465,7 +466,7 @@ def collect() -> list[Item]:
               "FRESING_UL_joints": "4 Motion", "FRESING_UL_poses": "Poses & exploded views",
               "FRESING_UL_shots": "Saved scenes", "FRESING_UL_anims": "6 Animation",
               "FRESING_UL_blocks": "6 Animation", "FRESING_UL_queue": "7 Render queue",
-              "FRESING_UL_mill_bits": "Milling"}
+              "FRESING_UL_mill_bits": "Milling", "FRESING_UL_cylinders": "Cylinders"}
     for it in items:
         if it.panel.startswith("list "):
             cls = it.panel[5:]

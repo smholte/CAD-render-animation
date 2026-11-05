@@ -562,12 +562,22 @@ def create(scene, barrel, rod, barrel_pin, rod_pin, name: str = "", stages=(), b
         fw = _frame_matrix(pb, pr, nb)
         pw = fw.copy()
         pw.translation = pr
-        name = unique_name(scene, name or f"{label(barrel[0])} cylinder")
+        name = unique_name(scene, name or default_name(barrel, rod))
         c = _build(scene, name, barrel, rod, stages, fw, pw, bc, rc)
         estimate(scene, c)
     if _mover_above(rc) is _mover_above(bc):
         notes.append("Nothing moves it yet: add a joint for the arm, the cylinder then follows it")
     return c, notes
+
+
+def default_name(barrel, rod) -> str:
+    """The CAD subassembly that holds both the barrel and the rod (the cylinder's own assembly), when there is
+    one below the model's top; else '<barrel> cylinder'."""
+    shared = build.logical_parent(barrel[0])
+    if (shared is not None and build.logical_parent(shared) is not None
+            and all(build.logical_parent(o) is shared for o in barrel + rod)):
+        return label(shared)
+    return f"{label(barrel[0])} cylinder"
 
 
 def estimate(scene, c) -> bool:

@@ -462,7 +462,7 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
   position in the CAD file.
 - **CAD (0)**, **Min** and **Max** jump to those positions. **Limits** keeps the joint between the two
   values next to it.
-- **Show joint arrows in the view** shows or hides the joints' axes.
+- **Show joint arrows in the view** shows or hides the joints' axes (and the cylinders' pin markers).
 - **Set-up** (the fold): what moves (**Add** and **Remove** use the selected parts, **Select** selects
   what the joint moves), the axis (eyedropper: click a new pivot; ⇆ turns the direction around; **X Y Z**), the type (**Rotate**
   / **Slide**) and **Sits on**: the subassembly this joint is mounted on, so it moves along with it –
@@ -529,6 +529,51 @@ speed you set.
 
 Couplings, motors and their settings stay through a model update (1 Import) and in saved projects,
 also when the PC does not allow scripts in project files.
+
+### Cylinders
+
+<img class="panel" src="img/panel_4_cylinders.png" alt="Cylinders: a luffing cylinder driving the arm, stroke 100 mm">
+
+A hydraulic cylinder or an electric linear actuator hangs between two pins: one on the machine (the
+barrel's end) and one on the part it moves (the rod's eye). The app keeps both eyes on their pins: when
+the arm moves, the barrel turns about its pin and the rod slides in or out.
+
+**Add a cylinder**
+
+1. Make the joint for the arm first (Add rotate joint above, on the arm's pivot).
+2. In 4 Motion > **Cylinders**: click the barrel (the tube with its end cap and eye – in the view, or its
+   row in 2 Structure) and press **Barrel**. Then click the rod (with its piston and eye) and press **Rod**.
+   A tick shows what is picked.
+3. Press **Add cylinder** and click the **barrel's pin** (on the machine side), then the **rod's pin**
+   (on the moving part). Click the pin itself or the hole it sits in; the line at the bottom of the
+   window says which one is next. <kbd>Esc</kbd> cancels.
+
+Move the arm: the cylinder goes along (**Follows the arm**). Two cylinders side by side on one arm each
+get their own entry. The list shows how far each rod is out.
+
+**Set the stroke instead: Drives the arm**
+
+Press **Drives the arm** and set the **Stroke** (how far the rod is out, 0 = fully in): the arm turns to
+match, worked out exactly from the triangle pivot – barrel pin – rod pin. **Fully in**, **CAD** and
+**Fully out** jump there. The arm's joint now stops where the cylinder does (its Limits are set from the
+cylinder). A cylinder that pushes a carriage on a slide works the same way.
+
+- **Closed length** (pin to pin with the rod fully in) and **Full stroke** come from the parts: how far
+  the piston can go back to the end cap and out to the gland. "measured" means they were found that way;
+  "rough guess" means the parts did not show it – type the values from the cylinder's data sheet.
+- In 6 Animation, the step **Move cylinder** moves the rod from one stroke to another; the arm moves
+  with it, at the cylinder's pace. Poses and saved scenes keep the arm's position, so the stroke too.
+- When drive mode is not possible, the reason is shown in red (for example: nothing moves the rod's pin
+  yet, or the arm's joint does not turn about the pins' direction).
+
+**Set-up** (the fold): other parts for the barrel or rod; **Stages** for a telescopic cylinder (select its
+sections between the barrel and the rod, then press it: each section slides out the same share of the
+travel); which part holds each pin (select the part, then **Barrel pin** or **Rod pin**); **Pins again**
+(click both pins again); **Select parts**. The cylinder's pin markers show and hide with **Show joint
+arrows in the view**.
+
+Cylinders stay through a model update (1 Import) and in saved projects, also when the PC does not allow
+scripts in project files. **−** next to the list removes a cylinder: its parts go back to their CAD place.
 
 ### Poses & exploded views
 
@@ -792,6 +837,9 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
     - **Show** / **Hide**: a subassembly appears or disappears (select it, then **Use selected**).
     - **Run motor**: a motor turns at a speed (**Speed (rpm)**; a slide joint: **Speed (mm/s)**) for
       the step's duration. Joints that follow it move along (see couplings in 4 Motion).
+    - **Move cylinder**: a cylinder's rod goes from where it is (or **From** a stroke) **To** a stroke
+      in mm; the arm moves with it. It takes the cylinder selected in 4 Motion > Cylinders. With
+      **Constant speed** the rod moves at an even pace, as a real cylinder does.
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it

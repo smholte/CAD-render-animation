@@ -325,54 +325,54 @@ class FRESING_PT_cylinders(_Panel, bpy.types.Panel):
         _draw_cylinder(context, layout, scene, c)
 
 
-def _draw_cylinder(context, layout, scene, c) -> None:
+def _draw_cylinder(context, layout, scene, cyl) -> None:
     box = layout.box()
-    box.label(text=c.name, icon="CON_STRETCHTO")
+    box.label(text=cyl.name, icon="CON_STRETCHTO")
     row = box.row(align=True)
-    row.operator("fresing.cylinder_mode", text="Follows the arm", depress=c.mode == "FOLLOW").mode = "FOLLOW"
-    row.operator("fresing.cylinder_mode", text="Drives the arm", depress=c.mode == "DRIVE").mode = "DRIVE"
-    j, reason = cylinders.arm_joint(scene, c)
-    stroke = cylinders.stroke_now(scene, c)
-    if c.mode == "DRIVE" and j is not None:
+    row.operator("fresing.cylinder_mode", text="Follows the arm", depress=cyl.mode == "FOLLOW").mode = "FOLLOW"
+    row.operator("fresing.cylinder_mode", text="Drives the arm", depress=cyl.mode == "DRIVE").mode = "DRIVE"
+    j, reason = cylinders.arm_joint(scene, cyl)
+    stroke = cylinders.stroke_now(scene, cyl)
+    if cyl.mode == "DRIVE" and j is not None:
         row = box.row(align=True)
         row.scale_y = BIG
-        row.prop(c, "stroke", text="Stroke")
+        row.prop(cyl, "stroke", text="Stroke")
         row = box.row(align=True)
         for t, text in (("IN", "Fully in"), ("CAD", "CAD"), ("OUT", "Fully out")):
             row.operator("fresing.cylinder_stroke", text=text).target = t
         wrap(box, context, f"Turns '{j.name}' to match" if j.kind == "ROTATE" else f"Slides '{j.name}' to match",
              icon="LINKED", inset=12)
     else:
-        wrap(box, context, f"Stroke now: {_mm(stroke)} (of {_mm(c.full_stroke)})", icon="CON_LOCKTRACK", inset=12)
-        if c.mode == "DRIVE" or j is None:
-            wrap(box, context, reason, icon="ERROR" if c.mode == "DRIVE" else "INFO", alert=c.mode == "DRIVE",
+        wrap(box, context, f"Stroke now: {_mm(stroke)} (of {_mm(cyl.full_stroke)})", icon="CON_LOCKTRACK", inset=12)
+        if cyl.mode == "DRIVE" or j is None:
+            wrap(box, context, reason, icon="ERROR" if cyl.mode == "DRIVE" else "INFO", alert=cyl.mode == "DRIVE",
                  inset=12)
-    if cylinders.outside_stroke(c, stroke):
+    if cylinders.outside_stroke(cyl, stroke):
         wrap(box, context, "The rod is out further than its stroke allows (or in further): check the arm's "
                            "limits, or the lengths below", icon="ERROR", alert=True, inset=12)
     col = split_props(box)
-    col.prop(c, "closed_length", text="Closed length")
-    col.prop(c, "full_stroke", text="Full stroke")
+    col.prop(cyl, "closed_length", text="Closed length")
+    col.prop(cyl, "full_stroke", text="Full stroke")
     row = box.row(align=True)
     row.operator("fresing.cylinder_estimate", text="From the model", icon="MOD_LENGTH")
     sub = row.row()
     sub.alignment = "RIGHT"
-    sub.label(text="measured" if c.measured else "rough guess", icon="CHECKMARK" if c.measured else "QUESTION")
-    wrap(box, context, f"Pin to pin now: {_mm(cylinders.length_now(c))}", inset=12)
+    sub.label(text="measured" if cyl.measured else "rough guess", icon="CHECKMARK" if cyl.measured else "QUESTION")
+    wrap(box, context, f"Pin to pin now: {_mm(cylinders.length_now(cyl))}", inset=12)
 
-    body = fold(layout, "fr_cylinder_setup", "Set-up: parts, pins, telescopic stages", icon="PREFERENCES")
+    body = fold(layout, "fr_cylinder_setup", "Set-up: parts and pins", icon="PREFERENCES")
     if body:
-        for action, text, objs in (("BARREL", "Barrel", cylinders.barrel_objs(c)),
-                                   ("ROD", "Rod", cylinders.rod_objs(c)),
-                                   ("STAGES", "Stages", cylinders.stage_objs(c))):
+        for action, text, objs in (("BARREL", "Barrel", cylinders.barrel_objs(cyl)),
+                                   ("ROD", "Rod", cylinders.rod_objs(cyl)),
+                                   ("STAGES", "Stages", cylinders.stage_objs(cyl))):
             row = body.row(align=True)
             sub = row.row(align=True)
             sub.ui_units_x = 3.6
             sub.operator("fresing.cylinder_parts", text=text, icon="RESTRICT_SELECT_OFF").action = action
             row.label(text=_names(objs) if objs else "none")
-        if c.stages:
+        if cyl.stages:
             body.operator("fresing.cylinder_parts", text="No stages", icon="X").action = "NO_STAGES"
-        for action, text, ob in (("BARREL_PIN", "Barrel pin", c.frame.parent), ("ROD_PIN", "Rod pin", c.pin.parent)):
+        for action, text, ob in (("BARREL_PIN", "Barrel pin", cyl.frame.parent), ("ROD_PIN", "Rod pin", cyl.pin.parent)):
             row = body.row(align=True)
             sub = row.row(align=True)
             sub.ui_units_x = 3.6

@@ -676,7 +676,7 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                              description="How fast the joint slides, in mm per second. Negative: the other way")
     # Move cylinder (task 0013)
     cylinder: StringProperty(name="Cylinder", description="The cylinder this step moves (made in 4 Motion > "
-                                                          "Cylinders, set to Drives the arm)")
+                                                          "Cylinders); the arm moves with it")
     from_stroke: FloatProperty(name="From", unit="LENGTH", default=0.0, min=0.0,
                                description="The stroke the rod starts at, in mm (0 = fully in)")
     to_stroke: FloatProperty(name="To", unit="LENGTH", default=0.1, min=0.0,

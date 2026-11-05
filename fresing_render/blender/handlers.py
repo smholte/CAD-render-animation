@@ -65,6 +65,12 @@ def _on_active_changed():
         _IGNORE.discard(ob.name)
         return
     _IGNORE.clear()
+    if ob is not None and ob.get(build.PROP_KIND) in build.CYLINDER_KINDS:
+        s = scene.fresing                    # clicking a cylinder's pin marker selects it in the cylinder list
+        i = s.cylinders.find(ob.get("fr_cylinder", ""))
+        if i >= 0:
+            s.cylinders_index = i
+        return
     if ob is not None and ob.get(build.PROP_KIND) in build.JOINT_KINDS:
         s = scene.fresing                    # clicking a joint arrow selects it in the joint list
         for i, j in enumerate(s.joints):

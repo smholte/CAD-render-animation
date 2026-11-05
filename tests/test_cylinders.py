@@ -173,11 +173,11 @@ def test_two_cylinders_side_by_side(scene):
     j = arm(scene)
     c1, _ = make(scene, 0.08)
     c2, _ = make(scene, 0.32)
-    assert [c.name for c in scene.fresing.cylinders] == ["CYL.BARREL cylinder", "CYL.BARREL cylinder 2"]
+    assert [c.name for c in scene.fresing.cylinders] == ["CYL.ASM", "CYL.ASM 2"]
     for deg in (-15, 0, 25):
         set_arm(scene, j, deg)
         check_eyes(scene, c1, math.radians(deg), 0.08, near)
-        check_eyes(scene, cylinders.find(scene, "CYL.BARREL cylinder 2"), math.radians(deg), 0.32, far)
+        check_eyes(scene, cylinders.find(scene, "CYL.ASM 2"), math.radians(deg), 0.32, far)
 
 
 def test_pins_found_when_the_cylinders_own_eyes_are_clicked(scene):
@@ -424,7 +424,7 @@ def test_model_update_keeps_cylinders(scene):
     assert bpy.ops.fresing.import_step(filepath=LUFFER_B, quality="draft", update_root=root.name) == {"FINISHED"}
     update()
     s = scene.fresing
-    assert [c.name for c in s.cylinders] == ["CYL.BARREL cylinder", "CYL.BARREL cylinder 2"]
+    assert [c.name for c in s.cylinders] == ["CYL.ASM", "CYL.ASM 2"]
     assert not len(s.report_notes), [n.text for n in s.report_notes]
     j = joints.find(scene, "Luff")
     c1, c2 = s.cylinders[0], s.cylinders[1]

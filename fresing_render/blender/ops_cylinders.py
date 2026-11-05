@@ -33,6 +33,9 @@ def _say(context, op, text: str, level: str = "INFO") -> None:
 
 
 class FRESING_OT_cylinder_pick_parts(bpy.types.Operator):
+    """Takes the selected subassembly (or parts) as the cylinder's barrel or rod. Click it in the view or in
+    2 Structure first"""
+
     bl_idname = "fresing.cylinder_pick_parts"
     bl_label = "Use selected"
     bl_options = {"REGISTER", "UNDO"}
@@ -231,6 +234,9 @@ class FRESING_OT_cylinder_remove(bpy.types.Operator):
 
 
 class FRESING_OT_cylinder_mode(bpy.types.Operator):
+    """Follows the arm: the cylinder goes along with the arm. Drives the arm: you set the stroke and the arm's
+    joint turns to match"""
+
     bl_idname = "fresing.cylinder_mode"
     bl_label = "Cylinder moves"
     bl_options = {"REGISTER", "UNDO"}
@@ -269,6 +275,8 @@ class FRESING_OT_cylinder_mode(bpy.types.Operator):
 
 
 class FRESING_OT_cylinder_stroke(bpy.types.Operator):
+    """Moves the rod fully in, fully out, or back to where it is in the CAD model; the arm moves to match"""
+
     bl_idname = "fresing.cylinder_stroke"
     bl_label = "Set stroke"
     bl_options = {"REGISTER", "UNDO"}
@@ -332,6 +340,9 @@ class FRESING_OT_cylinder_estimate(bpy.types.Operator):
 
 
 class FRESING_OT_cylinder_parts(bpy.types.Operator):
+    """Changes what the cylinder is made of, or which part holds a pin, using the selected parts; or selects the
+    cylinder's parts"""
+
     bl_idname = "fresing.cylinder_parts"
     bl_label = "Cylinder parts"
     bl_options = {"REGISTER", "UNDO"}
