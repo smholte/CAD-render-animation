@@ -16,7 +16,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (can start)
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 cylinders (running) → 0014 linkages → 0026 G-code
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (can start) → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16); lane free
@@ -28,7 +28,7 @@ updates its branch to `main`.
 
 | # | Task | Who | Model | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | Opus | open – can start | tasks/0024-decals.md |
+| 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0024-decals.md |
 | 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus | waiting (0014) | tasks/0026-gcode-motion.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus | later | tasks/0029-milling-later.md |
