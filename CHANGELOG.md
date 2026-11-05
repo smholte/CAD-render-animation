@@ -1,9 +1,11 @@
 # Changelog
 
-What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
-installer of that version was built from (tags cannot be pushed from the AI chats).
+What changed in each version, in plain words. Newest first. The app shows these texts under
+"What's new" when it offers an update, and each GitHub release carries its section. From 0.2.16 on,
+the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
+installer of that version was built from.
 
-## 0.2.16 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
+## 0.2.17 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
 
 Commit: see the merge of task 0017 on main.
 
@@ -40,6 +42,25 @@ Fixed
 
 User guide: chapter 5 – Light look (with a picture of the five looks), Light, Camera, Turntable
 video; new pictures of panel 5.
+
+## 0.2.16 – 5 Nov 2026 – updates inside the app (task 0020)
+
+New versions with one click
+- A few seconds after the app starts it looks on GitHub for a newer version. When there is one,
+  **Update available** appears at the top of the Fresing tab, with **What's new**.
+- **Update now** downloads the new version (and checks it), saves your project, closes the app,
+  installs the update and opens the app again with the same project – about a minute. Then it says
+  **Updated to …**. Projects, renders, templates and settings stay as they are.
+- **Help > Check for Fresing Render updates** asks at any time. **Later** hides the notice until the
+  next start. It can be switched off: Edit > Preferences > Add-ons > Fresing Render > **Check for
+  updates at start-up**.
+- An update also brings the app layout of the new version along (before, only Install.bat did).
+- New line in the self-test: "Update check" (can this PC reach the updates on GitHub).
+- Every new version is published on GitHub by itself, with the installer for new PCs:
+  https://github.com/smholte/CAD-render-animation/releases
+
+**Once more by hand:** this is the first version that can update itself. Run this installer once
+over the old version on every PC; from then on updates come with **Update now**.
 
 ## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
 

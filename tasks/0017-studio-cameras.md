@@ -1,6 +1,6 @@
 # 0017 – Studio lighting, camera views, focus and one-click turntable
 
-**Who:** worker · **Status:** done (0.2.16) · **Branch:** `task/0017-studio-cameras`
+**Who:** worker · **Status:** done (0.2.17) · **Branch:** `task/0017-studio-cameras`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/world.py`
 (lighting), `blender/cameras.py`, `blender/render.py` (depth of field), the 5 Scene & Render part
 of `blender/ui.py`, `blender/ops_main.py` (camera/light operators), `blender/props.py`
@@ -54,7 +54,7 @@ where the focus should be, and make a 360° turntable video with one click.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker chat, 5 Nov 2026. Version 0.2.16 (no installer: "Saving usage" rule).
+**Chat / date:** worker chat, 5 Nov 2026. Version 0.2.17 (no installer: "Saving usage" rule).
 
 **What changed:**
 - `core/studio.py` (new, no Blender): light designs (Product, White, Dark studio; CIE overcast sky),

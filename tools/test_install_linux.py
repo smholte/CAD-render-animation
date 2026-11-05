@@ -21,15 +21,17 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
-def build_linux_zip(wheel_dir: str, out_dir: str, blender: str | None = None) -> str:
+def build_linux_zip(wheel_dir: str, out_dir: str, blender: str | None = None, version: str = "",
+                    template_src: str = "") -> str:
     """Build the extension zip with Linux wheels. With `blender` (path of a real Blender
-    program) the zip is built by that Blender, otherwise by the bpy module's blender_ext.py."""
+    program) the zip is built by that Blender, otherwise by the bpy module's blender_ext.py.
+    `version` / `template_src`: build the same code as another version with another app template
+    (the update tests install such an "old" version, task 0020)."""
     stage = os.path.join(out_dir, "fresing_render")
-    shutil.copytree(os.path.join(ROOT, "fresing_render"), stage, ignore=shutil.ignore_patterns("__pycache__"))
-    os.makedirs(os.path.join(stage, "wheels"))
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import build_guide                                     # the guide ships inside the extension
-    build_guide.build(os.path.join(stage, "guide", build_guide.GUIDE_FILE))
+    import build_release        # the same contents as a release: guide, app template, changelog.json
+    build_release.stage_extension(stage, template_src=template_src or build_release.TEMPLATE, version=version)
+    os.makedirs(os.path.join(stage, "wheels"))
     names = []
     for whl in glob.glob(os.path.join(wheel_dir, "*.whl")):
         shutil.copy2(whl, os.path.join(stage, "wheels"))
@@ -47,6 +49,13 @@ def build_linux_zip(wheel_dir: str, out_dir: str, blender: str | None = None) ->
         tool = glob.glob(os.path.join(base, "*", "scripts", "addons_core", "bl_pkg", "cli", "blender_ext.py"))[0]
         subprocess.check_call([sys.executable, tool, "build", "--source-dir", stage, "--output-dir", out_dir])
     return glob.glob(os.path.join(out_dir, "fresing_render-*.zip"))[0]
+
+
+def blender_ext_tool() -> str:
+    """Blender's extension tool (blender_ext.py) of the bpy module."""
+    import importlib.util
+    base = list(importlib.util.find_spec("bpy").submodule_search_locations)[0]
+    return glob.glob(os.path.join(base, "*", "scripts", "addons_core", "bl_pkg", "cli", "blender_ext.py"))[0]
 
 
 def main():

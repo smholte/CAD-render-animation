@@ -122,16 +122,20 @@ fresing_render/            the Blender extension (Python package)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
     files.py               open a file / show it in Explorer
+    updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
+  core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
+  update_helper.py         installs a downloaded update while Blender is closed, starts the app again
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, test-model makers, real-app tests, screenshot tool,
-                           ci_*.py / ci_windows_install.ps1 (automatic tests), requirements-dev.txt
+tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
+                           screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests),
+                           ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
-docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md,
+docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
                            USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do),
                            SURROUNDINGS.md (surroundings, props, free 360° photos and how to add them)
 ```
@@ -162,7 +166,8 @@ locally pushes its branch and reads the run.
 | --- | --- | --- |
 | Full suite (1,360+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
 | Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
+| Real app, simulated clicks + accented paths + in-app update (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings,update`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
+| In-app update against the real GitHub release (check + download) | `python3 tools/ci_update_test.py --github --expect <version> --blender <blender> --wheels <dir> --out <dir>` | after a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
 | **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
 | User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
@@ -176,16 +181,22 @@ cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux
 
 ### Automatic tests on GitHub
 
-`.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
+`.github/workflows/tests.yml` runs at every push (any branch) and pull request – except a push that
+changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_status.py` says so –, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
-run; runs on `main` always finish. Four jobs; the whole run takes about 12 minutes (measured 5 Nov 2026):
+run; runs on `main` always finish. Four test jobs; the whole run takes about 12 minutes (measured 5 Nov
+2026). On `main` with a new version, three release jobs follow (below):
 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
-| Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
+| Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
+| Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
+| Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
+| Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
+| Delete the rehearsal pre-release | only after a `[release rehearsal]` branch push (docs/UPDATES.md) | < 1 min |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
@@ -250,24 +261,35 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 
 ## 7. Release procedure (the worker chat that finishes a task)
 
+GitHub publishes the release itself (task 0020, `docs/UPDATES.md`): the worker bumps the version and
+merges; every installed app (0.2.16 and newer) then offers the update at its next start.
+
 0. `git pull` first: another chat may have released in the meantime; take the next free
    version number.
 1. Raise the version in `fresing_render/__init__.py` **and** `fresing_render/blender_manifest.toml`.
-2. Add the version to `CHANGELOG.md` (plain words, for the owner).
-3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging
-   changes. The GitHub run of the branch must be green (section 5).
-4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
-   first time; builds the user guide into the extension and as "User guide.html" next to
-   Install.bat) -> `dist/FresingRender-<version>-windows.zip`.
-5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`. Check
-   the GitHub run on `main` (`python3 tools/ci_status.py --branch main --wait`); send the
-   installer only when it is green.
-   (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
-   Releases on github.com if he wants them.)
-6. (Only when the owner asked for an installer – see "Saving usage" in section 2.) Send the
-   owner the installer zip with short install/test steps (numbered, click by click);
-   add a short entry to the project progress note `claude/render-app-progress.md` (if the chat
-   cannot reach it, say so: the lead will add it).
+2. Add the version to `CHANGELOG.md` at the top (plain words, for the owner): the app shows this text
+   under "What's new", the release page too. Heading: `## <version> – <date> – <short title>`. No
+   "Commit" line needed any more (the release page shows the commit).
+3. Locally the tests of what you changed ("Saving usage", section 2); the GitHub run of the branch
+   must be green (section 5): it runs the full suite, the real app and the Windows install.
+4. Merge into `main` and push. GitHub tests `main` once more, then publishes the release, checks on
+   Windows that an installed old version updates itself to it, and offers it to the apps. Wait for
+   it: `python3 tools/ci_status.py --branch main --wait` – every job green, including "Publish the
+   release", "Windows - an installed old version updates itself from the release" and "Offer the
+   release to the apps". When the release job did not run (it only runs with all tests green), fix
+   `main` first.
+5. Give the owner the release link (`https://github.com/smholte/CAD-render-animation/releases/tag/v<version>`):
+   installed PCs (0.2.16 and newer) get it with **Update now**; new PCs use the installer zip on that
+   page. (Only when the owner asks for an installer in the chat – see "Saving usage" in section 2 –
+   build it with `~/venv/bin/python tools/build_release.py` and send
+   `dist/FresingRender-<version>-windows.zip` with short numbered steps.)
+6. Add a short entry to the project progress note `claude/render-app-progress.md` (if the chat cannot
+   reach it, say so: the lead will add it).
+
+To try the release path before merging (only when the release machinery itself changed): push the
+branch with `[release rehearsal]` in the newest commit message; GitHub makes a pre-release, checks it
+and deletes it again. A release that went wrong: the owner can delete it on github.com (Releases →
+the release → Delete); the next run on `main` publishes it again.
 
 ## 8. Things learned the hard way
 
@@ -328,3 +350,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
   the source showed a sentence broken in the middle. `register()` joins the lines (test:
   `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.
+- In-app updates: a panel's place in the side panel follows `bl_order` and, for equal numbers, the order
+  of registration; a negative `bl_order` does not put it on top (the update notice is registered first).
+- `wm.quit_blender` in a background Blender only closes it when the running script ends.
+- An extension that reaches the network declares `network` under `[permissions]` in its manifest and
+  checks `bpy.app.online_access` first.
+- Blender resolves a relative `archive_url` in index.json against the address it asked (not the one
+  GitHub redirected to); the release job writes full addresses so the listing stays right.
