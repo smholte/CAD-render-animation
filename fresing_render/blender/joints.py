@@ -865,9 +865,14 @@ def check_members(scene, objs, base, joint=None, allow_empty: bool = False) -> s
     ``allow_empty``: a joint may move nothing directly (the bottom of a stack moves the joints on it)."""
     if not objs and not allow_empty:
         return "Select the subassemblies that should move"
+    from . import cylinders
     for ob in objs:
         if ob.get(build.PROP_KIND) not in build.MODEL_KINDS:
             return f"{ob.name} is not part of the model"
+        cyl = cylinders.cylinder_of_object(scene, ob)
+        if cyl is not None:
+            return (f"'{ob.get(build.PROP_NAME, ob.name)}' is part of cylinder '{cyl.name}', which moves it. "
+                    "Give the arm the joint: the cylinder follows")
         if build.logical_parent(ob) is None:
             return "The whole model cannot be a moving part; select subassemblies inside it"
         if base is not None and (base is ob or _moved_by(base, ob)):

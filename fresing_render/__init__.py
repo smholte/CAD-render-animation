@@ -12,11 +12,11 @@ _modules = []
 
 
 def _classes():
-    from .blender import (ops_import, ops_machining, ops_main, ops_motion, ops_panels, ops_rule_sets, ops_scene,
-                          ops_surroundings, prefs, ui, ui_machining, ui_motion, updates)
+    from .blender import (ops_cylinders, ops_import, ops_machining, ops_main, ops_motion, ops_panels, ops_rule_sets,
+                          ops_scene, ops_surroundings, prefs, ui, ui_machining, ui_motion, updates)
     # the update notice first: a panel registered first sits on top of the Fresing tab
     return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
-            + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ops_scene.CLASSES
+            + ops_cylinders.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ops_scene.CLASSES
             + ops_machining.CLASSES + ui.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES)
 
 

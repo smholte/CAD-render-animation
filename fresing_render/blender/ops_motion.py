@@ -9,6 +9,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 from mathutils import Vector
 
+from ..core.words import plural
 from . import animation, build, files, joints, logic, props, queue, states
 
 # =============================================================================
@@ -492,7 +493,8 @@ class FRESING_OT_joint_members(bpy.types.Operator):
         except RuntimeError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
-        self.report({"INFO"}, f"{n} subassemblies {'added' if self.action == 'ADD' else 'removed'}")
+        done = "added" if self.action == "ADD" else "removed"
+        self.report({"INFO"}, f"{plural(n, 'subassembly', 'subassemblies')} {done}")
         return {"FINISHED"}
 
 
@@ -672,7 +674,7 @@ class FRESING_OT_explode(bpy.types.Operator):
         if n == 0:
             self.report({"WARNING"}, "Nothing to move apart: pick a subassembly with several pieces inside")
             return {"CANCELLED"}
-        self.report({"INFO"}, f"{n} pieces of {target.get(build.PROP_NAME, target.name)} moved apart")
+        self.report({"INFO"}, f"{plural(n, 'piece')} of {target.get(build.PROP_NAME, target.name)} moved apart")
         return {"FINISHED"}
 
 
@@ -924,6 +926,17 @@ class FRESING_OT_block_add(bpy.types.Operator):
                     b.to_angle = joints.limits(j)[1] if j.use_limits else 0.785398
                 else:
                     b.to_dist = joints.limits(j)[1] if j.use_limits else 0.5
+        elif self.kind == "CYLINDER":
+            from . import cylinders
+            if 0 <= s.cylinders_index < len(s.cylinders):
+                c = s.cylinders[s.cylinders_index]
+                b.cylinder = c.name
+                try:
+                    now = cylinders.stroke_now(context.scene, c)
+                except Exception:
+                    now = 0.0
+                b.from_stroke = min(max(now, 0.0), c.full_stroke)
+                b.to_stroke = c.full_stroke if now < c.full_stroke / 2 else 0.0
         elif self.kind == "POSE" and len(s.poses):
             b.pose = s.poses[min(s.poses_index, len(s.poses) - 1)].name
         elif self.kind == "CAMERA":

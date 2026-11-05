@@ -478,6 +478,77 @@ class FRPose(bpy.types.PropertyGroup):
     places: CollectionProperty(type=FRPlace)
 
 
+# ---- cylinders (task 0013) ----
+
+def _cylinder_renamed(self, context):
+    from . import cylinders
+    old = self.get("_old_name", "")
+    new = self.name.strip()
+    # animation steps find a cylinder by its name: never empty, never twice
+    taken = sum(1 for c in context.scene.fresing.cylinders if c.name == new) > 1
+    if old and (not new or taken):
+        self["name"] = old
+        return
+    if new != self.name:
+        self["name"] = new
+    if old and old != self.name:
+        cylinders.rename(context.scene, self, old)
+    self["_old_name"] = self.name
+
+
+def _cylinder_lengths_changed(self, context):
+    from . import cylinders
+    msg = cylinders.sync_limits(context.scene, self)
+    if msg:
+        context.scene.fresing.last_message = msg
+
+
+def _stroke_get(self):
+    from . import cylinders
+    try:
+        return cylinders.stroke_now(self.id_data, self)
+    except Exception:
+        return 0.0
+
+
+def _stroke_set(self, value):
+    from . import cylinders
+    try:
+        cylinders.set_stroke(self.id_data, self, value)
+    except RuntimeError as exc:
+        self.id_data.fresing.last_message = str(exc)
+
+
+class FRCylinder(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", update=_cylinder_renamed,
+                         description="Name of the cylinder, used in Move cylinder animation steps. Double-click to "
+                                     "rename")
+    mode: EnumProperty(name="Moves", default="FOLLOW", items=[
+        ("FOLLOW", "Follows the arm", "The arm's joint moves it; the barrel turns and the rod slides along"),
+        ("DRIVE", "Drives the arm", "You set the stroke; the arm's joint turns to match")])
+    frame: PointerProperty(type=bpy.types.Object)
+    pin: PointerProperty(type=bpy.types.Object)
+    barrel_empty: PointerProperty(type=bpy.types.Object)
+    rod_empty: PointerProperty(type=bpy.types.Object)
+    barrel: CollectionProperty(type=FRObjectRef)
+    rod: CollectionProperty(type=FRObjectRef)
+    stages: CollectionProperty(type=FRObjectRef)
+    stage_empties: CollectionProperty(type=FRObjectRef)
+    closed_length: FloatProperty(
+        name="Closed length", unit="LENGTH", default=0.5, min=0.0, update=_cylinder_lengths_changed,
+        description="Distance between the two pin centres with the rod fully in, in mm (the catalogue's "
+                    "installation length). From the model fills it in from the parts")
+    full_stroke: FloatProperty(
+        name="Full stroke", unit="LENGTH", default=0.2, min=0.0, update=_cylinder_lengths_changed,
+        description="How far the rod can come out, in mm (the catalogue's stroke). From the model fills it in "
+                    "from the parts")
+    measured: BoolProperty(default=False)
+    stroke: FloatProperty(
+        name="Stroke", unit="LENGTH", get=_stroke_get, set=_stroke_set, soft_min=0.0,
+        description="How far the rod is out, in mm (0 = fully in). Drag it or type a number: the arm moves to "
+                    "match, within the cylinder's stroke")
+
+
 class FRUid(bpy.types.PropertyGroup):
     uid: StringProperty()
 
@@ -550,6 +621,8 @@ BLOCK_KINDS = [
     ("HIDE", "Hide", "A subassembly disappears", "HIDE_ON", 4),
     ("MOTOR", "Run motor", "Turns a motor (or slides a joint) at a set speed for a while; joints that follow it "
      "move along", "FORCE_VORTEX", 5),
+    ("CYLINDER", "Move cylinder", "Moves a cylinder's rod in or out (stroke from - to); the arm moves with it",
+     "CON_STRETCHTO", 6),
 ]
 
 
@@ -601,6 +674,13 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     speed_mms: FloatProperty(name="Speed (mm/s)", default=100.0, soft_min=-5000.0, soft_max=5000.0, precision=1,
                              step=100,
                              description="How fast the joint slides, in mm per second. Negative: the other way")
+    # Move cylinder (task 0013)
+    cylinder: StringProperty(name="Cylinder", description="The cylinder this step moves (made in 4 Motion > "
+                                                          "Cylinders, set to Drives the arm)")
+    from_stroke: FloatProperty(name="From", unit="LENGTH", default=0.0, min=0.0,
+                               description="The stroke the rod starts at, in mm (0 = fully in)")
+    to_stroke: FloatProperty(name="To", unit="LENGTH", default=0.1, min=0.0,
+                             description="The stroke the rod moves to, in mm (0 = fully in)")
     ramp: FloatProperty(name="Ramp (s)", default=0.5, min=0.0, soft_max=10.0, step=10, precision=2,
                         description="How long the motor takes to get up to speed and to stop, in seconds (with "
                                     "Motion set to Smooth, Slow start or Slow stop)")
@@ -751,6 +831,21 @@ class FRMilling(bpy.types.PropertyGroup):
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "
                     "(the set-up is kept)")
     path_sig: StringProperty()           # fingerprint of the motion the stored paths were read from
+
+
+def _show_joints_changed(self, context):
+    """Show or hide the joints' arrows and the cylinders' pin markers. (Defined above the class that uses it:
+    Blender reads the property definitions while this file is read, so a function further down is not
+    there yet – that was the NameError of 0.2.19.)"""
+    from . import cylinders
+    show = self.show_joints
+    for j in self.joints:
+        if j.frame is not None:
+            try:
+                j.frame.hide_set(not show)
+            except RuntimeError:
+                pass
+    cylinders.show(context.scene, show)
 
 
 class FRSceneSettings(bpy.types.PropertyGroup):
@@ -983,8 +1078,13 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- motion ----
     joints: CollectionProperty(type=FRJoint)
     joints_index: IntProperty(default=0)
-    show_joints: BoolProperty(name="Show joint axes", default=True, update=lambda self, ctx: _show_joints(ctx),
-                              description="Shows or hides the joints' arrows in the view. They never show in renders")
+    show_joints: BoolProperty(name="Show joint axes", default=True, update=_show_joints_changed,
+                              description="Shows or hides the joints' arrows and the cylinders' pin markers in the "
+                                          "view. They never show in renders")
+    cylinders: CollectionProperty(type=FRCylinder)
+    cylinders_index: IntProperty(default=0)
+    cyl_pick_barrel: CollectionProperty(type=FRObjectRef)       # what Add cylinder will use
+    cyl_pick_rod: CollectionProperty(type=FRObjectRef)
     poses: CollectionProperty(type=FRPose)
     poses_index: IntProperty(default=0)
     explode_factor: FloatProperty(name="Distance", default=0.5, min=0.0, soft_max=3.0,
@@ -1039,20 +1139,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     bounds_max: FloatVectorProperty(size=3, default=(1.0, 1.0, 1.0))
 
 
-def _show_joints(context):
-    from . import joints
-    show = context.scene.fresing.show_joints
-    for j in context.scene.fresing.joints:
-        if j.frame is not None:
-            try:
-                j.frame.hide_set(not show)
-            except RuntimeError:
-                pass
-
-
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
-           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRUid, FRVisSet, FRShot, FRAnimBlock, FRAnimation,
-           FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
+           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRUid, FRVisSet, FRShot, FRAnimBlock,
+           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
 
 
 def register():
