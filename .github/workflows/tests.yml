@@ -2,10 +2,11 @@ name: Tests
 
 # Runs by itself at every push and pull request:
 #   - Linux: the full test suite and the packaged self-test
-#   - Linux: the real app on a virtual screen (simulated clicks), the accented-paths test and the in-app update
+#   - Linux: the real app on a virtual screen (simulated clicks), the accented-paths test, the PC check (Full)
+#     and the in-app update
 #   - Windows: the installer zip is built; an old build is installed and updates itself in the app from a
 #     local copy of the update listing; Install.bat runs unattended over it, then the self-test (started
-#     like its Start-menu shortcut) and Uninstall.bat
+#     like its Start-menu shortcut), the PC check (Full, from its Start-menu shortcut) and Uninstall.bat
 # On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
 # the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json), checks on
 # Windows that an installed old version finds it and updates itself from it, and only then makes it the
@@ -36,6 +37,7 @@ env:
   PYTHONUNBUFFERED: "1"
   PYTHONUTF8: "1"
   FRESING_SELFTEST_NO_GPU: "1"     # GitHub's runners have no graphics card: those checks say "skipped"
+  FRESING_PCCHECK_NO_OPEN: "1"     # the PC check does not open its report in a browser here
   OCP_VERSION: "8.0.1.1.0"
   MANIFOLD_VERSION: "3.5.4"         # bundled for milling (task 0027): keep equal to tools/build_release.py
 
@@ -264,6 +266,10 @@ jobs:
       - name: Self-test verdict
         if: ${{ !cancelled() }}
         run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test" --strict
+
+      - name: PC check verdict (Full, started from its Start-menu shortcut)
+        if: ${{ !cancelled() }}
+        run: python tools/ci_check_pccheck.py "windows-results/pccheck_last_run.txt" --title "Windows PC check"
 
       - name: Uninstall (Uninstall.bat)
         if: ${{ !cancelled() }}

@@ -13,8 +13,9 @@
     4. installs the app layout (application template) and sets a few preferences, among them
        Blender's online access: the app looks for updates on GitHub at start-up and installs
        them with one click (Update now); see docs/UPDATES.md
-    5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts, and a Start-menu
-       shortcut "Fresing Render - User guide" (the guide inside the installed extension)
+    5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts, Start-menu shortcuts
+       "Fresing Render - User guide" (the guide inside the installed extension) and
+       "Fresing Render - PC check (quick)" / "(full)" (every main function tested on this PC)
 
   Running it again repairs or upgrades an installation; projects and renders are not touched.
 
@@ -298,6 +299,15 @@ MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template f
 MakeShortcut (Join-Path $StartMenu "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 MakeShortcut (Join-Path $StartMenu "Fresing Render - Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
 
+# PC check (task 0032): every main function with the test models; the launcher lives inside the installed
+# extension, so an update brings the new check along. A STEP file dropped on a shortcut is tested too.
+# (An app updated with Update now makes these shortcuts itself when they are missing: pccheck/ops.py.)
+$PcCheck = Join-Path (Split-Path -Parent $Manifest) "pccheck\launcher.py"
+if (Test-Path -LiteralPath $PcCheck) {
+    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (quick).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
+    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
+}
+
 # The user guide lives inside the installed extension (Help > Fresing Render user guide opens the same
 # file), so it always matches the installed version. The shortcut opens it in the web browser.
 $Guide = Join-Path (Split-Path -Parent $Manifest) "guide\user_guide.html"
@@ -318,3 +328,4 @@ Write-Host ""
 Write-Host "Done. Start 'Fresing Render' from the Desktop." -ForegroundColor Green
 Write-Host "New versions: the app shows 'Update available' at start-up; one click on Update now installs them."
 Write-Host "Tip: run 'Fresing Render - Self test' from the Start menu once; it writes a report on the Desktop."
+Write-Host "After an update: 'Fresing Render - PC check (quick)' in the Start menu tests every main function on this PC."
