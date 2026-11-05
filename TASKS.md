@@ -21,7 +21,7 @@ updates its branch to `main`.
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018 → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (running)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
-- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (done, 0.2.14)
+- **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (can start)
 - **Machining lane** (new files `machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (running) → 0028 chips → 0029 later
 
 ## Open and running
@@ -35,6 +35,7 @@ updates its branch to `main`.
 | 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | running | `task/0027-material-removal`, tasks/0027-material-removal.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | waiting (0027) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | later | tasks/0029-milling-later.md |
+| 0030 | Part library lane: fasteners in supplier notation (Misumi set screws, WRENCHBOLT, BOLT5-20) | worker | open – can start | tasks/0030-fasteners-supplier-notation.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | waiting (0013) | tasks/0014-linkages.md |
 | 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | running | `task/0017-studio-cameras`, tasks/0017-studio-cameras.md |
