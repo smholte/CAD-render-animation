@@ -317,6 +317,7 @@ def fill_tooltips(items: list[Item]) -> None:
     import fresing_render
     addon_utils.enable("cycles", default_set=True)
     fresing_render.register()
+    _STRUCTS.clear()            # the types of an earlier registration are gone (a second check in one run)
     try:
         _walk_structs(bpy.types.Scene.bl_rna.properties["fresing"].fixed_type)
         prop_types = dict(_STRUCTS)

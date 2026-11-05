@@ -13,7 +13,7 @@ import ci_pytest_summary  # noqa: E402
 
 HEAD = ("Fresing Render 0.2.8 self-test, 2026-11-04 22:00\n"
         "Blender 5.2.3 LTS, Python 3.13.9, Windows-11\n")
-OK_LINES = "".join(f"[ OK ] Check number {i} ({i}.0 s): fine\n" for i in range(10))
+OK_LINES = "".join(f"[ OK ] Check number {i} ({i}.0 s): fine\n" for i in range(11))   # 11 + the 2 graphics-card lines = 13
 GPU_SKIPS = ("[SKIP] Graphics card: skipped: no graphics card\n"
              "[SKIP] Render HD on graphics card: skipped: no graphics card\n")
 
@@ -148,4 +148,4 @@ def test_strict_mode_wants_the_app_start_for_real():
 def test_a_lost_check_line_is_noticed():
     lines = OK_LINES.splitlines(keepends=True)
     _, problems = judge(HEAD + "".join(lines[:-1]) + GPU_SKIPS + "RESULT: ALL OK (2 skipped)\n")
-    assert any("only 11 checks ran" in p for p in problems)
+    assert any("only 12 checks ran" in p for p in problems)

@@ -103,7 +103,8 @@ The owner's AI usage is limited; every chat works economically:
 ```
 fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
-                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale)
+                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
+                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -117,7 +118,9 @@ fresing_render/            the Blender extension (Python package)
     surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
+    machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
     ops_*.py               operators (ops_surroundings.py: props, put on floor);  ui.py ui_motion.py  side panel (1-7)
+                           ui_machining.py: 4 Motion > Milling (ops_machining.py)
     files.py               open a file / show it in Explorer
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)
@@ -168,7 +171,7 @@ locally pushes its branch and reads the run.
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
-cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
+cadquery-ocp-proxy==8.0.1.1.0 manifold3d==3.5.4 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
 
 ### Automatic tests on GitHub
@@ -180,7 +183,7 @@ run; runs on `main` always finish. Four jobs; the whole run takes about 12 minut
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_milling.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
 
@@ -325,3 +328,13 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
   the source showed a sentence broken in the middle. `register()` joins the lines (test:
   `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.
+- manifold3d only accepts writable NumPy arrays: arrays read back from a Manifold (`to_mesh()`) are
+  read-only, so copy them (`np.array(x)`) before building a new `Mesh`.
+- Milling keeps everything it needs in the project, but writes the workpiece mesh on every frame
+  change (frame handler): never hold a Python reference to that mesh across frames; look it up
+  through `scene.fresing.milling` each time (undo replaces the datablocks).
+- "Build animation" remembers how things looked when it was first built (visibility, camera) and the
+  render queue builds again: hide parts and set the camera *before* building, or the queue shows them.
+- Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
+  5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
+  (`"EXEC_DEFAULT", True`), which pushes the undo step.
