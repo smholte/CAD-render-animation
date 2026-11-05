@@ -578,8 +578,9 @@ class Stats:
 class Timeline:
     """The workpiece at any time of the animation, for a set of bits and their paths."""
 
-    CHECKPOINT_EVERY = 12         # cutting segments between kept states
-    MAX_CHECKPOINTS = 400
+    KEEP_SECONDS = 0.25           # keep a state after this much boolean work (scrubbing back costs at most this)
+    MEMORY_BUDGET = 256e6         # bytes for the kept states (a triangle costs about BYTES_PER_TRIANGLE)
+    BYTES_PER_TRIANGLE = 250      # measured: Manifold keeps ~250 bytes per triangle
 
     def __init__(self, workpiece: Workpiece, cutters: list, paths: list, detail_name: str = "NORMAL"):
         self.wp = workpiece
@@ -602,15 +603,8 @@ class Timeline:
         self.segs = segs
         self.ends = [s.t1 for s in segs]
         self.bit_t1 = [[s.t1 for s in mine] for mine in self.bit_segs]
-        # checkpoints: after this many segments are done (fixed positions, so any way of getting
-        # somewhere gives the same states)
-        self.checkpoint_at = set()
-        n = 0
-        for k, s in enumerate(segs):
-            if s.cuts:
-                n += 1
-                if n % self.CHECKPOINT_EVERY == 0:
-                    self.checkpoint_at.add(k + 1)
+        # kept states, by the number of segments done. Every state is made by the same steps in the
+        # same order from the stock, so where states are kept never changes a result.
         self.states: dict[int, tuple] = {0: workpiece.first}
         self.last = (0, workpiece.first)
         self.mesh_cache: dict = {}
@@ -651,20 +645,32 @@ class Timeline:
             start, tiles = lk, lt
         else:
             tiles = self.states[start]
+        work = 0.0
         for i in range(start, k):
+            before = self.stats.seconds
             tiles = self._commit(tiles, self.segs[i])
-            if i + 1 in self.checkpoint_at:
+            work += self.stats.seconds - before
+            if work >= self.KEEP_SECONDS:
                 self._keep(i + 1, tiles)
+                work = 0.0
         self.last = (k, tiles)
         return tiles
 
+    def kept_bytes(self) -> float:
+        seen = {}
+        for tiles in self.states.values():
+            for t in tiles:
+                seen[id(t.solid)] = t.ntri
+        return sum(seen.values()) * self.BYTES_PER_TRIANGLE
+
     def _keep(self, k: int, tiles) -> None:
         self.states[k] = tiles
-        if len(self.states) > self.MAX_CHECKPOINTS:          # thin out: every other one goes
+        while len(self.states) > 2 and self.kept_bytes() > self.MEMORY_BUDGET:   # thin out: every other one goes
             keys = sorted(self.states)
             for c in keys[1:-1:2]:
                 del self.states[c]
-            self.checkpoint_at = {c for c in self.checkpoint_at if c in self.states or c > keys[-1]}
+            if len(keys) <= 3:
+                break
 
     def at(self, T: float) -> tuple:
         """The workpiece at time ``T`` (frames, may be between frames)."""
@@ -698,7 +704,7 @@ class Timeline:
     def mesh_at(self, T: float) -> tuple:
         t0 = time.perf_counter()
         tiles = self.at(T)
-        if len(self.mesh_cache) > 4 * len(tiles) + 64:     # forget meshes of tiles no longer shown
+        if len(self.mesh_cache) > 2 * len(tiles) + 8:      # forget meshes of tiles no longer shown
             alive = {id(t.solid) for t in tiles}
             self.mesh_cache = {k: v for k, v in self.mesh_cache.items() if k in alive}
         out = self.wp.mesh(tiles, self.mesh_cache)

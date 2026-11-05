@@ -273,9 +273,28 @@ def s_scrub_end():
 
 
 @step
-def s_screens():
+def s_panel_alone():
+    """For the user guide picture: only the Milling panel in the side panel (a top-level copy, open)."""
     shot("02_half_way")
-    sidebar_shot("panel4_milling", 1800)
+    for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
+        cls = getattr(bpy.types, n)
+        if getattr(cls, "bl_parent_id", ""):
+            bpy.utils.unregister_class(cls)
+    for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
+        bpy.utils.unregister_class(getattr(bpy.types, n))
+    base = mod("blender.ui_machining").FRESING_PT_milling
+    bpy.utils.register_class(type("FRESING_PT_milling_alone", (base,), {
+        "bl_idname": "FRESING_PT_milling_alone", "bl_parent_id": "", "bl_options": set()}))
+    redraw()
+    wiggle()
+    return 1.5
+
+
+@step
+def s_screens():
+    sidebar_shot("panel4_milling_full", 1400)
+    subprocess.run(["convert", os.path.join(OUT, "panel4_milling_full.png"), "-fuzz", "3%", "-trim", "+repage",
+                    os.path.join(OUT, "panel4_milling.png")], check=False)
     with override():
         bpy.ops.screen.animation_play()
     STATE["t_play"] = time.time()
