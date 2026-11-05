@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
 
-Commit `(follows)`.
+Commit `b5d716b`.
 
 3 Looks
 - **Rule set** at the top of 3 Looks: the sorting rules, the material of each group and the
