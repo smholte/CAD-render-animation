@@ -106,8 +106,9 @@ with the work uncommitted on disk; the second reviewed it, fixed what follows an
 
 **Tested and measured** (name the machine and the model):
 All on the 2-core Linux test machine (no graphics card), generic test models only.
-- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min); again after merging
-  0.2.11 (user guide): see below. New: 75 tests in `tests/test_surroundings.py`:
+- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min); after merging
+  0.2.11 (user guide): 1,386 passed (10 min). GitHub on the final branch (run 41940724493): all four
+  jobs green (suite + packaged self-test, real app incl. surroundings, Windows install + self-test). New: 75 tests in `tests/test_surroundings.py`:
   layouts for 3 machine sizes × 7 surroundings × Simple/Detailed keep the machine's space and
   the camera's view free; hall panels face inwards; every surrounding builds and renders a
   small CPU frame with no image files, machine on the floor; rebuilt only on real changes;
