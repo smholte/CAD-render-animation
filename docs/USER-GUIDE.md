@@ -589,6 +589,49 @@ Good to know
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
   ball Ø10, about 11 ms for a round pocket made of short pieces.
 
+#### Chips
+
+<img class="panel" src="img/panel_4_chips.png" alt="Chips: how many, what they are made of, Clear chips">
+
+While the bit cuts, chips fly off it – in the spindle's turning direction, up out of the cut – and land
+on the block, the table and the machine bed, where they pile up. They look like the real thing for the
+workpiece's material and the bit:
+
+| Material | End mill | Ball end mill | Face mill | Drill | Engraving / V-bit |
+| --- | --- | --- | --- | --- | --- |
+| Aluminium | shiny curls | small commas | flat commas, thrown far | long spirals out of the hole | fine dust |
+| Steel | blue-brown commas (temper colours) | small commas | commas | spirals | dust |
+| Stainless steel | longer commas, a little golden | small commas | commas | spirals | dust |
+| Brass / bronze / copper | small crumbs | crumbs | crumbs | short commas | dust |
+| Cast iron | grey crumbs | crumbs | crumbs | crumbs | dust |
+| Plastic (POM, PE, nylon, acrylic) | long ribbons in the block's colour | ribbons | ribbons | spirals | short ribbons |
+| Wood / MDF | shavings with dust | dust | shavings | shavings | dust |
+
+1. Set up milling first (above), so the bit cuts in your animation.
+2. Open **Chips** (under Milling) and pick **Few** or **Realistic**. The chips are worked out at once;
+   the line under the settings says how many and how long it took.
+3. Scrub or play: the chips fly while the bit cuts and stay where they land. Renders in the queue show
+   them too – the queue works them out by itself before the first frame.
+
+Good to know
+
+- **Material**: **From the workpiece** reads it from the block's name ("BLOCK AlMg3", "Plaat RVS 316",
+  "POM blok", "MDF plaat" …), then from its material in 3 Looks; the line under it says what was found and
+  why. Pick a material to choose yourself.
+- **Few** shows about one chip in eight (at most 3,000 at a time) and is quick. **Realistic** makes as
+  many chips as the removed material would (at most 25,000 at a time; when there are more, the oldest
+  lying ones shrink away).
+- Chips lying on the block are gone when the bit cuts there later. Chips on the table move along with the
+  table; chips that fall off the table stay on the machine bed (or the floor).
+- **More > Spindle turns**: clockwise (M3, the usual) or counter-clockwise (M4): the chips fly the other way.
+  **More > Coolant mist** adds a fine mist of drops around the bit that fades after a moment.
+- **Clear chips** removes every chip from the project and sets Chips to None.
+- The same set-up gives the same chips every time, on every PC, whatever frame you look at first.
+- Chips land on what is below them seen from above: they do not land on the head or a part that hangs over
+  the table, and they do not bounce off the head.
+- Working them out and rendering them takes time. Measured on the 2-core test machine (test mill, slot of
+  50 × 10 × 5 mm in aluminium): CHIPS_TIMES
+
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 
