@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.21 – 5 Nov 2026 – video finishing: logo, title and end card, captions, watermark (task 0018)
+
+Videos come out ready to post or send.
+- **Brand kit** (5 Scene & Render > Brand kit & logo): one kit per company with logo (PNG or JPG), card colour,
+  text colour, font and contact line. **Save kit** puts it in the shared library (folder "Brand kits", next to
+  "Rule sets"); the arrow next to **Kit** loads a saved kit. Every project keeps its own copy of the settings.
+- **Finishing** (end of 6 Animation): logo in a corner (any of the four, adjustable size), **Title card** (title,
+  subtitle, seconds), **End card** (logo and contact line, seconds) and **Captions from the step labels**
+  (each labelled step shows its label while it happens, with a short fade). The video is as long as title card
+  + animation + end card; the last line shows it. It goes into MP4 videos (not into PNG frames).
+- **Square and upright videos**: **Framing** says what happens to the picture for 1:1 and 9:16: **Extend**
+  keeps the width of the 16:9 picture, **Crop** keeps its height. New animations start on Extend; a 9:16 video
+  of an older project now shows the whole width of the 16:9 picture instead of a narrow strip in the middle.
+- **Logo on still images** (corner and size in the brand kit fold).
+- **Watermark** (5 Scene & Render > Watermark): DRAFT, CONFIDENTIAL or your own words across images and videos,
+  size and see-through amount adjustable. A switch decides per render: each job in the queue remembers whether it was
+  added with the watermark on ("with watermark" in its name), so a draft can go out and the final renders clean.
+- Every new button and setting has a tooltip; user guide chapters 5 and 6 have the new parts with pictures.
+- Small: "1 prop deleted" (not "1 props").
+- Tests (2-core test machine): 33 new automated tests (pictures of the title card, captions at their step times, logo
+  in the chosen corner and watermark checked pixel by pixel; a queued animation with every option makes a square MP4
+  of title + animation + end card length); real app: 14 new checks.
+
 ## 0.2.20 – 5 Nov 2026 – fasteners in supplier notation (task 0030)
 
 Screws, nuts and washers named the way supplier catalogues write them now land in the fastener groups:

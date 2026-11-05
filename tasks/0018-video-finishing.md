@@ -1,6 +1,6 @@
 # 0018 – Video finishing: logo, title and end card, captions, formats
 
-**Who:** worker · **Model:** Sonnet · **Status:** running (5 Nov 2026) · **Branch:** `task/0018-video-finishing`
+**Who:** worker · **Model:** Sonnet · **Status:** done (0.2.21) · **Branch:** `task/0018-video-finishing`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/render.py`,
 `blender/queue.py` and `queue_runner.py` (video assembly only), new `blender/video.py`, the 5 Scene
 & Render part of `blender/ui.py`, `blender/props.py` (additive), `tests/`.
@@ -56,10 +56,40 @@ the right shape for LinkedIn/website (16:9, 1:1, 9:16).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat (Sonnet), 5 Nov 2026
 
 **What changed:**
+- `core/brand.py` (no Blender): brand kit files (`<library>/Brand kits/<name>.json` + logo copy), the time line
+  (title card + animation + end card), captions from labelled steps (min 1.5 s, never into the next one), logo box,
+  watermark words. `blender/video.py`: everything is put on the pictures with the Video Sequencer in a throw-away
+  scene (colour strips for the cards, text strips, image strip for the logo); also the logo/watermark on stills and the
+  crop/extend camera framing. `queue.encode_mp4` calls it; `render.finish_still` adds logo + watermark.
+- UI: sub-panels "Brand kit & logo" and "Watermark" in 5, "Finishing" in 6 (own files `ui_video.py`, `ops_video.py`;
+  nothing in `ui_motion.py`). New animation settings `fin_*`, `shape_fit`; scene settings `brand_*`, `still_logo*`, `wm_*`;
+  `FRQueueJob.watermark` (a job remembers it; the queue's job file carries it).
+- Watermark and logo only go into MP4 videos and stills (the queue says so for PNG frames).
+- "1 props deleted" -> `plural()` (the only count in this lane's messages).
+- Tooltips: every new setting/button; report 290 found, 0 missing. User guide chapters 5 and 6 + 3 pictures.
+- Found: Blender 5.2 does not evaluate animated strip properties when rendering without a window (a keyframed fade stayed
+  at its stored value), and a *still* render of a later frame does not move the sequencer: fades are made of 3-4 strips
+  with fixed opacity, tests render one-frame animations.
+- Behaviour change: 9:16 videos used to show a narrow strip of the middle (Blender's auto fit); new animations start on
+  "Extend" (whole width of the 16:9 picture). Old projects get the same default.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core test machine, test crane):
+- 33 new automated tests (`tests/test_video.py`, 2.5 min): kit save/load/list/delete, captions timing, logo corners in
+  16:9/1:1/9:16, fade pieces without gaps; title card colour, caption box and letters at the step times and not before or after,
+  logo red in the chosen corner only, watermark across the middle and not in the corners, see-through amount; stills (PNG and
+  JPEG); queue job with and without watermark; a queued animation with every option -> square 540x540 MP4, 24 + frames + 24 long.
+- Real app `tools/ui_test_video.py` (registered in `ci_real_app.py`, `video`): 14/14, 5.4 min (the queued video is most of it:
+  6 frames Cycles draft on the processor). Screenshots of the three panels checked.
+- Not measured: render time on the RTX 3090; the sequencer part itself is small (54 frames 540x540 in seconds on 2 cores).
 
 **Open points / follow-up tasks:**
+- Logo formats: only PNG and JPG (Blender cannot read SVG); brief said PNG/SVG.
+- The project keeps the kit's settings but the logo is the library's file (path): when the library is not reachable and the file is
+  gone, the logo is left out and the queue log says so. Embedding the logo in the project would fix it.
+- Fonts: a font file path (the library does not copy fonts).
+- Watermark/logo for PNG-frame videos: not done (MP4 and stills only).
+- Cards fade their text with a few steps of opacity, there is no cross-fade between card and animation.
+- Owner test on his PC: a real finished video (title card, captions, logo) and the watermark switch. Next in the lane: 0025.
