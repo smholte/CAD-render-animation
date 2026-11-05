@@ -3,6 +3,32 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.12 – 5 Nov 2026 – surroundings: sea, vessel deck, quay, factory halls
+
+Commit `(see below)`.
+
+5 Scene & Render – Background
+- New built-in surroundings, made by the app itself (nothing to download): **Open sea**,
+  **Vessel deck**, **Quayside**, **Clean factory hall**, **CNC machining hall**, **Assembly
+  hall**, **Warehouse**. The machine stands on the floor (its lowest point, centred); the
+  surroundings grow with the machine. **Simple** or **Detailed**.
+- Sea: calm or rough, foam on the wave tops, waves that move in videos (or stand still).
+  Open sea: the water level can be raised or lowered.
+- Halls never hide the machine: walls are seen only from inside (a camera outside looks in),
+  anything between the camera and the machine is left out of the picture, and the roof
+  structure is left out when the camera is above it.
+- **360° photo** now stands the machine on the photo's ground with its own shadow
+  (**Stand on its ground**, **Photo taken at**). A link in the panel and the new guide
+  `docs/SURROUNDINGS.md` list good free photos (Poly Haven) and how to add them to the library.
+- **Props for scale** (new sub-panel): person 1.8 m, 20 ft container, euro pallet, safety
+  barrier. One click puts one next to the machine; move it like any object; show/hide all in
+  one click (also per saved scene).
+- Saved scenes, templates and the render queue keep the surroundings.
+- Every setting and button in 5 Scene & Render has a tooltip that says what it does.
+- User guide, chapter 5: "Background & surroundings" and "Props for scale", with pictures.
+- Render time on the processor (test machine): sea, deck, quay and photo about the same as the
+  studio; halls about 1.4–2.8× (details in `docs/SURROUNDINGS.md`).
+
 ## 0.2.11 – 5 Nov 2026 – user guide (task 0021)
 
 Commit `45af7cc`.
@@ -68,6 +94,7 @@ Commit `2f35b33`.
   CAD materials) when opened; projects with their own rules keep them.
 - The part you clicked shows its CAD material name too; every button and setting in sections
   1–3 has a tooltip.
+
 
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 

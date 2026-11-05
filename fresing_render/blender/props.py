@@ -10,6 +10,10 @@ from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProp
 
 from ..core import materials_lib, presets
 from ..core import rules as R
+from ..core import surroundings as env
+
+# Blender keeps only references to enum item strings: the list lives in a module global
+BACKGROUND_ITEMS = env.enum_items()
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +99,16 @@ def _world_changed(self, context):
             world.apply(context.scene, self)
         except Exception as exc:  # never break the UI over a preview update
             print("Fresing Render: background update failed:", exc)
+
+
+def _props_shown(self, context):
+    from . import surroundings
+    surroundings.set_props_visible(context.scene, self.props_visible)
+
+
+def _env_view_changed(self, context):
+    from . import surroundings
+    surroundings._show_in_view(context.scene, self)
 
 
 def _output_changed(self, context):
@@ -505,59 +519,128 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     face_painting: BoolProperty(default=False,
                                 description="'Paint faces' is running in the view")
 
-    # ---- background & light ----
+    # ---- background & light (and the surroundings: task 0016) ----
     live_update: BoolProperty(name="Live update", default=True)
     background: EnumProperty(
-        name="Background", default="COLOR", update=_world_changed,
-        items=[("COLOR", "Solid colour", "One flat colour behind the model"),
-               ("HDRI", "360° photo", "An HDRI photo is both the background and the light"),
-               ("SKY", "Sky", "Procedural sky with sun"),
-               ("TRANSPARENT", "None (transparent)", "Transparent PNG for presentations")])
+        name="Background", default="COLOR", update=_world_changed, items=BACKGROUND_ITEMS,
+        description="Where the machine stands: a studio background, a 360° photo, or one of the built-in "
+                    "surroundings (sea, vessel deck, quay, factory halls, warehouse). Its settings appear below")
     background_color: FloatVectorProperty(name="Colour", subtype="COLOR", size=3, min=0, max=1,
-                                          default=(1.0, 1.0, 1.0), update=_world_changed)
+                                          default=(1.0, 1.0, 1.0), update=_world_changed,
+                                          description="The background colour. Click the swatch to pick another one")
     lighting: EnumProperty(
         name="Lighting", default="STUDIO", update=_world_changed,
-        items=[("STUDIO", "Studio", "Soft studio softboxes (built in)"),
-               ("HDRI", "360° photo", "Light from an HDRI file"),
-               ("SKY", "Sky", "Daylight with sun")])
-    hdri_path: StringProperty(name="360° photo", subtype="FILE_PATH", update=_world_changed)
-    light_hdri_path: StringProperty(name="Light from", subtype="FILE_PATH", update=_world_changed)
+        description="What lights the machine. The background you see stays as it is",
+        items=[("STUDIO", "Studio", "Soft studio softboxes (built in): even light that shows shapes well"),
+               ("HDRI", "360° photo", "Light from a 360° photo: real reflections of a real place. Pick the photo below"),
+               ("SKY", "Sky", "Daylight with a sun and sharp shadows. Set the sun height below")])
+    hdri_path: StringProperty(name="360° photo", subtype="FILE_PATH", update=_world_changed,
+                              description="The 360° photo (.hdr or .exr). The library button picks one from the "
+                                          "shared library; the folder button any file on your PC")
+    light_hdri_path: StringProperty(name="Light from", subtype="FILE_PATH", update=_world_changed,
+                                    description="The 360° photo that gives the light (it is not seen). The library "
+                                                "button picks one from the shared library")
     light_rotation: FloatProperty(name="Rotate light", default=0.0, min=-360, max=360, update=_world_changed,
-                                  description="Turn the light / 360° photo around the model (degrees)")
-    light_strength: FloatProperty(name="Light strength", default=1.0, min=0.0, soft_max=5.0, update=_world_changed)
-    sun_elevation: FloatProperty(name="Sun height", default=45.0, min=0.0, max=90.0, update=_world_changed)
-    exposure: FloatProperty(name="Exposure", default=0.0, soft_min=-3, soft_max=3, update=_world_changed)
+                                  description="Turns the light, the sun or the 360° photo around the machine "
+                                              "(degrees). Drag it and watch the shadows in Live preview")
+    light_strength: FloatProperty(name="Light strength", default=1.0, min=0.0, soft_max=5.0, update=_world_changed,
+                                  description="How bright the light is. 1 is normal; use Exposure to brighten the "
+                                              "whole picture")
+    sun_elevation: FloatProperty(name="Sun height", default=45.0, min=0.0, max=90.0, update=_world_changed,
+                                 description="Height of the sun above the horizon (degrees): low gives long "
+                                             "shadows and warm light, 90 is straight overhead")
+    exposure: FloatProperty(name="Exposure", default=0.0, soft_min=-3, soft_max=3, update=_world_changed,
+                            description="Makes the whole picture brighter (+) or darker (-), like a camera's "
+                                        "exposure. +1 is twice as bright")
     floor: EnumProperty(
         name="Floor", default="SHADOW", update=_world_changed,
-        items=[("NONE", "None", "Model floats"),
-               ("SHADOW", "Shadow only", "Invisible floor that only catches shadows"),
-               ("VISIBLE", "Visible floor", "Solid floor in the background colour")])
-    floor_offset: FloatProperty(name="Floor gap", default=0.0, unit="LENGTH", update=_world_changed)
-    floor_use_own_color: BoolProperty(name="Own floor colour", default=False, update=_world_changed)
+        description="What is under the machine",
+        items=[("NONE", "None", "The machine floats: no floor and no shadow under it"),
+               ("SHADOW", "Shadow only", "An invisible floor that only shows the machine's shadow"),
+               ("VISIBLE", "Visible floor", "A solid floor in the background colour (or its own colour)")])
+    floor_offset: FloatProperty(name="Floor gap", default=0.0, unit="LENGTH", update=_world_changed,
+                                description="Lowers the floor under the machine by this much (0 = the machine "
+                                            "stands on it). Also moves the surroundings")
+    floor_use_own_color: BoolProperty(name="Own floor colour", default=False, update=_world_changed,
+                                      description="Give the visible floor its own colour instead of the "
+                                                  "background colour")
     floor_color: FloatVectorProperty(name="Floor colour", subtype="COLOR", size=3, min=0, max=1,
-                                     default=(0.6, 0.6, 0.6), update=_world_changed)
+                                     default=(0.6, 0.6, 0.6), update=_world_changed,
+                                     description="Colour of the visible floor")
+    env_detail: EnumProperty(
+        name="Detail", default="SIMPLE", update=_world_changed,
+        description="How much is built around the machine",
+        items=[("SIMPLE", "Simple", "Fewer things around the machine: renders fastest"),
+               ("DETAILED", "Detailed", "More things around the machine and real waves on the sea: more "
+                                        "believable, renders a little slower")])
+    sea_state: EnumProperty(
+        name="Sea", default="CALM", update=_world_changed,
+        description="How rough the sea is: calm for a quiet day in the harbour, rough for open sea in wind",
+        items=[("CALM", "Calm", "A gentle swell and small ripples"),
+               ("ROUGH", "Rough", "Higher waves, more ripples and white caps")])
+    sea_foam: BoolProperty(name="Foam", default=True, update=_world_changed,
+                           description="White foam on the wave tops. Most visible on a rough sea")
+    sea_moving: BoolProperty(name="Moving waves", default=True, update=_world_changed,
+                             description="The waves move in animations. Off: the sea stands still (the same "
+                                         "in every frame)")
+    water_level: FloatProperty(name="Water level", default=0.0, unit="LENGTH", soft_min=-20.0, soft_max=20.0,
+                               update=_world_changed,
+                               description="Height of the water from the machine's lowest point. 0: the machine "
+                                           "stands on the water; raise it to put the machine partly under water")
+    photo_ground: BoolProperty(name="Stand on the photo's ground", default=True, update=_world_changed,
+                               description="The ground of the 360° photo lies flat under the machine and catches "
+                                           "its shadow, so the machine stands in the photo. Off: the photo stays "
+                                           "far away and the Floor setting is used")
+    photo_height: FloatProperty(name="Photo taken at", default=1.7, min=0.1, soft_max=10.0, unit="LENGTH",
+                                update=_world_changed,
+                                description="How high above the ground the 360° photo was taken (most are taken "
+                                            "at 1.5-2 m). Change it until the machine stands on the photo's floor "
+                                            "at the right size")
+    env_show_in_view: BoolProperty(name="Show in the view", default=True, update=_env_view_changed,
+                                   description="Show the surroundings in the 3D view while you work. Renders "
+                                               "always include them")
+    props_visible: BoolProperty(name="Show props", default=True, update=_props_shown,
+                                description="Show or hide all props for scale (person, container, pallet, "
+                                            "barrier) in the view and in renders")
 
     # ---- output ----
-    out_format: EnumProperty(name="Format", items=FORMAT_ITEMS, default="presentation", update=_output_changed)
-    out_resolution: EnumProperty(name="Resolution", items=RES_ITEMS, default="hd", update=_output_changed)
+    out_format: EnumProperty(name="Format", items=FORMAT_ITEMS, default="presentation", update=_output_changed,
+                             description="What the picture is for: sets its shape (16:9, A4...). The size in "
+                                         "pixels is shown under Quality")
+    out_resolution: EnumProperty(name="Resolution", items=RES_ITEMS, default="hd", update=_output_changed,
+                                 description="How many pixels the picture has. Bigger is sharper and takes longer")
     out_orientation: EnumProperty(
         name="Orientation", default="auto", update=_output_changed,
-        items=[("auto", "Default", ""), ("landscape", "Landscape", ""), ("portrait", "Portrait", "")])
+        description="Picture lying (landscape) or standing (portrait)",
+        items=[("auto", "Default", "The usual way round for this format"), ("landscape", "Landscape", "Lying"),
+               ("portrait", "Portrait", "Standing")])
     out_dpi: EnumProperty(name="DPI", items=[(str(d), f"{d} dpi", "") for d in presets.DPI_CHOICES],
-                          default="300", update=_output_changed)
+                          default="300", update=_output_changed,
+                          description="Print sharpness: 300 dpi for brochures and posters, 150 dpi is enough "
+                                      "for large posters seen from a distance")
     out_use_bleed: BoolProperty(name="Bleed", default=False, update=_output_changed,
-                                description="Add bleed around print formats")
-    out_bleed_mm: FloatProperty(name="Bleed (mm)", default=3.0, min=0.0, max=20.0, update=_output_changed)
-    out_custom_w: IntProperty(name="Width", default=1920, min=16, max=16384, update=_output_changed)
-    out_custom_h: IntProperty(name="Height", default=1080, min=16, max=16384, update=_output_changed)
-    out_folder: StringProperty(name="Folder", subtype="DIR_PATH", description="Empty = 'Renders' next to the project")
+                                description="Adds a strip around print formats that the printer cuts off, so no "
+                                            "white edge shows. Ask your printer whether they want it")
+    out_bleed_mm: FloatProperty(name="Bleed (mm)", default=3.0, min=0.0, max=20.0, update=_output_changed,
+                                description="Width of the bleed strip in mm (usually 3)")
+    out_custom_w: IntProperty(name="Width", default=1920, min=16, max=16384, update=_output_changed,
+                              description="Width of the picture in pixels")
+    out_custom_h: IntProperty(name="Height", default=1080, min=16, max=16384, update=_output_changed,
+                              description="Height of the picture in pixels")
+    out_folder: StringProperty(name="Folder", subtype="DIR_PATH",
+                               description="Where renders are saved. Empty: a folder 'Renders' next to the saved "
+                                           "project")
     out_file_type: EnumProperty(name="File", default="PNG",
-                                items=[("PNG", "PNG", "Lossless, supports transparency"), ("JPEG", "JPEG", "Small files")])
+                                description="File type of the saved picture",
+                                items=[("PNG", "PNG", "Best quality, keeps a transparent background"),
+                                       ("JPEG", "JPEG", "Small files for e-mail and web; no transparency")])
     quality: EnumProperty(
         name="Quality", default="final",
-        items=[("draft", "Draft", "Fast check, half size"), ("preview", "Preview", "Full size, fewer samples"),
-               ("final", "Final", "Clean result"), ("best", "Best", "Very clean, slow")])
-    use_gpu: BoolProperty(name="Use graphics card", default=True)
+        description="How clean the render is. Higher is cleaner and takes longer",
+        items=[("draft", "Draft", "A quick check at half size"), ("preview", "Preview", "Full size, a bit grainy"),
+               ("final", "Final", "Clean: for most pictures"), ("best", "Best", "Very clean for big prints; slow")])
+    use_gpu: BoolProperty(name="Use graphics card", default=True,
+                          description="Render on the graphics card (much faster). Off: on the processor")
     last_render: StringProperty(name="Last render", description="The image saved by the last Render image")
 
     # ---- motion ----

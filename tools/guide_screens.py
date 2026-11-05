@@ -417,6 +417,8 @@ if MODE == "panels":
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
+        ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
+        ("panel_5_props", [("FRESING_PT_props", False, True)]),
         ("panel_5_output", [("FRESING_PT_output", False, True)]),
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
@@ -452,6 +454,17 @@ if MODE == "panels":
             elif name in ("panel_4_motion", "panel_4_poses"):
                 sc.fresing.pick_mode = "SUBASSEMBLY"
                 select_only(ob("BOOM.ASM"))
+            elif name == "panel_5_surroundings":        # a built-in surrounding: its settings below the choice
+                sc.fresing.background = "DECK"
+            elif name == "panel_5_props":               # two props next to the machine
+                sur = mod("blender.surroundings")
+                if not sur.props(sc):
+                    sur.add_prop(sc, "PERSON")
+                    sur.add_prop(sc, "CONTAINER")
+            elif name == "panel_5_output":              # back to the studio for the rest
+                sc.fresing.background = "COLOR"
+                sur = mod("blender.surroundings")
+                sur.remove_props(sc)
             show_only(spec)
             wiggle()
             return 2.5

@@ -221,7 +221,10 @@ def apply_visibility(scene, name: str) -> bool:
 
 WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_hdri_path", "light_rotation",
               "light_strength", "sun_elevation", "exposure", "floor", "floor_offset", "floor_use_own_color",
-              "floor_color")
+              "floor_color",
+              # surroundings and props (task 0016)
+              "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height",
+              "props_visible")
 OUTPUT_KEYS = ("out_format", "out_resolution", "out_orientation", "out_dpi", "out_use_bleed", "out_bleed_mm",
                "out_custom_w", "out_custom_h", "out_file_type", "quality")
 CURRENT = "__current__"      # "use what the scene shows now" (stored inside the scene item)
@@ -261,6 +264,9 @@ def apply_settings_json(scene, text: str) -> None:
     render.apply_output(scene, s)
     if any(k in data for k in WORLD_KEYS):
         world.apply(scene, s)
+    if "props_visible" in data:
+        from . import surroundings
+        surroundings.set_props_visible(scene, s.props_visible)
 
 
 def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visibility: str = CURRENT,

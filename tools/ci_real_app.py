@@ -6,6 +6,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     ui1    tools/ui_test_app.py   - the real app on a virtual screen, simulated clicks, screenshots
     ui2    tools/ui_test_app2.py  - the remaining buttons, undo/redo
     faces  tools/ui_test_faces.py - painted faces: from CAD, 'Paint faces' with clicks in the view
+    surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
 
     python3 tools/ci_real_app.py --blender <blender program> --wheels <linux wheels dir> --out <dir>
@@ -37,8 +38,8 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "paths": 8}
-MIN_CHECKS_QUICK = {"ui1": 18}           # UITEST_QUICK=1 skips the renders of ui1
+MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "paths": 8}
+MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17}   # UITEST_QUICK=1 skips the renders of ui1 and the queue
 
 
 def run(cmd, env, log_path, timeout):
@@ -124,7 +125,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,paths")
+    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,paths")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -144,6 +145,8 @@ def main(argv=None) -> int:
         "ui1": ("Real app: import, looks, joints, animation, queue (ui_test_app.py)", "ui_test_app.py", True),
         "ui2": ("Real app: remaining buttons, undo/redo (ui_test_app2.py)", "ui_test_app2.py", True),
         "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
+        "surroundings": ("Real app: surroundings, props, queue (ui_test_surroundings.py)",
+                         "ui_test_surroundings.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
     }
     rows = []

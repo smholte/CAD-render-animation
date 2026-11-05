@@ -65,43 +65,6 @@ have one; check yours when you touch a setting.
 | icon CHECKBOX_DEHLT | Tick or untick every part name found | same text as [icon CHECKBOX_HLT] | Unticks every part name found | `fresing.find_tick (tick=False)` ui.py:613 |
 | Select the ticked parts in the view | Select the ticked parts in the view | repeats the label | Selects the ticked parts in the view, so you can see where they are (or hide them in 2 Structure) | `fresing.find_select` ui.py:614 |
 
-## Scene & Render lane (25)
-
-### 5 Scene & Render
-
-| On screen | Now | Problem | Suggested tooltip | Code |
-| --- | --- | --- | --- | --- |
-| Background | – | no tooltip | What is behind the model: a solid colour, a 360° photo (that also lights it), sky with sun, or nothing (transparent PNG) | `FRSceneSettings.background` ui.py:712 |
-| Colour | – | no tooltip | The background colour. Click to pick one | `FRSceneSettings.background_color` ui.py:714 |
-| Photo | – | no tooltip | The 360° photo (.hdr or .exr) around the model; it also gives the light. The icon next to it picks one from the shared library | `FRSceneSettings.hdri_path` ui.py:717 |
-| Light | – | no tooltip | Where the light comes from when the background is a colour or transparent: soft studio lamps, a 360° photo, or sky with sun | `FRSceneSettings.lighting` ui.py:720 |
-| Light photo | – | no tooltip | The 360° photo (.hdr or .exr) that lights the model; it is not seen in the picture | `FRSceneSettings.light_hdri_path` ui.py:723 |
-| Strength | – | no tooltip | How bright the light is: 1 is normal, 2 twice as bright | `FRSceneSettings.light_strength` ui.py:727 |
-| Sun height | – | no tooltip | How high the sun stands, in degrees above the horizon. A low sun gives long shadows | `FRSceneSettings.sun_elevation` ui.py:729 |
-| Exposure | – | no tooltip | Makes the whole picture lighter (+) or darker (−), like a camera. 0 is normal; +1 is twice as light | `FRSceneSettings.exposure` ui.py:730 |
-| Floor | – | no tooltip | What the model stands on: nothing, an invisible floor that only shows shadows, or a visible floor | `FRSceneSettings.floor` ui.py:732 |
-| Own colour | – | no tooltip | Gives the visible floor its own colour instead of the background colour | `FRSceneSettings.floor_use_own_color` ui.py:734 |
-| Floor colour | – | no tooltip | The colour of the visible floor. Click to pick one | `FRSceneSettings.floor_color` ui.py:736 |
-| Gap | – | no tooltip | Moves the floor this far below the lowest part of the model (0 = touching) | `FRSceneSettings.floor_offset` ui.py:738 |
-| icon X | (undocumented operator) | Blender's 'undocumented operator' | Deletes this camera from the project. Add camera makes a new one | `fresing.camera_remove (name=…)` ui.py:751 |
-
-### Image size & render
-
-| On screen | Now | Problem | Suggested tooltip | Code |
-| --- | --- | --- | --- | --- |
-| Format | – | no tooltip | The shape of the picture: screen formats (16:9, 4:3, square…) or print formats (A4, A3…) at their real size | `FRSceneSettings.out_format` ui.py:785 |
-| Size | – | no tooltip | How many pixels: HD (1920 × 1080) for screens and slides, 4K for big screens or cropping, Preview for quick checks | `FRSceneSettings.out_resolution` ui.py:788 |
-| Orientation | – | no tooltip | Landscape or portrait. Default uses the format's usual way | `FRSceneSettings.out_orientation` ui.py:789 |
-| Resolution | – | no tooltip | Print resolution: 300 dpi for print shops, 150 dpi for office printers and smaller files | `FRSceneSettings.out_dpi` ui.py:791 |
-| Orientation | – | no tooltip | Landscape or portrait. Default uses the format's usual way | `FRSceneSettings.out_orientation` ui.py:792 |
-| Bleed (mm) | – | no tooltip | Extra picture around the page for the print shop to cut off (usually 3 mm) | `FRSceneSettings.out_bleed_mm` ui.py:795 |
-| Width | – | no tooltip | Width of the picture in pixels (Custom size) | `FRSceneSettings.out_custom_w` ui.py:797 |
-| Height | – | no tooltip | Height of the picture in pixels (Custom size) | `FRSceneSettings.out_custom_h` ui.py:798 |
-| Quality | – | no tooltip | How clean the picture is: Draft (quick check, half size), Preview, Final (clean) or Best (very clean, slow). Cleaner takes longer | `FRSceneSettings.quality` ui.py:801 |
-| Open | Open this render | repeats the label | Opens the rendered picture in your picture viewer | `fresing.open_file (path=…)` ui.py:813 |
-| File | – | no tooltip | PNG: sharp, can be transparent. JPEG: much smaller files, no transparency | `FRSceneSettings.out_file_type` ui.py:819 |
-| Graphics card | – | no tooltip | Renders on the graphics card when the PC has a suitable one. Off: renders on the processor | `FRSceneSettings.use_gpu` ui.py:821 |
-
 ## Motion lane (54)
 
 ### 4 Motion

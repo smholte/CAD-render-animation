@@ -18,7 +18,7 @@ updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (can start) → 0013 → 0014
-- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (running) → 0017 → 0018
+- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.11) → 0017 (can start) → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (can start)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
@@ -32,8 +32,7 @@ updates its branch to `main`.
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | open – can start | tasks/0012-couplings-motors.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | waiting (0013) | tasks/0014-linkages.md |
-| 0016 | Scene & Render lane: surroundings – sea, vessel deck, quayside, clean factory, CNC hall, assembly hall, warehouse; 360° photos with shadow floor; props for scale | worker | running | `task/0016-surroundings`, tasks/0016-surroundings.md |
-| 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | waiting (0016) | tasks/0017-studio-cameras.md |
+| 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | open – can start | tasks/0017-studio-cameras.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
 | 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | open – can start | tasks/0020-updates-from-github.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |
@@ -56,6 +55,7 @@ updates its branch to `main`.
 | 0008 | Part-type library (63 types, ~3,300 keywords, ~170 order-code patterns) and CAD material/appearance names from STEP (owner's points 17–18) | 0.2.8 |
 | 0010 | Painted faces: faces painted in CAD come in painted, paint faces by hand (whole CAD faces, per copy), kept through model updates; wire mesh with holes; old default rules upgraded (owner's point 4) | 0.2.9 |
 | 0011 | Stacked joints: several joints on one subassembly, the moves add up; Swap order; stacks survive model updates | 0.2.10 |
+| 0016 | Surroundings: open sea, vessel deck, quayside, clean factory, CNC hall, assembly hall, warehouse (Simple/Detailed, halls never hide the machine); 360° photo with its ground and shadow; props for scale; tooltips in panel 5; guide with free 360° photos | 0.2.11 |
 | 0019 | Automatic tests on GitHub at every push: Linux suite + real app, Windows install + self-test + uninstall (about 10 min per run) | – (no release needed) |
 | 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 93 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.11 |
 

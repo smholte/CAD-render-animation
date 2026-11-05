@@ -422,20 +422,67 @@ A **pose** stores every joint position and every moved subassembly: "Working", "
 Everything around the model – background, light, floor, cameras – and the picture itself: its size,
 its quality, and the render.
 
-### Background & light
+### Background & surroundings
 
 <img class="panel" src="img/panel_5_scene.png" alt="5 Scene & Render">
 
-- **Background**: **Solid colour**, **360° photo** (a photo all around the model that is both
-  background and light), **Sky** (daylight with sun) or **None (transparent)** (a PNG for slides).
-- **Light**, with a solid colour or no background: **Studio** (soft studio lamps), **360° photo** or
-  **Sky**.
-- **Turn light** turns the light or the photo around the model. **Strength** and **Exposure** make the
-  picture lighter or darker; **Sun height** sets the sun for Sky.
-- **Floor**: **None** (the model floats), **Shadow only** (an invisible floor that only shows
-  shadows: the usual choice) or **Visible floor** (with **Own colour** if you want). **Gap** moves the
-  floor a little away from the model.
-- The small icon next to **Photo** picks a 360° photo from the shared library.
+**Background** says where the machine stands. The list has four groups:
+
+- **Studio**: **Solid colour**, **None (transparent)** (a PNG for slides) or **Sky** (daylight with
+  sun).
+- **Photo**: **360° photo** – a photo all around the machine that is both background and light.
+  With **Stand on its ground** ticked, the photo's floor lies flat under the machine and catches its
+  shadow, so the machine stands in the photo. **Photo taken at** is the height the photo was taken
+  from (most: 1.5–2 m): change it until the machine has the right size against the photo's floor.
+  The small icon next to **Photo** picks a photo from the shared library; **How to get free 360°
+  photos** opens a list of good free photos (harbours, workshops, halls) and how to add them.
+- **Offshore**: **Open sea**, **Vessel deck**, **Quayside** – sea to the horizon under a sky with a
+  sun.
+- **Workshop**: **Clean factory hall**, **CNC machining hall**, **Assembly hall**, **Warehouse**.
+
+The offshore and workshop surroundings are made by the app itself and grow with the machine. The
+machine's lowest point stands on the floor, deck or quay, centred; the machine itself is not moved.
+
+<img class="panel" src="img/panel_5_surroundings.png" alt="Surroundings: vessel deck">
+
+Their settings appear under the choice:
+
+- **Sea**: **Calm** or **Rough**. **Waves**: **Foam** on the wave tops, **Moving** waves in videos
+  (off: the sea stands still). **Water level** (open sea only) raises or lowers the water.
+- **Detail**: **Simple** (fewer things around the machine, renders fastest) or **Detailed** (more
+  containers, workbenches, racks; real waves near the machine).
+- A hall never hides the machine: the walls are only seen from inside, so a camera outside the hall
+  looks straight in, and anything that would stand between the camera and the machine (a column, a
+  rack) is left out of the picture. When the camera is higher than the lamps, the roof is left out
+  too.
+- **More** (the fold): **Floor lower by** lowers the floor a little; **Show in the view** hides the
+  surroundings while you work (renders always include them); **Put on the floor again** after the
+  machine changed (a new revision, parts removed in Clean-up). Parts you only hide do not move the
+  floor.
+
+Light:
+
+- **Light**, with a solid colour, no background or a hall: **Studio** (soft studio lamps),
+  **360° photo** or **Sky**. Offshore is always lit by the sky.
+- **Turn light** (or **Turn sun**, **Turn photo**) turns the light around the machine. **Strength**
+  and **Exposure** make the picture lighter or darker; **Sun height** sets the sun.
+- **Floor** (studio backgrounds only): **None** (the model floats), **Shadow only** (an invisible
+  floor that only shows shadows: the usual choice) or **Visible floor** (with **Own colour** if you
+  want). **Gap** moves the floor a little away from the model.
+
+Render time, measured on a slow 2-core test machine without a graphics card: the 360° photo and
+the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8 times as long.
+
+### Props for scale
+
+<img class="panel" src="img/panel_5_props.png" alt="Props for scale">
+
+Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Euro pallet**,
+**Safety barrier**.
+
+1. Click one: it stands next to the machine on the floor and is selected.
+2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
+3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
 
 ### Camera
 
@@ -560,6 +607,8 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 - Check with Quality **Draft** or **Preview**; check animations with **Fast preview (EEVEE)**.
 - **Time test** before a long video, and render it overnight in the queue.
 - Big overview pictures rarely need Detail **Fine**.
+- In a hall, choose **Simple** for long videos; a 360° photo with **Stand on its ground** costs no
+  more time than the studio.
 
 <a id="troubleshooting"></a>
 ## Troubleshooting

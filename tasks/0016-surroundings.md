@@ -1,6 +1,6 @@
 # 0016 – Surroundings: offshore, quayside and factory backgrounds
 
-**Who:** worker · **Status:** running · **Branch:** `task/0016-surroundings`
+**Who:** worker · **Status:** done · **Branch:** `task/0016-surroundings`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/world.py`,
 new `blender/surroundings.py` (+ data in `core/` if useful), `blender/prefs.py` (library folders),
 the **5 Scene & Render** part of `blender/ui.py`, `blender/ops_main.py` (background operators
@@ -47,14 +47,14 @@ machine stands on the floor with real contact shadows and reflections.
 
 ## Done when
 
-- [ ] Every surrounding renders in the background queue (tests: build each, render a small CPU
+- [x] Every surrounding renders in the background queue (tests: build each, render a small CPU
       frame, no missing textures); machine placed on the floor; saved scene/template keeps it
-- [ ] Render time per surrounding measured on the test machine (small CPU frame, model named),
+- [x] Render time per surrounding measured on the test machine (small CPU frame, model named),
       Simple vs Detailed, in the report
-- [ ] List of recommended free 360° photos for the owner + click steps to add them (in the
+- [x] List of recommended free 360° photos for the owner + click steps to add them (in the
       report and in `docs/`)
-- [ ] Real-app click test step and screenshots of panel 5 checked (generic test models only)
-- [ ] Full suite passes; report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
+- [x] Real-app click test step and screenshots of panel 5 checked (generic test models only)
+- [x] Full suite passes; report filled in; merged and released (`CLAUDE.md` sections 2 and 7)
 
 ## Not in this task
 
@@ -65,10 +65,86 @@ machine stands on the floor with real contact shadows and reflections.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat, 4–5 Nov 2026 (two sessions: the first stopped at its usage limit
+with the work uncommitted on disk; the second reviewed it, fixed what follows and finished).
 
 **What changed:**
+- `core/surroundings.py` (new, no Blender): the Background choices (stored by number: the old
+  four keep 0–3), layouts of the sea, vessel deck, quayside and four halls around a machine of
+  any size (keep-out box, default camera's quarter kept free, fixed random seed), props for
+  scale (person 1.8 m, 20 ft container, euro pallet with load, safety barrier).
+- `blender/surroundings.py` (new): meshes from the layouts under the empty "FR Surroundings"
+  (placed under the machine; the model is never moved), procedural materials (no image files),
+  sea with geometry-nodes swell + animated ripples + foam, 360° photo dome + ground that
+  catches the machine's shadow and otherwise looks exactly like the photo, props.
+  Rebuilt only when its settings or the model change.
+- Fixed in the second session: hall walls and the roll-up door faced outwards (a hall looked
+  plain grey from any camera outside it, and see-through from inside); new **cut-away** in
+  halls (anything between camera and machine, and the roof structure when the camera is above
+  the light lines, is left out of the picture for camera rays only); more transparent steps for
+  halls (black specks); the floor uses all non-excluded parts, so a saved scene that hides the
+  base no longer lifts the floor (it moved 5 cm on the test model); cut-away nodes only on
+  materials that can be in the way (−13% render time in halls).
+- `world.py`: builds the surroundings in `apply` (never stops a render if it fails); offshore is
+  lit by the sky; the studio floor is hidden when the surroundings bring their own.
+- Panel 5 (`ui.py`): Background list with headings Studio / Photo / Offshore / Workshop; the
+  chosen surrounding's settings below it; Light and Floor only where they apply; **More** fold
+  (floor gap, show in the view, Put on the floor again); sub-panel **Props for scale**;
+  header shows the background. `ops_surroundings.py`: Add prop, Delete all props, Put on the
+  floor again. `props.py`: new settings (additive). `states.py`/`ops_main.py`: saved scenes and
+  templates keep the surroundings settings and "Show props".
+- Tooltips for every setting and button in panel 5 (also the existing ones).
+- Docs: `docs/SURROUNDINGS.md` (owner: surroundings, props, render times, recommended free
+  360° photos with click steps; the panel links to it), `docs/USER-GUIDE.md` chapter 5
+  "Background & surroundings" and "Props for scale" with three new pictures
+  (`tools/guide_screens.py` got two shots: a vessel deck, the props panel), `docs/DEVELOPMENT.md`
+  (how it works), `CLAUDE.md` (layout, tests, CI times, lessons learned). Panel 5 has no findings
+  left in `tools/tooltip_report.py`; its rows are gone from `docs/TOOLTIPS-TODO.md` (the "Open"
+  button's operator lives in `ops_motion.py`: its docstring fixed, one line, no Motion task running).
+- `tools/ci_real_app.py`: the surroundings test runs on GitHub at every push.
+- Tests: `tests/test_surroundings.py` (75 tests); real-app test `tools/ui_test_surroundings.py`.
 
 **Tested and measured** (name the machine and the model):
+All on the 2-core Linux test machine (no graphics card), generic test models only.
+- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min); after merging
+  0.2.11 (user guide): 1,386 passed (10 min). GitHub on the final branch (run 41940724493): all four
+  jobs green (suite + packaged self-test, real app incl. surroundings, Windows install + self-test). New: 75 tests in `tests/test_surroundings.py`:
+  layouts for 3 machine sizes × 7 surroundings × Simple/Detailed keep the machine's space and
+  the camera's view free; hall panels face inwards; every surrounding builds and renders a
+  small CPU frame with no image files, machine on the floor; rebuilt only on real changes;
+  floor gap and Put on the floor again; floor stays when the base is hidden; cut-away removes
+  a column between camera and machine (and the same column without it blocks); saved scene and
+  template keep it; waves move between frames (and stand still when off); props; photo ground
+  looks exactly like the photo away from the machine; panel draws for every background and
+  light; tooltips; **background queue** renders a vessel deck still + 2-frame video (80 s)).
+- Real app (Blender 5.2.3 Linux, `tools/ui_test_surroundings.py`). Run 1: 22/23 (the click check
+  looked before the app finished the pick on the next mouse move: test fixed); run 2 after the
+  panel fixes, without the queue part: 17/17. On GitHub (run 41937731835, merged branch, 4 cores):
+  23/23 in 3.6 min, all other jobs green too. Covered:
+  every surrounding chosen in the app (build 0.01–0.28 s each), live preview of a hall, props
+  added / undo / redo, a click through the hall selects the boom's subassembly (the hall
+  cannot be clicked), Show props, Put on the floor again, queue in a background Blender: deck
+  still in Cycles + deck video and hall video in **EEVEE** (software OpenGL, 45 s per 540×540
+  frame), save + reopen keeps everything without rebuilding. Panel 5 screenshots for every
+  kind of background at the default side-panel width looked at: two problems found and fixed
+  ("Moving waves" cut off; "Clean factory hall" ran into the panel title).
+- Render time per surrounding: crane test model scaled to 6.4 × 2.4 × 2.0 m, 640 × 360,
+  quality Preview, CPU, camera 2.2 × the Fit distance. Studio 31.2 s; 360° photo 29.2 s
+  (ground off) / 25.1 s (ground on). Simple / Detailed: open sea 29.2 / 30.3 s, vessel deck
+  28.3 / 29.9 s, quayside 25.9 / 30.3 s, clean factory hall 48.4 / 62.7 s, CNC hall
+  69.8 / 86.6 s, assembly hall 43.1 / 48.1 s, warehouse 52.3 / 81.3 s. Before the cut-away
+  nodes were limited to things that can be in the way (400 × 225): factory 22.0 → 19.2 s, CNC
+  30.4 → 27.4 s. Tried and not taken (≤ 1 s gain, visibly less real): hall objects out of
+  reflections, floor without clear coat.
+- Packaged install: Linux build of the zip installed into the real Blender with
+  `extension install-file` (the real-app test ran from it).
 
 **Open points / follow-up tasks:**
+- The "Saved scenes" sub-panel inside panel 5 lives in the Motion lane's files and is listed
+  there in `docs/TOOLTIPS-TODO.md` (e.g. "Remove scene" has no tooltip yet).
+- Halls render 1.4–2.8× slower than the studio on the processor. For long videos: Simple, or a
+  360° photo with ground (no slower than the studio). To measure on the RTX 3090 (task 0002).
+- EEVEE (Fast preview) with surroundings was checked on the Linux test machine (software
+  OpenGL) only; the owner should glance at one Fast preview video in a hall.
+- Ideas, not done: a "photo matched" sea (HDRI + water plane), more hall variants (crane
+  sizes, colours), weather (fog, rain) for offshore.

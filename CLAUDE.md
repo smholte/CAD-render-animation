@@ -75,7 +75,8 @@ overview (number, title, status, who, branch).
 
 ```
 fresing_render/            the Blender extension (Python package)
-  core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates
+  core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
+                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -86,9 +87,10 @@ fresing_render/            the Blender extension (Python package)
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
     render.py world.py cameras.py materials.py
+    surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
-    ops_*.py               operators;  ui.py ui_motion.py  side panel (sections 1-7)
+    ops_*.py               operators (ops_surroundings.py: props, put on floor);  ui.py ui_motion.py  side panel (1-7)
     files.py               open a file / show it in Explorer
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)
@@ -100,7 +102,8 @@ tools/                     build_release.py, test-model makers, real-app tests, 
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md,
-                           USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do)
+                           USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do),
+                           SURROUNDINGS.md (surroundings, props, free 360° photos and how to add them)
 ```
 
 `docs/DEVELOPMENT.md` explains how an import works and has measured timings.
@@ -127,9 +130,9 @@ locally pushes its branch and reads the run.
 
 | What | Command | When |
 | --- | --- | --- |
-| Full suite (1,260+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
+| Full suite (1,360+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
 | Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,faces`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
+| Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
 | **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
 | User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
@@ -150,7 +153,7 @@ run; runs on `main` always finish. Four jobs; the whole run takes about 12 minut
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 12.2 min (ui1 7.9, ui2 0.8, faces 0.3, paths 2.6) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `paths_test_blender.py` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release; the zip goes to the Windows job | 0.4 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: unzips into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair), checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 2-3 min (install 15-20 s, repair 3-5 s, self-test 80-135 s) |
 
@@ -277,3 +280,11 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - A joint axis made from a point + direction leaves the arrow's turn about its own axis open
   (and unstable for a vertical axis). Joints riding on it (stacks, task 0011) depend on that
   turn: when rebuilding, pass the whole frame matrix (`joints.create(frame_world=...)`).
+- A flat panel's visible side follows the right-hand rule of its corners: hall walls were drawn
+  facing out, so a hall looked solid grey from outside and see-through from inside. Test the
+  normals (`tests/test_surroundings.py`), and always look at renders from several camera spots.
+- Cycles stops a ray after 8 transparent steps by default and shows black: see-through walls
+  and cut-away beams need more (`scene.cycles.transparent_max_bounces`).
+- 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
+  of the same bit depth in tests.
+- An animation without steps lasts 1 s (26 frames): a test video needs one short step.
