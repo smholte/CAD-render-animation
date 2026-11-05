@@ -3,7 +3,7 @@
 The shared to-do list of all chats working on Fresing Render. How tasks work: see
 `CLAUDE.md` section 2. One file per larger task in `tasks/` (copy `tasks/TEMPLATE.md`).
 
-**Who:** *lead* = the lead chat (plans only, no building or testing) · *worker* = a separate chat
+**Who:** *lead* = the lead chat (plans only, no building or testing) · *worker* = a separate Claude Code session on the web (older tasks: a chat)
 the owner starts for this task; it finishes with merge and release (CLAUDE.md section 2) ·
 *owner* = Sebastian (decision or test on his PC).
 
@@ -19,23 +19,24 @@ updates its branch to `main`.
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (running)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 cylinders (running) → 0014 linkages → 0026 G-code
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (running) → 0025
-- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16); lane free
+- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0031 Claude Code set-up (brief to write)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (running) → 0029 later
 
 ## Open and running
 
-| # | Task | Who | Model | Status | Branch / file |
+| # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0024-decals.md |
-| 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus | waiting (0014) | tasks/0026-gcode-motion.md |
+| 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus · High | waiting (0014) | tasks/0026-gcode-motion.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0028-chips.md |
-| 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus | later | tasks/0029-milling-later.md |
+| 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke; also the "Show joint arrows" NameError | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0013-cylinders.md |
-| 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus | waiting (0013) | tasks/0014-linkages.md |
+| 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus · High | waiting (0013) | tasks/0014-linkages.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | running (worker chat, 5 Nov 2026) | tasks/0018-video-finishing.md |
-| 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet | waiting (0018) | tasks/0025-callouts-pictures-music.md |
+| 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet · Medium | waiting (0018) | tasks/0025-callouts-pictures-music.md |
+| 0031 | Quality & delivery lane: Claude Code on the web – stored set-up for every session (venv, Blender 5.2.3, xvfb, ImageMagick, download.blender.org allowed), measure set-up time and usage before/after, CLAUDE.md section 4 | lead writes the brief, then worker | Sonnet · Medium | open – brief to write | – |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | – | open | – |
