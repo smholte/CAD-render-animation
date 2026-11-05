@@ -17,6 +17,7 @@ import re
 import bpy
 from mathutils import Matrix
 
+from ..core.words import plural
 from . import build, faces, joints, logic, states
 
 _VERSION_SUFFIX = re.compile(r"\s+v\d+$", re.I)       # Fusion: "Bracket v12"
@@ -254,5 +255,5 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     for name in lost_faces:
         s.report_notes.add().text = f"{name}: its faces changed, the faces painted on it are gone (paint them again)"
     kept = sum(1 for o, _n in pairs if o["kind"] == "part")
-    s.report_title = f"Model updated: {kept} parts kept, {len(new_parts)} new, {len(missing)} missing"
+    s.report_title = f"Model updated: {plural(kept, 'part')} kept, {len(new_parts)} new, {len(missing)} missing"
     return {"kept": kept, "new": len(new_parts), "missing": len(missing), "notes": notes, "root": new_root}

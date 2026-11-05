@@ -3,6 +3,81 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.16 – 5 Nov 2026 – couplings and motors: one joint moves a whole mechanism (task 0012)
+
+Commit: see below (filled in after the merge).
+
+4 Motion
+- **Follows a joint**: a joint moves along with another one at a ratio – gear pairs (turns per
+  turn; negative for meshing gears), telescope sections and gripper jaws (mm per mm; −1 for the
+  second jaw), spindles, ball screws, racks and winch ropes (mm per turn), rolling wheels and
+  pinions on a rack (° per mm). An **Offset** sets where it stands when the other joint is at 0.
+  A line under the ratio says it in other words ("One turn every 157.1 mm: a wheel of Ø50.0 mm
+  rolling along").
+- Chains work (a motor drives a spindle, the nut carries a trolley, its wheels roll). Two joints
+  that would follow each other are refused, with the reason in red. A following joint shows its
+  value in purple and is not moved by hand, by poses or by animation steps; its limits only warn.
+  **Moves by itself** ends it; the joint stays where it is. The leading joint shows "Drives '…'".
+- **Motor (turns without end)** on a rotate joint: no limits, the angle also in turns.
+- Couplings and motors stay through a model update and in saved projects, also on a PC where
+  project files may not run scripts (and in the background render queue).
+- Removing a joint that others followed: they stay where they are and move by themselves.
+
+6 Animation
+- New step **Run motor**: a motor turns at a speed (rpm; a slide joint in mm/s) for the step's
+  duration, with ramps (**Smooth**, **Slow start**, **Slow stop** and **Ramp (s)**). 12 rpm for 5 s
+  at constant speed is exactly 1 turn. Joints that follow it move along. The step shows how far
+  it goes ("0.90 turns in this step").
+- A step for a joint that follows another one is shown red, and says which joint to pick.
+
+Also
+- Every button and setting of 4 Motion, 6 Animation, 7 Render queue and Saved scenes has a
+  tooltip that says what it does and how to use it.
+- Joint names can no longer be empty or used twice (steps and couplings find joints by name).
+- User guide, chapters 4 and 6: couplings, motors and Run motor, with two new pictures.
+
+## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
+
+Commit `ea65ef1`.
+
+1 Import, 2 Structure, 3 Looks
+- Every button and setting in these sections explains itself when you rest the mouse on it.
+  Buttons that shared one text now each say what they do: the two arrows next to **Find in the
+  tree** (open all / close all), **Show only the unsorted parts** and **Show only these**, **+** and
+  **From clicked part** in Sorting rules (the second one names the part you clicked), the up and
+  down arrows, the two tick buttons in Find & sort parts. The × of the model update report and
+  the names in the lists of visibility sets and paint schemes got a tooltip too.
+- The choices of a sorting rule (Part name, CAD colour, Finish… / contains, is, matches
+  pattern…) each explain what they mean in the drop-down list.
+- **From active part** (Sorting rules) is now called **From clicked part**.
+- Counts say "1 part", "1 face set", "1 group", "1 core" (the Paint faces header said
+  "1 face sets"); also in the messages after a button, in the window that shows what a rule-set
+  switch changes ("1 part changes group") and in the model update report.
+
+All sections
+- Tooltips no longer break in the middle of a sentence (23 of them did, for example those of
+  **Render image**, **Add camera** and **Defaults**).
+
+User guide
+- Chapters 1–3 checked against the app: **Make it a rule** for a whole subassembly, the
+  placeholders a group name can hold, where **+** puts a new rule and **Select the ticked parts in
+  the view** were out of date or missing. New picture of Paint faces and Sorting rules.
+## 0.2.14 – 5 Nov 2026 – more parts sorted by supplier codes (task 0022)
+
+Commit `2f7bf7a`.
+
+3 Looks – sorting on import
+- Many more supplier catalogue codes are recognised, Misumi above all (shafts, collars, pins,
+  linear bushings, shaft supports, guides, cam followers, bushings, couplings, pulleys, urethane
+  washers and bumpers, hinges, handles, toggle clamps, floating joints, frame nuts…), plus SMC
+  JCQ cylinders, THK blocks, Omron RFID and more. Also when the code sits in a longer name
+  ("PSFJ20-300_SHAFT", "_LMUW20_1").
+- The switch of an SMC cylinder ("JCDQ-M9B") is a switch, not the cylinder body.
+- Fewer wrong groups: a part called "PALLET" (a conveyor's workpiece pallet) is no longer made of
+  wood (wooden and Euro pallets still are), "LINK" is a link bar instead of a chain, a "SENSOR
+  POST" is a post.
+- On the EGR test model (GrabCAD): 67 % of the placed parts sorted (was 55 %).
+
 ## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
 
 Commit `b5d716b`.

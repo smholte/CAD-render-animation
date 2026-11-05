@@ -1,6 +1,6 @@
 # 0020 – Updates from GitHub: new versions with one click in the app
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0020-updates-from-github`
+**Who:** worker · **Status:** running (worker chat started 5 Nov 2026) · **Branch:** `task/0020-updates-from-github`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Quality & delivery · **Area:** `.github/`,
 `tools/build_release.py`, `installer/`, `blender/prefs.py` (update settings only), `docs/UPDATES.md`,
 `CLAUDE.md` section 7, the app template (an update notice if needed). Replaces task 0005.
@@ -44,6 +44,10 @@ new installer each time. Updates are stored on GitHub (owner's decision, 4 Nov 2
    copies it, so an in-app update brings a new extension but an old template (e.g. the Help-menu
    entry for the user guide lives there). Either the update also refreshes the template, or such
    entries move into the extension. Test it: old template + in-app update → new template behaviour.
+
+6. Small, from the lead (5 Nov 2026): pushes that change only the task list (`TASKS.md`,
+   `tasks/**`) start a full 12-minute run too, and with six chats pushing, runs queue up. Skip the
+   test run for such pushes (`paths-ignore`), but never for a push that also changes anything else.
 
 ## Done when
 

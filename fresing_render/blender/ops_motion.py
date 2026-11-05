@@ -103,7 +103,7 @@ class FRESING_OT_report_select_new(bpy.types.Operator):
 
 
 class FRESING_OT_report_clear(bpy.types.Operator):
-    """Close the model update report"""
+    """Closes this model update report. The model and your work do not change"""
 
     bl_idname = "fresing.report_clear"
     bl_label = "Close report"

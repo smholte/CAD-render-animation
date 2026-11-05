@@ -1,6 +1,6 @@
 # 0013 – Hydraulic and electric cylinders
 
-**Who:** worker · **Status:** waiting (0012) · **Branch:** `task/0013-cylinders`
+**Who:** worker · **Model:** Opus · **Status:** open – can start · **Branch:** `task/0013-cylinders`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011.
 
 ## Goal
@@ -34,6 +34,9 @@ out so both eyes stay on their pins. And the other way round: the owner sets the
 4. Telescopic (multi-stage) cylinders: stages follow each other with task 0012's coupling – show
    how in the report (a test model is enough).
 5. Saved data: cylinders in specs (model update), old projects open unchanged.
+
+6. Small, from task 0023: messages in this lane's files still say "1 subassemblies added"
+   (joint members) and "1 pieces … moved apart" (Explode): use `core/words.plural()`.
 
 ## Done when
 

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.13"
+__version__ = "0.2.16"
 
 _modules = []
 
@@ -24,6 +24,10 @@ def register():
     from .blender import handlers, project_lock, props
     props.register()
     for cls in _classes():
+        if issubclass(cls, bpy.types.Operator) and cls.__doc__ and "\n" in cls.__doc__:
+            # the docstring is the tooltip: Blender keeps its line breaks, so a docstring wrapped in the
+            # source would show a sentence broken in the middle
+            cls.__doc__ = " ".join(cls.__doc__.split())
         bpy.utils.register_class(cls)
     handlers.register()
     project_lock.register()

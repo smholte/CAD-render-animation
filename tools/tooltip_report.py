@@ -37,10 +37,11 @@ UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py
 LANE_OF_PANEL = {
     "1 Import": "Looks lane", "2 Structure": "Looks lane", "Clean-up": "Looks lane",
     "Visibility sets": "Looks lane", "3 Looks": "Looks lane", "Find & sort parts": "Looks lane",
-    "Sorting rules": "Looks lane", "Paint schemes & templates": "Looks lane",
+    "Sorting rules": "Looks lane", "Paint schemes & templates": "Looks lane", "Paint faces": "Looks lane",
     "4 Motion": "Motion lane", "Poses & exploded views": "Motion lane", "6 Animation": "Motion lane",
     "7 Render queue": "Motion lane", "Saved scenes": "Motion lane",
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
+    "Props for scale": "Scene & Render lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.

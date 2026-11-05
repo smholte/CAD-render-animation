@@ -1,6 +1,6 @@
 # 0012 – Couplings and motors: one joint moves several things
 
-**Who:** worker · **Status:** running · **Branch:** `task/0012-couplings-motors`
+**Who:** worker · **Status:** done (0.2.16) · **Branch:** `task/0012-couplings-motors`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011.
 
 ## Goal
@@ -41,11 +41,12 @@ simply run: "turn at 12 rpm for 5 s".
 
 ## Done when
 
-- [ ] Tests: each coupling type against hand-calculated values, chain of three, loop refused,
+- [x] Tests: each coupling type against hand-calculated values, chain of three, loop refused,
       coupled joints after a model update, save + reopen, file with scripts disabled still moves
       (check the drivers are simple expressions), motor step: 12 rpm for 5 s = 1 turn
-- [ ] Real-app click test step and screenshots of 4 Motion checked
-- [ ] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7)
+- [x] Real-app click test step and screenshots of 4 Motion checked
+- [x] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7; no
+      installer: "Saving usage")
 
 ## Not in this task
 
@@ -55,10 +56,57 @@ simply run: "turn at 12 rpm for 5 s".
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat, 5 Nov 2026.
 
 **What changed:**
+- `joints.py`: `follows` / `couple_ratio` / offsets / `is_motor` on each joint. A follower's value
+  and motion are driven by `a * K + C` reading the joint at the top of its chain (`chain_affine`:
+  the ratios and offsets of a chain combine) – a simple expression, so it works with scripts off.
+  `factor()` turns the typed ratio (turns per turn, mm per mm, mm per turn, ° per mm) into
+  internal units. Loops refused (`follow_check`); coupling drivers muted in `cad_pose` (the
+  follower's motion at 0); `get_value` of a follower is computed from its chain. Followers keep
+  their place when freed or when the leader is removed or gone after a model update. Specs carry
+  couplings and the motor flag; `refresh_couplings` rewires everything after an update. Motors:
+  ±10,000 turns; followers' limits only warn (Blender clamps keyed/driven custom properties to
+  min/max, so both get a wide hard range).
+- `animation.py`: Run motor (`MOTOR` step: speed rpm or mm/s, ramps from the Motion choice and
+  `ramp`; one key per frame while the speed changes, one per frame when a limit stops it);
+  steps and poses skip followers (warning: which joint to move); limit warnings for followers.
+- `states.py`: poses store and apply only joints that move by themselves.
+- Panels: 4 Motion (Moves by itself / Follows a joint, Joint, ratio with its unit as label,
+  Offset, hint in other words, Drives '…', Motor tick box with turns, follower value purple);
+  6 Animation (Run motor box, red steps for followers). Tooltips: every button and setting of
+  panels 4, 6, 7 and Saved scenes (`tooltip_report`: 248 found, 0 missing, 0 weak);
+  `docs/TOOLTIPS-TODO.md` is empty now. `tooltip_report.py` follows helpers of helpers.
+- Joint names never empty or twice. User guide chapters 4 and 6 + 2 pictures; README-install;
+  CLAUDE.md lessons (clamping, scripts-off testing, driver threads).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core Linux test machine, test crane):
+- `tests/test_couplings.py`, 35 tests against hand-calculated values: gear (−0.5), jaws (−1),
+  telescope (stack, 1:1 → twice as far), spindle (5 mm/turn) and rack (π·40 mm/turn), rolling
+  wheel Ø50 (100 mm → 4 rad), offsets, chain of three, loops and itself refused (also through
+  the panel field), followers vs hand/poses/steps, limit warnings, CAD pose with an offset,
+  remove/rename/type change, save + reopen, all drivers simple expressions, model update A → B
+  (couplings, motor, values) and leader gone, old specs, motor without end, Run motor 12 rpm ×
+  5 s = 1.00000 turn, ramps (0.8 turn with 1 s ramps, values per frame), followers of a motor,
+  slide motor stopping at its limit, panels drawn. Two mutation checks caught by the right tests.
+- Real program with scripts disabled (`blender -Y`, `tools/coupling_check_noscripts.py`): the
+  couplings move the parts exactly; a Python-only control driver is refused. In `ui_test_app2`
+  (now 50 checks, also on GitHub) with clicks for Follows a joint, undo/redo, Motor, + Run motor.
+- Speed: 12 joints in one chain, 0.07 ms per frame vs 0.06 ms with every joint keyed.
+- Full suite before the review fixes: 1,451 passed; GitHub run of the branch green (4 jobs).
+  After the fixes: coupling, stack, phase-2 and CI-tool tests and ui2 locally; full run on GitHub.
+
+**Independent review** (helper agent): 1 near-blocker + 2 should-fix + 2 minor, all fixed with a
+test that failed before: followers moved one update late now and then (drivers on several
+threads; 29 of 1000 updates in the test before, 0 after, also on 251 played frames); follower
+jumped back to CAD when its leader was gone after a model update; freed follower beyond its
+limits jumped to the limit; removing a leader while an animation was built; empty/duplicate joint
+names; Motor off past 10 turns jumped. Checked fine: units, chains with offsets, stacks with
+followers, model updates across stacks, ramps, old specs, drawing code.
 
 **Open points / follow-up tasks:**
+- Owner test on his PC with a real mechanism (24 cores: the thread issue above is fixed by design,
+  not measured there).
+- "Axis stays fixed in the world" and Swap-order splits (from 0011) still open.
+- Ratio fields are single precision (gear ratios to about 7 digits).

@@ -1,6 +1,6 @@
 # 0018 – Video finishing: logo, title and end card, captions, formats
 
-**Who:** worker · **Status:** waiting (0017) · **Branch:** `task/0018-video-finishing`
+**Who:** worker · **Model:** Sonnet · **Status:** waiting (0017) · **Branch:** `task/0018-video-finishing`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/render.py`,
 `blender/queue.py` and `queue_runner.py` (video assembly only), new `blender/video.py`, the 5 Scene
 & Render part of `blender/ui.py`, `blender/props.py` (additive), `tests/`.
@@ -30,7 +30,13 @@ the right shape for LinkedIn/website (16:9, 1:1, 9:16).
    captions on/off (from step labels, timed with the steps, with a fade), output shape 16:9 / 1:1 /
    9:16 (camera framing kept: crop or extend, the owner chooses).
 3. Still images: optional logo corner too.
-4. Tooltips for every new button and setting.
+4. **Watermark** (owner, 5 Nov 2026): "DRAFT", "CONFIDENTIAL" or own text, across stills and
+   videos, size and see-through amount adjustable; on/off per render job, so a draft can be sent
+   and the final rendered clean without changing the project.
+5. Tooltips for every new button and setting; user guide chapter for all of it.
+
+6. Small, from task 0023: "1 props deleted" (`ops_surroundings.py`) and any other count in this
+   lane's messages: use `core/words.plural()`.
 
 ## Done when
 
@@ -42,7 +48,9 @@ the right shape for LinkedIn/website (16:9, 1:1, 9:16).
 
 ## Not in this task
 
-- Music/sound, voice-over, editing several animations into one film (possible follow-ups).
+- Labels pointing at parts, picture cards between steps, music: task 0025 (next in this lane).
+- Logos, text and pictures on the model itself (decals): task 0024 (Looks lane).
+- Voice-over, editing several animations into one film (possible follow-ups).
 
 ---
 
