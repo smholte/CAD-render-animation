@@ -18,6 +18,11 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   looks    the crane in each of the five light looks, side by side (looks.jpg; Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=looks blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
+  decals   the crane with a type plate, a warning sticker, a CE mark and text on it (decals.jpg, task 0024):
+      BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=decals blender -b --app-template fresing_render \\
+          --python tools/guide_screens.py
+
+GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
 installed, see tools/ui_test_app.py. Needs xvfb-run and ImageMagick (import). A lane that changes its
@@ -91,6 +96,47 @@ def override():
 def ob(name, n=0):
     hits = sorted((o for o in bpy.context.scene.objects if o.get("fr_name") == name), key=lambda o: o.get("fr_uid"))
     return hits[n]
+
+
+def face_facing(o, world_dir):
+    """(CAD face, its centre, its normal) – part coordinates – of the biggest face of a part that looks
+    along ``world_dir``."""
+    import numpy as np
+    dec, fm = mod("blender.decals"), mod("blender.faces")
+    pos, nrm = dec._mesh_arrays(o.data)
+    st = fm.face_starts(o.data)
+    rot = o.matrix_world.to_3x3()
+    best = None
+    for f in range(len(st) - 1):
+        p = pos[st[f]:st[f + 1]]
+        area = float((0.5 * np.linalg.norm(np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]), axis=1)).sum())
+        n = nrm[st[f]:st[f + 1]].reshape(-1, 3).mean(axis=0)
+        if (rot @ Vector(n)).normalized().dot(Vector(world_dir)) > 0.9 and (best is None or area > best[0]):
+            best = (area, f, p.reshape(-1, 3).mean(axis=0), n / np.linalg.norm(n))
+    return best[1], tuple(best[2]), tuple(best[3])
+
+
+def add_decals():
+    """The decals of the guide pictures: text on the boom, a type plate on the base, a warning sign on
+    the pedestal, a CE mark on the trolley. Returns the type plate."""
+    dec = mod("blender.decals")
+    f, c, n = face_facing(ob("BOOM"), (0, -1, 0))
+    text = dec.add(ob("BOOM"), f, c, n, "TEXT", text="FRESING")
+    text.ink_color = (1.0, 1.0, 1.0)
+    dec.fit(text)
+    f, c, n = face_facing(ob("BASE"), (0, -1, 0))
+    plate = dec.add(ob("BASE"), f, (0.62, c[1], c[2]), n, "STICKER", sticker="TYPE_PLATE")
+    plate.plate_company, plate.plate_type, plate.plate_serial = "FRESING", "Test crane TC-1", "SN 0001"
+    plate.plate_weight = "350 kg"
+    plate.width = 0.16
+    f, c, n = face_facing(ob("PEDESTAL"), (0, -1, 0))
+    warn = dec.add(ob("PEDESTAL"), f, (c[0], c[1], c[2] + 0.04), n, "STICKER", sticker="WARN_LOAD")
+    warn.width = 0.1
+    f, c, n = face_facing(ob("TROLLEY"), (0, -1, 0))
+    ce = dec.add(ob("TROLLEY"), f, c, n, "STICKER", sticker="CE")
+    ce.ink_color = (1.0, 1.0, 1.0)                    # white on the black trolley
+    ce.width = 0.07
+    return plate
 
 
 def select_only(*objs):
@@ -481,6 +527,7 @@ if MODE == "panels":
         ("panel_3_rules", [("FRESING_PT_rules", False, True)]),
         ("panel_3_schemes", [("FRESING_PT_schemes", False, True)]),
         ("panel_3_faces", [("FRESING_PT_faces", False, True)]),
+        ("panel_3_decals", [("FRESING_PT_decals", False, True)]),
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_4_coupling", [("FRESING_PT_motion", False, True)]),     # a wheel follows the trolley
@@ -523,6 +570,11 @@ if MODE == "panels":
                 logic.apply_rules(sc)
                 sc.fresing.pick_mode = "PART"
                 select_only(ob("BOOM"))
+            elif name == "panel_3_decals":              # decals on the crane, the base (type plate) clicked
+                plate = add_decals()
+                sc.fresing_decal.active = plate.key
+                sc.fresing.pick_mode = "PART"
+                select_only(ob("BASE"))
             elif name == "panel_2_structure":
                 sc.fresing.pick_mode = "SUBASSEMBLY"
                 select_only(ob("BOOM.ASM"))
@@ -580,7 +632,10 @@ if MODE == "panels":
         show.__name__, shoot.__name__ = f"show_{name}", f"shoot_{name}"
         return show, shoot
 
+    _only = [n.strip() for n in os.environ.get("GUIDE_ONLY", "").split(",") if n.strip()]
     for _name, _spec in SHOTS:
+        if _only and _name not in _only:
+            continue
         for _fn in _make_shot(_name, _spec):
             step(_fn)
 
@@ -681,7 +736,7 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE in ("render", "looks"):
+elif MODE in ("render", "looks", "decals"):
     pass
 
 
@@ -745,8 +800,9 @@ def render_looks():
     log("saved looks", f"{os.path.getsize(out) // 1024} KB")
 
 
-def render_crane():
-    """A finished render of the test crane, the way a user makes one (background mode, processor)."""
+def render_crane(with_decals: bool = False):
+    """A finished render of the test crane, the way a user makes one (background mode, processor);
+    with decals on it for the picture of 3 Looks > Logos & stickers."""
     import addon_utils
     addon_utils.enable(pkg(), default_set=True)
     assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}
@@ -762,6 +818,8 @@ def render_crane():
     s.floor = "VISIBLE"
     s.floor_use_own_color = True
     s.floor_color = (0.42, 0.42, 0.4)
+    if with_decals:
+        add_decals()
     cams = mod("blender.cameras")
     cam = cams.add_camera(sc, "LOW", 35.0, name="Low hero")
     sc.camera = cam
@@ -773,14 +831,15 @@ def render_crane():
     t = time.time()
     assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
     log("render", s.last_render, f"{time.time() - t:.0f} s")
-    path = os.path.join(OUT, "render_crane.jpg")
+    name = "decals" if with_decals else "render_crane"
+    path = os.path.join(OUT, name + ".jpg")
     subprocess.run(["convert", s.last_render, "-strip", "-quality", "88", path], check=True)
-    log("saved render_crane", f"{os.path.getsize(path) // 1024} KB")
+    log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
-if MODE in ("render", "looks"):
+if MODE in ("render", "looks", "decals"):
     try:
-        render_crane() if MODE == "render" else render_looks()
+        render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals")
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

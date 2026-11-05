@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.21 – 5 Nov 2026 – video finishing: logo, title and end card, captions, watermark (task 0018)
+## 0.2.22 – 6 Nov 2026 – video finishing: logo, title and end card, captions, watermark (task 0018)
 
 Videos come out ready to post or send.
 - **Brand kit** (5 Scene & Render > Brand kit & logo): one kit per company with logo (PNG or JPG), card colour,
@@ -27,6 +27,31 @@ Videos come out ready to post or send.
 - Tests (2-core test machine): 33 new automated tests (pictures of the title card, captions at their step times, logo
   in the chosen corner and watermark checked pixel by pixel; a queued animation with every option makes a square MP4
   of title + animation + end card length); real app: 14 new checks.
+
+## 0.2.21 – 6 Nov 2026 – logos, text, type plates and stickers on the machine (task 0024)
+
+3 Looks > Logos & stickers (new)
+- Put a **picture** (your logo: PNG, JPG…), **text** you type, or a ready-made **sticker** on a part:
+  choose it, click **Add decal…** and click the spot on the model. It lies flat on that face, upright,
+  like a real sticker. On a round face (a cylinder barrel, a drum, a tank) it wraps round.
+- Ready-made stickers, drawn by the app: CE mark, type plate (company, type, serial number, year,
+  weight, small CE mark), warning signs (general, hand crush, electricity, hot surface, hanging load),
+  a straight and a turning arrow.
+- **Move with the mouse** (also onto another face of the part; wheel turns, Ctrl+wheel sizes), or by
+  numbers: width and height in mm, right/up, turn. **Fit to face**, **Upright**, **Mirror**,
+  **See-through**, **Finish** (matt, satin, gloss, metal).
+- Text and stickers: colour of the letters, background and border on/off with their own colours,
+  any font (the fonts on your PC are listed).
+- On **every copy** of a part (a type plate on a bought motor) or on **this copy only** (a serial
+  number). The list shows the decals of the clicked part (rename, switch off, remove) and of the whole
+  project.
+- A decal moves, turns and hides with its part: joints, poses, exploded views, animations, the render
+  queue. Pictures are kept inside the project.
+- Library: put your logos as PNG files in the folder `Logos` (and stickers in `Stickers`) of the
+  shared library; they show in a list next to Picture.
+- A model update keeps decals whose spot is still on the part; one whose face moved is switched off
+  and named in the update report. A template keeps decals and puts them on parts with the same name.
+- A click on a sticker while painting faces paints the face under it.
 
 ## 0.2.20 – 5 Nov 2026 – fasteners in supplier notation (task 0030)
 

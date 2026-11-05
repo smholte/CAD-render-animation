@@ -510,6 +510,8 @@ def _template_from_scene(scene) -> Template:
         "sky_weather")}
     t.output = {k: getattr(s, k) for k in ("out_format", "out_resolution", "out_orientation", "out_dpi",
                                           "out_use_bleed", "out_bleed_mm", "out_file_type", "quality")}
+    from . import decals
+    t.decals = decals.to_template(scene)
     return t
 
 
@@ -571,11 +573,16 @@ def apply_template(scene, t: Template) -> None:
         rule_sets.adopt(scene, f"From template '{t.name}'")
     logic.apply_rules(scene)
     world.apply(scene, s)
+    if t.decals:                                 # logos and stickers on parts of the same name (task 0024)
+        from . import decals
+        placed, notes = decals.from_template(scene, t.decals)
+        if notes:
+            s.last_message = notes[0] + (f" (and {len(notes) - 1} more)" if len(notes) > 1 else "")
 
 
 class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
-    """Saves the rule set this project uses, paint schemes, background and output settings as a template
-    (.json) for the next project"""
+    """Saves the rule set this project uses, paint schemes, background and output settings, and the logos and
+    stickers on parts, as a template (.json) for the next project"""
 
     bl_idname = "fresing.template_export"
     bl_label = "Save template"

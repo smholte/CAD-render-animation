@@ -1,6 +1,6 @@
 # 0018 – Video finishing: logo, title and end card, captions, formats
 
-**Who:** worker · **Model:** Sonnet · **Status:** done (0.2.21) · **Branch:** `task/0018-video-finishing`
+**Who:** worker · **Model:** Sonnet · **Status:** done (0.2.22) · **Branch:** `task/0018-video-finishing`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/render.py`,
 `blender/queue.py` and `queue_runner.py` (video assembly only), new `blender/video.py`, the 5 Scene
 & Render part of `blender/ui.py`, `blender/props.py` (additive), `tests/`.
