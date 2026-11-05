@@ -727,7 +727,7 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
             col.prop(r, "target", text="Group")
             col.prop(r, "note", text="Note")
         row = layout.row(align=True)
-        row.operator("fresing.rule_add", text="From active part", icon="EYEDROPPER").from_selection = True
+        row.operator("fresing.rule_add", text="From clicked part", icon="EYEDROPPER").from_selection = True
         row.operator("fresing.rules_reset", text="Defaults", icon="LOOP_BACK")
 
 

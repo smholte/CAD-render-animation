@@ -209,6 +209,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
   `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
   suggested texts (delete your rows when done).
+- **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
+  (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
   `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
   (`tools/guide_screens.py`, test crane only). The guide is built into the release by
@@ -288,3 +290,6 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
   of the same bit depth in tests.
 - An animation without steps lasts 1 s (26 frames): a test video needs one short step.
+- Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
+  the source showed a sentence broken in the middle. `register()` joins the lines (test:
+  `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.

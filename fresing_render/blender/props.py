@@ -46,7 +46,8 @@ FIELD_HELP = {
     "path": "The names of every subassembly above the part, then the part's own name",
     "assembly": "The name of the subassembly the part sits in",
     "color": "The part's colour in the STEP file, as a hex code such as #F9A800",
-    "is_standard": "'yes' for a bolt, nut, washer or pin the app recognised by its name (DIN/ISO number or a word such as BOLT)",
+    "is_standard": "'yes' for a bolt, nut, washer or pin the app recognised by its name (DIN/ISO number "
+                   "or a word such as BOLT)",
     "family": "The kind of fastener: screw, nut, washer, pin or other",
     "kind": "The fastener type as a code: hex_bolt, socket_cap, hex_nut, washer…",
     "finish": "The fastener finish read from its name: galvanized, stainless, black, zinc…",
@@ -54,7 +55,7 @@ FIELD_HELP = {
     "size": "The thread size of a fastener, for example M12",
     "property_class": "The strength class of a fastener, for example 8.8 or 12.9",
     "part_type": "The part type the part-type library found in the name: profile, bearing, hose…",
-    "cad_material": "The material or appearance name in the STEP file (Fusion and Inventor AP214 write it)",
+    "cad_material": "The material or appearance name in the STEP file (Fusion writes it)",
 }
 OP_HELP = {
     "contains": "The text appears anywhere in it",

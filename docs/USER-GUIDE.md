@@ -385,7 +385,7 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
   name may hold {color}, {finish}, {kind}, {part_type} or {cad_material}: then you get one group per
   colour, finish, type or material. Rest the mouse on a choice in the lists to see what it means.
 - **+** adds a rule at the top of the list (so it wins) for the group selected in 3 Looks; **From
-  active part** adds one "Part name contains *the name of the part you clicked*". The arrows move the
+  clicked part** adds one "Part name contains *the name of the part you clicked*". The arrows move the
   selected rule up or down, **−** removes it.
 - **Defaults** replaces all rules with those of Standard. Projects made before version 0.2.8 that
   still had the old built-in rules get the new ones when they are opened; your own rules are kept.
