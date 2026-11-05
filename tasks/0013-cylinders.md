@@ -1,6 +1,6 @@
 # 0013 – Hydraulic and electric cylinders
 
-**Who:** worker · **Status:** waiting (0012) · **Branch:** `task/0013-cylinders`
+**Who:** worker · **Model:** Opus · **Status:** waiting (0012) · **Branch:** `task/0013-cylinders`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011.
 
 ## Goal

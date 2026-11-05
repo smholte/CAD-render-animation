@@ -88,6 +88,15 @@ The owner's AI usage is limited; every chat works economically:
 - Small follow-ups go into the next task of the same lane, not into a new chat.
 - The lead chat is restarted when its conversation gets long: everything it needs is in this
   file, `TASKS.md`, the task files and the project note.
+- **The lead picks the model for every task** (owner's rule, 5 Nov 2026) and writes it in the
+  task file's header (`**Model:** Sonnet` or `Opus`), in the Model column of `TASKS.md` and next
+  to the sentence it gives the owner, who picks that model in the new chat before sending the
+  first message. **Sonnet** (uses less of the owner's usage) for routine work: tooltips, texts and
+  the user guide, data and word lists, small fixes, extra tests, one-panel UI changes along an
+  existing pattern. **Opus** for hard work: new algorithms and geometry (joints, cylinders,
+  linkages, milling, chips), several modules at once, Windows-only code, performance work,
+  anything where a wrong design is expensive. When unsure: Sonnet, and the owner switches the
+  chat to Opus if it gets stuck (the same tests failing again and again, going in circles).
 
 ## 3. Repository layout
 
