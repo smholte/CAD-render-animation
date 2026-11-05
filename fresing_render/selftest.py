@@ -203,6 +203,28 @@ def main(report_path: str | None = None) -> bool:
 
     check("App start (Desktop shortcut)", _template)
 
+    def _updates():
+        """The update address answers (GitHub, or the one Install.bat -UpdateUrl set): updates can reach this PC."""
+        from .core import updates as core
+        url, source = core.index_url_from(bpy.utils.user_resource("CONFIG"))
+        where = "GitHub" if source == "GitHub" else url
+        if not bpy.app.online_access:
+            return f"skipped: Blender's online access is off, so the app does not look for updates ({where})"
+        res = core.check(url, __version__, tuple(bpy.app.version), timeout=20)
+        state = res.get("state")
+        if state == "error":
+            if source == "GitHub" and "HTTP 404" in res.get("message", ""):
+                return "GitHub answers; no version published there yet"
+            raise RuntimeError(f"{res.get('message')} ({where}). The app cannot update itself on this PC: "
+                               "allow github.com and its download servers, or run new installers by hand")
+        if state == "available":
+            return f"{where} answers: update {res['version']} available (installed {__version__})"
+        if state == "needs_installer":
+            return f"{where} answers: {res['version']} needs a new installer"
+        return f"{where} answers: {__version__} is the newest"
+
+    check("Update check", _updates)
+
     def _gpu():
         info = render.setup_gpu()
         if info == "CPU" and _no_gpu_expected():       # not for "CPU (Cycles add-on not loaded)"

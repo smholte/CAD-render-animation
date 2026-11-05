@@ -9,6 +9,8 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
     rulesets  tools/ui_test_rule_sets.py - rule sets: copy, change, save, switch with preview, undo
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
+    update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
+           this version on a local GitHub-like server, Update now, closes, is updated and starts again
 
     python3 tools/ci_real_app.py --blender <blender program> --wheels <linux wheels dir> --out <dir>
                                  [--only ui1,paths] [--timeout-min 40]
@@ -39,7 +41,7 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "surroundings": 23, "rulesets": 17, "paths": 8}
+MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "surroundings": 23, "rulesets": 17, "paths": 8, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17}   # UITEST_QUICK=1 skips the renders of ui1 and the queue
 
 
@@ -126,7 +128,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,paths")
+    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,paths,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -151,6 +153,8 @@ def main(argv=None) -> int:
         "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
                      "ui_test_rule_sets.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
+        "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
+                   "ci_update_test.py", None),
     }
     rows = []
     for key in [k.strip() for k in args.only.split(",") if k.strip()]:
@@ -161,7 +165,10 @@ def main(argv=None) -> int:
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")
         script_path = os.path.join(ROOT, "tools", script)
-        if gui:
+        if gui is None:                              # a driver of its own (own settings folder and screen)
+            cmd = [sys.executable, script_path, "--gui", "--blender", blender, "--wheels", os.path.abspath(args.wheels),
+                   "--out", folder, "--timeout-min", str(args.timeout_min)]
+        elif gui:
             # --python-exit-code: an error while loading the script closes Blender instead of
             # leaving it open with nothing to drive it until the timeout
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--app-template", "fresing_render",

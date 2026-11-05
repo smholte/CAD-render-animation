@@ -9,9 +9,10 @@
        placed next to this script, and checks its SHA-256 checksum
     2. unpacks it to %LOCALAPPDATA%\FresingRender in portable mode (separate from any
        other Blender on this PC); settings of an earlier version are carried over
-    3. installs the Fresing Render extension: from the update repository when -UpdateUrl
-       is given (later updates are then one click), otherwise from the zip next to this script
-    4. installs the app layout (application template) and sets a few preferences
+    3. installs the Fresing Render extension from the zip next to this script
+    4. installs the app layout (application template) and sets a few preferences, among them
+       Blender's online access: the app looks for updates on GitHub at start-up and installs
+       them with one click (Update now); see docs/UPDATES.md
     5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts, and a Start-menu
        shortcut "Fresing Render - User guide" (the guide inside the installed extension)
 
@@ -21,11 +22,14 @@
   Where to install. Default: %LOCALAPPDATA%\FresingRender
 
 .PARAMETER UpdateUrl
-  Optional URL of the private update repository (index.json), e.g.
-  https://updates.example.com/fresing-render/index.json  or  file://SERVER/share/fresing/index.json
+  Optional: another update address for the app (an index.json made by tools/build_release.py),
+  e.g. file://SERVER/share/fresing/index.json. Without it the app uses GitHub (the newest release
+  of github.com/smholte/CAD-render-animation); an address set earlier is kept.
+  "-UpdateUrl default" goes back to GitHub. A plain network path works too:
+  \\SERVER\share\fresing\index.json
 
 .PARAMETER AccessToken
-  Optional access token for the update repository.
+  No longer used (updates come from the public GitHub releases); accepted so old command lines still run.
 #>
 [CmdletBinding()]
 param(
@@ -36,6 +40,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is very slow with its progress bar
+if ($AccessToken) { Write-Host "Note: -AccessToken is no longer used and is ignored." -ForegroundColor Yellow }
 # Full path without a trailing slash, so folder comparisons below are reliable.
 $InstallDir = [IO.Path]::GetFullPath($InstallDir.TrimEnd('\', '/'))
 
@@ -174,60 +179,37 @@ New-Item -ItemType Directory -Force -Path $Portable | Out-Null
 $ExtRoot = Join-Path $Portable "extensions"
 function Installed-Manifest([string]$repo) { Join-Path $ExtRoot "$repo\fresing_render\blender_manifest.toml" }
 
-$old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-$repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"
-$ErrorActionPreference = $old
-$hasRepo = $repoList -match "(?m)^fresing:"
-
 # The zip next to this script (newest version if there are several)
 $zipExt = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" |
     Where-Object { $_.Name -match '^fresing_render-(\d+(\.\d+)*)' } |
     Sort-Object { [version]([regex]::Match($_.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value) } |
     Select-Object -Last 1
+if (-not $zipExt) { throw "fresing_render-<version>.zip not found next to the installer" }
 
-function Install-FromZip {
-    if (-not $zipExt) { throw "fresing_render-<version>.zip not found next to the installer" }
-    Step "Installing $($zipExt.Name)"
-    Invoke-Blender @("--command", "extension", "install-file", "--repo", "user_default", "--enable", $zipExt.FullName) "Installing the extension" | Out-Null
-    return @((Installed-Manifest "user_default"), [regex]::Match($zipExt.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value)
-}
-
-# Update-server mode when a URL is given now, or was set up before (repairs keep using it).
-if ($UpdateUrl -or $hasRepo) {
-    if ($UpdateUrl) {
-        Step "Connecting to the update repository"
-        if ($hasRepo) {   # refresh URL / access token
-            Invoke-Blender @("--command", "extension", "repo-remove", "fresing") "Refreshing the update repository" -AllowFailure | Out-Null
-        }
-        $repoArgs = @("--command", "extension", "repo-add", "--name", "Fresing", "--url", $UpdateUrl)
-        if ($AccessToken) { $repoArgs += @("--access-token", $AccessToken) }
-        $repoArgs += @("fresing")
-        Invoke-Blender $repoArgs "Adding the update repository" | Out-Null
-    } else {
-        Write-Host "   Using the update repository set up earlier"
+# Before 0.2.16 an install with -UpdateUrl used a Blender extension repository called "fresing".
+# The app now updates itself (Update now), always from the copy in "user_default": remove the old one.
+$old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+$repoList = (& $BlenderExe --command extension repo-list 2>&1) -join "`n"
+$ErrorActionPreference = $old
+$OldRepoUrl = ""
+if ($repoList -match "(?m)^fresing:") {
+    # keep its address: the app asks there instead of GitHub (unless -UpdateUrl says otherwise)
+    $inRepo = $false
+    foreach ($line in ($repoList -split "`n")) {
+        if ($line -match '^\S') { $inRepo = ($line -match '^fresing:') ; continue }
+        if ($inRepo -and $line -match '^\s+url:\s*"([^"]+)"') { $OldRepoUrl = $Matches[1] }
     }
+    Step "Removing the old update repository (the app now updates itself)"
     if (Test-Path -LiteralPath (Installed-Manifest "fresing")) {
-        Step "Updating Fresing Render"
-        $ok = Invoke-Blender @("--online-mode", "--command", "extension", "update", "--sync") "Updating the extension" -AllowFailure
-    } else {
-        Step "Installing Fresing Render from the update repository"
-        $ok = Invoke-Blender @("--online-mode", "--command", "extension", "install", "--sync", "--enable", "fresing.fresing_render") "Installing the extension" -AllowFailure
+        Invoke-Blender @("--command", "extension", "remove", "fresing.fresing_render") "Removing the old copy" -AllowFailure | Out-Null
     }
-    if ($ok -and (Test-Path -LiteralPath (Installed-Manifest "fresing"))) {
-        if (Test-Path -LiteralPath (Installed-Manifest "user_default")) {   # one copy only
-            Invoke-Blender @("--command", "extension", "remove", "user_default.fresing_render") "Removing the zip-installed copy" -AllowFailure | Out-Null
-        }
-        $Manifest = Installed-Manifest "fresing"
-        $Expected = ""
-    } elseif ($zipExt) {
-        Write-Host "   WARNING: the update server could not be used; installing the version from this folder instead." -ForegroundColor Yellow
-        $Manifest, $Expected = Install-FromZip
-    } else {
-        throw "Could not install from the update server (check the URL, the access token and the internet connection)."
-    }
-} else {
-    $Manifest, $Expected = Install-FromZip
+    Invoke-Blender @("--command", "extension", "repo-remove", "fresing") "Removing the old update repository" -AllowFailure | Out-Null
 }
+
+Step "Installing $($zipExt.Name)"
+Invoke-Blender @("--command", "extension", "install-file", "--repo", "user_default", "--enable", $zipExt.FullName) "Installing the extension" | Out-Null
+$Manifest = Installed-Manifest "user_default"
+$Expected = [regex]::Match($zipExt.Name, '^fresing_render-(\d+(\.\d+)*)').Groups[1].Value
 
 # Blender can report success even when the install failed: check the files.
 if (-not (Test-Path -LiteralPath $Manifest)) { throw "The extension was not installed (missing $Manifest)." }
@@ -239,7 +221,7 @@ Write-Host "   Fresing Render $ver installed"
 
 # ---- 3. App template + preferences -----------------------------------------------------
 Step "Installing the Fresing Render app layout"
-$TemplateSrc = Join-Path $Here "app_template\fresing_render"
+$TemplateSrc = Join-Path $Here "app_template\fresing_render"     # the same files ship inside the extension
 $TemplateDst = Join-Path $Portable "scripts\startup\bl_app_templates_user\fresing_render"
 if (-not (Test-Path -LiteralPath (Join-Path $TemplateSrc "__init__.py"))) {
     throw "The app_template folder is missing next to the installer: unzip the whole folder and run Install.bat again."
@@ -248,18 +230,31 @@ if (Test-Path -LiteralPath $TemplateDst) { Retry { Remove-Item -LiteralPath $Tem
 New-Item -ItemType Directory -Force -Path $TemplateDst | Out-Null
 Get-ChildItem -LiteralPath $TemplateSrc | Copy-Item -Destination $TemplateDst -Recurse -Force
 
-$Online = if ($UpdateUrl) { "True" } else { "False" }
+# Update address for the app (core/updates.py reads <portable>\config\fresing_update.json).
+$ConfigDir = Join-Path $Portable "config"
+New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+$UrlFile = Join-Path $ConfigDir "fresing_update.json"
+if (-not $UpdateUrl -and $OldRepoUrl -and -not (Test-Path -LiteralPath $UrlFile)) {
+    $UpdateUrl = $OldRepoUrl                    # the address of the old update repository
+}
+if ($UpdateUrl -eq "default") {
+    Remove-Item -LiteralPath $UrlFile -Force -ErrorAction SilentlyContinue
+} elseif ($UpdateUrl) {
+    Step "Update address: $UpdateUrl"
+    @{ url = $UpdateUrl } | ConvertTo-Json | Set-Content -LiteralPath $UrlFile -Encoding UTF8
+}
+$UpdateFrom = "GitHub (newest release)"
+if (Test-Path -LiteralPath $UrlFile) {
+    try { $UpdateFrom = (Get-Content -LiteralPath $UrlFile -Raw | ConvertFrom-Json).url } catch { $UpdateFrom = "?" }
+}
+
 $PrefsScript = Join-Path $InstallDir "set_prefs.py"
 @"
 import bpy
 p = bpy.context.preferences
 p.filepaths.use_relative_paths = True
 p.view.show_tooltips_python = False
-if ${Online}:
-    p.system.use_online_access = True          # needed for the update check
-    for repo in p.extensions.repos:
-        if repo.module == "fresing":
-            repo.use_sync_on_startup = True    # show "update available" at start-up
+p.system.use_online_access = True          # the app looks for updates at start-up (Update now)
 import addon_utils
 names = [m.__name__ for m in addon_utils.modules() if m.__name__.endswith(".fresing_render")]
 for name in names:
@@ -317,8 +312,9 @@ if (Test-Path -LiteralPath $Guide) {
     Remove-Item -LiteralPath $GuideLnk -Force -ErrorAction SilentlyContinue
 }
 
-Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdate URL: $UpdateUrl"
+Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render $ver installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdates from: $UpdateFrom"
 
 Write-Host ""
 Write-Host "Done. Start 'Fresing Render' from the Desktop." -ForegroundColor Green
+Write-Host "New versions: the app shows 'Update available' at start-up; one click on Update now installs them."
 Write-Host "Tip: run 'Fresing Render - Self test' from the Start menu once; it writes a report on the Desktop."

@@ -31,7 +31,9 @@ from dataclasses import dataclass, field
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py"]
+UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
+            "fresing_render/blender/updates.py"]
+UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 
 # Which lane owns which panel (TASKS.md): the report is a to-do list per lane.
 LANE_OF_PANEL = {
@@ -42,6 +44,7 @@ LANE_OF_PANEL = {
     "7 Render queue": "Motion lane", "Saved scenes": "Motion lane",
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
     "Props for scale": "Scene & Render lane",
+    "Update notice": "Quality lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
@@ -241,7 +244,8 @@ def scan_ui() -> list[Item]:
                 for st in node.body:
                     if (isinstance(st, ast.Assign) and isinstance(st.targets[0], ast.Name)
                             and st.targets[0].id == "bl_label"):
-                        panels[node.name] = re.sub(r"\s+", " ", st.value.value).strip()
+                        panels[node.name] = (re.sub(r"\s+", " ", st.value.value).strip()
+                                             or UNTITLED.get(node.name, node.name))
         # helper functions drawn from a panel (e.g. _draw_joints from 4 Motion)
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and node.name in panels:

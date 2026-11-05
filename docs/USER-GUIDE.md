@@ -117,6 +117,33 @@ Fresing Render.
 
 README.txt in the installer folder has the details: company PCs, updates, removing the app.
 
+<a id="updates"></a>
+### Updates: one click
+
+New versions come to the app by themselves. A few seconds after the app starts it looks on GitHub for
+a newer version. When there is one, **Update available** appears at the top of the Fresing tab:
+
+<img class="panel" src="img/panel_update.png" alt="Update available, with Update now">
+
+1. Open **What's new** to read what changed (it is the same text as on the release page).
+2. Click **Update now**, then **Update now** again in the small window that asks.
+3. The app downloads the new version (a minute or less), saves your project, closes, installs the
+   update and opens again with the same project. Nothing else to do.
+4. At the top of the Fresing tab it says **Updated to …**, with what's new. **Close** hides it.
+
+<img class="panel" src="img/panel_update_done.png" alt="Updated to, after the update">
+
+- **Later** hides the notice until the app starts again. **Help > Check for Fresing Render updates**
+  asks at any time.
+- A project that was never saved has to be saved first (**File > Save As**): the app says so. While the
+  render queue runs or a STEP file is being imported, the update waits until you start it again.
+- Your projects, renders, templates and settings stay as they are.
+- Versions before 0.2.16 cannot do this yet: run the newest installer once over them
+  ([Install](#start)). A version that needs a newer Blender also comes as an installer; the app then
+  says so and links to its release page.
+- The check needs internet access to github.com. Switch it off in **Edit > Preferences > Add-ons >
+  Fresing Render > Check for updates at start-up**.
+
 ### Moving around in the view
 
 | To | Mouse | Without a middle mouse button |
@@ -740,8 +767,18 @@ Start menu > Fresing Render > **Fresing Render - Self test** runs for a few minu
 and writes "Fresing Render self-test.txt" on the Desktop. Each line checks one thing: the STEP reader,
 importing on all cores, CAD material names, the app start, the graphics card, a test import, a render
 on the graphics card and one on the processor, joints and animation, the video encoder, the render
-queue and the time test. A line with `[FAIL]` says what went wrong: send the file along when you ask
-for help.
+queue, the time test and the update check. A line with `[FAIL]` says what went wrong: send the file
+along when you ask for help.
+
+### Updates do not arrive
+
+- The self-test line "Update check" says whether this PC reaches the update address (GitHub) and which
+  version is the newest there.
+- "Could not reach the update server": the PC has no internet, or a firewall blocks github.com or its
+  download servers. Ask IT to allow them, or run the newest installer by hand.
+- "The update did not work" after a restart: the app is still the old version and works as before.
+  **Show the update log** opens the log of every step; send it along when you ask for help. Then try
+  **Update now** again, or run the newest installer.
 
 ### Where are my renders?
 

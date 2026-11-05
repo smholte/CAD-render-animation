@@ -8,6 +8,10 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   window   the whole app: at start, after an import, the Help menu, joint arrows in the view:
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=window xvfb-run -a -s "-screen 0 1920x1200x24" \\
           blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_screens.py
+  update   the update notice at the top of the Fresing tab, and the Help menu (task 0020; no model needed):
+      BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=update FRESING_UPDATE_URL=file:///nothing/index.json \\
+          xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render \\
+          --enable-event-simulate --python tools/guide_screens.py
   render   a finished render of the crane (Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=render blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
@@ -211,9 +215,10 @@ def restore_panels():
         except RuntimeError:
             pass
         _CLONES.remove(cls)
-    for n, cls in _ORIG.items():
-        if getattr(bpy.types, n, None) is None:
-            bpy.utils.register_class(cls)
+    todo = [cls for n, cls in _ORIG.items() if getattr(bpy.types, n, None) is None]
+    todo.sort(key=lambda c: bool(getattr(c, "bl_parent_id", "")))      # parents before their sub-panels
+    for cls in todo:
+        bpy.utils.register_class(cls)
 
 
 def shoot_sidebar(name):
@@ -333,6 +338,25 @@ STEPS = []
 def step(fn):
     STEPS.append(fn)
     return fn
+
+
+def w_help_menu():
+    """Click "Help" in the top bar (File Edit Render Window Help: at 1920 px wide and scale 1.0 it is
+    at x 235, 13 px below the top edge)."""
+    win = bpy.context.window_manager.windows[0]
+    scale = bpy.context.preferences.view.ui_scale
+    x, y = int(235 * scale), win.height - int(13 * scale)
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y)
+    win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y)
+    return 2.0
+
+
+def w_shot_help():
+    im = grab_screen()
+    scale = bpy.context.preferences.view.ui_scale
+    save_png(im[:int(350 * scale), :int(560 * scale)], "help_menu")
+    return 0.5
 
 
 def _start():
@@ -586,25 +610,61 @@ elif MODE == "window":
         save_png(im[int(h * 0.15):int(h * 0.72), int(w * 0.28):int(w * 0.76)], "view_joints")   # the model
         return 0.5
 
-    @step
-    def w_help_menu():
-        """Click "Help" in the top bar (File Edit Render Window Help: at 1920 px wide and scale 1.0 it is
-        at x 235, 13 px below the top edge)."""
-        win = bpy.context.window_manager.windows[0]
-        scale = bpy.context.preferences.view.ui_scale
-        x, y = int(235 * scale), win.height - int(13 * scale)
-        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
-        win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y)
-        win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y)
-        return 2.0
+    step(w_help_menu)
+    step(w_shot_help)
+
+elif MODE == "update":
+
+    step(_start)
+
+    def _update_state(kind):
+        upd = mod("blender.updates")
+        upd.INSTALLED = "0.2.15"                   # the picture shows a plausible pair of versions
+        upd._check.clear()
+        upd._status.clear()
+        if kind == "available":
+            upd._check.update(state="available", version="0.2.16", date="12 Nov 2026", size=48_700_000,
+                              release_page=mod("core.updates").RELEASES_PAGE, changes=[])
+        else:
+            upd._check.update(state="none", version="0.2.16")
+            upd._status.update(ok=True, message="Updated to 0.2.16.", **{"from": "0.2.15"}, to="0.2.16", changes=[
+                {"version": "0.2.16", "title": "an example", "text": "- What changed in this version, in plain "
+                                                                     "words, as in the changelog."}])
 
     @step
-    def w_shot_help():
-        win = bpy.context.window_manager.windows[0]
-        im = grab_screen()
-        scale = bpy.context.preferences.view.ui_scale
-        save_png(im[:int(330 * scale), :int(560 * scale)], "help_menu")
+    def u_available():
+        _update_state("available")
+        show_only([("FRESING_PT_update", False, True), ("FRESING_PT_import", True, True)])
+        wiggle()
+        return 2.5
+
+    @step
+    def u_shot_available():
+        shoot_sidebar("panel_update")
         return 0.5
+
+    @step
+    def u_done():
+        _update_state("done")
+        show_only([("FRESING_PT_update", False, True), ("FRESING_PT_import", True, True)])
+        wiggle()
+        return 2.5
+
+    @step
+    def u_shot_done():
+        shoot_sidebar("panel_update_done")
+        return 0.5
+
+    @step
+    def u_menu_scale():
+        restore_panels()
+        mod("blender.updates")._status.clear()
+        bpy.context.preferences.view.ui_scale = 1.0        # as the help_menu picture of the "window" run
+        redraw_all()
+        return 2.0
+
+    step(w_help_menu)
+    step(w_shot_help)
 
 elif MODE == "render":
     pass
@@ -683,6 +743,6 @@ if MODE == "render":
         log("ERROR", traceback.format_exc())
         sys.exit(1)
 else:
-    bpy.context.preferences.view.ui_scale = float(os.environ.get("GUIDE_SCALE", "1.5" if MODE == "panels" else "1.0"))
+    bpy.context.preferences.view.ui_scale = float(os.environ.get("GUIDE_SCALE", "1.5" if MODE in ("panels", "update") else "1.0"))
     bpy.context.preferences.system.use_region_overlap = False      # side panel on a plain background
     bpy.app.timers.register(driver, first_interval=4.0, persistent=True)
