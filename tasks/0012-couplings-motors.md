@@ -1,6 +1,6 @@
 # 0012 – Couplings and motors: one joint moves several things
 
-**Who:** worker · **Status:** waiting (0011) · **Branch:** `task/0012-couplings-motors`
+**Who:** worker · **Status:** running · **Branch:** `task/0012-couplings-motors`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011.
 
 ## Goal

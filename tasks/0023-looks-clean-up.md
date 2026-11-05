@@ -1,6 +1,6 @@
 # 0023 – Looks lane clean-up: tooltips and small fixes
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0023-looks-clean-up`
+**Who:** worker · **Status:** running · **Branch:** `task/0023-looks-clean-up`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Looks · **Area:** panels 1 Import, 2 Structure,
 3 Looks (`blender/ui.py` those panels, `blender/ops_main.py`, `blender/ops_panels.py`,
 `blender/ops_import.py`, `blender/props.py` descriptions), `docs/USER-GUIDE.md` chapters 1–3,
