@@ -71,6 +71,24 @@ Rules:
 Task files: `tasks/NNNN-short-name.md`, made from `tasks/TEMPLATE.md`. `TASKS.md` is the
 overview (number, title, status, who, branch).
 
+### Saving usage (owner's request, 5 Nov 2026)
+
+The owner's AI usage is limited; every chat works economically:
+- **Tests:** locally run only the tests of what you changed (`pytest tests/test_<area>.py`, the
+  one real-app test of your panel). GitHub runs the full suite, all real-app tests and the
+  Windows install at every push – read its result instead of repeating it locally.
+- **Pictures cost a lot:** look only at the screenshots of the panel you changed, cropped small.
+- **Helper agents** (independent reviews, independent test lists) only for Windows-only code and
+  for risky changes; say in the report when one was skipped.
+- **Update your branch to `main` once**, right before merging – not after every other release.
+- **No installer per task:** bump the version, write the changelog, merge, check the GitHub run.
+  Build and send the installer only when the owner asks for one (once task 0020 is done, GitHub
+  publishes releases by itself).
+- Read only the files and earlier reports your task needs; keep reports short (numbers, open points).
+- Small follow-ups go into the next task of the same lane, not into a new chat.
+- The lead chat is restarted when its conversation gets long: everything it needs is in this
+  file, `TASKS.md`, the task files and the project note.
+
 ## 3. Repository layout
 
 ```
@@ -234,7 +252,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
    installer only when it is green.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
-6. Send the owner the installer zip with short install/test steps (numbered, click by click);
+6. (Only when the owner asked for an installer – see "Saving usage" in section 2.) Send the
+   owner the installer zip with short install/test steps (numbered, click by click);
    add a short entry to the project progress note `claude/render-app-progress.md` (if the chat
    cannot reach it, say so: the lead will add it).
 
