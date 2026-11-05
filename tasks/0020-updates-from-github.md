@@ -1,6 +1,6 @@
 # 0020 – Updates from GitHub: new versions with one click in the app
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0020-updates-from-github`
+**Who:** worker · **Status:** running (worker chat started 5 Nov 2026) · **Branch:** `task/0020-updates-from-github`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Quality & delivery · **Area:** `.github/`,
 `tools/build_release.py`, `installer/`, `blender/prefs.py` (update settings only), `docs/UPDATES.md`,
 `CLAUDE.md` section 7, the app template (an update notice if needed). Replaces task 0005.
