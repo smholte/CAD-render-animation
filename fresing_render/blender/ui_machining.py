@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import bpy
 
+from ..core import chips as chips_core
 from ..core import machining as core
-from . import machining
+from . import chips, machining
 from .ops_machining import MISSING_LIBRARY, clicked_part
 from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props, steps, wrap
 
@@ -148,4 +149,52 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
                 body.operator("fresing.mill_stop", text="Stop milling", icon="CANCEL")
 
 
-CLASSES = (FRESING_UL_mill_bits, FRESING_PT_milling)
+class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
+    bl_label = "Chips"
+    bl_parent_id = "FRESING_PT_milling"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context) and core.available() and machining.is_set_up(context.scene)
+
+    def draw_header(self, context):
+        self.layout.label(icon="PARTICLES")
+
+    def draw_header_preset(self, context):
+        m = machining.settings(context.scene)
+        header_status(self.layout, {"NONE": "none", "FEW": "few", "REALISTIC": "realistic"}.get(m.chips, ""))
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        m = machining.settings(scene)
+        col = split_props(layout)
+        col.prop(m, "chips", text="Chips")
+        if m.chips == "NONE":
+            wrap(layout, context, "Pick Few or Realistic: chips fly off the bit while it cuts and pile up on the "
+                                  "workpiece, the table and the machine bed", icon="INFO")
+            return
+        col.prop(m, "chip_material", text="Material")
+        fam, _why = chips.family(scene)
+        wrap(layout, context, chips.family_text(scene), icon="MATERIAL", inset=0)
+        for item, ob in machining.bits(scene):
+            t = machining.tool_of(item)
+            p = chips_core.preset(fam, chips_core.bit_kind(t.kind, t.radius))
+            wrap(layout, context, f"{machining.name_of(ob)}: {p.note or p.label}", icon="MOD_SCREW", inset=0)
+        rt = chips.runtime(scene)
+        if not m.enabled:
+            wrap(layout, context, "Cut material is off: no chips", icon="INFO")
+        elif rt.get("error") or machining.runtime(scene).get("chips_error"):
+            wrap(layout, context, rt.get("error") or machining.runtime(scene)["chips_error"], icon="ERROR", alert=True)
+        elif rt.get("status"):
+            wrap(layout, context, rt["status"], icon="INFO")
+        layout.operator("fresing.chips_clear", text="Clear chips", icon="TRASH")
+        body = fold(layout, "fr_chips_more", "More")
+        if body:
+            c = split_props(body)
+            c.prop(m, "chip_spindle", text="Spindle turns")
+            c.prop(m, "chip_mist", text="Coolant mist")
+
+
+CLASSES = (FRESING_UL_mill_bits, FRESING_PT_milling, FRESING_PT_milling_chips)

@@ -45,7 +45,7 @@ LANE_OF_PANEL = {
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
     "Props for scale": "Scene & Render lane",
     "Update notice": "Quality lane",
-    "Milling": "Machining lane",
+    "Milling": "Machining lane", "Chips": "Machining lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
