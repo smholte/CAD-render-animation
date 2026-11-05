@@ -306,6 +306,8 @@ $PcCheck = Join-Path (Split-Path -Parent $Manifest) "pccheck\launcher.py"
 if (Test-Path -LiteralPath $PcCheck) {
     MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (quick).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
     MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
+    # on the Desktop too: a STEP file can be dropped on a Desktop shortcut, not on the Start menu
+    MakeShortcut (Join-Path $Desktop "Fresing Render - PC check.lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
 }
 
 # The user guide lives inside the installed extension (Help > Fresing Render user guide opens the same

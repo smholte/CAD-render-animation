@@ -265,7 +265,7 @@ def test_every_line_is_complete():
 
 def test_test_models_in_the_extension_are_the_test_data():
     for name in ("test_machine.step", "test_materials.step", "test_crane_a.step", "test_crane_b.step",
-                 "test_faces_a.step", "test_mill.step"):
+                 "test_faces_a.step", "test_mill.step", "test_decals_a.step"):
         a = os.path.join(ROOT, "fresing_render", "data", name)
         b = os.path.join(ROOT, "tests", "data", name)
         with open(a, "rb") as fa, open(b, "rb") as fb:
@@ -367,6 +367,10 @@ def test_shortcut_script_quotes_apostrophes():
                                  r"C:\Users\O'Brien\Desktop", ["quick", "full"])
     assert "O''Brien" in script and "O'Brien" not in script.replace("O''Brien", "")
     assert script.count("$l.Save()") == 2 and "PC check (full).lnk" in script
+    # PowerShell ends a quoted string at typographic quotes too (a user name like O’Brien)
+    assert ops._ps_quote("C:\\Users\\O\u2019Brien") == "'C:\\Users\\O\u2019\u2019Brien'"
+    desk = ops.shortcut_script("S", "b.exe", r"C:\D", ["desktop"])
+    assert ops.DESKTOP_SHORTCUT in desk and '" quick' in desk
 
 
 def test_shortcuts_only_where_missing(tmp_path):
@@ -375,6 +379,11 @@ def test_shortcuts_only_where_missing(tmp_path):
     assert ops.missing_shortcuts(str(tmp_path)) == ["quick", "full"]
     (tmp_path / ops.SHORTCUTS["quick"]).write_text("x")
     assert ops.missing_shortcuts(str(tmp_path)) == ["full"]
+    desk = tmp_path / "desk"
+    desk.mkdir()
+    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full"]       # no app shortcut there: leave it
+    (desk / "Fresing Render.lnk").write_text("x")
+    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full", "desktop"]
 
 
 def test_running_check_is_detected(tmp_path):

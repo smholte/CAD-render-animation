@@ -139,7 +139,9 @@ fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
                            surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
                            studio.py (light looks, light in words, blur and turntable numbers),
-                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles)
+                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
+                           decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
+                           decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -158,6 +160,9 @@ fresing_render/            the Blender extension (Python package)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
+    decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
+                           or object (one copy), a decal object per copy (child of the part, hidden with it by
+                           MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -431,6 +436,14 @@ the release → Delete); the next run on `main` publishes it again.
   through `scene.fresing.milling` each time (undo replaces the datablocks).
 - "Build animation" remembers how things looked when it was first built (visibility, camera) and the
   render queue builds again: hide parts and set the camera *before* building, or the queue shows them.
+- A child object is not hidden with its parent. Decals (task 0024) hide through plain MAX drivers on
+  their part's `hide_render` (work with scripts off, in animations and in the queue), and `logic.Tree`
+  leaves them out, so hiding a subassembly never hides a decal on its own in the view.
+- Writing a small mesh with `from_pydata` + `normals_split_custom_set_from_vertices` took ~0.15 s even
+  for 1,600 triangles; `foreach_set` + a `custom_normal` point attribute (as `build._new_mesh`) is
+  many times faster – it matters when a mesh is rebuilt while the mouse moves.
+- Real-app tests: a mouse-wheel step is one PRESS event (no release); a modal operator should act on
+  `event.value == "PRESS"` for the wheel, or a simulated PRESS+RELEASE counts twice.
 - Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
   5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
   (`"EXEC_DEFAULT", True`), which pushes the undo step.

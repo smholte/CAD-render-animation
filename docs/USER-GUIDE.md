@@ -382,6 +382,65 @@ Faces painted in CAD are listed the same way. A sorting rule on their colour can
 material, for example "CAD colour is #C0C0C0 → Anodised"; only colour and CAD-material rules act on
 single faces. A model update keeps the painted faces of parts whose faces did not change.
 
+<a id="decals"></a>
+### Logos & stickers
+
+<img class="panel" src="img/panel_3_decals.png" alt="Logos & stickers, with the type plate on the base opened">
+
+Puts a logo, text, a type plate or a sticker on the machine itself. It lies on the face like a real
+sticker, moves with its part (joints, animations, exploded views) and hides with it.
+
+<img class="wide" src="img/decals.jpg" alt="The test crane with text on the boom, a type plate, a warning sign and a CE mark">
+
+1. **Picture / Text / Sticker**: what goes on.
+   - **Picture**: a logo or picture file. A PNG with a see-through background looks best; a JPG works
+     too. The button right of the field lists the logos in the library (below).
+   - **Text**: type it; `|` starts a new line, as in `Fresing|CNC 400`.
+   - **Sticker**: ready-made, drawn by the app: CE mark, type plate, warning signs (general, hand
+     crush, electricity, hot surface, hanging load), a straight arrow and a turning arrow.
+2. **Only this copy**: tick it for something that differs per copy, such as a serial number.
+   Unticked, every copy of the part gets it (a type plate on a bought motor).
+3. Click **Add decal…**, then click the spot on the model where its centre goes. It lands flat on
+   that face, upright. On a round face (a cylinder barrel, a drum, a tank) it wraps round like a real
+   sticker. <kbd>Esc</kbd> or a right-click cancels.
+
+Click a part to see its decals. The dot opens a decal's settings, the eye switches it off (it is kept,
+but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> brings it back).
+
+- **Move with the mouse**: the decal follows the mouse over its part, also onto another face of it.
+  The mouse wheel turns it (15° a step, with <kbd>Shift</kbd> 5°), <kbd>Ctrl</kbd>+wheel makes it
+  bigger or smaller. Click to put it down; <kbd>Esc</kbd> puts it back where it was.
+- **Fit to face**: as big as fits on its face, centred on it. **Upright**: turned upright again.
+- **Width** and **Height** in mm (with **Keep proportions** the other one follows), **Right** and
+  **Up** move it on the face from the spot you clicked, **Turn** turns it, **Mirror** swaps left and
+  right.
+- **See-through**: 0 is a solid sticker. **Finish**: Matt, Satin, Gloss or Metal (a printed aluminium
+  plate).
+- Text and stickers: the **Colour** of the letters or symbol, and a **Background** and a **Border**,
+  each on or off with its own colour. Text and type plates: the **Font file** (the button on the
+  right lists the fonts on this PC). A type plate has Company, Type, Serial no., Year and Weight, and
+  a small CE mark.
+- Pictures: **White see-through** makes a white background see-through (for JPG logos).
+- **Put it on this copy only** / **Put it on every copy** moves the decal between the two.
+
+**All decals in this project** lists every decal; a click on one clicks its part. **Library of logos
+and stickers**: put your logos as PNG files in the folder `Logos`, and stickers of your own in
+`Stickers`, of the [shared library](#schemes) – the same library as the rule sets and templates.
+They then show in the list next to Picture. Without a shared library these folders are in
+Documents\Fresing Render.
+
+Good to know:
+
+- In the normal view (Solid) a decal shows as a see-through coloured patch. The picture itself shows
+  in Material Preview and in renders.
+- Pictures are kept inside the project: renders in the queue and the project on another PC have
+  them, also when the picture file is gone.
+- A model update keeps decals whose spot is still on the part, also when the part changed elsewhere.
+  A decal whose face moved is switched off and named in the update report: open it, click **Move
+  with the mouse** and click its new spot.
+- A [template](#schemes) keeps the decals with the names of their parts: used on another machine, it
+  puts them on parts with the same name, where the spot lies on the part.
+
 <a id="find"></a>
 ### Find & sort parts
 
@@ -432,11 +491,11 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
 
 - A **paint scheme** stores the material and colour of every group, for example "Customer blue" and
   "Fresing grey". **+** saves the colours you have now; **Use** switches every group at once.
-- A **template** keeps the rule set, paint schemes, background and image settings for the next
-  project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
+- A **template** keeps the rule set, paint schemes, background and image settings, and the logos and
+  stickers on parts ([Logos & stickers](#decals)), for the next project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
   library.
 - The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos),
-  a folder `Templates` and a folder `Rule sets`. Set it once: Edit > Preferences > Add-ons > Fresing
+  a folder `Templates`, a folder `Rule sets` and the folders `Logos` and `Stickers`. Set it once: Edit > Preferences > Add-ons > Fresing
   Render > **Shared library**. **Default template** there is used for every new import; **Default rule
   set** is the rule set new projects start with.
 
@@ -899,8 +958,8 @@ render queue, the time test and the update check. It runs in the background; you
 2. A black window shows the steps as they run. Leave it open; it closes by itself.
 3. At the end "Fresing Render PC check.html" opens in your web browser (it is on the Desktop too).
 
-**With your own model (optional).** Drag a STEP file onto one of the PC check shortcuts in the Start
-menu, or in **Help > Fresing Render PC check…** tick **Also test my own STEP file** and pick it (the
+**With your own model (optional).** Drag a STEP file onto **Fresing Render - PC check** on the Desktop
+(the Start menu does not take files), or in **Help > Fresing Render PC check…** tick **Also test my own STEP file** and pick it (the
 model of the open project is filled in already). The check then also measures your model: import time,
 parts, unique parts, triangles, the share sorted by the rules, a picture on the graphics card and the
 time per frame for **Preview** and **Fast preview (EEVEE)** at HD.

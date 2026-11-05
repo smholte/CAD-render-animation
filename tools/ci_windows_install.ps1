@@ -110,6 +110,7 @@ if ($Uninstall) {
     $r = Run-Bat $bat.FullName "uninstall" 5
     if (Test-Path -LiteralPath $InstallDir) { Problem "Uninstall left $InstallDir behind" }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
+    if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render - PC check.lnk")) { Problem "Uninstall left the PC check shortcut" }
     if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render")) { Problem "Uninstall left the Start-menu folder" }
     if ($r.Text -notmatch "Fresing Render removed") { Problem "Uninstall did not say 'Fresing Render removed'" }
     $Summary += "| Uninstall.bat | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
@@ -261,7 +262,8 @@ if ($Uninstall) {
             "Start-menu shortcut"      = Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render.lnk")
             "Self-test shortcut"       = Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk")
             "PC check shortcuts"       = (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - PC check (quick).lnk")) -and
-                                         (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - PC check (full).lnk"))
+                                         (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - PC check (full).lnk")) -and
+                                         (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render - PC check.lnk"))
         }
         if ($BlenderExe) {
             $portable = Join-Path $BlenderExe.DirectoryName "portable"
@@ -308,7 +310,7 @@ if ($Uninstall) {
             $Summary += "| Self-test (Start-menu shortcut) | finished, judged below | $secs s |"
         }
 
-        # ---- 5. the PC check (Full), started exactly like its Start-menu shortcut (task 0032) ----------
+        # ---- 6. the PC check (Full), started exactly like its Start-menu shortcut (task 0032) ----------
         $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check (full).lnk"
         if ($BlenderExe -and (Test-Path -LiteralPath $pcLnk)) {
             $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($pcLnk)

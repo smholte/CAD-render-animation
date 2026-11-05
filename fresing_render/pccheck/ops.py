@@ -10,7 +10,6 @@ only when the installer's Start-menu folder is there and a shortcut is missing).
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import subprocess
@@ -26,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LAUNCHER = os.path.join(HERE, "launcher.py")
 START_MENU_FOLDER = "Fresing Render"
 SHORTCUTS = {"quick": "Fresing Render - PC check (quick).lnk", "full": "Fresing Render - PC check (full).lnk"}
+DESKTOP_SHORTCUT = "Fresing Render - PC check.lnk"     # quick; a STEP file can be dropped on it (not on the Start menu)
 SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
                           "your own model too",
                  "full": "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it "
@@ -145,14 +145,20 @@ class FRESING_OT_pc_check(bpy.types.Operator):
 # ---------------------------------------------------------------------------
 
 def _ps_quote(text: str) -> str:
-    return "'" + text.replace("'", "''") + "'"
+    """A single-quoted PowerShell string. PowerShell also ends such a string at the typographic quotes
+    ‘ ’ ‚ ‛ (a user name like O’Brien): each is doubled, like the plain one."""
+    import re
+    return "'" + re.sub("(['\u2018\u2019\u201a\u201b])", r"\1\1", text) + "'"
 
 
 def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str]) -> str:
-    """PowerShell that makes the missing PC-check shortcuts in the Start-menu folder."""
+    """PowerShell that makes the missing PC-check shortcuts: "quick" / "full" in the Start-menu folder,
+    "desktop" on the Desktop (quick)."""
     lines = ["$s = New-Object -ComObject WScript.Shell"]
     for mode in missing:
-        lines += [f"$l = $s.CreateShortcut({_ps_quote(os.path.join(folder, SHORTCUTS[mode]))})",
+        path = os.path.join(desktop, DESKTOP_SHORTCUT) if mode == "desktop" else os.path.join(folder, SHORTCUTS[mode])
+        mode = "quick" if mode == "desktop" else mode
+        lines += [f"$l = $s.CreateShortcut({_ps_quote(path)})",
                   f"$l.TargetPath = {_ps_quote(exe)}",
                   f"$l.Arguments = {_ps_quote(shortcut_arguments(desktop, mode))}",
                   f"$l.WorkingDirectory = {_ps_quote(os.path.dirname(exe))}",
@@ -162,8 +168,13 @@ def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str]) -> 
     return "\n".join(lines)
 
 
-def missing_shortcuts(folder: str) -> list[str]:
-    return [m for m, name in SHORTCUTS.items() if not os.path.isfile(os.path.join(folder, name))]
+def missing_shortcuts(folder: str, desktop: str = "") -> list[str]:
+    out = [m for m, name in SHORTCUTS.items() if not os.path.isfile(os.path.join(folder, name))]
+    # the Desktop one only where the installer put the app's own Desktop shortcut
+    if desktop and os.path.isfile(os.path.join(desktop, "Fresing Render.lnk")) \
+            and not os.path.isfile(os.path.join(desktop, DESKTOP_SHORTCUT)):
+        out.append("desktop")
+    return out
 
 
 def ensure_shortcuts() -> str:
@@ -176,23 +187,36 @@ def ensure_shortcuts() -> str:
     folder = os.path.join(programs, START_MENU_FOLDER) if programs else ""
     if not folder or not os.path.isdir(folder):
         return ""                                        # not installed with Install.bat: leave the menu alone
-    missing = missing_shortcuts(folder)
+    desktop = runner.desktop_dir()
+    missing = missing_shortcuts(folder, desktop)
     exe = bpy.app.binary_path
     if not missing or not exe or not os.path.isfile(exe):
         return ""
-    script = shortcut_script(folder, exe, runner.desktop_dir(), missing)
-    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
-    cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-           "-EncodedCommand", encoded]
+    script = shortcut_script(folder, exe, desktop, missing)
 
     def work():
+        import tempfile
+        # a .ps1 file with a byte-order mark (Windows PowerShell 5.1 reads accents right only then); no
+        # encoded command line, which virus scanners sometimes stop
+        fd, path = tempfile.mkstemp(prefix="fresing_shortcuts_", suffix=".ps1")
         try:
-            subprocess.run(cmd, capture_output=True, timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            with os.fdopen(fd, "w", encoding="utf-8-sig", newline="\r\n") as fh:
+                fh.write(script + "\n")
+            r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                "-File", path], capture_output=True, text=True, timeout=60,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if r.returncode != 0:
+                print("Fresing Render: could not make the PC check shortcuts:", (r.stderr or r.stdout).strip()[:500])
         except (OSError, subprocess.SubprocessError) as exc:
             print("Fresing Render: could not make the PC check shortcuts:", exc)
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
     threading.Thread(target=work, daemon=True).start()
-    return "making " + ", ".join(SHORTCUTS[m] for m in missing)
+    return "making " + ", ".join(SHORTCUTS.get(m, DESKTOP_SHORTCUT) for m in missing)
 
 
 # ---------------------------------------------------------------------------

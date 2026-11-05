@@ -27,6 +27,7 @@ CRANE_A = os.path.join(DATA, "test_crane_a.step")
 CRANE_B = os.path.join(DATA, "test_crane_b.step")
 FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
+DECALS = os.path.join(DATA, "test_decals_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -130,7 +131,7 @@ def app_start(ctx):
     import bpy
     _check(hasattr(bpy.types.Scene, "fresing"), "the Fresing Render settings are missing: run Install.bat again")
     _check(hasattr(bpy.ops.fresing, "import_step"), "the import button is missing: run Install.bat again")
-    missing = [os.path.basename(p) for p in (MACHINE, MATERIALS, CRANE_A, CRANE_B, FACES, MILL)
+    missing = [os.path.basename(p) for p in (MACHINE, MATERIALS, CRANE_A, CRANE_B, FACES, MILL, DECALS)
                if not os.path.isfile(p)]
     _check(not missing, f"test models missing: {', '.join(missing)}")
     return f"Blender {bpy.app.version_string}"
@@ -208,6 +209,26 @@ def faces_painted(ctx):
     _check(faces.groups_on(cover) == ["PC check red"], "painting a face by hand did not work")
     _check(len(cover.material_slots) == 2, "the painted face got no material of its own")
     return "2 CAD faces, 1 by hand"
+
+
+@line("decals.add", "Decals: text and stickers on the model", "0.2.21",
+      what="A warning sticker and a text on a flat face, a sticker round a barrel; rendered small")
+def decals_add(ctx):
+    import bpy
+
+    from ..blender import decals
+    scene = ctx.fresh(DECALS)
+    panel, barrel = _ob(scene, "PANEL"), _ob(scene, "BARREL")
+    warn = decals.add(panel, 5, (0.31, 0.15, 0.01), (0, 0, 1), "STICKER", sticker="WARN_GENERAL")
+    text = decals.add(panel, 5, (0.12, 0.15, 0.01), (0, 0, 1), "TEXT", text="PC CHECK")
+    hot = decals.add(barrel, 0, (0.06, 0.0, 0.1), (1, 0, 0), "STICKER", sticker="WARN_HOT")
+    _check(len(decals.items_of(panel)) == 2 and len(decals.items_of(barrel)) == 1, "the decals were not added")
+    shown = [o for o in bpy.data.objects if decals.is_decal(o)]
+    _check(len(shown) >= 3, f"only {len(shown)} decals are shown on the model")
+    _check(warn.width > 0 and text.width > 0 and hot.width > 0, "a decal has no size")
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "decals", "Decals (processor, draft)")
+    return f"{len(shown)} decals; render {info['seconds']} s"
 
 
 @line("rules.switch", "Rule sets: switch and back", "0.2.13",
@@ -716,7 +737,7 @@ def updates_check(ctx):
 # the owner's own model: numbers only
 # ---------------------------------------------------------------------------
 
-@line("own.import", "Your model: import + sorting", "0.2.21", (OWN,),
+@line("own.import", "Your model: import + sorting", "0.2.22", (OWN,),
       what="Import time, parts, unique parts, triangles, share sorted by the rules")
 def own_import(ctx):
     from ..blender import build
@@ -738,7 +759,7 @@ def own_import(ctx):
     return None
 
 
-@line("own.gpu", "Your model: still on the graphics card", "0.2.21", (OWN,), requires=("own.import",),
+@line("own.gpu", "Your model: still on the graphics card", "0.2.22", (OWN,), requires=("own.import",),
       what="An HD picture of your model on the graphics card (Preview quality)")
 def own_gpu(ctx):
     import bpy
@@ -769,13 +790,13 @@ def _own_time_test(ctx, quality: str):
     return None
 
 
-@line("own.time_preview", "Your model: Time test, Preview", "0.2.21", (OWN,), requires=("own.import",),
+@line("own.time_preview", "Your model: Time test, Preview", "0.2.22", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD, Preview quality (Cycles)")
 def own_time_preview(ctx):
     return _own_time_test(ctx, "preview")
 
 
-@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.21", (OWN,), requires=("own.import",),
+@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.22", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD with Fast preview (EEVEE)")
 def own_time_eevee(ctx):
     try:
