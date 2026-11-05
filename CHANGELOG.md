@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.14 – 5 Nov 2026 – more parts sorted by supplier codes (task 0022)
 
-Commit: see below.
+Commit `2f7bf7a`.
 
 3 Looks – sorting on import
 - Many more supplier catalogue codes are recognised, Misumi above all (shafts, collars, pins,
