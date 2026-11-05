@@ -54,6 +54,8 @@ def find_run(args):
         sha = _git("rev-parse", "HEAD")
     runs = gh(f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=20")["workflow_runs"]
     runs = [r for r in runs if r["head_sha"] == sha]
+    if args.branch:          # a commit pushed to a task branch and to main has a run on each
+        runs = [r for r in runs if r["head_branch"] == args.branch]
     return _prefer_push(runs) if runs else None
 
 
