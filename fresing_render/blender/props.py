@@ -671,6 +671,88 @@ class FRReportLine(bpy.types.PropertyGroup):
     uid: StringProperty()
 
 
+# ---------------------------------------------------------------------------
+# milling (task 0027): the bit takes material away from the workpiece
+# ---------------------------------------------------------------------------
+
+def _mill_tool_changed(self, context):
+    if self.get("_busy") or context is None or context.scene is None:
+        return
+    from . import machining
+    machining.tool_changed(context.scene)
+
+
+def _mill_detail_changed(self, context):
+    from . import machining
+    machining.mark_stale(context.scene)
+
+
+def _mill_enabled_changed(self, context):
+    from . import machining
+    machining.enabled_changed(context.scene)
+
+
+MILL_SHAPE_ITEMS = [
+    ("AUTO", "From its shape", "Read from the part itself: flat, ball, corner radius, V-bit and drill are "
+                               "recognised, any other shape is used as it is"),
+    ("FLAT", "Flat end mill", "A flat bottom: square slots and pockets with flat floors"),
+    ("BALL", "Ball end mill", "A round tip: rounded slots, 3D surfaces"),
+    ("BULL", "Corner radius", "A flat bottom with rounded corners (bull nose)"),
+    ("VEE", "V-bit / chamfer", "A pointed tip: V-grooves, chamfers, engraving"),
+    ("DRILL", "Drill", "A drill point (118° by default)"),
+]
+
+
+class FRMillBit(bpy.types.PropertyGroup):
+    obj: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+    shape: EnumProperty(
+        name="Shape", items=MILL_SHAPE_ITEMS, default="AUTO", update=_mill_tool_changed,
+        description="The shape the bit cuts with. 'From its shape' reads it from the part; pick a type to "
+                    "type in the sizes yourself (when the part is drawn simplified, or with its holder)")
+    diameter: FloatProperty(name="Diameter", unit="LENGTH", default=0.01, min=1e-5, soft_max=0.1,
+                            update=_mill_tool_changed,
+                            description="Cutting diameter of the bit. Slots come out this wide")
+    corner: FloatProperty(name="Corner radius", unit="LENGTH", default=0.001, min=0.0, soft_max=0.02,
+                          update=_mill_tool_changed,
+                          description="Radius of the rounded corners at the bit's bottom edge")
+    angle: FloatProperty(name="Tip angle", subtype="ANGLE", default=math.radians(90), min=math.radians(10),
+                         max=math.radians(175), update=_mill_tool_changed,
+                         description="Included angle of the point: 90° for a common V-bit, 118° for a drill")
+    length: FloatProperty(name="Length", unit="LENGTH", default=0.04, min=1e-4, soft_max=0.3,
+                          update=_mill_tool_changed,
+                          description="How much of the bit cuts, measured from its tip. Material higher up "
+                                      "than this is not touched by the bit")
+    flipped: BoolProperty(default=False)
+    detected: StringProperty()           # what was recognised, e.g. "Flat end mill Ø10.0 mm, 40 mm long"
+    auto: StringProperty()               # JSON: the recognised shape
+    tip: FloatVectorProperty(size=3)     # in the bit's own space
+    axis: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))
+
+
+class FRMilling(bpy.types.PropertyGroup):
+    bits: CollectionProperty(type=FRMillBit)
+    bits_index: IntProperty(default=0)
+    workpiece: PointerProperty(type=bpy.types.Object)
+    workpiece_uid: StringProperty()
+    finished: PointerProperty(type=bpy.types.Object)
+    finished_uid: StringProperty()
+    stock_mesh: PointerProperty(type=bpy.types.Mesh)      # the workpiece's CAD mesh, untouched
+    cut_mesh: PointerProperty(type=bpy.types.Mesh)        # what the workpiece shows: milled
+    detail: EnumProperty(
+        name="Detail", default="NORMAL", update=_mill_detail_changed,
+        description="How finely the bit's round shape and curved moves are followed. Fine looks best in "
+                    "close-ups; Fast keeps long programs quick in the view",
+        items=[("FINE", "Fine", "64 corners on the bit's circle, follows curves to 0.002 mm"),
+               ("NORMAL", "Normal", "40 corners on the bit's circle, follows curves to 0.005 mm"),
+               ("FAST", "Fast", "24 corners on the bit's circle, follows curves to 0.01 mm")])
+    enabled: BoolProperty(
+        name="Cut material", default=True, update=_mill_enabled_changed,
+        description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "
+                    "(the set-up is kept)")
+    path_sig: StringProperty()           # fingerprint of the motion the stored paths were read from
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -946,6 +1028,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     report_notes: CollectionProperty(type=FRReportLine)
     report_title: StringProperty()
 
+    # ---- milling (task 0027) ----
+    milling: PointerProperty(type=FRMilling)
+
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
     model_count: IntProperty(default=0)
@@ -967,7 +1052,7 @@ def _show_joints(context):
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRUid, FRVisSet, FRShot, FRAnimBlock, FRAnimation,
-           FRQueueJob, FRReportLine, FRSceneSettings)
+           FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
 
 
 def register():

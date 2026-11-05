@@ -4,8 +4,8 @@
                                   [--dist DIR] [--version-as X.Y.Z --template-from DIR]
 
 Produces in dist/:
-    fresing_render-<version>.zip                 the Blender extension (with OpenCascade wheels, the user
-                                                 guide, the app template and changelog.json inside)
+    fresing_render-<version>.zip                 the Blender extension (with OpenCascade and Manifold wheels,
+                                                 the user guide, the app template and changelog.json inside)
     FresingRender-<version>-windows/             installer folder (Install.bat, app layout, extension,
                                                  "User guide.html")
     FresingRender-<version>-windows.zip          the same folder zipped, to hand out
@@ -42,6 +42,7 @@ WHEEL_CACHE = os.path.join(ROOT, "wheels")
 WHEELS = [
     ("cadquery-ocp-novtk", "8.0.1.1.0", "cadquery_ocp_novtk-8.0.1.1.0-cp313-cp313-win_amd64.whl"),
     ("cadquery-ocp-proxy", "8.0.1.1.0", "cadquery_ocp_proxy-8.0.1.1.0-py3-none-any.whl"),
+    ("manifold3d", "3.5.4", "manifold3d-3.5.4-cp313-cp313-win_amd64.whl"),      # milling (task 0027)
 ]
 
 

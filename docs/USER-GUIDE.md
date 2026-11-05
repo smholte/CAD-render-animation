@@ -550,6 +550,45 @@ A **pose** stores every joint position and every moved subassembly: "Working", "
 3. Click **Explode**. To keep it, save it as a pose (**+** above). **Everything back to CAD position**
    (4 Motion) puts it together again.
 
+### Milling
+
+<img class="panel" src="img/panel_4_milling.png" alt="Milling: a bit, the workpiece and the state of the cut">
+
+Show a CNC machine at work: you pick the **milling bit** and the **workpiece** (the raw block), and
+wherever the bit moves through the block in the animation, material disappears – in the view, while
+you scrub or play, and in the render queue. No modelling needed. The motion comes from the
+animation (6 Animation): joints that move the head, the table or both.
+
+1. Click the bit in the view. "Clicked: …" shows the part; click the bit itself, not its holder.
+2. Click **Use as bit**. Under the list you read what was recognised, for example "Flat end mill
+   Ø10.0 mm, 40 mm long". Flat, ball, corner radius, V-bit and drill are recognised; any other shape
+   is used as it is. Several bits are allowed (for example two spindles).
+3. Click the raw block and then **Use as workpiece**. It keeps its looks; from now on it shows the
+   milled shape.
+4. Build an animation in 6 Animation that moves the bit through the block (**Build & play**). A moment
+   later the cut follows the timeline: drag the time slider back and forth, or play. The line with
+   the frame number shows how big the milled shape is and how long one frame took.
+
+Good to know
+
+- **Shape**: **From its shape** reads the shape from the part. When the part is drawn simplified (or
+  with its holder), pick the type and type in **Diameter**, **Corner radius** or **Tip angle** and
+  **Length** yourself. **Tip at the other end** turns the bit round when the wrong end cuts.
+- **Finished part (optional)**: click the CAD model of the finished part (in the same place as the
+  block) and **Use as finished part**. The bits never cut below its surface, so the end result is
+  exactly the CAD part even when the motion goes a little too deep. It is hidden: it is only the
+  limit. The **X** next to it stops using it and shows it again.
+- **Detail**: **Fine** for close-ups (the bit's circle has 64 corners), **Normal**, **Fast** for long
+  programs.
+- **Cut material** off shows the block as it came from CAD; the set-up is kept.
+- After a change to the animation the cut is read again by itself (in the render queue too, before
+  it renders). **Reset workpiece** starts again from the uncut block if something does not look right.
+- **More > Stop milling** removes the set-up: the block is whole again.
+- A model update (1 Import) keeps the set-up when the bit and the block are still in the model.
+- Straight moves are cheap; curved moves (arcs) cost more. Measured on the 2-core test machine with a
+  200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
+  ball Ø10, about 11 ms for a round pocket made of short pieces.
+
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 

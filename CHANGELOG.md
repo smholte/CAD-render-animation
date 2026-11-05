@@ -5,6 +5,35 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.19 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
+
+Commit: (written after the merge).
+
+4 Motion > Milling (new)
+- Click the milling bit in the view and **Use as bit**, click the raw block and **Use as workpiece**:
+  wherever a bit moves through the block in the animation, material disappears – in the view while
+  you scrub back and forth or play, and in the render queue. No modelling, no booleans by hand.
+- The bit's shape is read from the part: flat end mill, ball end mill, corner radius, V-bit and drill
+  are recognised (any other shape is used as it is). Or pick the type and type in diameter, corner
+  radius, tip angle and length. Several bits are allowed; **Tip at the other end** turns a bit round.
+- The workpiece may move too (a table on a slide joint): the cut follows the block.
+- **Finished part** (optional): the CAD model of the machined part. The bits never cut below it, so
+  the end result is exactly the CAD part even if the motion goes a little too deep.
+- **Detail** Fine / Normal / Fast, **Cut material** on/off, **Reset workpiece**, **Stop milling**
+  (the block is whole again). A changed animation is read again by itself. Saved with the project;
+  a model update keeps the set-up.
+- Cut edges are sharp like the CAD part (mesh booleans with the Manifold library, the same one as
+  Blender's "Manifold" boolean). Straight moves cost one boolean each, however many frames they last.
+- Measured on the 2-core test machine, 200 × 200 × 40 mm block: zig-zag pocket with a flat Ø10 bit
+  3.6 ms per frame (Normal), with a ball Ø10 11 ms; a round pocket made of short pieces (like arcs)
+  11 ms per frame.
+
+Self-test
+- New line "Milling (Manifold library)": the bundled library loads and cuts a slot of the right size.
+
+User guide
+- New part "Milling" in chapter 4, with a picture of the panel.
+
 ## 0.2.18 – 5 Nov 2026 – couplings and motors: one joint moves a whole mechanism (task 0012)
 
 4 Motion

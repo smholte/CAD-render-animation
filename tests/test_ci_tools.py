@@ -13,7 +13,7 @@ import ci_pytest_summary  # noqa: E402
 
 HEAD = ("Fresing Render 0.2.8 self-test, 2026-11-04 22:00\n"
         "Blender 5.2.3 LTS, Python 3.13.9, Windows-11\n")
-OK_LINES = "".join(f"[ OK ] Check number {i} ({i}.0 s): fine\n" for i in range(12))   # as many as a real report
+OK_LINES = "".join(f"[ OK ] Check number {i} ({i}.0 s): fine\n" for i in range(13))   # as many as a real report
 GPU_SKIPS = ("[SKIP] Graphics card: skipped: no graphics card\n"
              "[SKIP] Render HD on graphics card: skipped: no graphics card\n")
 

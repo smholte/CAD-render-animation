@@ -104,7 +104,8 @@ The owner's AI usage is limited; every chat works economically:
 fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
                            surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
-                           studio.py (light looks, light in words, blur and turntable numbers)
+                           studio.py (light looks, light in words, blur and turntable numbers),
+                           machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -119,8 +120,10 @@ fresing_render/            the Blender extension (Python package)
     turntable.py           one-click turntable: camera, saved scene and animation "Turntable"
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
+    machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
+                           ui_machining.py: 4 Motion > Milling (ops_machining.py)
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -176,7 +179,7 @@ locally pushes its branch and reads the run.
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
-cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
+cadquery-ocp-proxy==8.0.1.1.0 manifold3d==3.5.4 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
 --python-version 3.13 -d <dir>`.
 
 ### Automatic tests on GitHub
@@ -190,7 +193,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `paths_test_blender.py`, `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test from its Start-menu shortcut, then `Uninstall.bat` | 3-4 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
@@ -368,3 +371,13 @@ the release → Delete); the next run on `main` publishes it again.
   checks `bpy.app.online_access` first.
 - Blender resolves a relative `archive_url` in index.json against the address it asked (not the one
   GitHub redirected to); the release job writes full addresses so the listing stays right.
+- manifold3d only accepts writable NumPy arrays: arrays read back from a Manifold (`to_mesh()`) are
+  read-only, so copy them (`np.array(x)`) before building a new `Mesh`.
+- Milling keeps everything it needs in the project, but writes the workpiece mesh on every frame
+  change (frame handler): never hold a Python reference to that mesh across frames; look it up
+  through `scene.fresing.milling` each time (undo replaces the datablocks).
+- "Build animation" remembers how things looked when it was first built (visibility, camera) and the
+  render queue builds again: hide parts and set the camera *before* building, or the queue shows them.
+- Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
+  5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
+  (`"EXEC_DEFAULT", True`), which pushes the undo step.
