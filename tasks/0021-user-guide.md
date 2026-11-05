@@ -110,6 +110,8 @@ merging `main` with 0.2.10 (tasks 0010, 0011, 0019):
   **Windows install + self-test**: Install.bat ran twice without error and did not print "(no user
   guide in this version)", so it found the guide inside the installed extension and made the
   Start-menu shortcut.
+- After the merge: GitHub run 41939615360 on `main` (`d966ad2`, release 0.2.11 = `45af7cc`): all four
+  jobs green.
 - Packaged install (`tools/test_install_linux.py`): guide present in the installed extension
   (0.8 MB); self-test all OK except "Render HD on graphics card" (no GPU here, as before).
 - Release zip: "User guide.html" next to Install.bat and `guide/user_guide.html` inside
