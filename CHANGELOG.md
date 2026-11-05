@@ -7,7 +7,7 @@ installer of that version was built from.
 
 ## 0.2.17 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
 
-Commit: see the merge of task 0017 on main.
+Commit `82555db`.
 
 5 Scene & Render
 - **Light look** at the top: five buttons that set light, background and floor in one click –
