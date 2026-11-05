@@ -12,6 +12,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 from ..core import rules as R
 from ..core.template import GroupLook, Scheme, Template
+from ..core.words import plural, verb
 from . import build, cameras, logic, render, world
 
 # =============================================================================
@@ -66,7 +67,8 @@ class FRESING_OT_select_subassembly(bpy.types.Operator):
 
 
 class FRESING_OT_toggle_lock(bpy.types.Operator):
-    """Locked: moves only with its parent. Unlocked: can be moved on its own"""
+    """Locked: it moves only with the subassembly it is in. Unlocked: it can be moved on its own. Click to
+    switch"""
 
     bl_idname = "fresing.toggle_lock"
     bl_label = "Lock / unlock subassembly"
@@ -138,7 +140,8 @@ class FRESING_OT_show_all(bpy.types.Operator):
 
 
 class FRESING_OT_exclude_selected(bpy.types.Operator):
-    """Remove the selected parts from every view and render (internal parts, hidden fasteners...)"""
+    """Removes the selected parts from the view and from every render (inside parts, hidden screws). They
+    stay in the project: Restore all brings them back"""
 
     bl_idname = "fresing.exclude_selected"
     bl_label = "Remove for good"
@@ -146,13 +149,13 @@ class FRESING_OT_exclude_selected(bpy.types.Operator):
 
     def execute(self, context):
         n = logic.exclude([ob for ob in context.selected_objects if ob.get(build.PROP_KIND) in build.MODEL_KINDS], True)
-        self.report({"INFO"}, f"Removed {n} parts (Restore removed parts brings them back)")
+        self.report({"INFO"}, f"Removed {plural(n, 'part')} (Restore all brings {verb(n, 'it', 'them')} back)")
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
 class FRESING_OT_restore_excluded(bpy.types.Operator):
-    """Bring back all parts removed with Clean-up"""
+    """Brings back every part removed with Remove selected"""
 
     bl_idname = "fresing.restore_excluded"
     bl_label = "Restore removed parts"
@@ -160,13 +163,13 @@ class FRESING_OT_restore_excluded(bpy.types.Operator):
 
     def execute(self, context):
         n = logic.restore_excluded(context.scene)
-        self.report({"INFO"}, f"Restored {n} parts")
+        self.report({"INFO"}, f"Restored {plural(n, 'part')}")
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
 class FRESING_OT_select_small(bpy.types.Operator):
-    """Select parts smaller than the given size (mm)"""
+    """Selects every part smaller than Max size (mm), so you can check them. Then press Remove selected"""
 
     bl_idname = "fresing.select_small"
     bl_label = "Select small parts"
@@ -180,7 +183,7 @@ class FRESING_OT_select_small(bpy.types.Operator):
         for ob in objs:
             if ob.visible_get():
                 ob.select_set(True)
-        self.report({"INFO"}, f"{len(objs)} parts smaller than {s.small_part_mm:g} mm")
+        self.report({"INFO"}, f"{plural(len(objs), 'part')} smaller than {s.small_part_mm:g} mm")
         return {"FINISHED"}
 
 
@@ -190,7 +193,8 @@ class FRESING_OT_select_small(bpy.types.Operator):
 
 
 class FRESING_OT_apply_rules(bpy.types.Operator):
-    """Sort all parts into material groups using the rules (manual assignments are kept)"""
+    """Sorts every part into a material group with the rules of the project's rule set. Parts you put in a
+    group by hand stay there"""
 
     bl_idname = "fresing.apply_rules"
     bl_label = "Sort parts"
@@ -198,7 +202,8 @@ class FRESING_OT_apply_rules(bpy.types.Operator):
 
     def execute(self, context):
         res = logic.apply_rules(context.scene)
-        self.report({"INFO"}, f"{res['parts']} parts in {res['groups']} groups, {res['unmatched']} unsorted")
+        self.report({"INFO"}, f"{plural(res['parts'], 'part')} in {plural(res['groups'], 'group')}, "
+                              f"{res['unmatched']} unsorted")
         return {"FINISHED"}
 
 
@@ -254,7 +259,7 @@ class FRESING_OT_group_remove(bpy.types.Operator):
 
 
 class FRESING_OT_group_select(bpy.types.Operator):
-    """Select all parts in the active material group"""
+    """Selects every part of this group in the view, so you see where they are"""
 
     bl_idname = "fresing.group_select"
     bl_label = "Select parts"
@@ -276,12 +281,13 @@ class FRESING_OT_group_select(bpy.types.Operator):
             from . import handlers
             handlers.ignore_next(last)          # keep exactly the group selected
             context.view_layer.objects.active = last
-        self.report({"INFO"}, f"{len(objs)} parts")
+        self.report({"INFO"}, plural(len(objs), "part"))
         return {"FINISHED"}
 
 
 class FRESING_OT_group_assign(bpy.types.Operator):
-    """Put the selected parts in the active material group (overrides the rules for these parts)"""
+    """Puts the parts selected in the view in this group, whatever the rules say. Back to the rules undoes
+    that"""
 
     bl_idname = "fresing.group_assign"
     bl_label = "Assign selected"
@@ -301,12 +307,13 @@ class FRESING_OT_group_assign(bpy.types.Operator):
                     t["fr_group_manual"] = group
                     n += 1
         logic.apply_rules(context.scene)
-        self.report({"INFO"}, f"{n} parts assigned to {group}")
+        self.report({"INFO"}, f"{plural(n, 'part')} put in {group}")
         return {"FINISHED"}
 
 
 class FRESING_OT_group_unassign(bpy.types.Operator):
-    """Let the rules decide again for the selected parts"""
+    """The rules decide again for the parts selected in the view (undoes Put selected in and Move selected
+    to group)"""
 
     bl_idname = "fresing.group_unassign"
     bl_label = "Back to rules"
@@ -321,18 +328,29 @@ class FRESING_OT_group_unassign(bpy.types.Operator):
                     del t["fr_group_manual"]
                     n += 1
         logic.apply_rules(context.scene)
-        self.report({"INFO"}, f"{n} parts follow the rules again")
+        self.report({"INFO"}, f"{plural(n, 'part')} {verb(n, 'follows', 'follow')} the rules again")
         return {"FINISHED"}
 
 
 class FRESING_OT_rule_add(bpy.types.Operator):
-    """Add a sorting rule (checked from top to bottom; the first match wins)"""
+    """Adds a sorting rule at the top of the list, for the group selected in Material groups"""
 
     bl_idname = "fresing.rule_add"
     bl_label = "Add rule"
     bl_options = {"REGISTER", "UNDO"}
 
     from_selection: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if not properties.from_selection:
+            return ("Adds a rule at the top of the list (so it wins) that puts parts in the group selected in "
+                    "Material groups. Set what it looks for below, then press Sort parts into groups")
+        ob = getattr(context, "active_object", None)
+        name = ob.get(build.PROP_NAME, ob.name) if ob is not None and ob.get(build.PROP_KIND) == "part" else ""
+        what = f"'Part name contains {name}'" if name else "'Part name contains <the name of the part you clicked>'"
+        return (f"Adds the rule {what} at the top of the list, for the group selected in Material groups. "
+                "Change it below, then press Sort parts into groups")
 
     def execute(self, context):
         s = context.scene.fresing
@@ -365,7 +383,7 @@ class FRESING_OT_rule_remove(bpy.types.Operator):
 
 
 class FRESING_OT_rule_move(bpy.types.Operator):
-    """Move the selected rule up or down. Rules are checked from the top: the first rule that fits
+    """Moves the selected rule up or down. Rules are checked from the top: the first rule that fits
     a part decides its group"""
 
     bl_idname = "fresing.rule_move"
@@ -373,6 +391,14 @@ class FRESING_OT_rule_move(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     direction: EnumProperty(items=[("UP", "Up", ""), ("DOWN", "Down", "")])
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.direction == "UP":
+            return ("Moves the selected rule one place up: it is checked earlier, so it wins over the rules "
+                    "below it. Press Sort parts into groups to see the result")
+        return ("Moves the selected rule one place down: it is checked later, so the rules above it win. "
+                "Press Sort parts into groups to see the result")
 
     def execute(self, context):
         s = context.scene.fresing
@@ -436,7 +462,7 @@ class FRESING_OT_scheme_apply(bpy.types.Operator):
         s = context.scene.fresing
         name = self.name or (s.schemes[s.schemes_index].name if 0 <= s.schemes_index < len(s.schemes) else "")
         n = logic.apply_scheme(context.scene, name)
-        self.report({"INFO"}, f"Scheme '{name}' applied to {n} groups")
+        self.report({"INFO"}, f"Scheme '{name}' applied to {plural(n, 'group')}")
         return {"FINISHED"}
 
 

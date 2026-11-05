@@ -71,6 +71,33 @@ Rules:
 Task files: `tasks/NNNN-short-name.md`, made from `tasks/TEMPLATE.md`. `TASKS.md` is the
 overview (number, title, status, who, branch).
 
+### Saving usage (owner's request, 5 Nov 2026)
+
+The owner's AI usage is limited; every chat works economically:
+- **Tests:** locally run only the tests of what you changed (`pytest tests/test_<area>.py`, the
+  one real-app test of your panel). GitHub runs the full suite, all real-app tests and the
+  Windows install at every push – read its result instead of repeating it locally.
+- **Pictures cost a lot:** look only at the screenshots of the panel you changed, cropped small.
+- **Helper agents** (independent reviews, independent test lists) only for Windows-only code and
+  for risky changes; say in the report when one was skipped.
+- **Update your branch to `main` once**, right before merging – not after every other release.
+- **No installer per task:** bump the version, write the changelog, merge, check the GitHub run.
+  Build and send the installer only when the owner asks for one (once task 0020 is done, GitHub
+  publishes releases by itself).
+- Read only the files and earlier reports your task needs; keep reports short (numbers, open points).
+- Small follow-ups go into the next task of the same lane, not into a new chat.
+- The lead chat is restarted when its conversation gets long: everything it needs is in this
+  file, `TASKS.md`, the task files and the project note.
+- **The lead picks the model for every task** (owner's rule, 5 Nov 2026) and writes it in the
+  task file's header (`**Model:** Sonnet` or `Opus`), in the Model column of `TASKS.md` and next
+  to the sentence it gives the owner, who picks that model in the new chat before sending the
+  first message. **Sonnet** (uses less of the owner's usage) for routine work: tooltips, texts and
+  the user guide, data and word lists, small fixes, extra tests, one-panel UI changes along an
+  existing pattern. **Opus** for hard work: new algorithms and geometry (joints, cylinders,
+  linkages, milling, chips), several modules at once, Windows-only code, performance work,
+  anything where a wrong design is expensive. When unsure: Sonnet, and the owner switches the
+  chat to Opus if it gets stuck (the same tests failing again and again, going in circles).
+
 ## 3. Repository layout
 
 ```
@@ -212,6 +239,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
   `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
   suggested texts (delete your rows when done).
+- **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
+  (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
   `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
   (`tools/guide_screens.py`, test crane only). The guide is built into the release by
@@ -235,7 +264,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
    installer only when it is green.
    (Tag pushes are refused by the chats' git policy; the owner can add tags or GitHub
    Releases on github.com if he wants them.)
-6. Send the owner the installer zip with short install/test steps (numbered, click by click);
+6. (Only when the owner asked for an installer – see "Saving usage" in section 2.) Send the
+   owner the installer zip with short install/test steps (numbered, click by click);
    add a short entry to the project progress note `claude/render-app-progress.md` (if the chat
    cannot reach it, say so: the lead will add it).
 
@@ -257,6 +287,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - `logic.Tree(scene)` walks the whole scene: make it once per operation, never inside a loop
   (one per tree row cost 4.6 s on the EGR model). In `UIList.filter_items` and other code that
   runs at every redraw, read collection columns with `foreach_get`, not row by row.
+- Part-library keywords are whole words in English, Dutch and German at once: "LINKS" is "left"
+  in German and Dutch ("Abdeckung links"), "PALLET" in an automation line is a workpiece carrier,
+  not wood. Check a new keyword against all three languages and the example lists in
+  `tests/test_part_types.py`; measure on the EGR model which parts change group.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
@@ -291,3 +325,6 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - 16-bit PNGs load as linear values in Blender, 8-bit PNGs as screen values: compare pictures
   of the same bit depth in tests.
 - An animation without steps lasts 1 s (26 frames): a test video needs one short step.
+- Blender keeps the line breaks of an operator's docstring in its tooltip, so a docstring wrapped in
+  the source showed a sentence broken in the middle. `register()` joins the lines (test:
+  `test_tooltips_have_no_line_breaks`); a `description()` should return one line too.

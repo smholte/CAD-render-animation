@@ -16,6 +16,7 @@ import textwrap
 import bpy
 
 from ..core import fasteners, materials_lib, presets, studio
+from ..core.words import plural, verb
 from ..core import surroundings as env
 from . import build, cameras, materials
 
@@ -174,10 +175,11 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 st = {}
             if st:
                 col = box.column(align=True)
-                col.label(text=f"{st.get('placed_parts', 0)} parts, {st.get('unique_parts', 0)} different")
+                col.label(text=f"{plural(st.get('placed_parts', 0), 'part')}, {st.get('unique_parts', 0)} different")
                 helpers = st.get("mesh_helpers", 0)
                 col.label(text=f"{st.get('triangles_unique', 0) / 1e6:.1f} M triangles · read in "
-                               f"{st.get('seconds_total', 0):.0f} s" + (f" on {helpers} cores" if helpers else ""))
+                               f"{st.get('seconds_total', 0):.0f} s"
+                               + (f" on {plural(helpers, 'core')}" if helpers else ""))
             op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
             op.update_root = root.name
         if s.report_title:
@@ -279,7 +281,7 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
             header_status(self.layout, "showing a part", alert=True)
             return
         n = sum(1 for _ in build.iter_parts(context.scene))
-        header_status(self.layout, f"{n} parts")
+        header_status(self.layout, plural(n, "part"))
 
     def draw(self, context):
         from . import tree as tree_mod
@@ -301,7 +303,8 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
         if 0 <= s.tree_index < len(s.tree) and s.tree[s.tree_index].obj is not None:
             it = s.tree[s.tree_index]
             box = layout.box()
-            text = it.label + (f"  ×{it.same}" if it.same > 1 else "") + ("" if it.is_part else f"  ({it.parts} parts)")
+            text = (it.label + (f"  ×{it.same}" if it.same > 1 else "")
+                    + ("" if it.is_part else f"  ({plural(it.parts, 'part')})"))
             box.label(text=text, icon="MESH_CUBE" if it.is_part else "FILE_FOLDER")
             row = box.row(align=True)
             op = row.operator("fresing.tree_row", text="Zoom to it", icon="ZOOM_SELECTED")
@@ -373,7 +376,7 @@ class FRESING_PT_visibility(_Panel, bpy.types.Panel):
         col.operator("fresing.vis_update", text="", icon="FILE_REFRESH")
         if 0 <= s.visibility_index < len(s.visibility_sets):
             v = s.visibility_sets[s.visibility_index]
-            layout.label(text=f"{v.name}: {len(v.hidden)} parts hidden", icon="HIDE_ON")
+            layout.label(text=f"{v.name}: {plural(len(v.hidden), 'part')} hidden", icon="HIDE_ON")
 
 
 # =============================================================================
@@ -487,7 +490,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         if s.unmatched:
             header_status(self.layout, f"{s.unmatched} unsorted", alert=True)
         else:
-            header_status(self.layout, f"{len(s.groups)} groups")
+            header_status(self.layout, plural(len(s.groups), "group"))
 
     def draw(self, context):
         layout = self.layout
@@ -496,7 +499,8 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         row = big_row(layout, MEDIUM)
         row.operator("fresing.apply_rules", text="Sort parts into groups", icon="SORTALPHA")
         if s.unmatched:
-            wrap(layout, context, f"{s.unmatched} parts match no rule: they are in 'Unsorted'. "
+            wrap(layout, context, f"{plural(s.unmatched, 'part')} {verb(s.unmatched, 'matches', 'match')} no rule: "
+                                  f"{verb(s.unmatched, 'it is', 'they are')} in 'Unsorted'. "
                                   "Find & sort parts (below) helps.", icon="ERROR", alert=True)
             layout.operator("fresing.show_only_group", text="Show only the unsorted parts",
                             icon="HIDE_OFF").group = ""
@@ -510,8 +514,8 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         if 0 <= s.groups_index < len(s.groups):
             g = s.groups[s.groups_index]
             box = layout.box()
-            parts_txt = f"{g.count} part{'s' if g.count != 1 else ''}"
-            faces_txt = f" and {g.faces} painted face set{'s' if g.faces != 1 else ''}" if g.faces else ""
+            parts_txt = plural(g.count, "part")
+            faces_txt = f" and {plural(g.faces, 'painted face set')}" if g.faces else ""
             wrap(box, context, f"{g.name}  ·  {parts_txt}{faces_txt}", icon="MATERIAL", inset=12)
             box.operator_menu_enum("fresing.group_preset", "preset", text="Ready-made material…",
                                    icon="PRESET")
@@ -566,7 +570,7 @@ class FRESING_PT_faces(_Panel, bpy.types.Panel):
         else:
             n = sum(g.faces for g in s.groups)
             if n:
-                header_status(self.layout, f"{n} face sets")
+                header_status(self.layout, plural(n, "face set"))
 
     def draw(self, context):
         from . import faces
@@ -606,7 +610,7 @@ class FRESING_PT_faces(_Panel, bpy.types.Panel):
             box = layout.box()
             n = len(st.get("faces", []))
             icon = "COLOR" if st.get("kind") == "cad" else "BRUSH_DATA"
-            wrap(box, context, f"{faces.label(st)}  ·  {n} face{'s' if n != 1 else ''}", icon=icon, inset=12)
+            wrap(box, context, f"{faces.label(st)}  ·  {plural(n, 'face')}", icon=icon, inset=12)
             g = groups[k] if k < len(groups) else ""
             chosen = copy.get(st["key"]) or st.get("group") or ""
             text = "like the rest of the part" if chosen == faces.SAME_AS_PART else (g or "?")
@@ -667,7 +671,8 @@ class FRESING_PT_find(_Panel, bpy.types.Panel):
             return
         total = sum(it.count for it in s.found)
         ticked = sum(it.count for it in s.found if it.use)
-        layout.label(text=f"{len(s.found)} names, {total} parts · {ticked} ticked", icon="CHECKBOX_HLT")
+        layout.label(text=f"{plural(len(s.found), 'name')}, {plural(total, 'part')} · {ticked} ticked",
+                     icon="CHECKBOX_HLT")
         row = layout.row()
         row.template_list("FRESING_UL_found", "", s, "found", s, "found_index", rows=list_rows(len(s.found), 3, 10))
         col = row.column(align=True)
@@ -722,7 +727,7 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
             col.prop(r, "target", text="Group")
             col.prop(r, "note", text="Note")
         row = layout.row(align=True)
-        row.operator("fresing.rule_add", text="From active part", icon="EYEDROPPER").from_selection = True
+        row.operator("fresing.rule_add", text="From clicked part", icon="EYEDROPPER").from_selection = True
         row.operator("fresing.rules_reset", text="Defaults", icon="LOOP_BACK")
 
 
