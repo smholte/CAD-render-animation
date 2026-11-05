@@ -3,6 +3,7 @@
     ~/venv/bin/python tools/bench_chips.py                  # work-out and show times, the long pocket too
     ~/venv/bin/python tools/bench_chips.py --render         # also render one frame: None / Few / Realistic
     ~/venv/bin/python tools/bench_chips.py --render --size 960x540 --quality preview
+    ~/venv/bin/python tools/bench_chips.py --render --heavy --no-pocket   # thousands of chips, and the limit
 
 The test mill (tests/data/test_mill.step): a flat Ø10 end mill cuts a slot 5 mm deep and 50 mm long into
 the aluminium block; the animation runs on 0.5 s after the cut so the chips land. The render (Cycles on the
@@ -78,7 +79,7 @@ def pocket(amount: str) -> dict:
             "at_ms": 1000 * float(np.mean(shows))}
 
 
-def mill_scene(amount: str):
+def mill_scene(amount: str, heavy: bool = False, material: str = "AUTO"):
     import addon_utils
     import bpy
     from mathutils import Vector
@@ -116,37 +117,42 @@ def mill_scene(amount: str):
     s = sc.fresing
     a = s.animations.add()
     a.name, a.tail = "Mill", 0.5
-    for j, start, dur, to in (("Z", 0.0, 1.0, -25.0), ("X", 1.0, 2.0, 50.0), ("Z", 3.0, 0.5, 0.0)):
+    moves = ((("Z", 0.0, 1.0, -35.0), ("X", 1.0, 3.0, 90.0), ("Z", 4.0, 0.5, 0.0)) if heavy else
+             (("Z", 0.0, 1.0, -25.0), ("X", 1.0, 2.0, 50.0), ("Z", 3.0, 0.5, 0.0)))
+    for j, start, dur, to in moves:
         b = a.blocks.add()
         b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", j, start, dur, "LINEAR"
         b.use_from, b.to_dist = True, to * MM
     frames = animation.bake(sc, a)["frames"]
     machining.sample(sc)
+    sc.fresing.milling.chip_material = material
     sc.fresing.milling.chips = amount
     return sc, frames
 
 
-def blender_times(render: bool, size: str, quality: str) -> list:
+def blender_times(render: bool, size: str, quality: str, heavy: bool = False) -> list:
     import bpy
 
     from fresing_render.blender import chips, machining, render as rnd, world
     out = []
     w, h = (int(v) for v in size.split("x"))
-    for amount in ("NONE", "FEW", "REALISTIC"):
-        sc, frames = mill_scene(amount)
+    cases = ([("NONE", "AUTO"), ("REALISTIC", "AUTO"), ("REALISTIC", "BRASS")] if heavy else
+             [("NONE", "AUTO"), ("FEW", "AUTO"), ("REALISTIC", "AUTO")])
+    for amount, material in cases:
+        sc, frames = mill_scene(amount, heavy, material)
         t0 = time.perf_counter()
         chips.forget()
         sc.frame_set(1)
         bk = chips.bake(sc) if amount != "NONE" else None
         bake_s = time.perf_counter() - t0
-        f = 75                                           # the cut has just ended: chips in the air and lying
+        f = 125 if heavy else 75                         # the cut has just ended: chips in the air and lying
         times = []
         for ff in (f - 2, f - 1, f):
             t1 = time.perf_counter()
             sc.frame_set(ff)
             times.append(time.perf_counter() - t1)
         n = machining.runtime(sc).get("shown") and chips.runtime(sc).get("count", 0)
-        row = {"amount": amount, "chips": bk.count if bk else 0, "shown": n or 0, "bake_s": bake_s,
+        row = {"amount": amount + ("" if material == "AUTO" else f" {material}"), "chips": bk.count if bk else 0, "shown": n or 0, "bake_s": bake_s,
                "frame_ms": 1000 * float(np.mean(times)), "inputs_s": bk.stats.get("inputs_s", 0) if bk else 0}
         if render:
             sc.fresing.use_gpu = False
@@ -154,7 +160,8 @@ def blender_times(render: bool, size: str, quality: str) -> list:
             rnd.apply_motion_settings(sc)
             sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = w, h, 100
             world.apply(sc, sc.fresing)
-            sc.render.filepath = os.path.join(os.environ.get("BENCH_OUT", "/tmp"), f"chips_{amount.lower()}.png")
+            sc.render.filepath = os.path.join(os.environ.get("BENCH_OUT", "/tmp"),
+                                              f"chips_{'heavy_' if heavy else ''}{amount.lower()}_{material.lower()}.png")
             bpy.ops.render.render(write_still=True)        # once to warm up (scene to Cycles)
             t1 = time.perf_counter()
             bpy.ops.render.render(write_still=True)
@@ -170,13 +177,15 @@ def main() -> int:
     ap.add_argument("--size", default="640x360")
     ap.add_argument("--quality", default="preview")
     ap.add_argument("--no-pocket", action="store_true")
+    ap.add_argument("--heavy", action="store_true", help="a slot 15 mm deep and 90 mm long: thousands of chips "
+                                                       "(aluminium curls), and brass crumbs up to the 25,000 limit")
     a = ap.parse_args()
     print(f"machine: {os.cpu_count()} cores")
     if not a.no_pocket:
         for amount in ("FEW", "REALISTIC"):
             print("pocket", amount, pocket(amount), flush=True)
-    rows = blender_times(a.render, a.size, a.quality)
-    print("\n| Chips | Chips worked out | Shown at frame 75 | Working out (s) | Frame change (ms) | Render (s) |")
+    rows = blender_times(a.render, a.size, a.quality, a.heavy)
+    print("\n| Chips | Chips worked out | Shown at the end of the cut | Working out (s) | Frame change (ms) | Render (s) |")
     print("| --- | --- | --- | --- | --- | --- |")
     for r in rows:
         print(f"| {r['amount']} | {r['chips']} | {r['shown']} | {r['bake_s']:.2f} | {r['frame_ms']:.1f} | "
