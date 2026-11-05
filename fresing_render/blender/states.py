@@ -47,10 +47,14 @@ def _unique(collection, base: str) -> str:
 
 
 def capture_pose(scene, pose) -> None:
-    """Store the current joint values and free moves into a pose item."""
+    """Store the current joint values and free moves into a pose item.
+
+    Only joints that move by themselves: a joint that follows another one gets its place from it."""
     pose.joints.clear()
     pose.places.clear()
     for j in scene.fresing.joints:
+        if j.follows:
+            continue
         v = pose.joints.add()
         v.joint = j.name
         v.value = joints.get_value(j)
@@ -90,7 +94,7 @@ def pose_targets(scene, pose) -> tuple[dict, dict]:
 def apply_pose_data(scene, pose, joints_only: bool = False) -> None:
     values, deltas = pose_targets(scene, pose)
     for j in scene.fresing.joints:
-        if j.name in values:
+        if j.name in values and not j.follows:       # (a pose saved before it followed another joint)
             joints.set_value(j, values[j.name])
     if not joints_only:
         joints.apply_free_moves(scene, deltas, reset_others=True)

@@ -5,6 +5,8 @@ Block kinds
     POSE    move every joint and free-moved subassembly to a saved pose (exploded view...)
     CAMERA  cut to a saved camera, move to it, or orbit around the model
     SHOW / HIDE   make a subassembly appear or disappear (assembly sequences)
+    MOTOR   run a motor at a speed (rpm, or mm/s for a slide) for a while, with a ramp
+            up and down; joints that follow it move along (their drivers read its keys)
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -73,6 +75,8 @@ def block_label(b, scene=None) -> str:
         return b.name
     if b.kind == "JOINT":
         return b.joint or "Joint"
+    if b.kind == "MOTOR":
+        return f"Run {b.joint}" if b.joint else "Run motor"
     if b.kind == "POSE":
         return f"To pose {b.pose}" if b.pose else "To pose"
     if b.kind == "CAMERA":
@@ -81,6 +85,53 @@ def block_label(b, scene=None) -> str:
                 "ORBIT": f"Orbit {math.degrees(b.orbit_angle):.0f}°"}.get(b.camera_mode, "Camera")
     target = b.target_name or "?"
     return f"{'Show' if b.kind == 'SHOW' else 'Hide'} {target}"
+
+
+# ---------------------------------------------------------------------------
+# Run motor: speed profile
+# ---------------------------------------------------------------------------
+
+def motor_ramps(b) -> tuple[float, float]:
+    """(ramp up, ramp down) in seconds for a Run motor step; together never longer than the step."""
+    r = max(0.0, float(b.ramp))
+    up = r if b.easing in ("SMOOTH", "EASE_IN") else 0.0
+    down = r if b.easing in ("SMOOTH", "EASE_OUT") else 0.0
+    total = max(0.0, float(b.duration))
+    if up + down > total > 0.0:                 # ramps longer than the step: shrink both in proportion
+        k = total / (up + down)
+        up, down = up * k, down * k
+    elif total <= 0.0:
+        up = down = 0.0
+    return up, down
+
+
+def motor_speed(j, b) -> float:
+    """Speed of a Run motor step in internal units per second (rad/s for a rotate joint, m/s for a slide)."""
+    if j.kind == "ROTATE":
+        return float(b.speed_rpm) * joints.TURN / 60.0
+    return float(b.speed_mms) / 1000.0
+
+
+def motor_distance(speed: float, duration: float, up: float, down: float, t: float) -> float:
+    """How far a motor has gone ``t`` seconds into the step: the speed rises evenly during ``up``,
+    stays, and falls evenly during ``down`` (internal units)."""
+    t = min(max(t, 0.0), duration)
+    if up > 0.0 and t <= up:
+        return speed * t * t / (2.0 * up)
+    gone = speed * up / 2.0
+    cruise_end = duration - down
+    if t <= cruise_end:
+        return gone + speed * (t - up)
+    gone += speed * (cruise_end - up)
+    left = duration - t
+    return gone + speed * (down / 2.0 - left * left / (2.0 * down))
+
+
+def motor_total(j, b) -> float:
+    """How far a Run motor step takes its joint (rad / m)."""
+    up, down = motor_ramps(b)
+    d = max(0.0, float(b.duration))
+    return motor_distance(motor_speed(j, b), d, up, down, d)
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +379,8 @@ def bake(scene, anim) -> dict:
     scene.frame_start = 1
     scene.frame_end = f_end
 
-    jstate = {j.name: joints.get_value(j) for j in s.joints}
+    # joints that follow another one get their place from it (drivers): no keys, no state of their own
+    jstate = {j.name: joints.get_value(j) for j in s.joints if not j.follows}
     ostate = {n: d for n, d in joints.free_moves(scene).items()}
     jkeys: dict[str, list] = {}
     okeys: dict[str, list] = {}
@@ -356,18 +408,70 @@ def bake(scene, anim) -> dict:
         _merge(keys, max(f1, f0 + 1), d_to, "CONSTANT")
         ostate[name] = d_to
 
+    def motor_run(j, b, f0, f1):
+        """Keys for a Run motor step: one per frame while the speed changes, two for the even part."""
+        if busy_until.get(j.name, 0) > f0:
+            warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
+        busy_until[j.name] = max(f1, f0 + 1)
+        keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
+        v0 = jstate[j.name]
+        speed, total = motor_speed(j, b), max(0.0, float(b.duration))
+        up, down = motor_ramps(b)
+        span = max(1, f1 - f0)
+        fps = fps_of(anim)
+        frames = {f0, f0 + span}
+        if up > 0.0 or down > 0.0:
+            n_up, n_down = int(math.ceil(up * fps)) + 1, int(math.ceil(down * fps)) + 1
+            frames |= {f for f in range(f0, f0 + span + 1) if f - f0 <= n_up or f0 + span - f <= n_down}
+        lo, hi = joints.limits(j)
+
+        def value_at(f):
+            t = (f - f0) / span * total             # the step ends exactly on its last frame
+            return v0 + motor_distance(speed, total, up, down, t)
+
+        stopped = any(not lo <= value_at(f) <= hi for f in frames)
+        if stopped:                                 # a key on every frame: it really stops at the limit
+            frames = set(range(f0, f0 + span + 1))
+        rows = [(f, min(max(value_at(f), lo), hi)) for f in sorted(frames)]
+        for f, v in rows[:-1]:
+            _merge(keys, f, v, "LINEAR")
+        _merge(keys, rows[-1][0], rows[-1][1], "CONSTANT")
+        jstate[j.name] = rows[-1][1]
+        if stopped:
+            hint = " (tick 'Motor' on it in 4 Motion to let it turn without end)" if j.kind == "ROTATE" else ""
+            warnings.append(f"'{block_label(b)}': '{j.name}' reaches its limit and stops there{hint}")
+
+    def free_joint(b):
+        """The joint a JOINT or MOTOR step moves, or None (with a warning) when it cannot."""
+        j = s.joints.get(b.joint)
+        if j is None:
+            warnings.append(f"'{block_label(b)}': joint '{b.joint}' not found" if b.joint else
+                            f"'{block_label(b)}': pick a joint")
+            return None
+        if j.follows:
+            top = joints.driver_of(scene, j)
+            who = f"'{top.name}'" if top is not None else "the joint it follows"
+            warnings.append(f"'{block_label(b)}': '{j.name}' follows another joint and moves with it: "
+                            f"move {who} instead")
+            return None
+        return j
+
     cam_blocks = []
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
     for b in blocks:
         f0, f1 = frame_of(anim, b.start), frame_of(anim, b.start + b.duration)
         if b.kind == "JOINT":
-            j = s.joints.get(b.joint)
+            j = free_joint(b)
             if j is None:
-                warnings.append(f"'{block_label(b)}': joint '{b.joint}' not found")
                 continue
             a, z = _block_values(j, b)
             v_from = jstate[j.name] if b.use_from else joints.clamp(j, a)
             joint_move(j, v_from, joints.clamp(j, z), f0, f1, b.easing)
+        elif b.kind == "MOTOR":
+            j = free_joint(b)
+            if j is None or b.duration <= 0.0:          # (a run of 0 s does nothing)
+                continue
+            motor_run(j, b, f0, f1)
         elif b.kind == "POSE":
             pose = s.poses.get(b.pose)
             if pose is None:
@@ -375,6 +479,8 @@ def bake(scene, anim) -> dict:
                 continue
             values, deltas = states.pose_targets(scene, pose)
             for j in s.joints:
+                if j.follows:                       # (a pose saved before it followed another joint)
+                    continue
                 if j.name in values and abs(values[j.name] - jstate[j.name]) > 1e-9:
                     joint_move(j, jstate[j.name], joints.clamp(j, values[j.name]), f0, f1, b.easing)
             for name in set(ostate) | set(deltas):
@@ -394,6 +500,20 @@ def bake(scene, anim) -> dict:
                     continue
                 keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
                 _merge(keys, f0, hidden, "CONSTANT")
+
+    # ---- joints that follow: their limits only warn ---------------------------
+    # A follower is a straight-line function of the joint at the top of its chain, so its extremes
+    # are at that joint's keys (the motion between two keys never turns back).
+    for f in s.joints:
+        if not f.follows or not f.use_limits:
+            continue
+        top = joints.driver_of(scene, f)
+        if top is None or top.name not in jstate:
+            continue
+        seen = [k[1] for k in jkeys.get(top.name, [])] or [jstate[top.name]]
+        if any(joints.outside_limits(f, joints.driven_value(scene, f, {top.name: v})) for v in seen):
+            warnings.append(f"'{f.name}' follows '{top.name}' and goes beyond its own limits "
+                            "(check the ratio, or the limits of either joint)")
 
     # ---- write keys ----------------------------------------------------------
     by_name = {o.name: o for o in scene.objects}         # objects.get() searches every time

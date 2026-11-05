@@ -43,7 +43,7 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "rulesets": 17, "studio": 21, "milling": 17,
+MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "surroundings": 23, "rulesets": 17, "studio": 21, "milling": 17,
               "paths": 8, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20}   # UITEST_QUICK=1 skips renders and the queue
 

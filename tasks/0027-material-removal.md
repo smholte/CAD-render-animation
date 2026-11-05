@@ -1,6 +1,6 @@
 # 0027 – Milling: the tool removes material from the workpiece
 
-**Who:** worker · **Status:** done (0.2.18) · **Branch:** `task/0027-material-removal`
+**Who:** worker · **Status:** done (0.2.19) · **Branch:** `task/0027-material-removal`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Machining (new files: `blender/machining.py`,
 `core/machining.py`, `blender/ui_machining.py`; a small additive hook in `blender/queue.py` /
 `queue_runner.py` if the render needs one; `blender/props.py` additive; `docs/USER-GUIDE.md`
@@ -77,7 +77,7 @@ No modelling, no manual booleans. Works with any motion (joints, poses, and late
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker chat, 5 Nov 2026 (Opus). Version 0.2.18, no installer (owner's usage rule).
+**Chat / date:** worker chat, 5 Nov 2026 (Opus). Version 0.2.19, no installer (owner's usage rule).
 
 **Choice (measured on the 2-core test machine, 200 × 200 × 40 mm block, flat Ø10, feed 2.67 mm/frame):**
 

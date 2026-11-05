@@ -336,6 +336,14 @@ def _camera_poll(self, ob):
 def _joint_renamed(self, context):
     from . import joints
     old = self.get("_old_name", "")
+    new = self.name.strip()
+    # animation steps, poses and couplings find a joint by its name: never empty, never twice
+    taken = sum(1 for j in context.scene.fresing.joints if j.name == new) > 1
+    if old and (not new or taken):
+        self["name"] = old
+        return
+    if new != self.name:
+        self["name"] = new
     if old and old != self.name:
         joints.rename(context.scene, self, old)
     self["_old_name"] = self.name
@@ -367,22 +375,90 @@ class FRObjectRef(bpy.types.PropertyGroup):
     obj: PointerProperty(type=bpy.types.Object)
 
 
+def _joint_follows_changed(self, context):
+    """The leader picked in the joint details: check it, then build the coupling."""
+    from . import joints
+    key = ("follows", self.as_pointer())
+    if key in _BUSY:
+        return
+    _BUSY.add(key)
+    try:
+        new = self.follows
+        old = self.get("_old_follows", "")
+        self["follows"] = old                        # set_follows decides; back to the old one if refused
+        try:
+            joints.set_follows(context.scene, self, new)
+            self["_old_follows"] = new
+            self["_follow_error"] = ""
+        except RuntimeError as exc:
+            self["_follow_error"] = str(exc)            # shown in red under the field
+    finally:
+        _BUSY.discard(key)
+
+
+def _joint_coupling_changed(self, context):
+    from . import joints
+    joints.write_coupling(context.scene, self)
+
+
+def _joint_motor_changed(self, context):
+    from . import joints
+    key = ("motor", self.as_pointer())
+    if key in _BUSY:
+        return
+    _BUSY.add(key)
+    try:
+        if self.is_motor and self.kind != "ROTATE":
+            self.is_motor = False
+        joints.set_motor(context.scene, self, self.is_motor)
+    finally:
+        _BUSY.discard(key)
+
+
 class FRJoint(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", update=_joint_renamed)
+    name: StringProperty(name="Name", update=_joint_renamed,
+                         description="Name of the joint, used in animation steps and couplings. Double-click to "
+                                     "rename")
     kind: EnumProperty(name="Type", items=[("ROTATE", "Rotate", "Turns about the axis"),
                                            ("SLIDE", "Slide", "Moves along the axis")], default="ROTATE")
     frame: PointerProperty(type=bpy.types.Object)
     motion: PointerProperty(type=bpy.types.Object)
     base: PointerProperty(type=bpy.types.Object, name="Sits on", poll=_model_object_poll,
                           update=_joint_base_changed,
-                          description="The subassembly this joint is mounted on; the joint moves along with it")
+                          description="The subassembly this joint is mounted on; the joint moves along with it. "
+                                      "Pick another one to make it move with that one")
     members: CollectionProperty(type=FRObjectRef)
     use_limits: BoolProperty(name="Limits", default=False, update=_joint_limits_changed,
-                             description="Keep the joint between a minimum and maximum")
-    rot_min: FloatProperty(name="Min", subtype="ANGLE", default=-math.pi / 2, update=_joint_limits_changed)
-    rot_max: FloatProperty(name="Max", subtype="ANGLE", default=math.pi / 2, update=_joint_limits_changed)
-    slide_min: FloatProperty(name="Min", unit="LENGTH", default=0.0, update=_joint_limits_changed)
-    slide_max: FloatProperty(name="Max", unit="LENGTH", default=1.0, update=_joint_limits_changed)
+                             description="Keeps the joint between a lowest and a highest value. Set them in the two "
+                                         "fields next to it; Min and Max above jump there")
+    rot_min: FloatProperty(name="Min", subtype="ANGLE", default=-math.pi / 2, update=_joint_limits_changed,
+                           description="Lowest angle this joint can turn to, in degrees (CAD position = 0°)")
+    rot_max: FloatProperty(name="Max", subtype="ANGLE", default=math.pi / 2, update=_joint_limits_changed,
+                           description="Highest angle this joint can turn to, in degrees (CAD position = 0°)")
+    slide_min: FloatProperty(name="Min", unit="LENGTH", default=0.0, update=_joint_limits_changed,
+                             description="Shortest position this joint can slide to, in mm (CAD position = 0)")
+    slide_max: FloatProperty(name="Max", unit="LENGTH", default=1.0, update=_joint_limits_changed,
+                             description="Furthest position this joint can slide to, in mm (CAD position = 0)")
+    # couplings and motors (task 0012); old projects: '' / 1 / 0 / off = moves by itself, as before
+    follows: StringProperty(
+        name="Follows", update=_joint_follows_changed,
+        description="The joint this one follows: when that joint moves, this one moves with it at the ratio "
+                    "below. Pick it from the list")
+    couple_ratio: FloatProperty(
+        name="Ratio", default=1.0, soft_min=-1000.0, soft_max=1000.0, precision=4, step=10,
+        update=_joint_coupling_changed,
+        description="How far this joint moves for each turn or mm of the joint it follows (the unit is its "
+                    "label). Negative: the other way round, like two gears or two gripper jaws")
+    couple_offset_angle: FloatProperty(
+        name="Offset", subtype="ANGLE", default=0.0, update=_joint_coupling_changed,
+        description="Angle this joint is at when the joint it follows is at 0, in degrees. Usually 0")
+    couple_offset_dist: FloatProperty(
+        name="Offset", unit="LENGTH", default=0.0, update=_joint_coupling_changed,
+        description="Position this joint is at when the joint it follows is at 0, in mm. Usually 0")
+    is_motor: BoolProperty(
+        name="Motor (turns without end)", default=False, update=_joint_motor_changed,
+        description="A motor has no limits and turns as far as you like; its angle is also shown in turns. "
+                    "In 6 Animation, the step Run motor turns it at a set speed")
 
 
 class FRPoseJoint(bpy.types.PropertyGroup):
@@ -396,7 +472,8 @@ class FRPlace(bpy.types.PropertyGroup):
 
 
 class FRPose(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Pose", update=_renamer("pose"))
+    name: StringProperty(name="Name", default="Pose", update=_renamer("pose"),
+                         description="Name of the pose, used in saved scenes and animations. Double-click to rename")
     joints: CollectionProperty(type=FRPoseJoint)
     places: CollectionProperty(type=FRPlace)
 
@@ -444,11 +521,14 @@ def _choices(coll, what: str) -> list:
 
 
 class FRShot(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Scene", update=_renamer("shot"))
+    name: StringProperty(name="Name", default="Scene", update=_renamer("shot"),
+                         description="Name of the scene, used in the queue and as an animation's start. "
+                                     "Double-click to rename")
     scheme: StringProperty()
     pose: StringProperty()
     visibility: StringProperty()
-    camera: PointerProperty(type=bpy.types.Object, poll=_camera_poll)
+    camera: PointerProperty(type=bpy.types.Object, poll=_camera_poll,
+                            description="The camera this scene renders from. Pick another one to change it")
     own_scheme: PointerProperty(type=FRScheme)
     own_pose: PointerProperty(type=FRPose)
     own_visibility: PointerProperty(type=FRVisSet)
@@ -456,60 +536,116 @@ class FRShot(bpy.types.PropertyGroup):
     output: StringProperty()
 
 
-EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop"), ("LINEAR", "Constant speed", ""),
-              ("EASE_IN", "Slow start", ""), ("EASE_OUT", "Slow stop", "")]
+EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop (a motor speeds up and slows down: Ramp)"),
+              ("LINEAR", "Constant speed", "The same speed from start to end, no slowing down"),
+              ("EASE_IN", "Slow start", "Starts slowly, stops at full speed"),
+              ("EASE_OUT", "Slow stop", "Starts at full speed, slows down to a stop")]
+
+BLOCK_KINDS = [
+    ("JOINT", "Move joint", "Moves one joint from where it is (or a set value) to a value", "CON_PIVOT", 0),
+    ("POSE", "Go to pose", "Moves every joint and moved subassembly to a saved pose (e.g. an exploded view)",
+     "ARMATURE_DATA", 1),
+    ("CAMERA", "Camera", "Cuts to a camera, flies to it, or turns around the model", "VIEW_CAMERA", 2),
+    ("SHOW", "Show", "A subassembly appears", "HIDE_OFF", 3),
+    ("HIDE", "Hide", "A subassembly disappears", "HIDE_ON", 4),
+    ("MOTOR", "Run motor", "Turns a motor (or slides a joint) at a set speed for a while; joints that follow it "
+     "move along", "FORCE_VORTEX", 5),
+]
 
 
 class FRAnimBlock(bpy.types.PropertyGroup):
-    name: StringProperty(name="Label", description="Shown in the list and as a marker on the timeline")
-    enabled: BoolProperty(name="On", default=True)
-    kind: EnumProperty(name="Type", default="JOINT", items=[
-        ("JOINT", "Move joint", "Move one joint between two values", "CON_PIVOT", 0),
-        ("POSE", "Go to pose", "Move every joint and subassembly to a saved pose", "ARMATURE_DATA", 1),
-        ("CAMERA", "Camera", "Cut, move or orbit the camera", "VIEW_CAMERA", 2),
-        ("SHOW", "Show", "A subassembly appears", "HIDE_OFF", 3),
-        ("HIDE", "Hide", "A subassembly disappears", "HIDE_ON", 4)])
-    start: FloatProperty(name="Start (s)", default=0.0, min=0.0, soft_max=120.0, step=10, precision=2)
-    duration: FloatProperty(name="Duration (s)", default=2.0, min=0.0, soft_max=60.0, step=10, precision=2)
-    easing: EnumProperty(name="Motion", items=EASE_ITEMS, default="SMOOTH")
-    joint: StringProperty(name="Joint")
-    pose: StringProperty(name="Pose")
+    name: StringProperty(name="Label", description="Shown in the list and as a marker on the timeline. Empty: a "
+                                                   "name made from the step")
+    enabled: BoolProperty(name="On", default=True,
+                          description="Switches this step on or off. A step that is off is left out of Build & play "
+                                      "and the video")
+    kind: EnumProperty(name="Type", default="JOINT", items=BLOCK_KINDS)
+    start: FloatProperty(name="Start (s)", default=0.0, min=0.0, soft_max=120.0, step=10, precision=2,
+                         description="When this step starts, in seconds from the beginning of the video")
+    duration: FloatProperty(name="Duration (s)", default=2.0, min=0.0, soft_max=60.0, step=10, precision=2,
+                            description="How long this step takes, in seconds")
+    easing: EnumProperty(name="Motion", items=EASE_ITEMS, default="SMOOTH",
+                         description="How the motion starts and stops: smooth (slow start and stop), constant "
+                                     "speed, slow start or slow stop")
+    joint: StringProperty(name="Joint", description="The joint this step moves (made in 4 Motion)")
+    pose: StringProperty(name="Pose", description="The saved pose everything moves to (made in 4 Motion)")
     use_from: BoolProperty(name="From where it is", default=True,
-                           description="Start from the position at the start of this block")
-    from_angle: FloatProperty(name="From", subtype="ANGLE", default=0.0)
-    to_angle: FloatProperty(name="To", subtype="ANGLE", default=math.radians(45))
-    from_dist: FloatProperty(name="From", unit="LENGTH", default=0.0)
-    to_dist: FloatProperty(name="To", unit="LENGTH", default=0.5)
+                           description="Starts from where the joint is when this step begins. Off: from the value "
+                                       "you set in From")
+    from_angle: FloatProperty(name="From", subtype="ANGLE", default=0.0,
+                              description="The angle the joint starts at, in degrees (0 = CAD position)")
+    to_angle: FloatProperty(name="To", subtype="ANGLE", default=math.radians(45),
+                            description="The angle the joint moves to, in degrees (0 = CAD position)")
+    from_dist: FloatProperty(name="From", unit="LENGTH", default=0.0,
+                             description="The position the joint starts at, in mm (0 = CAD position)")
+    to_dist: FloatProperty(name="To", unit="LENGTH", default=0.5,
+                           description="The position the joint moves to, in mm (0 = CAD position)")
     camera_mode: EnumProperty(name="Camera", default="MOVE", items=[
-        ("CUT", "Cut to", "Switch to a saved camera"),
-        ("MOVE", "Move to", "Fly smoothly to a saved camera"),
-        ("ORBIT", "Orbit", "Turn around the model")])
-    camera: PointerProperty(type=bpy.types.Object, name="Camera", poll=_camera_poll)
-    orbit_angle: FloatProperty(name="Angle", subtype="ANGLE", default=math.radians(90))
+        ("CUT", "Cut to", "Switches to a saved camera at once"),
+        ("MOVE", "Move to", "Flies smoothly to a saved camera"),
+        ("ORBIT", "Orbit", "Turns around the model")],
+        description="Cut to: switch to a camera at once. Move to: fly smoothly to a camera. Orbit: turn around "
+                    "the model")
+    camera: PointerProperty(type=bpy.types.Object, name="Camera", poll=_camera_poll,
+                            description="The camera to cut or fly to (cameras are made in 5 Scene & Render)")
+    orbit_angle: FloatProperty(name="Angle", subtype="ANGLE", default=math.radians(90),
+                               description="How far the camera turns around the model, in degrees (360 = once "
+                                           "round; negative: the other way)")
     target_uid: StringProperty()
     target_name: StringProperty(name="Subassembly")
+    # Run motor (task 0012)
+    speed_rpm: FloatProperty(name="Speed (rpm)", default=12.0, soft_min=-3000.0, soft_max=3000.0, precision=2,
+                             step=100,
+                             description="How fast the motor turns, in turns per minute (rpm). Negative: the other "
+                                         "way round")
+    speed_mms: FloatProperty(name="Speed (mm/s)", default=100.0, soft_min=-5000.0, soft_max=5000.0, precision=1,
+                             step=100,
+                             description="How fast the joint slides, in mm per second. Negative: the other way")
+    ramp: FloatProperty(name="Ramp (s)", default=0.5, min=0.0, soft_max=10.0, step=10, precision=2,
+                        description="How long the motor takes to get up to speed and to stop, in seconds (with "
+                                    "Motion set to Smooth, Slow start or Slow stop)")
 
 
 class FRAnimation(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Animation", update=_renamer("animation"))
-    fps: EnumProperty(name="Frame rate", default="25", items=[(v, f"{v} fps", "") for v in ("24", "25", "30", "50", "60")])
+    name: StringProperty(name="Name", default="Animation", update=_renamer("animation"),
+                         description="Name of the animation, shown in the queue and the video's file name. "
+                                     "Double-click to rename")
+    fps: EnumProperty(name="Frame rate", default="25",
+                      items=[(v, f"{v} fps", "") for v in ("24", "25", "30", "50", "60")],
+                      description="Pictures per second: 25 is usual in Europe, 30 in the US. 50 or 60 moves more "
+                                  "smoothly but has twice as many frames to render")
     start_shot: StringProperty(name="Start from scene",
-                               description="Scene (colours, pose, visibility, camera, background) at the first frame")
-    tail: FloatProperty(name="Hold at end (s)", default=1.0, min=0.0, soft_max=10.0)
+                               description="The saved scene (colours, pose, visibility, camera, background) the video "
+                                           "starts from. Empty: as the model is now")
+    tail: FloatProperty(name="Hold at end (s)", default=1.0, min=0.0, soft_max=10.0,
+                        description="How many seconds the last picture stays at the end of the video")
     blocks: CollectionProperty(type=FRAnimBlock)
     blocks_index: IntProperty(default=0)
-    out_resolution: EnumProperty(name="Video size", default="hd", items=[
-        ("preview", "Small (960 × 540)", ""), ("hd", "HD (1920 × 1080)", ""), ("qhd", "QHD (2560 × 1440)", ""),
-        ("4k", "4K (3840 × 2160)", "")])
-    out_format: EnumProperty(name="Shape", default="presentation", items=[
-        ("presentation", "16:9", ""), ("square", "1:1", ""), ("social", "9:16 (phone, upright)", "")])
-    video: EnumProperty(name="Save as", default="MP4", items=[
-        ("MP4", "MP4 video", "Video file (plus the single frames)"),
-        ("PNG", "PNG frames only", "Numbered images, keeps transparency")])
-    quality: EnumProperty(name="Quality", default="preview", items=[
-        ("eevee", "Fast preview (EEVEE)", "Real-time engine: quick check of the motion"),
-        ("draft", "Draft", "Cycles, low samples"), ("preview", "Preview", "Cycles"),
-        ("final", "Final", "Cycles, clean"), ("best", "Best", "Cycles, very clean (slow)")])
+    out_resolution: EnumProperty(
+        name="Video size", default="hd",
+        description="Size of the video in pixels: HD for screens and presentations, Small for quick checks, 4K "
+                    "for big screens",
+        items=[("preview", "Small (960 × 540)", "Quick checks; renders fastest"),
+               ("hd", "HD (1920 × 1080)", "Screens and presentations"),
+               ("qhd", "QHD (2560 × 1440)", "Sharper on big monitors"),
+               ("4k", "4K (3840 × 2160)", "Big screens and trade fairs; four times the work of HD")])
+    out_format: EnumProperty(
+        name="Shape", default="presentation",
+        description="Shape of the video: 16:9 for screens, 1:1 for posts, 9:16 upright for phones",
+        items=[("presentation", "16:9", "Wide: screens, presentations, YouTube"),
+               ("square", "1:1", "Square: social media posts"),
+               ("social", "9:16 (phone, upright)", "Upright: phone stories and reels")])
+    video: EnumProperty(name="Save as", default="MP4",
+                        description="MP4: a video file (the single frames are kept too). PNG frames only: numbered "
+                                    "pictures, transparency kept",
+                        items=[("MP4", "MP4 video", "Video file (plus the single frames)"),
+                               ("PNG", "PNG frames only", "Numbered images, keeps transparency")])
+    quality: EnumProperty(name="Quality", default="preview",
+                          description="Fast preview (EEVEE) checks the motion in minutes. Draft to Best: real light, "
+                                      "cleaner but slower. Try Time test first",
+                          items=[("eevee", "Fast preview (EEVEE)", "Real-time engine: quick check of the motion"),
+                                 ("draft", "Draft", "Cycles, low samples"), ("preview", "Preview", "Cycles"),
+                                 ("final", "Final", "Cycles, clean"), ("best", "Best", "Cycles, very clean (slow)")])
 
 
 class FRQueueJob(bpy.types.PropertyGroup):
@@ -847,14 +983,20 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- motion ----
     joints: CollectionProperty(type=FRJoint)
     joints_index: IntProperty(default=0)
-    show_joints: BoolProperty(name="Show joint axes", default=True, update=lambda self, ctx: _show_joints(ctx))
+    show_joints: BoolProperty(name="Show joint axes", default=True, update=lambda self, ctx: _show_joints(ctx),
+                              description="Shows or hides the joints' arrows in the view. They never show in renders")
     poses: CollectionProperty(type=FRPose)
     poses_index: IntProperty(default=0)
     explode_factor: FloatProperty(name="Distance", default=0.5, min=0.0, soft_max=3.0,
-                                  description="How far the pieces move apart (0.5 = half their distance from the centre)")
-    explode_direction: EnumProperty(name="Direction", default="RADIAL", items=[
+                                  description="How far the pieces move apart (0.5 = half their distance from the "
+                                              "centre). Then press Explode")
+    explode_direction: EnumProperty(name="Direction", default="RADIAL",
+                                    description="Which way the pieces move: outwards from the centre, along X, "
+                                                "along Y, or up and down", items=[
         ("RADIAL", "Outwards", ""), ("X", "Along X", ""), ("Y", "Along Y", ""), ("Z", "Up / down", "")])
-    explode_level: EnumProperty(name="Pieces", default="CHILDREN", items=[
+    explode_level: EnumProperty(name="Pieces", default="CHILDREN",
+                                description="What moves apart: the subassemblies directly inside the selected one, "
+                                            "or every single part", items=[
         ("CHILDREN", "Subassemblies", "Move the subassemblies inside it"),
         ("PARTS", "Every part", "Move every single part")])
 

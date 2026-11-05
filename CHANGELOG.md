@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.18 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
+## 0.2.19 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
 
 Commit: (written after the merge).
 
@@ -34,6 +34,36 @@ Self-test
 User guide
 - New part "Milling" in chapter 4, with a picture of the panel.
 
+## 0.2.18 – 5 Nov 2026 – couplings and motors: one joint moves a whole mechanism (task 0012)
+
+4 Motion
+- **Follows a joint**: a joint moves along with another one at a ratio – gear pairs (turns per
+  turn; negative for meshing gears), telescope sections and gripper jaws (mm per mm; −1 for the
+  second jaw), spindles, ball screws, racks and winch ropes (mm per turn), rolling wheels and
+  pinions on a rack (° per mm). An **Offset** sets where it stands when the other joint is at 0.
+  A line under the ratio says it in other words ("One turn every 157.1 mm: a wheel of Ø50.0 mm
+  rolling along").
+- Chains work (a motor drives a spindle, the nut carries a trolley, its wheels roll). Two joints
+  that would follow each other are refused, with the reason in red. A following joint shows its
+  value in purple and is not moved by hand, by poses or by animation steps; its limits only warn.
+  **Moves by itself** ends it; the joint stays where it is. The leading joint shows "Drives '…'".
+- **Motor (turns without end)** on a rotate joint: no limits, the angle also in turns.
+- Couplings and motors stay through a model update and in saved projects, also on a PC where
+  project files may not run scripts (and in the background render queue).
+- Removing a joint that others followed: they stay where they are and move by themselves.
+
+6 Animation
+- New step **Run motor**: a motor turns at a speed (rpm; a slide joint in mm/s) for the step's
+  duration, with ramps (**Smooth**, **Slow start**, **Slow stop** and **Ramp (s)**). 12 rpm for 5 s
+  at constant speed is exactly 1 turn. Joints that follow it move along. The step shows how far
+  it goes ("0.90 turns in this step").
+- A step for a joint that follows another one is shown red, and says which joint to pick.
+
+Also
+- Every button and setting of 4 Motion, 6 Animation, 7 Render queue and Saved scenes has a
+  tooltip that says what it does and how to use it.
+- Joint names can no longer be empty or used twice (steps and couplings find joints by name).
+- User guide, chapters 4 and 6: couplings, motors and Run motor, with two new pictures.
 ## 0.2.17 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
 
 Commit `82555db`.

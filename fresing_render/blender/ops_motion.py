@@ -234,6 +234,17 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
     kind: EnumProperty(items=KIND_ITEMS, default="ROTATE", options={"SKIP_SAVE"})
     movers: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
 
+    @classmethod
+    def description(cls, context, properties):
+        if properties.mode == "EDIT":
+            return ("Gives this joint a new axis: click a hole or shaft (axis through its centre) or a flat face "
+                    "(axis at right angles to it). Esc cancels")
+        if properties.kind == "SLIDE":
+            return ("Adds a joint that slides the selected subassembly. Then click a hole, shaft or flat face that "
+                    "points the way it slides. Esc cancels")
+        return ("Adds a joint that turns the selected subassembly. Then click its pivot on the model: a hole or "
+                "shaft, or a flat face. Esc cancels")
+
     def invoke(self, context, event):
         if context.area is None or context.area.type != "VIEW_3D":
             self.report({"WARNING"}, "Use this from the 3D view")
@@ -315,11 +326,18 @@ class FRESING_OT_joint_remove(bpy.types.Operator):
         below = joints.rides_on(scene, j)
         below = below.name if below is not None else ""      # names only: removing shifts the list items
         above = [r.name for r in joints.riders(scene, j)]
-        joints.remove(scene, j)
+        freed = joints.remove(scene, j)
+        msgs = []
         if above:
             onto = f"'{below}'" if below else "what it sat on"
             listed = ", ".join("'" + a + "'" for a in above)
-            msg = f"Joint '{name}' removed; {listed} now ride{'s' if len(above) == 1 else ''} on {onto}"
+            msgs.append(f"{listed} now ride{'s' if len(above) == 1 else ''} on {onto}")
+        if freed:
+            listed = ", ".join("'" + a + "'" for a in freed)
+            msgs.append(f"{listed} followed it and now move{'s' if len(freed) == 1 else ''} by "
+                        f"{'itself' if len(freed) == 1 else 'themselves'}")
+        if msgs:
+            msg = f"Joint '{name}' removed; " + "; ".join(msgs)
             scene.fresing.last_message = msg
             self.report({"INFO"}, msg)
         return {"FINISHED"}
@@ -405,6 +423,12 @@ class FRESING_OT_joint_kind(bpy.types.Operator):
     kind: EnumProperty(items=KIND_ITEMS)
 
     @classmethod
+    def description(cls, context, properties):
+        if properties.kind == "SLIDE":
+            return "Makes this joint slide along its axis (the arrow). It goes back to its CAD position first"
+        return "Makes this joint turn about its axis (the arrow). It goes back to its CAD position first"
+
+    @classmethod
     def poll(cls, context):
         return _valid_joint(context)
 
@@ -422,6 +446,15 @@ class FRESING_OT_joint_members(bpy.types.Operator):
 
     action: EnumProperty(items=[("ADD", "Add selected", ""), ("REMOVE", "Remove selected", ""),
                                 ("SELECT", "Select", "")], default="ADD")
+
+    @classmethod
+    def description(cls, context, properties):
+        return {
+            "ADD": "Adds the selected parts or subassemblies to what this joint moves. Click them in the view first",
+            "REMOVE": "Takes the selected parts or subassemblies out of what this joint moves; they go back to "
+                      "their place",
+            "SELECT": "Selects everything this joint moves, so you can see it in the view",
+        }.get(properties.action, "")
 
     @classmethod
     def poll(cls, context):
@@ -474,13 +507,66 @@ class FRESING_OT_joint_value(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _valid_joint(context)
+        return _valid_joint(context) and not _active_joint(context).follows
+
+    @classmethod
+    def description(cls, context, properties):
+        return {
+            "ZERO": "Puts the joint back at 0: the position it has in the CAD file",
+            "MIN": "Moves the joint to its lowest limit (switch Limits on below to set it)",
+            "MAX": "Moves the joint to its highest limit (switch Limits on below to set it)",
+        }.get(properties.target, "")
 
     def execute(self, context):
         j = _active_joint(context)
         lo, hi = joints.limits(j)
         joints.set_value(j, {"ZERO": 0.0, "MIN": lo, "MAX": hi}[self.target])
         context.scene.fresing.bounds_valid = False
+        return {"FINISHED"}
+
+
+class FRESING_OT_joint_follow(bpy.types.Operator):
+    """Choose whether this joint moves by itself or follows another joint"""
+
+    bl_idname = "fresing.joint_follow"
+    bl_label = "How the joint moves"
+    bl_options = {"REGISTER", "UNDO"}
+
+    mode: EnumProperty(items=[("FREE", "By itself", ""), ("FOLLOW", "Follows a joint", "")], default="FREE")
+
+    @classmethod
+    def poll(cls, context):
+        return _valid_joint(context)
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.mode == "FOLLOW":
+            return ("Makes this joint follow another joint: when that one moves, this one moves with it (gears, "
+                    "telescope sections, gripper jaws, spindles, wheels). Then pick the joint and the ratio below")
+        return ("This joint moves by itself: by hand, in poses and in animation steps. It stops following and "
+                "stays where it is")
+
+    def execute(self, context):
+        scene = context.scene
+        j = _active_joint(context)
+        if self.mode == "FREE":
+            if j.follows:
+                joints.set_follows(scene, j, "")
+                j["_follow_error"] = ""
+            return {"FINISHED"}
+        if j.follows:
+            return {"FINISHED"}
+        name = j.name
+        ok = [x.name for x in scene.fresing.joints if x.name != name and not joints.follow_check(scene, j, x.name)]
+        if not ok:
+            self.report({"WARNING"}, "Add the joint it should follow first (in this list)")
+            return {"CANCELLED"}
+        below = joints.rides_on(scene, j)            # telescope: a section follows the one it rides on
+        free = [n for n in ok if not joints.find(scene, n).follows]
+        pick = below.name if below is not None and below.name in ok else (free or ok)[0]
+        joints.set_follows(scene, joints.find(scene, name), pick)
+        joints.find(scene, name)["_follow_error"] = ""
+        self.report({"INFO"}, f"'{name}' follows '{pick}'")
         return {"FINISHED"}
 
 
@@ -540,6 +626,8 @@ class FRESING_OT_pose_update(bpy.types.Operator):
 
 
 class FRESING_OT_pose_remove(bpy.types.Operator):
+    """Deletes the selected pose. The model does not move"""
+
     bl_idname = "fresing.pose_remove"
     bl_label = "Remove pose"
     bl_options = {"REGISTER", "UNDO"}
@@ -730,6 +818,8 @@ class FRESING_OT_shot_update(bpy.types.Operator):
 
 
 class FRESING_OT_shot_remove(bpy.types.Operator):
+    """Deletes the selected saved scene. The model and the cameras do not change"""
+
     bl_idname = "fresing.shot_remove"
     bl_label = "Remove scene"
     bl_options = {"REGISTER", "UNDO"}
@@ -759,7 +849,7 @@ def _active_block(context):
 
 
 class FRESING_OT_anim_add(bpy.types.Operator):
-    """New animation"""
+    """Adds a new, empty animation. Then add its steps below with the + next to the steps"""
 
     bl_idname = "fresing.anim_add"
     bl_label = "New animation"
@@ -777,6 +867,8 @@ class FRESING_OT_anim_add(bpy.types.Operator):
 
 
 class FRESING_OT_anim_remove(bpy.types.Operator):
+    """Deletes the selected animation and its steps. Joints, poses and scenes stay"""
+
     bl_idname = "fresing.anim_remove"
     bl_label = "Remove animation"
     bl_options = {"REGISTER", "UNDO"}
@@ -794,18 +886,14 @@ class FRESING_OT_anim_remove(bpy.types.Operator):
 
 
 class FRESING_OT_block_add(bpy.types.Operator):
-    """Add a step to the animation (starts when the previous step ends)"""
+    """Adds a step to the animation; it starts when the last step ends. Pick the kind of step in the list"""
 
     bl_idname = "fresing.block_add"
     bl_label = "Add step"
     bl_options = {"REGISTER", "UNDO"}
 
-    kind: EnumProperty(items=[(i[0], i[1], i[2], i[3], i[4]) for i in [
-        ("JOINT", "Move joint", "Move one joint between two values", "CON_PIVOT", 0),
-        ("POSE", "Go to pose", "Move to a saved pose (e.g. an exploded view)", "ARMATURE_DATA", 1),
-        ("CAMERA", "Camera", "Cut, move or orbit the camera", "VIEW_CAMERA", 2),
-        ("SHOW", "Show subassembly", "A subassembly appears", "HIDE_OFF", 3),
-        ("HIDE", "Hide subassembly", "A subassembly disappears", "HIDE_ON", 4)]])
+    kind: EnumProperty(items=[(k, {"SHOW": "Show subassembly", "HIDE": "Hide subassembly"}.get(k, label), desc,
+                               icon, n) for k, label, desc, icon, n in props.BLOCK_KINDS])
 
     def execute(self, context):
         a = _active_anim(context)
@@ -818,7 +906,17 @@ class FRESING_OT_block_add(bpy.types.Operator):
         b.kind = self.kind
         b.start = round(prev_end, 2)
         b.duration = 0.0 if self.kind in ("SHOW", "HIDE") else 2.0
-        if self.kind == "JOINT":
+        if self.kind == "MOTOR":
+            # the selected joint when it is a motor, else the first motor, else the selected joint
+            j = _active_joint(context)
+            if j is None or not joints.is_motor(j) or j.follows:
+                motor = next((x for x in s.joints if joints.is_motor(x) and not x.follows), None)
+                j = motor or (j if j is not None and not j.follows else None)
+            if j is not None:
+                b.joint = j.name
+            b.duration = 5.0
+            b.easing = "SMOOTH"
+        elif self.kind == "JOINT":
             j = _active_joint(context)
             if j is not None:
                 b.joint = j.name
@@ -841,6 +939,8 @@ class FRESING_OT_block_add(bpy.types.Operator):
 
 
 class FRESING_OT_block_remove(bpy.types.Operator):
+    """Deletes the selected step from this animation"""
+
     bl_idname = "fresing.block_remove"
     bl_label = "Remove step"
     bl_options = {"REGISTER", "UNDO"}
@@ -860,6 +960,11 @@ class FRESING_OT_block_move(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     direction: EnumProperty(items=[("UP", "Up", ""), ("DOWN", "Down", "")])
+
+    @classmethod
+    def description(cls, context, properties):
+        way = "up" if properties.direction == "UP" else "down"
+        return f"Moves the selected step {way} the list. When it plays is set by its Start time"
 
     def execute(self, context):
         a = _active_anim(context)
@@ -1007,6 +1112,21 @@ class FRESING_OT_queue_add(bpy.types.Operator):
     name: StringProperty(options={"SKIP_SAVE"})
     start: BoolProperty(name="Start now", default=False, options={"SKIP_SAVE"})
 
+    @classmethod
+    def description(cls, context, properties):
+        return {
+            "STILL": "Adds a picture of the model as it is now, from the active camera, to the queue. Start "
+                     "queue renders it in the background",
+            "SHOT": "Adds a picture of the selected scene to 7 Render queue. Start queue there renders it in the "
+                    "background",
+            "ALL_SHOTS": "Adds a picture of every saved scene to 7 Render queue. Start queue there renders them in "
+                         "the background",
+            "ANIMATION": "Renders this animation in the background and starts the queue (7 Render queue). Keep "
+                         "working, or close the app: it keeps going",
+            "TEST": "Renders 2 frames of this animation in the queue, then shows how long the whole video will take "
+                    "with these settings",
+        }.get(properties.kind, "Adds a render to the queue")
+
     def execute(self, context):
         scene = context.scene
         s = scene.fresing
@@ -1063,6 +1183,13 @@ class FRESING_OT_queue_stop(bpy.types.Operator):
 
     now: BoolProperty(name="Stop now", default=False, options={"SKIP_SAVE"})
 
+    @classmethod
+    def description(cls, context, properties):
+        if properties.now:
+            return ("Stops the render at once; the frame being rendered is lost. Start queue continues an animation "
+                    "where it stopped")
+        return "Stops when the current frame or picture is done. Start queue continues an animation where it stopped"
+
     def execute(self, context):
         if self.now:
             queue.kill(context.scene)
@@ -1077,6 +1204,12 @@ class FRESING_OT_queue_remove(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     finished: BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.finished:
+            return "Takes all finished jobs out of the list. Their files stay"
+        return "Takes the selected job out of the queue. Files it already rendered stay"
 
     def execute(self, context):
         s = context.scene.fresing
@@ -1166,6 +1299,7 @@ CLASSES = (
     FRESING_OT_joint_add, FRESING_OT_joint_pick_axis, FRESING_OT_joint_remove, FRESING_OT_joint_swap,
     FRESING_OT_joint_flip,
     FRESING_OT_joint_axis_preset, FRESING_OT_joint_kind, FRESING_OT_joint_members, FRESING_OT_joint_value,
+    FRESING_OT_joint_follow,
     FRESING_OT_pose_save, FRESING_OT_pose_apply, FRESING_OT_pose_update, FRESING_OT_pose_remove,
     FRESING_OT_pose_reset, FRESING_OT_explode,
     FRESING_OT_vis_save, FRESING_OT_vis_apply, FRESING_OT_vis_update, FRESING_OT_vis_remove,

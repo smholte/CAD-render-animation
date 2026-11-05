@@ -191,6 +191,26 @@ def s_state():
         active = "TROLLEY.ASM"
         if os.environ.get("UISHOT_STACK") == "bottom":
             s.joints_index = 1                                 # the bottom of the stack: "Carries: ..."
+    coupling = os.environ.get("UISHOT_COUPLING")
+    if coupling:
+        # UISHOT_COUPLING=1: a wheel (Ø50 mm) rolls along with the trolley and is the selected joint;
+        # =leader: the trolley is selected ("Drives 'Wheel'"); =motor: the boom is a motor, the
+        # selected step runs it at 12 rpm and the trolley follows it as a winch rope (300 mm per turn)
+        w = ob("WHEEL")
+        jw = joints.create(sc, "ROTATE", [w], w.matrix_world.translation, Vector((0, 1, 0)), name="Wheel")
+        joints.set_follows(sc, jw, "Trolley", ratio=360.0 / (math.pi * 50))
+        joints.set_value(joints.find(sc, "Trolley"), 0.1)
+        s.joints_index = len(s.joints) - 1
+        if coupling == "leader":
+            s.joints_index = 1
+        elif coupling == "motor":
+            joints.set_motor(sc, joints.find(sc, "Boom luff"), True)
+            joints.set_value(joints.find(sc, "Boom luff"), math.radians(450))
+            joints.set_follows(sc, joints.find(sc, "Trolley"), "Boom luff", ratio=300.0)
+            s.joints_index = 0
+            b = a.blocks.add()
+            b.kind, b.joint, b.start, b.duration, b.speed_rpm = "MOTOR", "Boom luff", 5.0, 5.0, 12.0
+            a.blocks_index = len(a.blocks) - 1
     for o in bpy.context.selected_objects:
         o.select_set(False)
     boom = ob(active)

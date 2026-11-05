@@ -483,6 +483,7 @@ if MODE == "panels":
         ("panel_3_faces", [("FRESING_PT_faces", False, True)]),
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
+        ("panel_4_coupling", [("FRESING_PT_motion", False, True)]),     # a wheel follows the trolley
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
         ("panel_5_camera", [("FRESING_PT_camera", False, True)]),
@@ -491,6 +492,7 @@ if MODE == "panels":
         ("panel_5_turntable", [("FRESING_PT_turntable", False, True)]),
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
+        ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
         # the whole side panel with every section closed: the headers show the state of each
         ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_import", "FRESING_PT_structure",
@@ -530,6 +532,26 @@ if MODE == "panels":
             elif name == "panel_5_scene":               # a light look picked: its button pressed
                 with override():
                     bpy.ops.fresing.light_look(look="PRODUCT")
+            elif name == "panel_4_coupling":            # a Ø50 mm wheel rolls along with the trolley
+                joints = mod("blender.joints")
+                w = ob("WHEEL")
+                jw = joints.create(sc, "ROTATE", [w], w.matrix_world.translation, Vector((0, 1, 0)), name="Wheel")
+                joints.set_follows(sc, jw, "Trolley", ratio=360.0 / (math.pi * 50))
+                joints.set_value(joints.find(sc, "Trolley"), 0.25)
+                sc.fresing.joints_index = len(sc.fresing.joints) - 1
+                sc.fresing.pick_mode = "SUBASSEMBLY"
+                select_only(ob("BOOM.ASM"))
+            elif name == "panel_6_motor":               # the cover as a winch drum: a motor, run at 12 rpm
+                joints = mod("blender.joints")
+                c = ob("COVER")
+                centre = sum((c.matrix_world @ Vector(v) for v in c.bound_box), Vector()) / 8.0
+                jm = joints.create(sc, "ROTATE", [c], centre, Vector((1, 0, 0)), name="Winch drum")
+                joints.set_motor(sc, jm, True)
+                a = sc.fresing.animations[0]
+                b = a.blocks.add()
+                b.kind, b.joint, b.start, b.duration, b.speed_rpm = "MOTOR", "Winch drum", 5.0, 5.0, 12.0
+                b.easing, b.ramp = "SMOOTH", 0.5
+                a.blocks_index = len(a.blocks) - 1
             elif name == "panel_5_surroundings":        # a built-in surrounding: its settings below the choice
                 sc.fresing.background = "DECK"
             elif name == "panel_5_camera":              # strong blur, sharp at the trolley (picked on the model)
