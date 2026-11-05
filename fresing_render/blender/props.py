@@ -10,6 +10,7 @@ from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProp
 
 from ..core import materials_lib, presets
 from ..core import rules as R
+from ..core import studio
 from ..core import surroundings as env
 
 # Blender keeps only references to enum item strings: the list lives in a module global
@@ -141,6 +142,45 @@ def _env_view_changed(self, context):
 def _output_changed(self, context):
     from . import render
     render.apply_output(context.scene, self)
+
+
+# ---- the active camera's lens and blur, shown in panel 5 (task 0017): read from and written to the
+#      camera itself, so every camera keeps its own; nothing extra is stored in the scene
+
+def _active_camera(self):
+    cam = self.id_data.camera
+    return cam if cam is not None and cam.type == "CAMERA" else None
+
+
+def _lens_get(self):
+    cam = _active_camera(self)
+    return float(cam.data.lens) if cam is not None else 50.0
+
+
+def _lens_set(self, value):
+    cam = _active_camera(self)
+    if cam is None:
+        return
+    cam.data.lens = value
+    from . import cameras
+    cameras.update_blur(cam, self.id_data)
+
+
+_BLUR_NUMBER = {item[0]: item[3] for item in studio.BLUR_ITEMS}
+
+
+def _blur_get(self):
+    from . import cameras
+    return _BLUR_NUMBER[cameras.blur_level(_active_camera(self))]
+
+
+def _blur_set(self, value):
+    cam = _active_camera(self)
+    if cam is None:
+        return
+    from . import cameras
+    level = next(k for k, n in _BLUR_NUMBER.items() if n == value)
+    cameras.set_blur(cam, self.id_data, level)
 
 
 # ---------------------------------------------------------------------------
@@ -704,10 +744,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                                           description="The background colour. Click the swatch to pick another one")
     lighting: EnumProperty(
         name="Lighting", default="STUDIO", update=_world_changed,
-        description="What lights the machine. The background you see stays as it is",
-        items=[("STUDIO", "Studio", "Soft studio softboxes (built in): even light that shows shapes well"),
-               ("HDRI", "360° photo", "Light from a 360° photo: real reflections of a real place. Pick the photo below"),
-               ("SKY", "Sky", "Daylight with a sun and sharp shadows. Set the sun height below")])
+        description="What lights the machine. The background you see stays as it is. The light looks at the "
+                    "top of this panel set it for you",
+        items=studio.LIGHT_ITEMS)              # stored by number: old projects keep Studio, 360° photo, Sky
+    sky_weather: EnumProperty(
+        name="Weather", default="SUN", update=_world_changed, items=studio.WEATHER_ITEMS,
+        description="Sun or overcast, wherever the sky gives the light (Sky, the sea, the deck, the quay)")
     hdri_path: StringProperty(name="360° photo", subtype="FILE_PATH", update=_world_changed,
                               description="The 360° photo (.hdr or .exr). The library button picks one from the "
                                           "shared library; the folder button any file on your PC")
@@ -776,6 +818,45 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     props_visible: BoolProperty(name="Show props", default=True, update=_props_shown,
                                 description="Show or hide all props for scale (person, container, pallet, "
                                             "barrier) in the view and in renders")
+
+    # ---- camera (task 0017) ----
+    view_frame: EnumProperty(
+        name="Frame", default="MODEL",
+        description="What the view buttons and Fit fill the picture with",
+        items=[("MODEL", "Whole model", "The whole visible machine fills the picture", 0),
+               ("SELECTION", "Selection", "Only what is selected fills the picture (click a subassembly "
+                                          "first). Nothing selected: the whole machine", 1)])
+    view_space: EnumProperty(
+        name="Space around", default="NORMAL",
+        description="How much room the view buttons and Fit leave around the machine (or the selection)",
+        items=[("TIGHT", "Tight", "The machine just fits: almost no space around it", 0),
+               ("NORMAL", "Normal", "A little space around the machine", 1),
+               ("ROOMY", "Roomy", "Clear space around the machine, for text or a logo next to it", 2)])
+    camera_lens: FloatProperty(
+        name="Lens", min=8.0, max=600.0, soft_min=14.0, soft_max=300.0, step=100, precision=0,
+        get=_lens_get, set=_lens_set,
+        description="Lens of the active camera in mm. 50 looks natural; 24-35 shows more and looks wider; "
+                    "85-135 makes the machine look flatter. Press Fit after changing it")
+    camera_blur: EnumProperty(
+        name="Background blur", items=studio.BLUR_ITEMS, get=_blur_get, set=_blur_set,
+        description="Blurs what is far in front of or behind the sharp spot, like a photo camera. The same "
+                    "look on a small and a big machine. Each camera keeps its own")
+
+    # ---- turntable video (task 0017) ----
+    turntable_seconds: FloatProperty(
+        name="Length (s)", default=10.0, min=2.0, max=600.0, soft_max=60.0, step=100, precision=0,
+        description="How long one full turn around the machine takes, in seconds. The video loops: its end "
+                    "joins its start without a jump")
+    turntable_height: EnumProperty(
+        name="Camera height", default="MIDDLE", items=studio.TURNTABLE_HEIGHT_ITEMS,
+        description="How high the camera is while it goes round the machine")
+    turntable_quality: EnumProperty(
+        name="Quality", default="preview",
+        description="Fast preview (EEVEE) shows the turn in minutes. Draft to Best: real light, cleaner but "
+                    "slower. A turntable has many frames: try Fast preview first",
+        items=[("eevee", "Fast preview (EEVEE)", "Real-time engine: a quick look at the turn, in minutes"),
+               ("draft", "Draft", "Real light, grainy, quick"), ("preview", "Preview", "Real light, a bit grainy"),
+               ("final", "Final", "Real light, clean"), ("best", "Best", "Real light, very clean (slow)")])
 
     # ---- output ----
     out_format: EnumProperty(name="Format", items=FORMAT_ITEMS, default="presentation", update=_output_changed,

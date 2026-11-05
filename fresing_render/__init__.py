@@ -6,17 +6,18 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.17"
+__version__ = "0.2.18"
 
 _modules = []
 
 
 def _classes():
-    from .blender import (ops_import, ops_main, ops_motion, ops_panels, ops_rule_sets, ops_surroundings, prefs, ui,
-                          ui_motion, updates)
+    from .blender import (ops_import, ops_main, ops_motion, ops_panels, ops_rule_sets, ops_scene, ops_surroundings,
+                          prefs, ui, ui_motion, updates)
     # the update notice first: a panel registered first sits on top of the Fresing tab
-    return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES + ops_panels.CLASSES
-            + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ui.CLASSES + ui_motion.CLASSES)
+    return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+            + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES + ops_scene.CLASSES + ui.CLASSES
+            + ui_motion.CLASSES)
 
 
 def register():

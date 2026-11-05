@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.17 – 5 Nov 2026 – couplings and motors: one joint moves a whole mechanism (task 0012)
+## 0.2.18 – 5 Nov 2026 – couplings and motors: one joint moves a whole mechanism (task 0012)
 
 4 Motion
 - **Follows a joint**: a joint moves along with another one at a ratio – gear pairs (turns per
@@ -35,6 +35,43 @@ Also
   tooltip that says what it does and how to use it.
 - Joint names can no longer be empty or used twice (steps and couplings find joints by name).
 - User guide, chapters 4 and 6: couplings, motors and Run motor, with two new pictures.
+## 0.2.17 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
+
+Commit `82555db`.
+
+5 Scene & Render
+- **Light look** at the top: five buttons that set light, background and floor in one click –
+  **Product studio** (soft main light front left, fill, two rim lights, light grey background),
+  **White, endless** (pure-white background with a soft shadow, bright soft light), **Dark studio**
+  (black background, rim lights), **Outdoor sun**, **Overcast**. On the sea, the deck or the quay
+  only the weather changes. The button of the look you see stays pressed.
+- **Light**: new choices Product studio, White studio, Dark studio; the old studio light is now
+  called **Soft studio** (old projects keep it and look the same). **Weather**: Sun or Overcast,
+  wherever the sky gives the light (also on the sea, deck and quay). A line under the light says
+  it in words: "Main light from the front left, high · normal brightness". **Strength** is now
+  called **Brightness**.
+- **Camera** (now its own part of panel 5): one-click views **Isometric** (no perspective),
+  **Front**, **Side**, **Top**, **3/4 hero, low**, **3/4 hero, high**, **Where I look now** and
+  **More**. They frame the **Whole model** or the **Selection**, with **Space around** Tight,
+  Normal or Roomy; the new camera becomes the active one and the view looks through it.
+- **Background blur**: None, A little or Strong – the same look on a small part and a big crane,
+  each camera its own; the f-stop is worked out for you. **Sharp at**: the middle of the machine,
+  or click the eyedropper and then the spot that should be sharp; the spot moves with its part.
+  Renders in the queue use it too.
+- **Turntable video**: length, camera height and quality, then **Make turntable video**: the
+  camera goes once round the machine, the whole machine stays in the picture, the video loops
+  without a jump; it goes into 7 Render queue and the queue starts. It makes the camera
+  "Turntable camera", the saved scene "Turntable" and the animation "Turntable" (change size,
+  shape or frame rate in 6 Animation, then click the button again). In a hall it says halls
+  render 1.4–2.8× slower and offers **Use Simple**.
+
+Fixed
+- An Isometric (or other orthographic) camera in an upright picture cut off the sides.
+- A camera added while the sea was the background did not see to the horizon until the
+  background was rebuilt.
+
+User guide: chapter 5 – Light look (with a picture of the five looks), Light, Camera, Turntable
+video; new pictures of panel 5.
 
 ## 0.2.16 – 5 Nov 2026 – updates inside the app (task 0020)
 

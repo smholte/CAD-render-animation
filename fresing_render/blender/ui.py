@@ -15,7 +15,7 @@ import textwrap
 
 import bpy
 
-from ..core import fasteners, materials_lib, presets
+from ..core import fasteners, materials_lib, presets, studio
 from ..core.words import plural, verb
 from ..core import surroundings as env
 from . import build, cameras, materials
@@ -782,10 +782,17 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        scene = context.scene
         bg = s.background
         offshore = bg in env.SEA_KINDS
         hall = bg in env.HALL_KINDS
+
+        # -- a ready-made look first: it sets the background, the light and the floor below
+        layout.label(text="Light look", icon="LIGHT")
+        grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+        for look, (label, icon, _tip) in studio.LOOKS.items():
+            grid.operator("fresing.light_look", text=label, icon=icon,
+                          depress=studio.look_matches(look, s)).look = look
+        layout.separator()
 
         # -- where the machine stands (choice first, then its settings)
         layout.label(text="Background & surroundings", icon="WORLD")
@@ -816,6 +823,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
             row.prop(s, "env_detail", text="Detail", expand=True)
 
         # -- light
+        layout.label(text="Light", icon="LIGHT_SUN")
         col = split_props(layout)
         if bg in ("COLOR", "TRANSPARENT") or hall:
             col.prop(s, "lighting", text="Light")
@@ -823,12 +831,21 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 row = col.row(align=True)
                 row.prop(s, "light_hdri_path", text="Light photo")
                 row.operator("fresing.pick_hdri", text="", icon="ASSET_MANAGER").target = "LIGHT"
-        sky = bg == "SKY" or offshore or (bg in ("COLOR", "TRANSPARENT") or hall) and s.lighting == "SKY"
+        light = effective_lighting(s)
+        sky = light == "SKY"
+        overcast = sky and s.sky_weather == "OVERCAST"
         if sky:
-            col.prop(s, "sun_elevation", text="Sun height")
-        col.prop(s, "light_rotation", text="Turn sun" if sky else ("Turn photo" if bg == "HDRI" else "Turn light"))
-        col.prop(s, "light_strength", text="Strength")
+            row = col.row(align=True)
+            row.prop(s, "sky_weather", text="Weather", expand=True)
+            if not overcast:
+                col.prop(s, "sun_elevation", text="Sun height")
+        if not overcast:                       # an overcast sky looks the same from every side
+            col.prop(s, "light_rotation",
+                     text="Turn sun" if sky else ("Turn photo" if bg == "HDRI" else "Turn light"))
+        col.prop(s, "light_strength", text="Brightness")
         col.prop(s, "exposure", text="Exposure")
+        wrap(layout, context, studio.light_words(light, s.sky_weather, s.light_rotation, s.light_strength,
+                                                 s.sun_elevation), icon="INFO")
 
         # -- floor (the surroundings and the photo's ground bring their own)
         own_floor = bg in env.BUILT or (bg == "HDRI" and s.photo_ground)
@@ -850,9 +867,35 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                     col.prop(s, "env_show_in_view", text="Show in the view")
                 body.operator("fresing.env_place", icon="IMPORT")
 
-        # -- camera
-        layout.separator()
-        layout.label(text="Camera", icon="CAMERA_DATA")
+
+def effective_lighting(s) -> str:
+    """What really lights the machine: the photo, the sky (also on the sea) or the Light choice."""
+    if s.background == "HDRI":
+        return "HDRI"
+    if s.background == "SKY" or s.background in env.SEA_KINDS:
+        return "SKY"
+    return s.lighting
+
+
+VIEW_ICONS = {"ISOMETRIC": "VIEW_ORTHO", "FRONT": "AXIS_FRONT", "SIDE": "AXIS_SIDE", "TOP": "AXIS_TOP",
+              "LOW": "CON_CAMERASOLVER", "HIGH": "VIEW_CAMERA"}
+
+
+class FRESING_PT_camera(_Panel, bpy.types.Panel):
+    bl_label = "Camera"
+    bl_parent_id = "FRESING_PT_scene"
+
+    def draw_header(self, context):
+        self.layout.label(icon="CAMERA_DATA")
+
+    def draw_header_preset(self, context):
+        cam = context.scene.camera
+        header_status(self.layout, cam.name if cam is not None else "none", alert=cam is None)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
         cams = cameras.fr_cameras(scene)
         col = layout.column(align=True)
         for cam in cams:
@@ -864,17 +907,47 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
             op = row.operator("fresing.camera_remove", text="", icon="X")
             op.name = cam.name
         if not cams:
-            col.label(text="No camera yet: add one", icon="INFO")
+            col.label(text="No camera yet: add one below", icon="INFO")
+
+        # -- a new camera: what it frames first, then the view buttons
+        layout.label(text="Add a camera", icon="ADD")
+        row = layout.row(align=True)                 # full width: the choices are never cut off
+        row.prop(s, "view_frame", expand=True)
+        split_props(layout).prop(s, "view_space", text="Space around")
+        grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+        for view in cameras.STANDARD_VIEWS:
+            grid.operator("fresing.camera_add", text=cameras.VIEWS[view][0], icon=VIEW_ICONS.get(view, "VIEW_CAMERA")
+                          ).view = view
         row = layout.row(align=True)
-        row.operator_menu_enum("fresing.camera_add", "view", text="Add camera", icon="ADD")
-        row.operator("fresing.camera_fit", text="Fit model", icon="FULLSCREEN_ENTER")
-        if scene.camera is not None and scene.camera.type == "CAMERA":
+        split = row.split(factor=0.66, align=True)
+        split.operator("fresing.camera_add", text="Where I look now", icon="HIDE_OFF").view = "VIEW"
+        split.operator_menu_enum("fresing.camera_add", "view", text="More")
+
+        cam = scene.camera
+        if cam is None or cam.type != "CAMERA":
+            return
+        # -- the active camera
+        layout.separator()
+        layout.label(text=f"Active: {cam.name}", icon="VIEW_CAMERA")
+        layout.operator("fresing.camera_fit", text="Fit to the picture", icon="FULLSCREEN_ENTER")
+        col = split_props(layout)
+        if cam.data.type == "PERSP":
+            col.prop(s, "camera_lens", text="Lens (mm)")
+        if not cameras.can_blur(cam):
+            wrap(layout, context, "No background blur in a view without perspective (Isometric).", icon="INFO")
+            return
+        layout.label(text="Background blur")
+        row = layout.row(align=True)
+        row.prop(s, "camera_blur", expand=True)
+        if cameras.blur_level(cam) != "NONE":
             row = layout.row(align=True)
-            row.prop(scene.camera.data, "lens", text="Lens")
-            row.operator("fresing.camera_dof", text="Blur", icon="CAMERA_DATA",
-                         depress=scene.camera.data.dof.use_dof)
-            if scene.camera.data.dof.use_dof:
-                layout.prop(scene.camera.data.dof, "aperture_fstop", text="Blur f-stop (lower = more)")
+            split = row.split(factor=0.34, align=True)
+            split.label(text="Sharp at")
+            sub = split.row(align=True)
+            sub.label(text=cameras.focus_label(cam), icon="PIVOT_CURSOR")
+            sub.operator("fresing.focus_pick", text="", icon="EYEDROPPER")
+            if cameras.focus_marker(cam) is not None:
+                sub.operator("fresing.focus_clear", text="", icon="X")
 
 
 class FRESING_PT_props(_Panel, bpy.types.Panel):
@@ -969,10 +1042,61 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
             body.operator("fresing.open_folder", text="Open render folder", icon="FILE_FOLDER")
 
 
+class FRESING_PT_turntable(_Panel, bpy.types.Panel):
+    bl_label = "Turntable video"
+    bl_parent_id = "FRESING_PT_scene"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.label(icon="FILE_MOVIE")
+
+    def draw_header_preset(self, context):
+        from . import turntable
+        a = turntable.find_animation(context.scene)
+        if a is None:
+            return
+        job = next((j for j in reversed(context.scene.fresing.queue) if j.animation == a.name), None)
+        if job is not None and job.status in ("WAITING", "RUNNING"):
+            header_status(self.layout, "in the queue")
+
+    def draw(self, context):
+        from . import turntable
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        wrap(layout, context, "A video of the camera going once round the machine, as it looks now. "
+                              "The video loops: its end joins its start.")
+        col = split_props(layout)
+        col.prop(s, "turntable_seconds", text="Length (s)")
+        row = col.row(align=True)
+        row.prop(s, "turntable_height", text="Camera height", expand=True)
+        col.prop(s, "turntable_quality", text="Quality")
+        a = turntable.find_animation(scene)
+        fps = int(a.fps) if a is not None else 25
+        frames = studio.turntable_timing(s.turntable_seconds, fps)[0]
+        layout.label(text=f"{frames} frames ({fps} per second)", icon="RENDER_ANIMATION")
+        note = turntable.slow_note(s)
+        if note:
+            box = layout.box()
+            wrap(box, context, note + ".", icon="INFO", inset=12)
+            if s.env_detail == "DETAILED":
+                box.operator("fresing.env_simple", icon="MOD_DECIM")
+        primary(layout, "fresing.turntable", "Make turntable video", "FILE_MOVIE")
+        if a is not None:
+            job = next((j for j in reversed(s.queue) if j.animation == a.name), None)
+            if job is not None:
+                state = {"WAITING": "waiting in the queue", "RUNNING": f"rendering, {job.progress:.0f}%",
+                         "DONE": "done", "FAILED": "failed", "STOPPED": "stopped"}.get(job.status, job.status)
+                wrap(layout, context, f"Last turntable: {state} (7 Render queue).",
+                     icon="CHECKMARK" if job.status == "DONE" else "TIME", alert=job.status == "FAILED")
+            wrap(layout, context, f"Size, shape and file: 6 Animation, '{a.name}'; then Make turntable "
+                                  "video again.")
+
+
 CLASSES = (
     FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes, FRESING_UL_visibility,
     FRESING_UL_found,
     FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_visibility, FRESING_PT_looks,
-    FRESING_PT_faces, FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_props,
-    FRESING_PT_output,
+    FRESING_PT_faces, FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_camera,
+    FRESING_PT_props, FRESING_PT_output, FRESING_PT_turntable,
 )
