@@ -389,6 +389,8 @@ def run_job(scene, job: dict, progress, should_stop):
                 scene.camera = cam
         if should_stop():
             raise Stopped()
+        from . import machining                  # milling (task 0027): the cut at this frame
+        machining.prepare(scene, progress)
         progress(5, "Rendering image")
         info = render.render_still(scene, s, job.get("quality") or s.quality)
         return info["path"]
@@ -409,6 +411,8 @@ def _setup_animation(scene, job: dict, progress) -> dict:
     info = animation.bake(scene, anim)
     for w in info["warnings"]:
         progress(0, w)
+    from . import machining                      # milling (task 0027): read the bits' motion of this animation
+    machining.prepare(scene, progress)
     quality = job.get("quality") or anim.quality
     size = presets.compute(anim.out_format, anim.out_resolution, "auto", 300, 0.0, 1920, 1080)
     r = scene.render

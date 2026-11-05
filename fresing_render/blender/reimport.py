@@ -155,6 +155,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     animation.clear_keys(scene)
 
     # 1. joints off (parts back in the CAD tree), remember free moves by part ID
+    from . import machining
+    machining.before_model_update(scene)         # milling (task 0027): the workpiece gets its CAD mesh back
     build.ensure_bases(scene)
     specs = joints.dissolve_all(scene, root=old_root)       # joints of other models stay
     tree = logic.Tree(scene)
@@ -233,6 +235,7 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     # 6. joints, saved states and the rest of the set-up
     notes = joints.rebuild_from_specs(scene, specs, by_uid_new)
     states.remap_uids(scene, mapping)
+    notes += machining.after_model_update(scene, mapping, by_uid_new)
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
     logic.update_bounds(scene)

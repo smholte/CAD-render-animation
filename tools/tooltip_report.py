@@ -31,7 +31,8 @@ from dataclasses import dataclass, field
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py"]
+UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
+            "fresing_render/blender/ui_machining.py"]
 
 # Which lane owns which panel (TASKS.md): the report is a to-do list per lane.
 LANE_OF_PANEL = {
@@ -41,12 +42,14 @@ LANE_OF_PANEL = {
     "4 Motion": "Motion lane", "Poses & exploded views": "Motion lane", "6 Animation": "Motion lane",
     "7 Render queue": "Motion lane", "Saved scenes": "Motion lane",
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
+    "Milling": "Machining lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
 OWNER_TYPES = {
     "s": "FRSceneSettings", "g": "FRMaterialGroup", "r": "FRRule", "j": "FRJoint", "b": "FRAnimBlock",
     "a": "FRAnimation", "shot": "FRShot", "scene.camera.data": "Camera", "scene.camera.data.dof": "CameraDOFSettings",
+    "m": "FRMilling", "bit": "FRMillBit",                     # 4 Motion > Milling (ui_machining.py)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -54,6 +57,7 @@ ITEM_TYPES = {
     "FRESING_UL_visibility": "FRVisSet", "FRESING_UL_found": "FRFoundPart", "FRESING_UL_joints": "FRJoint",
     "FRESING_UL_poses": "FRPose", "FRESING_UL_shots": "FRShot", "FRESING_UL_anims": "FRAnimation",
     "FRESING_UL_blocks": "FRAnimBlock", "FRESING_UL_queue": "FRQueueJob", "FRESING_UL_tree": "FRTreeItem",
+    "FRESING_UL_mill_bits": "FRMillBit",
 }
 
 
@@ -444,7 +448,8 @@ def collect() -> list[Item]:
               "FRESING_UL_schemes": "Paint schemes & templates", "FRESING_UL_found": "Find & sort parts",
               "FRESING_UL_joints": "4 Motion", "FRESING_UL_poses": "Poses & exploded views",
               "FRESING_UL_shots": "Saved scenes", "FRESING_UL_anims": "6 Animation",
-              "FRESING_UL_blocks": "6 Animation", "FRESING_UL_queue": "7 Render queue"}
+              "FRESING_UL_blocks": "6 Animation", "FRESING_UL_queue": "7 Render queue",
+              "FRESING_UL_mill_bits": "Milling"}
     for it in items:
         if it.panel.startswith("list "):
             cls = it.panel[5:]
