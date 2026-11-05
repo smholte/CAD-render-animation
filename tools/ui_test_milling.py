@@ -1,6 +1,7 @@
 """Real-app test, milling (task 0027): pick the bit and the workpiece with real clicks in the view, the
 cut follows the timeline (scrub, playback, a changed animation is read again by itself), undo/redo,
-save and open again, Stop milling.
+save and open again, Stop milling. Chips (task 0028): Few shows chips that follow the timeline, Clear chips,
+chips after opening again, Stop milling takes them away.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1800x1400x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -139,12 +140,21 @@ def removed():
 
 def open_panel():
     """The Milling panel starts closed: a copy that starts open (and panel 4 itself open)."""
-    for name in ("FRESING_PT_milling",):
+    for name in ("FRESING_PT_milling", "FRESING_PT_milling_chips"):
         cls = getattr(bpy.types, name)
         if "DEFAULT_CLOSED" in cls.bl_options:
             bpy.utils.unregister_class(cls)
             cls.bl_options = set(cls.bl_options) - {"DEFAULT_CLOSED"}
             bpy.utils.register_class(cls)
+
+
+def chip_points():
+    """(chips riding with the workpiece, chips that fell off) shown now."""
+    out = []
+    for name in ("FR Chips", "FR Chips (fallen)"):
+        o = bpy.data.objects.get(name)
+        out.append(len(o.data.vertices) if o is not None and o.data is not None else 0)
+    return tuple(out)
 
 
 def build_animation(z_mm):
@@ -273,6 +283,37 @@ def s_scrub_end():
 
 
 @step
+def s_chips_on():
+    bpy.context.scene.fresing.milling.chips = "FEW"      # what picking 'Few' in the Chips drop-down does
+    redraw()
+    return 1.0
+
+
+@step
+def s_chips():
+    sc = bpy.context.scene
+    ch = mod("blender.chips")
+    m = sc.fresing.milling
+    sc.frame_set(STATE["frames"])
+    end = chip_points()
+    check("chips: 'Few' shows chips on the block and the table, and on the bed", end[0] > 0 and end[1] > 0, end)
+    sc.frame_set(1)
+    check("chips: none before the bit cuts", chip_points() == (0, 0), chip_points())
+    sc.frame_set(STATE["frames"])
+    check("chips: scrubbing back gives the same chips", chip_points() == end, chip_points())
+    st = ch.status(sc)
+    check("chips: the panel says how many were worked out", "chips worked out" in st, st)
+    log("chips:", st)
+    r = op("fresing.chips_clear")
+    check("Clear chips removes them", r == {"FINISHED"} and m.chips == "NONE"
+          and bpy.data.objects.get("FR Chips") is None, (r, m.chips))
+    m.chips = "FEW"                                      # on again for the rest of the test
+    sc.frame_set(51)
+    shot("02b_chips")
+    return 0.5
+
+
+@step
 def s_panel_alone():
     """For the user guide picture: only the Milling panel in the side panel (a top-level copy, open)."""
     shot("02_half_way")
@@ -285,6 +326,9 @@ def s_panel_alone():
     base = mod("blender.ui_machining").FRESING_PT_milling
     bpy.utils.register_class(type("FRESING_PT_milling_alone", (base,), {
         "bl_idname": "FRESING_PT_milling_alone", "bl_parent_id": "", "bl_options": set()}))
+    chips_panel = mod("blender.ui_machining").FRESING_PT_milling_chips    # and the Chips sub-panel under it
+    bpy.utils.register_class(type("FRESING_PT_milling_chips_alone", (chips_panel,), {
+        "bl_idname": "FRESING_PT_milling_chips_alone", "bl_parent_id": "", "bl_options": set()}))
     redraw()
     wiggle()
     return 1.5
@@ -377,9 +421,12 @@ def s_reopened():
     sc.frame_set(STATE["frames"])
     box, _vol = removed()
     check("reopened: the cut follows the timeline", box[2] == 63.0, box)
+    check("reopened: the chips are back", m.chips == "FEW" and sum(chip_points()) > 0, chip_points())
     r = op("fresing.mill_stop")
     check("Stop milling: the block is whole again", r == {"FINISHED"} and not find(STOCK).data.get("fr_milled")
           and len(m.bits) == 0, find(STOCK).data.name)
+    check("Stop milling: the chips are gone", bpy.data.objects.get("FR Chips") is None
+          and bpy.data.objects.get("FR Chips (fallen)") is None)
     shot("04_stopped")
     return 0.5
 

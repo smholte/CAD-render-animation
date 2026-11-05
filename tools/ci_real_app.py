@@ -10,7 +10,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
     studio  tools/ui_test_studio.py - light looks, camera views, blur + sharp spot, turntable in the queue
     rulesets  tools/ui_test_rule_sets.py - rule sets: copy, change, save, switch with preview, undo
-    milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline
+    milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline; chips
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
     update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
            this version on a local GitHub-like server, Update now, closes, is updated and starts again
@@ -45,7 +45,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
-              "milling": 17, "paths": 8, "update": 29}
+              "milling": 24, "paths": 8, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20}   # UITEST_QUICK=1 skips renders and the queue
 
 
