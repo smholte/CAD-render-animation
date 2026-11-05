@@ -5,7 +5,7 @@ installer of that version was built from (tags cannot be pushed from the AI chat
 
 ## 0.2.12 – 5 Nov 2026 – surroundings: sea, vessel deck, quay, factory halls
 
-Commit `(see below)`.
+Commit `e658aab`.
 
 5 Scene & Render – Background
 - New built-in surroundings, made by the app itself (nothing to download): **Open sea**,
