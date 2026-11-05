@@ -76,6 +76,24 @@ small loose ends of tasks 0010/0015/0021 are tidied up.
   replaced).
 
 **Tested and measured** (name the machine and the model):
+- New tests: `test_plural_says_one_part_and_two_parts` (core), `test_counts_of_one_are_singular_in_panels_1_to_3`
+  (draws panels 1–3 with counts of 1 and 3, the Structure header, the rule-set switch window and
+  menu text), `test_tooltips_have_no_line_breaks` (every operator). The two panel tests failed on
+  the code of `main` before the fix ("1 parts"; 27 operator tooltips with a line break, 23 of them
+  shown) and pass now.
+- Full suite on the 2-core test machine: 1,426 passed on the branch; after merging `main`
+  (0.2.14, task 0022): 1,650 passed. GitHub run of the branch before the merge: all four jobs
+  green (pytest 1,426 passed; real app ui1 23/23, ui2 39/39, faces 10/10, surroundings 23/23,
+  rule sets 17/17, paths 8/8; Windows install + self-test OK).
+- Tooltip check (`tools/tooltip_report.py`), whole side panel: `main` before 237 buttons and
+  settings, 41 missing, 27 weak; now 39 missing, 15 weak – the 14 that were the Looks lane's,
+  none left in panels 1–3 (the rest are the Motion and Scene & Render lanes').
+- Real app (Blender 5.2.3 Linux build under xvfb, test crane): guide pictures of sections 1–3 made
+  twice; compared pixel by pixel with `docs/img/`. The renamed button fits ("From clicked part",
+  not cut off at the default side-panel width).
+- User guide built (`tools/build_guide.py`) and the changed passages read in the page; release zip
+  built from `main` (`tools/build_release.py`).
+- Nothing here changes import, render or sorting speed: no timings measured.
 
 **Open points / follow-up tasks:**
 - Outside the Looks lane, touched on purpose (small, additive): `fresing_render/__init__.py`
