@@ -18,7 +18,7 @@ updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (can start)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (can start) → 0013 → 0014
-- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (can start) → 0018
+- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (can start)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
@@ -32,7 +32,7 @@ updates its branch to `main`.
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | open – can start | tasks/0012-couplings-motors.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | waiting (0013) | tasks/0014-linkages.md |
-| 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | open – can start | tasks/0017-studio-cameras.md |
+| 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | running | `task/0017-studio-cameras`, tasks/0017-studio-cameras.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
 | 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | open – can start | tasks/0020-updates-from-github.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |

@@ -1,6 +1,6 @@
 # 0017 – Studio lighting, camera views, focus and one-click turntable
 
-**Who:** worker · **Status:** waiting (0016) · **Branch:** `task/0017-studio-cameras`
+**Who:** worker · **Status:** running (worker chat, 5 Nov 2026) · **Branch:** `task/0017-studio-cameras`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/world.py`
 (lighting), `blender/cameras.py`, `blender/render.py` (depth of field), the 5 Scene & Render part
 of `blender/ui.py`, `blender/ops_main.py` (camera/light operators), `blender/props.py`
