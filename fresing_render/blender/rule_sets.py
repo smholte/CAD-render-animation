@@ -135,7 +135,7 @@ _PARSED: dict[str, RS.RuleSet] = {}
 
 
 def saved(s) -> RS.RuleSet | None:
-    """The project's rule set as it was last loaded or saved (None for a project before 0.2.11)."""
+    """The project's rule set as it was last loaded or saved (None for a project before 0.2.13)."""
     text = s.rule_set_data
     if not text:
         return None

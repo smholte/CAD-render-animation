@@ -72,14 +72,14 @@ def test_new_materials_build_in_blender(scene):
 def test_untouched_old_rules_become_the_new_defaults_on_open(scene, tmp_path):
     s = scene.fresing
     logic.load_rules_into_scene(s, R.old_default_rules())
-    s.rule_set, s.rule_set_data = "", ""          # a project of before 0.2.11 has no rule set
+    s.rule_set, s.rule_set_data = "", ""          # a project of before 0.2.13 has no rule set
     path = str(tmp_path / "old.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path)
     bpy.ops.wm.open_mainfile(filepath=path)
     s = bpy.context.scene.fresing
     assert logic.rules_from_scene(s) == R.default_rules()
     assert "new defaults" in s.last_message
-    assert s.rule_set == "Standard"               # the new defaults are the built-in rule set (0.2.11)
+    assert s.rule_set == "Standard"               # the new defaults are the built-in rule set (0.2.13)
     # rules the user changed are left alone
     rules = R.old_default_rules()
     rules[0].target = "My stainless bolts"

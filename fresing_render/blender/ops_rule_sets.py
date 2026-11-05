@@ -7,7 +7,7 @@ import textwrap
 import zlib
 
 import bpy
-from bpy.props import EnumProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core import rule_sets as RS
 from . import rule_sets
@@ -119,7 +119,7 @@ def _report_error(op, exc: Exception) -> set:
 
 
 class FRESING_OT_rule_set_switch(bpy.types.Operator):
-    """Use another rule set for this project: its sorting rules, group names and materials. Shows first
+    """Picks the rule set this project uses: its sorting rules, group names and materials. Shows first
     what will change. Parts you put in a group by hand stay there; Undo goes back"""
 
     bl_idname = "fresing.rule_set_switch"
@@ -130,6 +130,15 @@ class FRESING_OT_rule_set_switch(bpy.types.Operator):
     name: EnumProperty(name="Rule set", items=_all_items,
                        description="The rule set to use: Standard (built in), one from the library, "
                                    "or this project's own")
+    again: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})       # the 'Load it…' button (its own tooltip)
+
+    @classmethod
+    def description(cls, context, properties):
+        if getattr(properties, "again", False):
+            return ("Loads this rule set again from the library (someone saved a newer version) in place of the "
+                    "project's copy. Shows first what will change; Undo goes back")
+        return ("Picks the rule set this project uses: its sorting rules, group names and materials. Shows first "
+                "what will change. Parts you put in a group by hand stay there; Undo goes back")
 
     def _target(self, context):
         s = context.scene.fresing
@@ -170,7 +179,7 @@ class FRESING_OT_rule_set_switch(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_save(bpy.types.Operator):
-    """Save this project's changes (rules, group names and materials) into its rule set in the library.
+    """Saves this project's changes (rules, group names and materials) into its rule set in the library.
     Other projects that use it get them when they load it again"""
 
     bl_idname = "fresing.rule_set_save"
@@ -200,7 +209,7 @@ class FRESING_OT_rule_set_save(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_save_as(bpy.types.Operator):
-    """Save this project's rule set as it is now under a new name in the library (a copy you can change);
+    """Saves this project's rule set as it is now under a new name in the library (a copy you can change);
     the project uses the new one from now on"""
 
     bl_idname = "fresing.rule_set_save_as"
@@ -242,7 +251,7 @@ class FRESING_OT_rule_set_save_as(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_new_empty(bpy.types.Operator):
-    """Start a new rule set with no rules: every part goes to 'Unsorted', then you build it up with
+    """Starts a new rule set with no rules: every part goes to 'Unsorted', then you build it up with
     Find & sort parts and 'Make it a rule'. Parts you put in a group by hand stay there"""
 
     bl_idname = "fresing.rule_set_new_empty"
@@ -284,7 +293,7 @@ class FRESING_OT_rule_set_new_empty(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_rename(bpy.types.Operator):
-    """Rename a rule set. Other projects that use it keep their own copy under the old name"""
+    """Renames a rule set. Other projects that use it keep their own copy under the old name"""
 
     bl_idname = "fresing.rule_set_rename"
     bl_label = "Rename rule set"
@@ -318,7 +327,8 @@ class FRESING_OT_rule_set_rename(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_delete(bpy.types.Operator):
-    """Delete a rule set from the library. Projects that use it keep their own copy"""
+    """Deletes a rule set from the library; Undo does not bring the file back. Projects that use it keep
+    their own copy"""
 
     bl_idname = "fresing.rule_set_delete"
     bl_label = "Delete rule set"
@@ -348,7 +358,8 @@ class FRESING_OT_rule_set_delete(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_default(bpy.types.Operator):
-    """The rule set every new project starts with (saved in the preferences)"""
+    """Sets the rule set every new project starts with (kept in the preferences). A default template
+    that names a rule set wins over this"""
 
     bl_idname = "fresing.rule_set_default"
     bl_label = "Default rule set"
@@ -373,7 +384,8 @@ class FRESING_OT_rule_set_default(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_folder(bpy.types.Operator):
-    """Open the folder with the rule-set files (one .json file per rule set)"""
+    """Opens the folder with the rule-set files in Explorer: one .json file per rule set, shared with
+    colleagues when it is in the shared library"""
 
     bl_idname = "fresing.rule_set_folder"
     bl_label = "Show rule-set folder"

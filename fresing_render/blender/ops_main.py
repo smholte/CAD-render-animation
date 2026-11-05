@@ -385,7 +385,7 @@ class FRESING_OT_rule_move(bpy.types.Operator):
 
 
 class FRESING_OT_rules_reset(bpy.types.Operator):
-    """Replace all rules with those of the built-in Standard rule set. The project's rule set then shows
+    """Replaces all rules with those of the built-in Standard rule set. The project's rule set then shows
     'changed': save it, or pick the rule set again at the top of 3 Looks to go back"""
 
     bl_idname = "fresing.rules_reset"
@@ -545,7 +545,7 @@ def apply_template(scene, t: Template) -> None:
 
 
 class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
-    """Save the rule set this project uses, paint schemes, background and output settings as a template
+    """Saves the rule set this project uses, paint schemes, background and output settings as a template
     (.json) for the next project"""
 
     bl_idname = "fresing.template_export"
@@ -564,7 +564,7 @@ class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
 
 
 class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
-    """Load a template: its rule set (from the library, or the template's own copy), paint schemes,
+    """Loads a template: its rule set (from the library, or the template's own copy), paint schemes,
     background and output settings. Parts you put in a group by hand stay there"""
 
     bl_idname = "fresing.template_import"

@@ -21,6 +21,7 @@ Only the test models in tests/data may be shown: the repository is public.
 
 import math
 import os
+import shutil
 import subprocess
 import tempfile
 import sys
@@ -167,7 +168,7 @@ def _panel_names():
 
 
 def show_only(spec):
-    """Draw only these Fresing panels: [(class name, closed, top_level)].
+    """Draw only these Fresing panels: [(class name, closed, top_level[, draw function])].
 
     Each picture gets fresh copies of the panel classes (a new name each time), so the
     open/closed state is what the picture asks for and not what an earlier picture left."""
@@ -185,12 +186,14 @@ def show_only(spec):
             bpy.utils.unregister_class(cls)
     _N[0] += 1
     suffix = f"__shot{_N[0]}"
-    for name, closed, top in spec:
+    for name, closed, top, *draw in spec:
         base = _ORIG[name]
         opts = set(getattr(base, "bl_options", set())) - {"DEFAULT_CLOSED"}
         if closed:
             opts.add("DEFAULT_CLOSED")
         attrs = {"bl_idname": name + suffix, "bl_options": opts}
+        if draw:                                       # only part of the panel
+            attrs["draw"] = draw[0]
         parent = getattr(base, "bl_parent_id", "")
         if top or not parent:
             attrs["bl_parent_id"] = ""
@@ -222,6 +225,40 @@ def shoot_sidebar(name):
 # ---------------------------------------------------------------------------
 # the project state shown in the pictures (test crane)
 # ---------------------------------------------------------------------------
+
+
+_RULE_SET_UNDO: dict = {}
+
+
+def _rule_set_state(sc, undo=False):
+    """Rule-set picture: the project uses 'Example Ltd' from the shared library and one group has another
+    colour. The library is a folder named like a network path inside the scratch folder (Linux allows
+    backslashes in a name), so the picture shows the path a Windows PC would show."""
+    s = sc.fresing
+    rsm, ui = mod("blender.rule_sets"), mod("blender.ui")
+    if undo:
+        if _RULE_SET_UNDO:
+            g = s.groups[_RULE_SET_UNDO["group"]]
+            g.material, g.color = _RULE_SET_UNDO["look"]
+            s.rule_set, s.rule_set_data = _RULE_SET_UNDO["rule_set"]
+            os.environ.pop(rsm.ENV_FOLDER, None)
+            os.chdir(_RULE_SET_UNDO["cwd"])
+            ui._OPEN_FOLDS = False
+            rsm.forget_scan()
+            _RULE_SET_UNDO.clear()
+        return
+    shared = "\\\\server\\Library\\Rule sets"
+    _RULE_SET_UNDO.update(cwd=os.getcwd(), rule_set=(s.rule_set, s.rule_set_data))
+    os.chdir(SCRATCH)
+    shutil.rmtree(shared, ignore_errors=True)
+    os.makedirs(shared)
+    os.environ[rsm.ENV_FOLDER] = shared
+    rsm.forget_scan()
+    rsm.save_as(sc, "Example Ltd")
+    g = next(g for g in s.groups if g.by_rules and (g.material, g.color) != ("paint_satin", "RAL 5010"))
+    _RULE_SET_UNDO.update(group=g.name, look=(g.material, g.color))
+    g.material, g.color = "paint_satin", "RAL 5010"
+    ui._OPEN_FOLDS = True
 
 
 def boom_axis():
@@ -410,6 +447,9 @@ if MODE == "panels":
         ("panel_2_cleanup", [("FRESING_PT_cleanup", False, True)]),
         ("panel_2_visibility", [("FRESING_PT_visibility", False, True)]),
         ("panel_3_looks", [("FRESING_PT_looks", False, True)]),
+        # the top of 3 Looks: a rule set of the library with a change, Manage rule sets open
+        ("panel_3_rule_sets", [("FRESING_PT_looks", False, True,
+                                lambda self, context: mod("blender.ui").draw_rule_set(self.layout, context))]),
         ("panel_3_find", [("FRESING_PT_find", False, True)]),
         ("panel_3_rules", [("FRESING_PT_rules", False, True)]),
         ("panel_3_schemes", [("FRESING_PT_schemes", False, True)]),
@@ -439,6 +479,10 @@ if MODE == "panels":
                 grp = ob("BOOM").get("fr_group", "")
                 idx = next((i for i, g in enumerate(sc.fresing.groups) if g.name == grp), 0)
                 sc.fresing.groups_index = idx
+            elif name == "panel_3_rule_sets":
+                _rule_set_state(sc)
+            elif name == "panel_3_find":                # back to Standard, as before
+                _rule_set_state(sc, undo=True)
             elif name == "panel_3_faces":               # one face of the boom painted by hand, boom clicked
                 s = sc.fresing
                 logic, faces = mod("blender.logic"), mod("blender.faces")

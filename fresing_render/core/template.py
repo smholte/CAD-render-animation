@@ -3,7 +3,7 @@
 A template lets the next machine start mostly set up. It is plain JSON so it
 can live on a network share and be edited by hand if needed.
 
-Since 0.2.11 a template names the rule set it uses and keeps a copy of it: ``rule_set`` is the
+Since 0.2.13 a template names the rule set it uses and keeps a copy of it: ``rule_set`` is the
 rule set as it was in the project (a ``rule_sets.RuleSet`` as a dict, with changes not saved to the
 library), ``rule_set_base`` the version from the library it was based on. Loading it uses the
 library version when the library has moved on since, otherwise the template's copy (so its

@@ -451,7 +451,8 @@ def draw_rule_set(layout, context) -> None:
     if rule_sets.library_differs(s):
         box = layout.box()
         wrap(box, context, f"The library has a newer version of '{name}'.", icon="FILE_REFRESH", inset=12)
-        box.operator("fresing.rule_set_switch", text="Load it…", icon="IMPORT").name = name
+        op = box.operator("fresing.rule_set_switch", text="Load it…", icon="IMPORT")
+        op.name, op.again = name, True
     body = fold(layout, "fresing_rule_sets_manage", "Manage rule sets", "FILTER")
     if body is not None:
         grid = body.grid_flow(row_major=True, columns=2, even_columns=True, align=True)

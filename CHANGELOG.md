@@ -3,6 +3,30 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
+
+Commit `(follows)`.
+
+3 Looks
+- **Rule set** at the top of 3 Looks: the sorting rules, the material of each group and the
+  group names in one package – one for your company, one for each client with other part names.
+  **Standard** is built in and read-only. **Manage rule sets** has **Copy…**, **New, empty…**,
+  **Rename…**, **Delete…** and the rule set new projects start with.
+- Rule sets are files in the shared library (folder `Rule sets`), so colleagues use the same
+  ones; without a shared library they are kept in `Documents\Fresing Render\Rule sets`. Every
+  project keeps its own copy, so it opens the same without the library.
+- Switching a project to another rule set shows first what changes (parts that change group,
+  new groups, groups that go away, unsorted now and after) and asks. Parts you put in a group by
+  hand stay there; painted faces are sorted again too; Ctrl+Z goes back.
+- Changes in a project (rules, group materials, **Make it a rule**) show as "Changed in this
+  project: …" with **Save changes** and **Save as new…**. **Save changes** warns when a colleague
+  saved a newer version meanwhile; "The library has a newer version" offers **Load it…**.
+- Templates remember their rule set by name and keep a copy. Older templates and projects open
+  unchanged: their rules become the rule set "From this project" (or Standard, when untouched).
+- Preferences: **Default rule set** for new projects.
+- Self-test: new line "Rule sets folder" (the folder can be written).
+- User guide, chapter 3: new part "Rule sets", with a picture.
+
 ## 0.2.12 – 5 Nov 2026 – surroundings: sea, vessel deck, quay, factory halls
 
 Commit `e658aab`.

@@ -235,7 +235,8 @@ Saves which parts are hidden, under a name such as "Without cover".
 <img class="panel" src="img/panel_3_looks.png" alt="3 Looks with the material groups">
 
 Every part is in a **material group**, and every group has one material. The import sorts the parts
-into groups by itself, using:
+into groups by itself, with the project's **rule set** (at the top of 3 Looks, see
+[Rule sets](#rule-sets)). The built-in rule set **Standard** uses:
 
 - **fasteners** – bolts, nuts, washers recognised by their DIN/ISO names – by type and finish
   (galvanised, stainless, black…);
@@ -273,6 +274,59 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 - **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
   stay there.
 
+<a id="rule-sets"></a>
+### Rule sets
+
+<img class="panel" src="img/panel_3_rule_sets.png" alt="The rule set at the top of 3 Looks, changed, with Manage rule sets open">
+
+A **rule set** is one way of naming and sorting: the sorting rules, the material of each group, and the
+group names. Make one for your company, and one for each client whose STEP files use other names. Each
+project uses one rule set, shown at the top of 3 Looks next to **Rule set**. **Standard** is built in
+and cannot be changed; make a copy to change it.
+
+**Make your own rule set**
+
+1. Open **Manage rule sets** and click **Copy…**. Type a name, for example your company, and click
+   **Save**. The project now uses the copy.
+2. Change what you want: group materials (above), [sorting rules](#rules), **Make it a rule** in
+   [Find & sort parts](#find).
+3. A box appears: **Changed in this project: …** lists what differs from the saved rule set.
+   **Save changes** puts the changes into the rule set, so other projects can use them. **Save as
+   new…** makes another rule set of it. Changes you do not save stay in this project only.
+
+**Switch a project to another rule set**
+
+1. Click the name next to **Rule set** and pick another rule set.
+2. A window first shows what will change: how many parts change group, which groups are new and which
+   go away, how many parts are unsorted now and after. Click **Switch**.
+3. The parts get their new groups and the groups their new materials. Parts you put in a group by hand
+   stay where they are. <kbd>Ctrl</kbd>+<kbd>Z</kbd> goes back.
+
+**More in Manage rule sets**
+
+- **New, empty…** starts a rule set without rules: every part goes to Unsorted, and you build it up
+  with Find & sort parts and **Make it a rule**.
+- **Rename…** and **Delete…**. Projects that use the rule set keep their own copy of it.
+- **New projects**: the rule set every new project starts with (also in Edit > Preferences >
+  Add-ons > Fresing Render, **Default rule set**).
+- Rule sets are files in the folder `Rule sets` in the shared library, so colleagues use the same ones.
+  **Show the folder** opens it. Without a shared library they are kept on this PC, in
+  `Documents\Fresing Render\Rule sets`.
+
+**Good to know**
+
+- A project keeps its own copy of its rule set, so it opens the same on another PC or when the shared
+  library cannot be reached.
+- When a colleague saved a newer version of your rule set, a box says "The library has a newer version
+  of …": **Load it…** takes it over. **Save changes** warns you before it replaces a colleague's newer
+  version.
+- A rule set that is only in this project (for example after its file was deleted) shows "Only in this
+  project" with **Save to library…**.
+- Projects made with an older version open unchanged: their rules become a rule set called "From this
+  project" (or Standard, when they were never changed).
+- A [template](#schemes) remembers its rule set by name and keeps a copy: loading it uses the rule set
+  from the library when it is there, otherwise the template's copy.
+
 <a id="faces"></a>
 ### Paint faces
 
@@ -295,6 +349,7 @@ Faces painted in CAD are listed the same way. A sorting rule on their colour can
 material, for example "CAD colour is #C0C0C0 → Anodised"; only colour and CAD-material rules act on
 single faces. A model update keeps the painted faces of parts whose faces did not change.
 
+<a id="find"></a>
 ### Find & sort parts
 
 <img class="panel" src="img/panel_3_find.png" alt="Find & sort parts">
@@ -314,6 +369,7 @@ Also here: **Common words in unsorted parts** (only when parts are unsorted; one
 the word) and **Only inside …** (searches only the subassembly selected in 2 Structure). **Show only
 the unsorted parts** (above, in red) shows what still needs a group.
 
+<a id="rules"></a>
 ### Sorting rules
 
 <img class="panel" src="img/panel_3_rules.png" alt="Sorting rules">
@@ -327,22 +383,26 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
   name may hold {color}, {finish} or {kind}: then you get one group per colour, finish or type.
 - **+** adds a rule, **From active part** makes one from the part you clicked, the arrows move a rule
   up or down, **−** removes it.
-- **Defaults** replaces all rules with the built-in list. Projects made before version 0.2.8 that
+- **Defaults** replaces all rules with those of Standard. Projects made before version 0.2.8 that
   still had the old built-in rules get the new ones when they are opened; your own rules are kept.
 - After changing rules, click **Sort parts into groups** in 3 Looks.
+- The rules belong to the project's [rule set](#rule-sets): the header says **changed** when they
+  differ from it. **Save changes** at the top of 3 Looks keeps them for other projects.
 
+<a id="schemes"></a>
 ### Paint schemes & templates
 
 <img class="panel" src="img/panel_3_schemes.png" alt="Paint schemes & templates">
 
 - A **paint scheme** stores the material and colour of every group, for example "Customer blue" and
   "Fresing grey". **+** saves the colours you have now; **Use** switches every group at once.
-- A **template** keeps the rules, groups, paint schemes, background and image settings for the next
+- A **template** keeps the rule set, paint schemes, background and image settings for the next
   project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
   library.
-- The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos)
-  and a folder `Templates`. Set it once: Edit > Preferences > Add-ons > Fresing Render > **Shared
-  library**. **Default template** there is used for every new import.
+- The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos),
+  a folder `Templates` and a folder `Rule sets`. Set it once: Edit > Preferences > Add-ons > Fresing
+  Render > **Shared library**. **Default template** there is used for every new import; **Default rule
+  set** is the rule set new projects start with.
 
 <a id="motion"></a>
 ## 4 Motion – joints, poses and exploded views
