@@ -629,8 +629,14 @@ Good to know
 - The same set-up gives the same chips every time, on every PC, whatever frame you look at first.
 - Chips land on what is below them seen from above: they do not land on the head or a part that hangs over
   the table, and they do not bounce off the head.
-- Working them out and rendering them takes time. Measured on the 2-core test machine (test mill, slot of
-  50 × 10 × 5 mm in aluminium): CHIPS_TIMES
+- Working them out and rendering them takes time. Measured on the 2-core test machine (test mill, rendered
+  on the processor at 640 × 360, Preview):
+  - working them out: under 1 s for a short cut; about 4 s for a 46-second pocket program (1,158 frames);
+  - one rendered frame, slot 50 × 10 × 5 mm in aluminium: 26.0 s without chips, 26.5 s with Few (150 chips),
+    28.8 s with Realistic (1,218 chips in the picture);
+  - a bigger cut (90 × 10 × 15 mm): 24.4 s without chips, 32.2 s with about 6,200 aluminium curls (+32 %),
+    29.9 s with 25,000 brass crumbs (the limit, +23 %);
+  - showing a frame in the view: 8–17 ms on top of the milling.
 
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
