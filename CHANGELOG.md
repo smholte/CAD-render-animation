@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.20 – 5 Nov 2026 – fasteners in supplier notation (task 0030)
+
+Screws, nuts and washers named the way supplier catalogues write them now land in the fastener groups:
+set screws like "MSSF5-5" or "SSCP5-8" (size and length read from the name), "WRENCHBOLT M8x20" and
+"WRENCHBOLT6-15" (socket head cap screw), "BOLT5-20", "SCREW4-10", "NUT5" and "WASHER6". Your normal metric
+bolts (DIN/ISO, any length, HDG / tZn / gvz / zwart / A2 / A4 / RVS) were already right; they are now
+covered by tests too, so they stay right. No name that matched before stopped matching.
+
 ## 0.2.19 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
 
 Commit: (written after the merge).
