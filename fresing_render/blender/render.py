@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 import sys
@@ -105,8 +106,10 @@ def apply_quality(scene, quality: str, use_gpu: bool = True) -> str:
     return device
 
 
+@functools.lru_cache(maxsize=1)
 def pictures_dir() -> str:
-    """The user's Pictures folder (on Windows asked from the system: OneDrive may have moved it)."""
+    """The user's Pictures folder (on Windows asked from the system: OneDrive may have moved it).
+    Asked once per session: each ctypes structure type made here stays in memory for good."""
     if sys.platform == "win32":
         try:
             import ctypes
@@ -123,6 +126,7 @@ def pictures_dir() -> str:
             shell32 = ctypes.WinDLL("shell32")
             shell32.SHGetKnownFolderPath.argtypes = [ctypes.POINTER(GUID), wintypes.DWORD, wintypes.HANDLE,
                                                      ctypes.POINTER(ctypes.c_wchar_p)]
+            shell32.SHGetKnownFolderPath.restype = ctypes.c_long
             if shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path)) == 0 and path.value:
                 result = path.value
                 ctypes.windll.ole32.CoTaskMemFree(path)
@@ -228,6 +232,8 @@ def prepare_still(scene, s, quality: str) -> tuple[str, str, str]:
     apply_output(scene, s)
     device = apply_quality(scene, quality, s.use_gpu)
     world.apply(scene, s)
+    from . import cameras
+    cameras.update_blur(scene.camera, scene)   # the camera may have been moved by hand since
     final = output_path(scene, s, "" if quality == "final" else f"_{quality}")
     r = scene.render
     r.image_settings.file_format = "PNG"

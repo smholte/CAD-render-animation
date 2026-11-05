@@ -76,7 +76,8 @@ overview (number, title, status, who, branch).
 ```
 fresing_render/            the Blender extension (Python package)
   core/                    no Blender: fasteners (DIN/ISO names), rules, RAL table, materials, size presets, templates,
-                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale)
+                           surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
+                           studio.py (light looks, light in words, blur and turntable numbers)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -86,11 +87,13 @@ fresing_render/            the Blender extension (Python package)
     joints.py states.py    joints (drivers), poses, visibility sets, saved scenes
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
-    render.py world.py cameras.py materials.py
+    render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
     surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
+    turntable.py           one-click turntable: camera, saved scene and animation "Turntable"
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
-    ops_*.py               operators (ops_surroundings.py: props, put on floor);  ui.py ui_motion.py  side panel (1-7)
+    ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
+                           spot, turntable);  ui.py ui_motion.py  side panel (1-7)
     files.py               open a file / show it in Explorer
   queue_runner.py          runs queued renders inside a background Blender
   selftest.py              installation self-test (report on the Desktop)

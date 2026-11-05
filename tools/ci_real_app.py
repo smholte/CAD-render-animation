@@ -7,6 +7,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     ui2    tools/ui_test_app2.py  - the remaining buttons, undo/redo
     faces  tools/ui_test_faces.py - painted faces: from CAD, 'Paint faces' with clicks in the view
     surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
+    studio  tools/ui_test_studio.py - light looks, camera views, blur + sharp spot, turntable in the queue
     rulesets  tools/ui_test_rule_sets.py - rule sets: copy, change, save, switch with preview, undo
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
 
@@ -39,8 +40,8 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "rulesets": 17, "paths": 8}
-MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17}   # UITEST_QUICK=1 skips the renders of ui1 and the queue
+MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "rulesets": 17, "studio": 21, "paths": 8}
+MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20}   # UITEST_QUICK=1 skips renders and the queue
 
 
 def run(cmd, env, log_path, timeout):
@@ -126,7 +127,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,paths")
+    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,studio,paths")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -150,6 +151,7 @@ def main(argv=None) -> int:
                          "ui_test_surroundings.py", True),
         "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
                      "ui_test_rule_sets.py", True),
+        "studio": ("Real app: light looks, views, blur, turntable (ui_test_studio.py)", "ui_test_studio.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
     }
     rows = []
