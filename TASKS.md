@@ -16,12 +16,13 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (running)
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0013 → 0014
-- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018
-- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (can start)
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (running) → 0024 decals
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0026 G-code → 0013 → 0014
+- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018 → 0025
+- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (running)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
+- **Machining lane** (new files `machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (can start) → 0028 chips → 0029 later
 
 ## Open and running
 
@@ -29,12 +30,18 @@ updates its branch to `main`.
 | --- | --- | --- | --- | --- |
 | 0022 | Part library lane: more parts sorted on import – supplier catalogue codes (Misumi and others); owner attaches the EGR file | worker | running | `task/0022-more-supplier-codes`, tasks/0022-more-supplier-codes.md |
 | 0023 | Looks lane: clean-up – tooltips of panels 1–3, "1 face sets" plural, guide chapters 1–3 current | worker | running | `task/0023-looks-clean-up`, tasks/0023-looks-clean-up.md |
+| 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | waiting (0023) | tasks/0024-decals.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | running | `task/0012-couplings-motors`, tasks/0012-couplings-motors.md |
+| 0026 | Motion lane: G-code drives the machine – X/Y/Z joints + spindle motor follow a CNC program (Fusion CAM output) | worker | waiting (0012) | tasks/0026-gcode-motion.md |
+| 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | open – can start | tasks/0027-material-removal.md |
+| 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | waiting (0027) | tasks/0028-chips.md |
+| 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | later | tasks/0029-milling-later.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke | worker | waiting (0012) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | waiting (0013) | tasks/0014-linkages.md |
 | 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | running | `task/0017-studio-cameras`, tasks/0017-studio-cameras.md |
-| 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
-| 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | open – can start | tasks/0020-updates-from-github.md |
+| 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
+| 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | waiting (0018) | tasks/0025-callouts-pictures-music.md |
+| 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | running | `task/0020-updates-from-github`, tasks/0020-updates-from-github.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | open | – |
