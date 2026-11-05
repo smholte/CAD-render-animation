@@ -20,7 +20,7 @@ updates its branch to `main`.
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (can start) → 0013 → 0014
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.11) → 0017 (can start) → 0018
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (can start)
-- **Docs lane** (`docs/`, Help-menu link): 0021 (running)
+- **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, their tests only): 0022 (running)
 
 ## Open and running
@@ -35,7 +35,6 @@ updates its branch to `main`.
 | 0017 | Scene & Render lane: studio lighting looks, standard camera views, focus by click, one-click turntable video | worker | open – can start | tasks/0017-studio-cameras.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, 16:9 / 1:1 / 9:16 | worker | waiting (0017) | tasks/0018-video-finishing.md |
 | 0020 | Quality lane: updates from GitHub – "Update available" + one click in the app (replaces 0005) | worker | open – can start | tasks/0020-updates-from-github.md |
-| 0021 | Docs lane: user guide (Help menu, shipped with the installer) + tooltip style guide and check | worker | running | `task/0021-user-guide`, tasks/0021-user-guide.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | open | – |
@@ -58,5 +57,6 @@ updates its branch to `main`.
 | 0011 | Stacked joints: several joints on one subassembly, the moves add up; Swap order; stacks survive model updates | 0.2.10 |
 | 0016 | Surroundings: open sea, vessel deck, quayside, clean factory, CNC hall, assembly hall, warehouse (Simple/Detailed, halls never hide the machine); 360° photo with its ground and shadow; props for scale; tooltips in panel 5; guide with free 360° photos | 0.2.11 |
 | 0019 | Automatic tests on GitHub at every push: Linux suite + real app, Windows install + self-test + uninstall (about 10 min per run) | – (no release needed) |
+| 0021 | User guide (Help > Fresing Render user guide, Start menu, next to Install.bat); tooltip style guide, tooltip check and the list of 93 tooltips for the lanes (`docs/TOOLTIPS-TODO.md`) | 0.2.11 |
 
 Details per version: `CHANGELOG.md`.

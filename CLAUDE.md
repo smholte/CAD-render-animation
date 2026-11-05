@@ -102,6 +102,7 @@ tools/                     build_release.py, test-model makers, real-app tests, 
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md,
+                           USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do),
                            SURROUNDINGS.md (surroundings, props, free 360° photos and how to add them)
 ```
 
@@ -134,6 +135,10 @@ locally pushes its branch and reads the run.
 | Real app, simulated clicks + accented paths (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
 | **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
+| User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
+| User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
+| Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
 Linux wheels for the packaged test: `pip download cadquery-ocp-novtk==8.0.1.1.0
 cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64
@@ -201,9 +206,13 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **Tooltips:** every button and setting has one (operator docstring/`description`, property
   `description`): first what it does, then how to use it or what happens next, in plain words
   ("Puts the ticked parts in a new group named after your search. Then pick its material
-  below."). Style guide: top of `docs/USER-GUIDE.md` (task 0021).
-- **User guide:** a task that changes what the owner sees updates its section of
-  `docs/USER-GUIDE.md` (once it exists) with the same commit.
+  below."). Style guide: the comment at the top of `docs/USER-GUIDE.md`. Check with
+  `tools/tooltip_report.py`; `docs/TOOLTIPS-TODO.md` lists what each lane still has to do, with
+  suggested texts (delete your rows when done).
+- **User guide:** a task that changes what the owner sees updates its chapter of
+  `docs/USER-GUIDE.md` in the same commit, and replaces the pictures of its panels
+  (`tools/guide_screens.py`, test crane only). The guide is built into the release by
+  `tools/build_release.py` (needs `markdown`); it opens from Help > Fresing Render user guide.
 - Commit messages say what changed and why, in plain words, and end with the attribution
   lines the chat's instructions give.
 
@@ -216,7 +225,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 3. Full test suite; real-app tests for UI changes; packaged self-test for importer/packaging
    changes. The GitHub run of the branch must be green (section 5).
 4. `~/venv/bin/python tools/build_release.py` (downloads the Windows wheels into `wheels/` the
-   first time) -> `dist/FresingRender-<version>-windows.zip`.
+   first time; builds the user guide into the extension and as "User guide.html" next to
+   Install.bat) -> `dist/FresingRender-<version>-windows.zip`.
 5. Commit, push `main`, and write the commit hash under the version in `CHANGELOG.md`. Check
    the GitHub run on `main` (`python3 tools/ci_status.py --branch main --wait`); send the
    installer only when it is green.
@@ -247,6 +257,14 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
+- Operator tooltips: `bpy.types.X_OT_y.bl_rna.description` is empty; ask
+  `bpy.ops.x.y.get_rna_type().description`. A property group that defines its own `name` has two
+  `name` properties in `bl_rna.properties`; the UI uses its own (the last one).
+- Real-app screenshots: switch `preferences.system.use_region_overlap` off, or the side panel is
+  see-through. A panel's open/closed state is kept per panel name once drawn; to picture it in
+  another state, register a copy under a new name (`tools/guide_screens.py` does this).
+- Blender's own Python has numpy but no Pillow: real-app tools crop and save pictures with numpy
+  and ImageMagick.
 - Real-app tests: `event_simulate` only queues events. An Esc sent in the same step as a modal
   operator reaches that operator (it cancelled the import); give it a step of its own. A click
   "somewhere in the side panel" lands on whatever button the layout puts there (an open

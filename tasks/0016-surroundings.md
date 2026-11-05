@@ -95,13 +95,19 @@ with the work uncommitted on disk; the second reviewed it, fixed what follows an
   templates keep the surroundings settings and "Show props".
 - Tooltips for every setting and button in panel 5 (also the existing ones).
 - Docs: `docs/SURROUNDINGS.md` (owner: surroundings, props, render times, recommended free
-  360° photos with click steps; the panel links to it), `docs/DEVELOPMENT.md` (how it works),
-  `CLAUDE.md` (layout, tests, lessons learned).
+  360° photos with click steps; the panel links to it), `docs/USER-GUIDE.md` chapter 5
+  "Background & surroundings" and "Props for scale" with three new pictures
+  (`tools/guide_screens.py` got two shots: a vessel deck, the props panel), `docs/DEVELOPMENT.md`
+  (how it works), `CLAUDE.md` (layout, tests, CI times, lessons learned). Panel 5 has no findings
+  left in `tools/tooltip_report.py`; its rows are gone from `docs/TOOLTIPS-TODO.md` (the "Open"
+  button's operator lives in `ops_motion.py`: its docstring fixed, one line, no Motion task running).
+- `tools/ci_real_app.py`: the surroundings test runs on GitHub at every push.
 - Tests: `tests/test_surroundings.py` (75 tests); real-app test `tools/ui_test_surroundings.py`.
 
 **Tested and measured** (name the machine and the model):
 All on the 2-core Linux test machine (no graphics card), generic test models only.
-- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min). New: 75 tests in `tests/test_surroundings.py`:
+- Full pytest suite after merging main (0.2.10): 1,377 passed (11 min); again after merging
+  0.2.11 (user guide): see below. New: 75 tests in `tests/test_surroundings.py`:
   layouts for 3 machine sizes × 7 surroundings × Simple/Detailed keep the machine's space and
   the camera's view free; hall panels face inwards; every surrounding builds and renders a
   small CPU frame with no image files, machine on the floor; rebuilt only on real changes;
@@ -133,11 +139,8 @@ All on the 2-core Linux test machine (no graphics card), generic test models onl
   `extension install-file` (the real-app test ran from it).
 
 **Open points / follow-up tasks:**
-- The "Saved scenes" sub-panel inside panel 5 lives in the Motion lane's files
-  (`ui_motion.py`, `ops_motion.py`): its button "Remove scene" (`fresing.shot_remove`) has no
-  tooltip yet. Left for the Motion lane (task 0011 was running there) or the tooltip check of
-  task 0021.
-- `docs/USER-GUIDE.md` did not exist yet (task 0021): it should link to `docs/SURROUNDINGS.md`.
+- The "Saved scenes" sub-panel inside panel 5 lives in the Motion lane's files and is listed
+  there in `docs/TOOLTIPS-TODO.md` (e.g. "Remove scene" has no tooltip yet).
 - Halls render 1.4–2.8× slower than the studio on the processor. For long videos: Simple, or a
   360° photo with ground (no slower than the studio). To measure on the RTX 3090 (task 0002).
 - EEVEE (Fast preview) with surroundings was checked on the Linux test machine (software
