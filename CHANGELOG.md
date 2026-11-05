@@ -3,6 +3,100 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.13 – 5 Nov 2026 – rule sets: one naming scheme per company (task 0015)
+
+Commit `b5d716b`.
+
+3 Looks
+- **Rule set** at the top of 3 Looks: the sorting rules, the material of each group and the
+  group names in one package – one for your company, one for each client with other part names.
+  **Standard** is built in and read-only. **Manage rule sets** has **Copy…**, **New, empty…**,
+  **Rename…**, **Delete…** and the rule set new projects start with.
+- Rule sets are files in the shared library (folder `Rule sets`), so colleagues use the same
+  ones; without a shared library they are kept in `Documents\Fresing Render\Rule sets`. Every
+  project keeps its own copy, so it opens the same without the library.
+- Switching a project to another rule set shows first what changes (parts that change group,
+  new groups, groups that go away, unsorted now and after) and asks. Parts you put in a group by
+  hand stay there; painted faces are sorted again too; Ctrl+Z goes back.
+- Changes in a project (rules, group materials, **Make it a rule**) show as "Changed in this
+  project: …" with **Save changes** and **Save as new…**. **Save changes** warns when a colleague
+  saved a newer version meanwhile; "The library has a newer version" offers **Load it…**.
+- Templates remember their rule set by name and keep a copy. Older templates and projects open
+  unchanged: their rules become the rule set "From this project" (or Standard, when untouched).
+- Preferences: **Default rule set** for new projects.
+- Self-test: new line "Rule sets folder" (the folder can be written).
+- User guide, chapter 3: new part "Rule sets", with a picture.
+
+## 0.2.12 – 5 Nov 2026 – surroundings: sea, vessel deck, quay, factory halls
+
+Commit `e658aab`.
+
+5 Scene & Render – Background
+- New built-in surroundings, made by the app itself (nothing to download): **Open sea**,
+  **Vessel deck**, **Quayside**, **Clean factory hall**, **CNC machining hall**, **Assembly
+  hall**, **Warehouse**. The machine stands on the floor (its lowest point, centred); the
+  surroundings grow with the machine. **Simple** or **Detailed**.
+- Sea: calm or rough, foam on the wave tops, waves that move in videos (or stand still).
+  Open sea: the water level can be raised or lowered.
+- Halls never hide the machine: walls are seen only from inside (a camera outside looks in),
+  anything between the camera and the machine is left out of the picture, and the roof
+  structure is left out when the camera is above it.
+- **360° photo** now stands the machine on the photo's ground with its own shadow
+  (**Stand on its ground**, **Photo taken at**). A link in the panel and the new guide
+  `docs/SURROUNDINGS.md` list good free photos (Poly Haven) and how to add them to the library.
+- **Props for scale** (new sub-panel): person 1.8 m, 20 ft container, euro pallet, safety
+  barrier. One click puts one next to the machine; move it like any object; show/hide all in
+  one click (also per saved scene).
+- Saved scenes, templates and the render queue keep the surroundings.
+- Every setting and button in 5 Scene & Render has a tooltip that says what it does.
+- User guide, chapter 5: "Background & surroundings" and "Props for scale", with pictures.
+- Render time on the processor (test machine): sea, deck, quay and photo about the same as the
+  studio; halls about 1.4–2.8× (details in `docs/SURROUNDINGS.md`).
+
+## 0.2.11 – 5 Nov 2026 – user guide (task 0021)
+
+Commit `45af7cc`.
+
+- A user guide: what each section 1–7 is for and how to work through it, step by step, with
+  pictures of every panel; getting started (your first render in 10 minutes), export tips for
+  Inventor and Fusion (AP214/AP242), and a troubleshooting page (self-test, where renders go,
+  the queue). It covers everything up to this version, also painted faces and several joints on
+  one subassembly. One page that works offline; it prints well (Print > Save as PDF).
+- Open it from the app: **Help > Fresing Render user guide**. Also in the Start menu
+  (Fresing Render > "Fresing Render - User guide") and as "User guide.html" next to Install.bat.
+- The guide ships inside the extension, so an update always brings the guide of that version.
+- For the other chats: a tooltip style guide, a tooltip check (`tools/tooltip_report.py`) and a
+  list of the 93 tooltips still to write, with suggested texts (`docs/TOOLTIPS-TODO.md`).
+
+## 0.2.10 – 5 Nov 2026 – Several joints on one subassembly (task 0011)
+
+Commit `2d89872`.
+
+4 Motion
+- A subassembly can now have more than one joint, and the moves add up. Example: joint 1
+  slides it 1000 mm in Y, joint 2 slides it 500 mm in X: it ends up at X +500 / Y +1000.
+  Works for any mix of rotate and slide, and for three or more joints.
+- How: click a subassembly that already moves with a joint and press Add rotate joint or
+  Add slide joint as usual. Above the buttons it says "Adds a joint on top of '…': the moves
+  add up". The new joint rides on the older one: its axis moves along with it (like a crane:
+  slew, then luff).
+- The joint list shows a joint that rides on another one indented right under it. The
+  details of that joint show "Rides on '…'" and a "Swap order" button: the other joint then
+  rides on this one. With two slides nothing changes; with a rotation it does (turn then
+  slide, or slide then turn). Swap works when the lower joint moves only what the upper one
+  moves (otherwise the button is grey and its tooltip says why).
+- Removing a joint from a stack: what it moved goes back to the joint under it, and joints
+  riding on it move down. Taking a part out of the top joint ("Remove" under Set-up) puts it
+  back on the joint under it.
+- Set-up of the lower joint: "Moves:" lists what it moves through the joints on it, and
+  "Carries:" names those joints. "Select" selects all of it.
+- Poses, "Everything back to CAD position", Explode, animation steps (one after the other
+  or at the same time), Fit camera, limits, Flip, rotate/slide, undo and model updates all
+  work with stacks. A joint list keeps its order after a model update.
+- A selection where one part already moves with a joint and another does not (or with
+  another joint) is refused with an explanation, before you click the pivot.
+- Projects made with earlier versions open unchanged.
+
 ## 0.2.9 – 5 Nov 2026 – painted faces
 
 Commit `2f35b33`.
@@ -24,6 +118,7 @@ Commit `2f35b33`.
   CAD materials) when opened; projects with their own rules keep them.
 - The part you clicked shows its CAD material name too; every button and setting in sections
   1–3 has a tooltip.
+
 
 ## 0.2.8 – 4 Nov 2026 – most parts get their material on import
 

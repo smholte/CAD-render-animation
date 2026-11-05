@@ -1,5 +1,7 @@
 # Fresing Render
 
+[![Tests](https://github.com/smholte/CAD-render-animation/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/smholte/CAD-render-animation/actions/workflows/tests.yml)
+
 Photo-realistic renders and animations of large STEP assemblies (hundreds to thousands of
 parts), built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
 
@@ -42,7 +44,7 @@ fresing_render/          the Blender extension
   selftest.py            installation self-test (writes a report on the Desktop)
 app_template/            "Fresing Render" app layout for Blender
 installer/               Windows installer (PowerShell, no admin rights)
-tools/                   build_release.py, make_test_step.py, test_install_linux.py
+tools/                   build_release.py, test-model makers, real-app tests, ci_* helpers of the automatic tests
 tests/                   pytest: core + full Blender pipeline
 docs/                    install readme, update channel, development notes
 ```
@@ -51,9 +53,14 @@ docs/                    install readme, update channel, development notes
 
 ```
 python -m venv venv
-venv/bin/pip install bpy==5.2.3 cadquery-ocp==8.0.1.1.0 numpy pytest
-venv/bin/python -m pytest tests/          # 108 tests, about 5 minutes
+venv/bin/pip install -r tools/requirements-dev.txt
+venv/bin/python -m pytest tests/          # 1,260+ tests, about 6 minutes on 2 cores
 venv/bin/python tools/build_release.py    # dist/: extension zip, installer zip, update repo
 ```
+
+Every push and pull request runs the tests on GitHub by itself (`.github/workflows/tests.yml`):
+the test suite and the real app on Linux, and an unattended install + self-test on a real
+Windows machine. The badge above shows the state of `main`; `python3 tools/ci_status.py`
+shows a run from the command line. See CLAUDE.md section 5.
 
 See docs/DEVELOPMENT.md and docs/UPDATES.md.

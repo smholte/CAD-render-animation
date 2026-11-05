@@ -385,7 +385,8 @@ class FRESING_OT_rule_move(bpy.types.Operator):
 
 
 class FRESING_OT_rules_reset(bpy.types.Operator):
-    """Replace all rules with the built-in defaults"""
+    """Replaces all rules with those of the built-in Standard rule set. The project's rule set then shows
+    'changed': save it, or pick the rule set again at the top of 3 Looks to go back"""
 
     bl_idname = "fresing.rules_reset"
     bl_label = "Reset rules to defaults"
@@ -466,24 +467,54 @@ def _plain(value):
 
 def _template_from_scene(scene) -> Template:
     s = scene.fresing
+    from . import rule_sets
     t = Template(name=os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "Template")
     t.rules = logic.rules_from_scene(s)
+    rule_sets.ensure(scene)
+    t.rule_set = rule_sets.current(s).to_dict()        # the rule set it uses, as it is in this project
+    base = rule_sets.saved(s)
+    t.rule_set_base = base.to_dict() if base is not None else None
     current = Scheme("Current", {g.name: GroupLook(g.material, g.color) for g in s.groups})
     t.schemes = [current] + [Scheme(sc.name, {lk.group: GroupLook(lk.material, lk.color) for lk in sc.looks})
                              for sc in s.schemes]
     t.background = {k: _plain(getattr(s, k)) for k in (
         "background", "background_color", "lighting", "light_rotation", "light_strength", "sun_elevation",
-        "exposure", "floor", "floor_use_own_color", "floor_color")}
+        "exposure", "floor", "floor_use_own_color", "floor_color",
+        "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height")}
     t.output = {k: getattr(s, k) for k in ("out_format", "out_resolution", "out_orientation", "out_dpi",
                                           "out_use_bleed", "out_bleed_mm", "out_file_type", "quality")}
     return t
 
 
 def apply_template(scene, t: Template) -> None:
+    """Load a template into the project. Its rule set comes from the library when the library has
+    it, otherwise from the template's own copy; templates made before rule sets load their rules and
+    group looks as before (as a rule set "From template '<name>'")."""
+    from ..core.rule_sets import RuleSet
+    from . import rule_sets
     s = scene.fresing
-    logic.load_rules_into_scene(s, t.rules)
+    if t.rule_set:
+        try:
+            work = RuleSet.from_dict(t.rule_set)
+            base = RuleSet.from_dict(t.rule_set_base) if t.rule_set_base else work
+        except ValueError:
+            work = base = None
+        if work is not None:
+            lib = rule_sets.find(work.name)
+            if lib is not None and not lib.same_content(base):
+                rule_sets.switch(scene, lib)        # the library moved on since the template was saved
+                if not work.same_content(base):
+                    s.last_message = (f"Rule set '{lib.name}' is newer in the library than in the template: "
+                                      "the template's own changes to it were not used")
+            else:                                   # the template's copy, with its changes shown as such
+                rule_sets.switch(scene, work, saved=lib or base)
+    else:
+        s.rule_set = ""
+        logic.load_rules_into_scene(s, t.rules)
     for sch in t.schemes:
         if sch.name == "Current":
+            if t.rule_set:
+                continue                       # the rule set gives the group looks
             for gname, look in sch.looks.items():
                 g = logic.ensure_group(s, gname)
                 g.material, g.color = look.material, look.color
@@ -507,12 +538,15 @@ def apply_template(scene, t: Template) -> None:
         except (AttributeError, TypeError, ValueError):
             pass
     s.live_update = live
+    if not t.rule_set:
+        rule_sets.adopt(scene, f"From template '{t.name}'")
     logic.apply_rules(scene)
     world.apply(scene, s)
 
 
 class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
-    """Save rules, groups, paint schemes, background and output settings as a template"""
+    """Saves the rule set this project uses, paint schemes, background and output settings as a template
+    (.json) for the next project"""
 
     bl_idname = "fresing.template_export"
     bl_label = "Save template"
@@ -530,7 +564,8 @@ class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):
 
 
 class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
-    """Load a template: rules, groups, paint schemes, background and output settings"""
+    """Loads a template: its rule set (from the library, or the template's own copy), paint schemes,
+    background and output settings. Parts you put in a group by hand stay there"""
 
     bl_idname = "fresing.template_import"
     bl_label = "Load template"
@@ -647,7 +682,8 @@ def _library_hdris():
 
 
 class FRESING_OT_pick_hdri(bpy.types.Operator):
-    """Pick a 360° photo from the shared library (Preferences > Add-ons > Fresing Render)"""
+    """Lists the 360° photos in the shared library: type to search, click one to use it.
+    The library folder is set once in Edit > Preferences > Add-ons > Fresing Render"""
 
     bl_idname = "fresing.pick_hdri"
     bl_label = "360° photo from library"
@@ -681,7 +717,7 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
 
 
 class FRESING_OT_world_apply(bpy.types.Operator):
-    """Rebuild background, light and floor"""
+    """Builds the background, light, floor and surroundings again from the settings above"""
 
     bl_idname = "fresing.world_apply"
     bl_label = "Update background"
@@ -693,7 +729,8 @@ class FRESING_OT_world_apply(bpy.types.Operator):
 
 
 class FRESING_OT_camera_add(bpy.types.Operator):
-    """Add a camera that frames the whole model"""
+    """Adds a camera that frames the whole machine from the side you pick (or where you look now).
+    It becomes the active camera: Render image uses it"""
 
     bl_idname = "fresing.camera_add"
     bl_label = "Add camera"
@@ -718,7 +755,7 @@ class FRESING_OT_camera_add(bpy.types.Operator):
 
 
 class FRESING_OT_camera_activate(bpy.types.Operator):
-    """Render from this camera and look through it"""
+    """Makes this the active camera and looks through it in the view. Render image uses it"""
 
     bl_idname = "fresing.camera_activate"
     bl_label = "Use camera"
@@ -738,7 +775,8 @@ class FRESING_OT_camera_activate(bpy.types.Operator):
 
 
 class FRESING_OT_camera_fit(bpy.types.Operator):
-    """Move the active camera so the visible model fills the frame"""
+    """Moves the active camera closer or further so the visible machine just fills the picture.
+    It keeps looking from the same side"""
 
     bl_idname = "fresing.camera_fit"
     bl_label = "Fit model in frame"
@@ -754,6 +792,8 @@ class FRESING_OT_camera_fit(bpy.types.Operator):
 
 
 class FRESING_OT_camera_remove(bpy.types.Operator):
+    """Deletes this camera. Saved scenes that used it then have no camera (Ctrl+Z brings it back)"""
+
     bl_idname = "fresing.camera_remove"
     bl_label = "Delete camera"
     bl_options = {"REGISTER", "UNDO"}
@@ -768,7 +808,8 @@ class FRESING_OT_camera_remove(bpy.types.Operator):
 
 
 class FRESING_OT_camera_dof(bpy.types.Operator):
-    """Turn background blur (depth of field) on or off for the active camera"""
+    """Blurs what is in front of and behind the machine, like a photo camera (on or off).
+    The f-stop below sets how much: a lower number blurs more"""
 
     bl_idname = "fresing.camera_dof"
     bl_label = "Background blur"
@@ -783,7 +824,8 @@ class FRESING_OT_camera_dof(bpy.types.Operator):
 
 
 class FRESING_OT_preview(bpy.types.Operator):
-    """Toggle a live render preview in the viewport"""
+    """Shows the real render in the 3D view, updated as you change things (on or off).
+    Use it to judge light and materials; it is slower to work in"""
 
     bl_idname = "fresing.preview"
     bl_label = "Live preview"
@@ -821,7 +863,8 @@ def _remove_render_handlers():
 
 
 class FRESING_OT_render(bpy.types.Operator):
-    """Render the active camera and save the image"""
+    """Renders the picture of the active camera at the size and quality above and saves it.
+    Open it or show it in its folder in the box that appears below"""
 
     bl_idname = "fresing.render"
     bl_label = "Render image"
@@ -890,7 +933,7 @@ class FRESING_OT_render(bpy.types.Operator):
 
 
 class FRESING_OT_open_folder(bpy.types.Operator):
-    """Open the folder where renders are saved"""
+    """Opens the folder where renders are saved, in Explorer"""
 
     bl_idname = "fresing.open_folder"
     bl_label = "Open render folder"

@@ -2,6 +2,13 @@
 
 A template lets the next machine start mostly set up. It is plain JSON so it
 can live on a network share and be edited by hand if needed.
+
+Since 0.2.13 a template names the rule set it uses and keeps a copy of it: ``rule_set`` is the
+rule set as it was in the project (a ``rule_sets.RuleSet`` as a dict, with changes not saved to the
+library), ``rule_set_base`` the version from the library it was based on. Loading it uses the
+library version when the library has moved on since, otherwise the template's copy (so its
+changes come back as "changed"). ``rules`` is still written, for older versions of the app.
+Templates without ``rule_set`` (older ones) load as before.
 """
 
 from __future__ import annotations
@@ -33,9 +40,11 @@ class Template:
     schemes: list[Scheme] = field(default_factory=list)
     background: dict = field(default_factory=dict)
     output: dict = field(default_factory=dict)
+    rule_set: dict | None = None          # the rule set it uses (name + copy); None in older templates
+    rule_set_base: dict | None = None     # the library version that copy was based on
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "fresing_render_template": TEMPLATE_VERSION,
             "name": self.name,
             "rules": R.rules_to_list(self.rules),
@@ -45,6 +54,11 @@ class Template:
             "background": self.background,
             "output": self.output,
         }
+        if self.rule_set:
+            d["rule_set"] = self.rule_set
+            if self.rule_set_base:
+                d["rule_set_base"] = self.rule_set_base
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Template":
@@ -61,6 +75,8 @@ class Template:
             schemes=schemes,
             background=d.get("background", {}),
             output=d.get("output", {}),
+            rule_set=d.get("rule_set") if isinstance(d.get("rule_set"), dict) else None,
+            rule_set_base=d.get("rule_set_base") if isinstance(d.get("rule_set_base"), dict) else None,
         )
 
     def save(self, path: str) -> None:

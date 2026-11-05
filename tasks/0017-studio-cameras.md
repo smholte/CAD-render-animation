@@ -30,7 +30,13 @@ where the focus should be, and make a 360° turntable video with one click.
 4. **Turntable video in one click:** makes an animation with one camera Orbit step (360°, length
    in seconds, height), using the existing animation data and functions; puts it in the render
    queue. No change to `animation.py` or `ui_motion.py`.
-5. Tooltips for every new button and setting.
+5. Tooltips for every new button and setting, and the Scene & Render rows of
+   `docs/TOOLTIPS-TODO.md` (25), deleted when done. User guide chapter 5 and its pictures.
+6. Small, from task 0015's review: `render.pictures_dir()` makes a new ctypes structure type per
+   call – cache it like `core/rule_sets.documents_dir`.
+7. Halls render 1.4–2.8× slower than the studio on the processor (task 0016's report): when a
+   hall is the background, the turntable button says so and offers Simple (the "Time test" is
+   in panel 6, Motion lane: leave it).
 
 ## Done when
 

@@ -16,9 +16,11 @@ import textwrap
 import bpy
 
 from ..core import fasteners, materials_lib, presets
+from ..core import surroundings as env
 from . import build, cameras, materials
 
 CATEGORY = "Fresing"
+PHOTOS_URL = "https://github.com/smholte/CAD-render-animation/blob/main/docs/SURROUNDINGS.md#getting-360-photos"
 BIG = 1.5            # height of the main button of a section
 MEDIUM = 1.25
 
@@ -411,6 +413,64 @@ class FRESING_UL_schemes(bpy.types.UIList):
         use_button(row, "fresing.scheme_apply", item.name)
 
 
+_RULE_SET_ICON = {"builtin": "LOCKED", "library": "FILE", "project": "FILE_BLEND"}
+
+
+def draw_rule_set(layout, context) -> None:
+    """Top of 3 Looks: the rule set this project uses, its state, and a fold to manage rule sets."""
+    from ..core import rule_sets as RS
+    from . import rule_sets
+    s = context.scene.fresing
+    name = s.rule_set or RS.STANDARD
+    kind = rule_sets.kind(s)
+    split = layout.split(factor=0.3, align=True)
+    split.label(text="Rule set")
+    split.operator_menu_enum("fresing.rule_set_switch", "name", text=name, icon=_RULE_SET_ICON[kind])
+    _path, _shared, problem = rule_sets.folder()
+    if problem:
+        wrap(layout, context, f"{problem}: the project uses its own copy of '{name}'.", icon="ERROR", alert=True)
+    diff = rule_sets.differences(s)
+    if any(diff.values()):
+        box = layout.box()
+        wrap(box, context, f"Changed in this project: {RS.describe_differences(diff)}", icon="MODIFIER",
+             inset=12, alert=True)
+        row = box.row(align=True)
+        if kind == "builtin":
+            row.operator("fresing.rule_set_save_as", text="Save as new rule set…", icon="DUPLICATE")
+            hint = wrap(box, context, "Standard itself cannot be changed.", inset=12)
+            hint.active = False
+        elif kind == "project":
+            row.operator("fresing.rule_set_save_as", text="Save to library…", icon="FILE_TICK")
+        else:
+            row.operator("fresing.rule_set_save", text="Save changes", icon="FILE_TICK")
+            row.operator("fresing.rule_set_save_as", text="Save as new…", icon="DUPLICATE")
+    elif kind == "project" and not problem:
+        box = layout.box()
+        wrap(box, context, "Only in this project: not in the library.", icon="INFO", inset=12)
+        box.operator("fresing.rule_set_save_as", text="Save to library…", icon="FILE_TICK")
+    if rule_sets.library_differs(s):
+        box = layout.box()
+        wrap(box, context, f"The library has a newer version of '{name}'.", icon="FILE_REFRESH", inset=12)
+        op = box.operator("fresing.rule_set_switch", text="Load it…", icon="IMPORT")
+        op.name, op.again = name, True
+    body = fold(layout, "fresing_rule_sets_manage", "Manage rule sets", "FILTER")
+    if body is not None:
+        grid = body.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+        grid.operator("fresing.rule_set_save_as", text="Copy…", icon="DUPLICATE")
+        grid.operator("fresing.rule_set_new_empty", text="New, empty…", icon="FILE_NEW")
+        grid.operator_menu_enum("fresing.rule_set_rename", "name", text="Rename…", icon="GREASEPENCIL")
+        grid.operator_menu_enum("fresing.rule_set_delete", "name", text="Delete…", icon="TRASH")
+        split = body.split(factor=0.4, align=True)
+        split.label(text="New projects")
+        split.operator_menu_enum("fresing.rule_set_default", "name", text=rule_sets.default_name(), icon="FILTER")
+        path, shared, _problem = rule_sets.folder()
+        where = "Kept in the shared library" if shared else "Kept on this PC (no shared library set)"
+        info = wrap(body, context, f"{where}: {path}", icon="FILE_FOLDER")
+        info.active = False
+        body.operator("fresing.rule_set_folder", text="Show the folder", icon="FILE_FOLDER")
+    layout.separator()
+
+
 class FRESING_PT_looks(_Panel, bpy.types.Panel):
     bl_label = "3  Looks"
     bl_order = 2
@@ -432,6 +492,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
+        draw_rule_set(layout, context)
         row = big_row(layout, MEDIUM)
         row.operator("fresing.apply_rules", text="Sort parts into groups", icon="SORTALPHA")
         if s.unmatched:
@@ -468,8 +529,9 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             row.operator("fresing.group_unassign", text="Back to the rules", icon="LOOP_BACK")
             if 0 <= s.tree_index < len(s.tree) and not s.tree[s.tree_index].is_part:
                 sub = s.tree[s.tree_index]
-                box.operator("fresing.rule_from_subassembly",
-                             text=f"Rule: all of {sub.label} → this group", icon="FILTER")
+                hint = wrap(box, context, f"Everything in {sub.label} to this group:", inset=12)
+                hint.active = False
+                box.operator("fresing.rule_from_subassembly", text="Make it a rule", icon="FILTER")
         ob = context.active_object
         if ob is not None and ob.get(build.PROP_KIND) == "part":
             box = layout.box()
@@ -629,10 +691,16 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="FILTER")
 
+    def draw_header_preset(self, context):
+        from . import rule_sets
+        if rule_sets.is_changed(context.scene.fresing):
+            header_status(self.layout, "changed", alert=True)
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Checked from the top; the first rule that fits a part decides its group.")
+        wrap(layout, context, f"The rules of rule set '{s.rule_set or 'Standard'}' in this project. Checked from "
+                              "the top; the first rule that fits a part decides its group.")
         row = layout.row()
         row.template_list("FRESING_UL_rules", "", s, "rules", s, "rules_index", rows=list_rows(len(s.rules), 4, 8))
         col = row.column(align=True)
@@ -678,7 +746,7 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
         col.operator("fresing.scheme_remove", text="", icon="REMOVE")
         layout.separator()
         layout.label(text="Templates", icon="FILE_BLANK")
-        wrap(layout, context, "A template keeps rules, groups, schemes and background for the next project.")
+        wrap(layout, context, "A template keeps the rule set, paint schemes and background for the next project.")
         row = layout.row(align=True)
         row.operator("fresing.template_import", text="Load", icon="FILE_FOLDER")
         row.operator("fresing.template_export", text="Save", icon="FILE_TICK")
@@ -701,41 +769,81 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="RENDER_STILL")
 
+    def draw_header_preset(self, context):
+        kind = env.KIND.get(context.scene.fresing.background)
+        if kind is not None:
+            header_status(self.layout, env.SHORT.get(kind.id, kind.label), limit=12)
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
         scene = context.scene
+        bg = s.background
+        offshore = bg in env.SEA_KINDS
+        hall = bg in env.HALL_KINDS
 
-        # -- background and light
-        layout.label(text="Background & light", icon="WORLD")
+        # -- where the machine stands (choice first, then its settings)
+        layout.label(text="Background & surroundings", icon="WORLD")
         col = split_props(layout)
         col.prop(s, "background", text="Background")
-        if s.background == "COLOR":
+        if bg == "COLOR":
             col.prop(s, "background_color", text="Colour")
-        elif s.background == "HDRI":
+        elif bg == "HDRI":
             row = col.row(align=True)
             row.prop(s, "hdri_path", text="Photo")
             row.operator("fresing.pick_hdri", text="", icon="ASSET_MANAGER").target = "BACKGROUND"
-        if s.background in ("COLOR", "TRANSPARENT"):
+            col.prop(s, "photo_ground", text="Stand on its ground")
+            if s.photo_ground:
+                col.prop(s, "photo_height", text="Photo taken at")
+            if not s.hdri_path:
+                wrap(layout, context, "Pick a 360° photo with the library button next to 'Photo'.", icon="INFO")
+                layout.operator("wm.url_open", text="How to get free 360° photos", icon="URL").url = PHOTOS_URL
+        if offshore:
+            row = col.row(align=True)
+            row.prop(s, "sea_state", text="Sea", expand=True)
+            if bg == "SEA":
+                col.prop(s, "water_level", text="Water level")
+            row = col.row(heading="Waves")
+            row.prop(s, "sea_foam", text="Foam")
+            row.prop(s, "sea_moving", text="Moving")
+        if bg in env.BUILT:
+            row = col.row(align=True)
+            row.prop(s, "env_detail", text="Detail", expand=True)
+
+        # -- light
+        col = split_props(layout)
+        if bg in ("COLOR", "TRANSPARENT") or hall:
             col.prop(s, "lighting", text="Light")
             if s.lighting == "HDRI":
                 row = col.row(align=True)
                 row.prop(s, "light_hdri_path", text="Light photo")
                 row.operator("fresing.pick_hdri", text="", icon="ASSET_MANAGER").target = "LIGHT"
-        col = split_props(layout)
-        col.prop(s, "light_rotation", text="Turn light")
-        col.prop(s, "light_strength", text="Strength")
-        if s.background == "SKY" or (s.background in ("COLOR", "TRANSPARENT") and s.lighting == "SKY"):
+        sky = bg == "SKY" or offshore or (bg in ("COLOR", "TRANSPARENT") or hall) and s.lighting == "SKY"
+        if sky:
             col.prop(s, "sun_elevation", text="Sun height")
+        col.prop(s, "light_rotation", text="Turn sun" if sky else ("Turn photo" if bg == "HDRI" else "Turn light"))
+        col.prop(s, "light_strength", text="Strength")
         col.prop(s, "exposure", text="Exposure")
-        col = split_props(layout)
-        col.prop(s, "floor", text="Floor")
-        if s.floor == "VISIBLE":
-            col.prop(s, "floor_use_own_color", text="Own colour")
-            if s.floor_use_own_color:
-                col.prop(s, "floor_color", text="Floor colour")
-        if s.floor != "NONE":
-            col.prop(s, "floor_offset", text="Gap")
+
+        # -- floor (the surroundings and the photo's ground bring their own)
+        own_floor = bg in env.BUILT or (bg == "HDRI" and s.photo_ground)
+        if not own_floor:
+            col = split_props(layout)
+            col.prop(s, "floor", text="Floor")
+            if s.floor == "VISIBLE":
+                col.prop(s, "floor_use_own_color", text="Own colour")
+                if s.floor_use_own_color:
+                    col.prop(s, "floor_color", text="Floor colour")
+            if s.floor != "NONE":
+                col.prop(s, "floor_offset", text="Gap")
+        else:
+            body = fold(layout, "fr_scene_more", "More", "PREFERENCES")
+            if body:
+                col = split_props(body)
+                col.prop(s, "floor_offset", text="Floor lower by")
+                if bg in env.BUILT:
+                    col.prop(s, "env_show_in_view", text="Show in the view")
+                body.operator("fresing.env_place", icon="IMPORT")
 
         # -- camera
         layout.separator()
@@ -762,6 +870,38 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                          depress=scene.camera.data.dof.use_dof)
             if scene.camera.data.dof.use_dof:
                 layout.prop(scene.camera.data.dof, "aperture_fstop", text="Blur f-stop (lower = more)")
+
+
+class FRESING_PT_props(_Panel, bpy.types.Panel):
+    bl_label = "Props for scale"
+    bl_parent_id = "FRESING_PT_scene"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.label(icon="COMMUNITY")
+
+    def draw_header_preset(self, context):
+        from . import surroundings
+        n = len(surroundings.props(context.scene))
+        if n:
+            header_status(self.layout, f"{n} shown" if context.scene.fresing.props_visible else f"{n} hidden")
+
+    def draw(self, context):
+        from . import surroundings
+        layout = self.layout
+        s = context.scene.fresing
+        wrap(layout, context, "Things everyone knows the size of, next to the machine. Click to add one:")
+        grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+        icons = {"PERSON": "USER", "CONTAINER": "PACKAGE", "PALLET": "MESH_GRID", "BARRIER": "CON_TRACKTO"}
+        for kind, (label, _desc) in env.PROPS.items():
+            grid.operator("fresing.prop_add", text=label, icon=icons.get(kind, "ADD")).kind = kind
+        if surroundings.props(context.scene):
+            wrap(layout, context, "Move a prop: click it in the view and drag the arrows (or press G).",
+                 icon="INFO")
+            row = layout.row(align=True)
+            row.prop(s, "props_visible", text="Show props", toggle=True,
+                     icon="HIDE_OFF" if s.props_visible else "HIDE_ON")
+            row.operator("fresing.props_remove", text="Delete all", icon="TRASH")
 
 
 def _viewport_rendered(context) -> bool:
@@ -828,5 +968,6 @@ CLASSES = (
     FRESING_UL_tree, FRESING_UL_groups, FRESING_UL_rules, FRESING_UL_schemes, FRESING_UL_visibility,
     FRESING_UL_found,
     FRESING_PT_import, FRESING_PT_structure, FRESING_PT_cleanup, FRESING_PT_visibility, FRESING_PT_looks,
-    FRESING_PT_faces, FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_output,
+    FRESING_PT_faces, FRESING_PT_find, FRESING_PT_rules, FRESING_PT_schemes, FRESING_PT_scene, FRESING_PT_props,
+    FRESING_PT_output,
 )

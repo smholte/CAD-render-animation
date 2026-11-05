@@ -228,19 +228,21 @@ def cad_sets(me, starts, tri_colours, palette, names, part_colour) -> int:
 # ---------------------------------------------------------------------------
 
 
-def sort(parts, rules: list, aliases: dict, rule_counts: list) -> dict[str, int]:
-    """Decide the group of every face set on every copy (stored in ``fr_face_groups``).
+def plan(parts, rules: list, aliases: dict, part_group=None, rule_counts: list | None = None,
+         by_rules: set | None = None) -> tuple[dict[str, list[str]], dict[str, int]]:
+    """The group of every face set on every copy, without changing anything.
 
     Faces painted in CAD go through the rules like parts (see ``rules.face_facts``); a group
-    chosen by hand wins, for all copies or for one. Adds the rule hits to ``rule_counts`` and
-    returns {group: number of face sets in it} (sets that look like their part not counted)."""
+    chosen by hand wins, for all copies or for one. ``part_group(ob)`` gives the part's own group
+    (default: the one it has now). Adds the rule hits to ``rule_counts``, the groups the rules gave
+    to ``by_rules``, and returns ({object name: [group per face set]}, {group: number of face
+    sets in it}) – sets that look like their part are not counted."""
     per_group: dict[str, int] = {}
-    by_look: dict[tuple, str] = {}
+    per_object: dict[str, list[str]] = {}
+    by_look: dict[tuple, tuple] = {}
     for ob in parts:
         me = ob.data
         if me is None or PROP_SETS not in me:
-            if PROP_GROUPS in ob:
-                del ob[PROP_GROUPS]
             continue
         sets = get_sets(me)
         copy = get_copy(ob)
@@ -253,16 +255,39 @@ def sort(parts, rules: list, aliases: dict, rule_counts: list) -> dict[str, int]
                     g0, ri = R.classify_one(R.face_facts(*look), rules)
                     by_look[look] = (aliases.get(g0, g0), ri)
                 g, ri = by_look[look]
-                if ri >= 0:
+                if ri >= 0 and rule_counts is not None:
                     rule_counts[ri] += 1
+                if by_rules is not None and g != SAME_AS_PART:
+                    by_rules.add(g)
             if not g:
                 g = SAME_AS_PART
             if g == SAME_AS_PART:
-                g = ob.get(build.PROP_GROUP, R.FALLBACK_GROUP)
+                g = part_group(ob) if part_group else ob.get(build.PROP_GROUP, R.FALLBACK_GROUP)
             else:
                 per_group[g] = per_group.get(g, 0) + 1
             out.append(g)
-        ob[PROP_GROUPS] = json.dumps(out)
+        per_object[ob.name] = out
+    return per_object, per_group
+
+
+def write_groups(parts, per_object: dict[str, list[str]]) -> None:
+    """Store the face-set groups of ``plan`` on the copies (``fr_face_groups``)."""
+    for ob in parts:
+        out = per_object.get(ob.name)
+        if out is None:
+            if PROP_GROUPS in ob:
+                del ob[PROP_GROUPS]
+        else:
+            text = json.dumps(out)
+            if ob.get(PROP_GROUPS) != text:
+                ob[PROP_GROUPS] = text
+
+
+def sort(parts, rules: list, aliases: dict, rule_counts: list, by_rules: set | None = None) -> dict[str, int]:
+    """Decide the group of every face set on every copy (stored in ``fr_face_groups``); see ``plan``.
+    Returns {group: number of face sets in it}."""
+    per_object, per_group = plan(parts, rules, aliases, rule_counts=rule_counts, by_rules=by_rules)
+    write_groups(parts, per_object)
     return per_group
 
 

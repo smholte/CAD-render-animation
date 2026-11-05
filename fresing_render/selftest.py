@@ -15,6 +15,18 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST_STEP = os.path.join(HERE, "data", "test_machine.step")
+# Set to 1 only on test servers that have no graphics card (GitHub's runners): the graphics-card
+# checks then say "skipped: no graphics card" instead of failing. On a user's PC a missing
+# graphics card stays a problem worth reporting.
+NO_GPU_ENV = "FRESING_SELFTEST_NO_GPU"
+
+
+class Skipped(Exception):
+    """A check that does not apply on this machine: reported as [SKIP], not as a problem."""
+
+
+def _no_gpu_expected() -> bool:
+    return os.environ.get(NO_GPU_ENV, "") == "1"
 
 
 def _desktop() -> str:
@@ -39,6 +51,7 @@ def main(report_path: str | None = None) -> bool:
 
     lines: list[str] = []
     ok = True
+    skipped = 0
     report_path = report_path or os.path.join(_desktop(), "Fresing Render self-test.txt")
     try:
         report = open(report_path, "w", encoding="utf-8")
@@ -54,11 +67,15 @@ def main(report_path: str | None = None) -> bool:
             report.flush()
 
     def check(name: str, fn):
-        nonlocal ok
+        nonlocal ok, skipped
         t0 = time.time()
         try:
             result = fn()
             log(f"[ OK ] {name} ({time.time() - t0:.1f} s){': ' + str(result) if result else ''}")
+            return True
+        except Skipped as exc:
+            skipped += 1
+            log(f"[SKIP] {name}: {exc}")
             return True
         except Exception as exc:  # report everything, keep going
             ok = False
@@ -145,6 +162,29 @@ def main(report_path: str | None = None) -> bool:
 
     check("CAD material names and part types", _cad_materials)
 
+    def _rule_sets():
+        """The rule-set folder (shared library, or Documents on this PC) can be written and read."""
+        import tempfile
+        from .blender import rule_sets as project_rule_sets
+        from .core import rule_sets as RS
+        path, shared, problem = project_rule_sets.folder()
+        if problem:
+            raise RuntimeError(problem)
+        os.makedirs(path, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".selftest-", suffix=".json", dir=path)   # hidden from the list
+        os.close(fd)
+        try:
+            rs = RS.standard().copy("Self-test")
+            rs.save(tmp)
+            if not RS.RuleSet.load(tmp).same_content(rs):
+                raise RuntimeError("a rule set did not read back the same")
+        finally:
+            os.remove(tmp)
+        n = len(RS.scan(path))
+        return f"{'shared library' if shared else 'this PC'}: {path} ({n} rule set{'s' if n != 1 else ''})"
+
+    check("Rule sets folder", _rule_sets)
+
     def _template():
         import subprocess
         exe = bpy.app.binary_path
@@ -162,7 +202,14 @@ def main(report_path: str | None = None) -> bool:
         return "the Fresing panel loads in the app"
 
     check("App start (Desktop shortcut)", _template)
-    check("Graphics card", lambda: render.setup_gpu())
+
+    def _gpu():
+        info = render.setup_gpu()
+        if info == "CPU" and _no_gpu_expected():       # not for "CPU (Cycles add-on not loaded)"
+            raise Skipped("skipped: no graphics card")
+        return info
+
+    check("Graphics card", _gpu)
 
     def _import():
         bpy.ops.wm.read_homefile(use_empty=True)
@@ -295,7 +342,10 @@ def main(report_path: str | None = None) -> bool:
         def _render(gpu: bool, resolution: str, quality: str):
             scene = bpy.context.scene
             s = scene.fresing
-            if gpu and not render.setup_gpu().startswith("GPU"):
+            device = render.setup_gpu() if gpu else ""
+            if gpu and not device.startswith("GPU"):
+                if device == "CPU" and _no_gpu_expected():
+                    raise Skipped("skipped: no graphics card")
                 raise RuntimeError("no supported graphics card found; renders will use the processor (slow). "
                                    "Update the NVIDIA driver (535 or newer) and run the self-test again")
             s.use_gpu = gpu
@@ -315,7 +365,8 @@ def main(report_path: str | None = None) -> bool:
         check("Render queue (second Blender in the background)", _queue)
         check("Animation time test (queue)", _time_test)
 
-    log("RESULT: " + ("ALL OK" if ok else "PROBLEMS FOUND (see above)"))
+    note = f" ({skipped} skipped because {NO_GPU_ENV}=1)" if skipped else ""
+    log("RESULT: " + ("ALL OK" + note if ok else "PROBLEMS FOUND (see above)"))
     if report is not None:
         report.close()
         print("Report written to", report_path)

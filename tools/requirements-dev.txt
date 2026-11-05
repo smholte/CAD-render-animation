@@ -1,0 +1,10 @@
+# Python packages for development and the automatic tests on GitHub (CLAUDE.md section 4).
+# Pinned, so a new release of a package cannot turn the tests red on its own.
+# bpy and cadquery-ocp must match the Blender and OpenCascade versions the app ships with.
+bpy==5.2.3
+cadquery-ocp==8.0.1.1.0
+numpy==2.5.4
+pillow==13.0.0
+pytest==9.2.0
+# markdown: the user guide (tools/build_guide.py), built into every extension zip
+markdown==3.11.2

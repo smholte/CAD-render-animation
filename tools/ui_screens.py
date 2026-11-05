@@ -181,9 +181,19 @@ def s_state():
     s.last_render = CRANE
     mod("blender.tree").follow_view(sc, ob("BOOM.PIN"))      # tree opened down to a part
     s.find_text = "boom"                                     # a search in Find & sort parts
+    active = os.environ.get("UISHOT_ACTIVE", "BOOM.ASM")       # UISHOT_ACTIVE=BOOM.PIN: a part clicked
+    if os.environ.get("UISHOT_STACK"):
+        # UISHOT_STACK=1: a second joint on the trolley rides on "Trolley"; the trolley is selected,
+        # so Add joint says it goes on top, and the joint on top is the selected one in the list
+        joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((0, 1, 0)),
+                      name="Trolley side shift")
+        s.joints_index = len(s.joints) - 1
+        active = "TROLLEY.ASM"
+        if os.environ.get("UISHOT_STACK") == "bottom":
+            s.joints_index = 1                                 # the bottom of the stack: "Carries: ..."
     for o in bpy.context.selected_objects:
         o.select_set(False)
-    boom = ob(os.environ.get("UISHOT_ACTIVE", "BOOM.ASM"))      # UISHOT_ACTIVE=BOOM.PIN: a part clicked
+    boom = ob(active)
     boom.select_set(True)
     bpy.context.view_layer.objects.active = boom
     return 1.0
