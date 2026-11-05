@@ -597,16 +597,16 @@ elif MODE == "update":
 
     def _update_state(kind):
         upd = mod("blender.updates")
-        upd.INSTALLED = "0.2.14"                   # the picture shows a plausible pair of versions
+        upd.INSTALLED = "0.2.15"                   # the picture shows a plausible pair of versions
         upd._check.clear()
         upd._status.clear()
         if kind == "available":
-            upd._check.update(state="available", version="0.2.15", date="12 Nov 2026", size=48_700_000,
+            upd._check.update(state="available", version="0.2.16", date="12 Nov 2026", size=48_700_000,
                               release_page=mod("core.updates").RELEASES_PAGE, changes=[])
         else:
-            upd._check.update(state="none", version="0.2.15")
-            upd._status.update(ok=True, message="Updated to 0.2.15.", **{"from": "0.2.14"}, to="0.2.15", changes=[
-                {"version": "0.2.15", "title": "an example", "text": "- What changed in this version, in plain "
+            upd._check.update(state="none", version="0.2.16")
+            upd._status.update(ok=True, message="Updated to 0.2.16.", **{"from": "0.2.15"}, to="0.2.16", changes=[
+                {"version": "0.2.16", "title": "an example", "text": "- What changed in this version, in plain "
                                                                      "words, as in the changelog."}])
 
     @step

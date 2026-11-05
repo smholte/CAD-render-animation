@@ -2,7 +2,7 @@
 
     python tools/release_tools.py plan --ref refs/heads/main --run 123
         -> prints version=…, tag=…, prerelease=…, publish=true|false (for $GITHUB_OUTPUT)
-    python tools/release_tools.py prepare --repo-dir <update-repo> --out <dir> --tag v0.2.14 --repository owner/name
+    python tools/release_tools.py prepare --repo-dir <update-repo> --out <dir> --tag v0.2.15 --repository owner/name
         -> <dir>/index.json (full download addresses), changelog.json, notes.md (release text)
 
 plan: on main the tag is v<version>; when that release exists already nothing is published (a version is
@@ -61,7 +61,7 @@ def notes(version: str, repository: str, tag: str) -> str:
     head = [
         "**How to get it**",
         "",
-        "- Fresing Render 0.2.14 or newer is installed: the app offers this version by itself – "
+        f"- Fresing Render {updates.SELF_UPDATING_SINCE} or newer is installed: the app offers this version by itself – "
         "\"Update available\" at the top of the Fresing tab, then **Update now**.",
         f"- New PC, or an older version: download **FresingRender-{version}-windows.zip** below, unzip it, "
         "double-click **Install.bat**.",

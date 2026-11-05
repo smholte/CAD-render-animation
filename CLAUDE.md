@@ -151,7 +151,8 @@ cadquery-ocp-proxy==8.0.1.1.0 --no-deps --only-binary=:all: --platform manylinux
 
 ### Automatic tests on GitHub
 
-`.github/workflows/tests.yml` runs at every push (any branch) and pull request, on GitHub's
+`.github/workflows/tests.yml` runs at every push (any branch) and pull request – except a push that
+changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_status.py` says so –, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
 run; runs on `main` always finish. Four test jobs; the whole run takes about 12 minutes (measured 5 Nov
 2026). On `main` with a new version, three release jobs follow (below):
@@ -228,7 +229,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 ## 7. Release procedure (the worker chat that finishes a task)
 
 GitHub publishes the release itself (task 0020, `docs/UPDATES.md`): the worker bumps the version and
-merges; every installed app (0.2.14 and newer) then offers the update at its next start.
+merges; every installed app (0.2.15 and newer) then offers the update at its next start.
 
 0. `git pull` first: another chat may have released in the meantime; take the next free
    version number.

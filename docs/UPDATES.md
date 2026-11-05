@@ -1,6 +1,6 @@
 # Updates: how a new version reaches the PCs
 
-Since 0.2.14 the app updates itself (task 0020). Nobody uploads anything by hand: a version bump
+Since 0.2.15 the app updates itself (task 0020). Nobody uploads anything by hand: a version bump
 merged into `main` is published by GitHub, and every installed app offers it at its next start.
 
 ## The path of a new version
@@ -11,7 +11,7 @@ merged into `main` is published by GitHub, and every installed app offers it at 
 2. GitHub tests `main` (`.github/workflows/tests.yml`). When every test passed and there is no release
    for this version yet, the job **Publish the release** creates it: tag `v<version>` on the tested
    commit, title "Fresing Render <version>", the version's `CHANGELOG.md` section as text, and the files
-   - `FresingRender-<version>-windows.zip` – the installer, for new PCs (and PCs before 0.2.14)
+   - `FresingRender-<version>-windows.zip` – the installer, for new PCs (and PCs before 0.2.15)
    - `fresing_render-<version>.zip` – the extension, which the app downloads
    - `index.json` – Blender's standard extension listing, with the full download address of the zip,
      its size and SHA-256

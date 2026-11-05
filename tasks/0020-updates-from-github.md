@@ -65,10 +65,54 @@ new installer each time. Updates are stored on GitHub (owner's decision, 4 Nov 2
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat, 5 Nov 2026.
 
 **What changed:**
+- **In the app** (`blender/updates.py`, `core/updates.py`, `update_helper.py`): a few seconds after
+  start-up the app reads `…/releases/latest/download/index.json` on GitHub (only with Blender's online
+  access on; switch "Check for updates at start-up" in the add-on preferences). Newer version →
+  panel **Update available: 0.x.y** at the top of the Fresing tab (registered before 1 Import: a
+  negative `bl_order` does not put a panel on top) with **Update now**, **What's new** (from
+  `changelog.json`), **Release page**, **Later**. Update now: preflight (installed as an extension,
+  no import running, no render queue running, a never-saved project with changes must be saved
+  first), download in a thread with progress + Stop, size and SHA-256 checked, save the project,
+  a moment later (Blender counts a project as saved only after its event loop ran; closing at once
+  asks "Save changes?") copy `update_helper.py` to `<config>/fresing_update/`, write `plan.json`,
+  start it with Blender's own Python (`-I`, no console window, breaks away from a job when allowed),
+  close Blender. The helper waits for the PID, runs `blender --command extension install-file -r
+  <same repo> -e <zip>` (Blender's own installer: unpacks next to the old one, then swaps), checks
+  the installed version (one retry), copies the app template that now ships inside the extension
+  (`app_template_files/`), writes `status.json` and `update.log`, starts the app again with the same
+  app template and project – also when something failed. The next start shows **Updated to 0.x.y**
+  with what's new, or what went wrong + **Show the update log**. Help menu: **Check for Fresing
+  Render updates** (under the user guide). Self-test line "Update check". Manifest declares
+  `network` permission.
+- **App template** (point 5): ships inside the extension; the helper copies it, and every start
+  copies it again where it differs (an update made another way brings it too). Tested with the
+  real 0.2.10 template (`tests/data/old_app_template/`, no Help-menu entry) → after the in-app
+  update the Help menu has "Fresing Render user guide".
+- **GitHub publishes** (`.github/workflows/tests.yml`, `tools/release_tools.py`): job "Publish the
+  release" after all test jobs on `main` when `v<version>` has no release yet – tag on the tested
+  commit, installer zip, extension zip, `index.json` with full download addresses, `changelog.json`,
+  the CHANGELOG section as text (`--latest`). Job "Windows - an installed old version updates itself
+  from the release" installs an old build and lets it update from GitHub. A branch push with
+  `[release rehearsal]` in the commit message does all that as a pre-release and deletes it again.
+  Point 6: pushes that change only `TASKS.md`/`tasks/**` start no run (`paths-ignore`);
+  `tools/ci_status.py` says so instead of waiting.
+- **Installer**: always installs the zip next to it into `user_default` (the Blender remote repo
+  "fresing" of `-UpdateUrl` is removed if an old install has it); online access on;
+  `-UpdateUrl <index.json>` writes the app's update address (`portable\config\fresing_update.json`),
+  `-UpdateUrl default` goes back to GitHub; `-AccessToken` gone (not in this task). installed.txt
+  says the version and where updates come from.
+- **Build**: `tools/build_release.py` stages the extension in one place (`stage_extension`: guide,
+  app template, changelog.json; also used by the Linux test builds), writes the update listing with
+  changelog.json, can build "as another version with another template" for the tests.
+- Docs: `docs/UPDATES.md` (rewritten), `CLAUDE.md` (layout, tests, section 7 release procedure,
+  lessons), user guide ("Updates: one click", "Updates do not arrive", two pictures, new Help-menu
+  picture; `tools/guide_screens.py` mode "update"), README-install, README, CHANGELOG.
 
 **Tested and measured** (name the machine and the model):
+- REPORT-TESTS
 
 **Open points / follow-up tasks:**
+- REPORT-OPEN

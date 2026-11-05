@@ -14,8 +14,12 @@ name: Tests
 # How to read the results from a chat: CLAUDE.md section 5.
 
 on:
+  # A push or pull request that changes only the task list (TASKS.md, tasks/) starts no run; one that
+  # also changes anything else runs as usual (GitHub skips a run only when every changed file is listed).
   push:
+    paths-ignore: ["TASKS.md", "tasks/**"]
   pull_request:
+    paths-ignore: ["TASKS.md", "tasks/**"]
   workflow_dispatch:
 
 concurrency:

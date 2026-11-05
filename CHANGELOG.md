@@ -1,11 +1,11 @@
 # Changelog
 
 What changed in each version, in plain words. Newest first. The app shows these texts under
-"What's new" when it offers an update, and each GitHub release carries its section. From 0.2.14 on,
+"What's new" when it offers an update, and each GitHub release carries its section. From 0.2.15 on,
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.14 – 5 Nov 2026 – updates inside the app (task 0020)
+## 0.2.15 – 5 Nov 2026 – updates inside the app (task 0020)
 
 New versions with one click
 - A few seconds after the app starts it looks on GitHub for a newer version. When there is one,

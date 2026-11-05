@@ -29,7 +29,7 @@ Updates
   one, the Fresing tab shows "Update available" with what's new. Click "Update now": the
   app saves your project, closes, installs the update and opens again (about a minute).
   Help > "Check for Fresing Render updates" asks at any time.
-- Versions before 0.2.14 cannot do this yet: run this installer once over the old one.
+- Versions before 0.2.15 cannot do this yet: run this installer once over the old one.
 - The check needs internet access to github.com (and its download servers). It can be
   switched off: Edit > Preferences > Add-ons > Fresing Render > "Check for updates at
   start-up". Without internet: run the new installer over the old one.

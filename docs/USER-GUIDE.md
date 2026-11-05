@@ -138,7 +138,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 - A project that was never saved has to be saved first (**File > Save As**): the app says so. While the
   render queue runs or a STEP file is being imported, the update waits until you start it again.
 - Your projects, renders, templates and settings stay as they are.
-- Versions before 0.2.14 cannot do this yet: run the newest installer once over them
+- Versions before 0.2.15 cannot do this yet: run the newest installer once over them
   ([Install](#start)). A version that needs a newer Blender also comes as an installer; the app then
   says so and links to its release page.
 - The check needs internet access to github.com. Switch it off in **Edit > Preferences > Add-ons >
