@@ -17,7 +17,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (running) → 0024 decals
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0013 cylinders → 0026 G-code → 0014
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (running) → 0013 cylinders → 0014 linkages → 0026 G-code
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (running) → 0018 → 0025
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (running)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
@@ -31,7 +31,7 @@ updates its branch to `main`.
 | 0023 | Looks lane: clean-up – tooltips of panels 1–3, "1 face sets" plural, guide chapters 1–3 current | worker | running | `task/0023-looks-clean-up`, tasks/0023-looks-clean-up.md |
 | 0024 | Looks lane: decals – logos, text, type plates, CE/warning stickers and pictures on the model itself | worker | waiting (0023) | tasks/0024-decals.md |
 | 0012 | Motion lane: couplings (gear, spindle, telescope, jaws) and motors ("run at 12 rpm") | worker | running | `task/0012-couplings-motors`, tasks/0012-couplings-motors.md |
-| 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | waiting (0013) | tasks/0026-gcode-motion.md |
+| 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | waiting (0014) | tasks/0026-gcode-motion.md |
 | 0027 | Machining lane: milling – pick bit and workpiece, material disappears where the bit cuts (viewport and renders) | worker | open – can start | tasks/0027-material-removal.md |
 | 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | waiting (0027) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | later | tasks/0029-milling-later.md |
