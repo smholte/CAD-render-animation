@@ -254,6 +254,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - `logic.Tree(scene)` walks the whole scene: make it once per operation, never inside a loop
   (one per tree row cost 4.6 s on the EGR model). In `UIList.filter_items` and other code that
   runs at every redraw, read collection columns with `foreach_get`, not row by row.
+- Part-library keywords are whole words in English, Dutch and German at once: "LINKS" is "left"
+  in German and Dutch ("Abdeckung links"), "PALLET" in an automation line is a workpiece carrier,
+  not wood. Check a new keyword against all three languages and the example lists in
+  `tests/test_part_types.py`; measure on the EGR model which parts change group.
 - OpenCascade orders some internal maps by memory address: meshing a binary copy of a part
   can give another triangle order (same triangles). Compare meshes by counts and positions,
   not byte for byte.
