@@ -45,7 +45,9 @@ program would, at a speed he chooses.
    the workpiece that is the program's zero (as in the CAM set-up). Saved with the project.
 3. **Animation step "Run G-code program"** (6 Animation): file, from/to line, speed (real time,
    ×N faster, or "fit into N seconds"; rapids may be shown faster), spindle follows S/M3/M4/M5,
-   tool changes optional (show the tool of each T number when the model has them). The step's
+   tool changes: M6 shows the tool of that T number (from the model, or a simple tool shape
+   made from the tool table) and can play a saved motion sequence for the **ATC** (tool-changer
+   arm/carousel moving) – the owner's new machine has one. The step's
    length follows from the program; arcs are smooth (sampled per frame, not per G-code line).
 4. **Toolpath preview:** the path as a line in the view (rapids dashed), optional in renders,
    with the part already milled shown in a colour (for presentations).
