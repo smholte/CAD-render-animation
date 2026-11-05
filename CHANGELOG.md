@@ -1,9 +1,11 @@
 # Changelog
 
-What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
-installer of that version was built from (tags cannot be pushed from the AI chats).
+What changed in each version, in plain words. Newest first. The app shows these texts under
+"What's new" when it offers an update, and each GitHub release carries its section. From 0.2.16 on,
+the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
+installer of that version was built from.
 
-## 0.2.16 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
+## 0.2.18 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
 
 Commit: (written after the merge).
 
@@ -31,6 +33,63 @@ Self-test
 
 User guide
 - New part "Milling" in chapter 4, with a picture of the panel.
+
+## 0.2.17 – 5 Nov 2026 – light looks, camera views, background blur, turntable video (task 0017)
+
+Commit `82555db`.
+
+5 Scene & Render
+- **Light look** at the top: five buttons that set light, background and floor in one click –
+  **Product studio** (soft main light front left, fill, two rim lights, light grey background),
+  **White, endless** (pure-white background with a soft shadow, bright soft light), **Dark studio**
+  (black background, rim lights), **Outdoor sun**, **Overcast**. On the sea, the deck or the quay
+  only the weather changes. The button of the look you see stays pressed.
+- **Light**: new choices Product studio, White studio, Dark studio; the old studio light is now
+  called **Soft studio** (old projects keep it and look the same). **Weather**: Sun or Overcast,
+  wherever the sky gives the light (also on the sea, deck and quay). A line under the light says
+  it in words: "Main light from the front left, high · normal brightness". **Strength** is now
+  called **Brightness**.
+- **Camera** (now its own part of panel 5): one-click views **Isometric** (no perspective),
+  **Front**, **Side**, **Top**, **3/4 hero, low**, **3/4 hero, high**, **Where I look now** and
+  **More**. They frame the **Whole model** or the **Selection**, with **Space around** Tight,
+  Normal or Roomy; the new camera becomes the active one and the view looks through it.
+- **Background blur**: None, A little or Strong – the same look on a small part and a big crane,
+  each camera its own; the f-stop is worked out for you. **Sharp at**: the middle of the machine,
+  or click the eyedropper and then the spot that should be sharp; the spot moves with its part.
+  Renders in the queue use it too.
+- **Turntable video**: length, camera height and quality, then **Make turntable video**: the
+  camera goes once round the machine, the whole machine stays in the picture, the video loops
+  without a jump; it goes into 7 Render queue and the queue starts. It makes the camera
+  "Turntable camera", the saved scene "Turntable" and the animation "Turntable" (change size,
+  shape or frame rate in 6 Animation, then click the button again). In a hall it says halls
+  render 1.4–2.8× slower and offers **Use Simple**.
+
+Fixed
+- An Isometric (or other orthographic) camera in an upright picture cut off the sides.
+- A camera added while the sea was the background did not see to the horizon until the
+  background was rebuilt.
+
+User guide: chapter 5 – Light look (with a picture of the five looks), Light, Camera, Turntable
+video; new pictures of panel 5.
+
+## 0.2.16 – 5 Nov 2026 – updates inside the app (task 0020)
+
+New versions with one click
+- A few seconds after the app starts it looks on GitHub for a newer version. When there is one,
+  **Update available** appears at the top of the Fresing tab, with **What's new**.
+- **Update now** downloads the new version (and checks it), saves your project, closes the app,
+  installs the update and opens the app again with the same project – about a minute. Then it says
+  **Updated to …**. Projects, renders, templates and settings stay as they are.
+- **Help > Check for Fresing Render updates** asks at any time. **Later** hides the notice until the
+  next start. It can be switched off: Edit > Preferences > Add-ons > Fresing Render > **Check for
+  updates at start-up**.
+- An update also brings the app layout of the new version along (before, only Install.bat did).
+- New line in the self-test: "Update check" (can this PC reach the updates on GitHub).
+- Every new version is published on GitHub by itself, with the installer for new PCs:
+  https://github.com/smholte/CAD-render-animation/releases
+
+**Once more by hand:** this is the first version that can update itself. Run this installer once
+over the old version on every PC; from then on updates come with **Update now**.
 
 ## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
 

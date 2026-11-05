@@ -7,9 +7,12 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     ui2    tools/ui_test_app2.py  - the remaining buttons, undo/redo
     faces  tools/ui_test_faces.py - painted faces: from CAD, 'Paint faces' with clicks in the view
     surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
+    studio  tools/ui_test_studio.py - light looks, camera views, blur + sharp spot, turntable in the queue
     rulesets  tools/ui_test_rule_sets.py - rule sets: copy, change, save, switch with preview, undo
     milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
+    update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
+           this version on a local GitHub-like server, Update now, closes, is updated and starts again
 
     python3 tools/ci_real_app.py --blender <blender program> --wheels <linux wheels dir> --out <dir>
                                  [--only ui1,paths] [--timeout-min 40]
@@ -40,8 +43,9 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "rulesets": 17, "milling": 17, "paths": 8}
-MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17}   # UITEST_QUICK=1 skips the renders of ui1 and the queue
+MIN_CHECKS = {"ui1": 23, "ui2": 39, "faces": 10, "surroundings": 23, "rulesets": 17, "studio": 21, "milling": 17,
+              "paths": 8, "update": 29}
+MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20}   # UITEST_QUICK=1 skips renders and the queue
 
 
 def run(cmd, env, log_path, timeout):
@@ -127,7 +131,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,milling,paths")
+    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,studio,milling,paths,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -151,9 +155,12 @@ def main(argv=None) -> int:
                          "ui_test_surroundings.py", True),
         "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
                      "ui_test_rule_sets.py", True),
+        "studio": ("Real app: light looks, views, blur, turntable (ui_test_studio.py)", "ui_test_studio.py", True),
         "milling": ("Real app: milling – pick bit and block, cut follows the timeline (ui_test_milling.py)",
                     "ui_test_milling.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
+        "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
+                   "ci_update_test.py", None),
     }
     rows = []
     for key in [k.strip() for k in args.only.split(",") if k.strip()]:
@@ -164,7 +171,10 @@ def main(argv=None) -> int:
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")
         script_path = os.path.join(ROOT, "tools", script)
-        if gui:
+        if gui is None:                              # a driver of its own (own settings folder and screen)
+            cmd = [sys.executable, script_path, "--gui", "--blender", blender, "--wheels", os.path.abspath(args.wheels),
+                   "--out", folder, "--timeout-min", str(args.timeout_min)]
+        elif gui:
             # --python-exit-code: an error while loading the script closes Blender instead of
             # leaving it open with nothing to drive it until the timeout
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--app-template", "fresing_render",

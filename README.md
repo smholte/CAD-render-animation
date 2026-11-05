@@ -31,6 +31,8 @@ Phase 1 (stills):
 
 Phase 2 (motion): joints, poses, exploded views, visibility sets, saved scenes, animations
 and a background render queue; model updates to a new STEP revision keep all work.
+New versions reach the installed apps by themselves ("Update available" → Update now): every
+version merged into `main` is published under Releases by the automatic tests (docs/UPDATES.md).
 See CHANGELOG.md.
 
 ## Layout
@@ -42,6 +44,7 @@ fresing_render/          the Blender extension
   blender/               bpy code: build, materials, world, cameras, render, operators, UI
   data/test_machine.step small test model (used by the self-test)
   selftest.py            installation self-test (writes a report on the Desktop)
+  update_helper.py       installs a downloaded update while Blender is closed
 app_template/            "Fresing Render" app layout for Blender
 installer/               Windows installer (PowerShell, no admin rights)
 tools/                   build_release.py, test-model makers, real-app tests, ci_* helpers of the automatic tests
@@ -55,12 +58,13 @@ docs/                    install readme, update channel, development notes
 python -m venv venv
 venv/bin/pip install -r tools/requirements-dev.txt
 venv/bin/python -m pytest tests/          # 1,260+ tests, about 6 minutes on 2 cores
-venv/bin/python tools/build_release.py    # dist/: extension zip, installer zip, update repo
+venv/bin/python tools/build_release.py    # dist/: extension zip, installer zip, update listing
 ```
 
 Every push and pull request runs the tests on GitHub by itself (`.github/workflows/tests.yml`):
 the test suite and the real app on Linux, and an unattended install + self-test on a real
-Windows machine. The badge above shows the state of `main`; `python3 tools/ci_status.py`
-shows a run from the command line. See CLAUDE.md section 5.
+Windows machine, where an old build also updates itself in the app. On `main`, a new version
+is then published as a GitHub release. The badge above shows the state of `main`;
+`python3 tools/ci_status.py` shows a run from the command line. See CLAUDE.md section 5.
 
 See docs/DEVELOPMENT.md and docs/UPDATES.md.

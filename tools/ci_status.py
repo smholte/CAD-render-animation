@@ -37,6 +37,24 @@ def _git(*args) -> str:
 
 
 WORKFLOW = "tests.yml"
+SKIPPED_PATHS = ("TASKS.md", "tasks/")          # the workflow's paths-ignore: such commits get no run
+
+
+def only_task_list(sha: str) -> bool:
+    """True when the commit changes only the task list: GitHub starts no test run for it."""
+    try:
+        files = [f["filename"] for f in gh(f"repos/{REPO}/commits/{sha}").get("files", [])]
+    except RuntimeError:
+        return False
+    return bool(files) and all(f == SKIPPED_PATHS[0] or f.startswith(SKIPPED_PATHS[1]) for f in files)
+
+
+def commit_of(args) -> str:
+    if args.sha:
+        return _git("rev-parse", args.sha) or args.sha
+    if args.branch:
+        return gh(f"repos/{REPO}/commits/{args.branch}")["sha"]
+    return _git("rev-parse", "HEAD")
 
 
 def find_run(args):
@@ -131,6 +149,10 @@ def main() -> int:
     end = time.time() + 90 * 60
     while True:
         run = find_run(args)
+        if run is None and not args.run and only_task_list(commit_of(args)):
+            print("No test run for this commit: it changes only the task list (TASKS.md, tasks/), which the "
+                  "tests skip. The run of the commit before it counts.")
+            return 0
         if run is None:
             if args.wait and time.time() < end:
                 time.sleep(15)

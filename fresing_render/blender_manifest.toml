@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "fresing_render"
-version = "0.2.16"
+version = "0.2.18"
 name = "Fresing Render"
 tagline = "Photo-realistic renders of large STEP assemblies"
 maintainer = "Fresing"
@@ -28,6 +28,7 @@ wheels = [
 
 [permissions]
 files = "Import STEP files, write the import cache and save renders"
+network = "Check GitHub for a newer Fresing Render and download it"
 
 [build]
 paths_exclude_pattern = [

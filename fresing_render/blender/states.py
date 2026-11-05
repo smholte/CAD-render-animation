@@ -224,7 +224,9 @@ WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_
               "floor_color",
               # surroundings and props (task 0016)
               "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height",
-              "props_visible")
+              "props_visible",
+              # weather of the sky (task 0017)
+              "sky_weather")
 OUTPUT_KEYS = ("out_format", "out_resolution", "out_orientation", "out_dpi", "out_use_bleed", "out_bleed_mm",
                "out_custom_w", "out_custom_h", "out_file_type", "quality")
 CURRENT = "__current__"      # "use what the scene shows now" (stored inside the scene item)
@@ -250,6 +252,8 @@ def apply_settings_json(scene, text: str) -> None:
         data = json.loads(text or "{}")
     except ValueError:
         return
+    if "background" in data and "sky_weather" not in data:
+        data["sky_weather"] = "SUN"          # saved before the weather existed (task 0017): a sunny sky
     live = s.live_update
     s.live_update = False                    # one world rebuild, not one per setting
     try:

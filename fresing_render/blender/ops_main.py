@@ -506,7 +506,8 @@ def _template_from_scene(scene) -> Template:
     t.background = {k: _plain(getattr(s, k)) for k in (
         "background", "background_color", "lighting", "light_rotation", "light_strength", "sun_elevation",
         "exposure", "floor", "floor_use_own_color", "floor_color",
-        "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height")}
+        "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height",
+        "sky_weather")}
     t.output = {k: getattr(s, k) for k in ("out_format", "out_resolution", "out_orientation", "out_dpi",
                                           "out_use_bleed", "out_bleed_mm", "out_file_type", "quality")}
     return t
@@ -553,6 +554,8 @@ def apply_template(scene, t: Template) -> None:
             lk.group, lk.material, lk.color = gname, look.material, look.color
     live = s.live_update
     s.live_update = False
+    if t.background and "sky_weather" not in t.background:
+        s.sky_weather = "SUN"                # a template made before the weather existed: a sunny sky
     for k, v in t.background.items():
         try:
             setattr(s, k, v)
@@ -762,21 +765,46 @@ class FRESING_OT_camera_add(bpy.types.Operator):
     bl_label = "Add camera"
     bl_options = {"REGISTER", "UNDO"}
 
-    view: EnumProperty(name="View", items=[(k, v[0], "") for k, v in cameras.VIEWS.items()] +
-                       [("VIEW", "Current view", "Camera where you are looking now")], default="ISO")
+    view: EnumProperty(name="View", items=[(k, v[0], cameras.VIEW_TIPS.get(k, "")) for k, v in cameras.VIEWS.items()]
+                       + [("VIEW", "Where I look now", "A camera exactly where you are looking now in the view")],
+                       default="ISO")
     lens: IntProperty(name="Lens (mm)", default=50, min=10, max=300)
+
+    @classmethod
+    def description(cls, context, properties):
+        view = getattr(properties, "view", "")
+        if view == "VIEW":
+            return ("Adds a camera exactly where you are looking now: turn and zoom the view until it looks "
+                    "right, then click. It becomes the active camera")
+        tip = cameras.VIEW_TIPS.get(view)
+        if not tip:
+            return cls.__doc__
+        return (f"Adds a camera: {tip[0].lower() + tip[1:]}. It frames the whole machine or the selection "
+                "(Whole model or Selection above) and becomes the active camera")
 
     def execute(self, context):
         scene = context.scene
-        render.apply_output(scene, scene.fresing)
+        s = scene.fresing
+        render.apply_output(scene, s)
         if self.view == "VIEW":
             ob = cameras.add_from_view(context, "My view")
             if ob is None:
                 self.report({"ERROR"}, "No 3D view found")
                 return {"CANCELLED"}
+            ob[cameras.PROP_BLUR] = "NONE"
+            cameras._see_far_enough(scene)
         else:
-            ob = cameras.add_camera(scene, self.view, float(self.lens))
+            pts, on_selection = cameras.frame_points(scene, s.view_frame)
+            if s.view_frame == "SELECTION" and not on_selection:
+                self.report({"INFO"}, "Nothing selected: the camera frames the whole machine")
+            label = cameras.VIEWS.get(self.view, cameras.VIEWS["ISO"])[0]
+            ob = cameras.add_camera(scene, self.view, float(self.lens),
+                                    name=f"{label} (selection)" if on_selection else None, points=pts,
+                                    margin=cameras.SPACE.get(s.view_space, 1.06))
         scene.camera = ob
+        area = next((a for a in context.screen.areas if a.type == "VIEW_3D"), None) if context.screen else None
+        if area is not None:                     # look through it straight away
+            area.spaces.active.region_3d.view_perspective = "CAMERA"
         return {"FINISHED"}
 
 
@@ -801,19 +829,25 @@ class FRESING_OT_camera_activate(bpy.types.Operator):
 
 
 class FRESING_OT_camera_fit(bpy.types.Operator):
-    """Moves the active camera closer or further so the visible machine just fills the picture.
-    It keeps looking from the same side"""
+    """Moves the active camera closer or further so the machine (or the selection: Whole model or
+    Selection above) just fills the picture, with the Space around set above. It keeps looking from
+    the same side"""
 
     bl_idname = "fresing.camera_fit"
     bl_label = "Fit model in frame"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        cam = context.scene.camera
+        scene = context.scene
+        s = scene.fresing
+        cam = scene.camera
         if cam is None:
             return {"CANCELLED"}
-        render.apply_output(context.scene, context.scene.fresing)
-        cameras.fit(cam, context.scene)
+        render.apply_output(scene, s)
+        pts, on_selection = cameras.frame_points(scene, s.view_frame)
+        if s.view_frame == "SELECTION" and not on_selection:
+            self.report({"INFO"}, "Nothing selected: fitted the whole machine")
+        cameras.fit(cam, scene, margin=cameras.SPACE.get(s.view_space, 1.06), points=pts)
         return {"FINISHED"}
 
 
@@ -829,13 +863,13 @@ class FRESING_OT_camera_remove(bpy.types.Operator):
     def execute(self, context):
         ob = bpy.data.objects.get(self.name)
         if ob is not None:
-            bpy.data.objects.remove(ob)
+            cameras.remove_camera(ob)
         return {"FINISHED"}
 
 
 class FRESING_OT_camera_dof(bpy.types.Operator):
-    """Blurs what is in front of and behind the machine, like a photo camera (on or off).
-    The f-stop below sets how much: a lower number blurs more"""
+    """Switches background blur of the active camera between None and A little (Background blur
+    above has all three choices)"""
 
     bl_idname = "fresing.camera_dof"
     bl_label = "Background blur"
@@ -843,9 +877,9 @@ class FRESING_OT_camera_dof(bpy.types.Operator):
 
     def execute(self, context):
         cam = context.scene.camera
-        if cam is None:
+        if cam is None or cam.type != "CAMERA":
             return {"CANCELLED"}
-        cameras.set_dof(cam, context.scene, not cam.data.dof.use_dof, cam.data.dof.aperture_fstop or 5.6)
+        cameras.set_blur(cam, context.scene, "NONE" if cameras.blur_level(cam) != "NONE" else "LITTLE")
         return {"FINISHED"}
 
 
