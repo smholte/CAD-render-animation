@@ -267,6 +267,10 @@ NAMES = [
     ("RUBBER", RUB), ("RUBBER PLATE", RUB), ("EPDM STRIP", RUB), ("NBR PLATE", RUB), ("FOAM", FOAM), ("SCHUIMRUBBER", FOAM),
     ("ISOLATIE", FOAM), ("FELT", FELT), ("VILT STRIP", FELT), ("WOOD", WOOD), ("EURO PALLET", WOOD), ("MULTIPLEX PLAAT", WOOD),
     ("HOUTEN KIST", WOOD), ("Holzpalette", WOOD),
+    # task 0022: common abbreviations and words
+    ("LIMIT SW", SENS), ("LIMIT.SW.TYPE-2", SENS), ("PROX SW M12", SENS), ("TOUCH PC 12 INCH", ELEC),
+    ("SENSOR POST", ROD), ("POST 20X100", ROD), ("PILLAR", ROD), ("LINK", PLATE), ("CHAIN LINK 08B", CHAIN),
+    ("WOODEN PALLET", WOOD), ("EPAL 1200X800", WOOD),
 ]
 
 NEGATIVES = [
@@ -633,6 +637,14 @@ SUPPLIER_CODES = [
     ("AFCLA50-N", CAST), ("HTPL40S5M150-E-10", PUL), ("MTPL24L100-F-12", PUL), ("BGCBB6005ZZ-40", HSG),
     ("HFCL8-4040", CAP), ("GFC8-4080", CAP), ("GEAB1.0-30-5-B-8", GEAR), ("SP35B15-N-12", GEAR),
     ("ZP3-T20UMN-A8", VAC), ("PASE25-XL-N", HSG), ("IGA2008-BPKG", SENS), ("GN 343.4-50-M10-A", FOOT),
+    # families found on the EGR measuring model (public catalogue codes, invented sizes)
+    ("C-CFFA10-22", BRG), ("CFMRS16-35", BRG), ("JCDQ32-25", PNEU), ("JCQ20-15", PNEU), ("C-PSFJ16-300", CHROME),
+    ("CPSFJ20-250", CHROME), ("GJPGQS10-P10-L6-B5", ROD), ("GFPDSTC12-P9.50-L18-B16.0", ROD), ("SEBNZ15-80", LIN),
+    ("SE2BNZ15-150", LIN), ("HRW21CR2UU", LIN), ("MC04-4LS", HANDLE), ("FJCZ12", "Rod ends & clevises"),
+    ("FJRHA18-15", "Rod ends & clevises"), ("URFM-D30-V20-T3.0", RUB), ("URWM15-5-2", RUB), ("UREWH60-30-10", RUB),
+    ("MDZB12-20", BUSH), ("MDZF16-20", BUSH), ("BSTEH10", ROD), ("STRB8-30", ROD), ("LMST16", ROD),
+    ("MASTNM20-300", ROD), ("V680S-D2KF67", SENS), ("V680-D1KP58HT", SENS), ("CDQ2B-M9BW", SENS),
+    ("JCDQ-M9N", SENS),
     # a code beats the plain word next to it
     ("PSFJ12-250_SHAFT", CHROME), ("HBLTD5 bracket", CON), ("UPWH6-20 urethane stopper", RUB),
     ("MCKL20-5-10 MOTOR SIDE", CPL),
@@ -645,6 +657,8 @@ CODE_LOOKALIKES = [
     ("DWG-4471", ""), ("A-10023-R2", ""), ("P00412", ""), ("SHAFT20", ROD), ("SHFT 20", ""),
     ("SHS 100X100X5", WELD), ("HFS 200X200X10", ""), ("MS6-LFR-1/2-D7", VALVE), ("SPB 1250", BELT),
     ("SFU1605-600", LIN), ("SFC-030DA2", CPL), ("CB6-20", ""), ("GRAM", ""), ("ANSI FLANGE", PLATE),
+    ("PLATE-A93", PLATE), ("MC-0042", ""), ("CF-2041", ""), ("STR-100", ""), ("V600", ""), ("POSTER", ""),
+    ("CDQ2B32-50DZ-M9BW", PNEU), ("PALLET", ""), ("WORKPIECE PALLET 320X320", ""),
 ]
 
 
@@ -671,3 +685,14 @@ def test_supplier_code_assemblies_pass_their_type_on():
     # a Misumi bushing housing downloaded as an assembly: housing + bushing + retaining ring
     assert part_types.classify("HOUSING", "M#1/LHFRW20#1/HOUSING#1") == "Linear guides & ball screws"
     assert part_types.classify("BUSHING", "M#1/LHFRW20#1/BUSHING#1") == "Linear guides & ball screws"
+
+
+def test_parts_inside_supplier_assemblies_found_on_real_models():
+    # an SMC compact cylinder downloaded with its switch: body and rod as usual, the switch stays a switch
+    cyl = "M#1/PRESS#1/JCDQ40-30-M9BL#1/{}#1"
+    assert part_types.classify("_JCDQ40-30-M9B_BODY", cyl.format("_JCDQ40-30-M9B_BODY")) == PNEU
+    assert part_types.classify("_JCDQ40-30_ROD", cyl.format("_JCDQ40-30_ROD")) == CHROME
+    assert part_types.classify("_JCDQ-M9B", cyl.format("_JCDQ-M9B")) == SENS
+    # the block and rail of a Misumi miniature guide, and the halves of a floating joint
+    assert part_types.classify("_EBNZ15_B", "M#1/SEBNZ15-80#1/_EBNZ15_B#1") == LIN
+    assert part_types.classify("_F", "M#1/FJCZ12#1/_F#1") == "Rod ends & clevises"
