@@ -3,6 +3,32 @@
 What changed in each version, in plain words. Newest first. "Commit" is the Git commit the
 installer of that version was built from (tags cannot be pushed from the AI chats).
 
+## 0.2.15 – 5 Nov 2026 – clean-up of sections 1–3: tooltips, "1 part" not "1 parts" (task 0023)
+
+Commit `ea65ef1`.
+
+1 Import, 2 Structure, 3 Looks
+- Every button and setting in these sections explains itself when you rest the mouse on it.
+  Buttons that shared one text now each say what they do: the two arrows next to **Find in the
+  tree** (open all / close all), **Show only the unsorted parts** and **Show only these**, **+** and
+  **From clicked part** in Sorting rules (the second one names the part you clicked), the up and
+  down arrows, the two tick buttons in Find & sort parts. The × of the model update report and
+  the names in the lists of visibility sets and paint schemes got a tooltip too.
+- The choices of a sorting rule (Part name, CAD colour, Finish… / contains, is, matches
+  pattern…) each explain what they mean in the drop-down list.
+- **From active part** (Sorting rules) is now called **From clicked part**.
+- Counts say "1 part", "1 face set", "1 group", "1 core" (the Paint faces header said
+  "1 face sets"); also in the messages after a button, in the window that shows what a rule-set
+  switch changes ("1 part changes group") and in the model update report.
+
+All sections
+- Tooltips no longer break in the middle of a sentence (23 of them did, for example those of
+  **Render image**, **Add camera** and **Defaults**).
+
+User guide
+- Chapters 1–3 checked against the app: **Make it a rule** for a whole subassembly, the
+  placeholders a group name can hold, where **+** puts a new rule and **Select the ticked parts in
+  the view** were out of date or missing. New picture of Paint faces and Sorting rules.
 ## 0.2.14 – 5 Nov 2026 – more parts sorted by supplier codes (task 0022)
 
 Commit `2f7bf7a`.

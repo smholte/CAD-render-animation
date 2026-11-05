@@ -5,6 +5,7 @@ from __future__ import annotations
 import bpy
 from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
+from ..core.words import plural
 from . import build, faces, finder, logic
 from . import tree as tree_mod
 
@@ -31,13 +32,20 @@ class FRESING_OT_tree_toggle(bpy.types.Operator):
 
 
 class FRESING_OT_tree_open_all(bpy.types.Operator):
-    """Open or close every assembly in the list"""
+    """Opens or closes every subassembly in the tree"""
 
     bl_idname = "fresing.tree_open_all"
     bl_label = "Open all"
     bl_options = {"INTERNAL"}
 
     open: BoolProperty(default=True, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.open:
+            return "Opens every subassembly in the tree, so every part is listed (a long list on a big model)"
+        return ("Closes every subassembly in the tree: each model shows only its first level of parts and "
+                "subassemblies")
 
     def execute(self, context):
         tree_mod.open_all(context.scene.fresing, self.open)
@@ -149,13 +157,19 @@ def _group_items(self, context):
 
 
 class FRESING_OT_find_tick(bpy.types.Operator):
-    """Tick or untick every part name found"""
+    """Ticks or unticks every part name found"""
 
     bl_idname = "fresing.find_tick"
     bl_label = "Tick all"
     bl_options = {"INTERNAL"}
 
     tick: BoolProperty(default=True, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.tick:
+            return "Ticks every part name found, so the buttons below put all of them in a group"
+        return "Unticks every part name found. Then tick only the ones you want"
 
     def execute(self, context):
         for it in context.scene.fresing.found:
@@ -178,7 +192,8 @@ class FRESING_OT_find_word(bpy.types.Operator):
 
 
 class FRESING_OT_find_select(bpy.types.Operator):
-    """Select the ticked parts in the view"""
+    """Selects the ticked parts in the view, so you see where they are. Then hide them or show only them in
+    2 Structure"""
 
     bl_idname = "fresing.find_select"
     bl_label = "Select ticked"
@@ -189,7 +204,7 @@ class FRESING_OT_find_select(bpy.types.Operator):
         if not objs:
             return {"CANCELLED"}
         tree_mod.select_objects(context, objs)
-        self.report({"INFO"}, f"{len(objs)} parts selected")
+        self.report({"INFO"}, f"{plural(len(objs), 'part')} selected")
         return {"FINISHED"}
 
 
@@ -215,7 +230,7 @@ class FRESING_OT_find_assign(bpy.types.Operator):
             group = finder.unique_group_name(s, finder.group_name_for(s.find_text))
         n = finder.put_in_group(scene, objs, group)
         finder.run_search(scene)
-        self.report({"INFO"}, f"{n} parts in {group}")
+        self.report({"INFO"}, f"{plural(n, 'part')} in {group}")
         return {"FINISHED"}
 
 
@@ -247,7 +262,7 @@ class FRESING_OT_find_rule(bpy.types.Operator):
         finder.add_rule_on_top(s, group, field, op, value, note=f"from the search '{s.find_text.strip()}'")
         logic.apply_rules(context.scene)
         unticked = sum(1 for it in s.found if not it.use)
-        extra = f" (it also covers the {unticked} unticked names)" if unticked else ""
+        extra = f" (it also covers the {plural(unticked, 'unticked name')})" if unticked else ""
         self.report({"INFO"}, f"Rule added: names with '{s.find_text.strip()}' go to {group}{extra}")
         return {"FINISHED"}
 
@@ -276,13 +291,21 @@ class FRESING_OT_rule_from_subassembly(bpy.types.Operator):
 
 
 class FRESING_OT_show_only_group(bpy.types.Operator):
-    """Show only these parts (Show all brings everything back)"""
+    """Shows only the parts of one group and hides the rest"""
 
     bl_idname = "fresing.show_only_group"
     bl_label = "Show only these"
     bl_options = {"REGISTER", "UNDO"}
 
     group: StringProperty(options={"SKIP_SAVE"})       # '' = the parts no rule matched
+
+    @classmethod
+    def description(cls, context, properties):
+        if not properties.group:
+            return ("Shows only the parts no rule could sort ('Unsorted'), so you see what still needs a group. "
+                    "Show everything again (2 Structure) brings the rest back")
+        return ("Shows only the parts of this group and hides the rest. Show everything again (2 Structure) "
+                "brings them back")
 
     def execute(self, context):
         scene = context.scene
@@ -347,7 +370,7 @@ class FRESING_OT_part_move_group(bpy.types.Operator):
             first = objs[0].get(build.PROP_NAME, objs[0].name)
             group = finder.unique_group_name(s, finder.group_name_for(first.split()[0] if first else "New group"))
         n = finder.put_in_group(scene, objs, group)
-        self.report({"INFO"}, f"{n} parts in {group}")
+        self.report({"INFO"}, f"{plural(n, 'part')} in {group}")
         return {"FINISHED"}
 
 
@@ -478,7 +501,7 @@ class FRESING_OT_paint_faces(bpy.types.Operator):
         context.window.cursor_modal_restore()
         self._redraw(context)
         if self.painted:
-            self.report({"INFO"}, f"{self.painted} faces changed")
+            self.report({"INFO"}, f"{plural(self.painted, 'face')} changed")
         return {"FINISHED"}
 
     def modal(self, context, event):
@@ -523,7 +546,7 @@ def _active_part(context):
 
 class FRESING_OT_face_set_group(bpy.types.Operator):
     """Choose the group of these faces: their material and colour come from that group. With
-    'Only this copy' ticked, only the active copy of the part changes"""
+    'Only this copy' ticked, only the copy you clicked changes"""
 
     bl_idname = "fresing.face_set_group"
     bl_label = "Group of these faces"
@@ -545,7 +568,7 @@ class FRESING_OT_face_set_group(bpy.types.Operator):
 
 class FRESING_OT_face_set_remove(bpy.types.Operator):
     """Back to the whole part: these faces get the look of the rest of the part again. With 'Only
-    this copy' ticked, only on the active copy"""
+    this copy' ticked, only on the copy you clicked"""
 
     bl_idname = "fresing.face_set_remove"
     bl_label = "Back to whole part"

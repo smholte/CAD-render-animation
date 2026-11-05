@@ -158,3 +158,16 @@ def test_material_uids_fixed_and_unique():
     # a few anchors that must never change once projects are saved
     assert materials_lib.UIDS["paint_gloss"] == 1
     assert materials_lib.UIDS["black_oxide"] == 23
+
+
+# ---- counts in plain English (task 0023) -------------------------------------
+
+def test_plural_says_one_part_and_two_parts():
+    from fresing_render.core.words import plural, verb
+    assert plural(1, "part") == "1 part"
+    assert plural(2, "part") == "2 parts"
+    assert plural(0, "part") == "0 parts"                       # zero takes the plural, as in English
+    assert plural(1, "face set") == "1 face set"
+    assert plural(5, "face set") == "5 face sets"
+    assert plural(1, "copy", "copies") == "1 copy" and plural(3, "copy", "copies") == "3 copies"
+    assert verb(1, "matches", "match") == "matches" and verb(4, "matches", "match") == "match"

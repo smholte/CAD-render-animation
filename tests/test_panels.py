@@ -265,3 +265,102 @@ def test_tree_rebuild_walks_the_scene_a_few_times_only(scene, monkeypatch):
     logic.rebuild_tree(scene)
     tree_mod.row_of(scene, _part(scene, "FRAME"))
     assert len(made) <= 2, len(made)
+
+
+# ---- counts: "1 part", never "1 parts" (task 0023) ------------------------------------
+
+
+class _Texts:
+    """Stands in for a panel layout and keeps every text the panel draws."""
+
+    def __init__(self, out):
+        self.__dict__["_out"] = out
+
+    def __getattr__(self, name):
+        def call(*a, **k):
+            if k.get("text"):
+                self._out.append(k["text"])
+            if name == "panel":
+                return _Texts(self._out), _Texts(self._out)          # draw the folded part too
+            return 0 if name == "icon" else _Texts(self._out)
+        return call
+
+
+def _drawn(*panels) -> str:
+    """Everything the panels write (lines wrapped by the panel are joined again)."""
+    out = []
+    for cls in panels:
+        fake = type("P", (), {"layout": _Texts(out)})()
+        for fn in ("draw_header_preset", "draw"):
+            if hasattr(cls, fn):
+                getattr(cls, fn)(fake, bpy.context)
+    return " ".join(out)
+
+
+ONE_MANY = re.compile(r"\b1 (parts|groups|face sets|faces|names|cores|rules|models|matches no|match no)\b")
+
+
+def test_counts_of_one_are_singular_in_panels_1_to_3(scene, monkeypatch):
+    from fresing_render.blender import rule_sets, ui
+    from fresing_render.blender.ops_rule_sets import _describe
+    from fresing_render.core import rule_sets as RS
+    s = scene.fresing
+    root = build.model_roots(scene)[0]
+    root["fr_stats"] = '{"placed_parts": 1, "unique_parts": 1, "triangles_unique": 12, "seconds_total": 1, ' \
+                       '"mesh_helpers": 1}'
+    s.unmatched = 1
+    s.groups_index = 0
+    g = s.groups[0]
+    g.count, g.faces = 1, 1
+    for other in list(s.groups)[1:]:
+        other.faces = 0
+    sub = next(i for i, it in enumerate(s.tree) if not it.is_part and it.depth > 0)
+    s.tree[sub].parts = 1
+    s.tree_index = sub
+    v = s.visibility_sets.add()
+    v.name = "One hidden"
+    v.hidden.add()
+    s.visibility_index = len(s.visibility_sets) - 1
+    s.find_text = "SIGNAL.LAMP"
+    assert len(s.found) == 1 and s.found[0].count == 1
+    text = _drawn(ui.FRESING_PT_import, ui.FRESING_PT_structure, ui.FRESING_PT_visibility, ui.FRESING_PT_looks,
+                  ui.FRESING_PT_faces, ui.FRESING_PT_find)
+    with monkeypatch.context() as m:                     # a model of one part: the 2 Structure header
+        m.setattr(build, "iter_parts", lambda scene: iter([object()]))
+        out = []
+        ui.FRESING_PT_structure.draw_header_preset(type("P", (), {"layout": _Texts(out)})(), bpy.context)
+        assert out == ["1 part"], out
+    assert not ONE_MANY.search(text), ONE_MANY.search(text).group(0)
+    for expect in ("1 part, 1 different", "on 1 core", "(1 part)", "One hidden: 1 part hidden",
+                   "1 part matches no rule: it is in 'Unsorted'", "1 part and 1 painted face set",
+                   "1 face set", "1 name, 1 part · 1 ticked"):
+        assert expect in text, (expect, text)
+    # the 3 Looks header with a single group, and many of everything
+    s.unmatched = 0
+    while len(s.groups) > 1:
+        s.groups.remove(len(s.groups) - 1)
+    assert "1 group" in _drawn(ui.FRESING_PT_looks) and "1 groups" not in _drawn(ui.FRESING_PT_looks)
+    s.unmatched, g.count, g.faces = 3, 2, 2
+    text = _drawn(ui.FRESING_PT_looks, ui.FRESING_PT_faces)
+    assert "3 parts match no rule: they are in 'Unsorted'" in text and "2 parts and 2 painted face sets" in text
+    # the confirm window of a rule-set switch, and the rule-set menu
+    lines = " / ".join(rule_sets.describe_preview(
+        {"moved": 1, "parts": 1, "faces_moved": 1, "added": ["A"], "gone": ["B"], "looks": 1, "by_hand": 1,
+         "unsorted_now": 0, "unsorted": 0}))
+    for expect in ("1 of 1 part changes group", "1 painted face set changes group", "1 new group: A",
+                   "1 group goes away", "1 group gets another", "1 part you put in a group by hand stays there"):
+        assert expect in lines, (expect, lines)
+    one = RS.RuleSet(name="One", rules=[R.Rule(target="Seals", value="seal")],
+                     looks={"Seals": ("paint_satin", "#123456")})
+    assert _describe(one) == "1 rule, 1 own group look"
+
+
+def test_tooltips_have_no_line_breaks():
+    """A docstring wrapped in the source showed as a tooltip broken in the middle of a sentence."""
+    broken = []
+    for name in dir(bpy.types):
+        if name.startswith("FRESING_OT_"):
+            idname = getattr(bpy.types, name).bl_idname.split(".")[1]
+            if "\n" in getattr(bpy.ops.fresing, idname).get_rna_type().description:
+                broken.append(idname)
+    assert not broken, broken

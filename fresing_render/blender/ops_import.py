@@ -9,6 +9,7 @@ from bpy.props import CollectionProperty, EnumProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
 from ..importer.runner import ImportJob
+from ..core.words import plural
 from . import build, cameras, logic, prefs, render, world
 
 _ACTIVE_JOB: ImportJob | None = None
@@ -239,7 +240,8 @@ class FRESING_FH_step(bpy.types.FileHandler):
 
 
 class FRESING_OT_clear_cache(bpy.types.Operator):
-    """Delete cached imports (they are rebuilt the next time a file is imported)"""
+    """Deletes the stored copies of earlier imports to free disk space. The next import of a file reads it
+    in full again"""
 
     bl_idname = "fresing.clear_cache"
     bl_label = "Clear import cache"
@@ -254,7 +256,7 @@ class FRESING_OT_clear_cache(bpy.types.Operator):
         for name in os.listdir(root):
             shutil.rmtree(os.path.join(root, name), ignore_errors=True)
             n += 1
-        self.report({"INFO"}, f"Removed {n} cached imports")
+        self.report({"INFO"}, f"Removed {plural(n, 'stored import')}")
         return {"FINISHED"}
 
 
