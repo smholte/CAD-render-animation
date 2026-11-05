@@ -31,7 +31,7 @@ def finish_import(context, cache_dir: str, up_axis: str = "Z") -> bpy.types.Obje
     logic.set_up_axis(root, up_axis)
     logic.lock_all(scene)
     template = prefs.default_template_path()
-    if template and len(s.rules) == 0:
+    if template and not s.rule_set and len(s.rules) == 0:     # a new project: the template sets it up
         from ..core.template import Template
         from .ops_main import apply_template
         try:
@@ -204,6 +204,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         s.last_message = f"Imported {os.path.basename(job.step_path)}" + (
             " (from cache: file unchanged since last import)" if cached else "")
         self.report({"INFO"}, s.last_message)
+        from . import rule_sets
+        notice = rule_sets.take_notice()           # e.g. the default rule set is not in the library
+        if notice:
+            s.last_message += f". {notice}"
+            self.report({"WARNING"}, notice)
         return {"FINISHED"}
 
     def _cleanup(self, context):

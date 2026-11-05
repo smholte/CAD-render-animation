@@ -29,8 +29,12 @@ def load_rules_into_scene(s, rules: list[R.Rule]) -> None:
 
 
 def ensure_default_rules(s) -> bool:
-    """Default rules for a new project; projects whose rule list is still the untouched default of
-    a version before 0.2.8 get the new default list (part types, CAD materials). True if changed."""
+    """For projects without a rule set (made before 0.2.13): default rules when there are none;
+    a rule list that is still the untouched default of a version before 0.2.8 gets the new default
+    list (part types, CAD materials). True if changed. A project with a rule set keeps its rules,
+    also none at all (a rule set started empty)."""
+    if getattr(s, "rule_set", ""):
+        return False
     if len(s.rules) == 0:
         load_rules_into_scene(s, R.default_rules())
         return True
@@ -52,38 +56,66 @@ def facts_for_object(ob) -> R.PartFacts:
     )
 
 
+def start_look(s, name: str) -> tuple[str, str]:
+    """The look a new group starts with: the one the project's rule set lists for it, else the
+    built-in look for its name."""
+    from . import rule_sets
+    look = rule_sets.saved_looks(s).get(name)
+    return look if look else R.default_material_for_group(name)
+
+
 def ensure_group(s, name: str):
     g = s.groups.get(name)
     if g is None:
         g = s.groups.add()
         g.name = name
         g["_old_name"] = name
-        mat_id, color = R.default_material_for_group(name)
+        mat_id, color = start_look(s, name)
         g.material = mat_id
         g.color = color
     return g
 
 
-def apply_rules(scene) -> dict:
-    """Sort every part into a material group and assign the group materials."""
-    s = scene.fresing
-    ensure_default_rules(s)
-    rules = rules_from_scene(s)
-    parts = list(build.iter_parts(scene))
+def sort_plan(scene, rules: list[R.Rule], aliases: dict, parts=None) -> dict:
+    """Where the rules would put every part and face set, without changing anything.
+
+    Returns {'parts': [...], 'groups': [group per part, hand choices included], 'counts': hits per
+    rule, 'unmatched': n, 'per_group': {group: parts}, 'face_groups': {object name: [group per face
+    set]}, 'per_face_group': {group: face sets}, 'by_rules': groups the rules fill (not by hand)}."""
+    parts = list(build.iter_parts(scene)) if parts is None else parts
     facts = [facts_for_object(ob) for ob in parts]
     groups, counts, unmatched = R.classify(facts, rules)
-    s.unmatched = len(unmatched)
-
-    aliases = {a.source: a.target for a in s.group_aliases}
+    out: list[str] = []
     per_group: dict[str, int] = {}
+    by_rules: set[str] = set()
     for ob, g in zip(parts, groups):
         g = aliases.get(g, g)                # groups the user renamed keep their new name
         manual = ob.get("fr_group_manual")
         if manual:
             g = manual
-        ob[build.PROP_GROUP] = g
+        else:
+            by_rules.add(g)
+        out.append(g)
         per_group[g] = per_group.get(g, 0) + 1
-    per_face_group = faces.sort(parts, rules, aliases, counts)     # faces with a look of their own
+    new_group = {ob.name: g for ob, g in zip(parts, out)}
+    face_groups, per_face_group = faces.plan(parts, rules, aliases, part_group=lambda ob: new_group[ob.name],
+                                             rule_counts=counts, by_rules=by_rules)
+    return {"parts": parts, "groups": out, "counts": counts, "unmatched": len(unmatched), "per_group": per_group,
+            "face_groups": face_groups, "per_face_group": per_face_group, "by_rules": by_rules}
+
+
+def apply_rules(scene) -> dict:
+    """Sort every part into a material group and assign the group materials."""
+    from . import rule_sets
+    s = scene.fresing
+    rule_sets.ensure(scene)
+    plan = sort_plan(scene, rules_from_scene(s), {a.source: a.target for a in s.group_aliases})
+    parts, counts, by_rules = plan["parts"], plan["counts"], plan["by_rules"]
+    per_group, per_face_group = plan["per_group"], plan["per_face_group"]
+    s.unmatched = plan["unmatched"]
+    for ob, g in zip(parts, plan["groups"]):
+        ob[build.PROP_GROUP] = g
+    faces.write_groups(parts, plan["face_groups"])           # faces with a look of their own
     for i, c in enumerate(counts):
         s.rules[i].count = c
     for name in list(per_group) + list(per_face_group):
@@ -91,12 +123,14 @@ def apply_rules(scene) -> dict:
     for g in s.groups:
         g.count = per_group.get(g.name, 0)
         g.faces = per_face_group.get(g.name, 0)
+        if g.by_rules != (g.name in by_rules):
+            g.by_rules = g.name in by_rules
     mats = {g.name: materials.ensure_material(g.name, g.material, g.color) for g in s.groups}
     for ob in parts:
         materials.assign(ob, mats[ob[build.PROP_GROUP]])
         faces.assign(ob, mats)
     return {"parts": len(parts), "groups": len(set(per_group) | set(per_face_group)),
-            "unmatched": len(unmatched), "face_sets": sum(per_face_group.values())}
+            "unmatched": plan["unmatched"], "face_sets": sum(per_face_group.values())}
 
 
 def refresh_group_materials(scene) -> None:

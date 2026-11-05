@@ -413,6 +413,64 @@ class FRESING_UL_schemes(bpy.types.UIList):
         use_button(row, "fresing.scheme_apply", item.name)
 
 
+_RULE_SET_ICON = {"builtin": "LOCKED", "library": "FILE", "project": "FILE_BLEND"}
+
+
+def draw_rule_set(layout, context) -> None:
+    """Top of 3 Looks: the rule set this project uses, its state, and a fold to manage rule sets."""
+    from ..core import rule_sets as RS
+    from . import rule_sets
+    s = context.scene.fresing
+    name = s.rule_set or RS.STANDARD
+    kind = rule_sets.kind(s)
+    split = layout.split(factor=0.3, align=True)
+    split.label(text="Rule set")
+    split.operator_menu_enum("fresing.rule_set_switch", "name", text=name, icon=_RULE_SET_ICON[kind])
+    _path, _shared, problem = rule_sets.folder()
+    if problem:
+        wrap(layout, context, f"{problem}: the project uses its own copy of '{name}'.", icon="ERROR", alert=True)
+    diff = rule_sets.differences(s)
+    if any(diff.values()):
+        box = layout.box()
+        wrap(box, context, f"Changed in this project: {RS.describe_differences(diff)}", icon="MODIFIER",
+             inset=12, alert=True)
+        row = box.row(align=True)
+        if kind == "builtin":
+            row.operator("fresing.rule_set_save_as", text="Save as new rule set…", icon="DUPLICATE")
+            hint = wrap(box, context, "Standard itself cannot be changed.", inset=12)
+            hint.active = False
+        elif kind == "project":
+            row.operator("fresing.rule_set_save_as", text="Save to library…", icon="FILE_TICK")
+        else:
+            row.operator("fresing.rule_set_save", text="Save changes", icon="FILE_TICK")
+            row.operator("fresing.rule_set_save_as", text="Save as new…", icon="DUPLICATE")
+    elif kind == "project" and not problem:
+        box = layout.box()
+        wrap(box, context, "Only in this project: not in the library.", icon="INFO", inset=12)
+        box.operator("fresing.rule_set_save_as", text="Save to library…", icon="FILE_TICK")
+    if rule_sets.library_differs(s):
+        box = layout.box()
+        wrap(box, context, f"The library has a newer version of '{name}'.", icon="FILE_REFRESH", inset=12)
+        op = box.operator("fresing.rule_set_switch", text="Load it…", icon="IMPORT")
+        op.name, op.again = name, True
+    body = fold(layout, "fresing_rule_sets_manage", "Manage rule sets", "FILTER")
+    if body is not None:
+        grid = body.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+        grid.operator("fresing.rule_set_save_as", text="Copy…", icon="DUPLICATE")
+        grid.operator("fresing.rule_set_new_empty", text="New, empty…", icon="FILE_NEW")
+        grid.operator_menu_enum("fresing.rule_set_rename", "name", text="Rename…", icon="GREASEPENCIL")
+        grid.operator_menu_enum("fresing.rule_set_delete", "name", text="Delete…", icon="TRASH")
+        split = body.split(factor=0.4, align=True)
+        split.label(text="New projects")
+        split.operator_menu_enum("fresing.rule_set_default", "name", text=rule_sets.default_name(), icon="FILTER")
+        path, shared, _problem = rule_sets.folder()
+        where = "Kept in the shared library" if shared else "Kept on this PC (no shared library set)"
+        info = wrap(body, context, f"{where}: {path}", icon="FILE_FOLDER")
+        info.active = False
+        body.operator("fresing.rule_set_folder", text="Show the folder", icon="FILE_FOLDER")
+    layout.separator()
+
+
 class FRESING_PT_looks(_Panel, bpy.types.Panel):
     bl_label = "3  Looks"
     bl_order = 2
@@ -434,6 +492,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
+        draw_rule_set(layout, context)
         row = big_row(layout, MEDIUM)
         row.operator("fresing.apply_rules", text="Sort parts into groups", icon="SORTALPHA")
         if s.unmatched:
@@ -470,8 +529,9 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             row.operator("fresing.group_unassign", text="Back to the rules", icon="LOOP_BACK")
             if 0 <= s.tree_index < len(s.tree) and not s.tree[s.tree_index].is_part:
                 sub = s.tree[s.tree_index]
-                box.operator("fresing.rule_from_subassembly",
-                             text=f"Rule: all of {sub.label} → this group", icon="FILTER")
+                hint = wrap(box, context, f"Everything in {sub.label} to this group:", inset=12)
+                hint.active = False
+                box.operator("fresing.rule_from_subassembly", text="Make it a rule", icon="FILTER")
         ob = context.active_object
         if ob is not None and ob.get(build.PROP_KIND) == "part":
             box = layout.box()
@@ -631,10 +691,16 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="FILTER")
 
+    def draw_header_preset(self, context):
+        from . import rule_sets
+        if rule_sets.is_changed(context.scene.fresing):
+            header_status(self.layout, "changed", alert=True)
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Checked from the top; the first rule that fits a part decides its group.")
+        wrap(layout, context, f"The rules of rule set '{s.rule_set or 'Standard'}' in this project. Checked from "
+                              "the top; the first rule that fits a part decides its group.")
         row = layout.row()
         row.template_list("FRESING_UL_rules", "", s, "rules", s, "rules_index", rows=list_rows(len(s.rules), 4, 8))
         col = row.column(align=True)
@@ -680,7 +746,7 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
         col.operator("fresing.scheme_remove", text="", icon="REMOVE")
         layout.separator()
         layout.label(text="Templates", icon="FILE_BLANK")
-        wrap(layout, context, "A template keeps rules, groups, schemes and background for the next project.")
+        wrap(layout, context, "A template keeps the rule set, paint schemes and background for the next project.")
         row = layout.row(align=True)
         row.operator("fresing.template_import", text="Load", icon="FILE_FOLDER")
         row.operator("fresing.template_export", text="Save", icon="FILE_TICK")
