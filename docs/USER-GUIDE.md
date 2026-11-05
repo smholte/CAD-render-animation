@@ -498,7 +498,7 @@ stays pressed.
 | **Outdoor sun** | Blue sky, the sun from the front left, sharp shadows. On the sea, the deck or the quay only the weather changes. |
 | **Overcast** | Grey, cloudy sky without sun: soft light, soft shadows, calm and true colours. On the sea, the deck or the quay only the weather changes. |
 
-<img src="img/looks.png" alt="The five light looks on the test crane">
+<img src="img/looks.jpg" alt="The five light looks on the test crane">
 
 ### Background & surroundings
 
@@ -593,8 +593,9 @@ For the active camera:
   **Strong** (like a product photo; parts far from the sharp spot go soft too). It looks the same on
   a small gearbox and on a 25 m crane. Each camera keeps its own. Not for Isometric (no perspective).
 - **Sharp at**: the middle of the machine, until you click the eyedropper and then the spot that
-  should be sharp (for example the gripper). A small ball marks it in the view; it moves with its
-  part when joints move. × makes the middle sharp again.
+  should be sharp (for example the gripper). A small ball marks it in the view; in pictures it moves
+  with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
+  middle sharp again.
 
 ### Turntable video
 
@@ -611,10 +612,12 @@ A video of the camera going once round the machine, as it looks now – in one c
 
 It starts on the side the active camera looks from and keeps the whole machine in the picture all the
 way round, with the active camera's lens and background blur (in a turntable, the middle of the
-machine stays sharp). The button makes three things you can also change yourself: the camera
-**Turntable camera**, the saved scene **Turntable** and the animation **Turntable** in 6 Animation
-(change the video's size, shape or file there, then **Render animation**). Click **Make turntable
-video** again after changing the machine or the background.
+machine stays sharp). The button makes three things you can also look at yourself: the camera
+**Turntable camera**, the saved scene **Turntable** and the animation **Turntable** in 6 Animation.
+To change the video's size, shape, frame rate or file: change them there, then click **Make
+turntable video** again (it fits the camera and the turn to them). Also click it again after
+changing the machine or the background; it makes the turn anew, so steps you added to the
+animation "Turntable" are replaced.
 
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
@@ -774,6 +777,6 @@ for help.
 - Slow: is **Graphics card** on (Image size & render > Files & graphics card)? The self-test line
   "Graphics card" should name your graphics card. Lower the Quality or Size, or Clean-up parts nobody
   sees.
-- "Add a camera first": add one in 5 Scene & Render.
-- Too dark or too light: **Exposure** and **Strength** in 5 Scene & Render.
+- "Add a camera first": click a view under **Camera** in 5 Scene & Render.
+- Too dark or too light: **Exposure** and **Brightness** in 5 Scene & Render, or another **Light look**.
 - A job in the queue failed: click it to read its message, and **Open log**.

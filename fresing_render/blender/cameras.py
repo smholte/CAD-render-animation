@@ -356,10 +356,18 @@ def _after_move(ob, scene) -> None:
         update_blur(ob, scene)
 
 
+def _other_users(marker, ob) -> list:
+    """Other cameras that use this marker (a camera copied with Shift+D shares it)."""
+    return [o for o in bpy.data.objects if o is not ob and o.type == "CAMERA" and o.data is not None
+            and o.data.dof.focus_object == marker]
+
+
 def set_focus(ob, scene, part, point) -> bpy.types.Object:
-    """Make ``point`` (a world position on ``part``) the sharp spot of camera ``ob``. The spot moves
-    with the part (joints, poses, animations)."""
+    """Make ``point`` (a world position on ``part``) the sharp spot of camera ``ob``. In pictures the
+    spot moves with the part (joints, poses); an animation keeps the distance its start camera has."""
     marker = focus_marker(ob)
+    if marker is not None and _other_users(marker, ob):
+        marker = None                        # shared with a copied camera: this camera gets its own
     if marker is None:
         marker = bpy.data.objects.new(f"{ob.name} – sharp spot", None)
         marker[PROP_FOCUS] = True
@@ -390,16 +398,17 @@ def clear_focus(ob, scene) -> None:
     if marker is None:
         return
     ob.data.dof.focus_object = None
-    bpy.data.objects.remove(marker)
+    if not _other_users(marker, ob):
+        bpy.data.objects.remove(marker)
     update_blur(ob, scene)
 
 
 def remove_camera(ob) -> None:
     """Delete a camera and the marker of its sharp spot."""
     marker = focus_marker(ob)
+    others = _other_users(marker, ob) if marker is not None else []
     bpy.data.objects.remove(ob)
-    if marker is not None and not any(o.type == "CAMERA" and o.data.dof.focus_object == marker
-                                      for o in bpy.data.objects):
+    if marker is not None and not others:
         bpy.data.objects.remove(marker)
 
 

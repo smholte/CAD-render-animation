@@ -65,7 +65,10 @@ def make(scene) -> dict:
         render.apply_output(scene, s)
 
     keep_index = s.shots_index
-    shot = states.save_shot(scene, NAME, camera=cam)
+    shot = next((x for x in s.shots if x.get(TAG)), None)      # a scene of the user called "Turntable" stays
+    shot = states.save_shot(scene, shot.name if shot is not None else states.unique_shot_name(scene, NAME),
+                            camera=cam)
+    shot[TAG] = True
     s.shots_index = keep_index if keep_index < len(s.shots) else s.shots_index
     if scene.camera is None:
         scene.camera = cam
@@ -105,3 +108,12 @@ def is_turntable_running(scene) -> bool:
     a = find_animation(scene)
     return a is not None and any(j.animation == a.name and j.status in ("WAITING", "RUNNING")
                                  for j in scene.fresing.queue)
+
+
+def drop_unfinished_jobs(scene, anim) -> None:
+    """Take earlier stopped or failed jobs of the turntable out of the queue (Start queue would render
+    them again next to the new one)."""
+    q = scene.fresing.queue
+    for i in reversed(range(len(q))):
+        if q[i].animation == anim.name and q[i].status in ("STOPPED", "FAILED"):
+            q.remove(i)

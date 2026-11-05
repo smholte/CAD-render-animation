@@ -1084,7 +1084,8 @@ class FRESING_PT_turntable(_Panel, bpy.types.Panel):
                          "DONE": "done", "FAILED": "failed", "STOPPED": "stopped"}.get(job.status, job.status)
                 wrap(layout, context, f"Last turntable: {state} (7 Render queue).",
                      icon="CHECKMARK" if job.status == "DONE" else "TIME", alert=job.status == "FAILED")
-            wrap(layout, context, f"Size, shape and file: 6 Animation, '{a.name}'.")
+            wrap(layout, context, f"Size, shape and file: 6 Animation, '{a.name}'; then Make turntable "
+                                  "video again.")
 
 
 CLASSES = (

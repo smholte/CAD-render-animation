@@ -528,6 +528,8 @@ def apply_template(scene, t: Template) -> None:
             lk.group, lk.material, lk.color = gname, look.material, look.color
     live = s.live_update
     s.live_update = False
+    if t.background and "sky_weather" not in t.background:
+        s.sky_weather = "SUN"                # a template made before the weather existed: a sunny sky
     for k, v in t.background.items():
         try:
             setattr(s, k, v)

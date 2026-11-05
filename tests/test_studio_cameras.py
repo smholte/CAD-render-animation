@@ -617,3 +617,61 @@ def test_pictures_folder_is_asked_once():
     render.pictures_dir()
     render.pictures_dir()
     assert render.pictures_dir.cache_info().hits >= 1
+
+
+def test_scenes_and_templates_from_before_the_weather_are_sunny(scene):
+    """A saved scene or template made before task 0017 has no weather: it shows a sunny sky, whatever
+    the weather is now (review finding)."""
+    import json
+    from fresing_render.blender import ops_main
+    s = scene.fresing
+    s.background = "SKY"
+    shot = states.save_shot(scene, "Old sunny")
+    old = json.loads(shot.world)
+    del old["sky_weather"]
+    shot.world = json.dumps(old)
+    t = ops_main._template_from_scene(scene)
+    del t.background["sky_weather"]
+    bpy.ops.fresing.light_look(look="OVERCAST")
+    states.apply_shot(scene, "Old sunny")
+    assert s.sky_weather == "SUN"
+    bpy.ops.fresing.light_look(look="OVERCAST")
+    ops_main.apply_template(scene, t)
+    assert s.sky_weather == "SUN"
+
+
+def test_a_copied_camera_gets_its_own_sharp_spot(crane):
+    """Shift+D copies a camera with its sharp-spot marker: picking or clearing a spot on one must not
+    move or delete the other's (review finding)."""
+    cam = crane.camera
+    part = next(build.iter_parts(crane))
+    ob, loc = _click(crane, cam, part)
+    cameras.set_focus(cam, crane, ob, loc)
+    copy = cam.copy()
+    copy.data = cam.data.copy()
+    cameras.collection(crane).objects.link(copy)
+    shared = cameras.focus_marker(copy)
+    assert shared is cameras.focus_marker(cam)
+    crane.camera = copy
+    cameras.set_focus(copy, crane, ob, loc + Vector((0.0, 0.0, 0.05)))
+    assert cameras.focus_marker(copy) is not shared and cameras.focus_marker(cam) is shared
+    assert (shared.matrix_world.translation - loc).length < 1e-5
+    # back to sharing, then clearing one keeps the other's marker
+    copy.data.dof.focus_object = shared
+    cameras.clear_focus(copy, crane)
+    assert cameras.focus_marker(cam) is shared and shared.name in bpy.data.objects
+
+
+def test_turntable_keeps_a_scene_of_your_own_and_drops_old_jobs(crane):
+    from fresing_render.blender import queue
+    s = crane.fresing
+    states.save_shot(crane, "Turntable")              # the user's own scene with that name
+    mine = s.shots["Turntable"].world
+    a = turntable.make(crane)["animation"]
+    assert a.start_shot != "Turntable" and s.shots[a.start_shot].get(turntable.TAG)
+    assert s.shots["Turntable"].world == mine
+    assert turntable.make(crane)["shot"].name == a.start_shot           # made again: the same scene
+    for status in ("STOPPED", "FAILED", "DONE"):
+        queue.add_job(crane, "ANIMATION", animation=a.name).status = status
+    turntable.drop_unfinished_jobs(crane, a)
+    assert [j.status for j in s.queue] == ["DONE"]

@@ -50,7 +50,7 @@ class FRESING_OT_light_look(bpy.types.Operator):
 
 class FRESING_OT_focus_pick(bpy.types.Operator):
     """Click the spot on the machine that should be sharp; what is far in front of or behind it gets
-    blurred. The spot moves with its part. Esc cancels"""
+    blurred. In pictures the spot moves with its part. Esc cancels"""
 
     bl_idname = "fresing.focus_pick"
     bl_label = "Pick the sharp spot"
@@ -141,7 +141,8 @@ class FRESING_OT_env_simple(bpy.types.Operator):
 
 class FRESING_OT_turntable(bpy.types.Operator):
     """Makes a video of the camera going once round the machine and renders it in the background
-    (7 Render queue). The machine looks as it does now. Change size and shape in 6 Animation, 'Turntable'"""
+    (7 Render queue). The machine looks as it does now. Click it again after changing the machine, or
+    the size, shape or frame rate in 6 Animation, 'Turntable'"""
 
     bl_idname = "fresing.turntable"
     bl_label = "Make turntable video"
@@ -161,7 +162,8 @@ class FRESING_OT_turntable(bpy.types.Operator):
             return {"CANCELLED"}
         info = turntable.make(scene)
         a = info["animation"]
-        queue.add_job(scene, "ANIMATION", animation=a.name)
+        turntable.drop_unfinished_jobs(scene, a)     # else Start queue would render an old one again
+        job_id = queue.add_job(scene, "ANIMATION", animation=a.name).job_id
         msg = (f"Turntable video in 7 Render queue: {info['seconds']:.0f} s, {info['frames']} frames, "
                f"{info['size'].width} × {info['size'].height}")
         note = turntable.slow_note(s)
@@ -171,6 +173,9 @@ class FRESING_OT_turntable(bpy.types.Operator):
             try:
                 queue.start(context)
             except (RuntimeError, OSError) as exc:
+                for i in reversed(range(len(s.queue))):     # nothing started: no job left waiting
+                    if s.queue[i].job_id == job_id:
+                        s.queue.remove(i)
                 self.report({"ERROR"}, str(exc))
                 return {"CANCELLED"}
         s.last_message = msg

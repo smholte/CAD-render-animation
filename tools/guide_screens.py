@@ -11,7 +11,7 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   render   a finished render of the crane (Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=render blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
-  looks    the crane in each of the five light looks, side by side (looks.png; Cycles on the processor):
+  looks    the crane in each of the five light looks, side by side (looks.jpg; Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=looks blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
 
@@ -655,10 +655,11 @@ def render_looks():
         mod("blender.render").render_still(sc, s, "preview", filepath=path)
         log("look", look, f"{time.time() - t:.0f} s")
         tiles += ["-label", label, path]
-    out = os.path.join(OUT, "looks.png")
+    sheet = os.path.join(SCRATCH, "looks.png")
     subprocess.run(["montage", *tiles, "-tile", "3x2", "-geometry", "+6+6", "-pointsize", "18",
-                    "-background", "white", out], check=True)
-    subprocess.run(["convert", out, "-strip", "-quality", "92", out], check=True)
+                    "-background", "white", sheet], check=True)
+    out = os.path.join(OUT, "looks.jpg")
+    subprocess.run(["convert", sheet, "-strip", "-quality", "86", out], check=True)
     log("saved looks", f"{os.path.getsize(out) // 1024} KB")
 
 

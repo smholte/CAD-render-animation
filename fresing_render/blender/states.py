@@ -252,6 +252,8 @@ def apply_settings_json(scene, text: str) -> None:
         data = json.loads(text or "{}")
     except ValueError:
         return
+    if "background" in data and "sky_weather" not in data:
+        data["sky_weather"] = "SUN"          # saved before the weather existed (task 0017): a sunny sky
     live = s.live_update
     s.live_update = False                    # one world rebuild, not one per setting
     try:
