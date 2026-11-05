@@ -40,8 +40,35 @@ def material_items(self, context):
     return _MATERIAL_ITEMS_CACHE
 
 
-FIELD_ITEMS = [(k, v, "") for k, v in R.FIELDS.items()]
-OP_ITEMS = [(k, v, "") for k, v in R.OPS.items()]
+# what each choice of a sorting rule means (shown in the drop-down lists of Sorting rules)
+FIELD_HELP = {
+    "name": "The part's name as in the CAD tree, for example 'BRACKET 40x40'",
+    "path": "The names of every subassembly above the part, then the part's own name",
+    "assembly": "The name of the subassembly the part sits in",
+    "color": "The part's colour in the STEP file, as a hex code such as #F9A800",
+    "is_standard": "'yes' for a bolt, nut, washer or pin the app recognised by its name (DIN/ISO number "
+                   "or a word such as BOLT)",
+    "family": "The kind of fastener: screw, nut, washer, pin or other",
+    "kind": "The fastener type as a code: hex_bolt, socket_cap, hex_nut, washer…",
+    "finish": "The fastener finish read from its name: galvanized, stainless, black, zinc…",
+    "standard": "The DIN or ISO number of a fastener, for example ISO 4017",
+    "size": "The thread size of a fastener, for example M12",
+    "property_class": "The strength class of a fastener, for example 8.8 or 12.9",
+    "part_type": "The part type the part-type library found in the name: profile, bearing, hose…",
+    "cad_material": "The material or appearance name in the STEP file (Fusion writes it)",
+}
+OP_HELP = {
+    "contains": "The text appears anywhere in it",
+    "equals": "It is exactly this text (capitals do not matter)",
+    "starts": "It starts with this text",
+    "ends": "It ends with this text",
+    "glob": "It fits a pattern: * is any text, ? is one character, for example M6*20",
+    "regex": "It fits a regular expression (for experts)",
+    "any": "It has any value at all, for example every part with a CAD colour",
+    "none": "It is empty, for example every part without a CAD colour",
+}
+FIELD_ITEMS = [(k, v, FIELD_HELP.get(k, "")) for k, v in R.FIELDS.items()]
+OP_ITEMS = [(k, v, OP_HELP.get(k, "")) for k, v in R.OPS.items()]
 FORMAT_ITEMS = [(k, v["label"], "") for k, v in presets.FORMATS.items()]
 RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 
@@ -191,7 +218,8 @@ class FRSchemeLook(bpy.types.PropertyGroup):
 
 
 class FRScheme(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Scheme", update=_renamer("scheme"))
+    name: StringProperty(name="Name", default="Scheme", update=_renamer("scheme"),
+                         description="Name of the paint scheme, also used in saved scenes. Double-click to rename")
     looks: CollectionProperty(type=FRSchemeLook)
 
 
@@ -206,7 +234,7 @@ class FRRule(bpy.types.PropertyGroup):
                      description="How it is compared with the value ('contains', 'is', 'starts with'…)")
     value: StringProperty(name="Value",
                           description="The text to look for (capitals do not matter). Not used by "
-                                      "'has any value' and 'has no value'")
+                                      "'has any value' and 'is empty'")
     enabled: BoolProperty(name="On", default=True,
                           description="Switch the rule on or off. A rule that is off is skipped when sorting")
     note: StringProperty(name="Note", description="Your own note about this rule (not used for sorting)")
@@ -338,7 +366,9 @@ class FRUid(bpy.types.PropertyGroup):
 
 
 class FRVisSet(bpy.types.PropertyGroup):
-    name: StringProperty(name="Name", default="Visibility", update=_renamer("visibility"))
+    name: StringProperty(name="Name", default="Visibility", update=_renamer("visibility"),
+                         description="Name of the visibility set, also used in saved scenes. Double-click to "
+                                     "rename")
     hidden: CollectionProperty(type=FRUid)
 
 
@@ -517,8 +547,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                     "'Paint faces' and click faces on the model. Empty: the group selected in the list above")
     face_only_copy: BoolProperty(
         name="Only this copy", default=False,
-        description="Paint faces, choose a face group or go back to the whole part on the clicked copy "
-                    "only; the other copies of this part keep their look")
+        description="Ticked: painting, Other group and Whole part change only the copy of the part you "
+                    "click; the other copies keep their look. Unticked: every copy gets the same faces")
     face_painting: BoolProperty(default=False,
                                 description="'Paint faces' is running in the view")
     # rule set (task 0015): the name of the rule set this project uses ('' = a project made before

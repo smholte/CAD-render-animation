@@ -26,6 +26,7 @@ import bpy
 
 from ..core import rule_sets as RS
 from ..core import rules as R
+from ..core.words import plural, verb
 from . import build, logic
 
 ENV_FOLDER = "FRESING_RULE_SETS_DIR"         # tests: use this folder instead of the library
@@ -321,21 +322,25 @@ def describe_preview(p: dict) -> list[str]:
     """Lines for the confirm dialog: '312 parts change group', '4 new groups'..."""
     lines = []
     n = p["moved"]
-    lines.append(f"{n} of {p['parts']} parts change group" if n else "No part changes group")
+    lines.append(f"{n} of {plural(p['parts'], 'part')} {verb(n, 'changes', 'change')} group" if n
+                 else "No part changes group")
     if p["faces_moved"]:
-        lines.append(f"{p['faces_moved']} painted face sets change group")
+        k = p["faces_moved"]
+        lines.append(f"{plural(k, 'painted face set')} {verb(k, 'changes', 'change')} group")
     if p["added"]:
         k = len(p["added"])
-        lines.append(f"{k} new group{'s' if k != 1 else ''}: " + ", ".join(p["added"][:4])
+        lines.append(f"{plural(k, 'new group')}: " + ", ".join(p["added"][:4])
                      + (" …" if k > 4 else ""))
     if p["gone"]:
         k = len(p["gone"])
-        lines.append(f"{k} group{'s go' if k != 1 else ' goes'} away (no parts left): " + ", ".join(p["gone"][:4])
+        lines.append(f"{plural(k, 'group')} {verb(k, 'goes', 'go')} away (no parts left): " + ", ".join(p["gone"][:4])
                      + (" …" if k > 4 else ""))
     if p["looks"]:
-        lines.append(f"{p['looks']} group{'s get' if p['looks'] != 1 else ' gets'} another material or colour")
+        k = p["looks"]
+        lines.append(f"{plural(k, 'group')} {verb(k, 'gets', 'get')} another material or colour")
     if p["by_hand"]:
-        lines.append(f"{p['by_hand']} parts you put in a group by hand stay there")
+        k = p["by_hand"]
+        lines.append(f"{plural(k, 'part')} you put in a group by hand {verb(k, 'stays', 'stay')} there")
     lines.append(f"Unsorted: {p['unsorted_now']} now, {p['unsorted']} after")
     return lines
 
