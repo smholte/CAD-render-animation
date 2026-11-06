@@ -326,8 +326,16 @@ def s_zero_clicked():
     check("Tools from the program adds T1 and T2", r == {"FINISHED"} and sorted(t.number for t in c.tools) == [1, 2],
           [t.number for t in c.tools])
     c.tools_index = next(i for i, t in enumerate(c.tools) if t.number == 2)
+    win, area, region, sb = ui()
+    area.spaces.active.region_3d.view_location = Vector((0.56, 0.0, 0.12))     # the carousel in the middle
+    redraw()
+    return 0.8
+
+
+@step
+def s_click_t2():
     deselect()
-    click(*to_window(find("TOOL T2 BALL D4").matrix_world @ Vector((0, 0, 0.015))))
+    click(*to_window(find("TOOL T2 BALL D4").matrix_world @ Vector((0, 0, 0.012))))
     return 0.8
 
 
@@ -340,9 +348,30 @@ def s_tool_part():
     t2 = next(t for t in c.tools if t.number == 2)
     check("'Use clicked part' makes the carousel's ball mill T2", r == {"FINISHED"} and t2.obj is find("TOOL T2 BALL D4"))
     next(t for t in c.tools if t.number == 1).obj = find(T1)
+    win, area, region, sb = ui()
+    area.spaces.active.region_3d.view_location = Vector((0.1, 0.0, 0.07))
+    # for the user guide picture: only the CNC machine panel (a top-level copy, folds open)
+    for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
+        cls = getattr(bpy.types, n)
+        if getattr(cls, "bl_parent_id", ""):
+            bpy.utils.unregister_class(cls)
+    for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
+        bpy.utils.unregister_class(getattr(bpy.types, n))
+    mod("blender.ui")._OPEN_FOLDS = True
+    base = mod("blender.ui_gcode").FRESING_PT_cnc
+    bpy.utils.register_class(type("FRESING_PT_cnc_alone", (base,), {
+        "bl_idname": "FRESING_PT_cnc_alone", "bl_parent_id": "", "bl_options": set()}))
     redraw()
+    wiggle()
+    return 1.5
+
+
+@step
+def s_build():
+    sc = bpy.context.scene
     sidebar_shot("panel4_cnc", 1400)
     print_png("panel4_cnc")
+    mod("blender.ui")._OPEN_FOLDS = False
     r = op("fresing.anim_build", play=False)
     check("Build: finished", r == {"FINISHED"}, sc.fresing.last_message)
     return 1.0
@@ -381,8 +410,8 @@ def s_playing():
     # the step's panel (6 Animation) for the guide
     a = mod("blender.animation").active(sc)
     STATE["frames"] = sc.frame_end
-    check("the video is as long as the program", abs((sc.frame_end - 1) / 25 - a.blocks[0].duration) < 0.05,
-          (sc.frame_end, a.blocks[0].duration))
+    check("the video is as long as the program (+ hold at the end)",
+          abs((sc.frame_end - 1) / 25 - a.blocks[0].duration - a.tail) < 0.05, (sc.frame_end, a.blocks[0].duration))
     for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
         cls = getattr(bpy.types, n)
         if getattr(cls, "bl_parent_id", ""):

@@ -551,7 +551,7 @@ def test_a_joint_close_to_its_cad_position_is_not_snapped_to_it(scene):
     for v in (0.05 * MM, 0.01 * MM, 0.0999 * MM, -0.03 * MM, 0.0, 0.2 * MM):
         joints.set_value(j, v)
         bpy.context.view_layer.update()
-        assert j.motion.matrix_world.translation.x - j.frame.matrix_world.translation.x == pytest.approx(v, abs=1e-7)
+        assert j.motion.matrix_world.translation.x - j.frame.matrix_world.translation.x == pytest.approx(v, abs=2e-7)
 
 
 def test_old_joint_drivers_are_upgraded(scene):
@@ -566,4 +566,4 @@ def test_old_joint_drivers_are_upgraded(scene):
     assert j.motion.location.z == 0.0                            # Blender's small-number problem
     assert joints.upgrade_drivers(scene) == 1 and joints.driver_biased(j)
     bpy.context.view_layer.update()
-    assert j.motion.location.z == pytest.approx(0.05 * MM, abs=1e-8)
+    assert j.motion.location.z == pytest.approx(0.05 * MM, abs=2e-7)        # float32 driver: 0.0002 mm
