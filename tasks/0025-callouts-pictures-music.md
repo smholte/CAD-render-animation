@@ -1,6 +1,6 @@
 # 0025 – Labels pointing at parts, picture cards and music in videos
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Status:** waiting (0018) · **Branch:** `task/0025-callouts-pictures-music`
+**Who:** worker · **Model:** Sonnet · effort Medium · **Status:** done (0.2.27) · **Branch:** `task/0025-callouts-pictures-music`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/video.py`
 (from 0018), new `blender/callouts.py`, `blender/render.py`, `queue.py` / `queue_runner.py` (video
 assembly only), the 5 Scene & Render part of `blender/ui.py`, `blender/props.py` (additive),
@@ -50,10 +50,29 @@ steps, and music under the video.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker (Claude Code on the web, Sonnet), 6 Nov 2026
 
 **What changed:**
+- `core/callouts.py` (no Blender): fades, box placing, the line, picture-card frames, music plan. `blender/callouts.py`:
+  the point (part + local position) is projected per frame with the camera matrices; hidden parts hide their label;
+  `ops_callouts.py`, `ui_callouts.py` (5 Scene & Render > Labels; 6 Animation > Pictures, Music; nothing in `ui_motion.py`).
+- `video.py`: label lines (one transparent picture per stretch of equal frames) and boxes (text strips with box), picture
+  cards, a sound strip with keyframed volume; `queue.py` works out the labels after the frames and encodes AAC audio.
+  Stills get labels through `finish_picture`.
+- PC check line `video.labels`; real-app test `tools/ui_test_callouts.py`; guide chapters; changelog 0.2.27.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core test machine, test crane, no graphics card):
+- `tests/test_video_labels.py`, 18 tests: point within 2 px of Blender's own projection in every frame of a moving boom, no
+  overlapping boxes, hidden part hides its label, step fade, stills, picture at its frames, box and line in video frames,
+  queued MP4 with title card + picture + music: audio as long as the video, quiet start, fade out. ~4 min.
+- Tooltip check: 363 found, 0 missing.
+- Not run here: the real-app test and the screenshots (Blender download blocked); GitHub runs the test.
 
 **Open points / follow-up tasks:**
+- Pictures of the new panels for the user guide are missing (needs real Blender: `tools/guide_screens.py`; the test also writes
+  `callouts_panel_5/6.png`). The guide text has no pictures for them yet.
+- Click-to-add in the real 3D view was not tried (the script path was).
+- Labels do not check whether the spot is hidden behind another part. Long labels are not wrapped.
+- "Between steps" = leave a gap and start the picture there (no automatic pause of the animation).
+- Tests that draw text run in their own process (`fresh_process`) because of a Blender-as-module quirk.
+- Owner test on his PC: a real video with labels, a picture card and music.

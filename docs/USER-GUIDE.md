@@ -1019,6 +1019,24 @@ Words across the picture, for a draft you send before the final render.
 
 It works for stills and for MP4 videos (not for PNG frames).
 
+### Labels
+
+A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
+25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
+
+1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
+2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
+3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
+   place it.
+4. The spot belongs to the part you clicked: when that part moves in an animation, the line follows it in
+   every frame. When the part is hidden (a **Hide** step, or its subassembly is hidden), its label is hidden too.
+5. **Only during**: pick an animation step and the label shows only while that step happens, fading in
+   and out. Empty: all the time. In stills every label that is on shows.
+6. **Move the point** clicks a new spot; **Select part** shows which part the label points at.
+   **Text size** makes all words bigger or smaller; **Draw labels in renders** switches them all off.
+
+Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
+
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -1124,6 +1142,24 @@ to PNG frames.
 
 The last line shows how long the finished video is: the cards come on top of the animation's own
 length.
+
+**Pictures and music**
+
+The **Pictures** fold shows a photo or a diagram for a few seconds over the video; the **Music** fold puts
+a music file under it. Both only go into MP4 videos.
+
+- **Add a picture**, pick the file (PNG, JPG, TIF, BMP or WebP). **Starts at** is counted from the start of
+  the animation (a title card is put in front of that), **Seconds** says how long it stays, with a short
+  fade in and out. **Shown**: **Full screen** (the picture fills the video, in the card colour) or **In a
+  corner** (a small picture; the animation goes on). **Caption** is an optional line of text.
+- To show a picture *between* two steps, leave a gap between them (start the second step a few seconds
+  later) and start the picture at the end of the first one, full screen.
+- **Music under the video**: pick a **Sound file** (WAV, MP3, OGG, FLAC or M4A). **Starts at** is where
+  in the video it begins, **Volume** how loud, **Fade in** / **Fade out** how long it takes to come up and
+  to go away. It is cut at the end of the video; a file shorter than the video just ends early.
+
+Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
+plays everywhere.
 
 **Make the video**
 

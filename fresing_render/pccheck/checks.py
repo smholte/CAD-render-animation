@@ -402,7 +402,7 @@ def _ob_v(scene, name):
     raise RuntimeError(f"the test model has no part '{name}'")
 
 
-@line("machining.waycover", "Way covers follow a machine axis", "0.2.27", modes=(F,),
+@line("machining.waycover", "Way covers follow a machine axis", "0.2.28", modes=(F,),
       what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm; the 5-section "
            "way-cover model with its housing counting: 105 mm steps")
 def machining_waycover(ctx):
@@ -895,6 +895,58 @@ def queue_video(ctx):
     frames = sorted(f for f in os.listdir(job.output[:-4]) if f.endswith(".png"))
     ctx.picture(os.path.join(job.output[:-4], frames[-1]), "video_last", "MP4 video, last frame (Draft)")
     return f"{len(frames)} frames, {os.path.getsize(job.output) // 1024} KB"
+
+
+@line("video.labels", "Labels with lines on a picture and an MP4 with music", "0.2.27", requires=("import.crane",),
+      what="A label points at a part of the crane in a picture; a short MP4 gets a picture card and music "
+           "(a sound track as long as the video)")
+def video_labels(ctx):
+    import wave
+
+    import numpy as np
+
+    from ..blender import callouts, queue
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s)
+    s.out_file_type, s.background = "PNG", "COLOR"
+    boom = _ob(scene, "BOOM")
+    callouts.add(scene, boom, boom.matrix_world.translation, "Boom")
+    out = {}
+    for on in (False, True):
+        s.callouts_on = on
+        job = {"id": f"pl{int(on)}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+               "out_dir": os.path.join(ctx.work, "labels"), "label": "PC check", "watermark": False}
+        out[on] = queue.run_job(scene, job, lambda *a: None, lambda: False)
+    a, b = runner.read_pixels(out[False]), runner.read_pixels(out[True])
+    _check(float(np.abs(b - a).max()) > 0.2, "the label is not on the picture")
+    ctx.picture(out[True], "labels", "A label with a line to the boom (processor, draft)")
+    # a short video with a picture in a corner and music under it
+    s.callouts_on = True
+    j = _boom_joint(scene)
+    an = _short_animation(scene, "PC check music", j.name, seconds=0.2, quality="draft")
+    an.video, an.fps = "MP4", "24"
+    card_file = os.path.join(ctx.work, "PC check card.png")
+    runner.write_png(card_file, np.full((40, 80, 3), (0.9, 0.1, 0.1), np.float32))
+    c = an.cards.add()
+    c.path, c.duration, c.mode = card_file, 0.2, "CORNER"
+    wav = os.path.join(ctx.work, "PC check music.wav")
+    with wave.open(wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(22050)
+        w.writeframes((np.sin(np.arange(22050 * 3) * 0.12) * 12000).astype("<i2").tobytes())
+    an.music_on, an.music_file, an.music_fade_in, an.music_fade_out = True, wav, 0.1, 0.1
+    job = _queue_job(ctx, scene, "ANIMATION", animation=an.name, minutes=10)
+    _check(job.output.endswith(".mp4") and os.path.getsize(job.output) > 1000, "no MP4 video was made")
+    import aud
+    sound = aud.Sound(job.output)
+    seconds = sound.length / sound.specs[0]
+    frames = len([f for f in os.listdir(job.output[:-4]) if f.endswith(".png")])
+    _check(abs(seconds - frames / 24.0) < 0.15, f"the music is {seconds:.2f} s long, the video {frames / 24.0:.2f} s")
+    return f"label drawn; video with music: {frames} frames, sound {seconds:.2f} s"
 
 
 @line("queue.eevee", "Short EEVEE video through the queue", "0.2.4", (Q, F), requires=("import.crane",),

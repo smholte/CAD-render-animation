@@ -1,6 +1,6 @@
 # 0034 – Way covers: telescopic covers that follow a machine axis, set up in one go
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.27)
+**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.28)
 **Branch:** `task/0034-waycover`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** Machining (new files `waycover.py`, `ops_waycover.py`,
 `ui_waycover.py`; the sub-panel hangs under 4 Motion like Milling does, with the smallest additive hook).
@@ -111,7 +111,7 @@ number of sections and the shares change.
   The owner's file is at the middle of its travel (376.5 mm; he gave 166.5 mm closed, 586.5 mm open = 420 mm), so
   it is set up with Housing counts, axis limits -210…+210 mm: steps of 105 mm, gaps 10 / 62.5 / 115 mm.
 - Guide chapter "Way covers", CHANGELOG, PC-check line `machining.waycover` (`MIN_LINES_FULL` 33), real-app test
-  `tools/ui_test_waycover.py` (`MIN_CHECKS` 12), CLAUDE.md layout/lessons, version 0.2.27.
+  `tools/ui_test_waycover.py` (`MIN_CHECKS` 12), CLAUDE.md layout/lessons, version 0.2.28.
 
 **Tested and measured** (4-core Linux session, bpy module, no Blender program, no graphics card):
 - `tests/test_waycover.py`, 17 tests: 500 mm / 5 sections = 100…500 mm; Housing counts 0/125/250/375/500; 3 and 4
