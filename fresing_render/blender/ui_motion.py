@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import bpy
 
-from . import animation, build, cylinders, joints, queue
+from . import animation, build, cylinders, joints, linkages, queue
 from ..core.words import plural
 from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props,
                  steps, use_button, wrap)
@@ -143,6 +143,9 @@ def _draw_joints(context, layout, s):
             sub = box.row(align=True)
             sub.enabled = not joints.swap_check(scene, j)      # the tooltip says why not
             sub.operator("fresing.joint_swap", text="Swap order", icon="UV_SYNC_SELECT")
+        mech = linkages.drives(scene, j)
+        if mech is not None:
+            wrap(box, context, f"Drives mechanism '{mech.name}'", icon="LINKED", inset=12)
         lead = joints.leader(scene, j)
         row = box.row(align=True)
         row.scale_y = BIG
@@ -384,6 +387,144 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
         row.operator("fresing.cylinder_parts", text="Select parts", icon="RESTRICT_SELECT_OFF").action = "SELECT"
 
 
+# -----------------------------------------------------------------------------
+# mechanisms (task 0014)
+# -----------------------------------------------------------------------------
+
+MECH_STEPS = {
+    "SCISSOR": ["Click the base (the frame it stands on), press Base",
+                "Select every arm and the platform (Ctrl+click in the view or in 2 Structure)",
+                "Add mechanism: the pins and the rollers are found by themselves",
+                "Set the height (or the drive angle) below"],
+    "FOURBAR": ["Click the base (the part the two arms turn on), press Base",
+                "Select the crank, the coupler and the rocker; click the one that drives last",
+                "Add mechanism: the four pins are found by themselves"],
+    "SLIDER": ["Click the base (with the crank's bearing and the guide), press Base",
+               "Select the crank, the rod and the slider; click the crank last",
+               "Add mechanism: the pins and the slide are found by themselves"],
+    "OTHER": ["Click the base, press Base",
+              "Select every moving link (each a subassembly); click the one that drives last",
+              "Add mechanism: pins are found where two links share a hole or shaft"],
+}
+
+
+def _mech_icon(m) -> str:
+    return {"SCISSOR": "SORT_DESC", "FOURBAR": "MOD_SIMPLEDEFORM", "SLIDER": "CON_LOCLIKE"}.get(m.kind, "LINKED")
+
+
+class FRESING_UL_mechanisms(bpy.types.UIList):
+    """Mechanisms, with the height of a scissor lift or the drive joint's value."""
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "name", text="", emboss=False, icon=_mech_icon(item))
+        sub = row.row()
+        sub.alignment = "RIGHT"
+        if not linkages.is_valid(item):
+            sub.label(text="(broken)", icon="ERROR")
+        elif item.status:
+            sub.label(text="", icon="ERROR")
+        elif linkages.has_height(item):
+            sub.label(text=_mm(linkages.height_now(context.scene, item)))
+
+
+class FRESING_PT_mechanisms(_Panel, bpy.types.Panel):
+    bl_label = "Mechanisms"
+    bl_parent_id = "FRESING_PT_motion"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.label(icon="LINKED")
+
+    def draw_header_preset(self, context):
+        n = len(context.scene.fresing.mechanisms)
+        header_status(self.layout, plural(n, "mechanism") if n else "none")
+
+    def draw(self, context):
+        from .ops_linkages import picked_links
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        layout.prop(s, "mech_kind", text="Type")
+        if not s.mechanisms:
+            steps(layout, context, MECH_STEPS.get(s.mech_kind, MECH_STEPS["OTHER"]))
+        row = layout.row(align=True)
+        sub = row.row(align=True)
+        sub.ui_units_x = 3.6
+        sub.operator("fresing.mechanism_pick_base", text="Base", icon="RESTRICT_SELECT_OFF")
+        if s.mech_base is not None:
+            row.label(text=linkages.label(s.mech_base), icon="CHECKMARK")
+            row.operator("fresing.mechanism_pick_base", text="", icon="X").clear = True
+        else:
+            row.label(text="the rest of the subassembly", icon="BLANK1")
+        links = picked_links(context)
+        if links:
+            wrap(layout, context, f"Links: {plural(len(links), 'subassembly')} selected ({_names(links)})",
+                 icon="RESTRICT_SELECT_OFF")
+        else:
+            wrap(layout, context, "No links selected: select the moving parts", icon="RESTRICT_SELECT_ON")
+        primary(layout, "fresing.mechanism_add", "Add mechanism", "LINKED", MEDIUM)
+
+        if not s.mechanisms:
+            return
+        layout.separator()
+        row = layout.row()
+        row.template_list("FRESING_UL_mechanisms", "", s, "mechanisms", s, "mechanisms_index",
+                          rows=list_rows(len(s.mechanisms), 2, 6))
+        row.column(align=True).operator("fresing.mechanism_remove", text="", icon="REMOVE")
+        m = s.mechanisms[s.mechanisms_index] if 0 <= s.mechanisms_index < len(s.mechanisms) else None
+        if m is None:
+            return
+        if not linkages.is_valid(m):
+            box = layout.box()
+            box.alert = True
+            wrap(box, context, f"This mechanism is broken: {linkages.broken_reason(scene, m)}", icon="ERROR")
+            box.operator("fresing.mechanism_remove", text="Remove it (parts go back to their place)")
+            return
+        _draw_mechanism(context, layout, scene, m)
+
+
+def _draw_mechanism(context, layout, scene, m) -> None:
+    box = layout.box()
+    box.label(text=f"{m.name} ({linkages.kind_label(m.kind)})", icon=_mech_icon(m))
+    j = linkages.input_joint(scene, m)
+    if linkages.has_height(m):
+        row = box.row(align=True)
+        row.scale_y = BIG
+        row.enabled = not j.follows
+        row.prop(m, "height", text="Height")
+        row = box.row(align=True)
+        row.enabled = not j.follows
+        for t, text in (("LOW", "Lowest"), ("CAD", "CAD"), ("HIGH", "Highest")):
+            row.operator("fresing.mechanism_height", text=text).target = t
+        lo, hi = linkages.height_range(scene, m)
+        wrap(box, context, f"Height {_mm(lo)} … {_mm(hi)} (pin to pin, within the drive joint's limits)", inset=12)
+    row = box.row(align=True)
+    row.enabled = not j.follows
+    row.prop(j.motion, f'["{joints.VALUE}"]', text="Drive angle" if j.kind == "ROTATE" else "Drive")
+    row.operator("fresing.mechanism_drive_joint", text="", icon="CON_PIVOT")
+    if j.follows:
+        wrap(box, context, f"'{j.name}' follows '{j.follows}': move that one", icon="LINKED", inset=12)
+    else:
+        wrap(box, context, f"Moved by joint '{j.name}' (also in poses, animation steps, by a cylinder)",
+             icon="CON_PIVOT", inset=12)
+    if m.status:
+        wrap(box, context, m.status, icon="ERROR", alert=True, inset=12)
+    body = fold(layout, "fr_mechanism_setup", "Set-up: links and pins", icon="PREFERENCES")
+    if body:
+        d = linkages.setup(m)
+        wrap(body, context, f"{plural(len(m.links) - 1, 'link')}, {plural(len(d.get('pins', [])), 'pin')}"
+                            + (f", {plural(len(d['slots']), 'roller')}" if d.get("slots") else "")
+                            + (f", {plural(len(d['slides']), 'slider')}" if d.get("slides") else ""),
+             icon="INFO")
+        for k, ln in enumerate(m.links):
+            if k == 0:
+                wrap(body, context, f"Base: {linkages.label(m.base) if m.base else '-'}", icon="BLANK1")
+                continue
+            wrap(body, context, f"{k}. {ln.name}" + ("  (drive)" if ln.empty is None else ""), icon="BLANK1")
+        body.operator("fresing.mechanism_select", text="Select parts", icon="RESTRICT_SELECT_OFF")
+
+
 class FRESING_UL_poses(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
@@ -490,7 +631,7 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 # =============================================================================
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
-              "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO"}
+              "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -645,6 +786,23 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         sub.scale_y = MEDIUM
                         sub.prop(b, "to_stroke", text="To")
                         box.label(text=f"Stroke 0 … {_mm(c.full_stroke)}; moves '{j.name}'")
+            elif b.kind == "MECHANISM":
+                col.prop_search(b, "mechanism", s, "mechanisms", text="Lift", icon="SORT_DESC")
+                m = s.mechanisms.get(b.mechanism)
+                if m is not None:
+                    if not linkages.is_valid(m) or not linkages.has_height(m):
+                        wrap(box, context, "Only a scissor lift has a height: pick one" if linkages.is_valid(m)
+                             else "This mechanism is broken", icon="ERROR", alert=True, inset=12)
+                    else:
+                        col = split_props(box)
+                        col.prop(b, "use_from", text="From where it is")
+                        if not b.use_from:
+                            col.prop(b, "from_height", text="From")
+                        sub = col.row(align=True)
+                        sub.scale_y = MEDIUM
+                        sub.prop(b, "to_height", text="To")
+                        lo, hi = linkages.height_range(scene, m)
+                        box.label(text=f"Height {_mm(lo)} … {_mm(hi)}")
             elif b.kind == "POSE":
                 col.prop_search(b, "pose", s, "poses", text="Pose", icon="ARMATURE_DATA")
             elif b.kind == "CAMERA":
@@ -804,5 +962,6 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
 
 CLASSES = (
     FRESING_UL_joints, FRESING_UL_cylinders, FRESING_UL_poses, FRESING_UL_shots, FRESING_UL_anims, FRESING_UL_blocks,
-    FRESING_UL_queue, FRESING_PT_motion, FRESING_PT_cylinders, FRESING_PT_poses, FRESING_PT_shots, FRESING_PT_animation, FRESING_PT_queue,
+    FRESING_UL_queue, FRESING_UL_mechanisms, FRESING_PT_motion, FRESING_PT_cylinders, FRESING_PT_mechanisms,
+    FRESING_PT_poses, FRESING_PT_shots, FRESING_PT_animation, FRESING_PT_queue,
 )

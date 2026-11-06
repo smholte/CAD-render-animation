@@ -81,6 +81,8 @@ def block_label(b, scene=None) -> str:
         return f"Run {b.joint}" if b.joint else "Run motor"
     if b.kind == "CYLINDER":
         return f"Move {b.cylinder}" if b.cylinder else "Move cylinder"
+    if b.kind == "MECHANISM":
+        return f"Lift {b.mechanism}" if b.mechanism else "Lift height"
     if b.kind == "POSE":
         return f"To pose {b.pose}" if b.pose else "To pose"
     if b.kind == "CAMERA":
@@ -241,6 +243,10 @@ def clear_keys(scene, restore: bool = True) -> None:
         cam = bpy.data.objects.get(s.anim_restore_camera)
         if cam is not None:
             scene.camera = cam
+    if was_baked:
+        from . import linkages
+        linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
+    if restore and was_baked:
         try:
             bpy.context.view_layer.update()
         except Exception:
@@ -482,6 +488,52 @@ def bake(scene, anim) -> dict:
             _merge(keys, f, v, "LINEAR" if f < f0 + span else "CONSTANT")
         jstate[j.name] = v
 
+    def mechanism_move(b, f0, f1):
+        """Keys for a Lift height step: the platform's height eases from -> to, the drive joint gets its value
+        on every frame (worked out by the mechanism's solver, walking along)."""
+        from ..core import linkages as K
+        from . import linkages
+        m = linkages.find(scene, b.mechanism) if b.mechanism else None
+        if m is None:
+            warnings.append(f"'{block_label(b)}': mechanism '{b.mechanism}' not found" if b.mechanism else
+                            f"'{block_label(b)}': pick a mechanism")
+            return
+        if not linkages.is_valid(m) or not linkages.has_height(m):
+            warnings.append(f"'{block_label(b)}': '{m.name}' has no platform height (only scissor lifts do)"
+                            if linkages.is_valid(m) else f"'{block_label(b)}': '{m.name}' is broken")
+            return
+        j = linkages.input_joint(scene, m)
+        if j.follows:
+            warnings.append(f"'{block_label(b)}': '{j.name}' follows another joint: move that one instead")
+            return
+        if busy_until.get(j.name, 0) > f0:
+            warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
+        span = max(1, f1 - f0)
+        busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + span)
+        _lk, h, sign = linkages.linkage_of(m)
+        lo, hi = sorted(sign * x for x in joints.limits(j))
+        sol = linkages.solver(m).copy()
+        try:
+            sol.solve(sign * jstate[j.name])
+        except K.Unreachable:
+            pass
+        h0 = h.of(sol.poses) if b.use_from else b.from_height
+        keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
+        short = ""
+        v = sign * sol.value
+        for f in range(f0, f0 + span + 1):
+            target = h0 + (b.to_height - h0) * ease(b.easing, (f - f0) / span)
+            try:
+                v = sign * sol.value_for(h, target, lo, hi)
+            except K.Unreachable as exc:
+                short = short or str(exc)
+                v = sign * sol.value
+            _merge(keys, f, v, "LINEAR" if f < f0 + span else "CONSTANT")
+        jstate[j.name] = v
+        if short:
+            warnings.append(f"'{block_label(b)}': the platform cannot reach {b.to_height * 1000:.0f} mm "
+                            f"({short}); it stops at {h.of(sol.poses) * 1000:.0f} mm")
+
     def outside(stroke, full):
         return stroke < -1e-6 or stroke > full + 1e-6
 
@@ -518,6 +570,8 @@ def bake(scene, anim) -> dict:
             motor_run(j, b, f0, f1)
         elif b.kind == "CYLINDER":
             cylinder_move(b, f0, f1)
+        elif b.kind == "MECHANISM":
+            mechanism_move(b, f0, f1)
         elif b.kind == "POSE":
             pose = s.poses.get(b.pose)
             if pose is None:
@@ -569,6 +623,7 @@ def bake(scene, anim) -> dict:
             continue
         cb = _channelbag(j.motion, "OBJECT")
         _write(cb, f'["{joints.VALUE}"]', 0, keys)
+    warnings += _mechanism_keys(scene, jkeys, f_end)
     for name, keys in okeys.items():
         ob = by_name.get(name)
         if ob is None:
@@ -648,6 +703,54 @@ def bake(scene, anim) -> dict:
     s.anim_baked = anim.name
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
+
+
+def _mechanism_keys(scene, jkeys: dict, f_end: int) -> list[str]:
+    """Mechanisms (task 0014): every link gets its place on every frame its drive joint moves (the solver walks
+    along the frames, so it never jumps to another assembly mode). Returns warnings."""
+    from ..core import linkages as K
+    from . import linkages
+    warnings = []
+    for m in scene.fresing.mechanisms:
+        if not linkages.is_valid(m):
+            continue
+        j = linkages.input_joint(scene, m)
+        top, k, c = joints.chain_affine(scene, j)
+        if top is None or top.name not in jkeys or top.motion is None:
+            continue                                   # its drive joint does not move: the links stay put
+        fc = None
+        ad = top.motion.animation_data
+        if ad is not None and ad.action is not None:
+            cb = _channelbag(top.motion, "OBJECT")
+            fc = cb.fcurves.find(f'["{joints.VALUE}"]', index=0)
+        if fc is None:
+            continue
+        _lk, _h, sign = linkages.linkage_of(m)
+        sol = linkages.solver(m).copy()
+        rows = []
+        stuck = ""
+        for f in range(1, f_end + 1):
+            v = sign * (k * fc.evaluate(f) + c)
+            try:
+                sol.solve(v)
+            except K.Unreachable as exc:
+                stuck = stuck or f"frame {f}: {exc}"
+            rows.append((f, list(sol.poses)))
+        if stuck:
+            warnings.append(f"Mechanism '{m.name}' cannot follow its drive joint everywhere ({stuck}); it stops at "
+                            "the last position it can reach")
+        for idx, ln in enumerate(m.links):
+            e = ln.empty
+            if e is None:
+                continue
+            cb = _channelbag(e, "OBJECT")
+            for path, i, comp in (("location", 0, 1), ("location", 1, 2), ("rotation_euler", 2, 0)):
+                vals = [(f, p[idx][comp]) for f, p in rows]
+                keys = [(f, val, "LINEAR", "AUTO") for n, (f, val) in enumerate(vals)
+                        if n in (0, len(vals) - 1) or not (abs(val - vals[n - 1][1]) < 1e-12
+                                                           and abs(val - vals[n + 1][1]) < 1e-12)]
+                _write(cb, path, i, keys)
+    return warnings
 
 
 def active(scene):

@@ -165,6 +165,15 @@ def arm_joint(scene, c):
     """(joint, '') – the joint the stroke drives: the one that moves the rod pin – or (None, reason)."""
     if not is_valid(c):
         return None, "This cylinder is broken (one of its markers was deleted): remove it and add it again"
+    from . import linkages
+    mech = linkages.cylinder_mechanism(scene, c)
+    if mech is not None:                      # pins on a mechanism's links (task 0014): drive its input joint
+        j = linkages.input_joint(scene, mech)
+        if j.follows:
+            return None, f"'{j.name}' (drives '{mech.name}') follows '{j.follows}': it cannot be driven by the cylinder"
+        if joints.is_motor(j):
+            return None, f"'{j.name}' (drives '{mech.name}') is a motor: it cannot be driven by a cylinder"
+        return j, ""
     mover = _mover_above(c.pin.parent)
     if mover is None:
         return None, ("Nothing moves the rod's pin yet: add a joint for the arm (Add rotate joint above), "
@@ -203,6 +212,11 @@ def drive(scene, c, j=None) -> C.Drive:
         j, reason = arm_joint(scene, c)
         if j is None:
             raise RuntimeError(reason)
+    from . import linkages
+    mech = linkages.cylinder_mechanism(scene, c)
+    if mech is not None and linkages.input_joint(scene, mech) == j:
+        return linkages.Drive(scene, mech, c.frame.matrix_world.translation.copy(), c.frame.parent,
+                              c.pin.matrix_world.translation.copy(), c.pin.parent)
     fw = j.frame.matrix_world.inverted()
     mw = j.motion.matrix_world.inverted()
     b = fw @ c.frame.matrix_world.translation               # barrel pin: fixed relative to the joint's frame
@@ -383,6 +397,11 @@ def check_parts(scene, barrel, rod, stages=(), cylinder=None) -> str:
             other = cylinder_of_object(scene, ob)
             if other is not None and (cylinder is None or other.name != cylinder.name):
                 return f"'{label(ob)}' is already part of cylinder '{other.name}'"
+            from . import linkages
+            mech = linkages.mechanism_of_object(scene, ob)
+            if mech is not None:
+                return (f"'{label(ob)}' is a link of mechanism '{mech.name}': pick the cylinder's own barrel and "
+                        "rod (its pins go on the mechanism's arms)")
     every = [ob for _r, objs in groups for ob in objs]
     for ob in every:
         for other in every:
