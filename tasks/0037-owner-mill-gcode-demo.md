@@ -1,8 +1,8 @@
 # 0037 – The owner's old CNC mill: workpiece, end mill, G-code program and milling, set up in his project
 
 **Who:** worker · **Model:** Opus · effort Medium · **Place:** a new chat in the claude.ai project "STEP rendering App"
-(not Claude Code on the web: the owner attaches his project file and gets the finished one back as a file in the chat;
-both need the chat's file upload and file sending) · **Status:** open – can start · **Branch:** none (no code change)
+(preferred, because the owner attaches his project file and gets the finished one back as a file; Claude Code on the web
+is fine too if both work there – if the file cannot come in or go back, say so at once and the owner moves to a chat) · **Status:** open – can start · **Branch:** none (no code change)
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** none – touches no app code. Only this task file and `TASKS.md` are
 pushed at the end.
 
