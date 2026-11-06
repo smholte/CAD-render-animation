@@ -225,7 +225,9 @@ fresing_render/            the Blender extension (Python package)
   pccheck/                 PC check (task 0032): every main function tested on the owner's PC after an update;
                            checks.py = the lines (one per function), core.py (no Blender: history, speed and
                            picture flags, text block, HTML report), runner.py, launcher.py (Start-menu shortcuts,
-                           Help > Fresing Render PC check…), ops.py
+                           Help > Fresing Render PC check…, Cancel), ops.py (Heavy shortcuts, Cancel);
+                           heavy.py (task 0033: the Heavy lines, sizes, peak memory) + heavy_scene.py (writes the big
+                           invented machine at run time with OpenCascade; nothing of it is in the repository)
   data/                    test models that ship with the extension (copies of tests/data, checked by a test)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
@@ -281,6 +283,7 @@ locally pushes its branch and reads the run.
 | User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
 | User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
 | Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| PC check Heavy, scaled down (`FRESING_PCCHECK_HEAVY_SMALL=1`: ~300 parts, 14 frames, 540 px; real Blender under xvfb) | `FRESING_PCCHECK_HEAVY_SMALL=1 python3 tools/ci_real_app.py --only pccheckheavy …` | you changed `pccheck/heavy.py` |
 | PC check, your lines (bpy module, no graphics card) | `FRESING_SELFTEST_NO_GPU=1 FRESING_PCCHECK_DIR=/tmp/pc FRESING_PCCHECK_ONLY=<line ids> ~/venv/bin/python -c "…runner.run('full', '/tmp/pc', open_report=False)"` (see `tests/test_pccheck.py` for the set-up) | you added or changed a PC-check line |
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
@@ -310,7 +313,7 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
 | Linux - test suite 1 … 4 | pytest, the `tests/test_*.py` files split in 4 groups balanced by `tools/ci_times.json` (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 4.6–6.1 min (the biggest file, `test_video_labels.py`, alone ~5 min) |
-| Linux - real app pccheck / callouts / paths / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths = `paths_test_blender.py`; ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`; Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
+| Linux - real app pccheck / callouts / paths-heavy / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`; Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 9.8 min (PC check 4.5); starts after the build |
 | Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
@@ -379,7 +382,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `fresing_render/pccheck/checks.py` in the same task – `@line("area.name", "Title", since="<the version it
   comes in>", modes=(F,))`, testing the feature on a test model in `fresing_render/data/` the way a user would,
   raising with a plain reason when it does not work; a render adds `ctx.picture(...)`, a speed `ctx.metric(...)`.
-  Raise `MIN_LINES_FULL` in `tools/ci_check_pccheck.py`. The owner runs the check after each update and sends
+  Raise `MIN_LINES_FULL` in `tools/ci_check_pccheck.py`. A feature whose speed depends on load (big models,
+  long animations, 4K, memory) also gets a **Heavy** line in `pccheck/heavy.py` (`modes=(H,)`, with `expected`,
+  `shows`, `not_shown`; sizes from `heavy.sizes()` so the scaled-down form works) and `MIN_LINES_HEAVY`
+  is raised. The owner runs the check after each update and sends
   back its text block; GitHub runs it at every push.
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
