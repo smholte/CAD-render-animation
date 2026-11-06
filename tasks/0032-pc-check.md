@@ -1,6 +1,6 @@
 # 0032 – PC check: one click tests a new version on the owner's PC
 
-**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.23)
+**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.24)
 **Branch:** `task/0032-pc-check`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** PC check (new files `fresing_render/pccheck/`,
 `tests/test_pccheck.py`; additive: one shortcut in `installer/Install-FresingRender.ps1`, one Help-menu
@@ -91,7 +91,7 @@ new in this version on top. Optionally the same on one of his own STEP files (nu
 **Chat / date:** Claude Code on the web, 5–6 Nov 2026 (Opus · Medium)
 
 **What changed:**
-- New `fresing_render/pccheck/`: `checks.py` (29 lines for Full, 6 for Quick, 4 more with an own model),
+- New `fresing_render/pccheck/`: `checks.py` (30 lines for Full, 6 for Quick, 4 more with an own model),
   `core.py` (no Blender: history of the last 5 runs per kind, speed flag >25 % and ≥1 s slower than the median of
   the last 3 runs, picture checks black / flat / model missing, picture difference vs last run (flag > 0.06),
   "new in this version", text block with numbers only (paths and part/file/user/computer names scrubbed; own-model
@@ -101,14 +101,14 @@ new in this version on top. Optionally the same on one of his own STEP files (nu
 - Lines cover: app start, graphics card, import + sorting (crane, machine, CAD materials), painted faces, decals
   (0024), rule-set switch, joints rotate + stack, coupling + motor + Run motor, poses/explode/visibility/saved
   scenes, model update A→B, save + reopen, sea, CNC hall, light looks, views, blur + sharp spot, turntable (queue),
-  milling, chips (0028), Cycles GPU HD, Cycles CPU, EEVEE time per frame at HD (queue), MP4 (queue), EEVEE video
+  milling, chips (0028), logo + watermark (0018), Cycles GPU HD, Cycles CPU, EEVEE time per frame at HD (queue), MP4 (queue), EEVEE video
   (queue), time test, update check. Own model: import time, parts, unique, triangles, % sorted, GPU still, time
   per frame Preview and EEVEE at HD (owner's open measurements 0002).
 - Test models crane a/b, faces a, mill, decals a now ship in `fresing_render/data/` (a test keeps them equal to
   `tests/data/`).
 - Shortcuts: Start menu "PC check (quick)" / "(full)", Desktop "Fresing Render - PC check" (a STEP file can be
   dropped there; the Start menu takes no files); Uninstall removes it.
-- GitHub: Linux real-app job runs Full from the installed launcher (`pccheck`, MIN 29), Windows job runs Full from
+- GitHub: Linux real-app job runs Full from the installed launcher (`pccheck`, MIN 30), Windows job runs Full from
   its Start-menu shortcut; both judged by `tools/ci_check_pccheck.py` (only "no graphics card" skips allowed).
   Windows job timeout 60 → 90 min.
 - Hooks in other code (additive): `fresing_render/__init__.py` registers `pccheck`; nothing else in feature modules.
@@ -130,7 +130,7 @@ new in this version on top. Optionally the same on one of his own STEP files (nu
 - Not measured: anything on the RTX 3090 – the Quick/Full times on the owner's PC are expectations (≤3 / ≤15 min).
 
 **Open points / follow-up tasks:**
-- Owner: run "Fresing Render - PC check (full)" once after updating to 0.2.23 and paste the text block in the lead
+- Owner: run "Fresing Render - PC check (full)" once after updating to 0.2.24 and paste the text block in the lead
   chat (first run = baseline; times compared from the second run on). With an own model: TASKS 0002 numbers.
 - On a first run "new in this version" lists only lines of this version (no earlier run to compare with).
-- Running tasks 0013, 0018 add their PC-check lines themselves (CLAUDE.md rule).
+- Running task 0013 (and later tasks) add their PC-check lines themselves (CLAUDE.md rule).

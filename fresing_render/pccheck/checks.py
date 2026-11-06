@@ -548,6 +548,39 @@ def _per_frame(message: str) -> float:
         raise RuntimeError(f"no time per frame in '{message}'") from None
 
 
+@line("video.finishing", "Logo and watermark on a picture (brand kit)", "0.2.23",
+      what="A queue picture gets the brand-kit logo in a corner and a watermark across it")
+def video_finishing(ctx):
+    import numpy as np
+
+    from ..blender import queue
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s)
+    logo = os.path.join(ctx.work, "PC check logo.png")
+    px = np.zeros((40, 80, 3), np.float32)
+    px[...] = (0.9, 0.08, 0.08)
+    runner.write_png(logo, px)
+    s.still_logo, s.brand_logo, s.still_logo_size = "BL", logo, 0.25
+    s.wm_kind, s.wm_size, s.wm_opacity, s.wm_text = "CUSTOM", 0.3, 1.0, "PC CHECK"
+    s.out_file_type, s.background = "PNG", "COLOR"
+    out = {}
+    for mark in (False, True):
+        job = {"id": f"pc{int(mark)}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+               "out_dir": os.path.join(ctx.work, "finishing"), "label": "PC check", "watermark": mark}
+        out[mark] = queue.run_job(scene, job, lambda *a: None, lambda: False)
+    a, b = runner.read_pixels(out[False]), runner.read_pixels(out[True])
+    h, w = a.shape[:2]
+    corner = a[int(h * 0.75):, :int(w * 0.3)]
+    _check(float((corner[..., 0] - corner[..., 2]).max()) > 0.5, "the logo is not in the bottom-left corner")
+    centre = (slice(h // 4, 3 * h // 4), slice(w // 6, 5 * w // 6))
+    _check(float(np.abs(b - a)[centre].max()) > 0.06, "the watermark is not on the picture")
+    ctx.picture(out[True], "finishing", "Logo and watermark (processor, draft)")
+    return "logo and watermark on the picture"
+
+
 def _mill_scene(ctx):
     """The test mill with X/Y/Z slides, a short slot (plunge 25 mm, then 50 mm along X), the flat end
     mill as bit and the block as workpiece."""
@@ -763,7 +796,7 @@ def updates_check(ctx):
 # the owner's own model: numbers only
 # ---------------------------------------------------------------------------
 
-@line("own.import", "Your model: import + sorting", "0.2.23", (OWN,),
+@line("own.import", "Your model: import + sorting", "0.2.24", (OWN,),
       what="Import time, parts, unique parts, triangles, share sorted by the rules")
 def own_import(ctx):
     from ..blender import build
@@ -785,7 +818,7 @@ def own_import(ctx):
     return None
 
 
-@line("own.gpu", "Your model: still on the graphics card", "0.2.23", (OWN,), requires=("own.import",),
+@line("own.gpu", "Your model: still on the graphics card", "0.2.24", (OWN,), requires=("own.import",),
       what="An HD picture of your model on the graphics card (Preview quality)")
 def own_gpu(ctx):
     import bpy
@@ -816,13 +849,13 @@ def _own_time_test(ctx, quality: str):
     return None
 
 
-@line("own.time_preview", "Your model: Time test, Preview", "0.2.23", (OWN,), requires=("own.import",),
+@line("own.time_preview", "Your model: Time test, Preview", "0.2.24", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD, Preview quality (Cycles)")
 def own_time_preview(ctx):
     return _own_time_test(ctx, "preview")
 
 
-@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.23", (OWN,), requires=("own.import",),
+@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.24", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD with Fast preview (EEVEE)")
 def own_time_eevee(ctx):
     try:

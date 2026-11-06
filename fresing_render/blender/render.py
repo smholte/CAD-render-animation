@@ -246,8 +246,16 @@ def prepare_still(scene, s, quality: str) -> tuple[str, str, str]:
     return final, target, device
 
 
-def finish_still(scene, s, rendered: str, final: str) -> None:
-    """Composite the background colour / convert to JPEG where needed."""
+def finish_still(scene, s, rendered: str, final: str, watermark: bool | None = None) -> None:
+    """Composite the background colour / convert to JPEG where needed, then the logo and the watermark
+    (task 0018). ``watermark``: None = as the switch in 5 Scene & Render says."""
+    _finish_still_file(scene, s, rendered, final)
+    from . import video
+    fin = video.finishing_for_still(scene, s.wm_on if watermark is None else watermark)
+    video.finish_picture(final, fin, s.out_file_type)
+
+
+def _finish_still_file(scene, s, rendered: str, final: str) -> None:
     if s.background == "COLOR":
         col = tuple(linear_to_srgb(c) for c in s.background_color[:3])
         _composite_over_color(rendered, col, final, s.out_file_type)
@@ -260,7 +268,8 @@ def finish_still(scene, s, rendered: str, final: str) -> None:
         os.replace(rendered, final)
 
 
-def render_still(scene, s, quality: str = "final", filepath: str | None = None) -> dict:
+def render_still(scene, s, quality: str = "final", filepath: str | None = None,
+                 watermark: bool | None = None) -> dict:
     """Render the active camera to a file and wait for it (scripts, self-test, background mode)."""
     final, target, device = prepare_still(scene, s, quality)
     if filepath:
@@ -270,6 +279,6 @@ def render_still(scene, s, quality: str = "final", filepath: str | None = None) 
     t0 = time.time()
     r.filepath = target
     bpy.ops.render.render(write_still=True, scene=scene.name)
-    finish_still(scene, s, target, final)
+    finish_still(scene, s, target, final, watermark)
     return {"path": final, "seconds": round(time.time() - t0, 1), "device": device,
             "size": (r.resolution_x * r.resolution_percentage // 100, r.resolution_y * r.resolution_percentage // 100)}
