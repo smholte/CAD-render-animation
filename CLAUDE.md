@@ -558,3 +558,9 @@ the release → Delete); the next run on `main` publishes it again.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
   `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
   along with the paths (`machining.sample` stores it as `fr_wp_m`).
+- GitHub Actions skips a job when any job further up its `needs` chain was skipped, even if its own `needs` are
+  green, unless its `if:` uses `!cancelled()` (or `always()`) and names the results it wants. The release check
+  was skipped after a docs-mode run that way (task 0036). A job behind the verdict needs
+  `!cancelled() && needs.<job>.result == 'success'`.
+- `actions/download-artifact` with `run-id` + `github-token` (and `actions: read`) takes another run's files: a
+  reuse release ships exactly the installer that was tested. Job-level `permissions` replace the workflow's.

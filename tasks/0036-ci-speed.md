@@ -132,8 +132,12 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
 - Precheck clash: run 42268182878 (version set back to 0.2.28 while main had 0.2.29): failed in the precheck
   after 0.1 min, 0.3 min in all, nothing else started, message "someone took your version number: 0.2.28 is not
   newer than 0.2.29 … renumber to 0.2.30". Normal pushes: precheck green in 0.1 min (all runs above).
-- DOCSRUN
-- REHEARSAL
+- Docs path: run 42270382249 (only version lines, CHANGELOG, task file changed since the green run 42268319993):
+  mode docs, precheck + build with tooltip check (379 ok), guide build and 67 documentation tests; **1.8 min**
+  from start to end, including the rehearsal's publish.
+- Rehearsal: run 42270382249 published the pre-release and deleted it again, but skipped the Windows update
+  check: GitHub skips a job whose chain holds a skipped job (the test jobs). Fixed (`!cancelled()` and
+  explicit results for the release check and "Offer the release"); REHEARSAL2
 - REUSE
 - pytest-xdist was not tried on GitHub: the slowest single test (`test_video_labels.py`, 265 s, a queued
   video) alone is longer than any group's other files, the render-queue tests already use all 4 cores, and
