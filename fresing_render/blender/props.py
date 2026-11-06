@@ -612,7 +612,6 @@ class FRMechanism(bpy.types.PropertyGroup):
     joint_motion: PointerProperty(type=bpy.types.Object)
     own_joint: BoolProperty(default=False)
     setup: StringProperty()
-    solved_value: FloatProperty(default=0.0)
     signs: StringProperty()
     status: StringProperty()
     height: FloatProperty(

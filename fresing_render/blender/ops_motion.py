@@ -494,7 +494,7 @@ class FRESING_OT_joint_members(bpy.types.Operator):
                     if d.visible_get() and not d.hide_select:
                         d.select_set(True)
             return {"FINISHED"}
-        if self.action == "REMOVE" and _drives_mechanism(context, self, j, "its first link stays on it: change"):
+        if self.action in ("ADD", "REMOVE") and _drives_mechanism(context, self, j, "it moves one link only: change"):
             return {"CANCELLED"}
         movers = selected_movers(context)
         try:

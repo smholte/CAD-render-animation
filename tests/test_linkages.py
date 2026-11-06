@@ -428,3 +428,64 @@ def test_joint_on_the_whole_model_or_on_what_carries_its_base_is_refused(scene):
     with pytest.raises(RuntimeError, match="carries the base"):
         joints.create(scene, "ROTATE", [lift_asm], Vector((0, 0, 0)), Vector((0, 1, 0)),
                       base=ob(scene, "LIFT.BASE.ASM"))
+
+
+# ---------------------------------------------------------------------------
+# found by the independent review
+# ---------------------------------------------------------------------------
+
+def test_solver_position_kept_in_double_precision(scene):
+    """The stored position was single precision: it never matched the joint, so every update started the
+    solver again without its history (a parallelogram dragged in small steps crossed over)."""
+    m = scissor(scene)
+    j = linkages.input_joint(scene, m)
+    for deg in (20.0, 20.5, 21.0):
+        set_drive(scene, m, math.radians(deg))
+    _lk, _h, sign = linkages.linkage_of(m)
+    assert linkages.solved(m) == sign * joints.get_value(j)          # exactly
+    assert linkages.solver(m).hist                                    # the walk's history survives updates
+    assert linkages.refresh(scene, m) == "" and linkages.solver(m).hist
+
+
+def test_no_link_can_join_the_drive_joint(scene):
+    m = four_bar(scene)
+    j = linkages.input_joint(scene, m)
+    with pytest.raises(RuntimeError, match="mechanism"):
+        joints.add_members(scene, j, [ob(scene, "FOURBAR.COUPLER.ASM")])
+    s = scene.fresing
+    s.joints_index = next(i for i, x in enumerate(s.joints) if x.name == j.name)
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    ob(scene, "CRANK.CRANK.ASM").select_set(True)
+    assert bpy.ops.fresing.joint_members(action="ADD") == {"CANCELLED"}
+    assert {o.get(build.PROP_NAME) for o in joints.members(j)} == {"FOURBAR.CRANK.ASM"}
+    assert linkages.is_valid(m)
+
+
+def test_a_joint_may_carry_the_whole_mechanism(scene):
+    """A lift on a turntable: a joint on the subassembly that holds the base and every link, made after it."""
+    m = scissor(scene)
+    set_drive(scene, m, math.radians(15))
+    slew = joints.create(scene, "ROTATE", [ob(scene, "LIFT.ASM")], Vector((0, 0, 0)), Vector((0, 0, 1)),
+                         base=build.model_roots(scene)[0], name="Slew")
+    joints.set_value(slew, math.radians(90))
+    update()
+    x, y, z = ob(scene, "LIFT.PLATFORM.PIN").matrix_world @ Vector(ob(scene, "LIFT.PLATFORM.PIN").data["fr_axes"][0:3])
+    assert z == pytest.approx(Z0 + 3 * math.sin(math.radians(30)), abs=TOL)
+    set_drive(scene, m, math.radians(30))
+    p = ob(scene, "LIFT.PLATFORM.PIN").matrix_world @ Vector(ob(scene, "LIFT.PLATFORM.PIN").data["fr_axes"][0:3])
+    assert p.z == pytest.approx(Z0 + 3 * math.sin(math.radians(45)), abs=TOL)
+    roller = ob(scene, "LIFT.ROLLER")
+    q = roller.matrix_world @ Vector(roller.data["fr_axes"][0:3])
+    # turned 90° with the deck (its axis now runs along X): still on its line, at L cos(phi)
+    assert (q.y, q.z) == pytest.approx((math.cos(math.radians(45)), Z0), abs=TOL)
+    with pytest.raises(RuntimeError, match="tear"):          # the base alone, without the links: refused
+        joints.create(scene, "ROTATE", [ob(scene, "LIFT.BASE.ASM")], Vector((0, 0, 0)), Vector((0, 0, 1)))
+
+
+def test_removing_the_mechanism_lets_its_cylinder_follow(scene):
+    m = scissor(scene)
+    c = lift_cylinder(scene)
+    cylinders.set_mode(scene, c, "DRIVE")
+    linkages.remove(scene, m)
+    assert c.mode == "FOLLOW"

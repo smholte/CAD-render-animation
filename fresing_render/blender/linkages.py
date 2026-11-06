@@ -16,7 +16,7 @@ and files opened with Python scripts disabled need no add-on code.
 
 What is stored: the links (subassemblies), the type, and the set-up worked out when the mechanism was added
 (``setup``: pins, tracks and the input in the frame's own 2D coordinates, metres) plus where the solver is
-(``solved_value``, ``signs``: the assembly mode of every two-answer step). The pins are found from the parts'
+(``fr_solved``, ``signs``: the assembly mode of every two-answer step). The pins are found from the parts'
 round faces (holes, shafts) shared by two links; a model update finds them again on the new revision.
 """
 
@@ -101,6 +101,9 @@ def is_valid(m) -> bool:
         return False
     if any(ln.empty is not None and ln.empty.parent is not m.frame for ln in m.links):
         return False
+    for ln in m.links:
+        if ln.empty is not None and any(o.parent is not ln.empty for o in link_objs(ln)):
+            return False
     j = input_joint(scene, m)
     return j is not None and joints.is_valid(j)
 
@@ -108,6 +111,8 @@ def is_valid(m) -> bool:
 def broken_reason(scene, m) -> str:
     if m.frame is None or any(ln.empty is not None and ln.empty.parent is not m.frame for ln in m.links):
         return "One of its markers was deleted: remove it and add it again"
+    if any(ln.empty is not None and any(o.parent is not ln.empty for o in link_objs(ln)) for ln in m.links):
+        return "One of its links was moved off it (by a joint or a cylinder): remove the mechanism and add it again"
     if input_joint(scene, m) is None:
         return "The joint that drives it was removed: remove the mechanism and add it again"
     return "Its set-up is incomplete: remove it and add it again"
@@ -558,7 +563,7 @@ def create(scene, kind: str, links, base=None, name: str = "", drive=None, joint
         m.joint_motion = jmotion
         m.own_joint = own
         m.setup = _to_json(lk, height, sign, kind)
-        m.solved_value = 0.0
+        m[SOLVED] = 0.0
         m.signs = ""
         for g, objs in enumerate(mlinks):
             ln = m.links.add()
@@ -585,7 +590,7 @@ def create(scene, kind: str, links, base=None, name: str = "", drive=None, joint
             for o in objs:
                 joints._attach(o, e, frame_world)
         _update()
-    if own and not joint_name:
+    if own:
         m["_limits_msg"] = _limits_from_reach(scene, m)
     s.mechanisms_index = len(s.mechanisms) - 1
     refresh(scene, m, force=True)
@@ -670,6 +675,15 @@ def _limits_from_reach(scene, m) -> str:
 # solving and placing the links
 # ---------------------------------------------------------------------------
 
+SOLVED = "fr_solved"
+
+
+def solved(m) -> float:
+    """Where the solver is (the drive value it last placed the links for). A plain ID property: double precision
+    (a FloatProperty is single precision; the drive joint's own value is double, they would never match)."""
+    return float(m.get(SOLVED, 0.0))
+
+
 def solver(m) -> K.Solver:
     """The solver of ``m``, at the position the mechanism is in (its stored state)."""
     key = (m.id_data.name, m.name)
@@ -683,8 +697,8 @@ def solver(m) -> K.Solver:
         signs = json.loads(m.signs) if m.signs else list(sol.cad_signs)
     except ValueError:
         signs = list(sol.cad_signs)
-    if abs(sol.value - m.solved_value) > 1e-12 or sol.signs != signs:
-        sol.set_state(m.solved_value, signs)
+    if abs(sol.value - solved(m)) > 1e-12 or sol.signs != signs:
+        sol.set_state(solved(m), signs)
     return sol
 
 
@@ -698,9 +712,10 @@ def _apply(m, poses) -> None:
         if e is None or k >= len(poses):
             continue
         th, tx, ty = poses[k]
-        if abs(e.location.x - tx) > 1e-9 or abs(e.location.y - ty) > 1e-9 or abs(e.location.z) > 1e-9:
+        # (single precision: only a real change is written, or every update would start another one)
+        if abs(e.location.x - tx) > 1e-7 or abs(e.location.y - ty) > 1e-7 or abs(e.location.z) > 1e-7:
             e.location = (tx, ty, 0.0)
-        if abs(e.rotation_euler.z - th) > 1e-9 or abs(e.rotation_euler.x) > 1e-9 or abs(e.rotation_euler.y) > 1e-9:
+        if abs(e.rotation_euler.z - th) > 1e-7 or abs(e.rotation_euler.x) > 1e-7 or abs(e.rotation_euler.y) > 1e-7:
             e.rotation_euler = (0.0, 0.0, th)
 
 
@@ -719,7 +734,7 @@ def refresh(scene, m, force: bool = False) -> str:
     j = input_joint(scene, m)
     lk, _h, sign = linkage_of(m)
     v = sign * joints.get_value(j)
-    if not force and abs(v - m.solved_value) < 1e-10:
+    if not force and abs(v - solved(m)) < 1e-10:
         return ""
     sol = solver(m)
     status = ""
@@ -729,8 +744,10 @@ def refresh(scene, m, force: bool = False) -> str:
         status = f"{exc}: it stops at the last position it can reach"
         joints.set_value(j, sign * sol.value, use_limits=False)
     _apply(m, sol.poses)
-    m.solved_value = sol.value
-    m.signs = json.dumps(sol.signs)
+    m[SOLVED] = float(sol.value)
+    signs = json.dumps(sol.signs)
+    if m.signs != signs:
+        m.signs = signs
     if m.status != status:
         m.status = status
     return status
@@ -961,16 +978,26 @@ def cylinder_mechanism(scene, c):
 # ---------------------------------------------------------------------------
 
 def joint_conflict(scene, objs, base, joint=None) -> str:
-    """'' when a joint may move ``objs`` (sitting on ``base``) without breaking a mechanism, else the reason."""
+    """'' when a joint may move ``objs`` (sitting on ``base``) without breaking a mechanism, else the reason.
+    Allowed: the drive joint moving its own link; a joint moving a subassembly that holds the whole mechanism,
+    base and all (a lift on a turntable); a joint on a part inside a link (it rides on the link)."""
     for m in scene.fresing.mechanisms:
         mj = input_joint(scene, m)
-        if joint is not None and mj is not None and mj.name == joint.name:
-            continue                              # the mechanism's own input joint
+        own = joint is not None and mj is not None and mj.name == joint.name
+        drive_objs = [] if mj is None else [o.name for o in joints.members(mj)]
+        whole = all_link_objs(m) + ([m.base] if m.base is not None else [])
         for ob in objs:
+            if own and ob.name in drive_objs:
+                continue
+            if m.base is not None and (ob is m.base or joints._is_cad_ancestor(ob, m.base)):
+                if all(o is ob or joints._is_cad_ancestor(ob, o) for o in whole):
+                    continue                      # it carries the whole mechanism
+                return (f"'{label(ob)}' holds the base of mechanism '{m.name}' but not all its links: a joint on "
+                        "it would tear the mechanism apart")
             for o in all_link_objs(m):
                 if ob is o or joints._is_cad_ancestor(ob, o):          # (a part inside a link may ride on it)
-                    return (f"'{label(ob)}' is part of mechanism '{m.name}', which moves it. Move the mechanism with "
-                            f"its drive joint '{mj.name if mj else '?'}'")
+                    return (f"'{label(ob)}' is part of mechanism '{m.name}', which moves it. Move the mechanism "
+                            f"with its drive joint '{mj.name if mj else '?'}'")
     return ""
 
 
@@ -998,6 +1025,9 @@ def remove(scene, m) -> str:
     j = input_joint(scene, m)
     own = bool(m.own_joint)
     jname = j.name if j is not None else ""
+    for c in scene.fresing.cylinders:
+        if c.mode == "DRIVE" and cylinder_mechanism(scene, c) == m:
+            c["mode"] = 0                        # nothing for it to drive any more: it follows the arms
     with joints.cad_pose(scene):
         m = find(scene, name)
         _dissolve(scene, m)
