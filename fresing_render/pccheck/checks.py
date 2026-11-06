@@ -28,6 +28,7 @@ CRANE_B = os.path.join(DATA, "test_crane_b.step")
 FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
+LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -296,6 +297,46 @@ def joints_stack(ctx):
     err = (trolley.matrix_world.translation - want).length
     _check(err < 1e-3, f"the trolley is {err * 1000:.1f} mm off where boom + slide put it")
     return "boom 30° + trolley 200 mm"
+
+
+@line("joints.cylinder", "Cylinder: follows the arm, the stroke drives it", "0.2.25",
+      what="The luffer's arm turns: the cylinder's rod eye stays on its pin; a set stroke turns the arm to the "
+           "angle of the triangle pivot – barrel pin – rod pin")
+def joints_cylinder(ctx):
+    from mathutils import Matrix, Vector
+
+    from ..blender import build, cylinders, joints
+    scene = ctx.fresh(LUFFER)
+
+    def at_y(name, y):              # the cylinder at y = 80 mm (there are two side by side)
+        hits = [o for o in scene.objects if o.get(build.PROP_NAME) == name]
+        _check(bool(hits), f"the test model has no part '{name}'")
+        return min(hits, key=lambda o: abs(o.matrix_world.translation.y - y))
+
+    along_y = Vector((0, 1, 0))
+    pivot, barrel_pin, rod_pin = Vector((0.1, 0.08, 0.6)), Vector((0.5, 0.08, 0.15)), Vector((0.8, 0.08, 0.45))
+    arm = joints.create(scene, "ROTATE", [_ob(scene, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), along_y, name="Luff")
+    c, _notes = cylinders.create(scene, [at_y("CYL.BARREL", 0.08)], [at_y("CYL.ROD", 0.08)],
+                                 (barrel_pin, along_y, _ob(scene, "BASE.PIN")),
+                                 (rod_pin, along_y, _ob(scene, "ARM.ROD.PIN")))
+    _update()
+    eye = at_y("ROD.EYE", 0.08)
+    eye_centre = eye.matrix_world.inverted() @ rod_pin
+    joints.set_value(arm, math.radians(20))
+    _update()
+    want = pivot + Matrix.Rotation(math.radians(20), 3, "Y") @ (rod_pin - pivot)
+    err = (eye.matrix_world @ eye_centre - want).length
+    _check(err < 1e-4, f"the rod's eye is {err * 1000:.2f} mm off its pin with the arm at 20°")
+    cylinders.set_mode(scene, c, "DRIVE")
+    cylinders.set_stroke(scene, c, 0.1)
+    a, b = (barrel_pin - pivot).length, (rod_pin - pivot).length
+    length0, length = (rod_pin - barrel_pin).length, c.closed_length + 0.1
+    expected = (math.acos((a * a + b * b - length0 * length0) / (2 * a * b))
+                - math.acos((a * a + b * b - length * length) / (2 * a * b)))
+    got = joints.get_value(arm)
+    _check(abs(got - expected) < 1e-4, f"stroke 100 mm turned the arm to {math.degrees(got):.2f}°, "
+                                       f"not {math.degrees(expected):.2f}°")
+    return f"eye on its pin to {err * 1000:.3f} mm; stroke 100 mm → arm {math.degrees(got):.2f}°"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",
@@ -581,7 +622,7 @@ def video_finishing(ctx):
     return "logo and watermark on the picture"
 
 
-@line("video.labels", "Labels pointing at parts, picture card and music in a video", "0.2.25",
+@line("video.labels", "Labels pointing at parts, picture card and music in a video", "0.2.26",
       what="A label's line ends on its part in a picture; a video with a picture card and music has a sound track "
            "as long as the video")
 def video_labels(ctx):

@@ -160,6 +160,9 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     from . import machining
     machining.before_model_update(scene)         # milling (task 0027): the workpiece gets its CAD mesh back
     build.ensure_bases(scene)
+    from . import cylinders
+    # cylinders (task 0013) first: their pins hang on parts the joints move
+    cyl_specs = cylinders.before_model_update(scene, root=old_root)
     specs = joints.dissolve_all(scene, root=old_root)       # joints of other models stay
     tree = logic.Tree(scene)
     old_objs = _model_objects_of(old_root, tree)
@@ -238,6 +241,7 @@ def update_model(context, old_root, cache_dir: str) -> dict:
 
     # 6. joints, saved states and the rest of the set-up
     notes = joints.rebuild_from_specs(scene, specs, by_uid_new)
+    notes += cylinders.rebuild_from_specs(scene, cyl_specs, by_uid_new)     # after the joints: drive mode needs them
     states.remap_uids(scene, mapping)
     notes += machining.after_model_update(scene, mapping, by_uid_new)
     logic.apply_rules(scene)
