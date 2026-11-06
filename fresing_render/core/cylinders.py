@@ -209,9 +209,11 @@ def estimate_travel(barrel_tris, rod_tris, length: float) -> Travel:
     barrel pin, the rod pin at x = ``length``; numpy arrays (n, 3, 3) of triangle corners, metres).
 
     The rod's inner end (the piston) can go back until it meets the barrel's bottom and out until its
-    front meets the gland: both are found with rays parallel to the axis, a little inside the piston's
-    rim (clear of the rod, which passes through the gland). When the shapes do not show that (no piston,
-    simplified parts) the rod's inner end may travel between the barrel pin and the barrel's front end."""
+    front meets the gland. Rays parallel to the axis at several distances from it (inside the piston's
+    rim, clear of the rod where it passes through the gland) find the barrel's stop first and then, from
+    just inside that stop, the rod's own face: so faces lying flush (a cylinder drawn fully in or fully
+    out) and stepped pistons measure right. When the shapes do not show it (no piston, simplified parts)
+    the rod's inner end may travel between the barrel pin and the barrel's front end ("rough guess")."""
     import numpy as np
     rod = np.asarray(rod_tris, dtype=float).reshape(-1, 3, 3)
     barrel = np.asarray(barrel_tris, dtype=float).reshape(-1, 3, 3)
@@ -225,21 +227,28 @@ def estimate_travel(barrel_tris, rod_tris, length: float) -> Travel:
     bx = barrel.reshape(-1, 3)[:, 0]
     guess_in = max(0.0, x_back - max(0.0, float(bx.min())))
     guess_out = max(0.0, float(bx.max()) - x_back)
+    eps = 1e-5                                                # 0.01 mm: steps over a face lying flush
     ins, outs = [], []
     if rp > 1e-6:
-        r = 0.85 * rp
-        for k in range(8):
-            a = k * math.pi / 4
-            y, z = r * math.cos(a), r * math.sin(a)
-            back = _ray_first((x_back + 1e-6, y, z), (-1.0, 0.0, 0.0), barrel)
-            front_face = _ray_first((x_back + 1e-6, y, z), (1.0, 0.0, 0.0), rod)
-            x_front = x_back + 1e-6 + front_face if front_face is not None and front_face < 0.5 * rod_len \
-                else x_back
-            gland = _ray_first((x_front - 1e-7, y, z), (1.0, 0.0, 0.0), barrel)
-            if back is not None:
-                ins.append(back + 1e-6)
-            if gland is not None:
-                outs.append(gland - 1e-7)
+        for frac in (0.3, 0.55, 0.85):
+            r = frac * rp
+            for k in range(8):
+                a = k * math.pi / 4
+                y, z = r * math.cos(a), r * math.sin(a)
+                # in: the barrel's bottom behind the rod's inner end, then the rod's own back face
+                hit = _ray_first((x_back + eps, y, z), (-1.0, 0.0, 0.0), barrel)
+                if hit is not None:
+                    x_bottom = x_back + eps - hit
+                    face = _ray_first((x_bottom - eps, y, z), (1.0, 0.0, 0.0), rod)
+                    if face is not None and x_bottom - eps + face <= x_back + 0.5 * rod_len:   # (not the far eye)
+                        ins.append(max(0.0, face - eps))
+                # out: the barrel's stop in front (the gland), then the rod's own front face behind it
+                hit = _ray_first((x_back + eps, y, z), (1.0, 0.0, 0.0), barrel)
+                if hit is not None:
+                    x_stop = x_back + eps + hit
+                    face = _ray_first((x_stop + eps, y, z), (-1.0, 0.0, 0.0), rod)
+                    if face is not None and x_stop + eps - face >= x_back - eps:
+                        outs.append(max(0.0, face - eps))
     measured = bool(ins) and bool(outs)
     travel_in = min(ins) if ins else guess_in
     travel_out = min(outs) if outs else guess_out

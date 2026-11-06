@@ -99,24 +99,40 @@ joint value exists to couple to). Test `test_telescopic_stage_slides_half_the_ro
 
 **Tested and measured** (2-core Linux test machine, generic test luffer `tests/data/test_cylinder_*.step`
 from `tools/make_test_cylinder.py`: arm, two cylinders side by side, one telescopic; no owner data):
-- `tests/test_cylinders_core.py` (15): forward/inverse against an independent rotation and a bisection,
+- `tests/test_cylinders_core.py` (19): forward/inverse against an independent rotation and a bisection,
   the law of cosines written out by hand, branch continuity, unreachable lengths, out-of-plane pins, slide
   quadratic, refusals, travel from triangles (in 60 mm, out 130 mm exactly; guess without piston).
-- `tests/test_cylinders.py` (22) on the real import: eyes on pins at −25…40° (< 0.0001 mm measured), the
+- `tests/test_cylinders.py` (28, 6 of them from the review) on the real import: eyes on pins at −25…40° (< 0.0001 mm measured), the
   rod on the barrel's line; two side by side; pins found when the cylinder's own eyes are clicked; the
   whole machine turned 30°; refusals; drive mode stroke → angle = law of cosines and = bisection (1e-6 rad),
   limits; slide; Move cylinder step (frames against hand values); pose; telescopic; save + reopen;
   model update A → B (drive mode, typed closed length, values kept, eyes on pins); rod gone; remove;
   rename; Set-up rebuilds; Show joint arrows; constraints only.
-- Existing suites touched by the change: couplings, stacked joints, phase 2, panels: 100 passed.
+- Existing suites touched by the change: couplings, stacked joints, phase 2, panels: 100 passed; after the
+  review fixes couplings, stacked joints, phase 2: 96 passed.
 - Real app (Blender 5.2.3, virtual screen): `tools/ui_test_cylinder.py` 22/22 (Barrel / Rod buttons, Add
   cylinder + two real clicks on the pins, follow, Drives the arm, Fully out, stroke field, undo/redo, Move
   cylinder step built and scrubbed, Show joint arrows, save + reopen, Remove); also on GitHub
-  (`ci_real_app.py`, MIN_CHECKS 22). Panel screenshot checked.
+  (`ci_real_app.py`, MIN_CHECKS 22; 27 s on GitHub). Panel screenshot checked. GitHub run of the branch green
+  (4 jobs). The real-app job took 21.9 min instead of the 11.4 in CLAUDE.md: ui1 443 s and surroundings 372 s
+  ran slower on that runner; the cylinder test adds 27 s.
 - Speed (test luffer, 276 frames): playback 0.031 ms/frame with the arm only, 0.078 ms with three cylinders
   (one telescopic); baking a 10 s Move cylinder step 5 ms.
 
-**Independent review:** REVIEW
+**Independent review** (helper agent that did not write the code; scratch runs on the test luffer): 2 blockers,
+4 should-fix, 2 minor – all fixed, each with a test that failed before:
+(1) a model update with a cylinder whose marker was deleted by hand lost the barrel and rod – broken cylinders
+now come apart too, with a report line; (2) "Pins again" with the arm turned deleted the cylinder – the clicks
+are kept on the clicked parts first, and failing pins leave the cylinder as it was (`ops_cylinders.repin`);
+(3) the arm's joint could be set to sit on the cylinder's own rod (a dependency circle) and (4) a joint on the
+cylinder's own assembly was accepted though it moves nothing – both refused with the reason
+(`cylinders.joint_conflict`, called from `joints.check_members`); (5) the stroke went past the full stroke when
+the arm joint had no limits – clamped; (6) a model drawn fully in/out gave a full stroke of 0 and (7) a stepped
+piston 210 instead of 190 mm – the estimate now finds the barrel's stop first, then the rod's own face, at three
+radii; (8) after Flip of the arm joint the old limits stopped the stroke short – joints' axis and type changes
+re-set the limits of cylinders that drive them. Checked fine by the review: branch choice and slide case, units,
+remove with a deleted marker, joint removed and added again, Move cylinder with other steps on the same joint,
+rename, a cylinder mounted upside down, save/reopen and model-update order.
 
 **Open points / follow-up tasks:**
 - Owner test on his PC with a real cylinder (luffing cylinder of a crane or an A-frame).

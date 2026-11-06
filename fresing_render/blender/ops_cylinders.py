@@ -189,29 +189,48 @@ class FRESING_OT_cylinder_pins(bpy.types.Operator):
             return {"RUNNING_MODAL"}
         FRESING_OT_cylinder_add._end(self, context)
         scene = context.scene
-        c = _active(context)
-        name, mode = c.name, c.mode
-        lengths = (c.closed_length, c.full_stroke, c.measured)
-        parts = (cylinders.barrel_objs(c), cylinders.rod_objs(c), cylinders.stage_objs(c))
-        idx = scene.fresing.cylinders_index
         try:
-            cylinders.remove(scene, c)
-            c, notes = cylinders.create(scene, parts[0], parts[1], self._first, (origin, direction, ob), name=name,
-                                        stages=parts[2])
+            c = repin(scene, _active(context), self._first, (origin, direction, ob))
         except RuntimeError as exc:
-            _say(context, self, f"{exc} (Ctrl+Z brings the cylinder back)", "ERROR")
+            _say(context, self, str(exc), "ERROR")
             return {"CANCELLED"}
-        c["closed_length"], c["full_stroke"], c["measured"] = lengths
-        scene.fresing.cylinders.move(len(scene.fresing.cylinders) - 1, idx)
-        scene.fresing.cylinders_index = idx
-        c = scene.fresing.cylinders[idx]
-        if mode == "DRIVE":
-            try:
-                cylinders.set_mode(scene, c, "DRIVE")
-            except RuntimeError as exc:
-                notes.append(f"It follows its arm now: {exc}")
-        _say(context, self, f"Pins of '{name}' set" + ((". " + " ".join(notes)) if notes else ""))
+        notes = c.get("_notes", "")
+        _say(context, self, f"Pins of '{c.name}' set" + (f". {notes}" if notes else ""))
         return {"FINISHED"}
+
+
+def repin(scene, c, barrel_click, rod_click):
+    """Give a cylinder new pins (clicks as (origin, direction, clicked part) in the current pose). The parts,
+    lengths, mode and place in the list stay. When the new pins do not work the cylinder stays as it was."""
+    # the clicks kept on the parts that were clicked, before anything moves (the arm may be turned)
+    pin_b = cylinders.pin_click(*barrel_click)
+    pin_r = cylinders.pin_click(*rod_click)
+    name, mode, idx = c.name, c.mode, scene.fresing.cylinders_index
+    lengths = (c.closed_length, c.full_stroke, c.measured)
+    parts = (cylinders.barrel_objs(c), cylinders.rod_objs(c), cylinders.stage_objs(c))
+    with joints.cad_pose(scene):
+        spec = cylinders.to_spec(cylinders.find(scene, name))
+    cylinders.remove(scene, cylinders.find(scene, name))
+    s = scene.fresing
+    try:
+        c, notes = cylinders.create_local(scene, parts[0], parts[1], pin_b, pin_r, name=name, stages=parts[2])
+    except RuntimeError as exc:
+        by_uid = {o.get(build.PROP_UID): o for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS}
+        cylinders.rebuild_from_specs(scene, [spec], by_uid)          # back as it was
+        s.cylinders.move(len(s.cylinders) - 1, idx)
+        s.cylinders_index = idx
+        raise RuntimeError(f"{exc} The cylinder keeps its old pins") from exc
+    c["closed_length"], c["full_stroke"], c["measured"] = lengths
+    s.cylinders.move(len(s.cylinders) - 1, idx)
+    s.cylinders_index = idx
+    c = s.cylinders[idx]
+    if mode == "DRIVE":
+        try:
+            cylinders.set_mode(scene, c, "DRIVE")
+        except RuntimeError as exc:
+            notes.append(f"It follows its arm now: {exc}")
+    c["_notes"] = " ".join(notes)
+    return c
 
 
 class FRESING_OT_cylinder_remove(bpy.types.Operator):

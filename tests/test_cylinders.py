@@ -513,3 +513,87 @@ def test_cylinder_constraints_only(scene):
     assert c.barrel_empty.constraints[0].type == "LOCKED_TRACK" and c.barrel_empty.constraints[0].target == c.pin
     assert c.rod_empty.constraints[0].type == "COPY_LOCATION"
     assert c.barrel_empty.animation_data is None and c.rod_empty.animation_data is None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# findings of the independent review (each failed before its fix)
+# ---------------------------------------------------------------------------------------------------------
+
+def test_model_update_with_a_broken_cylinder(scene):
+    """A marker deleted by hand: the model update still gives the parts back and says so (they were lost)."""
+    arm(scene)
+    c, _ = make(scene)
+    bpy.data.objects.remove(c.pin, do_unlink=True)
+    root = build.model_roots(scene)[0]
+    assert bpy.ops.fresing.import_step(filepath=LUFFER_B, quality="draft", update_root=root.name) == {"FINISHED"}
+    update()
+    s = scene.fresing
+    assert not len(s.cylinders)
+    assert not [o for o in scene.objects if o.get(build.PROP_KIND) in build.CYLINDER_KINDS]
+    assert any("was broken" in n.text for n in s.report_notes), [n.text for n in s.report_notes]
+    rods = [o for o in scene.objects if o.get(build.PROP_NAME) == "CYL.ROD"]
+    assert len(rods) == 2 and all(r.parent.get(build.PROP_NAME) == "CYL.ASM" for r in rods)
+
+
+def test_pins_again_with_the_arm_turned(scene):
+    """Pins again, clicked on the cylinder's own eyes while the arm stands at 20°: the pins are where the eyes
+    are, the parts holding them are found (before: 'Could not tell…' and the cylinder was gone)."""
+    from fresing_render.blender import ops_cylinders
+    j = arm(scene)
+    c, _ = make(scene)
+    set_arm(scene, j, 20)
+    a = math.radians(20)
+    cap, eye = first_of(scene, "BARREL.CAP", 0.08), first_of(scene, "ROD.EYE", 0.08)
+    c = ops_cylinders.repin(scene, c, (at(B0, 0.09), Y, cap), (rod_pin(a, 0.07), Y, eye))
+    update()
+    assert len(scene.fresing.cylinders) == 1 and c.name == "CYL.ASM"
+    assert c.frame.parent.get(build.PROP_NAME) == "BASE.BRACKET" and c.pin.parent.get(build.PROP_NAME) == "ARM.BRACKET"
+    pts = eye_points_after_cad(scene)
+    check_eyes(scene, c, a, eyes=pts)
+    # pins that do not work: the cylinder keeps its old ones
+    with pytest.raises(RuntimeError, match="keeps its old pins"):
+        ops_cylinders.repin(scene, c, (at(B0, 0.09), Y, cap), (at(B0, 0.09), Y, cap))
+    c = scene.fresing.cylinders[0]
+    assert cylinders.is_valid(c) and c.pin.parent.get(build.PROP_NAME) == "ARM.BRACKET"
+
+
+def test_a_joint_cannot_sit_on_the_cylinder_it_moves(scene):
+    """The arm's joint made to sit on the rod: a circle (Blender: 'Dependency cycle', the cylinder a step behind)."""
+    j = arm(scene)
+    make(scene)
+    with pytest.raises(RuntimeError, match="circle"):
+        joints.set_base(scene, j, first_of(scene, "CYL.ROD", 0.08))
+    # a joint on the rod that moves something else is fine: a tool at the end of the rod
+    assert joints.check_members(scene, [obs(scene, "POST")[0]], first_of(scene, "CYL.ROD", 0.08)) == ""
+
+
+def test_a_joint_on_the_cylinders_own_assembly_is_refused(scene):
+    """The cylinder hangs on its pins: a joint on CYL.ASM would move nothing (before: accepted)."""
+    arm(scene)
+    cyl_asm = first_of(scene, "CYL.ASM", 0.08)
+    make(scene)
+    with pytest.raises(RuntimeError, match="holds cylinder"):
+        joints.create(scene, "ROTATE", [cyl_asm], at(B0, 0.08), Y)
+
+
+def test_the_stroke_never_goes_past_the_cylinder(scene):
+    """Arm joint without limits (unticked): the stroke still stops at 0 and at the full stroke."""
+    j = arm(scene)
+    c, _ = make(scene)
+    cylinders.set_mode(scene, c, "DRIVE")
+    j.use_limits = False
+    assert cylinders.set_stroke(scene, c, 0.5) == pytest.approx(c.full_stroke, abs=TOL)
+    assert cylinders.set_stroke(scene, c, -0.2) == pytest.approx(0.0, abs=TOL)
+
+
+def test_flipped_arm_joint_keeps_driving(scene):
+    """The arm joint's arrow turned round (Flip): its limits follow the new direction (before: 0.1197 for 0.19)."""
+    pts = eye_points(scene)
+    j = arm(scene)
+    c, _ = make(scene)
+    cylinders.set_mode(scene, c, "DRIVE")
+    joints.flip(scene, j)
+    update()
+    for stroke in (0.0, 0.07, FULL):
+        assert cylinders.set_stroke(scene, c, stroke) == pytest.approx(stroke, abs=TOL)
+        check_eyes(scene, c, -joints.get_value(j), eyes=pts)

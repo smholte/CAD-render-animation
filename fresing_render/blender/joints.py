@@ -873,6 +873,9 @@ def check_members(scene, objs, base, joint=None, allow_empty: bool = False) -> s
         if cyl is not None:
             return (f"'{ob.get(build.PROP_NAME, ob.name)}' is part of cylinder '{cyl.name}', which moves it. "
                     "Give the arm the joint: the cylinder follows")
+    reason = cylinders.joint_conflict(scene, objs, base, joint)
+    if reason:
+        return reason
         if build.logical_parent(ob) is None:
             return "The whole model cannot be a moving part; select subassemblies inside it"
         if base is not None and (base is ob or _moved_by(base, ob)):
@@ -1173,6 +1176,9 @@ def set_axis(scene, j, origin, direction, ref=None) -> None:
             build.set_mat(ob, build.PROP_REST_BASIS, ob.matrix_basis)
         for frame, world in above:                  # joints riding on it stay where they are too
             frame.matrix_basis = new_world.inverted() @ world
+    from . import cylinders
+    _update(scene)
+    cylinders.joint_changed(scene, j)              # a cylinder driving it: limits for the new direction
 
 
 def swap_check(scene, j) -> str:
@@ -1248,6 +1254,9 @@ def set_kind(scene, j, kind: str) -> None:
         _set_raw(j, is_motor=False)
     set_value(j, 0.0, use_limits=False)
     apply_limits(j, _model_size(scene))
+    from . import cylinders
+    _update(scene)
+    cylinders.joint_changed(scene, j)
     if old_kind != kind:
         touched = ([j] if j.follows else []) + followers(scene, j)
         for x in touched:

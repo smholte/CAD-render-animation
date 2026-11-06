@@ -196,3 +196,36 @@ def test_travel_guess_without_piston():
     assert not t.measured
     assert t.closed == pytest.approx(L - 60 * MM, abs=1e-5)     # rod end back to the tube's end (40)
     assert t.full == pytest.approx(220 * MM, abs=1e-5)          # ... and out to its front end (260)
+
+
+def box(x0, x1, h):
+    """A square piston (side 2h) along X."""
+    v = np.array([[x, y, z] for x in (x0, x1) for y in (-h, h) for z in (-h, h)])
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    return np.array([t for a, b, c, d in faces for t in ([v[a], v[b], v[c]], [v[a], v[c], v[d]])])
+
+
+@pytest.mark.parametrize("x_piston,closed,full", [
+    (100, L - 0.060, 0.190),          # mid stroke
+    (40, L, 0.190),                   # drawn fully in: the piston lies flush on the end cap
+    (230, L - 0.190, 0.190),          # drawn fully out: the piston lies flush on the gland
+])
+def test_travel_wherever_the_cad_model_has_the_rod(x_piston, closed, full):
+    """Review of 0013: a model drawn fully in gave a full stroke of 0 (the ray started on the cap's face)."""
+    xp = x_piston * MM
+    rod = np.concatenate([solid(xp, xp + 30 * MM, 0, 39 * MM), solid(xp + 30 * MM, L, 0, 15 * MM)])
+    t = C.estimate_travel(barrel_tris(), rod, L)
+    assert t.measured
+    assert t.closed == pytest.approx(closed, abs=1e-5) and t.full == pytest.approx(full, abs=1e-5)
+
+
+def test_travel_stepped_and_square_pistons():
+    """A piston with a narrower front step meets the gland with the step (review of 0013: 210 mm instead of
+    190); a square piston drawn fully in still measures."""
+    rod = np.concatenate([solid(100 * MM, 110 * MM, 0, 39 * MM), solid(110 * MM, 130 * MM, 0, 30 * MM),
+                          solid(130 * MM, L, 0, 15 * MM)])
+    t = C.estimate_travel(barrel_tris(), rod, L)
+    assert t.measured and t.closed == pytest.approx(L - 0.060, abs=1e-5) and t.full == pytest.approx(0.190, abs=1e-5)
+    rod = np.concatenate([box(40 * MM, 70 * MM, 35 * MM), solid(70 * MM, L, 0, 15 * MM)])
+    t = C.estimate_travel(barrel_tris(), rod, L)
+    assert t.measured and t.closed == pytest.approx(L, abs=1e-5) and t.full == pytest.approx(0.190, abs=1e-5)

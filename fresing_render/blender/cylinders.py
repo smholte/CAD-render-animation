@@ -219,10 +219,12 @@ def joint_value_for_stroke(scene, c, stroke: float, j=None) -> float:
 
 
 def set_stroke(scene, c, stroke: float) -> float:
-    """Move the arm so the rod is out by ``stroke`` (m), within the arm joint's limits. Returns the stroke."""
+    """Move the arm so the rod is out by ``stroke`` (m): never beyond 0 … full stroke (also when the arm joint has
+    no limits), and within the arm joint's limits. Returns the stroke."""
     j, reason = arm_joint(scene, c)
     if j is None:
         raise RuntimeError(reason)
+    stroke = min(max(float(stroke), 0.0), max(0.0, c.full_stroke))
     joints.set_value(j, joint_value_for_stroke(scene, c, stroke, j))
     _update(scene)
     return drive(scene, c, j).length_at(joints.get_value(j)) - c.closed_length
@@ -249,6 +251,17 @@ def sync_limits(scene, c) -> str:
     lo_t, hi_t = (joints.to_display(j.kind, v) for v in (lo, hi))
     unit = joints.unit_label(j.kind)
     return f"'{j.name}' now stops where the cylinder does: {lo_t:.1f}{unit} … {hi_t:.1f}{unit}"
+
+
+def joint_changed(scene, j) -> None:
+    """A joint's axis was flipped or moved, or its type changed: every cylinder that drives it sets the joint's
+    limits again (the old ones were for the old direction)."""
+    for c in scene.fresing.cylinders:
+        if c.mode != "DRIVE" or not is_valid(c):
+            continue
+        jj, _reason = arm_joint(scene, c)
+        if jj is not None and jj.name == j.name:
+            sync_limits(scene, c)
 
 
 def set_mode(scene, c, mode: str) -> str:
@@ -319,6 +332,31 @@ def find_carrier(scene, point: Vector, axis: Vector, exclude: list):
         if vol > best_vol:
             best, best_vol = ob, vol
     return best
+
+
+def joint_conflict(scene, objs, base, joint=None) -> str:
+    """'' when a joint moving ``objs`` and sitting on ``base`` leaves every cylinder working, else the reason:
+    - a subassembly that holds a cylinder's parts in CAD, while the cylinder hangs on pins outside it: the
+      joint would not move the cylinder at all (its parts hang on the cylinder's markers);
+    - a joint sitting on a cylinder's barrel or rod that moves that cylinder's own pin: a circle (Blender
+      cannot work out which comes first)."""
+    for c in scene.fresing.cylinders:
+        if not is_valid(c):
+            continue
+        parts = members(c)
+        carriers = [c.frame.parent, c.pin.parent]
+        for ob in objs:
+            if any(joints._is_cad_ancestor(ob, m) for m in parts) and not any(
+                    p is not None and _inside(p, [ob]) for p in carriers):
+                return (f"'{label(ob)}' holds cylinder '{c.name}', which hangs on its pins outside it: a joint on "
+                        f"'{label(ob)}' would not move the cylinder. Give the arm the joint: the cylinder follows")
+        if base is not None and (_inside(base, parts) or any(joints._moved_by(base, e) for e in empties(c))):
+            moved = list(objs) + ([joint.motion] if joint is not None and joint.motion is not None else [])
+            if any(p is not None and (_inside(p, list(objs)) or any(joints._moved_by(p, m) for m in moved))
+                   for p in carriers):
+                return (f"This joint would sit on cylinder '{c.name}' and move that cylinder's own pin: a circle. "
+                        "Let it sit on the part the cylinder's barrel is pinned to")
+    return ""
 
 
 def check_parts(scene, barrel, rod, stages=(), cylinder=None) -> str:
@@ -517,10 +555,28 @@ def create(scene, barrel, rod, barrel_pin, rod_pin, name: str = "", stages=(), b
     reason = check_parts(scene, barrel, rod, stages)
     if reason:
         raise RuntimeError(reason)
-    parts = barrel + rod + stages
     (ob_, db_, ref_b), (or_, dr_, ref_r) = barrel_pin, rod_pin
-    local_b = joints._local_axis(ref_b, ob_, db_)
-    local_r = joints._local_axis(ref_r, or_, dr_)
+    return create_local(scene, barrel, rod, (joints._local_axis(ref_b, ob_, db_), ref_b),
+                        (joints._local_axis(ref_r, or_, dr_), ref_r), name=name, stages=stages,
+                        barrel_carrier=barrel_carrier, rod_carrier=rod_carrier)
+
+
+def pin_click(origin, direction, ref):
+    """A click on a pin, kept on the part that was clicked (it stays right when that part moves later)."""
+    return joints._local_axis(ref, origin, direction), ref
+
+
+def create_local(scene, barrel, rod, barrel_pin, rod_pin, name: str = "", stages=(), barrel_carrier=None,
+                 rod_carrier=None):
+    """As create(), the pins given as (axis matrix in the clicked part's own coordinates, clicked part)."""
+    barrel = [ob for ob in barrel if ob is not None]
+    rod = [ob for ob in rod if ob is not None]
+    stages = [ob for ob in stages if ob is not None]
+    reason = check_parts(scene, barrel, rod, stages)
+    if reason:
+        raise RuntimeError(reason)
+    parts = barrel + rod + stages
+    (local_b, ref_b), (local_r, ref_r) = barrel_pin, rod_pin
     notes = []
     build.ensure_bases(scene)
     with joints.cad_pose(scene):
@@ -668,6 +724,8 @@ def _belongs(c, root) -> bool:
         return True
     objs = members(c) + [o for o in (c.frame.parent if c.frame else None, c.pin.parent if c.pin else None)
                          if o is not None]
+    if not objs:
+        return True                          # nothing left to tell: take it apart with this model
     return any(joints._root(o) is root for o in objs)
 
 
@@ -678,9 +736,12 @@ def before_model_update(scene, root=None) -> list[dict]:
     with joints.cad_pose(scene):
         for name in [c.name for c in scene.fresing.cylinders]:
             c = find(scene, name)
-            if not is_valid(c) or not _belongs(c, root):
+            if not _belongs(c, root):
                 continue
-            specs.append(to_spec(c))
+            if is_valid(c):
+                specs.append(to_spec(c))
+            else:                   # a marker deleted by hand: its parts still come back; the report says so
+                specs.append({"name": c.name, "broken": True})
             _dissolve(scene, c)
         scene.fresing.cylinders_index = max(0, min(scene.fresing.cylinders_index, len(scene.fresing.cylinders) - 1))
     return specs
@@ -690,6 +751,11 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
     """Build the cylinders again on the new revision (after the joints). Returns notes for the report."""
     notes = []
     for sp in specs:
+        if sp.get("broken"):
+            notes.append(f"Cylinder '{sp['name']}' was broken (one of its markers had been deleted): it was removed, "
+                         "its parts are back in their place. Add it again in 4 Motion > Cylinders")
+            continue
+
         def objs(key):
             return [o for o in (by_uid.get(u) for u in sp.get(key, [])) if o is not None]
         barrel, rod, stages = objs("barrel"), objs("rod"), objs("stages")
