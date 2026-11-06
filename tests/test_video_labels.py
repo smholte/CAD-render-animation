@@ -494,7 +494,7 @@ def test_a_queued_animation_gets_labels_a_picture_and_music(tmp_path):
         i = int(t * rate)
         return float(np.abs(env[i:i + int(0.02 * rate)]).max())
     assert level(0.02) < 0.25 * level(total / 48.0), "starts quiet"
-    assert level(total / 48.0) > 0.5, "full volume in the middle"
+    assert level(total / 48.0) > 0.8 * float(np.abs(env).max()), "full volume in the middle"
     assert level(total / 24.0 - 0.1) < 0.45 * level(total / 48.0), "fades out at the end"
     # a picture in the corner and the label's box in the frames of the video
     enc = bpy.data.scenes.new("check")
