@@ -2,7 +2,7 @@
 
 **Who:** worker · **Model:** Opus · effort Medium · **Place:** a new chat in the claude.ai project "STEP rendering App"
 (preferred, because the owner attaches his project file and gets the finished one back as a file; Claude Code on the web
-is fine too if both work there – if the file cannot come in or go back, say so at once and the owner moves to a chat) · **Status:** open – can start · **Branch:** none (no code change)
+is fine too if both work there – if the file cannot come in or go back, say so at once and the owner moves to a chat) · **Status:** done (7 Nov 2026) · **Branch:** none (no code change)
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** none – touches no app code. Only this task file and `TASKS.md` are
 pushed at the end.
 
@@ -86,12 +86,62 @@ the app making toolpaths by itself (task 0029).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (Opus), 6–7 Nov 2026. App 0.2.31, bpy 5.2.3 as a module, 2-core cloud
+machine. The owner's file came in and went back through the chat (attachment, 150 MB; zipping gains nothing, the
+file is already compressed). No app code changed.
 
 **What was done** (numbers only):
+- Owner's answers: aluminium block, one Ø10 flat end mill (his choice), default demo; no engraving (Ø10 too big).
+- Model: 697 objects, 21 joints; X, Y (table, moves the workpiece), Z and spindle were already picked in the CNC
+  panel; travel ±205 / ±200 / ±100 mm; 7 way-cover sections follow the table axis. Work-zero shift left at
+  (150, −80, 90) mm from earlier tries: reset to 0.
+- Block 100 × 152.3 × 50 mm (fills the vise's open jaws, 18 mm above them) and a Ø10 × 72 mm 3-flute end mill
+  (35° helix, 42 mm stick-out) made as one STEP with OpenCascade (outside the repository), brought in with Import
+  STEP as a second model. Block added to the table joint, end mill to the spindle joint (so it moves with X and Z and
+  turns); the model's own end mill (Ø12) hidden. Bit read as "Flat end mill Ø10.0 mm, 72 mm long".
+- CNC machine: work zero top centre, rapids 4000 / 4000 / 2500 mm/min; spindle joint set to Motor (the step asked
+  for it). Milling: block + bit, Chips Realistic, material read as aluminium from the name.
+- Program (LinuxCNC, 187 lines, 3.4 min on the machine): face 0.5 mm, pocket 50 × 30 R6 × 6 deep (3 levels, helical
+  entry), round pocket Ø30 × 6 (helical entry, 2 levels), 4 holes Ø14 × 8 by helical interpolation, outside contour
+  1 mm per side × 8 deep, R10 corners; S18000, F700–2500. Step Run G-code program: Fit into 45 s, rapids ×3 →
+  1,151 frames at 25 fps. Start pose: Z up 90 mm. New camera + saved scene "Milling close-up" as the start scene.
 
 **Checked:**
+- Step: no soft-limit or unknown-code warnings; only two way-cover warnings from the owner's own set-up (below).
+- Tool tip against the program on every 7th frame: worst 0.038 mm (on a Ø20 circle).
+- Cut depths read from the milled mesh: face −0.5, pocket −6.5, round pocket −6.5, holes −8.5, contour −8.5 mm, at
+  the right frames (250 / 500 / 750 / 1000 / 1151). 13,657 chips. Way covers move with the table (86.5 mm at the
+  end: 86.5 / 64.9 / 43.2 / 21.6 mm per side).
+- Saved, opened again in a new session with the .ngc gone: set-up, step, start scene, motor, chips all there;
+  program taken from the copy in the project.
+- 4 CPU check pictures (480 × 270, 24 samples, 20–27 s each): start, pocket, round pocket, end – looked at,
+  sent to the owner, not committed. Build: 5.4 s; reading the bit's path: 8 s; showing a milled frame: 1–7.5 s.
 
 **Problems in the app found on the way (for the lead):**
+1. **Crash (high priority): milling corrupts memory when it reads the bit path again.** Blender 5.2.3 corrupts its
+   memory when an array ID property is given a NumPy array of a *different length* than it had
+   (`scene["x"] = np.random.rand(250)` then `= np.random.rand(2000)` → "free(): invalid size" / "corrupted size vs.
+   prev_size" a little later; same length, a list (`.tolist()`) or `del` first are fine). `machining.sample()` does
+   exactly this (`item["fr_t"]`, `["fr_o"]`, `["fr_d"]`, `s["fr_wp_m"]`), and every new Build gives a slightly
+   different sample count (1,928 ↔ 1,930 here), so on a real machine the first cut after a re-read crashed Blender
+   4 times out of 4 (segfault or abort in the Manifold boolean, where the damage shows). Fix: `del` the keys before
+   assigning (or `.tolist()`); test: sample twice with different lengths, then allocate. Work-around in the
+   delivered file: no stored path (the first read on his PC creates the properties fresh, which is safe); a second
+   Build that changes the count is still at risk until the fix is released.
+2. Bit detection read the model's own fluted end mill (measured Ø12.06) as a flat Ø10.4; a cut with it would be too
+   narrow. The plain helical Ø10 made here was read right.
+3. Way covers: his machine has a cover on each side of the table on one axis; the panel holds one cover, and the
+   section limits it wrote (7 sections, housing counts: 0, 33 … 200 mm) do not match the ratios he set by hand
+   (1, 0.75, 0.5, 0.25 per side), so every Build warns "Way cover Section 1/2 … goes beyond its own limits". The
+   motion itself is right. Suggest: several covers per axis (lane of 0035).
+4. Picking the spindle in 4 Motion > CNC machine could tick Motor itself; now Build warns afterwards.
+5. Import STEP of a second model re-laid the surroundings (hall moved ~0.3 m in X and Y, its high part ~0.36 m up).
+6. Program path: `gcode_file` refuses the "//" relative prefix with a warning when set from Python (works anyway);
+   a program picked in the file browser is stored absolute, so on another PC the copy in the project is used.
+7. Scripts: in a background session nothing reads the milling path after Build (`mark_stale` only schedules in the
+   UI) – call `machining.sample()`. Worth one line in CLAUDE.md section 8.
 
 **Open points:**
+- The owner builds and renders on his PC (RTX 3090); render times there not known yet.
+- Until problem 1 is fixed: change the step's settings (Fit into, rapids) as little as possible; if Blender
+  crashes after a change, open the file again – the path is then read fresh.

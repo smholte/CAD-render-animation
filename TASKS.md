@@ -29,7 +29,6 @@ updates its branch to `main`.
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0037 | The owner's old CNC mill: block, end mill, CNC machine + milling + chips, a G-code program and its step set up in his own project (his file stays out of the repository); app problems found go to the lead | worker (chat in the claude.ai project: file in and out) | Opus · Medium | open – can start (owner's priority, the only task now) | tasks/0037-owner-mill-gcode-demo.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | running – round 1 released (0.2.29); round 2 after the owner's run | tasks/0033-pccheck-heavy.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
@@ -75,5 +74,6 @@ updates its branch to `main`.
 | 0034 | Way covers: telescopic covers follow one slide axis; sections picked (several parts each), travel shared out (500 mm / 5 sections = 100 mm each), Housing counts (0/125/250/375/500), Flip, Read from the axis; every section is a slide joint that follows the axis, so poses, steps, G-code and the render queue move them; the owner's 5-section way-cover STEP is a test model | 0.2.28 |
 | 0026 | G-code drives the machine: LinuxCNC reader (arcs in all planes, cycles, offsets, parameters, o-words), 4 Motion > CNC machine (axes, spindle, tool, work zero, tools), step Run G-code program (exact path, spindle, tool changes with tool-changer animation, toolpath); joints no longer snap to CAD within 0.1 mm | 0.2.30 |
 | 0036 | Faster automatic tests: precheck first (version clash in ~1 min), pytest and real app as parallel jobs (full run 11–14 min, was 35–50), a push to `main` whose tree already ran green releases without repeating the tests (1.7 min), docs-only pushes ~2 min | 0.2.31 |
+| 0037 | The owner's own mill set up with block, Ø10 end mill, CNC machine, milling + chips, a 3.4-min G-code demo and its step (45 s); first real-machine test of 0026/0027/0028/0034; 7 app problems for the lead, one crash (milling path re-read) | – (no app change) |
 
 Details per version: `CHANGELOG.md`.
