@@ -81,13 +81,13 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             wrap(layout, context, "Nothing clicked: click a part in the view", icon="RESTRICT_SELECT_ON")
         row = layout.row(align=True)
         sub = row.row(align=True)
-        sub.ui_units_x = 4.4
+        sub.ui_units_x = 5.4
         sub.operator("fresing.cnc_use_tool", text="Tool", icon="RESTRICT_SELECT_OFF")
         row.label(text=gcode.label(cnc.tool) if cnc.tool else "not picked yet",
                   icon="CHECKMARK" if cnc.tool else "BLANK1")
         row = layout.row(align=True)
         sub = row.row(align=True)
-        sub.ui_units_x = 4.4
+        sub.ui_units_x = 5.4
         sub.operator("fresing.cnc_use_workpiece", text="Workpiece", icon="RESTRICT_SELECT_OFF")
         row.label(text=gcode.label(cnc.workpiece) if cnc.workpiece else "not picked yet",
                   icon="CHECKMARK" if cnc.workpiece else "BLANK1")
@@ -111,15 +111,16 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
 
         body = fold(layout, "fr_cnc_machine", "Machine: speeds, zero, shift", icon="PREFERENCES")
         if body:
+            wrap(body, context, "Rapid speeds (G0), mm per minute:", icon="FF", inset=12)
             col = split_props(body)
-            col.prop(cnc, "rapid_x", text="X rapid (mm/min)")
-            col.prop(cnc, "rapid_y", text="Y rapid (mm/min)")
-            col.prop(cnc, "rapid_z", text="Z rapid (mm/min)")
+            col.prop(cnc, "rapid_x", text="X rapid")
+            col.prop(cnc, "rapid_y", text="Y rapid")
+            col.prop(cnc, "rapid_z", text="Z rapid")
             col.prop(cnc, "zero_shift", text="Shift zero")
             wrap(body, context, "Machine zero (G53, G28): " + ("set to a position of the axes" if cnc.home_set
                                                               else "the CAD position"), icon="HOME", inset=12)
             row = body.row(align=True)
-            row.operator("fresing.cnc_home", text="Here (axes as now)", icon="HOME")
+            row.operator("fresing.cnc_home", text="Axes now", icon="HOME")
             row.operator("fresing.cnc_home", text="CAD position").clear = True
 
         body = fold(layout, "fr_cnc_tools", f"Tools for tool changes ({len(cnc.tools)})", icon="TOOL_SETTINGS")

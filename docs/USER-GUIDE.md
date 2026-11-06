@@ -825,10 +825,10 @@ next to its field (**Reverse**).
 
 **Machine: speeds, zero, shift** (fold)
 
-- **X / Y / Z rapid (mm/min)**: how fast the machine moves on G0 (LinuxCNC's `MAX_VELOCITY` × 60). They set
+- **X / Y / Z rapid** (mm per minute): how fast the machine moves on G0 (LinuxCNC's `MAX_VELOCITY` × 60). They set
   how long rapid moves take; feed moves take the program's F.
 - **Shift zero**: moves the work zero along X, Y and Z, for a zero that is not on a corner or the centre.
-- **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Here (axes as now)** after
+- **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
   you moved the joints to the machine's home position (usually Z right up).
 
 **Tools for tool changes** (fold, only for programs with M6)
@@ -1104,6 +1104,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    start** / **Slow stop** only one of them, **Constant speed** none. **Ramp (s)** is how long speeding
    up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
 **Run a CNC program**
+
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 20.8 s on the machine, one tool change">
 
 1. Set the machine up in 4 Motion > **CNC machine** (above).
 2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
