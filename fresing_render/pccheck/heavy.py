@@ -127,10 +127,12 @@ def heavy_scene(ctx):
         env.pop(var, None)
     env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
     env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "heavy_scene.py")
     t0 = time.time()
     r = subprocess.run([import_runner.python_executable(), script, out, str(z["unique"]), str(z["placed"])],
-                       capture_output=True, text=True, env=env, timeout=1800,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
+                       timeout=1800,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0 or not os.path.isfile(out):
         raise RuntimeError("the big test machine could not be written: " + (r.stderr or r.stdout).strip()[-300:])
