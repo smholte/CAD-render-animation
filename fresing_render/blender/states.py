@@ -96,6 +96,8 @@ def apply_pose_data(scene, pose, joints_only: bool = False) -> None:
     for j in scene.fresing.joints:
         if j.name in values and not j.follows:       # (a pose saved before it followed another joint)
             joints.set_value(j, values[j.name])
+    from . import linkages
+    linkages.refresh_all(scene)                     # mechanisms follow their drive joint (also with no 3D view)
     if not joints_only:
         joints.apply_free_moves(scene, deltas, reset_others=True)
     scene.fresing.bounds_valid = False
@@ -112,6 +114,8 @@ def apply_pose(scene, name: str) -> bool:
 def reset_pose(scene) -> None:
     """Everything back where the CAD file has it."""
     joints.reset_all(scene)
+    from . import linkages
+    linkages.refresh_all(scene)
     joints.apply_free_moves(scene, {}, reset_others=True)
     scene.fresing.bounds_valid = False
 

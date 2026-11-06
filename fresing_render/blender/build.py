@@ -34,8 +34,10 @@ PROP_CAD_PARENT = "fr_cad_parent"  # CAD parent, set while a joint carries the o
 MODEL_KINDS = ("assembly", "part")
 # a cylinder's empties (task 0013): frame on the barrel pin, barrel (aims), rod (slides), rod pin, telescopic stage
 CYLINDER_KINDS = ("cyl_frame", "cyl_barrel", "cyl_rod", "cyl_pin", "cyl_stage")
+# a mechanism's empties (task 0014): its frame on the input pin, one per link it moves
+LINKAGE_KINDS = ("mech_frame", "mech_link")
 # empties the app inserts: not part of the CAD structure
-JOINT_KINDS = ("joint_frame", "joint") + CYLINDER_KINDS
+JOINT_KINDS = ("joint_frame", "joint") + CYLINDER_KINDS + LINKAGE_KINDS
 
 
 def mat_to_list(m) -> list[float]:

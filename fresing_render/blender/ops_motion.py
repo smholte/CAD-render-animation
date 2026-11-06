@@ -44,6 +44,17 @@ def selected_movers(context) -> list:
 SEP = "\x1f"          # between object names passed to the pick tool (names may contain commas)
 
 
+def _drives_mechanism(context, op, j, what: str) -> bool:
+    """True (and a warning) when ``j`` drives a mechanism: its axis, direction and type belong to the mechanism."""
+    from . import linkages
+    m = linkages.drives(context.scene, j) if j is not None else None
+    if m is None:
+        return False
+    op.report({"WARNING"}, f"'{j.name}' drives mechanism '{m.name}': {what} it there (4 Motion > Mechanisms), "
+                           "or remove the mechanism first")
+    return True
+
+
 def _active_joint(context):
     s = context.scene.fresing
     if 0 <= s.joints_index < len(s.joints):
@@ -253,6 +264,8 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
         if self.mode == "EDIT" and not _valid_joint(context):
             self.report({"WARNING"}, "This joint is broken (its arrow was deleted): remove it and add it again")
             return {"CANCELLED"}
+        if self.mode == "EDIT" and _drives_mechanism(context, self, _active_joint(context), "change"):
+            return {"CANCELLED"}
         if self.mode == "NEW" and not self.movers:
             movers = selected_movers(context)
             if not movers:
@@ -323,6 +336,8 @@ class FRESING_OT_joint_remove(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         j = _active_joint(context)
+        if _drives_mechanism(context, self, j, "remove"):
+            return {"CANCELLED"}
         name = j.name
         below = joints.rides_on(scene, j)
         below = below.name if below is not None else ""      # names only: removing shifts the list items
@@ -390,6 +405,8 @@ class FRESING_OT_joint_flip(bpy.types.Operator):
         return _valid_joint(context)
 
     def execute(self, context):
+        if _drives_mechanism(context, self, _active_joint(context), "change"):
+            return {"CANCELLED"}
         joints.flip(context.scene, _active_joint(context))
         return {"FINISHED"}
 
@@ -409,6 +426,8 @@ class FRESING_OT_joint_axis_preset(bpy.types.Operator):
 
     def execute(self, context):
         j = _active_joint(context)
+        if _drives_mechanism(context, self, j, "change"):
+            return {"CANCELLED"}
         o, _d = joints.axis_world(j)
         joints.set_axis(context.scene, j, o, _axis_vector(self.axis), ref=None)
         return {"FINISHED"}
@@ -434,6 +453,8 @@ class FRESING_OT_joint_kind(bpy.types.Operator):
         return _valid_joint(context)
 
     def execute(self, context):
+        if _drives_mechanism(context, self, _active_joint(context), "change"):
+            return {"CANCELLED"}
         joints.set_kind(context.scene, _active_joint(context), self.kind)
         return {"FINISHED"}
 
@@ -473,6 +494,8 @@ class FRESING_OT_joint_members(bpy.types.Operator):
                     if d.visible_get() and not d.hide_select:
                         d.select_set(True)
             return {"FINISHED"}
+        if self.action in ("ADD", "REMOVE") and _drives_mechanism(context, self, j, "it moves one link only: change"):
+            return {"CANCELLED"}
         movers = selected_movers(context)
         try:
             if self.action == "ADD":
@@ -937,6 +960,18 @@ class FRESING_OT_block_add(bpy.types.Operator):
                     now = 0.0
                 b.from_stroke = min(max(now, 0.0), c.full_stroke)
                 b.to_stroke = c.full_stroke if now < c.full_stroke / 2 else 0.0
+        elif self.kind == "MECHANISM":
+            from . import linkages
+            lifts = [m for m in s.mechanisms if linkages.is_valid(m) and linkages.has_height(m)]
+            if 0 <= s.mechanisms_index < len(s.mechanisms) and s.mechanisms[s.mechanisms_index] in lifts:
+                lifts.insert(0, s.mechanisms[s.mechanisms_index])
+            if lifts:
+                m = lifts[0]
+                b.mechanism = m.name
+                lo, hi = linkages.height_range(context.scene, m)
+                now = linkages.height_now(context.scene, m)
+                b.from_height = now
+                b.to_height = hi if now < (lo + hi) / 2 else lo
         elif self.kind == "POSE" and len(s.poses):
             b.pose = s.poses[min(s.poses_index, len(s.poses) - 1)].name
         elif self.kind == "CAMERA":

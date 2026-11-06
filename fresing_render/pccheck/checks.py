@@ -29,6 +29,7 @@ FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
+LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -337,6 +338,56 @@ def joints_cylinder(ctx):
     _check(abs(got - expected) < 1e-4, f"stroke 100 mm turned the arm to {math.degrees(got):.2f}°, "
                                        f"not {math.degrees(expected):.2f}°")
     return f"eye on its pin to {err * 1000:.3f} mm; stroke 100 mm → arm {math.degrees(got):.2f}°"
+
+
+@line("joints.mechanism", "Mechanisms: scissor lift height, slider-crank", "0.2.26",
+      what="A 3-stage scissor lift is made from its arms (pins found by themselves): the platform goes to 1.5 m "
+           "and every arm follows; a slider-crank's piston sits where the formula says")
+def joints_mechanism(ctx):
+    import time
+
+    from ..blender import linkages
+    scene = ctx.fresh(LINKAGES)
+
+    def axis_xz(name):
+        part = _ob(scene, name)
+        p = part.matrix_world @ __import__("mathutils").Vector(part.data["fr_axes"][0:3])
+        return p.x, p.z
+
+    arms = [_ob(scene, f"LIFT.ARM.{s}.{i}") for i in (1, 2, 3) for s in ("IN", "OUT")]
+    t0 = time.time()
+    m = linkages.create(scene, "SCISSOR", [[a] for a in arms] + [[_ob(scene, "LIFT.PLATFORM.ASM")]],
+                        base=_ob(scene, "LIFT.BASE.ASM"))
+    ctx.metric("mechanism set-up", time.time() - t0, "s")
+    t0 = time.time()
+    m.height = 1.5
+    ctx.metric("scissor 0.78 → 1.5 m", (time.time() - t0) * 1000.0, "ms")
+    _update()
+    _update()
+    x, z = axis_xz("LIFT.PLATFORM.PIN")
+    _check(abs(z - 1.6) < 1e-4, f"the platform's pin is at {z * 1000:.1f} mm, not 1600 mm")
+    from ..blender import build
+    rollers = [o for o in scene.objects if o.get(build.PROP_NAME) == "LIFT.ROLLER"]
+    low = min(rollers, key=lambda o: o.matrix_world.translation.z)          # the bottom one, on the base
+    p = low.matrix_world @ __import__("mathutils").Vector(low.data["fr_axes"][0:3])
+    rx, rz = p.x, p.z
+    want = math.cos(math.asin(0.5))                                  # 3 stages of 1 m at 30°: the roller at cos 30°
+    _check(abs(rx - want) < 1e-4 and abs(rz - 0.1) < 1e-4,
+           f"the bottom roller is at ({rx * 1000:.1f}, {rz * 1000:.1f}) mm, not ({want * 1000:.1f}, 100.0)")
+    s = linkages.create(scene, "SLIDER", [[_ob(scene, n)] for n in ("CRANK.CRANK.ASM", "CRANK.ROD.ASM",
+                                                                         "CRANK.PISTON.ASM")],
+                        base=_ob(scene, "CRANK.BASE.ASM"))
+    j = linkages.input_joint(scene, s)
+    from ..blender import joints
+    joints.set_value(j, math.radians(100))
+    _update()
+    _update()
+    bx, bz = axis_xz("CRANK.CRANK.PIN")
+    t = math.atan2(bz - 0.3, bx - 3.2)
+    want = 3.2 + 0.1 * math.cos(t) + math.sqrt(0.09 - (0.1 * math.sin(t) - 0.02) ** 2)
+    px, _pz = axis_xz("CRANK.ROD.PIN")
+    _check(abs(px - want) < 1e-4, f"the piston's pin is at x {px * 1000:.2f} mm, not {want * 1000:.2f} mm")
+    return f"platform 1500 mm, roller on its line; piston to {abs(px - want) * 1000:.3f} mm"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

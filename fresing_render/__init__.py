@@ -6,13 +6,14 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.25"
+__version__ = "0.2.26"
 
 _modules = []
 
 
 def _classes():
-    from .blender import (ops_cylinders, ops_decals, ops_import, ops_machining, ops_main, ops_motion, ops_panels,
+    from .blender import (ops_cylinders, ops_decals, ops_import, ops_linkages, ops_machining, ops_main, ops_motion,
+                          ops_panels,
                           ops_rule_sets, ops_scene, ops_surroundings, ops_video, prefs, ui, ui_decals, ui_machining,
                           ui_motion, ui_video, updates)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
@@ -21,7 +22,7 @@ def _classes():
     looks[at:at] = ui_decals.PANELS
     # the update notice first: a panel registered first sits on top of the Fresing tab
     return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
-            + ops_cylinders.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES
+            + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES
             + ops_scene.CLASSES + ops_machining.CLASSES + ops_decals.CLASSES + ops_video.CLASSES + tuple(looks)
             + ui_motion.CLASSES
             + ui_machining.CLASSES + ui_video.CLASSES)
@@ -30,7 +31,7 @@ def _classes():
 def register():
     import bpy
 
-    from .blender import decals, handlers, machining, project_lock, props, updates
+    from .blender import decals, handlers, linkages, machining, project_lock, props, updates
     props.register()
     decals.register()
     for cls in _classes():
@@ -42,6 +43,7 @@ def register():
     handlers.register()
     project_lock.register()
     machining.register()
+    linkages.register()
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -51,9 +53,10 @@ def unregister():
     import bpy
 
     from . import pccheck
-    from .blender import decals, handlers, machining, project_lock, props, updates
+    from .blender import decals, handlers, linkages, machining, project_lock, props, updates
     pccheck.unregister()
     updates.unregister()
+    linkages.unregister()
     machining.unregister()
     project_lock.unregister()
     handlers.unregister()

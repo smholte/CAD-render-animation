@@ -549,6 +549,77 @@ class FRCylinder(bpy.types.PropertyGroup):
                     "match, within the cylinder's stroke")
 
 
+# ---- mechanisms (task 0014) ----
+
+def _mechanism_renamed(self, context):
+    from . import linkages
+    old = self.get("_old_name", "")
+    new = self.name.strip()
+    taken = sum(1 for m in context.scene.fresing.mechanisms if m.name == new) > 1
+    if old and (not new or taken):
+        self["name"] = old
+        return
+    if new != self.name:
+        self["name"] = new
+    if old and old != self.name:
+        linkages.rename(context.scene, self, old)
+    self["_old_name"] = self.name
+
+
+def _height_get(self):
+    from . import linkages
+    try:
+        return linkages.height_now(self.id_data, self)
+    except Exception:
+        return 0.0
+
+
+def _height_set(self, value):
+    from . import linkages
+    try:
+        reason = linkages.set_height(self.id_data, self, value)
+        if reason:
+            self.id_data.fresing.last_message = f"{self.name}: {reason}"
+    except RuntimeError as exc:
+        self.id_data.fresing.last_message = str(exc)
+
+
+MECHANISM_KINDS = [
+    ("SCISSOR", "Scissor lift", "Arms crossing in pairs (stages) between a base and a platform; rollers run on "
+     "the base and under the platform. Driven by its bottom pin, its height or a cylinder"),
+    ("FOURBAR", "Four-bar or parallel arm", "Three moving links and four pins: a crank and a rocker on the base, "
+     "a coupler between them (also a parallel arm, a toggle clamp)"),
+    ("SLIDER", "Slider-crank", "A crank on the base, a rod, and a slider or piston that slides along a guide"),
+    ("OTHER", "Other linkage", "Any mechanism in one plane: links joined by pins (found from the holes), sliders "
+     "found from their round faces"),
+]
+
+
+class FRMechLink(bpy.types.PropertyGroup):
+    name: StringProperty()
+    objs: CollectionProperty(type=FRObjectRef)
+    empty: PointerProperty(type=bpy.types.Object)
+
+
+class FRMechanism(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", update=_mechanism_renamed,
+                         description="Name of the mechanism, used in Lift height animation steps. Double-click to "
+                                     "rename")
+    kind: EnumProperty(name="Type", items=MECHANISM_KINDS, default="OTHER")
+    frame: PointerProperty(type=bpy.types.Object)
+    base: PointerProperty(type=bpy.types.Object)
+    links: CollectionProperty(type=FRMechLink)
+    joint_motion: PointerProperty(type=bpy.types.Object)
+    own_joint: BoolProperty(default=False)
+    setup: StringProperty()
+    signs: StringProperty()
+    status: StringProperty()
+    height: FloatProperty(
+        name="Height", unit="LENGTH", get=_height_get, set=_height_set,
+        description="Height of the platform's pin above the base's fixed pin, in mm. Drag it or type a number: "
+                    "the arms move to match, within the drive joint's limits")
+
+
 class FRUid(bpy.types.PropertyGroup):
     uid: StringProperty()
 
@@ -623,6 +694,8 @@ BLOCK_KINDS = [
      "move along", "FORCE_VORTEX", 5),
     ("CYLINDER", "Move cylinder", "Moves a cylinder's rod in or out (stroke from - to); the arm moves with it",
      "CON_STRETCHTO", 6),
+    ("MECHANISM", "Lift height", "Raises or lowers a scissor lift's platform (height from - to); every arm "
+     "follows", "SORT_DESC", 7),
 ]
 
 
@@ -681,6 +754,13 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                description="The stroke the rod starts at, in mm (0 = fully in)")
     to_stroke: FloatProperty(name="To", unit="LENGTH", default=0.1, min=0.0,
                              description="The stroke the rod moves to, in mm (0 = fully in)")
+    # Lift height (task 0014)
+    mechanism: StringProperty(name="Mechanism", description="The scissor lift this step raises or lowers (made in "
+                                                            "4 Motion > Mechanisms)")
+    from_height: FloatProperty(name="From", unit="LENGTH", default=0.5,
+                               description="The platform's height the step starts at, in mm (pin to pin)")
+    to_height: FloatProperty(name="To", unit="LENGTH", default=1.0,
+                             description="The platform's height the step moves to, in mm (pin to pin)")
     ramp: FloatProperty(name="Ramp (s)", default=0.5, min=0.0, soft_max=10.0, step=10, precision=2,
                         description="How long the motor takes to get up to speed and to stop, in seconds (with "
                                     "Motion set to Smooth, Slow start or Slow stop)")
@@ -918,6 +998,8 @@ def _show_joints_changed(self, context):
             except RuntimeError:
                 pass
     cylinders.show(context.scene, show)
+    from . import linkages
+    linkages.show(context.scene, show)
 
 
 class FRSceneSettings(bpy.types.PropertyGroup):
@@ -1200,6 +1282,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     cylinders_index: IntProperty(default=0)
     cyl_pick_barrel: CollectionProperty(type=FRObjectRef)       # what Add cylinder will use
     cyl_pick_rod: CollectionProperty(type=FRObjectRef)
+    mechanisms: CollectionProperty(type=FRMechanism)
+    mechanisms_index: IntProperty(default=0)
+    mech_base: PointerProperty(type=bpy.types.Object)          # what Add mechanism stands on ('' = the parent)
+    mech_kind: EnumProperty(name="Type", items=MECHANISM_KINDS, default="SCISSOR",
+                            description="What kind of mechanism to add; the steps below change with it")
     poses: CollectionProperty(type=FRPose)
     poses_index: IntProperty(default=0)
     explode_factor: FloatProperty(name="Distance", default=0.5, min=0.0, soft_max=3.0,
@@ -1255,7 +1342,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
-           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRUid, FRVisSet, FRShot, FRAnimBlock,
+           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet, FRShot, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
 
 
