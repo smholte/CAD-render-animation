@@ -434,7 +434,7 @@ jobs:
             reuse) what="no tests: this tree already ran green in run $ART (https://github.com/$GITHUB_REPOSITORY/actions/runs/$ART)" ;;
             docs)  what="documentation-only change: build, tooltip check, guide and their tests" ;;
             full)  what="all tests" ;;
-            *)     what="the precheck failed: see its job" ;;
+            *)     what="the precheck failed: see its job (nothing else ran)" ;;
           esac
           if $ok; then echo "### ✅ Tests passed – mode ${MODE}: $what" >> "$GITHUB_STEP_SUMMARY"
           else echo "### ❌ Tests failed – mode ${MODE:-?}: $what" >> "$GITHUB_STEP_SUMMARY"; fi

@@ -387,7 +387,7 @@ def main(argv=None) -> int:
 
     import ci_groups
     pytest_m, real_m = ci_groups.matrix_pytest(), ci_groups.matrix_real_app()
-    mode, art_run, why = "full", args.run, "checks only"
+    mode, art_run, why = ("failed" if problems else "full"), args.run, "checks only"
     if args.github and not problems:
         mode, art_run, why = decide(args.event, ref, sha, args.before, args.run)
 
