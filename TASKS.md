@@ -19,20 +19,21 @@ updates its branch to `main`.
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21); lane free
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30); lane free
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27); lane free
-- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (can start)
+- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (later)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (round 1 released 0.2.29, round 2 waits for the owner's Heavy run)
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (after 0031)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Open and running
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
+| 0037 | The owner's old CNC mill: block, end mill, CNC machine + milling + chips, a G-code program and its step set up in his own project (his file stays out of the repository); app problems found go to the lead | worker (chat in the claude.ai project: file in and out) | Opus · Medium | open – can start (owner's priority, the only task now) | tasks/0037-owner-mill-gcode-demo.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | running – round 1 released (0.2.29); round 2 after the owner's run | tasks/0033-pccheck-heavy.md |
-| 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | open – start after 0031 (needs Blender in the session) | tasks/0035-waycover-follow-ups.md |
-| 0031 | Quality & delivery lane: stored set-up for every Claude Code session on the web (venv, Blender 5.2.3, xvfb, ImageMagick; download.blender.org allowed or a GitHub-release copy); two rounds, the owner sets the environment in between | worker | Sonnet · Medium | open – can start | tasks/0031-web-setup.md |
+| 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
+| 0031 | Quality & delivery lane: stored set-up for every Claude Code session on the web (venv, Blender 5.2.3, xvfb, ImageMagick; download.blender.org allowed or a GitHub-release copy); two rounds, the owner sets the environment in between | worker | Sonnet · Medium | later – owner put it on hold (6 Nov) | tasks/0031-web-setup.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | open | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | – | open | – |
