@@ -251,7 +251,7 @@ def test_every_line_is_complete():
     assert len(ids) == len(set(ids)), "line ids must be unique"
     for ln in checks.LINES:
         assert ln.title and ln.what, ln.id
-        assert set(ln.modes) <= {"quick", "full", "own"} and ln.modes, ln.id
+        assert set(ln.modes) <= {"quick", "full", "own", "heavy"} and ln.modes, ln.id
         assert core.version_tuple(ln.since) <= core.version_tuple(__version__), (ln.id, "since a later version")
         for r in ln.requires:
             assert r in ids and ids.index(r) < ids.index(ln.id), (ln.id, r)
@@ -376,14 +376,17 @@ def test_shortcut_script_quotes_apostrophes():
 def test_shortcuts_only_where_missing(tmp_path):
     pytest.importorskip("bpy")
     from fresing_render.pccheck import ops
-    assert ops.missing_shortcuts(str(tmp_path)) == ["quick", "full"]
+    assert ops.missing_shortcuts(str(tmp_path)) == ["quick", "full", "heavy"]
     (tmp_path / ops.SHORTCUTS["quick"]).write_text("x")
-    assert ops.missing_shortcuts(str(tmp_path)) == ["full"]
+    assert ops.missing_shortcuts(str(tmp_path)) == ["full", "heavy"]
+    (tmp_path / ops.SHORTCUTS["heavy"]).write_text("x")
     desk = tmp_path / "desk"
     desk.mkdir()
     assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full"]       # no app shortcut there: leave it
     (desk / "Fresing Render.lnk").write_text("x")
-    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full", "desktop"]
+    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full", "desktop", "desktop_heavy"]
+    script = ops.shortcut_script("S", "b.exe", str(desk), ["desktop_heavy"])
+    assert ops.DESKTOP_HEAVY in script and '" heavy' in script
 
 
 def test_running_check_is_detected(tmp_path):
@@ -419,3 +422,143 @@ def test_github_verdict_reads_the_text_block():
     assert any("b skipped" in p for p in problems) and any("at least 5" in p for p in problems)
     assert chk.judge("")[1] and chk.MIN_LINES_FULL <= len(core.lines_for(__import__(
         "fresing_render.pccheck.checks", fromlist=["LINES"]).LINES, "full", False))
+
+
+# ---------------------------------------------------------------------------
+# Heavy mode (task 0033)
+# ---------------------------------------------------------------------------
+
+def _checks():
+    return __import__("fresing_render.pccheck.checks", fromlist=["LINES"])
+
+
+def test_heavy_is_a_mode_with_its_own_history():
+    assert "heavy" in core.MODES and core.MODE_TITLES["heavy"] == "Heavy"
+    assert core.parse_args(["heavy"])["mode"] == "heavy"
+    h = _history(_run([_res("a", seconds=10)], mode="heavy"), _run([_res("a", seconds=99)], mode="full"))
+    assert core.reference_time(h, "heavy", "a") == 10.0 and core.reference_time(h, "full", "a") == 99.0
+
+
+def test_heavy_lines_are_registered_and_explained():
+    lines = [ln for ln in _checks().LINES if "heavy" in ln.modes]
+    assert len(lines) >= 7 and all(ln.id.startswith("heavy.") for ln in lines)
+    assert not [ln for ln in core.lines_for(_checks().LINES, "full", False) if "heavy" in ln.modes]
+    for ln in lines:                       # every Heavy line says what it shows and what it does not
+        assert ln.shows and ln.not_shown and ln.expected > 0, ln.id
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import ci_check_pccheck as chk
+    assert chk.MIN_LINES_HEAVY <= len(lines)
+
+
+def test_heavy_scaled_down_sizes(monkeypatch):
+    from fresing_render.pccheck import heavy
+    monkeypatch.delenv(heavy.SMALL_ENV, raising=False)
+    big = heavy.sizes()
+    monkeypatch.setenv(heavy.SMALL_ENV, "1")
+    small = heavy.sizes()
+    assert heavy.small() and big["placed"] >= 3000 and big["unique"] >= 600 and big["seconds"] == 10.0
+    assert (big["w4k"], big["h4k"]) == (3840, 2160)
+    assert small["placed"] <= 400 and small["seconds"] <= 0.6 and (small["w"], small["h"]) == (480, 270)
+
+
+def test_peak_memory_is_read():
+    from fresing_render.pccheck import heavy
+    assert heavy.peak_memory_mb() > 10          # this test program itself
+
+
+def test_contact_sheet_puts_frames_side_by_side():
+    frames = [np.full((90, 160, 3), v) for v in (0.1, 0.3, 0.5, 0.7, 0.9)]
+    sheet = core.contact_sheet(frames, cols=4, width=40)
+    assert sheet.shape[1] == 4 * 40 + 5 * 4 and sheet.shape[0] == 2 * core.thumbnail(frames[0], 40).shape[0] + 3 * 4       # 5 frames: 2 rows
+    assert sheet[4 + 5, 4 + 5, 0] == pytest.approx(0.1) and sheet[4 + 5, 4 + 40 + 4 + 5, 0] == pytest.approx(0.3)
+    with pytest.raises(ValueError):
+        core.contact_sheet([])
+
+
+def test_heavy_text_block_has_numbers_only_and_says_cancelled_and_scaled():
+    r = _res("heavy.import", metrics={"parts": (2992, ""), "peak memory": (5120, "MB"), "import": (41.2, "s")},
+             shows="Import speed on all cores", not_shown="Your own parts")
+    run = _run([r], mode="heavy")
+    run.cancelled, run.scaled = True, True
+    block = core.text_block(run)
+    assert "Heavy" in block.splitlines()[0] and "CANCELLED" in block and "SCALED DOWN" in block
+    assert "peak memory 5120 MB" in block and "parts 2992" in block and "Import speed" not in block
+    page = core.html_report(run, block)
+    assert "Shows:" in page and "Import speed on all cores" in page and "Does not show:" in page
+    assert "Cancelled" in page
+
+
+def test_report_shows_progress_of_a_running_line_and_larger_pictures():
+    import time
+    r = Result("heavy.video", "Video", "0.2.27", expected=420, started=time.time() - 100)
+    run = _run([r], mode="heavy")
+    run.finished = False
+    page = core.html_report(run, "")
+    assert "Running for 2 min" in page
+    assert "expected about 7 min" in page and "http-equiv='refresh'" in page and "Cancel" in page
+    pic = core.Picture("p", "Big", thumb_png=b"x", width=760, settings="3840 × 2160, Cycles Final, GPU")
+    r.pictures.append(pic)
+    run.finished = True
+    page = core.html_report(run, "")
+    assert "class='big'" in page and "3840 × 2160, Cycles Final, GPU" in page
+
+
+def test_big_machine_generator_writes_a_readable_step(tmp_path):
+    pytest.importorskip("OCP")
+    from fresing_render.pccheck import heavy_scene
+    out = tmp_path / "m.step"
+    info = heavy_scene.build(str(out), unique=40, placed=120)
+    assert out.stat().st_size > 100_000 and 30 <= info["unique"] <= 45 and 100 <= info["placed"] <= 140
+    text = out.read_text(encoding="utf-8", errors="ignore")
+    assert "HEAVY.MACHINE" in text and "MODULE 01" in text and "ISO 4017" in text or "DIN 912" in text
+
+
+def test_a_cancel_request_stops_the_run_and_keeps_finished_lines(blender, tmp_path):
+    from fresing_render.pccheck import runner
+    from fresing_render.pccheck.core import Line
+    seen = []
+
+    def first(ctx):
+        seen.append("first")
+
+    def second(ctx):
+        seen.append("second")
+        core.write_text(runner.cancel_path(), "cancel\n")        # the owner clicks Cancel while this line runs
+        runner.check_cancel()                                   # a long line looks between its steps
+
+    def third(ctx):
+        seen.append("third")
+
+    lines = [Line(f"t.{n}", n, "0.1.0", ("heavy",), fn, what="x") for n, fn in
+             (("first", first), ("second", second), ("third", third))]
+    desk = tmp_path / "desk"
+    desk.mkdir()
+    run = runner.run("heavy", str(desk), open_report=False, lines=lines)
+    assert seen == ["first", "second"] and run.cancelled and run.finished
+    assert [r.status for r in run.results] == [OK, SKIPPED]
+    assert not os.path.exists(runner.cancel_path())             # removed at the end, the next run starts clean
+    page = (desk / runner.REPORT_NAME).read_text(encoding="utf-8")
+    assert "Cancelled" in page and "first" in page
+    assert "CANCELLED" in (tmp_path / "hist" / "last_run.txt").read_text(encoding="utf-8")
+
+
+def test_cancel_operator_needs_a_running_check(blender, tmp_path):
+    from fresing_render.pccheck import ops, runner
+    assert not ops.FRESING_OT_pc_check_cancel.poll(None)
+    import json
+    import subprocess
+    import sys
+    p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        os.makedirs(runner.history_dir(), exist_ok=True)
+        (tmp_path / "hist" / ops.RUNNING_FILE).write_text(json.dumps({"pid": p.pid}))
+        assert ops.FRESING_OT_pc_check_cancel.poll(None)
+        assert blender.ops.fresing.pc_check_cancel() == {"FINISHED"} and runner.cancel_requested()
+    finally:
+        p.kill()
+        p.wait()
+        try:
+            os.remove(runner.cancel_path())
+        except OSError:
+            pass
