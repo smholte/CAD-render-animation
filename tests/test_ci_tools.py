@@ -153,3 +153,176 @@ def test_a_lost_check_line_is_noticed():
     _, problems = judge(HEAD + "".join(lines[:-2]) + GPU_SKIPS + "RESULT: ALL OK (2 skipped)\n")
     assert n < ci_check_selftest.MIN_CHECKS
     assert any(f"only {n} checks ran" in p for p in problems)
+
+
+# ---- task 0036: precheck, parallel groups, reuse of a green run --------------------------------------------
+
+def _pre():
+    import ci_precheck
+    return ci_precheck
+
+
+def _versions(v, *, on_main=False, main_v="0.2.28", base_v="0.2.28", released=("0.2.27", "0.2.28"),
+              changelog=("0.2.29", "0.2.28")):
+    return _pre().check_versions(v, v, list(changelog), on_main=on_main, main_v=main_v, base_v=base_v,
+                                 released=set(released))
+
+
+def test_precheck_versions():
+    P = _pre()
+    assert _versions("0.2.28")[0] == []                                   # not raised yet on the branch: fine
+    assert _versions("0.2.29")[0] == []                                   # raised, newest, CHANGELOG heading
+    problems, _ = _versions("0.2.29", main_v="0.2.29")                     # another task merged 0.2.29 first
+    assert len(problems) == 1 and "someone took your version number" in problems[0] and "0.2.30" in problems[0]
+    problems, _ = _versions("0.2.29", released=("0.2.29",), main_v="0.2.28")    # released, main not yet pulled
+    assert "renumber to 0.2.30" in problems[0]
+    problems, _ = _versions("0.2.30", changelog=("0.2.28",))
+    assert "CHANGELOG.md has no heading for 0.2.30" in problems[0]
+    problems, _ = P.check_versions("0.2.29", "0.2.28", ["0.2.29"], on_main=False, main_v="0.2.28",
+                                   base_v="0.2.28", released=set())
+    assert "version clash inside this commit" in problems[0]
+    assert _versions("0.2.28", on_main=True)[0] == []                     # main, already released
+    assert _versions("0.2.29", on_main=True)[0] == []
+    assert "no heading" in _versions("0.2.30", on_main=True)[0][0]
+    assert P.vtuple("0.2.10") > P.vtuple("0.2.9") and P.next_version("0.2.9") == "0.2.10"
+
+
+def test_precheck_counts_groups_and_task_list_pass_on_this_repository():
+    P = _pre()
+    assert P.check_counts() == []
+    assert P.check_groups() == []
+    assert P.check_tasks(open(os.path.join(ROOT, "TASKS.md"), encoding="utf-8").read()) == []
+    import ci_check_pccheck
+    assert P.full_pccheck_lines(open(os.path.join(ROOT, "fresing_render", "pccheck", "checks.py"),
+                                     encoding="utf-8").read()) <= ci_check_pccheck.MIN_LINES_FULL
+
+
+def test_precheck_counts_full_lines_of_the_pc_check():
+    src = ('Q, F, OWN = "quick", "full", "own"\n'
+           '@line("a", "A", "0.1", (Q, F))\ndef a(ctx): pass\n'
+           '@line("b", "B", "0.1")\ndef b(ctx): pass\n'
+           '@line("c", "C", "0.1", modes=(F,))\ndef c(ctx): pass\n'
+           '@line("d", "D", "0.1", (OWN,))\ndef d(ctx): pass\n'
+           '@line("e", "E", "0.1", (Q,))\ndef e(ctx): pass\n')
+    assert _pre().full_pccheck_lines(src) == 3
+
+
+def test_precheck_finds_a_broken_task_table():
+    P = _pre()
+    good = "| # | Task | Who |\n| --- | --- | --- |\n| 0001 | a | lead |\n| 0002 | b | worker |\n"
+    assert P.check_tasks(good) == []
+    bad = good + "| 0003 | c | worker | extra |\n| 0001 | again | lead |\n"
+    problems = P.check_tasks(bad)
+    assert any("4 cells, the table has 3" in p for p in problems)
+    assert any("task 0001 appears twice" in p for p in problems)
+
+
+def test_precheck_real_app_group_rules(monkeypatch):
+    import ci_real_app as R
+    P = _pre()
+    monkeypatch.setattr(R, "GROUPS", {"a": ["ui1", "ui2"], "b": ["ui2"]})
+    problems = P.check_groups()
+    assert any("'ui2' is in two groups" in p for p in problems)
+    assert any("'pccheck' is in no group" in p for p in problems)
+
+
+def test_pytest_groups_hold_every_file_once_and_are_balanced():
+    import ci_groups
+    files = [f"tests/test_{i}.py" for i in range(10)]
+    secs = {"tests/test_0.py": 300, "tests/test_1.py": 200, "tests/test_2.py": 150}
+    groups = ci_groups.pytest_groups(files, secs, n=4, selftest_secs=100)
+    assert sorted(f for g in groups for f in g["files"]) == sorted(files)
+    assert sum(g["selftest"] for g in groups) == 1
+    assert max(g["secs"] for g in groups) <= 300 + 1e-9                    # the biggest file alone sets the pace
+    assert groups == ci_groups.pytest_groups(list(reversed(files)), secs, n=4, selftest_secs=100)   # same split
+    m = ci_groups.matrix_pytest()
+    assert sorted(f for g in m for f in g["files"].split()) == ci_groups.test_files()
+
+
+def test_docs_only_changes():
+    P = _pre()
+    diff_ver = ('diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -9 +9 @@\n-__version__ = "0.2.28"\n'
+                '+__version__ = "0.2.29"\n')
+    diff_code = diff_ver + '@@ -20 +20 @@\n-x = 1\n+x = 2\n'
+    assert P.only_version_line(diff_ver) and not P.only_version_line(diff_code)
+    docs = ["docs/USER-GUIDE.md", "CHANGELOG.md", "TASKS.md", "tasks/0036-ci-speed.md", "CLAUDE.md"]
+    assert P.docs_only(docs, lambda f: "")
+    assert P.docs_only(docs + [P.INIT, P.MANIFEST], lambda f: diff_ver)
+    assert not P.docs_only(docs + [P.INIT], lambda f: diff_code)
+    assert not P.docs_only(docs + ["fresing_render/blender/ui.py"], lambda f: "")
+    assert not P.docs_only(docs + [".github/workflows/tests.yml"], lambda f: "")
+    assert not P.docs_only([], lambda f: "")
+
+
+def _run(i, tree="t1", conclusion="success"):
+    return {"id": i, "status": "completed", "conclusion": conclusion, "created_at": f"2026-11-06T1{i}:00:00Z",
+            "head_branch": "task/x", "head_sha": f"sha{i}", "head_commit": {"tree_id": tree}}
+
+
+def _job(name, conclusion="success"):
+    return {"name": name, "conclusion": conclusion}
+
+
+NEW_JOBS = [_job("Precheck (version, counts, groups; picks the mode)"), _job("Linux - test suite 1"),
+            _job("Build the Windows installer zip"), _job("Windows - install + self-test"), _job("Tests - verdict")]
+OLD_JOBS = [_job("Linux - test suite + packaged self-test"), _job("Linux - real app (simulated clicks)"),
+            _job("Build the Windows installer zip"), _job("Windows - install + self-test")]
+
+
+def test_a_run_is_proven_only_when_its_tests_are_green():
+    P = _pre()
+    assert P.run_is_proven(_run(1), NEW_JOBS)[0]
+    assert P.run_is_proven(_run(1), OLD_JOBS)[0]                          # runs from before task 0036
+    assert not P.run_is_proven(_run(1, conclusion="failure"), NEW_JOBS)[0]
+    assert not P.run_is_proven(_run(1), NEW_JOBS[:-1] + [_job("Tests - verdict", "failure")])[0]
+    assert not P.run_is_proven(_run(1), [j for j in OLD_JOBS if "real app" not in j["name"]])[0]
+    assert not P.run_is_proven(_run(1), [j for j in NEW_JOBS if "Build" not in j["name"]])[0]
+
+
+def test_reuse_finds_the_green_run_of_the_same_tree():
+    P = _pre()
+    arts = [{"name": n, "expired": False} for n in P.ARTIFACTS]
+    runs = [_run(1, "t1"), _run(2, "t2"), _run(3, "t1")]
+
+    def api(path, jobs=NEW_JOBS, arts=arts):
+        if "/runs?" in path:
+            return {"workflow_runs": runs}
+        if path.endswith("jobs?per_page=100"):
+            return {"jobs": jobs}
+        return {"artifacts": arts}
+    run, _ = P.find_proven_run("t1", "99", api)
+    assert run["id"] == 3                                                  # the newest of the two with tree t1
+    assert P.find_proven_run("t1", "3", api)[0]["id"] == 1                 # never its own run
+    assert P.find_proven_run("t9", "99", api)[0] is None
+    run, why = P.find_proven_run("t1", "99", lambda p: api(p, arts=arts[:1]))
+    assert run is None and "installer files are gone" in why
+    assert P.find_proven_run("t1", "99", lambda p: api(p, jobs=NEW_JOBS[:2]))[0] is None
+
+
+def test_release_verifies_the_reused_run(monkeypatch):
+    import release_tools
+    run = _run(5, "tree5")
+
+    def api(path):
+        return {"jobs": NEW_JOBS} if path.endswith("jobs?per_page=100") else run
+    assert release_tools.verify_run("5", "tree5", api)[0]
+    ok, why = release_tools.verify_run("5", "other", api)
+    assert not ok and "tree" in why
+
+
+def test_pytest_summary_seconds_per_file(tmp_path):
+    xml = tmp_path / "r.xml"
+    xml.write_text('<testsuites><testsuite tests="3" time="5">'
+                   '<testcase classname="tests.test_a" name="x" time="1.5"/>'
+                   '<testcase classname="tests.test_a.TestThing" name="y" time="2"/>'
+                   '<testcase classname="tests.test_b" name="z" time="0.25"/></testsuite></testsuites>')
+    assert ci_pytest_summary.file_seconds(str(xml)) == {"tests/test_a.py": 3.5, "tests/test_b.py": 0.2}
+
+
+def test_ci_status_flags_a_slow_job():
+    import ci_status
+    rec = {"Linux - real app ui": 8.0}
+    assert ci_status.slow_note("Linux - real app ui", 11.9, rec) == ""
+    assert "SLOW: usually 8.0 min" in ci_status.slow_note("Linux - real app ui", 12.5, rec)
+    assert ci_status.slow_note("Precheck", 0.9, {"Precheck": 0.3}) == ""            # under a minute: never
+    assert ci_status.slow_note("new job", 30, rec) == ""                            # nothing recorded yet

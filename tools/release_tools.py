@@ -4,6 +4,9 @@
         -> prints version=…, tag=…, prerelease=…, publish=true|false (for $GITHUB_OUTPUT)
     python tools/release_tools.py prepare --repo-dir <update-repo> --out <dir> --tag v0.2.16 --repository owner/name
         -> <dir>/index.json (full download addresses), changelog.json, notes.md (release text)
+    python tools/release_tools.py verify-run --run 123 --tree <git tree hash>
+        -> exit 1 unless run 123 is green (all required jobs) and was made from this exact git tree
+           (mode "reuse", task 0036: the release uses the installer files of that run)
 
 plan: on main the tag is v<version>; when that release exists already nothing is published (a version is
 published once; the next version bump publishes the next). On a branch whose newest commit message holds
@@ -93,6 +96,20 @@ def prepare(repo_dir: str, out: str, tag: str, repository: str) -> list[str]:
     return files + ["index.json", "changelog.json"]
 
 
+def verify_run(run_id: str, tree: str, api=None) -> tuple[bool, str]:
+    """The run whose installer files a reuse release takes: green, all required jobs green, the same git tree."""
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import ci_precheck
+    api = api or ci_precheck.gh_api
+    repo = os.environ.get("GITHUB_REPOSITORY", ci_precheck.REPO)
+    run = api(f"repos/{repo}/actions/runs/{run_id}")
+    got = (run.get("head_commit") or {}).get("tree_id", "")
+    if got != tree:
+        return False, f"run {run_id} tested tree {got[:7] or '?'}, this commit has tree {tree[:7]}"
+    jobs = api(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+    return ci_precheck.run_is_proven(run, jobs)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -105,7 +122,14 @@ def main(argv=None) -> int:
     q.add_argument("--out", required=True)
     q.add_argument("--tag", required=True)
     q.add_argument("--repository", required=True)
+    w = sub.add_parser("verify-run")
+    w.add_argument("--run", required=True)
+    w.add_argument("--tree", required=True)
     args = ap.parse_args(argv)
+    if args.cmd == "verify-run":
+        ok, why = verify_run(args.run, args.tree)
+        print(("OK: " if ok else "NOT PROVEN: ") + why)
+        return 0 if ok else 1
     if args.cmd == "plan":
         for k, v in plan(args.ref, args.run, args.rehearsal).items():
             print(f"{k}={v}")

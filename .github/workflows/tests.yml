@@ -1,9 +1,14 @@
 name: Tests
 
-# Runs by itself at every push and pull request:
-#   - Linux: the full test suite and the packaged self-test
-#   - Linux: the real app on a virtual screen (simulated clicks), the accented-paths test, the PC check (Full)
-#     and the in-app update
+# Runs by itself at every push and pull request (task 0036 made it parallel, about 15 minutes):
+#   - precheck (~1 min, first): version clash, CHANGELOG heading, MIN_CHECKS / MIN_LINES_FULL, every test in a
+#     group, TASKS.md; it also picks the mode of the run (tools/ci_precheck.py):
+#       full   everything below
+#       docs   only documentation/version lines changed since a green commit: build + tooltip check + guide
+#       reuse  a push to main whose git tree already ran green (fast-forward): no tests, straight to the release
+#   - Linux: the test suite in parallel groups (tools/ci_groups.py), one of them also the packaged self-test
+#   - Linux: the real app on a virtual screen in parallel groups (GROUPS in tools/ci_real_app.py): simulated
+#     clicks, the accented-paths test, the PC check (Full) and the in-app update
 #   - Windows: the installer zip is built; an old build is installed and updates itself in the app from a
 #     local copy of the update listing; Install.bat runs unattended over it, then the self-test (started
 #     like its Start-menu shortcut), the PC check (Full, from its Start-menu shortcut) and Uninstall.bat
@@ -32,6 +37,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read                      # precheck looks for green runs; reuse downloads another run's files
 
 env:
   PYTHONUNBUFFERED: "1"
@@ -42,35 +48,95 @@ env:
   MANIFOLD_VERSION: "3.5.4"         # bundled for milling (task 0027): keep equal to tools/build_release.py
 
 jobs:
-  suite:
-    name: Linux - test suite + packaged self-test
+  precheck:
+    name: Precheck (version, counts, groups; picks the mode)
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.pre.outputs.mode }}
+      artifacts_run: ${{ steps.pre.outputs.artifacts_run }}
+      pytest: ${{ steps.pre.outputs.pytest }}
+      realapp: ${{ steps.pre.outputs.realapp }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 100             # enough to compare with the commit before and with main
+
+      - name: main for comparison
+        run: git fetch --no-tags --depth=100 origin main:refs/remotes/origin/main || true
 
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-          cache: pip
-          cache-dependency-path: tools/requirements-dev.txt
 
-      - name: Install packages
+      - name: Precheck (tools/ci_precheck.py)
+        id: pre
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: python tools/ci_precheck.py --github --before "$BEFORE"
+
+      - name: Minutes
+        if: always()
         run: |
-          python -m pip install -r tools/requirements-dev.txt
-          python -c "import bpy, OCP; print('bpy', bpy.app.version_string, '- OCP loads')"
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Precheck: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Test suite (pytest)
+  suite:
+    name: Linux - test suite ${{ matrix.group.name }}${{ matrix.group.selftest && ' + packaged self-test' || '' }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false               # every group reports, also when one fails
+      matrix:
+        group: ${{ fromJSON(needs.precheck.outputs.pytest) }}
+    steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (a venv, by the hash of tools/requirements-dev.txt)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: Use the venv
+        run: |
+          echo "$HOME/venv/bin" >> "$GITHUB_PATH"
+          ~/venv/bin/python -c "import bpy, OCP; print('bpy', bpy.app.version_string, '- OCP loads')"
+
+      - name: Test suite (pytest, this group's files)
+        env:
+          FILES: ${{ matrix.group.files }}
         run: >
-          python -m pytest tests/ -q -rfE --durations=15 --disable-warnings -p no:cacheprovider
+          python -m pytest $FILES -q -rfE --durations=10 --disable-warnings -p no:cacheprovider
           --junitxml=test-results/pytest.xml
 
       - name: Test suite verdict
         if: ${{ !cancelled() }}
-        run: python tools/ci_pytest_summary.py test-results/pytest.xml --max-skipped 1   # 1: "no /bin/false" on odd systems
+        run: python tools/ci_pytest_summary.py test-results/pytest.xml --max-skipped 1 --title "group ${{ matrix.group.name }}"   # 1: "no /bin/false" on odd systems
 
       - name: Packaged self-test (extension zip installed the way users get it)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.group.selftest }}
         env:
           BLENDER_USER_RESOURCES: ${{ runner.temp }}/fr_user
         run: |
@@ -83,23 +149,39 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()                 # also after a timeout: the logs show where it stuck
         with:
-          name: linux-test-suite
+          name: linux-test-suite-${{ matrix.group.name }}
           path: |
             test-results/
             ~/Desktop/Fresing Render self-test/
             ~/Fresing Render self-test/
           retention-days: 14
 
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Test suite group ${{ matrix.group.name }}: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
   real-app:
-    name: Linux - real app (simulated clicks)
+    name: Linux - real app ${{ matrix.group.name }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.mode == 'full' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.precheck.outputs.realapp) }}
     steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tools/requirements-dev.txt
 
       - name: Blender version (pinned in the installer)
         id: pin
@@ -133,29 +215,40 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends xvfb xauth imagemagick libgl1 libglx-mesa0 \
             libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1
 
-      - name: Real-app tests
+      - name: "Real-app tests (group ${{ matrix.group.name }} - ${{ matrix.group.tests }})"
         env:
           BLENDER_VERSION: ${{ steps.pin.outputs.version }}
+          GROUP: ${{ matrix.group.name }}
         run: |
           python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)"   # the guide goes into the zip
           python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" "manifold3d==$MANIFOLD_VERSION" \
             --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 \
             -d "$RUNNER_TEMP/linux-wheels"
           python tools/ci_real_app.py --blender ~/blender/blender-$BLENDER_VERSION-linux-x64/blender \
-            --wheels "$RUNNER_TEMP/linux-wheels" --out real-app-results --timeout-min 15
+            --wheels "$RUNNER_TEMP/linux-wheels" --out real-app-results --group "$GROUP" --timeout-min 15
 
       - uses: actions/upload-artifact@v7
         if: always()                 # also after a timeout: the logs show where it stuck
         with:
-          name: linux-real-app
+          name: linux-real-app-${{ matrix.group.name }}
           path: real-app-results/
           retention-days: 14
 
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Real app ${{ matrix.group.name }}: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
   build:
     name: Build the Windows installer zip
+    needs: precheck
+    if: ${{ needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'docs' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
@@ -171,6 +264,16 @@ jobs:
 
       - name: Build an old version to update from (the same code as 0.0.1, with the 0.2.10 app template)
         run: python tools/build_release.py --dist dist-old --version-as 0.0.1 --template-from tests/data/old_app_template
+
+      - name: Documentation checks (docs-only push; a full run does these in the test suite)
+        if: ${{ needs.precheck.outputs.mode == 'docs' }}
+        run: |
+          python -m pip install "$(grep -E '^pytest==' tools/requirements-dev.txt)"
+          python tools/tooltip_report.py --strict
+          python tools/build_guide.py
+          python -m pytest tests/test_user_guide.py tests/test_updates.py tests/test_ci_tools.py -q -rfE \
+            --disable-warnings -p no:cacheprovider --junitxml=test-results/pytest-docs.xml
+          python tools/ci_pytest_summary.py test-results/pytest-docs.xml --title "documentation checks"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -190,15 +293,24 @@ jobs:
           path: dist-old/FresingRender-0.0.1-windows.zip
           retention-days: 7
 
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Build: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
   windows:
     name: Windows - install + self-test
-    needs: build
+    needs: [precheck, build]
+    if: ${{ needs.precheck.outputs.mode == 'full' }}
     runs-on: windows-2025
     timeout-minutes: 90          # with the PC check (Full) since task 0032
     defaults:
       run:
         shell: pwsh
     steps:
+      - name: Start the clock
+        run: '"JOB_T0=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV'
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
@@ -282,18 +394,62 @@ jobs:
           path: windows-results/
           retention-days: 14
 
+      - name: Minutes
+        if: always()
+        run: |
+          $m = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:JOB_T0) / 60
+          $line = "⏱️ Windows install + self-test: {0:N1} min" -f $m
+          $line; $line >> $env:GITHUB_STEP_SUMMARY
+
+  verdict:
+    name: Tests - verdict
+    needs: [precheck, suite, real-app, build, windows]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: All tests of this mode passed?
+        env:
+          MODE: ${{ needs.precheck.outputs.mode }}
+          ART: ${{ needs.precheck.outputs.artifacts_run }}
+          PRE: ${{ needs.precheck.result }}
+          SUITE: ${{ needs.suite.result }}
+          REAL: ${{ needs.real-app.result }}
+          BUILD: ${{ needs.build.result }}
+          WIN: ${{ needs.windows.result }}
+        run: |
+          echo "mode=$MODE precheck=$PRE suite=$SUITE real-app=$REAL build=$BUILD windows=$WIN"
+          ok=false
+          case "$MODE" in
+            full)  [ "$PRE$SUITE$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccess" ] && ok=true ;;
+            docs)  [ "$PRE$BUILD" = "successsuccess" ] && ok=true ;;
+            reuse) [ "$PRE" = "success" ] && ok=true ;;
+          esac
+          case "$MODE" in
+            reuse) what="no tests: this tree already ran green in run $ART (https://github.com/$GITHUB_REPOSITORY/actions/runs/$ART)" ;;
+            docs)  what="documentation-only change: build, tooltip check, guide and their tests" ;;
+            full)  what="all tests" ;;
+            *)     what="the precheck failed: see its job" ;;
+          esac
+          if $ok; then echo "### ✅ Tests passed – mode ${MODE}: $what" >> "$GITHUB_STEP_SUMMARY"
+          else echo "### ❌ Tests failed – mode ${MODE:-?}: $what" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo "$what"
+          $ok
+
   release:
     name: Publish the release (new version on main)
-    needs: [suite, real-app, build, windows]
+    needs: [precheck, verdict]
     if: >-
-      ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main'
-      || contains(github.event.head_commit.message, '[release rehearsal]')) }}
+      ${{ always() && needs.verdict.result == 'success' && github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[release rehearsal]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write                # this job only: create the tag and the release
+      actions: read                  # the installer files of another run (mode reuse)
     outputs:
       publish: ${{ steps.plan.outputs.publish }}
+      artifacts_run: ${{ needs.precheck.outputs.artifacts_run }}
       tag: ${{ steps.plan.outputs.tag }}
       version: ${{ steps.plan.outputs.version }}
       prerelease: ${{ steps.plan.outputs.prerelease }}
@@ -314,17 +470,27 @@ jobs:
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then args="--rehearsal"; fi
           python tools/release_tools.py plan --ref "$GITHUB_REF" --run "$GITHUB_RUN_ID" $args | tee -a "$GITHUB_OUTPUT"
 
+      - name: Mode reuse - check once more that the run whose files are used is green and has this tree
+        if: steps.plan.outputs.publish == 'true' && needs.precheck.outputs.mode == 'reuse'
+        env:
+          ART: ${{ needs.precheck.outputs.artifacts_run }}
+        run: python tools/release_tools.py verify-run --run "$ART" --tree "$(git rev-parse 'HEAD^{tree}')"
+
       - uses: actions/download-artifact@v8
         if: steps.plan.outputs.publish == 'true'
         with:
           name: windows-installer
           path: release-in
+          run-id: ${{ needs.precheck.outputs.artifacts_run }}     # this run, or the green run of this tree
+          github-token: ${{ github.token }}
 
       - uses: actions/download-artifact@v8
         if: steps.plan.outputs.publish == 'true'
         with:
           name: update-listing
           path: update-listing
+          run-id: ${{ needs.precheck.outputs.artifacts_run }}
+          github-token: ${{ github.token }}
 
       - name: Publish (tag, installer, extension, index.json, changelog.json, release text)
         if: steps.plan.outputs.publish == 'true'
@@ -332,6 +498,7 @@ jobs:
           TAG: ${{ steps.plan.outputs.tag }}
           VERSION: ${{ steps.plan.outputs.version }}
           PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+          RUN_STARTED: ${{ github.event.head_commit.timestamp }}
         run: |
           python tools/release_tools.py prepare --repo-dir update-listing --out release-out --tag "$TAG" \
             --repository "$GITHUB_REPOSITORY"
@@ -345,6 +512,7 @@ jobs:
             release-out/index.json release-out/changelog.json
           url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
           echo "### Published: [Fresing Render $VERSION]($url)" >> "$GITHUB_STEP_SUMMARY"
+          echo "⏱️ since the push: $(( ($(date +%s) - $(date -d "$RUN_STARTED" +%s)) / 60 )) min" >> "$GITHUB_STEP_SUMMARY"
           echo "Release: $url"
 
   release-check:
@@ -367,6 +535,8 @@ jobs:
         with:
           name: windows-installer-old
           path: ${{ runner.temp }}/release-old
+          run-id: ${{ needs.release.outputs.artifacts_run }}
+          github-token: ${{ github.token }}
 
       - name: Blender version (pinned in the installer)
         id: pin

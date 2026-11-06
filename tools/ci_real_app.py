@@ -25,7 +25,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
            this version on a local GitHub-like server, Update now, closes, is updated and starts again
 
     python3 tools/ci_real_app.py --blender <blender program> --wheels <linux wheels dir> --out <dir>
-                                 [--only ui1,paths] [--timeout-min 40]
+                                 [--only ui1,paths | --group ui] [--timeout-min 40]
 
 Needs xvfb-run and ImageMagick ("import") for ui1/ui2. Every test's log and screenshots land in
 <out>/<test>/; the verdict per test is printed, written to <out>/summary.md and to the GitHub job
@@ -56,6 +56,48 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 24, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "paths": 8, "pccheck": 30, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
+
+# The real-app tests run on GitHub as parallel jobs, one per group (task 0036). Balanced by measured minutes
+# (run 42248687039, 6 Nov 2026): pccheck 8.8 | callouts 7.2 | ui1 6.2 + ui2 0.8 + faces 0.2 |
+# surroundings 4.5 + paths 2.0 + rulesets 0.5 + decals 0.3 | video 3.3 + studio 1.5 + update 0.5 + milling 0.5 +
+# cylinder 0.4 + linkage 0.4 + waycover 0.3. A new test goes into the group with the fewest minutes (add it to
+# TESTS and MIN_CHECKS too); a test that is in no group, or in two, fails the precheck (tools/ci_precheck.py).
+GROUPS = {
+    "pccheck": ["pccheck"],
+    "callouts": ["callouts"],
+    "ui": ["ui1", "ui2", "faces"],
+    "scenes": ["surroundings", "paths", "rulesets", "decals"],
+    "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover"],
+}
+
+TESTS = {
+    "ui1": ("Real app: import, looks, joints, animation, queue (ui_test_app.py)", "ui_test_app.py", True),
+    "ui2": ("Real app: remaining buttons, undo/redo (ui_test_app2.py)", "ui_test_app2.py", True),
+    "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
+    "decals": ("Real app: logos & stickers – add with a click, move with the mouse (ui_test_decals.py)",
+               "ui_test_decals.py", True),
+    "surroundings": ("Real app: surroundings, props, queue (ui_test_surroundings.py)",
+                     "ui_test_surroundings.py", True),
+    "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
+                 "ui_test_rule_sets.py", True),
+    "studio": ("Real app: light looks, views, blur, turntable (ui_test_studio.py)", "ui_test_studio.py", True),
+    "video": ("Real app: brand kit, logo, cards, captions, watermark in a queued video (ui_test_video.py)",
+              "ui_test_video.py", True),
+    "callouts": ("Real app: labels, picture card, music in a queued video (ui_test_callouts.py)",
+                 "ui_test_callouts.py", True),
+    "milling": ("Real app: milling – pick bit and block, cut follows the timeline (ui_test_milling.py)",
+                "ui_test_milling.py", True),
+    "cylinder": ("Real app: cylinders – barrel, rod, clicks on the pins, follow / drive (ui_test_cylinder.py)",
+                 "ui_test_cylinder.py", True),
+    "linkage": ("Real app: mechanisms – scissor lift, four-bar, height, Lift height step (ui_test_linkage.py)",
+                "ui_test_linkage.py", True),
+    "waycover": ("Real app: way covers – axis, five sections, Make it, the axis drives them (ui_test_waycover.py)",
+                 "ui_test_waycover.py", True),
+    "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
+    "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
+    "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
+               "ci_update_test.py", None),
+}
 
 
 def run(cmd, env, log_path, timeout):
@@ -141,7 +183,8 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,callouts,milling,cylinder,linkage,waycover,paths,pccheck,update")
+    ap.add_argument("--only", default=",".join(TESTS), help="tests to run, comma-separated (default: all)")
+    ap.add_argument("--group", help="run one group of GROUPS (a parallel job on GitHub) instead of --only")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -157,37 +200,10 @@ def main(argv=None) -> int:
 
     base_env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1")
     timeout = args.timeout_min * 60
-    tests = {
-        "ui1": ("Real app: import, looks, joints, animation, queue (ui_test_app.py)", "ui_test_app.py", True),
-        "ui2": ("Real app: remaining buttons, undo/redo (ui_test_app2.py)", "ui_test_app2.py", True),
-        "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
-        "decals": ("Real app: logos & stickers – add with a click, move with the mouse (ui_test_decals.py)",
-                   "ui_test_decals.py", True),
-        "surroundings": ("Real app: surroundings, props, queue (ui_test_surroundings.py)",
-                         "ui_test_surroundings.py", True),
-        "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
-                     "ui_test_rule_sets.py", True),
-        "studio": ("Real app: light looks, views, blur, turntable (ui_test_studio.py)", "ui_test_studio.py", True),
-        "video": ("Real app: brand kit, logo, cards, captions, watermark in a queued video (ui_test_video.py)",
-                  "ui_test_video.py", True),
-        "callouts": ("Real app: labels, picture card, music in a queued video (ui_test_callouts.py)",
-                     "ui_test_callouts.py", True),
-        "milling": ("Real app: milling – pick bit and block, cut follows the timeline (ui_test_milling.py)",
-                    "ui_test_milling.py", True),
-        "cylinder": ("Real app: cylinders – barrel, rod, clicks on the pins, follow / drive (ui_test_cylinder.py)",
-                     "ui_test_cylinder.py", True),
-        "linkage": ("Real app: mechanisms – scissor lift, four-bar, height, Lift height step (ui_test_linkage.py)",
-                    "ui_test_linkage.py", True),
-        "waycover": ("Real app: way covers – axis, five sections, Make it, the axis drives them (ui_test_waycover.py)",
-                     "ui_test_waycover.py", True),
-        "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
-        "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
-        "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
-                   "ci_update_test.py", None),
-    }
     rows = []
-    for key in [k.strip() for k in args.only.split(",") if k.strip()]:
-        title, script, gui = tests[key]
+    keys = GROUPS[args.group] if args.group else [k.strip() for k in args.only.split(",") if k.strip()]
+    for key in keys:
+        title, script, gui = TESTS[key]
         folder = os.path.join(out, key)
         os.makedirs(folder, exist_ok=True)
         env = dict(base_env, UITEST_OUT=folder)
@@ -230,7 +246,7 @@ def main(argv=None) -> int:
         rows.append((title, verdict, detail, secs, fails))
         print(f"== {title}: {'PASS' if verdict else 'FAIL'} - {detail} ({secs:.0f} s)", flush=True)
 
-    lines = ["### Real app (Linux, virtual screen)", "", "| Test | Result | Time |", "| --- | --- | --- |"]
+    lines = [f"### Real app (Linux, virtual screen){f' - group {args.group}' if args.group else ''}", "", "| Test | Result | Time |", "| --- | --- | --- |"]
     for title, ok, detail, secs, _ in rows:
         lines.append(f"| {title} | {'✅' if ok else '❌'} {detail} | {secs / 60:.1f} min |")
     for title, ok, detail, secs, fails in rows:
