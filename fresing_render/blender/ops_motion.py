@@ -960,6 +960,18 @@ class FRESING_OT_block_add(bpy.types.Operator):
                     now = 0.0
                 b.from_stroke = min(max(now, 0.0), c.full_stroke)
                 b.to_stroke = c.full_stroke if now < c.full_stroke / 2 else 0.0
+        elif self.kind == "MECHANISM":
+            from . import linkages
+            lifts = [m for m in s.mechanisms if linkages.is_valid(m) and linkages.has_height(m)]
+            if 0 <= s.mechanisms_index < len(s.mechanisms) and s.mechanisms[s.mechanisms_index] in lifts:
+                lifts.insert(0, s.mechanisms[s.mechanisms_index])
+            if lifts:
+                m = lifts[0]
+                b.mechanism = m.name
+                lo, hi = linkages.height_range(context.scene, m)
+                now = linkages.height_now(context.scene, m)
+                b.from_height = now
+                b.to_height = hi if now < (lo + hi) / 2 else lo
         elif self.kind == "POSE" and len(s.poses):
             b.pose = s.poses[min(s.poses_index, len(s.poses) - 1)].name
         elif self.kind == "CAMERA":

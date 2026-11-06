@@ -417,3 +417,14 @@ def test_panels_draw(scene):
     text = " ".join(out)
     assert "1 mechanism" in text and m.name in text and "Height" in text and "Drive angle" in text
     assert "7 links, 9 pins, 2 rollers" in text
+
+
+def test_joint_on_the_whole_model_or_on_what_carries_its_base_is_refused(scene):
+    """0.2.25 skipped these checks (lines after a return); 0.2.24 had them."""
+    root = build.model_roots(scene)[0]
+    with pytest.raises(RuntimeError, match="whole model"):
+        joints.create(scene, "ROTATE", [root], Vector((0, 0, 0)), Vector((0, 1, 0)))
+    lift_asm = ob(scene, "LIFT.ASM")
+    with pytest.raises(RuntimeError, match="carries the base"):
+        joints.create(scene, "ROTATE", [lift_asm], Vector((0, 0, 0)), Vector((0, 1, 0)),
+                      base=ob(scene, "LIFT.BASE.ASM"))

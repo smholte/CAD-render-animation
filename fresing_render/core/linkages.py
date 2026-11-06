@@ -1033,7 +1033,7 @@ def scissor(n_links: int, pins: list[Pin], points: list[list[tuple]], platform: 
         seen |= {nxt, partner[nxt]}
     if len(seen) != len(arms):
         raise SetupError("Some arms are not joined to the stages below them")
-    bottom, top = stages[0], stages[-1]
+    top = stages[-1]
     plat_pin = None
     if platform is not None:
         pp = [c for c in pins if platform in (c.a, c.b) and (c.a in top or c.b in top)]

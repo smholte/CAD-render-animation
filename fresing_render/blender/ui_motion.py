@@ -472,32 +472,32 @@ class FRESING_PT_mechanisms(_Panel, bpy.types.Panel):
         row.template_list("FRESING_UL_mechanisms", "", s, "mechanisms", s, "mechanisms_index",
                           rows=list_rows(len(s.mechanisms), 2, 6))
         row.column(align=True).operator("fresing.mechanism_remove", text="", icon="REMOVE")
-        m = s.mechanisms[s.mechanisms_index] if 0 <= s.mechanisms_index < len(s.mechanisms) else None
-        if m is None:
+        mech = s.mechanisms[s.mechanisms_index] if 0 <= s.mechanisms_index < len(s.mechanisms) else None
+        if mech is None:
             return
-        if not linkages.is_valid(m):
+        if not linkages.is_valid(mech):
             box = layout.box()
             box.alert = True
-            wrap(box, context, f"This mechanism is broken: {linkages.broken_reason(scene, m)}", icon="ERROR")
+            wrap(box, context, f"This mechanism is broken: {linkages.broken_reason(scene, mech)}", icon="ERROR")
             box.operator("fresing.mechanism_remove", text="Remove it (parts go back to their place)")
             return
-        _draw_mechanism(context, layout, scene, m)
+        _draw_mechanism(context, layout, scene, mech)
 
 
-def _draw_mechanism(context, layout, scene, m) -> None:
+def _draw_mechanism(context, layout, scene, mech) -> None:
     box = layout.box()
-    box.label(text=f"{m.name} ({linkages.kind_label(m.kind)})", icon=_mech_icon(m))
-    j = linkages.input_joint(scene, m)
-    if linkages.has_height(m):
+    box.label(text=f"{mech.name} ({linkages.kind_label(mech.kind)})", icon=_mech_icon(mech))
+    j = linkages.input_joint(scene, mech)
+    if linkages.has_height(mech):
         row = box.row(align=True)
         row.scale_y = BIG
         row.enabled = not j.follows
-        row.prop(m, "height", text="Height")
+        row.prop(mech, "height", text="Height")
         row = box.row(align=True)
         row.enabled = not j.follows
         for t, text in (("LOW", "Lowest"), ("CAD", "CAD"), ("HIGH", "Highest")):
             row.operator("fresing.mechanism_height", text=text).target = t
-        lo, hi = linkages.height_range(scene, m)
+        lo, hi = linkages.height_range(scene, mech)
         wrap(box, context, f"Height {_mm(lo)} … {_mm(hi)} (pin to pin, within the drive joint's limits)", inset=12)
     row = box.row(align=True)
     row.enabled = not j.follows
@@ -508,18 +508,18 @@ def _draw_mechanism(context, layout, scene, m) -> None:
     else:
         wrap(box, context, f"Moved by joint '{j.name}' (also in poses, animation steps, by a cylinder)",
              icon="CON_PIVOT", inset=12)
-    if m.status:
-        wrap(box, context, m.status, icon="ERROR", alert=True, inset=12)
+    if mech.status:
+        wrap(box, context, mech.status, icon="ERROR", alert=True, inset=12)
     body = fold(layout, "fr_mechanism_setup", "Set-up: links and pins", icon="PREFERENCES")
     if body:
-        d = linkages.setup(m)
-        wrap(body, context, f"{plural(len(m.links) - 1, 'link')}, {plural(len(d.get('pins', [])), 'pin')}"
+        d = linkages.setup(mech)
+        wrap(body, context, f"{plural(len(mech.links) - 1, 'link')}, {plural(len(d.get('pins', [])), 'pin')}"
                             + (f", {plural(len(d['slots']), 'roller')}" if d.get("slots") else "")
                             + (f", {plural(len(d['slides']), 'slider')}" if d.get("slides") else ""),
              icon="INFO")
-        for k, ln in enumerate(m.links):
+        for k, ln in enumerate(mech.links):
             if k == 0:
-                wrap(body, context, f"Base: {linkages.label(m.base) if m.base else '-'}", icon="BLANK1")
+                wrap(body, context, f"Base: {linkages.label(mech.base) if mech.base else '-'}", icon="BLANK1")
                 continue
             wrap(body, context, f"{k}. {ln.name}" + ("  (drive)" if ln.empty is None else ""), icon="BLANK1")
         body.operator("fresing.mechanism_select", text="Select parts", icon="RESTRICT_SELECT_OFF")
