@@ -19,8 +19,8 @@ from typing import Callable
 import numpy as np
 
 OK, FAILED, SKIPPED, RUNNING = "OK", "FAILED", "skipped", "running"
-MODES = ("quick", "full")
-MODE_TITLES = {"quick": "Quick", "full": "Full"}
+MODES = ("quick", "full", "heavy")
+MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy"}
 
 SLOWER = 1.25            # a step more than 25 % slower than before is flagged
 MIN_SLOWER_S = 1.0       # ...and at least this many seconds slower (short steps jitter)
@@ -38,6 +38,11 @@ class Skipped(Exception):
     """A line that does not apply here (no graphics card, no own model): reported as skipped."""
 
 
+class Cancelled(Exception):
+    """The owner stopped the check (Help > Cancel PC check, or Ctrl+C in its window): the lines done so
+    far stay in the report."""
+
+
 # ---------------------------------------------------------------------------
 # lines and results
 # ---------------------------------------------------------------------------
@@ -53,6 +58,9 @@ class Line:
     fn: Callable
     requires: tuple = ()
     what: str = ""          # one sentence: what the line does, shown in the report
+    expected: int = 0       # seconds the line is expected to take on the owner's PC (Heavy: shown while it runs)
+    shows: str = ""         # Heavy: one sentence "what this shows"
+    not_shown: str = ""     # Heavy: one sentence "what this does not show"
 
 
 @dataclass
@@ -61,6 +69,8 @@ class Picture:
     title: str
     thumb_png: bytes = b""
     problems: list = field(default_factory=list)     # "black", "model not in the picture", ...
+    width: int = 0                                   # thumbnail width (0 = the usual small one); Heavy: larger
+    settings: str = ""                               # shown under the picture: size, quality, device
     difference: float | None = None                  # mean difference from the last run's picture
     flagged: bool = False                            # differs a lot: "look at this"
 
@@ -83,6 +93,10 @@ class Result:
     reference: float | None = None                   # median time of the earlier runs
     flags: list = field(default_factory=list)        # "slower", "picture", "failed"
     metric_refs: dict = field(default_factory=dict)  # name -> earlier median
+    expected: int = 0
+    started: float = 0.0                             # time.time() when the line began (progress line)
+    shows: str = ""
+    not_shown: str = ""
 
 
 @dataclass
@@ -100,6 +114,8 @@ class Run:
     compared_with: str = ""                          # "the run of 4 Nov 2026 (0.2.20)" or ""
     planned: list = field(default_factory=list)      # titles of the lines still to run
     model_tag: str = ""                              # a short code of the own model's file (never its name)
+    cancelled: bool = False                          # the owner stopped the check
+    scaled: bool = False                             # Heavy in its scaled-down form (GitHub, small machines)
 
     @property
     def key(self) -> str:
@@ -294,6 +310,23 @@ def picture_problems(px: np.ndarray, model_check: bool = True) -> list[str]:
     return problems
 
 
+def contact_sheet(frames: list, cols: int = 4, width: int = 240, gap: int = 4) -> np.ndarray:
+    """Several pictures side by side in a grid (rows top to bottom), each scaled to ``width`` pixels, with a
+    thin grey gap: the Heavy report shows a video as a few frames across its length."""
+    if not frames:
+        raise ValueError("no pictures for the contact sheet")
+    thumbs = [thumbnail(f[..., :3], width) for f in frames]
+    h = max(t.shape[0] for t in thumbs)
+    cols = max(1, min(cols, len(thumbs)))
+    rows = -(-len(thumbs) // cols)
+    sheet = np.full((rows * h + (rows + 1) * gap, cols * width + (cols + 1) * gap, 3), 0.5)
+    for i, t in enumerate(thumbs):
+        r, c = divmod(i, cols)
+        y, x = gap + r * (h + gap), gap + c * (width + gap)
+        sheet[y:y + t.shape[0], x:x + t.shape[1]] = t
+    return sheet
+
+
 def picture_difference(a: np.ndarray | None, b: np.ndarray | None) -> float | None:
     """Mean difference (0..1) of two thumbnails of the same size; None when they cannot be compared."""
     if a is None or b is None:
@@ -342,7 +375,8 @@ def text_block(run: Run, secrets=()) -> str:
     c = run.counts()
     out = [f"Fresing Render PC check {run.app_version} - {MODE_TITLES.get(run.mode, run.mode)}"
            f"{' + own model' if run.own_model else ''} - {run.date}"
-           f"{'' if run.finished else ' - DID NOT FINISH'}",
+           f"{'' if run.finished else ' - DID NOT FINISH'}{' - CANCELLED' if run.cancelled else ''}"
+           f"{' - SCALED DOWN' if run.scaled else ''}",
            f"PC: {pc.get('cpu', '?')}, {pc.get('cores', '?')} cores, {pc.get('ram_gb', '?')} GB; "
            f"{pc.get('gpu', '?')}; driver {pc.get('driver', '?')}; {pc.get('os', '?')}; Blender {run.blender}",
            f"Result: {c[OK]} OK, {c[FAILED]} FAILED, {c[SKIPPED]} skipped in {run.seconds:.0f} s; "
@@ -391,6 +425,7 @@ th{font-size:13px;color:var(--muted);font-weight:600}td.num{white-space:nowrap;t
 .what{color:var(--muted);font-size:13px}
 .pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .pics figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px}
+.pics figure.big{grid-column:1/-1;max-width:760px}
 .pics img{width:100%;height:auto;display:block;border-radius:4px}.pics figcaption{font-size:13px;margin-top:4px}
 textarea{width:100%;box-sizing:border-box;min-height:220px;font:12px/1.4 Consolas,monospace;
 background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
@@ -409,6 +444,11 @@ function(){document.execCommand('copy');done()})}else{document.execCommand('copy
 
 def _e(text) -> str:
     return html.escape(str(text if text is not None else ""))
+
+
+def _minutes(seconds: float) -> str:
+    seconds = int(round(seconds))
+    return f"{seconds} s" if seconds < 90 else f"{seconds / 60:.0f} min"
 
 
 def _status_html(r: Result) -> str:
@@ -448,7 +488,16 @@ def _row(r: Result, new: bool) -> str:
         change += " faster"
     tag = '<span class="new">NEW</span> ' if new else ""
     what = f"{_e(r.what)} · " if r.what else ""
-    return (f"<tr><td>{tag}{_e(r.title)}<div class='what'>{what}since {_e(r.since)}</div></td><td>{_status_html(r)}</td>"
+    sn = ""
+    if r.shows:
+        sn += f"<div class='what'><b>Shows:</b> {_e(r.shows)}</div>"
+    if r.not_shown:
+        sn += f"<div class='what'><b>Does not show:</b> {_e(r.not_shown)}</div>"
+    if r.status == RUNNING and r.started:
+        el = max(0, time.time() - r.started)
+        exp = f", expected about {_minutes(r.expected)}" if r.expected else ""
+        sn += f"<div class='flag'>Running for {_minutes(el)}{exp}</div>"
+    return (f"<tr><td>{tag}{_e(r.title)}<div class='what'>{what}since {_e(r.since)}</div>{sn}</td><td>{_status_html(r)}</td>"
             f"<td class='num'>{r.seconds:.1f} s</td><td class='num'>{_e(before)}</td>"
             f"<td class='num'>{_e(change)}</td><td>{'<br>'.join(detail)}</td></tr>")
 
@@ -462,7 +511,9 @@ def _table(results: list, new_ids: set) -> str:
 def html_report(run: Run, block: str) -> str:
     c = run.counts()
     if not run.finished:
-        head = '<span class="sub">Still running… this page is written after every step.</span>'
+        head = '<span class="sub">Still running… this page updates itself every few seconds.</span>'
+    elif run.cancelled:
+        head = f'<span class="skip">Cancelled: the {len(run.results)} lines done so far are below</span>'
     elif c[FAILED]:
         head = f'<span class="bad">{c[FAILED]} of {len(run.results)} functions FAILED</span>'
     else:
@@ -473,7 +524,8 @@ def html_report(run: Run, block: str) -> str:
     pc = run.pc
     parts = [
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>",
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        + ("" if run.finished else "<meta http-equiv='refresh' content='10'>"),
         f"<title>Fresing Render PC check</title><style>{_CSS}</style><script>{_SCRIPT}</script></head><body><main>",
         f"<h1>Fresing Render PC check {_e(run.app_version)}</h1>",
         f"<div class='sub'>{_e(MODE_TITLES.get(run.mode, run.mode))}{' + your own model' if run.own_model else ''}"
@@ -485,8 +537,10 @@ def html_report(run: Run, block: str) -> str:
         + (f" · times compared with {_e(run.compared_with)}" if run.compared_with else
            " · first run of this kind on this PC: the next run compares its times with this one") + "</div></div>",
     ]
-    if run.planned and not run.finished:
-        parts.append(f"<p class='sub'>Still to do: {_e(', '.join(run.planned))}</p>")
+    if not run.finished:
+        todo = f"Still to do: {_e(', '.join(run.planned))}. " if run.planned else ""
+        parts.append(f"<p class='sub'>{todo}To stop the check: in Blender Help &gt; Cancel Fresing Render PC "
+                     "check (or press Ctrl+C in its window); the lines done so far stay in this report.</p>")
     new = [r for r in run.results if r.id in run.new_ids]
     if new:
         parts += ["<h2>New in this version</h2>", _table(new, run.new_ids)]
@@ -507,8 +561,10 @@ def html_report(run: Run, block: str) -> str:
                 note = f" <span class='flag'>differs from last time ({p.difference:.2f})</span>"
             elif p.difference is not None:
                 note = f" <span class='sub'>same as last time ({p.difference:.3f})</span>"
-            parts.append(f"<figure><img src='{src}' alt='{_e(p.title)}'><figcaption>{_e(p.title)}{note}"
-                         "</figcaption></figure>")
+            big = " class='big'" if p.width > THUMB_WIDTH else ""
+            sets = f"<br><span class='sub'>{_e(p.settings)}</span>" if p.settings else ""
+            parts.append(f"<figure{big}><img src='{src}' alt='{_e(p.title)}'><figcaption>{_e(p.title)}{note}"
+                         f"{sets}</figcaption></figure>")
         parts.append("</div>")
     parts += ["<h2>For the lead chat</h2>",
               "<p>Copy this block and paste it into the lead chat. It holds numbers only: no file names, "

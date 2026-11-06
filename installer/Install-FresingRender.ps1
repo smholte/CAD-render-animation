@@ -306,6 +306,9 @@ $PcCheck = Join-Path (Split-Path -Parent $Manifest) "pccheck\launcher.py"
 if (Test-Path -LiteralPath $PcCheck) {
     MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (quick).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
     MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
+    # Heavy (task 0033): a big generated machine, 4K pictures and a 10 s video; 10-20 minutes. Started on purpose.
+    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"
+    MakeShortcut (Join-Path $Desktop "Fresing Render - PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes)"
     # on the Desktop too: a STEP file can be dropped on a Desktop shortcut, not on the Start menu
     MakeShortcut (Join-Path $Desktop "Fresing Render - PC check.lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
 }
