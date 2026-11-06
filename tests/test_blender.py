@@ -273,6 +273,10 @@ class FakeLayout:
                 object.__setattr__(self, name, value)
         return OpProps()
 
+    def menu(self, idname, *a, **k):
+        if not hasattr(bpy.types, idname):
+            self.errors.append(f"missing menu {idname}")
+
     def operator_menu_enum(self, idname, prop, *a, **k):
         return self.operator(idname)
 

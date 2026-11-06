@@ -55,6 +55,9 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
     else:
         job.quality = quality or s.quality
         job.label = f"Image: {shot or camera or 'current view'}"
+    job.watermark = bool(s.wm_on) and kind != "TEST"
+    if job.watermark:
+        job.label += " (with watermark)"
     job.status = "WAITING"
     s.queue_index = len(s.queue) - 1
     return job
@@ -199,7 +202,8 @@ def start(context) -> str:
         j.progress = 0.0
         j.message = "Waiting"
         jobs.append({"id": j.job_id, "kind": j.kind, "shot": j.shot, "animation": j.animation,
-                     "camera": j.camera, "quality": j.quality, "out_dir": out_dir, "label": j.label})
+                     "camera": j.camera, "quality": j.quality, "out_dir": out_dir, "label": j.label,
+                     "watermark": bool(j.watermark)})
     s.queue_dir = qdir
     bpy.ops.wm.save_as_mainfile(filepath=blend, copy=True, compress=False, relative_remap=True)
     with open(os.path.join(qdir, "queue.json"), "w", encoding="utf-8") as fh:
@@ -322,6 +326,7 @@ def sync(scene) -> bool:
             j = s.queue.add()
             j.job_id, j.kind, j.label = qj["id"], qj["kind"], qj.get("label", "")
             j.shot, j.animation, j.camera, j.quality = qj["shot"], qj["animation"], qj["camera"], qj["quality"]
+            j.watermark = bool(qj.get("watermark"))
     killed = _RUNTIME["killed"]
     for j in s.queue:
         info = jobs_info.get(j.job_id)
@@ -392,7 +397,7 @@ def run_job(scene, job: dict, progress, should_stop):
         from . import machining                  # milling (task 0027): the cut at this frame
         machining.prepare(scene, progress)
         progress(5, "Rendering image")
-        info = render.render_still(scene, s, job.get("quality") or s.quality)
+        info = render.render_still(scene, s, job.get("quality") or s.quality, watermark=bool(job.get("watermark")))
         return info["path"]
     if job["kind"] == "TEST":
         return time_test(scene, job, progress, should_stop)
@@ -417,6 +422,8 @@ def _setup_animation(scene, job: dict, progress) -> dict:
     size = presets.compute(anim.out_format, anim.out_resolution, "auto", 300, 0.0, 1920, 1080)
     r = scene.render
     r.resolution_x, r.resolution_y = size.width, size.height
+    from . import video                          # task 0018: square / upright videos: crop or extend the framing
+    video.apply_shape_fit(scene, anim.shape_fit, anim.out_format)
     if quality == "eevee":
         r.engine = "BLENDER_EEVEE"
         try:
@@ -491,11 +498,18 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         progress(95.0 * f / f_end, f"Frame {f} of {f_end} on {device} ({per:.1f} s per frame, "
                                    f"about {_duration(left)} left)")
     if anim.video == "MP4":
-        progress(96, "Making the video")
+        from . import video
+        for w in video.warnings_for(scene, anim):
+            progress(96, w)
+        fin = video.finishing_for_animation(scene, anim, bool(job.get("watermark")))
+        progress(96, "Making the video" + (" with cards, logo, captions or watermark" if fin.active else ""))
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
-                   white_under=scene.fresing.background == "TRANSPARENT")
+                   white_under=scene.fresing.background == "TRANSPARENT", finishing=fin,
+                   steps=video.steps_of(anim))
         return mp4
+    if job.get("watermark") or anim.fin_logo != "NONE" or anim.fin_title_on or anim.fin_end_on or anim.fin_captions:
+        progress(96, "Logo, cards, captions and watermark only go into MP4 videos, not into PNG frames")
     return folder
 
 
@@ -538,8 +552,12 @@ def _duration(seconds: float) -> str:
     return f"{seconds / 3600:.1f} h"
 
 
-def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int, white_under: bool = False) -> str:
-    """Put numbered PNG frames into an H.264 MP4 with Blender's own video encoder."""
+def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int, white_under: bool = False,
+               finishing=None, steps=None) -> str:
+    """Put numbered PNG frames into an H.264 MP4 with Blender's own video encoder.
+
+    ``finishing`` (core.brand.Finishing) adds the logo, title and end card, captions (from ``steps``) and
+    the watermark (task 0018)."""
     def number(name: str) -> int:
         digits = "".join(ch for ch in name if ch.isdigit())
         return int(digits) if digits else 0
@@ -559,16 +577,9 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
             enc.view_settings.look = "None"
         except TypeError:
             pass
-        se = enc.sequence_editor_create()
-        strips = se.strips
-        if white_under:
-            bg = strips.new_effect(name="white", type="COLOR", channel=1, frame_start=1, length=len(files))
-            bg.color = (1.0, 1.0, 1.0)
-        img = strips.new_image(name="frames", filepath=os.path.join(frames_dir, files[0]), channel=2,
-                               frame_start=1)
-        for f in files[1:]:
-            img.elements.append(f)
-        img.blend_type = "ALPHA_OVER"
+        from . import video
+        video.build_sequence(enc, [os.path.join(frames_dir, f) for f in files], (width, height), fps,
+                             finishing, steps, white_under=white_under)
         im = r.image_settings
         try:
             im.media_type = "VIDEO"

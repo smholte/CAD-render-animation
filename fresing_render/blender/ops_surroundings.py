@@ -6,6 +6,7 @@ import bpy
 from bpy.props import EnumProperty
 
 from ..core import surroundings as env
+from ..core.words import plural
 from . import surroundings, world
 
 PROP_ITEMS = [(k, label, desc) for k, (label, desc) in env.PROPS.items()]
@@ -78,7 +79,7 @@ class FRESING_OT_props_remove(bpy.types.Operator):
 
     def execute(self, context):
         n = surroundings.remove_props(context.scene)
-        self.report({"INFO"}, f"{n} props deleted")
+        self.report({"INFO"}, f"{plural(n, 'prop')} deleted")
         return {"FINISHED"}
 
 
