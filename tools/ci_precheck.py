@@ -8,8 +8,8 @@ Checks (each problem is printed with what to do; any problem fails the job and t
   - a branch / pull request that raised the version: it is newer than the version on `main` and every release,
     and CHANGELOG.md has its heading ("someone took your version number: merge main and renumber to …");
     on `main`: a version without a release has its CHANGELOG heading;
-  - MIN_CHECKS (tools/ci_real_app.py) names every real-app test, MIN_LINES_FULL (tools/ci_check_pccheck.py)
-    is not lower than the number of Full lines of the PC check;
+  - MIN_CHECKS (tools/ci_real_app.py) names every real-app test, MIN_LINES_FULL / MIN_LINES_HEAVY
+    (tools/ci_check_pccheck.py) are not lower than the number of Full / Heavy lines of the PC check;
   - every real-app test is in exactly one group, every tests/test_*.py file in exactly one pytest group;
   - TASKS.md parses (every table row has its columns, no task number twice in the open list).
 
@@ -136,8 +136,8 @@ def check_versions(init_v: str, manifest_v: str, changelog: list[str], *, on_mai
     return problems, notes
 
 
-def full_pccheck_lines(src: str) -> int:
-    """Number of PC check lines that run in Full mode (default modes=(F,))."""
+def full_pccheck_lines(src: str, mode: str = "F") -> int:
+    """Number of PC check lines that run in a mode ("F" Full, "H" Heavy; the default is modes=(F,))."""
     count = 0
     for node in ast.walk(ast.parse(src)):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -150,7 +150,7 @@ def full_pccheck_lines(src: str) -> int:
                 if k.arg == "modes":
                     modes = k.value
             names = {n.id for n in ast.walk(modes) if isinstance(n, ast.Name)} if modes is not None else {"F"}
-            count += "F" in names
+            count += mode in names
     return count
 
 
@@ -165,10 +165,14 @@ def check_counts() -> list[str]:
                         "of checks each test reports")
     if extra:
         problems.append(f"MIN_CHECKS in tools/ci_real_app.py names tests that do not exist: {', '.join(extra)}")
-    n = full_pccheck_lines(read("fresing_render/pccheck/checks.py"))
-    if ci_check_pccheck.MIN_LINES_FULL < n:
-        problems.append(f"MIN_LINES_FULL in tools/ci_check_pccheck.py is {ci_check_pccheck.MIN_LINES_FULL}, but the "
-                        f"PC check has {n} Full lines: raise it to {n}")
+    srcs = [read(f"fresing_render/pccheck/{f}") for f in ("checks.py", "heavy.py")
+            if os.path.isfile(os.path.join(ROOT, "fresing_render", "pccheck", f))]
+    for mode, name in (("F", "MIN_LINES_FULL"), ("H", "MIN_LINES_HEAVY")):
+        n = sum(full_pccheck_lines(src, mode) for src in srcs)
+        have = getattr(ci_check_pccheck, name, None)
+        if have is not None and have < n:
+            problems.append(f"{name} in tools/ci_check_pccheck.py is {have}, but the PC check has {n} "
+                            f"{'Full' if mode == 'F' else 'Heavy'} lines: raise it to {n}")
     return problems
 
 
