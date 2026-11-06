@@ -510,8 +510,9 @@ def test_a_queued_animation_gets_labels_a_picture_and_music(tmp_path):
     assert draws, "the label is drawn at the start of the animation"
     d = draws[0]
     px = _render_frame(enc, 12 + 1, tmp_path / "v2.png")
-    inside = px[540 - int(d.box.y + d.box.h / 2), int(d.box.x) + 3]
-    assert inside[0] < 90 and inside[2] < 110, f"the label box in the video: {inside}"
+    cy, cx = 540 - int(d.box.cy), int(d.box.cx)
+    patch = px[cy - 10:cy + 10, cx - 25:cx + 25]            # the middle of the box (it is as wide as its words)
+    assert (patch.sum(axis=2) < 270).mean() > 0.3, f"the label box in the video: {patch.mean(axis=(0, 1))}"
     bpy.data.scenes.remove(enc)
 
 
