@@ -31,6 +31,8 @@ DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
+WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
+WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -411,7 +413,7 @@ M30
 """
 
 
-@line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.27",
+@line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.29",
       what="The test gantry runs a short LinuxCNC program (lines, arcs in two planes, a tool change, drilling): "
            "the tool's tip follows the program, the new tool shows in the spindle, the toolpath is drawn")
 def motion_gcode(ctx):
@@ -460,6 +462,73 @@ def motion_gcode(ctx):
            "after the tool change")
     _check(gcode.path_object() is not None, "no toolpath drawn")
     return f"tip on the path to {worst:.4f} mm, {r['frames']} frames, T1 → T2"
+
+
+def _ob_v(scene, name):
+    """A part by name, also when CAD added a version ("Section 1 v8")."""
+    from ..blender import build
+    for o in scene.objects:
+        n = o.get(build.PROP_NAME, "")
+        if o.get(build.PROP_KIND) == "part" and (n == name or n.startswith(name + " v")):
+            return o
+    raise RuntimeError(f"the test model has no part '{name}'")
+
+
+@line("machining.waycover", "Way covers follow a machine axis", "0.2.28", modes=(F,),
+      what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm; the 5-section "
+           "way-cover model with its housing counting: 105 mm steps")
+def machining_waycover(ctx):
+    from mathutils import Vector
+
+    from ..blender import joints, waycover
+    scene = ctx.fresh(WAYCOVER)
+
+    def min_x(o):
+        return min((o.matrix_world @ Vector(c)).x for c in o.bound_box)
+
+    names = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"], ["COVER.4"],
+             ["COVER.5"]]
+    rest = [min_x(_ob(scene, g[0])) for g in names]
+    axis = joints.create(scene, "SLIDE", [_ob(scene, "CARRIAGE")], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)),
+                         name="X axis")
+    axis.use_limits = True
+    axis.slide_min, axis.slide_max = 0.0, 0.5
+    c = waycover.settings(scene)
+    c.axis, c.total = "X axis", 0.5
+    for g in names:
+        waycover.add_section(scene, [_ob(scene, n) for n in g])
+    built, problems = waycover.make(scene)
+    _check(built == 5 and not problems, f"the way cover was not made: {problems}")
+    joints.set_value(joints.find(scene, "X axis"), 0.5)
+    _update()
+    _update()
+    got = [(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest)]
+    for k, mm in enumerate(got, start=1):
+        _check(abs(mm - 100.0 * k) < 0.05, f"section {k} moved {mm:.2f} mm, not {100 * k} mm")
+    _check(joints.couplings_simple(scene), "the cover couplings need Python scripts (they must not)")
+    # the 5-section way-cover model: the housing counts as the first section, 420 mm in 4 steps of 105 mm
+    scene = ctx.fresh(WAYCOVER_OWNER)
+    plate = _ob_v(scene, "Mounting plate")
+    ax = joints.create(scene, "SLIDE", [], Vector((0, 0, 0)), Vector((0, 0, 1)), name="Axis", base=plate,
+                       allow_empty=True)
+    ax.use_limits = True
+    ax.slide_min, ax.slide_max = -0.21, 0.21
+    c = waycover.settings(scene)
+    c.axis, c.housing_counts = "Axis", True
+    _check(waycover.read_total(scene) == "", "the travel could not be read from the axis")
+    for k in range(1, 6):
+        waycover.add_section(scene, [_ob_v(scene, f"Section {k}")])
+    built, problems = waycover.make(scene)
+    _check(built == 5 and not problems, f"the way-cover model was not set up: {problems}")
+    joints.set_value(joints.find(scene, "Axis"), 0.21)
+    _update()
+    _update()
+    z = [min((o.matrix_world @ Vector(cc)).z for cc in o.bound_box) for o in
+         (_ob_v(scene, f"Section {k}") for k in range(1, 6))]
+    gaps = [(b - a) * 1000.0 for a, b in zip(z, z[1:])]
+    _check(all(abs(g - 115.0) < 0.05 for g in gaps), "the sections are not 115 mm apart when fully open: "
+           + ", ".join(f"{g:.1f}" for g in gaps))
+    return f"5 sections to {got[-1]:.1f} mm; way-cover model open: gaps {gaps[0]:.1f} mm"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",
@@ -898,6 +967,58 @@ def queue_video(ctx):
     frames = sorted(f for f in os.listdir(job.output[:-4]) if f.endswith(".png"))
     ctx.picture(os.path.join(job.output[:-4], frames[-1]), "video_last", "MP4 video, last frame (Draft)")
     return f"{len(frames)} frames, {os.path.getsize(job.output) // 1024} KB"
+
+
+@line("video.labels", "Labels with lines on a picture and an MP4 with music", "0.2.27", requires=("import.crane",),
+      what="A label points at a part of the crane in a picture; a short MP4 gets a picture card and music "
+           "(a sound track as long as the video)")
+def video_labels(ctx):
+    import wave
+
+    import numpy as np
+
+    from ..blender import callouts, queue
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s)
+    s.out_file_type, s.background = "PNG", "COLOR"
+    boom = _ob(scene, "BOOM")
+    callouts.add(scene, boom, boom.matrix_world.translation, "Boom")
+    out = {}
+    for on in (False, True):
+        s.callouts_on = on
+        job = {"id": f"pl{int(on)}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+               "out_dir": os.path.join(ctx.work, "labels"), "label": "PC check", "watermark": False}
+        out[on] = queue.run_job(scene, job, lambda *a: None, lambda: False)
+    a, b = runner.read_pixels(out[False]), runner.read_pixels(out[True])
+    _check(float(np.abs(b - a).max()) > 0.2, "the label is not on the picture")
+    ctx.picture(out[True], "labels", "A label with a line to the boom (processor, draft)")
+    # a short video with a picture in a corner and music under it
+    s.callouts_on = True
+    j = _boom_joint(scene)
+    an = _short_animation(scene, "PC check music", j.name, seconds=0.2, quality="draft")
+    an.video, an.fps = "MP4", "24"
+    card_file = os.path.join(ctx.work, "PC check card.png")
+    runner.write_png(card_file, np.full((40, 80, 3), (0.9, 0.1, 0.1), np.float32))
+    c = an.cards.add()
+    c.path, c.duration, c.mode = card_file, 0.2, "CORNER"
+    wav = os.path.join(ctx.work, "PC check music.wav")
+    with wave.open(wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(22050)
+        w.writeframes((np.sin(np.arange(22050 * 3) * 0.12) * 12000).astype("<i2").tobytes())
+    an.music_on, an.music_file, an.music_fade_in, an.music_fade_out = True, wav, 0.1, 0.1
+    job = _queue_job(ctx, scene, "ANIMATION", animation=an.name, minutes=10)
+    _check(job.output.endswith(".mp4") and os.path.getsize(job.output) > 1000, "no MP4 video was made")
+    import aud
+    sound = aud.Sound(job.output)
+    seconds = sound.length / sound.specs[0]
+    frames = len([f for f in os.listdir(job.output[:-4]) if f.endswith(".png")])
+    _check(abs(seconds - frames / 24.0) < 0.15, f"the music is {seconds:.2f} s long, the video {frames / 24.0:.2f} s")
+    return f"label drawn; video with music: {frames} frames, sound {seconds:.2f} s"
 
 
 @line("queue.eevee", "Short EEVEE video through the queue", "0.2.4", (Q, F), requires=("import.crane",),

@@ -725,6 +725,44 @@ GCODE_SPEED_ITEMS = [("REAL", "Real time", "As long as the program takes on the 
                      ("FIT", "Fit into", "The whole program fills a set number of seconds")]
 
 
+class FRPictureCard(bpy.types.PropertyGroup):
+    """A picture shown during an animation (task 0025)."""
+    name: StringProperty(name="Name", description="Shown in the list: the picture's file name unless you type "
+                                                  "something else")
+    enabled: BoolProperty(name="On", default=True,
+                          description="Switches this picture on or off in the video")
+    path: StringProperty(name="Picture", subtype="FILE_PATH",
+                         description="The photo or diagram to show (PNG, JPG, TIF, BMP or WebP). It must be there "
+                                     "when the video is made")
+    start: FloatProperty(name="Start (s)", default=0.0, min=0.0, soft_max=120.0, step=10, precision=2,
+                         description="When the picture appears, in seconds from the start of the animation. To "
+                                     "show it between two steps, leave a gap between those steps and start it there")
+    duration: FloatProperty(name="Seconds", default=3.0, min=0.2, soft_max=30.0, step=10, precision=1,
+                            description="How long the picture stays on screen, fades included")
+    mode: EnumProperty(name="Shown", default="FULL",
+                       description="Whole picture over the animation, or a small picture in one corner",
+                       items=[("FULL", "Full screen", "The picture fills the video (the animation is hidden "
+                                                      "behind it)"),
+                              ("CORNER", "In a corner", "A small picture in one corner, the animation goes on")])
+    corner: EnumProperty(name="Corner", default="BR", description="Which corner the small picture sits in",
+                         items=[("TL", "Top left", ""), ("TR", "Top right", ""), ("BL", "Bottom left", ""),
+                                ("BR", "Bottom right", "")])
+    caption: StringProperty(name="Caption", description="A line of text under the picture (optional)")
+
+
+class FRCallout(bpy.types.PropertyGroup):
+    """A label with a line to a point on a part (task 0025)."""
+    text: StringProperty(name="Text", default="Label",
+                         description="The words in the label, e.g. Gripper or Max. 25 t")
+    enabled: BoolProperty(name="On", default=True, description="Switches this label on or off in the renders")
+    part: PointerProperty(type=bpy.types.Object, name="Part",
+                          description="The part the line points at. The point moves with the part")
+    local: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0), subtype="XYZ")
+    step: StringProperty(name="Only during step", default="",
+                         description="Show this label only while this animation step happens (it fades in and "
+                                     "out). Empty: all the time. Stills always show every label that is on")
+
+
 class FRAnimBlock(bpy.types.PropertyGroup):
     name: StringProperty(name="Label", description="Shown in the list and as a marker on the timeline. Empty: a "
                                                    "name made from the step")
@@ -921,6 +959,25 @@ class FRAnimation(bpy.types.PropertyGroup):
                     "everything you see from side to side, Crop keeps what you see from top to bottom",
         items=[("EXTEND", "Extend", "Keeps the width of the 16:9 picture and shows more above and below"),
                ("CROP", "Crop", "Keeps the height of the 16:9 picture and cuts the sides")])
+
+    # ---- picture cards and music (task 0025) ----
+    cards: CollectionProperty(type=FRPictureCard)
+    cards_index: IntProperty(default=0)
+    music_on: BoolProperty(name="Music", default=False,
+                           description="Puts the music file under the whole video. Only for MP4 videos. Use music "
+                                       "you have the rights to")
+    music_file: StringProperty(name="Music file", subtype="FILE_PATH",
+                               description="Your own music or sound (WAV, MP3, OGG, FLAC or M4A). You need the "
+                                           "rights to use it in your videos")
+    music_start: FloatProperty(name="Starts at (s)", default=0.0, min=0.0, soft_max=60.0, step=10, precision=1,
+                               description="Where in the video the music begins, in seconds. 0: from the very first "
+                                           "picture, title card included")
+    music_volume: FloatProperty(name="Volume", default=0.8, min=0.0, max=1.0, precision=2, step=5,
+                                description="How loud the music is: 1 is the file as it is")
+    music_fade_in: FloatProperty(name="Fade in (s)", default=1.0, min=0.0, soft_max=10.0, precision=1, step=10,
+                                 description="How long the music takes to rise to full volume")
+    music_fade_out: FloatProperty(name="Fade out (s)", default=2.0, min=0.0, soft_max=10.0, precision=1, step=10,
+                                  description="How long the music takes to fade away at the end of the video")
 
 
 class FRQueueJob(bpy.types.PropertyGroup):
@@ -1164,6 +1221,44 @@ def _show_joints_changed(self, context):
     cylinders.show(context.scene, show)
     from . import linkages
     linkages.show(context.scene, show)
+
+
+# ---------------------------------------------------------------------------
+# way covers (task 0034): telescopic covers follow one slide axis
+# ---------------------------------------------------------------------------
+
+def _waycover_changed(self, context):
+    """Travel, direction, counting or the axis changed: made sections get their new shares at once."""
+    if context is None or context.scene is None:
+        return
+    from . import waycover
+    waycover.refresh(context.scene)
+
+
+class FRWayCoverSection(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", description="Name of this way cover section. Double-click to rename it")
+    joint: StringProperty()                                # the slide joint made for it ('' until Make it)
+    parts: CollectionProperty(type=FRObjectRef)            # chosen parts, until the section is made
+
+
+class FRWayCover(bpy.types.PropertyGroup):
+    axis: StringProperty(
+        name="Axis", update=_waycover_changed,
+        description="The slide joint (the machine axis) the covers follow. Pick it from the list, or make one "
+                    "from the selected parts with 'Make one from the selection'")
+    sections: CollectionProperty(type=FRWayCoverSection)
+    sections_index: IntProperty(default=0)
+    total: FloatProperty(
+        name="Total length of movement", unit="LENGTH", default=0.5, min=0.0, soft_max=5.0, update=_waycover_changed,
+        description="How far the axis moves in all, in mm. The sections share it out. 'Read from the axis' "
+                    "takes it from the axis limits")
+    flip: BoolProperty(
+        name="Flip", default=False, update=_waycover_changed,
+        description="The covers open the other way round: use this when they slide against the axis' direction")
+    housing_counts: BoolProperty(
+        name="Fixed housing counts as a section", default=False, update=_waycover_changed,
+        description="Tick this when the first section is the housing on the fixed side (it never moves): the "
+                    "others then share the travel in one step less. Off: the sections are the moving covers")
 
 
 class FRSceneSettings(bpy.types.PropertyGroup):
@@ -1482,6 +1577,17 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     anim_restore_visibility: PointerProperty(type=FRVisSet)
     anim_restore_camera: StringProperty()
 
+    # ---- labels pointing at parts (task 0025) ----
+    callouts: CollectionProperty(type=FRCallout)
+    callouts_index: IntProperty(default=0)
+    callouts_on: BoolProperty(name="Labels in renders", default=True,
+                              description="Draws the labels (with their lines) in stills and in MP4 videos. Off: "
+                                          "none of them is drawn")
+    callout_size: EnumProperty(name="Text size", default="MEDIUM",
+                               description="How big the words in the labels are",
+                               items=[("SMALL", "Small", "Fine print"), ("MEDIUM", "Medium", "Normal"),
+                                      ("LARGE", "Large", "Easy to read on a phone")])
+
     # ---- render queue ----
     queue: CollectionProperty(type=FRQueueJob)
     queue_index: IntProperty(default=0)
@@ -1499,6 +1605,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- CNC machine for G-code programs (task 0026) ----
     cnc: PointerProperty(type=FRCnc)
 
+    # ---- way covers (task 0034) ----
+    waycover: PointerProperty(type=FRWayCover)
+
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
     model_count: IntProperty(default=0)
@@ -1508,8 +1617,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
-           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet, FRShot, FRAnimBlock,
-           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRCncTool, FRCnc, FRSceneSettings)
+           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
+           FRShot, FRPictureCard, FRCallout, FRAnimBlock,
+           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool, FRCnc,
+           FRSceneSettings)
 
 
 def register():

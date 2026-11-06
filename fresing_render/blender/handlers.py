@@ -116,7 +116,7 @@ def _on_load(_dummy=None):
                 build.ensure_bases(sc)
                 sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
                 from . import joints
-                joints.upgrade_drivers(sc)               # before 0.2.27: joints snapped to 0 within 0.1 mm
+                joints.upgrade_drivers(sc)               # before 0.2.29: joints snapped to 0 within 0.1 mm
                 from . import rule_sets
                 if rule_sets.on_load(sc):        # no rule set yet (before 0.2.13); untouched rules of before 0.2.8
                     sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "

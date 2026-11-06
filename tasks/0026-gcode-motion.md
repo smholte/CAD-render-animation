@@ -72,7 +72,7 @@ program would, at a speed he chooses.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web (Opus), 6 Nov 2026. Version 0.2.27.
+**Chat / date:** worker, Claude Code on the web (Opus), 6 Nov 2026. Version 0.2.29 (0.2.27 and 0.2.28 went to tasks 0025 and 0034 meanwhile).
 
 **What changed:**
 - `core/gcode.py` (no Blender): the LinuxCNC reader – G0/G1/G2/G3 (IJK and R, all three planes, helical, P

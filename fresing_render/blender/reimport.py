@@ -251,6 +251,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     notes += machining.after_model_update(scene, mapping, by_uid_new)
     from . import gcode
     notes += gcode.after_model_update(scene, mapping, by_uid_new)
+    from . import waycover
+    notes += waycover.after_joints_rebuilt(scene)                            # way covers (task 0034)
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
     logic.update_bounds(scene)

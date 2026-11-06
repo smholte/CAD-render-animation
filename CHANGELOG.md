@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.27 – 6 Nov 2026 – G-code: CNC programs drive the machine (task 0026)
+## 0.2.29 – 6 Nov 2026 – G-code: CNC programs drive the machine (task 0026)
 
 4 Motion > CNC machine (new)
 - Tell the app which joints are the machine's **X**, **Y** and **Z** (**Find the axes** picks them) and the
@@ -36,6 +36,40 @@ installer of that version was built from.
 Fixes
 - A joint within 0.1 mm (or 0.006°) of its CAD position jumped to it: Blender drops very small driver results.
   Every joint now works around that (projects made before are updated when they open).
+## 0.2.28 – 6 Nov 2026 – way covers follow the machine axis (task 0034)
+
+4 Motion > Way covers (new)
+- Telescopic way covers move with a machine axis, set up in one go. Pick the slide joint (or make one from
+  the selection), click the parts of each cover section – a section may be made of several parts – and press
+  **Add section**, from the fixed end to the moving end. **Make it** does the rest.
+- The travel is shared out: the axis moving 500 mm with 5 sections moves them 100, 200, 300, 400 and 500 mm
+  (3 sections: 167, 333, 500 mm). **Read from the axis** takes the total from its limits, **Flip direction**
+  opens the covers the other way, and **Housing counts** is for covers drawn with the fixed housing as the
+  first section (500 mm over 5 sections: 0, 125, 250, 375, 500 mm).
+- Changing the number or order of sections, the travel or the direction re-shares at once. A part in two
+  sections, or in a section that already moves by itself, is refused with the reason.
+- Works in poses, Move joint and Run motor steps, built animations and the render queue, also with scripts
+  off; kept through model updates and in saved projects. **Remove way cover** takes away only what it made.
+- PC check line "Way covers follow a machine axis"; two new test models (a generic one and the owner's
+  5-section way cover, 166.5 to 586.5 mm).
+
+## 0.2.27 – 6 Nov 2026 – labels, picture cards and music in videos (task 0025)
+
+5 Scene & Render > Labels (new)
+- **Add a label**: click a spot on a part, type the words. The label gets a box beside the machine (never
+  on top of another label, outside the machine where there is room) and a thin line to the spot, in the
+  brand kit's colours and font. Stills and MP4 videos.
+- The spot stays on its part: when the part moves in an animation the line follows it in every frame
+  (checked to within 2 pixels). A label of a hidden part is hidden too.
+- **Only during** a step: the label fades in and out with that animation step. **Text size** Small / Medium /
+  Large; **Draw labels in renders** switches all off.
+
+6 Animation > Pictures and Music (new)
+- **Pictures**: a photo or diagram over the video for a few seconds, full screen or in a corner, with a
+  fade and an optional caption.
+- **Music**: your own music file under the whole MP4 video: starts at, volume, fade in, fade out, cut to
+  the video's length. The MP4 gets a normal AAC sound track.
+- PC check: new line "Labels with lines on a picture and an MP4 with music".
 
 ## 0.2.26 – 6 Nov 2026 – mechanisms: scissor lifts, four-bar arms, slider-cranks (task 0014)
 

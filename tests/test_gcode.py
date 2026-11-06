@@ -557,7 +557,7 @@ def test_a_joint_close_to_its_cad_position_is_not_snapped_to_it(scene):
 def test_old_joint_drivers_are_upgraded(scene):
     j = scene.fresing.joints["X"]
     fc = j.motion.animation_data.drivers.find("location", index=2)
-    fc.driver.variables.remove(fc.driver.variables["b"])        # as made before 0.2.27
+    fc.driver.variables.remove(fc.driver.variables["b"])        # as made before 0.2.29
     for m in list(fc.modifiers):
         fc.modifiers.remove(m)
     assert not joints.driver_biased(j)

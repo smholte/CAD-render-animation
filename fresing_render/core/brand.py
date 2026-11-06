@@ -186,11 +186,18 @@ class Finishing:
     watermark: str = ""                   # "" = no watermark
     watermark_size: float = 0.12          # text height as a part of the picture height
     watermark_opacity: float = 0.25
+    # task 0025: labels pointing at parts, picture cards, music
+    label_track: dict = field(default_factory=dict)   # {frame of the animation (1-based): [LabelDraw]}
+    label_px: int = 0                     # text size of the labels in pixels
+    label_dir: str = ""                   # folder for the line pictures (made when the video is built)
+    cards: list = field(default_factory=list)         # [core.callouts.CardSpec]
+    music: object = None                  # core.callouts.MusicSpec or None
 
     @property
     def active(self) -> bool:
         return bool(self.logo_corner in CORNERS and self.logo_file) or self.title_on or self.end_on \
-            or self.captions_on or bool(self.watermark)
+            or self.captions_on or bool(self.watermark) or bool(self.label_track) or bool(self.cards) \
+            or self.music is not None
 
     @property
     def logo_on(self) -> bool:
@@ -203,6 +210,7 @@ class Plan:
     body_frames: int
     end_frames: int
     captions: list[Caption] = field(default_factory=list)
+    music: object = None            # core.callouts.MusicPlan when the video has music (set when it is built)
 
     @property
     def total(self) -> int:

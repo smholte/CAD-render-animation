@@ -689,6 +689,46 @@ saved projects. The joint list does not let you change or remove the drive joint
 it. **−** next to the list removes a mechanism: its parts go back to their CAD place (and the drive joint
 goes too, when the mechanism made it).
 
+### Way covers
+
+A **way cover** is the row of steel sections that slide into each other and cover a machine axis, so chips
+and coolant stay off the guide ways. Here the sections follow the axis by themselves: you pick them once, and
+every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
+and closes the covers.
+
+**Set it up**
+
+1. In 4 Motion > **Way covers**, step **1 Axis**: pick the **slide joint** the covers follow (the machine axis,
+   made in Joints above). A machine without a joint yet: click the carriage and press **Make one from the
+   selection**, then click a hole or face for the direction.
+2. Step **2 Sections**: click the parts of one cover section – any number of parts or subassemblies – and press
+   **Add section**. Do the same for every section, starting at the **fixed end** and working towards the
+   moving end. The arrows next to the list change the order; **−** takes a section out; **Select the
+   section's parts** shows which parts it holds. A part can be in one section only, and a part that already
+   moves with a joint (or follows one) is refused, with the reason.
+3. Step **3 Travel**: **Total movement** is how far the axis moves in all; **Read from the axis** takes it from
+   the axis limits (Min and Max). **Flip direction** opens the covers the other way round.
+4. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+
+**How the travel is shared out.** Every section slides the same distance relative to its neighbour. With the
+axis moving 500 mm and five sections, the sections stand 100, 200, 300, 400 and 500 mm from their CAD place
+when the axis is at 500 mm – 100 mm each. With three sections it is 167, 333 and 500 mm. The line under
+the travel fields always says what you get, in plain words.
+
+Some covers are drawn with the **housing** (the part on the fixed side that never moves) as the first section.
+Tick **Housing counts** for those: the first section stays, the others share the travel in one step less –
+five sections over 500 mm give 0, 125, 250, 375 and 500 mm.
+
+**Changing it later.** Adding, removing or reordering sections, changing the travel, Flip and Housing counts
+re-share the travel at once. Sections you added since **Make it** need **Make it** once more. **Remove way
+cover** removes the sections' joints and puts their parts back; the axis joint and everything else stay as
+they are.
+
+Under the hood each section is an ordinary slide joint ("Way cover Section 1") that follows the axis (see
+couplings, above), so the covers move in animations, in saved scenes and in the render queue, also on a PC that
+does not allow scripts in project files. They stay through a model update (1 Import) and in saved projects.
+To move the covers in a video, use the animation step **Move joint** on the axis – nothing else is needed.
+
 ### Poses & exploded views
 
 <img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">
@@ -1022,6 +1062,24 @@ Words across the picture, for a draft you send before the final render.
 
 It works for stills and for MP4 videos (not for PNG frames).
 
+### Labels
+
+A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
+25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
+
+1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
+2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
+3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
+   place it.
+4. The spot belongs to the part you clicked: when that part moves in an animation, the line follows it in
+   every frame. When the part is hidden (a **Hide** step, or its subassembly is hidden), its label is hidden too.
+5. **Only during**: pick an animation step and the label shows only while that step happens, fading in
+   and out. Empty: all the time. In stills every label that is on shows.
+6. **Move the point** clicks a new spot; **Select part** shows which part the label points at.
+   **Text size** makes all words bigger or smaller; **Draw labels in renders** switches them all off.
+
+Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
+
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -1171,6 +1229,24 @@ to PNG frames.
 
 The last line shows how long the finished video is: the cards come on top of the animation's own
 length.
+
+**Pictures and music**
+
+The **Pictures** fold shows a photo or a diagram for a few seconds over the video; the **Music** fold puts
+a music file under it. Both only go into MP4 videos.
+
+- **Add a picture**, pick the file (PNG, JPG, TIF, BMP or WebP). **Starts at** is counted from the start of
+  the animation (a title card is put in front of that), **Seconds** says how long it stays, with a short
+  fade in and out. **Shown**: **Full screen** (the picture fills the video, in the card colour) or **In a
+  corner** (a small picture; the animation goes on). **Caption** is an optional line of text.
+- To show a picture *between* two steps, leave a gap between them (start the second step a few seconds
+  later) and start the picture at the end of the first one, full screen.
+- **Music under the video**: pick a **Sound file** (WAV, MP3, OGG, FLAC or M4A). **Starts at** is where
+  in the video it begins, **Volume** how loud, **Fade in** / **Fade out** how long it takes to come up and
+  to go away. It is cut at the end of the video; a file shorter than the video just ends early.
+
+Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
+plays everywhere.
 
 **Make the video**
 
