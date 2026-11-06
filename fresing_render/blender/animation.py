@@ -9,6 +9,9 @@ Block kinds
             up and down; joints that follow it move along (their drivers read its keys)
     CYLINDER  move a cylinder's rod from a stroke to a stroke: the arm's joint gets a key on
             every frame, worked out from the stroke (the rod moves at the step's own pace)
+    MECHANISM raise a scissor lift's platform from a height to a height
+    GCODE   run a CNC program on the machine's X/Y/Z joints and spindle (task 0026, gcode.py); its
+            length follows from the program; tool changes can play the tool changer's animation
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -20,6 +23,7 @@ the keys puts the model back the way it was.
 from __future__ import annotations
 
 import math
+import os
 
 import bpy
 from mathutils import Matrix, Quaternion, Vector
@@ -83,6 +87,9 @@ def block_label(b, scene=None) -> str:
         return f"Move {b.cylinder}" if b.cylinder else "Move cylinder"
     if b.kind == "MECHANISM":
         return f"Lift {b.mechanism}" if b.mechanism else "Lift height"
+    if b.kind == "GCODE":
+        f = os.path.basename(bpy.path.abspath(b.gcode_file)) if b.gcode_file else ""
+        return f"Run {f}" if f else "Run G-code program"
     if b.kind == "POSE":
         return f"To pose {b.pose}" if b.pose else "To pose"
     if b.kind == "CAMERA":
@@ -243,6 +250,8 @@ def clear_keys(scene, restore: bool = True) -> None:
         cam = bpy.data.objects.get(s.anim_restore_camera)
         if cam is not None:
             scene.camera = cam
+    from . import gcode
+    gcode.after_clear(scene)                       # tool copies shown at tool changes (task 0026)
     if was_baked:
         from . import linkages
         linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
@@ -381,6 +390,8 @@ def bake(scene, anim) -> dict:
         warnings += states.apply_shot(scene, anim.start_shot)
     bpy.context.view_layer.update()
 
+    from . import gcode
+    atc_blocks = gcode.prepare(scene, anim, warnings)    # G-code steps: their length from the program
     fps = fps_of(anim)
     scene.render.fps = fps
     scene.render.fps_base = 1.0
@@ -554,7 +565,8 @@ def bake(scene, anim) -> dict:
 
     cam_blocks = []
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
-    for b in blocks:
+    last_key = 0.0
+    for b in sorted(blocks + atc_blocks, key=lambda b: b.start):
         f0, f1 = frame_of(anim, b.start), frame_of(anim, b.start + b.duration)
         if b.kind == "JOINT":
             j = free_joint(b)
@@ -572,6 +584,9 @@ def bake(scene, anim) -> dict:
             cylinder_move(b, f0, f1)
         elif b.kind == "MECHANISM":
             mechanism_move(b, f0, f1)
+        elif b.kind == "GCODE":
+            last_key = max(last_key, gcode.bake_step(scene, anim, b, f0, jstate, jkeys, vkeys, busy_until, warnings,
+                                                     _merge))
         elif b.kind == "POSE":
             pose = s.poses.get(b.pose)
             if pose is None:
@@ -600,6 +615,11 @@ def bake(scene, anim) -> dict:
                     continue
                 keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
                 _merge(keys, f0, hidden, "CONSTANT")
+
+    if last_key > f_end:                    # a program step ran a little longer than worked out first
+        f_end = int(math.ceil(last_key))
+        scene.frame_end = f_end
+        seconds = (f_end - 1) / fps
 
     # ---- joints that follow: their limits only warn ---------------------------
     # A follower is a straight-line function of the joint at the top of its chain, so its extremes

@@ -33,8 +33,11 @@ sys.path.insert(0, ROOT)
 
 UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
             "fresing_render/blender/ui_machining.py", "fresing_render/blender/ui_decals.py",
+            "fresing_render/blender/ui_gcode.py",
             "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
+# drawing functions called from a panel in another file: {file: {function: panel}}
+OTHER_FILE_HELPERS = {"fresing_render/blender/ui_gcode.py": {"draw_step": "6 Animation"}}
 
 # Which lane owns which panel (TASKS.md): the report is a to-do list per lane.
 LANE_OF_PANEL = {
@@ -46,7 +49,7 @@ LANE_OF_PANEL = {
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
     "Props for scale": "Scene & Render lane",
     "Update notice": "Quality lane",
-    "Milling": "Machining lane", "Chips": "Machining lane",
+    "Milling": "Machining lane", "Chips": "Machining lane", "CNC machine": "Motion lane",
     "Logos & stickers": "Looks lane",
 }
 
@@ -58,6 +61,7 @@ OWNER_TYPES = {
     "d": "FRDecalSettings", "it": "FRDecal",                  # 3 Looks > Logos & stickers (ui_decals.py)
     "cyl": "FRCylinder",                                      # 4 Motion > Cylinders
     "mech": "FRMechanism",                                    # 4 Motion > Mechanisms
+    "cnc": "FRCnc", "tl": "FRCncTool",                        # 4 Motion > CNC machine (ui_gcode.py)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -66,7 +70,7 @@ ITEM_TYPES = {
     "FRESING_UL_poses": "FRPose", "FRESING_UL_shots": "FRShot", "FRESING_UL_anims": "FRAnimation",
     "FRESING_UL_blocks": "FRAnimBlock", "FRESING_UL_queue": "FRQueueJob", "FRESING_UL_tree": "FRTreeItem",
     "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
-    "FRESING_UL_mechanisms": "FRMechanism",
+    "FRESING_UL_mechanisms": "FRMechanism", "FRESING_UL_cnc_tools": "FRCncTool",
 }
 
 
@@ -261,6 +265,7 @@ def scan_ui() -> list[Item]:
                 for sub in ast.walk(node):
                     if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name):
                         helpers.setdefault(sub.func.id, panels[node.name])
+        helpers.update(OTHER_FILE_HELPERS.get(rel, {}))
         # ... and the helpers those call (e.g. _draw_coupling from _draw_joints), to any depth
         funcs = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
         todo = [n for n in helpers if n in funcs]
@@ -476,7 +481,7 @@ def collect() -> list[Item]:
               "FRESING_UL_shots": "Saved scenes", "FRESING_UL_anims": "6 Animation",
               "FRESING_UL_blocks": "6 Animation", "FRESING_UL_queue": "7 Render queue",
               "FRESING_UL_mill_bits": "Milling", "FRESING_UL_cylinders": "Cylinders",
-              "FRESING_UL_mechanisms": "Mechanisms"}
+              "FRESING_UL_mechanisms": "Mechanisms", "FRESING_UL_cnc_tools": "CNC machine"}
     for it in items:
         if it.panel.startswith("list "):
             cls = it.panel[5:]

@@ -529,7 +529,7 @@ def _write_one(scene, j) -> bool:
         path, index = _channel(j.kind)
         ad = j.motion.animation_data
         fc = ad.drivers.find(path, index=index) if ad is not None else None
-        if fc is None or fc.driver.type != "AVERAGE":
+        if fc is None or fc.driver.type != "AVERAGE" or not driver_biased(j):
             _add_driver(j.motion, j.kind)               # back to "the motion follows its own value"
         j.motion.update_tag()
         return not j.follows
@@ -541,7 +541,9 @@ def _write_one(scene, j) -> bool:
             j.motion.driver_remove(p, i)
         except TypeError:
             pass
-    _scripted(j.motion.driver_add(path, index), top.motion, expr)
+    fc = j.motion.driver_add(path, index)
+    _scripted(fc, top.motion, expression(k, c + BIAS))           # never a small number (see BIAS)
+    _unbias(fc, 1.0)
     j.motion.update_tag()
     return True
 
@@ -809,6 +811,25 @@ def _new_empty(name: str, kind: str, collection, size: float, display: str) -> b
     return ob
 
 
+# Blender 5.2.3 writes 0 instead of a driver's result when that result is a small positive number (below
+# about 0.0001: 0.1 mm for a slide, found by task 0026 – a joint 0.05 mm from its CAD position sat at it). So
+# no motion driver ever gives a small number: it works out ``value + BIAS`` (an average with a constant second
+# input, or the expression plus BIAS), and a generator modifier on the driver takes BIAS off again. No Python:
+# files keep working with scripts off.
+BIAS = 2.0
+BIAS_PROP = "fr_bias"
+
+
+def _unbias(fc, factor: float) -> None:
+    """Generator on a motion driver: result = factor * raw - BIAS."""
+    for m in list(fc.modifiers):
+        fc.modifiers.remove(m)
+    g = fc.modifiers.new("GENERATOR")
+    g.mode = "POLYNOMIAL"
+    g.poly_order = 1
+    g.coefficients = (-BIAS, factor)
+
+
 def _add_driver(motion, kind: str) -> None:
     path, index = ("rotation_euler", 2) if kind == "ROTATE" else ("location", 2)
     for p, i in (("rotation_euler", 2), ("location", 2)):
@@ -816,6 +837,7 @@ def _add_driver(motion, kind: str) -> None:
             motion.driver_remove(p, i)
         except TypeError:
             pass
+    motion[BIAS_PROP] = BIAS
     fc = motion.driver_add(path, index)
     drv = fc.driver
     drv.type = "AVERAGE"                    # no Python expression: works with scripts disabled
@@ -825,6 +847,38 @@ def _add_driver(motion, kind: str) -> None:
     var.targets[0].id_type = "OBJECT"
     var.targets[0].id = motion
     var.targets[0].data_path = f'["{VALUE}"]'
+    var = drv.variables.new()               # (value + BIAS) / 2 ...
+    var.name = "b"
+    var.type = "SINGLE_PROP"
+    var.targets[0].id_type = "OBJECT"
+    var.targets[0].id = motion
+    var.targets[0].data_path = f'["{BIAS_PROP}"]'
+    _unbias(fc, 2.0)                        # ... * 2 - BIAS = value
+
+
+def driver_biased(j) -> bool:
+    """True when the joint's motion driver has the small-number fix (see BIAS)."""
+    ad = j.motion.animation_data if j.motion is not None else None
+    path, index = _channel(j.kind)
+    fc = ad.drivers.find(path, index=index) if ad is not None else None
+    if fc is None:
+        return True
+    return any(m.type == "GENERATOR" and abs(m.coefficients[0] + BIAS) < 1e-9 for m in fc.modifiers)
+
+
+def upgrade_drivers(scene) -> int:
+    """Projects made before 0.2.30: give every joint's motion driver the small-number fix. Returns how many."""
+    n = 0
+    for j in scene.fresing.joints:
+        if j.motion is None or driver_biased(j):
+            continue
+        if j.follows:
+            _write_one(scene, j)
+        else:
+            _add_driver(j.motion, j.kind)
+            j.motion.update_tag()
+        n += 1
+    return n
 
 
 def _attach(ob, motion, motion_world: Matrix) -> None:
@@ -1295,6 +1349,8 @@ def rename(scene, j, old: str) -> None:
     for x in scene.fresing.joints:                # followers name their leader (the driver needs no change)
         if x.follows and x.follows == old:
             _set_raw(x, follows=j.name)
+    from . import gcode
+    gcode.renamed_joint(scene, old, j.name)        # the CNC machine's axes (task 0026)
     from . import waycover                        # the way cover keeps following the same joints (task 0034)
     waycover.joint_renamed(scene, old, j.name)
 

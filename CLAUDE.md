@@ -182,6 +182,8 @@ fresing_render/            the Blender extension (Python package)
                            brand.py (brand kits, title/end cards, captions, time line of a finished video),
                            linkages.py (planar mechanisms: pins, tracks, sliders; exact steps + Newton, the
                            assembly mode kept by walking; pins from shared round faces; scissor layout)
+                           gcode.py (G-code reader, LinuxCNC/RS274NGC: moves in machine coordinates, arcs,
+                           cycles, o-words, parameters, Fusion tool comments; Schedule = program time -> video)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -210,6 +212,10 @@ fresing_render/            the Blender extension (Python package)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
+    gcode.py               CNC machine (task 0026): X/Y/Z joints + spindle, tool, work zero (marker), bake of the
+                           Run G-code program step (keys on move ends + along arcs), tool copies at M6, the
+                           toolpath (Geometry Nodes tubes); ops_gcode.py; ui_gcode.py (4 Motion > CNC machine,
+                           the step's settings in 6 Animation)
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
@@ -313,7 +319,7 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
 | Linux - test suite 1 … 4 | pytest, the `tests/test_*.py` files split in 4 groups balanced by `tools/ci_times.json` (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 4.6–6.1 min (the biggest file, `test_video_labels.py`, alone ~5 min) |
-| Linux - real app pccheck / callouts / paths-heavy / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`; Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
+| Linux - real app pccheck / callouts / paths-heavy / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`, `ui_test_gcode.py` (CNC machine, Run G-code program); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 9.8 min (PC check 4.5); starts after the build |
 | Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
@@ -555,6 +561,13 @@ the release → Delete); the next run on `main` publishes it again.
   name or the objects, look it up again. Ratio and limit comparisons use 1e-6: Blender stores them in float32,
   and a changed value calls `set_follows`, which takes a built animation off.
 - Inventor adds a version to part names ("Section 1 v8"): match test-model parts by name or `name + " v"`.
+- Blender 5.2.3 writes 0 instead of a driver's result when that result is a small positive number (below about
+  1e-4: a slide joint 0.05 mm from its CAD position sat exactly at it; found by task 0026). Joint motion drivers
+  never give a small number: they work out value + `joints.BIAS` and a generator modifier takes it off again
+  (`joints._add_driver`, `_write_one`); `joints.upgrade_drivers` fixes older projects on load. Any new driver
+  whose result can be near 0 needs the same.
+- G-code keys sit at fractional frames (every move's start and end): a step's last key can land inside the frame
+  after its rounded end; `animation.bake` stretches `frame_end` to it.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
   `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
   along with the paths (`machining.sample` stores it as `fr_wp_m`).

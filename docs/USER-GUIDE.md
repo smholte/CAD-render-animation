@@ -837,6 +837,51 @@ Good to know
     29.9 s with 25,000 brass crumbs (the limit, +23 %);
   - showing a frame in the view: 8–17 ms on top of the milling.
 
+### CNC machine (G-code)
+
+<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, tools">
+
+Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
+spindle), which part is the tool and where the program's zero is on the workpiece. Then a step **Run
+G-code program** in 6 Animation moves the machine exactly as the program would – the program your CAM
+writes for the machine (Fusion: Manufacture > Post Process with the LinuxCNC post, a `.ngc` file).
+
+**Set the machine up once**
+
+1. Make a **slide** joint for each axis in 4 Motion (Z sitting on X, X on Y, as on the machine – or the
+   table moving under the head) and, if you like, a **rotate** joint for the spindle with **Motor** ticked.
+2. In 4 Motion > **CNC machine** press **Find the axes**: it picks the slide joints that point along the
+   model's X, Y and Z, and the motor as the spindle. Change one in the fields **X**, **Y**, **Z**,
+   **Spindle** when it guessed wrong.
+3. Click the tool in the spindle (the cutter itself, not its holder) and press **Tool**. Its tip is the
+   point the program steers.
+4. Click the workpiece (the raw block) and press **Workpiece**.
+5. **Work zero**: the same point as in the CAM set-up (Fusion: Setup > WCS) – the top centre or a top
+   corner of the block, its bottom centre, or **Clicked point** with **Click the zero point** (a click near
+   a corner snaps onto it). Arrows "FR work zero" show it on the block.
+
+The lines under it say what the app worked out, for example "Y: 'Y' moves the workpiece" for a table that
+moves. The program's **+X** always means: the tool moves towards +X *relative to the workpiece* (the CNC
+rule), so a moving table goes the other way by itself. When an axis goes the wrong way, press the arrows
+next to its field (**Reverse**).
+
+**Machine: speeds, zero, shift** (fold)
+
+- **X / Y / Z rapid** (mm per minute): how fast the machine moves on G0 (LinuxCNC's `MAX_VELOCITY` × 60). They set
+  how long rapid moves take; feed moves take the program's F.
+- **Shift zero**: moves the work zero along X, Y and Z, for a zero that is not on a corner or the centre.
+- **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
+  you moved the joints to the machine's home position (usually Z right up).
+
+**Tools for tool changes** (fold, only for programs with M6)
+
+- **Tools from the program** adds a row for every tool the program uses, with the sizes from the tool
+  comments Fusion writes at the top of the program (`(T2 D=4. CR=2. - ball end mill)`), or from LinuxCNC's
+  tool table (**Tool table**: `tool.tbl`).
+- A row with a part (**Use clicked part**: for example the tool standing in the carousel) shows a copy of
+  that part in the spindle while it is loaded, and the part itself disappears from the carousel. A row
+  without a part shows a simple tool drawn from its **Shape**, **Diameter** and **Length**.
+
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 
@@ -1099,6 +1144,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
       **Constant speed** the rod moves at an even pace, as a real cylinder does.
     - **Lift height**: a scissor lift's platform goes from where it is (or **From** a height) **To** a
       height in mm (pin to pin); every arm follows. It takes the lift selected in 4 Motion > Mechanisms.
+    - **Run G-code program**: the CNC machine runs a program (see **Run a CNC program** below). Its
+      length follows from the program.
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
@@ -1116,6 +1163,48 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 4. **Motion** sets the ramps: **Smooth** speeds up at the start and slows down at the end, **Slow
    start** / **Slow stop** only one of them, **Constant speed** none. **Ramp (s)** is how long speeding
    up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
+**Run a CNC program**
+
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 20.8 s on the machine, one tool change">
+
+1. Set the machine up in 4 Motion > **CNC machine** (above).
+2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
+   says how many lines and moves it has and how long it takes on the machine. A copy is kept in the
+   project, so the render queue and another PC have it too.
+3. **Speed**: **Real time**, **Faster** (for example 10 × faster), or **Fit into** a number of seconds.
+   **Rapids faster** lets the moves through the air go quicker again, so the video spends its time on the
+   cutting. The line under it says how long the step lasts in the video.
+4. **Build & play**. The tool follows the program exactly – also the arcs, between frames too. With
+   **Show toolpath** the path is drawn on the block: cutting moves orange, turning green once cut, rapids
+   dashed blue (**Toolpath in renders** shows it in pictures and videos as well).
+
+The fold **Lines, tool changes, spindle, toolpath** holds:
+
+- **From line** / **To line**: play only part of the program; the machine starts where the program would
+  be at that line.
+- **Tool changer**: an animation of the tool changer (arm, carousel, cover – make it as an animation of its
+  own with the tool changer's joints) that plays at every M6 while the program waits; **Swap at (s)** is
+  the moment the new tool appears in the spindle. Without it, a tool change takes **Tool change (s)** and
+  the tool swaps half way. Move the head to the change position with the program itself (`G53 G0 Z0`
+  before `M6`, as LinuxCNC programs do).
+- **Spindle**: a real 10,000 rpm spindle looks still or turning backwards in a video of 25 pictures per
+  second, so it is slowed down to look right (at most 1/7 turn per picture). **Real speed** turns it at
+  the program's S.
+- **Go to line …** puts the timeline where the program starts a line.
+
+What the app reads (LinuxCNC's G-code, as CAM programs and hand-written programs use it): G0 G1, arcs G2
+G3 in all three planes (I J K or R, helical, several turns), G4, G17–G19, G20/G21 inch and mm, G90/G91,
+G90.1/G91.1, G93/G94/G95, work offsets G54–G59.3 and G10 L2/L20, G92, G28/G30, G53, the drilling cycles
+G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, parameters (`#1`, `#<name>`),
+expressions in `[ ]`, and O-word subroutines, loops and if/else (also a subroutine file `<name>.ngc` next
+to the program). **Details** lists everything the app does not show, with its line numbers: cutter
+compensation G41/G42 (the tool follows the programmed line), rotary axes A/B/C, threading, probing and
+user M-codes. Moves are timed without acceleration: on the real machine short moves take a little longer.
+
+Measured on the 4-core cloud test machine (test gantry): a program of 20,000 lines (short moves and arcs,
+about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, toolpath included; reading
+60,000 lines takes under a second.
+
 6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.30 – 6 Nov 2026 – faster automatic tests (task 0036)
+## 0.2.31 – 6 Nov 2026 – faster automatic tests (task 0036)
 
 Nothing changes in the app itself. Behind the scenes:
 - GitHub's automatic tests now run side by side on about a dozen machines instead of one after the other: about 13
@@ -14,6 +14,37 @@ Nothing changes in the app itself. Behind the scenes:
 - When a finished task is put on `main` exactly as it was tested, GitHub no longer repeats the tests: it
   publishes the update within minutes. Changes to texts and the guide only take a few minutes too.
 
+## 0.2.30 – 6 Nov 2026 – G-code: CNC programs drive the machine (task 0026)
+
+4 Motion > CNC machine (new)
+- Tell the app which joints are the machine's **X**, **Y** and **Z** (**Find the axes** picks them) and the
+  **Spindle**, click the **Tool** in the spindle and the **Workpiece**, and pick the **Work zero** as in your CAM
+  set-up: top centre, a top corner, bottom centre, or a clicked point (it snaps onto a corner). Arrows show the
+  work zero on the block. A table that moves the workpiece is fine: the program's +X is always the tool's way
+  relative to the workpiece; **Reverse** turns an axis round.
+- Fold **Machine**: rapid speed per axis (mm/min), a shift of the work zero, and the machine zero (G53 / G28).
+- Fold **Tools for tool changes**: **Tools from the program** reads Fusion's tool comments (or LinuxCNC's
+  tool table); a tool can be a part of the model (for example in the carousel) or a simple shape from its sizes.
+
+6 Animation: new step **Run G-code program**
+- Pick the program your CAM writes for the machine (LinuxCNC, `.ngc`): the machine moves exactly as the program
+  says – straight moves, arcs in all three planes (also helical), drilling cycles, work offsets, inch or mm,
+  subroutines, loops and parameters. The step's length follows from the program: **Real time**, **Faster** or
+  **Fit into** a number of seconds; **Rapids faster** for the moves through the air.
+- The spindle turns with S / M3 / M4 / M5 (slowed down so it looks right in a video, or at real speed).
+- Tool changes (M6): the new tool shows in the spindle and leaves the carousel; an animation of the tool changer
+  can play at every tool change while the program waits.
+- **Show toolpath**: the path on the block, orange to cut, green once cut, rapids dashed blue; also in renders
+  if you like.
+- **Details** lists everything in the program the app does not show, with line numbers (cutter compensation
+  G41/G42, rotary axes, threading …). A copy of the program is kept in the project, so the render queue and
+  other PCs have it.
+- Measured: a 30-minute program (20,000 lines, 45,349 frames) builds in 2–3 s on the 4-core test machine.
+- PC check: new line "G-code program drives X, Y, Z and the tool change".
+
+Fixes
+- A joint within 0.1 mm (or 0.006°) of its CAD position jumped to it: Blender drops very small driver results.
+  Every joint now works around that (projects made before are updated when they open).
 ## 0.2.29 – 6 Nov 2026 – PC check: Heavy mode (task 0033, round 1)
 
 PC check
