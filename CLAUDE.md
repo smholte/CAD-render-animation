@@ -143,7 +143,9 @@ fresing_render/            the Blender extension (Python package)
                            decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
                            decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
                            chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
-                           cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts)
+                           cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts),
+                           callouts.py (labels with lines: where boxes go, fades, the line; picture cards; music plan),
+                           brand.py (brand kits, title/end cards, captions, time line of a finished video)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -169,6 +171,9 @@ fresing_render/            the Blender extension (Python package)
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
+    callouts.py            labels pointing at parts (task 0025): point on a part, projected per frame, boxes placed;
+                           ops_callouts.py, ui_callouts.py (5 Scene & Render > Labels, 6 Animation > Pictures, Music);
+                           the strips for labels, picture cards and music are made in video.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -251,7 +256,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_callouts.py` (labels, picture card, music in a queued MP4), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 8 min (PC check 4.5) |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
@@ -462,6 +467,12 @@ the release → Delete); the next run on `main` publishes it again.
   (`"EXEC_DEFAULT", True`), which pushes the undo step.
 - Building an animation again puts back the camera it remembered first: to give an already built
   animation another camera (a test), `animation.clear_keys(scene)` first, then set the camera, then build.
+- Blender as a Python module draws no text strips after `read_factory_settings()` once it has drawn some (found
+  in 0018, 0025): a pytest that draws text (sequencer text strips) runs in a process of its own
+  (`fresh_process` in `tests/test_video_labels.py`). Animated sound volume (keyframes) IS honoured in an MP4's
+  audio, animated strip opacity is not.
+- A text strip draws its own box, so a label's box is as wide as its text: only the box's centre is certain, the
+  line ends under the box. Blender has 128 sequencer channels (`video.CH_*`).
 - Geometry Nodes "Collection Info" with Separate Children orders the children by name: chips pick their
   shape by instance index, so the shape objects are named "FR chip 000", "FR chip 001" … in that order.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call

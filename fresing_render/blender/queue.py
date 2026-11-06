@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -502,6 +503,16 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         for w in video.warnings_for(scene, anim):
             progress(96, w)
         fin = video.finishing_for_animation(scene, anim, bool(job.get("watermark")))
+        from . import callouts                    # task 0025: where the labels are in every frame
+        if scene.fresing.callouts_on and any(callouts.usable(c) for c in scene.fresing.callouts):
+            progress(95, "Working out where the labels go")
+            fps = int(anim.fps)
+            fin.label_px = callouts.C.font_px(size.height, scene.fresing.callout_size)
+            fin.label_track = callouts.track_for_animation(
+                scene, anim, f_end, fps, (size.width, size.height), fin.font,
+                progress=lambda part: progress(95 + part, "Working out where the labels go"), should_stop=should_stop)
+            if should_stop():
+                raise Stopped()
         progress(96, "Making the video" + (" with cards, logo, captions or watermark" if fin.active else ""))
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
@@ -578,8 +589,11 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
         except TypeError:
             pass
         from . import video
-        video.build_sequence(enc, [os.path.join(frames_dir, f) for f in files], (width, height), fps,
-                             finishing, steps, white_under=white_under)
+        label_dir = os.path.join(frames_dir, "_labels")
+        if finishing is not None and finishing.label_track:
+            finishing.label_dir = label_dir
+        plan = video.build_sequence(enc, [os.path.join(frames_dir, f) for f in files], (width, height), fps,
+                                    finishing, steps, white_under=white_under)
         im = r.image_settings
         try:
             im.media_type = "VIDEO"
@@ -592,7 +606,13 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
         ff.constant_rate_factor = "HIGH"
         ff.ffmpeg_preset = "GOOD"
         ff.gopsize = max(1, fps)
-        ff.audio_codec = "NONE"
+        if plan.music is not None:                        # task 0025: music under the video
+            ff.audio_codec = "AAC"
+            ff.audio_bitrate = 192
+            ff.audio_mixrate = 48000
+            ff.audio_channels = "STEREO"
+        else:
+            ff.audio_codec = "NONE"
         tmp_dir = os.path.join(frames_dir, "_video")
         os.makedirs(tmp_dir, exist_ok=True)
         for old in os.listdir(tmp_dir):
@@ -609,4 +629,5 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
         os.rmdir(tmp_dir)
     finally:
         bpy.data.scenes.remove(enc)
+        shutil.rmtree(os.path.join(frames_dir, "_labels"), ignore_errors=True)
     return out_path

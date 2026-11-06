@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.26 – 6 Nov 2026 – labels, picture cards and music in videos (task 0025)
+
+5 Scene & Render > Labels (new)
+- **Add a label**: click a spot on a part, type the words. The label gets a box beside the machine (never
+  on top of another label, outside the machine where there is room) and a thin line to the spot, in the
+  brand kit's colours and font. Stills and MP4 videos.
+- The spot stays on its part: when the part moves in an animation the line follows it in every frame
+  (checked to within 2 pixels). A label of a hidden part is hidden too.
+- **Only during** a step: the label fades in and out with that animation step. **Text size** Small / Medium /
+  Large; **Draw labels in renders** switches all off.
+
+6 Animation > Pictures and Music (new)
+- **Pictures**: a photo or diagram over the video for a few seconds, full screen or in a corner, with a
+  fade and an optional caption.
+- **Music**: your own music file under the whole MP4 video: starts at, volume, fade in, fade out, cut to
+  the video's length. The MP4 gets a normal AAC sound track.
+- PC check: new line "Labels with lines on a picture and an MP4 with music".
+
 ## 0.2.25 – 6 Nov 2026 – hydraulic and electric cylinders (task 0013)
 
 4 Motion > Cylinders (new)
