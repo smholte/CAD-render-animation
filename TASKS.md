@@ -22,7 +22,7 @@ updates its branch to `main`.
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (running) → 0031 Claude Code set-up (brief to write)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
-- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (can start)
+- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (round 1 released 0.2.29, round 2 waits for the owner's Heavy run)
 - **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (done, 0.2.28)
 
 ## Open and running
@@ -31,7 +31,7 @@ updates its branch to `main`.
 | --- | --- | --- | --- | --- | --- |
 | 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus · High | running | tasks/0026-gcode-motion.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
-| 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | open – can start | tasks/0033-pccheck-heavy.md |
+| 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | running – round 1 released (0.2.29); round 2 after the owner's run | tasks/0033-pccheck-heavy.md |
 | 0035 | Machining lane, follow-up to 0034 (small): (1) way-cover guide chapter gets its panel picture and a render of the test model (`tools/guide_screens.py`, needs the real Blender); (2) accept a cover section that sits on the carriage itself (parts already moved by the axis joint) as the last section, share 1, without a new joint; (3) a test with 8 sections in Blender. Brief to write | lead writes the brief, then worker | Sonnet · Low | open – brief to write | – |
 | 0036 | Quality & delivery lane: automatic tests from 35–50 min to ~15 – real-app and pytest jobs in parallel, fail-fast precheck (version clash), skip the repeat when `main` gets a tree that already ran green, cheap path for docs-only pushes | worker | Opus · Medium | running | tasks/0036-ci-speed.md |
 | 0031 | Quality & delivery lane: Claude Code on the web – stored set-up for every session (venv, Blender 5.2.3, xvfb, ImageMagick, download.blender.org allowed), measure set-up time and usage before/after, CLAUDE.md section 4 | lead writes the brief, then worker | Sonnet · Medium | open – brief to write | – |

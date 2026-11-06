@@ -310,17 +310,21 @@ if ($Uninstall) {
             $Summary += "| Self-test (Start-menu shortcut) | finished, judged below | $secs s |"
         }
 
-        # ---- 6. the PC check (Full), started exactly like its Start-menu shortcut (task 0032) ----------
-        $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check (full).lnk"
+        # ---- 6. the PC check (Full), then Heavy scaled down (task 0033), each started exactly like its
+        #         Start-menu shortcut ---------------------------------------------------------------------
+        foreach ($pcMode in @("full", "heavy")) {
+        $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check ($pcMode).lnk"
+        $pcTag = if ($pcMode -eq "heavy") { "pccheck_heavy" } else { "pccheck" }
+        $env:FRESING_PCCHECK_HEAVY_SMALL = if ($pcMode -eq "heavy") { "1" } else { "" }
         if ($BlenderExe -and (Test-Path -LiteralPath $pcLnk)) {
             $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($pcLnk)
             Note "PC check: `"$($lnk.TargetPath)`" $($lnk.Arguments)"
             $report = Join-Path $Desktop "Fresing Render PC check.html"
             Remove-Item -LiteralPath $report -Force -ErrorAction SilentlyContinue
-            $log = Join-Path $OutDir "pccheck_blender.log"
+            $log = Join-Path $OutDir "$pcTag`_blender.log"
             $t0 = Get-Date
             $p = Start-Process -FilePath $lnk.TargetPath -ArgumentList $lnk.Arguments -WorkingDirectory $lnk.WorkingDirectory `
-                -NoNewWindow -PassThru -RedirectStandardOutput $log -RedirectStandardError (Join-Path $OutDir "pccheck_blender.stderr.log")
+                -NoNewWindow -PassThru -RedirectStandardOutput $log -RedirectStandardError (Join-Path $OutDir "$pcTag`_blender.stderr.log")
             $null = $p.Handle
             if (-not $p.WaitForExit($PcCheckMinutes * 60 * 1000)) {
                 & taskkill /T /F /PID $p.Id | Out-Null
@@ -330,19 +334,21 @@ if ($Uninstall) {
             Write-Host "----- PC check output -----"
             Get-Content -LiteralPath $log | ForEach-Object { Write-Host "   $_" }
             if (Test-Path -LiteralPath $report) {
-                Copy-Item -LiteralPath $report -Destination (Join-Path $OutDir "Fresing Render PC check.html")
+                Copy-Item -LiteralPath $report -Destination (Join-Path $OutDir "$pcTag`.html")
             } else {
                 Problem "the PC check wrote no report on the Desktop"
             }
             $hist = Join-Path $BlenderExe.DirectoryName "portable\config\fresing_pccheck"
             $block = Join-Path $hist "last_run.txt"
             if (Test-Path -LiteralPath $block) {
-                Copy-Item -LiteralPath $block -Destination (Join-Path $OutDir "pccheck_last_run.txt")
+                Copy-Item -LiteralPath $block -Destination (Join-Path $OutDir "$pcTag`_last_run.txt")
             } else {
                 Problem "the PC check left no numbers in $hist"
             }
-            $Summary += "| PC check, Full (Start-menu shortcut) | finished, judged below | $secs s |"
+            $Summary += "| PC check, $pcMode (Start-menu shortcut) | finished, judged below | $secs s |"
         }
+        }
+        $env:FRESING_PCCHECK_HEAVY_SMALL = ""
     }
 }
 

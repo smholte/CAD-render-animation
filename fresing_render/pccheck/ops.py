@@ -24,12 +24,16 @@ from . import core
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAUNCHER = os.path.join(HERE, "launcher.py")
 START_MENU_FOLDER = "Fresing Render"
-SHORTCUTS = {"quick": "Fresing Render - PC check (quick).lnk", "full": "Fresing Render - PC check (full).lnk"}
+SHORTCUTS = {"quick": "Fresing Render - PC check (quick).lnk", "full": "Fresing Render - PC check (full).lnk",
+             "heavy": "Fresing Render - PC check (heavy).lnk"}
+DESKTOP_HEAVY = "Fresing Render - PC check (heavy).lnk"
 DESKTOP_SHORTCUT = "Fresing Render - PC check.lnk"     # quick; a STEP file can be dropped on it (not on the Start menu)
 SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
                           "your own model too",
                  "full": "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it "
-                         "to test your own model too"}
+                         "to test your own model too",
+                 "heavy": "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about "
+                          "10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"}
 RUNNING_FILE = "running.json"
 
 
@@ -78,10 +82,13 @@ class FRESING_OT_pc_check(bpy.types.Operator):
 
     mode: EnumProperty(name="Check", default="quick",
                        description="Quick tests the main functions in about 3 minutes; Full tests every function "
-                                   "in about 15 minutes",
+                                   "in about 15 minutes; Heavy loads the PC like real work (10 to 20 minutes)",
                        items=[("quick", "Quick (about 3 minutes)", "Import, a joint, a picture on the graphics card "
                                                                    "and a short EEVEE video"),
-                              ("full", "Full (about 15 minutes)", "Every function of the app, with pictures")])
+                              ("full", "Full (about 15 minutes)", "Every function of the app, with pictures"),
+                              ("heavy", "Heavy (10 to 20 minutes)", "A big generated machine, 4K pictures and a "
+                                                                    "10 second video: shows how the PC copes "
+                                                                    "with real load")])
     use_model: BoolProperty(name="Also test my own STEP file",
                             description="Also import one of your own STEP files and measure it: import time, parts, "
                                         "share sorted, a picture and the time per frame. The report stays on this "
@@ -104,6 +111,9 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         sub.prop(self, "filepath", text="")
         col.separator()
         col.label(text="Runs in the background; you can keep working.", icon="INFO")
+        if self.mode == "heavy":
+            col.label(text="Heavy uses the whole PC for a while. Stop it any time:")
+            col.label(text="Help > Cancel Fresing Render PC check.")
         col.label(text="The report opens in your web browser at the end.")
 
     def execute(self, context):
@@ -134,7 +144,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start the PC check: {exc}")
             return {"CANCELLED"}
-        minutes = "3" if self.mode == "quick" else "15"
+        minutes = {"quick": "3", "full": "15", "heavy": "10 to 20"}[self.mode]
         self.report({"INFO"}, f"PC check started ({core.MODE_TITLES[self.mode]}): the report opens in your web "
                               f"browser in about {minutes} minutes")
         return {"FINISHED"}
@@ -156,8 +166,10 @@ def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str]) -> 
     "desktop" on the Desktop (quick)."""
     lines = ["$s = New-Object -ComObject WScript.Shell"]
     for mode in missing:
-        path = os.path.join(desktop, DESKTOP_SHORTCUT) if mode == "desktop" else os.path.join(folder, SHORTCUTS[mode])
+        path = os.path.join(desktop, DESKTOP_SHORTCUT) if mode == "desktop" else os.path.join(folder, SHORTCUTS.get(mode, ""))
         mode = "quick" if mode == "desktop" else mode
+        path = os.path.join(desktop, DESKTOP_HEAVY) if mode == "desktop_heavy" else path
+        mode = "heavy" if mode == "desktop_heavy" else mode
         lines += [f"$l = $s.CreateShortcut({_ps_quote(path)})",
                   f"$l.TargetPath = {_ps_quote(exe)}",
                   f"$l.Arguments = {_ps_quote(shortcut_arguments(desktop, mode))}",
@@ -174,6 +186,9 @@ def missing_shortcuts(folder: str, desktop: str = "") -> list[str]:
     if desktop and os.path.isfile(os.path.join(desktop, "Fresing Render.lnk")) \
             and not os.path.isfile(os.path.join(desktop, DESKTOP_SHORTCUT)):
         out.append("desktop")
+    if desktop and os.path.isfile(os.path.join(desktop, "Fresing Render.lnk")) \
+            and not os.path.isfile(os.path.join(desktop, DESKTOP_HEAVY)):
+        out.append("desktop_heavy")
     return out
 
 
@@ -225,6 +240,7 @@ def ensure_shortcuts() -> str:
 
 def _draw_pc_check_help(self, context):
     self.layout.operator(FRESING_OT_pc_check.bl_idname, icon="CHECKMARK")
+    _draw_cancel_help(self, context)
 
 
 def _add_help_entry() -> None:
@@ -243,7 +259,36 @@ def _add_help_entry() -> None:
         menu.prepend(_draw_pc_check_help)
 
 
-CLASSES = (FRESING_OT_pc_check,)
+class FRESING_OT_pc_check_cancel(bpy.types.Operator):
+    """Stop the PC check that is running now. The lines it has finished stay in its report, which opens when it
+    has stopped (this can take a moment: a picture that is being rendered is finished first)"""
+
+    bl_idname = "fresing.pc_check_cancel"
+    bl_label = "Cancel Fresing Render PC check"
+
+    @classmethod
+    def poll(cls, context):
+        from . import runner
+        return running_pid(runner.history_dir()) > 0
+
+    def execute(self, context):
+        from . import runner
+        try:
+            core.write_text(runner.cancel_path(), "cancel\n")
+        except OSError as exc:
+            self.report({"ERROR"}, f"Could not stop the PC check: {exc}")
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Stopping the PC check: its report opens when it has stopped")
+        return {"FINISHED"}
+
+
+def _draw_cancel_help(self, context):
+    from . import runner
+    if running_pid(runner.history_dir()) > 0:
+        self.layout.operator(FRESING_OT_pc_check_cancel.bl_idname, icon="CANCEL")
+
+
+CLASSES = (FRESING_OT_pc_check, FRESING_OT_pc_check_cancel)
 
 
 def register():

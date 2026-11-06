@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.29 – 6 Nov 2026 – PC check: Heavy mode (task 0033, round 1)
+
+PC check
+- New **Fresing Render - PC check (heavy)** (Start menu and Desktop; in the app Help > Fresing Render PC
+  check… > Heavy). It loads the PC like real work: an invented machine of about 3,000 parts is made, imported
+  on all cores and worked with (structure list, search, Show only, explode, save and open), Cycles pictures
+  at HD and 4K (Preview and Final), EEVEE per frame at HD and 4K, a real 10 second EEVEE animation (250
+  frames, 1920 × 1080) and a 3 second Cycles clip through the render queue. Takes 10 to 20 minutes (the sizes
+  are tuned after the first run on your PC).
+- The report shows which step is running and for how long, big pictures with their settings, a contact sheet
+  and the last frame of each video, the peak memory, and under every step what it shows and what it does not.
+- **Cancel:** Help > Cancel Fresing Render PC check (or Ctrl+C in the black window) stops the check; the steps
+  done so far stay in the report.
+- GitHub runs Heavy in a scaled-down form (a few hundred parts, 5 frames) on Linux and Windows.
+
 ## 0.2.28 – 6 Nov 2026 – way covers follow the machine axis (task 0034)
 
 4 Motion > Way covers (new)
