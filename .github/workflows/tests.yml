@@ -523,7 +523,9 @@ jobs:
   release-check:
     name: Windows - an installed old version updates itself from the release
     needs: [release]
-    if: ${{ needs.release.outputs.publish == 'true' }}
+    # !cancelled() and the explicit results: without them GitHub skips this job whenever a job further up the
+    # chain was skipped (the test jobs in mode docs or reuse), even though the release itself ran
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.publish == 'true' }}
     runs-on: windows-2025
     timeout-minutes: 40
     defaults:
@@ -581,7 +583,9 @@ jobs:
   release-latest:
     name: Offer the release to the apps (make it the newest release)
     needs: [release, release-check]
-    if: ${{ needs.release.outputs.publish == 'true' && needs.release.outputs.prerelease == 'false' }}
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.release-check.result == 'success'
+      && needs.release.outputs.publish == 'true' && needs.release.outputs.prerelease == 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
