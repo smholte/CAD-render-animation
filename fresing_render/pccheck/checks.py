@@ -30,6 +30,7 @@ MILL = os.path.join(DATA, "test_mill.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
+GANTRY = os.path.join(DATA, "test_gantry.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -388,6 +389,77 @@ def joints_mechanism(ctx):
     px, _pz = axis_xz("CRANK.ROD.PIN")
     _check(abs(px - want) < 1e-4, f"the piston's pin is at x {px * 1000:.2f} mm, not {want * 1000:.2f} mm")
     return f"platform 1500 mm, roller on its line; piston to {abs(px - want) * 1000:.3f} mm"
+
+
+GCODE_TEST = """(T1 D=6. CR=0. - flat end mill)
+(T2 D=4. CR=2. - ball end mill)
+G21 G90 G94 G17
+T1 M6
+S8000 M3
+G0 X-40 Y-30 Z5
+G1 Z-2 F600
+G1 X40 F1500
+G2 X40 Y30 I0 J30
+G18 G3 X20 Z-2 I-10 K0
+G17 G0 Z10
+T2 M6
+G98 G81 X-60 Y60 Z-5 R2 F300
+X-40
+G80
+G53 G0 Z0
+M30
+"""
+
+
+@line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.27",
+      what="The test gantry runs a short LinuxCNC program (lines, arcs in two planes, a tool change, drilling): "
+           "the tool's tip follows the program, the new tool shows in the spindle, the toolpath is drawn")
+def motion_gcode(ctx):
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import animation, gcode, joints
+    from ..core import gcode as core
+    scene = ctx.fresh(GANTRY)
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool = _ob(scene, "TOOL T1 FLAT D6")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, _ob(scene, "STOCK 300x200x30"))
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    path = os.path.join(ctx.work, "pccheck_gcode.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(GCODE_TEST)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "G-code", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_file = path
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("bake", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    prog = gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0]
+    sch = core.Schedule(prog, gcode.timing(scene, a, b))
+    tip = gcode._rest_tip(tool)[0]
+    zero = scene.fresing.cnc.zero_empty
+    worst = 0.0
+    for f in range(1, r["frames"] + 1, 5):
+        scene.frame_set(f)
+        got = zero.matrix_world.inverted() @ (tool.matrix_world @ tip) / 0.001
+        want = Vector(sch.point_at((f - 1) / 25.0)) - Vector(mach.g54)
+        if not tool.hide_render:
+            worst = max(worst, (got - want).length)
+    _check(worst < 0.01, f"the tool's tip is {worst:.3f} mm away from the program's path")
+    copy = next((o for o in bpy.data.objects if o.get(gcode.TAG) == "tool" and o.get("fr_cnc_t") == 2), None)
+    scene.frame_set(r["frames"])
+    _check(copy is not None and not copy.hide_render and tool.hide_render, "T2 does not show in the spindle "
+           "after the tool change")
+    _check(gcode.path_object() is not None, "no toolpath drawn")
+    return f"tip on the path to {worst:.4f} mm, {r['frames']} frames, T1 → T2"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

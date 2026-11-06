@@ -941,6 +941,9 @@ class FRESING_OT_block_add(bpy.types.Operator):
                 b.joint = j.name
             b.duration = 5.0
             b.easing = "SMOOTH"
+        elif self.kind == "GCODE":
+            b.duration = 0.0                         # follows from the program once a file is picked
+            b.easing = "LINEAR"
         elif self.kind == "JOINT":
             j = _active_joint(context)
             if j is not None:

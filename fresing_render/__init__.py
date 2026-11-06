@@ -6,14 +6,14 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.26"
+__version__ = "0.2.27"
 
 _modules = []
 
 
 def _classes():
-    from .blender import (ops_cylinders, ops_decals, ops_import, ops_linkages, ops_machining, ops_main, ops_motion,
-                          ops_panels,
+    from .blender import (ops_cylinders, ops_decals, ops_gcode, ops_import, ops_linkages, ops_machining, ops_main,
+                          ops_motion, ops_panels, ui_gcode,
                           ops_rule_sets, ops_scene, ops_surroundings, ops_video, prefs, ui, ui_decals, ui_machining,
                           ui_motion, ui_video, updates)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
@@ -23,9 +23,9 @@ def _classes():
     # the update notice first: a panel registered first sits on top of the Fresing tab
     return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES + ops_surroundings.CLASSES
-            + ops_scene.CLASSES + ops_machining.CLASSES + ops_decals.CLASSES + ops_video.CLASSES + tuple(looks)
-            + ui_motion.CLASSES
-            + ui_machining.CLASSES + ui_video.CLASSES)
+            + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
+            + tuple(looks) + ui_motion.CLASSES
+            + ui_machining.CLASSES + ui_gcode.CLASSES + ui_video.CLASSES)
 
 
 def register():

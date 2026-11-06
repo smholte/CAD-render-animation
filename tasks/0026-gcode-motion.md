@@ -72,10 +72,63 @@ program would, at a speed he chooses.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (Opus), 6 Nov 2026. Version 0.2.27.
 
 **What changed:**
+- `core/gcode.py` (no Blender): the LinuxCNC reader – G0/G1/G2/G3 (IJK and R, all three planes, helical, P
+  turns), G4, G17–G19, G20/G21, G90/G91, G90.1/G91.1, G93/G94/G95, G54–G59.3 + G10 L2/L20, G92/G92.1/.2/.3,
+  G28/G28.1/G30, G53, cycles G81 G82 G83 G73 G85 G86 G89 (G98/G99, L, any plane), F S T M3 M4 M5 M6 M61 M0/M1
+  M2/M30, `#` numbered/named/global parameters, `[ ]` expressions and functions, O-word sub/call/return,
+  if/elseif/else, while, do-while, repeat, break/continue, subroutine files next to the program; Fusion tool
+  comments and `tool.tbl`. Everything else is reported with its line numbers (G41/G42, A/B/C/U/V/W, G33, G76,
+  G5.x, G38.x, G96, M100–M199, unknown codes, broken lines). Output in machine coordinates (mm) with times
+  (rapids per-axis limited, feeds capped by the axes' rapid speeds; no acceleration). `Schedule`: program time
+  -> video time (real / ×N / fit, rapids faster, tool-change pauses, line range), key samples, toolpath.
+- `blender/gcode.py`: CNC machine set-up (`scene.fresing.cnc`): X/Y/Z joints (each moves tool or workpiece,
+  sign picked from the model's axes, Reverse), spindle motor, tool tip (milling's bit detection), work zero
+  (box corners/centres in the machine's axes, clicked point snapping to a vertex, shift; marker "FR work
+  zero" parented to the workpiece), machine zero (CAD or "here"), tools list. Bake of the new step: a key on
+  X/Y/Z at every move's start and end (fractional frames) and along arcs (every frame + chord error 0.002 mm),
+  spindle angle keys (slowed to 1/7 turn per frame by default), tool copies at M6 (part copy or a turned mesh
+  from the sizes; carousel part hidden while loaded), tool-changer animation played at each M6 (its steps are
+  added shifted; X/Y/Z moves in it are refused), soft-limit warnings with line numbers, program copy kept in a
+  Text block (used when the file is gone), model update and joint rename hooks. Toolpath: edges + a Geometry
+  Nodes modifier (tubes; orange to cut, green once cut by Scene Time, rapids dashed blue).
+- `animation.py`: step kind GCODE (length from the program, tool-changer steps, frame_end stretched to the
+  last key). `props.py` (additive): FRCnc, FRCncTool, step settings. `ops_gcode.py`, `ui_gcode.py` (4 Motion >
+  CNC machine; the step in 6 Animation), `ops_motion.py` (new step default), `logic.py` (CNC objects are not
+  CAD), `reimport.py` hooks.
+- **Joint fix (all joints):** Blender 5.2.3 writes 0 for a driver result that is a small positive number
+  (≤ 1e-4): a slide joint within 0.1 mm of its CAD position jumped to it. Motion drivers now work out value + 2
+  and a generator modifier takes the 2 off (still no Python); followers' expressions too; older projects are
+  upgraded on load (`joints.upgrade_drivers`). CLAUDE.md section 8.
+- Test gantry `tools/make_test_gantry.py` → `tests/data/test_gantry.step` (+ copy in `fresing_render/data/`):
+  Y gantry, X carriage, Z head with a flat Ø6, carousel with a ball Ø4 and a drill Ø5.
+- PC check line `motion.gcode`; real-app test `tools/ui_test_gcode.py` (in `ci_real_app.py`, MIN 23 checks);
+  tooltip report knows the CNC panel and the step; user guide: "CNC machine (G-code)" in chapter 4, "Run a CNC
+  program" in chapter 6.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core cloud machine, Linux, bpy 5.2.3 as a module):
+- `tests/test_gcode_core.py` 51 tests: arcs in G17/G18/G19 against hand-worked points, R both signs, full
+  circles, helix, turns, G90.1, inch, G91, G54 + G53, G10 L2/L20, G92, G28 (+ intermediate point), G93/G95,
+  spindle/tools/M30, every cycle step by step (G81 G98/G99, G82, G83 pecks, G73, G85, G91 + L3, G18 plane),
+  tool comments + table, unknown codes with line numbers, expressions, o-words, subroutine files, loop guard,
+  timing modes, key samples within 0.002 mm of arcs. 60,000 lines read in 0.8 s.
+- `tests/test_gcode.py` 21 tests on the test gantry and the test mill (table moving Y): the tip against the
+  program on every frame and at sub-frames: worst < 0.01 mm (PC check line: < 0.0001 mm); speed modes; spindle
+  angle; limits and unknown codes in the warnings; tool changes (copies, carousel part, Clear keys); tool-changer
+  animation; toolpath; save + reopen with the file deleted; model update; joint rename; panels draw; tooltips;
+  joint small-value fix and upgrade.
+- Bake time (in the test): 20,005 lines, about 30 minutes on the machine, 45,349 frames at 25 fps: 2.2–3.1 s
+  including reading the program and the toolpath.
+- Owner's real program: none attached – not tried.
+- Real-app test and guide pictures: download.blender.org is blocked in this session, so `ui_test_gcode.py` ran
+  on GitHub only (see the run of the branch).
 
 **Open points / follow-up tasks:**
+- Milling (0027) with tool changes: milling's bits are fixed parts; the tool copies shown at M6 do not cut.
+  A follow-up in the Machining lane could switch the cutting bit at the swap moments (the shapes are known).
+- Acceleration is not simulated (short moves are a little faster than on the machine); G64 blending not shown.
+- Rotary axes A/B/C (task 0029).
+- Followers' value copies (the coupling driver on `fr_value`, only for the panel) still have Blender's
+  small-number problem; motion is fixed.

@@ -195,8 +195,8 @@ class Tree:
         scene = scene or bpy.context.scene
         self.kids: dict[str, list] = {}
         for ob in scene.objects:
-            if ob.get(build.PROP_KIND) in build.JOINT_KINDS or ob.get(build.PROP_KIND) == "decal":
-                continue                       # joints and decals (task 0024) are not part of the CAD structure
+            if ob.get(build.PROP_KIND) in build.JOINT_KINDS or ob.get(build.PROP_KIND) in ("decal", "cnc"):
+                continue                       # joints, decals (0024) and the CNC set-up's objects (0026) are not CAD
             p = build.logical_parent(ob)
             if p is not None:
                 self.kids.setdefault(p.name, []).append(ob)
