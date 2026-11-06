@@ -469,9 +469,10 @@ the release → Delete); the next run on `main` publishes it again.
   animation another camera (a test), `animation.clear_keys(scene)` first, then set the camera, then build.
 - Geometry Nodes "Collection Info" with Separate Children orders the children by name: chips pick their
   shape by instance index, so the shape objects are named "FR chip 000", "FR chip 001" … in that order.
-- Transforms set in a `depsgraph_update_post` handler (mechanisms) are evaluated at the *next* update: the 3D
-  view redraws anyway, but a script or test that reads `matrix_world` must update twice (`tests/test_linkages.py`
-  `update()`), or call `linkages.refresh_all` first (poses, the queue do).
+- Transforms set in a `depsgraph_update_post` handler (mechanisms) are evaluated at the *next* update, and nothing
+  asks for one: the view lagged a step behind until the mouse moved (found by `ui_test_linkage.py` on GitHub). The
+  handler starts a one-shot timer that updates and redraws the 3D views. A script or test that reads `matrix_world`
+  must update twice (`tests/test_linkages.py` `update()`), or call `linkages.refresh_all` first (poses do).
 - Two-answer formulas (a circle meets a circle or a line) keep their branch by prediction from the last two
   steps: scale the prediction to the step size (a half step during a bisection otherwise jumped to the folded
   scissor), and with fewer than two steps of history keep the same side – near-flat scissor arms move further per

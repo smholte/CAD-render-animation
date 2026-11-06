@@ -38,7 +38,7 @@ KIND_FRAME, KIND_LINK = build.LINKAGE_KINDS
 PROP = "fr_mechanism"
 KINDS = (("SCISSOR", "Scissor lift"), ("FOURBAR", "Four-bar or parallel arm"),
          ("SLIDER", "Slider-crank"), ("OTHER", "Other linkage"))
-_STATE = {"busy": False, "cad": 0}
+_STATE = {"busy": False, "cad": 0, "moved": False}
 _SOLVERS: dict = {}
 
 
@@ -706,7 +706,9 @@ def forget() -> None:
     _SOLVERS.clear()
 
 
-def _apply(m, poses) -> None:
+def _apply(m, poses) -> bool:
+    """Put the link empties at ``poses``; True when one of them moved."""
+    moved = False
     for k, ln in enumerate(m.links):
         e = ln.empty
         if e is None or k >= len(poses):
@@ -715,8 +717,34 @@ def _apply(m, poses) -> None:
         # (single precision: only a real change is written, or every update would start another one)
         if abs(e.location.x - tx) > 1e-7 or abs(e.location.y - ty) > 1e-7 or abs(e.location.z) > 1e-7:
             e.location = (tx, ty, 0.0)
+            moved = True
         if abs(e.rotation_euler.z - th) > 1e-7 or abs(e.rotation_euler.x) > 1e-7 or abs(e.rotation_euler.y) > 1e-7:
             e.rotation_euler = (0.0, 0.0, th)
+            moved = True
+    if moved:
+        _STATE["moved"] = True
+    return moved
+
+
+def _redraw_views() -> None:
+    """The links were placed after the update that showed the new drive value: evaluate once more and draw the
+    views again, right after this update (a timer: not inside the depsgraph's own handler), or the view lags one
+    step behind until the next mouse move."""
+    if bpy.app.background or bpy.app.timers.is_registered(_settle):
+        return
+    bpy.app.timers.register(_settle, first_interval=0.0)
+
+
+def _settle():
+    try:
+        bpy.context.view_layer.update()
+        for win in bpy.context.window_manager.windows:
+            for area in win.screen.areas:
+                if area.type == "VIEW_3D":
+                    area.tag_redraw()
+    except Exception:
+        pass
+    return None
 
 
 def value_of(scene, m) -> float:
@@ -776,8 +804,11 @@ def _on_depsgraph(scene, _depsgraph=None):
     except (AttributeError, ReferenceError):
         return
     _STATE["busy"] = True
+    _STATE["moved"] = False
     try:
         refresh_all(scene)
+        if _STATE["moved"]:
+            _redraw_views()
     except Exception as exc:                       # never break the app's update loop
         print("Fresing Render: mechanism update failed:", exc)
     finally:
@@ -801,6 +832,8 @@ def unregister():
                     (bpy.app.handlers.load_post, _on_load)):
         while fn in lst:
             lst.remove(fn)
+    if bpy.app.timers.is_registered(_settle):
+        bpy.app.timers.unregister(_settle)
     forget()
 
 
