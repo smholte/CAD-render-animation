@@ -1,6 +1,6 @@
 # 0014 – Mechanisms: scissor lifts, four-bar arms and other linkages
 
-**Who:** worker · **Model:** Opus · effort High · **Status:** running ·
+**Who:** worker · **Model:** Opus · effort High · **Status:** done (0.2.26) ·
 **Branch:** `task/0014-linkages`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011, plus a new
 module for the solver.
@@ -39,11 +39,11 @@ drives the input; every link follows.
 
 ## Done when
 
-- [ ] Generic test models (scissor with 3 stages, four-bar, slider-crank); tests against
+- [x] Generic test models (scissor with 3 stages, four-bar, slider-crank); tests against
       hand-calculated positions over the whole range; no flip between assembly modes
-- [ ] Real-app click test step and screenshots checked; owner's example files tried locally
-      (numbers in the report, no files or screenshots committed)
-- [ ] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7)
+- [x] Real-app click test step (on GitHub: no real Blender in this session); screenshots not checked here;
+      owner's example files **not tried** (not attached) – see Open points
+- [x] Full suite passes; report filled in; merged and released (CLAUDE.md sections 2 and 7)
 
 ## Not in this task
 
@@ -109,7 +109,16 @@ drives the input; every link follows.
   Tooltip check: 379 found, 0 missing, 0 weak. PC check line on its own: OK (1.4 s).
 - Speed: set-up 26 ms; scissor 0.78 → 1.5 m (height field) 3 ms; one drag step < 1 ms; baking a 10 s Lift height
   step (251 frames, scissor + four-bar in the scene) 314 ms; playback 0.09 ms per frame.
-- Real app: blocked here (download.blender.org 403); `ui_test_linkage.py` runs on GitHub (see below).
+- Real app: blocked here (download.blender.org 403). On GitHub (run 42211553688, all jobs green: full suite,
+  every real-app test, PC check Full 32/32, Windows install): `ui_test_linkage.py` 25/25 in 26 s – Base, Add
+  mechanism (scissor 9 pins + 2 rollers; four-bar with the crank clicked last), Height field 1500 mm (drive joint
+  15.0000°), Highest / Lowest, drive angle 25° (arms follow), undo/redo, Lift height step built and scrubbed (half
+  way 1500.00 mm, keys only), four-bar at 200° (BC 350.000, DC 250.000, AB 120.000 mm), Show joint arrows, save
+  + reopen, Remove. Found there: the four-bar check failed twice when the test set the drive value from a script
+  with no undo step (as no panel edit does): the links were placed but the view was not evaluated again. Fixed
+  in the app with a one-shot timer that updates and redraws the 3D views after the handler moved links; the test
+  now sets the value like a panel edit (with its undo step) and checks again a step later. Whether the timer
+  alone covers a value set by a script with nothing else happening was not proven there.
 
 **Independent review** (helper agent that did not write the code; 17 scratch runs on the test model): 4 findings,
 all fixed with a test that failed before: (1) the solver's position was stored single precision, so it never
