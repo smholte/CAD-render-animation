@@ -548,9 +548,9 @@ def _per_frame(message: str) -> float:
         raise RuntimeError(f"no time per frame in '{message}'") from None
 
 
-@line("milling.cut", "Milling: material disappears where the bit cuts", "0.2.19",
-      what="The mill's bit cuts a slot into the block over a few frames")
-def milling_cut(ctx):
+def _mill_scene(ctx):
+    """The test mill with X/Y/Z slides, a short slot (plunge 25 mm, then 50 mm along X), the flat end
+    mill as bit and the block as workpiece."""
     import bpy
     from mathutils import Vector
 
@@ -581,17 +581,43 @@ def milling_cut(ctx):
     stock.select_set(True)
     bpy.context.view_layer.objects.active = stock
     _check(bpy.ops.fresing.mill_set_workpiece() == {"FINISHED"}, "the block could not be picked")
+    return scene, frames, stock
+
+
+@line("milling.cut", "Milling: material disappears where the bit cuts", "0.2.19",
+      what="The mill's bit cuts a slot into the block over a few frames")
+def milling_cut(ctx):
+    from ..blender import machining
+    scene, frames, stock = _mill_scene(ctx)
     t0 = time.time()
     machining.sample(scene)
     for f in range(1, frames + 1, max(1, frames // 6)):
         scene.frame_set(f)
     scene.frame_set(frames)
-    ms = (time.time() - t0) * 1000 / 7
-    ctx.metric("per frame", ms / 1000, "s/frame")
+    ctx.metric("read motion + 7 frames", time.time() - t0, "s")
     me = machining.settings(scene).cut_mesh
     _check(me is not None and stock.data is me, "the block does not show its cut")
     _check(len(me.polygons) > 12, "nothing was cut out of the block")
     return f"{len(me.polygons)} faces after the cut"
+
+
+@line("milling.chips", "Milling: chips fly", "0.2.22",
+      what="Aluminium chips appear while the bit cuts the slot and land on the machine")
+def milling_chips(ctx):
+    import bpy
+
+    from ..blender import chips, machining
+    chips.forget()
+    scene, frames, _stock = _mill_scene(ctx)
+    machining.sample(scene)
+    t0 = time.time()
+    machining.settings(scene).chips = "FEW"
+    scene.frame_set(frames)
+    ctx.metric("work out", time.time() - t0, "s")
+    n = sum(len(o.data.vertices) for o in (bpy.data.objects.get(chips.OBJ_RIDE), bpy.data.objects.get(chips.OBJ_WORLD))
+            if o is not None)
+    _check(n > 0, "no chips at the end of the cut")
+    return f"{n} chips; {chips.family_text(scene)}"
 
 
 # ---------------------------------------------------------------------------
@@ -737,7 +763,7 @@ def updates_check(ctx):
 # the owner's own model: numbers only
 # ---------------------------------------------------------------------------
 
-@line("own.import", "Your model: import + sorting", "0.2.22", (OWN,),
+@line("own.import", "Your model: import + sorting", "0.2.23", (OWN,),
       what="Import time, parts, unique parts, triangles, share sorted by the rules")
 def own_import(ctx):
     from ..blender import build
@@ -759,7 +785,7 @@ def own_import(ctx):
     return None
 
 
-@line("own.gpu", "Your model: still on the graphics card", "0.2.22", (OWN,), requires=("own.import",),
+@line("own.gpu", "Your model: still on the graphics card", "0.2.23", (OWN,), requires=("own.import",),
       what="An HD picture of your model on the graphics card (Preview quality)")
 def own_gpu(ctx):
     import bpy
@@ -790,13 +816,13 @@ def _own_time_test(ctx, quality: str):
     return None
 
 
-@line("own.time_preview", "Your model: Time test, Preview", "0.2.22", (OWN,), requires=("own.import",),
+@line("own.time_preview", "Your model: Time test, Preview", "0.2.23", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD, Preview quality (Cycles)")
 def own_time_preview(ctx):
     return _own_time_test(ctx, "preview")
 
 
-@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.22", (OWN,), requires=("own.import",),
+@line("own.time_eevee", "Your model: Time test, EEVEE", "0.2.23", (OWN,), requires=("own.import",),
       what="Time per frame of a turntable at HD with Fast preview (EEVEE)")
 def own_time_eevee(ctx):
     try:

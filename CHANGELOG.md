@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.22 – 6 Nov 2026 – PC check: one click tests every function on your PC (task 0032)
+## 0.2.23 – 6 Nov 2026 – PC check: one click tests every function on your PC (task 0032)
 
 After an update, one click tests the new version on your own PC and shows the result in your web browser.
 - Start menu > Fresing Render > **Fresing Render - PC check (quick)** (about 3 minutes) or **(full)** (about
@@ -22,6 +22,30 @@ After an update, one click tests the new version on your own PC and shows the re
 - At the bottom: **Copy** the text for the lead chat. It holds numbers only – no file names, part names or
   pictures; the report stays on your PC.
 - The check also runs on GitHub at every change, so it keeps working (there without a graphics card).
+## 0.2.22 – 6 Nov 2026 – chips fly while milling (task 0028)
+
+4 Motion > Milling > Chips (new)
+- While the bit cuts, chips fly off it in the spindle's turning direction and land on the block, the
+  table and the machine bed, where they pile up. **Chips: None / Few / Realistic** – Few is about one
+  chip in eight (at most 3,000 at a time), Realistic as many as the removed material makes (at most
+  25,000 at a time; the oldest lying ones then shrink away). The deeper or longer the cut, the more chips.
+- They look like the material and the bit: shiny aluminium curls, blue-brown steel commas (temper
+  colours), golden stainless commas, brass and cast-iron crumbs, long plastic ribbons in the block's
+  colour, wood shavings with dust; long spirals out of a drilled hole, fine dust from an engraving bit,
+  flat commas thrown far by a face mill.
+- **Material: From the workpiece** reads it from the block's name ("BLOCK AlMg3", "Plaat RVS 316", "POM
+  blok", "MDF plaat" …) and then from its material in 3 Looks; or pick one. **More**: Spindle turns
+  clockwise (M3) or counter-clockwise (M4); Coolant mist (a fine mist around the bit that fades).
+- Chips lying on the block are gone when the bit cuts there later; chips on the table ride along with
+  it; chips that fall off the table stay on the bed or the floor.
+- Worked out once whenever the motion or a chip setting changes (under 1 s for a short cut, about 4 s for
+  a 46-second pocket program on the 2-core test machine). The same set-up gives the same chips every time,
+  on every PC, whatever frame is shown first. The render queue works them out by itself before it renders.
+- **Clear chips** removes every chip from the project and sets Chips to None.
+- Render time, measured on the 2-core test machine (processor, 640 × 360, Preview): 26.0 s per frame
+  without chips, 26.5 s with Few, 28.8 s with Realistic for a small slot; a bigger cut with about 6,200
+  aluminium curls 32.2 s instead of 24.4 s. On the graphics card: still to be measured on your PC.
+
 ## 0.2.21 – 6 Nov 2026 – logos, text, type plates and stickers on the machine (task 0024)
 
 3 Looks > Logos & stickers (new)
@@ -46,6 +70,7 @@ After an update, one click tests the new version on your own PC and shows the re
 - A model update keeps decals whose spot is still on the part; one whose face moved is switched off
   and named in the update report. A template keeps decals and puts them on parts with the same name.
 - A click on a sticker while painting faces paints the face under it.
+
 
 ## 0.2.20 – 5 Nov 2026 – fasteners in supplier notation (task 0030)
 

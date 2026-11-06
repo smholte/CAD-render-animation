@@ -22,21 +22,19 @@ updates its branch to `main`.
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0031 Claude Code set-up (brief to write)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
-- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (running)
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (running) → 0029 later
+- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.23); lane free
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides)
 
 ## Open and running
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0026 | Motion lane: G-code (LinuxCNC) drives the machine – X/Y/Z joints + spindle motor follow a CNC program, tool changes (ATC) | worker | Opus · High | waiting (0014) | tasks/0026-gcode-motion.md |
-| 0028 | Machining lane: chips per bit type and material (aluminium curls, steel, brass, plastic ribbons, wood dust) | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0028-chips.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0013 | Motion lane: hydraulic/electric cylinders – follow the arm, or drive it by stroke; also the "Show joint arrows" NameError | worker | Opus | running (worker chat, 5 Nov 2026) | tasks/0013-cylinders.md |
 | 0014 | Motion lane: mechanisms – scissor lifts, four-bar arms, other linkages (owner sends examples) | worker | Opus · High | waiting (0013) | tasks/0014-linkages.md |
 | 0018 | Scene & Render lane: video finishing – brand kit (logo), title and end card, captions from step names, watermark, 16:9 / 1:1 / 9:16 | worker | Sonnet | running (worker chat, 5 Nov 2026) | tasks/0018-video-finishing.md |
 | 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet · Medium | waiting (0018) | tasks/0025-callouts-pictures-music.md |
-| 0032 | PC check lane: one-click check on the owner's PC after each update – test models through import, joints, milling, surroundings, GPU/EEVEE renders, queue; report with pictures, speed vs last run, new features on top; own model optional (numbers only) | worker (Claude Code on the web) | Opus · Medium | running (Claude Code on the web, 5 Nov 2026) | tasks/0032-pc-check.md |
 | 0031 | Quality & delivery lane: Claude Code on the web – stored set-up for every session (venv, Blender 5.2.3, xvfb, ImageMagick, download.blender.org allowed), measure set-up time and usage before/after, CLAUDE.md section 4 | lead writes the brief, then worker | Sonnet · Medium | open – brief to write | – |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | open | – |
@@ -70,5 +68,7 @@ updates its branch to `main`.
 | 0027 | Milling: pick the bit(s) and the workpiece, material disappears where a bit cuts (view, scrubbing, render queue); flat/ball/corner radius/V/drill recognised; optional finish at the CAD part; Manifold mesh booleans per straight move | 0.2.19 |
 | 0030 | Fasteners in supplier notation: Misumi-style set screws (MSSF5-5), WRENCHBOLT, BOLT5-20, NUT5, WASHER6; the owner's DIN/ISO bolts, nuts and washers with all coatings are now covered by tests | 0.2.20 |
 | 0024 | Decals: logos, text, type plates, CE mark, warning signs and arrows on parts with a click; flat or wrapped round cylinders; every copy or one copy; move with the mouse, size in mm; kept through model updates and in templates; library folders Logos and Stickers | 0.2.21 |
+| 0028 | Chips while milling: per workpiece material and bit type (curls, commas, crumbs, ribbons, shavings, spirals, dust), thrown in the turning direction, land and pile up on block, table and bed, gone where the bit cuts again; None/Few/Realistic, coolant mist, Clear chips; worked out once per motion, the same every time; the queue renders them | 0.2.22 |
+| 0032 | PC check: Start menu / Desktop / Help > PC check (Quick about 3 min, Full about 15 min), 29 lines on the test models, own STEP file optional; HTML report with pictures, speed vs the last runs on the PC, picture checks, new lines on top; text block with numbers only for the lead chat; runs on GitHub (Linux + Windows) | 0.2.23 |
 
 Details per version: `CHANGELOG.md`.
