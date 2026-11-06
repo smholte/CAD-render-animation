@@ -727,6 +727,41 @@ class FRAnimation(bpy.types.PropertyGroup):
                                  ("draft", "Draft", "Cycles, low samples"), ("preview", "Preview", "Cycles"),
                                  ("final", "Final", "Cycles, clean"), ("best", "Best", "Cycles, very clean (slow)")])
 
+    # ---- finishing (task 0018): logo, title card, end card, captions, shape ----
+    fin_logo: EnumProperty(
+        name="Logo", default="NONE",
+        description="Puts the brand kit's logo in one corner of the whole video. Needs a logo in the brand kit "
+                    "(5 Scene & Render > Brand kit)",
+        items=[("NONE", "No logo", "No logo in the picture"), ("TL", "Top left", "Logo in the top left corner"),
+               ("TR", "Top right", "Logo in the top right corner"),
+               ("BL", "Bottom left", "Logo in the bottom left corner"),
+               ("BR", "Bottom right", "Logo in the bottom right corner")])
+    fin_logo_size: FloatProperty(name="Logo size", default=0.12, min=0.03, max=0.4, precision=2, step=1,
+                                 description="How wide the logo is, as a part of the picture width (0.12 = about "
+                                             "an eighth)")
+    fin_title_on: BoolProperty(name="Title card", default=False,
+                               description="Puts a card with a title and a subtitle in front of the video, in the "
+                                           "brand kit's colours")
+    fin_title: StringProperty(name="Title", description="The big text on the title card, e.g. the machine's name")
+    fin_subtitle: StringProperty(name="Subtitle", description="The smaller line under the title, e.g. the version or "
+                                                              "the client")
+    fin_title_seconds: FloatProperty(name="Title card (s)", default=3.0, min=0.5, soft_max=10.0, precision=1,
+                                     description="How long the title card stays, in seconds")
+    fin_end_on: BoolProperty(name="End card", default=False,
+                             description="Puts a card with the logo and the contact line at the end of the video")
+    fin_end_seconds: FloatProperty(name="End card (s)", default=3.0, min=0.5, soft_max=10.0, precision=1,
+                                   description="How long the end card stays, in seconds")
+    fin_captions: BoolProperty(name="Captions", default=False,
+                               description="Shows the label of each animation step as a caption at the bottom, "
+                                           "while that step happens. Only steps that have a label typed in get "
+                                           "a caption")
+    shape_fit: EnumProperty(
+        name="Framing", default="EXTEND",
+        description="What happens to the framing when the video is square (1:1) or upright (9:16): Extend keeps "
+                    "everything you see from side to side, Crop keeps what you see from top to bottom",
+        items=[("EXTEND", "Extend", "Keeps the width of the 16:9 picture and shows more above and below"),
+               ("CROP", "Crop", "Keeps the height of the 16:9 picture and cuts the sides")])
+
 
 class FRQueueJob(bpy.types.PropertyGroup):
     job_id: StringProperty()
@@ -744,6 +779,7 @@ class FRQueueJob(bpy.types.PropertyGroup):
     progress: FloatProperty(default=0.0)
     message: StringProperty()
     output: StringProperty()
+    watermark: BoolProperty(default=False)
 
 
 class FRReportLine(bpy.types.PropertyGroup):
@@ -770,6 +806,13 @@ def _mill_detail_changed(self, context):
 def _mill_enabled_changed(self, context):
     from . import machining
     machining.enabled_changed(context.scene)
+
+
+def _chips_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import chips
+    chips.settings_changed(context.scene)
 
 
 MILL_SHAPE_ITEMS = [
@@ -832,6 +875,35 @@ class FRMilling(bpy.types.PropertyGroup):
                     "(the set-up is kept)")
     path_sig: StringProperty()           # fingerprint of the motion the stored paths were read from
 
+    # ---- chips (task 0028) ----
+    chips: EnumProperty(
+        name="Chips", default="NONE", update=_chips_changed,
+        description="Chips fly off the bit while it cuts, land on the workpiece, the table and the machine bed, "
+                    "and pile up. Few is quick; Realistic makes as many as the removed material would. Both "
+                    "make renders slower (see the user guide for measured times)",
+        items=[("NONE", "None", "No chips"),
+               ("FEW", "Few", "A sprinkle of chips (at most 3,000 at a time): quick to work out and to render"),
+               ("REALISTIC", "Realistic", "As many chips as the removed material makes (at most 25,000 at a "
+                                          "time, the oldest fade away): they pile up; slower to render")])
+    chip_material: EnumProperty(
+        name="Chip material", default="AUTO", update=_chips_changed,
+        description="What the chips look like. 'From the workpiece' reads it from the workpiece's name, its "
+                    "group name and its material in 3 Looks (aluminium, steel, POM …); pick one to override it",
+        items=[("AUTO", "From the workpiece", "Read from the workpiece's name, group and material in 3 Looks")]
+              + [(k, v, f"{v} chips") for k, v in (("ALU", "Aluminium"), ("STEEL", "Steel"),
+                                                   ("STAINLESS", "Stainless steel"),
+                                                   ("BRASS", "Brass / bronze / copper"), ("CAST_IRON", "Cast iron"),
+                                                   ("PLASTIC", "Plastic (POM, PE, nylon, acrylic)"),
+                                                   ("WOOD", "Wood / MDF"))])
+    chip_spindle: EnumProperty(
+        name="Spindle turns", default="CW", update=_chips_changed,
+        description="Which way the spindle turns, seen from above: the chips are thrown off in that direction",
+        items=[("CW", "Clockwise (M3)", "The usual direction for right-hand cutters"),
+               ("CCW", "Counter-clockwise (M4)", "Left-hand cutters, tapping back out")])
+    chip_mist: BoolProperty(
+        name="Coolant mist", default=False, update=_chips_changed,
+        description="A fine mist of coolant drops around the bit while it cuts. The drops fade after a moment")
+
 
 def _show_joints_changed(self, context):
     """Show or hide the joints' arrows and the cylinders' pin markers. (Defined above the class that uses it:
@@ -860,6 +932,49 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         name="Up axis", default="Z",
         description="Which axis points up in the CAD file. Choose it before pressing Import STEP",
         items=[("Z", "Z up", "Most STEP files"), ("Y", "Y up", "Inventor parts drawn with Y up")])
+
+    # ---- brand kit and finishing (task 0018) ----
+    brand_name: StringProperty(name="Brand kit", default="",
+                               description="The name of the brand kit this project uses (the company: logo, "
+                                           "colours, font and contact line)")
+    brand_logo: StringProperty(name="Logo", subtype="FILE_PATH",
+                               description="The company logo as a PNG or JPG picture (a PNG with a see-through "
+                                           "background is best)")
+    brand_color1: FloatVectorProperty(name="Card colour", subtype="COLOR", size=3, min=0.0, max=1.0,
+                                      default=(0.0075, 0.0144, 0.0273),
+                                      description="The background of the title card and the end card")
+    brand_color2: FloatVectorProperty(name="Text colour", subtype="COLOR", size=3, min=0.0, max=1.0,
+                                      default=(1.0, 1.0, 1.0),
+                                      description="The colour of the text on the title card and the end card")
+    brand_font: StringProperty(name="Font", subtype="FILE_PATH",
+                               description="A font file (.ttf or .otf) for the cards, captions and watermark. "
+                                           "Empty: Blender's own font")
+    brand_contact: StringProperty(name="Contact line", description="The line under the logo on the end card, e.g. "
+                                                                   "the website and e-mail address")
+    still_logo: EnumProperty(
+        name="Logo on images", default="NONE",
+        description="Puts the brand kit's logo in a corner of every still image you render",
+        items=[("NONE", "No logo", "No logo on images"), ("TL", "Top left", "Logo in the top left corner"),
+               ("TR", "Top right", "Logo in the top right corner"),
+               ("BL", "Bottom left", "Logo in the bottom left corner"),
+               ("BR", "Bottom right", "Logo in the bottom right corner")])
+    still_logo_size: FloatProperty(name="Logo size", default=0.12, min=0.03, max=0.4, precision=2, step=1,
+                                   description="How wide the logo is on images, as a part of the picture width")
+    wm_on: BoolProperty(name="Watermark on the next renders", default=False,
+                        description="Puts the watermark across images and videos you render or add to the queue "
+                                    "while this is on. Each queued job remembers it, so you can send a draft and "
+                                    "render the final without watermark")
+    wm_kind: EnumProperty(name="Watermark", default="DRAFT",
+                          description="The words across the picture: DRAFT, CONFIDENTIAL or your own text",
+                          items=[("DRAFT", "DRAFT", "The word DRAFT"),
+                                 ("CONFIDENTIAL", "CONFIDENTIAL", "The word CONFIDENTIAL"),
+                                 ("CUSTOM", "Own text", "Your own words")])
+    wm_text: StringProperty(name="Own text", default="PREVIEW",
+                            description="Your own watermark words (used when Watermark is set to Own text)")
+    wm_size: FloatProperty(name="Size", default=0.12, min=0.03, max=0.4, precision=2, step=1,
+                           description="How tall the watermark letters are, as a part of the picture height")
+    wm_opacity: FloatProperty(name="See-through", default=0.25, min=0.05, max=1.0, precision=2, step=5,
+                              description="How strong the watermark is: 1 = solid, 0.25 = see-through (the default)")
 
     # ---- structure ----
     tree: CollectionProperty(type=FRTreeItem)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.20 – 6 Nov 2026 – hydraulic and electric cylinders (task 0013)
+## 0.2.24 – 6 Nov 2026 – hydraulic and electric cylinders (task 0013)
 
 4 Motion > Cylinders (new)
 - Pick the cylinder's **Barrel** and **Rod** (select, press the button), press **Add cylinder** and click the
@@ -29,10 +29,90 @@ Fixes
 - **Show joint arrows in the view** (4 Motion) no longer gives an error; it also shows/hides the cylinders'
   pin markers.
 - Messages say "1 subassembly added" and "1 piece … moved apart" (not "1 subassemblies", "1 pieces").
+## 0.2.23 – 6 Nov 2026 – video finishing: logo, title and end card, captions, watermark (task 0018)
+
+Videos come out ready to post or send.
+- **Brand kit** (5 Scene & Render > Brand kit & logo): one kit per company with logo (PNG or JPG), card colour,
+  text colour, font and contact line. **Save kit** puts it in the shared library (folder "Brand kits", next to
+  "Rule sets"); the arrow next to **Kit** loads a saved kit. Every project keeps its own copy of the settings.
+- **Finishing** (end of 6 Animation): logo in a corner (any of the four, adjustable size), **Title card** (title,
+  subtitle, seconds), **End card** (logo and contact line, seconds) and **Captions from the step labels**
+  (each labelled step shows its label while it happens, with a short fade). The video is as long as title card
+  + animation + end card; the last line shows it. It goes into MP4 videos (not into PNG frames).
+- **Square and upright videos**: **Framing** says what happens to the picture for 1:1 and 9:16: **Extend**
+  keeps the width of the 16:9 picture, **Crop** keeps its height. New animations start on Extend; a 9:16 video
+  of an older project now shows the whole width of the 16:9 picture instead of a narrow strip in the middle.
+- **Logo on still images** (corner and size in the brand kit fold).
+- **Watermark** (5 Scene & Render > Watermark): DRAFT, CONFIDENTIAL or your own words across images and videos,
+  size and see-through amount adjustable. A switch decides per render: each job in the queue remembers whether it was
+  added with the watermark on ("with watermark" in its name), so a draft can go out and the final renders clean.
+- Every new button and setting has a tooltip; user guide chapters 5 and 6 have the new parts with pictures.
+- Small: "1 prop deleted" (not "1 props").
+- Tests (2-core test machine): 33 new automated tests (pictures of the title card, captions at their step times, logo
+  in the chosen corner and watermark checked pixel by pixel; a queued animation with every option makes a square MP4
+  of title + animation + end card length); real app: 14 new checks.
+
+## 0.2.22 – 6 Nov 2026 – chips fly while milling (task 0028)
+
+4 Motion > Milling > Chips (new)
+- While the bit cuts, chips fly off it in the spindle's turning direction and land on the block, the
+  table and the machine bed, where they pile up. **Chips: None / Few / Realistic** – Few is about one
+  chip in eight (at most 3,000 at a time), Realistic as many as the removed material makes (at most
+  25,000 at a time; the oldest lying ones then shrink away). The deeper or longer the cut, the more chips.
+- They look like the material and the bit: shiny aluminium curls, blue-brown steel commas (temper
+  colours), golden stainless commas, brass and cast-iron crumbs, long plastic ribbons in the block's
+  colour, wood shavings with dust; long spirals out of a drilled hole, fine dust from an engraving bit,
+  flat commas thrown far by a face mill.
+- **Material: From the workpiece** reads it from the block's name ("BLOCK AlMg3", "Plaat RVS 316", "POM
+  blok", "MDF plaat" …) and then from its material in 3 Looks; or pick one. **More**: Spindle turns
+  clockwise (M3) or counter-clockwise (M4); Coolant mist (a fine mist around the bit that fades).
+- Chips lying on the block are gone when the bit cuts there later; chips on the table ride along with
+  it; chips that fall off the table stay on the bed or the floor.
+- Worked out once whenever the motion or a chip setting changes (under 1 s for a short cut, about 4 s for
+  a 46-second pocket program on the 2-core test machine). The same set-up gives the same chips every time,
+  on every PC, whatever frame is shown first. The render queue works them out by itself before it renders.
+- **Clear chips** removes every chip from the project and sets Chips to None.
+- Render time, measured on the 2-core test machine (processor, 640 × 360, Preview): 26.0 s per frame
+  without chips, 26.5 s with Few, 28.8 s with Realistic for a small slot; a bigger cut with about 6,200
+  aluminium curls 32.2 s instead of 24.4 s. On the graphics card: still to be measured on your PC.
+
+## 0.2.21 – 6 Nov 2026 – logos, text, type plates and stickers on the machine (task 0024)
+
+3 Looks > Logos & stickers (new)
+- Put a **picture** (your logo: PNG, JPG…), **text** you type, or a ready-made **sticker** on a part:
+  choose it, click **Add decal…** and click the spot on the model. It lies flat on that face, upright,
+  like a real sticker. On a round face (a cylinder barrel, a drum, a tank) it wraps round.
+- Ready-made stickers, drawn by the app: CE mark, type plate (company, type, serial number, year,
+  weight, small CE mark), warning signs (general, hand crush, electricity, hot surface, hanging load),
+  a straight and a turning arrow.
+- **Move with the mouse** (also onto another face of the part; wheel turns, Ctrl+wheel sizes), or by
+  numbers: width and height in mm, right/up, turn. **Fit to face**, **Upright**, **Mirror**,
+  **See-through**, **Finish** (matt, satin, gloss, metal).
+- Text and stickers: colour of the letters, background and border on/off with their own colours,
+  any font (the fonts on your PC are listed).
+- On **every copy** of a part (a type plate on a bought motor) or on **this copy only** (a serial
+  number). The list shows the decals of the clicked part (rename, switch off, remove) and of the whole
+  project.
+- A decal moves, turns and hides with its part: joints, poses, exploded views, animations, the render
+  queue. Pictures are kept inside the project.
+- Library: put your logos as PNG files in the folder `Logos` (and stickers in `Stickers`) of the
+  shared library; they show in a list next to Picture.
+- A model update keeps decals whose spot is still on the part; one whose face moved is switched off
+  and named in the update report. A template keeps decals and puts them on parts with the same name.
+- A click on a sticker while painting faces paints the face under it.
+
+
+## 0.2.20 – 5 Nov 2026 – fasteners in supplier notation (task 0030)
+
+Screws, nuts and washers named the way supplier catalogues write them now land in the fastener groups:
+set screws like "MSSF5-5" or "SSCP5-8" (size and length read from the name), "WRENCHBOLT M8x20" and
+"WRENCHBOLT6-15" (socket head cap screw), "BOLT5-20", "SCREW4-10", "NUT5" and "WASHER6". Your normal metric
+bolts (DIN/ISO, any length, HDG / tZn / gvz / zwart / A2 / A4 / RVS) were already right; they are now
+covered by tests too, so they stay right. No name that matched before stopped matching.
 
 ## 0.2.19 – 5 Nov 2026 – milling: the bit takes material away from the workpiece (task 0027)
 
-Commit: (written after the merge).
+Commit: 5f8bd88 (merge into main).
 
 4 Motion > Milling (new)
 - Click the milling bit in the view and **Use as bit**, click the raw block and **Use as workpiece**:

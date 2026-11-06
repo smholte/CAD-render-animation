@@ -13,7 +13,10 @@ rendered with Cycles. Windows only for users; development and tests run on Linux
 
 **Owner: Sebastian (Fresing).** Designs machines in Autodesk Inventor Professional 2027 and
 Fusion. Not a programmer. He tests on his own PC: Windows 11, AMD 24 cores,
-NVIDIA RTX 3090. No chat can use a graphics card or Windows; he is the only tester for both.
+NVIDIA RTX 3090. No chat and no GitHub test machine has a graphics card. GitHub tests the
+Windows install, the self-test and the in-app update on a Windows machine at every push
+(section 5); working in the app on Windows and everything on the graphics card (GPU renders,
+render speed) only he can test, on his PC.
 
 How to work with him:
 - Plain language, short. Results first, no account of the effort. No code unless he asks.
@@ -33,11 +36,25 @@ than about 5 minutes of work goes to a worker chat – features, fixes, tests, m
 releases. Planning and writing briefs stay with the lead, also when they take longer. Small
 edits to `CLAUDE.md`, `TASKS.md` and task files are fine for the lead.
 
-**Worker chats** take one task each (a feature, a fix, benchmarks, an independent review). The
-owner starts them by hand. **The lead tells the owner when a task should go to another chat
-and gives the exact sentence to paste**, for example:
+**Worker chats** take one task each (a feature, a fix, benchmarks, the user guide, an independent
+review). The owner starts them by hand. **The lead tells the owner when a task should go to another
+chat and gives the exact sentence to paste, with where, which model and which effort**, for example:
 
-> Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0007.
+> **Claude Code on the web · Opus · effort High**
+> Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013.
+
+**Where the chats run** (owner's decision, 5 Nov 2026):
+- **Lead:** a chat in the claude.ai project "STEP rendering App" – it keeps the progress note there
+  and talks with the owner.
+- **Workers:** Claude Code on the web (claude.ai/code), one session per task, repository
+  `smholte/CAD-render-animation`. Also for the user guide, tooltips and texts: they live in the
+  repository, their pictures are made with the real Blender and tests check them. Why: the
+  set-up can be stored once and reused by every session (section 4, task 0031), sessions have
+  4 cores (the chats had 2), and GitHub is connected once instead of a push approval per chat.
+  It is the same usage limit as the chats – the place saves nothing by itself.
+  Tasks that already run in a chat finish there.
+- The owner sets model and effort before the first message (in Claude Code: send `/model opus`
+  or `/model sonnet`, then `/effort high`, `/effort medium` or `/effort low`).
 
 **Chats share nothing but GitHub.** No shared files, no reliable messages between chats.
 Everything another chat needs must be in the repository: this file, `TASKS.md`, the task
@@ -64,7 +81,8 @@ Rules:
 - A task is done when its "Done when" list is met, the tests pass (also on GitHub) and the
   **Report** in its task file is filled in (what changed, what was tested and measured, what
   is left open).
-- Each new chat needs push access to the repository; the owner approves that once per chat.
+- Each worker needs push access: in Claude Code on the web through GitHub, connected once at
+  claude.ai/code; in a chat the owner approves it once per chat.
 - The lead keeps the progress note in the claude.ai project
   (`claude/render-app-progress.md`) up to date for the owner.
 
@@ -86,17 +104,33 @@ The owner's AI usage is limited; every chat works economically:
   publishes releases by itself).
 - Read only the files and earlier reports your task needs; keep reports short (numbers, open points).
 - Small follow-ups go into the next task of the same lane, not into a new chat.
-- The lead chat is restarted when its conversation gets long: everything it needs is in this
-  file, `TASKS.md`, the task files and the project note.
-- **The lead picks the model for every task** (owner's rule, 5 Nov 2026) and writes it in the
-  task file's header (`**Model:** Sonnet` or `Opus`), in the Model column of `TASKS.md` and next
-  to the sentence it gives the owner, who picks that model in the new chat before sending the
-  first message. **Sonnet** (uses less of the owner's usage) for routine work: tooltips, texts and
-  the user guide, data and word lists, small fixes, extra tests, one-panel UI changes along an
-  existing pattern. **Opus** for hard work: new algorithms and geometry (joints, cylinders,
-  linkages, milling, chips), several modules at once, Windows-only code, performance work,
-  anything where a wrong design is expensive. When unsure: Sonnet, and the owner switches the
-  chat to Opus if it gets stuck (the same tests failing again and again, going in circles).
+- **Long chats cost the most** (every message carries the whole conversation). **The lead tells
+  the owner when to start a new lead chat** (owner's request, 5 Nov 2026), unasked and every time:
+  when its conversation has grown long – large documents or many files read, many tool results,
+  or about 15–20 exchanges. First it brings `TASKS.md` and the progress note up to date, then it
+  gives this sentence for the new chat in the project:
+  > You are the lead chat for Fresing Render. Read CLAUDE.md and TASKS.md in
+  > github.com/smholte/CAD-render-animation and the project note claude/render-app-progress.md.
+  > You plan, write task briefs and review finished tasks; you don't build or test.
+
+  A worker whose session grows very long before its task is done pushes its branch, writes the
+  state in its task file's report and tells the owner to continue in a new session with
+  "… and continue task NNNN from its branch".
+- **The lead picks model, effort and place for every task** (owner's rules, 5 Nov 2026) and writes
+  them in the task file's header (`**Model:** Opus · effort High`), in the Model column of
+  `TASKS.md` and above the sentence it gives the owner. Place: workers in Claude Code on the web,
+  the lead in the project chat (section 2).
+  - **Model.** **Sonnet** (uses less of the owner's usage) for routine work: tooltips, texts and
+    the user guide, data and word lists, small fixes, extra tests, one-panel UI changes along an
+    existing pattern. **Opus** for hard work: new algorithms and geometry (joints, cylinders,
+    linkages, G-code, milling, chips), several modules at once, Windows-only code, performance
+    work, anything where a wrong design is expensive.
+  - **Effort** (higher effort = more thorough, slower, more usage). **High:** new algorithms and
+    geometry. **Medium:** features along an existing pattern, small fixes, extra tests, the lead's
+    own work (High only when it writes the brief of a hard task). **Low:** texts, tooltips, the user
+    guide, data and word lists. Extra high and Max are not used by default.
+  - **Stuck** (the same tests failing again and again, going in circles): first one step more
+    effort; still stuck: switch Sonnet to Opus. When unsure at the start: the lower choice.
 
 ## 3. Repository layout
 
@@ -106,6 +140,9 @@ fresing_render/            the Blender extension (Python package)
                            surroundings.py (layouts of the sea, deck, quay, halls; props for scale),
                            studio.py (light looks, light in words, blur and turntable numbers),
                            machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
+                           decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
+                           decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
+                           chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
                            cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
@@ -124,9 +161,14 @@ fresing_render/            the Blender extension (Python package)
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
+    chips.py               chips: inputs from the milling set-up, catch areas (rays down), bake, two point
+                           clouds + a Geometry Nodes instancer (4 Motion > Milling > Chips)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
+    decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
+                           or object (one copy), a decal object per copy (child of the part, hidden with it by
+                           MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -152,6 +194,13 @@ docs/                      README-install.txt (shipped to the owner), DEVELOPMEN
 
 The chat machine is empty at the start. Python 3.13 is there; pip works; most other websites
 are blocked.
+
+**Claude Code on the web:** each session runs in a cloud environment (Ubuntu, 4 cores, 16 GB).
+Its setup script runs once and its result is stored for later sessions (about 7 days), but only
+when it finishes within about 5 minutes. The default network list covers PyPI and GitHub, not
+download.blender.org: that needs the environment's own list of allowed websites. Task 0031 makes
+and tests this setup (venv, Blender 5.2.3, xvfb, ImageMagick) and replaces this paragraph; until
+then a session does the steps below itself, as the chats did.
 
 ```bash
 git clone https://github.com/smholte/CAD-render-animation fresing-render
@@ -381,6 +430,14 @@ the release → Delete); the next run on `main` publishes it again.
   through `scene.fresing.milling` each time (undo replaces the datablocks).
 - "Build animation" remembers how things looked when it was first built (visibility, camera) and the
   render queue builds again: hide parts and set the camera *before* building, or the queue shows them.
+- A child object is not hidden with its parent. Decals (task 0024) hide through plain MAX drivers on
+  their part's `hide_render` (work with scripts off, in animations and in the queue), and `logic.Tree`
+  leaves them out, so hiding a subassembly never hides a decal on its own in the view.
+- Writing a small mesh with `from_pydata` + `normals_split_custom_set_from_vertices` took ~0.15 s even
+  for 1,600 triangles; `foreach_set` + a `custom_normal` point attribute (as `build._new_mesh`) is
+  many times faster – it matters when a mesh is rebuilt while the mouse moves.
+- Real-app tests: a mouse-wheel step is one PRESS event (no release); a modal operator should act on
+  `event.value == "PRESS"` for the wheel, or a simulated PRESS+RELEASE counts twice.
 - Property definitions (`update=`, `get=`, `set=`) in a file with `from __future__ import annotations`: Blender
   evaluates them while the file is read, so the function must be defined *above* the class. A lambda calling a
   function defined further down raised NameError ("Show joint arrows", 0.2.19; test
@@ -391,3 +448,10 @@ the release → Delete); the next run on `main` publishes it again.
 - Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
   5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
   (`"EXEC_DEFAULT", True`), which pushes the undo step.
+- Building an animation again puts back the camera it remembered first: to give an already built
+  animation another camera (a test), `animation.clear_keys(scene)` first, then set the camera, then build.
+- Geometry Nodes "Collection Info" with Separate Children orders the children by name: chips pick their
+  shape by instance index, so the shape objects are named "FR chip 000", "FR chip 001" … in that order.
+- Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
+  `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
+  along with the paths (`machining.sample` stores it as `fr_wp_m`).

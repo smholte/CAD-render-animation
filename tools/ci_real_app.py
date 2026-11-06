@@ -6,10 +6,12 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     ui1    tools/ui_test_app.py   - the real app on a virtual screen, simulated clicks, screenshots
     ui2    tools/ui_test_app2.py  - the remaining buttons, undo/redo
     faces  tools/ui_test_faces.py - painted faces: from CAD, 'Paint faces' with clicks in the view
+    decals tools/ui_test_decals.py - logos & stickers: 'Add decal…' with a click, move with the mouse, one copy
     surroundings  tools/ui_test_surroundings.py - sea, deck, halls, props, queue (Cycles + EEVEE)
     studio  tools/ui_test_studio.py - light looks, camera views, blur + sharp spot, turntable in the queue
+    video  tools/ui_test_video.py - brand kit in the library, logo, title/end card, captions, watermark in a queued MP4 and stills
     rulesets  tools/ui_test_rule_sets.py - rule sets: copy, change, save, switch with preview, undo
-    milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline
+    milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline; chips
     cylinder tools/ui_test_cylinder.py - cylinders: barrel and rod, clicks on the two pins, follow / drive, undo
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
     update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
@@ -44,9 +46,9 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "surroundings": 23, "rulesets": 17, "studio": 21, "milling": 17,
-              "cylinder": 22, "paths": 8, "update": 29}
-MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20}   # UITEST_QUICK=1 skips renders and the queue
+MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
+              "milling": 17, "video": 14, "cylinder": 22, "paths": 8, "update": 29}
+MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9}   # UITEST_QUICK=1 skips renders and the queue
 
 
 def run(cmd, env, log_path, timeout):
@@ -132,7 +134,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,surroundings,rulesets,studio,milling,cylinder,paths,update")
+    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,milling,cylinder,paths,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -152,11 +154,15 @@ def main(argv=None) -> int:
         "ui1": ("Real app: import, looks, joints, animation, queue (ui_test_app.py)", "ui_test_app.py", True),
         "ui2": ("Real app: remaining buttons, undo/redo (ui_test_app2.py)", "ui_test_app2.py", True),
         "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
+        "decals": ("Real app: logos & stickers – add with a click, move with the mouse (ui_test_decals.py)",
+                   "ui_test_decals.py", True),
         "surroundings": ("Real app: surroundings, props, queue (ui_test_surroundings.py)",
                          "ui_test_surroundings.py", True),
         "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
                      "ui_test_rule_sets.py", True),
         "studio": ("Real app: light looks, views, blur, turntable (ui_test_studio.py)", "ui_test_studio.py", True),
+        "video": ("Real app: brand kit, logo, cards, captions, watermark in a queued video (ui_test_video.py)",
+                  "ui_test_video.py", True),
         "milling": ("Real app: milling – pick bit and block, cut follows the timeline (ui_test_milling.py)",
                     "ui_test_milling.py", True),
         "cylinder": ("Real app: cylinders – barrel, rod, clicks on the pins, follow / drive (ui_test_cylinder.py)",

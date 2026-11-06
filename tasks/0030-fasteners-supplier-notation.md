@@ -1,6 +1,6 @@
 # 0030 – Fasteners in supplier notation
 
-**Who:** worker · **Model:** Sonnet · **Status:** open – can start · **Branch:** `task/0030-fasteners-supplier-notation`
+**Who:** worker · **Model:** Sonnet · **Status:** done (0.2.20) · **Branch:** `task/0030-fasteners-supplier-notation`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Part library (`core/fasteners.py` and its tests
 only) · Small task.
 
@@ -34,17 +34,29 @@ recognised as fasteners and get the fastener groups (task 0022's report, open po
 
 ## Done when
 
-- [ ] Tests for the new notations, positives and negatives; full suite and GitHub run green
-- [ ] Report filled in; merged and released
+- [x] Tests for the new notations, positives and negatives; full suite and GitHub run green
+- [x] Report filled in; merged and released
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker chat (Sonnet), 5 Nov 2026
 
-**What changed:**
+**What changed:** `core/fasteners.py`: new supplier-notation patterns (`_SUPPLIER`): set screws `MSSF5-5`,
+`MSS4-6`, `SSS6-10`, `SSCP`/`SSCS`/`SSEB`/`SSEBS`/`SSFP`/`SSDP` variants (size and length from the name, black
+oxide by default); `WRENCHBOLT` / `WRENCH BOLT` (socket cap screw, with or without `M8x20` or `6-15`); `BOLT5-20`,
+`SCREW4-10`, `BOLT8`; `NUT5`; `WASHER6`. Only Misumi's own codes (`CB6-20`...) still default to black; the new generic
+ones (`BOLT`, `NUT`, `WASHER`) get no default finish. Names that matched before are unchanged.
+Version 0.2.20, CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core test machine, no EGR model attached): `tests/test_fasteners.py` 40 → 94 cases (15
+supplier names, the owner's 21 bolt/nut/washer names incl. all coatings, 5 more coating words, 13 lookalike
+negatives); every one of the owner's names already parsed correctly before the change (checked first), so no
+behaviour change there. Fastener, part-type and core tests: 1,441 passed. EGR coverage before/after: not
+measured (model not attached).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** attach the EGR model (or the owner's own model) to measure how many more parts
+the new notations catch; real supplier code lists beyond these notations (Misumi nuts and washers, Korean codes
+with other prefixes) need real example names from the owner. "SSS" (set screw abbreviation, existing keyword) and
+names with the size glued to an excluded word ("NUT HOUSING5") are unchanged.

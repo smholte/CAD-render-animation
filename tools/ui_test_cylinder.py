@@ -1,6 +1,6 @@
 """Real-app test, cylinders (task 0013): Barrel and Rod from the selection, Add cylinder with real clicks on the
 two pins in the view, the cylinder follows the arm, Drives the arm (Fully out, the stroke field), undo/redo, a
-Move cylinder animation step, the "Show joint arrows" tick box (NameError before 0.2.20), save and open again,
+Move cylinder animation step, the "Show joint arrows" tick box (NameError before 0.2.24), save and open again,
 Remove.
 
 Install the extension and the app template first (see ui_test_app.py), then run:

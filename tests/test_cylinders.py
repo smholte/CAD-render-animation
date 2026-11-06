@@ -496,7 +496,7 @@ def test_change_parts_and_stages(scene):
 
 
 def test_show_joint_arrows_toggle(scene):
-    """The tick box raised NameError before 0.2.20 (the function it called was not visible to Blender)."""
+    """The tick box raised NameError before 0.2.24 (the function it called was not visible to Blender)."""
     j = arm(scene)
     c, _ = make(scene)
     scene.fresing.show_joints = False

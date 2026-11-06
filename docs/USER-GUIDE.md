@@ -378,6 +378,65 @@ Faces painted in CAD are listed the same way. A sorting rule on their colour can
 material, for example "CAD colour is #C0C0C0 → Anodised"; only colour and CAD-material rules act on
 single faces. A model update keeps the painted faces of parts whose faces did not change.
 
+<a id="decals"></a>
+### Logos & stickers
+
+<img class="panel" src="img/panel_3_decals.png" alt="Logos & stickers, with the type plate on the base opened">
+
+Puts a logo, text, a type plate or a sticker on the machine itself. It lies on the face like a real
+sticker, moves with its part (joints, animations, exploded views) and hides with it.
+
+<img class="wide" src="img/decals.jpg" alt="The test crane with text on the boom, a type plate, a warning sign and a CE mark">
+
+1. **Picture / Text / Sticker**: what goes on.
+   - **Picture**: a logo or picture file. A PNG with a see-through background looks best; a JPG works
+     too. The button right of the field lists the logos in the library (below).
+   - **Text**: type it; `|` starts a new line, as in `Fresing|CNC 400`.
+   - **Sticker**: ready-made, drawn by the app: CE mark, type plate, warning signs (general, hand
+     crush, electricity, hot surface, hanging load), a straight arrow and a turning arrow.
+2. **Only this copy**: tick it for something that differs per copy, such as a serial number.
+   Unticked, every copy of the part gets it (a type plate on a bought motor).
+3. Click **Add decal…**, then click the spot on the model where its centre goes. It lands flat on
+   that face, upright. On a round face (a cylinder barrel, a drum, a tank) it wraps round like a real
+   sticker. <kbd>Esc</kbd> or a right-click cancels.
+
+Click a part to see its decals. The dot opens a decal's settings, the eye switches it off (it is kept,
+but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> brings it back).
+
+- **Move with the mouse**: the decal follows the mouse over its part, also onto another face of it.
+  The mouse wheel turns it (15° a step, with <kbd>Shift</kbd> 5°), <kbd>Ctrl</kbd>+wheel makes it
+  bigger or smaller. Click to put it down; <kbd>Esc</kbd> puts it back where it was.
+- **Fit to face**: as big as fits on its face, centred on it. **Upright**: turned upright again.
+- **Width** and **Height** in mm (with **Keep proportions** the other one follows), **Right** and
+  **Up** move it on the face from the spot you clicked, **Turn** turns it, **Mirror** swaps left and
+  right.
+- **See-through**: 0 is a solid sticker. **Finish**: Matt, Satin, Gloss or Metal (a printed aluminium
+  plate).
+- Text and stickers: the **Colour** of the letters or symbol, and a **Background** and a **Border**,
+  each on or off with its own colour. Text and type plates: the **Font file** (the button on the
+  right lists the fonts on this PC). A type plate has Company, Type, Serial no., Year and Weight, and
+  a small CE mark.
+- Pictures: **White see-through** makes a white background see-through (for JPG logos).
+- **Put it on this copy only** / **Put it on every copy** moves the decal between the two.
+
+**All decals in this project** lists every decal; a click on one clicks its part. **Library of logos
+and stickers**: put your logos as PNG files in the folder `Logos`, and stickers of your own in
+`Stickers`, of the [shared library](#schemes) – the same library as the rule sets and templates.
+They then show in the list next to Picture. Without a shared library these folders are in
+Documents\Fresing Render.
+
+Good to know:
+
+- In the normal view (Solid) a decal shows as a see-through coloured patch. The picture itself shows
+  in Material Preview and in renders.
+- Pictures are kept inside the project: renders in the queue and the project on another PC have
+  them, also when the picture file is gone.
+- A model update keeps decals whose spot is still on the part, also when the part changed elsewhere.
+  A decal whose face moved is switched off and named in the update report: open it, click **Move
+  with the mouse** and click its new spot.
+- A [template](#schemes) keeps the decals with the names of their parts: used on another machine, it
+  puts them on parts with the same name, where the spot lies on the part.
+
 <a id="find"></a>
 ### Find & sort parts
 
@@ -428,11 +487,11 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
 
 - A **paint scheme** stores the material and colour of every group, for example "Customer blue" and
   "Fresing grey". **+** saves the colours you have now; **Use** switches every group at once.
-- A **template** keeps the rule set, paint schemes, background and image settings for the next
-  project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
+- A **template** keeps the rule set, paint schemes, background and image settings, and the logos and
+  stickers on parts ([Logos & stickers](#decals)), for the next project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
   library.
 - The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos),
-  a folder `Templates` and a folder `Rule sets`. Set it once: Edit > Preferences > Add-ons > Fresing
+  a folder `Templates`, a folder `Rule sets` and the folders `Logos` and `Stickers`. Set it once: Edit > Preferences > Add-ons > Fresing
   Render > **Shared library**. **Default template** there is used for every new import; **Default rule
   set** is the rule set new projects start with.
 
@@ -634,6 +693,55 @@ Good to know
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
   ball Ø10, about 11 ms for a round pocket made of short pieces.
 
+#### Chips
+
+<img class="panel" src="img/panel_4_chips.png" alt="Chips: how many, what they are made of, Clear chips">
+
+While the bit cuts, chips fly off it – in the spindle's turning direction, up out of the cut – and land
+on the block, the table and the machine bed, where they pile up. They look like the real thing for the
+workpiece's material and the bit:
+
+| Material | End mill | Ball end mill | Face mill | Drill | Engraving / V-bit |
+| --- | --- | --- | --- | --- | --- |
+| Aluminium | shiny curls | small commas | flat commas, thrown far | long spirals out of the hole | fine dust |
+| Steel | blue-brown commas (temper colours) | small commas | commas | spirals | dust |
+| Stainless steel | longer commas, a little golden | small commas | commas | spirals | dust |
+| Brass / bronze / copper | small crumbs | crumbs | crumbs | short commas | dust |
+| Cast iron | grey crumbs | crumbs | crumbs | crumbs | dust |
+| Plastic (POM, PE, nylon, acrylic) | long ribbons in the block's colour | ribbons | ribbons | spirals | short ribbons |
+| Wood / MDF | shavings with dust | dust | shavings | shavings | dust |
+
+1. Set up milling first (above), so the bit cuts in your animation.
+2. Open **Chips** (under Milling) and pick **Few** or **Realistic**. The chips are worked out at once;
+   the line under the settings says how many and how long it took.
+3. Scrub or play: the chips fly while the bit cuts and stay where they land. Renders in the queue show
+   them too – the queue works them out by itself before the first frame.
+
+Good to know
+
+- **Material**: **From the workpiece** reads it from the block's name ("BLOCK AlMg3", "Plaat RVS 316",
+  "POM blok", "MDF plaat" …), then from its material in 3 Looks; the line under it says what was found and
+  why. Pick a material to choose yourself.
+- **Few** shows about one chip in eight (at most 3,000 at a time) and is quick. **Realistic** makes as
+  many chips as the removed material would (at most 25,000 at a time; when there are more, the oldest
+  lying ones shrink away).
+- Chips lying on the block are gone when the bit cuts there later. Chips on the table move along with the
+  table; chips that fall off the table stay on the machine bed (or the floor).
+- **More > Spindle turns**: clockwise (M3, the usual) or counter-clockwise (M4): the chips fly the other way.
+  **More > Coolant mist** adds a fine mist of drops around the bit that fades after a moment.
+- **Clear chips** removes every chip from the project and sets Chips to None.
+- The same set-up gives the same chips every time, on every PC, whatever frame you look at first.
+- Chips land on what is below them seen from above: they do not land on the head or a part that hangs over
+  the table, and they do not bounce off the head.
+- Working them out and rendering them takes time. Measured on the 2-core test machine (test mill, rendered
+  on the processor at 640 × 360, Preview):
+  - working them out: under 1 s for a short cut; about 4 s for a 46-second pocket program (1,158 frames);
+  - one rendered frame, slot 50 × 10 × 5 mm in aluminium: 26.0 s without chips, 26.5 s with Few (150 chips),
+    28.8 s with Realistic (1,218 chips in the picture);
+  - a bigger cut (90 × 10 × 15 mm): 24.4 s without chips, 32.2 s with about 6,200 aluminium curls (+32 %),
+    29.9 s with 25,000 brass crumbs (the limit, +23 %);
+  - showing a frame in the view: 8–17 ms on top of the milling.
+
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 
@@ -780,6 +888,42 @@ animation "Turntable" are replaced.
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
 
+### Brand kit & logo
+
+<img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
+
+A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
+line. You work for your own company and for others, so there is one kit per company; every project uses
+one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
+shared library it is in your Documents folder, under Fresing Render).
+
+1. Type a name in **Kit** (the company).
+2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
+   best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
+3. **Card colour** is the background of the title and end card, **Text colour** the colour of the words on
+   them. **Font** is optional (a .ttf or .otf file); empty uses the app's own font. **Contact** is the line
+   under the logo on the end card, for example the website and e-mail address.
+4. **Save kit** puts it in the library. The arrow next to **Kit** lists the saved kits: pick one to fill in
+   everything at once. This project keeps its own copy, so it still opens the same on a PC without the
+   library. **Delete** removes the saved kit from the library only.
+
+**Logo on images** puts the logo in a corner of every still image you render (**Corner**, **Size**).
+
+### Watermark
+
+<img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
+
+Words across the picture, for a draft you send before the final render.
+
+1. **Words**: **DRAFT**, **CONFIDENTIAL** or **Own text**. **Size** is how tall the letters are,
+   **See-through** how strong they are (1 = solid).
+2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
+   while it is on gets the watermark; the job remembers it (its name says "with watermark").
+3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The
+   project does not change.
+
+It works for stills and for MP4 videos (not for PNG frames).
+
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -861,9 +1005,33 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
 
+**Finishing: ready to post or send**
+
+<img class="panel" src="img/panel_6_finishing.png" alt="Finishing">
+
+The **Finishing** fold at the end of this panel turns the MP4 into a video you can post or send as it is.
+The look comes from the brand kit (5 Scene & Render > **Brand kit & logo**). It applies to MP4 videos, not
+to PNG frames.
+
+- **Shape** and **Framing**: for **1:1** and **9:16** videos, **Extend** keeps everything you see from side
+  to side in the 16:9 picture and shows more above and below; **Crop** keeps what you see from top to
+  bottom and cuts the sides. The cameras are not changed: only the copy that is rendered.
+- **Logo**: a corner (top left, top right, bottom left, bottom right) and a **Logo size**, over the whole
+  animation.
+- **Title card**: a card with a **Title** and **Subtitle** in the kit's colours in front of the video;
+  **Seconds** says how long it stays.
+- **End card**: a card with the logo and the contact line at the end; **Seconds** says how long.
+- **Captions from the step labels**: the **Label** of each step is shown at the bottom while that step
+  happens, with a short fade. Only steps that have a label typed in get a caption; a caption stays
+  at least a second and a half, and never runs into the next one.
+
+The last line shows how long the finished video is: the cards come on top of the animation's own
+length.
+
 **Make the video**
 
-1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones),
+1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones; the
+   **Finishing** fold has the framing for the last two),
    **File** (**MP4 video**, plus the single frames; or **PNG frames only**) and **Quality**.
 2. First check the motion with Quality **Fast preview (EEVEE)**: minutes instead of hours. Render the
    real video with **Preview** or **Final**.

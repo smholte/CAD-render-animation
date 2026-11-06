@@ -15,7 +15,8 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
 
     library_path: StringProperty(
         name="Shared library", subtype="DIR_PATH",
-        description="Folder with backgrounds (HDRI) and templates, e.g. on the network. A local copy also works")
+        description="Folder with backgrounds (HDRI), templates, rule sets, logos and stickers, e.g. on the network. "
+                    "A local copy also works")
     default_template: StringProperty(
         name="Default template", subtype="FILE_PATH",
         description="Template (.json) applied to every new import: rules, groups, paint schemes, background")
@@ -38,8 +39,8 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         row.label(text="Default rule set")
         row.operator_menu_enum("fresing.rule_set_default", "name", text=self.default_rule_set or "Standard",
                                icon="FILTER")
-        layout.label(text="Library layout: <library>/HDRI/*.exr|*.hdr, <library>/Templates/*.json "
-                          "and <library>/Rule sets/*.json")
+        layout.label(text="Library layout: <library>/HDRI/*.exr|*.hdr, <library>/Templates/*.json, "
+                          "<library>/Rule sets/*.json, <library>/Logos/*.png and <library>/Stickers/*.png")
         draw_updates(layout, self)
 
 
