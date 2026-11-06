@@ -223,13 +223,13 @@ def ensure_shortcuts() -> str:
 # Help menu: under "Check for Fresing Render updates"
 # ---------------------------------------------------------------------------
 
-def _draw_help(self, context):
+def _draw_pc_check_help(self, context):
     self.layout.operator(FRESING_OT_pc_check.bl_idname, icon="CHECKMARK")
 
 
 def _add_help_entry() -> None:
     menu = bpy.types.TOPBAR_MT_help
-    menu.remove(_draw_help)
+    menu.remove(_draw_pc_check_help)
     try:
         funcs = menu._dyn_ui_initialize()
         names = [getattr(f, "__name__", "") for f in funcs]
@@ -238,9 +238,9 @@ def _add_help_entry() -> None:
                    and getattr(funcs[i], "__module__", "").endswith("updates")), None)
         if at is None:
             at = next((i for i, n in enumerate(names) if n == "_draw_help_menu"), -1)
-        funcs.insert(at + 1, _draw_help)
+        funcs.insert(at + 1, _draw_pc_check_help)
     except (AttributeError, TypeError):
-        menu.prepend(_draw_help)
+        menu.prepend(_draw_pc_check_help)
 
 
 CLASSES = (FRESING_OT_pc_check,)
@@ -261,7 +261,7 @@ def register():
 
 
 def unregister():
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_pc_check_help)
     for cls in reversed(CLASSES):
         try:
             bpy.utils.unregister_class(cls)

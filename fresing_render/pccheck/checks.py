@@ -682,7 +682,7 @@ def queue_video(ctx):
 def queue_eevee(ctx):
     scene = ctx.fresh(CRANE_A)
     j = _boom_joint(scene)
-    a = _short_animation(scene, "PC check EEVEE", j.name, quality="eevee")
+    a = _short_animation(scene, "PC check EEVEE", j.name, seconds=0.2, quality="eevee")     # 6 frames
     a.video = "MP4"
     t0 = time.time()
     try:

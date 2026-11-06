@@ -352,7 +352,7 @@ def test_help_menu_entry_and_command_line(blender):
     from fresing_render.pccheck import ops
     funcs = blender.types.TOPBAR_MT_help._dyn_ui_initialize()
     from fresing_render.blender import updates
-    assert funcs.index(updates._draw_help) + 1 == funcs.index(ops._draw_help), "right under the update check"
+    assert funcs.index(updates._draw_help) + 1 == funcs.index(ops._draw_pc_check_help), "right under the update check"
     assert blender.ops.fresing.pc_check.get_rna_type().description.startswith("Test every main function")
     cmd = ops.launch_command("C:/B/blender.exe", "D:/Desk top", "full", "E:/m.step")
     assert cmd == ["C:/B/blender.exe", "--background", "--python", ops.LAUNCHER, "--", "D:/Desk top", "full", "E:/m.step"]
