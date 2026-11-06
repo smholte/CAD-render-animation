@@ -57,7 +57,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 24, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 23,
-              "paths": 8, "pccheck": 31, "update": 29}
+              "paths": 8, "pccheck": 31, "pccheckheavy": 7, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 
@@ -145,7 +145,7 @@ def main(argv=None) -> int:
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
     ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,callouts,milling,cylinder,"
-                                      "linkage,waycover,gcode,paths,pccheck,update")
+                                      "linkage,waycover,gcode,paths,pccheck,pccheckheavy,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -188,6 +188,7 @@ def main(argv=None) -> int:
                   "(ui_test_gcode.py)", "ui_test_gcode.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
         "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
+        "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),
         "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                    "ci_update_test.py", None),
     }
@@ -204,7 +205,9 @@ def main(argv=None) -> int:
             launcher = os.path.join(user_res, "extensions", "user_default", "fresing_render", "pccheck", "launcher.py")
             env.update(FRESING_PCCHECK_DIR=os.path.join(folder, "history"), FRESING_PCCHECK_NO_OPEN="1")
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--background", "--online-mode", "--python-exit-code", "1",
-                   "--python", launcher, "--", folder, "full"]
+                   "--python", launcher, "--", folder, "heavy" if key == "pccheckheavy" else "full"]
+            if key == "pccheckheavy":
+                env["FRESING_PCCHECK_HEAVY_SMALL"] = "1"
         elif gui is None:                            # a driver of its own (own settings folder and screen)
             cmd = [sys.executable, script_path, "--gui", "--blender", blender, "--wheels", os.path.abspath(args.wheels),
                    "--out", folder, "--timeout-min", str(args.timeout_min)]
@@ -224,11 +227,12 @@ def main(argv=None) -> int:
         print(f"\n== {title}", flush=True)
         code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
         verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
-        if key == "pccheck":                         # skips only for "no graphics card", every line there
+        if key in ("pccheck", "pccheckheavy"):       # skips only for "no graphics card", every line there
             import ci_check_pccheck
             block = os.path.join(folder, "history", "last_run.txt")
             text_block = open(block, encoding="utf-8").read() if os.path.isfile(block) else ""
-            _rows, problems = ci_check_pccheck.judge(text_block)
+            _rows, problems = ci_check_pccheck.judge(
+                text_block, ci_check_pccheck.MIN_LINES_HEAVY if key == "pccheckheavy" else ci_check_pccheck.MIN_LINES_FULL)
             if problems:
                 verdict = False
                 detail += "; " + "; ".join(problems[:3])

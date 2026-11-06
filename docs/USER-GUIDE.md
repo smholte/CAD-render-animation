@@ -1333,6 +1333,22 @@ render queue, the time test and the update check. It runs in the background; you
 2. A black window shows the steps as they run. Leave it open; it closes by itself.
 3. At the end "Fresing Render PC check.html" opens in your web browser (it is on the Desktop too).
 
+**Heavy: a real load test (10 to 20 minutes).** **Fresing Render - PC check (heavy)** (Start menu or
+Desktop; or **Help > Fresing Render PC check…** and pick **Heavy**) makes an invented machine of about
+3,000 parts (it is deleted afterwards), imports it on all cores, works with it (structure list, search,
+Show only, explode, save and open), renders Cycles pictures at HD and 4K, EEVEE per frame at HD and 4K,
+and a real 10 second animation (250 frames, EEVEE, 1920 × 1080) plus a 3 second Cycles clip through the
+render queue. It uses the whole PC and the graphics card for that time, so start it when you do not need
+the PC. The report page updates itself while it runs and shows which step is busy, for how long and how
+long it should take. In the report the pictures are large, with their size and quality under them, the
+videos come as a contact sheet (eight frames across the video) and the last frame. Under each step it
+says what the step shows and what it does not show. Heavy has its own history: its times are compared
+with your last Heavy run. In its text block you also find the peak memory.
+
+**To stop a Heavy check** that takes too long: in the app **Help > Cancel Fresing Render PC check**
+(shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being
+rendered is finished first. The report then opens with the steps that were done, marked "Cancelled".
+
 **With your own model (optional).** Drag a STEP file onto **Fresing Render - PC check** on the Desktop
 (the Start menu does not take files), or in **Help > Fresing Render PC check…** tick **Also test my own STEP file** and pick it (the
 model of the open project is filled in already). The check then also measures your model: import time,

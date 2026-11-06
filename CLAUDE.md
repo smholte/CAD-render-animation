@@ -99,6 +99,30 @@ The owner's AI usage is limited; every chat works economically:
 - **Helper agents** (independent reviews, independent test lists) only for Windows-only code and
   for risky changes; say in the report when one was skipped.
 - **Update your branch to `main` once**, right before merging – not after every other release.
+
+### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
+
+GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. A full run
+takes 30–50 minutes until task 0036 has made it faster, and a task is often run several times. So:
+- **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
+  `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
+  version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
+  whole extra run.
+- **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
+  run. Run the tests of your area locally first; push once with code, tests and guide together. Reports,
+  `TASKS.md` and `tasks/` files go in a **separate last push** that touches only those (no run starts).
+- **Use the waiting time.** While the run goes: write the report, check the guide, prepare the next step. Do
+  not poll in a loop; use `python3 tools/ci_status.py --wait` once and read the result.
+- **Merge the way that lets GitHub reuse the run.** Merge `main` into your branch, wait for green on *that*
+  commit, then fast-forward `main` to exactly that commit (`git push origin HEAD:main`) – no new merge commit,
+  no changes after the green run. (From task 0036 on GitHub then skips the repeat and releases at once. If
+  `main` moved meanwhile, merge once more and accept one more run.)
+- **Several tasks at the same time:** the one that finishes first merges first; the others take the next
+  version and merge `main` then. A lead sentence for a new task never fixes a version number in advance.
+- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly), fix, push once. A run that
+  fails in `precheck` (task 0036) is a version/changelog/list problem: fix that and push.
+- **Say in the report** how many runs the task needed and why (version clash, real failure).
+
 - **No installer per task:** bump the version, write the changelog, merge, check the GitHub run.
   Build and send the installer only when the owner asks for one (once task 0020 is done, GitHub
   publishes releases by itself).
@@ -198,7 +222,9 @@ fresing_render/            the Blender extension (Python package)
   pccheck/                 PC check (task 0032): every main function tested on the owner's PC after an update;
                            checks.py = the lines (one per function), core.py (no Blender: history, speed and
                            picture flags, text block, HTML report), runner.py, launcher.py (Start-menu shortcuts,
-                           Help > Fresing Render PC check…), ops.py
+                           Help > Fresing Render PC check…, Cancel), ops.py (Heavy shortcuts, Cancel);
+                           heavy.py (task 0033: the Heavy lines, sizes, peak memory) + heavy_scene.py (writes the big
+                           invented machine at run time with OpenCascade; nothing of it is in the repository)
   data/                    test models that ship with the extension (copies of tests/data, checked by a test)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
@@ -253,6 +279,7 @@ locally pushes its branch and reads the run.
 | User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
 | User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
 | Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
+| PC check Heavy, scaled down (`FRESING_PCCHECK_HEAVY_SMALL=1`: ~300 parts, 14 frames, 540 px; real Blender under xvfb) | `FRESING_PCCHECK_HEAVY_SMALL=1 python3 tools/ci_real_app.py --only pccheckheavy …` | you changed `pccheck/heavy.py` |
 | PC check, your lines (bpy module, no graphics card) | `FRESING_SELFTEST_NO_GPU=1 FRESING_PCCHECK_DIR=/tmp/pc FRESING_PCCHECK_ONLY=<line ids> ~/venv/bin/python -c "…runner.run('full', '/tmp/pc', open_report=False)"` (see `tests/test_pccheck.py` for the set-up) | you added or changed a PC-check line |
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
@@ -337,7 +364,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `fresing_render/pccheck/checks.py` in the same task – `@line("area.name", "Title", since="<the version it
   comes in>", modes=(F,))`, testing the feature on a test model in `fresing_render/data/` the way a user would,
   raising with a plain reason when it does not work; a render adds `ctx.picture(...)`, a speed `ctx.metric(...)`.
-  Raise `MIN_LINES_FULL` in `tools/ci_check_pccheck.py`. The owner runs the check after each update and sends
+  Raise `MIN_LINES_FULL` in `tools/ci_check_pccheck.py`. A feature whose speed depends on load (big models,
+  long animations, 4K, memory) also gets a **Heavy** line in `pccheck/heavy.py` (`modes=(H,)`, with `expected`,
+  `shows`, `not_shown`; sizes from `heavy.sizes()` so the scaled-down form works) and `MIN_LINES_HEAVY`
+  is raised. The owner runs the check after each update and sends
   back its text block; GitHub runs it at every push.
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".

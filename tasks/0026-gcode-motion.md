@@ -1,6 +1,6 @@
 # 0026 – G-code drives the machine: CNC programs as animations
 
-**Who:** worker · **Model:** Opus · effort High · **Status:** done (0.2.29) · **Branch:** `task/0026-gcode-motion`
+**Who:** worker · **Model:** Opus · effort High · **Status:** done (0.2.30) · **Branch:** `task/0026-gcode-motion`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Motion · **Area:** new `blender/gcode.py` and
 `core/gcode.py` (parser, no Blender), `blender/animation.py` (one new step type), `blender/joints.py`
 (only if needed), `ui_motion.py` (panels 4/6), `blender/props.py` (additive), `docs/USER-GUIDE.md`
@@ -72,7 +72,7 @@ program would, at a speed he chooses.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web (Opus), 6 Nov 2026. Version 0.2.29 (0.2.27 and 0.2.28 went to tasks 0025 and 0034 meanwhile).
+**Chat / date:** worker, Claude Code on the web (Opus), 6 Nov 2026. Version 0.2.30 (0.2.27–0.2.29 went to tasks 0025, 0034 and 0033 meanwhile).
 
 **What changed:**
 - `core/gcode.py` (no Blender): the LinuxCNC reader – G0/G1/G2/G3 (IJK and R, all three planes, helical, P

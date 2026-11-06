@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import traceback
 
@@ -36,6 +37,7 @@ NO_OPEN_ENV = "FRESING_PCCHECK_NO_OPEN"
 DIR_ENV = "FRESING_PCCHECK_DIR"
 ONLY_ENV = "FRESING_PCCHECK_ONLY"
 NO_GPU_TEXT = "no graphics card"
+CANCEL_FILE = "cancel.flag"
 
 
 def no_gpu_expected() -> bool:
@@ -47,6 +49,20 @@ def history_dir() -> str:
         return os.environ[DIR_ENV]
     import bpy
     return bpy.utils.user_resource("CONFIG", path="fresing_pccheck")
+
+
+def cancel_path() -> str:
+    return os.path.join(history_dir(), CANCEL_FILE)
+
+
+def cancel_requested() -> bool:
+    return os.path.isfile(cancel_path())
+
+
+def check_cancel() -> None:
+    """Called between steps of long lines: stops the check when the owner asked for it."""
+    if cancel_requested():
+        raise core.Cancelled("cancelled")
 
 
 def desktop_dir(given: str = "") -> str:
@@ -294,12 +310,19 @@ class Context:
                 self.secrets.add(parent.get(build.PROP_NAME, ""))
                 parent = build.parent_assembly(parent)
 
-    def picture(self, path: str, key: str, title: str, model_check: bool = True, gpu_optional: bool = False):
+    def picture(self, path: str, key: str, title: str, model_check: bool = True, gpu_optional: bool = False,
+                width: int = 0, settings: str = ""):
+        """``width``: a larger picture in the report (Heavy); ``settings``: shown under it (size, quality)."""
         if not path or not os.path.isfile(path):
             raise RuntimeError(f"the picture '{title}' was not written")
         px = read_pixels(path)
-        thumb = core.thumbnail(px)
-        pic = core.Picture(key, title, problems=core.picture_problems(px, model_check))
+        self.picture_pixels(px, key, title, model_check, gpu_optional, width, settings)
+
+    def picture_pixels(self, px, key: str, title: str, model_check: bool = True, gpu_optional: bool = False,
+                       width: int = 0, settings: str = ""):
+        thumb = core.thumbnail(px, width or core.THUMB_WIDTH)
+        pic = core.Picture(key, title, problems=core.picture_problems(px, model_check), width=width,
+                           settings=settings)
         old_path = os.path.join(self.hist, "pictures", self.run.key, key + ".png")
         old = read_pixels(old_path) if os.path.isfile(old_path) else None
         pic.difference = core.picture_difference(thumb, old)
@@ -363,6 +386,12 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         stem = os.path.splitext(os.path.basename(model))[0]
         ctx.secrets.update({os.path.basename(model), stem, os.path.dirname(model)})
     ctx.secrets.update({platform.node(), os.path.basename(os.path.expanduser("~"))})
+    try:
+        os.remove(cancel_path())            # an old request must not stop this run
+    except OSError:
+        pass
+    from . import heavy
+    run.scaled = mode == "heavy" and heavy.small()
     todo = core.lines_for(lines if lines is not None else checks.LINES, mode, bool(model))
     only = [x.strip() for x in os.environ.get(ONLY_ENV, "").split(",") if x.strip()]
     if only:
@@ -378,19 +407,35 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
     except OSError:
         pass
 
+    lock = threading.RLock()
+
     def write_report():
-        run.seconds = time.time() - t_run
-        core.compare(run, history)
-        try:
-            block = core.text_block(run, ctx.secrets)
-            core.write_text(report_path, core.html_report(run, block))
-        except Exception as exc:  # noqa: BLE001 - the check goes on; the console shows every line anyway
-            _console(f"Could not write the report: {exc}")
-            block = ""
-        return block
+        with lock:
+            run.seconds = time.time() - t_run
+            core.compare(run, history)
+            try:
+                block = core.text_block(run, ctx.secrets)
+                core.write_text(report_path, core.html_report(run, block))
+            except Exception as exc:  # noqa: BLE001 - the check goes on; the console shows every line anyway
+                _console(f"Could not write the report: {exc}")
+                block = ""
+            return block
+
+    stop_beat = threading.Event()
+
+    def heartbeat():
+        """The report shows the running line's time: write it again every few seconds (Heavy lines last minutes)."""
+        while not stop_beat.wait(8.0):
+            if run.finished:
+                break
+            write_report()
+
+    if mode == "heavy":
+        threading.Thread(target=heartbeat, daemon=True).start()
 
     for i, ln in enumerate(todo):
-        res = core.Result(ln.id, ln.title, ln.since, own="own" in ln.modes, what=ln.what)
+        res = core.Result(ln.id, ln.title, ln.since, own="own" in ln.modes, what=ln.what, expected=ln.expected,
+                          started=time.time(), shows=ln.shows, not_shown=ln.not_shown)
         run.results.append(res)
         run.planned = [x.title for x in todo[i + 1:]]
         ctx.result = res
@@ -398,7 +443,9 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         _console(f"[{i + 1}/{len(todo)}] {ln.title} …")
         t0 = time.time()
         missing = [r for r in ln.requires if not ctx.ok(r)]
+        cancelled = False
         try:
+            check_cancel()
             if missing:
                 raise Skipped("skipped: needs " + ", ".join(
                     next((x.title for x in todo if x.id == r), r) for r in missing) + " to work first")
@@ -407,6 +454,8 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
             if bad:
                 raise RuntimeError("picture check: " + " | ".join(bad))
             res.status, res.note = OK, (note or "") if not res.own else ""
+        except (core.Cancelled, KeyboardInterrupt):
+            res.status, res.reason, cancelled = SKIPPED, "cancelled by you", True
         except Skipped as exc:
             res.status, res.reason = SKIPPED, str(exc).removeprefix("skipped: ")
         except Exception as exc:  # noqa: BLE001 - a line that fails is reported, the check goes on
@@ -418,6 +467,11 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         _console(f"{mark} {ln.title} ({res.seconds:.1f} s){extra}")
         if res.status == FAILED:
             _console(f"FAIL {ln.id}: {res.reason}")
+        if cancelled:
+            run.cancelled = True
+            _console("Cancelled: the lines done so far are in the report.")
+            break
+    stop_beat.set()
     run.finished, run.planned = True, []
     block = write_report()
     try:
@@ -426,10 +480,11 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
     except OSError as exc:
         _console(f"Could not save the numbers of this run: {exc}")
     shutil.rmtree(work, ignore_errors=True)
-    try:
-        os.remove(running)
-    except OSError:
-        pass
+    for leftover in (running, cancel_path()):
+        try:
+            os.remove(leftover)
+        except OSError:
+            pass
     c = run.counts()
     _console(block)
     _console(f"RESULT {c[OK] + c[SKIPPED]}/{len(run.results)} "

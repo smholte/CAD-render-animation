@@ -17,7 +17,7 @@ import math
 import os
 import time
 
-from .core import Line, Skipped
+from .core import Cancelled, Line, Skipped
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(HERE, "data")
@@ -35,12 +35,13 @@ WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 
 LINES: list[Line] = []
-Q, F, OWN = "quick", "full", "own"
+Q, F, OWN, H = "quick", "full", "own", "heavy"
 
 
-def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = ""):
+def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = "", expected: int = 0,
+         shows: str = "", not_shown: str = ""):
     def deco(fn):
-        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what))
+        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown))
         return fn
     return deco
 
@@ -84,8 +85,12 @@ def _tip(scene):
 
 def _wait_queue(scene, minutes: float):
     from ..blender import queue
+    from . import runner
     t0 = time.time()
     while queue.is_running(scene) and time.time() - t0 < minutes * 60:
+        if runner.cancel_requested():
+            queue.kill(scene)
+            raise Cancelled("cancelled")
         time.sleep(0.5)
     if queue.is_running(scene):
         queue.kill(scene)
@@ -413,7 +418,7 @@ M30
 """
 
 
-@line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.29",
+@line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.30",
       what="The test gantry runs a short LinuxCNC program (lines, arcs in two planes, a tool change, drilling): "
            "the tool's tip follows the program, the new tool shows in the spindle, the toolpath is drawn")
 def motion_gcode(ctx):
@@ -1148,3 +1153,6 @@ def own_time_eevee(ctx):
     except RuntimeError as exc:
         ctx.gpu_optional(exc)
         raise
+
+
+from . import heavy  # noqa: E402,F401 - registers the Heavy lines (task 0033)

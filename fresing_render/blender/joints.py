@@ -867,7 +867,7 @@ def driver_biased(j) -> bool:
 
 
 def upgrade_drivers(scene) -> int:
-    """Projects made before 0.2.29: give every joint's motion driver the small-number fix. Returns how many."""
+    """Projects made before 0.2.30: give every joint's motion driver the small-number fix. Returns how many."""
     n = 0
     for j in scene.fresing.joints:
         if j.motion is None or driver_biased(j):

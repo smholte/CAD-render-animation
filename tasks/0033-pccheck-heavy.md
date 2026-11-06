@@ -1,6 +1,6 @@
 # 0033 – PC check "Heavy": longer, bigger tests that really load the owner's PC
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** open – can start
+**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** running – round 1 done (0.2.27), round 2 waits for the owner's Heavy run
 **Branch:** `task/0033-pccheck-heavy`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** PC check (`fresing_render/pccheck/`, `tests/test_pccheck.py`;
 additive: a Start-menu shortcut, a Help-menu choice, one CI step). Feature modules are only *called*.
@@ -94,10 +94,41 @@ that GitHub runs at every push, so the lines cannot break unnoticed.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 6 Nov 2026 (Sonnet · Medium) – round 1
 
-**What changed:**
+**What changed (round 1, 0.2.27):**
+- Mode **Heavy** (`core.MODES`), own history per mode; Start menu + Desktop shortcut "PC check (heavy)" (installer,
+  uninstall, and `ops.ensure_shortcuts` for PCs updated in the app); Help > PC check… offers Heavy.
+- **Cancel:** Help > Cancel Fresing Render PC check (shown while a check runs; writes `cancel.flag` in the history
+  folder) or Ctrl+C in the window. The runner and the queue waits look at the flag; finished lines stay in the report,
+  the run is marked CANCELLED. Progress: the report refreshes itself every 8 s (a heartbeat thread) with "Running for
+  X, expected about Y" for the busy line.
+- `pccheck/heavy_scene.py` writes the invented machine at run time (OpenCascade, own subprocess): 600 unique /
+  2,992 placed parts, nested modules/units, ISO/DIN fasteners; 17.6 MB STEP, 2.07 M unique triangles at "normal"
+  meshing (about 2 s... see numbers below). Nothing in the repo.
+- `pccheck/heavy.py`, lines: `heavy.scene`, `heavy.import` (import, from cache, parts, unique, faces, % sorted, peak
+  memory), `heavy.work` (tree, structure list, search, show only, explode, pose, save, open, project size),
+  `heavy.stills_cycles` (HD/4K × Preview/Final on the card), `heavy.stills_eevee` (HD/4K per frame via queue),
+  `heavy.video_eevee` (10 s, 250 frames, HD, MP4, frame count, file opens, first/last differ, no black frames, contact
+  sheet of 8, last frame, per frame, start-up, size), `heavy.video_cycles` (3 s Preview clip). Each has "shows / does
+  not show", expected time; pictures are 760 px wide with their settings. Peak memory: Windows `GetProcessMemoryInfo`
+  (ctypes), Linux `VmHWM`.
+- Scaled-down form `FRESING_PCCHECK_HEAVY_SMALL=1` (60/300 parts, 14 frames, 540 px, draft); GitHub runs it in the
+  Linux real-app job (`pccheckheavy`, MIN 7) and the Windows job (from the Heavy shortcut, `--min-lines 7`).
+- CLAUDE.md (layout, test table, Heavy rule in section 6), user guide (The PC check), CHANGELOG, version 0.2.27.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (this machine: 4 cores, no GPU, bpy module):
+- `tests/test_pccheck.py` 34 tests (new: Heavy mode, lines explained, sizes, peak memory, contact sheet, text block,
+  progress and big pictures, generator, cancel request keeps finished lines, cancel operator, shortcuts).
+- Generator + real reader: full size written in 13.5 s, imported in 9.3 s on 3 helper cores (this machine).
+- Scaled-down Heavy run in the bpy module: scene 3 s, import 4.4 s; the graphics-card lines skip. The video line was
+  proven here with Cycles Draft on the CPU (14 frames, 13.6 s per frame, MP4 opens, contact sheet made); EEVEE itself
+  cannot start in the bpy module, so it is first proven by the GitHub run.
+- Not measured: anything on the RTX 3090. Expected total 10–20 min is a guess (expected seconds per line sum to ~30 min
+  worst case); round 2 sets the sizes from the owner's run.
+- Windows-only code reviewed by a helper that did not write it: see below.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up (round 2):**
+- Owner: update to 0.2.27, run **PC check (heavy)**, paste the text block in the lead chat.
+- Round 2: tune sizes to 10–20 min; add Detailed halls, milling + chips at length, playback under load, own-model
+  Heavy; fix what the run showed.
