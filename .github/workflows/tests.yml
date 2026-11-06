@@ -397,6 +397,7 @@ jobs:
       - name: Minutes
         if: always()
         run: |
+          if (-not $env:JOB_T0) { return }
           $m = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:JOB_T0) / 60
           $line = "⏱️ Windows install + self-test: {0:N1} min" -f $m
           $line; $line >> $env:GITHUB_STEP_SUMMARY
@@ -440,7 +441,7 @@ jobs:
     name: Publish the release (new version on main)
     needs: [precheck, verdict]
     if: >-
-      ${{ always() && needs.verdict.result == 'success' && github.event_name == 'push'
+      ${{ !cancelled() && needs.verdict.result == 'success' && github.event_name == 'push'
       && (github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[release rehearsal]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -512,7 +513,7 @@ jobs:
             release-out/index.json release-out/changelog.json
           url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
           echo "### Published: [Fresing Render $VERSION]($url)" >> "$GITHUB_STEP_SUMMARY"
-          echo "⏱️ since the push: $(( ($(date +%s) - $(date -d "$RUN_STARTED" +%s)) / 60 )) min" >> "$GITHUB_STEP_SUMMARY"
+          echo "⏱️ since the commit was made: $(( ($(date +%s) - $(date -d "$RUN_STARTED" +%s)) / 60 )) min" >> "$GITHUB_STEP_SUMMARY"
           echo "Release: $url"
 
   release-check:

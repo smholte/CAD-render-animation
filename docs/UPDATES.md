@@ -8,7 +8,13 @@ merged into `main` is published by GitHub, and every installed app offers it at 
 1. A worker chat raises the version (`fresing_render/__init__.py` **and**
    `fresing_render/blender_manifest.toml`), adds it to `CHANGELOG.md` and merges into `main`
    (CLAUDE.md section 7).
-2. GitHub tests `main` (`.github/workflows/tests.yml`). When every test passed and there is no release
+2. GitHub tests `main` (`.github/workflows/tests.yml`). Since task 0036 the first job (`precheck`,
+   `tools/ci_precheck.py`) looks whether this exact git tree already ran green – the normal case when the
+   worker fast-forwarded `main` to its green branch commit. Then no test runs again: the release takes that
+   run's installer files, after `release_tools.py verify-run` has checked once more that the run is green and
+   was made from this tree. A documentation-only change (docs, CHANGELOG, version line) on top of a green
+   commit runs only the build and the documentation checks; anything else runs every test. When the tests
+   (or that earlier run) passed and there is no release
    for this version yet, the job **Publish the release** creates it (not yet "latest"): tag
    `v<version>` on the tested commit, title "Fresing Render <version>", the version's `CHANGELOG.md`
    section as text, and the files
