@@ -31,10 +31,14 @@ number of sections and the shares change.
   the cover housing on the fixed side is not counted. Offer a switch "Fixed housing counts as a section" for
   covers drawn the other way (then 5 sections over 500 mm = 0, 125, 250, 375, 500) and say in the panel which
   one is on, in plain words with the resulting travel per section.
-- **Test model:** the owner has a STEP of a way-cover sub-assembly. It is **not** committed (public
-  repository); the owner attaches it in the worker chat – ask for it at the start. The tests use a generic
-  model made by a new `tools/make_test_waycover.py` (5 nested plates, some made of two parts, on a base with a
-  slide axis); the owner's file is only tried locally and reported in numbers.
+- **Test model:** the owner has a STEP of a way-cover sub-assembly and has said (6 Nov 2026) that it is
+  generic enough to be **committed as a test model** (an exception to the public-repository rule; it holds no
+  design of his or his clients'). He attaches it in the worker chat – ask for it at the start. Check it first
+  (size, part names, nothing that names a client or machine); if it is clean, put it in `tests/data/` (and a copy
+  in `fresing_render/data/` for the PC check, size permitting – a test keeps the copies equal) and name it in the
+  report. Also make a small generic model with `tools/make_test_waycover.py` (5 nested plates, some of two parts,
+  on a base with a slide axis) so the tests do not depend on his file alone. If he has not attached it by the time
+  you need it, use the generated one and finish; tell him it can be added later.
 
 ## What to build
 
@@ -74,7 +78,7 @@ number of sections and the shares change.
       + reopen and a model update; removing the way cover leaves the joints as before.
 - [ ] Real-app click test (select parts, Add section ×N, Make it, change the axis value) added to
       `ci_real_app.py`, with its `MIN_CHECKS`; panel screenshot checked.
-- [ ] The owner's way-cover model tried locally if he attached it (numbers in the report only, nothing committed).
+- [ ] The owner's way-cover model (if attached and clean) is in `tests/data/` and a test runs the set-up on it.
 - [ ] Tests, full suite green on GitHub; tooltip check 0 missing; guide, PC-check line, CLAUDE.md layout line, report filled in.
 
 ## Not in this task
