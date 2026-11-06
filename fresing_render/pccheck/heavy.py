@@ -32,7 +32,7 @@ def small() -> bool:
 def sizes() -> dict:
     """Every size of the Heavy lines, full or scaled down."""
     if small():
-        return dict(unique=60, placed=300, w=480, h=270, w4k=640, h4k=360, seconds=0.5, clip_seconds=0.2,
+        return dict(unique=60, placed=300, w=480, h=270, w4k=640, h4k=360, seconds=0.16, clip_seconds=0.12,
                     sheet=4, still_quality=("draft", "draft"), anim_res=("preview", "square"))
     return dict(unique=600, placed=3000, w=1920, h=1080, w4k=3840, h4k=2160, seconds=10.0, clip_seconds=3.0,
                 sheet=8, still_quality=("preview", "final"), anim_res=("hd", "presentation"))
@@ -308,10 +308,11 @@ def heavy_stills_eevee(ctx):
     _hero(ctx, scene)
     scene.fresing.use_gpu = ctx.has_gpu
     small_run = small()
-    for res, fmt, key, title in (("preview" if small_run else "hd", "square" if small_run else "presentation",
+    combos = (("preview" if small_run else "hd", "square" if small_run else "presentation",
                                   "eevee_hd", "EEVEE HD per frame"),
                                  ("preview" if small_run else "4k", "square" if small_run else "presentation",
-                                  "eevee_4k", "EEVEE 4K per frame")):
+                                  "eevee_4k", "EEVEE 4K per frame"))
+    for res, fmt, key, title in combos[:1] if small_run else combos:       # scaled down: one size is enough
         runner.check_cancel()
         _eevee_test(ctx, scene, res, fmt, key, title)
     _memory(ctx)
