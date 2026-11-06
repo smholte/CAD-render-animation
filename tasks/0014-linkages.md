@@ -1,6 +1,6 @@
 # 0014 – Mechanisms: scissor lifts, four-bar arms and other linkages
 
-**Who:** worker · **Model:** Opus · effort High · **Status:** open – can start ·
+**Who:** worker · **Model:** Opus · effort High · **Status:** running ·
 **Branch:** `task/0014-linkages`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011, plus a new
 module for the solver.
