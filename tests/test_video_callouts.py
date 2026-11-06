@@ -5,13 +5,16 @@ Blender: the clicked point is projected for every frame of an animation, a hidde
 and labels are rendered through the sequencer and the pixels checked, an MP4 gets an audio track of the right
 length, stills get their labels.
 
-NOTE: this file is named so that it runs after tests/test_video.py. Blender as a Python module keeps font data
-across read_factory_settings(): text drawn here before test_video's first (watermark) test made that test draw
-no text.
+NOTE: Blender as a Python module keeps font data across read_factory_settings(): text drawn before a reset
+makes later text draw nothing, or crash. Tests that draw text strips therefore run in a Python of their own
+(``@isolated``); the file is also named so that it runs after tests/test_video.py.
 """
 
+import functools
 import math
 import os
+import subprocess
+import sys
 import wave
 
 import numpy as np
@@ -24,6 +27,19 @@ from fresing_render.core.brand import Finishing
 
 HERE = os.path.dirname(__file__)
 CRANE = os.path.join(HERE, "data", "test_crane_a.step")
+
+
+def isolated(fn):
+    """Run the test in a Python process of its own (see the note at the top)."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if os.environ.get("FRESING_TEST_ISOLATED"):
+            return fn(*args, **kwargs)
+        res = subprocess.run([sys.executable, "-m", "pytest", f"{os.path.abspath(__file__)}::{fn.__name__}", "-q",
+                              "-x", "-p", "no:cacheprovider"], capture_output=True, text=True, timeout=900,
+                             env=dict(os.environ, FRESING_TEST_ISOLATED="1"), cwd=os.path.dirname(HERE))
+        assert res.returncode == 0, (res.stdout + res.stderr)[-3500:]
+    return wrapper
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +329,7 @@ def _fin(**kw):
     return Finishing(**base)
 
 
+@isolated
 def test_picture_cards_come_at_their_time_and_not_before_or_after(tmp_path):
     fps = 5
     files = _frames(tmp_path, 15)
@@ -348,6 +365,7 @@ def _lines_for(tmp_path, anchors, box, fade=0):
     return plan, lines
 
 
+@isolated
 def test_labels_and_lines_are_rendered_and_follow_the_point(tmp_path):
     files = _frames(tmp_path, 8)
     box = (40, 250, 150, 50)
@@ -365,6 +383,7 @@ def test_labels_and_lines_are_rendered_and_follow_the_point(tmp_path):
         x, y, w, h = box
         inside = pic[H - (y + h):H - y, x:x + w]
         assert inside.min() < GREY - 40, "the dark label box"
+        assert inside.max() > 200, "the white letters in it"
         far = pic[H - 20, W - 20]
         assert _near(far, (GREY,) * 3, 3)
     a2 = _render_frame(enc, 2, tmp_path / "a2.png")
@@ -375,60 +394,7 @@ def test_labels_and_lines_are_rendered_and_follow_the_point(tmp_path):
     bpy.data.scenes.remove(enc)
 
 
-def test_label_text_is_drawn_in_the_box():
-    """In a Python of its own: after resets, Blender as a module draws no text any more (see the note above)."""
-    import subprocess
-    import sys
-    code = """
-import numpy as np
-import bpy
-from fresing_render.blender import video
-from fresing_render.core import callouts as C
-from fresing_render.core.brand import Finishing
-W, H = 640, 360
-img = bpy.data.images.new("t", W, H, alpha=True)
-img.colorspace_settings.is_data = True
-px = np.full((H, W, 4), 0.5, np.float32)
-px[..., 3] = 1.0
-img.pixels.foreach_set(px.ravel())
-img.filepath_raw = "FRAME"
-img.file_format = "PNG"
-img.save()
-enc = bpy.data.scenes.new("e")
-enc.render.resolution_x, enc.render.resolution_y, enc.render.resolution_percentage = W, H, 100
-enc.view_settings.view_transform = "Standard"
-box = (40, 250, 150, 50)
-fin = Finishing(color1="#204060", color2="#FFFFFF", label_font_px=24,
-                labels=[C.LabelPlan("Gripper", 1, 1, {1: (300, 120)}, box)])
-video.build_sequence(enc, ["FRAME"], (W, H), 1, fin, [])
-enc.frame_start = enc.frame_end = 1
-im = enc.render.image_settings
-im.media_type = "IMAGE"
-im.file_format, im.color_mode, im.color_depth = "PNG", "RGB", "8"
-enc.render.use_file_extension = False
-enc.render.filepath = "OUT"
-bpy.ops.render.render(write_still=True, scene=enc.name)
-out = bpy.data.images.load("OUT")
-out.colorspace_settings.is_data = True
-a = np.empty(W * H * 4, np.float32)
-out.pixels.foreach_get(a)
-a = a.reshape(H, W, 4)[::-1, :, :3] * 255
-inside = a[H - 300:H - 250, 40:190]
-print("RESULT", float(inside.min()), float(inside.max()))
-"""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmp:
-        code = code.replace("FRAME", os.path.join(tmp, "frame.png").replace("\\", "/")).replace(
-            "OUT", os.path.join(tmp, "out.png").replace("\\", "/"))
-        env = dict(os.environ, PYTHONPATH=os.path.dirname(HERE))
-        res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=300)
-    line = [ln for ln in res.stdout.splitlines() if ln.startswith("RESULT")]
-    assert line, res.stdout[-800:] + res.stderr[-800:]
-    low, high = (float(v) for v in line[0].split()[1:])
-    assert low < GREY - 40, "the dark label box"
-    assert high > 200, "the white letters in it"
-
-
+@isolated
 def test_a_label_is_cut_where_a_full_card_stops_the_animation(tmp_path):
     files = _frames(tmp_path, 10)
     plan, lines = _lines_for(tmp_path, [(300, 150)] * 10, (40, 250, 150, 50))
@@ -504,6 +470,7 @@ def test_music_volume_follows_the_fades(tmp_path):
     bpy.data.scenes.remove(enc)
 
 
+@isolated
 def test_still_with_labels_has_a_box_and_a_line(tmp_path):
     sc = _scene(tmp_path)
     s = sc.fresing

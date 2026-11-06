@@ -476,5 +476,6 @@ the release → Delete); the next run on `main` publishes it again.
   sound strip's volume), and several sound strips with fixed volumes put side by side overlap by a sample at
   every join. Music is decoded with `bpy.ops.sound.mixdown`, cut and faded with numpy, and put in as one strip.
 - Tests that draw text strips (Blender as a Python module): after a `read_factory_settings()` that follows text
-  drawn earlier in the same process, text draws nothing any more. `tests/test_video.py` must run first
-  (`test_video_callouts.py` sorts after it); a text check that must hold anywhere runs in a Python of its own.
+  drawn earlier in the same process, text draws nothing any more, or the process crashes. `tests/test_video.py`
+  relies on running first; new tests that draw text use `@isolated` (`tests/test_video_callouts.py`: a Python
+  process of its own per test).
