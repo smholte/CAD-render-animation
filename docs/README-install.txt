@@ -82,6 +82,9 @@ big blue one, and the header of a closed section shows its state (parts, joints,
                   "Motor" on a rotate joint: no limits, it turns without end.
                   Cylinders: pick the barrel and the rod, "Add cylinder", click both pins;
                   it follows the arm, or "Drives the arm": set the stroke, the arm turns.
+                  Mechanisms: scissor lifts, four-bar / parallel arms, slider-cranks; pick the
+                  base and select the links, "Add mechanism" (pins found by themselves); set
+                  the height or the drive angle, every link follows.
                   Poses save all joint positions; Explode moves pieces apart.
 5 Scene & Render  Background (colour, 360 photo, sky, transparent), floor, cameras,
                   image size (16:9 HD/4K, A4/A3 at 300 dpi...), Render image.

@@ -744,10 +744,13 @@ def cad_pose(scene):
     for j in scene.fresing.joints:
         set_value(j, 0.0, use_limits=False)      # through set_value: tags the driver for an update
     apply_free_moves(scene, {}, reset_others=True)
+    from . import linkages
+    links = linkages.cad_enter(scene)        # mechanisms (task 0014): every link on its CAD place
     _update(scene)
     try:
         yield
     finally:
+        linkages.cad_leave(scene, links)
         apply_free_moves(scene, {n: d for n, d in deltas.items() if n in bpy.data.objects}, reset_others=False)
         for j in scene.fresing.joints:
             if j.name in values and j.motion is not None:
@@ -876,6 +879,11 @@ def check_members(scene, objs, base, joint=None, allow_empty: bool = False) -> s
     reason = cylinders.joint_conflict(scene, objs, base, joint)
     if reason:
         return reason
+    from . import linkages
+    reason = linkages.joint_conflict(scene, objs, base, joint)
+    if reason:
+        return reason
+    for ob in objs:
         if build.logical_parent(ob) is None:
             return "The whole model cannot be a moving part; select subassemblies inside it"
         if base is not None and (base is ob or _moved_by(base, ob)):

@@ -145,7 +145,9 @@ fresing_render/            the Blender extension (Python package)
                            chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
                            cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts),
                            callouts.py (labels with lines: where boxes go, fades, the line; picture cards; music plan),
-                           brand.py (brand kits, title/end cards, captions, time line of a finished video)
+                           brand.py (brand kits, title/end cards, captions, time line of a finished video),
+                           linkages.py (planar mechanisms: pins, tracks, sliders; exact steps + Newton, the
+                           assembly mode kept by walking; pins from shared round faces; scissor layout)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -155,6 +157,9 @@ fresing_render/            the Blender extension (Python package)
     joints.py states.py    joints (drivers), stacks, couplings and motors; poses, visibility sets, saved scenes
     cylinders.py           cylinders: barrel aims at the rod pin, rod eye on its pin (constraints), drive mode,
                            telescopic stages; ops_cylinders.py; panel 4 Motion > Cylinders in ui_motion.py
+    linkages.py            mechanisms (task 0014): a frame on the base, one empty per link it moves (keys when
+                           built, a depsgraph handler while posing), the input is a normal joint; ops_linkages.py;
+                           panel 4 Motion > Mechanisms in ui_motion.py
     animation.py           animation steps baked to keyframes
     reimport.py            model update to a new STEP revision, keeping all work
     render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
@@ -256,7 +261,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_callouts.py` (labels, picture card, music in a queued MP4), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_linkage.py` (scissor lift and four-bar: Base, Add mechanism, height, undo, Lift height step, reopen), `ui_test_callouts.py` (labels, picture card, music in a queued MP4), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 8 min (PC check 4.5) |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
@@ -475,6 +480,16 @@ the release → Delete); the next run on `main` publishes it again.
   line ends under the box. Blender has 128 sequencer channels (`video.CH_*`).
 - Geometry Nodes "Collection Info" with Separate Children orders the children by name: chips pick their
   shape by instance index, so the shape objects are named "FR chip 000", "FR chip 001" … in that order.
+- Transforms set in a `depsgraph_update_post` handler (mechanisms) are evaluated at the *next* update, and nothing
+  asks for one: the view lagged a step behind until the mouse moved (found by `ui_test_linkage.py` on GitHub). The
+  handler starts a one-shot timer that updates and redraws the 3D views. A script or test that reads `matrix_world`
+  must update twice (`tests/test_linkages.py` `update()`), or call `linkages.refresh_all` first (poses do).
+- Two-answer formulas (a circle meets a circle or a line) keep their branch by prediction from the last two
+  steps: scale the prediction to the step size (a half step during a bisection otherwise jumped to the folded
+  scissor), and with fewer than two steps of history keep the same side – near-flat scissor arms move further per
+  step than the two answers lie apart.
+- A line left after a `return` inside an `if` is never run: 0.2.25 lost two checks of `joints.check_members` that
+  way (no test failed). New checks get their own test.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
   `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
   along with the paths (`machining.sample` stores it as `fr_wp_m`).

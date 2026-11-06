@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.26 – 6 Nov 2026 – labels, picture cards and music in videos (task 0025)
+## 0.2.27 – 6 Nov 2026 – labels, picture cards and music in videos (task 0025)
 
 5 Scene & Render > Labels (new)
 - **Add a label**: click a spot on a part, type the words. The label gets a box beside the machine (never
@@ -22,6 +22,29 @@ installer of that version was built from.
 - **Music**: your own music file under the whole MP4 video: starts at, volume, fade in, fade out, cut to
   the video's length. The MP4 gets a normal AAC sound track.
 - PC check: new line "Labels with lines on a picture and an MP4 with music".
+## 0.2.26 – 6 Nov 2026 – mechanisms: scissor lifts, four-bar arms, slider-cranks (task 0014)
+
+4 Motion > Mechanisms (new)
+- Pick the **Type** (Scissor lift, Four-bar or parallel arm, Slider-crank, Other linkage), pick the **Base**,
+  select the moving links and press **Add mechanism**. The pins are found by themselves: where two links
+  have a hole or shaft on the same line. A scissor's rollers run on the base and under the platform; a
+  slider slides along its piston or guide.
+- Drive one link and everything follows, exactly: **Height** of a scissor lift's platform (with Lowest / CAD
+  / Highest), or the **Drive angle** – a normal joint in the joint list, so poses, saved scenes, Move joint,
+  Run motor and couplings move the mechanism too. A cylinder pinned to the arms drives it with its stroke
+  (Drives the arm).
+- The links never flip over to the other way they could be put together (also a parallelogram arm passing
+  through the line of its four pins). A position it cannot reach stops at the last one it can, with the
+  reason in red. The drive joint's limits are set to how far it can go (a scissor stops before its arms
+  lie flat).
+- 6 Animation: new step **Lift height** (platform from → to). Built animations keep every link's place on
+  every frame: videos, the render queue and PCs without scripts in project files need nothing else.
+- Kept in saved projects and through a model update (the pins are found again on the new revision).
+- PC check: new line "Mechanisms: scissor lift height, slider-crank".
+
+Fixes
+- A joint could be put on a subassembly that carries its own base, or on the whole model: the check for
+  that was skipped since 0.2.25. It is back.
 
 ## 0.2.25 – 6 Nov 2026 – hydraulic and electric cylinders (task 0013)
 

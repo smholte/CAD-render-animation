@@ -1,6 +1,6 @@
 # 0025 – Labels pointing at parts, picture cards and music in videos
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Status:** done (0.2.26) · **Branch:** `task/0025-callouts-pictures-music`
+**Who:** worker · **Model:** Sonnet · effort Medium · **Status:** done (0.2.27) · **Branch:** `task/0025-callouts-pictures-music`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Scene & Render · **Area:** `blender/video.py`
 (from 0018), new `blender/callouts.py`, `blender/render.py`, `queue.py` / `queue_runner.py` (video
 assembly only), the 5 Scene & Render part of `blender/ui.py`, `blender/props.py` (additive),
@@ -59,7 +59,7 @@ steps, and music under the video.
 - `video.py`: label lines (one transparent picture per stretch of equal frames) and boxes (text strips with box), picture
   cards, a sound strip with keyframed volume; `queue.py` works out the labels after the frames and encodes AAC audio.
   Stills get labels through `finish_picture`.
-- PC check line `video.labels`; real-app test `tools/ui_test_callouts.py`; guide chapters; changelog 0.2.26.
+- PC check line `video.labels`; real-app test `tools/ui_test_callouts.py`; guide chapters; changelog 0.2.27.
 
 **Tested and measured** (4-core test machine, test crane, no graphics card):
 - `tests/test_video_labels.py`, 18 tests: point within 2 px of Blender's own projection in every frame of a moving boom, no

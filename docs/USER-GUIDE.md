@@ -638,6 +638,57 @@ arrows in the view**.
 Cylinders stay through a model update (1 Import) and in saved projects, also when the PC does not allow
 scripts in project files. **−** next to the list removes a cylinder: its parts go back to their CAD place.
 
+### Mechanisms
+
+A mechanism is a set of arms or links that hold each other in a closed loop, so they cannot each have a
+joint of their own: a **scissor lift**, a **four-bar** or **parallel arm** (also a toggle clamp), a
+**slider-crank**, and other linkages that move in one plane (all pins pointing the same way). You drive
+one link – by its angle, by the platform's height or with a cylinder – and every other link follows,
+exactly, without ever flipping over to the other way the links could be put together.
+
+**Add a mechanism**
+
+1. In 4 Motion > **Mechanisms**, pick the **Type**: Scissor lift, Four-bar or parallel arm, Slider-crank,
+   or Other linkage. The steps in the panel change with it.
+2. Click the **base** – the frame or chassis it stands on, which does not move with it – and press
+   **Base**. (Without a base, the rest of the subassembly the links are in is the base. Pick it whenever
+   that subassembly also holds other moving parts, such as the lifting cylinder.)
+3. Select every moving link: each arm or link one subassembly (Ctrl+click in the view, or in
+   2 Structure). For a scissor lift: every arm and the platform. For a four-bar: the crank, the coupler
+   and the rocker. For a slider-crank: the crank, the rod and the slider or piston. Click the link that
+   drives **last** (for a scissor lift it does not matter: the arm on the fixed pin drives).
+4. Press **Add mechanism**. The pins are found by themselves: where two links have a hole or shaft on the
+   same line. A scissor's rollers run on the base and under the platform, along the line from the fixed
+   pin to the roller; a slider slides along its own round face (a piston's outside, a guide bore). Arms
+   made of two side plates that share all their pins count as one arm.
+
+The panel shows what it found (Set-up: links, pins, rollers, sliders) and the reason when something does
+not fit (for example: an arm that is pinned to the base twice cannot move).
+
+**Move it**
+
+- **Height** (scissor lift): the platform's pin above the base's fixed pin, in mm. Type it or drag it;
+  **Lowest**, **CAD** and **Highest** jump there. The arms stop where they stand straight up, and at the
+  bottom before they lie flat (2 % of the highest height: flat arms could fold either way).
+- **Drive angle**: the angle of the drive joint (0 = as in the CAD model). It is a normal joint in the
+  joint list above, named after the mechanism ("Scissor lift drive"): its limits are set to how far the
+  mechanism can go; a four-bar whose crank can turn all the way round has none. Poses, saved scenes and
+  the animation steps Move joint and Run motor move it like any joint, and it can follow another joint
+  (couplings) – the mechanism goes along.
+- **A cylinder**: add the cylinder (Cylinders, above) with its pins on the base and on an arm, or between
+  two arms. It follows the mechanism; with **Drives the arm** its stroke moves the mechanism.
+- When a position cannot be reached (a link too short, a roller beyond its line) the mechanism stays at
+  the last position it can reach and says why in red.
+
+In 6 Animation, the step **Lift height** raises or lowers a scissor lift's platform from one height to
+another. When the animation is built, every link gets its place on every frame, so videos and the render
+queue need nothing else, also on a PC that does not allow scripts in project files.
+
+Mechanisms stay through a model update (1 Import: the pins are found again on the new revision) and in
+saved projects. The joint list does not let you change or remove the drive joint while the mechanism uses
+it. **−** next to the list removes a mechanism: its parts go back to their CAD place (and the drive joint
+goes too, when the mechanism made it).
+
 ### Poses & exploded views
 
 <img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">
@@ -1006,6 +1057,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
     - **Move cylinder**: a cylinder's rod goes from where it is (or **From** a stroke) **To** a stroke
       in mm; the arm moves with it. It takes the cylinder selected in 4 Motion > Cylinders. With
       **Constant speed** the rod moves at an even pace, as a real cylinder does.
+    - **Lift height**: a scissor lift's platform goes from where it is (or **From** a height) **To** a
+      height in mm (pin to pin); every arm follows. It takes the lift selected in 4 Motion > Mechanisms.
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
