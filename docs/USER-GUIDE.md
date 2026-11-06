@@ -883,6 +883,27 @@ Words across the picture, for a draft you send before the final render.
 
 It works for stills and for MP4 videos (not for PNG frames).
 
+### Labels: a text with a line to a part
+
+A label is a text box beside the model with a thin line to a spot on a part ("Gripper", "Cylinder Ø63",
+"Max. 25 t"). It shows in still images and in MP4 videos.
+
+1. Press **Add label: click a spot on a part**, then click the spot in the 3D view where the line should
+   end. The label gets the part's name; Esc or a right-click cancels.
+2. Select the label in the list and type its **Words** (type `\n` for a line break).
+3. **Only with step** shows the label only while that animation step runs (a step with a label typed in);
+   empty means the whole video. **On images** and **In videos** switch it on for stills and for videos.
+4. **Show the part** selects the part the label points at; **Remove** deletes the label.
+
+The box is placed beside the machine, on the side of its spot, and the boxes never overlap. To place one
+yourself, tick **Place by hand** and move **Box: left to right** and **Box: bottom to top**. **Letter size**
+(Small, Medium, Large) is the same for all labels; the colours and the font come from the brand kit.
+
+The line stays on its spot of the part, also when the part moves in an animation. When the part is
+hidden at that moment, or the spot is behind the camera or outside the picture, the label is gone for that
+moment. Labels fade in and out with a short fade. A label that points at a part hidden behind another part
+is still shown: only hiding the part itself hides its label.
+
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -982,7 +1003,22 @@ to PNG frames.
   at least a second and a half, and never runs into the next one.
 
 The last line shows how long the finished video is: the cards come on top of the animation's own
-length.
+length. Full-screen pictures (see below) make it longer too.
+
+**Pictures and music**
+
+The **Pictures & music** fold in this panel puts photos and diagrams between the steps and music under the
+whole video (MP4 only).
+
+- **Add picture**, then pick the **Picture** (PNG or JPG). **Show**: **Full screen** (the animation waits
+  while the picture is shown) or **In a corner** (a smaller picture over the animation; pick the **Corner**
+  and **Size**). **Seconds** says how long. **After step** shows it right after a step with a label;
+  without a step, **At (s)** is the time in the animation. A **Caption** is a line of text on the picture.
+  Pictures fade in and out.
+- **Sound file**: WAV, MP3, OGG, FLAC or M4A. **Volume**, **Starts at (s)** (counted from the start of
+  the video, title card included), **Fade in** and **Fade out**. The music is cut at the end of the video;
+  when it is shorter than the video it plays once. The MP4 then has a sound track.
+  Use music you own or have the rights to: the app does not check that.
 
 **Make the video**
 

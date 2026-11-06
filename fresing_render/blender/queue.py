@@ -502,14 +502,20 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         for w in video.warnings_for(scene, anim):
             progress(96, w)
         fin = video.finishing_for_animation(scene, anim, bool(job.get("watermark")))
-        progress(96, "Making the video" + (" with cards, logo, captions or watermark" if fin.active else ""))
+        from . import callouts
+        size_px = callouts.render_size(scene)
+        fin.labels, fin.label_lines = callouts.plan_video(scene, anim, f_end, int(anim.fps), size_px,
+                                                          os.path.join(folder, callouts.SUBFOLDER))
+        fin.label_font_px = callouts.font_px(scene, size_px)
+        progress(96, "Making the video" + (" with cards, logo, captions, labels, music or watermark" if fin.active else ""))
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
                    white_under=scene.fresing.background == "TRANSPARENT", finishing=fin,
                    steps=video.steps_of(anim))
         return mp4
-    if job.get("watermark") or anim.fin_logo != "NONE" or anim.fin_title_on or anim.fin_end_on or anim.fin_captions:
-        progress(96, "Logo, cards, captions and watermark only go into MP4 videos, not into PNG frames")
+    if job.get("watermark") or anim.fin_logo != "NONE" or anim.fin_title_on or anim.fin_end_on or anim.fin_captions \
+            or scene.fresing.callouts or anim.cards or anim.music_file:
+        progress(96, "Logo, cards, captions, labels, music and watermark only go into MP4 videos, not into PNG frames")
     return folder
 
 
@@ -566,6 +572,7 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
                     and not f.endswith((".tmp.png", ".part.png"))), key=number)
     if not files:
         raise RuntimeError("No frames to put in the video")
+    from . import video
     enc = bpy.data.scenes.new("FR encode")
     try:
         r = enc.render
@@ -577,7 +584,6 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
             enc.view_settings.look = "None"
         except TypeError:
             pass
-        from . import video
         video.build_sequence(enc, [os.path.join(frames_dir, f) for f in files], (width, height), fps,
                              finishing, steps, white_under=white_under)
         im = r.image_settings
@@ -592,7 +598,13 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
         ff.constant_rate_factor = "HIGH"
         ff.ffmpeg_preset = "GOOD"
         ff.gopsize = max(1, fps)
-        ff.audio_codec = "NONE"
+        if finishing is not None and finishing.music_file:
+            ff.audio_codec = "AAC"
+            ff.audio_bitrate = 192
+            ff.audio_mixrate = 48000
+            ff.audio_channels = "STEREO"
+        else:
+            ff.audio_codec = "NONE"
         tmp_dir = os.path.join(frames_dir, "_video")
         os.makedirs(tmp_dir, exist_ok=True)
         for old in os.listdir(tmp_dir):
@@ -609,4 +621,5 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
         os.rmdir(tmp_dir)
     finally:
         bpy.data.scenes.remove(enc)
+        video.cleanup()
     return out_path

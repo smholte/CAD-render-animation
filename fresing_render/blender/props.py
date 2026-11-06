@@ -606,6 +606,32 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                     "Motion set to Smooth, Slow start or Slow stop)")
 
 
+class FRCard(bpy.types.PropertyGroup):
+    """A picture shown during a video (task 0025)."""
+    name: StringProperty(name="Name", description="A name for this picture card in the list. Empty: the file name")
+    file: StringProperty(name="Picture", subtype="FILE_PATH",
+                         description="The photo or diagram to show (PNG or JPG). Pictures in the library folder "
+                                     "work too")
+    mode: EnumProperty(name="Show", default="FULL",
+                       description="Full screen: the animation waits while the picture is shown. In a corner: the "
+                                   "animation goes on with the picture over it",
+                       items=[("FULL", "Full screen", "The picture fills the video and the animation waits"),
+                              ("CORNER", "In a corner", "A smaller picture over the animation")])
+    corner: EnumProperty(name="Corner", default="BR", description="Which corner the picture sits in",
+                         items=[("TL", "Top left", ""), ("TR", "Top right", ""), ("BL", "Bottom left", ""),
+                                ("BR", "Bottom right", "")])
+    size: FloatProperty(name="Size", default=0.3, min=0.1, max=0.6, precision=2, step=1,
+                        description="How wide the corner picture is, as a part of the video width")
+    seconds: FloatProperty(name="Seconds", default=3.0, min=0.5, soft_max=20.0, precision=1,
+                           description="How long the picture is shown, in seconds")
+    after_step: StringProperty(name="After step", description="Shows the picture right after this animation step "
+                                                              "(a step with a label). Empty: at the time below")
+    at: FloatProperty(name="At (s)", default=0.0, min=0.0, soft_max=120.0, precision=1,
+                      description="When the picture appears, in seconds from the start of the animation (used when "
+                                  "no step is chosen)")
+    caption: StringProperty(name="Caption", description="A line of text on the picture, e.g. what it shows")
+
+
 class FRAnimation(bpy.types.PropertyGroup):
     name: StringProperty(name="Name", default="Animation", update=_renamer("animation"),
                          description="Name of the animation, shown in the queue and the video's file name. "
@@ -681,6 +707,43 @@ class FRAnimation(bpy.types.PropertyGroup):
                     "everything you see from side to side, Crop keeps what you see from top to bottom",
         items=[("EXTEND", "Extend", "Keeps the width of the 16:9 picture and shows more above and below"),
                ("CROP", "Crop", "Keeps the height of the 16:9 picture and cuts the sides")])
+
+    # ---- picture cards and music (task 0025) ----
+    cards: CollectionProperty(type=FRCard)
+    cards_index: IntProperty(default=0)
+    music_file: StringProperty(name="Music", subtype="FILE_PATH",
+                               description="A sound file (WAV, MP3, OGG, FLAC or M4A) played under the whole video. "
+                                           "Use music you own or have the rights to")
+    music_start: FloatProperty(name="Start (s)", default=0.0, min=0.0, soft_max=60.0, precision=1,
+                               description="When the music starts, in seconds from the start of the video")
+    music_volume: FloatProperty(name="Volume", default=0.8, min=0.0, max=1.0, precision=2, step=5,
+                                description="How loud the music is: 1 = as recorded, 0.5 = half")
+    music_fade_in: FloatProperty(name="Fade in (s)", default=1.0, min=0.0, soft_max=10.0, precision=1,
+                                 description="How long the music takes to come up to full volume, in seconds")
+    music_fade_out: FloatProperty(name="Fade out (s)", default=2.0, min=0.0, soft_max=10.0, precision=1,
+                                  description="How long the music fades away at the end of the video, in seconds")
+
+
+class FRCallout(bpy.types.PropertyGroup):
+    """A label with a line to a point on a part (task 0025)."""
+    text: StringProperty(name="Text", default="Label",
+                         description="The words in the label, e.g. Gripper or Cylinder Ø63. A line break is typed "
+                                     "as \\n")
+    obj: PointerProperty(type=bpy.types.Object, name="Part",
+                         description="The part the line points at. The point moves with it in animations")
+    local: FloatVectorProperty(name="Point", size=3, subtype="XYZ", default=(0.0, 0.0, 0.0),
+                               description="The clicked point, in the part's own coordinates")
+    step: StringProperty(name="Show with step", description="Shows the label only while this animation step "
+                                                             "runs (a step with a label). Empty: the whole video")
+    on_still: BoolProperty(name="On images", default=True, description="Shows this label on still images you render. Switch it off to keep it out of images")
+    on_video: BoolProperty(name="In videos", default=True, description="Shows this label in MP4 videos, with a short fade. Switch it off to keep it out of videos")
+    manual: BoolProperty(name="Place by hand", default=False,
+                         description="Off: the box is placed automatically beside the model. On: you set where "
+                                     "the box sits with the two sliders below")
+    box_x: FloatProperty(name="Box left", default=0.05, min=0.0, max=1.0, precision=2, step=1,
+                         description="Where the box sits from left to right (0 = left edge, 1 = right edge)")
+    box_y: FloatProperty(name="Box height", default=0.8, min=0.0, max=1.0, precision=2, step=1,
+                         description="Where the box sits from bottom to top (0 = bottom edge, 1 = top edge)")
 
 
 class FRQueueJob(bpy.types.PropertyGroup):
@@ -880,6 +943,15 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                            description="How tall the watermark letters are, as a part of the picture height")
     wm_opacity: FloatProperty(name="See-through", default=0.25, min=0.05, max=1.0, precision=2, step=5,
                               description="How strong the watermark is: 1 = solid, 0.25 = see-through (the default)")
+
+    # ---- labels pointing at parts (task 0025) ----
+    callouts: CollectionProperty(type=FRCallout)
+    callouts_index: IntProperty(default=0)
+    callout_size: EnumProperty(name="Label size", default="MEDIUM",
+                               description="How big the letters in the labels are",
+                               items=[("SMALL", "Small", "Small letters"), ("MEDIUM", "Medium", "Normal letters"),
+                                      ("LARGE", "Large", "Big letters for phones")])
+    callout_picking: BoolProperty(default=False, options={"SKIP_SAVE"})
 
     # ---- structure ----
     tree: CollectionProperty(type=FRTreeItem)
@@ -1166,7 +1238,8 @@ def _show_joints(context):
 
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
-           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRUid, FRVisSet, FRShot, FRAnimBlock, FRAnimation,
+           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRUid, FRVisSet, FRShot, FRAnimBlock, FRCard,
+           FRAnimation, FRCallout,
            FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
 
 

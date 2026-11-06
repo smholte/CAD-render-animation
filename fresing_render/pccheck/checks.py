@@ -581,6 +581,66 @@ def video_finishing(ctx):
     return "logo and watermark on the picture"
 
 
+@line("video.labels", "Labels pointing at parts, picture card and music in a video", "0.2.25",
+      what="A label's line ends on its part in a picture; a video with a picture card and music has a sound track "
+           "as long as the video")
+def video_labels(ctx):
+    import math
+    import wave
+
+    import numpy as np
+
+    from ..blender import callouts, queue, video
+    from ..core import mp4
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s, 640, 360)
+    s.out_file_type, s.background, s.background_color = "PNG", "COLOR", (0.2, 0.2, 0.2)
+    from ..blender import build
+    part = next(o for o in sorted(scene.objects, key=lambda o: o.name)
+                if o.get(build.PROP_KIND) == "part" and o.type == "MESH")
+    item = callouts.add(scene, part, tuple(part.bound_box[0]), "PC check label")
+    size = callouts.render_size(scene)
+    spot = callouts.anchor_at(scene, item, size)
+    _check(spot is not None, "the corner of the first part is not in the picture")
+    job = {"id": "pc-lab", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+           "out_dir": os.path.join(ctx.work, "labels"), "label": "PC check", "watermark": False}
+    path = queue.run_job(scene, job, lambda *a: None, lambda: False)
+    img = runner.read_pixels(path)
+    h, w = img.shape[:2]
+    x, y = int(spot[0] * w / size[0]), int(spot[1] * h / size[1])
+    dot = img[max(0, h - y - 1):h - y + 2, max(0, x - 1):x + 2]
+    _check(float(dot.min()) > 0.8, "the label's line does not end on its part in the picture")
+    ctx.picture(path, "labels", "A label with its line (processor, draft)")
+    # a picture card and music in a short video
+    frames = os.path.join(ctx.work, "labels", "frames")
+    os.makedirs(frames, exist_ok=True)
+    px = np.full((90, 160, 3), 0.5, np.float32)
+    for i in range(1, 13):
+        runner.write_png(os.path.join(frames, f"frame_{i:04d}.png"), px)
+    tone = os.path.join(ctx.work, "labels", "PC check tone.wav")
+    with wave.open(tone, "w") as wv:
+        wv.setnchannels(2)
+        wv.setsampwidth(2)
+        wv.setframerate(22050)
+        t = np.arange(22050 * 4)
+        wv.writeframes(np.repeat((8000 * np.sin(2 * math.pi * 440 * t / 22050)).astype("<i2"), 2).tobytes())
+    card = os.path.join(ctx.work, "labels", "PC check card.png")
+    runner.write_png(card, np.full((45, 80, 3), 0.2, np.float32))
+    from ..core import callouts as core
+    fin = video.Finishing(music_file=tone, music_fade_in=0.2, music_fade_out=0.2,
+                          cards=[core.PictureCard(card, core.FULL, seconds=0.5, at=0.2)])
+    out = queue.encode_mp4(frames, os.path.join(ctx.work, "labels", "PC check video.mp4"), 160, 90, 12,
+                           finishing=fin)
+    tracks = mp4.track_seconds(out)
+    _check("soun" in tracks, "the video has no sound track")
+    _check(abs(tracks["soun"] - tracks["vide"]) < 0.25 and abs(tracks["vide"] - 1.5) < 0.25,
+           f"the sound is {tracks['soun']:.1f} s, the video {tracks['vide']:.1f} s (expected 1.5 s each)")
+    return "label line on its part; video with picture card and music: sound as long as the video"
+
+
 def _mill_scene(ctx):
     """The test mill with X/Y/Z slides, a short slot (plunge 25 mm, then 50 mm along X), the flat end
     mill as bit and the block as workpiece."""

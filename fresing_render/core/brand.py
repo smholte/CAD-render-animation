@@ -186,11 +186,22 @@ class Finishing:
     watermark: str = ""                   # "" = no watermark
     watermark_size: float = 0.12          # text height as a part of the picture height
     watermark_opacity: float = 0.25
+    # task 0025: labels pointing at parts, picture cards, music
+    labels: list = field(default_factory=list)            # core.callouts.LabelPlan
+    label_lines: dict = field(default_factory=dict)       # body frame -> transparent picture with the lines
+    label_font_px: int = 0                                # 0 = a size from the picture height
+    cards: list = field(default_factory=list)             # core.callouts.PictureCard
+    music_file: str = ""
+    music_start: float = 0.0                              # seconds into the video
+    music_volume: float = 0.8
+    music_fade_in: float = 1.0
+    music_fade_out: float = 2.0
 
     @property
     def active(self) -> bool:
         return bool(self.logo_corner in CORNERS and self.logo_file) or self.title_on or self.end_on \
-            or self.captions_on or bool(self.watermark)
+            or self.captions_on or bool(self.watermark) or bool(self.labels) or bool(self.cards) \
+            or bool(self.music_file)
 
     @property
     def logo_on(self) -> bool:
@@ -203,10 +214,20 @@ class Plan:
     body_frames: int
     end_frames: int
     captions: list[Caption] = field(default_factory=list)
+    inserts: list = field(default_factory=list)         # (after this body frame, number of frames): full-picture cards
+    placed: list = field(default_factory=list)          # core.callouts.PlacedCard
+
+    @property
+    def inserted(self) -> int:
+        return sum(n for _a, n in self.inserts)
 
     @property
     def total(self) -> int:
-        return self.title_frames + self.body_frames + self.end_frames
+        return self.title_frames + self.body_frames + self.inserted + self.end_frames
+
+    def video_frame(self, body_index: int) -> int:
+        """Frame in the finished video of frame ``body_index`` (1-based) of the animation."""
+        return self.title_frames + body_index + sum(n for a, n in self.inserts if a < body_index)
 
     @property
     def body_start(self) -> int:
@@ -214,7 +235,7 @@ class Plan:
 
     @property
     def end_start(self) -> int:
-        return self.title_frames + self.body_frames + 1
+        return self.title_frames + self.body_frames + self.inserted + 1
 
 
 def seconds_to_frames(seconds: float, fps: int) -> int:
@@ -247,11 +268,20 @@ def caption_list(steps: list[tuple[str, float, float]], fps: int, offset_frames:
 
 
 def plan(fin: Finishing, body_frames: int, fps: int, steps: list[tuple[str, float, float]] | None = None) -> Plan:
-    """Frames of the title card, the animation and the end card, and the captions."""
+    """Frames of the title card, the animation and the end card, and the captions.
+    Full-picture cards (task 0025) are put between the animation's frames; everything after moves later."""
     title = seconds_to_frames(fin.title_seconds, fps) if fin.title_on else 0
     end = seconds_to_frames(fin.end_seconds, fps) if fin.end_on else 0
     caps = caption_list(steps or [], fps, title, body_frames) if fin.captions_on else []
-    return Plan(title, body_frames, end, caps)
+    pl = Plan(title, body_frames, end, caps)
+    if fin.cards:
+        from .callouts import place_cards
+        pl.inserts, pl.placed = place_cards(fin.cards, title, body_frames, fps)
+        if pl.inserts:
+            for c in pl.captions:
+                c.start = pl.video_frame(c.start - title) if c.start > title else c.start
+                c.end = pl.video_frame(c.end - title) if c.end > title else c.end
+    return pl
 
 
 # ---------------------------------------------------------------------------

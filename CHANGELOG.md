@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.25 – 6 Nov 2026 – Labels pointing at parts, picture cards and music in videos (task 0025)
+
+For brochures and explainer videos.
+- **Labels** (5 Scene & Render > **Labels**): press **Add label**, click a spot on a part, type the words.
+  The label is a text box beside the machine with a thin line to that spot, in stills and in MP4 videos. The
+  line stays on the part when it moves in an animation, and the label disappears while that part is hidden.
+  Choose per label whether it shows only during one animation step, on images, in videos. The boxes are
+  placed automatically and never overlap (or place one by hand); colours and font come from the brand kit.
+- **Picture cards** (6 Animation > **Pictures & music**): a photo or diagram shown full screen between
+  steps (the animation waits) or in a corner over the animation, for a number of seconds, with a fade and an
+  optional caption.
+- **Music** under the whole video: start time, volume, fade in and fade out; cut to the length of the video.
+  The MP4 gets a sound track. (Use music you own or have the rights to.)
+- The PC check has a new line for this.
+
 ## 0.2.24 – 6 Nov 2026 – PC check: one click tests every function on your PC (task 0032)
 
 After an update, one click tests the new version on your own PC and shows the result in your web browser.

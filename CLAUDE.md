@@ -142,7 +142,9 @@ fresing_render/            the Blender extension (Python package)
                            machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
                            decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
                            decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
-                           chips.py (chip presets per material x bit, chip shapes, height fields, chip flight)
+                           chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
+                           callouts.py (picture-card time line, music span + fades, label boxes, the lines drawn
+                           with numpy), mp4.py (tracks of an MP4 without ffmpeg)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -166,6 +168,9 @@ fresing_render/            the Blender extension (Python package)
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
+    callouts.py            labels pointing at parts (task 0025): the clicked point projected per frame, boxes,
+                           transparent pictures with the lines; ops_callouts.py, ui_callouts.py (5 Labels,
+                           6 Pictures & music); picture cards and music are strips in video.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
@@ -457,3 +462,9 @@ the release → Delete); the next run on `main` publishes it again.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
   `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
   along with the paths (`machining.sample` stores it as `fr_wp_m`).
+- Sound in videos (task 0025): Blender does not evaluate animated strip properties without a window (also not a
+  sound strip's volume), and several sound strips with fixed volumes put side by side overlap by a sample at
+  every join. Music is decoded with `bpy.ops.sound.mixdown`, cut and faded with numpy, and put in as one strip.
+- Tests that draw text strips (Blender as a Python module): after a `read_factory_settings()` that follows text
+  drawn earlier in the same process, text draws nothing any more. `tests/test_video.py` must run first
+  (`test_video_callouts.py` sorts after it); a text check that must hold anywhere runs in a Python of its own.

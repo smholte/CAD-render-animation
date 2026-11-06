@@ -11,12 +11,15 @@ import math
 import os
 
 import bpy
+import numpy as np
 
 from ..core import brand
+from ..core import callouts as callouts_core
 from ..core.brand import Finishing
 
 # channels, bottom to top
 CH_UNDER, CH_FRAMES, CH_CARD, CH_LOGO, CH_CAPTION, CH_WATERMARK = 1, 2, 3, 5, 7, 9
+CH_LINES, CH_PICTURE, CH_LABEL, CH_CORNER, CH_MUSIC = 4, 6, 8, 12, 30      # task 0025
 
 WATERMARK_ANGLE = math.radians(25)
 
@@ -40,10 +43,34 @@ def _kit_fields(s) -> dict:
             "font": bpy.path.abspath(s.brand_font) if s.brand_font else "", "end_text": s.brand_contact}
 
 
+def _cards_of(scene, anim) -> list:
+    """The picture cards of an animation that can be shown (the file exists)."""
+    from . import animation
+    steps = {b.name.strip(): animation.block_end(b) for b in anim.blocks if b.enabled and b.name.strip()}
+    out = []
+    for c in anim.cards:
+        path = bpy.path.abspath(c.file) if c.file else ""
+        if not path or not os.path.isfile(path) or not path.lower().endswith(brand.LOGO_TYPES):
+            continue
+        at = steps.get(c.after_step.strip(), c.at) if c.after_step.strip() else c.at
+        out.append(callouts_core.PictureCard(path, c.mode, c.corner, c.seconds, at, c.caption.strip(), c.size))
+    return out
+
+
+def _music_path(anim) -> str:
+    p = bpy.path.abspath(anim.music_file) if anim.music_file else ""
+    return p if p and os.path.isfile(p) and p.lower().endswith(MUSIC_TYPES) else ""
+
+
+MUSIC_TYPES = (".wav", ".mp3", ".ogg", ".flac", ".m4a", ".aac")
+
+
 def finishing_for_animation(scene, anim, watermark: bool = False) -> Finishing:
     s = scene.fresing
     logo = _logo_path(s)
     return Finishing(
+        music_file=_music_path(anim), music_start=anim.music_start, music_volume=anim.music_volume,
+        music_fade_in=anim.music_fade_in, music_fade_out=anim.music_fade_out, cards=_cards_of(scene, anim),
         logo_corner=anim.fin_logo, logo_file=logo, logo_size=anim.fin_logo_size,
         title_on=anim.fin_title_on, title=anim.fin_title, subtitle=anim.fin_subtitle,
         title_seconds=anim.fin_title_seconds, end_on=anim.fin_end_on, end_seconds=anim.fin_end_seconds,
@@ -73,6 +100,12 @@ def warnings_for(scene, anim=None) -> list[str]:
     needs_logo = corner in brand.CORNERS or (anim is not None and anim.fin_end_on)
     if needs_logo and not _logo_path(s) and (corner in brand.CORNERS):
         out.append("A logo corner is on, but the brand kit has no logo (PNG or JPG): no logo in the picture")
+    if anim is not None:
+        for c in anim.cards:
+            if not c.file or not os.path.isfile(bpy.path.abspath(c.file)):
+                out.append(f"The picture card '{c.name or c.file or 'without a file'}' has no picture file: left out")
+        if anim.music_file and not _music_path(anim):
+            out.append("The music file cannot be found or is not WAV, MP3, OGG, FLAC or M4A: no music")
     if s.brand_font and not os.path.isfile(bpy.path.abspath(s.brand_font)):
         out.append("The brand font file cannot be found: Blender's own font is used")
     return out
@@ -224,17 +257,25 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
         bg.color = (1.0, 1.0, 1.0)
     font = _font(fin.font)
 
-    # the pictures
-    img = strips.new_image(name="frames", filepath=files[0], channel=CH_FRAMES, frame_start=pl.body_start)
-    for f in files[1:]:
-        img.elements.append(os.path.basename(f))
-    img.blend_type = "ALPHA_OVER"
+    # the pictures: one strip, or several when a full-picture card is put in between
+    cuts = [0] + sorted({a for a, _n in pl.inserts if 0 < a < body}) + [body]
+    for k in range(len(cuts) - 1):
+        part = files[cuts[k]:cuts[k + 1]]
+        if not part:
+            continue
+        img = strips.new_image(name="frames" if k == 0 else f"frames {k + 1}", filepath=part[0], channel=CH_FRAMES,
+                               frame_start=pl.video_frame(cuts[k] + 1))
+        for f in part[1:]:
+            img.elements.append(os.path.basename(f))
+        img.blend_type = "ALPHA_OVER"
 
-    body_frames = (pl.body_start, pl.body_start + body - 1)
+    body_frames = (pl.body_start, pl.video_frame(body))
     if fin.logo_on:
         lw, lh = _image_size(fin.logo_file)
         box = brand.logo_box(fin.logo_corner, width, height, lw, lh, fin.logo_size)
         _image(strips, "logo", fin.logo_file, body_frames, CH_LOGO, box, size)
+    _labels(strips, pl, fin, size, fps, font)
+    _picture_cards(strips, pl, fin, size, fps, font)
 
     fade = brand.seconds_to_frames(brand.CAPTION_FADE_SECONDS, fps)
     for i, cap in enumerate(pl.captions):
@@ -260,6 +301,8 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
               [(fin.end_text, 0.04, 0.34 if fin.logo_file else 0.5)],
               logo_box=box if fin.logo_file else None)
 
+    if fin.music_file:
+        add_music(enc, pl, fin, fps)
     if fin.watermark:
         px = brand.card_font_size(height, fin.watermark_size)
         st = _text(strips, "watermark", fin.watermark, (1, pl.total), CH_WATERMARK, px, (0.55, 0.55, 0.55),
@@ -271,6 +314,157 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
             pass
     return pl
 
+# ---------------------------------------------------------------------------
+# labels, picture cards, music (task 0025)
+# ---------------------------------------------------------------------------
+
+
+def _pieces(pl: brand.Plan, frames) -> list[tuple[int, int]]:
+    """Runs of body frames that are also consecutive in the video (a full-picture card in between splits a run)."""
+    out = []
+    for a, b in callouts_core.runs(frames):
+        start = a
+        for i in range(a, b + 1):
+            if i == b or pl.video_frame(i + 1) != pl.video_frame(i) + 1:
+                out.append((start, i))
+                start = i + 1
+    return out
+
+
+def _video_runs(pl: brand.Plan, frames) -> list[tuple[int, int]]:
+    return [(pl.video_frame(a), pl.video_frame(b)) for a, b in _pieces(pl, frames)]
+
+
+def _labels(strips, pl: brand.Plan, fin: Finishing, size, fps: int, font) -> None:
+    """Lines (one transparent picture per frame, under the boxes) and the label boxes with their text."""
+    width, height = size
+    for a, b in _pieces(pl, [f for f in fin.label_lines if 1 <= f <= pl.body_frames]):
+        files = [fin.label_lines[j] for j in range(a, b + 1)]
+        st = strips.new_image(name=f"lines {a}", filepath=files[0], channel=CH_LINES, frame_start=pl.video_frame(a))
+        for f in files[1:]:
+            st.elements.append(os.path.basename(f))
+        st.blend_type = "ALPHA_OVER"
+    fade = brand.seconds_to_frames(brand.CAPTION_FADE_SECONDS, fps)
+    bg = brand.hex_to_rgb(fin.color1)
+    fg = brand.hex_to_rgb(fin.color2, brand.DEFAULT_COLOR_2)
+    px = fin.label_font_px or brand.card_font_size(height, callouts_core.SIZE_FACTORS["MEDIUM"])
+    for n, lab in enumerate(fin.labels):
+        x, y, w, h = lab.box
+        for r, (first, last) in enumerate(_video_runs(pl, lab.frames())):
+            def make(fr, k, n=n, r=r, lab=lab, x=x, y=y, w=w, h=h):
+                st = _text(strips, f"label {n + 1}.{r}.{k}", lab.text, fr, CH_LABEL, px, fg,
+                           ((x + w / 2) / width, (y + h / 2) / height), font=font, wrap=0.0)
+                st.use_box = True
+                st.box_color = (*bg, 0.92)
+                st.box_margin = 0.45 * px / height
+                return st
+            _faded(make, first, last, fade)
+
+
+def _picture_cards(strips, pl: brand.Plan, fin: Finishing, size, fps: int, font) -> None:
+    width, height = size
+    fade = brand.seconds_to_frames(brand.CARD_FADE_SECONDS, fps)
+    fg = brand.hex_to_rgb(fin.color2, brand.DEFAULT_COLOR_2)
+    corner_n = 0
+    for i, placed in enumerate(pl.placed):
+        c = placed.card
+        pw, ph = _image_size(c.file)
+        frames = (placed.first, placed.last)
+        if c.mode == callouts_core.FULL:
+            bg = strips.new_effect(name=f"picture {i + 1} background", type="COLOR", channel=CH_CARD,
+                                   frame_start=placed.first, length=placed.last - placed.first + 1)
+            bg.color = brand.hex_to_rgb(fin.color1)
+            box = brand.fit_logo(width, height, pw, ph, 1.0)
+            _faded(lambda fr, k, i=i, box=box: _image(strips, f"picture {i + 1}.{k}", c.file, fr, CH_CARD + 1, box,
+                                                      size)[0], *frames, fade)
+            if c.caption:
+                _faded(lambda fr, k, i=i, c=c: _text(
+                    strips, f"picture {i + 1} caption.{k}", c.caption, fr, CH_CARD + 2,
+                    brand.card_font_size(height, 0.045), fg, (0.5, 0.07), font=font, wrap=0.9, shadow=True),
+                    *frames, fade)
+        else:
+            box = brand.logo_box(c.corner, width, height, pw, ph, c.size)
+            channel = CH_CORNER + corner_n
+            corner_n += 2
+            _faded(lambda fr, k, i=i, box=box, channel=channel: _image(
+                strips, f"picture {i + 1}.{k}", c.file, fr, channel, box, size)[0], *frames, fade)
+            if c.caption:
+                cx = (box[0] + box[2] / 2) / width
+                cy = min(0.97, (box[1] + box[3]) / height + 0.04) if c.corner in ("BL", "BR") else \
+                    max(0.03, box[1] / height - 0.04)
+                _faded(lambda fr, k, i=i, c=c, cx=cx, cy=cy, channel=channel: _text(
+                    strips, f"picture {i + 1} caption.{k}", c.caption, fr, channel + 1,
+                    brand.card_font_size(height, 0.03), fg, (cx, cy), font=font, wrap=0.45, shadow=True),
+                    *frames, fade)
+
+
+def sound_frames(strips, path: str) -> int:
+    """How long a sound file is, in frames of the scene."""
+    probe = strips.new_sound(name="probe", filepath=path, channel=CH_MUSIC + 1, frame_start=1)
+    try:
+        return int(probe.duration)
+    finally:
+        strips.remove(probe)
+
+
+_TEMP_DIRS: list[str] = []
+
+
+def cleanup() -> None:
+    """Delete the sound files made for a video (call when the video is written)."""
+    import shutil
+    while _TEMP_DIRS:
+        shutil.rmtree(_TEMP_DIRS.pop(), ignore_errors=True)
+
+
+def _mixdown(path: str, first_frame: int, frames: int, fps: int, out: str, rate: int = 48000) -> None:
+    """Decode ``frames`` frames of a sound file (from its beginning) into a WAV file."""
+    tmp = bpy.data.scenes.new("FR music")
+    try:
+        tmp.render.fps, tmp.render.fps_base = fps, 1.0
+        st = tmp.sequence_editor_create().strips.new_sound(name="m", filepath=path, channel=1, frame_start=1)
+        st.left_handle, st.right_handle = 1, 1 + frames
+        tmp.frame_start, tmp.frame_end = 1, frames
+        with bpy.context.temp_override(scene=tmp):
+            bpy.ops.sound.mixdown(filepath=out, container="WAV", codec="PCM", format="S16", mixrate=rate)
+    finally:
+        bpy.data.scenes.remove(tmp)
+
+
+def add_music(enc, pl: brand.Plan, fin: Finishing, fps: int):
+    """The music as one sound strip: cut to the video's length and faded by working out the volume of every
+    sample (Blender does not evaluate animated strip volumes without a window). Returns the strip or None."""
+    import tempfile
+    import wave
+    probe = bpy.data.scenes.new("FR music")
+    try:
+        probe.render.fps, probe.render.fps_base = fps, 1.0
+        n = sound_frames(probe.sequence_editor_create().strips, fin.music_file)
+    finally:
+        bpy.data.scenes.remove(probe)
+    span = callouts_core.music_span(pl.total, fps, fin.music_start, n)
+    if span is None or fin.music_volume <= 0:
+        return None
+    first, last = span
+    folder = tempfile.mkdtemp(prefix="fr_music_")
+    _TEMP_DIRS.append(folder)
+    raw, done = os.path.join(folder, "raw.wav"), os.path.join(folder, "music.wav")
+    _mixdown(fin.music_file, 1, last - first + 1, fps, raw)
+    with wave.open(raw) as w:
+        rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
+        data = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").reshape(-1, ch).astype(np.float32)
+    gain = callouts_core.gain_curve(len(data), rate, fin.music_volume, fin.music_fade_in, fin.music_fade_out)
+    out = np.clip(data * gain[:, None], -32768, 32767).astype("<i2")
+    with wave.open(done, "w") as w:
+        w.setnchannels(ch)
+        w.setsampwidth(width)
+        w.setframerate(rate)
+        w.writeframes(out.tobytes())
+    st = enc.sequence_editor.strips.new_sound(name="music", filepath=done, channel=CH_MUSIC, frame_start=first)
+    st.right_handle = last + 1
+    enc.use_audio = True
+    return st
+
 
 # ---------------------------------------------------------------------------
 # stills
@@ -279,7 +473,7 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
 
 def finish_picture(path: str, fin: Finishing, file_type: str = "PNG") -> None:
     """Put the logo and the watermark on a finished picture file (in place)."""
-    if not (fin.logo_on or fin.watermark):
+    if not (fin.logo_on or fin.watermark or fin.labels):
         return
     img = bpy.data.images.load(path, check_existing=False)
     try:
@@ -297,7 +491,8 @@ def finish_picture(path: str, fin: Finishing, file_type: str = "PNG") -> None:
             pass
         only = Finishing(logo_corner=fin.logo_corner, logo_file=fin.logo_file, logo_size=fin.logo_size,
                          color1=fin.color1, color2=fin.color2, font=fin.font, watermark=fin.watermark,
-                         watermark_size=fin.watermark_size, watermark_opacity=fin.watermark_opacity)
+                         watermark_size=fin.watermark_size, watermark_opacity=fin.watermark_opacity,
+                         labels=fin.labels, label_lines=fin.label_lines, label_font_px=fin.label_font_px)
         build_sequence(enc, [path], size, 1, only)
         enc.frame_start = enc.frame_end = 1
         im = r.image_settings

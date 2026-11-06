@@ -246,13 +246,25 @@ def prepare_still(scene, s, quality: str) -> tuple[str, str, str]:
     return final, target, device
 
 
+def _remove_dir(path: str) -> None:
+    import shutil
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def finish_still(scene, s, rendered: str, final: str, watermark: bool | None = None) -> None:
     """Composite the background colour / convert to JPEG where needed, then the logo and the watermark
     (task 0018). ``watermark``: None = as the switch in 5 Scene & Render says."""
     _finish_still_file(scene, s, rendered, final)
     from . import video
     fin = video.finishing_for_still(scene, s.wm_on if watermark is None else watermark)
-    video.finish_picture(final, fin, s.out_file_type)
+    from . import callouts
+    size_px = callouts.render_size(scene)
+    fin.labels, fin.label_lines = callouts.plan_still(scene, size_px, final + ".lines")
+    fin.label_font_px = callouts.font_px(scene, size_px)
+    try:
+        video.finish_picture(final, fin, s.out_file_type)
+    finally:
+        _remove_dir(final + ".lines")
 
 
 def _finish_still_file(scene, s, rendered: str, final: str) -> None:
