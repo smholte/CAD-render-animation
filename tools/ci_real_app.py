@@ -14,6 +14,8 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     milling  tools/ui_test_milling.py - milling: pick bit and block in the view, the cut follows the timeline; chips
     cylinder tools/ui_test_cylinder.py - cylinders: barrel and rod, clicks on the two pins, follow / drive, undo
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
+    pccheck  the PC check (Full), started like its Start-menu shortcut: the launcher inside the installed
+           extension, in a background Blender; judged by tools/ci_check_pccheck.py (task 0032)
     update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
            this version on a local GitHub-like server, Update now, closes, is updated and starts again
 
@@ -47,7 +49,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
-              "milling": 17, "video": 14, "cylinder": 22, "paths": 8, "update": 29}
+              "milling": 24, "video": 14, "cylinder": 22, "paths": 8, "pccheck": 30, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9}   # UITEST_QUICK=1 skips renders and the queue
 
 
@@ -134,7 +136,7 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,milling,cylinder,paths,update")
+    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,milling,cylinder,paths,pccheck,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -168,6 +170,7 @@ def main(argv=None) -> int:
         "cylinder": ("Real app: cylinders – barrel, rod, clicks on the pins, follow / drive (ui_test_cylinder.py)",
                      "ui_test_cylinder.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
+        "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
         "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                    "ci_update_test.py", None),
     }
@@ -180,7 +183,12 @@ def main(argv=None) -> int:
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")
         script_path = os.path.join(ROOT, "tools", script)
-        if gui is None:                              # a driver of its own (own settings folder and screen)
+        if gui == "pccheck":                         # as the Start-menu shortcut starts it (screen: for EEVEE)
+            launcher = os.path.join(user_res, "extensions", "user_default", "fresing_render", "pccheck", "launcher.py")
+            env.update(FRESING_PCCHECK_DIR=os.path.join(folder, "history"), FRESING_PCCHECK_NO_OPEN="1")
+            cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--background", "--online-mode", "--python-exit-code", "1",
+                   "--python", launcher, "--", folder, "full"]
+        elif gui is None:                            # a driver of its own (own settings folder and screen)
             cmd = [sys.executable, script_path, "--gui", "--blender", blender, "--wheels", os.path.abspath(args.wheels),
                    "--out", folder, "--timeout-min", str(args.timeout_min)]
         elif gui:
@@ -199,6 +207,15 @@ def main(argv=None) -> int:
         print(f"\n== {title}", flush=True)
         code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
         verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
+        if key == "pccheck":                         # skips only for "no graphics card", every line there
+            import ci_check_pccheck
+            block = os.path.join(folder, "history", "last_run.txt")
+            text_block = open(block, encoding="utf-8").read() if os.path.isfile(block) else ""
+            _rows, problems = ci_check_pccheck.judge(text_block)
+            if problems:
+                verdict = False
+                detail += "; " + "; ".join(problems[:3])
+                fails += problems
         rows.append((title, verdict, detail, secs, fails))
         print(f"== {title}: {'PASS' if verdict else 'FAIL'} - {detail} ({secs:.0f} s)", flush=True)
 

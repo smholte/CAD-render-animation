@@ -1,6 +1,6 @@
 # 0013 – Hydraulic and electric cylinders
 
-**Who:** worker · **Model:** Opus · **Status:** done (0.2.24) · **Branch:** `task/0013-cylinders`
+**Who:** worker · **Model:** Opus · **Status:** done (0.2.25) · **Branch:** `task/0013-cylinders`
 **Started by:** lead chat, 4 Nov 2026 · **Lane:** Motion · **Area:** same as task 0011.
 
 ## Goal
@@ -88,6 +88,8 @@ out so both eyes stay on their pins. And the other way round: the owner sets the
   property definitions while the file is read (with `from __future__ import annotations`): NameError. Now a
   named function above the class; also shows/hides the cylinders' markers. Lesson in CLAUDE.md.
 - From 0023: "1 subassembly added", "1 piece … moved apart" (`plural()`).
+- PC check (rule from task 0032, merged in meanwhile): line `joints.cylinder` (luffer: eye on its pin at 20°, stroke
+  100 mm → the hand-calculated arm angle); `test_cylinder_a.step` copied to `fresing_render/data/`; MIN_LINES_FULL 31.
 - Docs: guide chapter 4 "Cylinders" (+ picture) and chapter 6 (Move cylinder); CHANGELOG; CLAUDE.md (layout,
   real-app test list, 2 lessons); `tooltip_report.py` knows the cylinder panel (311 found, 0 missing, 0 weak).
 
