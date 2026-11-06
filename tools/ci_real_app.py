@@ -58,15 +58,16 @@ MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036). Balanced by measured minutes
-# (run 42248687039, 6 Nov 2026): pccheck 8.8 | callouts 7.2 | ui1 6.2 + ui2 0.8 + faces 0.2 |
-# surroundings 4.5 + paths 2.0 + rulesets 0.5 + decals 0.3 | video 3.3 + studio 1.5 + update 0.5 + milling 0.5 +
-# cylinder 0.4 + linkage 0.4 + waycover 0.3. A new test goes into the group with the fewest minutes (add it to
-# TESTS and MIN_CHECKS too); a test that is in no group, or in two, fails the precheck (tools/ci_precheck.py).
+# (run 42261621440, 6 Nov 2026, each group on its own runner): pccheck 11.7 | callouts 5.2 + paths 2.8 |
+# ui1 7.7 + ui2 1.2 + faces 0.3 | surroundings 6.7 + rulesets 0.6 + decals 0.3 | video 3.4 + studio 1.6 + update 0.5 +
+# milling 0.5 + cylinder 0.4 + linkage 0.4 + waycover 0.3. A new test goes into the group with the fewest minutes
+# (add it to TESTS and MIN_CHECKS too); a test that is in no group, or in two, fails the precheck
+# (tools/ci_precheck.py). The PC check alone sets the run's length: keep the other groups below it.
 GROUPS = {
     "pccheck": ["pccheck"],
-    "callouts": ["callouts"],
+    "callouts": ["callouts", "paths"],
     "ui": ["ui1", "ui2", "faces"],
-    "scenes": ["surroundings", "paths", "rulesets", "decals"],
+    "scenes": ["surroundings", "rulesets", "decals"],
     "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover"],
 }
 
