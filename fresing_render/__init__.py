@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.23"
+__version__ = "0.2.24"
 
 _modules = []
 
@@ -42,12 +42,16 @@ def register():
     project_lock.register()
     machining.register()
     updates.register()
+    from . import pccheck
+    pccheck.register()                       # after updates: its Help entry goes under the update check
 
 
 def unregister():
     import bpy
 
+    from . import pccheck
     from .blender import decals, handlers, machining, project_lock, props, updates
+    pccheck.unregister()
     updates.unregister()
     machining.unregister()
     project_lock.unregister()

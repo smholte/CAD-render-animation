@@ -114,6 +114,8 @@ Fresing Render.
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
    (see [Troubleshooting](#troubleshooting)).
+5. To test every function on your PC (after each update too): Start menu > Fresing Render >
+   **Fresing Render - PC check (quick)** ([The PC check](#pc-check)).
 
 README.txt in the installer folder has the details: company PCs, updates, removing the app.
 
@@ -143,6 +145,8 @@ a newer version. When there is one, **Update available** appears at the top of t
   says so and links to its release page.
 - The check needs internet access to github.com. Switch it off in **Edit > Preferences > Add-ons >
   Fresing Render > Check for updates at start-up**.
+- After an update, run the **PC check** once: it tests every main function of the new version on your PC
+  ([The PC check](#pc-check)).
 
 ### Moving around in the view
 
@@ -1045,6 +1049,44 @@ importing on all cores, CAD material names, the app start, the graphics card, a 
 on the graphics card and one on the processor, joints and animation, the video encoder, the render
 queue, the time test and the update check. A line with `[FAIL]` says what went wrong: send the file
 along when you ask for help.
+
+<a id="pc-check"></a>
+### The PC check (after every update)
+
+The PC check tests every main function of the installed version on your PC, with small test models
+that come with the app (never your own files, unless you ask): import and sorting, painted faces, rule
+sets, joints, couplings and motors, poses, model update, saving, surroundings, light looks, camera views,
+blur, turntable, milling, pictures on the graphics card and on the processor, EEVEE, a video through the
+render queue, the time test and the update check. It runs in the background; you can keep working.
+
+**Start it**
+1. Start menu > Fresing Render > **Fresing Render - PC check (quick)** (about 3 minutes: import, a
+   joint, a picture on the graphics card, a short EEVEE video), or **Fresing Render - PC check (full)**
+   (about 15 minutes: everything). Or in the app: **Help > Fresing Render PC check…**, pick **Quick** or
+   **Full**, then **OK**.
+2. A black window shows the steps as they run. Leave it open; it closes by itself.
+3. At the end "Fresing Render PC check.html" opens in your web browser (it is on the Desktop too).
+
+**With your own model (optional).** Drag a STEP file onto **Fresing Render - PC check** on the Desktop
+(the Start menu does not take files), or in **Help > Fresing Render PC check…** tick **Also test my own STEP file** and pick it (the
+model of the open project is filled in already). The check then also measures your model: import time,
+parts, unique parts, triangles, the share sorted by the rules, a picture on the graphics card and the
+time per frame for **Preview** and **Fast preview (EEVEE)** at HD.
+
+**What the report shows**
+- On top: all OK, or how many functions failed, and how many there are to look at.
+- **New in this version**: the functions that came since your last PC check.
+- **Look at these**: what failed (with the reason), what got more than 25 % slower than in your last
+  runs, and pictures that look different from last time or are black or empty.
+- **Every function**: OK / FAILED / skipped, the time, the time last time and the change.
+- **Pictures**: small pictures of the test renders, to see at a glance that they look right.
+- The times are compared with the last runs **on this PC** (they are kept with the app's settings), so
+  the first run has nothing to compare with yet.
+
+**What to send back.** At the bottom, under **For the lead chat**, click **Copy** and paste the text
+into the lead chat. It holds numbers only: version, processor, graphics card and driver, every line with
+its result and time. No file names, part names or pictures of your model; the report itself stays on
+your PC.
 
 ### Updates do not arrive
 

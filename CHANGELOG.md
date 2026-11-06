@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.24 – 6 Nov 2026 – PC check: one click tests every function on your PC (task 0032)
+
+After an update, one click tests the new version on your own PC and shows the result in your web browser.
+- Start menu > Fresing Render > **Fresing Render - PC check (quick)** (about 3 minutes) or **(full)** (about
+  15 minutes: every function), **Fresing Render - PC check** on the Desktop, or **Help > Fresing Render PC check…** in the app. It runs in the background
+  with small test models that come with the app; you can keep working.
+- The report ("Fresing Render PC check.html", also on the Desktop) shows every function as OK, FAILED (with
+  the reason) or skipped, how long it took and how long it took last time on your PC. Steps more than 25 %
+  slower, and pictures that are black, empty or look different from last time, are listed under **Look at
+  these**. Functions new since your last check are on top. Small pictures of the test renders show at a
+  glance that they look right.
+- Your own model, if you like: drop a STEP file on **Fresing Render - PC check** on the Desktop, or tick **Also test my own STEP
+  file**. It measures import time, parts, the share sorted, a picture on the graphics card and the time per
+  frame for Preview and EEVEE.
+- At the bottom: **Copy** the text for the lead chat. It holds numbers only – no file names, part names or
+  pictures; the report stays on your PC.
+- The check also runs on GitHub at every change, so it keeps working (there without a graphics card).
 ## 0.2.23 – 6 Nov 2026 – video finishing: logo, title and end card, captions, watermark (task 0018)
 
 Videos come out ready to post or send.
