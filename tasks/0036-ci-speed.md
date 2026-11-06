@@ -1,6 +1,6 @@
 # 0036 – Automatic tests: from 35–50 minutes to about 15, and no repeated full runs
 
-**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** open – can start
+**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** running
 **Branch:** `task/0036-ci-speed`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** Quality & delivery (`.github/`, `tools/ci_*`, `tools/release_tools.py`;
 no app code) · **Runs before 0031** (both touch `.github/` and CLAUDE.md section 4/5).
