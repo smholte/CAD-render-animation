@@ -120,18 +120,20 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
 
 **Tested and measured** (GitHub's free runners, 4 cores):
 
-| Job | Before (runs 42247094070 / 42248687039) | After (runs 42261621440 / 42263700501 / 42266138945 / 42268319993) |
+| Job | Before (runs 42247094070 / 42248687039) | After (runs 42261621440 / 42263700501 / 42266138945 / 42268319993 / 42272580046) |
 | --- | --- | --- |
 | Precheck | – | 0.1 / 0.1 / 0.1 min |
 | Linux - test suite (+ packaged self-test) | 22–29 min, one job | 4 groups: 4.6–6.1 / 4.7–7.5 / 5.9–7.6 min |
 | Linux - real app | 38 min, one job | pccheck 12.4 / 11.0 / 12.2; callouts 5.7 / 13.8 (with paths) / 9.9; ui 9.7 / 6.5 / 8.4; scenes 11.3 / 8.2 / 5.0; motion 7.5 / 9.6 / 10.0; paths-heavy – / – / 7.2 min |
 | Build | 0.7 min | 0.6 / 0.5 / 0.7 min |
 | Windows - install + self-test | 11–12 min | 9.8 / 12.0 / 12.0 min |
-| **Whole run, push to verdict** | **35–50 min** | **12.7 / 14.2 / 13.0 / 12.8 min (median 12.9)** |
+| **Whole run, push to verdict** | **35–50 min** | **12.7 / 14.2 / 13.0 / 12.8 / 10.7 min (median 12.8)** |
 
 - Precheck clash: run 42268182878 (version set back to 0.2.28 while main had 0.2.29): failed in the precheck
   after 0.1 min, 0.3 min in all, nothing else started, message "someone took your version number: 0.2.28 is not
-  newer than 0.2.29 … renumber to 0.2.30". Normal pushes: precheck green in 0.1 min (all runs above).
+  newer than 0.2.29 … renumber to 0.2.30". And for real: run 42272308248, after task 0026 took 0.2.30 on `main`
+  while this branch had it: failed after 0.3 min with "… renumber to 0.2.31". Normal pushes: precheck green in
+  0.1–0.2 min (all runs above).
 - Docs path: run 42270382249 (only version lines, CHANGELOG, task file changed since the green run 42268319993):
   mode docs, precheck + build with tooltip check (379 ok), guide build and 67 documentation tests; **1.8 min**
   from start to end, including the rehearsal's publish.

@@ -103,7 +103,7 @@ The owner's AI usage is limited; every chat works economically:
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
 GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0036
-a full run takes about 13 minutes (parallel jobs), but a task is often run several times. So:
+a full run takes about 13 minutes (parallel jobs; a docs-only run about 2), but a task is often run several times. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
   `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
   version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
@@ -303,7 +303,8 @@ cadquery-ocp-proxy==8.0.1.1.0 manifold3d==3.5.4 --no-deps --only-binary=:all: --
 changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_status.py` says so –, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
 run; runs on `main` always finish. Since task 0036 the tests run as parallel jobs: a full run takes about
-13–14 minutes from push to verdict (12.7 and 14.2 min, runs 42261621440 / 42263700501, 6 Nov 2026; before: 24–50). The first job,
+11–14 minutes from push to verdict (five runs on 6 Nov 2026: 12.7, 14.2, 13.0, 12.8, 10.7 min, median 12.8; before:
+24–50). The first job,
 `precheck`, picks the **mode** of the run (`ci_status.py` prints it):
 
 - **full** – every job below.
