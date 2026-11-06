@@ -839,6 +839,8 @@ Good to know
 
 ### CNC machine (G-code)
 
+<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, tools">
+
 Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
 spindle), which part is the tool and where the program's zero is on the workpiece. Then a step **Run
 G-code program** in 6 Animation moves the machine exactly as the program would – the program your CAM

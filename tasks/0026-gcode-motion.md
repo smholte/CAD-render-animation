@@ -1,6 +1,6 @@
 # 0026 – G-code drives the machine: CNC programs as animations
 
-**Who:** worker · **Model:** Opus · effort High · **Status:** running · **Branch:** `task/0026-gcode-motion`
+**Who:** worker · **Model:** Opus · effort High · **Status:** done (0.2.29) · **Branch:** `task/0026-gcode-motion`
 **Started by:** lead chat, 5 Nov 2026 · **Lane:** Motion · **Area:** new `blender/gcode.py` and
 `core/gcode.py` (parser, no Blender), `blender/animation.py` (one new step type), `blender/joints.py`
 (only if needed), `ui_motion.py` (panels 4/6), `blender/props.py` (additive), `docs/USER-GUIDE.md`
@@ -56,13 +56,13 @@ program would, at a speed he chooses.
 
 ## Done when
 
-- [ ] Reader tests: every supported code, arcs in all planes against hand-calculated points,
+- [x] Reader tests: every supported code, arcs in all planes against hand-calculated points,
       incremental mode, work offsets, drilling cycles, unknown codes reported with line numbers
-- [ ] A generic test machine (`tools/make_test_*.py`: gantry with X/Y/Z slides) runs a test
+- [x] A generic test machine (`tools/make_test_*.py`: gantry with X/Y/Z slides) runs a test
       program; tool tip positions at sampled frames match the program within 0.01 mm
-- [ ] Bake time for a long program measured (lines, frames, seconds) on the test machine
+- [x] Bake time for a long program measured (lines, frames, seconds) on the test machine
 - [ ] Owner's real program tried locally if he attached one (numbers only in the report)
-- [ ] Real-app click test step, screenshots, full suite, GitHub run green; merged and released
+- [x] Real-app click test step, screenshots, full suite, GitHub run green; merged and released
 
 ## Not in this task
 
@@ -122,8 +122,13 @@ program would, at a speed he chooses.
 - Bake time (in the test): 20,005 lines, about 30 minutes on the machine, 45,349 frames at 25 fps: 2.2–3.1 s
   including reading the program and the toolpath.
 - Owner's real program: none attached – not tried.
-- Real-app test and guide pictures: download.blender.org is blocked in this session, so `ui_test_gcode.py` ran
-  on GitHub only (see the run of the branch).
+- Real-app test `ui_test_gcode.py` on GitHub (download.blender.org is blocked in this session): 23/23 – clicks
+  on tool, block and carousel tool, clicked work zero snapping to the corner, tip on the path, T2 after M6,
+  toolpath, playback, reopen with the program file gone, Clear. The two guide pictures were taken there and read
+  back from the job log (printed as base64, since the chats cannot download the run's files). The first picture
+  showed three labels cut off at the default side-panel width; fixed.
+- Full suite locally 2,246 passed (before merging main); GitHub runs of the branch green (Linux suite, real
+  app, Windows install + self-test).
 
 **Open points / follow-up tasks:**
 - Milling (0027) with tool changes: milling's bits are fixed parts; the tool copies shown at M6 do not cut.
