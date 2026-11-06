@@ -1,6 +1,6 @@
 # 0036 – Automatic tests: from 35–50 minutes to about 15, and no repeated full runs
 
-**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** running
+**Who:** worker · **Model:** Opus · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.31)
 **Branch:** `task/0036-ci-speed`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** Quality & delivery (`.github/`, `tools/ci_*`, `tools/release_tools.py`;
 no app code) · **Runs before 0031** (both touch `.github/` and CLAUDE.md section 4/5).
@@ -71,15 +71,15 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
 
 ## Done when
 
-- [ ] Median full run (3 runs on branches, different days/times if possible) ≤ 15 min, all existing checks
+- [x] Median full run (3 runs on branches, different days/times if possible) ≤ 15 min, all existing checks
       still run; the report lists every job before/after.
-- [ ] `precheck` fails a clashing version in about 1 minute (shown by a test push), and passes a normal push.
-- [ ] A fast-forward of `main` to a commit with a green run reaches "Offer the release to the apps" in ≤ 3 min
+- [x] `precheck` fails a clashing version in about 1 minute (shown by a test push), and passes a normal push.
+- [x] A fast-forward of `main` to a commit with a green run reaches "Offer the release to the apps" in ≤ 3 min
       without re-running the tests; a `main` push without a green run for its tree runs everything.
-- [ ] A docs/changelog-only push takes ≤ 5 min; a code push runs everything.
-- [ ] Every real-app test and pytest file is in exactly one group (checked); `MIN_CHECKS` kept.
-- [ ] CLAUDE.md sections 2 and 5 updated; `docs/UPDATES.md` if the release path changed; report filled in.
-- [ ] Windows-only parts (any PowerShell/job changes) reviewed by a helper that did not write them.
+- [x] A docs/changelog-only push takes ≤ 5 min; a code push runs everything.
+- [x] Every real-app test and pytest file is in exactly one group (checked); `MIN_CHECKS` kept.
+- [x] CLAUDE.md sections 2 and 5 updated; `docs/UPDATES.md` if the release path changed; report filled in.
+- [x] Windows-only parts (any PowerShell/job changes) reviewed by a helper that did not write them.
 
 ## Not in this task
 
@@ -139,8 +139,16 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
   from start to end, including the rehearsal's publish.
 - Rehearsal: run 42270382249 published the pre-release and deleted it again, but skipped the Windows update
   check: GitHub skips a job whose chain holds a skipped job (the test jobs). Fixed (`!cancelled()` and
-  explicit results for the release check and "Offer the release"); REHEARSAL2
-- REUSE
+  explicit results for the release check and "Offer the release"); run 42274279674 (mode docs + rehearsal):
+  pre-release published, the installed 0.0.1 on Windows found it and updated itself to 0.2.31 (8/8 + the
+  after-update checks), pre-release deleted; **2.6 min** in all.
+- Reuse on `main`: `main` fast-forwarded to 4ca25b7 (the commit of the green run 42274279674). Run 42274773565:
+  mode reuse, no test job ran, release 0.2.31 published with that run's installer files (`verify-run` OK), the
+  Windows update check passed, offered to the apps: precheck start 19:13:47 → "Offer the release" done 19:15:31,
+  **1.7 min**. `latest/download/index.json` says 0.2.31. (The run waited 20 min before it started, queued behind
+  task 0026's `main` run on the old workflow: `main` runs are never cancelled.) A `main` push without a green
+  run of its tree runs everything (tests `test_reuse_finds_the_green_run_of_the_same_tree`, and every `main`
+  run of the other tasks today).
 - pytest-xdist was not tried on GitHub: the slowest single test (`test_video_labels.py`, 265 s, a queued
   video) alone is longer than any group's other files, the render-queue tests already use all 4 cores, and
   the file groups already put the suite (4.6–7.6 min) below the PC check job (11–12 min). xdist could not
@@ -149,7 +157,10 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
   release conditions) reviewed by a helper agent that did not write them: no defects, three small points
   (guard a missing clock value, `!cancelled()` instead of `always()` for the release, label of a time line),
   all three applied.
-- Runs this task needed: RUNS.
+- Runs this task needed: 10 on the branch + 1 on `main`. Five full runs to measure (one after a merge of
+  `main` that brought 0033's Heavy test), one intentional precheck demo, one real version clash (0026 took
+  0.2.30 meanwhile – caught in 0.3 min), one docs rehearsal that found the skipped release check, one docs
+  rehearsal after the fix, then the reuse run on `main`.
 
 **Open points / follow-up tasks:**
 - The PC check (Full) job is now the run's length (11–12 min): splitting it would change what it tests
@@ -157,3 +168,6 @@ Runs per task seen today: branch run (24–50 min) → merge of `main` (version/
 - Running branches (0026) pick up the new workflow when they merge `main`; a new real-app test of theirs must
   go into `GROUPS` (the precheck says so). `ci_status.py` reads old and new runs.
 - Leftover branch for the owner to delete on github.com: `task/0036-ci-speed`.
+- Matrix jobs that are skipped show their unexpanded names (`Linux - test suite ${{ matrix.group.name }}…`) on the
+  run page and in `ci_status.py`: cosmetic, GitHub does this.
+- The progress note `claude/render-app-progress.md` is not reachable from here: the lead adds the entry.
