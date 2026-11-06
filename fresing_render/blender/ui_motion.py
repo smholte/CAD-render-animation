@@ -631,7 +631,8 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 # =============================================================================
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
-              "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC"}
+              "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
+              "GCODE": "FILE_SCRIPT"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -803,6 +804,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         sub.prop(b, "to_height", text="To")
                         lo, hi = linkages.height_range(scene, m)
                         box.label(text=f"Height {_mm(lo)} … {_mm(hi)}")
+            elif b.kind == "GCODE":
+                from .ui_gcode import draw_step
+                draw_step(context, box, scene, a, b)
             elif b.kind == "POSE":
                 col.prop_search(b, "pose", s, "poses", text="Pose", icon="ARMATURE_DATA")
             elif b.kind == "CAMERA":
@@ -818,7 +822,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
             col = split_props(box)
             col.prop(b, "start", text="Start (s)")
-            if b.kind not in ("SHOW", "HIDE") and not (b.kind == "CAMERA" and b.camera_mode == "CUT"):
+            if b.kind == "GCODE":
+                pass                                # its length follows from the program (shown above)
+            elif b.kind not in ("SHOW", "HIDE") and not (b.kind == "CAMERA" and b.camera_mode == "CUT"):
                 col.prop(b, "duration", text="Duration (s)")
                 col.prop(b, "easing", text="Motion")
                 if b.kind == "MOTOR" and b.easing != "LINEAR":

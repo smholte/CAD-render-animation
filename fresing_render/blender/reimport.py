@@ -159,6 +159,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     # 1. joints off (parts back in the CAD tree), remember free moves by part ID
     from . import machining
     machining.before_model_update(scene)         # milling (task 0027): the workpiece gets its CAD mesh back
+    from . import gcode
+    gcode.before_model_update(scene)             # CNC machine (task 0026): its marker and toolpath hang on parts
     build.ensure_bases(scene)
     from . import cylinders
     # cylinders (task 0013) first: their pins hang on parts the joints move
@@ -247,6 +249,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     notes += cylinders.rebuild_from_specs(scene, cyl_specs, by_uid_new)     # after the joints: drive mode needs them
     states.remap_uids(scene, mapping)
     notes += machining.after_model_update(scene, mapping, by_uid_new)
+    from . import gcode
+    notes += gcode.after_model_update(scene, mapping, by_uid_new)
     from . import waycover
     notes += waycover.after_joints_rebuilt(scene)                            # way covers (task 0034)
     logic.apply_rules(scene)

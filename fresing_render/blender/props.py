@@ -247,6 +247,10 @@ def _renamer(kind: str):
                     j.label = f"Animation: {new}"
             if s.anim_baked == old:
                 s.anim_baked = new
+            for a in s.animations:                  # G-code steps play another animation at tool changes
+                for b in a.blocks:
+                    if b.gcode_atc == old:
+                        b.gcode_atc = new
 
     return update
 
@@ -696,7 +700,29 @@ BLOCK_KINDS = [
      "CON_STRETCHTO", 6),
     ("MECHANISM", "Lift height", "Raises or lowers a scissor lift's platform (height from - to); every arm "
      "follows", "SORT_DESC", 7),
+    ("GCODE", "Run G-code program", "Moves the CNC machine's X, Y and Z joints (and its spindle) exactly as a "
+     "CNC program would (set the machine up in 4 Motion > CNC machine)", "FILE_SCRIPT", 8),
 ]
+
+
+def _gcode_step_changed(self, context):
+    """A G-code step's file or speed changed: its length follows from the program."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import gcode
+    gcode.step_changed(context.scene, self)
+
+
+def _cnc_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import gcode
+    gcode.setup_changed(context.scene)
+
+
+GCODE_SPEED_ITEMS = [("REAL", "Real time", "As long as the program takes on the machine"),
+                     ("FASTER", "Faster", "A number of times faster than the machine"),
+                     ("FIT", "Fit into", "The whole program fills a set number of seconds")]
 
 
 class FRPictureCard(bpy.types.PropertyGroup):
@@ -802,6 +828,60 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     ramp: FloatProperty(name="Ramp (s)", default=0.5, min=0.0, soft_max=10.0, step=10, precision=2,
                         description="How long the motor takes to get up to speed and to stop, in seconds (with "
                                     "Motion set to Smooth, Slow start or Slow stop)")
+    # Run G-code program (task 0026)
+    gcode_file: StringProperty(
+        name="Program", subtype="FILE_PATH", update=_gcode_step_changed,
+        description="The CNC program (.ngc, .nc, .tap, .gcode): the one your CAM writes for the machine. A copy is "
+                    "kept in the project, so the render queue and other PCs have it too")
+    gcode_from: IntProperty(
+        name="From line", default=0, min=0, update=_gcode_step_changed,
+        description="Plays the program from this line on (0 = from the start). The machine starts where the "
+                    "program would be at that line")
+    gcode_to: IntProperty(
+        name="To line", default=0, min=0, update=_gcode_step_changed,
+        description="Plays the program up to and including this line (0 = to the end)")
+    gcode_speed: EnumProperty(
+        name="Speed", items=GCODE_SPEED_ITEMS, default="REAL", update=_gcode_step_changed,
+        description="Real time: as long as on the machine. Faster: a number of times faster. Fit into: the whole "
+                    "program fills a set number of seconds")
+    gcode_factor: FloatProperty(
+        name="Times faster", default=10.0, min=0.01, soft_max=1000.0, update=_gcode_step_changed,
+        description="How many times faster than the machine the program plays (10 = a 10-minute program takes "
+                    "1 minute)")
+    gcode_fit: FloatProperty(
+        name="Seconds", default=30.0, min=0.1, soft_max=600.0, update=_gcode_step_changed,
+        description="How long the whole program takes in the video, in seconds (tool changes included)")
+    gcode_rapid: FloatProperty(
+        name="Rapids faster", default=1.0, min=1.0, soft_max=20.0, update=_gcode_step_changed,
+        description="Rapid moves (G0, the tool moving through the air) play this many times faster again, so the "
+                    "video spends its time on the cutting. 1 = at the machine's own rapid speed")
+    gcode_tc_time: FloatProperty(
+        name="Tool change (s)", default=2.0, min=0.0, soft_max=30.0, update=_gcode_step_changed,
+        description="How long each tool change (M6) takes in the video, in seconds, when no tool-changer "
+                    "animation plays. The new tool shows half way")
+    gcode_atc: StringProperty(
+        name="Tool changer", update=_gcode_step_changed,
+        description="An animation of the tool changer (arm, carousel, cover) that plays at every tool change "
+                    "(M6); the program waits for it. Make it as an animation of its own with the tool changer's "
+                    "joints. Empty: the tool just swaps")
+    gcode_atc_swap: FloatProperty(
+        name="Swap at (s)", default=1.0, min=0.0, soft_max=30.0, update=_gcode_step_changed,
+        description="When in the tool-changer animation the new tool appears in the spindle, in seconds from its "
+                    "start")
+    gcode_spindle: EnumProperty(
+        name="Spindle", default="SLOW", update=_gcode_step_changed,
+        description="How fast the spindle turns in the video. A real 10,000 rpm spindle looks still or turning "
+                    "backwards in a video (25 pictures per second), so by default it is slowed down",
+        items=[("SLOW", "Looks right (slowed)", "Turns at most 1/7 turn per picture: clearly turning, in the "
+                                                "right direction"),
+               ("REAL", "Real speed", "The program's S rpm (fast spindles look still or turning backwards)")])
+    gcode_path: BoolProperty(
+        name="Show toolpath", default=True, update=_gcode_step_changed,
+        description="Shows the program's path as a line on the workpiece: cutting moves solid, rapid moves dashed; "
+                    "the part already cut changes colour as the program plays")
+    gcode_path_render: BoolProperty(
+        name="Toolpath in renders", default=False, update=_gcode_step_changed,
+        description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
 
 
 class FRAnimation(bpy.types.PropertyGroup):
@@ -1040,6 +1120,90 @@ class FRMilling(bpy.types.PropertyGroup):
     chip_mist: BoolProperty(
         name="Coolant mist", default=False, update=_chips_changed,
         description="A fine mist of coolant drops around the bit while it cuts. The drops fade after a moment")
+
+
+class FRCncTool(bpy.types.PropertyGroup):
+    number: IntProperty(name="T", default=1, min=0, update=_cnc_changed,
+                        description="The tool number (T) the program uses for this tool")
+    obj: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+    diameter: FloatProperty(name="Diameter", unit="LENGTH", default=0.006, min=1e-5, soft_max=0.1,
+                            update=_cnc_changed,
+                            description="Cutting diameter, for the simple tool shape the app draws when no part "
+                                        "of the model is picked for this tool")
+    length: FloatProperty(name="Length", unit="LENGTH", default=0.03, min=1e-4, soft_max=0.3, update=_cnc_changed,
+                          description="How far the tool sticks out of the spindle, for the simple tool shape")
+    kind: EnumProperty(name="Shape", default="FLAT", update=_cnc_changed,
+                       description="The simple tool shape the app draws when no part of the model is picked",
+                       items=[("FLAT", "Flat end mill", ""), ("BALL", "Ball end mill", ""),
+                              ("BULL", "Corner radius", ""), ("VEE", "V-bit / chamfer", ""), ("DRILL", "Drill", "")])
+    corner: FloatProperty(name="Corner radius", unit="LENGTH", default=0.001, min=0.0, update=_cnc_changed,
+                          description="Corner radius of the simple tool shape (corner radius mills)")
+    angle: FloatProperty(name="Tip angle", subtype="ANGLE", default=math.radians(118), min=math.radians(10),
+                         max=math.radians(175), update=_cnc_changed,
+                         description="Tip angle of the simple tool shape (drills, V-bits)")
+    source: StringProperty()          # where the sizes came from: "program comment", "tool table", "typed"
+
+
+ZERO_ITEMS = [("TOP_CENTRE", "Top, centre", "The middle of the workpiece's top face"),
+              ("TOP_FL", "Top, front left corner", "Smallest X and Y, on top"),
+              ("TOP_FR", "Top, front right corner", "Largest X, smallest Y, on top"),
+              ("TOP_BL", "Top, back left corner", "Smallest X, largest Y, on top"),
+              ("TOP_BR", "Top, back right corner", "Largest X and Y, on top"),
+              ("BOTTOM_CENTRE", "Bottom, centre", "The middle of the workpiece's bottom face"),
+              ("POINT", "Clicked point", "The point you clicked on the workpiece (snaps to a corner near it)")]
+
+
+class FRCnc(bpy.types.PropertyGroup):
+    x_joint: StringProperty(name="X", update=_cnc_changed,
+                            description="The slide joint that moves the machine's X axis (made in 4 Motion)")
+    y_joint: StringProperty(name="Y", update=_cnc_changed,
+                            description="The slide joint that moves the machine's Y axis (made in 4 Motion)")
+    z_joint: StringProperty(name="Z", update=_cnc_changed,
+                            description="The slide joint that moves the machine's Z axis (made in 4 Motion)")
+    x_reverse: BoolProperty(name="Reverse X", default=False, update=_cnc_changed,
+                            description="Tick when the program's +X moves the tool the other way than the app "
+                                        "thinks (the tool should go towards the model's +X for +X)")
+    y_reverse: BoolProperty(name="Reverse Y", default=False, update=_cnc_changed,
+                            description="Tick when the program's +Y moves the tool the other way than the app "
+                                        "thinks (the tool should go towards the model's +Y for +Y)")
+    z_reverse: BoolProperty(name="Reverse Z", default=False, update=_cnc_changed,
+                            description="Tick when the program's +Z moves the tool the other way than the app "
+                                        "thinks (+Z should lift the tool off the workpiece)")
+    rapid_x: FloatProperty(name="X rapid (mm/min)", default=5000.0, min=1.0, soft_max=60000.0, precision=0,
+                           step=10000, update=_cnc_changed,
+                           description="The machine's rapid speed on X in mm per minute (MAX_VELOCITY of the "
+                                       "axis in LinuxCNC's .ini × 60). Sets how long G0 moves take")
+    rapid_y: FloatProperty(name="Y rapid (mm/min)", default=5000.0, min=1.0, soft_max=60000.0, precision=0,
+                           step=10000, update=_cnc_changed,
+                           description="The machine's rapid speed on Y in mm per minute")
+    rapid_z: FloatProperty(name="Z rapid (mm/min)", default=3000.0, min=1.0, soft_max=60000.0, precision=0,
+                           step=10000, update=_cnc_changed,
+                           description="The machine's rapid speed on Z in mm per minute")
+    spindle_joint: StringProperty(name="Spindle", update=_cnc_changed,
+                                  description="The rotate joint of the spindle (tick Motor on it). It turns as the "
+                                              "program's S and M3 / M4 / M5 say. Empty: the spindle does not turn")
+    tool: PointerProperty(type=bpy.types.Object, update=_cnc_changed)
+    tool_uid: StringProperty()
+    workpiece: PointerProperty(type=bpy.types.Object, update=_cnc_changed)
+    workpiece_uid: StringProperty()
+    zero_mode: EnumProperty(name="Work zero", items=ZERO_ITEMS, default="TOP_CENTRE", update=_cnc_changed,
+                            description="Where the program's zero (X0 Y0 Z0) is on the workpiece: the same point "
+                                        "as in the CAM set-up (Fusion: Setup > WCS)")
+    zero_point: FloatVectorProperty(size=3, update=_cnc_changed)        # clicked, in the workpiece's own space
+    zero_shift: FloatVectorProperty(
+        name="Shift", size=3, unit="LENGTH", subtype="TRANSLATION", update=_cnc_changed,
+        description="Moves the work zero by this much along the machine's X, Y and Z (in mm), for a zero that is "
+                    "not on a corner or the centre")
+    home: FloatVectorProperty(size=3)              # the X/Y/Z joint values at machine zero (G53 X0 Y0 Z0, G28)
+    home_set: BoolProperty(default=False)
+    tools: CollectionProperty(type=FRCncTool)
+    tools_index: IntProperty(default=0)
+    tool_table: StringProperty(
+        name="Tool table", subtype="FILE_PATH", update=_cnc_changed,
+        description="LinuxCNC's tool table (tool.tbl), optional: tool numbers, diameters and lengths. Without it "
+                    "the sizes come from the tool comments at the top of the program (Fusion writes them)")
+    zero_empty: PointerProperty(type=bpy.types.Object)       # the work zero marker (child of the workpiece)
 
 
 def _show_joints_changed(self, context):
@@ -1438,6 +1602,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
     # ---- milling (task 0027) ----
     milling: PointerProperty(type=FRMilling)
+    # ---- CNC machine for G-code programs (task 0026) ----
+    cnc: PointerProperty(type=FRCnc)
 
     # ---- way covers (task 0034) ----
     waycover: PointerProperty(type=FRWayCover)
@@ -1453,7 +1619,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRAnimBlock,
-           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRSceneSettings)
+           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool, FRCnc,
+           FRSceneSettings)
 
 
 def register():

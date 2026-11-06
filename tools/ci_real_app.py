@@ -16,6 +16,8 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     cylinder tools/ui_test_cylinder.py - cylinders: barrel and rod, clicks on the two pins, follow / drive, undo
     linkage tools/ui_test_linkage.py - mechanisms: Base, Add mechanism (scissor, four-bar), height, undo, Lift height
            step, save and open again, Remove
+    gcode  tools/ui_test_gcode.py - CNC machine: axes, tool, workpiece, clicked work zero; Run G-code program step,
+           the tip follows the program, tool change, toolpath, save and open again
     waycover tools/ui_test_waycover.py - way covers: axis, Add section x5, Make it, the axis drives the covers, Flip,
            Remove section, save and open again, Remove way cover
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
@@ -54,7 +56,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
-              "milling": 24, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "paths": 8, "pccheck": 30, "pccheckheavy": 7, "update": 29}
+              "milling": 24, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 23,
+              "paths": 8, "pccheck": 31, "pccheckheavy": 7, "update": 29}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 
@@ -141,7 +144,8 @@ def main(argv=None) -> int:
     ap.add_argument("--blender", required=True)
     ap.add_argument("--wheels", required=True, help="folder with the Linux OpenCascade wheels")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,callouts,milling,cylinder,linkage,waycover,paths,pccheck,pccheckheavy,update")
+    ap.add_argument("--only", default="ui1,ui2,faces,decals,surroundings,rulesets,studio,video,callouts,milling,cylinder,"
+                                      "linkage,waycover,gcode,paths,pccheck,pccheckheavy,update")
     ap.add_argument("--timeout-min", type=float, default=15, help="per test (they take 1-7 minutes)")
     args = ap.parse_args(argv)
 
@@ -180,6 +184,8 @@ def main(argv=None) -> int:
                     "ui_test_linkage.py", True),
         "waycover": ("Real app: way covers – axis, five sections, Make it, the axis drives them (ui_test_waycover.py)",
                      "ui_test_waycover.py", True),
+        "gcode": ("Real app: CNC machine and Run G-code program – clicks, tip on the path, tool change "
+                  "(ui_test_gcode.py)", "ui_test_gcode.py", True),
         "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
         "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
         "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),
