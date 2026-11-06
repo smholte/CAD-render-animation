@@ -689,6 +689,46 @@ saved projects. The joint list does not let you change or remove the drive joint
 it. **−** next to the list removes a mechanism: its parts go back to their CAD place (and the drive joint
 goes too, when the mechanism made it).
 
+### Way covers
+
+A **way cover** is the row of steel sections that slide into each other and cover a machine axis, so chips
+and coolant stay off the guide ways. Here the sections follow the axis by themselves: you pick them once, and
+every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
+and closes the covers.
+
+**Set it up**
+
+1. In 4 Motion > **Way covers**, step **1 Axis**: pick the **slide joint** the covers follow (the machine axis,
+   made in Joints above). A machine without a joint yet: click the carriage and press **Make one from the
+   selection**, then click a hole or face for the direction.
+2. Step **2 Sections**: click the parts of one cover section – any number of parts or subassemblies – and press
+   **Add section**. Do the same for every section, starting at the **fixed end** and working towards the
+   moving end. The arrows next to the list change the order; **−** takes a section out; **Select the
+   section's parts** shows which parts it holds. A part can be in one section only, and a part that already
+   moves with a joint (or follows one) is refused, with the reason.
+3. Step **3 Travel**: **Total movement** is how far the axis moves in all; **Read from the axis** takes it from
+   the axis limits (Min and Max). **Flip direction** opens the covers the other way round.
+4. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+
+**How the travel is shared out.** Every section slides the same distance relative to its neighbour. With the
+axis moving 500 mm and five sections, the sections stand 100, 200, 300, 400 and 500 mm from their CAD place
+when the axis is at 500 mm – 100 mm each. With three sections it is 167, 333 and 500 mm. The line under
+the travel fields always says what you get, in plain words.
+
+Some covers are drawn with the **housing** (the part on the fixed side that never moves) as the first section.
+Tick **Housing counts** for those: the first section stays, the others share the travel in one step less –
+five sections over 500 mm give 0, 125, 250, 375 and 500 mm.
+
+**Changing it later.** Adding, removing or reordering sections, changing the travel, Flip and Housing counts
+re-share the travel at once. Sections you added since **Make it** need **Make it** once more. **Remove way
+cover** removes the sections' joints and puts their parts back; the axis joint and everything else stay as
+they are.
+
+Under the hood each section is an ordinary slide joint ("Way cover Section 1") that follows the axis (see
+couplings, above), so the covers move in animations, in saved scenes and in the render queue, also on a PC that
+does not allow scripts in project files. They stay through a model update (1 Import) and in saved projects.
+To move the covers in a video, use the animation step **Move joint** on the axis – nothing else is needed.
+
 ### Poses & exploded views
 
 <img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">

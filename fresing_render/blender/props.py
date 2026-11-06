@@ -1002,6 +1002,44 @@ def _show_joints_changed(self, context):
     linkages.show(context.scene, show)
 
 
+# ---------------------------------------------------------------------------
+# way covers (task 0034): telescopic covers follow one slide axis
+# ---------------------------------------------------------------------------
+
+def _waycover_changed(self, context):
+    """Travel, direction, counting or the axis changed: made sections get their new shares at once."""
+    if context is None or context.scene is None:
+        return
+    from . import waycover
+    waycover.refresh(context.scene)
+
+
+class FRWayCoverSection(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", description="Name of this way cover section. Double-click to rename it")
+    joint: StringProperty()                                # the slide joint made for it ('' until Make it)
+    parts: CollectionProperty(type=FRObjectRef)            # chosen parts, until the section is made
+
+
+class FRWayCover(bpy.types.PropertyGroup):
+    axis: StringProperty(
+        name="Axis", update=_waycover_changed,
+        description="The slide joint (the machine axis) the covers follow. Pick it from the list, or make one "
+                    "from the selected parts with 'Make one from the selection'")
+    sections: CollectionProperty(type=FRWayCoverSection)
+    sections_index: IntProperty(default=0)
+    total: FloatProperty(
+        name="Total length of movement", unit="LENGTH", default=0.5, min=0.0, soft_max=5.0, update=_waycover_changed,
+        description="How far the axis moves in all, in mm. The sections share it out. 'Read from the axis' "
+                    "takes it from the axis limits")
+    flip: BoolProperty(
+        name="Flip", default=False, update=_waycover_changed,
+        description="The covers open the other way round: use this when they slide against the axis' direction")
+    housing_counts: BoolProperty(
+        name="Fixed housing counts as a section", default=False, update=_waycover_changed,
+        description="Tick this when the first section is the housing on the fixed side (it never moves): the "
+                    "others then share the travel in one step less. Off: the sections are the moving covers")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -1333,6 +1371,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- milling (task 0027) ----
     milling: PointerProperty(type=FRMilling)
 
+    # ---- way covers (task 0034) ----
+    waycover: PointerProperty(type=FRWayCover)
+
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
     model_count: IntProperty(default=0)
@@ -1343,7 +1384,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet, FRShot, FRAnimBlock,
-           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRSceneSettings)
+           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRSceneSettings)
 
 
 def register():

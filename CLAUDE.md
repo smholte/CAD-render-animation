@@ -142,6 +142,7 @@ fresing_render/            the Blender extension (Python package)
                            machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
                            decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
                            decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
+                           waycover.py (way-cover shares: moving sections k/N, or housing counted 0 … 1),
                            chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
                            cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts),
                            linkages.py (planar mechanisms: pins, tracks, sliders; exact steps + Newton, the
@@ -166,6 +167,9 @@ fresing_render/            the Blender extension (Python package)
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
+    waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
+                           k/N of its travel (coupling ratios + limits); ops_waycover.py, ui_waycover.py
+                           (4 Motion > Way covers); core/waycover.py has the shares
     chips.py               chips: inputs from the milling set-up, catch areas (rays down), bake, two point
                            clouds + a Geometry Nodes instancer (4 Motion > Milling > Chips)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
@@ -256,7 +260,7 @@ run; runs on `main` always finish. Four test jobs; the whole run takes about 12 
 | Job | What it does | Time |
 | --- | --- | --- |
 | Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_linkage.py` (scissor lift and four-bar: Base, Add mechanism, height, undo, Lift height step, reopen), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
+| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_linkage.py` (scissor lift and four-bar: Base, Add mechanism, height, undo, Lift height step, reopen), `ui_test_waycover.py` (axis, Add section, Make it, the axis drives the covers, Flip, reopen), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 8 min (PC check 4.5) |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
@@ -481,6 +485,11 @@ the release → Delete); the next run on `main` publishes it again.
   step than the two answers lie apart.
 - A line left after a `return` inside an `if` is never run: 0.2.25 lost two checks of `joints.check_members` that
   way (no test failed). New checks get their own test.
+- Way covers (0034): a section's slide joint is created in a loop that grows `scene.fresing.joints`, which
+  invalidates any `JointItem` held across it (`make` kept the axis item and lost its frame): keep the joint's
+  name or the objects, look it up again. Ratio and limit comparisons use 1e-6: Blender stores them in float32,
+  and a changed value calls `set_follows`, which takes a built animation off.
+- Inventor adds a version to part names ("Section 1 v8"): match test-model parts by name or `name + " v"`.
 - Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
   `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
   along with the paths (`machining.sample` stores it as `fr_wp_m`).

@@ -23,7 +23,7 @@ updates its branch to `main`.
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (can start)
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (can start, own files)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (done, 0.2.27)
 
 ## Open and running
 
@@ -33,7 +33,6 @@ updates its branch to `main`.
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0025 | Scene & Render lane: labels with lines pointing at parts, picture cards between steps, music under videos | worker | Sonnet · Medium | open – can start | tasks/0025-callouts-pictures-music.md |
 | 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | open – can start | tasks/0033-pccheck-heavy.md |
-| 0034 | Machining lane: way covers – telescopic covers follow one slide axis, sections picked (several parts each), total travel shared out (500 mm / 5 = 100 mm each); owner attaches his way-cover STEP in the chat | worker | Sonnet · Medium | open – can start | tasks/0034-waycover.md |
 | 0031 | Quality & delivery lane: Claude Code on the web – stored set-up for every session (venv, Blender 5.2.3, xvfb, ImageMagick, download.blender.org allowed), measure set-up time and usage before/after, CLAUDE.md section 4 | lead writes the brief, then worker | Sonnet · Medium | open – brief to write | – |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | open | – |
@@ -72,5 +71,6 @@ updates its branch to `main`.
 | 0032 | PC check: Start menu / Desktop / Help > PC check (Quick about 3 min, Full about 15 min), 30 lines on the test models, own STEP file optional; HTML report with pictures, speed vs the last runs on the PC, picture checks, new lines on top; text block with numbers only for the lead chat; runs on GitHub (Linux + Windows) | 0.2.24 |
 | 0013 | Cylinders: barrel turns about its pin, rod's eye stays on its pin when the arm moves (constraints, scripts off); Drives the arm: set the stroke, the arm turns (law of cosines, slide too); closed length and stroke read from the parts; telescopic stages; Move cylinder step; "Show joint arrows" NameError fixed | 0.2.25 |
 | 0014 | Mechanisms: scissor lifts (height, rollers), four-bar and parallel arms, slider-cranks, other planar linkages; pins found from shared holes; exact solver that never flips; drive by angle, height or a cylinder; Lift height step; kept through model updates. Owner's example files still to try | 0.2.26 |
+| 0034 | Way covers: telescopic covers follow one slide axis; sections picked (several parts each), travel shared out (500 mm / 5 sections = 100 mm each), Housing counts (0/125/250/375/500), Flip, Read from the axis; every section is a slide joint that follows the axis, so poses, steps, G-code and the render queue move them; the owner's 5-section way-cover STEP is a test model | 0.2.27 |
 
 Details per version: `CHANGELOG.md`.

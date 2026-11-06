@@ -247,6 +247,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     notes += cylinders.rebuild_from_specs(scene, cyl_specs, by_uid_new)     # after the joints: drive mode needs them
     states.remap_uids(scene, mapping)
     notes += machining.after_model_update(scene, mapping, by_uid_new)
+    from . import waycover
+    notes += waycover.after_joints_rebuilt(scene)                            # way covers (task 0034)
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
     logic.update_bounds(scene)

@@ -30,6 +30,8 @@ MILL = os.path.join(DATA, "test_mill.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
+WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
+WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN = "quick", "full", "own"
@@ -388,6 +390,73 @@ def joints_mechanism(ctx):
     px, _pz = axis_xz("CRANK.ROD.PIN")
     _check(abs(px - want) < 1e-4, f"the piston's pin is at x {px * 1000:.2f} mm, not {want * 1000:.2f} mm")
     return f"platform 1500 mm, roller on its line; piston to {abs(px - want) * 1000:.3f} mm"
+
+
+def _ob_v(scene, name):
+    """A part by name, also when CAD added a version ("Section 1 v8")."""
+    from ..blender import build
+    for o in scene.objects:
+        n = o.get(build.PROP_NAME, "")
+        if o.get(build.PROP_KIND) == "part" and (n == name or n.startswith(name + " v")):
+            return o
+    raise RuntimeError(f"the test model has no part '{name}'")
+
+
+@line("machining.waycover", "Way covers follow a machine axis", "0.2.27", modes=(F,),
+      what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm; the 5-section "
+           "way-cover model with its housing counting: 105 mm steps")
+def machining_waycover(ctx):
+    from mathutils import Vector
+
+    from ..blender import joints, waycover
+    scene = ctx.fresh(WAYCOVER)
+
+    def min_x(o):
+        return min((o.matrix_world @ Vector(c)).x for c in o.bound_box)
+
+    names = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"], ["COVER.4"],
+             ["COVER.5"]]
+    rest = [min_x(_ob(scene, g[0])) for g in names]
+    axis = joints.create(scene, "SLIDE", [_ob(scene, "CARRIAGE")], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)),
+                         name="X axis")
+    axis.use_limits = True
+    axis.slide_min, axis.slide_max = 0.0, 0.5
+    c = waycover.settings(scene)
+    c.axis, c.total = "X axis", 0.5
+    for g in names:
+        waycover.add_section(scene, [_ob(scene, n) for n in g])
+    built, problems = waycover.make(scene)
+    _check(built == 5 and not problems, f"the way cover was not made: {problems}")
+    joints.set_value(joints.find(scene, "X axis"), 0.5)
+    _update()
+    _update()
+    got = [(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest)]
+    for k, mm in enumerate(got, start=1):
+        _check(abs(mm - 100.0 * k) < 0.05, f"section {k} moved {mm:.2f} mm, not {100 * k} mm")
+    _check(joints.couplings_simple(scene), "the cover couplings need Python scripts (they must not)")
+    # the 5-section way-cover model: the housing counts as the first section, 420 mm in 4 steps of 105 mm
+    scene = ctx.fresh(WAYCOVER_OWNER)
+    plate = _ob_v(scene, "Mounting plate")
+    ax = joints.create(scene, "SLIDE", [], Vector((0, 0, 0)), Vector((0, 0, 1)), name="Axis", base=plate,
+                       allow_empty=True)
+    ax.use_limits = True
+    ax.slide_min, ax.slide_max = -0.21, 0.21
+    c = waycover.settings(scene)
+    c.axis, c.housing_counts = "Axis", True
+    _check(waycover.read_total(scene) == "", "the travel could not be read from the axis")
+    for k in range(1, 6):
+        waycover.add_section(scene, [_ob_v(scene, f"Section {k}")])
+    built, problems = waycover.make(scene)
+    _check(built == 5 and not problems, f"the way-cover model was not set up: {problems}")
+    joints.set_value(joints.find(scene, "Axis"), 0.21)
+    _update()
+    _update()
+    z = [min((o.matrix_world @ Vector(cc)).z for cc in o.bound_box) for o in
+         (_ob_v(scene, f"Section {k}") for k in range(1, 6))]
+    gaps = [(b - a) * 1000.0 for a, b in zip(z, z[1:])]
+    _check(all(abs(g - 115.0) < 0.05 for g in gaps), "the sections are not 115 mm apart when fully open: "
+           + ", ".join(f"{g:.1f}" for g in gaps))
+    return f"5 sections to {got[-1]:.1f} mm; way-cover model open: gaps {gaps[0]:.1f} mm"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

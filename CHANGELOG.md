@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.27 – 6 Nov 2026 – way covers follow the machine axis (task 0034)
+
+4 Motion > Way covers (new)
+- Telescopic way covers move with a machine axis, set up in one go. Pick the slide joint (or make one from
+  the selection), click the parts of each cover section – a section may be made of several parts – and press
+  **Add section**, from the fixed end to the moving end. **Make it** does the rest.
+- The travel is shared out: the axis moving 500 mm with 5 sections moves them 100, 200, 300, 400 and 500 mm
+  (3 sections: 167, 333, 500 mm). **Read from the axis** takes the total from its limits, **Flip direction**
+  opens the covers the other way, and **Housing counts** is for covers drawn with the fixed housing as the
+  first section (500 mm over 5 sections: 0, 125, 250, 375, 500 mm).
+- Changing the number or order of sections, the travel or the direction re-shares at once. A part in two
+  sections, or in a section that already moves by itself, is refused with the reason.
+- Works in poses, Move joint and Run motor steps, built animations and the render queue, also with scripts
+  off; kept through model updates and in saved projects. **Remove way cover** takes away only what it made.
+- PC check line "Way covers follow a machine axis"; two new test models (a generic one and the owner's
+  5-section way cover, 166.5 to 586.5 mm).
+
 ## 0.2.26 – 6 Nov 2026 – mechanisms: scissor lifts, four-bar arms, slider-cranks (task 0014)
 
 4 Motion > Mechanisms (new)

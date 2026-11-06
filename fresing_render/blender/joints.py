@@ -1295,6 +1295,8 @@ def rename(scene, j, old: str) -> None:
     for x in scene.fresing.joints:                # followers name their leader (the driver needs no change)
         if x.follows and x.follows == old:
             _set_raw(x, follows=j.name)
+    from . import waycover                        # the way cover keeps following the same joints (task 0034)
+    waycover.joint_renamed(scene, old, j.name)
 
 
 def reset_all(scene) -> None:

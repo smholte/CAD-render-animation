@@ -1,6 +1,6 @@
 # 0034 – Way covers: telescopic covers that follow a machine axis, set up in one go
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** open – can start
+**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** done (0.2.27)
 **Branch:** `task/0034-waycover`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** Machining (new files `waycover.py`, `ops_waycover.py`,
 `ui_waycover.py`; the sub-panel hangs under 4 Motion like Milling does, with the smallest additive hook).
@@ -91,10 +91,39 @@ number of sections and the shares change.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 6 Nov 2026 (Sonnet).
 
 **What changed:**
+- New 4 Motion > **Way covers** (`ui_waycover.py`, `ops_waycover.py`, `blender/waycover.py`, shares in `core/waycover.py`,
+  settings `scene.fresing.waycover` in `props.py`). Each section = a slide joint ("Way cover Section k") built on the
+  axis' own frame and base that **follows the axis** with ratio k/N (task 0012 couplings, simple-expression drivers);
+  limits of each section = the axis limits x its share. Housing-counts switch (0, 1/(N-1) … 1), Flip (negative
+  ratios), Read from the axis, up/down/remove, Select the section's parts, Remove way cover, "Make one from the
+  selection" (starts the existing slide-joint pick tool and takes the new joint as the axis).
+- Changing count/order/travel/flip/counting re-shares made sections at once (`refresh`); only new sections need Make it.
+  Joint rename keeps axis/section names (small hook in `joints.rename`); model update hook in `reimport.py`
+  (sections come back with their rebuilt joints, notes when one is lost).
+- Refusals with reasons: part already in a section, part moving with (or following) another joint, the carriage
+  (axis members), axis not a slide joint.
+- Test models: the owner's STEP (`tests/data/test_waycover_a.step` + copy in `fresing_render/data/`; checked: 293 KB,
+  no author/organisation, parts only "Mounting plate" and "Section 1–5") and a generated one
+  (`tools/make_test_waycover.py` -> `test_waycover_b.step`: bed, carriage, 5 plates, sections 1 and 3 of two parts).
+  The owner's file is at the middle of its travel (376.5 mm; he gave 166.5 mm closed, 586.5 mm open = 420 mm), so
+  it is set up with Housing counts, axis limits -210…+210 mm: steps of 105 mm, gaps 10 / 62.5 / 115 mm.
+- Guide chapter "Way covers", CHANGELOG, PC-check line `machining.waycover` (`MIN_LINES_FULL` 33), real-app test
+  `tools/ui_test_waycover.py` (`MIN_CHECKS` 12), CLAUDE.md layout/lessons, version 0.2.27.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core Linux session, bpy module, no Blender program, no graphics card):
+- `tests/test_waycover.py`, 17 tests: 500 mm / 5 sections = 100…500 mm; Housing counts 0/125/250/375/500; 3 and 4
+  sections (8 in the core test); several-part section moves as one; add/remove/reorder/flip re-share; refusals;
+  simple expressions (scripts off); Move joint step built and scrubbed; save + reopen; rename; model update; Remove
+  way cover leaves the joint list as before; the owner's model (105 mm steps, gaps 10/62.5/115 mm).
+- Tooltip check 379 / 0 missing; PC-check line passes on the bpy module (1.9 s); panels/blender/pccheck/guide tests green.
 
 **Open points / follow-up tasks:**
+- Not run here (no Blender download from this machine): the real-app test `ui_test_waycover.py` and the full suite —
+  read the GitHub run. The **panel picture and a render of the test model for the guide chapter are not made yet**
+  (`tools/guide_screens.py` needs the real Blender); the chapter has no picture.
+- The last cover section often sits on the carriage itself; such parts are refused (they already move with the
+  axis joint). Possible follow-up: accept them as the last section (share 1) without a new joint.
+- Section-count 8 is tested in the core only (the generic model has 5 sections).
