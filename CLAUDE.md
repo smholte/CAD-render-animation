@@ -99,6 +99,30 @@ The owner's AI usage is limited; every chat works economically:
 - **Helper agents** (independent reviews, independent test lists) only for Windows-only code and
   for risky changes; say in the report when one was skipped.
 - **Update your branch to `main` once**, right before merging – not after every other release.
+
+### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
+
+GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. A full run
+takes 30–50 minutes until task 0036 has made it faster, and a task is often run several times. So:
+- **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
+  `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
+  version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
+  whole extra run.
+- **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
+  run. Run the tests of your area locally first; push once with code, tests and guide together. Reports,
+  `TASKS.md` and `tasks/` files go in a **separate last push** that touches only those (no run starts).
+- **Use the waiting time.** While the run goes: write the report, check the guide, prepare the next step. Do
+  not poll in a loop; use `python3 tools/ci_status.py --wait` once and read the result.
+- **Merge the way that lets GitHub reuse the run.** Merge `main` into your branch, wait for green on *that*
+  commit, then fast-forward `main` to exactly that commit (`git push origin HEAD:main`) – no new merge commit,
+  no changes after the green run. (From task 0036 on GitHub then skips the repeat and releases at once. If
+  `main` moved meanwhile, merge once more and accept one more run.)
+- **Several tasks at the same time:** the one that finishes first merges first; the others take the next
+  version and merge `main` then. A lead sentence for a new task never fixes a version number in advance.
+- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly), fix, push once. A run that
+  fails in `precheck` (task 0036) is a version/changelog/list problem: fix that and push.
+- **Say in the report** how many runs the task needed and why (version clash, real failure).
+
 - **No installer per task:** bump the version, write the changelog, merge, check the GitHub run.
   Build and send the installer only when the owner asks for one (once task 0020 is done, GitHub
   publishes releases by itself).
