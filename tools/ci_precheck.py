@@ -304,19 +304,17 @@ def has_green_run(sha: str, api=gh_api) -> bool:
 
 
 def green_base(start: str, api=gh_api, depth: int = 10) -> str:
-    """start, or the nearest parent of it when start only changed the task list (such commits get no run),
-    provided it has a green run; '' otherwise."""
+    """The nearest commit at or before start (first parents, at most depth) with a green run; '' when none.
+
+    Commits in between may have no run (task-list-only pushes) or a red/cancelled one: the docs check then
+    compares with the green commit, so everything changed since the last proven state is looked at."""
     sha = start
     for _ in range(depth):
         if not sha:
             return ""
         if has_green_run(sha, api):
             return sha
-        files = git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines()
-        if files and all(f == TASK_LIST_ONLY[0] or f.startswith(TASK_LIST_ONLY[1]) for f in files):
-            sha = git("rev-parse", f"{sha}^")
-            continue
-        return ""
+        sha = git("rev-parse", "--verify", "-q", f"{sha}^")
     return ""
 
 
@@ -338,7 +336,7 @@ def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api)
         return "full", run_id, "no earlier commit to compare with: everything"
     gb = green_base(base, api)
     if not gb:
-        return "full", run_id, f"the commit before ({base[:7]}) has no green run: everything"
+        return "full", run_id, f"no green run on {base[:7]} or the 9 commits before it: everything"
     files = git("diff", "--name-only", gb, sha).splitlines()
     if docs_only(files, lambda f: git("diff", "-U0", gb, sha, "--", f)):
         return "docs", run_id, (f"only documentation/version lines changed since {gb[:7]} (green): "

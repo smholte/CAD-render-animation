@@ -103,7 +103,7 @@ The owner's AI usage is limited; every chat works economically:
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
 GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0036
-a full run takes about RUNMIN minutes (parallel jobs), but a task is often run several times. So:
+a full run takes about 13 minutes (parallel jobs), but a task is often run several times. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
   `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
   version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
@@ -231,7 +231,8 @@ fresing_render/            the Blender extension (Python package)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
-                           screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests),
+                           screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
+                           job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
@@ -292,15 +293,27 @@ cadquery-ocp-proxy==8.0.1.1.0 manifold3d==3.5.4 --no-deps --only-binary=:all: --
 `.github/workflows/tests.yml` runs at every push (any branch) and pull request – except a push that
 changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_status.py` says so –, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
-run; runs on `main` always finish. Four test jobs; the whole run takes about 12 minutes (measured 5 Nov
-2026). On `main` with a new version, three release jobs follow (below):
+run; runs on `main` always finish. Since task 0036 the tests run as parallel jobs: a full run takes about
+13–14 minutes from push to verdict (12.7 and 14.2 min, runs 42261621440 / 42263700501, 6 Nov 2026; before: 24–50). The first job,
+`precheck`, picks the **mode** of the run (`ci_status.py` prints it):
 
-| Job | What it does | Time |
+- **full** – every job below.
+- **docs** – the push changes only `docs/`, `CHANGELOG.md`, `CLAUDE.md`, `README.md`, `TASKS.md`, `tasks/` and at
+  most the version line of the two version files, compared with a commit whose run is green: only precheck,
+  build, tooltip check, guide build and their tests (`test_user_guide.py`, `test_updates.py`, `test_ci_tools.py`).
+- **reuse** – a push to `main` whose git tree already has a green run (the fast-forward of section 2): no tests;
+  the release jobs take that run's installer files after `release_tools.py verify-run` checked it again.
+
+When the precheck fails, nothing else starts. On `main` with a new version, three release jobs follow (below):
+
+| Job | What it does | Time (run 42261621440) |
 | --- | --- | --- |
-| Linux - test suite + packaged self-test | pytest (all tests), then `test_install_linux.py` | 9.2 min (pytest 6.3) |
-| Linux - real app (simulated clicks) | `tools/ci_real_app.py`: `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`, `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_studio.py` (light looks, views, blur, turntable), `ui_test_milling.py`, `ui_test_cylinder.py` (clicks on the pins, follow / drive), `ui_test_linkage.py` (scissor lift and four-bar: Base, Add mechanism, height, undo, Lift height step, reopen), `ui_test_callouts.py` (labels, picture card, music in a queued MP4), `ui_test_waycover.py` (axis, Add section, Make it, the axis drives the covers, Flip, reopen), `paths_test_blender.py`, the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`), `ci_update_test.py --gui` on Blender 5.2.3 under xvfb; each test must report at least its number of checks (`MIN_CHECKS`: raise it when you add checks) | 11.4 min (ui1 5.0, ui2 0.7, faces 0.2, surroundings 3.6, paths 1.4; 5 Nov 2026) + update 0.5 + PC check 6.3 + cylinder 0.5 (6 Nov 2026); a slow runner took 21.9 min before the PC check (ui1 7.4, surroundings 6.2) |
-| Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job | 0.5 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 8 min (PC check 4.5) |
+| Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
+| Linux - test suite 1 … 4 | pytest, the `tests/test_*.py` files split in 4 groups balanced by `tools/ci_times.json` (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 4.6–6.1 min (the biggest file, `test_video_labels.py`, alone ~5 min) |
+| Linux - real app pccheck / callouts / paths / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths = `paths_test_blender.py`; ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`; Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
+| Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 9.8 min (PC check 4.5); starts after the build |
+| Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
@@ -318,10 +331,12 @@ self-test into "skipped: no graphics card"; every other self-test line must be O
 python3 tools/ci_status.py --wait              # run of the current commit (HEAD); waits until it is done
 python3 tools/ci_status.py --branch main --wait  # run of the newest commit on main
 python3 tools/ci_status.py --run <id> --log "Windows"   # whole log of the jobs matching "Windows"
+python3 tools/ci_status.py --run <id> --record   # a green run's times -> tools/ci_times.json (balances groups)
+python3 tools/ci_precheck.py                   # the precheck's checks, on a chat machine (before pushing)
 ```
 
-It only shows the run of exactly that commit (never an older one), lists every job with its
-time and, for a failed job, the failing step, the error lines and the log up to the error. Each job also prints its verdict as a table (which test, which self-test line)
+It only shows the run of exactly that commit (never an older one), prints its mode (full / docs / reuse),
+lists every job with its time (flagged SLOW above 1.5 x its time in `tools/ci_times.json`), the total and, for a failed job, the failing step, the error lines and the log up to the error. Each job also prints its verdict as a table (which test, which self-test line)
 in the log and on the run page ("Summary"). The chats can read runs, jobs, logs and
 annotations through the GitHub API, but **cannot download the run's files** (artifacts:
 screenshots, self-test reports, logs) - their storage is blocked by the proxy; the owner can
