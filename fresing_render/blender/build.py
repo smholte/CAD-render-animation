@@ -32,7 +32,10 @@ PROP_REST_BASIS = "fr_rest_basis"  # local matrix with no free move applied (cha
 PROP_CAD_PARENT = "fr_cad_parent"  # CAD parent, set while a joint carries the object
 
 MODEL_KINDS = ("assembly", "part")
-JOINT_KINDS = ("joint_frame", "joint")
+# a cylinder's empties (task 0013): frame on the barrel pin, barrel (aims), rod (slides), rod pin, telescopic stage
+CYLINDER_KINDS = ("cyl_frame", "cyl_barrel", "cyl_rod", "cyl_pin", "cyl_stage")
+# empties the app inserts: not part of the CAD structure
+JOINT_KINDS = ("joint_frame", "joint") + CYLINDER_KINDS
 
 
 def mat_to_list(m) -> list[float]:

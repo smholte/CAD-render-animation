@@ -5,6 +5,31 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.25 – 6 Nov 2026 – hydraulic and electric cylinders (task 0013)
+
+4 Motion > Cylinders (new)
+- Pick the cylinder's **Barrel** and **Rod** (select, press the button), press **Add cylinder** and click the
+  barrel's pin, then the rod's pin. From then on the cylinder moves with the arm by itself: the barrel
+  turns about its pin, the rod slides in or out, both eyes stay on their pins (checked to 0.01 mm at every
+  arm angle). Two cylinders side by side on one arm, a whole machine that slews, stacked and coupled
+  joints: all fine.
+- **Drives the arm**: set the **Stroke** (how far the rod is out, 0 = fully in) and the arm's joint turns to
+  match – worked out exactly from the triangle pivot, barrel pin, rod pin (law of cosines); a cylinder
+  pushing a carriage on a slide works too. **Fully in / CAD / Fully out**. The arm's limits become the
+  cylinder's.
+- **Closed length** and **Full stroke** are read from the parts (how far the piston can go back to the end
+  cap and out to the gland), or typed in from the data sheet.
+- Telescopic cylinders: **Stages** – each section slides out the same share of the travel.
+- 6 Animation: new step **Move cylinder** (stroke from → to); the rod moves at the step's own pace
+  (Constant speed = an even rod speed, as a real cylinder), the arm follows.
+- Works in the render queue and with scripts switched off (Blender's own constraints); kept in saved
+  projects and through a model update.
+- PC check: new line "Cylinder: follows the arm, the stroke drives it".
+
+Fixes
+- **Show joint arrows in the view** (4 Motion) no longer gives an error; it also shows/hides the cylinders'
+  pin markers.
+- Messages say "1 subassembly added" and "1 piece … moved apart" (not "1 subassemblies", "1 pieces").
 ## 0.2.24 – 6 Nov 2026 – PC check: one click tests every function on your PC (task 0032)
 
 After an update, one click tests the new version on your own PC and shows the result in your web browser.

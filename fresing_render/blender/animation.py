@@ -7,6 +7,8 @@ Block kinds
     SHOW / HIDE   make a subassembly appear or disappear (assembly sequences)
     MOTOR   run a motor at a speed (rpm, or mm/s for a slide) for a while, with a ramp
             up and down; joints that follow it move along (their drivers read its keys)
+    CYLINDER  move a cylinder's rod from a stroke to a stroke: the arm's joint gets a key on
+            every frame, worked out from the stroke (the rod moves at the step's own pace)
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -77,6 +79,8 @@ def block_label(b, scene=None) -> str:
         return b.joint or "Joint"
     if b.kind == "MOTOR":
         return f"Run {b.joint}" if b.joint else "Run motor"
+    if b.kind == "CYLINDER":
+        return f"Move {b.cylinder}" if b.cylinder else "Move cylinder"
     if b.kind == "POSE":
         return f"To pose {b.pose}" if b.pose else "To pose"
     if b.kind == "CAMERA":
@@ -441,6 +445,46 @@ def bake(scene, anim) -> dict:
             hint = " (tick 'Motor' on it in 4 Motion to let it turn without end)" if j.kind == "ROTATE" else ""
             warnings.append(f"'{block_label(b)}': '{j.name}' reaches its limit and stops there{hint}")
 
+    def cylinder_move(b, f0, f1):
+        """Keys for a Move cylinder step: the stroke eases from -> to, the arm's joint gets its value on
+        every frame (exact: the joint's angle is not a straight line of the stroke)."""
+        from . import cylinders
+        c = cylinders.find(scene, b.cylinder) if b.cylinder else None
+        if c is None:
+            warnings.append(f"'{block_label(b)}': cylinder '{b.cylinder}' not found" if b.cylinder else
+                            f"'{block_label(b)}': pick a cylinder")
+            return
+        j, reason = cylinders.arm_joint(scene, c)
+        if j is None:
+            warnings.append(f"'{block_label(b)}': {reason}")
+            return
+        try:
+            d = cylinders.drive(scene, c, j)
+        except RuntimeError as exc:
+            warnings.append(f"'{block_label(b)}': {exc}")
+            return
+        if busy_until.get(j.name, 0) > f0:
+            warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
+        span = max(1, f1 - f0)
+        busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + span)
+        closed, full = c.closed_length, c.full_stroke
+        s0 = d.length_at(jstate[j.name]) - closed if b.use_from else b.from_stroke
+        s1 = b.to_stroke
+        if outside(s0, full) or outside(s1, full):
+            warnings.append(f"'{block_label(b)}': the stroke goes beyond 0 … {full * 1000:.0f} mm; it stops "
+                            "at the end of the cylinder")
+        s0, s1 = min(max(s0, 0.0), full), min(max(s1, 0.0), full)
+        keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
+        v = jstate[j.name]
+        for f in range(f0, f0 + span + 1):
+            stroke = s0 + (s1 - s0) * ease(b.easing, (f - f0) / span)
+            v = joints.clamp(j, d.value_for(closed + stroke))
+            _merge(keys, f, v, "LINEAR" if f < f0 + span else "CONSTANT")
+        jstate[j.name] = v
+
+    def outside(stroke, full):
+        return stroke < -1e-6 or stroke > full + 1e-6
+
     def free_joint(b):
         """The joint a JOINT or MOTOR step moves, or None (with a warning) when it cannot."""
         j = s.joints.get(b.joint)
@@ -472,6 +516,8 @@ def bake(scene, anim) -> dict:
             if j is None or b.duration <= 0.0:          # (a run of 0 s does nothing)
                 continue
             motor_run(j, b, f0, f1)
+        elif b.kind == "CYLINDER":
+            cylinder_move(b, f0, f1)
         elif b.kind == "POSE":
             pose = s.poses.get(b.pose)
             if pose is None:
