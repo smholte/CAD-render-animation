@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.30 – 6 Nov 2026 – faster automatic tests (task 0036)
+
+Nothing changes in the app itself. Behind the scenes:
+- GitHub's automatic tests now run side by side on about a dozen machines instead of one after the other: about 13
+  minutes per run instead of 35 to 50. Every test that ran before still runs.
+- A quick first check (about a minute) catches a clashing version number before the long tests start.
+- When a finished task is put on `main` exactly as it was tested, GitHub no longer repeats the tests: it
+  publishes the update within minutes. Changes to texts and the guide only take a few minutes too.
+
 ## 0.2.29 – 6 Nov 2026 – PC check: Heavy mode (task 0033, round 1)
 
 PC check
