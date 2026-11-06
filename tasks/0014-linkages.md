@@ -111,6 +111,19 @@ drives the input; every link follows.
   step (251 frames, scissor + four-bar in the scene) 314 ms; playback 0.09 ms per frame.
 - Real app: blocked here (download.blender.org 403); `ui_test_linkage.py` runs on GitHub (see below).
 
+**Independent review** (helper agent that did not write the code; 17 scratch runs on the test model): 4 findings,
+all fixed with a test that failed before: (1) the solver's position was stored single precision, so it never
+matched the drive joint – every update restarted the solver without its history (a parallelogram dragged in 0.5°
+steps crossed over in the reviewer's run) and rewrote every link (in the real app possibly an endless redraw):
+now a double-precision ID property, writes only on a real change; (2) a link could be added to the drive joint
+and silently broke the mechanism; (3) adding any part to the drive joint made the next model update drop the
+mechanism – Add is refused on a drive joint; (4) a joint carrying the whole mechanism (a lift on a turntable) was
+refused when made after the mechanism – allowed now (the base alone is still refused). Minor, fixed: removing a
+mechanism leaves its cylinder in Follows the arm; a rebuild that makes a new drive joint gives it limits. Checked
+fine by the review: undo/redo and the solver cache, model updates with a user's own drive joint / a joint riding
+on the platform / a driving cylinder, bakes with a coupled or motor-driven input and Go to pose, clear keys,
+nested CAD poses, explode and free moves, Swap order refusals; panel draw 2.7 ms.
+
 **Open points / follow-up tasks:**
 - The owner's example STEP files were not attached in this session: not tried. When he sends 2–3 (scissor and
   others), a short follow-up: try them, adjust pin finding (tolerance, base parts) if needed. Numbers only.
