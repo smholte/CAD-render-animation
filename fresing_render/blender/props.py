@@ -728,6 +728,13 @@ def _mill_enabled_changed(self, context):
     machining.enabled_changed(context.scene)
 
 
+def _chips_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import chips
+    chips.settings_changed(context.scene)
+
+
 MILL_SHAPE_ITEMS = [
     ("AUTO", "From its shape", "Read from the part itself: flat, ball, corner radius, V-bit and drill are "
                                "recognised, any other shape is used as it is"),
@@ -787,6 +794,35 @@ class FRMilling(bpy.types.PropertyGroup):
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "
                     "(the set-up is kept)")
     path_sig: StringProperty()           # fingerprint of the motion the stored paths were read from
+
+    # ---- chips (task 0028) ----
+    chips: EnumProperty(
+        name="Chips", default="NONE", update=_chips_changed,
+        description="Chips fly off the bit while it cuts, land on the workpiece, the table and the machine bed, "
+                    "and pile up. Few is quick; Realistic makes as many as the removed material would. Both "
+                    "make renders slower (see the user guide for measured times)",
+        items=[("NONE", "None", "No chips"),
+               ("FEW", "Few", "A sprinkle of chips (at most 3,000 at a time): quick to work out and to render"),
+               ("REALISTIC", "Realistic", "As many chips as the removed material makes (at most 25,000 at a "
+                                          "time, the oldest fade away): they pile up; slower to render")])
+    chip_material: EnumProperty(
+        name="Chip material", default="AUTO", update=_chips_changed,
+        description="What the chips look like. 'From the workpiece' reads it from the workpiece's name, its "
+                    "group name and its material in 3 Looks (aluminium, steel, POM …); pick one to override it",
+        items=[("AUTO", "From the workpiece", "Read from the workpiece's name, group and material in 3 Looks")]
+              + [(k, v, f"{v} chips") for k, v in (("ALU", "Aluminium"), ("STEEL", "Steel"),
+                                                   ("STAINLESS", "Stainless steel"),
+                                                   ("BRASS", "Brass / bronze / copper"), ("CAST_IRON", "Cast iron"),
+                                                   ("PLASTIC", "Plastic (POM, PE, nylon, acrylic)"),
+                                                   ("WOOD", "Wood / MDF"))])
+    chip_spindle: EnumProperty(
+        name="Spindle turns", default="CW", update=_chips_changed,
+        description="Which way the spindle turns, seen from above: the chips are thrown off in that direction",
+        items=[("CW", "Clockwise (M3)", "The usual direction for right-hand cutters"),
+               ("CCW", "Counter-clockwise (M4)", "Left-hand cutters, tapping back out")])
+    chip_mist: BoolProperty(
+        name="Coolant mist", default=False, update=_chips_changed,
+        description="A fine mist of coolant drops around the bit while it cuts. The drops fade after a moment")
 
 
 class FRSceneSettings(bpy.types.PropertyGroup):

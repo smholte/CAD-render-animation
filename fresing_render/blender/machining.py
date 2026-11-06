@@ -329,6 +329,8 @@ def stop(scene) -> None:
     s.workpiece_uid = ""
     s.path_sig = ""
     _RUNTIME.pop(scene.name, None)
+    from . import chips
+    chips.remove(scene)
 
 
 def _world_centre(ob) -> Vector:
@@ -340,6 +342,8 @@ def show_uncut(scene) -> None:
     """The milled mesh shows the workpiece as it came from CAD (milling off, or nothing to cut with)."""
     s = settings(scene)
     wp = workpiece(scene)
+    from . import chips
+    chips.hide(scene)
     if wp is None or s.stock_mesh is None or s.cut_mesh is None or wp.data is not s.cut_mesh:
         return
     _write_stock(s.cut_mesh, s.stock_mesh)
@@ -356,6 +360,8 @@ def enabled_changed(scene) -> None:
         refresh(scene)
     else:
         _give_back(scene, wp)
+        from . import chips
+        chips.hide(scene)
 
 
 # ---------------------------------------------------------------------------
@@ -498,10 +504,12 @@ def sample(scene, progress=None) -> int:
             return [_pose(wi, ob, tip, ax) for (_it, ob), tip, ax in zip(items, tips, axes)]
 
         rows = [[] for _ in items]                  # per bit: (t, o, d)
+        wp_m = []                                   # the workpiece in the world at every frame (chips, task 0028)
         prev = None
         total = f1 - f0 + 1
         for n, f in enumerate(range(f0, f1 + 1)):
             cur = read(float(f))
+            wp_m.append([v for row in wp.matrix_world for v in row])
             if prev is not None:
                 extra = _refine(read, float(f - 1), float(f), prev, cur, tools, tol, lo, hi, depth=0)
                 for t, poses in extra:
@@ -522,6 +530,8 @@ def sample(scene, progress=None) -> int:
         item["fr_o"] = np.array([x[1] for x in r], dtype=np.float64).reshape(-1)
         item["fr_d"] = np.array([x[2] for x in r], dtype=np.float64).reshape(-1)
         count += len(r)
+    s["fr_wp_m"] = np.array(wp_m, dtype=np.float64).reshape(-1)
+    s["fr_wp_f0"] = f0
     s.path_sig = signature(scene)
     rt = runtime(scene)
     rt["sample_s"] = time.perf_counter() - t0
@@ -709,6 +719,7 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
             mi[ok] = mats[src[ok]]
         _write_mesh(s.cut_mesh, v, t, mi)
         rt["shown"] = (id(tl), T)
+        _show_chips(scene, T)
         st = tl.stats
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
                         f"({st.cutting_segments} cutting moves)")
@@ -718,6 +729,16 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
         rt["error"] = "The workpiece is not a closed solid in the CAD file, so it cannot be cut"
         rt["status"] = rt["error"]
         return False
+
+
+def _show_chips(scene, T: float) -> None:
+    """Chips (task 0028) at this frame; never stops the cut from showing."""
+    from . import chips
+    try:
+        chips.show(scene, T)
+    except Exception as exc:
+        runtime(scene)["chips_error"] = str(exc)
+        print("Fresing Render: chips failed:", exc)
 
 
 def mark_stale(scene) -> None:
@@ -881,6 +902,8 @@ def _on_depsgraph(scene, depsgraph=None):
 @persistent
 def _on_load(_dummy=None):
     _RUNTIME.clear()
+    from . import chips
+    chips.forget()
     _STATE["pending"] = False
     if bpy.app.background:
         return
@@ -909,3 +932,5 @@ def unregister():
         bpy.app.timers.unregister(_check_timer)
     _STATE["pending"] = False
     _RUNTIME.clear()
+    from . import chips
+    chips.forget()

@@ -219,6 +219,27 @@ class FRESING_OT_mill_stop(_MillOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_chips_clear(_MillOp, bpy.types.Operator):
+    """Removes every chip from the view and from the project, and sets Chips to None. Pick Few or Realistic
+    again to bring them back"""
+
+    bl_idname = "fresing.chips_clear"
+    bl_label = "Clear chips"
+
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+        from . import chips
+        return machining.settings(context.scene).chips != "NONE" or bpy.data.objects.get(chips.OBJ_RIDE) is not None
+
+    def execute(self, context):
+        from . import chips
+        chips.clear(context.scene)
+        self.report({"INFO"}, "Chips cleared")
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_mill_add_bit, FRESING_OT_mill_remove_bit, FRESING_OT_mill_flip_bit,
            FRESING_OT_mill_set_workpiece, FRESING_OT_mill_set_finished, FRESING_OT_mill_clear_finished,
-           FRESING_OT_mill_reset, FRESING_OT_mill_stop)
+           FRESING_OT_mill_reset, FRESING_OT_mill_stop, FRESING_OT_chips_clear)

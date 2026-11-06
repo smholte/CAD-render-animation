@@ -141,7 +141,8 @@ fresing_render/            the Blender extension (Python package)
                            studio.py (light looks, light in words, blur and turntable numbers),
                            machining.py (milling: bit shapes, straight segments, Manifold booleans, tiles),
                            decal_geometry.py (where a decal lies: flat or wrapped round a cylinder),
-                           decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks)
+                           decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
+                           chips.py (chip presets per material x bit, chip shapes, height fields, chip flight)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -157,6 +158,8 @@ fresing_render/            the Blender extension (Python package)
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
+    chips.py               chips: inputs from the milling set-up, catch areas (rays down), bake, two point
+                           clouds + a Geometry Nodes instancer (4 Motion > Milling > Chips)
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
@@ -435,3 +438,10 @@ the release → Delete); the next run on `main` publishes it again.
 - Undo/redo after "Build animation" called from a script (no undo step of its own) crashes Blender
   5.2.3 (also without milling, found 5 Nov 2026). Real-app tests call operators like a button
   (`"EXEC_DEFAULT", True`), which pushes the undo step.
+- Building an animation again puts back the camera it remembered first: to give an already built
+  animation another camera (a test), `animation.clear_keys(scene)` first, then set the camera, then build.
+- Geometry Nodes "Collection Info" with Separate Children orders the children by name: chips pick their
+  shape by instance index, so the shape objects are named "FR chip 000", "FR chip 001" … in that order.
+- Chips are worked out from the bits' paths, never by stepping through frames: the bake must not call
+  `frame_set` (it also runs inside the frame handler). The workpiece's place at every frame is read
+  along with the paths (`machining.sample` stores it as `fr_wp_m`).
