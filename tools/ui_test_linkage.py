@@ -328,19 +328,40 @@ def s_four_bar():
           s.last_message)
     if m is None:
         return 0.5
-    drive(m).motion["fr_value"] = math.radians(200)
+    drive(m).motion["fr_value"] = math.radians(200)      # as dragging the Drive angle field (with its undo step)
     drive(m).motion.update_tag()
+    with override():
+        bpy.ops.ed.undo_push(message="drive")
     redraw()
     wiggle()
     return 1.0
 
 
-@step
-def s_four_bar_moved():
+def four_bar_lengths():
     bx, bz = axis_xz("FOURBAR.CRANK.PIN")
     cx, cz = axis_xz("FOURBAR.ROCKER.PIN")
-    check("the four-bar's links keep their lengths at 200°", abs(math.hypot(cx - bx, cz - bz) - 0.35) < 2e-5
-          and abs(math.hypot(cx - 2.4, cz - 0.3) - 0.25) < 2e-5 and abs(math.hypot(bx - 2.0, bz - 0.3) - 0.12) < 2e-5)
+    bc, dc, ab = math.hypot(cx - bx, cz - bz), math.hypot(cx - 2.4, cz - 0.3), math.hypot(bx - 2.0, bz - 0.3)
+    m = bpy.context.scene.fresing.mechanisms.get("Four-bar or parallel arm")
+    lk = mod("blender.linkages")
+    why = (f"BC {bc * 1000:.3f} DC {dc * 1000:.3f} AB {ab * 1000:.3f} mm; crank at "
+           f"{math.degrees(math.atan2(bz - 0.3, bx - 2.0)):.2f}°; drive "
+           f"{math.degrees(mod('blender.joints').get_value(drive(m))):.2f}°, solved {math.degrees(lk.solved(m)):.2f}°"
+           f" {m.status}")
+    return abs(bc - 0.35) < 2e-5 and abs(dc - 0.25) < 2e-5 and abs(ab - 0.12) < 2e-5, why
+
+
+@step
+def s_four_bar_moved():
+    ok, why = four_bar_lengths()
+    check("the four-bar's links keep their lengths at 200°", ok, why)
+    wiggle()
+    return 1.0
+
+
+@step
+def s_four_bar_later():
+    ok, why = four_bar_lengths()
+    check("... and one step later", ok, why)
     s = bpy.context.scene.fresing
     s.mechanisms_index = s.mechanisms.find("Scissor lift")
     try:
