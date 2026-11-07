@@ -23,7 +23,7 @@ updates its branch to `main`.
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (open – can start); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (running); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -37,7 +37,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0038 | Machining lane: milling crash – Blender 5.2.3 corrupts memory when the bits' path is stored again with another length (NumPy arrays in ID properties); safe store helper, crash test, queue + MP4 checked (0037 problem 1) | worker | Opus · Medium | open – can start (high priority) | tasks/0038-milling-memory-crash.md |
+| 0038 | Machining lane: milling crash – Blender 5.2.3 corrupts memory when the bits' path is stored again with another length (NumPy arrays in ID properties); safe store helper, crash test, queue + MP4 checked (0037 problem 1) | worker | Opus · Medium | running | tasks/0038-milling-memory-crash.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0031 | Quality & delivery lane: stored set-up for every Claude Code session on the web (venv, Blender 5.2.3, xvfb, ImageMagick; download.blender.org allowed or a GitHub-release copy); two rounds, the owner sets the environment in between | worker | Sonnet · Medium | later – owner put it on hold (6 Nov) | tasks/0031-web-setup.md |

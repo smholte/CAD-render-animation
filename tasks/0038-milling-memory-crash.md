@@ -1,6 +1,6 @@
 # 0038 – Milling crash: store the bits' path safely
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0038-milling-memory-crash`
+**Who:** worker · **Status:** running · **Branch:** `task/0038-milling-memory-crash`
 **Started by:** lead chat, 7 Nov 2026 · **Area:** Machining lane – `fresing_render/blender/machining.py`
 (storing the path), its tests; one line each in `CLAUDE.md` section 8 and `CHANGELOG.md`
 **Model:** Opus · effort Medium (small fix, but a memory-safety bug in Blender that must be proven gone)
