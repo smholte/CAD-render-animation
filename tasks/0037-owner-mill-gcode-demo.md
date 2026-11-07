@@ -145,3 +145,17 @@ file is already compressed). No app code changed.
 - The owner builds and renders on his PC (RTX 3090); render times there not known yet.
 - Until problem 1 is fixed: change the step's settings (Fit into, rapids) as little as possible; if Blender
   crashes after a change, open the file again – the path is then read fresh.
+
+**Addendum 7 Nov 2026 (owner's PC):** the program ran without problems in the app. A queued 4K video (501 frames,
+GPU OptiX, 16.3 s per frame, 2 h 16 min) rendered every frame, then Blender crashed while making the MP4 (at frame
+77 of the video, "Microsoft C++ Exception"). The queue's runner reads the milling path again at its start ("Milling:
+reading the motion of the bits"), with another sample count than the project had stored – problem 1 above.
+Reproduced here: the project file + a new Build + `machining.sample()` without deleting first, then the queue's
+`encode_mp4` of 120 4K frames → segfault 2 of 2; the same encode without the re-read worked. The frames on his PC are
+fine: the owner got a stand-alone "Make video.bat" + `make_video.py` (Blender in the background, no project loaded,
+same H.264 settings) to make the MP4 from them; tested on Linux with 120 frames at 4K, the .bat not tested on Windows.
+Retrying the failed job with Start queue would reuse the frames but read the path again (same crash risk).
+Also seen: the sequencer keeps every 4K frame in its cache while encoding (+33 MB per frame up to the 4 GB cache
+limit, measured here), inside the runner that still holds the whole project – fine on 47 GB, worth a look for 4K on
+smaller PCs.
+
