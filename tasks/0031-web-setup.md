@@ -75,10 +75,22 @@ App code, the workflow's test jobs (task 0036 just reorganised them – read, do
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 7 Nov 2026. Both rounds in one session: the session could create
+and switch to the new environment itself (owner approved the card), so no second session was needed.
 
-**What changed:**
+**What changed:** `tools/web_setup.sh` (idempotent: apt packages, `~/venv`, Blender 5.2.3 with sha256 check into
+`~/blender-5.2.3`, Linux wheels into `~/linux-wheels`; one line per part + "ready in N s"), `tools/web_install_app.py`
+(settings folder `~/fr_user` for guide pictures), `tests/test_web_setup.py` (drift test: Blender version vs installer,
+OCP/manifold versions vs workflow and requirements), CLAUDE.md sections 4 and 5 rewritten. Route: **download.blender.org
+allowed in the environment** (a GitHub-release copy was not needed). Environment "CAD-render-animation" (personal,
+Limited network + `download.blender.org`, setup script `for d in */tools/web_setup.sh; do [ -f "$d" ] && bash "$d"; done`).
 
-**Tested and measured** (name the machine):
+**Tested and measured** (this session, 4 cores): from nothing: apt 6 s, venv 76 s, wheels 16 s, Blender download+unpack
+37 s = about 2.3 min (under the 5-minute limit); a second run 0 s per part. Real-app `--only waycover`: 14/14 passed, 27 s.
+Guide picture (`GUIDE_SHOTS=decals`) made in ~1 min. Drift test passes. The download was refused (403) before the
+environment was changed. **Not yet measured:** a fresh session starting on the new environment (the script is only
+read from the repository once it is on `main`).
 
-**Open points / follow-up tasks:**
+**Open points:** (1) merge to `main` is needed before the stored set-up can work; (2) owner: start a new session with
+environment CAD-render-animation and check `ls ~/blender-5.2.3` - then the start-time measurement; (3) the local
+`ci_precheck.py` complains about the version only because this branch equals `main`; no version change here.
