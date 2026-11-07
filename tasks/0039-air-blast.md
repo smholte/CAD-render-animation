@@ -1,6 +1,6 @@
 # 0039 – Air blast: blow the chips away
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0039-air-blast`
+**Who:** worker · **Status:** running · **Branch:** `ccr-84b37d86-ng46l7` (the web session's branch)
 **Started by:** lead chat, 7 Nov 2026 (owner accepted: option 1B, plus the "clean at the end" tick box with a time slider)
 **Area:** Machining lane – `core/chips.py`, `blender/chips.py`, `ui_machining.py`; additive in `core/gcode.py` /
 `blender/gcode.py` / `ui_gcode.py` (the air code and nozzle in 4 Motion > CNC machine); tests; user guide chapter
