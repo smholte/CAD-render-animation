@@ -257,25 +257,29 @@ docs/                      README-install.txt (shipped to the owner), DEVELOPMEN
 The chat machine is empty at the start. Python 3.13 is there; pip works; most other websites
 are blocked.
 
-**Claude Code on the web:** each session runs in a cloud environment (Ubuntu, 4 cores, 16 GB).
-Its setup script runs once and its result is stored for later sessions (about 7 days), but only
-when it finishes within about 5 minutes. The default network list covers PyPI and GitHub, not
-download.blender.org: that needs the environment's own list of allowed websites. Task 0031 makes
-and tests this setup (venv, Blender 5.2.3, xvfb, ImageMagick) and replaces this paragraph; until
-then a session does the steps below itself, as the chats did.
+**Claude Code on the web (task 0031).** The owner's environment **"CAD-render-animation"** (claude.ai/code, Network
+access Limited with `download.blender.org` allowed) runs `tools/web_setup.sh` as its setup script; the result is
+stored for later sessions (about 7 days, only if the script ends within 5 minutes – it takes about 2.5 minutes from
+nothing, 0 s when everything is there). What is there at the start of a session:
 
-```bash
-git clone https://github.com/smholte/CAD-render-animation fresing-render
-python3.13 -m venv ~/venv
-~/venv/bin/pip install -r fresing-render/tools/requirements-dev.txt     # pinned versions
-cd fresing-render && ~/venv/bin/python -m pytest tests/ -q          # about 6 minutes, all must pass
-```
+| What | Where |
+| --- | --- |
+| Python venv with the pinned packages (`tools/requirements-dev.txt`, incl. `bpy`) | `~/venv` (`~/venv/bin/python`) |
+| Real Blender 5.2.3, Linux, sha256 checked | `~/blender-5.2.3/blender-5.2.3-linux-x64/blender` |
+| Linux OpenCascade + manifold wheels for the packaged test | `~/linux-wheels` |
+| xvfb, ImageMagick (`import`, `convert`) and Blender's system libraries | system |
 
-Real-app tests also need the real Blender program (Linux build of 5.2.3,
-`blender-5.2.3-linux-x64.tar.xz` from download.blender.org; if the download is blocked,
-say so and run the pytest suite only) and `xvfb-run` + ImageMagick (`import`, `convert`).
-GitHub runs all of them at every push anyway (section 5), so a chat that cannot run them
-locally pushes its branch and reads the run.
+Check with `ls ~/venv ~/blender-5.2.3 ~/linux-wheels`; when something is missing (stored set-up expired, or a session in
+another environment) run `bash tools/web_setup.sh` – it skips what is there and prints one line per part and
+"ready in N s". It needs `download.blender.org`; if that is refused, the session is not in the environment above:
+tell the owner. For guide pictures make the settings folder once: `~/venv/bin/python tools/web_install_app.py`
+(creates `~/fr_user`; then use `BLENDER_USER_RESOURCES=~/fr_user`, see the docstring of `tools/guide_screens.py`).
+The set-up script is read from the checked-out repository (default branch): a change to it only reaches the stored
+set-up once it is on `main`. `tests/test_web_setup.py` checks its versions against the installer, the workflow
+and `requirements-dev.txt`.
+
+By hand (a chat, or no stored set-up): `python3.13 -m venv ~/venv && ~/venv/bin/pip install -r tools/requirements-dev.txt`,
+then `~/venv/bin/python -m pytest tests/ -q` (about 6 minutes, all must pass).
 
 ## 5. Tests – what to run when
 
@@ -283,11 +287,11 @@ locally pushes its branch and reads the run.
 | --- | --- | --- |
 | Full suite (1,360+ tests) | `~/venv/bin/python -m pytest tests/ -q` | every change |
 | Packaged install + self-test (Linux build of the zip) | `FRESING_SELFTEST_NO_GPU=1 BLENDER_USER_RESOURCES=/tmp/fr_user python tools/test_install_linux.py <linux wheels dir>` | packaging, importer, self-test changes |
-| Real app, simulated clicks + accented paths + in-app update (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings,update`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release |
+| Real app, simulated clicks + accented paths + in-app update (installs the extension and app template into a fresh settings folder itself) | `python3 tools/ci_real_app.py --blender <blender> --wheels <linux wheels dir> --out <dir>` (some: `--only ui1,surroundings,update`; `UITEST_QUICK=1` skips ui1's renders) | UI, operators, before a release. **Runs locally in a web session** (`--blender ~/blender-5.2.3/blender-5.2.3-linux-x64/blender --wheels ~/linux-wheels`; waycover test 27 s on 4 cores) |
 | In-app update against the real GitHub release (check + download) | `python3 tools/ci_update_test.py --github --expect <version> --blender <blender> --wheels <dir> --out <dir>` | after a release |
 | Side-panel screenshots | `tools/ui_screens.py` (see its docstring) | every UI change: look at the result |
 | **All of the above except the screenshots, plus a Windows install** | automatic on GitHub at every push | read the run: below |
-| User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/` |
+| User guide pictures | `tools/guide_screens.py` (modes panels / window / render, see its docstring) | your panels changed: replace their pictures in `docs/img/`. **Runs locally in a web session** (settings folder first: `tools/web_install_app.py`; the decals picture took ~1 min) |
 | User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
 | Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
 | PC check Heavy, scaled down (`FRESING_PCCHECK_HEAVY_SMALL=1`: ~300 parts, 14 frames, 540 px; real Blender under xvfb) | `FRESING_PCCHECK_HEAVY_SMALL=1 python3 tools/ci_real_app.py --only pccheckheavy …` | you changed `pccheck/heavy.py` |
