@@ -25,6 +25,28 @@ updates its branch to `main`.
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (round 1 released 0.2.29, round 2 waits for the owner's Heavy run)
 - **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
+## Problems found, waiting for a task
+
+The lead turns each into a task (number, brief, model) and then deletes its entry here.
+
+- **Crash: milling damages Blender's memory when it reads the bits' path again** (found by 0037, 7 Nov 2026;
+  high priority – it crashed a 2 h 16 min queued 4K video on the owner's PC while the MP4 was made, after every frame
+  had rendered). Cause: Blender 5.2.3 corrupts its memory when an array ID property gets a NumPy array of a *different
+  length* than it had (`scene["x"] = np.random.rand(250)`, then `= np.random.rand(2000)` → "free(): invalid size" or a
+  segfault a little later; same length, a list or `del` first are fine). `machining.sample()`
+  (`fresing_render/blender/machining.py`, the lines `item["fr_t"]`, `item["fr_o"]`, `item["fr_d"]` and
+  `s["fr_wp_m"] = …` at the end) does this every time the path is read again with another number of samples – and a
+  new Build gives a slightly different number (1,928 ↔ 1,930 on the 0037 project). It runs after Build in the app and
+  at the start of every queued job (`machining.prepare`, `queue.py`), so a saved project with a path in it crashes the
+  queue at random. Fix: `del` the keys (if there) before assigning, or assign `.tolist()`; check that nothing else in
+  the code assigns NumPy arrays to ID properties. Test that fails before: sample, change the animation length, sample
+  again, then allocate a lot (or a direct test of the helper that stores the arrays). Reproduction and numbers:
+  report and addendum in `tasks/0037-owner-mill-gcode-demo.md` (problem 1). Machining lane; suggested Opus · Medium
+  (small fix, memory-safety test). Afterwards one line in CLAUDE.md section 8.
+- **Six smaller problems from 0037** (bit detection read a fluted Ø12 end mill as Ø10.4; two way covers on one axis;
+  Motor not ticked when the spindle is picked; second import re-lays the hall; "//" program path; scripts must call
+  `machining.sample()`): `tasks/0037-owner-mill-gcode-demo.md`, problems 2–7.
+
 ## Open and running
 
 | # | Task | Who | Model · effort | Status | Branch / file |
