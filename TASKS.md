@@ -23,7 +23,7 @@ updates its branch to `main`.
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (running) → 0040 tool library → 0041 tool changes + ATC → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (open – can start) → 0041 tool changes + ATC → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -37,8 +37,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0039 | Machining lane: air blast blows chips away – air code (M7/M9 or custom, or always on), through-spindle or external nozzle, chips pushed off the block, "Blow the part clean at the end" with a time slider | worker | Opus · Medium | running | tasks/0039-air-blast.md, branch ccr-84b37d86-ng46l7 |
-| 0040 | Machining lane: tool library – one list per project, 8 tool types from sizes or imported STEP, Fusion/LinuxCNC tool files, every tool cuts with its own shape (also after M6); fixes 0037 problem 2 | worker | Opus · High | open – after 0039 | tasks/0040-tool-library.md |
+| 0040 | Machining lane: tool library – one list per project, 8 tool types from sizes or imported STEP, Fusion/LinuxCNC tool files, every tool cuts with its own shape (also after M6); fixes 0037 problem 2 | worker | Opus · High | open – can start | tasks/0040-tool-library.md |
 | 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – after 0040 | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
@@ -88,5 +87,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0036 | Faster automatic tests: precheck first (version clash in ~1 min), pytest and real app as parallel jobs (full run 11–14 min, was 35–50), a push to `main` whose tree already ran green releases without repeating the tests (1.7 min), docs-only pushes ~2 min | 0.2.31 |
 | 0037 | The owner's own mill set up with block, Ø10 end mill, CNC machine, milling + chips, a 3.4-min G-code demo and its step (45 s); first real-machine test of 0026/0027/0028/0034; 7 app problems for the lead, one crash (milling path re-read) | – (no app change) |
 | 0038 | Milling crash fixed: the bits' path is stored safely (Blender 5.2.3 corrupted memory when an array property got a NumPy array of another length); crash tests, old projects, queued MP4 | 0.2.33 |
+| 0039 | Air blast: air on/off from the program (M7/M9 or M100–M199, or always with the spindle), through the spindle or an external nozzle, chips blown off the part, "Blow the part clean at the end" with a time slider, optional visible cone; test mill pocket 1,560 → 0 chips on the block | 0.2.34 |
 
 Details per version: `CHANGELOG.md`.
