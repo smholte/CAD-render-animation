@@ -408,6 +408,9 @@ def chain_objects(scene) -> list:
     the objects their drivers read."""
     s = settings(scene)
     start = [b for _i, b in bits(scene)] + ([workpiece(scene)] if workpiece(scene) else [])
+    from . import air
+    if air.uses_nozzle(scene):                        # the air nozzle is read along with the bits (task 0039)
+        start.append(air.settings(scene).air_nozzle)
     seen, out, stack = set(), [], list(start)
     while stack:
         ob = stack.pop()
@@ -440,6 +443,8 @@ def signature(scene) -> str:
         h.update(f"bit:{ob.name}:{tuple(round(x, 7) for x in item.tip)}:{tuple(round(x, 7) for x in item.axis)}".encode())
     wp = workpiece(scene)
     h.update(f"wp:{wp.name if wp else ''}:{s.detail}".encode())
+    from . import air
+    h.update(air.nozzle_signature(scene).encode())
     for ob in sorted(chain_objects(scene), key=lambda o: o.name):
         h.update(ob.name.encode())
         h.update((ob.parent.name if ob.parent else "").encode())
@@ -495,6 +500,9 @@ def sample(scene, progress=None) -> int:
     me.vertices.foreach_get("co", co)
     co = co.reshape(-1, 3) if len(co) else np.zeros((1, 3))
     lo, hi = co.min(axis=0), co.max(axis=0)
+    from . import air
+    nozzle = air.uses_nozzle(scene)
+    air_o, air_d = [], []                           # the air nozzle in the world at every frame (task 0039)
     _STATE["guard"] += 1
     t0 = time.perf_counter()
     try:
@@ -511,6 +519,10 @@ def sample(scene, progress=None) -> int:
         for n, f in enumerate(range(f0, f1 + 1)):
             cur = read(float(f))
             wp_m.append([v for row in wp.matrix_world for v in row])
+            if nozzle:
+                o, d = air.nozzle_pose(scene)
+                air_o.append(o)
+                air_d.append(d)
             if prev is not None:
                 extra = _refine(read, float(f - 1), float(f), prev, cur, tools, tol, lo, hi, depth=0)
                 for t, poses in extra:
@@ -533,6 +545,13 @@ def sample(scene, progress=None) -> int:
         store_array(item, "fr_d", [x[2] for x in r])
         count += len(r)
     store_array(s, "fr_wp_m", wp_m)
+    if nozzle:
+        store_array(s, "fr_air_o", air_o)
+        store_array(s, "fr_air_d", air_d)
+    else:
+        for k in ("fr_air_o", "fr_air_d"):
+            if k in s:
+                del s[k]
     s["fr_wp_f0"] = f0
     s.path_sig = signature(scene)
     rt = runtime(scene)

@@ -837,6 +837,50 @@ Good to know
     29.9 s with 25,000 brass crumbs (the limit, +23 %);
   - showing a frame in the view: 8–17 ms on top of the milling.
 
+#### Air blast
+
+<img class="wide" src="img/air_blast.jpg" alt="The test mill after a pocket: without air the block is covered in chips, with air blast it is clean">
+
+On a real machine, air blows the chips away while it cuts, and the operator blows the part clean at the end.
+The app does the same, so the finished part stays visible. Air needs a **Run G-code program** step (the
+program says when air is on) and chips (above).
+
+1. In 4 Motion > **CNC machine**, open the fold **Air blast**.
+2. **Air on code** / **Air off code**: the M-codes your machine uses – **M7** and **M9** on most machines
+   (M9 always stops M7 and M8), or a user code **M100 … M199**. The air blows from the on code to the off
+   code. **Air always on while the spindle turns** is for programs without an air code.
+3. **Air from**:
+   - **Through the spindle**: the air comes out at the tool's tip, blows down along the tool and moves with
+     it. Where it hits the floor of the cut it fans out and blows the chips away round the tool.
+   - **External nozzle**: click the nozzle part in the view and press **Use clicked part** (its tip is read
+     from its shape: the end nearest the workpiece), or press **Click point** and click the spot where the
+     air comes out. It blows towards the middle of the workpiece; **Aim at the workpiece** aims it again,
+     the arrows button turns it round, and the fold **Nozzle tip and aim** lets you drag the direction. The
+     nozzle moves with the part it is on (the head, or it stands still on the frame).
+4. **Strength** (Soft / Normal / Strong), **Cone angle** (how wide the jet spreads) and **Reach** (how far it
+   blows). Normal blows most chips off the part from a nozzle within about 10 cm of the cut; from further
+   away use Strong.
+5. **Show air** draws the jet as a faint cone while the air blows (off by default: real air is invisible).
+6. Build the animation in 6 Animation. The step says when air is on ("Air: on 1 time, 3.1 s in all"),
+   **Details** too, and 4 Motion > Milling > Chips shows it.
+
+Chips that fly through the air are pushed away, chips lying in the jet are picked up again and land further
+away – on the table, the machine bed, in the corners – not back on the part. The same frame gives the same
+chips every time.
+
+**Blow the part clean at the end**: tick it in the Run G-code program step and set **Time at end** (2 s,
+0.5–10 s). The step gets that much longer: the tool goes up (15 mm over the highest cutting move), the air
+blows with the valve fully open, and the last frames show the clean part. Through the spindle the tool goes
+over the cut area in passes; an external nozzle blows from where it is. It works with or without air codes
+in the program.
+
+Measured on the test mill (a 60 × 40 mm pocket, 4 mm deep, in 4 s of video, chips Realistic, about 6,200
+chips, on the 4-core test machine, as in the picture above): 1,560 chips lie on the block at the last frame
+without air; with air through the spindle (Normal) 0; from a nozzle on the head (Strong) 8; with only **Blow
+the part clean** (2 s) 0. Working the chips out took 0.7 s without air and 0.9 s with air and a 1 s clean
+blast; showing a frame in the view 14 ms without and 12 ms with air; one rendered frame (processor,
+800 × 560, 32 samples) 19.7 s without and 18.7 s with air.
+
 ### CNC machine (G-code)
 
 <img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, tools">
@@ -1192,10 +1236,14 @@ The fold **Lines, tool changes, spindle, toolpath** holds:
   the program's S.
 - **Go to line …** puts the timeline where the program starts a line.
 
+Under the step's length: **Air: …** says when the program has air on (see **Air blast** in 4 Motion >
+Milling), and **Blow the part clean at the end** with **Time at end** adds a final blast that leaves the part
+clean.
+
 What the app reads (LinuxCNC's G-code, as CAM programs and hand-written programs use it): G0 G1, arcs G2
 G3 in all three planes (I J K or R, helical, several turns), G4, G17–G19, G20/G21 inch and mm, G90/G91,
 G90.1/G91.1, G93/G94/G95, work offsets G54–G59.3 and G10 L2/L20, G92, G28/G30, G53, the drilling cycles
-G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, parameters (`#1`, `#<name>`),
+G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, M7 M8 M9 (air, see Air blast), parameters (`#1`, `#<name>`),
 expressions in `[ ]`, and O-word subroutines, loops and if/else (also a subroutine file `<name>.ngc` next
 to the program). **Details** lists everything the app does not show, with its line numbers: cutter
 compensation G41/G42 (the tool follows the programmed line), rotary axes A/B/C, threading, probing and

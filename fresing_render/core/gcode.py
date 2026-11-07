@@ -152,6 +152,8 @@ class Program:
     steps: int = 0                                      # lines run (loops count every time)
     ended: bool = False                                 # M2 / M30 reached
     name: str = ""                                      # the program's title comment, if any
+    # coolant / air codes (M7 M8 M9, user codes M100-M199; task 0039): (moves before it, M number, line)
+    m_events: list = field(default_factory=list)
 
     @property
     def duration(self) -> float:
@@ -1111,6 +1113,8 @@ class Reader:
             self.problem(f"G{g / 10:g}", f"Unknown or unsupported G-code G{g / 10:g}: left out")
         keep_m = []
         for m in ms:
+            if m in (7, 8, 9) or 100 <= m <= 199:            # air / coolant switches (task 0039)
+                self.prog.m_events.append((len(self.prog.moves), m, self.top_line or self.line_no))
             if m in (0, 1, 2, 3, 4, 5, 6, 19, 30, 60, 61):
                 keep_m.append(m)
             elif m in _NOTED_M:
@@ -1445,6 +1449,62 @@ class Timing:
     swap: float = 1.0
     line_from: int = 0
     line_to: int = 0
+    clean: float = 0.0              # s at the end: "Blow the part clean" (task 0039); 0 = none
+    clean_sweep: bool = True        # air through the spindle: the tool goes over the part while it blows
+
+
+CLEAN = "CLEAN"                     # Move.cycle of the moves the app adds for "Blow the part clean"
+CLEAN_LIFT = 15.0                   # mm above the highest cutting move: where the tool blows from
+CLEAN_LANE = 25.0                   # mm between the passes over the part (at most CLEAN_LANES of them)
+CLEAN_LANES = 8
+CLEAN_SWEEP = 0.75                  # share of the clean time the passes take; then the tool stays still
+
+
+def merge_spans(spans) -> list:
+    """Overlapping or touching (start, end) spans joined, sorted."""
+    out = []
+    for a, b in sorted((float(a), float(b)) for a, b in spans if b > a):
+        if out and a <= out[-1][1] + 1e-9:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    return out
+
+
+def clean_moves(prog: Program, last, seconds: float, sweep: bool) -> list:
+    """The moves of "Blow the part clean": up to CLEAN_LIFT mm above the cutting moves, then (``sweep``)
+    passes over the area the program cut, then still. Returns [(Move, seconds)] that fill ``seconds``."""
+    box = prog.bounds(feed_only=True) or prog.bounds()
+    last = tuple(last)
+    if box is None or seconds <= 0:
+        return [(Move("DWELL", 0, last, last, cycle=CLEAN), seconds)] if seconds > 0 else []
+    (x0, y0, _z0), (x1, y1, z1) = box
+    zc = max(z1 + CLEAN_LIFT, last[2]) if not sweep else z1 + CLEAN_LIFT
+    pts = [last]
+    if sweep:
+        n = max(2, min(CLEAN_LANES, int(math.ceil((y1 - y0) / CLEAN_LANE)) + 1))
+        ys = [y0 + (y1 - y0) * k / (n - 1) for k in range(n)]
+        pts.append((x0, ys[0], zc) if abs(last[2] - zc) < 1e-6 else (last[0], last[1], zc))
+        for k, y in enumerate(ys):
+            a, b = (x0, x1) if k % 2 == 0 else (x1, x0)
+            pts += [(a, y, zc), (b, y, zc)]
+    elif last[2] < zc - 1e-6:
+        pts.append((last[0], last[1], zc))
+    clean = []
+    for a, b in zip(pts, pts[1:]):
+        if math.dist(a, b) > 1e-6:
+            clean.append((a, b))
+    total = sum(math.dist(a, b) for a, b in clean)
+    move_s = seconds * (CLEAN_SWEEP if sweep else min(CLEAN_SWEEP, 0.25))
+    out = []
+    for a, b in clean:
+        d = move_s * math.dist(a, b) / total if total > 0 else 0.0
+        out.append((Move("FEED", 0, a, b, length=math.dist(a, b), cycle=CLEAN), d))
+    end = clean[-1][1] if clean else last
+    rest = seconds - sum(d for _m, d in out)
+    if rest > 1e-9:
+        out.append((Move("DWELL", 0, end, end, cycle=CLEAN), rest))
+    return out
 
 
 @dataclass(slots=True)
@@ -1500,8 +1560,18 @@ class Schedule:
             d = raw(m) * scale
             self.pieces.append(Piece(m, t, d))
             t += d
+        self.program_end = t
+        self.clean_span = None                              # (start, end) of "Blow the part clean", s
+        if timing.clean > 0 and self.pieces:
+            last = self.pieces[-1].move
+            for mv, d in clean_moves(prog, last.b, float(timing.clean), bool(timing.clean_sweep)):
+                mv.spindle, mv.tool, mv.line, mv.top = last.spindle, last.tool, last.line, last.top
+                self.pieces.append(Piece(mv, t, d))
+                t += d
+            self.clean_span = (self.program_end, t)
         self.duration = t
         self._starts = [p.v0 for p in self.pieces]
+        self._moves = moves
 
     def piece_at(self, t: float):
         import bisect
@@ -1559,6 +1629,51 @@ class Schedule:
                 clean.append((t, pt))
         return clean
 
+    def m_times(self) -> list:
+        """[(video time, M number)] of the coolant / air codes in the program (task 0039). Codes before the
+        first line shown come at 0, codes after the last line shown are left out."""
+        prog = self.prog
+        if not prog.m_events:
+            return []
+        index = {id(m): i for i, m in enumerate(prog.moves)}
+        starts = [(index[id(p.move)], p.v0) for p in self.pieces if id(p.move) in index]
+        lo = max(1, int(self.timing.line_from or 1))
+        hi = int(self.timing.line_to) if self.timing.line_to and self.timing.line_to >= lo else 10 ** 12
+        out = []
+        import bisect
+        keys = [k for k, _v in starts]
+        for k, m, top in prog.m_events:
+            if top > hi:
+                continue
+            if top < lo:
+                out.append((0.0, m))
+                continue
+            j = bisect.bisect_left(keys, k)
+            out.append((starts[j][1] if j < len(starts) else self.program_end, m))
+        out.sort(key=lambda x: x[0])
+        return out
+
+    def air_spans(self, on_code: int = 7, off_code: int = 9, always: bool = False) -> list:
+        """[(start, end)] video seconds while air blows: from the program's ``on_code`` to its ``off_code``
+        (M9 also stops M7 / M8), and with ``always`` while the spindle turns. "Blow the part clean" is not in
+        it (``clean_span``)."""
+        spans = []
+        on_at = None
+        for t, m in self.m_times():
+            if m == on_code and on_at is None:
+                on_at = t
+            elif on_at is not None and (m == off_code or (m == 9 and on_code in (7, 8))):
+                spans.append((on_at, t))
+                on_at = None
+        if on_at is not None:
+            spans.append((on_at, self.program_end))
+        if always:
+            keys = self.spindle_keys() + [(self.program_end, 0.0)]
+            for (t0, rpm), (t1, _r) in zip(keys, keys[1:]):
+                if abs(rpm) > 1e-9 and t1 > t0:
+                    spans.append((t0, min(t1, self.program_end)))
+        return merge_spans(spans)
+
     def spindle_keys(self):
         """[(t, rpm)] where the spindle's speed changes (signed rpm, + = clockwise)."""
         out = [(0.0, self.start_spindle)]
@@ -1575,7 +1690,7 @@ class Schedule:
         cur = None
         for p in self.pieces:
             m = p.move
-            if not m.moving:
+            if not m.moving or m.cycle == CLEAN:
                 continue
             rapid = m.kind == "RAPID"
             if cur is None or cur[0] != rapid or math.dist(cur[1][-1][:3], m.a) > 1e-6:

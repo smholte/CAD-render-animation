@@ -521,7 +521,8 @@ def timing(scene, anim, b) -> core.Timing:
     swap = min(float(b.gcode_atc_swap), tc) if a is not None else tc / 2
     return core.Timing(speed=b.gcode_speed, factor=b.gcode_factor, fit_seconds=b.gcode_fit,
                        rapid_factor=b.gcode_rapid, tool_change=tc, swap=swap, line_from=b.gcode_from,
-                       line_to=b.gcode_to)
+                       line_to=b.gcode_to, clean=float(b.gcode_clean_time) if b.gcode_clean else 0.0,
+                       clean_sweep=settings(scene).air_source == "SPINDLE")
 
 
 def _anim_of(scene, b):
@@ -554,7 +555,7 @@ def step_changed(scene, b, path: bool = True) -> None:
             b.duration = max(0.0, sch.duration)
     finally:
         del b["_busy"]
-    _INFO[b.as_pointer()] = summary(prog, sch, note)
+    _INFO[b.as_pointer()] = summary(prog, sch, note, scene)
     if path and b.gcode_path and mach is not None:
         try:
             show_path(scene, anim)
@@ -562,10 +563,19 @@ def step_changed(scene, b, path: bool = True) -> None:
             pass
 
 
-def summary(prog, sch, note: str = "") -> dict:
+def summary(prog, sch, note: str = "", scene=None) -> dict:
     moves = [m for m in prog.moves if m.moving]
+    probs = prog.problems
+    air_text = ""
+    if scene is not None:                              # the air codes are shown (task 0039): not a problem
+        from . import air
+        c = settings(scene)
+        mine = {f"M{c.air_on_code}", f"M{c.air_off_code}"}
+        probs = [p for p in probs if p.code not in mine]
+        air_text = air.describe(scene, sch)
     return {"lines": prog.lines, "moves": len(moves), "machine_s": prog.duration, "video_s": sch.duration,
-            "tools": prog.tool_numbers(), "problems": prog.problem_lines(), "notes": list(prog.notes),
+            "air": air_text,
+            "tools": prog.tool_numbers(), "problems": [p.describe() for p in probs], "notes": list(prog.notes),
             "note": note, "name": prog.name, "changes": len(sch.tool_events), "ended": prog.ended,
             "tool_info": {n: t.describe() for n, t in prog.tools.items()}}
 
@@ -576,7 +586,7 @@ def info(scene, b) -> dict:
     if hit is None and b.gcode_file:
         try:
             prog, note = read_program(scene, b, None)
-            hit = summary(prog, core.Schedule(prog, timing(scene, _anim_of(scene, b), b)), note)
+            hit = summary(prog, core.Schedule(prog, timing(scene, _anim_of(scene, b), b)), note, scene)
         except FileNotFoundError as exc:
             hit = {"error": f"File not found: {exc}"}
         except Exception as exc:                           # never break the panel
@@ -751,6 +761,8 @@ def prepare(scene, anim, warnings: list) -> list:
     """Before a bake: every G-code step's length from its program; returns the tool changer's steps to add
     (shifted to each tool change)."""
     extra = []
+    from . import air
+    air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
     try:
         mach = Machine(scene)
     except SetupError:
@@ -814,10 +826,12 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         return f0
     if note:
         warnings.append(f"'{name}': {note}")
-    for p in prog.problems[:4]:
+    c = settings(scene)
+    probs = [p for p in prog.problems if p.code not in (f"M{c.air_on_code}", f"M{c.air_off_code}")]
+    for p in probs[:4]:
         warnings.append(f"'{name}': {p.describe(3)}")
-    if len(prog.problems) > 4:
-        warnings.append(f"'{name}': {len(prog.problems) - 4} more things the app does not show (see the step)")
+    if len(probs) > 4:
+        warnings.append(f"'{name}': {len(probs) - 4} more things the app does not show (see the step)")
     sch = core.Schedule(prog, timing(scene, anim, b))
     if not sch.pieces:
         warnings.append(f"'{name}': the program has no moves on lines {b.gcode_from or 1} … {b.gcode_to or 'end'}")
@@ -850,6 +864,10 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
                                     "joint stops there")
                     break
     _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, merge)
+    from . import air
+    air.record(scene, sch, b, f0, fps, vkeys, merge)        # when air blows (task 0039)
+    if air.problem(scene) and (b.gcode_clean or air.step_spans(scene, sch, b)):
+        warnings.append(f"'{name}': air blast: {air.problem(scene)} (4 Motion > CNC machine > Air blast)")
     if sch.tool_events or sch.first_tool:
         _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name)
     if b.gcode_path:
@@ -927,8 +945,11 @@ def _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name) ->
 
 
 def after_clear(scene) -> None:
-    """'Clear keys': the tool copies go (they are made again by the next build)."""
+    """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
+    from . import air
+    air.clear(scene)
+    air.remove_cone()
 
 
 # ---------------------------------------------------------------------------
@@ -1182,6 +1203,8 @@ def before_model_update(scene) -> None:
     """The model is made again: the marker and the toolpath hang on the workpiece; they are made again after."""
     _remove_tool_copies(scene)
     remove_path()
+    from . import air
+    air.before_model_update(scene)
     c = settings(scene)
     ob = c.zero_empty
     if ob is not None:
@@ -1225,6 +1248,8 @@ def after_model_update(scene, mapping: dict, by_uid_new: dict) -> list[str]:
                     t.uid = ob.get(build.PROP_UID, "")
     finally:
         del c["_busy"]
+    from . import air
+    notes += air.after_model_update(scene, new)
     _CACHE.clear()
     setup_changed(scene)
     return notes

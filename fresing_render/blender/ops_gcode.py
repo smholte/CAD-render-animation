@@ -327,6 +327,11 @@ class FRESING_OT_gcode_report(_CncOp, bpy.types.Operator):
             col.label(text="   " + p)
         if len(probs) > 20:
             col.label(text=f"   … and {len(probs) - 20} more")
+        if info.get("air"):
+            col.separator()
+            c = gcode.settings(context.scene)
+            col.label(text=f"{info['air']} (air codes M{c.air_on_code} / M{c.air_off_code}"
+                           f"{', always while the spindle turns' if c.air_always else ''})", icon="FORCE_WIND")
         notes = info.get("notes", [])
         if notes:
             col.separator()
@@ -396,7 +401,115 @@ class FRESING_OT_gcode_go_line(_CncOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
+class FRESING_OT_cnc_air_nozzle(_CncOp, bpy.types.Operator):
+    """Makes the part you clicked last the air nozzle: the air comes out of the end of it nearest the
+    workpiece and blows along it. It moves with the part (on the head or the frame). Check the aim below"""
+
+    bl_idname = "fresing.cnc_air_nozzle"
+    bl_label = "Use clicked part"
+
+    clear: BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.clear:
+            return "Forgets the nozzle part: the air comes through the spindle again"
+        return " ".join(cls.__doc__.split())
+
+    def execute(self, context):
+        from . import air
+        c = gcode.settings(context.scene)
+        if self.clear:
+            c["_busy"] = True
+            c.air_nozzle = None
+            c.air_nozzle_uid = ""
+            del c["_busy"]
+            c.air_source = "SPINDLE"
+            return {"FINISHED"}
+        ob = clicked_part(context)
+        if ob is None:
+            self.report({"WARNING"}, "Click the nozzle in the view first (a part, not a subassembly)")
+            return {"CANCELLED"}
+        if ob is c.workpiece or ob is c.tool:
+            self.report({"WARNING"}, f"'{gcode.label(ob)}' is the {'workpiece' if ob is c.workpiece else 'tool'}: "
+                                     "click the nozzle")
+            return {"CANCELLED"}
+        note = air.use_nozzle(context.scene, ob)
+        self.report({"INFO"}, f"Air nozzle: {gcode.label(ob)} ({note})")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_air_click(_CncOp, bpy.types.Operator):
+    """Click the spot on a part where the air comes out: that part becomes the nozzle and blows from there
+    towards the workpiece. Esc cancels"""
+
+    bl_idname = "fresing.cnc_air_click"
+    bl_label = "Click the nozzle point"
+
+    def invoke(self, context, event):
+        if context.area is None or context.area.type != "VIEW_3D":
+            self.report({"WARNING"}, "Use this from the 3D view")
+            return {"CANCELLED"}
+        context.window.cursor_modal_set("EYEDROPPER")
+        context.workspace.status_text_set("Click the spot where the air comes out.  Esc / right-click: cancel.  "
+                                          "Middle mouse / scroll: move the view")
+        context.window_manager.modal_handler_add(self)
+        return {"RUNNING_MODAL"}
+
+    def _end(self, context):
+        context.window.cursor_modal_restore()
+        context.workspace.status_text_set(None)
+
+    def modal(self, context, event):
+        from . import air
+        from .ops_motion import _raycast, over_panel
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            self._end(context)
+            return {"CANCELLED"}
+        if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
+            return {"PASS_THROUGH"}
+        res = _raycast(context, event)
+        c = gcode.settings(context.scene)
+        if res is None or res[0].get(build.PROP_KIND) != "part" or res[0] is c.workpiece:
+            context.workspace.status_text_set("Missed: click on the nozzle (not the workpiece). Esc: cancel")
+            return {"RUNNING_MODAL"}
+        ob, _index, loc, _normal = res
+        self._end(context)
+        air.use_nozzle(context.scene, ob, loc)
+        self.report({"INFO"}, f"Air nozzle: {gcode.label(ob)}, blowing at the workpiece")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_air_aim(_CncOp, bpy.types.Operator):
+    """Aims the nozzle at the middle of the workpiece"""
+
+    bl_idname = "fresing.cnc_air_aim"
+    bl_label = "Aim at the workpiece"
+
+    flip: BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.flip:
+            return "Turns the nozzle round: it blows the other way (when it was read from the wrong end)"
+        return cls.__doc__
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and gcode.settings(context.scene).air_nozzle is not None
+
+    def execute(self, context):
+        from . import air
+        if self.flip:
+            air.flip(context.scene)
+            return {"FINISHED"}
+        if not air.aim_at_workpiece(context.scene):
+            self.report({"WARNING"}, "Pick the workpiece first (Workpiece above, or in 4 Motion > Milling)")
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
            FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_remove, FRESING_OT_cnc_tool_part,
            FRESING_OT_cnc_tools_from_program, FRESING_OT_gcode_toolpath, FRESING_OT_gcode_report,
            FRESING_OT_gcode_reload, FRESING_OT_gcode_go_line)

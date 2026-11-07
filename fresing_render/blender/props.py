@@ -720,6 +720,21 @@ def _cnc_changed(self, context):
     gcode.setup_changed(context.scene)
 
 
+def _air_changed(self, context):
+    """An air-blast setting changed (task 0039): the chips are worked out again (and the motion read again for a
+    nozzle of its own)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import air
+    air.settings_changed(context.scene)
+
+
+AIR_SOURCE_ITEMS = [("SPINDLE", "Through the spindle", "The air comes out at the tool's tip and blows down along the "
+                     "tool; it moves with the tool"),
+                    ("NOZZLE", "External nozzle", "A nozzle part of the model (on the head or the frame) blows "
+                     "where it points; it moves with the part it is fixed to")]
+
+
 GCODE_SPEED_ITEMS = [("REAL", "Real time", "As long as the program takes on the machine"),
                      ("FASTER", "Faster", "A number of times faster than the machine"),
                      ("FIT", "Fit into", "The whole program fills a set number of seconds")]
@@ -879,6 +894,15 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         name="Show toolpath", default=True, update=_gcode_step_changed,
         description="Shows the program's path as a line on the workpiece: cutting moves solid, rapid moves dashed; "
                     "the part already cut changes colour as the program plays")
+    gcode_clean: BoolProperty(
+        name="Blow the part clean at the end", default=False, update=_gcode_step_changed,
+        description="Makes the step longer by 'Time at end': the tool goes up and air blows the chips off the "
+                    "workpiece, so the last frames show the clean part. Set the air up in 4 Motion > CNC machine > "
+                    "Air blast; works with or without air codes in the program")
+    gcode_clean_time: FloatProperty(
+        name="Time at end", default=2.0, min=0.5, max=10.0, unit="TIME_ABSOLUTE", update=_gcode_step_changed,
+        description="How many seconds the air blows the part clean at the end of the step (0.5 to 10 s). Through "
+                    "the spindle the tool goes over the part in that time; then it stays still")
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
@@ -1204,6 +1228,57 @@ class FRCnc(bpy.types.PropertyGroup):
         description="LinuxCNC's tool table (tool.tbl), optional: tool numbers, diameters and lengths. Without it "
                     "the sizes come from the tool comments at the top of the program (Fusion writes them)")
     zero_empty: PointerProperty(type=bpy.types.Object)       # the work zero marker (child of the workpiece)
+
+    # ---- air blast (task 0039) ----
+    air_on_code: IntProperty(
+        name="Air on code", default=7, min=7, max=199, update=_air_changed,
+        description="The M-code that switches the air on in your programs: M7 (mist) on most machines, M8 if "
+                    "your machine blows air on flood, or a user code M100 to M199. The air blows from this code "
+                    "to the air-off code")
+    air_off_code: IntProperty(
+        name="Air off code", default=9, min=7, max=199, update=_air_changed,
+        description="The M-code that switches the air off: M9 on most machines (M9 always stops M7 and M8), or "
+                    "a user code M100 to M199")
+    air_always: BoolProperty(
+        name="Air always on while the spindle turns", default=False, update=_air_changed,
+        description="For programs without an air code: the air blows whenever the spindle turns (M3 / M4 until "
+                    "M5)")
+    air_source: EnumProperty(
+        name="Air from", items=AIR_SOURCE_ITEMS, default="SPINDLE", update=_air_changed,
+        description="Where the air comes out: through the spindle at the tool's tip, or from an external nozzle "
+                    "part of the model")
+    air_nozzle: PointerProperty(type=bpy.types.Object, update=_air_changed)
+    air_nozzle_uid: StringProperty()
+    air_tip: FloatVectorProperty(
+        name="Nozzle tip", size=3, unit="LENGTH", subtype="TRANSLATION", update=_air_changed,
+        description="Where the air comes out, in the nozzle part's own space (found from its shape or the "
+                    "clicked point; change it here to move it)")
+    air_dir: FloatVectorProperty(
+        name="Blows towards", size=3, subtype="DIRECTION", default=(0.0, 0.0, -1.0), update=_air_changed,
+        description="The way the nozzle blows, in the nozzle part's own space. Drag the ball to aim it, or press "
+                    "'Aim at the workpiece'")
+    air_strength: EnumProperty(
+        name="Strength", items=[("SOFT", "Soft", "A light blow: dust and light chips fly, heavy ones are only "
+                                                 "pushed"),
+                                ("NORMAL", "Normal", "Shop air: most chips are blown off the part (nozzle within "
+                                                     "about 10 cm of the cut)"),
+                                ("STRONG", "Strong", "A strong blast: chips fly off the part even from a nozzle "
+                                                     "15 cm away")],
+        default="NORMAL", update=_air_changed,
+        description="How hard the air blows. Soft moves light chips, Normal blows most chips off the part, "
+                    "Strong clears it also from further away")
+    air_cone: FloatProperty(
+        name="Cone angle", subtype="ANGLE", default=math.radians(15), min=math.radians(3), max=math.radians(45),
+        update=_air_changed,
+        description="How wide the jet spreads (half of the cone's opening angle): narrow blows hard on one spot, "
+                    "wide blows softer over a larger area")
+    air_reach: FloatProperty(
+        name="Reach", unit="LENGTH", default=0.25, min=0.02, soft_max=1.0, update=_air_changed,
+        description="How far the air reaches from the nozzle. Chips further away than this are not moved")
+    air_show: BoolProperty(
+        name="Show air", default=False, update=_air_changed,
+        description="Shows the jet as a faint cone while the air blows (in the view and in renders). Off by "
+                    "default: real air cannot be seen")
 
 
 def _show_joints_changed(self, context):

@@ -154,6 +154,49 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
                         wrap(box, context, f"Sizes from the {tl.source}", icon="INFO", inset=12)
             body.prop(cnc, "tool_table", text="Tool table")
 
+        draw_air(layout, context, scene, cnc)
+
+
+def draw_air(layout, context, scene, cnc) -> None:
+    """The Air blast fold (task 0039): which code switches it, where it comes from, how hard it blows."""
+    from . import air
+    state = "from the spindle" if cnc.air_source == "SPINDLE" else (
+        f"nozzle {gcode.label(cnc.air_nozzle)}" if cnc.air_nozzle else "pick the nozzle")
+    body = fold(layout, "fr_cnc_air", f"Air blast ({state})", icon="FORCE_WIND")
+    if not body:
+        return
+    wrap(body, context, "Air blows the chips off the part while it is on in the program (chips: 4 Motion > "
+                        "Milling > Chips)", icon="INFO", inset=12)
+    col = split_props(body)
+    col.prop(cnc, "air_on_code", text="Air on code (M)")
+    col.prop(cnc, "air_off_code", text="Air off code (M)")
+    body.prop(cnc, "air_always", text="Air always on while the spindle turns")
+    body.row(align=True).prop(cnc, "air_source", expand=True)
+    if cnc.air_source == "NOZZLE":
+        box = body.box()
+        row = box.row(align=True)
+        row.operator("fresing.cnc_air_nozzle", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
+        row.operator("fresing.cnc_air_click", text="Click point", icon="EYEDROPPER")
+        if cnc.air_nozzle is not None:
+            row = box.row(align=True)
+            row.label(text=gcode.label(cnc.air_nozzle), icon="CHECKMARK")
+            row.operator("fresing.cnc_air_nozzle", text="", icon="X").clear = True
+            row = box.row(align=True)
+            row.operator("fresing.cnc_air_aim", text="Aim at the workpiece", icon="PIVOT_CURSOR")
+            row.operator("fresing.cnc_air_aim", text="", icon="ARROW_LEFTRIGHT").flip = True
+        else:
+            wrap(box, context, air.problem(scene), icon="ERROR", alert=True, inset=12)
+        if cnc.air_nozzle is not None:
+            fb = fold(body, "fr_cnc_air_aim", "Nozzle tip and aim", icon="ORIENTATION_GIMBAL")
+            if fb:
+                fb.prop(cnc, "air_tip", text="Tip")
+                fb.prop(cnc, "air_dir", text="")
+    col = split_props(body)
+    col.prop(cnc, "air_strength", text="Strength")
+    col.prop(cnc, "air_cone", text="Cone angle")
+    col.prop(cnc, "air_reach", text="Reach")
+    body.prop(cnc, "air_show", text="Show air")
+
 
 def draw_step(context, box, scene, anim, b) -> None:
     """The settings of a Run G-code program step (6 Animation)."""
@@ -194,6 +237,11 @@ def draw_step(context, box, scene, anim, b) -> None:
         col.prop(b, "gcode_fit", text="Seconds")
     col.prop(b, "gcode_rapid", text="Rapids faster")
     wrap(box, context, f"In the video: {gcode.fmt_time(info['video_s'])}", icon="TIME", inset=12)
+    if info.get("air"):
+        wrap(box, context, info["air"], icon="FORCE_WIND", inset=12)
+    box.prop(b, "gcode_clean", text="Blow the part clean at the end")
+    if b.gcode_clean:
+        split_props(box).prop(b, "gcode_clean_time", text="Time at end")
 
     body = fold(box, "fr_gcode_more", "Lines, tool changes, spindle, toolpath", icon="PREFERENCES")
     if body:

@@ -177,6 +177,8 @@ fresing_render/            the Blender extension (Python package)
                            decal_art.py (text, CE mark, warning signs, arrows, type plate drawn as masks),
                            waycover.py (way-cover shares: moving sections k/N, or housing counted 0 … 1),
                            chips.py (chip presets per material x bit, chip shapes, height fields, chip flight),
+                           air.py (air blast, task 0039: the jet and the wall jet where it meets a surface; the chips
+                           in chips.py feel it, lying chips are picked up again as copies),
                            cylinders.py (cylinder geometry: stroke <-> arm angle, travel read from the parts),
                            callouts.py (labels with lines: where boxes go, fades, the line; picture cards; music plan),
                            brand.py (brand kits, title/end cards, captions, time line of a finished video),
@@ -210,6 +212,9 @@ fresing_render/            the Blender extension (Python package)
                            (4 Motion > Way covers); core/waycover.py has the shares
     chips.py               chips: inputs from the milling set-up, catch areas (rays down), bake, two point
                            clouds + a Geometry Nodes instancer (4 Motion > Milling > Chips)
+    air.py                 air blast (task 0039): the nozzle (through the spindle = the bit's path, or a part read
+                           per frame by machining.sample), the air frames each G-code step writes at Build
+                           (cnc["fr_air"]), "Show air" cone; settings in 4 Motion > CNC machine > Air blast
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
