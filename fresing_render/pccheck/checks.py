@@ -819,9 +819,9 @@ def video_finishing(ctx):
     return "logo and watermark on the picture"
 
 
-def _mill_scene(ctx):
+def _mill_scene(ctx, scale: float = 1.0, x_mm: float = 50.0):
     """The test mill with X/Y/Z slides, a short slot (plunge 25 mm, then 50 mm along X), the flat end
-    mill as bit and the block as workpiece."""
+    mill as bit and the block as workpiece. ``scale`` makes the program longer (Heavy), ``x_mm`` the slot."""
     import bpy
     from mathutils import Vector
 
@@ -836,7 +836,7 @@ def _mill_scene(ctx):
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     a = scene.fresing.animations.add()
     a.name, a.tail = "Mill", 0.0
-    for j, start, dur, to in (("Z", 0.0, 0.4, -25.0), ("X", 0.4, 0.8, 50.0)):
+    for j, start, dur, to in (("Z", 0.0, 0.4 * scale, -25.0), ("X", 0.4 * scale, 0.8 * scale, x_mm)):
         b = a.blocks.add()
         b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", j, start, dur, "LINEAR"
         b.use_from, b.to_dist = True, to * 0.001

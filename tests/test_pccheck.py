@@ -251,7 +251,7 @@ def test_every_line_is_complete():
     assert len(ids) == len(set(ids)), "line ids must be unique"
     for ln in checks.LINES:
         assert ln.title and ln.what, ln.id
-        assert set(ln.modes) <= {"quick", "full", "own", "heavy"} and ln.modes, ln.id
+        assert set(ln.modes) <= {"quick", "full", "own", "heavy", "ownheavy"} and ln.modes, ln.id
         assert core.version_tuple(ln.since) <= core.version_tuple(__version__), (ln.id, "since a later version")
         for r in ln.requires:
             assert r in ids and ids.index(r) < ids.index(ln.id), (ln.id, r)
@@ -441,7 +441,7 @@ def test_heavy_is_a_mode_with_its_own_history():
 
 def test_heavy_lines_are_registered_and_explained():
     lines = [ln for ln in _checks().LINES if "heavy" in ln.modes]
-    assert len(lines) >= 7 and all(ln.id.startswith("heavy.") for ln in lines)
+    assert len(lines) >= 10 and all(ln.id.startswith("heavy.") for ln in lines)
     assert not [ln for ln in core.lines_for(_checks().LINES, "full", False) if "heavy" in ln.modes]
     for ln in lines:                       # every Heavy line says what it shows and what it does not
         assert ln.shows and ln.not_shown and ln.expected > 0, ln.id
@@ -449,6 +449,28 @@ def test_heavy_lines_are_registered_and_explained():
     sys.path.insert(0, os.path.join(ROOT, "tools"))
     import ci_check_pccheck as chk
     assert chk.MIN_LINES_HEAVY <= len(lines)
+
+
+def test_heavy_with_an_own_model_adds_the_own_heavy_lines():
+    from fresing_render.pccheck import runner
+    lines = _checks().LINES
+    plain = {ln.id for ln in core.lines_for(lines, "heavy", False)}
+    own = {ln.id for ln in core.lines_for(lines, "heavy", True)} - plain
+    assert own == {"own.import", "own.gpu", "own.time_preview", "own.time_eevee", "own.heavy_4k", "own.heavy_video"}
+    assert "own.heavy_4k" not in {ln.id for ln in core.lines_for(lines, "full", True)}
+    assert all(runner.is_own(ln) for ln in lines if ln.id.startswith("own."))
+    assert not any(runner.is_own(ln) for ln in lines if ln.id.startswith("heavy."))
+
+
+def test_playback_milliseconds_are_flagged_when_they_jump():
+    ok = _res("heavy.playback", metrics={"per frame": (30.0, "ms/frame")})
+    h = _history(_run([_res("heavy.playback", metrics={"per frame": (3.0, "ms/frame")})], mode="heavy"))
+    run = _run([ok], mode="heavy")
+    core.compare(run, h)
+    assert "slower" in ok.flags and ok.metric_refs["per frame"] == 3.0
+    fine = _res("heavy.playback", metrics={"per frame": (4.0, "ms/frame")})
+    core.compare(_run([fine], mode="heavy"), h)
+    assert "slower" not in fine.flags
 
 
 def test_heavy_scaled_down_sizes(monkeypatch):

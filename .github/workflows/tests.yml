@@ -385,7 +385,7 @@ jobs:
 
       - name: PC check verdict (Heavy, scaled down, from its Start-menu shortcut)
         if: ${{ !cancelled() }}
-        run: python tools/ci_check_pccheck.py "windows-results/pccheck_heavy_last_run.txt" --title "Windows PC check (Heavy, scaled down)" --min-lines 7
+        run: python tools/ci_check_pccheck.py "windows-results/pccheck_heavy_last_run.txt" --title "Windows PC check (Heavy, scaled down)" --min-lines 10
 
       - name: Uninstall (Uninstall.bat)
         if: ${{ !cancelled() }}
