@@ -5,6 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.32 – 7 Nov 2026 – milling no longer crashes (task 0038)
+
+- Fixed a crash with milling: after a new Build, after a change in the animation, and at the start of every queued
+  render, the app reads the bits' path again. When that path had another length than before, Blender's memory was
+  damaged and it crashed a little later – while cutting, or at the end of a long queued video while making the MP4.
+  The path is now stored in a way that cannot do this. Projects saved with an older version open and work as before.
+
 ## 0.2.31 – 6 Nov 2026 – faster automatic tests (task 0036)
 
 Nothing changes in the app itself. Behind the scenes:

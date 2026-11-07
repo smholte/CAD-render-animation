@@ -33,6 +33,7 @@ from mathutils import Matrix, Vector
 
 from ..core import machining as core
 from . import build
+from .idprops import store_array
 
 CUT_TAG = "fr_milled"                 # on the workpiece's own mesh
 SHARP_ANGLE = math.radians(30.0)      # edges sharper than this stay crisp; round faces look smooth
@@ -526,11 +527,12 @@ def sample(scene, progress=None) -> int:
     count = 0
     for (item, _ob), r in zip(items, rows):
         r.sort(key=lambda x: x[0])
-        item["fr_t"] = np.array([x[0] for x in r], dtype=np.float64)
-        item["fr_o"] = np.array([x[1] for x in r], dtype=np.float64).reshape(-1)
-        item["fr_d"] = np.array([x[2] for x in r], dtype=np.float64).reshape(-1)
+        # never assign an array of another length over the old one: Blender 5.2.3 corrupts memory (task 0038)
+        store_array(item, "fr_t", [x[0] for x in r])
+        store_array(item, "fr_o", [x[1] for x in r])
+        store_array(item, "fr_d", [x[2] for x in r])
         count += len(r)
-    s["fr_wp_m"] = np.array(wp_m, dtype=np.float64).reshape(-1)
+    store_array(s, "fr_wp_m", wp_m)
     s["fr_wp_f0"] = f0
     s.path_sig = signature(scene)
     rt = runtime(scene)

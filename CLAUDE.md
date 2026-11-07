@@ -204,6 +204,7 @@ fresing_render/            the Blender extension (Python package)
     queue.py               render queue: background Blender runs queue_runner.py
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
+    idprops.py             store_array: arrays into ID properties safely (task 0038)
     waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
                            k/N of its travel (coupling ratios + limits); ops_waycover.py, ui_waycover.py
                            (4 Motion > Way covers); core/waycover.py has the shares
@@ -576,5 +577,11 @@ the release → Delete); the next run on `main` publishes it again.
   green, unless its `if:` uses `!cancelled()` (or `always()`) and names the results it wants. The release check
   was skipped after a docs-mode run that way (task 0036). A job behind the verdict needs
   `!cancelled() && needs.<job>.result == 'success'`.
+- Blender 5.2.3 corrupts its memory when an array ID property gets a NumPy array of **another length**
+  (`ob["x"] = np.zeros(250)`, later `ob["x"] = np.zeros(2000)`): "free(): invalid size" or a segfault a little later,
+  wherever the next big allocation happens (milling crashed this way, 0037/0038). Store arrays only with
+  `blender/idprops.store_array` (deletes the key first); `tests/test_idprops.py` refuses `["…"] = np.` in `blender/`.
+- In a background script nothing reads the milling path after Build (`machining.mark_stale` only schedules a
+  re-read in the UI): call `machining.sample(scene)` yourself after building or changing the motion (0037).
 - `actions/download-artifact` with `run-id` + `github-token` (and `actions: read`) takes another run's files: a
   reuse release ships exactly the installer that was tested. Job-level `permissions` replace the workflow's.
