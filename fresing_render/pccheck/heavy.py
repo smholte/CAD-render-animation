@@ -5,8 +5,9 @@ deleted at the end; nothing of it is in the repository. The lines then import it
 stills up to 4K and a real 10 s animation through the queue. ``FRESING_PCCHECK_HEAVY_SMALL=1`` shrinks every
 size (a few hundred parts, 12 frames, 480 × 270) so GitHub and small machines run the same lines in minutes.
 
-Round 1 (this file): scene, import, working with it, stills, video. Sizes are chosen for a 24-core PC with
-an RTX 3090 and are tuned from the owner's first Heavy run (task 0033, round 2).
+Round 1: scene, import, working with it, stills, video. Round 2 (from the owner's first Heavy run on a 24-core PC
+with an RTX 3090: 7 lines in 12 minutes, so the sizes stay): Detailed halls, milling with chips at length,
+playback under load, and the own-model Heavy lines (4K picture, a 3 s EEVEE video).
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ import time
 import numpy as np
 
 from . import core
-from .checks import DATA, H, _boom_joint, _check, _ob, _per_frame, _queue_job, _update, line  # noqa: F401
+from .checks import (DATA, H, MILL, _boom_joint, _check, _mill_scene, _ob, _per_frame,  # noqa: F401
+                     _queue_job, _update, line)
 
 SMALL_ENV = "FRESING_PCCHECK_HEAVY_SMALL"
 
@@ -342,8 +344,8 @@ def _heavy_animation(ctx, scene, name: str, seconds: float, quality: str):
     a.name, a.fps, a.tail, a.quality, a.video = name, "25", 0.0, quality, "MP4"
     a.out_resolution, a.out_format = z["anim_res"]
     third = seconds / 3.0
-    for kind, joint, start, extra in (("JOINT", j1.name, 0.0, {"to_angle": math.radians(40)}),
-                                      ("JOINT", j2.name, third, {"to_dist": 1.5}),
+    for kind, joint, start, extra in (("JOINT", j1.name, 0.0, {"to_angle": math.radians(90)}),
+                                      ("JOINT", j2.name, third, {"to_dist": 4.0}),
                                       ("MOTOR", j3.name, 2 * third, {"speed_rpm": 15.0})):
         b = a.blocks.add()
         b.kind, b.joint, b.start, b.duration, b.easing = kind, joint, start, third, "LINEAR"
@@ -445,3 +447,162 @@ def heavy_video_cycles(ctx):
                        f"{a.out_resolution}, Cycles Preview, {z['clip_seconds']:.0f} s")
     _memory(ctx)
     return out
+
+
+# ---------------------------------------------------------------------------
+# round 2: Detailed halls, milling with chips at length, playback under load
+# ---------------------------------------------------------------------------
+
+@line("heavy.halls", "Big machine: CNC hall and open sea, Detailed", "0.2.32", (H,), requires=("heavy.import",),
+      expected=150,
+      what="The big machine in the CNC hall and on the open sea with Detailed surroundings, Cycles Preview at HD "
+           "on the graphics card",
+      shows="What the Detailed surroundings (real waves, the whole hall) add to the render time of a big model",
+      not_shown="The Simple surroundings (the Full check renders those) or halls with your own photos")
+def heavy_halls(ctx):
+    from ..blender import surroundings
+    from . import runner
+    ctx.need_gpu()
+    z = sizes()
+    scene = ctx.scene_of("heavy.import")
+    s = _hero(ctx, scene)
+    low = z["still_quality"][0]
+    for kind, key, title in (("CNC", "hall_detailed", "CNC hall, Detailed"), ("SEA", "sea_detailed", "Open sea, Detailed")):
+        runner.check_cancel()
+        s.env_detail = "DETAILED"
+        s.background = kind
+        _check(surroundings.root_object() is not None, f"the {title.lower()} was not built")
+        _still(ctx, scene, key, title, z["w"], z["h"], low, True)
+    s.background = "COLOR"
+    s.env_detail = "SIMPLE"
+    _memory(ctx)
+    return None
+
+
+@line("heavy.milling", "Milling: a long cut with chips", "0.2.32", (H,), expected=150,
+      what="The test mill cuts a long slot (more than 100 frames); chips Realistic are worked out; the time per "
+           "frame with and without chips",
+      shows="How the milling view and the chips cope with a long program: work-out time, ms per frame, faces left in the block",
+      not_shown="A real CNC program with thousands of moves (the G-code demo is a hand test on your machine)")
+def heavy_milling(ctx):
+    from ..blender import chips, machining
+    z = sizes()
+    scale = 0.15 if small() else 4.0                  # seconds of the program: about 100+ frames when full size
+    chips.forget()
+    scene, frames, stock = _mill_scene(ctx, scale=scale, x_mm=60.0 if small() else 150.0)
+    if not small():
+        _check(frames >= 100, f"the long cut has only {frames} frames")
+    t0 = time.time()
+    machining.sample(scene)
+    ctx.metric("read motion", time.time() - t0, "s")
+    probes = sorted({max(1, round(frames * i / 20)) for i in range(1, 21)})
+
+    def scrub() -> float:
+        t = time.time()
+        for f in probes:
+            scene.frame_set(f)
+        return (time.time() - t) * 1000.0 / len(probes)
+
+    machining.settings(scene).chips = "NONE"
+    ctx.metric("per frame, no chips", scrub(), "ms/frame")
+    t0 = time.time()
+    machining.settings(scene).chips = "REALISTIC"
+    scene.frame_set(frames)
+    ctx.metric("chips work out", time.time() - t0, "s")
+    ctx.metric("per frame, chips", scrub(), "ms/frame")
+    me = machining.settings(scene).cut_mesh
+    _check(me is not None and stock.data is me, "the block does not show its cut")
+    ctx.metric("block faces", len(me.polygons), "")
+    ctx.metric("frames", frames, "")
+    _memory(ctx)
+    return f"{frames} frames, {len(me.polygons)} faces in the block"
+
+
+@line("heavy.playback", "Big machine: playback under load", "0.2.32", (H,), requires=("heavy.import",), expected=60,
+      what="Three joints with a coupling move the 3,000-part machine through a 10 s animation; every frame is set "
+           "and evaluated one after the other",
+      shows="Milliseconds per frame while scrubbing a big machine with joints and couplings (the Full check shows "
+            "0.03 to 0.09 ms on a small one)",
+      not_shown="Drawing speed in the 3D view on your screen, cylinders and mechanisms (they are in the Full check)")
+def heavy_playback(ctx):
+    from ..blender import animation, joints
+    from mathutils import Vector
+    z = sizes()
+    scene = ctx.scene_of("heavy.import")
+    a = _heavy_animation(ctx, scene, "Heavy playback", z["seconds"], "preview")
+    mod = _ob(scene, "UNIT 02.3")
+    j4 = joints.create(scene, "SLIDE", [mod], mod.matrix_world.translation.copy(), Vector((0, 1, 0)), name="Heavy coupled")
+    joints.set_follows(scene, j4, "Heavy turn", ratio=0.01)
+    t0 = time.time()
+    frames = animation.bake(scene, a)["frames"]
+    ctx.metric("build animation", time.time() - t0, "s")
+    t0 = time.time()
+    for f in range(1, frames + 1):
+        scene.frame_set(f)
+    ms = (time.time() - t0) * 1000.0 / frames
+    ctx.metric("per frame", ms, "ms/frame")
+    ctx.metric("frames", frames, "")
+    animation.clear_keys(scene)
+    _check(ms < 2000.0, f"playback takes {ms:.0f} ms per frame: far too slow")
+    return f"{frames} frames, {ms:.1f} ms per frame"
+
+
+# ---------------------------------------------------------------------------
+# Heavy with the owner's own model: numbers only
+# ---------------------------------------------------------------------------
+
+OWNH = "ownheavy"
+
+
+@line("own.heavy_4k", "Your model: 4K picture on the graphics card", "0.2.32", (OWNH,), requires=("own.import",),
+      expected=120, what="A 3840 × 2160 Cycles Preview picture of your model on the graphics card",
+      shows="How long a 4K picture of your own model takes, and the peak memory",
+      not_shown="Final-quality pictures (several times slower)")
+def own_heavy_4k(ctx):
+    import bpy
+
+    from ..blender import render
+    ctx.need_gpu()
+    z = sizes()
+    scene = ctx.scene_of("own.import")
+    bpy.ops.fresing.light_look(look="PRODUCT")
+    s = scene.fresing
+    s.background = "COLOR"
+    _output(s, z["w4k"], z["h4k"])
+    s.use_gpu = True
+    path = os.path.join(ctx.work, "own_4k.png")
+    info = render.render_still(scene, s, z["still_quality"][0], filepath=path)
+    ctx.metric("render 4K", info["seconds"], "s")
+    ctx.picture(path, "own_4k", "Your model, 4K (this PC only)", model_check=False)
+    _memory(ctx)
+    return None
+
+
+@line("own.heavy_video", "Your model: 3 s EEVEE turntable, rendered fully", "0.2.32", (OWNH,),
+      requires=("own.import",), expected=300,
+      what="A 3 second turntable of your model at HD through the queue (EEVEE, every frame, MP4)",
+      shows="Time per frame over a real run with your model, and the queue's start-up",
+      not_shown="Cycles animations (see the time test lines)")
+def own_heavy_video(ctx):
+    from ..blender import turntable
+    scene = ctx.scene_of("own.import")
+    s = scene.fresing
+    s.use_gpu = ctx.has_gpu
+    s.turntable_seconds = 1.0 if small() else 3.0
+    s.turntable_quality = "eevee"
+    a = turntable.make(scene)["animation"]
+    a.quality, a.video = "eevee", "MP4"
+    a.out_resolution, a.out_format = sizes()["anim_res"]
+    t0 = time.time()
+    try:
+        job = _queue_job(ctx, scene, "ANIMATION", animation=a.name, minutes=60)
+    except RuntimeError as exc:
+        ctx.gpu_optional(exc)
+        raise
+    frames = _frames_of(job)
+    total = time.time() - t0
+    ctx.metric("frames", len(frames), "")
+    ctx.metric("total", total, "s")
+    ctx.metric("per frame", total / max(1, len(frames)), "s/frame")
+    _memory(ctx)
+    return None

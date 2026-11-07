@@ -138,6 +138,8 @@ def lines_for(lines: list, mode: str, own_model: bool) -> list:
     out = [ln for ln in lines if mode in ln.modes]
     if own_model:
         out += [ln for ln in lines if "own" in ln.modes and ln not in out]
+        if mode == "heavy":                      # Heavy with an own model: the own-model Heavy lines too
+            out += [ln for ln in lines if "ownheavy" in ln.modes and ln not in out]
     return out
 
 
@@ -245,6 +247,12 @@ def compare(run: Run, history: dict) -> None:
             ref = reference_metric(history, run.key, r.id, name)
             r.metric_refs[name] = ref
             slow = slow or is_slower(float(value), ref, MIN_SLOWER_METRIC_S)
+        for name, (value, unit) in r.metrics.items():          # milliseconds per frame (playback): 2 ms is a jump
+            if isinstance(value, (int, float)) and str(unit).startswith("ms"):
+                ref = reference_metric(history, run.key, r.id, name)
+                r.metric_refs[name] = ref
+                if is_slower(float(value), ref, 2.0):
+                    slow = True
         if slow:
             r.flags.append("slower")
     run.new_ids = new_line_ids(run, history)

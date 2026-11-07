@@ -1,6 +1,6 @@
 # 0033 – PC check "Heavy": longer, bigger tests that really load the owner's PC
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** running – round 1 done (0.2.27), round 2 waits for the owner's Heavy run
+**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** done – round 1 (0.2.29), round 2 (0.2.32)
 **Branch:** `task/0033-pccheck-heavy`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** PC check (`fresing_render/pccheck/`, `tests/test_pccheck.py`;
 additive: a Start-menu shortcut, a Help-menu choice, one CI step). Feature modules are only *called*.
@@ -132,3 +132,30 @@ that GitHub runs at every push, so the lines cannot break unnoticed.
 - Owner: update to 0.2.27, run **PC check (heavy)**, paste the text block in the lead chat.
 - Round 2: tune sizes to 10–20 min; add Detailed halls, milling + chips at length, playback under load, own-model
   Heavy; fix what the run showed.
+
+---
+
+### Round 2 report (Claude Code on the web, 7 Nov 2026, Sonnet · Medium)
+
+**Owner's Heavy run (0.2.31, Ryzen 9 9900X 24 threads, 47 GB, RTX 3090, driver 617.42):** 7/7 OK in 722 s (12 min).
+Make 17 s, import 9.2 s (cache 1.8 s), 2,992 parts / 600 unique / 2.26 M faces, 100 % sorted; tree 0.01 s, show only
+0.17 s, explode 0.18 s, save 0.07 s (34 MB), open 0.45 s; Cycles HD Preview 6.0 s, HD Final 15.7 s, 4K Preview 16.5 s,
+4K Final 56.9 s; EEVEE 1.0 s/frame HD, 1.7 s/frame 4K; EEVEE video 251 frames in 234 s (0.93 s/frame, start-up 4 s);
+Cycles Preview clip 76 frames in 347 s (4.56 s/frame); peak memory 902 MB after import, 3,987 MB after the Cycles pictures.
+The total sits inside the 10–20 minute target, so the round-1 sizes stay.
+
+**What changed:** three new Heavy lines – `heavy.halls` (CNC hall and open sea, Detailed, HD Cycles on the card),
+`heavy.milling` (120-frame cut, 150 mm slot, chips Realistic: read motion, chips work-out, ms per frame without and with
+chips, block faces), `heavy.playback` (10 s animation of the big machine with three joints and a coupling scrubbed frame by
+frame: ms per frame); own-model Heavy (`modes=("ownheavy",)`: 4K Cycles picture, 3 s EEVEE turntable fully through the queue;
+runs only with an own STEP file in Heavy; numbers only in the text block); ms-per-frame metrics are flagged when 2 ms and
+25 % slower than before; the Heavy video now moves much more (90° turn, 4 m slide; "moves" was only 0.01 in the owner's run).
+`MIN_LINES_HEAVY` 10. Guide, CHANGELOG.
+
+**Tested:** 64 tests in `test_pccheck.py` + `test_ci_tools.py` (new: own-model Heavy lines, ms flag). Scaled-down Heavy in the
+bpy module with an own model: scene, import, milling, playback and the own-model lines run (graphics-card and EEVEE lines
+skip here). Not measured on the owner's PC: the three new lines (expected +3 min).
+
+**Open points:** playback under load covers joints and a coupling, not cylinders and mechanisms on the big scene (those need
+their own geometry; the Full check covers them small). The owner should run Heavy once more (optionally with his own STEP
+file dropped on the Heavy shortcut on the Desktop) and send the text block.

@@ -1,6 +1,6 @@
 # 0038 – Milling crash: store the bits' path safely
 
-**Who:** worker · **Status:** done (0.2.32) · **Branch:** `task/0038-milling-memory-crash`
+**Who:** worker · **Status:** done (0.2.33) · **Branch:** `task/0038-milling-memory-crash`
 **Started by:** lead chat, 7 Nov 2026 · **Area:** Machining lane – `fresing_render/blender/machining.py`
 (storing the path), its tests; one line each in `CLAUDE.md` section 8 and `CHANGELOG.md`
 **Model:** Opus · effort Medium (small fix, but a memory-safety bug in Blender that must be proven gone)
@@ -83,7 +83,7 @@ Found by task 0037 (report problem 1 and the addendum in `tasks/0037-owner-mill-
   (plain Python dicts, not ID properties), `importer/step_reader.py:1012` (dict for an `.npz`), `pccheck/`.
   A test (`test_no_numpy_array_is_assigned_to_an_id_property_directly`) now refuses `["…"] = np.` in `blender/`.
 - `CLAUDE.md`: section 8 two lines (NumPy arrays of another length; `sample()` yourself in background scripts),
-  `idprops.py` in the layout. CHANGELOG 0.2.32.
+  `idprops.py` in the layout. CHANGELOG 0.2.33.
 
 **Tested and measured** (4-core Claude Code session, Blender 5.2.3 as a Python module; the real Blender
 program could not be downloaded – download.blender.org is blocked here – so the real-app runs are GitHub's):
@@ -98,8 +98,8 @@ program could not be downloaded – download.blender.org is blocked here – so 
   `machining.py` the three crash tests failed 3 of 3 runs; the queue job ended "Renderer stopped unexpectedly"
   right after "reading the motion of the bits" – the owner's crash.
 - `tests/test_machining.py` + `tests/test_chips.py`: 23 passed.
-- GitHub runs: 1 (branch) + reuse on `main`.
+- GitHub runs: 2 on the branch (0033 released 0.2.32 meanwhile: merged `main`, renumbered to 0.2.33) + reuse on `main`.
 
 **Open points / follow-up tasks:**
 - Not re-reading the path in the queue when nothing changed (speed-up, not needed for safety) – as the brief says.
-- The owner's mill project (0037): render the 4K queued video again with 0.2.32 to confirm on his PC.
+- The owner's mill project (0037): render the 4K queued video again with 0.2.33 to confirm on his PC.

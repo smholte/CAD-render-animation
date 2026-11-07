@@ -5,12 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.32 – 7 Nov 2026 – milling no longer crashes (task 0038)
+## 0.2.33 – 7 Nov 2026 – milling no longer crashes (task 0038)
 
 - Fixed a crash with milling: after a new Build, after a change in the animation, and at the start of every queued
   render, the app reads the bits' path again. When that path had another length than before, Blender's memory was
   damaged and it crashed a little later – while cutting, or at the end of a long queued video while making the MP4.
   The path is now stored in a way that cannot do this. Projects saved with an older version open and work as before.
+
+## 0.2.32 – 7 Nov 2026 – PC check Heavy, round 2 (task 0033)
+
+PC check
+- Heavy has three more steps: the big machine in the **CNC hall** and on the **open sea** (Detailed, HD, Cycles on
+  the graphics card), a **long milling cut** (more than 100 frames, chips Realistic: time to work out, ms per
+  frame with and without chips, faces left in the block), and **playback under load** (a 10 s animation of the
+  3,000-part machine with joints and a coupling: ms per frame, flagged when it jumps).
+- With your own STEP file Heavy also renders it at **4K** on the graphics card and as a **3 second EEVEE
+  video** through the queue (numbers only in the text block).
+- The video in Heavy now moves a lot more (a module turns 90°, another slides 4 m), so a still frame is easy
+  to spot in the contact sheet.
+- Your first Heavy run (RTX 3090, 24 cores): all 7 steps in 12 minutes (Cycles 4K Final 57 s, EEVEE 0.93 s per
+  frame over 251 frames, import of 3,000 parts 9 s, peak memory 4 GB), so the sizes stay as they are.
 
 ## 0.2.31 – 6 Nov 2026 – faster automatic tests (task 0036)
 

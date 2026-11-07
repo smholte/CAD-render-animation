@@ -28,7 +28,7 @@ MM = 0.001
 
 
 def _unsafe_store(owner, key, values, dtype=np.float64):
-    owner[key] = np.asarray(values, dtype=dtype).reshape(-1)          # how 0.2.31 and older stored it
+    owner[key] = np.asarray(values, dtype=dtype).reshape(-1)          # how 0.2.32 and older stored it
 
 
 def ob(sc, name):

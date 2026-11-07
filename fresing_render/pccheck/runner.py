@@ -348,6 +348,11 @@ class Context:
             raise Skipped(f"skipped: {NO_GPU_TEXT} (EEVEE could not start here)") from exc
 
 
+def is_own(ln) -> bool:
+    """A line on the owner's own model ("own", or "ownheavy" in Heavy): numbers only in the text block."""
+    return any(m.startswith("own") for m in ln.modes)
+
+
 def _fingerprint(path: str) -> str:
     """A short code for "the same model file" (its size and content), never its name."""
     try:
@@ -397,7 +402,7 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
     if only:
         todo = [ln for ln in todo if ln.id in only]
     if model:
-        todo = [ln for ln in todo if "own" not in ln.modes] + [ln for ln in todo if "own" in ln.modes]
+        todo = [ln for ln in todo if not is_own(ln)] + [ln for ln in todo if is_own(ln)]
     _console(f"Fresing Render {__version__} PC check ({core.MODE_TITLES[mode]}{' + own model' if model else ''}), "
              f"{len(todo)} steps. The report opens by itself at the end: {report_path}")
     t_run = time.time()
@@ -434,7 +439,7 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         threading.Thread(target=heartbeat, daemon=True).start()
 
     for i, ln in enumerate(todo):
-        res = core.Result(ln.id, ln.title, ln.since, own="own" in ln.modes, what=ln.what, expected=ln.expected,
+        res = core.Result(ln.id, ln.title, ln.since, own=is_own(ln), what=ln.what, expected=ln.expected,
                           started=time.time(), shows=ln.shows, not_shown=ln.not_shown)
         run.results.append(res)
         run.planned = [x.title for x in todo[i + 1:]]

@@ -1338,7 +1338,10 @@ Desktop; or **Help > Fresing Render PC check…** and pick **Heavy**) makes an i
 3,000 parts (it is deleted afterwards), imports it on all cores, works with it (structure list, search,
 Show only, explode, save and open), renders Cycles pictures at HD and 4K, EEVEE per frame at HD and 4K,
 and a real 10 second animation (250 frames, EEVEE, 1920 × 1080) plus a 3 second Cycles clip through the
-render queue. It uses the whole PC and the graphics card for that time, so start it when you do not need
+render queue, then the machine in the CNC hall and on the open sea (Detailed), a long milling cut with
+chips (more than 100 frames), and the playback speed of the joints and couplings. With your own STEP file
+(see below) Heavy also renders it at 4K and as a 3 second EEVEE video. The first seven steps took 12 minutes
+on a 24-core PC with an RTX 3090 (measured); the three new ones should add a few minutes. It uses the whole PC and the graphics card for that time, so start it when you do not need
 the PC. The report page updates itself while it runs and shows which step is busy, for how long and how
 long it should take. In the report the pictures are large, with their size and quality under them, the
 videos come as a contact sheet (eight frames across the video) and the last frame. Under each step it

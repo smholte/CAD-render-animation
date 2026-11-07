@@ -57,7 +57,7 @@ def test_no_numpy_array_is_assigned_to_an_id_property_directly():
 
 
 def test_reading_the_path_again_with_another_length_does_not_crash():
-    """Before 0.2.32 this child died every time (segfault / "corrupted size vs. prev_size", 5 of 5 on the
+    """Before 0.2.33 this child died every time (segfault / "corrupted size vs. prev_size", 5 of 5 on the
     4-core test machine with --unsafe); it must now pass several times in a row."""
     for _ in range(2):
         done = _child("--rounds", "5")
@@ -66,7 +66,7 @@ def test_reading_the_path_again_with_another_length_does_not_crash():
 
 
 def test_project_saved_the_old_way_opens_and_cuts(tmp_path):
-    """A project saved by 0.2.31 or older (path stored as a NumPy array) is read again with another length."""
+    """A project saved by 0.2.32 or older (path stored as a NumPy array) is read again with another length."""
     path = str(tmp_path / "old.blend")
     done = _child("--rounds", "0", "--unsafe", "--save", path)
     assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-3000:]

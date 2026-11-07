@@ -22,8 +22,8 @@ updates its branch to `main`.
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (later)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
-- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (round 1 released 0.2.29, round 2 waits for the owner's Heavy run)
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.32); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33); 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -38,7 +38,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
-| 0033 | PC check lane: Heavy mode – big generated scene (~3,000 parts), 4K stills, a 10 s animation rendered fully with a contact sheet, milling+chips at length, peak memory; scaled-down form runs on GitHub; two rounds (owner runs it in between) | worker | Sonnet · Medium | running – round 1 released (0.2.29); round 2 after the owner's run | tasks/0033-pccheck-heavy.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0031 | Quality & delivery lane: stored set-up for every Claude Code session on the web (venv, Blender 5.2.3, xvfb, ImageMagick; download.blender.org allowed or a GitHub-release copy); two rounds, the owner sets the environment in between | worker | Sonnet · Medium | later – owner put it on hold (6 Nov) | tasks/0031-web-setup.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
@@ -76,6 +75,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0028 | Chips while milling: per workpiece material and bit type (curls, commas, crumbs, ribbons, shavings, spirals, dust), thrown in the turning direction, land and pile up on block, table and bed, gone where the bit cuts again; None/Few/Realistic, coolant mist, Clear chips; worked out once per motion, the same every time; the queue renders them | 0.2.22 |
 | 0018 | Video finishing: brand kits in the library (logo, colours, font, contact line), logo in a corner of videos and stills, title card, end card, captions from the step labels, watermark per render job, crop or extend for 1:1 and 9:16 | 0.2.23 |
 | 0032 | PC check: Start menu / Desktop / Help > PC check (Quick about 3 min, Full about 15 min), 30 lines on the test models, own STEP file optional; HTML report with pictures, speed vs the last runs on the PC, picture checks, new lines on top; text block with numbers only for the lead chat; runs on GitHub (Linux + Windows) | 0.2.24 |
+| 0033 | PC check Heavy: a big generated machine (3,000 parts), import, structure/search/explode/save, Cycles HD and 4K pictures, EEVEE per frame, a 10 s EEVEE video and a 3 s Cycles clip through the queue with contact sheets, Detailed halls, a long milling cut with chips, playback under load, own-model 4K and video; peak memory; Cancel; scaled-down form on GitHub. Owner's run: 12 min on the RTX 3090 | 0.2.29, 0.2.32 |
 | 0013 | Cylinders: barrel turns about its pin, rod's eye stays on its pin when the arm moves (constraints, scripts off); Drives the arm: set the stroke, the arm turns (law of cosines, slide too); closed length and stroke read from the parts; telescopic stages; Move cylinder step; "Show joint arrows" NameError fixed | 0.2.25 |
 | 0025 | Labels with lines that stay on their (moving) parts, picture cards over videos (full screen or corner), music under MP4 videos with fades; PC-check line | 0.2.27 |
 | 0014 | Mechanisms: scissor lifts (height, rollers), four-bar and parallel arms, slider-cranks, other planar linkages; pins found from shared holes; exact solver that never flips; drive by angle, height or a cylinder; Lift height step; kept through model updates. Owner's example files still to try | 0.2.26 |
@@ -83,6 +83,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0026 | G-code drives the machine: LinuxCNC reader (arcs in all planes, cycles, offsets, parameters, o-words), 4 Motion > CNC machine (axes, spindle, tool, work zero, tools), step Run G-code program (exact path, spindle, tool changes with tool-changer animation, toolpath); joints no longer snap to CAD within 0.1 mm | 0.2.30 |
 | 0036 | Faster automatic tests: precheck first (version clash in ~1 min), pytest and real app as parallel jobs (full run 11–14 min, was 35–50), a push to `main` whose tree already ran green releases without repeating the tests (1.7 min), docs-only pushes ~2 min | 0.2.31 |
 | 0037 | The owner's own mill set up with block, Ø10 end mill, CNC machine, milling + chips, a 3.4-min G-code demo and its step (45 s); first real-machine test of 0026/0027/0028/0034; 7 app problems for the lead, one crash (milling path re-read) | – (no app change) |
-| 0038 | Milling crash fixed: the bits' path is stored safely (Blender 5.2.3 corrupted memory when an array property got a NumPy array of another length); crash tests, old projects, queued MP4 | 0.2.32 |
+| 0038 | Milling crash fixed: the bits' path is stored safely (Blender 5.2.3 corrupted memory when an array property got a NumPy array of another length); crash tests, old projects, queued MP4 | 0.2.33 |
 
 Details per version: `CHANGELOG.md`.
