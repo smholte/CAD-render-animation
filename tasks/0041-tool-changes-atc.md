@@ -61,6 +61,18 @@ moves, the old tool goes back into its pocket and the new one comes out.
 - [ ] Tooltips, guide, pictures, PC-check line; tests; GitHub green; merged and released.
 - [ ] Report filled in; `TASKS.md` updated.
 
+## Lead notes after 0040 (8 Nov 2026)
+
+- 0.2.36's CHANGELOG says old projects "cut as before", but an old project with tool changes whose tools have
+  different stick-outs now moves the spindle ("Tool lengths move the spindle", on by default). Say this plainly in the
+  guide's Tools / tool-change text (and how to untick it for the old look).
+- From 0040's report: `place`/`pocket` fields are stored but unused (yours now); the spindle's length adjustment ramps
+  from the swap to the end of the change – fit it into the change animation.
+- Test suites 1 and 4 were flagged SLOW in 0040's runs (9.5–11.5 min vs 4–5): after your green run, record the times
+  (`python3 tools/ci_status.py --run <green run> --record`) and commit `tools/ci_times.json`.
+- Task 0048 (owner's demo with face mill + chamfer mill, no code) may run at the same time; it uses M6 with
+  `G43 Hn`. Your changes must keep such a program building without edits.
+
 ## Not in this task
 
 - Tool list, shapes and cutting (0040). Air (0039), coolant (0042).

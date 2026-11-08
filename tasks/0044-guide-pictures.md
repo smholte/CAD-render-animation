@@ -32,6 +32,22 @@ Generic test models only – the repository is public.
 
 Text rewrites beyond a caption per picture; app code; the way-cover code changes (0035).
 
+## Lead review of the first round (8 Nov 2026, 23:30)
+
+The work is on branch `claude/lucid-faraday-9q61sq` (one commit, not merged). Before merging:
+
+1. **Labels picture** sits in the middle of a sentence ("Max. [picture] 25 t"): put the sentence back together and
+   place the picture after that paragraph.
+2. **Way-cover view** shows Blender's 3D cursor, axis lines and grid: hide the overlays.
+3. **`/tmp/...` paths** show in the Pictures, Music and G-code file fields: use plain file names (`logo.png`,
+   `music.mp3`, `pocket.ngc`) before taking the shots.
+4. Report: it says 8 pictures, there are 7.
+5. Merge `main` first: 0040 (0.2.36) changed `docs/USER-GUIDE.md` (new "Tools" chapter, the CNC machine section where
+   the air picture goes) and took `panel_4_cnc.png` again – keep both.
+6. The guide ships in the app: take the next free version, short CHANGELOG entry, then merge to `main` and release
+   (CLAUDE.md section 7). The lead confirms: this session may push to `main`, even though it started on a
+   `claude/…` branch.
+
 ---
 
 ## Report (filled in by the chat that did the task)
