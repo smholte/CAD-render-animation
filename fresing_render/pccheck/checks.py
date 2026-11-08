@@ -444,6 +444,11 @@ def motion_gcode(ctx):
     b = a.blocks.add()
     b.kind = "GCODE"
     b.gcode_file = path
+    from ..blender import tools
+    gcode.tools_from_program(scene, b)                 # as the owner does: Tools from the program (task 0040)
+    t1 = tools.row_of(scene, 1)
+    _check(t1 is not None and tools.row_of(scene, 2) is not None, "Tools from the program did not add T1 and T2")
+    tools.use_part(scene, t1, tool)                    # T1 is the tool in the spindle
     t0 = time.time()
     r = animation.bake(scene, a)
     ctx.metric("bake", time.time() - t0, "s")
