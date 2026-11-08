@@ -154,6 +154,12 @@ constraint names). The kit zip (20 MB) carries thor.step and ceb_press.step. Run
 green (one docs-mode run failed: the kit's render test needs OCP, now skipped there). Main at 73cafe5. The owner
 started the kit on his PC on 8 Nov.
 
+**9 Nov (owner's renders):** the page shows the owner's renders (RTX 3090, Final, app 0.2.36): EVO 2 + turntable
+(4.8 MB), FarmBot, CEB press 2; placeholders gone; page 11.9 MB incl. guide. Thor (control-box parts sat in the head:
+a4_to_step dropped the placement of pieces inside library parts; fixed + test) and OpenArm (lay on its side: up_axis
+= Y) are re-rendered by the owner with a two-model kit, then `build_site.py --take <folder> --keep-old`. Run
+42536315870 green; main 0124146, Pages run green.
+
 **Open points / follow-up tasks:**
 - The owner renders with the kit (sent in the session, 3.9 MB with the CEB press) and sends the zip; a session runs
   `tools/build_site.py --take <folder>` (his video stays at the top: `keep`), checks, pushes `site/` (docs mode +
