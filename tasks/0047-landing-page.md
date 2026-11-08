@@ -147,6 +147,13 @@ FarmBot Genesis (CC0, to be confirmed on genesis.farm.bot when downloading) + on
 the OSE CEB brick press (CC BY-SA 4.0), converted here from FreeCAD with the new `tools/fcstd_to_step.py` (246 parts)
 and shipped inside the kit zip (not committed). No openly licensed crane with CAD was found.
 
+**Later in the session:** the owner asked for colours and Thor as one STEP: `colours =` lines in models.ini (part
+name pattern = material + RAL/hex colour, a group "Site: <pattern>" each); `tools/a4_to_step.py` builds the whole
+Thor arm from its FreeCAD Assembly4 files (522 parts, 163 unique, 82 MB STEP); `fcstd_to_step.py` fixed (took
+constraint names). The kit zip (20 MB) carries thor.step and ceb_press.step. Runs: 42532842036 and 42534114433
+green (one docs-mode run failed: the kit's render test needs OCP, now skipped there). Main at 73cafe5. The owner
+started the kit on his PC on 8 Nov.
+
 **Open points / follow-up tasks:**
 - The owner renders with the kit (sent in the session, 3.9 MB with the CEB press) and sends the zip; a session runs
   `tools/build_site.py --take <folder>` (his video stays at the top: `keep`), checks, pushes `site/` (docs mode +
