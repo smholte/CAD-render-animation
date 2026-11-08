@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import bpy
-from bpy.props import BoolProperty, IntProperty
+from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
 from ..core.words import plural
 from . import animation, build, gcode
@@ -147,30 +147,70 @@ class FRESING_OT_cnc_home(_CncOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _kind_items(self, context):
+    from .props import TOOL_KIND_ITEMS
+    return TOOL_KIND_ITEMS
+
+
 class FRESING_OT_cnc_tool_add(_CncOp, bpy.types.Operator):
-    """Adds a tool to the list: its T number, and the part of the model it is (a tool in the
-    carousel), or its sizes for a simple tool shape"""
+    """Adds a tool to the list with the next free T number and the sizes a common tool of the type has.
+    Then set its sizes, or show it with a part of the model or its STEP model"""
 
     bl_idname = "fresing.cnc_tool_add"
     bl_label = "Add tool"
 
+    kind: EnumProperty(name="Type", items=_kind_items, options={"SKIP_SAVE"},
+                       description="The type of the new tool")
+
     def execute(self, context):
-        c = gcode.settings(context.scene)
-        used = {t.number for t in c.tools}
-        n = 1
-        while n in used:
-            n += 1
-        t = c.tools.add()
-        t["_busy"] = True
-        t.number = n
-        t.source = "typed"
-        del t["_busy"]
-        c.tools_index = len(c.tools) - 1
+        from . import tools
+        row = tools.add_row(context.scene, self.kind or "FLAT")
+        self.report({"INFO"}, f"Added T{row.number}: {tools.label(row)}")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_add_missing(_CncOp, bpy.types.Operator):
+    """Adds the tool the program uses but the list does not have, as this type, with the sizes from the
+    program's tool comment when it has one. Check its sizes afterwards"""
+
+    bl_idname = "fresing.cnc_tool_add_missing"
+    bl_label = "Add the missing tool"
+
+    number: IntProperty(name="T", default=1, min=1, options={"SKIP_SAVE"},
+                        description="The tool number the program uses")
+    kind: EnumProperty(name="Type", items=_kind_items, options={"SKIP_SAVE"},
+                       description="The type of the tool")
+
+    def execute(self, context):
+        from ..core import tools as tcore
+        from . import tools
+        scene = context.scene
+        if tools.row_of(scene, self.number) is not None:
+            return {"CANCELLED"}
+        spec = None
+        b = _program_step(context)
+        if b is not None:
+            try:
+                prog, _n = gcode.read_program(scene, b, None)
+                info = prog.tools.get(self.number)
+                if info is not None and info.diameter:
+                    spec = tcore.from_info(info)
+            except Exception:
+                spec = None
+        if spec is None:
+            spec = tcore.default(self.kind, self.number)
+        spec.kind = self.kind
+        spec.number = self.number
+        tools.add_row(scene, self.kind, self.number, tcore.resolved(spec))
+        tools.sort_rows(scene)
+        gcode._INFO.clear()
+        gcode.setup_changed(scene)
+        self.report({"INFO"}, f"T{self.number} added as a {tcore.type_name(self.kind).lower()}")
         return {"FINISHED"}
 
 
 class FRESING_OT_cnc_tool_remove(_CncOp, bpy.types.Operator):
-    """Takes the selected tool out of the list (the part itself stays)"""
+    """Takes the selected tool out of the list (a part of the model it used stays)"""
 
     bl_idname = "fresing.cnc_tool_remove"
     bl_label = "Remove tool"
@@ -180,16 +220,133 @@ class FRESING_OT_cnc_tool_remove(_CncOp, bpy.types.Operator):
         return super().poll(context) and len(gcode.settings(context.scene).tools) > 0
 
     def execute(self, context):
+        from . import tools
+        tools.remove_row(context.scene, gcode.settings(context.scene).tools_index)
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_copy(_CncOp, bpy.types.Operator):
+    """Adds a copy of the selected tool with the next free T number: the same type, sizes and shape"""
+
+    bl_idname = "fresing.cnc_tool_copy"
+    bl_label = "Copy tool"
+
+    @classmethod
+    def poll(cls, context):
+        c = gcode.settings(context.scene) if super().poll(context) else None
+        return c is not None and 0 <= c.tools_index < len(c.tools)
+
+    def execute(self, context):
+        from . import tools
+        row = tools.copy_row(context.scene, gcode.settings(context.scene).tools_index)
+        if row is None:
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Copied as T{row.number}")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_sort(_CncOp, bpy.types.Operator):
+    """Sorts the tool list by T number"""
+
+    bl_idname = "fresing.cnc_tool_sort"
+    bl_label = "Sort by T"
+
+    def execute(self, context):
+        from . import tools
+        tools.sort_rows(context.scene)
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_read(_CncOp, bpy.types.Operator):
+    """Reads a tool file into the list: a Fusion tool library (.json, or .tools as Fusion exports it,
+    vendor libraries too) or a LinuxCNC tool table (.tbl). Tools with a T number already in the list get the
+    file's sizes"""
+
+    bl_idname = "fresing.cnc_tool_read"
+    bl_label = "Read a tool file"
+
+    filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
+    filter_glob: StringProperty(default="*.json;*.tools;*.tbl", options={"HIDDEN"})
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        from . import tools
+        try:
+            res = tools.read_file(context.scene, self.filepath)
+        except (OSError, ValueError, KeyError) as exc:
+            self.report({"WARNING"}, f"The file could not be read: {exc}")
+            return {"CANCELLED"}
+        msg = (f"{res['what']}: {plural(res['added'], 'tool')} added, {res['updated']} updated")
+        if res["notes"]:
+            msg += f" ({plural(len(res['notes']), 'note')}: {res['notes'][0]})"
+        self.report({"INFO"}, msg)
+        gcode._INFO.clear()
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_step(_CncOp, bpy.types.Operator):
+    """Shows the selected tool with a STEP model of it (or of the tool in its holder), for example one from
+    the manufacturer's website. Its axis and tip are found from its shape; its sizes are read from it as a first
+    guess - check them, the tool cuts with the sizes"""
+
+    bl_idname = "fresing.cnc_tool_step"
+    bl_label = "Import STEP of the tool"
+
+    filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
+    filter_glob: StringProperty(default="*.step;*.stp;*.STEP;*.STP", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        c = gcode.settings(context.scene) if super().poll(context) else None
+        return c is not None and 0 <= c.tools_index < len(c.tools)
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        from ..core import tools as tcore
+        from . import tools
         c = gcode.settings(context.scene)
-        if 0 <= c.tools_index < len(c.tools):
-            c.tools.remove(c.tools_index)
-            c.tools_index = max(0, min(c.tools_index, len(c.tools) - 1))
+        row = c.tools[c.tools_index]
+        context.window.cursor_set("WAIT") if context.window else None
+        try:
+            guess = tools.import_step(context.scene, row, self.filepath)
+        except (OSError, RuntimeError) as exc:
+            self.report({"WARNING"}, f"The STEP file could not be read: {exc}")
+            return {"CANCELLED"}
+        finally:
+            context.window.cursor_set("DEFAULT") if context.window else None
+        self.report({"INFO"}, f"T{row.number}: read as {tcore.describe(guess)}, {guess.stick_out * 1000:.1f} mm "
+                              "sticking out - check the sizes")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_tool_flip(_CncOp, bpy.types.Operator):
+    """The tip of the tool's STEP model is at its other end: turns it round and reads its sizes again"""
+
+    bl_idname = "fresing.cnc_tool_flip"
+    bl_label = "Tip at the other end"
+
+    @classmethod
+    def poll(cls, context):
+        c = gcode.settings(context.scene) if super().poll(context) else None
+        return c is not None and 0 <= c.tools_index < len(c.tools) and c.tools[c.tools_index].step_mesh is not None
+
+    def execute(self, context):
+        from . import tools
+        c = gcode.settings(context.scene)
+        tools.flip_step(context.scene, c.tools[c.tools_index])
         return {"FINISHED"}
 
 
 class FRESING_OT_cnc_tool_part(_CncOp, bpy.types.Operator):
-    """Makes the part you clicked last this tool (for example the tool standing in the carousel). At a
-    tool change it disappears from there and shows in the spindle"""
+    """Shows this tool with the part you clicked last (for example the tool standing in the carousel): at a
+    tool change it disappears from there and shows in the spindle. Its sizes are read from the part as a first
+    guess - check them, the tool cuts with the sizes"""
 
     bl_idname = "fresing.cnc_tool_part"
     bl_label = "Use clicked part"
@@ -199,7 +356,8 @@ class FRESING_OT_cnc_tool_part(_CncOp, bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.clear:
-            return "This tool has no part of the model: a simple shape is drawn from its sizes"
+            return ("Shows this tool drawn from its sizes again (not with a part of the model or a STEP model). "
+                    "Its sizes stay")
         return cls.__doc__.replace("\n", " ")
 
     @classmethod
@@ -208,23 +366,22 @@ class FRESING_OT_cnc_tool_part(_CncOp, bpy.types.Operator):
         return c is not None and 0 <= c.tools_index < len(c.tools)
 
     def execute(self, context):
+        from . import tools
         c = gcode.settings(context.scene)
         t = c.tools[c.tools_index]
         if self.clear:
-            t.obj, t.uid = None, ""
+            tools.clear_shape(context.scene, t)
             return {"FINISHED"}
         ob = clicked_part(context)
         if ob is None:
             self.report({"WARNING"}, "Click the tool's part in the view first")
             return {"CANCELLED"}
         try:
-            gcode.tool_frame(ob)
+            tools.use_part(context.scene, t, ob)
         except RuntimeError as exc:
             self.report({"WARNING"}, str(exc))
             return {"CANCELLED"}
-        t.obj = ob
-        t.uid = ob.get(build.PROP_UID, "")
-        self.report({"INFO"}, f"T{t.number}: {gcode.label(ob)}")
+        self.report({"INFO"}, f"T{t.number}: {gcode.label(ob)}, read as {tools.label(t)} - check the sizes")
         return {"FINISHED"}
 
 
@@ -510,6 +667,8 @@ class FRESING_OT_cnc_air_aim(_CncOp, bpy.types.Operator):
 
 
 CLASSES = (FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
-           FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_remove, FRESING_OT_cnc_tool_part,
+           FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_add_missing, FRESING_OT_cnc_tool_remove,
+           FRESING_OT_cnc_tool_copy, FRESING_OT_cnc_tool_sort, FRESING_OT_cnc_tool_read, FRESING_OT_cnc_tool_step,
+           FRESING_OT_cnc_tool_flip, FRESING_OT_cnc_tool_part,
            FRESING_OT_cnc_tools_from_program, FRESING_OT_gcode_toolpath, FRESING_OT_gcode_report,
            FRESING_OT_gcode_reload, FRESING_OT_gcode_go_line)

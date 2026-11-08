@@ -13,14 +13,16 @@ from .ui import MEDIUM, _has_model, _Panel, fold, header_status, list_rows, prim
 
 class FRESING_UL_cnc_tools(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        from . import tools
         row = layout.row(align=True)
         sub = row.row(align=True)
         sub.ui_units_x = 2.4
         sub.prop(item, "number", text="T", emboss=False)
-        if item.obj is not None:
-            row.label(text=gcode.label(item.obj), icon="MOD_SCREW")
-        else:
-            row.label(text=f"Ø{item.diameter * 1000:.1f} {item.kind.lower()} (drawn)", icon="MESH_CYLINDER")
+        icon = "MOD_SCREW" if item.obj is not None else ("IMPORT" if item.step_mesh is not None else "MESH_CYLINDER")
+        text = item.name or tools.core.describe(tools.spec_of(item))
+        row.label(text=text, icon=icon)
+        if item.note:
+            row.label(text="", icon="INFO")
 
 
 class FRESING_PT_cnc(_Panel, bpy.types.Panel):
@@ -123,38 +125,114 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             row.operator("fresing.cnc_home", text="Axes now", icon="HOME")
             row.operator("fresing.cnc_home", text="CAD position").clear = True
 
-        body = fold(layout, "fr_cnc_tools", f"Tools for tool changes ({len(cnc.tools)})", icon="TOOL_SETTINGS")
-        if body:
-            wrap(body, context, "Only needed when the program changes tools (M6). A tool without a part is drawn "
-                                "from its sizes", icon="INFO", inset=12)
-            body.operator("fresing.cnc_tools_from_program", text="Tools from the program", icon="IMPORT")
-            row = body.row()
-            row.template_list("FRESING_UL_cnc_tools", "", cnc, "tools", cnc, "tools_index",
-                              rows=list_rows(len(cnc.tools), 2, 6))
-            col = row.column(align=True)
-            col.operator("fresing.cnc_tool_add", text="", icon="ADD")
-            col.operator("fresing.cnc_tool_remove", text="", icon="REMOVE")
-            if 0 <= cnc.tools_index < len(cnc.tools):
-                tl = cnc.tools[cnc.tools_index]
-                box = body.box()
-                row = box.row(align=True)
-                row.operator("fresing.cnc_tool_part", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
-                if tl.obj is not None:
-                    row.operator("fresing.cnc_tool_part", text="", icon="X").clear = True
-                if tl.obj is None:
-                    col = split_props(box)
-                    col.prop(tl, "kind", text="Shape")
-                    col.prop(tl, "diameter", text="Diameter")
-                    col.prop(tl, "length", text="Length")
-                    if tl.kind == "BULL":
-                        col.prop(tl, "corner", text="Corner radius")
-                    if tl.kind in ("VEE", "DRILL"):
-                        col.prop(tl, "angle", text="Tip angle")
-                    if tl.source and tl.source != "typed":
-                        wrap(box, context, f"Sizes from the {tl.source}", icon="INFO", inset=12)
-            body.prop(cnc, "tool_table", text="Tool table")
-
         draw_air(layout, context, scene, cnc)
+
+
+class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
+    """4 Motion > CNC machine > Tools (task 0040): the project's tool list."""
+    bl_label = "Tools"
+    bl_parent_id = "FRESING_PT_cnc"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="TOOL_SETTINGS")
+
+    def draw_header_preset(self, context):
+        from . import tools
+        cnc = gcode.settings(context.scene)
+        if not cnc.tools:
+            return
+        if tools.checks(context.scene):
+            header_status(self.layout, plural(len(cnc.tools), "tool"), icon="ERROR", alert=True)
+        else:
+            header_status(self.layout, plural(len(cnc.tools), "tool"))
+
+    def draw(self, context):
+        from . import tools
+        layout = self.layout
+        scene = context.scene
+        cnc = gcode.settings(scene)
+        if not cnc.tools:
+            steps(layout, context, ["Press 'Tools from the program' (with a Run G-code program step), read a tool "
+                                    "file, or add tools with +",
+                                    "Pick each tool's type and set its sizes: every tool cuts with its sizes",
+                                    "Optional: show a tool with a part of the model or its STEP model"])
+        row = layout.row(align=True)
+        row.operator("fresing.cnc_tools_from_program", text="Tools from the program", icon="FILE_SCRIPT")
+        row.operator("fresing.cnc_tool_read", text="Read a tool file", icon="IMPORT")
+        row = layout.row()
+        row.template_list("FRESING_UL_cnc_tools", "", cnc, "tools", cnc, "tools_index",
+                          rows=list_rows(len(cnc.tools), 3, 8))
+        col = row.column(align=True)
+        col.operator_menu_enum("fresing.cnc_tool_add", "kind", text="", icon="ADD")
+        col.operator("fresing.cnc_tool_remove", text="", icon="REMOVE")
+        col.separator()
+        col.operator("fresing.cnc_tool_copy", text="", icon="DUPLICATE")
+        col.operator("fresing.cnc_tool_sort", text="", icon="SORTSIZE")
+        for w in tools.checks(scene)[:3]:
+            wrap(layout, context, w, icon="ERROR", inset=12)
+        if 0 <= cnc.tools_index < len(cnc.tools):
+            draw_tool(layout, context, cnc.tools[cnc.tools_index])
+        layout.prop(cnc, "tool_lengths", text="Tool lengths move the spindle")
+        layout.prop(cnc, "tool_table", text="Tool table")
+
+
+def draw_tool(layout, context, tl) -> None:
+    """The selected row of the tool list: type and sizes, holder and place, shape."""
+    from . import tools
+    box = layout.box()
+    col = split_props(box)
+    col.prop(tl, "name", text="Name")
+    col.prop(tl, "kind", text="Type")
+    col.prop(tl, "diameter", text="Diameter")
+    k = tl.kind
+    if k == "BULL":
+        col.prop(tl, "corner", text="Corner radius")
+    if k in ("VEE", "DRILL"):
+        col.prop(tl, "angle", text="Point angle" if k == "DRILL" else "Tip angle")
+    if k == "FACE":
+        col.prop(tl, "inserts", text="Inserts")
+        col.prop(tl, "insert_size", text="Insert size")
+        col.prop(tl, "lead_angle", text="Lead angle")
+    if k == "THREAD":
+        col.prop(tl, "pitch", text="Pitch")
+    if k == "SLOT":
+        col.prop(tl, "width", text="Cutting width")
+        col.prop(tl, "neck", text="Neck diameter")
+    if k in ("FLAT", "BALL", "BULL", "DRILL", "THREAD"):
+        col.prop(tl, "flute_length", text="Flute length")
+    if k in ("FLAT", "BALL", "BULL"):
+        col.prop(tl, "flutes", text="Flutes")
+    col.prop(tl, "length", text="Stick-out")
+    col.prop(tl, "holder", text="Holder")
+    wrap(box, context, tools.core.describe(tools.spec_of(tl)) + (f" – sizes from the {tl.source}"
+                                                                  if tl.source and tl.source != "typed" else ""),
+         icon="CHECKMARK", inset=12)
+    if tl.note:
+        wrap(box, context, tl.note, icon="INFO", inset=12)
+    # its shape
+    wrap(box, context, "Shown: " + tools.shape_text(tl), icon="HIDE_OFF", inset=12)
+    row = box.row(align=True)
+    row.operator("fresing.cnc_tool_part", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
+    row.operator("fresing.cnc_tool_step", text="Import STEP", icon="IMPORT")
+    if tl.obj is not None or tl.step_mesh is not None:
+        row.operator("fresing.cnc_tool_part", text="", icon="X").clear = True
+    if tl.step_mesh is not None:
+        box.operator("fresing.cnc_tool_flip", text="Tip at the other end", icon="ARROW_LEFTRIGHT")
+    body = fold(box, "fr_cnc_tool_more", "Shank, holder sizes, place", icon="PREFERENCES")
+    if body:
+        col = split_props(body)
+        col.prop(tl, "shank", text="Shank Ø")
+        if tl.holder != "NONE":
+            col.prop(tl, "holder_diameter", text="Holder nose Ø")
+            col.prop(tl, "holder_length", text="Holder length")
+        col.prop(tl, "place", text="Place")
+        if tl.place == "POCKET":
+            col.prop(tl, "pocket", text="Pocket")
 
 
 def draw_air(layout, context, scene, cnc) -> None:
@@ -220,6 +298,15 @@ def draw_step(context, box, scene, anim, b) -> None:
     wrap(box, context, text, icon="FILE_SCRIPT", inset=12)
     if info.get("note"):
         wrap(box, context, info["note"], icon="INFO", inset=12)
+    missing = info.get("missing", [])
+    if missing:
+        cnc = gcode.settings(scene)
+        for n, line in missing[:3]:
+            wrap(box, context, f"T{n} (line {line}) is not in the tool list", icon="ERROR", alert=True, inset=12)
+            row = box.row(align=True)
+            op = row.operator("fresing.cnc_tool_add_missing", text=f"Add T{n} as", icon="ADD")
+            op.number, op.kind = n, cnc.add_kind
+            row.prop(cnc, "add_kind", text="")
     probs = info.get("problems", [])
     if probs:
         wrap(box, context, f"Not shown: {probs[0]}", icon="ERROR", inset=12)
@@ -264,4 +351,4 @@ def draw_step(context, box, scene, anim, b) -> None:
         body.operator("fresing.gcode_go_line", text="Go to line …", icon="NEXT_KEYFRAME")
 
 
-CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc)
+CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc, FRESING_PT_cnc_tools)

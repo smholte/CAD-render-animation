@@ -340,6 +340,7 @@ def test_tool_changes_show_the_right_tool(scene, tmp_path):
     click(ob(scene, "TOOL T2 BALL D4"))
     assert bpy.ops.fresing.cnc_tool_part() == {"FINISHED"}
     next(t for t in c.tools if t.number == 1).obj = ob(scene, T1)
+    c.tool_lengths = False                                  # every tip where T1's is (lengths: test_tool_lengths)
     r = animation.bake(scene, a)
     assert not r["warnings"], r["warnings"]
     copies = {o["fr_cnc_t"]: o for o in bpy.data.objects if o.get(gcode.TAG) == "tool"}
