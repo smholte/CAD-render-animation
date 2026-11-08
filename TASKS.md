@@ -29,6 +29,8 @@ updates its branch to `main`.
 
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
 
+- **Five problems from 0048** (no BT30 holder; G43 offsets from stick-out with mixed holders; tip ~0.065 mm; corners
+  of fast moves under-cut ~0.3 mm; manufacturer STEPs along X): `tasks/0048-demo-facemill-chamfer.md`, report.
 - **Four smaller problems from 0037** (two way covers on one axis; Motor not ticked when the spindle is picked;
   second import re-lays the hall; "//" program path): `tasks/0037-owner-mill-gcode-demo.md`, problems 3–6.
   (Problem 2, the fluted end mill read as Ø10.4, was fixed in 0040; problem 7 was done in 0038.)
@@ -41,7 +43,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker | Opus · High | open – can start | tasks/0045-bug-hunt.md |
 | 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker | Opus · Medium | open – can start | tasks/0046-better-materials.md |
-| 0048 | No lane (no app code): the owner's demo program `fresing_demo.ngc` and mill project with three tools – face mill (facing), the Ø10 end mill, chamfer mill (top edges) – in the 0.2.36 tool list, M6 + G43; project and program go back through the session, never into the repository | worker | Opus · Medium | running (Cowork chat, 8 Nov) | tasks/0048-demo-facemill-chamfer.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
@@ -56,6 +57,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | --- | --- | --- |
 | – | Phase 1 (stills), phase 2 (motion), installer, self-test | 0.1.0 – 0.2.2 |
 | – | STEP import on all cores | 0.2.3 |
+| 0048 | Owner's demo with three BT30 tools (face mill, end mill, chamfer mill), M6 + G43; 5 app problems in the report | – (no code) |
 | – | Faster animation renders, Time test, Show in folder | 0.2.4 |
 | – | Side panel redesigned section by section | 0.2.5 |
 | 0007 | Triangles read in one block (biggest EGR part 2.6 s → 0.3 s); self-test checks Time test and noise removal | 0.2.6 |
