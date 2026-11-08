@@ -1,11 +1,12 @@
 # 0048 – The owner's demo program with a face mill and a chamfer mill
 
-**Who:** worker · **Status:** open – can start · **Branch:** none (no code change)
+**Who:** worker · **Status:** running · **Branch:** none (no code change)
 **Started by:** lead chat, 8 Nov 2026 · **Lane:** none – touches no app code. Only this task file and `TASKS.md` are
 pushed at the end.
-**Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation" (the owner
-attaches his project file, ~140 MB, and `fresing_demo.ngc`; in 0037 a 150 MB file came in and went back this way. If
-the file cannot come in or go back, say so at once.)
+**Model:** Opus · effort Medium · **Place:** a new chat in the claude.ai project "STEP rendering App" (like 0037: the
+owner attaches his project file, ~140 MB, and `fresing_demo.ngc` there and gets them back as files). Set-up "by hand"
+(CLAUDE.md section 4: venv + `tools/requirements-dev.txt`, bpy 5.2.3 as a module); the owner approves the push once.
+If the file cannot come in or go back, say so at once.
 
 ## Goal
 

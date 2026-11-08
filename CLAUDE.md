@@ -53,6 +53,9 @@ chat and gives the exact sentence to paste, with where, which model and which ef
   4 cores (the chats had 2), and GitHub is connected once instead of a push approval per chat.
   It is the same usage limit as the chats – the place saves nothing by itself.
   Tasks that already run in a chat finish there.
+- **Exception – tasks where the owner attaches his own project file** (big `.blend`, ~150 MB; 0037, 0048): a new
+  chat in the claude.ai project "STEP rendering App" (Cowork). The file comes in and goes back as an attachment
+  there; set-up "by hand" (section 4, bpy as a module). The task file says so in its header.
 - The owner sets model and effort before the first message (in Claude Code: send `/model opus`
   or `/model sonnet`, then `/effort high`, `/effort medium` or `/effort low`).
 
