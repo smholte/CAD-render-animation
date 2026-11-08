@@ -113,6 +113,24 @@ def keep_awake() -> None:
         pass
 
 
+def parse_colours(text: str, where: str) -> list[tuple[str, str, str]]:
+    """'colours =' lines: <part name pattern> = <material> [colour] -> [(pattern, material, colour)].
+    Patterns use * (any text) and ? (one character), not case sensitive; the first line that fits a part wins."""
+    out = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith((";", "#")):
+            continue
+        if "=" not in line:
+            raise ValueError(f"[{where}] colours: '{line}' needs 'part name = material colour'")
+        pattern, look = (x.strip() for x in line.split("=", 1))
+        words = look.split(None, 1)
+        if not pattern or not words:
+            raise ValueError(f"[{where}] colours: '{line}' needs 'part name = material colour'")
+        out.append((pattern, words[0], words[1] if len(words) > 1 else ""))
+    return out
+
+
 def read_settings(path: str) -> tuple[dict, list[dict]]:
     """The [settings] section and one dict per model section, checked. Raises ValueError with a plain
     reason when something is wrong (shown in the window and the log)."""
@@ -159,6 +177,7 @@ def read_settings(path: str) -> tuple[dict, list[dict]]:
                     float(m[key])
                 except ValueError:
                     raise ValueError(f"[{sec}] {key} = {m[key]}: must be a number") from None
+        m["colours"] = parse_colours(m.get("colours", ""), sec)
         if not m.get("credit"):
             raise ValueError(f"[{sec}] has no 'credit = …' line (the licence needs it on the page)")
         models.append(m)
@@ -214,6 +233,42 @@ def fresh_import(pkg, path: str, quality: str, up_axis: str, out_dir: str):
         if prefs:
             prefs.default_template = saved
     return bpy.context.scene
+
+
+def paint(pkg, scene, rules: list[tuple[str, str, str]]) -> dict:
+    """Give parts whose names fit a 'colours' line that material and colour (a group "Site: <pattern>" each, as
+    the owner would make by hand). Returns {pattern: parts}."""
+    import fnmatch
+    build = importlib.import_module(pkg.__name__ + ".blender.build")
+    logic = importlib.import_module(pkg.__name__ + ".blender.logic")
+    materials = importlib.import_module(pkg.__name__ + ".blender.materials")
+    lib = importlib.import_module(pkg.__name__ + ".core.materials_lib")
+    ral = importlib.import_module(pkg.__name__ + ".core.ral")
+    known = set(getattr(lib, "MATERIALS", {}))
+    s = scene.fresing
+    groups, counts = {}, {}
+    for pattern, mat_id, colour in rules:
+        if known and mat_id not in known:
+            raise RuntimeError(f"colours: material '{mat_id}' unknown; use one of {', '.join(sorted(known))}")
+        if colour and ral.parse_colour(colour) is None:
+            raise RuntimeError(f"colours: colour '{colour}' unknown; use a RAL number (RAL 2004) or #RRGGBB")
+        g = logic.ensure_group(s, f"Site: {pattern}")
+        g.material = mat_id
+        g.color = colour
+        groups[pattern] = materials.ensure_material(g.name, g.material, g.color)
+        counts[pattern] = 0
+    for ob in build.iter_parts(scene):
+        name = str(ob.get(build.PROP_NAME, ob.name)).lower()
+        for pattern, _mat, _col in rules:
+            if fnmatch.fnmatchcase(name, pattern.lower()):
+                ob[build.PROP_GROUP] = f"Site: {pattern}"
+                materials.assign(ob, groups[pattern])
+                counts[pattern] += 1
+                break
+    for g in s.groups:
+        if g.name.startswith("Site: "):
+            g.count = counts.get(g.name[6:], 0)
+    return counts
 
 
 def set_scene(pkg, scene, m: dict, size: tuple[int, int]) -> None:
@@ -338,6 +393,9 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
     log(f"  imported {parts} parts in {time.time() - t0:.0f} s")
     width = 480 if small else int(float(general["width"]))
     height = round(width * float(general["height"]) / float(general["width"]))
+    if m["colours"]:
+        counts = paint(pkg, scene, m["colours"])
+        log("  colours: " + ", ".join(f"{p} {n}" for p, n in counts.items()))
     set_scene(pkg, scene, m, (width, height))
     s = scene.fresing
     s.use_gpu = not (small or cpu)

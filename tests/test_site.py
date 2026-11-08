@@ -146,6 +146,7 @@ def test_kit_renders_a_test_model(tmp_path):
     pytest.importorskip("bpy")
     ini = tmp_path / "m.ini"
     ini.write_text("[gantry]\nfile = test_gantry.step\nviews = ISO\nlook = PRODUCT\n"
+                   "colours =\n    * = powder_coat RAL 2004\n"
                    "credit = Test gantry: generic test model\n", encoding="utf-8")
     out = tmp_path / "out"
     res = subprocess.run([sys.executable, os.path.join(KIT, "make_site_pictures.py"),
@@ -157,6 +158,7 @@ def test_kit_renders_a_test_model(tmp_path):
     assert info["models"]["gantry"]["credit"] == "Test gantry: generic test model"
     assert (out / "send" / "gantry_iso.jpg").stat().st_size > 1000
     assert (out / "full" / "gantry.blend").exists()
+    assert re.search(r"colours: \* \d+", (out / "log.txt").read_text(encoding="utf-8"))
     assert (out / "contact_sheet.html").exists() and (out / "Fresing site pictures.zip").exists()
 
 
@@ -192,7 +194,8 @@ def test_fcstd_to_step(tmp_path):
     t = gp_Trsf()
     t.SetTranslation(gp_Vec(100.0, 0.0, 0.0))
     BRepTools.Write_s(box.Located(TopLoc_Location(t)), str(tmp_path / "PartShape.brp"))
-    xml = ('<Document><ObjectData><Object name="Frame_SubAssembly_01"><Properties>'
+    xml = ('<Document><ObjectData><Object name="planeConstraint01"><Properties></Properties></Object>'
+           '<Object name="Frame_SubAssembly_01"><Properties>'
            '<Property name="Shape" type="Part::PropertyPartShape">\n  <Part file="PartShape.brp"/>'
            '</Property></Properties></Object></ObjectData></Document>')
     src = tmp_path / "a.fcstd"
@@ -202,5 +205,54 @@ def test_fcstd_to_step(tmp_path):
     out = tmp_path / "a.step"
     assert fcstd_to_step.convert(str(src), str(out)) == 1
     text = out.read_text(errors="replace")
-    assert "FRAME PART 1" in text and "Frame SubAssembly" in text
+    assert "FRAME PART 1" in text and "Frame SubAssembly" in text and "PLANECONSTRAINT" not in text.upper()
     assert "100." in text                       # placed where it was
+
+
+def test_a4_to_step(tmp_path):
+    """tools/a4_to_step.py: an Assembly4 link to a body in another file is placed where the link says."""
+    pytest.importorskip("OCP")
+    import zipfile
+
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+    from OCP.BRepTools import BRepTools
+
+    BRepTools.Write_s(BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape(), str(tmp_path / "PartShape.brp"))
+    with zipfile.ZipFile(tmp_path / "Plate.FCStd", "w") as z:
+        z.writestr("Document.xml", '<Document><Objects><Object type="PartDesign::Body" name="Body"/></Objects>'
+                   '<ObjectData>\n        <Object name="Body">\n<Property name="Shape" type="Part::PropertyPartShape">'
+                   '\n<Part file="PartShape.brp"/></Property>\n        </Object>\n</ObjectData></Document>')
+        z.write(tmp_path / "PartShape.brp", "PartShape.brp")
+    pl = 'Px="250" Py="0" Pz="0" Q0="0" Q1="0" Q2="0" Q3="1" A="0" Ox="0" Oy="0" Oz="1"'
+    with zipfile.ZipFile(tmp_path / "Assembly.FCStd", "w") as z:
+        z.writestr("Document.xml", '<Document><Objects><Object type="App::Part" name="Model"/>'
+                   '<Object type="App::Link" name="Plate_Link"/></Objects><ObjectData>\n'
+                   '        <Object name="Model">\n<Property name="Group" type="App::PropertyLinkList">'
+                   '<LinkList count="1"><Link value="Plate_Link"/></LinkList></Property>\n        </Object>\n'
+                   '        <Object name="Plate_Link">\n<Property name="LinkedObject" type="App::PropertyXLink">'
+                   '<XLink file="Plate.FCStd" stamp="" name="Body"/></Property>\n'
+                   f'<Property name="Placement" type="App::PropertyPlacement"><PropertyPlacement {pl}/></Property>\n'
+                   '        </Object>\n</ObjectData></Document>')
+    out = tmp_path / "a.step"
+    res = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "a4_to_step.py"), str(tmp_path / "Assembly.FCStd"),
+                          str(out), "Test arm"], capture_output=True, text=True, timeout=120)
+    assert res.returncode == 0, res.stdout[-2000:] + res.stderr[-2000:]
+    assert "1 parts, 1 unique" in res.stdout
+    text = out.read_text(errors="replace")
+    assert "Test arm" in text and "Plate" in text and "250." in text
+
+
+def test_kit_colour_lines(tmp_path):
+    kit = _kit()
+    assert kit.parse_colours("\n  *screw* = black_oxide\n  art* = plastic_matte RAL 2004\n", "a") == [
+        ("*screw*", "black_oxide", ""), ("art*", "plastic_matte", "RAL 2004")]
+    with pytest.raises(ValueError, match="part name = material"):
+        kit.parse_colours("\n  art* plastic_matte\n", "a")
+    _general, models = kit.read_settings(os.path.join(KIT, "models.ini"))
+    thor = next(m for m in models if m["id"] == "thor")
+    assert ("art*", "plastic_matte", "RAL 2004") in thor["colours"]
+    from fresing_render.core import materials_lib, ral
+    for m in models:
+        for _pattern, mat, colour in m["colours"]:
+            assert mat in materials_lib.MATERIALS, mat
+            assert not colour or ral.parse_colour(colour), colour

@@ -15,8 +15,9 @@ import sys
 import tempfile
 import zipfile
 
-SHAPE_RE = re.compile(r'<Object name="([^"]+)"[^>]*>.*?<Property name="Shape" type="Part::PropertyPartShape"[^>]*>'
-                      r'\s*<Part file="([^"]+\.brp)"', re.S)
+# the Shape of the same object: never search on past its </Object> (that took a constraint's name for the next shape)
+SHAPE_RE = re.compile(r'<Object name="([^"]+)"[^>]*>(?:(?!</Object>).)*?<Property name="Shape" '
+                      r'type="Part::PropertyPartShape"[^>]*>\s*<Part file="([^"]+\.brp)"', re.S)
 
 
 def convert(src: str, out: str) -> int:

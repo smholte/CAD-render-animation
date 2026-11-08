@@ -17,7 +17,7 @@ Steps
    folder and opens it).
 3. Put the STEP files in "models" and give them the names from models.ini
    (when renaming, type only the first part, e.g. evo - Windows keeps the .step):
-   evo.step, openarm.step, thor.step, farmbot.step, ceb_press.step (the last one comes with this kit)
+   evo.step, openarm.step, farmbot.step (thor.step and ceb_press.step come with this kit)
    (right-click the file > Rename). A model you do not have is skipped with a note.
 4. Close Fresing Render if it is open: the pictures then get all of the graphics card's memory.
 5. Double-click "Make site pictures.bat". A black window shows each step.
