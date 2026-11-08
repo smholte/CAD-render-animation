@@ -144,6 +144,7 @@ def test_kit_bat_finds_installed_blender():
 def test_kit_renders_a_test_model(tmp_path):
     """The kit end to end on a test model, small, on the processor (Blender as a Python module)."""
     pytest.importorskip("bpy")
+    pytest.importorskip("OCP")            # the docs-mode run has no STEP reader; the full run has
     ini = tmp_path / "m.ini"
     ini.write_text("[gantry]\nfile = test_gantry.step\nviews = ISO\nlook = PRODUCT\n"
                    "colours =\n    * = powder_coat RAL 2004\n"
