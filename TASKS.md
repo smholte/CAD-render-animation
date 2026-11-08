@@ -16,7 +16,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21); lane free
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (open – can start)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30); lane free
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (open)
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov)
@@ -42,6 +42,8 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0043 | Scene & Render lane: a second import keeps the surroundings in place (0037 problem 5, + "Fit surroundings to the model" button); 4K MP4 encode without gigabytes of cached frames | worker | Sonnet · Medium | open – can start | tasks/0043-hall-relay-mp4-memory.md |
 | 0044 | Docs lane: missing guide pictures – Way covers, Air blast, Labels, Pictures, Music (taken out of 0035) | worker | Sonnet · Low | open – can start | tasks/0044-guide-pictures.md |
+| 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker | Opus · High | open – can start | tasks/0045-bug-hunt.md |
+| 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker | Opus · Medium | open – can start | tasks/0046-better-materials.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
