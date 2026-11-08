@@ -736,6 +736,139 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
+elif MODE in ("waycover", "air", "labels"):
+    # task 0044: panels that had no picture yet. Each run uses its own generic test model.
+    #   waycover: Way covers panel + the covers open in the view (test_waycover_b.step)
+    #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
+    #   labels:   Labels, Pictures and Music folds (test crane)
+    # Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=waycover / air / labels.
+    MILL = os.path.join(DATA, "test_gantry.step")
+    WCOVER = os.path.join(DATA, "test_waycover_b.step")
+    mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE}[MODE]
+
+    step(_start)
+    step(lambda: _import(mod_name))
+    step(_wait_import)
+
+    def _grab(name, spec, extra=None):
+        def show():
+            if extra:
+                extra()
+            show_only(spec)
+            wiggle()
+            return 2.5
+
+        def shoot():
+            shoot_sidebar(name)
+            return 0.5
+        show.__name__, shoot.__name__ = f"show_{name}", f"shoot_{name}"
+        step(show)
+        step(shoot)
+
+    def _named(n):
+        return next(o for o in bpy.data.objects if o.get("fr_name") == n)
+
+    if MODE == "waycover":
+        SECTIONS = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"],
+                    ["COVER.4"], ["COVER.5"]]
+
+        def _wc_setup():
+            sc = bpy.context.scene
+            joints = mod("blender.joints")
+            car = _named("CARRIAGE")
+            j = joints.create(sc, "SLIDE", [car], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
+            j.use_limits = True
+            j.slide_min, j.slide_max = 0.0, 0.5
+            sc.fresing.waycover.axis = "X axis"
+            with override():
+                bpy.ops.fresing.waycover_read_total()
+                for g in SECTIONS:
+                    select_only(*[_named(n) for n in g])
+                    bpy.ops.fresing.waycover_add()
+                bpy.ops.fresing.waycover_make()
+            select_only()
+            joints.set_value(sc.fresing.joints.get("X axis"), 0.5)
+            bpy.context.view_layer.update()
+        step(lambda: (_wc_setup(), 1.0)[1])
+        _grab("panel_4_waycover", [("FRESING_PT_waycover", False, True)])
+
+        def _view():
+            _frame_model()
+            wiggle(5)
+            return 2.0
+        step(_view)
+
+        def _view_shot():
+            win, area, region, sb = areas()
+            im = crop_region(grab_screen(), region, win.height)
+            h, w = im.shape[:2]
+            save_png(im[int(h * 0.463):int(h * 0.545), int(w * 0.2):int(w * 0.8)], "view_waycover")   # the model
+            return 0.5
+        step(_view_shot)
+
+    elif MODE == "air":
+        def _cnc_setup():
+            sc = bpy.context.scene
+            joints = mod("blender.joints")
+            for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+                o = _named(asm)
+                joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+            with override():
+                bpy.ops.fresing.cnc_find_axes()
+                select_only(_named("TOOL T1 FLAT D6"))
+                bpy.ops.fresing.cnc_use_tool()
+                select_only(_named("STOCK 300x200x30"))
+                bpy.ops.fresing.cnc_use_workpiece()
+            select_only()
+            cnc = sc.fresing.cnc
+            cnc.air_on_code, cnc.air_off_code = 7, 9
+            mod("blender.ui")._OPEN_FOLDS = True
+        step(lambda: (_cnc_setup(), 1.0)[1])
+        _grab("panel_4_air", [("FRESING_PT_cnc", False, True)])
+
+        def _gcode_step():
+            sc = bpy.context.scene
+            path = os.path.join(SCRATCH, "guide_air.ngc")
+            with open(path, "w") as fh:
+                fh.write("%\nG21 G90 G54\nS9000 M3 M7\nG0 X20 Y20 Z5\nG1 Z-2 F600\nG1 X120 F1500\nM9\nM30\n%\n")
+            with override():
+                bpy.ops.fresing.anim_add()
+                bpy.ops.fresing.block_add(kind="GCODE")
+            a = mod("blender.animation").active(sc)
+            b = a.blocks[a.blocks_index]
+            b.gcode_file = path
+            b.gcode_clean = True
+        _grab("panel_6_gcode_air", [("FRESING_PT_animation", False, True)], _gcode_step)
+
+    else:
+        def _label_setup():
+            sc = bpy.context.scene
+            s = sc.fresing
+            with override():
+                bpy.ops.fresing.callout_add(part=_named("BOOM").name, text="Boom, Ø40")
+                bpy.ops.fresing.callout_add(part=_named("TROLLEY").name, text="Trolley")
+                bpy.ops.fresing.anim_add()
+            a = s.animations[s.animations_index]
+            logo = os.path.join(SCRATCH, "guide_card.png")
+            subprocess.run(["convert", "-size", "160x80", "xc:#2c7fb8", logo], check=True)
+            wav = os.path.join(SCRATCH, "guide_music.wav")
+            import wave
+            with wave.open(wav, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(22050)
+                w.writeframes(b"\0\0" * 22050)
+            with override():
+                bpy.ops.fresing.card_add(filepath=logo)
+            c = a.cards[0]
+            c.mode, c.corner, c.start, c.duration, c.caption = "CORNER", "BL", 0.0, 3.0, "Hydraulics"
+            a.music_on, a.music_file = True, wav
+            a.music_fade_in, a.music_fade_out = 1.0, 2.0
+        step(lambda: (_label_setup(), 1.0)[1])
+        _grab("panel_5_labels", [("FRESING_PT_labels", False, True)])
+        _grab("panel_6_cards", [("FRESING_PT_cards", False, True)])
+        _grab("panel_6_music", [("FRESING_PT_music", False, True)])
+
 elif MODE in ("render", "looks", "decals"):
     pass
 
