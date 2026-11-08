@@ -28,7 +28,7 @@ from mathutils.bvhtree import BVHTree
 
 from ..core import chips as core
 from ..core import machining as mcore
-from . import build, machining
+from . import air, build, machining
 
 COLLECTION = "FR Chips"
 SHAPES_COLLECTION = "FR Chip shapes"
@@ -214,7 +214,7 @@ def _key(scene) -> tuple:
     return (s.path_sig, machining._stock_key(s, wp) if wp is not None else None,
             tuple((ob.name, machining.tool_of(it).key(), len(it.get("fr_t", ()))) for it, ob in items),
             s.chips, fam, s.chip_spindle, bool(s.chip_mist), scene.render.fps, round(scene.render.fps_base, 6),
-            len(s.get("fr_wp_m", ())))
+            len(s.get("fr_wp_m", ())), air.key(scene))
 
 
 def _inputs(scene) -> core.SimIn | None:
@@ -228,10 +228,12 @@ def _inputs(scene) -> core.SimIn | None:
     spin = 1.0 if s.chip_spindle == "CW" else -1.0
     # the bits: paths from the workpiece's own space into riding space
     bits_in = []
-    for it, _ob in machining.bits(scene):
+    bit_names = []
+    for it, ob in machining.bits(scene):
         p = machining._path(it)
         if p is None:
             continue
+        bit_names.append(ob.name)
         tool = machining.tool_of(it)
         o = p.o @ m0[:3, :3].T + m0[:3, 3]
         d = p.d @ m0[:3, :3].T
@@ -241,6 +243,8 @@ def _inputs(scene) -> core.SimIn | None:
     if not bits_in:
         return None
     reach = core.throw_reach([pr for b in bits_in for pr in b.presets])
+    if len(air.spans(scene)):                         # blown chips fly further: catch them there too (task 0039)
+        reach = max(reach, min(float(air.settings(scene).air_reach), 1.0))
     # the workpiece: its CAD mesh in riding space
     sv, st = _tris_world_mesh(s.stock_mesh, M0)
     lo, hi = sv.min(axis=0), sv.max(axis=0)
@@ -263,7 +267,8 @@ def _inputs(scene) -> core.SimIn | None:
     f1 = f0 + len(carry) - 1
     fps = scene.render.fps / (scene.render.fps_base or 1.0)
     return core.SimIn(fps=fps, f0=f0, f1=f1, bits=bits_in, work=work, ride=ride, static=static, floor_z=floor_z,
-                      carry=carry, amount=s.chips, mist=bool(s.chip_mist))
+                      carry=carry, amount=s.chips, mist=bool(s.chip_mist),
+                      air=air.inputs(scene, bits_in, bit_names, carry, f0))
 
 
 def _tris_world_mesh(me, m: Matrix) -> tuple:

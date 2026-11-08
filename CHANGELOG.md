@@ -5,6 +5,25 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.34 – 7 Nov 2026 – air blast blows the chips away (task 0039)
+
+Milling with chips
+- **Air blast**: air blows the chips off the part while the program has air on, so the finished part stays visible.
+  Set it up in 4 Motion > CNC machine > **Air blast**: the codes that switch it (M7 and M9 by default, or your own
+  M100–M199), or **always on while the spindle turns** for programs without a code.
+- The air comes **through the spindle** (out of the tool's tip, moving with it) or from an **external nozzle**: click
+  the nozzle part (its tip is read from its shape) or click the spot where the air comes out; it moves with the head
+  or stands with the frame. **Strength**, **Cone angle**, **Reach**, and **Show air** (a faint cone while it blows).
+- Chips in the air are pushed away, chips lying in the jet are picked up and land further away – on the table, the
+  bed, in the corners. The same frame gives the same chips every time, also in the render queue.
+- **Blow the part clean at the end** (in the Run G-code program step, with **Time at end**, 2 s by default): the
+  step gets longer, the tool goes up, the air blows the chips off and the last frames show the clean part.
+- The step says when air is on ("Air: on 1 time, 3.1 s in all"), Details too. A user code chosen for air is no
+  longer listed as "not shown".
+- On the test mill (pocket 60 × 40 mm, chips Realistic): 1,560 chips on the block at the end without air, 0 with
+  air through the spindle and 0 after blowing the part clean. The PC check has a new line, "Milling: air blast
+  blows the chips away". Projects made before have air off and stay as they were.
+
 ## 0.2.33 – 7 Nov 2026 – milling no longer crashes (task 0038)
 
 - Fixed a crash with milling: after a new Build, after a change in the animation, and at the start of every queued

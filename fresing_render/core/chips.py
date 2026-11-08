@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from . import air as airmod
+
 MM = 0.001
 G = 9.81
 SUBSTEPS = 4                      # physics steps per frame
@@ -688,6 +690,7 @@ class SimIn:
     amount: str = "FEW"
     mist: bool = False
     seed: int = 28
+    air: object = None                # core.air.AirIn: air that blows the chips away (task 0039); None = no air
 
 
 @dataclass
@@ -815,6 +818,16 @@ def _plan_mist(inp: SimIn, rng, am) -> dict | None:
     return {"t": t, "bit": bit}
 
 
+#: every per-chip array of _Sim (a chip blown up again by air is a new chip: a copy of these rows)
+_PER_CHIP = ("born", "bit", "change", "is_mist", "pre_speed", "pre_drag", "pre_bounce", "pre_mix", "pre_spin",
+             "pre_life", "vol", "slot", "scale", "tint", "u_speed", "u_spread", "u_spin", "u_angle", "u_yaw", "u_tilt",
+             "u_q0", "u_life", "u_misc", "rest_t", "end_t", "fade", "rest_p", "rest_q", "rest_space", "rest_cell",
+             "rest_pile")
+_EMPTY_ROW = {"rest_t": np.inf, "end_t": np.inf, "fade": 1.0, "rest_cell": -1, "rest_pile": -1}
+BLOWN_FRICTION = 0.85             # a chip the air pushes along a surface keeps this much speed at each touch
+BLOWN_HOP = 0.6                   # m/s up: air lifts a chip it pushes against a wall (out of a pocket)
+
+
 class _Sim:
     """The time-stepped flight of every chip (all chips in flight move together, in numpy)."""
 
@@ -894,6 +907,13 @@ class _Sim:
         self.alive = 0
         self.max_alive = 0
         self.carry = inp.carry
+        # air (task 0039): chips it picks up again are copies of the lying chip (a chip rests once)
+        self.air = inp.air if inp.air is not None and len(inp.air.spans) and len(inp.air.t) else None
+        self.n0 = n
+        self.rows = n
+        self.wakes = 0
+        self._hit_t = None
+        self._hit = None
 
     # -- surfaces ----------------------------------------------------------------
 
@@ -1044,9 +1064,10 @@ class _Sim:
 
     def run(self, progress=None) -> None:
         inp = self.inp
-        n = self.n
+        n = self.n0
         if n == 0:
             return
+        air = self.air
         order = np.argsort(self.born, kind="stable")
         bi = 0
         # flying chips
@@ -1063,12 +1084,16 @@ class _Sim:
         steps = 0
         last_report = time.perf_counter()
         while t <= t_end:
-            if not len(fid) and bi < n:                  # nothing in the air: jump to the next birth
-                nxt = float(math.ceil(self.born[order[bi]] - 1e-9) - 1)
+            if not len(fid):                             # nothing in the air: jump to the next birth (or air)
+                nxt = float(math.ceil(self.born[order[bi]] - 1e-9) - 1) if bi < n else math.inf
+                if air is not None and self.rest_any():
+                    a = air.next_on(t)
+                    if a < math.inf:
+                        nxt = min(nxt, max(t, float(math.floor(a))))
+                if nxt == math.inf:
+                    break
                 if nxt > t:
                     t = nxt
-            if not len(fid) and bi >= n:
-                break
             t_new = t + self.h
             self.apply_changes(t_new)
             # births: once per frame, every chip that comes off during the coming frame (a chip is first
@@ -1090,10 +1115,33 @@ class _Sim:
                 SP = np.concatenate([SP, np.zeros(len(ids), np.int8)])
                 NB = np.concatenate([NB, np.zeros(len(ids), np.int64)])
                 self.alive += int((~self.is_mist[ids]).sum())
+            # air: chips lying in the jet are picked up again (once a frame)
+            air_on, air_clean = air.state(t) if air is not None else (False, False)
+            if air_on and abs(t - round(t)) < 1e-9:
+                st = self.wake(t, air_clean)
+                if st is not None:
+                    ids = st["id"]
+                    fid = np.concatenate([fid, ids])
+                    P = np.concatenate([P, st["p"]])
+                    V = np.concatenate([V, st["v"]])
+                    W = np.concatenate([W, st["w"]])
+                    Q = np.concatenate([Q, st["q"]])
+                    TQ = np.concatenate([TQ, np.full(len(ids), t)])
+                    SP = np.concatenate([SP, st["s"]])
+                    NB = np.concatenate([NB, np.zeros(len(ids), np.int64)])
             if len(fid):
                 drag = np.exp(-self.pre_drag[fid] * self.dt)
                 V = V * drag[:, None]
                 V[:, 2] -= G * self.dt
+                blown = np.zeros(len(fid), bool)
+                if air_on:
+                    U = self.air_at(P, SP, fid, t_new, air_clean)
+                    um = np.linalg.norm(U, axis=1)
+                    has = um > 0.05
+                    if has.any():
+                        k = np.exp(-airmod.COUPLE * self.pre_drag[fid[has]] * self.dt)
+                        V[has] = U[has] + (V[has] - U[has]) * k[:, None]
+                        blown = np.hypot(U[:, 0], U[:, 1]) * self.pre_drag[fid] / 2.5 > airmod.WAKE
                 P_new = P + V * self.dt
                 hit_rest = np.zeros(len(fid), bool)
                 gone = np.zeros(len(fid), bool)
@@ -1119,17 +1167,21 @@ class _Sim:
                         P_new[fl, 2] = s_new[sel]
                         e = self.pre_bounce[fid[fl]]
                         V[fl, 2] = -V[fl, 2] * e
-                        V[fl, :2] *= 0.55
+                        V[fl, :2] *= np.where(blown[fl], BLOWN_FRICTION, 0.55)[:, None]
                         Q[fl] = self._q_at(Q[fl], W[fl], TQ[fl], t_new)
                         TQ[fl] = t_new
                         W[fl] *= 0.5
                         NB[fl] += 1
                         still = (np.abs(V[fl, 2]) < REST_SPEED) | (NB[fl] >= MAX_BOUNCES) | (e <= 0.0)
+                        still &= ~blown[fl]                  # the air keeps it going
                         hit_rest[fl[still]] = True
                     if len(wl):                             # a wall: back to where it was, bounce sideways
                         P_new[wl, :2] = P[wl, :2]
                         V[wl, :2] *= -0.4
                         W[wl] *= 0.7
+                        hop = blown[wl]
+                        if hop.any():                       # the air lifts it out of the pocket
+                            V[wl[hop], 2] = np.maximum(V[wl[hop], 2], BLOWN_HOP)
                 # off everything that moves with the workpiece: on to world space (machine bed, floor)
                 off = ride & ~below & ~np.isfinite(surf) & (P_new[:, 2] < self.level)
                 if off.any():
@@ -1179,6 +1231,90 @@ class _Sim:
             self._rest(fid[nm], P[nm], SP[nm], t)
         self.steps = steps
         self.apply_changes(np.inf)
+
+    # -- air (task 0039) ----------------------------------------------------------
+
+    def rest_any(self) -> bool:
+        n = self.rows
+        return bool((np.isfinite(self.rest_t[:n]) & ~np.isfinite(self.end_t[:n])).any())
+
+    def air_at(self, P, SP, ids, t: float, clean: bool) -> np.ndarray:
+        """The air's speed at the chips (riding or world space, as each chip is)."""
+        air = self.air
+        o, d = air.nozzle(t)
+        speed, cone = air.settings(clean)
+        if self._hit_t != t:                          # where the jet meets the workpiece / table (riding space)
+            self._hit_t = t
+            self._hit = airmod.hit(o, d, air.reach, self.surf_ride)
+        wall = self._hit
+        U = np.zeros((len(P), 3))
+        r = SP == 0
+        if r.any():
+            U[r] = airmod.velocity(P[r], o, d, speed, cone, air.reach, self.u_angle[ids[r]], wall)
+        if not r.all():
+            C = self.carry_at(t)
+            ow = C[:3, :3] @ o + C[:3, 3]
+            dw = C[:3, :3] @ d
+            ww = (C[:3, :3] @ wall[0] + C[:3, 3], wall[1]) if wall is not None else None
+            U[~r] = airmod.velocity(P[~r], ow, dw, speed, cone, air.reach, self.u_angle[ids[~r]], ww)
+        return U
+
+    def wake(self, t: float, clean: bool) -> dict | None:
+        """Chips lying where the air is strong enough fly again: each is a new chip (a copy) from here on,
+        the lying one ends now."""
+        n = self.rows
+        lying = np.nonzero(np.isfinite(self.rest_t[:n]) & ~np.isfinite(self.end_t[:n]) & ~self.is_mist[:n]
+                           & (self.rest_t[:n] < t - 1e-9))[0]
+        if not len(lying):
+            return None
+        U = self.air_at(self.rest_p[lying], self.rest_space[lying], lying, t, clean)
+        uh = np.hypot(U[:, 0], U[:, 1])
+        eff = uh * self.pre_drag[lying] / 2.5
+        go = eff > airmod.WAKE
+        if not go.any():
+            return None
+        old = lying[go]
+        U = U[go]
+        self.end_t[old] = t + 1.0                   # still shown at this frame; the copy is there at the next
+        self.fade[old] = 1e-3
+        self._unpile(old)
+        self.rest_cell[old] = -1
+        new = self._copy(old, t)
+        self.wakes += len(old)
+        k = np.clip(eff[go] / (3 * airmod.WAKE), 0.3, 1.0)
+        v = U * (0.35 * k)[:, None]
+        v[:, 2] = (0.3 + 0.5 * self.u_misc[new]) * k
+        p = self.rest_p[old].copy()
+        p[:, 2] += 0.2 * MM
+        return {"id": new, "p": p, "v": v, "w": self.u_spin[new] * (4 * math.pi / math.sqrt(3)),
+                "q": self.rest_q[old].copy(), "s": self.rest_space[old].copy()}
+
+    def _copy(self, ids: np.ndarray, t: float) -> np.ndarray:
+        """New rows that are copies of chips ``ids``, born at ``t``, in flight."""
+        k = len(ids)
+        need = self.rows + k
+        cap = len(self.born)
+        if need > cap:
+            size = max(need, 2 * cap, 64)
+            for name in _PER_CHIP:
+                a = getattr(self, name)
+                b = np.full((size,) + a.shape[1:], _EMPTY_ROW.get(name, 0), dtype=a.dtype)
+                b[:cap] = a
+                setattr(self, name, b)
+        new = np.arange(self.rows, need)
+        for name in _PER_CHIP:
+            a = getattr(self, name)
+            a[new] = a[ids]
+        self.born[new] = t
+        for name, v in _EMPTY_ROW.items():
+            getattr(self, name)[new] = v
+        self.rows = need
+        return new
+
+    def trim(self) -> None:
+        for name in _PER_CHIP:
+            setattr(self, name, getattr(self, name)[:self.rows])
+        self.n = self.rows
 
     def _q_at(self, Q, W, TQ, t) -> np.ndarray:
         dq = q_from_rotvec(W * ((t - TQ) / self.fps)[:, None])
@@ -1245,6 +1381,7 @@ def simulate(inp: SimIn, progress=None) -> Bake:
     plan = _plan(inp, rng)
     sim = _Sim(inp, plan, rng)
     sim.run(progress)
+    sim.trim()
     nf = inp.f1 - inp.f0 + 1
     counts = np.zeros(nf + 1, np.int64)
     for f, c in sim.frame_rows.items():
@@ -1256,7 +1393,8 @@ def simulate(inp: SimIn, progress=None) -> Bake:
         fly = {"id": np.zeros(0, np.int32), "p": np.zeros((0, 3), np.float32), "q": np.zeros((0, 4), np.float16),
                "s": np.zeros(0, np.int8)}
     vol = inp.work.removed_per_frame(inp.f0, inp.f1)
-    stats = {"chips": int(sim.n), "mist": int(sim.is_mist.sum()), "max_alive": int(sim.max_alive),
+    stats = {"chips": int(sim.n0), "mist": int(sim.is_mist[:sim.n0].sum()), "max_alive": int(sim.max_alive),
+             "blown": int(sim.wakes), "air_s": inp.air.seconds_on(inp.fps) if inp.air is not None else 0.0,
              "thinned": float(plan["thin"]), "steps": int(getattr(sim, "steps", 0)),
              "seconds": time.perf_counter() - t0, "removed_mm3": float(vol.sum() * 1e9)}
     return Bake(shapes=sim.shapes, lift=np.zeros(len(sim.shapes)), born=sim.born, rest_t=sim.rest_t,
@@ -1271,4 +1409,7 @@ def describe(bake: Bake | None) -> str:
         return ""
     s = bake.stats
     n = s.get("chips", 0) - s.get("mist", 0)
-    return f"{n:,} chips worked out in {s.get('seconds', 0.0):.1f} s"
+    text = f"{n:,} chips worked out in {s.get('seconds', 0.0):.1f} s"
+    if s.get("blown"):
+        text += f", blown away {s['blown']:,} times"
+    return text

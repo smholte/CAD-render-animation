@@ -891,6 +891,104 @@ def milling_chips(ctx):
     return f"{n} chips; {chips.family_text(scene)}"
 
 
+AIR_POCKET = """(T1 D=10. CR=0. - flat end mill)
+G21 G90 G94 G17
+S9000 M3
+G0 X-30 Y-20 Z5
+M7
+G1 Z-4 F900
+G1 X30 F2400
+G1 Y-6
+G1 X-30
+G1 Y8
+G1 X30
+G1 Y20
+G1 X-30
+M9
+G0 Z20
+M5
+M30
+"""
+
+
+@line("milling.air", "Milling: air blast blows the chips away", "0.2.34",
+      what="The test mill cuts a pocket with air on (M7 ... M9) through the spindle and blows the part clean at the "
+           "end; chips on the block at the last frame without and with air, and the time per frame")
+def milling_air(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import air, animation, chips, gcode, machining
+    chips.forget()
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(MILL)
+    from mathutils import Vector
+
+    from ..blender import joints
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool, stock = _ob(scene, "END MILL D10"), _ob(scene, "STOCK 200x200x40")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, stock)
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    for ob, op in ((tool, bpy.ops.fresing.mill_add_bit), (stock, bpy.ops.fresing.mill_set_workpiece)):
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        _check(op() == {"FINISHED"}, f"'{ob.name}' could not be picked for milling")
+    path = os.path.join(ctx.work, "pccheck_air.ngc")
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Air", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", 3.0, False
+
+    def run(text, clean):
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        b.gcode_clean, b.gcode_clean_time = clean, 1.0
+        b.gcode_file = path
+        gcode.step_changed(scene, b)
+        frames = animation.bake(scene, a)["frames"]
+        machining.sample(scene)
+        machining.settings(scene).chips = "FEW"
+        t0 = time.time()
+        bk = chips.bake(scene, force=True)
+        work = time.time() - t0
+        _check(bk is not None and bk.count > 0, "no chips were worked out")
+        t0 = time.time()
+        shown = list(range(frames - 9, frames + 1))
+        for f in shown:
+            scene.frame_set(f)
+        per = (time.time() - t0) / len(shown) * 1000.0
+        s = machining.settings(scene)
+        m0 = np.array(s["fr_wp_m"][:16]).reshape(4, 4)
+        me = s.stock_mesh
+        v = np.empty(len(me.vertices) * 3)
+        me.vertices.foreach_get("co", v)
+        w = v.reshape(-1, 3) @ m0[:3, :3].T + m0[:3, 3]
+        lo, hi = w.min(axis=0), w.max(axis=0)
+        p = bk.at(frames)[0]["pos"]
+        on = int(((p[:, 0] > lo[0]) & (p[:, 0] < hi[0]) & (p[:, 1] > lo[1]) & (p[:, 1] < hi[1])
+                  & (p[:, 2] > hi[2] - 0.006)).sum())
+        animation.clear_keys(scene)
+        return on, per, work, bk
+
+    off, per_off, work_off, _bk = run(AIR_POCKET.replace("M7\n", "").replace("M9\n", ""), False)
+    on, per_on, work_on, bk = run(AIR_POCKET, True)
+    ctx.metric("frame without air", per_off, "ms")
+    ctx.metric("frame with air", per_on, "ms")
+    ctx.metric("chips worked out, with air", work_on, "s")
+    _check(off > 20, f"only {off} chips on the block without air: the test cut makes too few")
+    _check(on <= max(2, off // 20), f"{on} of {off} chips still on the block at the end with air on")
+    _check(bk.stats.get("air_s", 0) > 1.0, "the air did not blow (no M7 seen)")
+    return (f"chips on the block at the end: {off} without air, {on} with air (blown clean 1 s); "
+            f"{per_off:.0f} / {per_on:.0f} ms per frame; {air.codes_text(scene)}")
+
+
 # ---------------------------------------------------------------------------
 # renders and the queue
 # ---------------------------------------------------------------------------

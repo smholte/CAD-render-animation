@@ -189,6 +189,15 @@ class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
             wrap(layout, context, rt.get("error") or machining.runtime(scene)["chips_error"], icon="ERROR", alert=True)
         elif rt.get("status"):
             wrap(layout, context, rt["status"], icon="INFO")
+        from . import air
+        if len(air.spans(scene)):
+            c = air.settings(scene)
+            src = "through the spindle" if c.air_source == "SPINDLE" else "from the nozzle"
+            wrap(layout, context, f"Air blast {src}: " + air.core.spans_text(air.spans(scene), scene.render.fps),
+                 icon="FORCE_WIND")
+        else:
+            wrap(layout, context, "No air blast in this animation (4 Motion > CNC machine > Air blast, and the "
+                                  "step's 'Blow the part clean')", icon="FORCE_WIND")
         layout.operator("fresing.chips_clear", text="Clear chips", icon="TRASH")
         body = fold(layout, "fr_chips_more", "More")
         if body:
