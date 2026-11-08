@@ -51,10 +51,19 @@ Other 0037 problems (Motor tick, "//" path – after 0041; two way covers per ax
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 8 Nov 2026
 
-**What changed:**
+**What changed:** A later import leaves the surroundings alone when only models were added (`surroundings.ensure`:
+`_only_added`); if the new model sticks out more than 10 % past the old box, `fr_misfit` is set and panel 5 shows a
+note plus the button **Fit surroundings to the model** (the old "Put on the floor again", renamed). First import and
+model update behave as before. The MP4 encode scene turns the sequencer frame caches off (`queue._no_frame_cache`).
+Version 0.2.35, CHANGELOG, SURROUNDINGS.md and guide line updated.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core Linux web session): new test `test_second_import_leaves_the_hall_in_place`
+(hall unchanged to 0.1 mm, note, button, tooltip check 0 missing) and `test_mp4_encode_scene_keeps_no_frame_cache`.
+4K encode, 250 frames of 3840x2160: peak memory 5,718 MB -> 1,684 MB, time 93 s -> 88 s, output file the same size
+(51,441,141 bytes both). GitHub run on the branch: green (full, 12.3 min). 1 run needed.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** Not merged to `main` and not released: this session was told to work only on
+branch `claude/happy-franklin-5c4rl3` (same commit as `task/0043-hall-relay-mp4-memory`); the owner decides on the merge.
+No PC-check line (not cheap to show). Leftover branch for the owner to delete later: one of the two above.

@@ -28,8 +28,9 @@ hall or deck.
   machine (a column, a rack, a truss) is left out of the picture, and when the camera is
   higher than the light lines the roof structure is left out too, so you look into the hall
   from above. Light, shadows and reflections still include everything.
-- **Floor gap and "Put on the floor again"** are in the **More** fold. Use the button after
-  you changed the machine (another model revision, parts removed in Clean-up).
+- **Floor gap and "Fit surroundings to the model"** are in the **More** fold. Use the button after
+  you changed the machine (another model revision, parts removed in Clean-up). A second import leaves the
+  surroundings where they are; if the new model sticks out, a note with the same button appears.
 - **Show in the view** (in **More**) hides the surroundings while you work; renders always
   include them.
 - Saved scenes, templates and the render queue keep the surroundings.

@@ -577,7 +577,18 @@ def summary(prog, sch, note: str = "", scene=None) -> dict:
             "air": air_text,
             "tools": prog.tool_numbers(), "problems": [p.describe() for p in probs], "notes": list(prog.notes),
             "note": note, "name": prog.name, "changes": len(sch.tool_events), "ended": prog.ended,
-            "tool_info": {n: t.describe() for n, t in prog.tools.items()}}
+            "tool_info": {n: t.describe() for n, t in prog.tools.items()},
+            "missing": _missing(scene, prog)}
+
+
+def _missing(scene, prog) -> list:
+    if scene is None:
+        return []
+    from . import tools
+    try:
+        return tools.missing(scene, prog)
+    except Exception:
+        return []
 
 
 def info(scene, b) -> dict:
@@ -614,60 +625,48 @@ def tool_entry(scene, number: int):
     return next((t for t in settings(scene).tools if t.number == number), None)
 
 
-def _tool_shape(entry, info) -> mcore.Tool:
-    """The simple shape of a tool: the sizes in its tool list row, else the program's tool comment or the tool
-    table, else a Ø6 mm flat end mill."""
+def tool_spec(scene, prog, n: int):
+    """The sizes of tool ``n``: its tool list row, else the program's tool comment or the tool table, else a Ø6 mm
+    flat end mill (task 0040)."""
+    from ..core import tools as tcore
+    from . import tools
+    entry = tool_entry(scene, n)
     if entry is not None:
-        return mcore.Tool(entry.kind, radius=entry.diameter / 2, length=entry.length, corner=entry.corner,
-                          angle=math.degrees(entry.angle))
+        return tools.spec_of(entry)
+    info = prog.tools.get(n) if prog is not None else None
     if info is not None and info.diameter:
-        kind = info.kind or "FLAT"
-        length = (info.length or max(4 * info.diameter, 20.0)) * MM
-        return mcore.Tool(kind, radius=info.diameter / 2 * MM, length=length,
-                          corner=(info.corner or 0.0) * MM, angle=info.angle or (118.0 if kind == "DRILL" else 90.0))
-    return mcore.Tool("FLAT", radius=3 * MM, length=30 * MM)
+        return tcore.from_info(info)
+    spec = tcore.default("FLAT", n)
+    spec.diameter, spec.flute_length, spec.stick_out = 6 * MM, 0.0, 0.0
+    return tcore.resolved(spec)
 
 
-def tool_mesh(tool: mcore.Tool, name: str, seg: int = 32) -> bpy.types.Mesh:
-    """A turned mesh of a tool: tip at the origin, the tool along +Z."""
-    prof = mcore.tool_profile(tool, seg=seg)
-    verts, faces = [], []
-    rings = []
-    for z, r in prof:
-        if r <= 1e-9:
-            verts.append((0.0, 0.0, z))
-            rings.append([len(verts) - 1])
-        else:
-            ring = []
-            for k in range(seg):
-                a = 2 * math.pi * k / seg
-                verts.append((r * math.cos(a), r * math.sin(a), z))
-                ring.append(len(verts) - 1)
-            rings.append(ring)
-    if len(rings[0]) > 1:                                    # flat bottom
-        verts.append((0.0, 0.0, prof[0][0]))
-        c = len(verts) - 1
-        ring = rings[0]
-        faces += [(c, ring[(k + 1) % seg], ring[k]) for k in range(seg)]
-    for ra, rb in zip(rings, rings[1:]):
-        if len(ra) == 1 and len(rb) == 1:
-            continue
-        if len(ra) == 1:
-            faces += [(ra[0], rb[k], rb[(k + 1) % seg]) for k in range(seg)]
-        elif len(rb) == 1:
-            faces += [(ra[k], rb[0], ra[(k + 1) % seg]) for k in range(seg)]
-        else:
-            faces += [(ra[k], rb[k], rb[(k + 1) % seg], ra[(k + 1) % seg]) for k in range(seg)]
-    top = rings[-1]
-    if len(top) > 1:
-        verts.append((0.0, 0.0, prof[-1][0]))
-        c = len(verts) - 1
-        faces += [(c, top[k], top[(k + 1) % seg]) for k in range(seg)]
-    me = bpy.data.meshes.new(name)
-    me.from_pydata(verts, [], faces)
-    me.update()
-    me[TAG] = "tool"
-    return me
+def first_tool(sch) -> int:
+    """The tool in the spindle when the step starts (0: the part in the spindle as it is)."""
+    if sch.first_tool:
+        return sch.first_tool
+    return 0
+
+
+def length_offsets(scene, mach: Machine, numbers, first: int) -> dict:
+    """{T: metres the spindle moves up for that tool}: the difference of its stick-out to the reference tool's
+    (the row of the part in the spindle, else the first tool of the step), like G43. Only tools with a row."""
+    from . import tools
+    c = settings(scene)
+    if not c.tool_lengths:
+        return {}
+    ref_row = next((t for t in c.tools if t.obj is not None and t.obj is mach.tool), None)
+    if ref_row is None and first:
+        ref_row = tool_entry(scene, first)
+    if ref_row is None:
+        return {}
+    ref = tools.spec_of(ref_row).stick_out
+    out = {}
+    for n in numbers:
+        row = tool_entry(scene, n)
+        if row is not None and row.obj is not mach.tool:
+            out[n] = tools.spec_of(row).stick_out - ref
+    return out
 
 
 def _remove_tool_copies(scene=None) -> None:
@@ -680,25 +679,34 @@ def _remove_tool_copies(scene=None) -> None:
             bpy.data.meshes.remove(me)
 
 
-def tool_objects(scene, mach: Machine, prog, numbers) -> tuple[dict, dict, list]:
+def tool_objects(scene, mach: Machine, prog, numbers, offsets: dict | None = None) -> tuple[dict, dict, list]:
     """For every T number: (the object that shows it in the spindle, the part that leaves the carousel or
-    None). Copies are made as needed. Returns ({n: show}, {n: carousel part}, warnings)."""
+    None). Copies are made as needed: a part of the model, the row's STEP model, or a tool drawn from its sizes
+    (task 0040); a longer tool reaches further below the spindle (``offsets``). Each copy carries its sizes
+    (``fr_spec``) and its tip and axis in its own space (``fr_tip``, ``fr_axis``) so milling cuts with it.
+    Returns ({n: show}, {n: carousel part}, warnings)."""
+    from . import tools
     spindle = mach.tool
     world = spindle.matrix_world @ tool_frame(spindle)          # where every tool's tip goes, Z into the spindle
     parent = spindle.parent
+    offsets = offsets or {}
     show, away, warnings = {}, {}, []
     col = _collection(scene)
+    tool_mat, holder_mat = tools.tool_materials(scene, spindle)
     for n in numbers:
         entry = tool_entry(scene, n)
         part = entry.obj if entry is not None else None
         if part is spindle:
             show[n] = spindle
             continue
+        spec = tool_spec(scene, prog, n)
+        shift = Matrix.Translation((0.0, 0.0, -offsets.get(n, 0.0)))
+        frame = None
         if part is not None:
             try:
                 frame = tool_frame(part)
             except RuntimeError:
-                warnings.append(f"T{n}: the part '{label(part)}' has no shape to read; a simple tool is shown")
+                warnings.append(f"T{n}: the part '{label(part)}' has no shape to read; it is drawn from its sizes")
                 part = None
         if part is not None:
             ob = bpy.data.objects.new(f"FR tool T{n}", part.data)
@@ -706,20 +714,31 @@ def tool_objects(scene, mach: Machine, prog, numbers) -> tuple[dict, dict, list]
                 if slot.link == "OBJECT" and i < len(ob.material_slots):
                     ob.material_slots[i].link = "OBJECT"
                     ob.material_slots[i].material = slot.material
-            want = world @ frame.inverted()
             away[n] = part
-        else:
-            shape = _tool_shape(entry, prog.tools.get(n))
-            me = tool_mesh(shape, f"FR tool T{n}")
-            if spindle.active_material is not None:
-                me.materials.append(spindle.active_material)
+        elif entry is not None and entry.step_mesh is not None:
+            me = entry.step_mesh
+            if not me.materials:
+                me.materials.append(tool_mat)
             ob = bpy.data.objects.new(f"FR tool T{n}", me)
-            want = world
+            axis = Vector(entry.axis)
+            axis = axis.normalized() if axis.length > 1e-9 else Vector((0, 0, 1))
+            frame = Matrix.Translation(Vector(entry.tip)) @ axis.to_track_quat("Z", "Y").to_matrix().to_4x4()
+        else:
+            me = tools.drawn_mesh(spec, f"FR tool T{n}")
+            me.materials.append(tool_mat)
+            me.materials.append(holder_mat)
+            ob = bpy.data.objects.new(f"FR tool T{n}", me)
             if entry is None and not (prog.tools.get(n) and prog.tools[n].diameter):
-                warnings.append(f"T{n}: no sizes known (no tool comment, tool table or tool list entry): shown "
+                warnings.append(f"T{n}: no sizes known (no tool comment, tool table or tool list row): shown "
                                 "as a Ø6 mm flat end mill")
+        want = world @ shift @ (frame.inverted() if frame is not None else Matrix.Identity(4))
+        tip = frame.translation if frame is not None else Vector((0, 0, 0))
+        ax = (frame.to_3x3() @ Vector((0, 0, 1))) if frame is not None else Vector((0, 0, 1))
         ob[TAG] = "tool"
         ob["fr_cnc_t"] = n
+        ob["fr_spec"] = tools.spec_json(spec)
+        ob["fr_tip"] = list(tip)
+        ob["fr_axis"] = list(ax.normalized())
         ob[build.PROP_KIND] = "cnc"
         col.objects.link(ob)
         _place(ob, parent, want)
@@ -728,6 +747,29 @@ def tool_objects(scene, mach: Machine, prog, numbers) -> tuple[dict, dict, list]
         ob.hide_select = True
         show[n] = ob
     return show, away, warnings
+
+
+def copies(scene=None) -> dict:
+    """{T: copy object} of the tool copies a build made."""
+    return {int(o["fr_cnc_t"]): o for o in bpy.data.objects if o.get(TAG) == "tool" and "fr_cnc_t" in o}
+
+
+def schedule(scene) -> list:
+    """[(frame, T)] from the build: from that frame on, tool T is in the spindle (0: the part in the spindle)."""
+    c = settings(scene)
+    if "fr_tools" not in c:
+        return []
+    a = list(c["fr_tools"])
+    return [(float(a[k]), int(a[k + 1])) for k in range(0, len(a) - 1, 2)]
+
+
+def _record_schedule(scene, rows) -> None:
+    from .idprops import store_array
+    c = settings(scene)
+    old = list(c["fr_tools"]) if "fr_tools" in c else []
+    for f, n in rows:
+        old += [float(f), float(n)]
+    store_array(c, "fr_tools", old)
 
 
 # ---------------------------------------------------------------------------
@@ -763,6 +805,9 @@ def prepare(scene, anim, warnings: list) -> list:
     extra = []
     from . import air
     air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
+    c = settings(scene)
+    if "fr_tools" in c:                                    # which tool is in the spindle: written by the steps
+        del c["fr_tools"]
     try:
         mach = Machine(scene)
     except SetupError:
@@ -842,12 +887,25 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         if busy_until.get(j.name, 0) > f0:
             warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
         busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + int(math.ceil(span)))
+    from . import tools
+    for n, line in tools.missing(scene, prog):
+        warnings.append(f"'{name}': T{n} (line {line}) is not in the tool list: it is drawn from the program's "
+                        "sizes – add it in 4 Motion > CNC machine > Tools")
+    numbers = sorted({n for _s, n, _t, _d in sch.tool_events if n} | ({sch.first_tool} if sch.first_tool else set()))
+    offsets = length_offsets(scene, mach, numbers, first_tool(sch) or (sch.tool_events[0][1] if sch.tool_events
+                                                                        else 0))
+    lift = _lift(sch, offsets)
     # X, Y, Z: a key at every move's ends and along arcs
     samples = sch.samples(fps, tol=KEY_TOL)
+    if offsets:                                     # a key at each swap: the spindle adjusts after it
+        have = {round(t, 9) for t, _p in samples}
+        samples = sorted(samples + [(sw, sch.point_at(sw)) for sw, _n, _t, _d in sch.tool_events
+                                    if round(sw, 9) not in have], key=lambda x: x[0])
     rows = [[], [], []]
     for t, pt in samples:
         f = f0 + t * fps
-        vals = mach.values_for(pt)
+        dz = lift(t)
+        vals = mach.values_for((pt[0], pt[1], pt[2] + dz) if dz else pt)
         for i, v in enumerate(vals):
             rows[i].append((f, v))
     for i, j in enumerate(mach.joints):
@@ -869,7 +927,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     if air.problem(scene) and (b.gcode_clean or air.step_spans(scene, sch, b)):
         warnings.append(f"'{name}': air blast: {air.problem(scene)} (4 Motion > CNC machine > Air blast)")
     if sch.tool_events or sch.first_tool:
-        _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name)
+        _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name, offsets)
     if b.gcode_path:
         try:
             show_path(scene, anim, mach=mach)
@@ -915,11 +973,37 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
     busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + int(math.ceil(end * fps)))
 
 
-def _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name) -> None:
+def _lift(sch, offsets: dict):
+    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle: it changes during the
+    tool change, from the swap to the end of the change (the new tool is in; the old one kept its point)."""
+    first = first_tool(sch)
+    spans = []
+    cur = offsets.get(first, 0.0) / MM
+    for swap, n, t0, d in sch.tool_events:
+        new = offsets.get(n, 0.0) / MM
+        spans.append((swap, max(0.0, t0 + d - swap), cur, new))
+        cur = new
+    if not any(abs(a) > 1e-9 or abs(b) > 1e-9 for _v, _d, a, b in spans) and abs(offsets.get(first, 0.0)) < 1e-12:
+        return lambda t: 0.0
+    start = offsets.get(first, 0.0) / MM
+
+    def lift(t: float) -> float:
+        val = start
+        for v0, vd, a, b in spans:
+            if t <= v0 + 1e-9:
+                return val
+            if vd > 0 and t < v0 + vd:
+                return a + (b - a) * (t - v0) / vd
+            val = b
+        return val
+    return lift
+
+
+def _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name, offsets=None) -> None:
     numbers = sorted({n for _s, n, _t, _d in sch.tool_events if n} | ({sch.first_tool} if sch.first_tool else set()))
     if not numbers:
         return
-    show, away, w = tool_objects(scene, mach, prog, numbers)
+    show, away, w = tool_objects(scene, mach, prog, numbers, offsets)
     warnings += [f"'{name}': {x}" for x in w]
     spindle = mach.tool
 
@@ -942,11 +1026,18 @@ def _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name) ->
         load(sch.first_tool, f0)
     for swap, n, _t, _d in sch.tool_events:
         load(n, f0 + swap * fps)
+    # which tool is in the spindle from which frame on, for milling (task 0040)
+    rows = [(f0, sch.first_tool if sch.first_tool in show else 0)]
+    rows += [(f0 + swap * fps, n) for swap, n, _t, _d in sch.tool_events]
+    _record_schedule(scene, rows)
 
 
 def after_clear(scene) -> None:
     """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
+    c = settings(scene)
+    if "fr_tools" in c:
+        del c["fr_tools"]
     from . import air
     air.clear(scene)
     air.remove_cone()
@@ -1165,29 +1256,11 @@ def path_object():
 # ---------------------------------------------------------------------------
 
 def tools_from_program(scene, b) -> int:
-    """Add a tool list row for every T number of the step's program that has none. Returns how many."""
+    """Add a tool list row for every T number of the step's program that has none (sizes from the program's tool
+    comments or the tool table). Returns how many."""
+    from . import tools
     prog, _n = read_program(scene, b, None)
-    c = settings(scene)
-    added = 0
-    for n in sorted(set(prog.tool_numbers()) | set(prog.tools)):
-        if n <= 0 or tool_entry(scene, n) is not None:
-            continue
-        info = prog.tools.get(n)
-        t = c.tools.add()
-        t["_busy"] = True
-        t.number = n
-        if info is not None and info.diameter:
-            t.diameter = info.diameter * MM
-            t.length = (info.length or max(4 * info.diameter, 20.0)) * MM
-            if info.kind:
-                t.kind = info.kind
-            t.corner = (info.corner or 0.0) * MM
-            if info.angle:
-                t.angle = math.radians(info.angle)
-            t.source = "tool table" if "table" in info.source else "program comment"
-        del t["_busy"]
-        added += 1
-    return added
+    return tools.from_program(scene, prog)
 
 
 def renamed_joint(scene, old: str, new: str) -> None:

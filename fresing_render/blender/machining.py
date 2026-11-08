@@ -91,6 +91,13 @@ def _mesh_points(ob) -> np.ndarray:
     return v.reshape(-1, 3)
 
 
+def _triangles(me):
+    me.calc_loop_triangles()
+    t = np.empty(len(me.loop_triangles) * 3, dtype=np.int32)
+    me.loop_triangles.foreach_get("vertices", t)
+    return t.reshape(-1, 3)
+
+
 def _main_axis(ob, pts):
     """The bit's axis in its own space: the round faces' axis the most faces share, else its length."""
     me = ob.data
@@ -128,7 +135,8 @@ def detect(ob, toward=None, flip: bool = False) -> dict:
     if len(pts) < 4:
         raise RuntimeError("This part has no shape to read")
     origin, d = _main_axis(ob, pts)
-    prof, zmin, zmax = core.profile_from_points(pts, origin, d)
+    tris = _triangles(ob.data)
+    prof, zmin, zmax = core.profile_from_points(pts, origin, d, tris)
     ends = [Vector(origin + d * zmin), Vector(origin + d * zmax)]
     mw = ob.matrix_world
     wends = [mw @ e for e in ends]
@@ -140,7 +148,7 @@ def detect(ob, toward=None, flip: bool = False) -> dict:
         tip_low = not tip_low
     if not tip_low:                                  # the tip is at the other end: turn the axis round
         d = -d
-        prof, zmin, zmax = core.profile_from_points(pts, origin, d)
+        prof, zmin, zmax = core.profile_from_points(pts, origin, d, tris)
     tip = origin + d * zmin
     tool = core.classify(prof)
     return {"tip": tuple(float(x) for x in tip), "axis": tuple(float(x) for x in d), "tool": tool,
@@ -407,7 +415,7 @@ def chain_objects(scene) -> list:
     """Everything whose motion can move a bit or the workpiece: their parents up to the root, and
     the objects their drivers read."""
     s = settings(scene)
-    start = [b for _i, b in bits(scene)] + ([workpiece(scene)] if workpiece(scene) else [])
+    start = [b for _i, b in bits(scene)] + ([workpiece(scene)] if workpiece(scene) else []) + _copies(scene)
     from . import air
     if air.uses_nozzle(scene):                        # the air nozzle is read along with the bits (task 0039)
         start.append(air.settings(scene).air_nozzle)
@@ -441,6 +449,11 @@ def signature(scene) -> str:
     h.update(f"{scene.frame_start}:{scene.frame_end}:{scene.render.fps}:{scene.render.fps_base}".encode())
     for item, ob in bits(scene):
         h.update(f"bit:{ob.name}:{tuple(round(x, 7) for x in item.tip)}:{tuple(round(x, 7) for x in item.axis)}".encode())
+    for ob in _copies(scene):                       # tool copies of a G-code build (task 0040)
+        h.update(f"copy:{ob.name}:{tuple(round(x, 7) for x in ob['fr_tip'])}:"
+                 f"{tuple(round(x, 7) for x in ob['fr_axis'])}".encode())
+    from . import gcode
+    h.update(repr(gcode.schedule(scene)).encode())
     wp = workpiece(scene)
     h.update(f"wp:{wp.name if wp else ''}:{s.detail}".encode())
     from . import air
@@ -490,9 +503,11 @@ def sample(scene, progress=None) -> int:
     s = settings(scene)
     f0, f1 = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     keep = (scene.frame_current, scene.frame_subframe)
-    tips = [Vector(it.tip) for it, _o in items]
-    axes = [Vector(it.axis).normalized() if Vector(it.axis).length > 1e-9 else Vector((0, 0, 1)) for it, _o in items]
-    tools = [core.Cutter(tool_of(it), "FAST") for it, _o in items]
+    items = items + [(ob, ob) for ob in _copies(scene)]      # tool copies of a G-code program (task 0040)
+    tips = [Vector(_tip_of(it)) for it, _o in items]
+    axes = [Vector(_axis_of(it)).normalized() if Vector(_axis_of(it)).length > 1e-9 else Vector((0, 0, 1))
+            for it, _o in items]
+    tools = [core.Cutter(_tool_any(it), "FAST") for it, _o in items]
     tol = core.detail(s.detail)["tol"]
     # the stock's box in its own space, to skip refining moves far away from it
     me = s.stock_mesh or wp.data
@@ -537,7 +552,7 @@ def sample(scene, progress=None) -> int:
         scene.frame_set(keep[0], subframe=keep[1])
         _STATE["guard"] -= 1
     count = 0
-    for (item, _ob), r in zip(items, rows):
+    for (item, _ob), r in zip(items, rows):          # (a copy is its own item: its path is kept on it)
         r.sort(key=lambda x: x[0])
         # never assign an array of another length over the old one: Blender 5.2.3 corrupts memory (task 0038)
         store_array(item, "fr_t", [x[0] for x in r])
@@ -586,6 +601,101 @@ def _refine(read, ta, tb, pa, pb, tools, tol, lo, hi, depth) -> list:
         return []
     return (_refine(read, ta, tm, pa, pm, tools, tol, lo, hi, depth + 1) + [(tm, pm)]
             + _refine(read, tm, tb, pm, pb, tools, tol, lo, hi, depth + 1))
+
+
+def _copies(scene) -> list:
+    """The copies of the tools a G-code build made, when the part in the spindle is a bit (they cut while they are
+    in the spindle, task 0040)."""
+    from . import gcode
+    if not gcode.schedule(scene):
+        return []
+    spindle = gcode.settings(scene).tool
+    if spindle is None or not any(ob is spindle for _it, ob in bits(scene)):
+        return []
+    return [ob for _n, ob in sorted(gcode.copies(scene).items()) if ob.name in scene.objects]
+
+
+def _tip_of(it):
+    return tuple(it["fr_tip"]) if isinstance(it, bpy.types.Object) else tuple(it.tip)
+
+
+def _axis_of(it):
+    return tuple(it["fr_axis"]) if isinstance(it, bpy.types.Object) else tuple(it.axis)
+
+
+def _tool_any(it) -> core.Tool:
+    if isinstance(it, bpy.types.Object):
+        spec = _spec_of_copy(it)
+        from ..core import tools as tcore
+        return tcore.cutting_tool(spec) if spec is not None else core.Tool("FLAT", radius=3e-3, length=0.03)
+    return tool_of(it)
+
+
+def _spec_of_copy(ob):
+    from . import tools
+    return tools.spec_from_json(ob.get("fr_spec", ""))
+
+
+class CutItem:
+    """One thing that cuts for a while: a bit, or a tool of a G-code program while it is in the spindle."""
+
+    def __init__(self, name: str, ob, path: core.Path, tool: core.Tool, chip: str = "", spindle=None):
+        self.name, self.ob, self.path, self.tool, self.chip = name, ob, path, tool, chip
+        self.spindle = spindle            # the bit in the spindle this is a piece of (a G-code tool), else None
+
+    def key(self) -> tuple:
+        return (self.name, self.tool.key(), len(self.path.t), round(float(self.path.t[0]), 6),
+                round(float(self.path.t[-1]), 6))
+
+
+def cut_items(scene) -> list:
+    """What cuts, and when. Without a G-code tool schedule: every bit along its whole path (as in task 0027). With
+    one (a program with tool changes, task 0040): the part in the spindle is split up – while tool T is in the
+    spindle, T's copy cuts with T's sizes (its tool list row); a row that is the spindle's own part cuts with that
+    row's sizes."""
+    from ..core import tools as tcore
+    from . import gcode, tools
+    sched = gcode.schedule(scene)
+    spindle = gcode.settings(scene).tool
+    cps = {n: ob for n, ob in gcode.copies(scene).items() if ob.name in scene.objects}
+    out = []
+    for it, ob in bits(scene):
+        p = _path(it)
+        if p is None:
+            continue
+        if not sched or ob is not spindle:
+            out.append(CutItem(ob.name, ob, p, tool_of(it)))
+            continue
+        bounds, mounted = [-math.inf], [0]
+        for f, n in sched:                        # one piece per stay in the spindle
+            if n != mounted[-1]:
+                bounds.append(f)
+                mounted.append(n)
+        bounds.append(math.inf)
+        for k, n in enumerate(mounted):
+            a, b = bounds[k], bounds[k + 1]
+            if b <= a:
+                continue
+            src, spec = ob, None
+            if n and n in cps:
+                src = cps[n]
+                spec = _spec_of_copy(src)
+                path = _path(src)
+            else:
+                path = p
+                row = gcode.tool_entry(scene, n) if n else None
+                if row is not None and row.obj is spindle:
+                    spec = tools.spec_of(row)
+            if path is None:
+                continue
+            sel = (path.t >= a - 1e-9) & (path.t <= b + 1e-9)
+            if not np.any(sel):
+                continue
+            sub = core.Path(path.t[sel], path.o[sel], path.d[sel])
+            tool = tcore.cutting_tool(spec) if spec is not None else tool_of(it)
+            chip = tcore.chip_kind(spec) if spec is not None else ""
+            out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob))
+    return out
 
 
 def _path(item) -> core.Path | None:
@@ -666,19 +776,15 @@ def _timeline(scene):
     """The timeline for the current set-up (made again when anything changed)."""
     s = settings(scene)
     rt = runtime(scene)
-    items = bits(scene)
-    key = (s.path_sig, _stock_key(s, workpiece(scene)),
-           tuple((ob.name, tool_of(it).key(), len(it.get("fr_t", ()))) for it, ob in items))
+    items = cut_items(scene)
+    key = (s.path_sig, _stock_key(s, workpiece(scene)), tuple(c.key() for c in items))
     if rt.get("key") == key and rt.get("timeline") is not None:
         return rt["timeline"]
     wpc = _workpiece_solid(scene)
     cutters, paths = [], []
-    for it, _ob in items:
-        p = _path(it)
-        if p is None:
-            continue
-        cutters.append(core.Cutter(tool_of(it), s.detail))
-        paths.append(p)
+    for c in items:
+        cutters.append(core.Cutter(c.tool, s.detail))
+        paths.append(c.path)
     tl = core.Timeline(wpc, cutters, paths, s.detail) if paths else None
     rt["timeline"], rt["key"], rt["shown"] = tl, key, None
     return tl
@@ -794,7 +900,8 @@ def update_if_needed(scene, progress=None) -> bool:
     s = settings(scene)
     if not is_active(scene):
         return False
-    if s.path_sig != signature(scene) or any(_path(it) is None for it, _o in bits(scene)):
+    if s.path_sig != signature(scene) or any(_path(it) is None for it, _o in bits(scene)) or \
+            any(_path(ob) is None for ob in _copies(scene)):
         wm = bpy.context.window_manager if not bpy.app.background else None
         if wm is not None:
             wm.progress_begin(0, 100)

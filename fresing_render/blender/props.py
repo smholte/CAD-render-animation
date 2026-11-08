@@ -1146,27 +1146,131 @@ class FRMilling(bpy.types.PropertyGroup):
         description="A fine mist of coolant drops around the bit while it cuts. The drops fade after a moment")
 
 
+def _cnc_tool_changed(self, context):
+    """A size or the type of a tool list row changed (task 0040): its shape and its cut follow."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import tools
+    tools.row_changed(context.scene, self)
+
+
+def _cnc_tool_number_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import gcode, tools
+    gcode.setup_changed(context.scene)
+    tools.row_changed(context.scene, self)
+
+
+#: the tool types (task 0040). The first five keep their places: rows saved before 0.2.36 read them unchanged.
+TOOL_KIND_ITEMS = [
+    ("FLAT", "Flat end mill", "Square slots, pockets with flat floors, outlines"),
+    ("BALL", "Ball end mill", "A round tip: rounded slots, 3D surfaces"),
+    ("BULL", "Bull-nose end mill", "A flat bottom with rounded corners (corner radius)"),
+    ("VEE", "Spot drill / chamfer mill", "A pointed tip: spot drilling, chamfers, V-grooves, engraving"),
+    ("DRILL", "Drill", "A drill with its point (118° by default)"),
+    ("FACE", "Face mill", "A wide cutter with inserts round its rim, for facing the top of the part"),
+    ("THREAD", "Thread mill", "Mills threads on a helix; cuts the thread's outer diameter"),
+    ("SLOT", "Slot / T-slot cutter", "A disc on a narrow neck: T-slots, grooves in a wall"),
+]
+HOLDER_ITEMS = [
+    ("NONE", "None", "No holder is drawn: the spindle of your model holds the tool"),
+    ("ER", "ER collet", "A collet nut (ER32 by default), as on router spindles"),
+    ("SK40", "SK40", "A steep-taper holder to DIN 69871 (SK40): nose, flange with a groove, 7:24 taper, pull stud"),
+    ("BT40", "BT40", "A steep-taper BT40 holder: nose, flange with a groove, 7:24 taper, pull stud"),
+    ("HSK63", "HSK63", "A hollow short taper holder HSK63: nose, flange with a groove, short taper"),
+]
+
+
 class FRCncTool(bpy.types.PropertyGroup):
-    number: IntProperty(name="T", default=1, min=0, update=_cnc_changed,
+    """A row of the tool list (task 0026, a full tool library since task 0040). ``length`` is the stick-out."""
+    number: IntProperty(name="T", default=1, min=0, update=_cnc_tool_number_changed,
                         description="The tool number (T) the program uses for this tool")
+    name: StringProperty(name="Name", update=_cnc_tool_changed,
+                         description="A name for the tool, for example the manufacturer's order code. Empty: the "
+                                     "type and size are shown")
     obj: PointerProperty(type=bpy.types.Object)
     uid: StringProperty()
-    diameter: FloatProperty(name="Diameter", unit="LENGTH", default=0.006, min=1e-5, soft_max=0.1,
-                            update=_cnc_changed,
-                            description="Cutting diameter, for the simple tool shape the app draws when no part "
-                                        "of the model is picked for this tool")
-    length: FloatProperty(name="Length", unit="LENGTH", default=0.03, min=1e-4, soft_max=0.3, update=_cnc_changed,
-                          description="How far the tool sticks out of the spindle, for the simple tool shape")
-    kind: EnumProperty(name="Shape", default="FLAT", update=_cnc_changed,
-                       description="The simple tool shape the app draws when no part of the model is picked",
-                       items=[("FLAT", "Flat end mill", ""), ("BALL", "Ball end mill", ""),
-                              ("BULL", "Corner radius", ""), ("VEE", "V-bit / chamfer", ""), ("DRILL", "Drill", "")])
-    corner: FloatProperty(name="Corner radius", unit="LENGTH", default=0.001, min=0.0, update=_cnc_changed,
-                          description="Corner radius of the simple tool shape (corner radius mills)")
+    diameter: FloatProperty(name="Diameter", unit="LENGTH", default=0.006, min=1e-5, soft_max=0.2,
+                            update=_cnc_tool_changed,
+                            description="Cutting diameter: slots and holes come out this wide (a face mill: the "
+                                        "diameter at its tip)")
+    length: FloatProperty(name="Stick-out", unit="LENGTH", default=0.03, min=1e-4, soft_max=0.3,
+                          update=_cnc_tool_changed,
+                          description="How far the tool sticks out of its holder, from the tip. A longer tool "
+                                      "moves the spindle up by the difference, like a tool length offset (G43)")
+    kind: EnumProperty(name="Type", default="FLAT", update=_cnc_tool_changed, items=TOOL_KIND_ITEMS,
+                       description="The type of tool: it sets the sizes below, the shape that cuts, the shape "
+                                   "that is shown and the kind of chips")
+    corner: FloatProperty(name="Corner radius", unit="LENGTH", default=0.001, min=0.0, soft_max=0.02,
+                          update=_cnc_tool_changed,
+                          description="Radius of the rounded corners at the bottom of a bull-nose end mill")
     angle: FloatProperty(name="Tip angle", subtype="ANGLE", default=math.radians(118), min=math.radians(10),
-                         max=math.radians(175), update=_cnc_changed,
-                         description="Tip angle of the simple tool shape (drills, V-bits)")
-    source: StringProperty()          # where the sizes came from: "program comment", "tool table", "typed"
+                         max=math.radians(175), update=_cnc_tool_changed,
+                         description="Included angle of the point: 118° or 135° for a drill, 90° for a spot drill or "
+                                     "chamfer mill")
+    flute_length: FloatProperty(name="Flute length", unit="LENGTH", default=0.0, min=0.0, soft_max=0.2,
+                                update=_cnc_tool_changed,
+                                description="How far up from the tip the tool cuts. Material higher up than this is "
+                                            "not removed. 0: what the type usually has (2.5 × the diameter)")
+    flutes: IntProperty(name="Flutes", default=0, min=0, max=24, update=_cnc_tool_changed,
+                        description="Number of flutes (cutting edges), for the shape that is shown. 0: what the "
+                                    "type usually has")
+    inserts: IntProperty(name="Inserts", default=0, min=0, max=40, update=_cnc_tool_changed,
+                         description="Number of inserts round the face mill's rim, for the shape that is shown. 0: "
+                                     "one per 10 mm of diameter")
+    insert_size: FloatProperty(name="Insert size", unit="LENGTH", default=0.0, min=0.0, soft_max=0.03,
+                               update=_cnc_tool_changed,
+                               description="Edge length of a face mill's inserts: half of it is the deepest cut "
+                                           "the face mill takes. 0: from the diameter")
+    lead_angle: FloatProperty(name="Lead angle", subtype="ANGLE", default=math.radians(90), min=math.radians(10),
+                              max=math.radians(90), update=_cnc_tool_changed,
+                              description="Angle of the face mill's cutting edge to the surface it cuts: 90° for a "
+                                          "square shoulder, 45° for a 45° face mill (the wall it leaves slopes)")
+    pitch: FloatProperty(name="Pitch", unit="LENGTH", default=0.0, min=0.0, soft_max=0.006,
+                         update=_cnc_tool_changed,
+                         description="Thread pitch of a thread mill (the distance between its teeth). 0: from the "
+                                     "diameter")
+    width: FloatProperty(name="Cutting width", unit="LENGTH", default=0.0, min=0.0, soft_max=0.05,
+                         update=_cnc_tool_changed,
+                         description="Height of a slot cutter's disc: the slot comes out this wide. 0: a quarter "
+                                     "of the diameter")
+    neck: FloatProperty(name="Neck diameter", unit="LENGTH", default=0.0, min=0.0, soft_max=0.05,
+                        update=_cnc_tool_changed,
+                        description="Diameter of the slot cutter's neck above the disc (it must fit through the "
+                                    "slot's opening). 0: from the diameter")
+    shank: FloatProperty(name="Shank diameter", unit="LENGTH", default=0.0, min=0.0, soft_max=0.05,
+                         update=_cnc_tool_changed,
+                         description="Diameter of the shank above the flutes, for the shape that is shown. 0: as "
+                                     "the cutting diameter")
+    holder: EnumProperty(name="Holder", items=HOLDER_ITEMS, default="NONE", update=_cnc_tool_changed,
+                         description="A simple holder drawn above the tool. None when the spindle of your model "
+                                     "already has one")
+    holder_diameter: FloatProperty(name="Holder nose Ø", unit="LENGTH", default=0.0, min=0.0, soft_max=0.1,
+                                   update=_cnc_tool_changed,
+                                   description="Diameter of the holder's nose, where the tool comes out. 0: what "
+                                               "the holder type usually has")
+    holder_length: FloatProperty(name="Holder length", unit="LENGTH", default=0.0, min=0.0, soft_max=0.2,
+                                 update=_cnc_tool_changed,
+                                 description="From the holder's nose up to the spindle face (gauge length). 0: "
+                                             "what the holder type usually has")
+    place: EnumProperty(
+        name="Place", default="POCKET", update=_cnc_tool_changed,
+        items=[("SPINDLE", "Spindle", "In the spindle when the program starts"),
+               ("POCKET", "Changer pocket", "In a pocket of the tool changer (the pocket number is used by the "
+                                            "tool changer)"),
+               ("BENCH", "Bench", "On the bench: put in by hand at a tool change")],
+        description="Where the tool is when the program starts")
+    pocket: IntProperty(name="Pocket", default=0, min=0, max=999, update=_cnc_tool_changed,
+                        description="The tool changer's pocket this tool stands in (0: as the T number)")
+    step_file: StringProperty(name="STEP file", subtype="FILE_PATH",
+                              description="The manufacturer's STEP model of the tool (or tool with holder) that "
+                                          "is shown for this tool")
+    step_mesh: PointerProperty(type=bpy.types.Mesh)           # the STEP model, read into the project
+    tip: FloatVectorProperty(size=3)                           # STEP model: tip in its own space
+    axis: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))  # STEP model: from the tip into the holder
+    note: StringProperty()            # e.g. "Fusion type 'lollipop mill' read as a ball end mill"
+    source: StringProperty()          # where the sizes came from: "program comment", "tool table", "typed", ...
 
 
 ZERO_ITEMS = [("TOP_CENTRE", "Top, centre", "The middle of the workpiece's top face"),
@@ -1223,6 +1327,13 @@ class FRCnc(bpy.types.PropertyGroup):
     home_set: BoolProperty(default=False)
     tools: CollectionProperty(type=FRCncTool)
     tools_index: IntProperty(default=0)
+    add_kind: EnumProperty(name="Type", items=TOOL_KIND_ITEMS, default="FLAT",
+                           description="The type a tool the program uses but the list does not have is added as")
+    tool_lengths: BoolProperty(
+        name="Tool lengths move the spindle", default=True, update=_cnc_changed,
+        description="Like a tool length offset (G43): a tool that sticks out further than the one in the spindle "
+                    "moves the spindle up by the difference, so every tool's tip is where the program says. Off: "
+                    "every tool is shown with its tip where the spindle's tool has its tip")
     tool_table: StringProperty(
         name="Tool table", subtype="FILE_PATH", update=_cnc_changed,
         description="LinuxCNC's tool table (tool.tbl), optional: tool numbers, diameters and lengths. Without it "

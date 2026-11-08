@@ -210,9 +210,9 @@ def _key(scene) -> tuple:
     s = settings(scene)
     wp = machining.workpiece(scene)
     fam, _why = family(scene)
-    items = machining.bits(scene)
+    items = machining.cut_items(scene)
     return (s.path_sig, machining._stock_key(s, wp) if wp is not None else None,
-            tuple((ob.name, machining.tool_of(it).key(), len(it.get("fr_t", ()))) for it, ob in items),
+            tuple(c.key() + (c.chip,) for c in items),
             s.chips, fam, s.chip_spindle, bool(s.chip_mist), scene.render.fps, round(scene.render.fps_base, 6),
             len(s.get("fr_wp_m", ())), air.key(scene))
 
@@ -228,20 +228,34 @@ def _inputs(scene) -> core.SimIn | None:
     spin = 1.0 if s.chip_spindle == "CW" else -1.0
     # the bits: paths from the workpiece's own space into riding space
     bits_in = []
-    bit_names = []
-    for it, ob in machining.bits(scene):
-        p = machining._path(it)
-        if p is None:
-            continue
-        bit_names.append(ob.name)
-        tool = machining.tool_of(it)
+    for c in machining.cut_items(scene):            # a tool of a G-code program only while it is in the spindle
+        p, tool = c.path, c.tool
         o = p.o @ m0[:3, :3].T + m0[:3, 3]
         d = p.d @ m0[:3, :3].T
-        kind = core.bit_kind(tool.kind, tool.radius)
+        kind = c.chip or core.bit_kind(tool.kind, tool.radius)     # the tool list's type wins (task 0040)
         bits_in.append(core.BitIn(p.t, o, d, tool.radius, tool.length, mcore.tool_profile(tool),
                                   core.presets_for(fam, kind), spin))
     if not bits_in:
         return None
+    # the air through the spindle follows each bit's whole path (task 0039); for the part in the spindle of a
+    # program with tool changes: the path of the tool that is in the spindle at each moment (task 0040)
+    air_in, bit_names = [], []
+    pieces = {}
+    for c in machining.cut_items(scene):
+        if c.spindle is not None:
+            pieces.setdefault(c.spindle.name, []).append(c.path)
+    for it, ob in machining.bits(scene):
+        p = machining._path(it)
+        if p is None:
+            continue
+        if ob.name in pieces:
+            ps = pieces[ob.name]
+            t = np.concatenate([x.t for x in ps])
+            order = np.argsort(t, kind="stable")
+            p = mcore.Path(t[order], np.concatenate([x.o for x in ps])[order], np.concatenate([x.d for x in ps])[order])
+        bit_names.append(ob.name)
+        air_in.append(core.BitIn(p.t, p.o @ m0[:3, :3].T + m0[:3, 3], p.d @ m0[:3, :3].T, 1e-3, 1e-2,
+                                 [(0.0, 1e-3), (1e-2, 1e-3)], [], spin))
     reach = core.throw_reach([pr for b in bits_in for pr in b.presets])
     if len(air.spans(scene)):                         # blown chips fly further: catch them there too (task 0039)
         reach = max(reach, min(float(air.settings(scene).air_reach), 1.0))
@@ -268,7 +282,7 @@ def _inputs(scene) -> core.SimIn | None:
     fps = scene.render.fps / (scene.render.fps_base or 1.0)
     return core.SimIn(fps=fps, f0=f0, f1=f1, bits=bits_in, work=work, ride=ride, static=static, floor_z=floor_z,
                       carry=carry, amount=s.chips, mist=bool(s.chip_mist),
-                      air=air.inputs(scene, bits_in, bit_names, carry, f0))
+                      air=air.inputs(scene, air_in, bit_names, carry, f0) if air_in else None)
 
 
 def _tris_world_mesh(me, m: Matrix) -> tuple:

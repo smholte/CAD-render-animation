@@ -18,12 +18,12 @@ updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (open – can start)
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30); lane free
-- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (open)
+- **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (running)
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (open – can start)
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (running) → 0041 tool changes + ATC → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0041 tool changes + ATC (open – can start) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -31,16 +31,14 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 - **Four smaller problems from 0037** (two way covers on one axis; Motor not ticked when the spindle is picked;
   second import re-lays the hall; "//" program path): `tasks/0037-owner-mill-gcode-demo.md`, problems 3–6.
-  (Problem 2, the fluted end mill read as Ø10.4, is part of 0040; problem 7 was done in 0038.)
+  (Problem 2, the fluted end mill read as Ø10.4, was fixed in 0040; problem 7 was done in 0038.)
 
 ## Open and running
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0040 | Machining lane: tool library – one list per project, 8 tool types from sizes or imported STEP, Fusion/LinuxCNC tool files, every tool cuts with its own shape (also after M6); fixes 0037 problem 2 | worker | Opus · High | running – Claude Code on the web, 8 Nov | task/0040-tool-library |
-| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – after 0040 | tasks/0041-tool-changes-atc.md |
+| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – can start | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
-| 0043 | Scene & Render lane: a second import keeps the surroundings in place (0037 problem 5, + "Fit surroundings to the model" button); 4K MP4 encode without gigabytes of cached frames | worker | Sonnet · Medium | open – can start | tasks/0043-hall-relay-mp4-memory.md |
 | 0044 | Docs lane: missing guide pictures – Way covers, Air blast, Labels, Pictures, Music (taken out of 0035) | worker | Sonnet · Low | open – can start | tasks/0044-guide-pictures.md |
 | 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker | Opus · High | open – can start | tasks/0045-bug-hunt.md |
 | 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker | Opus · Medium | open – can start | tasks/0046-better-materials.md |
@@ -93,5 +91,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0037 | The owner's own mill set up with block, Ø10 end mill, CNC machine, milling + chips, a 3.4-min G-code demo and its step (45 s); first real-machine test of 0026/0027/0028/0034; 7 app problems for the lead, one crash (milling path re-read) | – (no app change) |
 | 0038 | Milling crash fixed: the bits' path is stored safely (Blender 5.2.3 corrupted memory when an array property got a NumPy array of another length); crash tests, old projects, queued MP4 | 0.2.33 |
 | 0039 | Air blast: air on/off from the program (M7/M9 or M100–M199, or always with the spindle), through the spindle or an external nozzle, chips blown off the part, "Blow the part clean at the end" with a time slider, optional visible cone; test mill pocket 1,560 → 0 chips on the block | 0.2.34 |
+| 0043 | Surroundings stay put on a second import (note + Fit surroundings to the model); 4K MP4 encode peak memory 5.7 -> 1.7 GB | 0.2.35 |
+| 0040 | Tool library: one list per project, 8 tool types from sizes or a STEP, Fusion/LinuxCNC tool files, every tool cuts with its own shape (also after M6), tool length offsets; fluted end mills read on their outer Ø (0037 problem 2) | 0.2.36 |
 
 Details per version: `CHANGELOG.md`.

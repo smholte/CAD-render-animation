@@ -298,7 +298,7 @@ def s_after_click():
     shown = not any(p.hide_render for p in sur.props(bpy.context.scene))
     check("Show props hides and shows all props", hidden and shown)
     r = op("fresing.env_place")
-    check("Put on the floor again", r == {"FINISHED"} and abs(sur.root_object().location.z -
+    check("Fit surroundings to the model", r == {"FINISHED"} and abs(sur.root_object().location.z -
                                                                  sur.floor_height(bpy.context.scene)) < 1e-6)
     return 0.5
 

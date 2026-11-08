@@ -13,11 +13,11 @@ PROP_ITEMS = [(k, label, desc) for k, (label, desc) in env.PROPS.items()]
 
 
 class FRESING_OT_env_place(bpy.types.Operator):
-    """Puts the surroundings under the machine again: its lowest point on the floor, centred.
-    Use it after the machine changed size or place (another model, parts hidden for good)"""
+    """Fits the surroundings to the model: its lowest point on the floor, centred, walls and floor sized to it.
+    Use it after the machine changed size or place (another model, parts removed for good)"""
 
     bl_idname = "fresing.env_place"
-    bl_label = "Put on the floor again"
+    bl_label = "Fit surroundings to the model"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):

@@ -5,6 +5,42 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.36 – 8 Nov 2026 – tool library: every tool cuts with its own shape (task 0040)
+
+CNC machine and milling
+- **One tool list per project** (4 Motion > CNC machine > **Tools**): T number, name, type and sizes, stick-out,
+  holder, place. Add (pick the type), copy, remove, sort by T. Saved with the project.
+- **Eight types**, each with sizes that work at once: flat end mill, ball end mill, bull-nose end mill, spot drill /
+  chamfer mill, drill, face mill (inserts, lead angle), thread mill (pitch), slot / T-slot cutter (width, neck).
+- **Every tool cuts with its own shape, also after a tool change (M6)**: while T3 is in the spindle the block is
+  cut with T3's sizes. Before, only the tool in the spindle at the start cut. Chips follow each tool's type (a face
+  mill throws flat commas, a drill makes spirals).
+- **What a tool looks like**: drawn from its sizes (flutes along a helix, inserts on a face mill, teeth on a thread
+  mill and a slot cutter) with an optional **ER collet, SK40, BT40 or HSK63 holder**; or a manufacturer's **STEP
+  model** of the tool (or tool + holder) – its axis and tip are found from its shape and its sizes read into the
+  row; or a part of the model, as before.
+- **Read tool files**: a Fusion tool library (`.json`, `.tools`, vendor libraries too) or a LinuxCNC tool table
+  (`tool.tbl`); Tools from the program reads Fusion's tool comments as before. Unknown types are read as the nearest
+  type with a note.
+- **Tool lengths move the spindle** (on by default, like G43): a longer tool lifts the spindle by the difference, so
+  every tool's tip is where the program says.
+- A T number the program uses but the list does not have: the step says "T7 (line 42) is not in the tool list",
+  with **Add T7 as …**. Sizes that look wrong give a warning.
+- **Fixed**: a fluted end mill read from its shape could come out too small (the owner's Ø12 read as Ø10.4); the
+  outline is now read from the whole surface, so it gives the outer diameter over the flutes (test end mill:
+  Ø11.4 before, Ø12.00 now).
+- Measured (test gantry, 4 cores): a program with a face mill, an end mill, a drill and a chamfer mill cuts every
+  depth and width within 0.05 mm. The PC check has a new line, "Milling: each tool of the tool list cuts with its own
+  shape". Projects made before open and cut as before.
+## 0.2.35 – 8 Nov 2026 – surroundings stay put on a second import, lighter 4K videos (task 0043)
+
+- **A second import no longer moves the hall** (or deck, quay, sea …). Adding a vise, a tool or a workpiece
+  leaves the surroundings exactly where they are. If the new model sticks out of the floor area, the
+  Background panel shows a note and a button **Fit surroundings to the model** (the old "Put on the floor
+  again", renamed). A model update (new revision) fits them as before.
+- **Making a 4K MP4 needs far less memory**: the video encoder no longer keeps every 4K frame in memory
+  (250 frames of 4K: peak 5.7 GB → 1.7 GB on the test machine, same speed, same file).
+
 ## 0.2.34 – 7 Nov 2026 – air blast blows the chips away (task 0039)
 
 Milling with chips
