@@ -1,6 +1,6 @@
 # 0040 – Tool library: many tool types, real shapes, every tool cuts
 
-**Who:** worker · **Status:** open – after 0039 · **Branch:** `task/0040-tool-library`
+**Who:** worker · **Status:** running (8 Nov 2026) · **Branch:** `task/0040-tool-library`
 **Started by:** lead chat, 7 Nov 2026 (owner accepted: 2A-ii shapes from sizes **and** imported STEP; 2C-ii split –
 this is part 1, tool changes and ATC are 0041)
 **Area:** Machining lane + G-code – `core/machining.py`, `blender/machining.py`, `core/gcode.py` / `blender/gcode.py`
