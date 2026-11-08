@@ -347,6 +347,10 @@ def s_tool_part():
     c = sc.fresing.cnc
     t2 = next(t for t in c.tools if t.number == 2)
     check("'Use clicked part' makes the carousel's ball mill T2", r == {"FINISHED"} and t2.obj is find("TOOL T2 BALL D4"))
+    check("its sizes are read from the part: ball end mill Ø4, 30 mm out (task 0040)",
+          t2.kind == "BALL" and abs(t2.diameter - 4 * MM) < 0.05 * MM and abs(t2.length - 30 * MM) < 0.05 * MM,
+          (t2.kind, t2.diameter, t2.length))
+    STATE["tools_row"] = c.tools_index
     next(t for t in c.tools if t.number == 1).obj = find(T1)
     win, area, region, sb = ui()
     area.spaces.active.region_3d.view_location = Vector((0.1, 0.0, 0.07))
@@ -371,7 +375,25 @@ def s_build():
     sc = bpy.context.scene
     sidebar_shot("panel4_cnc", 1400)
     print_png("panel4_cnc")
+    # the Tools sub-panel alone (task 0040): T2 selected, its sizes and shape under the list
+    bpy.utils.unregister_class(bpy.types.FRESING_PT_cnc_alone)
+    tbase = mod("blender.ui_gcode").FRESING_PT_cnc_tools
+    bpy.utils.register_class(type("FRESING_PT_cnc_tools_alone", (tbase,), {
+        "bl_idname": "FRESING_PT_cnc_tools_alone", "bl_parent_id": "", "bl_options": set()}))
+    sc.fresing.cnc.tools_index = STATE.get("tools_row", 0)
     mod("blender.ui")._OPEN_FOLDS = False
+    redraw()
+    wiggle()
+    return 1.0
+
+
+@step
+def s_tools_shot():
+    sc = bpy.context.scene
+    sidebar_shot("panel4_tools", 1100)
+    print_png("panel4_tools")
+    check("the Tools panel shows the list (task 0040)", os.path.isfile(os.path.join(OUT, "panel4_tools.png"))
+          and len(sc.fresing.cnc.tools) == 2)
     r = op("fresing.anim_build", play=False)
     check("Build: finished", r == {"FINISHED"}, sc.fresing.last_message)
     return 1.0

@@ -897,6 +897,10 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     lift = _lift(sch, offsets)
     # X, Y, Z: a key at every move's ends and along arcs
     samples = sch.samples(fps, tol=KEY_TOL)
+    if offsets:                                     # a key at each swap: the spindle adjusts after it
+        have = {round(t, 9) for t, _p in samples}
+        samples = sorted(samples + [(sw, sch.point_at(sw)) for sw, _n, _t, _d in sch.tool_events
+                                    if round(sw, 9) not in have], key=lambda x: x[0])
     rows = [[], [], []]
     for t, pt in samples:
         f = f0 + t * fps
@@ -970,16 +974,15 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
 
 
 def _lift(sch, offsets: dict):
-    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle: it changes over the
-    tool change (from the length of the old tool to the new one's)."""
+    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle: it changes during the
+    tool change, from the swap to the end of the change (the new tool is in; the old one kept its point)."""
     first = first_tool(sch)
     spans = []
     cur = offsets.get(first, 0.0) / MM
-    for p in sch.pieces:
-        if p.move.kind == "TOOL":
-            new = offsets.get(p.move.tool, 0.0) / MM
-            spans.append((p.v0, p.vd, cur, new))
-            cur = new
+    for swap, n, t0, d in sch.tool_events:
+        new = offsets.get(n, 0.0) / MM
+        spans.append((swap, max(0.0, t0 + d - swap), cur, new))
+        cur = new
     if not any(abs(a) > 1e-9 or abs(b) > 1e-9 for _v, _d, a, b in spans) and abs(offsets.get(first, 0.0)) < 1e-12:
         return lambda t: 0.0
     start = offsets.get(first, 0.0) / MM

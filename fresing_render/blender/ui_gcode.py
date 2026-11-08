@@ -161,9 +161,9 @@ class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
                                     "file, or add tools with +",
                                     "Pick each tool's type and set its sizes: every tool cuts with its sizes",
                                     "Optional: show a tool with a part of the model or its STEP model"])
-        row = layout.row(align=True)
-        row.operator("fresing.cnc_tools_from_program", text="Tools from the program", icon="FILE_SCRIPT")
-        row.operator("fresing.cnc_tool_read", text="Read a tool file", icon="IMPORT")
+        col = layout.column(align=True)
+        col.operator("fresing.cnc_tools_from_program", text="Tools from the program", icon="FILE_SCRIPT")
+        col.operator("fresing.cnc_tool_read", text="Read a tool file (Fusion, LinuxCNC)", icon="IMPORT")
         row = layout.row()
         row.template_list("FRESING_UL_cnc_tools", "", cnc, "tools", cnc, "tools_index",
                           rows=list_rows(len(cnc.tools), 3, 8))
@@ -218,9 +218,9 @@ def draw_tool(layout, context, tl) -> None:
     wrap(box, context, "Shown: " + tools.shape_text(tl), icon="HIDE_OFF", inset=12)
     row = box.row(align=True)
     row.operator("fresing.cnc_tool_part", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
-    row.operator("fresing.cnc_tool_step", text="Import STEP", icon="IMPORT")
     if tl.obj is not None or tl.step_mesh is not None:
         row.operator("fresing.cnc_tool_part", text="", icon="X").clear = True
+    box.operator("fresing.cnc_tool_step", text="Import STEP of the tool", icon="IMPORT")
     if tl.step_mesh is not None:
         box.operator("fresing.cnc_tool_flip", text="Tip at the other end", icon="ARROW_LEFTRIGHT")
     body = fold(box, "fr_cnc_tool_more", "Shank, holder sizes, place", icon="PREFERENCES")

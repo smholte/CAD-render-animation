@@ -989,6 +989,94 @@ def milling_air(ctx):
             f"{per_off:.0f} / {per_on:.0f} ms per frame; {air.codes_text(scene)}")
 
 
+TOOLS_PROGRAM = """(TWO TOOLS)
+G21 G90 G94 G17 G54
+T1 M6
+S3000 M3
+G0 X-130 Y-50 Z5
+G1 Z-1 F4000
+G1 X130
+G0 Z10
+T2 M6
+S6000 M3
+G0 X40 Y40 Z5
+G1 Z-8 F300
+G0 Z10
+M5
+M30
+"""
+
+
+@line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.35",
+      what="The test mill runs a program with a tool change: a Ø50 face mill faces a strip 1 mm deep, then a Ø6 drill "
+           "drills a hole 8 mm deep; both are read back from the milled block, and the time per frame")
+def milling_tools(ctx):
+    import bpy
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+
+    from ..blender import animation, gcode, joints, machining, tools
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(MILL)
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool, stock = _ob(scene, "END MILL D10"), _ob(scene, "STOCK 200x200x40")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, stock)
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    for ob, op in ((tool, bpy.ops.fresing.mill_add_bit), (stock, bpy.ops.fresing.mill_set_workpiece)):
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        _check(op() == {"FINISHED"}, f"'{ob.name}' could not be picked for milling")
+    machining.settings(scene).detail = "FINE"
+    face = tools.add_row(scene, "FACE", 1)
+    face.diameter, face.lead_angle = 0.05, 1.5707963
+    drill = tools.add_row(scene, "DRILL", 2)
+    drill.diameter = 0.006
+    path = os.path.join(ctx.work, "pccheck_tools.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(TOOLS_PROGRAM)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Tools", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_path, b.gcode_tc_time = "FIT", 4.0, False, 0.5
+    b.gcode_file = path
+    gcode.step_changed(scene, b)
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    frames = r["frames"]
+    t0 = time.time()
+    machining.sample(scene)
+    ctx.metric("read motion", time.time() - t0, "s")
+    t0 = time.time()
+    shown = list(range(max(1, frames - 9), frames + 1))
+    for f in shown:
+        scene.frame_set(f)
+    per = (time.time() - t0) / len(shown) * 1000.0
+    ctx.metric("frame", per, "ms")
+    _check(machining.refresh(scene, force=True), machining.status(scene) or "the block does not show its cut")
+    me = stock.data
+    mw = stock.matrix_world
+    bvh = BVHTree.FromPolygons([mw @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    zero = gcode.settings(scene).zero_empty.matrix_world.translation
+
+    def depth(x, y):
+        hit = bvh.ray_cast(zero + Vector((x, y, 0.1)), Vector((0, 0, -1)))
+        _check(hit[0] is not None, f"nothing under ({x * 1000:.0f}, {y * 1000:.0f}) mm")
+        return (zero.z - hit[0].z) * 1000.0
+
+    d_face, d_edge, d_drill = depth(0.0, -0.05), depth(0.0, -0.0245), depth(0.04, 0.04)
+    _check(abs(d_face - 1.0) < 0.05, f"the face mill cut {d_face:.2f} mm deep, not 1 mm")
+    _check(abs(d_edge) < 0.05, f"the face mill cut wider than Ø50 ({d_edge:.2f} mm deep 25.5 mm from its path)")
+    _check(abs(d_drill - 8.0) < 0.05, f"the drill went {d_drill:.2f} mm deep, not 8 mm")
+    return f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm; {per:.0f} ms per frame"
+
+
 # ---------------------------------------------------------------------------
 # renders and the queue
 # ---------------------------------------------------------------------------
