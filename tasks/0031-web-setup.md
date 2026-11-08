@@ -91,6 +91,8 @@ Guide picture (`GUIDE_SHOTS=decals`) made in ~1 min. Drift test passes. The down
 environment was changed. **Not yet measured:** a fresh session starting on the new environment (the script is only
 read from the repository once it is on `main`).
 
-**Open points:** (1) merge to `main` is needed before the stored set-up can work; (2) owner: start a new session with
+**Runs:** 2 full runs, both green first time (12.7 and 13.4 min): the code push, then the merge of `main` (0.2.34). Merged to `main` by fast-forward at 725b05d (no version change, no release).
+
+**Open points:** (1) ~~merge to `main`~~ done; (2) owner: start a new session with
 environment CAD-render-animation and check `ls ~/blender-5.2.3` - then the start-time measurement; (3) the local
 `ci_precheck.py` complains about the version only because this branch equals `main`; no version change here.
