@@ -1,0 +1,45 @@
+# 0044 – Missing user-guide pictures
+
+**Who:** worker · **Status:** open – after 0031 round 2 confirms Blender at start · **Branch:** `task/0044-guide-pictures`
+**Started by:** lead chat, 8 Nov 2026 (taken out of 0035 so it need not wait for the way-cover work) · **Lane:** Docs –
+`docs/img/`, `docs/USER-GUIDE.md` (only the chapters named below), `tools/guide_screens.py` (new shots only)
+**Model:** Sonnet · effort Low · **Environment:** "CAD-render-animation" (real Blender at start, CLAUDE.md section 4)
+
+Runs next to 0040 (which writes its own "Tools" chapter) and 0043: touch only the chapters below; merge `main`
+before pushing.
+
+## Goal
+
+The guide shows the panels that have no picture yet, made with `tools/guide_screens.py` so they can be made again.
+
+## Pictures to add
+
+- 4 Motion > **Way covers** panel, and a render of the generic way-cover test model (`tests/data/test_waycover_a.step`).
+- 4 Motion > CNC machine with the **Air blast** fold open, and the G-code step's "Blow the part clean at the end"
+  (0039 has a render only).
+- 5 Scene & Render > **Labels** fold; one still of the test crane with two labels if it is cheap.
+- 6 Animation > **Pictures** and **Music** folds.
+
+Generic test models only – the repository is public.
+
+## Done when
+
+- [ ] Pictures in `docs/img/`, placed in the right chapters; shots added to `tools/guide_screens.py`.
+- [ ] `tools/build_guide.py` builds; GitHub green (docs-only run); merged; `TASKS.md` updated; report below.
+- [ ] Report says whether everything ran locally (proof for 0031) and how long the pictures took.
+
+## Not in this task
+
+Text rewrites beyond a caption per picture; app code; the way-cover code changes (0035).
+
+---
+
+## Report (filled in by the chat that did the task)
+
+**Chat / date:**
+
+**What changed:**
+
+**Tested and measured:**
+
+**Open points / follow-up tasks:**

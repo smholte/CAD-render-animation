@@ -1,5 +1,9 @@
 # 0035 – Way covers: the carriage as last section, 8 sections; missing guide pictures (way covers, labels, pictures & music)
 
+> **Lead, 8 Nov 2026:** the guide pictures (step 3 and its "Done when" line) moved to task **0044**. 0035 is now only the
+> way-cover code: the carriage as last section, 8 sections, and two way covers on one axis (0037 problem 3).
+
+
 **Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** open – after 0031
 **Branch:** `task/0035-waycover-follow-ups`
 **Started by:** lead chat, 6 Nov 2026 · **Lane:** Machining (`waycover.py`, `ops_waycover.py`, `ui_waycover.py`,
