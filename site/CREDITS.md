@@ -6,15 +6,15 @@ Render. The models themselves are **not** in this repository – only the pictur
 
 ## Models on the page now
 
-- Milling video: a Fresing CNC mill, Fresing's own design, rendered with Fresing Render
-  (the owner's own machine; shown at his request, 8 Nov 2026 – nothing secret in it)
-- Test crane: generic test model made by Fresing Render's own tools
-  (`tools/make_test_crane.py`, in this repository; GPL-3.0-or-later like the app)
-- Test mill: generic test model made by Fresing Render's own tools (`tools/make_test_mill.py`)
-- Test luffing crane: generic test model made by Fresing Render's own tools (`tools/make_test_cylinder.py`)
-- Test gantry: generic test model made by Fresing Render's own tools (`tools/make_test_gantry.py`)
+- Milling video: a Fresing CNC mill, Fresing's own design, rendered with Fresing Render – https://fresing.nl
+- Mekanika EVO CNC by Mekanika SRL, CERN-OHL-S-2.0 – https://github.com/mekanika-dev/evo
+- FarmBot Genesis by FarmBot Inc., CC0 1.0 – https://genesis.farm.bot/
+- CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) – https://github.com/goscommons/CEB-Press
 
-## Models planned for the owner's renders (site/render_kit/models.ini)
+Rendered by the owner on his PC with `site/render_kit` (RTX 3090, Final quality, 9 Nov 2026). The test-model
+placeholders of the first version are gone. Thor and OpenArm follow after a second run (see below).
+
+## All models of the kit (site/render_kit/models.ini)
 
 Licences checked on 8 Nov 2026 on the project pages. The owner approved EVO, OpenArm, Thor and FarmBot (8 Nov) and
 asked for a model with a cylinder or a crane: the CEB press is the only openly licensed one found with CAD (no crane

@@ -8,56 +8,61 @@
  },
  "pictures": [
   {
-   "file": "test_crane_low.jpg",
-   "caption": "Test crane on the quay (generic test model)",
-   "model": "test_crane"
+   "file": "evo_cnc_low.jpg",
+   "caption": "An open-source CNC router in the CNC hall",
+   "model": "evo_cnc"
   },
   {
-   "file": "test_mill_low.jpg",
-   "caption": "Test mill in the CNC hall (generic test model)",
-   "model": "test_mill"
+   "file": "evo_cnc_iso_left.jpg",
+   "caption": "The same router from the other side",
+   "model": "evo_cnc"
   },
   {
-   "file": "test_luffer_high.jpg",
-   "caption": "Luffing crane with hydraulic cylinder on a vessel deck (generic test model)",
-   "model": "test_luffer"
+   "file": "evo_cnc_turntable.mp4",
+   "poster": "evo_cnc_turntable_poster.jpg",
+   "caption": "Mekanika EVO CNC router: turntable",
+   "model": "evo_cnc"
   },
   {
-   "file": "test_gantry_iso.jpg",
-   "caption": "Gantry machine in the product studio (generic test model)",
-   "model": "test_gantry"
+   "file": "farmbot_high.jpg",
+   "caption": "A gantry robot outdoors, in the sun",
+   "model": "farmbot"
+  },
+  {
+   "file": "ceb_press_low.jpg",
+   "caption": "An open-source brick press: the hydraulic cylinder presses the earth block",
+   "model": "ceb_press"
+  },
+  {
+   "file": "ceb_press_iso_left.jpg",
+   "caption": "The press from the other side",
+   "model": "ceb_press"
   }
  ],
  "models": {
-  "test_crane": {
-   "title": "Test crane",
-   "credit": "Test crane: generic test model made by Fresing Render's own tools",
-   "link": "https://github.com/smholte/CAD-render-animation",
-   "licence": ""
-  },
-  "test_mill": {
-   "title": "Test mill",
-   "credit": "Test mill: generic test model made by Fresing Render's own tools",
-   "link": "https://github.com/smholte/CAD-render-animation",
-   "licence": ""
-  },
-  "test_luffer": {
-   "title": "Test luffing crane",
-   "credit": "Test luffing crane: generic test model made by Fresing Render's own tools",
-   "link": "https://github.com/smholte/CAD-render-animation",
-   "licence": ""
-  },
-  "test_gantry": {
-   "title": "Test gantry",
-   "credit": "Test gantry: generic test model made by Fresing Render's own tools",
-   "link": "https://github.com/smholte/CAD-render-animation",
-   "licence": ""
-  },
   "fresing_mill": {
    "title": "Fresing mill",
    "credit": "Milling video: a Fresing CNC mill, Fresing's own design, rendered with Fresing Render",
    "link": "https://fresing.nl",
    "licence": ""
+  },
+  "evo_cnc": {
+   "title": "Mekanika EVO CNC router",
+   "credit": "Mekanika EVO CNC by Mekanika SRL, CERN-OHL-S-2.0",
+   "link": "https://github.com/mekanika-dev/evo",
+   "licence": "CERN-OHL-S-2.0"
+  },
+  "farmbot": {
+   "title": "FarmBot Genesis",
+   "credit": "FarmBot Genesis by FarmBot Inc., CC0 1.0",
+   "link": "https://genesis.farm.bot/",
+   "licence": "CC0 1.0"
+  },
+  "ceb_press": {
+   "title": "CEB brick press with hydraulic cylinders",
+   "credit": "CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0)",
+   "link": "https://github.com/goscommons/CEB-Press",
+   "licence": "CC BY-SA 4.0"
   }
  }
 }

@@ -58,7 +58,10 @@ def visible(body):
 
 parts = []   # (name, shape, trsf)
 
-def resolve(path, name, trsf, depth=0):
+def resolve(path, name, trsf, depth=0, via_link=True):
+    """via_link: reached through a link, whose placement replaces the object's own. Reached as a child of an
+    App::Part (a library part such as a bearing or a board, or a sub-part of one), the object keeps its own
+    placement inside that part (the Thor board and bearings went astray without this)."""
     z, types, objs = doc(path)
     body = objs[name]
     t = types.get(name)
@@ -66,14 +69,16 @@ def resolve(path, name, trsf, depth=0):
         lo = re.search(r'name="LinkedObject".*?(?:<XLink file="([^"]*)"[^>]*name="([^"]*)"|<Link value="([^"]*)")', body, re.S)
         tgt_path = find(lo.group(1)) if lo.group(1) else path
         tgt = lo.group(2) or lo.group(3)
-        resolve(tgt_path, tgt, trsf.Multiplied(placement(body)), depth + 1)
+        resolve(tgt_path, tgt, trsf.Multiplied(placement(body)), depth + 1, True)
         return
     if t == "App::Part":
+        if not via_link:
+            trsf = trsf.Multiplied(placement(body))
         grp = re.search(r'name="Group" type="App::PropertyLinkList".*?<LinkList[^>]*>(.*?)</LinkList>', body, re.S)
         for child in re.findall(r'<Link value="([^"]*)"', grp.group(1) if grp else ""):
             if types.get(child) in ("App::Link", "App::Part") or (types.get(child, "").startswith(("Part", "PartDesign::Body")) and 'type="Part::PropertyPartShape"' in objs.get(child, "")):
                 if visible(objs[child]):
-                    resolve(path, child, trsf, depth + 1)
+                    resolve(path, child, trsf, depth + 1, False)
         return
     f = re.search(r'name="Shape" type="Part::PropertyPartShape"[^>]*>\s*<Part file="([^"]+)"', body)
     if not f:
@@ -82,9 +87,12 @@ def resolve(path, name, trsf, depth=0):
     s = TopoDS_Shape(); BRepTools.Read_s(s, tmp, BRep_Builder()); os.remove(tmp)
     if s.IsNull():
         return
-    s = s.Located(TopLoc_Location())   # the link's placement replaces the object's own
+    if not via_link:                       # keep its own place inside the part it belongs to
+        trsf = trsf.Multiplied(s.Location().Transformation())
+    s = s.Located(TopLoc_Location())       # through a link: the link's placement replaces the object's own
     stem = os.path.splitext(os.path.basename(path))[0]
-    parts.append((stem if name in ("Body", "Body001", "Model") else name, s, trsf))
+    label = stem if name in ("Body", "Body001", "Body002", "Model") else name
+    parts.append((label, (path, name), s, trsf))   # (path, name): two files may use the same object name
 
 if len(sys.argv) < 3:
     sys.exit(__doc__)
@@ -95,8 +103,7 @@ xdoc = TDocStd_Document(TCollection_ExtendedString("XmlOcaf"))
 st = XCAFDoc_DocumentTool.ShapeTool_s(xdoc.Main())
 asm = st.NewShape(); TDataStd_Name.Set_s(asm, TCollection_ExtendedString(sys.argv[3] if len(sys.argv) > 3 else os.path.splitext(os.path.basename(src))[0]))
 labels = {}
-for name, s, t in parts:
-    key = (name,)
+for name, key, s, t in parts:
     if key not in labels:
         labels[key] = st.AddShape(s, False); TDataStd_Name.Set_s(labels[key], TCollection_ExtendedString(name))
     st.AddComponent(asm, labels[key], TopLoc_Location(t))

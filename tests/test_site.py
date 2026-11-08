@@ -217,6 +217,8 @@ def test_a4_to_step(tmp_path):
 
     from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
     from OCP.BRepTools import BRepTools
+    from OCP.gp import gp_Trsf, gp_Vec
+    from OCP.TopLoc import TopLoc_Location
 
     BRepTools.Write_s(BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape(), str(tmp_path / "PartShape.brp"))
     with zipfile.ZipFile(tmp_path / "Plate.FCStd", "w") as z:
@@ -235,12 +237,43 @@ def test_a4_to_step(tmp_path):
                    f'<Property name="Placement" type="App::PropertyPlacement"><PropertyPlacement {pl}/></Property>\n'
                    '        </Object>\n</ObjectData></Document>')
     out = tmp_path / "a.step"
+    # a library part inside the assembly file (as Thor's bearings and board): its piece keeps its own place (z 40)
+    t = gp_Trsf()
+    t.SetTranslation(gp_Vec(0.0, 0.0, 40.0))
+    BRepTools.Write_s(BRepPrimAPI_MakeBox(7.0, 7.0, 7.0).Shape().Located(TopLoc_Location(t)), str(tmp_path / "Lib.brp"))
+    with zipfile.ZipFile(tmp_path / "Assembly.FCStd", "a") as z:
+        z.write(tmp_path / "Lib.brp", "PartShape9.brp")
+    _add_library(tmp_path / "Assembly.FCStd")
     res = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "a4_to_step.py"), str(tmp_path / "Assembly.FCStd"),
                           str(out), "Test arm"], capture_output=True, text=True, timeout=120)
     assert res.returncode == 0, res.stdout[-2000:] + res.stderr[-2000:]
-    assert "1 parts, 1 unique" in res.stdout
+    assert "2 parts, 2 unique" in res.stdout
     text = out.read_text(errors="replace")
     assert "Test arm" in text and "Plate" in text and "250." in text
+    assert "Piece" in text and re.search(r"\(0\.,0\.,40\.\)", text.replace(" ", "")), "the library piece lost its place"
+
+
+def _add_library(path):
+    """Rewrite Document.xml of the test assembly with a library App::Part 'Lib' (piece at z 40) and a link to it."""
+    import zipfile
+    with zipfile.ZipFile(path) as z:
+        files = {n: z.read(n) for n in z.namelist()}
+    d = files["Document.xml"].decode()
+    d = d.replace('<Object type="App::Link" name="Plate_Link"/>', '<Object type="App::Link" name="Plate_Link"/>'
+                  '<Object type="App::Link" name="Lib_Link"/><Object type="App::Part" name="Lib"/>'
+                  '<Object type="Part::Feature" name="Piece"/>')
+    d = d.replace('<Link value="Plate_Link"/></LinkList>', '<Link value="Plate_Link"/><Link value="Lib_Link"/></LinkList>')
+    d = d.replace("</ObjectData>",
+                  '        <Object name="Lib_Link">\n<Property name="LinkedObject" type="App::PropertyLink">'
+                  '<Link value="Lib"/></Property>\n        </Object>\n'
+                  '        <Object name="Lib">\n<Property name="Group" type="App::PropertyLinkList">'
+                  '<LinkList count="1"><Link value="Piece"/></LinkList></Property>\n        </Object>\n'
+                  '        <Object name="Piece">\n<Property name="Shape" type="Part::PropertyPartShape">'
+                  '\n<Part file="PartShape9.brp"/></Property>\n        </Object>\n</ObjectData>')
+    files["Document.xml"] = d.encode()
+    with zipfile.ZipFile(path, "w") as z:
+        for n, data in files.items():
+            z.writestr(n, data)
 
 
 def test_kit_colour_lines(tmp_path):
