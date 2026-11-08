@@ -1,6 +1,6 @@
 # 0040 – Tool library: many tool types, real shapes, every tool cuts
 
-**Who:** worker · **Status:** running (8 Nov 2026) · **Branch:** `task/0040-tool-library`
+**Who:** worker · **Status:** done (0.2.36, 8 Nov 2026) · **Branch:** `task/0040-tool-library`
 **Started by:** lead chat, 7 Nov 2026 (owner accepted: 2A-ii shapes from sizes **and** imported STEP; 2C-ii split –
 this is part 1, tool changes and ATC are 0041)
 **Area:** Machining lane + G-code – `core/machining.py`, `blender/machining.py`, `core/gcode.py` / `blender/gcode.py`
@@ -55,15 +55,15 @@ library, LinuxCNC tool table, the program's tool comments) or from a manufacture
 
 ## Done when
 
-- [ ] All types made from sizes, shown right in the viewport and in a still; holders generated.
-- [ ] Import of a tool STEP: tip and axis right within 0.05 mm on test tools; sizes guessed (fluted end mill: the
+- [x] All types made from sizes, shown right in the viewport and in a still; holders generated.
+- [x] Import of a tool STEP: tip and axis right within 0.05 mm on test tools; sizes guessed (fluted end mill: the
       outer Ø, within 0.1 mm – the 0037 Ø12 → Ø10.4 case fixed, test with a fluted test tool).
-- [ ] Fusion `.json`/`.tools` and LinuxCNC `.tbl` read into the list (test files made by the worker).
-- [ ] A test program with 4 tools (face mill, flat end mill, drill, chamfer) cuts each feature with the right tool:
+- [x] Fusion `.json`/`.tools` and LinuxCNC `.tbl` read into the list (test files made by the worker).
+- [x] A test program with 4 tools (face mill, flat end mill, drill, chamfer) cuts each feature with the right tool:
       depths and widths within 0.05 mm of the program in the milled block.
-- [ ] Missing-tool warning with line number; old projects (fixed bits, no list) open and cut as before.
-- [ ] Tooltips, guide, picture, PC-check line; tests; GitHub green; merged and released.
-- [ ] Report filled in; `TASKS.md` updated (0041 to "open – can start").
+- [x] Missing-tool warning with line number; old projects (fixed bits, no list) open and cut as before.
+- [x] Tooltips, guide, picture, PC-check line; tests; GitHub green; merged and released.
+- [x] Report filled in; `TASKS.md` updated (0041 to "open – can start").
 
 ## Not in this task
 
@@ -77,10 +77,60 @@ library, LinuxCNC tool table, the program's tool comments) or from a manufacture
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus), 8 Nov 2026. Version 0.2.36.
 
 **What changed:**
+- New `core/tools.py`: 8 types (flat, ball, bull-nose, spot/chamfer, drill, face mill, thread mill, slot/T-slot) with
+  defaults per type; `Spec` (sizes, 0 = "as the type usually has"); cutting shape per type (`cutting_tool`; face
+  mill = its insert band, 45° lead widens upward; thread mill = its outer Ø; slot cutter = its disc); drawn meshes
+  with helical flutes, face-mill inserts, thread teeth, slot teeth; holders ER / SK40 / BT40 / HSK63 (simple turned
+  shapes, nose Ø and gauge length editable); chip type per tool type; readers Fusion `.json`/`.tools` (zip), LinuxCNC
+  `.tbl`, program tool comments; unknown types to the nearest with a note; size checks (also against the X/Y/Z joint
+  limits); `from_outline` guesses a row from a part's or a STEP's outline (holder start, flute length, face mill).
+- `FRCncTool` grew into the tool row (old rows keep their values: the first 5 type ids unchanged, `length` = stick-out).
+  New `blender/tools.py`: rows ↔ sizes, add/copy/remove/sort, file reading, STEP import with the app's own reader
+  (one combined mesh kept in the project, tip/axis found: file origin, else narrower end, else the end with more
+  detail; "Tip at the other end"), part rows read their sizes from the part.
+- `gcode.py`: copies at M6 come from the rows (drawn / STEP / part) and carry their sizes; **tool length offsets**
+  (option "Tool lengths move the spindle", on): the spindle moves up by the stick-out difference, adjusting from the
+  swap to the end of the change; the build writes which tool is in the spindle when (`cnc["fr_tools"]`); a T number
+  missing from the list warns with its line ("T7 (line 4) is not in the tool list") and the step offers "Add T7 as …".
+- `machining.py`: `cut_items` – with a tool schedule the bit in the spindle is split per stay in the spindle; each
+  piece cuts with that tool's sizes (copies are sampled along with the bits). Without a schedule nothing changes.
+  Chips use the same pieces and the type's chip preset; the air through the spindle follows the tool that is in.
+- **0037 problem 2 fixed**: `core/machining.profile_from_points` reads the widest point of each cross-section from the
+  triangles' edges (not only vertices), at vertex heights, an even spread and just above/below flat steps; `classify`
+  looks a little above the first stop for the true radius and reads a small corner chamfer as a flat end mill.
+- UI: 4 Motion > CNC machine > **Tools** (sub-panel; replaces the old "Tools for tool changes" fold). Tooltips on every
+  control (report: 468 ok). PC-check line `milling.tools`; guide chapter "Tools", pictures `panel_4_tools.png`,
+  `tools.jpg` (`tools/make_tool_picture.py`), `panel_4_cnc.png` again. Test tools `tools/make_test_tools.py` →
+  `tests/data/test_tool_endmill.step` (fluted Ø12, end teeth, 0.3 mm corner chamfer, tilted) and
+  `test_tool_facemill.step` (Ø50 face mill in an SK40 holder).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (Claude Code web session, 4 cores, no graphics card):
+- 4-tool program on the test gantry (`test_tools.py`): face mill Ø50 1 deep, end mill Ø8 slot 3 deep, drill Ø6 10 deep,
+  chamfer 90° 2 deep: every depth and edge checked by ray casts at ±0.04 mm – all within 0.05 mm.
+- Fluted test end mill: old detection Ø11.4, new Ø12.000; tip (10, 20, 30) mm and axis (0.6, 0, 0.8) exact (< 0.001 mm),
+  as a STEP row and as a part. Face mill + SK40 STEP: tip at origin, FACE, Ø50.12 (the inserts' corners), stick-out 40.0,
+  insert size 12.
+- Fusion json and .tools, LinuxCNC tbl, program comments (`test_tools_core.py`, 17 tests); old project with a fixed bit
+  and no list: one cut item, the bit's shape; existing milling, G-code, chips, air, panels, PC-check tests pass.
+- PC check `milling.tools` (bpy, 4 cores): OK, read motion 0.02 s, 4.5 ms per frame. Real app `ui_test_gcode.py`
+  25/25 locally (2 new checks + the Tools picture). Tool picture render (Cycles CPU, 1400×520, 48 samples): 15 s.
+- GitHub: 4 branch runs. 1st cancelled by my own second push (travel warning); 2nd red only in the PC check (Linux
+  and Windows): the old line `motion.gcode` built a 2-tool program with an empty list, which now warns – the line now
+  presses "Tools from the program" first, as the owner would; 3rd stopped in precheck (0.2.35 taken by task 0043:
+  merged main, renumbered to 0.2.36); 4th green (11.2 min), `main` fast-forwarded to it (reuse release). Test suites
+  1 and 4 were flagged SLOW in runs 2 and 4 (9.5–11.5 min vs 4–5); `tools/ci_times.json` not re-recorded.
 
 **Open points / follow-up tasks:**
+- 0041: the `place`/`pocket` fields are stored but not used yet; tool changes are still an instant swap (the spindle's
+  length adjustment ramps after the swap).
+- Behaviour change for projects with tool changes: rows with different stick-outs now move the spindle (untick "Tool
+  lengths move the spindle" for the old look). A row whose part is the spindle's own tool is the length reference.
+- STEP orientation is a guess (origin / narrower end / more detail); a tool+holder STEP whose holder end lies on the
+  origin needs "Tip at the other end". Not tested with a real manufacturer file (none may be committed): worth one try
+  on the owner's PC with a downloaded tool.
+- Cutting length = flute length: a shank wider than the cutter does not cut (a real crash is not shown).
+- Hidden objects are not updated by Blender: anything that reads a hidden tool part's position must go through its
+  parent (the test does; milling only reads a tool while it is shown).
