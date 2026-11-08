@@ -125,7 +125,7 @@ def far_clip(scene) -> float:
 def ensure(scene, s, replace: bool = False) -> None:
     """Make the surroundings match the settings. Cheap when nothing changed.
 
-    ``replace``: read the model's size and position again (button 'Put on the floor again')."""
+    ``replace``: read the model's size and position again (button 'Fit surroundings to the model')."""
     kind = wanted(s)
     root = root_object()
     if not kind:
@@ -136,10 +136,41 @@ def ensure(scene, s, replace: bool = False) -> None:
     models = json.dumps(_models_key(scene))
     stale = (root is None or root.get("fr_key") != key or root.get("fr_models") != models or replace
              or not _objects(scene))
+    if stale and _only_added(root, key, models, replace, scene):
+        _note_misfit(scene, root, models)        # task 0043: a later import leaves the surroundings where they are
+        stale = False
     if stale:
         _build(scene, s, kind, key, models)
         root = root_object()
     _update_live(scene, s, root)
+
+
+def _only_added(root, key: str, models: str, replace: bool, scene) -> bool:
+    """True when the only change is that more models came in (every earlier model is as it was)."""
+    if replace or root is None or not root.get("fr_kind") or root.get("fr_key") != key or not _objects(scene):
+        return False
+    try:
+        old = json.loads(root.get("fr_models", "[]"))
+        new = json.loads(models)
+    except ValueError:
+        return False
+    return bool(old) and len(new) > len(old) and all(o in new for o in old)
+
+
+def _note_misfit(scene, root, models: str) -> None:
+    """Remember the new models and whether they stick out of the area the surroundings were laid for."""
+    root["fr_models"] = models
+    mn, mx = _model_box(scene)
+    p0, p1 = np.array(root.get("fr_min", mn), float), np.array(root.get("fr_max", mx), float)
+    pad = 0.1 * np.maximum(p1 - p0, 0.05)
+    out = bool(np.any(mn < p0 - pad) or np.any(mx > p1 + pad))
+    root["fr_misfit"] = out
+
+
+def misfit(scene) -> bool:
+    """A later import sticks out of the floor area / walls: the panel offers 'Fit surroundings to the model'."""
+    root = root_object()
+    return bool(root is not None and root.get("fr_kind") and root.get("fr_misfit"))
 
 
 def clear(scene) -> None:
@@ -153,7 +184,7 @@ def clear(scene) -> None:
         bpy.data.batch_remove(orphans)
     root = root_object()
     if root is not None:
-        for k in ("fr_kind", "fr_key", "fr_models", "fr_far"):
+        for k in ("fr_kind", "fr_key", "fr_models", "fr_far", "fr_misfit"):
             if k in root:
                 del root[k]
 

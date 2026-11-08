@@ -982,8 +982,9 @@ Their settings appear under the choice:
   rack) is left out of the picture. When the camera is higher than the lamps, the roof is left out
   too.
 - **More** (the fold): **Floor lower by** lowers the floor a little; **Show in the view** hides the
-  surroundings while you work (renders always include them); **Put on the floor again** after the
-  machine changed (a new revision, parts removed in Clean-up). Parts you only hide do not move the
+  surroundings while you work (renders always include them); **Fit surroundings to the model** after the
+  machine changed (a new revision, parts removed in Clean-up). Importing another model leaves the surroundings
+  where they are; if it sticks out, a note offers the same button. Parts you only hide do not move the
   floor.
 
 ### Light

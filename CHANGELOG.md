@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.35 – 8 Nov 2026 – surroundings stay put on a second import, lighter 4K videos (task 0043)
+
+- **A second import no longer moves the hall** (or deck, quay, sea …). Adding a vise, a tool or a workpiece
+  leaves the surroundings exactly where they are. If the new model sticks out of the floor area, the
+  Background panel shows a note and a button **Fit surroundings to the model** (the old "Put on the floor
+  again", renamed). A model update (new revision) fits them as before.
+- **Making a 4K MP4 needs far less memory**: the video encoder no longer keeps every 4K frame in memory
+  (250 frames of 4K: peak 5.7 GB → 1.7 GB on the test machine, same speed, same file).
+
 ## 0.2.34 – 7 Nov 2026 – air blast blows the chips away (task 0039)
 
 Milling with chips

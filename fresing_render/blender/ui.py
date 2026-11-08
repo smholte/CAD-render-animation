@@ -866,6 +866,15 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 if bg in env.BUILT:
                     col.prop(s, "env_show_in_view", text="Show in the view")
                 body.operator("fresing.env_place", icon="IMPORT")
+            if bg in env.BUILT and surroundings_misfit(context.scene):
+                wrap(layout, context, "The model you added sticks out of the surroundings. "
+                     "Fit them to everything with the button below.", icon="ERROR")
+                layout.operator("fresing.env_place", icon="IMPORT")
+
+
+def surroundings_misfit(scene) -> bool:
+    from . import surroundings
+    return surroundings.misfit(scene)
 
 
 def effective_lighting(s) -> str:
