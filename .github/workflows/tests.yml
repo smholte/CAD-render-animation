@@ -271,7 +271,7 @@ jobs:
           python -m pip install "$(grep -E '^pytest==' tools/requirements-dev.txt)"
           python tools/tooltip_report.py --strict
           python tools/build_guide.py
-          python -m pytest tests/test_user_guide.py tests/test_updates.py tests/test_ci_tools.py -q -rfE \
+          python -m pytest tests/test_user_guide.py tests/test_updates.py tests/test_ci_tools.py tests/test_site.py -q -rfE \
             --disable-warnings -p no:cacheprovider --junitxml=test-results/pytest-docs.xml
           python tools/ci_pytest_summary.py test-results/pytest-docs.xml --title "documentation checks"
 
@@ -625,3 +625,13 @@ jobs:
         env:
           TAG: ${{ needs.release.outputs.tag }}
         run: gh release delete "$TAG" --yes --cleanup-tag
+
+  pages:
+    name: Landing page (GitHub Pages, task 0047)
+    needs: [release-latest]
+    if: ${{ !cancelled() && needs.release-latest.result == 'success' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

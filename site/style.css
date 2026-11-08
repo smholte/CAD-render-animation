@@ -1,0 +1,106 @@
+/* Fresing Render landing page (task 0047). Fresing palette A (Logo Charcoal), approved 16 Oct 2026. */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url(fonts/IBMPlexSans-Regular-Latin1.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url(fonts/IBMPlexSans-SemiBold-Latin1.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 700; font-display: swap; src: url(fonts/IBMPlexSans-Bold-Latin1.woff2) format("woff2"); }
+
+:root {
+  --green: #479B29;        /* Fresing Green */
+  --green-dark: #2F6A1B;   /* Green Dark */
+  --green-bright: #5CBF37; /* Green Bright */
+  --charcoal: #252E36;     /* text */
+  --slate: #5B6670;        /* second text */
+  --white: #FFFFFF;
+  --mist: #F1F3F5;         /* surface */
+  --line: #D3D9DE;
+  --deep: #1A2027;         /* Deep Charcoal: dark grounds */
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; font: 17px/1.55 var(--sans); color: var(--charcoal); background: var(--white); }
+img, video { max-width: 100%; height: auto; display: block; }
+a { color: var(--green-dark); }
+a:hover { color: var(--green); }
+h1, h2 { line-height: 1.15; margin: 0 0 .6em; }
+h2 { font-size: 1.6rem; font-weight: 600; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+.small { font-size: .9rem; color: var(--slate); }
+
+/* top bar */
+.bar { background: var(--deep); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid #2B343D; }
+.bar-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; }
+.bar-logo img { width: 120px; height: auto; }
+.bar nav { display: flex; gap: 20px; font-size: .95rem; }
+.bar nav a { color: var(--line); text-decoration: none; }
+.bar nav a:hover { color: var(--white); }
+
+/* hero */
+.hero { background: var(--deep); color: var(--white); padding: 48px 0 56px; }
+.hero-in { display: grid; grid-template-columns: 5fr 7fr; gap: 40px; align-items: center; }
+.hero h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -.01em; }
+.hero h1::after { content: ""; display: block; width: 56px; height: 5px; background: var(--green); margin-top: 14px; }
+.lead { font-size: 1.15rem; color: var(--line); margin: 0 0 28px; }
+.download { display: inline-flex; flex-direction: column; gap: 2px; background: var(--green); color: var(--white);
+  text-decoration: none; padding: 14px 26px; border-radius: 4px; box-shadow: 0 2px 0 var(--green-dark); }
+.download:hover, .download:focus-visible { background: var(--green-dark); color: var(--white); }
+.download-main { font-size: 1.3rem; font-weight: 700; }
+.download-main::before { content: "↓ "; }
+.download-sub { font-size: .9rem; opacity: .92; }
+.needs { font-size: .9rem; color: var(--line); margin: 16px 0 0; }
+.hero-video { margin: 0; }
+.hero-video video, .hero-video img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #000; border-radius: 4px; }
+.hero-video figcaption { font-size: .85rem; color: var(--line); margin-top: 8px; }
+
+/* gallery */
+.gallery { padding: 56px 0 40px; background: var(--mist); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 20px; }
+.grid figure { margin: 0; background: var(--white); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.grid a { display: block; }
+.grid img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform .2s; }
+.grid a:hover img { transform: scale(1.02); }
+.grid figcaption { padding: 10px 14px 12px; font-size: .92rem; color: var(--slate); }
+
+/* what it does */
+.what { padding: 56px 0; }
+.points { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 28px; }
+.points li { padding-left: 18px; border-left: 4px solid var(--green); color: var(--slate); }
+.points b { color: var(--charcoal); display: block; }
+
+/* install + what's new */
+.install { padding: 56px 0; background: var(--mist); border-top: 1px solid var(--line); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.steps { padding-left: 1.4em; margin: 0 0 12px; }
+.steps li { margin-bottom: 10px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.button { display: inline-block; padding: 10px 20px; border-radius: 4px; background: var(--green-dark); color: var(--white);
+  text-decoration: none; font-weight: 600; border: 2px solid var(--green-dark); }
+.button:hover { background: var(--green); border-color: var(--green); color: var(--white); }
+.button.ghost { background: transparent; color: var(--green-dark); }
+.button.ghost:hover { background: var(--green-dark); color: var(--white); }
+.button.light { background: var(--white); color: var(--deep); border-color: var(--white); }
+.button.light:hover { background: var(--green); border-color: var(--green); color: var(--white); }
+.news { background: var(--white); border: 1px solid var(--line); border-radius: 4px; padding: 22px 24px; font-size: .95rem; }
+.news h2 { font-size: 1.3rem; }
+.news-title { font-weight: 600; margin-top: -.4em; }
+.news-text { max-height: 340px; overflow: auto; }
+.news-text ul { padding-left: 1.2em; }
+
+/* made by Fresing */
+.fresing { background: var(--deep); color: var(--white); padding: 56px 0; }
+.fresing-in { display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center; }
+.fresing img { width: 260px; height: auto; }
+.fresing p { color: var(--line); font-size: 1.1rem; max-width: 60ch; }
+
+/* footer */
+.foot { padding: 36px 0 48px; font-size: .88rem; color: var(--slate); border-top: 4px solid var(--green); }
+.foot h2 { font-size: 1.1rem; }
+.credits { padding-left: 1.2em; }
+
+@media (max-width: 860px) {
+  .hero-in, .two, .fresing-in { grid-template-columns: 1fr; gap: 28px; }
+  .hero { padding-top: 32px; }
+  .bar nav a:not(:last-child) { display: none; }
+  .grid { grid-template-columns: 1fr; }
+  .fresing img { width: 200px; }
+}

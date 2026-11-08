@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fresing Render – photo-real renders of large STEP assemblies</title>
+<meta name="description" content="Fresing Render turns large STEP assemblies – machines, CNC mills, offshore equipment – into photo-real pictures and videos. Free for Windows, made by Fresing.">
+<link rel="icon" href="brand/fresing-app-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="bar-logo" href="https://fresing.nl" aria-label="Fresing – fresing.nl"><img src="brand/fresing-logo_compact_reversed.svg" alt="Fresing" width="120" height="35"></a>
+    <nav aria-label="On this page">
+      <a href="#what">What it does</a>
+      <a href="#install">Install</a>
+      <a href="guide/">User guide</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero-in">
+    <div class="hero-text">
+      <h1>Fresing Render</h1>
+      <p class="lead">Photo-real pictures and animations of large STEP assemblies – machines, CNC mills, offshore equipment. Drop in the CAD file, get renders a customer can look at.</p>
+      <a class="download" href="{{download_url}}">
+        <span class="download-main">Download for Windows</span>
+        <span class="download-sub">Version {{version}} · {{date}} · {{size}}</span>
+      </a>
+      <p class="needs">Windows 10 or 11 · NVIDIA graphics card recommended · No admin rights needed · Free</p>
+    </div>
+    <figure class="hero-video">
+      {{hero_video}}
+    </figure>
+  </div>
+</section>
+
+<section class="gallery" aria-label="Pictures made with Fresing Render">
+  <div class="wrap">
+    <h2>Made with Fresing Render</h2>
+    <div class="grid">
+{{gallery}}
+    </div>
+    <p class="small">Click a picture to see it full size. Models: see <a href="#credits">credits</a>.</p>
+  </div>
+</section>
+
+<section id="what" class="what">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <ul class="points">
+      <li><b>Drop in a STEP file.</b> Assemblies with thousands of parts, read on all processor cores; a new revision of the model keeps all your work.</li>
+      <li><b>Parts sorted and given materials.</b> Bolts by their DIN/ISO names, steel, aluminium, paint in RAL colours, rubber and glass – picked for you, changed with a click.</li>
+      <li><b>Motion.</b> Rotating and sliding joints, hydraulic cylinders that follow their arm, mechanisms such as scissor lifts and slider-cranks.</li>
+      <li><b>CNC milling.</b> Your G-code drives the machine; material disappears where the tool cuts, chips fly and the air blast blows them away.</li>
+      <li><b>Surroundings.</b> Open sea, a vessel deck, a quay, factory and CNC halls, or a clean studio with ready-made light looks.</li>
+      <li><b>Stills, turntables and finished videos.</b> Print sizes up to posters, one-click turntables, videos with title and end cards, captions, labels and music.</li>
+      <li><b>Render queue.</b> Line up pictures and videos and let them render on the graphics card while you keep working.</li>
+      <li><b>Updates itself.</b> A new version is offered in the app: one click and it installs.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="install" class="install">
+  <div class="wrap two">
+    <div>
+      <h2>Install in 3 steps</h2>
+      <ol class="steps">
+        <li><a href="{{download_url}}">Download</a> <b>{{asset_name}}</b>.</li>
+        <li>Unzip it: right-click the file, <b>Extract All…</b>, then <b>Extract</b>.</li>
+        <li>Double-click <b>Install.bat</b> in the unzipped folder. If Windows says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>. When it is done, start <b>Fresing Render</b> from the Desktop.</li>
+      </ol>
+      <p class="small">The installer downloads Blender {{blender}} (about 400 MB) and keeps it separate from any other Blender on your PC.</p>
+      <p class="buttons"><a class="button" href="guide/">User guide</a> <a class="button ghost" href="{{releases_url}}">All releases</a></p>
+    </div>
+    <div class="news">
+      <h2>What's new in {{version}}</h2>
+      <p class="news-title">{{news_title}}</p>
+      <div class="news-text">
+{{whats_new}}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="fresing" class="fresing">
+  <div class="wrap fresing-in">
+    <img src="brand/fresing-logo_full_reversed.svg" alt="Fresing" width="260" height="75">
+    <div>
+      <h2>Made by Fresing</h2>
+      <p>Made by machine builders, for machine builders. Fresing designs compact CNC mills, and the tools we need along the way.</p>
+      <p><a class="button light" href="https://fresing.nl">Visit fresing.nl</a></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <h2 id="credits">Credits</h2>
+    <ul class="credits">
+{{credits}}
+    </ul>
+    <p>Fresing Render is free software under the GNU General Public License, version 3 or later. <a href="{{repo_url}}">Source code on GitHub</a>. Built on Blender. The type is IBM Plex Sans (SIL Open Font License).</p>
+    <p>© Fresing · <a href="https://fresing.nl">fresing.nl</a> · This page sets no cookies and loads nothing from other sites.</p>
+  </div>
+</footer>
+</body>
+</html>

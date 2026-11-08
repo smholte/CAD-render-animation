@@ -1,0 +1,63 @@
+{
+ "hero": {
+  "file": "fresing_mill_air_blast.mp4",
+  "poster": "fresing_mill_air_blast_poster.jpg",
+  "caption": "Milling on a Fresing mill: the G-code drives the machine, chips fly and the air blast blows them away (rendered with Fresing Render)",
+  "model": "fresing_mill",
+  "keep": true
+ },
+ "pictures": [
+  {
+   "file": "test_crane_low.jpg",
+   "caption": "Test crane on the quay (generic test model)",
+   "model": "test_crane"
+  },
+  {
+   "file": "test_mill_low.jpg",
+   "caption": "Test mill in the CNC hall (generic test model)",
+   "model": "test_mill"
+  },
+  {
+   "file": "test_luffer_high.jpg",
+   "caption": "Luffing crane with hydraulic cylinder on a vessel deck (generic test model)",
+   "model": "test_luffer"
+  },
+  {
+   "file": "test_gantry_iso.jpg",
+   "caption": "Gantry machine in the product studio (generic test model)",
+   "model": "test_gantry"
+  }
+ ],
+ "models": {
+  "test_crane": {
+   "title": "Test crane",
+   "credit": "Test crane: generic test model made by Fresing Render's own tools",
+   "link": "https://github.com/smholte/CAD-render-animation",
+   "licence": ""
+  },
+  "test_mill": {
+   "title": "Test mill",
+   "credit": "Test mill: generic test model made by Fresing Render's own tools",
+   "link": "https://github.com/smholte/CAD-render-animation",
+   "licence": ""
+  },
+  "test_luffer": {
+   "title": "Test luffing crane",
+   "credit": "Test luffing crane: generic test model made by Fresing Render's own tools",
+   "link": "https://github.com/smholte/CAD-render-animation",
+   "licence": ""
+  },
+  "test_gantry": {
+   "title": "Test gantry",
+   "credit": "Test gantry: generic test model made by Fresing Render's own tools",
+   "link": "https://github.com/smholte/CAD-render-animation",
+   "licence": ""
+  },
+  "fresing_mill": {
+   "title": "Fresing mill",
+   "credit": "Milling video: a Fresing CNC mill, Fresing's own design, rendered with Fresing Render",
+   "link": "https://fresing.nl",
+   "licence": ""
+  }
+ }
+}

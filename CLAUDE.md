@@ -53,6 +53,9 @@ chat and gives the exact sentence to paste, with where, which model and which ef
   4 cores (the chats had 2), and GitHub is connected once instead of a push approval per chat.
   It is the same usage limit as the chats – the place saves nothing by itself.
   Tasks that already run in a chat finish there.
+- **Exception – tasks where the owner attaches his own project file** (big `.blend`, ~150 MB; 0037, 0048): a new
+  chat in the claude.ai project "STEP rendering App" (Cowork). The file comes in and goes back as an attachment
+  there; set-up "by hand" (section 4, bpy as a module). The task file says so in its header.
 - The owner sets model and effort before the first message (in Claude Code: send `/model opus`
   or `/model sonnet`, then `/effort high`, `/effort medium` or `/effort low`).
 
@@ -243,6 +246,11 @@ fresing_render/            the Blender extension (Python package)
   data/                    test models that ship with the extension (copies of tests/data, checked by a test)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
+site/                      the landing page https://smholte.github.io/CAD-render-animation/ (task 0047): index.html +
+                           style.css (Fresing palette A, IBM Plex Sans in fonts/), brand/ (Fresing logos), media/ (pictures,
+                           video, media.json: captions + credits), CREDITS.md; render_kit/ (the owner's Windows kit: "Make site
+                           pictures.bat" + make_site_pictures.py + models.ini). tools/build_site.py builds it into dist/site;
+                           .github/workflows/pages.yml publishes it (after each release, on site-only pushes to main, by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
@@ -318,9 +326,10 @@ run; runs on `main` always finish. Since task 0036 the tests run as parallel job
 `precheck`, picks the **mode** of the run (`ci_status.py` prints it):
 
 - **full** – every job below.
-- **docs** – the push changes only `docs/`, `CHANGELOG.md`, `CLAUDE.md`, `README.md`, `TASKS.md`, `tasks/` and at
-  most the version line of the two version files, compared with a commit whose run is green: only precheck,
-  build, tooltip check, guide build and their tests (`test_user_guide.py`, `test_updates.py`, `test_ci_tools.py`).
+- **docs** – the push changes only `docs/`, `site/`, `tools/build_site.py`, `tests/test_site.py`, `CHANGELOG.md`,
+  `CLAUDE.md`, `README.md`, `TASKS.md`, `tasks/` and at most the version line of the two version files, compared with
+  a commit whose run is green: only precheck, build, tooltip check, guide build and their tests (`test_user_guide.py`,
+  `test_updates.py`, `test_ci_tools.py`, `test_site.py`).
 - **reuse** – a push to `main` whose git tree already has a green run (the fast-forward of section 2): no tests;
   the release jobs take that run's installer files after `release_tools.py verify-run` checked it again.
 
@@ -338,6 +347,7 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
 | Delete the rehearsal pre-release | only after a `[release rehearsal]` branch push (docs/UPDATES.md) | < 1 min |
+| Landing page (GitHub Pages) | after "Offer the release": `.github/workflows/pages.yml` builds `site/` with `tools/build_site.py` (newest release, its What's new, the guide) and publishes it; the same workflow runs on a push to `main` that changes `site/` or `tools/build_site.py`, and by hand (Actions → Landing page → Run workflow) | ~1 min |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is

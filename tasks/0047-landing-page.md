@@ -107,10 +107,37 @@ installer or the release assets.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 8 Nov 2026 (one session).
 
 **What changed:**
+- `site/`: the page (`index.html`, `style.css`) in Fresing palette A (Green #479B29, Charcoal #252E36, Deep Charcoal
+  #1A2027), the refined logo set from the owner's brand files (`brand/`: full + compact, colour + reversed, symbol,
+  app icon as favicon; owner: logo yes, palette page no), IBM Plex Sans as woff2 (OFL, `fonts/`). No scripts, no
+  outside fonts/trackers/cookies. Top: owner's milling video (his own mill with air blast, 15 s of 20, 1080p,
+  4.2 MB, owner's choice to put it on top); 4 placeholder renders of test models; What it does (8 points); Install
+  in 3 steps; What's new; Made by Fresing ("Made by machine builders, for machine builders…", owner picked);
+  credits.
+- `tools/build_site.py`: builds `dist/site/` (version, date, download address, CHANGELOG section, guide in
+  `guide/index.html`) and checks it; `--take` and `--hero-video` compress and swap pictures/video (ImageMagick,
+  ffmpeg). `site/media/media.json` = captions + credits; `site/CREDITS.md` = the same + the planned models.
+- `site/render_kit/`: `Make site pictures.bat` + `make_site_pictures.py` + `models.ini` (+ `placeholders.ini`
+  for the web machine). Reviewed by a helper agent; its 7 findings fixed (old frames in a re-rendered video,
+  up_axis ignored, PC sleep, errors not in log.txt, stale zip after a crash, hidden extensions, .bat run from
+  inside the zip) plus models.ini in ANSI/UTF-16.
+- `.github/workflows/pages.yml` (after each release via a `pages` job in tests.yml, on site-only pushes to main,
+  by hand); precheck counts `site/`, `tools/build_site.py`, `tests/test_site.py` as docs (docs mode runs
+  test_site.py). CLAUDE.md sections 3 and 5.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web machine, 4 cores, no graphics card):
+- `tests/test_site.py` 13 tests (incl. the kit rendering the test gantry end to end, bpy module), test_ci_tools.
+- Kit on the test crane, `--small`: still + 48-frame turntable MP4 in 393 s (8.1 s/frame on the processor).
+  Placeholders (`--cpu`, 1600 × 900 Preview): 4 stills in 470 s (86–177 s each).
+- Page: 6.5 MB with the guide (page + media 4.7 MB); Playwright at 1366 px and iPhone 13 (390 px, no sideways
+  scroll), looked at.
 
 **Open points / follow-up tasks:**
+- Model list (Mekanika EVO, OpenArm, Thor, FarmBot) waits for the owner's OK; then his renders via the kit and
+  `build_site.py --take`. No crane/winch with an open licence and STEP was found.
+- GitHub Pages must be switched on by the owner (Settings → Pages → Source: GitHub Actions): the API path is
+  blocked for chats.
+- Draft release `landing-video-raw` (the owner's raw video) can be deleted by the owner.
