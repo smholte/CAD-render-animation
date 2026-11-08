@@ -1,6 +1,6 @@
 # 0047 – Landing page on GitHub Pages: Fresing look, pictures, download button, user guide
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0047-landing-page`
+**Who:** worker · **Status:** running – Claude Code on the web, 8 Nov · **Branch:** `task/0047-landing-page`
 **Started by:** lead chat, 8 Nov 2026 (changed after the owner's answers, 22:30) · **Lane:** Quality & delivery –
 new folder `site/` (page, brand files, picture kit), a new tool `tools/build_site.py`, a new Pages job in
 `.github/workflows/tests.yml` (and `tools/ci_precheck.py` only if the mode rules need `site/`), tests; no app code
