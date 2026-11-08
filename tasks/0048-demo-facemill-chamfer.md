@@ -1,6 +1,6 @@
 # 0048 – The owner's demo program with a face mill and a chamfer mill
 
-**Who:** worker · **Status:** open – can start · **Branch:** none (no code change)
+**Who:** worker · **Status:** running · **Branch:** none (no code change)
 **Started by:** lead chat, 8 Nov 2026 · **Lane:** none – touches no app code. Only this task file and `TASKS.md` are
 pushed at the end.
 **Model:** Opus · effort Medium · **Place:** a new chat in the claude.ai project "STEP rendering App" (like 0037: the

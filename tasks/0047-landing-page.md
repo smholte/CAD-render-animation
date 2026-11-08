@@ -1,6 +1,6 @@
 # 0047 – Landing page on GitHub Pages: Fresing look, pictures, download button, user guide
 
-**Who:** worker · **Status:** running – Claude Code on the web, 8 Nov · **Branch:** `task/0047-landing-page`
+**Who:** worker · **Status:** done 8 Nov (page live; the owner's renders follow) · **Branch:** `task/0047-landing-page`
 **Started by:** lead chat, 8 Nov 2026 (changed after the owner's answers, 22:30) · **Lane:** Quality & delivery –
 new folder `site/` (page, brand files, picture kit), a new tool `tools/build_site.py`, a new Pages job in
 `.github/workflows/tests.yml` (and `tools/ci_precheck.py` only if the mode rules need `site/`), tests; no app code
@@ -135,9 +135,20 @@ installer or the release assets.
 - Page: 6.5 MB with the guide (page + media 4.7 MB); Playwright at 1366 px and iPhone 13 (390 px, no sideways
   scroll), looked at.
 
+**Live:** https://smholte.github.io/CAD-render-animation/ – first published by the push of the merge to main (Pages
+run 42530450651, 0.3 min, built from release 0.2.36, 6.5 MB, 0 problems); by hand: workflow_dispatch run 42530514897
+(green). The after-release path (tests.yml job `pages` behind `release-latest`) runs for the first time at the next
+release. Branch runs: 42527974143 failed at once (a YAML error in pages.yml stopped both workflows: fixed, test added),
+42528079043 green, 42529313380 green after merging main (0.2.35/0.2.36 had come in). This machine cannot open
+github.io (proxy), so the live page was checked through the Pages run; the built page was looked at with Playwright.
+
+**Models (owner OK 8 Nov):** Mekanika EVO CNC (CERN-OHL-S-2.0), OpenArm (CERN-OHL-S-2.0), Thor arm (CC BY-SA 4.0),
+FarmBot Genesis (CC0, to be confirmed on genesis.farm.bot when downloading) + on the owner's request for a cylinder:
+the OSE CEB brick press (CC BY-SA 4.0), converted here from FreeCAD with the new `tools/fcstd_to_step.py` (246 parts)
+and shipped inside the kit zip (not committed). No openly licensed crane with CAD was found.
+
 **Open points / follow-up tasks:**
-- Model list (Mekanika EVO, OpenArm, Thor, FarmBot) waits for the owner's OK; then his renders via the kit and
-  `build_site.py --take`. No crane/winch with an open licence and STEP was found.
-- GitHub Pages must be switched on by the owner (Settings → Pages → Source: GitHub Actions): the API path is
-  blocked for chats.
-- Draft release `landing-video-raw` (the owner's raw video) can be deleted by the owner.
+- The owner renders with the kit (sent in the session, 3.9 MB with the CEB press) and sends the zip; a session runs
+  `tools/build_site.py --take <folder>` (his video stays at the top: `keep`), checks, pushes `site/` (docs mode +
+  Pages republish).
+- The owner can delete the draft release `landing-video-raw` (his raw video).
