@@ -975,7 +975,7 @@ than the stick-out) give a warning above the row – nothing is refused.
 - **×** goes back to the shape drawn from the sizes.
 
 Whatever it looks like, **the tool cuts with the sizes in the row**: check them after a STEP or a part was read
-(fluted end mills are read on their outer diameter since 0.2.35; before, one was read too small).
+(fluted end mills are read on their outer diameter since 0.2.36; before, one was read too small).
 
 **Shank, holder sizes, place** (fold): the shank diameter, the holder's nose diameter and length (from its nose
 to the spindle face), and where the tool is when the program starts (**Spindle**, a changer **Pocket**, the
@@ -1045,8 +1045,9 @@ Their settings appear under the choice:
   rack) is left out of the picture. When the camera is higher than the lamps, the roof is left out
   too.
 - **More** (the fold): **Floor lower by** lowers the floor a little; **Show in the view** hides the
-  surroundings while you work (renders always include them); **Put on the floor again** after the
-  machine changed (a new revision, parts removed in Clean-up). Parts you only hide do not move the
+  surroundings while you work (renders always include them); **Fit surroundings to the model** after the
+  machine changed (a new revision, parts removed in Clean-up). Importing another model leaves the surroundings
+  where they are; if it sticks out, a note offers the same button. Parts you only hide do not move the
   floor.
 
 ### Light

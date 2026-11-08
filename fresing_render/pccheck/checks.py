@@ -1012,7 +1012,7 @@ M30
 """
 
 
-@line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.35",
+@line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.36",
       what="The test mill runs a program with a tool change: a Ø50 face mill faces a strip 1 mm deep, then a Ø6 drill "
            "drills a hole 8 mm deep; both are read back from the milled block, and the time per frame")
 def milling_tools(ctx):

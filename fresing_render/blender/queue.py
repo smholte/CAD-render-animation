@@ -563,6 +563,17 @@ def _duration(seconds: float) -> str:
     return f"{seconds / 3600:.1f} h"
 
 
+def _no_frame_cache(enc) -> None:
+    """The encode reads every frame once: keep none of them in the sequencer cache (task 0043). A 4K frame
+    cost 33 MB of cache, up to the cache limit, inside the process that also holds the whole project."""
+    se = enc.sequence_editor
+    if se is None:
+        return
+    for name in ("use_cache_raw", "use_cache_preprocessed", "use_cache_composite", "use_cache_final"):
+        if hasattr(se, name):
+            setattr(se, name, False)
+
+
 def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int, white_under: bool = False,
                finishing=None, steps=None) -> str:
     """Put numbered PNG frames into an H.264 MP4 with Blender's own video encoder.
@@ -594,6 +605,7 @@ def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int
             finishing.label_dir = label_dir
         plan = video.build_sequence(enc, [os.path.join(frames_dir, f) for f in files], (width, height), fps,
                                     finishing, steps, white_under=white_under)
+        _no_frame_cache(enc)
         im = r.image_settings
         try:
             im.media_type = "VIDEO"
