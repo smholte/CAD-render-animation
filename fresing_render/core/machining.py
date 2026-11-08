@@ -251,10 +251,16 @@ def axis_from_points(points: np.ndarray) -> tuple:
     return c, vt[0] / np.linalg.norm(vt[0])
 
 
-def profile_from_points(points: np.ndarray, origin, d) -> tuple:
+MAX_LEVELS = 1500                 # heights at which the outline of a part is read (task 0040)
+
+
+def profile_from_points(points: np.ndarray, origin, d, tris=None) -> tuple:
     """(z, r) outline of the part about the axis, z from its lowest point along ``d``.
 
-    Returns (profile, z_min, z_max) - z measured from ``origin`` along ``d``."""
+    With ``tris`` (the mesh's triangles) the outline is the widest point of the part's *cross-section* at each
+    height - also between vertices. That matters for fluted tools: on a helix the vertices at one height are often
+    all in a flute, so the vertices alone gave a radius between the core and the outer diameter (0037: a fluted
+    Ø12 end mill read as Ø10.4). Returns (profile, z_min, z_max) - z measured from ``origin`` along ``d``."""
     d = np.asarray(d, float) / np.linalg.norm(d)
     q = points - np.asarray(origin, float)[None, :]
     z = q @ d
@@ -262,11 +268,68 @@ def profile_from_points(points: np.ndarray, origin, d) -> tuple:
     zmin, zmax = float(z.min()), float(z.max())
     zz = np.round(z - zmin, 7)
     order = np.argsort(zz, kind="stable")
-    zz, r = zz[order], r[order]
-    levels, starts = np.unique(zz, return_index=True)
-    rmax = np.maximum.reduceat(r, starts)
+    zs, rs = zz[order], r[order]
+    levels, starts = np.unique(zs, return_index=True)
+    rmax = np.maximum.reduceat(rs, starts)
+    if tris is not None and len(tris):
+        t = np.asarray(tris, dtype=np.int64).reshape(-1, 3)
+        # heights to read: where many vertices lie (flat faces, steps, rings: also just above and below them, so a
+        # step stays sharp), an even spread (a plain cylinder has vertices only at its ends) and the ends
+        counts = np.diff(np.append(starts, len(zs)))
+        busy = levels[counts >= 3]
+        if len(busy) > MAX_LEVELS // 3:
+            busy = np.sort(busy[np.argsort(-counts[counts >= 3], kind="stable")[:MAX_LEVELS // 3]])
+        top = float(levels[-1])
+        n_even = int(min(MAX_LEVELS // 3, max(2, top / (0.05 * MM))))
+        eps = 2e-6
+        lv = np.concatenate([busy, busy - eps, busy + eps, np.linspace(0.0, top, n_even), levels[:1], levels[-1:]])
+        if len(levels) <= MAX_LEVELS // 3:
+            lv = np.concatenate([lv, levels])
+        lv = np.unique(np.round(np.clip(lv, 0.0, top), 9))
+        keep = np.searchsorted(levels, lv)
+        hit = (keep < len(levels)) & (np.abs(levels[np.minimum(keep, len(levels) - 1)] - lv) < 1e-12)
+        base = np.zeros(len(lv))
+        base[hit] = rmax[keep[hit]]
+        levels, rmax = lv, np.maximum(base, _section_radius(q, d, zmin, t, lv))
     prof = list(zip(levels.tolist(), rmax.tolist()))
     return _simplify(prof, 0.005 * MM), zmin, zmax
+
+
+def _section_radius(q: np.ndarray, d: np.ndarray, zmin: float, tris: np.ndarray, levels: np.ndarray) -> np.ndarray:
+    """For each height: the largest distance from the axis of the points where the triangles' edges cross it.
+    (Along a straight edge the distance from the axis is largest at an end, so these points give the widest
+    point of the cross-section.)"""
+    e = np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]])
+    e = np.unique(np.sort(e, axis=1), axis=0)
+    z = q @ d - zmin
+    za, zb = z[e[:, 0]], z[e[:, 1]]
+    swap = za > zb
+    e[swap] = e[swap][:, ::-1]
+    za, zb = np.minimum(za, zb), np.maximum(za, zb)
+    keep = zb - za > 1e-9
+    e, za, zb = e[keep], za[keep], zb[keep]
+    out = np.zeros(len(levels))
+    i0 = np.searchsorted(levels, za, side="left")
+    i1 = np.searchsorted(levels, zb, side="right")
+    n = i1 - i0
+    perp = q - (q @ d)[:, None] * d[None, :]
+    CH = 400000
+    k = 0
+    while k < len(e):
+        # a chunk of edges whose level crossings fit in memory
+        cs = np.cumsum(n[k:])
+        j = k + max(1, int(np.searchsorted(cs, CH)))
+        sl = slice(k, j)
+        cnt = n[sl]
+        tot = int(cnt.sum())
+        if tot:
+            ei = np.repeat(np.arange(k, j), cnt)
+            li = np.repeat(i0[sl] - np.concatenate([[0], np.cumsum(cnt)[:-1]]), cnt) + np.arange(tot)
+            f = (levels[li] - za[ei]) / (zb[ei] - za[ei])
+            p = perp[e[ei, 0]] * (1 - f)[:, None] + perp[e[ei, 1]] * f[:, None]
+            np.maximum.at(out, li, np.linalg.norm(p, axis=1))
+        k = j
+    return out
 
 
 def _simplify(prof: list, tol: float) -> list:
@@ -310,6 +373,12 @@ def classify(profile: list) -> Tool:
     while i + 1 < len(Rr) and Rr[i + 1] > Rr[i] + 1e-7 + 1e-5 * Rr.max():
         i += 1
     R, zR = float(Rr[i]), float(Z[i])
+    # a little higher up the outline may still widen a few percent (a corner chamfer, a land of a fluted
+    # cutter): the cutter's radius is the widest point close above (task 0040)
+    win = (Z > zR) & (Z <= zR + max(0.5 * R, 0.5 * MM)) & (Rr <= 1.06 * R + 0.02 * MM)
+    if np.any(win) and float(Rr[win].max()) > R:
+        R = float(Rr[win].max())
+        zR = float(Z[np.argmax(Rr >= R - max(0.002 * R, 0.002 * MM))])
     if R <= 1e-6:
         return Tool("CUSTOM", radius=float(Rr.max()), length=L, profile=tuple(prof))
     r0 = float(Rr[0])
@@ -320,6 +389,10 @@ def classify(profile: list) -> Tool:
 
     cust = Tool("CUSTOM", radius=R, length=L, profile=tuple(prof))
     if zR <= max(0.01 * R, 0.005 * MM) and abs(r0 - R) <= tol_r:
+        return Tool("FLAT", radius=R, length=L)
+    # a flat bottom with a small chamfer or edge break on the corner (not a corner radius): a flat end mill
+    if r0 >= 0.85 * R and zR <= max(0.08 * R, 0.05 * MM) and \
+            abs(r_at(zR / 2) - (r0 + R) / 2) <= 0.25 * (R - r0) + 0.002 * MM:
         return Tool("FLAT", radius=R, length=L)
     if r0 <= tol_r:
         # ball: r(z) = sqrt(2 R z - z^2) up to z = R

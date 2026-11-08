@@ -885,7 +885,7 @@ blast; showing a frame in the view 14 ms without and 12 ms with air; one rendere
 
 ### CNC machine (G-code)
 
-<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, tools">
+<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">
 <img class="panel" src="img/panel_4_air.png" alt="CNC machine with the Air blast fold open: air codes, through the spindle, strength, cone, reach">
 
 Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
@@ -920,14 +920,77 @@ next to its field (**Reverse**).
 - **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
   you moved the joints to the machine's home position (usually Z right up).
 
-**Tools for tool changes** (fold, only for programs with M6)
+### Tools
+
+<img class="panel" src="img/panel_4_tools.png" alt="Tools: the tool list with T1 and T2, the selected tool's type, sizes and shape">
+
+One **tool list** per project (4 Motion > CNC machine > **Tools**). Every tool of a program has a row: its
+**T** number, a type and its sizes. Each tool **looks like the real one and cuts with its own shape** – also
+after a tool change (M6): while T3 is in the spindle, the workpiece is cut with T3's sizes. (Cutting needs
+4 Motion > Milling with the tool in the spindle as its bit and the block as workpiece.)
+
+<img src="img/tools.jpg" alt="The eight tool types drawn from their sizes: flat end mill in an ER collet, ball, bull-nose, spot drill, drill, face mill in an SK40 holder, thread mill, T-slot cutter">
+
+**Fill the list**
 
 - **Tools from the program** adds a row for every tool the program uses, with the sizes from the tool
-  comments Fusion writes at the top of the program (`(T2 D=4. CR=2. - ball end mill)`), or from LinuxCNC's
-  tool table (**Tool table**: `tool.tbl`).
-- A row with a part (**Use clicked part**: for example the tool standing in the carousel) shows a copy of
-  that part in the spindle while it is loaded, and the part itself disappears from the carousel. A row
-  without a part shows a simple tool drawn from its **Shape**, **Diameter** and **Length**.
+  comments Fusion writes at the top of the program (`(T2 D=8. CR=0. - flat end mill)`) or from the tool
+  table.
+- **Read a tool file**: a **Fusion tool library** (`.json`, or `.tools` as Fusion exports it – vendor
+  libraries too) or a **LinuxCNC tool table** (`tool.tbl`). New T numbers are added; a tool already in the
+  list gets the file's sizes. Fields the app does not know are skipped; a type it does not have (a lollipop
+  mill, a reamer, a tap) is read as the nearest type, with a note in the row (the **i** at its end).
+- **+** adds a tool of the type you pick, with sizes a common tool of that type has, so it works at once;
+  **−** removes it, the two buttons below copy it and sort the list by T.
+
+**Types and their sizes**
+
+| Type | Sizes |
+| --- | --- |
+| Flat end mill | Diameter, flute length, flutes |
+| Ball end mill | Diameter, flute length, flutes |
+| Bull-nose end mill | Diameter, corner radius, flute length, flutes |
+| Spot drill / chamfer mill | Diameter, tip angle (90°) |
+| Drill | Diameter, point angle (118°), flute length |
+| Face mill | Diameter (at its tip), inserts, insert size, lead angle (90° square shoulder, 45°) |
+| Thread mill | Diameter, pitch, flute length |
+| Slot / T-slot cutter | Diameter, cutting width, neck diameter |
+
+**Flute length** is how far up the tool cuts; a size left at 0 is what the type usually has. **Stick-out** is
+how far the tool comes out of its holder. With **Tool lengths move the spindle** ticked (as a tool length
+offset G43 does), a tool that sticks out further than the one in the spindle moves the spindle up by the
+difference, so every tool's tip is where the program says; the spindle adjusts right after the swap. **Holder**
+draws a simple **ER collet**, **SK40**, **BT40** or **HSK63** holder above the tool; leave it at **None** when your
+model's spindle has its own. The line under the sizes says what the row is, for example "Flat end mill Ø8 mm –
+sizes from the program comment". Sizes that look wrong (a tool wider than 250 mm, longer than 300 mm, flutes longer
+than the stick-out) give a warning above the row – nothing is refused.
+
+**What it looks like**
+
+- **Drawn from the sizes** (no part, no STEP): flutes along a helix, inserts round a face mill, teeth on a
+  thread mill or slot cutter, and the holder if one is picked.
+- **Import STEP of the tool**: a manufacturer's STEP model of the tool, or the tool in its holder (from the
+  maker's website). The app reads it like any STEP file, finds its axis and its tip (the end on the file's
+  origin, else the narrower end), and reads its sizes into the row as a first guess: the **outer diameter over
+  the flutes**, the stick-out up to where the holder starts. **Tip at the other end** turns it round.
+- **Use clicked part**: a part of your model (for example a tool standing in the carousel). At the tool change
+  it disappears from there and shows in the spindle. Its sizes are read from the part too.
+- **×** goes back to the shape drawn from the sizes.
+
+Whatever it looks like, **the tool cuts with the sizes in the row**: check them after a STEP or a part was read
+(fluted end mills are read on their outer diameter since 0.2.36; before, one was read too small).
+
+**Shank, holder sizes, place** (fold): the shank diameter, the holder's nose diameter and length (from its nose
+to the spindle face), and where the tool is when the program starts (**Spindle**, a changer **Pocket**, the
+**Bench**) – used by the tool changer.
+
+**A tool the program uses is not in the list**: the program step in 6 Animation says "T7 (line 42) is not in
+the tool list". Pick a type next to **Add T7 as** and press it: the row gets the program's sizes when the
+program has a tool comment for T7. Until then T7 is drawn from the program's sizes (or as a Ø6 mm flat end mill)
+and Build warns.
+
+The chips (4 Motion > Milling > Chips) follow each tool's type: a face mill throws flat commas, a drill makes
+spirals; a thread mill and a slot cutter make chips like an end mill.
 
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
@@ -985,8 +1048,9 @@ Their settings appear under the choice:
   rack) is left out of the picture. When the camera is higher than the lamps, the roof is left out
   too.
 - **More** (the fold): **Floor lower by** lowers the floor a little; **Show in the view** hides the
-  surroundings while you work (renders always include them); **Put on the floor again** after the
-  machine changed (a new revision, parts removed in Clean-up). Parts you only hide do not move the
+  surroundings while you work (renders always include them); **Fit surroundings to the model** after the
+  machine changed (a new revision, parts removed in Clean-up). Importing another model leaves the surroundings
+  where they are; if it sticks out, a note offers the same button. Parts you only hide do not move the
   floor.
 
 ### Light
@@ -1114,9 +1178,9 @@ It works for stills and for MP4 videos (not for PNG frames).
 ### Labels
 
 A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
+25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
 
 <img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
-25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
 
 1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
 2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.

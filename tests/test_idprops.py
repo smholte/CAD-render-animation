@@ -117,3 +117,14 @@ def test_queue_makes_the_mp4_after_the_count_changed(addon, tmp_path):
     mp4 = job.output + ".mp4" if not job.output.endswith(".mp4") else job.output
     assert os.path.isfile(mp4) and os.path.getsize(mp4) > 1000, (job.output, os.listdir(tmp_path), log)
     assert first > 0
+
+
+def test_mp4_encode_scene_keeps_no_frame_cache():
+    """Task 0043: the throw-away encode scene must not cache every 4K frame."""
+    from fresing_render.blender import queue
+    sc = bpy.data.scenes.new("t")
+    sc.sequence_editor_create()
+    queue._no_frame_cache(sc)
+    se = sc.sequence_editor
+    assert not se.use_cache_raw and not se.use_cache_final
+    bpy.data.scenes.remove(sc)

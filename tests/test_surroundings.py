@@ -288,6 +288,33 @@ def test_floor_gap_and_put_on_floor_again(scene):
     assert abs(surroundings.root_object().location.z - (mn[2] + 2.0)) < 1e-4
 
 
+def test_second_import_leaves_the_hall_in_place(scene):
+    """Task 0043: a later import keeps the surroundings; Fit surroundings to the model lays them again."""
+    s = scene.fresing
+    s.background = "CNC_HALL" if "CNC_HALL" in S.KIND else "WAREHOUSE"
+    root = surroundings.root_object()
+    before = (tuple(root.location), tuple(root["fr_min"]), tuple(root["fr_max"]),
+              {ob.name: tuple(ob.dimensions) for ob in _env_objects(scene)})
+    assert not surroundings.misfit(scene)
+    assert bpy.ops.fresing.import_step(filepath=STEP, quality="draft") == {"FINISHED"}
+    assert len(build.model_roots(scene)) == 2
+    surroundings.ensure(scene, s)
+    root = surroundings.root_object()
+    assert max(abs(a - b) for a, b in zip(root.location, before[0])) < 1e-4
+    assert max(abs(a - b) for a, b in zip(root["fr_min"], before[1])) < 1e-4
+    assert {ob.name: tuple(ob.dimensions) for ob in _env_objects(scene)} == before[3]
+    # the new model sticks far out of the floor area: note shown, button fits again
+    new_root = [r for r in build.model_roots(scene) if r.get("fr_stats") is not None][-1]
+    new_root.location.x += 50.0
+    bpy.context.view_layer.update()
+    root["fr_models"] = "[]"
+    surroundings._note_misfit(scene, root, surroundings.json.dumps(surroundings._models_key(scene)))
+    assert surroundings.misfit(scene)
+    assert bpy.ops.fresing.env_place() == {"FINISHED"}
+    assert not surroundings.misfit(scene)
+    assert surroundings.root_object()["fr_max"][0] > before[2][0] + 10
+
+
 def test_floor_stays_when_parts_are_hidden(scene):
     """A saved scene that hides the machine's base must not lift the floor: the machine stands where it
     stands. Parts removed in clean-up (excluded) do not count."""

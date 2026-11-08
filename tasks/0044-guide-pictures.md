@@ -38,8 +38,8 @@ Text rewrites beyond a caption per picture; app code; the way-cover code changes
 
 **Chat / date:** Claude Code on the web, 8 Nov 2026
 
-**What changed:** 8 pictures in `docs/img/` (panel_4_waycover, view_waycover, panel_4_air, panel_6_gcode_air, panel_5_labels, panel_6_cards, panel_6_music) placed in their chapters; new runs `GUIDE_SHOTS=waycover|air|labels` in `tools/guide_screens.py`. The way-cover picture is a view of the covers opened 500 mm (not a Cycles render); no label render (not cheap).
+**What changed:** 7 pictures in `docs/img/` (panel_4_waycover, view_waycover, panel_4_air, panel_6_gcode_air, panel_5_labels, panel_6_cards, panel_6_music) placed in their chapters (Labels picture after its paragraph; plain file names in the picture/music/G-code fields; way-cover view without overlays); new runs `GUIDE_SHOTS=waycover|air|labels` in `tools/guide_screens.py`. The way-cover picture is a view of the covers opened 500 mm (not a Cycles render); no label render (not cheap).
 
-**Tested and measured:** everything ran locally in the web session (stored set-up present: proof for 0031); the three runs took about 25 s each; build_guide and test_user_guide pass. 1 run expected.
+**Tested and measured:** everything ran locally in the web session (stored set-up present: proof for 0031); the three runs took about 25 s each; build_guide and test_user_guide pass. merged with main (0040), version 0.2.37.
 
 **Open points / follow-up tasks:**

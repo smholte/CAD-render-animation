@@ -793,6 +793,7 @@ elif MODE in ("waycover", "air", "labels"):
         _grab("panel_4_waycover", [("FRESING_PT_waycover", False, True)])
 
         def _view():
+            areas()[1].spaces.active.overlay.show_overlays = False       # like the app's own view: no grid, axes, cursor
             _frame_model()
             wiggle(5)
             return 2.0
@@ -828,7 +829,8 @@ elif MODE in ("waycover", "air", "labels"):
 
         def _gcode_step():
             sc = bpy.context.scene
-            path = os.path.join(SCRATCH, "guide_air.ngc")
+            os.chdir(SCRATCH)                    # plain file names in the picture
+            path = "pocket.ngc"
             with open(path, "w") as fh:
                 fh.write("%\nG21 G90 G54\nS9000 M3 M7\nG0 X20 Y20 Z5\nG1 Z-2 F600\nG1 X120 F1500\nM9\nM30\n%\n")
             with override():
@@ -849,9 +851,10 @@ elif MODE in ("waycover", "air", "labels"):
                 bpy.ops.fresing.callout_add(part=_named("TROLLEY").name, text="Trolley")
                 bpy.ops.fresing.anim_add()
             a = s.animations[s.animations_index]
-            logo = os.path.join(SCRATCH, "guide_card.png")
+            os.chdir(SCRATCH)                    # plain file names in the pictures
+            logo = "logo.png"
             subprocess.run(["convert", "-size", "160x80", "xc:#2c7fb8", logo], check=True)
-            wav = os.path.join(SCRATCH, "guide_music.wav")
+            wav = "music.wav"
             import wave
             with wave.open(wav, "wb") as w:
                 w.setnchannels(1)
