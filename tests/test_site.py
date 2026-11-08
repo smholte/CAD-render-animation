@@ -158,3 +158,20 @@ def test_kit_renders_a_test_model(tmp_path):
     assert (out / "send" / "gantry_iso.jpg").stat().st_size > 1000
     assert (out / "full" / "gantry.blend").exists()
     assert (out / "contact_sheet.html").exists() and (out / "Fresing site pictures.zip").exists()
+
+
+def test_pages_workflow():
+    """The Pages workflow: after a release (called from tests.yml), on site pushes to main, by hand; a one-line
+    `run:` holding ': ' is a YAML error that silently stopped every run (found on the first push of task 0047)."""
+    wf = open(os.path.join(ROOT, ".github", "workflows", "pages.yml"), encoding="utf-8").read()
+    for key in ("workflow_dispatch:", "workflow_call:", "branches: [main]", '"site/**"', "pages: write",
+                "id-token: write", "actions/upload-pages-artifact@", "actions/deploy-pages@", "tools/build_site.py"):
+        assert key in wf, key
+    for line in wf.splitlines():
+        m = re.match(r"^\s*(?:- )?run: (.*)$", line)
+        if m and m.group(1) not in ("|", ">-"):
+            assert ": " not in m.group(1), line
+    tests = open(os.path.join(ROOT, ".github", "workflows", "tests.yml"), encoding="utf-8").read()
+    job = tests[tests.index("\n  pages:"):]
+    assert "needs: [release-latest]" in job and "needs.release-latest.result == 'success'" in job
+    assert "!cancelled()" in job and "uses: ./.github/workflows/pages.yml" in job

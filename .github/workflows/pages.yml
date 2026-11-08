@@ -56,4 +56,6 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: Address
-        run: echo "### Landing page: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: echo "### Landing page - $PAGE_URL" >> "$GITHUB_STEP_SUMMARY"
