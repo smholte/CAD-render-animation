@@ -175,3 +175,32 @@ def test_pages_workflow():
     job = tests[tests.index("\n  pages:"):]
     assert "needs: [release-latest]" in job and "needs.release-latest.result == 'success'" in job
     assert "!cancelled()" in job and "uses: ./.github/workflows/pages.yml" in job
+
+
+def test_fcstd_to_step(tmp_path):
+    """tools/fcstd_to_step.py: shapes stored in a FreeCAD file become named, placed parts of a STEP assembly."""
+    pytest.importorskip("OCP")
+    import zipfile
+
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+    from OCP.BRepTools import BRepTools
+    from OCP.gp import gp_Trsf, gp_Vec
+    from OCP.TopLoc import TopLoc_Location
+
+    import fcstd_to_step
+    box = BRepPrimAPI_MakeBox(10.0, 20.0, 30.0).Shape()
+    t = gp_Trsf()
+    t.SetTranslation(gp_Vec(100.0, 0.0, 0.0))
+    BRepTools.Write_s(box.Located(TopLoc_Location(t)), str(tmp_path / "PartShape.brp"))
+    xml = ('<Document><ObjectData><Object name="Frame_SubAssembly_01"><Properties>'
+           '<Property name="Shape" type="Part::PropertyPartShape">\n  <Part file="PartShape.brp"/>'
+           '</Property></Properties></Object></ObjectData></Document>')
+    src = tmp_path / "a.fcstd"
+    with zipfile.ZipFile(src, "w") as z:
+        z.writestr("Document.xml", xml)
+        z.write(tmp_path / "PartShape.brp", "PartShape.brp")
+    out = tmp_path / "a.step"
+    assert fcstd_to_step.convert(str(src), str(out)) == 1
+    text = out.read_text(errors="replace")
+    assert "FRAME PART 1" in text and "Frame SubAssembly" in text
+    assert "100." in text                       # placed where it was

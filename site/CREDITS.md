@@ -16,7 +16,10 @@ Render. The models themselves are **not** in this repository – only the pictur
 
 ## Models planned for the owner's renders (site/render_kit/models.ini)
 
-Licences checked on 8 Nov 2026 on the project pages; the owner approves the list before they are used.
+Licences checked on 8 Nov 2026 on the project pages. The owner approved EVO, OpenArm, Thor and FarmBot (8 Nov) and
+asked for a model with a cylinder or a crane: the CEB press is the only openly licensed one found with CAD (no crane
+with an open licence and CAD was found; rejected: MathWorks backhoe – MathWorks-only licence, HydraulicExcavatorCad –
+CAD not licensed, Open-MiRoREA – non-commercial).
 
 | Model | Maker | Licence | Where | Credit line |
 | --- | --- | --- | --- | --- |
@@ -24,6 +27,7 @@ Licences checked on 8 Nov 2026 on the project pages; the owner approves the list
 | OpenArm robot arm | Enactic, Inc. | CERN-OHL-S-2.0 (`LICENSE.txt`) | https://github.com/enactic/openarm_hardware | OpenArm by Enactic, Inc., CERN-OHL-S-2.0 |
 | Thor robot arm | Ángel L. M. (AngelLM) | CC BY-SA 4.0 | https://github.com/AngelLM/Thor | Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0 |
 | FarmBot Genesis | FarmBot Inc. | CC0 1.0 (to be confirmed on genesis.farm.bot) | https://genesis.farm.bot/ | FarmBot Genesis by FarmBot Inc., CC0 1.0 |
+| CEB brick press (hydraulic cylinders) | Open Source Ecology | CC BY-SA 4.0 (`LICENSE.md`) | https://github.com/goscommons/CEB-Press – FreeCAD, converted to STEP in this session (246 parts) | CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) |
 
 Not used: anything from GrabCAD (its terms do not allow it), MPCNC / LowRider (non-commercial licence), PrintNC
 (CAD moved off the licensed repository), and models whose licence could not be confirmed.
