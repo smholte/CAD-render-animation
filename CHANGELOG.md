@@ -5,6 +5,10 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.37 – 8 Nov 2026 – user guide: new pictures (task 0044)
+
+- User guide: pictures for Way covers, Air blast, Labels, Pictures and Music.
+
 ## 0.2.36 – 8 Nov 2026 – tool library: every tool cuts with its own shape (task 0040)
 
 CNC machine and milling

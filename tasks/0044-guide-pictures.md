@@ -1,6 +1,6 @@
 # 0044 – Missing user-guide pictures
 
-**Who:** worker · **Status:** open – after 0031 round 2 confirms Blender at start · **Branch:** `task/0044-guide-pictures`
+**Who:** worker · **Status:** done · **Branch:** `task/0044-guide-pictures`
 **Started by:** lead chat, 8 Nov 2026 (taken out of 0035 so it need not wait for the way-cover work) · **Lane:** Docs –
 `docs/img/`, `docs/USER-GUIDE.md` (only the chapters named below), `tools/guide_screens.py` (new shots only)
 **Model:** Sonnet · effort Low · **Environment:** "CAD-render-animation" (real Blender at start, CLAUDE.md section 4)
@@ -52,10 +52,10 @@ The work is on branch `claude/lucid-faraday-9q61sq` (one commit, not merged). Be
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 8 Nov 2026
 
-**What changed:**
+**What changed:** 7 pictures in `docs/img/` (panel_4_waycover, view_waycover, panel_4_air, panel_6_gcode_air, panel_5_labels, panel_6_cards, panel_6_music) placed in their chapters (Labels picture after its paragraph; plain file names in the picture/music/G-code fields; way-cover view without overlays); new runs `GUIDE_SHOTS=waycover|air|labels` in `tools/guide_screens.py`. The way-cover picture is a view of the covers opened 500 mm (not a Cycles render); no label render (not cheap).
 
-**Tested and measured:**
+**Tested and measured:** everything ran locally in the web session (stored set-up present: proof for 0031); the three runs took about 25 s each; build_guide and test_user_guide pass. merged with main (0040), version 0.2.37.
 
 **Open points / follow-up tasks:**

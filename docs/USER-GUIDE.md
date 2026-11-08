@@ -696,6 +696,8 @@ and coolant stay off the guide ways. Here the sections follow the axis by themse
 every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
 and closes the covers.
 
+<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: axis, five sections, travel 500 mm"> <img class="wide" src="img/view_waycover.png" alt="The test machine with its way covers opened by 500 mm">
+
 **Set it up**
 
 1. In 4 Motion > **Way covers**, step **1 Axis**: pick the **slide joint** the covers follow (the machine axis,
@@ -884,6 +886,7 @@ blast; showing a frame in the view 14 ms without and 12 ms with air; one rendere
 ### CNC machine (G-code)
 
 <img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">
+<img class="panel" src="img/panel_4_air.png" alt="CNC machine with the Air blast fold open: air codes, through the spindle, strength, cone, reach">
 
 Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
 spindle), which part is the tool and where the program's zero is on the workpiece. Then a step **Run
@@ -1177,6 +1180,8 @@ It works for stills and for MP4 videos (not for PNG frames).
 A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
 25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
 
+<img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
+
 1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
 2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
 3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
@@ -1275,6 +1280,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 
 <img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 20.8 s on the machine, one tool change">
 
+<img class="panel" src="img/panel_6_gcode_air.png" alt="A Run G-code program step with Blow the part clean at the end ticked">
+
 1. Set the machine up in 4 Motion > **CNC machine** (above).
 2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
    says how many lines and moves it has and how long it takes on the machine. A copy is kept in the
@@ -1345,6 +1352,8 @@ The last line shows how long the finished video is: the cards come on top of the
 length.
 
 **Pictures and music**
+
+<img class="panel" src="img/panel_6_cards.png" alt="Pictures fold: one picture in the bottom left corner with a caption"> <img class="panel" src="img/panel_6_music.png" alt="Music fold: sound file, start, volume, fades">
 
 The **Pictures** fold shows a photo or a diagram for a few seconds over the video; the **Music** fold puts
 a music file under it. Both only go into MP4 videos.
