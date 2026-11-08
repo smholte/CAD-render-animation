@@ -89,9 +89,9 @@ module, 2-core cloud machine. Project file (152 MB) and program came in and went
   body, inserts, screws, carbide).
 - Lengths in the rows = tip to the BT30 gauge line for all three (85.1 / 98.0 / 90.0 mm), so the G43 differences are right
   (−12.9 and −8.0 mm against T2). "Tool lengths move the spindle" on.
-- Program: 251 lines, T1 M6 G43 H1 (S6000, F3000, 3 passes, step-over 35 mm = 71 %), T2 as in 0037 (S18000), T3 M6
-  G43 H3 (S12000, F1200, tip Z−2.0 at 0.5 mm from each top edge = 1 × 45°, arc lead-in/out); M5 + M9 before each M6,
-  M7 after; change at safe Z. 229 s on the machine (0037: ~204 s).
+- Program: 245 lines, T1 M6 G43 H1 (S6000, F3000, 3 passes, step-over 35 mm = 71 %), T2 as in 0037 (S18000), T3 M6
+  G43 H3 (S12000, F1200, tip Z−2.0 at 0.5 mm from each top edge = 1 × 45°, arc lead-in/out); M5 before each M6; no M7/M9 (owner, 9 Nov: air only
+  from "Blow the part clean at the end", frames 538–613); change at safe Z. 229 s on the machine (0037: ~204 s).
 - Step: kept the owner's own settings (Fit, rapids ×2, blow clean 3 s), Fit raised 15 → 21 s for the three 2 s tool
   changes; 626 frames. Build 9.7 s, `machining.sample` 11.5 s.
 
