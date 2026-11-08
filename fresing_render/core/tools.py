@@ -234,10 +234,11 @@ def checks(spec: Spec, travel=None) -> list:
     if s.kind == "SLOT" and s.neck >= s.diameter:
         out.append(f"T{s.number}: the neck is not narrower than the cutter")
     if travel is not None:
-        tx = [float(t) for t in travel if t and t > 0]
-        if tx and s.diameter > 0.5 * min(tx[:2] or tx):
+        tr = list(travel) + [None] * (3 - len(travel))
+        xy = [float(t) for t in tr[:2] if t and t > 0]
+        if xy and s.diameter > 0.5 * min(xy):
             out.append(f"T{s.number}: Ø{_mm(s.diameter)} mm is more than half the machine's travel")
-        if len(tx) >= 3 and s.stick_out > tx[2]:
+        if tr[2] and tr[2] > 0 and s.stick_out > tr[2]:
             out.append(f"T{s.number}: it sticks out further than the machine's Z travel")
     return out
 

@@ -377,3 +377,13 @@ def test_type_change_gives_that_types_sizes(scene):
     assert abs(math.degrees(r.angle) - 90) < 1e-4
     r.kind = "FACE"
     assert abs(math.degrees(r.lead_angle) - 45) < 1e-4
+
+
+def test_a_tool_too_big_for_the_machine_warns(scene):
+    set_up_cnc(scene)
+    z = scene.fresing.joints["Z"]
+    z.use_limits, z.slide_min, z.slide_max = True, -0.1, 0.0           # 100 mm of Z travel
+    row(scene, 1, "FLAT", length=150 * MM)
+    w = tools.checks(scene)
+    assert any("further than the machine's Z travel" in x for x in w), w
+    assert len(scene.fresing.cnc.tools) == 1                          # a warning, nothing refused

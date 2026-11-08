@@ -274,12 +274,27 @@ def checks(scene) -> list:
     """Warnings about the list: sizes that look wrong, two rows with one T number."""
     out = []
     seen = set()
+    travel = machine_travel(scene)
     for row in settings(scene).tools:
         if row.number in seen:
             out.append(f"T{row.number} is in the list twice: the first row is used")
         seen.add(row.number)
-        out += core.checks(spec_of(row))
+        out += core.checks(spec_of(row), travel)
     return out
+
+
+def machine_travel(scene):
+    """(X, Y, Z) travel in metres from the axis joints' limits, None for an axis without limits."""
+    c = settings(scene)
+    js = scene.fresing.joints
+    out = []
+    for name in (c.x_joint, c.y_joint, c.z_joint):
+        j = js.get(name) if name else None
+        if j is None or not getattr(j, "use_limits", False) or j.kind != "SLIDE":
+            out.append(None)
+            continue
+        out.append(abs(float(j.slide_max) - float(j.slide_min)))
+    return out if any(out) else None
 
 
 # ---------------------------------------------------------------------------
