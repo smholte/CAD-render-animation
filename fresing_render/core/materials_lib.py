@@ -151,6 +151,15 @@ MATERIALS: dict[str, dict] = {
     "chrome_rod": dict(label="Hydraulic chrome rod", category="Metal", base_color=(0.95, 0.95, 0.96), metallic=1.0,
                        roughness=0.045, anisotropic=0.3,
                        marks=dict(kind="ground", scale=9000.0, along=10.0, rough=0.02, bump=0.0)),
+
+    # ---- task 0051: raw stock for milling (the block's outside; cut faces get a fresh-cut look) -------------
+    # rolled plate cut to size: duller than machined, faint rolling lines along the plate's longest side
+    "aluminium_sawn": dict(label="Aluminium, sawn plate", category="Metal", base_color=(0.80, 0.81, 0.82),
+                           metallic=1.0, roughness=0.42, anisotropic=0.25,
+                           variation=dict(scale=30.0, roughness_min=0.38, roughness_max=0.47, color_amount=0.05),
+                           marks=dict(kind="brushed", scale=1800.0, along=3.0, rough=0.04, bump=0.004)),
+    "pom_black": dict(label="POM, black", category="Plastic & rubber", base_color=(0.03, 0.03, 0.032),
+                      roughness=0.36, specular=0.5),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -202,6 +211,8 @@ UIDS: dict[str, int] = {
     "steel_turned": 44,
     "cast_iron_painted": 45,
     "chrome_rod": 46,
+    "aluminium_sawn": 47,
+    "pom_black": 48,
 }
 
 DEFAULT_COLOR = "RAL 7035"

@@ -511,7 +511,10 @@ class Workpiece:
 
     def __init__(self, stock, finished=None, detail_name: str = "NORMAL"):
         self.stock = stock
-        self.stock_id = stock.original_id()
+        # the id Manifold gave the stock's triangles: kept through every cut, so uncut faces keep their CAD face
+        # (``original_id()`` is -1 for a solid made from a mesh – every face then counted as cut, task 0051)
+        runs = np.asarray(stock.to_mesh().run_original_id)
+        self.stock_id = int(runs[0]) if len(runs) == 1 else stock.original_id()
         self.tile_max = detail(detail_name)["tile"]
         b = stock.bounding_box()
         pad = 1e-4
@@ -789,3 +792,47 @@ class Timeline:
 
 def volume(tiles) -> float:
     return float(sum(t.solid.volume() for t in tiles if t.ntri))
+
+
+# ---------------------------------------------------------------------------
+# the look of cut faces (task 0051)
+# ---------------------------------------------------------------------------
+
+#: face-milling marks on fresh cuts (the same kind as *Steel, machined*)
+_MILLED = dict(kind="milled", scale=1500.0, rough=0.04, bump=0.008)
+
+_CUT_ALU = ("aluminium_machined", "aluminium_anodized", "aluminium_anodized_color", "aluminium_anodized_black",
+            "aluminium_profile", "aluminium_sawn")
+_CUT_STEEL = ("steel_raw", "steel_machined", "steel_ground", "steel_turned", "zinc_plated", "zinc_yellow",
+              "zinc_flake", "galvanized", "black_oxide", "chrome", "chrome_rod")
+_CUT_BRIGHT = ("brass", "bronze", "copper", "zinc_diecast")
+_CUT_PLASTIC = ("pom_white", "pom_black", "plastic_gloss", "plastic_matte")
+
+
+def cut_look(block_id: str) -> tuple | None:
+    """What a face the cutter made looks like, from the block's material id (3 Looks).
+
+    Returns ``(material id, tweaks, label)`` – the tweaks change that material's settings
+    (``materials_lib``) – or None when the cut looks like the block itself (paint, glass, anything else)."""
+    from . import materials_lib as ml
+    if block_id in _CUT_ALU:
+        return "aluminium_machined", {}, "Aluminium, machined"
+    if block_id in _CUT_STEEL:
+        return "steel_machined", {}, "Steel, machined"
+    if block_id in ("stainless_brushed", "stainless_polished"):
+        return ("stainless_brushed", dict(anisotropic=0.0, roughness=0.22, marks=dict(_MILLED)),
+                "Stainless, machined")
+    if block_id in ("cast_iron", "cast_iron_painted"):      # bare grey iron, a little dull
+        return ("steel_machined", dict(base_color=(0.47, 0.47, 0.48), metallic=0.9, roughness=0.34,
+                                       marks=dict(_MILLED, rough=0.06)), "Cast iron, machined")
+    if block_id == "nickel_plated":                         # plated brass fittings: brass underneath
+        block_id = "brass"
+    if block_id in _CUT_BRIGHT:
+        spec = ml.MATERIALS[block_id]
+        return (block_id, dict(roughness=max(0.1, float(spec.get("roughness", 0.25)) - 0.1), marks=dict(_MILLED)),
+                f"{spec['label']}, machined")
+    if block_id in _CUT_PLASTIC:                            # the same plastic, a little more matte, no gloss
+        spec = ml.MATERIALS[block_id]
+        return (block_id, dict(roughness=min(1.0, float(spec.get("roughness", 0.4)) + 0.12), bump=None, peel=None,
+                               coat=0.0), f"{spec['label']} (cut)")
+    return None

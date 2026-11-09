@@ -588,3 +588,32 @@ def test_old_joint_drivers_are_upgraded(scene):
     assert joints.upgrade_drivers(scene) == 1 and joints.driver_biased(j)
     bpy.context.view_layer.update()
     assert j.motion.location.z == pytest.approx(0.05 * MM, abs=2e-7)        # float32 driver: 0.0002 mm
+
+
+def test_step_summaries_follow_their_own_program(scene, tmp_path):
+    """Bug hunt 0045 row 16: summaries were kept by the step's memory address; after removing step 1 the other
+    step showed step 1's lines. Now they are kept by program + settings, and dropped when a file is opened."""
+    set_up(scene)
+    short = program(tmp_path, "G90 G21\nG0 X0 Y0 Z5\nG1 Z-1 F300\nG1 X10\nM30\n", "short.ngc")
+    long_text = "G90 G21\nG0 X0 Y0 Z5\nG1 Z-1 F300\n" + "".join(f"G1 X{i % 20} Y{i // 20}\n" for i in range(199)) \
+        + "M30\n"
+    longer = program(tmp_path, long_text, "long.ngc")
+    a, b1 = step(scene, short)
+    _a, b2 = step(scene, longer)
+    s = scene.fresing
+    s.animations_index = list(s.animations).index(a)
+    assert gcode.info(scene, a.blocks[0])["lines"] == 5
+    assert gcode.info(scene, a.blocks[1])["lines"] == 203
+    a.blocks_index = 0
+    assert bpy.ops.fresing.block_remove() == {"FINISHED"}
+    assert len(a.blocks) == 1
+    assert gcode.info(scene, a.blocks[0])["lines"] == 203
+    # a changed setting of the step is a new summary
+    v0 = gcode.info(scene, a.blocks[0])["video_s"]
+    a.blocks[0].gcode_to = 10                     # only the first lines of the program
+    assert gcode.info(scene, a.blocks[0])["video_s"] != pytest.approx(v0)
+    # opening a project drops them all
+    assert gcode._INFO
+    from fresing_render.blender import machining
+    machining._on_load()
+    assert not gcode._INFO

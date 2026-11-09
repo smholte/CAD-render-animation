@@ -273,25 +273,41 @@ def on_all_copies(item) -> bool:
     return isinstance(item.id_data, bpy.types.Mesh)
 
 
+MILLED_TAG = "fr_milled"          # machining.CUT_TAG: the mesh a milled workpiece shows (task 0027)
+
+
+def cad_mesh(ob):
+    """The part's CAD mesh. A milled workpiece shows a mesh of its own while milling; its decals stay on (and
+    are placed from) the CAD mesh, which milling keeps untouched (bug hunt 0045 row 3, task 0051)."""
+    me = ob.data if ob is not None else None
+    if me is None or not me.get(MILLED_TAG):
+        return me
+    for sc in bpy.data.scenes:
+        m = getattr(getattr(sc, "fresing", None), "milling", None)
+        if m is not None and m.cut_mesh is me and m.stock_mesh is not None:
+            return m.stock_mesh
+    return me
+
+
 def users(item) -> list:
     """The part copies this decal is on."""
     owner = item.id_data
     if isinstance(owner, bpy.types.Object):
         return [owner]
-    return [ob for ob in bpy.data.objects if ob.data is owner and ob.type == "MESH"
-            and ob.get(build.PROP_KIND) == "part"]
+    return [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.get(build.PROP_KIND) == "part"
+            and ob.data is not None and (ob.data is owner or cad_mesh(ob) is owner)]
 
 
 def part_mesh(item):
     owner = item.id_data
-    return owner.data if isinstance(owner, bpy.types.Object) else owner
+    return cad_mesh(owner) if isinstance(owner, bpy.types.Object) else owner
 
 
 def items_of(part) -> list:
     """Decals on this copy: those on every copy first, then those on this copy only."""
     if part is None or part.type != "MESH" or part.data is None:
         return []
-    return list(part.data.fresing_decals) + list(part.fresing_decals)
+    return list(cad_mesh(part).fresing_decals) + list(part.fresing_decals)
 
 
 def find(key: str, part=None):
@@ -317,7 +333,7 @@ def all_decals() -> list[tuple]:
     first_user: dict = {}
     for ob in bpy.data.objects:
         if ob.type == "MESH" and ob.get(build.PROP_KIND) == "part" and ob.data is not None:
-            first_user.setdefault(ob.data.name, ob)
+            first_user.setdefault(cad_mesh(ob).name, ob)
             for it in ob.fresing_decals:
                 out.append((ob, it))
     for me in bpy.data.meshes:
@@ -848,7 +864,7 @@ def through(ob, polygon: int, location, normal):
     if spot is None:
         return ob, polygon, location, normal
     part, face, point, _n = spot
-    starts = faces.face_starts(part.data)
+    starts = faces.face_starts(cad_mesh(part))
     tri = int(starts[face]) if 0 <= face < len(starts) - 1 else 0
     return part, tri, part.matrix_world @ Vector(point), normal
 
@@ -856,7 +872,7 @@ def through(ob, polygon: int, location, normal):
 def add(part, face: int, point, normal, kind: str, *, picture: str = "", text: str = "", sticker: str = "CE",
         only_copy: bool = False, view_up=None):
     """A new decal on this face, centred on ``point`` (part coordinates), upright, a sensible size."""
-    owner = part.fresing_decals if only_copy else part.data.fresing_decals
+    owner = part.fresing_decals if only_copy else cad_mesh(part).fresing_decals
     if kind == "PICTURE":
         base = os.path.splitext(os.path.basename(bpy.path.abspath(picture)))[0] or "Picture"
     elif kind == "TEXT":
@@ -990,7 +1006,7 @@ def set_scope(item, part, only_copy: bool):
     """Move a decal between 'every copy' and 'this copy only'. Returns the decal as it is now."""
     if only_copy == (not on_all_copies(item)):
         return item
-    target = part.fresing_decals if only_copy else part.data.fresing_decals
+    target = part.fresing_decals if only_copy else cad_mesh(part).fresing_decals
     new = target.add()
     new.key = "d-" + uuid.uuid4().hex[:10]
     copy_settings(item, new)

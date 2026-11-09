@@ -276,8 +276,12 @@ def _eevee_glass(b: _Nodes, out, spec: dict, lin) -> None:
     b.put(eo.inputs["Surface"], mix.outputs[0])
 
 
-def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "", wear: float = 0.0) -> None:
+def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "", wear: float = 0.0,
+                tweak: dict | None = None) -> None:
+    """``tweak``: settings that replace the library's for this material only (milled faces, task 0051)."""
     spec = materials_lib.get(material_id)
+    if tweak:
+        spec = {**spec, **tweak}
     if spec.get("needs_color"):
         lin, srgb = color_to_linear(color_text or materials_lib.DEFAULT_COLOR)
     else:

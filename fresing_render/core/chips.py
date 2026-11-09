@@ -98,14 +98,15 @@ _WORDS = (
 # the app's ready-made materials (core/materials_lib.py) -> chip family
 _MATERIAL_KEYS = {
     "aluminium_machined": "ALU", "aluminium_anodized": "ALU", "aluminium_anodized_color": "ALU",
-    "aluminium_profile": "ALU", "aluminium_anodized_black": "ALU", "zinc_diecast": "ALU",
+    "aluminium_profile": "ALU", "aluminium_anodized_black": "ALU", "zinc_diecast": "ALU", "aluminium_sawn": "ALU",
     "steel_machined": "STEEL", "steel_raw": "STEEL", "galvanized": "STEEL", "zinc_plated": "STEEL",
     "zinc_yellow": "STEEL", "zinc_flake": "STEEL", "black_oxide": "STEEL", "chrome": "STEEL",
+    "steel_ground": "STEEL", "steel_turned": "STEEL", "chrome_rod": "STEEL",      # task 0046 looks (0051)
     "nickel_plated": "BRASS",
     "stainless_brushed": "STAINLESS", "stainless_polished": "STAINLESS",
     "brass": "BRASS", "bronze": "BRASS", "copper": "BRASS",
-    "cast_iron": "CAST_IRON",
-    "pom_white": "PLASTIC", "plastic_gloss": "PLASTIC", "plastic_matte": "PLASTIC", "rubber_black": "PLASTIC",
+    "cast_iron": "CAST_IRON", "cast_iron_painted": "CAST_IRON",
+    "pom_white": "PLASTIC", "pom_black": "PLASTIC", "plastic_gloss": "PLASTIC", "plastic_matte": "PLASTIC", "rubber_black": "PLASTIC",
     "cable_black": "PLASTIC", "belt_rubber": "PLASTIC", "foam": "PLASTIC", "felt": "PLASTIC",
     "glass_clear": "PLASTIC", "polycarbonate_clear": "PLASTIC", "glass_tinted": "PLASTIC",
     "acrylic_frosted": "PLASTIC", "mannequin_matte": "PLASTIC",

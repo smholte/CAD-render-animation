@@ -425,7 +425,9 @@ def _node_group(shapes) -> bpy.types.NodeTree:
     if ng is not None and ng.get(TAG) == "nodes":
         info = next((n for n in ng.nodes if n.bl_idname == "GeometryNodeCollectionInfo"), None)
         if info is not None:
-            info.inputs["Collection"].default_value = shapes
+            sock = info.inputs["Collection"]
+            if sock.default_value != shapes:       # every assignment rebuilds the whole dependency graph (0051)
+                sock.default_value = shapes
             return ng
         bpy.data.node_groups.remove(ng)
     ng = bpy.data.node_groups.new(NODE_GROUP, "GeometryNodeTree")

@@ -81,6 +81,12 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 def _group_look_changed(self, context):
     from . import materials
     materials.ensure_material(self.name, self.material, self.color, self.wear)
+    if context is not None and context.scene is not None:
+        from . import machining                  # the milled workpiece's cut faces follow its look (task 0051)
+        try:
+            machining.cut_look_changed(context.scene)
+        except Exception as exc:
+            print("Fresing Render: cut faces' look not updated:", exc)
 
 
 def _remember_rename(scene, old: str, new: str) -> None:
@@ -1050,6 +1056,13 @@ def _mill_enabled_changed(self, context):
     machining.enabled_changed(context.scene)
 
 
+def _mill_cut_look_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import machining
+    machining.cut_look_changed(context.scene)
+
+
 def _chips_changed(self, context):
     if context is None or context.scene is None:
         return
@@ -1116,6 +1129,21 @@ class FRMilling(bpy.types.PropertyGroup):
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "
                     "(the set-up is kept)")
     path_sig: StringProperty()           # fingerprint of the motion the stored paths were read from
+    # ---- the look of cut faces (task 0051) ----
+    cut_look: EnumProperty(
+        name="Cut faces", default="AUTO", update=_mill_cut_look_changed,
+        description="What the faces the bit cuts look like. The block keeps its own look outside. Automatic "
+                    "gives freshly cut metal or plastic made from the block's material in 3 Looks",
+        items=[("AUTO", "Automatic (fresh cut)", "Bright machined metal (or matte plastic) of the block's material "
+                                                 "in 3 Looks: raw steel and cast iron cut bright, aluminium "
+                                                 "plate cut machined. Paint and other looks stay as the block", 0),
+               ("SAME", "Same as the block", "Cut faces look like the rest of the block", 1),
+               ("PICK", "Pick a material…", "Cut faces get the ready-made material picked below", 2)])
+    cut_material: EnumProperty(
+        name="Cut material", items=material_items, default=materials_lib.UIDS["aluminium_machined"],
+        update=_mill_cut_look_changed,
+        description="The ready-made material of the faces the bit cuts. A material that takes a colour uses the "
+                    "colour of the block's group in 3 Looks")
 
     # ---- chips (task 0028) ----
     chips: EnumProperty(

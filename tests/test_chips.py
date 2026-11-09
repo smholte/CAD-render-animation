@@ -197,6 +197,42 @@ def test_the_material_comes_from_the_workpiece(scene):
     assert "FR chips MIST" in {o.data.materials[0].name for o in bpy.data.collections[chips.SHAPES_COLLECTION].objects}
 
 
+def test_new_materials_throw_the_right_chips():
+    """Task 0051: the 0046 looks and the new raw stock have a chip family."""
+    from fresing_render.core import chips as cc
+    for key, fam in (("steel_ground", "STEEL"), ("steel_turned", "STEEL"), ("chrome_rod", "STEEL"),
+                     ("cast_iron_painted", "CAST_IRON"), ("aluminium_sawn", "ALU"), ("pom_black", "PLASTIC")):
+        assert cc.family_for(["BLOCK"], key) == (fam, "material"), key
+
+
+def test_a_frame_change_does_not_rebuild_every_object(scene):
+    """Bug hunt 0045 row 15: chips assigned the node group's collection at every frame, and each assignment
+    rebuilt the whole dependency graph (all objects updated: 168 ms a frame with 3,000 objects)."""
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames - 2)
+    seen = []
+
+    def count(_scene, depsgraph):
+        seen.append(sum(1 for u in depsgraph.updates if isinstance(u.id, bpy.types.Object)))
+
+    bpy.app.handlers.depsgraph_update_post.append(count)
+    try:
+        bpy.context.view_layer.update()
+        seen.clear()
+        info = next(n for n in bpy.data.node_groups[chips.NODE_GROUP].nodes
+                    if n.bl_idname == "GeometryNodeCollectionInfo")
+        before = info.inputs["Collection"].default_value
+        chips.show(scene, frames - 1)
+        chips.show(scene, frames)
+        bpy.context.view_layer.update()
+    finally:
+        bpy.app.handlers.depsgraph_update_post.remove(count)
+    assert info.inputs["Collection"].default_value == before
+    n_obj = len(scene.objects)
+    assert seen and max(seen) < n_obj / 2, (seen, n_obj)
+
+
 def test_a_deeper_cut_makes_more_chips(scene):
     frames = anim(scene, SLOT)
     set_up(scene, "REALISTIC")

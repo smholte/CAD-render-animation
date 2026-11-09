@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import threading
 import time
 
 import bpy
@@ -254,15 +255,20 @@ def _take_workpiece(scene, ob) -> None:
     for key in ("fr_face_starts", "fr_axes", "fr_axis_faces"):     # they describe the CAD mesh only
         if key in cut:
             del cut[key]
+    cut.fresing_decals.clear()               # decals stay on the CAD mesh (task 0051, bug hunt row 3)
     s.stock_mesh = stock
     s.cut_mesh = cut
     ob.data = cut
+    lock_interface(scene)
 
 
 def _give_back(scene, ob) -> None:
     """Put the CAD mesh back on ``ob`` and drop the milled one."""
     s = settings(scene)
     stock, cut = s.stock_mesh, s.cut_mesh
+    if ob is not None and cut is not None and ob.data is cut and CUT_SLOT in cut:
+        while len(cut.materials) > int(cut[CUT_SLOT]):          # the cut faces' slot is the milled mesh's only
+            cut.materials.pop()
     if ob is not None and stock is not None and ob.data is not stock:
         while len(stock.materials) < len(ob.data.materials):   # the rules may have added slots meanwhile
             stock.materials.append(None)
@@ -274,13 +280,27 @@ def _give_back(scene, ob) -> None:
     runtime(scene).clear()
 
 
+def _drop_copied_decals(s) -> None:
+    """Projects milled before 0.2.40 copied the block's decals onto the milled mesh, where an edit emptied them
+    (bug hunt 0045 row 3): drop the copies and make the real ones (on the CAD mesh) again."""
+    cut = s.cut_mesh
+    if cut is None or not len(cut.fresing_decals):
+        return
+    cut.fresing_decals.clear()
+    from . import decals
+    for it in s.stock_mesh.fresing_decals:
+        decals.rebuild(it)
+
+
 def _ensure_own_mesh(scene, ob) -> bool:
     """The workpiece shows its milled mesh (after a model update it may have a new CAD mesh)."""
     s = settings(scene)
     if ob.data is not None and ob.data is s.cut_mesh and s.stock_mesh is not None:
+        _drop_copied_decals(s)
         return True
     if ob.data is not None and ob.data.get(CUT_TAG) and s.stock_mesh is not None:
         s.cut_mesh = ob.data
+        _drop_copied_decals(s)
         return True
     if ob.data is not None and ob.data.get(CUT_TAG):
         return False                             # the CAD mesh is lost: nothing to cut from
@@ -417,6 +437,108 @@ def enabled_changed(scene) -> None:
         _give_back(scene, wp)
         from . import chips
         chips.hide(scene)
+
+
+# ---------------------------------------------------------------------------
+# the look of the faces the cutter made (task 0051)
+# ---------------------------------------------------------------------------
+
+CUT_SLOT = "fr_cut_slot"              # on the milled mesh: the number of its material slot for cut faces
+CUT_MAT_PREFIX = "FR_cut "            # the materials of cut faces ("FR " + name is a material group's)
+CUT_KEY = "fr_cut_key"
+
+
+def block_look(scene, wp) -> tuple:
+    """(material id, colour) of the workpiece in 3 Looks: its group's, else what its material was built from."""
+    g = wp.get(build.PROP_GROUP, "") if wp is not None else ""
+    grp = scene.fresing.groups.get(g) if g else None
+    if grp is not None:
+        return grp.material, grp.color
+    mat = wp.material_slots[0].material if wp is not None and wp.material_slots else None
+    return (str(mat.get("fr_material", "")), str(mat.get("fr_color", ""))) if mat is not None else ("", "")
+
+
+def cut_look(scene, wp) -> tuple | None:
+    """(material id, tweaks, label, colour) of the faces the cutter made, or None: they look like the block."""
+    from ..core import materials_lib
+    s = settings(scene)
+    if s.cut_look == "SAME":
+        return None
+    block_id, colour = block_look(scene, wp)
+    if s.cut_look == "PICK":
+        mid = s.cut_material
+        look = (mid, {}, materials_lib.get(mid)["label"])
+    else:
+        look = core.cut_look(block_id)
+        if look is None:
+            return None
+    mid, tweak, label = look
+    return mid, tweak, label, (colour if materials_lib.needs_color(mid) else "")
+
+
+def cut_material(scene, wp):
+    """The Blender material of the faces the cutter made, or None (they show the block's own, slot 0)."""
+    from . import materials
+    look = cut_look(scene, wp)
+    if look is None:
+        return None
+    mid, tweak, label, colour = look
+    key = json.dumps([mid, tweak, colour, materials.LOOK_VERSION], sort_keys=True)
+    name = CUT_MAT_PREFIX + label + (f" {colour}" if colour else "")
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+        mat.use_nodes = True
+    if mat.get(CUT_KEY) != key or mat.node_tree is None or not mat.node_tree.nodes:
+        if mat.node_tree is None:
+            mat.use_nodes = True
+        materials.build_nodes(mat, mid, colour, 0.0, tweak)
+        mat[CUT_KEY] = key
+    return mat
+
+
+def _cut_slot(scene, wp) -> int:
+    """The milled mesh's material slot for cut faces (after the block's own slots), with its material set."""
+    s = settings(scene)
+    cut, stock = s.cut_mesh, s.stock_mesh
+    n = len(stock.materials) if stock is not None else max(1, len(cut.materials))
+    n = max(n, 1)
+    if cut.get(CUT_SLOT) != n:
+        cut[CUT_SLOT] = n
+    while len(cut.materials) < n + 1:
+        cut.materials.append(None)
+    if wp.data is not cut or len(wp.material_slots) <= n:
+        return n
+    slot = wp.material_slots[n]
+    if slot.link != "OBJECT":
+        slot.link = "OBJECT"
+    mat = cut_material(scene, wp)
+    if mat is None:
+        mat = wp.material_slots[0].material
+    if slot.material is not mat:
+        slot.material = mat
+    return n
+
+
+def cut_look_changed(scene) -> None:
+    """'Cut faces' or its material changed: show it now."""
+    wp = workpiece(scene)
+    s = settings(scene)
+    if wp is None or s.cut_mesh is None or wp.data is not s.cut_mesh:
+        return
+    _cut_slot(scene, wp)
+    wp.update_tag()
+
+
+def cut_look_text(scene) -> str:
+    """What the cut faces look like, in words (the Milling panel)."""
+    wp = workpiece(scene)
+    if wp is None:
+        return ""
+    look = cut_look(scene, wp)
+    if look is None:
+        return "Cut faces look like the block"
+    return f"Cut faces: {look[2]}" + (f" {look[3]}" if look[3] else "")
 
 
 # ---------------------------------------------------------------------------
@@ -901,10 +1023,12 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
             rt["status"] = "Waiting for the motion to be read"
             return False
         if not force and rt.get("shown") == (id(tl), T):
+            _cut_slot(scene, wp)                       # a look changed in 3 Looks shows at once
             return True
         v, t, src = tl.mesh_at(T)
         mats = rt.get("mats")
         mi = np.zeros(len(t), dtype=np.int32)
+        mi[src < 0] = _cut_slot(scene, wp)             # faces the cutter made: their own look (task 0051)
         if mats is not None and len(mats):
             ok = (src >= 0) & (src < len(mats))
             mi[ok] = mats[src[ok]]
@@ -1051,6 +1175,23 @@ def after_model_update(scene, mapping: dict, by_uid_new: dict) -> list[str]:
 # handlers
 # ---------------------------------------------------------------------------
 
+def lock_interface(scene) -> None:
+    """Renders started in the window lock the interface while milling is on (bug hunt 0045 row 13): Blender
+    calls the frame handler on its render thread, and a cut written there must not meet the window drawing the
+    same mesh. Set only on change (a set render setting stops a running viewport preview)."""
+    r = scene.render
+    if not r.use_lock_interface:
+        r.use_lock_interface = True
+
+
+def _off_main_thread() -> bool:
+    return threading.current_thread() is not threading.main_thread()
+
+
+def _in_window() -> bool:
+    return not bpy.app.background
+
+
 @persistent
 def _on_frame(scene, _depsgraph=None):
     if _STATE["guard"] or scene is None or not hasattr(scene, "fresing"):
@@ -1058,6 +1199,8 @@ def _on_frame(scene, _depsgraph=None):
     try:
         if not is_active(scene):
             return
+        if _in_window() and _off_main_thread() and not scene.render.use_lock_interface:
+            return                               # a render in the window that may draw this mesh meanwhile
         s = settings(scene)
         if s.path_sig != signature(scene):
             runtime(scene)["status"] = "The motion changed: reading it again"
@@ -1094,13 +1237,17 @@ def _on_depsgraph(scene, depsgraph=None):
 @persistent
 def _on_load(_dummy=None):
     _RUNTIME.clear()
-    from . import chips
+    from . import chips, gcode
     chips.forget()
+    gcode.forget()                               # the G-code steps' summaries (task 0051)
     _STATE["pending"] = False
     if bpy.app.background:
         return
     try:
-        if any(hasattr(sc, "fresing") and is_active(sc) for sc in bpy.data.scenes):
+        active = [sc for sc in bpy.data.scenes if hasattr(sc, "fresing") and is_active(sc)]
+        for sc in active:                        # projects milled before 0.2.40
+            lock_interface(sc)
+        if active:
             _schedule(0.5)
     except Exception:
         pass

@@ -398,3 +398,191 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
     assert 0.002 < share < 0.2, share                    # the slot, and only the slot, changed
     ys, xs = np.nonzero(changed)
     assert np.ptp(xs) > 3 * np.ptp(ys) / 2, (np.ptp(xs), np.ptp(ys))   # a long slot, seen from the side
+
+
+# ---------------------------------------------------------------------------
+# task 0051: cut faces get their own look
+# ---------------------------------------------------------------------------
+
+
+def _block_group(sc, material_id, color=""):
+    g = sc.fresing.groups[ob(sc, STOCK)[build.PROP_GROUP]]
+    g.material = material_id
+    if color:
+        g.color = color
+    return g
+
+
+def _cut_faces(sc):
+    wp = ob(sc, STOCK)
+    me = wp.data
+    n = int(me[machining.CUT_SLOT])
+    mi = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get("material_index", mi)
+    return wp, n, mi
+
+
+def test_cut_faces_get_their_own_look(scene):
+    """A pocket in a mill-scale block shows bright machined steel inside; the outside keeps mill scale."""
+    _block_group(scene, "steel_raw")
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    machining.refresh(scene, force=True)
+    wp, n, mi = _cut_faces(scene)
+    stock_slots = len(machining.settings(scene).stock_mesh.materials)
+    assert n == stock_slots and len(wp.material_slots) == n + 1
+    assert (mi == n).sum() > 20, "the slot's walls and floor are cut faces"
+    assert (mi == 0).sum() > 6, "the block's own faces keep its look"
+    mat = wp.material_slots[n].material
+    assert mat.name.startswith(machining.CUT_MAT_PREFIX) and mat["fr_material"] == "steel_machined"
+    assert wp.material_slots[n].link == "OBJECT"
+    assert wp.material_slots[0].material["fr_material"] == "steel_raw"
+    # the cut faces lie inside the slot: none on the block's outer faces
+    me = wp.data
+    me.calc_loop_triangles()
+    centres = np.array([p.center[:] for p in me.polygons])
+    cut = centres[mi == n]
+    assert np.all(cut[:, 2] < 0.07 - 1e-6), "cut faces are below the top of the block"
+    # 3 Looks: the block becomes aluminium plate -> the cut faces become machined aluminium at once
+    _block_group(scene, "aluminium_sawn")
+    assert wp.material_slots[n].material["fr_material"] == "aluminium_machined"
+    # paint: the cut looks like the block
+    _block_group(scene, "paint_satin")
+    assert wp.material_slots[n].material is wp.material_slots[0].material
+    # brass: the same metal, brighter (less rough), with milling marks
+    _block_group(scene, "brass")
+    m2 = wp.material_slots[n].material
+    assert m2["fr_material"] == "brass" and "machined" in m2.name
+    rough = next(nd for nd in m2.node_tree.nodes if nd.type == "BSDF_PRINCIPLED")
+    assert rough.inputs["Roughness"].is_linked                 # marks drive the roughness
+
+
+def test_cut_faces_same_and_pick(scene):
+    s = machining.settings(scene)
+    assert s.cut_look == "AUTO"                                   # the default (old projects too)
+    _block_group(scene, "aluminium_anodized")
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    machining.refresh(scene, force=True)
+    wp, n, _mi = _cut_faces(scene)
+    s.cut_look = "SAME"
+    assert wp.material_slots[n].material is wp.material_slots[0].material
+    s.cut_look = "PICK"
+    s.cut_material = "copper"
+    assert wp.material_slots[n].material["fr_material"] == "copper"
+    s.cut_material = "plastic_gloss"                              # takes the block group's colour
+    _block_group(scene, "aluminium_anodized", "RAL 3020")
+    assert wp.material_slots[n].material["fr_color"] == "RAL 3020"
+    # Stop milling: the CAD mesh back with exactly its own slots
+    stock = s.stock_mesh
+    k = len(stock.materials)
+    assert bpy.ops.fresing.mill_stop() == {"FINISHED"}
+    assert wp.data is stock and len(stock.materials) == k and len(wp.material_slots) == k
+
+
+def test_old_project_gets_the_cut_slot(scene):
+    """A project milled before 0.2.40 has no cut slot on its milled mesh: the next frame adds it (Automatic)."""
+    _block_group(scene, "steel_raw")
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    machining.refresh(scene, force=True)
+    wp, n, _mi = _cut_faces(scene)
+    me = wp.data
+    while len(me.materials) > n:                                  # as an older version left it
+        me.materials.pop()
+    del me[machining.CUT_SLOT]
+    machining.refresh(scene, force=True)
+    wp, n2, mi = _cut_faces(scene)
+    assert n2 == n and (mi == n).sum() > 20
+    assert wp.material_slots[n].material["fr_material"] == "steel_machined"
+
+
+def _mesh_tris(me):
+    return len(me.polygons) if me is not None else 0
+
+
+def test_decal_on_the_workpiece_survives_edits_while_milling(scene):
+    """Bug hunt 0045 row 3: an edit of a decal on the milled block emptied it (0 triangles), also after Stop."""
+    from fresing_render.blender import decals, faces
+    wp = ob(scene, STOCK)
+    me = wp.data
+    top = max(range(len(me.polygons)), key=lambda i: me.polygons[i].normal.z)
+    face = faces.face_of_polygon(me, top)
+    centre = tuple(me.polygons[top].center)
+    every = decals.add(wp, face, centre, (0, 0, 1), "TEXT", text="AlMg3")
+    one = decals.add(wp, face, (centre[0] + 0.05, centre[1], centre[2]), (0, 0, 1), "TEXT", text="#1",
+                     only_copy=True)
+    for it in (every, one):
+        assert _mesh_tris(it.mesh) > 0
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    s = machining.settings(scene)
+    assert wp.data is s.cut_mesh and len(s.cut_mesh.fresing_decals) == 0     # no copy on the milled mesh
+    assert decals.count(scene) == 2
+    assert {it.key for it in decals.items_of(wp)} == {every.key, one.key}
+    every = decals.find(every.key)
+    one = decals.find(one.key)
+    every.width = every.width * 1.5                     # an edit while milling is on
+    one.width = one.width * 1.5
+    assert _mesh_tris(every.mesh) > 0 and _mesh_tris(one.mesh) > 0
+    assert decals.decal_objects_of(every) and decals.decal_objects_of(one)
+    assert bpy.ops.fresing.mill_stop() == {"FINISHED"}
+    every, one = decals.find(every.key), decals.find(one.key)
+    assert wp.data is s.stock_mesh or wp.data.name == STOCK
+    assert _mesh_tris(every.mesh) > 0 and _mesh_tris(one.mesh) > 0
+    assert every.width == pytest.approx(decals.find(every.key).width)
+
+
+def test_old_milled_mesh_with_copied_decals_is_mended(scene):
+    """A project milled before 0.2.40 has the block's decals copied onto the milled mesh: they are dropped."""
+    from fresing_render.blender import decals, faces
+    wp = ob(scene, STOCK)
+    me = wp.data
+    top = max(range(len(me.polygons)), key=lambda i: me.polygons[i].normal.z)
+    it = decals.add(wp, faces.face_of_polygon(me, top), tuple(me.polygons[top].center), (0, 0, 1), "TEXT",
+                    text="AlMg3")
+    key = it.key
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    s = machining.settings(scene)
+    real = decals.find(key)
+    old = s.cut_mesh.fresing_decals.add()             # as 0.2.39 left it: a copy sharing the decal mesh
+    old.key = key
+    decals.copy_settings(real, old)
+    old.mesh = real.mesh
+    old.mesh.clear_geometry()                         # the copy's edit emptied it
+    scene.frame_set(frames)
+    machining.refresh(scene, force=True)
+    assert len(s.cut_mesh.fresing_decals) == 0
+    assert _mesh_tris(decals.find(key).mesh) > 0
+
+
+def test_frame_handler_on_the_render_thread(scene, monkeypatch):
+    """Bug hunt 0045 row 13: a render in the window calls the frame handler on its own thread. Milling locks the
+    interface during renders; with the lock taken off by hand the handler leaves the mesh alone there."""
+    import threading
+    scene.render.use_lock_interface = False
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    assert scene.render.use_lock_interface, "setting up milling locks the interface during renders"
+    calls = []
+    monkeypatch.setattr(machining, "refresh", lambda sc, *a, **k: calls.append(threading.current_thread().name))
+    monkeypatch.setattr(machining, "_in_window", lambda: True)
+    scene.frame_current = frames
+
+    def on_thread():
+        t = threading.Thread(target=machining._on_frame, args=(scene,), name="render")
+        t.start()
+        t.join()
+
+    on_thread()
+    assert calls == ["render"]                       # locked: the window does not draw meanwhile
+    scene.render.use_lock_interface = False
+    on_thread()
+    assert calls == ["render"]                       # not locked: left alone off the main thread
+    machining._on_frame(scene)
+    assert calls[-1] == threading.main_thread().name   # the main thread always shows the frame

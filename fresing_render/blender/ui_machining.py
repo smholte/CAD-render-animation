@@ -132,6 +132,11 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             col = split_props(layout)
             col.prop(m, "detail", text="Detail")
             col.prop(m, "enabled", text="Cut material")
+            col.prop(m, "cut_look", text="Cut faces")
+            if m.cut_look == "PICK":
+                col.prop(m, "cut_material", text="Material")
+            if m.workpiece is not None:
+                wrap(layout, context, machining.cut_look_text(scene), icon="MATERIAL", inset=0)
             rt = machining.runtime(scene)
             if rt.get("error"):
                 wrap(layout, context, rt["error"], icon="ERROR", alert=True)

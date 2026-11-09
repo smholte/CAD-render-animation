@@ -55,7 +55,7 @@ TEXT_PREFIX = "FR program "
 WORLD_AXES = (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
 
 _CACHE: dict = {}                    # program key -> core.Program
-_INFO: dict = {}                     # block pointer -> summary for the panel
+_INFO: dict = {}                     # program signature + step settings -> summary for the panel (info_key)
 
 
 class SetupError(RuntimeError):
@@ -537,7 +537,6 @@ def _anim_of(scene, b):
 def step_changed(scene, b, path: bool = True) -> None:
     """A G-code step's settings changed: its duration follows from the program (and the summary)."""
     if not b.gcode_file:
-        _INFO.pop(b.as_pointer(), None)
         return
     anim = _anim_of(scene, b)
     try:
@@ -547,7 +546,7 @@ def step_changed(scene, b, path: bool = True) -> None:
     try:
         prog, note = read_program(scene, b, mach, start=start_point(mach))
     except FileNotFoundError as exc:
-        _INFO[b.as_pointer()] = {"error": f"File not found: {exc}"}
+        _INFO[info_key(b)] = {"error": f"File not found: {exc}"}
         return
     sch = core.Schedule(prog, timing(scene, anim, b))
     b["_busy"] = True
@@ -556,7 +555,7 @@ def step_changed(scene, b, path: bool = True) -> None:
             b.duration = max(0.0, sch.duration)
     finally:
         del b["_busy"]
-    _INFO[b.as_pointer()] = summary(prog, sch, note, scene)
+    _INFO[info_key(b)] = summary(prog, sch, note, scene)
     if path and b.gcode_path and mach is not None:
         try:
             show_path(scene, anim)
@@ -592,9 +591,34 @@ def _missing(scene, prog) -> list:
         return []
 
 
+def info_key(b) -> tuple:
+    """What a step's summary depends on: its program (the file's size and time, or the copy kept in the project)
+    and every setting of the step. Not the step's memory address: after a step was removed or moved another step
+    sat there and showed this one's lines (bug hunt 0045 row 16, task 0051)."""
+    path = bpy.path.abspath(b.gcode_file) if b.gcode_file else ""
+    try:
+        st = os.stat(path)
+        prog = (path, st.st_size, st.st_mtime_ns)
+    except OSError:
+        copy = _text_copy(b.gcode_file)
+        prog = (path, copy.get("fr_gcode_sig", "") if copy is not None else "")
+    vals = []
+    for p in b.bl_rna.properties:
+        if p.identifier.startswith("gcode_"):
+            v = getattr(b, p.identifier)
+            vals.append(tuple(v) if hasattr(v, "__len__") and not isinstance(v, str) else v)
+    return prog + tuple(vals)
+
+
+def forget() -> None:
+    """Drop every cached summary (a project was opened)."""
+    _INFO.clear()
+
+
 def info(scene, b) -> dict:
     """The summary of a step's program for the panel (worked out when missing)."""
-    hit = _INFO.get(b.as_pointer())
+    key = info_key(b)
+    hit = _INFO.get(key)
     if hit is None and b.gcode_file:
         try:
             prog, note = read_program(scene, b, None)
@@ -603,7 +627,9 @@ def info(scene, b) -> dict:
             hit = {"error": f"File not found: {exc}"}
         except Exception as exc:                           # never break the panel
             hit = {"error": str(exc)}
-        _INFO[b.as_pointer()] = hit
+        if len(_INFO) > 64:                                # settings typed one after the other: keep it small
+            _INFO.clear()
+        _INFO[key] = hit
     return hit or {}
 
 
