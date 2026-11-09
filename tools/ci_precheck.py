@@ -173,6 +173,15 @@ def check_counts() -> list[str]:
         if have is not None and have < n:
             problems.append(f"{name} in tools/ci_check_pccheck.py is {have}, but the PC check has {n} "
                             f"{'Full' if mode == 'F' else 'Heavy'} lines: raise it to {n}")
+    tour = os.path.join(ROOT, "fresing_render", "blender", "tour.py")
+    if os.path.isfile(tour):                     # the test tour (task 0059): Make test tour project + one per stop
+        n = 1 + len(re.findall(r"^stop\(", read("fresing_render/blender/tour.py"), re.M))
+        have = getattr(ci_check_pccheck, "MIN_LINES_TOUR", None)
+        if have is not None and have < n:
+            problems.append(f"MIN_LINES_TOUR in tools/ci_check_pccheck.py is {have}, but the test tour has {n} "
+                            f"lines (Make test tour project + {n - 1} stops): raise it to {n}")
+        if ci_real_app.MIN_CHECKS.get("tour", n) < n:
+            problems.append(f"MIN_CHECKS['tour'] in tools/ci_real_app.py is below the {n} lines of the test tour")
     return problems
 
 

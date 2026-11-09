@@ -1,6 +1,6 @@
 # 0042 – Coolant: flood and mist while milling
 
-**Who:** worker · **Status:** done (0.2.47) · **Branch:** `ccr-de3acade-wz4azs` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.48) · **Branch:** `ccr-de3acade-wz4azs` (the web session's branch)
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 2 of the big features, 9 Nov; placeholder since 7 Nov)
 **Lane:** Machining – a new `core/coolant.py` + `blender/coolant.py` next to `air.py` (0039), its settings in
 `ui_machining.py` / the G-code step fold in `ui_gcode.py`, `core/gcode.py` (M7/M8/M9 events, additive), chips
@@ -59,6 +59,9 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
 - [x] Guide "Milling" (Coolant) with a picture; PC-check line `milling.coolant`; tooltips.
 - [x] If the test tour (0059) is merged by then: a tour stop "Coolant" (one entry in `blender/tour.py`); otherwise
       write "tour stop still to add" in the report.
+      How (0059 is on `main`): a `stop(...)` entry in its group in `blender/tour.py`, set up in a set's build function
+      (`_shot(b, "@<stop id>")` or an animation with `animation=`), a number `check`; raise `MIN_LINES_TOUR`
+      (`tools/ci_check_pccheck.py`) and `MIN_CHECKS["tour"]` (`tools/ci_real_app.py`); `pytest tests/test_tour.py`.
 - [x] GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
 - [x] Report filled in; `TASKS.md`: 0042 done, the tool-marks task "open – can start".
 
@@ -66,7 +69,7 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker, Opus), 9 Nov 2026. Released as **0.2.47**.
+**Chat / date:** Claude Code on the web (worker, Opus), 9 Nov 2026. Released as **0.2.48**.
 
 **What changed:**
 - `core/coolant.py` (no Blender): coolant spans from the program (flood code M8, mist code M7, off code M9 – M9 always
@@ -93,7 +96,9 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
 - M7 rule (guide): with coolant on, M7 = mist; when the air-on code is M7 too it also blows air (mist is air with drops);
   M9 stops both. Mist code 0 makes M7 air only; another air code keeps them apart. Coolant codes are not reported as
   program problems while coolant is on.
-- PC-check line `milling.coolant` (MIN_LINES_FULL 44 → 45); guide section "Coolant" in Milling with 3 pictures
+- Test tour (0059 was merged meanwhile): stop **Coolant (flood)** in the Machining group, its own set "Coolant" on
+  the test mill (MIN_LINES_TOUR 28 → 29, MIN_CHECKS tour 29).
+- PC-check line `milling.coolant` (MIN_LINES_FULL 45 → 46, after 0059's own line); guide section "Coolant" in Milling with 3 pictures
   (`coolant.jpg`, `panel_4_coolant.png`, `panel_6_gcode_coolant.png`); `guide_screens.py` mode `coolant`.
 - No change to `handlers.py`, `animation.py`, `reimport.py`, `part_types_data.py`, `core/gcode.py` (its M-code events
   were enough), `core/materials_lib.py` (the liquid looks live in `core/coolant.py`).
@@ -116,12 +121,11 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
 - Pictures (Cycles, test mill, aluminium block): `tasks/img/0042-flood.jpg` (close-up with flood),
   `tasks/img/0042-wet-then-dry.jpg` (at M9 and 2 s after drying), `tasks/img/0042-flood-clip.mp4` (2 s, 480 × 270,
   120 KB; one frame was re-rendered in a fresh process and fits between its neighbours).
-- GitHub: the run of the release commit green (full mode); 3 earlier runs: one red on the guide picture not yet
-  committed, one red only on the PC-check line's "since 0.2.47" before the version was raised (expected), then green.
+- GitHub: 5 runs. One red on the guide picture not yet committed, one red only on the PC-check line's "since" before
+  the version was raised (expected), the version commit green (full); then `main` had moved (0059 test tour took
+  0.2.47): merged `main`, renumbered to 0.2.48, added the tour stop, one more full run, green, fast-forwarded `main`.
 
 **Open points / follow-up tasks:**
-- **Tour stop still to add:** 0059 (test tour) was not merged when this finished; its worker (or the next task)
-  adds the "Coolant" stop in `blender/tour.py`.
 - The test block's draft mesh shows dark facets in reflections (also without coolant); with a wet film they are more
   visible. A real model with smooth normals looks right; worth a look on the owner's demo.
 - Ideas, not done: coolant through the spindle (through-tool), mist/steam in the air, puddles that collect over minutes,

@@ -560,6 +560,11 @@ def _setup_animation(scene, job: dict, progress) -> dict:
     machining.prepare(scene, progress)
     quality = job.get("quality") or anim.quality
     size = presets.compute(anim.out_format, anim.out_resolution, "auto", 300, 0.0, 1920, 1080)
+    if job.get("scale"):                         # the automatic test tour (task 0059): small frames
+        import dataclasses
+        k = float(job["scale"])
+        size = dataclasses.replace(size, width=max(16, round(size.width * k / 2) * 2),
+                                   height=max(16, round(size.height * k / 2) * 2))
     r = scene.render
     r.resolution_x, r.resolution_y = size.width, size.height
     from . import video                          # task 0018: square / upright videos: crop or extend the framing

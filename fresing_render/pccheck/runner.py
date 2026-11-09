@@ -32,6 +32,7 @@ from . import core
 from .core import FAILED, OK, SKIPPED, Skipped
 
 REPORT_NAME = "Fresing Render PC check.html"
+TOUR_REPORT_NAME = "Fresing Render test tour.html"
 NO_GPU_ENV = "FRESING_SELFTEST_NO_GPU"
 NO_OPEN_ENV = "FRESING_PCCHECK_NO_OPEN"
 DIR_ENV = "FRESING_PCCHECK_DIR"
@@ -377,9 +378,11 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
     from ..blender import render
     from . import checks
     mode = mode if mode in core.MODES else "quick"
+    if mode == "tour":
+        model = ""                                     # the tour has its own models
     hist = history_dir()
     os.makedirs(hist, exist_ok=True)
-    report_path = os.path.join(desktop_dir(desktop), REPORT_NAME)
+    report_path = os.path.join(desktop_dir(desktop), TOUR_REPORT_NAME if mode == "tour" else REPORT_NAME)
     history_path = os.path.join(hist, "history.json")
     history = core.load_history(history_path)
     gpu = render.setup_gpu()
@@ -397,6 +400,10 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         pass
     from . import heavy
     run.scaled = mode == "heavy" and heavy.small()
+    if lines is None and mode == "tour":               # the automatic test tour (task 0059)
+        from . import tour
+        tour.attach()
+        lines = tour.lines()
     todo = core.lines_for(lines if lines is not None else checks.LINES, mode, bool(model))
     only = [x.strip() for x in os.environ.get(ONLY_ENV, "").split(",") if x.strip()]
     if only:
@@ -510,5 +517,11 @@ def run_from_argv(argv: list | None = None) -> core.Run:
     """Entry point of the launcher: arguments after Blender's "--"."""
     argv = sys.argv if argv is None else argv
     extra = argv[argv.index("--") + 1:] if "--" in argv else []
+    if extra and extra[0].strip().lower() == "tourbuild":       # Help > Make test tour project (task 0059)
+        from ..blender import tour
+        code = tour.build_main(extra[1] if len(extra) > 1 else "")
+        if code:
+            raise SystemExit(code)
+        return None
     args = core.parse_args(extra)
     return run(args["mode"], args["desktop"], args["model"])

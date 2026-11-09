@@ -19,8 +19,8 @@ from typing import Callable
 import numpy as np
 
 OK, FAILED, SKIPPED, RUNNING = "OK", "FAILED", "skipped", "running"
-MODES = ("quick", "full", "heavy")
-MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy"}
+MODES = ("quick", "full", "heavy", "tour")
+MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Test tour"}
 
 SLOWER = 1.25            # a step more than 25 % slower than before is flagged
 MIN_SLOWER_S = 1.0       # ...and at least this many seconds slower (short steps jitter)
@@ -440,6 +440,9 @@ background:var(--card);color:var(--ink);border:1px solid var(--line);border-radi
 button{font:inherit;padding:8px 18px;border-radius:6px;border:0;background:#2563c9;color:#fff;cursor:pointer}
 details pre{white-space:pre-wrap;font-size:12px;color:var(--muted)}
 .wrap{overflow-x:auto}
+.stops{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.stop .head{margin-bottom:6px}.stop .pics1 img{width:100%;height:auto;display:block;border-radius:4px;margin:4px 0}
+.stop .what{margin-top:6px}
 """
 
 _SCRIPT = """
@@ -516,6 +519,24 @@ def _table(results: list, new_ids: set) -> str:
             f"<th>Change</th><th>Details</th></tr>{rows}</table></div>")
 
 
+def _stop_cards(run: Run) -> str:
+    """The test tour (task 0059): one card per stop with its pictures, what you should see and the result."""
+    out = ["<div class='stops'>"]
+    for r in run.results:
+        imgs = "".join(f"<img src='data:image/png;base64,{base64.b64encode(p.thumb_png).decode('ascii')}' "
+                       f"alt='{_e(p.title)}' title='{_e(p.title)}'>" for p in r.pictures if p.thumb_png)
+        detail = _e(r.note) if r.note else ""
+        if r.reason:
+            detail = f'<span class="{"bad" if r.status == FAILED else "skip"}">{_e(r.reason)}</span>'
+        out.append(f"<div class='card stop'><div class='head'><b>{_e(r.title)}</b> {_status_html(r)} "
+                   f"<span class='sub'>{r.seconds:.0f} s</span></div>"
+                   f"{'<div class=pics1>' + imgs + '</div>' if imgs else ''}"
+                   f"<div class='what'><b>You should see:</b> {_e(r.what)}</div>"
+                   f"{'<div>' + detail + '</div>' if detail else ''}</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
 def html_report(run: Run, block: str) -> str:
     c = run.counts()
     if not run.finished:
@@ -534,8 +555,8 @@ def html_report(run: Run, block: str) -> str:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         + ("" if run.finished else "<meta http-equiv='refresh' content='10'>"),
-        f"<title>Fresing Render PC check</title><style>{_CSS}</style><script>{_SCRIPT}</script></head><body><main>",
-        f"<h1>Fresing Render PC check {_e(run.app_version)}</h1>",
+        f"<title>Fresing Render {'test tour' if run.mode == 'tour' else 'PC check'}</title><style>{_CSS}</style><script>{_SCRIPT}</script></head><body><main>",
+        f"<h1>Fresing Render {'test tour' if run.mode == 'tour' else 'PC check'} {_e(run.app_version)}</h1>",
         f"<div class='sub'>{_e(MODE_TITLES.get(run.mode, run.mode))}{' + your own model' if run.own_model else ''}"
         f" · {_e(run.date)} · {run.seconds:.0f} s · {_e(pc.get('cpu', '?'))}, {_e(pc.get('cores', '?'))} cores · "
         f"{_e(pc.get('gpu', '?'))}, driver {_e(pc.get('driver', '?'))} · Blender {_e(run.blender)}</div>",
@@ -558,6 +579,10 @@ def html_report(run: Run, block: str) -> str:
         parts += ["<h2>Look at these</h2>", _table(look, run.new_ids)]
     parts += ["<h2>Every function</h2>", _table(run.results, run.new_ids)]
     pics = [(r, p) for r in run.results for p in r.pictures if p.thumb_png]
+    if run.mode == "tour":
+        parts += ["<h2>Every stop</h2>", "<p class='sub'>Look at each picture next to its text; tick OK or Problem "
+                  "for the stop in the Test tour panel of the app.</p>", _stop_cards(run)]
+        pics = []
     if pics:
         parts.append("<h2>Pictures</h2><div class='pics'>")
         for r, p in pics:

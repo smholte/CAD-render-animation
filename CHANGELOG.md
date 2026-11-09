@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.47 – 9 Nov 2026 – coolant: flood and mist while milling (task 0042)
+## 0.2.48 – 9 Nov 2026 – coolant: flood and mist while milling (task 0042)
 
 Milling
 - **Coolant.** 4 Motion > CNC machine > **Coolant**: tick it, and a milling video looks like the real machine. When the
@@ -25,9 +25,30 @@ Milling
 - Every frame of the coolant comes from the frame number alone: the render queue can render frames in any order.
 - Old projects are unchanged: no coolant until you tick it.
 
+Test tour
+- New stop **Coolant (flood)** in the Machining group.
+
 PC check
 - New line **Milling: coolant floods the tool** (jets, splash, wet and drying, the same frame every time, the time per
   frame and a Cycles picture of the flood).
+
+## 0.2.47 – 9 Nov 2026 – test tour (task 0059)
+
+Test tour
+- **Help > Make test tour project…** makes a set of small projects from the app's own test models (crane, mill,
+  gantry, cylinder, scissor lift, way cover…) with every function already set up, in about 2 minutes in the
+  background: Documents\Fresing Render\Test tour. Then **Help > Open test tour project**.
+- **The Test tour panel** (on top of the Fresing tab, only in a tour project): 27 numbered stops in four groups –
+  Look, Motion, Machining, Pictures and videos. Each stop says what you should see and where the function is. **Go**
+  opens the right project, its saved scene and camera, builds and plays its animation and selects the part. Mark it
+  **OK** or **Problem** and add a **Note…**; **Next** goes on.
+- **Copy results** puts the version, your PC and every stop with OK / PROBLEM and your note on the clipboard (and in a
+  text file next to the tour): paste it into the lead chat.
+- **Let it run by itself:** **More > Run the whole tour by itself** (or Help > Fresing Render PC check… > **Test
+  tour**) goes through every stop in the background, checks what can be checked with numbers and renders a small
+  picture or three frames of each stop. "Fresing Render test tour.html" opens at the end with a card per stop. Your
+  own OK / Problem marks are not touched.
+- The PC check (Full) has a new line: the test tour is made and every stop's Go works.
 
 ## 0.2.46 – 9 Nov 2026 – render queue fixes (task 0054)
 

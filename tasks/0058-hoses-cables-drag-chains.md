@@ -82,6 +82,9 @@ cylinders (hydraulic hoses).
       (`core/flex.py`) (CLAUDE.md section 2).
 - [ ] Guide chapter "Hoses and drag chains" with pictures; PC-check line `motion.flex`; tooltips.
 - [ ] Tour stops "Hoses" and "Drag chains" in the test tour (0059, `blender/tour.py`).
+      How (0059 is on `main`): a `stop(...)` entry in its group in `blender/tour.py`, set up in a set's build function
+      (`_shot(b, "@<stop id>")` or an animation with `animation=`), a number `check`; raise `MIN_LINES_TOUR`
+      (`tools/ci_check_pccheck.py`) and `MIN_CHECKS["tour"]` (`tools/ci_real_app.py`); `pytest tests/test_tour.py`.
 - [ ] GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
 - [ ] Report filled in; `TASKS.md`: 0058 done; what the owner should check on his own mill and crane.
 

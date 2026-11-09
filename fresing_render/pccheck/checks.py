@@ -1274,7 +1274,7 @@ M30
 """
 
 
-@line("milling.coolant", "Milling: coolant floods the tool", "0.2.47",
+@line("milling.coolant", "Milling: coolant floods the tool", "0.2.48",
       what="The test mill cuts a pocket with flood coolant (M8 ... M9) from two automatic hoses: jets and splash "
            "while it cuts, the block gets wet and dries after M9, a frame looks the same whatever frame came "
            "before; the time per frame with and without coolant and a Cycles picture of the flood")
@@ -1675,6 +1675,35 @@ def queue_time_test(ctx):
     _check("s per frame" in job.message, f"no time per frame: {job.message}")
     ctx.metric("per frame", _per_frame(job.message), "s/frame")
     return job.message
+
+
+@line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
+      what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
+           "without pictures (the PC check's mode Test tour renders them)")
+def tour_make(ctx):
+    import bpy
+
+    from .. import __version__
+    from ..blender import tour
+    folder = os.path.join(ctx.work, "Test tour")
+    t0 = time.time()
+    out = tour.build_all(folder, __version__)
+    ctx.metric("make", time.time() - t0, "s")
+    _check(not out["errors"], "; ".join(f"{tour.SETS[k].title}: {v}" for k, v in out["errors"].items()))
+    bad = []
+    for st in tour.STOPS:
+        from . import runner
+        runner.check_cancel()
+        tour.open_set(folder, __version__, st.set)
+        try:
+            warnings = tour.apply(st, bpy.context.scene)
+            if warnings:
+                raise RuntimeError("; ".join(warnings[:2]))
+            st.check(bpy.context.scene)
+        except Exception as exc:  # noqa: BLE001 - every stop is tried; the failures are listed
+            bad.append(f"{st.number}. {st.title}: {exc}")
+    _check(not bad, " | ".join(bad[:4]))
+    return f"{len(out['files'])} projects in {time.time() - t0:.0f} s, {len(tour.STOPS)} stops"
 
 
 @line("updates.check", "Update check", "0.2.16", what="The update address answers (nothing is installed)")
