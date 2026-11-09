@@ -17,7 +17,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39) → 0055 Looks fixes (done, 0.2.40) → 0056 same STEP twice (done, 0.2.44); lane free
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → **0054 queue fixes (open – can start; 0041 done)**; later: 0050 delayed queue start
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → **0054 queue fixes (running)**; later: 0050 delayed queue start
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session) → 0053 safe updates and project lock (done, 0.2.42); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (done, 0.2.37); lane free
@@ -38,7 +38,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | open – can start (0041 done) | tasks/0054-queue-fixes.md |
+| 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | running (Claude Code, 9 Nov) | branch `claude/friendly-cerf-hn6s1i` · tasks/0054-queue-fixes.md |
 | 0057 | Landing page: the owner's new video at the top (cut, ≤ 8 MB, poster, caption; old video to the gallery or out, owner decides) | worker – **new chat in the claude.ai project (Cowork)**, owner attaches the video | Sonnet · Low | open – can start | tasks/0057-landing-hero-video.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | – | Machining lane, later: tool marks on cut faces that follow the toolpath (swirls on floors, lines on walls, face-mill arcs) – owner, 9 Nov; brief when the owner asks | owner decides | Opus · High | later | – |

@@ -1,7 +1,7 @@
 # 0054 – Render queue and video fixes from the bug hunt
 
-**Who:** worker · **Status:** open – after 0052 (same lane) and after 0041 (`animation.py`) · **Branch:**
-`task/0054-queue-fixes`
+**Who:** worker · **Status:** running (9 Nov) · **Branch:**
+`claude/friendly-cerf-hn6s1i` (the session's branch)
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 7, 8, 9, 10, 17, 18, 20b)
 **Lane:** Motion (panel 7 Render queue) – `blender/queue.py`, `blender/ops_motion.py` (queue operators),
 `blender/states.py` (`save_shot`), `blender/animation.py` (`CamState.of`, `bake`); additive `blender/callouts.py`
