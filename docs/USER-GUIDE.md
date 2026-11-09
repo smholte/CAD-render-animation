@@ -287,11 +287,35 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 
 1. Click the group in the list (the number is how many parts it has; a brush with a number: a group
    used only by painted faces).
-2. **Ready-made material…**: pick a machine material (aluminium profile, anodised, stainless, chrome,
-   galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
+2. **Ready-made material…**: pick a machine material (aluminium profile, anodised, stainless, ground
+   or turned steel, chrome, hydraulic chrome rod, cast iron, galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
    plastics, a **Colour**: a RAL code (RAL 5010) or a hex code (#13447C). The magnifier picks from the
    RAL list.
 3. The view shows the new colour at once (the real material in **Live preview**, 5 Scene & Render).
+4. **Wear** (slider under the material, 0 = new): how used the parts look. Sharp edges turn lighter or
+   bare metal in places and corners get a little dirt. 0 is right for marketing pictures; 0.2–0.4 looks
+   "in service". The edges show in Cycles renders; Fast preview (EEVEE) shows only the dirt in corners.
+
+**What the materials look like**
+
+<img src="img/material_sheet.jpg" alt="Material sheet: every ready-made material on a block, a disc and a shaft">
+
+- **Metals** have the fine marks of how they were made, read from the part's own shape, so every copy
+  looks the same: **Steel, ground** (fine straight lines along the part's longest side – ways, shafts),
+  **Steel, turned** (rings round the part's round axis), **Aluminium, machined** (faint face-milling
+  arcs), **Stainless, brushed** (brushed along the longest side), **Hydraulic chrome rod** (mirror-like,
+  polished along the rod). The marks are smaller than a millimetre: close up you see them, from a
+  distance the metal just looks real.
+- **Anodised aluminium** (natural, black, colour) has the soft satin sheen of real anodising.
+- **Cast iron** as cast (rough, slightly mottled) and **Cast iron, painted** (paint over the casting's
+  waviness, any RAL colour).
+- **Paint**: gloss, satin and marine paint have a little orange peel (seen in reflections), powder
+  coat its fine structure.
+- **Rubber** is not pure black: a soft sheen and a little dust. **Glass and polycarbonate** look like
+  glass in Cycles and in Fast preview.
+
+Projects made with an older version get the new looks when you open them; every group keeps its
+material and colour.
 
 **More in this section**
 

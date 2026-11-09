@@ -45,6 +45,9 @@ _P = [
      "polycarbonate_clear", ""),
     (r"\bGLASS?\b|\bCLEAR\b|\bTRANSPARENT\b|\bGLAS\b", "glass_clear", ""),
     # ---- metals ----------------------------------------------------------------------------
+    (r"\bHARD ?CHROM\w*|\bHARTCHROM\w*|\bHARDVERCHROOMD\b|\bHARTVERCHROMT\b|"
+     r"\b(PISTON|PLUNGER|CYLINDER|ZUIGER|KOLBEN) ?(ROD|STANG|STANGE)\b|"
+     r"\bCHROM(E|IUM|ED)?\b.*\bROD\b|\bCK ?45 ?CHROM", "chrome_rod", ""),
     (r"\bCHROM(E|IUM|ED)?\b|\bVERCHROOMD\b|\bVERCHROMT\b", "chrome", ""),
     (r"\bSTAINLESS.*\bPOLISHED\b|\bPOLISHED\b.*\bSTAINLESS\b|\bMIRROR\b", "stainless_polished", ""),
     (r"\bSTAINLESS\b|\bINOX\b|\bRVS\b|\bEDELSTAHL\b|\bNIROSTA\b|\bSUS ?3\d\d|\bAISI ?3\d\d|\b1 4[3-5]\d\d\b|"
@@ -63,8 +66,12 @@ _P = [
     (r"\bNICKEL\b|\bVERNIKKELD\b|\bVERNICKELT\b", "nickel_plated", ""),
     (r"\bGALVANI[SZ]ED\b|\bHOT DIP\b|\bHDG\b|\bFEUERVERZINKT\b|\bTHERMISCH VERZINKT\b", "galvanized", ""),
     (r"\bZINC\b|\bZINK\b|\bVERZINKT\b|\bZN\b", "zinc_plated", ""),
-    (r"\bCAST IRON\b|\bIRON CAST\b|\bGUSSEISEN\b|\bGIETIJZER\b|\bGJ[LS]\b|\bGG ?\d\d\b|\bGGG ?\d\d\b|\bDUCTILE\b",
+    (r"\b(GRAY|GREY) IRON\b|\bCAST IRON\b|\bIRON CAST\b|\bGUSSEISEN\b|\bGIETIJZER\b|\bGJ[LS]\b|\bGG ?\d\d\b|\bGGG ?\d\d\b|\bDUCTILE\b",
      "cast_iron", ""),
+    # finishes of steel: ground (ways, shafts), turned, polished
+    (r"\b(STEEL|STAAL|STAHL)\b.*\bGROUND\b|\bGROUND\b.*\b(STEEL|STAAL|STAHL)\b|\bGESLEPEN\b|\bGESCHLIFFEN\b|\bSTEEL\b.*\bPOLISHED\b|\bPOLISHED\b.*\bSTEEL\b",
+     "steel_ground", ""),
+    (r"\bTURNED\b|\bGEDRAAID\b|\bGEDREHT\b|\bLATHE\b", "steel_turned", ""),
     (r"\bBLACK OXIDE\b|\bBRUENIERT\b|\bGEBRUNEERD\b", "black_oxide", ""),
     (r"\bSTEEL\b|\bSTAAL\b|\bSTAHL\b|\bS ?235\w*|\bS ?355\w*|\bC ?45\b|\bST ?37\b|\bST ?52\b|\b42 CR MO 4\b|\bIRON\b",
      "steel_machined", ""),
@@ -90,7 +97,8 @@ _P = [
 _COMPILED = [(re.compile(p), m, c) for p, m, c in _P]
 
 # Materials whose look comes from the CAD colour (paints and coloured plastics).
-COLOURED = {"paint_gloss", "paint_satin", "paint_matte", "powder_coat", "plastic_matte", "plastic_gloss",
+COLOURED = {"paint_gloss", "paint_satin", "paint_matte", "powder_coat", "cast_iron_painted", "plastic_matte",
+            "plastic_gloss",
             "glass_tinted", "aluminium_anodized_color", "pom_white"}
 
 # Finishes inside an appearance name that switch a plastic to gloss.

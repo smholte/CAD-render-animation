@@ -80,10 +80,7 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 
 def _group_look_changed(self, context):
     from . import materials
-    mat = materials.ensure_material(self.name, self.material, self.color)
-    if self.material and materials_lib.needs_color(self.material) and not self.color:
-        pass
-    _ = mat
+    materials.ensure_material(self.name, self.material, self.color, self.wear)
 
 
 def _remember_rename(scene, old: str, new: str) -> None:
@@ -196,6 +193,10 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     color: StringProperty(name="Colour", update=_group_look_changed,
                           description="Colour of the group: a RAL code (e.g. RAL 5010) or a hex colour (#13447C). "
                                       "The magnifier next to it opens the RAL list")
+    wear: FloatProperty(name="Wear", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_group_look_changed,
+                        description="How used the parts of this group look: 0 = new (clean, for marketing), "
+                                    "1 = used. Sharp edges turn lighter or bare metal and corners get a little "
+                                    "dirt. Shows in Cycles renders; Fast preview (EEVEE) shows only the dirt")
     count: IntProperty(name="Parts", default=0)
     faces: IntProperty(name="Face sets", default=0,
                        description="Painted faces of parts in this group (faces with a look of their own)")

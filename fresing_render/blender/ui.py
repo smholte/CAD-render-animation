@@ -525,6 +525,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 row = col.row(align=True)
                 row.prop(g, "color", text="Colour")
                 row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
+            col.prop(g, "wear", text="Wear", slider=True)
             row = box.row(align=True)
             row.operator("fresing.group_select", text="Select its parts", icon="RESTRICT_SELECT_OFF")
             row.operator("fresing.show_only_group", text="Show only these", icon="HIDE_OFF").group = g.name

@@ -241,6 +241,27 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
+@line("looks.materials", "Materials: the material sheet", "0.2.38",
+      what="Every ready-made material on a block with a chamfer, a disc and a shaft, rendered with Cycles: "
+           "judge metals, paint, rubber and glass in one picture")
+def looks_materials(ctx):
+    from ..blender import material_sheet
+    from ..core import materials_lib
+    scene = material_sheet.build()
+    path = os.path.join(ctx.work, "material_sheet.png")
+    try:
+        if ctx.has_gpu:
+            info = material_sheet.render(scene, path, "CYCLES", samples=64, width=1600, use_gpu=True)
+        else:
+            info = material_sheet.render(scene, path, "CYCLES", samples=12, width=800)
+    finally:
+        material_sheet.remove()
+    ctx.metric("render", info["seconds"], "s")
+    ctx.picture(path, "material_sheet", "Material sheet (Cycles)", model_check=False, width=1000,
+                settings=f"{info['size'][0]} x {info['size'][1]}, {info['device']}")
+    return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
+
+
 @line("rules.switch", "Rule sets: switch and back", "0.2.13",
       what="Another rule set sorts the parts its way; hand picks stay; back to Standard")
 def rules_switch(ctx):
