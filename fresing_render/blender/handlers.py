@@ -106,25 +106,39 @@ def _subscribe():
     )
 
 
+def _upgrade_steps():
+    def faces_off(sc):
+        sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
+
+    def drivers(sc):
+        from . import joints
+        joints.upgrade_drivers(sc)               # before 0.2.30: joints snapped to 0 within 0.1 mm
+
+    def looks(sc):
+        from . import logic
+        logic.upgrade_looks(sc)                  # before 0.2.39: materials get the new looks (0046)
+
+    def rules(sc):
+        from . import rule_sets
+        if rule_sets.on_load(sc):        # no rule set yet (before 0.2.13); untouched rules of before 0.2.8
+            sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
+                                       "CAD materials): press 'Sort parts into groups' to use them")
+
+    return (("matrices", build.ensure_bases), ("paint faces", faces_off), ("joint drivers", drivers),
+            ("looks", looks), ("rule set", rules))
+
+
 @persistent
 def _on_load(_dummy=None):
     _IGNORE.clear()
     _subscribe()
-    try:
-        for sc in bpy.data.scenes:           # projects from before 0.2: store the CAD matrices once
-            if hasattr(sc, "fresing") and sc.fresing.model_count:
-                build.ensure_bases(sc)
-                sc.fresing.face_painting = False         # 'Paint faces' does not survive a reload
-                from . import joints
-                joints.upgrade_drivers(sc)               # before 0.2.30: joints snapped to 0 within 0.1 mm
-                from . import logic
-                logic.upgrade_looks(sc)                  # before 0.2.39: materials get the new looks (0046)
-                from . import rule_sets
-                if rule_sets.on_load(sc):        # no rule set yet (before 0.2.13); untouched rules of before 0.2.8
-                    sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
-                                               "CAD materials): press 'Sort parts into groups' to use them")
-    except Exception:
-        pass
+    for sc in bpy.data.scenes:               # projects from before 0.2: store the CAD matrices once
+        if hasattr(sc, "fresing") and sc.fresing.model_count:
+            for step, fn in _upgrade_steps():
+                try:                         # 0055: one failing step never skips the others
+                    fn(sc)
+                except Exception as exc:
+                    print(f"Fresing Render: upgrade step '{step}' failed for scene '{sc.name}': {exc}")
     try:                                     # a render queue started earlier may still be going
         scene = bpy.context.scene
         if scene is not None and hasattr(scene, "fresing") and scene.fresing.queue_dir:

@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.40 – 9 Nov 2026 – Looks fixes (task 0055)
+
+- **Renaming a group** now also renames it in your paint schemes and in the saved scenes' own looks, so applying a
+  scheme no longer skips it.
+- **Two groups can't have the same name any more**: renaming to a name that is taken is refused with a short message.
+- **Opening a project**: if one upgrade step fails, the others still run (the reason is printed in the console).
+- **Old stored imports** of an older app version are deleted when you import, so they no longer fill the disk.
+- **Chrome rods** now get the *Hydraulic chrome rod* look and **shafts and linear guides** get *Steel, ground* in new
+  imports and new rule sets. Existing projects keep their looks.
+
 ## 0.2.39 – 9 Nov 2026 – better materials: real metals, paint, wear (task 0046)
 
 Looks
