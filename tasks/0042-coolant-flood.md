@@ -59,6 +59,9 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
 - [ ] Guide "Milling" (Coolant) with a picture; PC-check line `milling.coolant`; tooltips.
 - [ ] If the test tour (0059) is merged by then: a tour stop "Coolant" (one entry in `blender/tour.py`); otherwise
       write "tour stop still to add" in the report.
+      How (0059 is on `main`): a `stop(...)` entry in its group in `blender/tour.py`, set up in a set's build function
+      (`_shot(b, "@<stop id>")` or an animation with `animation=`), a number `check`; raise `MIN_LINES_TOUR`
+      (`tools/ci_check_pccheck.py`) and `MIN_CHECKS["tour"]` (`tools/ci_real_app.py`); `pytest tests/test_tour.py`.
 - [ ] GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
 - [ ] Report filled in; `TASKS.md`: 0042 done, the tool-marks task "open – can start".
 

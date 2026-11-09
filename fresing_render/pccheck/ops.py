@@ -82,13 +82,17 @@ class FRESING_OT_pc_check(bpy.types.Operator):
 
     mode: EnumProperty(name="Check", default="quick",
                        description="Quick tests the main functions in about 3 minutes; Full tests every function "
-                                   "in about 15 minutes; Heavy loads the PC like real work (10 to 20 minutes)",
+                                   "in about 15 minutes; Heavy loads the PC like real work (10 to 20 minutes); Test "
+                                   "tour renders a picture of every stop of the test tour (10 to 15 minutes)",
                        items=[("quick", "Quick (about 3 minutes)", "Import, a joint, a picture on the graphics card "
                                                                    "and a short EEVEE video"),
                               ("full", "Full (about 15 minutes)", "Every function of the app, with pictures"),
                               ("heavy", "Heavy (10 to 20 minutes)", "A big generated machine, 4K pictures and a "
                                                                     "10 second video: shows how the PC copes "
-                                                                    "with real load")])
+                                                                    "with real load"),
+                              ("tour", "Test tour (10 to 15 minutes)", "Goes through every stop of the test tour by "
+                                                                       "itself: a picture of each stop with what you "
+                                                                       "should see, and the number checks")])
     use_model: BoolProperty(name="Also test my own STEP file",
                             description="Also import one of your own STEP files and measure it: import time, parts, "
                                         "share sorted, a picture and the time per frame. The report stays on this "
@@ -107,10 +111,12 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         col.separator()
         col.prop(self, "use_model")
         sub = col.column()
-        sub.enabled = self.use_model
+        sub.enabled = self.use_model and self.mode != "tour"
         sub.prop(self, "filepath", text="")
         col.separator()
         col.label(text="Runs in the background; you can keep working.", icon="INFO")
+        if self.mode == "tour":
+            col.label(text="Makes a fresh test tour and renders every stop; your ticks stay.")
         if self.mode == "heavy":
             col.label(text="Heavy uses the whole PC for a while. Stop it any time:")
             col.label(text="Help > Cancel Fresing Render PC check.")
@@ -123,7 +129,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
             self.report({"WARNING"}, "A PC check is still running: wait for its report")
             return {"CANCELLED"}
         model = ""
-        if self.use_model:
+        if self.use_model and self.mode != "tour":
             model = bpy.path.abspath(self.filepath)
             if not (os.path.isfile(model) and model.lower().endswith((".step", ".stp"))):
                 self.report({"ERROR"}, "Pick a STEP file (.step or .stp) first")
@@ -144,7 +150,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start the PC check: {exc}")
             return {"CANCELLED"}
-        minutes = {"quick": "3", "full": "15", "heavy": "10 to 20"}[self.mode]
+        minutes = {"quick": "3", "full": "15", "heavy": "10 to 20", "tour": "10 to 15"}[self.mode]
         self.report({"INFO"}, f"PC check started ({core.MODE_TITLES[self.mode]}): the report opens in your web "
                               f"browser in about {minutes} minutes")
         return {"FINISHED"}
@@ -247,6 +253,11 @@ def ensure_shortcuts() -> str:
 def _draw_pc_check_help(self, context):
     self.layout.operator(FRESING_OT_pc_check.bl_idname, icon="CHECKMARK")
     _draw_cancel_help(self, context)
+    try:
+        from ..blender import ops_tour                 # the test tour (task 0059)
+        ops_tour.draw_help(self.layout)
+    except Exception as exc:  # noqa: BLE001 - never break the Help menu
+        print("Fresing Render: test tour menu:", exc)
 
 
 def _add_help_entry() -> None:

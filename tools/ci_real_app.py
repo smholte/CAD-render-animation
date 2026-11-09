@@ -57,7 +57,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 29,
-              "paths": 8, "pccheck": 31, "pccheckheavy": 10, "update": 29}
+              "paths": 8, "pccheck": 31, "pccheckheavy": 10, "update": 29, "tour": 28, "tourui": 15}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036). Balanced by measured minutes
@@ -70,10 +70,10 @@ MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],
     "callouts": ["callouts"],
-    "paths-heavy": ["paths", "pccheckheavy"],
+    "paths-heavy": ["paths", "pccheckheavy", "tour"],
     "ui": ["ui1", "ui2", "faces"],
     "scenes": ["surroundings", "rulesets", "decals"],
-    "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover", "gcode"],
+    "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover", "gcode", "tourui"],
 }
 
 TESTS = {
@@ -104,6 +104,10 @@ TESTS = {
     "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
     "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
     "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),
+    "tour": ("Test tour, the automatic run (PC check mode Tour) from the installed launcher: every stop", "",
+             "pccheck"),
+    "tourui": ("Real app: test tour – make, open, Go here and in another project, OK / Problem, Copy results "
+               "(ui_test_tour.py)", "ui_test_tour.py", True),
     "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                "ci_update_test.py", None),
 }
@@ -223,7 +227,7 @@ def main(argv=None) -> int:
             launcher = os.path.join(user_res, "extensions", "user_default", "fresing_render", "pccheck", "launcher.py")
             env.update(FRESING_PCCHECK_DIR=os.path.join(folder, "history"), FRESING_PCCHECK_NO_OPEN="1")
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--background", "--online-mode", "--python-exit-code", "1",
-                   "--python", launcher, "--", folder, "heavy" if key == "pccheckheavy" else "full"]
+                   "--python", launcher, "--", folder, {"pccheckheavy": "heavy", "tour": "tour"}.get(key, "full")]
             if key == "pccheckheavy":
                 env["FRESING_PCCHECK_HEAVY_SMALL"] = "1"
         elif gui is None:                            # a driver of its own (own settings folder and screen)
@@ -245,12 +249,13 @@ def main(argv=None) -> int:
         print(f"\n== {title}", flush=True)
         code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
         verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
-        if key in ("pccheck", "pccheckheavy"):       # skips only for "no graphics card", every line there
+        if gui == "pccheck":                         # skips only for "no graphics card", every line there
             import ci_check_pccheck
             block = os.path.join(folder, "history", "last_run.txt")
             text_block = open(block, encoding="utf-8").read() if os.path.isfile(block) else ""
             _rows, problems = ci_check_pccheck.judge(
-                text_block, ci_check_pccheck.MIN_LINES_HEAVY if key == "pccheckheavy" else ci_check_pccheck.MIN_LINES_FULL)
+                text_block, {"pccheckheavy": ci_check_pccheck.MIN_LINES_HEAVY,
+                             "tour": ci_check_pccheck.MIN_LINES_TOUR}.get(key, ci_check_pccheck.MIN_LINES_FULL))
             if problems:
                 verdict = False
                 detail += "; " + "; ".join(problems[:3])

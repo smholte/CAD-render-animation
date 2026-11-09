@@ -237,6 +237,10 @@ fresing_render/            the Blender extension (Python package)
                            the strips for labels, picture cards and music are made in video.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
+    tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
+                           test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
+                           tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
+                           ui_tour.py (the Test tour panel, only in a tour project, on top of the Fresing tab)
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
   update_helper.py         installs a downloaded update while Blender is closed, starts the app again
   queue_runner.py          runs queued renders inside a background Blender
@@ -246,7 +250,8 @@ fresing_render/            the Blender extension (Python package)
                            picture flags, text block, HTML report), runner.py, launcher.py (Start-menu shortcuts,
                            Help > Fresing Render PC check…, Cancel), ops.py (Heavy shortcuts, Cancel);
                            heavy.py (task 0033: the Heavy lines, sizes, peak memory) + heavy_scene.py (writes the big
-                           invented machine at run time with OpenCascade; nothing of it is in the repository)
+                           invented machine at run time with OpenCascade; nothing of it is in the repository);
+                           tour.py (task 0059: mode Tour = the automatic test tour, a picture per stop)
   data/                    test models that ship with the extension (copies of tests/data, checked by a test)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
@@ -312,6 +317,7 @@ then `~/venv/bin/python -m pytest tests/ -q` (about 6 minutes, all must pass).
 | User guide page | `~/venv/bin/python tools/build_guide.py`, open `dist/guide/user_guide.html` | guide or pictures changed |
 | Tooltip check | `~/venv/bin/python tools/tooltip_report.py` (`--all`, `--markdown`) | buttons or settings added or changed |
 | PC check Heavy, scaled down (`FRESING_PCCHECK_HEAVY_SMALL=1`: ~300 parts, 14 frames, 540 px; real Blender under xvfb) | `FRESING_PCCHECK_HEAVY_SMALL=1 ~/venv/bin/python tools/ci_real_app.py --only pccheckheavy …` | you changed `pccheck/heavy.py` |
+| Test tour: build, Go + check of every stop, buttons, the automatic run for a few stops | `~/venv/bin/python -m pytest tests/test_tour.py -q` (about 2 min); the whole automatic run: `--only tour,tourui` of `ci_real_app.py` | you added or changed a tour stop or a function a stop shows |
 | PC check, your lines (bpy module, no graphics card) | `FRESING_SELFTEST_NO_GPU=1 FRESING_PCCHECK_DIR=/tmp/pc FRESING_PCCHECK_ONLY=<line ids> ~/venv/bin/python -c "…runner.run('full', '/tmp/pc', open_report=False)"` (see `tests/test_pccheck.py` for the set-up) | you added or changed a PC-check line |
 | Help menu opens the guide (real app, guide inside the installed extension) | `xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render --enable-event-simulate --python tools/guide_test_app.py` | app template, packaging |
 
@@ -343,7 +349,8 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
 | Linux - test suite 1 … 4 | pytest, the `tests/test_*.py` files split in 4 groups balanced by `tools/ci_times.json` (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 4.6–6.1 min (the biggest file, `test_video_labels.py`, alone ~5 min) |
-| Linux - real app pccheck / callouts / paths-heavy / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`, `ui_test_gcode.py` (CNC machine, Run G-code program); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
+| Linux - real app pccheck / callouts / paths-heavy / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033) + the automatic test tour (mode Tour,
+task 0059); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`, `ui_test_gcode.py` (CNC machine, Run G-code program), `ui_test_tour.py` (test tour); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
 | Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (Full) from their Start-menu shortcuts, then `Uninstall.bat` | 9.8 min (PC check 4.5); starts after the build |
 | Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
@@ -420,6 +427,11 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `shows`, `not_shown`; sizes from `heavy.sizes()` so the scaled-down form works) and `MIN_LINES_HEAVY`
   is raised. The owner runs the check after each update and sends
   back its text block; GitHub runs it at every push.
+- **Test tour stop** (owner's rule, task 0059): a task that adds a function the owner can see adds its stop to the
+  test tour in the same task – one `stop(...)` entry in `fresing_render/blender/tour.py` (title, "what you should
+  see", where in the side panel, the set it lives in, `shot` or `animation`, a number `check`), set up in that set's
+  build function (another test model: a new `@tour_set`). Raise `MIN_LINES_TOUR` in `tools/ci_check_pccheck.py` and
+  `MIN_CHECKS["tour"]` in `tools/ci_real_app.py` (the precheck says so); `tests/test_tour.py` runs its Go and check.
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of

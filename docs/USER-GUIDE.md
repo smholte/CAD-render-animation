@@ -1572,6 +1572,55 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 - A video's sharp spot stays on its part, also when the part moves during the video or the start scene
   puts it elsewhere.
 
+<a id="tour"></a>
+## Test tour – see every function work
+
+After an update you want to see quickly that everything still works. The **test tour** is a set of small
+projects, made from the app's own test models (a crane, a mill, a gantry, a cylinder, a scissor lift, a way
+cover…), with every function already set up: 27 numbered **stops**, from materials and painted faces through
+joints, cylinders and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
+
+<img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
+
+**Make it (once per version)**
+1. **Help > Make test tour project…**, then **Make it**. It is made in the background in about 2 minutes (the
+   bottom line of the window shows "Making the test tour: project 3 of 14 …"); you can keep working.
+2. When it is ready a small window says so: click **Open test tour project**. Later: **Help > Open test tour
+   project**. Save your own project first: changes that are not saved are lost when another project opens.
+
+It goes to **Documents\Fresing Render\Test tour**: "Test tour 0.2.47.blend" (the crane, the one you open)
+and a folder "Test tour 0.2.47 files" with the other projects. It is made new for every version, so it always
+shows what this version can do.
+
+**Go through the stops**
+1. The **Test tour** panel is on top of the Fresing tab (only in a tour project). The stops are in four
+   folds: **Look**, **Motion**, **Machining**, **Pictures and videos**; the numbers in brackets say how many
+   you have marked.
+2. Click a stop. Under the list you see what you should see and where the function is in the side panel.
+3. Click **Go**. The app opens the stop's project if needed, sets up its saved scene, builds and plays its
+   animation, selects the part and looks through the camera.
+4. Look. Then click **OK** or **Problem** (click again to take the mark off). With a problem, click
+   **Note…** and write in a few words what you saw.
+5. **Next** goes to the next stop.
+
+Your marks and notes are kept in a file next to the tour ("Test tour 0.2.47 results.json"), for every
+project of the tour, also when you close the app.
+
+**Send the results.** Click **Copy results** and paste the text into the lead chat: the version, your PC,
+and every stop with OK / PROBLEM / – and your note. It is also saved as "Test tour 0.2.47 results.txt".
+
+**Let it run by itself (10 to 15 minutes).** **More > Run the whole tour by itself** (or **Help > Fresing
+Render PC check…** and pick **Test tour**) makes a fresh tour in the background, goes through every stop, checks
+what can be checked with numbers (the boom turned, the rod's eye stays on its pin, the platform is at 1.5 m,
+the tools go to their pockets…) and renders a small picture of each stop, or three frames of its motion. At
+the end "Fresing Render test tour.html" opens in your web browser (it is on the Desktop too): a card per stop
+with its picture, what you should see, and OK or FAILED. Start it, do something else, and later tick OK or
+Problem in the panel while you look at the report. Your own marks are not touched. On the 4-core test machine
+without a graphics card the whole run took about 3.5 minutes (measured); on your PC it uses the graphics card
+and bigger pictures.
+
+**More**: **Show the tour folder**, **Make the tour again…**.
+
 <a id="tips"></a>
 ## Tips
 

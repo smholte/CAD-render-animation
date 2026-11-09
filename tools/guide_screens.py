@@ -22,6 +22,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=decals blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
 
+  tour   the Test tour panel (task 0059): the tour made and opened, a few stops marked (as "panels").
+
   toolchange / toolchange_view   Tool changes (task 0041) on the test gantry: the panels (as "panels") and the
       carousel and the hand in the view (as "window").
 
@@ -385,6 +387,7 @@ def build_state():
 # ---------------------------------------------------------------------------
 
 STEPS = []
+STATE_TOUR = {}
 
 
 def step(fn):
@@ -1024,6 +1027,44 @@ elif MODE in ("toolchange", "toolchange_view"):
         step(_view_shot("view_toolchange_hand"))
         step(_atc_frame)
         step(_view_shot("view_toolchange_atc"))
+
+elif MODE == "tour":
+    # task 0059: the Test tour panel (Help > Make test tour project, then open it). Same command as "panels"
+    # (xvfb 1500x7000), with GUIDE_SHOTS=tour. The tour is made in the scratch folder; two stops marked, stop 7 picked.
+    step(_start)
+
+    def _tour_make():
+        folder = os.path.join(SCRATCH, "Test tour")
+        STATE_TOUR["folder"] = folder
+        with override():
+            res = bpy.ops.fresing.tour_make(folder=folder, in_place=True)
+        log("tour made", res)
+        tour = mod("blender.tour")
+        version = __import__("importlib").import_module(pkg()).__version__
+        STATE_TOUR["version"] = version
+        for p in (tour.results_path(folder, version),):
+            if os.path.isfile(p):
+                os.remove(p)
+        with override():
+            bpy.ops.fresing.tour_open(filepath=tour.hub_path(folder, version))
+        return 3.0
+    step(_tour_make)
+
+    def _tour_marks():
+        tour = mod("blender.tour")
+        folder, version = STATE_TOUR["folder"], STATE_TOUR["version"]
+        for sid in ("materials", "faces", "decals", "cut_look", "sea", "looks"):
+            tour.mark(folder, version, sid, state=tour.OK_STATE)
+        tour.mark(folder, version, "stack", state=tour.PROBLEM)
+        tour.mark(folder, version, "stack", note="the trolley stops 1 frame late")
+        data = tour.load_results(folder, version)
+        data["current"] = "stack"
+        tour.save_results(folder, version, data)
+        show_only([("FRESING_PT_tour", False, True)])
+        wiggle()
+        return 2.5
+    step(_tour_marks)
+    step(lambda: (shoot_sidebar("panel_tour"), 0.5)[1])
 
 elif MODE in ("render", "looks", "decals"):
     pass

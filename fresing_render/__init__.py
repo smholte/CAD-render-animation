@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.46"
+__version__ = "0.2.47"
 
 _modules = []
 
@@ -14,14 +14,15 @@ _modules = []
 def _classes():
     from .blender import (ops_callouts, ops_cylinders, ops_decals, ops_gcode, ops_import, ops_linkages, ops_machining,
                           ops_main, ops_motion, ops_panels, ops_waycover, ops_rule_sets, ops_scene, ops_surroundings,
-                          ops_video, prefs, ui, ui_callouts, ui_decals, ui_gcode, ui_machining, ui_motion, ui_video,
-                          ui_waycover, updates)
+                          ops_tour, ops_video, prefs, ui, ui_callouts, ui_decals, ui_gcode, ui_machining, ui_motion,
+                          ui_tour, ui_video, ui_waycover, updates)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
     looks[at:at] = ui_decals.PANELS
-    # the update notice first: a panel registered first sits on top of the Fresing tab
-    return (updates.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
+    # 0059, only in a tour project)
+    return (updates.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES + ops_callouts.CLASSES + tuple(looks)
@@ -42,6 +43,8 @@ def register():
             cls.__doc__ = " ".join(cls.__doc__.split())
         bpy.utils.register_class(cls)
     handlers.register()
+    from .blender import ops_tour
+    ops_tour.register_handlers()
     project_lock.register()
     machining.register()
     linkages.register()
@@ -61,6 +64,8 @@ def unregister():
     machining.unregister()
     project_lock.unregister()
     handlers.unregister()
+    from .blender import ops_tour
+    ops_tour.unregister_handlers()
     for cls in reversed(_classes()):
         try:
             bpy.utils.unregister_class(cls)
