@@ -139,8 +139,10 @@ repository; each row gives the few lines needed to repeat it.
 - **Opened in 0.2.37:** parts, groups and looks, joints, poses, scenes, animation and queue all the same, and the decal is still on its part. The boom
   tip at 30° lands within 0.1 mm of the old version's spot. The saved scene hides the pin. Build animation works ("2.0 s, 51 frames").
   Model update to `test_crane_b` gives "11 kept, 1 new, 1 missing" and keeps the joint. Save and reopen keep everything.
-- **Old project, real queue:** the 0.2.20 project's two queued jobs were run in real Blender 5.2.3 (extension + app template installed in a
-  fresh settings folder, `queue.start`); result below.
+- **Old project, real queue:** the queued jobs of the 0.2.20 and 0.2.30 projects ran in real Blender 5.2.3 (extension + app
+  template installed in a fresh settings folder, `queue.start`). Both jobs of each are DONE: the video (51 and 9 frames, MP4) and
+  the still of the saved scene (1920 × 1080, the scene's own size, pose applied). The background runner also finished
+  after the Blender that started it had closed.
 - **Heavy machine** (`pccheck/heavy_scene.py`, 2,992 placed / 600 unique parts, 3,050 objects, bpy module):
 
   | Action | Time |
