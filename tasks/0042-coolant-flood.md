@@ -5,10 +5,10 @@
 **Lane:** Machining – a new `core/coolant.py` + `blender/coolant.py` next to `air.py` (0039), its settings in
 `ui_machining.py` / the G-code step fold in `ui_gcode.py`, `core/gcode.py` (M7/M8/M9 events, additive), chips
 (wet chips), `core/materials_lib.py` (new ids only); tests; guide "Milling" chapter; PC-check line
-**Model:** **Fable · effort High** (the owner's "Fable day"; Opus · High would also do) · **Place:** Claude Code on
+**Model:** **Opus · effort High** (lead 9 Nov: runs before the Fable day so Thursday is free for 0058 and tool marks) · **Place:** Claude Code on
 the web, environment "CAD-render-animation"
 
-May run at the same time as 0058 (Flex parts lane): do not touch `handlers.py` apart from a one-line registration,
+May run at the same time as 0059 test tour (Quality & delivery) and 0058 (Flex parts lane): do not touch `handlers.py` apart from a one-line registration,
 `animation.py`, `reimport.py`, `props.py` beyond its own additive property group, `part_types_data.py`, or any
 flex file.
 
@@ -57,6 +57,8 @@ Owner's choice 9 Nov: in his demo air comes only from "Blow the part clean at th
       small MP4 in the report folder `tasks/img/`, ≤ 3 MB), before/after drying.
 - [ ] Render time numbers as in 5; tests for the timing (M-codes, drying) in `core/coolant.py` without Blender.
 - [ ] Guide "Milling" (Coolant) with a picture; PC-check line `milling.coolant`; tooltips.
+- [ ] If the test tour (0059) is merged by then: a tour stop "Coolant" (one entry in `blender/tour.py`); otherwise
+      write "tour stop still to add" in the report.
 - [ ] GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
 - [ ] Report filled in; `TASKS.md`: 0042 done, the tool-marks task "open – can start".
 

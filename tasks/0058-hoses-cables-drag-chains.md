@@ -1,6 +1,6 @@
 # 0058 – Hoses, cables and drag chains that follow the motion
 
-**Who:** worker · **Status:** open – can start (0054 merged, 0.2.46) · **Branch:**
+**Who:** worker · **Status:** open – **Fable day, Thursday 12 Nov** (owner); after 0050 (both touch the queue/animation area) · **Branch:**
 `task/0058-hoses-cables-drag-chains`
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 1 of the big features, 9 Nov)
 **Lane:** new **Flex parts** lane – new files `core/flex.py` (no Blender: shapes, lengths, solver),
@@ -81,6 +81,7 @@ cylinders (hydraulic hoses).
 - [ ] The tests above, the speed numbers in the report; an independent review by a helper agent of the solver
       (`core/flex.py`) (CLAUDE.md section 2).
 - [ ] Guide chapter "Hoses and drag chains" with pictures; PC-check line `motion.flex`; tooltips.
+- [ ] Tour stops "Hoses" and "Drag chains" in the test tour (0059, `blender/tour.py`).
 - [ ] GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
 - [ ] Report filled in; `TASKS.md`: 0058 done; what the owner should check on his own mill and crane.
 
