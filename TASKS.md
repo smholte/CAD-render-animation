@@ -29,6 +29,9 @@ updates its branch to `main`.
 
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
 
+- **Twenty problems from the bug hunt 0045** (worst: model update drops joints spanning two models and cuts labels off
+  their parts; decal on the milled workpiece emptied; Update now saves over a shared project; queue leaks into another
+  project; queued stills/videos differ from the view), ranked with proof, lane and model: `tasks/0045-bug-hunt.md`, report.
 - **Five problems from 0048** (no BT30 holder; G43 offsets from stick-out with mixed holders; tip ~0.065 mm; corners
   of fast moves under-cut ~0.3 mm; manufacturer STEPs along X): `tasks/0048-demo-facemill-chamfer.md`, report.
 - **Four smaller problems from 0037** (two way covers on one axis; Motor not ticked when the spindle is picked;
@@ -43,7 +46,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – after 0049 (same lane) | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
-| 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker (Claude Code web, 9 Nov) | Opus · High | running – findings only, report to `main` | tasks/0045-bug-hunt.md |
 | 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker (Claude Code web, 9 Nov) | Opus · Medium | running – branch claude/fervent-bardeen-gdfzcs | tasks/0046-better-materials.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
@@ -59,6 +61,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | --- | --- | --- |
 | – | Phase 1 (stills), phase 2 (motion), installer, self-test | 0.1.0 – 0.2.2 |
 | – | STEP import on all cores | 0.2.3 |
+| 0045 | Bug hunt across the whole app: 20 ranked findings with proof (5 lost work + 1 suspected, 6 wrong output, 2 suspected crash risks, slow spots, small ones); old projects 0.2.20/0.2.24/0.2.30 open fine; Heavy machine measured | – (no code) |
 | 0048 | Owner's demo with three BT30 tools (face mill, end mill, chamfer mill), M6 + G43; 5 app problems in the report | – (no code) |
 | – | Faster animation renders, Time test, Show in folder | 0.2.4 |
 | – | Side panel redesigned section by section | 0.2.5 |
