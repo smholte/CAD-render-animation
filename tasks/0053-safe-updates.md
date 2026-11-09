@@ -51,7 +51,7 @@ The queue and its runner (0054). Import caches (0055). Anything in the app's pan
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 9 Nov 2026 (version 0.2.41)
+**Chat / date:** Claude Code on the web, 9 Nov 2026 (version 0.2.42)
 
 **What changed:**
 - Row 4: `updates.preflight` reads the project's lock afresh (`lock_holder`); someone else's lock → "Someone else has
@@ -69,7 +69,7 @@ The queue and its runner (0054). Import caches (0055). Anything in the app's pan
   Update now refuses while one runs, and the helper waits for them too (5 min, then status + restart, nothing
   changed). The busy note is written before that wait, so a Desktop start meanwhile says "being installed".
 - Row 19d: `pccheck.ops.run_powershell` with `encoding="utf-8", errors="replace"`.
-- PC check: new line `updates.safe` (Full; MIN_LINES_FULL 39) runs the Windows process code, the stale-note check
+- PC check: new line `updates.safe` (Full; MIN_LINES_FULL 40) runs the Windows process code, the stale-note check
   and backup/put-back with an accented temp path on the owner's PC and in the Windows CI job.
 - `tools/ci_update_test.py` waits (≤ 2 min) until no other Blender of that folder runs before its Update now.
 - Guide: "Updates: one click" (when Update now refuses, when an update fails) and "Projects on a shared drive"

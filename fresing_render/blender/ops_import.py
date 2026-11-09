@@ -200,7 +200,12 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         old_root = bpy.data.objects.get(self.update_root) if self.update_root else None
         if old_root is not None:
             from . import reimport
-            res = reimport.update_model(context, old_root, job.cache_dir)
+            try:
+                res = reimport.update_model(context, old_root, job.cache_dir)
+            except reimport.UpdateFailed as exc:          # the project is as it was (task 0052)
+                s.last_message = f"Model update failed: {exc}"
+                self.report({"ERROR"}, s.last_message)
+                return {"CANCELLED"}
             res["root"]["fr_quality"] = self.quality
             s.last_message = s.report_title
             self.report({"INFO"}, s.last_message)

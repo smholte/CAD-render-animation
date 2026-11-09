@@ -761,6 +761,21 @@ def cad_pose(scene):
         _update(scene)
 
 
+_BATCH: set = set()          # scenes building several joints inside one CAD pose (model updates)
+
+
+@contextlib.contextmanager
+def _batch(scene):
+    """Build several joints in one CAD pose: ``create`` then skips its own (two full scene updates each,
+    0.2-0.4 s on 3,000 parts; task 0052). Inside, read a new joint's matrices only after ``_update``."""
+    with cad_pose(scene):
+        _BATCH.add(scene.name)
+        try:
+            yield
+        finally:
+            _BATCH.discard(scene.name)
+
+
 # ---------------------------------------------------------------------------
 # building blocks
 # ---------------------------------------------------------------------------
@@ -1000,7 +1015,10 @@ def create(scene, kind: str, objs, origin, direction, name: str = "", base=None,
         local = ref.matrix_world.inverted() @ frame_world if ref is not None else frame_world.copy()
     else:
         local = _local_axis(ref, origin, direction)
-    with cad_pose(scene):
+    batch = scene.name in _BATCH
+    with contextlib.nullcontext() if batch else cad_pose(scene):
+        if batch and base is not None and base.get(build.PROP_KIND) in build.JOINT_KINDS:
+            _update(scene)                      # a joint made earlier in the batch: its matrices
         for ob in objs:                         # an object is moved directly by one joint only
             other = joint_of_object(scene, ob)
             if other is not None:
@@ -1391,8 +1409,30 @@ def axis_from_hit(ob, polygon_index: int, hit: Vector, normal: Vector):
 # re-import support: joints as plain data
 # ---------------------------------------------------------------------------
 
-def to_specs(scene, values: dict | None = None, only=None) -> list[dict]:
-    """Joints as plain data (object references by stable part ID). Call in the CAD pose.
+class PartLookup(dict):
+    """Part ID -> object, for rebuilding from specs. A key ``"@<object name>"`` (see ``spec_key``) is an
+    object of another model, looked up by itself: a joint or cylinder may link two models (task 0052)."""
+
+    def get(self, key, default=None):
+        if isinstance(key, str) and key.startswith("@"):
+            ob = bpy.data.objects.get(key[1:])
+            return ob if ob is not None else default
+        return super().get(key, default)
+
+
+def spec_key(ob, root=None):
+    """How a spec names an object: its part ID, or ``"@<name>"`` when it is outside the model under
+    ``root`` (that model is made again; the other models keep their objects)."""
+    if ob is None:
+        return None
+    if root is not None and _root(ob) is not root:
+        return "@" + ob.name
+    return ob.get(build.PROP_UID)
+
+
+def to_specs(scene, values: dict | None = None, only=None, root=None) -> list[dict]:
+    """Joints as plain data (object references by stable part ID; objects outside the model under
+    ``root`` by name, see ``spec_key``). Call in the CAD pose.
 
     A joint riding on another joint stores that joint's name in ``base_joint`` (and no part)."""
     out = []
@@ -1406,10 +1446,10 @@ def to_specs(scene, values: dict | None = None, only=None) -> list[dict]:
             "name": j.name, "kind": j.kind, "value": (values or {}).get(j.name, get_value(j)),
             "use_limits": j.use_limits, "rot_min": j.rot_min, "rot_max": j.rot_max,
             "slide_min": j.slide_min, "slide_max": j.slide_max,
-            "base": base.get(build.PROP_UID) if base is not None and below is None else None,
+            "base": spec_key(base, root) if base is not None and below is None else None,
             "base_joint": below.name if below is not None else None,
             "base_local": build.mat_to_list(j.frame.matrix_basis),
-            "members": [ob.get(build.PROP_UID) for ob in members(j)],
+            "members": [spec_key(ob, root) for ob in members(j)],
             # couplings and motors (task 0012); specs without them come from older versions
             "follows": j.follows, "ratio": j.couple_ratio, "offset_angle": j.couple_offset_angle,
             "offset_dist": j.couple_offset_dist, "motor": bool(j.is_motor),
@@ -1438,6 +1478,11 @@ def dissolve_all(scene, root=None) -> list[dict]:
         return any(_root(o) is root for o in objs)
 
     chosen = {j.name for j in s.joints if belongs(j)}
+    if root is not None:
+        # a whole stack comes apart, also joints of another model riding on one of these (task 0052):
+        # left in place they would sit on a part that is about to be deleted
+        for name in list(chosen):
+            chosen.update(r.name for r in all_riders(scene, find(scene, name)))
     for name in list(chosen):                 # never split a stack from below: take the joints under it too
         below = rides_on(scene, find(scene, name))
         while below is not None and below.name not in chosen:
@@ -1445,7 +1490,7 @@ def dissolve_all(scene, root=None) -> list[dict]:
             below = rides_on(scene, below)
     values = {j.name: get_value(j) for j in s.joints}
     with cad_pose(scene):
-        specs = to_specs(scene, values, only=chosen)
+        specs = to_specs(scene, values, only=chosen, root=root)
         # top of each stack first: a joint is never removed while another one still rides on it
         _order, depths = tree_order(scene)
 
@@ -1521,50 +1566,52 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             out += stack_objs(r, seen)
         return out
 
-    for sp in _stack_order(specs):
-        objs = present(sp)
-        missing = len(sp["members"]) - len(objs)
-        carries = bool(stack_objs(sp)) and not objs     # moves nothing itself, but carries other joints
-        if not objs and not carries:
-            warnings.append(f"Joint '{sp['name']}' removed: its moving parts are no longer in the model")
-            continue
-        if missing:
-            warnings.append(f"Joint '{sp['name']}': {missing} moving part(s) no longer in the model")
-        below = _find_last(scene, sp["base_joint"]) if sp.get("base_joint") and sp["base_joint"] in built else None
-        base = by_uid.get(sp["base"]) if sp.get("base") else None
-        if below is not None:
-            base = below.motion
-            world = base.matrix_world @ build.list_to_mat(sp["base_local"])
-        else:
-            if sp.get("base_joint"):
-                warnings.append(f"Joint '{sp['name']}': the joint it rode on ('{sp['base_joint']}') is gone; "
-                                "it now sits on its CAD parent")
-            elif sp.get("base") and base is None:
-                warnings.append(f"Joint '{sp['name']}': the part it sat on is gone; it now sits on its CAD parent")
-            if base is None:
-                base = default_base(objs or stack_objs(sp))
-                world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
-            else:
+    with _batch(scene):                             # one CAD pose for all of them (task 0052)
+        for sp in _stack_order(specs):
+            objs = present(sp)
+            missing = len(sp["members"]) - len(objs)
+            carries = bool(stack_objs(sp)) and not objs     # moves nothing itself, but carries other joints
+            if not objs and not carries:
+                warnings.append(f"Joint '{sp['name']}' removed: its moving parts are no longer in the model")
+                continue
+            if missing:
+                warnings.append(f"Joint '{sp['name']}': {missing} moving part(s) no longer in the model")
+            below = _find_last(scene, sp["base_joint"]) if sp.get("base_joint") and sp["base_joint"] in built else None
+            base = by_uid.get(sp["base"]) if sp.get("base") else None
+            if below is not None:
+                base = below.motion
+                _update(scene)                          # built in this batch: its matrix is not there yet
                 world = base.matrix_world @ build.list_to_mat(sp["base_local"])
-        origin = world.translation
-        direction = world.to_3x3() @ Vector((0, 0, 1))
-        try:
-            j = create(scene, sp["kind"], objs, origin, direction, name=sp["name"], base=base, stack=False,
-                       allow_empty=carries, frame_world=world)
-        except RuntimeError as exc:
-            warnings.append(f"Joint '{sp['name']}' could not be rebuilt: {exc}")
-            continue
-        if j.name != sp["name"]:
-            j["name"] = sp["name"]
-            j["_old_name"] = sp["name"]
-            rename(scene, j, sp["name"])
-        j.use_limits = sp["use_limits"]
-        j.rot_min, j.rot_max = sp["rot_min"], sp["rot_max"]
-        j.slide_min, j.slide_max = sp["slide_min"], sp["slide_max"]
-        _set_raw(j, is_motor=bool(sp.get("motor", False)) and sp["kind"] == "ROTATE")
-        apply_limits(j, _model_size(scene))
-        values[j.name] = sp["value"]                # (a follower's driver overrides it while its leader is there)
-        built.append(sp["name"])
+            else:
+                if sp.get("base_joint"):
+                    warnings.append(f"Joint '{sp['name']}': the joint it rode on ('{sp['base_joint']}') is gone; "
+                                    "it now sits on its CAD parent")
+                elif sp.get("base") and base is None:
+                    warnings.append(f"Joint '{sp['name']}': the part it sat on is gone; it now sits on its CAD parent")
+                if base is None:
+                    base = default_base(objs or stack_objs(sp))
+                    world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
+                else:
+                    world = base.matrix_world @ build.list_to_mat(sp["base_local"])
+            origin = world.translation
+            direction = world.to_3x3() @ Vector((0, 0, 1))
+            try:
+                j = create(scene, sp["kind"], objs, origin, direction, name=sp["name"], base=base, stack=False,
+                           allow_empty=carries, frame_world=world)
+            except RuntimeError as exc:
+                warnings.append(f"Joint '{sp['name']}' could not be rebuilt: {exc}")
+                continue
+            if j.name != sp["name"]:
+                j["name"] = sp["name"]
+                j["_old_name"] = sp["name"]
+                rename(scene, j, sp["name"])
+            j.use_limits = sp["use_limits"]
+            j.rot_min, j.rot_max = sp["rot_min"], sp["rot_max"]
+            j.slide_min, j.slide_max = sp["slide_min"], sp["slide_max"]
+            _set_raw(j, is_motor=bool(sp.get("motor", False)) and sp["kind"] == "ROTATE")
+            apply_limits(j, _model_size(scene))
+            values[j.name] = sp["value"]                # (a follower's driver overrides it while its leader is there)
+            built.append(sp["name"])
     s = scene.fresing
     n = len(s.joints)
     rebuilt = [x for x in (sp["name"] for sp in specs) if x in built]

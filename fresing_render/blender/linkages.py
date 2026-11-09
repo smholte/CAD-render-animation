@@ -1095,14 +1095,16 @@ def show(scene, visible: bool) -> None:
 # model updates: a mechanism as plain data
 # ---------------------------------------------------------------------------
 
-def to_spec(scene, m) -> dict:
+def to_spec(scene, m, root=None) -> dict:
+    """A mechanism as plain data (parts by their stable ID; parts outside the model under ``root`` by name,
+    ``joints.spec_key``)."""
     j = input_joint(scene, m)
     lk, _h, _s = linkage_of(m)
 
     def uids(objs):
-        return [o.get(build.PROP_UID) for o in objs]
+        return [joints.spec_key(o, root) for o in objs]
     return {
-        "name": m.name, "kind": m.kind, "base": m.base.get(build.PROP_UID) if m.base is not None else None,
+        "name": m.name, "kind": m.kind, "base": joints.spec_key(m.base, root),
         "links": [uids(link_objs(ln)) for k, ln in enumerate(m.links) if k > 0],
         "input_link": lk.input_link - 1,
         "joint": j.name if j is not None else "", "own_joint": bool(m.own_joint),
@@ -1125,7 +1127,7 @@ def before_model_update(scene, root=None) -> list[dict]:
             m = find(scene, name)
             if not _belongs(m, root):
                 continue
-            specs.append(to_spec(scene, m) if is_valid(m) else {"name": name, "broken": True})
+            specs.append(to_spec(scene, m, root) if is_valid(m) else {"name": name, "broken": True})
             _dissolve(scene, m)
     return specs
 
