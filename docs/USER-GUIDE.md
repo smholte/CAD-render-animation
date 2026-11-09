@@ -214,6 +214,11 @@ The box under the button then shows the model: its parts (placed, and how many d
 triangles and how long the import took. An unchanged file imports again in seconds, from a stored
 copy (**More > Clear import cache** throws those copies away if disk space is short).
 
+**The same file twice** (two cranes on one quay): import it again. Each copy is its own machine: hiding
+a part, visibility sets, poses, Show/Hide steps and model updates of one copy never touch the other.
+Sorting rules and materials treat both copies alike. Projects made before 0.2.44 with a file imported
+twice are sorted out when they are opened: the first copy keeps everything that was saved for it.
+
 **Update to a new revision**
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.

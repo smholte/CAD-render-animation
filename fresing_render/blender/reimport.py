@@ -240,7 +240,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     build.ensure_bases(scene)
     # 1. the new revision first: when it cannot be read or built, nothing has changed yet
     try:
-        new_root = build.build(cache_dir)
+        # the new revision keeps the old one's part-ID scope (task 0056: the second copy of a STEP stays itself)
+        new_root = build.build(cache_dir, scope=build.uid_scope(old_root), taken=build.used_uids(but=old_root))
     except Exception as exc:
         _remove_new(before)
         raise UpdateFailed(f"the new revision could not be built ({exc or type(exc).__name__}). "

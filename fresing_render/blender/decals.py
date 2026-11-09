@@ -1096,7 +1096,7 @@ def to_template(scene) -> list[dict]:
         d = {k: getattr(it, k) for k in SIMPLE_KEYS}
         d.update({k: list(getattr(it, k)) for k in VECTOR_KEYS})
         d["part"] = part.get(build.PROP_NAME, part.name)
-        d["copy"] = "" if on_all_copies(it) else part.get(build.PROP_INSTANCE, "") or part.get(build.PROP_UID, "")
+        d["copy"] = "" if on_all_copies(it) else part.get(build.PROP_INSTANCE, "") or build.path_of(part)
         d["source"] = bpy.path.abspath(it.source) if it.source else ""
         out.append(d)
     return out
@@ -1112,7 +1112,8 @@ def from_template(scene, entries: list[dict]) -> tuple[int, list[str]]:
     for d in entries or []:
         parts = by_name.get(d.get("part", ""), [])
         if d.get("copy"):
-            parts = [p for p in parts if d["copy"] in (p.get(build.PROP_INSTANCE, ""), p.get(build.PROP_UID, ""))]
+            parts = [p for p in parts if d["copy"] in (p.get(build.PROP_INSTANCE, ""), p.get(build.PROP_UID, ""),
+                                                   build.path_of(p))]
         if not parts:
             continue
         part = parts[0]

@@ -2,13 +2,17 @@
 
 * every unique part becomes one mesh datablock, shared by all its copies
 * every assembly becomes an empty; parts are parented to it
-* every object carries a stable ID (``fr_uid``) for re-import and rules
+* every object carries a stable ID (``fr_uid``) for re-import and rules: the path of names in the CAD file.
+  The same STEP imported twice (task 0056) would give both copies the same IDs, so a copy whose IDs are taken
+  gets a scope in front of all of them (``~2/TEST.CRANE#1/COVER#1``), kept on its root (``fr_uid_scope``) and
+  through model updates. The first copy, and every project with one copy per model, keep their IDs.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 
 import bpy
 import numpy as np
@@ -30,6 +34,8 @@ PROP_INSTANCE = "fr_instance"  # occurrence name in the CAD file (e.g. "Frame:1"
 PROP_CAD_BASIS = "fr_cad_basis"    # local matrix from the CAD file (16 floats)
 PROP_REST_BASIS = "fr_rest_basis"  # local matrix with no free move applied (changes when a joint carries it)
 PROP_CAD_PARENT = "fr_cad_parent"  # CAD parent, set while a joint carries the object
+PROP_UID_SCOPE = "fr_uid_scope"    # on a model root: the scope in front of its part IDs ('' = none, task 0056)
+_SCOPE_RE = re.compile(r"^(~\d+/)+")  # never "@": joints.PartLookup
 
 MODEL_KINDS = ("assembly", "part")
 # a cylinder's empties (task 0013): frame on the barrel pin, barrel (aims), rod (slides), rod pin, telescopic stage
@@ -127,12 +133,59 @@ def load_cache(cache_dir: str):
     return info, arrays
 
 
-def build(cache_dir: str, collection: bpy.types.Collection | None = None, progress=None) -> bpy.types.Object:
-    """Create objects for a cache. Returns the root empty of the model."""
+def scoped(uid: str, scope: str) -> str:
+    """A part ID with a model's scope in front (``scope`` '' leaves it as it is)."""
+    return f"{scope}{uid}" if scope else uid
+
+
+def unscoped(uid: str) -> str:
+    """A part ID without its model's scope: the path of names in the CAD file."""
+    return _SCOPE_RE.sub("", uid or "", count=1)
+
+
+def uid_scope(root) -> str:
+    """The scope in front of the part IDs of the model under ``root`` ('' for the first copy and old projects)."""
+    return str(root.get(PROP_UID_SCOPE, "") or "") if root is not None else ""
+
+
+def used_uids(objs=None, but=None) -> set:
+    """Part IDs in use by models in the project (every scene); ``but``: leave out the model under this root."""
+    objs = bpy.data.objects if objs is None else objs
+    memo: dict = {}
+    return {ob.get(PROP_UID) for ob in objs if ob.get(PROP_KIND) in MODEL_KINDS and ob.get(PROP_UID)
+            and (but is None or model_root_of(ob, memo) != but)}
+
+
+def free_scope(uids, used: set) -> str:
+    """'' when none of ``uids`` is in ``used``, else the first scope ``~N/`` (N = 2, 3, ...) that makes them all
+    free: the same STEP imported a second time gets its own part IDs (task 0056)."""
+    uids = list(uids)
+    if not used.isdisjoint(uids):
+        n = 2
+        while True:
+            scope = f"~{n}/"
+            if not any(scoped(u, scope) in used for u in uids):
+                return scope
+            n += 1
+    return ""
+
+
+def build(cache_dir: str, collection: bpy.types.Collection | None = None, progress=None,
+          scope: str | None = None, taken: set | None = None) -> bpy.types.Object:
+    """Create objects for a cache. Returns the root empty of the model.
+
+    Part IDs get a scope in front when they are taken by a model already in the project (task 0056; ``taken``:
+    the IDs in use, default every model's). ``scope``: the one to keep when its IDs are free (a model update gives
+    the new revision the old one's); ``None`` = a new import: '' unless taken."""
     info, arrays = load_cache(cache_dir)
     nodes = info["nodes"]
     meshes_meta = info["meshes"]
     src_name = os.path.splitext(os.path.basename(info.get("source", "Model")))[0]
+    n_roots = sum(1 for n in nodes if n["parent"] < 0)
+    ids = [n["uid"] for n in nodes] + ([src_name] if n_roots > 1 else [])
+    taken = used_uids() if taken is None else taken
+    if scope is None or any(scoped(u, scope) in taken for u in ids):
+        scope = free_scope(ids, taken)
 
     if collection is None:
         collection = bpy.data.collections.new(src_name)
@@ -182,7 +235,7 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
             ob.empty_display_type = "PLAIN_AXES"
             ob.empty_display_size = 0.02
             ob[PROP_LOCKED] = True
-        ob[PROP_UID] = n["uid"]
+        ob[PROP_UID] = scoped(n["uid"], scope)
         ob[PROP_NAME] = n["name"]
         ob[PROP_KIND] = n["kind"]
         ob[PROP_COLOR] = ral.rgb_to_hex(n["color"]) if n.get("color") else ""
@@ -212,10 +265,11 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         set_mat(root_obj, PROP_REST_BASIS, root_obj.matrix_basis)
         root_obj[PROP_INSTANCE] = ""
         root_obj[PROP_KIND] = "assembly"
-        root_obj[PROP_UID] = src_name
+        root_obj[PROP_UID] = scoped(src_name, scope)
         root_obj[PROP_NAME] = src_name
     if root_obj is not None:
         root_obj[PROP_ROOT] = True
+        root_obj[PROP_UID_SCOPE] = scope
         root_obj[PROP_SOURCE] = info.get("source", "")
         root_obj["fr_cache"] = cache_dir
         root_obj["fr_stats"] = json.dumps(info.get("stats", {}))
@@ -243,7 +297,58 @@ def parent_assembly(ob) -> bpy.types.Object | None:
 
 
 def path_of(ob) -> str:
-    return ob.get(PROP_UID, ob.name)
+    """The part's path of names in the CAD file (rules match on it): the same for every copy of a model."""
+    return unscoped(ob.get(PROP_UID, ob.name))
+
+
+def model_root_of(ob, memo: dict | None = None):
+    """The model root above ``ob`` in the CAD structure (``None`` when it has none)."""
+    chain = []
+    p = ob
+    while p is not None:
+        if memo is not None and p.name in memo:
+            root = memo[p.name]
+            break
+        chain.append(p)
+        if p.get(PROP_ROOT):
+            root = p
+            break
+        p = logical_parent(p)
+    else:
+        root = None
+    if memo is not None:
+        for c in chain:
+            memo[c.name] = root
+    return root
+
+
+def repair_uids(scene) -> int:
+    """Projects made before task 0056 with the same STEP imported twice: the copies share their part IDs. Every
+    copy after the first gets its own scope (the first keeps its IDs, so what was saved still points where it
+    did). Returns the number of models changed; 0 at once when every ID is unique (the usual case)."""
+    objs = [ob for ob in scene.objects if ob.get(PROP_KIND) in MODEL_KINDS]
+    uids = [ob.get(PROP_UID, "") for ob in objs]
+    if len(set(uids)) == len(uids):
+        return 0
+    memo: dict = {}
+    by_root: dict = {}
+    for ob in objs:
+        root = model_root_of(ob, memo)
+        if root is not None:
+            by_root.setdefault(root.name, (root, []))[1].append(ob)
+    used: set = set()
+    every = set(uids)
+    changed = 0
+    for root, members in by_root.values():              # scene order: the copy that won lookups so far stays
+        ids = [ob.get(PROP_UID, "") for ob in members]
+        scope = free_scope(ids, used | every) if not used.isdisjoint(ids) else ""
+        if scope:
+            for ob in members:
+                ob[PROP_UID] = scoped(ob.get(PROP_UID, ""), scope)
+            root[PROP_UID_SCOPE] = scope + uid_scope(root)
+            changed += 1
+        used.update(ob.get(PROP_UID, "") for ob in members)
+    return changed
 
 
 def world_bounds(objs) -> tuple:

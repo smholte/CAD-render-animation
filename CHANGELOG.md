@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.44 – 9 Nov 2026 – the same STEP twice: two separate machines (task 0056)
+
+Import
+- **The same file imported twice** (two cranes on one quay) now gives two separate machines. Before, both copies
+  shared their part IDs: hiding a part of the second crane in a visibility set, a pose or a Show/Hide step acted on the
+  first crane, and updating one copy to a new revision could change what was saved for the other. Now each copy keeps
+  to itself, also through model updates. Sorting rules and materials still treat both copies alike.
+- Projects made before with a file imported twice are sorted out when they are opened: the first copy keeps
+  everything that was saved for it (that is what those settings acted on so far). Projects with one copy of each
+  model are not changed.
+- Logos and stickers saved in a template for one copy of a part find that copy again in another project.
+
+PC check
+- New line **The same STEP twice: two separate cranes**.
+
 ## 0.2.43 – 9 Nov 2026 – milled faces look freshly cut; milling fixes (task 0051)
 
 Milling

@@ -124,7 +124,7 @@ def _upgrade_steps():
             sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
                                        "CAD materials): press 'Sort parts into groups' to use them")
 
-    return (("matrices", build.ensure_bases), ("paint faces", faces_off), ("joint drivers", drivers),
+    return (("matrices", build.ensure_bases), ("part IDs", build.repair_uids), ("paint faces", faces_off), ("joint drivers", drivers),
             ("looks", looks), ("rule set", rules))
 
 
