@@ -91,7 +91,8 @@ Tool-change animation, pockets, ATC (0041). Coolant (0042). Way covers (0035). T
   other tests ran).
 - PC check `milling.tools` (bpy): OK – face 1.00, drill 8.00, BT30 offset 25.00 mm, 5.3 ms per frame.
 - GitHub: 1 full run on the branch, green first time (12.6 min; test suites 1 and 4 flagged SLOW, 9.8/11.0 min); then
-  main had moved (0045 task list only): merged, fast-forwarded.
+  main had moved (0045 task list only): merged, fast-forwarded; the push to main ran full again (16.4 min, green), release
+  0.2.38 published, update check on Windows and "Offer the release" green. 2 full runs.
 
 **Open points / follow-up tasks:**
 - The owner's 0037/0048 projects were not available here: the cause is shown on the test gantry; on his PC the tip
