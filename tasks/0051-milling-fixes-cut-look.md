@@ -1,6 +1,6 @@
 # 0051 – Milling fixes from the bug hunt, and milled faces get their own look
 
-**Who:** worker · **Status:** done (0.2.42) · **Branch:** `claude/cad-render-task-0051-qkvu7v`
+**Who:** worker · **Status:** done (0.2.43) · **Branch:** `claude/cad-render-task-0051-qkvu7v`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 3, 13, 15, 16, 20c; 0046 open point "chips";
 0037 problems 4 and 6; owner's wish 9 Nov: fresh-cut faces and raw stock looks, his points 1 and 2)
 **Lane:** Machining – `blender/machining.py`, `core/machining.py`, `blender/ops_machining.py`, `ui_machining.py`,
@@ -90,7 +90,7 @@ own faults (0054). Materials of the machine's parts (0046 is done; only add new 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, branch `claude/cad-render-task-0051-qkvu7v`, 9 Nov 2026 – released as 0.2.42.
+**Chat / date:** Claude Code on the web, branch `claude/cad-render-task-0051-qkvu7v`, 9 Nov 2026 – released as 0.2.43.
 
 **What changed:**
 - **Cut faces' own look** (Part A): the milled mesh gets one extra material slot after the block's own slots
@@ -119,7 +119,7 @@ own faults (0054). Materials of the machine's parts (0046 is done; only add new 
   Problem 6: `gcode_file` / `tool_table` allow `//`; a file in or below the saved project's folder is stored as
   `//…`; the absolute path is kept (`fr_gcode_abs`, `fr_tool_table_abs`) and used when `//` finds nothing (the
   queue's copy lives in `_queue/<time>/`).
-- PC-check line `milling.cut_look` (MIN_LINES_FULL 40 with 0052's line); real-app milling test +1 check (25); guide: Milling (Cut
+- PC-check line `milling.cut_look` (MIN_LINES_FULL 41 with the lines of 0052 and 0053); real-app milling test +1 check (25); guide: Milling (Cut
   faces, logos), raw stock in "What the materials look like", spindle Motor, program next to the project; pictures
   `panel_4_milling.png`, `material_sheet.jpg`.
 
@@ -146,5 +146,5 @@ own faults (0054). Materials of the machine's parts (0046 is done; only add new 
 - Bug hunt row 18 (other `//` paths in the queue copy) stays with 0054; the G-code file and tool table no longer need it.
 - Runs: 2 on the branch. Run 42617370033 green (full, 14.1 min; test suites 1, 3, 4 and callouts flagged SLOW, 11–13 min
   against 4–9 usual – the whole run was slow, not one test); then 0052 took 0.2.41 meanwhile, so main was merged
-  again and the version renumbered to 0.2.42 (second run), then main fast-forwarded to it (reuse).
+  again and the version renumbered to 0.2.42 (second run, green: 42619684638); 0053 took 0.2.42 meanwhile, so once more: 0.2.43 (third run), then main fast-forwarded to it (reuse).
 - Leftover branch for the owner to delete on github.com: `claude/cad-render-task-0051-qkvu7v`.

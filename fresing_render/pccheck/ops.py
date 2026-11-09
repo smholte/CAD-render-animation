@@ -192,6 +192,14 @@ def missing_shortcuts(folder: str, desktop: str = "") -> list[str]:
     return out
 
 
+def run_powershell(path: str, exe: str = "powershell.exe") -> subprocess.CompletedProcess:
+    """Run a .ps1 file hidden. Its output is in the console's code page, not always UTF-8: characters that do not
+    decode are replaced (an accented path in an error message ended the thread before, 0045 row 19d)."""
+    return subprocess.run([exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 def ensure_shortcuts() -> str:
     """Windows: make the PC-check shortcuts when the installer's Start-menu folder has none (an update
     through the app). Returns what was done (for the console)."""
@@ -217,12 +225,10 @@ def ensure_shortcuts() -> str:
         try:
             with os.fdopen(fd, "w", encoding="utf-8-sig", newline="\r\n") as fh:
                 fh.write(script + "\n")
-            r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-                                "-File", path], capture_output=True, text=True, timeout=60,
-                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            r = run_powershell(path)
             if r.returncode != 0:
                 print("Fresing Render: could not make the PC check shortcuts:", (r.stderr or r.stdout).strip()[:500])
-        except (OSError, subprocess.SubprocessError) as exc:
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
             print("Fresing Render: could not make the PC check shortcuts:", exc)
         finally:
             try:

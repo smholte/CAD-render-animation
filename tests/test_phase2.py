@@ -387,6 +387,47 @@ def test_project_lock(tmp_path):
     assert project_lock.other_user(blend) is None, "stale locks are ignored"
 
 
+def test_project_lock_second_window_of_the_same_user(tmp_path, monkeypatch):
+    """0045 row 19b: the same user with the same project open in two windows on one PC got no warning."""
+    import json
+    import shutil
+    import subprocess
+    blend = str(tmp_path / "p.blend")
+    open(blend, "w").close()
+    me = project_lock.me()
+    now = time.time()
+
+    def lock(pid):
+        with open(project_lock.lock_path(blend), "w") as fh:
+            json.dump(dict(me, pid=pid, since=now, heartbeat=now), fh)
+    folder = tmp_path / "Blender"
+    folder.mkdir()
+    exe = folder / "blender"
+    shutil.copy2(shutil.which("sleep"), exe)
+    window = subprocess.Popen([str(exe), "30"])
+    other_program = subprocess.Popen(["sleep", "30"])
+    try:
+        time.sleep(0.2)
+        lock(window.pid)                                  # another Blender window of this user
+        other = project_lock.other_user(blend)
+        assert other and "another Fresing Render window on this PC" in project_lock.describe(other)
+        project_lock.release(blend)                       # this window does not remove it
+        assert json.load(open(project_lock.lock_path(blend)))["pid"] == window.pid
+        assert os.path.exists(project_lock.lock_path(blend))
+        lock(other_program.pid)                           # a crashed window's number, now another program
+        assert project_lock.other_user(blend) is None
+    finally:
+        for p in (window, other_program):
+            p.kill()
+            p.wait()
+    lock(window.pid)                                      # that window has closed (crashed): the lock is ours
+    assert project_lock.other_user(blend) is None
+    lock(os.getpid())
+    assert project_lock.other_user(blend) is None
+    project_lock.release(blend)
+    assert not os.path.exists(project_lock.lock_path(blend))
+
+
 def test_ui_motion_panels_draw(scene):
     from test_blender import FakeLayout
     from fresing_render.blender import ui, ui_motion

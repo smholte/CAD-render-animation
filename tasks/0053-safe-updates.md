@@ -51,10 +51,45 @@ The queue and its runner (0054). Import caches (0055). Anything in the app's pan
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 9 Nov 2026 (version 0.2.42)
 
 **What changed:**
+- Row 4: `updates.preflight` reads the project's lock afresh (`lock_holder`); someone else's lock → "Someone else has
+  this project open (… ): Save As first …", also after the download (before saving). The button stays; the update
+  notice shows a red line with the same advice. No lock: unchanged.
+- Row 12: `installing.json` now holds `started` and `exe`; `update_helper.busy_helper` deletes it when the helper has
+  ended, it is older than `BUSY_MAX_SECONDS` (2 × wait + 4 installs + pauses + 10 min ≈ 75 min; old files: file
+  time), the PID cannot be read, or the PID's program is not the helper's Python (`QueryFullProcessImageNameW`).
+- Row 14: the helper copies `ext_dir` to `fresing_update/backup/` before installing; when the folder is gone
+  afterwards (also after a crash of the helper) it is put back (rename, else copy over, read-only files cleared,
+  3 tries). Status: "… could not be installed (…), so the old version X was put back". Backup removed afterwards.
+- Row 19b: `project_lock._is_me` compares the PID: a live Blender of the same user/PC is "you, in another Fresing
+  Render window on this PC"; a dead or reused PID is taken over.
+- Row 19c: `update_helper.other_blenders` (K32EnumProcesses + image path under the Blender folder, as Install.bat);
+  Update now refuses while one runs, and the helper waits for them too (5 min, then status + restart, nothing
+  changed). The busy note is written before that wait, so a Desktop start meanwhile says "being installed".
+- Row 19d: `pccheck.ops.run_powershell` with `encoding="utf-8", errors="replace"`.
+- PC check: new line `updates.safe` (Full; MIN_LINES_FULL 40) runs the Windows process code, the stale-note check
+  and backup/put-back with an accented temp path on the owner's PC and in the Windows CI job.
+- `tools/ci_update_test.py` waits (≤ 2 min) until no other Blender of that folder runs before its Update now.
+- Guide: "Updates: one click" (when Update now refuses, when an update fails) and "Projects on a shared drive"
+  (two windows).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (Linux web session, 4 cores, test crane; no Windows here):
+- New tests: `test_updates.py` (stale notes ×5 kinds, other Blenders found/waited for/given up on, failed swap puts
+  0.2.14 back with its wheels, helper crash after the folder was removed, put-back over read-only leftovers),
+  `test_updates_blender.py` (colleague's lock refused before and after download, second window, own lock fine, panel
+  line, stale note shows Update now), `test_phase2.py` (two-window lock), `test_pccheck.py` (non-UTF-8 PowerShell
+  output). Local: these files all pass; PC-check line `updates.safe` OK (bpy module).
+- Real app, in-app update (`ci_real_app.py --only update`): 29/29, 24 s; backup of the (small) test extension 0.0 s.
+  The backup time of the real extension with its wheels on Windows is not measured (expected seconds).
+- Windows code (process listing, image names, backup/put-back with rename): **independent review by a helper agent**
+  that did not write it — no blocker; its "should fix" points were done (put-back over leftovers, unreadable PID =
+  not ours, exact helper path, longer busy limit, alive check, kernel32 cached, CI wait).
+- GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- Matching the Blender folder by path misses other Blenders when Windows reports another spelling (8.3 short names,
+  subst drives): then the old behaviour (no wait). The PC check line shows whether it matches on the owner's PC.
+- Blender re-installs an extension's wheels at start; after a put-back the old wheels are expected to come back that
+  way (not tested on Windows).

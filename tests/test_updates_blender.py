@@ -338,3 +338,79 @@ def test_app_started_while_an_update_installs(clean_state, monkeypatch):
     busy.write_text(json.dumps({"pid": helper.pid, "to": "9.9.9"}), encoding="utf-8")     # helper gone: ignored
     updates.read_status()
     assert not updates._status.get("installing")
+
+
+# ---- task 0053: Update now and the project lock (bug hunt 0045 rows 4, 12) ----------------------
+
+def test_update_now_refuses_a_project_a_colleague_has_open(monkeypatch, tmp_path):
+    """Row 4: Update now saved over a shared project a colleague had open."""
+    from fresing_render.blender import project_lock
+    monkeypatch.setattr(updates, "extension_repo", lambda: "user_default")
+    bpy.ops.wm.read_homefile(use_empty=True)
+    project = tmp_path / "shared" / "kraan.blend"
+    project.parent.mkdir()
+    bpy.ops.wm.save_as_mainfile(filepath=str(project))
+    assert updates.preflight(bpy.context) == ""                          # no lock: unchanged
+    now = __import__("time").time()
+    lock = pathlib.Path(project_lock.lock_path(str(project)))
+    lock.write_text(json.dumps({"user": "anna", "computer": "WS-07", "pid": 4242, "since": now, "heartbeat": now}),
+                    encoding="utf-8")
+    problem = updates.preflight(bpy.context)
+    assert "Someone else has this project open (anna on WS-07 since" in problem and "Save As first" in problem
+    assert updates.preflight(bpy.context, downloaded=True) == problem   # also after the download, before saving
+    # the button stays and says why when pressed
+    monkeypatch.setenv(core.URL_ENV, _repo(tmp_path))
+    updates.check_now()
+    assert bpy.ops.fresing.update_install.poll()
+    with pytest.raises(RuntimeError, match="Someone else has this project open"):
+        bpy.ops.fresing.update_install()
+    assert not updates._dl.get("active")
+    # the same user in a second window on this PC (row 19b)
+    me = project_lock.me()
+    other = __import__("subprocess").Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        monkeypatch.setattr(project_lock, "_window_alive", lambda pid: pid == other.pid)
+        lock.write_text(json.dumps(dict(me, pid=other.pid, since=now, heartbeat=now)), encoding="utf-8")
+        assert "also open in another Fresing Render window" in updates.preflight(bpy.context)
+    finally:
+        other.kill()
+        other.wait()
+    lock.write_text(json.dumps(dict(me, since=now, heartbeat=now)), encoding="utf-8")   # this window's own lock
+    assert updates.preflight(bpy.context) == ""
+    bpy.ops.wm.read_homefile(use_empty=True)
+
+
+def test_update_panel_says_why_when_the_project_is_in_use(monkeypatch):
+    from fresing_render.blender import project_lock
+    updates._check.update(state="available", version="9.9.9", size=1000)
+    monkeypatch.setitem(project_lock._STATE, "other", {"user": "anna", "computer": "WS-07", "since": 0})
+    texts: list[str] = []
+    real_wrap = __import__("fresing_render.blender.ui", fromlist=["wrap"]).wrap
+
+    def wrap(layout, context, text, *a, **kw):
+        texts.append(text)
+        return real_wrap(layout, context, text, *a, **kw)
+    monkeypatch.setattr("fresing_render.blender.ui.wrap", wrap)
+    errors: list[str] = []
+    _draw_panel(errors)
+    assert not errors, errors
+    assert any("in use by anna on WS-07" in t and "Save As first" in t for t in texts), texts
+
+
+def test_killed_helper_does_not_block_update_now(clean_state, monkeypatch):
+    """Row 12: an old installing.json (helper killed by a power cut) kept the app on "being installed" and hid
+    Update now for good."""
+    import time as _time
+    monkeypatch.setenv(updates.RESTART_ENV, "[]")
+    busy = pathlib.Path(updates.update_dir()) / update_helper.BUSY_FILE
+    busy.parent.mkdir(parents=True, exist_ok=True)
+    busy.write_text(json.dumps({"pid": os.getpid(), "to": "9.9.9", "exe": sys.executable,
+                                "started": _time.time() - update_helper.BUSY_MAX_SECONDS - 10}), encoding="utf-8")
+    status = pathlib.Path(updates.status_path())
+    status.write_text(json.dumps({"ok": False, "to": "9.9.9", "message": "The update stopped."}), encoding="utf-8")
+    updates.read_status()
+    assert not updates._status.get("installing") and not busy.exists()
+    assert updates._status.get("message") == "The update stopped." and not status.exists()   # the real status is read
+    updates._status.clear()
+    updates._check.update(state="available", version="9.9.9")
+    assert updates.notice_kind() == "available"
