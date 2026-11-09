@@ -39,7 +39,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | running (Claude Code, 9 Nov) | branch `claude/friendly-cerf-hn6s1i` · tasks/0054-queue-fixes.md |
-| 0057 | Landing page: the owner's new video at the top (cut, ≤ 8 MB, poster, caption; old video to the gallery or out, owner decides) | worker – **new chat in the claude.ai project (Cowork)**, owner attaches the video | Sonnet · Low | open – can start | tasks/0057-landing-hero-video.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | – | Machining lane, later: tool marks on cut faces that follow the toolpath (swirls on floors, lines on walls, face-mill arcs) – owner, 9 Nov; brief when the owner asks | owner decides | Opus · High | later | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
@@ -55,6 +54,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0057 | Landing page: the owner's new milling video (T1 face mill, T2 end mill, T3 chamfer mill, 27.6 s, 7.0 MB) at the top, old air-blast video removed | no release |
 | 0041 | Tool changes: manual (head to the change position, pause 1 s / 0–5 s, optional gloved hand, optional caption) and tool changer (pockets clicked or filled round a carousel, tools in their pockets from the first frame, carousel turns the shortest way, old tool back in its own pocket; rack; changer animation split at its swap; ATC speed); Fit into still exact | 0.2.45 |
 | 0056 | The same STEP imported twice: each copy gets its own part IDs (hiding, sets, poses, Show/Hide steps, model updates keep the copies apart); old two-copy projects repaired on open (bug hunt row 11) | 0.2.44 |
 | 0051 | Milling: cut faces get their own fresh-cut look (Automatic / Same as the block / Pick), raw stock Aluminium, sawn plate and POM, black; bug hunt rows 3, 13, 15, 16, 20c; chips of the 0046 materials; spindle ticks Motor, programs stored next to the project | 0.2.43 |

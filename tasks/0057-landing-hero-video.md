@@ -1,6 +1,6 @@
 # 0057 – New video at the top of the landing page
 
-**Who:** worker · **Status:** open – can start · **Branch:** none needed (site-only change, straight to `main` after the
+**Who:** worker · **Status:** done (9 Nov 2026) · **Branch:** none needed (site-only change, straight to `main` after the
 docs run is green)
 **Started by:** lead chat, 9 Nov 2026 (owner's wish: replace the video at the top of
 https://smholte.github.io/CAD-render-animation/)
@@ -55,12 +55,12 @@ download`. The draft release can be deleted afterwards (as `landing-video-raw` f
 
 ## Done when
 
-- [ ] The owner's answers (cut, caption, old video) in the report.
-- [ ] New hero video ≤ 8 MB, ≤ 1080 p, no sound, with poster; `media.json` updated, `"keep": true`.
-- [ ] Old video removed or moved to the gallery, as the owner chose.
-- [ ] Owner's OK on the screenshot before the push.
-- [ ] Docs run green; page live with the new video (checked on the live address).
-- [ ] Report filled in; `TASKS.md`: 0057 done.
+- [x] The owner's answers (cut, caption, old video) in the report.
+- [x] New hero video ≤ 8 MB, ≤ 1080 p, no sound, with poster; `media.json` updated, `"keep": true`.
+- [x] Old video removed or moved to the gallery, as the owner chose.
+- [x] Owner's OK on the screenshot before the push.
+- [x] Docs run green; page live with the new video (checked on the live address).
+- [x] Report filled in; `TASKS.md`: 0057 done.
 
 ## Not in this task
 
@@ -71,12 +71,12 @@ open; if the owner attaches those too, they may be taken in the same push). Page
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** claude.ai project chat (Cowork), 9 Nov 2026
 
-**Owner's answers:**
+**Owner's answers:** whole video (0–27.6 s); caption written by the worker, naming T1 face mill, T2 end mill, T3 chamfer mill; old air-blast video removed; nothing in it that must stay private.
 
-**What changed:**
+**What changed:** `site/media/`: new hero `fresing_mill_three_tools.mp4` + `_poster.jpg`, `media.json` hero updated (`"keep": true`); old `fresing_mill_air_blast.mp4` and its poster deleted. Credits entry `fresing_mill` unchanged (still fits).
 
-**Checked** (sizes, screenshot, live page):
+**Checked** (sizes, screenshot, live page): 3840x2160 source (70 MB) -> 1920x1080 H.264, 27.64 s, 7.0 MB, no sound. Poster = first frame (raw block, not black). `build_site.py`: 0 problems, dist/site 15.4 MB; `tests/test_site.py` 15 passed. Playwright desktop and phone screenshots: video loads, caption fits; owner OK given. Push to `main`: docs run green (1.5 min), Pages run green; live page shows the new video and no air-blast video.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none. Branch `task/0057-landing-hero-video` is left on GitHub; the owner can delete it (Code -> branches -> bin icon). The Thor and OpenArm gallery re-renders from 0047 are still open.
