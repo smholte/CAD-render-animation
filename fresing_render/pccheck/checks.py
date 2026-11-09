@@ -898,7 +898,7 @@ def milling_cut(ctx):
     return f"{len(me.polygons)} faces after the cut"
 
 
-@line("milling.cut_look", "Milling: cut faces look freshly cut", "0.2.40",
+@line("milling.cut_look", "Milling: cut faces look freshly cut", "0.2.41",
       what="A slot in a mill-scale steel block: its walls and floor get machined steel, the outside keeps mill scale")
 def milling_cut_look(ctx):
     import numpy as np

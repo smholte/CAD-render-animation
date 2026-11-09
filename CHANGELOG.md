@@ -5,6 +5,33 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.41 – 9 Nov 2026 – milled faces look freshly cut; milling fixes (task 0051)
+
+Milling
+- **Cut faces get their own look**: the block keeps its raw look outside, and everything the bit cuts shows as fresh,
+  bright metal or fresh plastic. New setting **Cut faces** in 4 Motion > Milling: **Automatic (fresh cut)** (the
+  default; also for old projects), **Same as the block**, or **Pick a material…**. Automatic: any aluminium cuts to
+  machined aluminium, raw/ground/plated steel to machined steel, stainless to machined stainless, cast iron to bare
+  grey iron, brass/bronze/copper brighter, plastics a little more matte; paint stays as the block. The render queue,
+  stills and videos show the same as the view.
+- **New raw stock looks** (3 Looks): **Aluminium, sawn plate** (rolled plate, a little dull, faint rolling lines) and
+  **POM, black**. Steel, raw / mill scale, Cast iron and POM / PE, white were already there.
+- Faces of the block that the bit did not touch now always keep their own look (also faces painted in CAD).
+- A **logo or text on the block** is no longer emptied when you change it while milling (or after Stop milling).
+- **Chips** of the newer materials: ground and turned steel, chrome rod, painted cast iron, sawn aluminium, black POM.
+- Faster with chips: a frame change no longer rebuilds the whole scene (test mill + 3,000 parts: 89 → 23 ms a frame);
+  the milling frame code itself is about twice as quick.
+- Rendering in the window (F12) while milling is on locks the window during the render, so the cut can safely follow
+  the frame.
+
+CNC machine (G-code)
+- Picking the **spindle** joint ticks **Motor** on it by itself (no warning after Build any more).
+- A program or tool table **next to the saved project** (or in a folder below it) is stored relative to the project,
+  so the project and its files can move to another PC together; the render queue still finds them.
+- The line under a Run G-code program step always shows its own program, also after removing or moving a step.
+
+PC check: new line **Milling: cut faces look freshly cut**.
+
 ## 0.2.40 – 9 Nov 2026 – Looks fixes (task 0055)
 
 - **Renaming a group** now also renames it in your paint schemes and in the saved scenes' own looks, so applying a
