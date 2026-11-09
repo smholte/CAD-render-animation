@@ -1,6 +1,6 @@
 # 0053 – Safe updates and project lock: no overwrite of a colleague's project, no stuck or broken install
 
-**Who:** worker · **Status:** running · **Branch:** `claude/compassionate-cerf-2ychkv`
+**Who:** worker · **Status:** done (0.2.42) · **Branch:** `claude/compassionate-cerf-2ychkv`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 4, 12, 14, 19b, 19c, 19d)
 **Lane:** Quality & delivery – `blender/updates.py`, `update_helper.py`, `blender/project_lock.py`,
 `pccheck/ops.py` (`ensure_shortcuts` only); their tests; guide "Updates" and "Shared projects"
@@ -34,14 +34,14 @@ was killed half-way, and a failed install never leaves the owner with plain Blen
 
 ## Done when
 
-- [ ] Each row fixed with a test (Linux where possible; Windows parts in the Windows CI job or by a mock); the
+- [x] Each row fixed with a test (Linux where possible; Windows parts in the Windows CI job or by a mock); the
       helper-agent review of the Windows code named in the report.
-- [ ] Update now with a colleague's lock: refused with the message; without a lock: unchanged.
-- [ ] A forced failed swap (test) restores the old extension.
-- [ ] Guide "Updates" (what happens when an update is refused or fails) and "Shared projects" (two windows).
-- [ ] Tests; GitHub green, including the Windows install and "Offer the release"; merged to `main`, next free
+- [x] Update now with a colleague's lock: refused with the message; without a lock: unchanged.
+- [x] A forced failed swap (test) restores the old extension.
+- [x] Guide "Updates" (what happens when an update is refused or fails) and "Shared projects" (two windows).
+- [x] Tests; GitHub green, including the Windows install and "Offer the release"; merged to `main`, next free
       version, released (CLAUDE.md section 7).
-- [ ] Report filled in; `TASKS.md`: 0053 done.
+- [x] Report filled in; `TASKS.md`: 0053 done.
 
 ## Not in this task
 
@@ -86,9 +86,16 @@ The queue and its runner (0054). Import caches (0055). Anything in the app's pan
 - Windows code (process listing, image names, backup/put-back with rename): **independent review by a helper agent**
   that did not write it — no blocker; its "should fix" points were done (put-back over leftovers, unreadable PID =
   not ours, exact helper path, longer busy limit, alive check, kernel32 cached, CI wait).
-- GitHub runs: see below.
+- GitHub: 4 full runs. 7cdac10 green (Windows: PC check line `updates.safe` OK, 0.1 s, so the process listing,
+  image names and backup/put-back work on Windows); then 0055 took 0.2.40 and 0052 took 0.2.41 while it ran, so two
+  merges and renumbers (b998b91 green, 120f1c9 green, PC check 40 Full lines with 0052's line); a lead task-list
+  commit on `main` blocked the fast-forward, so the merge went to `main` with one more full run (42621756952): green,
+  release v0.2.42 published, old version updated itself from it on Windows, offered to the apps.
 
 **Open points / follow-up tasks:**
+- `tools/ci_status.py --wait` on a merge commit whose first parent differs only in the task list says "no test run"
+  although GitHub ran one (it judges by the first parent): wait with `--branch main` or `--run`. Small fix for the
+  Quality & delivery lane.
 - Matching the Blender folder by path misses other Blenders when Windows reports another spelling (8.3 short names,
   subst drives): then the old behaviour (no wait). The PC check line shows whether it matches on the owner's PC.
 - Blender re-installs an extension's wheels at start; after a put-back the old wheels are expected to come back that
