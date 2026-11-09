@@ -5,6 +5,30 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.47 – 9 Nov 2026 – coolant: flood and mist while milling (task 0042)
+
+Milling
+- **Coolant.** 4 Motion > CNC machine > **Coolant**: tick it, and a milling video looks like the real machine. When the
+  program says **M8**, milky coolant squirts from the nozzles onto the tool, splashes where the tool cuts (more while
+  it cuts than while it moves through the air), the block, the table and the vise get a wet sheen (darker, glossier,
+  drops on the sides) and the chips come out wet – darker, shinier, and they stay closer to the cut. **M9** stops it
+  and the parts dry in a few seconds (**Dries in**, 4 s). **M7** gives mist: a fine cone of tiny drops.
+- **Nozzles:** **Automatic** adds 1 to 4 flexible hoses (the blue Loc-Line look) on a ring round the spindle, aimed at
+  the tool; after a tool change they bend to the new tool's length. Or use your model's own nozzle parts (**Use
+  clicked part** / **Click point**, **Aim at the tool**).
+- **Liquid:** emulsion (milky) or clear cutting oil; **Flow** from a thin stream to full flood; **Draft** for a quick
+  view without splash and drops.
+- **Per G-code step** (6 Animation): coolant **From the program** (M8 / M7 / M9), **Flood** or **Mist while cutting**
+  (programs without coolant codes), or **Off**. The step says what it found ("Coolant: flood 1 time, 4.7 s").
+- **M7 and the air blast:** with coolant on, M7 switches on mist and the air (mist is air with drops) when the air
+  code is M7 too; M9 stops both. Give the air another code, or set Mist code to 0, to keep them apart.
+- Every frame of the coolant comes from the frame number alone: the render queue can render frames in any order.
+- Old projects are unchanged: no coolant until you tick it.
+
+PC check
+- New line **Milling: coolant floods the tool** (jets, splash, wet and drying, the same frame every time, the time per
+  frame and a Cycles picture of the flood).
+
 ## 0.2.46 – 9 Nov 2026 – render queue fixes (task 0054)
 
 Render queue

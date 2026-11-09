@@ -1000,6 +1000,11 @@ narrower), and they look darker and shinier until the parts dry.
 Every frame of the coolant comes from the frame number alone – there is no simulation to run first – so the
 render queue can render frames in any order and a frame always looks the same.
 
+Measured on the test mill (a pocket with flood, two automatic hoses, 800 × 450, Cycles 64 samples on the processor
+of the 4-core test machine): 42.0 s per picture without coolant, 47.1 s with it (+12 %: the jets, splash and hoses
+about 7 %, the wet sheen about 5 %); EEVEE showed no difference. Working out a frame's coolant in the view takes
+about 3.5 ms.
+
 Not yet: coolant through the spindle (through the tool), mist or steam in the air, puddles that collect and
 coolant that runs off the table.
 
