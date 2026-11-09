@@ -39,7 +39,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0049 | Machining lane: tool library fixes from 0048 – BT30 holder, G43 lengths tip-to-gauge-line (different holders), tool-tip accuracy (≤ 0.02 mm), milling samples at sharp corners, manufacturer STEPs along X | worker | Opus · Medium | open – can start | tasks/0049-tool-library-fixes.md |
+| 0049 | Machining lane: tool library fixes from 0048 – BT30 holder, G43 lengths tip-to-gauge-line (different holders), tool-tip accuracy (≤ 0.02 mm), milling samples at sharp corners, manufacturer STEPs along X | worker (Claude Code web, 9 Nov) | Opus · Medium | running – branch claude/upbeat-pascal-jf4rs4 | tasks/0049-tool-library-fixes.md |
 | 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – after 0049 (same lane) | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker | Opus · High | open – can start | tasks/0045-bug-hunt.md |

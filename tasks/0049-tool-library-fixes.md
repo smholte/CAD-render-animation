@@ -1,6 +1,6 @@
 # 0049 – Tool library fixes from the owner's demo (0048): BT30, gauge lengths, tip accuracy, sharp corners
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0049-tool-library-fixes`
+**Who:** worker · **Status:** running · **Branch:** `claude/upbeat-pascal-jf4rs4`
 **Started by:** lead chat, 9 Nov 2026 (from the 0048 report, problems 1–5) · **Lane:** Machining – `core/tools.py`,
 `blender/tools.py`, `core/machining.py` / `blender/machining.py` (sampling only), `core/gcode.py` / `blender/gcode.py`
 (G43 lengths only), `ui_gcode.py` (Tools rows); tests; guide "Tools" chapter
