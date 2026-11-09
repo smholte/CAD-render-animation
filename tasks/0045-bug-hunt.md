@@ -74,7 +74,7 @@ quality. The owner's own STEP files and projects (not attached; the repository i
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 9 Nov 2026, on `main` at 0.2.37 (`80fddd3`; checked again against `a5c3952`, which
-changes only `site/`). Four helper agents read one area each (import/update/load, motion/queue/video,
+changes only `site/`); rows 3 and 16 re-run and rows 13 and 15 re-read on `main` after 0049 merged (0.2.38): unchanged). Four helper agents read one area each (import/update/load, motion/queue/video,
 milling/decals/scene, updates/Windows/UI). The main session ran every proof script again itself; each row marked
 *confirmed* reproduced there. No app code, tests or tools were changed. Proof scripts were kept outside the
 repository; each row gives the few lines needed to repeat it.
