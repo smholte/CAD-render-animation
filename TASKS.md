@@ -16,7 +16,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39) → 0055 Looks fixes (done, 0.2.40) → **0056 same STEP twice (open – can start; lead 9 Nov: `states.py` is free while 0054 waits for 0041)**
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39) → 0055 Looks fixes (done, 0.2.40) → 0056 same STEP twice (done, 0.2.44); lane free
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → **0054 queue fixes (next; waits only for 0041, which also changes `animation.py`)**; later: 0050 delayed queue start
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session) → 0053 safe updates and project lock (done, 0.2.42); lane free
@@ -39,7 +39,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | after 0041 (0052 done) | tasks/0054-queue-fixes.md |
-| 0056 | Looks lane (importer): the same STEP imported twice gets its own part IDs (row 11) | worker | Opus · High | open – can start (0054 is a different lane) | tasks/0056-same-step-twice.md |
 | 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | running (worker, 9 Nov, branch `claude/beautiful-noether-xsd1e0`) | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | – | Machining lane, later: tool marks on cut faces that follow the toolpath (swirls on floors, lines on walls, face-mill arcs) – owner, 9 Nov; brief when the owner asks | owner decides | Opus · High | later | – |
@@ -56,6 +55,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0056 | The same STEP imported twice: each copy gets its own part IDs (hiding, sets, poses, Show/Hide steps, model updates keep the copies apart); old two-copy projects repaired on open (bug hunt row 11) | 0.2.44 |
 | 0051 | Milling: cut faces get their own fresh-cut look (Automatic / Same as the block / Pick), raw stock Aluminium, sawn plate and POM, black; bug hunt rows 3, 13, 15, 16, 20c; chips of the 0046 materials; spindle ticks Motor, programs stored next to the project | 0.2.43 |
 | – | Phase 1 (stills), phase 2 (motion), installer, self-test | 0.1.0 – 0.2.2 |
 | – | STEP import on all cores | 0.2.3 |

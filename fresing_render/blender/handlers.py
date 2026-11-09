@@ -128,8 +128,8 @@ def _upgrade_steps():
         from . import toolchange
         toolchange.upgrade(sc)           # a tool-changer animation (before 0.2.45): the machine has a changer
 
-    return (("matrices", build.ensure_bases), ("paint faces", faces_off), ("joint drivers", drivers),
-            ("looks", looks), ("rule set", rules), ("tool changer", changer))
+    return (("matrices", build.ensure_bases), ("part IDs", build.repair_uids), ("paint faces", faces_off),
+            ("joint drivers", drivers), ("looks", looks), ("rule set", rules), ("tool changer", changer))
 
 
 @persistent

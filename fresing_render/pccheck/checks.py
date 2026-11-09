@@ -844,6 +844,41 @@ def model_update_safe(ctx):
     return "joint and label kept both ways; damaged file: nothing changed"
 
 
+@line("model.two_copies", "The same STEP twice: two separate cranes", "0.2.44",
+      what="The test crane imported twice: hiding a part of the second crane and updating it never touch the first")
+def model_two_copies(ctx):
+    import bpy
+
+    from ..blender import build, logic, states
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    _check(bpy.ops.fresing.import_step(filepath=CRANE_A, quality="draft") == {"FINISHED"},
+           "the second crane did not import")
+    first, second = sorted(build.model_roots(scene), key=build.uid_scope)
+    _check(build.uid_scope(second) != "", "the second crane got the same part IDs as the first")
+
+    def cover(root):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == "COVER" and build.model_root_of(o) == root)
+
+    logic.set_hidden(cover(second), True)
+    states.save_visibility(scene, "Second cover off")
+    states.show_all(scene)
+    states.apply_visibility(scene, "Second cover off")
+    _check(logic.is_hidden(cover(second)) and not logic.is_hidden(cover(first)),
+           "the visibility set of the second crane hid the first crane's cover")
+    first_name = first.name
+    res = bpy.ops.fresing.import_step(filepath=CRANE_B, quality="draft", update_root=second.name)
+    _check(res == {"FINISHED"}, f"updating the second crane returned {res}: {s.last_message}")
+    first = bpy.data.objects[first_name]
+    second = next(r for r in build.model_roots(scene) if r is not first)
+    _check(not any(o.get(build.PROP_NAME) == "BOOM.LAMP" and build.model_root_of(o) == first for o in scene.objects),
+           "updating the second crane changed the first")
+    states.apply_visibility(scene, "Second cover off")
+    _check(logic.is_hidden(cover(second)) and not logic.is_hidden(cover(first)),
+           "after the update the visibility set hid the wrong crane's cover")
+    return "two cranes kept apart"
+
+
 @line("project.reopen", "Save + reopen a project", "0.1.0",
       what="The project is saved, opened again, and its joint still works")
 def project_reopen(ctx):
