@@ -229,6 +229,26 @@ def test_between_frames_too(scene, tmp_path):
     assert check_path(scene, a, b, range(1, r["frames"], 7), subframes=True) < 0.01, check_path.where
 
 
+def test_a_turning_spindle_keeps_the_tip_on_the_program(scene, tmp_path):
+    """Task 0049: a tip read from the mesh 0.06 mm beside the spindle's axis went round with the spindle and left the
+    program's path by up to 0.12 mm (a Y offset on a move along X). The tip is put on the axis it turns about."""
+    set_up(scene)
+    t1 = ob(scene, T1)
+    from fresing_render.blender import machining
+    raw = t1.matrix_world @ Vector(machining.detect(t1, snap=False)["tip"])
+    joints.create(scene, "ROTATE", [ob(scene, "SPINDLE"), t1], raw + Vector((0.06 * MM, 0, 0)), Vector((0, 0, 1)),
+                  name="Spindle")
+    scene.fresing.joints["Spindle"].is_motor = True
+    scene.fresing.cnc.spindle_joint = "Spindle"
+    tip = t1.matrix_world @ gcode._rest_tip(t1)[0]
+    assert abs((tip - raw).length - 0.06 * MM) < 1e-7 and abs(tip.x - raw.x - 0.06 * MM) < 1e-7
+    a, b = step(scene, program(tmp_path, "G21 G90 G17 G54\nS10000 M3\nG0 X-120 Y-80 Z5\nG1 Z-1 F3000\n"
+                                         "G1 X120 F6000\nG1 Y-60\nG1 X-100 Y0\nG0 Z20\nM5\nM30\n"))
+    r = animation.bake(scene, a)
+    assert not r["warnings"], r["warnings"]
+    assert check_path(scene, a, b, range(1, r["frames"] + 1)) < 0.01, check_path.where
+
+
 def test_the_workpiece_moving_on_a_table(tmp_path):
     """The test mill: the table (with the workpiece) moves along Y, so the program's +Y moves the table -Y."""
     bpy.ops.wm.read_factory_settings(use_empty=True)

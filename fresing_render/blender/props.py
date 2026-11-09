@@ -1177,6 +1177,8 @@ HOLDER_ITEMS = [
     ("NONE", "None", "No holder is drawn: the spindle of your model holds the tool"),
     ("ER", "ER collet", "A collet nut (ER32 by default), as on router spindles"),
     ("SK40", "SK40", "A steep-taper holder to DIN 69871 (SK40): nose, flange with a groove, 7:24 taper, pull stud"),
+    ("BT30", "BT30", "A steep-taper BT30 holder, as on smaller machining centres: nose, flange Ø46 with a groove, "
+             "7:24 taper, pull stud"),
     ("BT40", "BT40", "A steep-taper BT40 holder: nose, flange with a groove, 7:24 taper, pull stud"),
     ("HSK63", "HSK63", "A hollow short taper holder HSK63: nose, flange with a groove, short taper"),
 ]
@@ -1197,8 +1199,15 @@ class FRCncTool(bpy.types.PropertyGroup):
                                         "diameter at its tip)")
     length: FloatProperty(name="Stick-out", unit="LENGTH", default=0.03, min=1e-4, soft_max=0.3,
                           update=_cnc_tool_changed,
-                          description="How far the tool sticks out of its holder, from the tip. A longer tool "
-                                      "moves the spindle up by the difference, like a tool length offset (G43)")
+                          description="How far the tool sticks out of its holder, from the tip to the holder's "
+                                      "nose. With the holder's length it gives the tool's length for the tool "
+                                      "length offset (G43)")
+    gauge_length: FloatProperty(name="Gauge length", unit="LENGTH", default=0.0, min=0.0, soft_max=0.4,
+                                update=_cnc_tool_changed,
+                                description="From the tip up to the holder's gauge line (where it meets the spindle). "
+                                            "A tool that is longer than the one in the spindle moves the spindle up "
+                                            "by the difference, like G43. Type it in for a part or STEP model with "
+                                            "its holder inside. 0: the stick-out plus the holder's length")
     kind: EnumProperty(name="Type", default="FLAT", update=_cnc_tool_changed, items=TOOL_KIND_ITEMS,
                        description="The type of tool: it sets the sizes below, the shape that cuts, the shape "
                                    "that is shown and the kind of chips")
@@ -1252,8 +1261,8 @@ class FRCncTool(bpy.types.PropertyGroup):
                                                "the holder type usually has")
     holder_length: FloatProperty(name="Holder length", unit="LENGTH", default=0.0, min=0.0, soft_max=0.2,
                                  update=_cnc_tool_changed,
-                                 description="From the holder's nose up to the spindle face (gauge length). 0: "
-                                             "what the holder type usually has")
+                                 description="From the holder's nose up to its gauge line, where it meets the spindle "
+                                             "(the holder's gauge length). 0: what the holder type usually has")
     place: EnumProperty(
         name="Place", default="POCKET", update=_cnc_tool_changed,
         items=[("SPINDLE", "Spindle", "In the spindle when the program starts"),

@@ -24,6 +24,8 @@ HERE = os.path.dirname(__file__)
 GANTRY = os.path.join(HERE, "data", "test_gantry.step")
 ENDMILL = os.path.join(HERE, "data", "test_tool_endmill.step")
 FACEMILL = os.path.join(HERE, "data", "test_tool_facemill.step")
+X_ENDMILL = os.path.join(HERE, "data", "test_tool_x_endmill.step")
+X_BT30 = os.path.join(HERE, "data", "test_tool_x_bt30.step")
 MM = 0.001
 STOCK = "STOCK 300x200x30"
 T1 = "TOOL T1 FLAT D6"
@@ -228,6 +230,82 @@ def test_tool_lengths_move_the_spindle(scene, tmp_path):
     assert (spindle_tip(scene) - tip).length < 0.01 * MM
 
 
+def test_tool_lengths_in_different_holders(scene, tmp_path):
+    """Task 0049: G43 differences from the tip to the gauge line. A face mill on a BT30 arbor (40 out + 45) and an
+    end mill in a BT30 chuck (38 out + 60): the end mill is 13 mm longer, not 2 mm shorter."""
+    set_up_cnc(scene)
+    c = scene.fresing.cnc
+    r1 = row(scene, 1, "FACE", diameter=50 * MM, length=40 * MM, holder="BT30", holder_length=45 * MM)
+    r2 = row(scene, 2, "FLAT", diameter=8 * MM, length=38 * MM, holder="BT30", holder_length=60 * MM)
+    mach = gcode.Machine(scene)
+    assert gcode.length_offsets(scene, mach, [1, 2], 1) == pytest.approx({1: 0.0, 2: 13 * MM})
+    r2.gauge_length = 100 * MM                                       # typed in: it wins
+    assert gcode.length_offsets(scene, mach, [1, 2], 1)[2] == pytest.approx(15 * MM)
+    r2.gauge_length = 0.0
+    p = tmp_path / "hold.ngc"
+    p.write_text("G21 G90 G54\nT1 M6\nG0 X0 Y0 Z20\nT2 M6\nG0 X0 Y0 Z20\nG1 Z10 F600\nM30\n")
+    a, _b = step(scene, str(p), gcode_tc_time=1.0)
+    assert not animation.bake(scene, a)["warnings"]
+    zero = c.zero_empty.matrix_world.translation
+    scene.frame_set(scene.frame_end)
+    cp = gcode.copies(scene)
+    tip = cp[2].matrix_world @ Vector(cp[2]["fr_tip"])
+    assert abs((tip - zero).z - 10 * MM) < 0.01 * MM                 # the end mill's tip where the program says
+    t1_end = cp[1].matrix_parent_inverse                              # (the arbor's copy stays put on the spindle)
+    _ = t1_end
+    # old projects: all tools in one holder (or none) give the same differences as the stick-outs did
+    r1.holder = r2.holder = "ER"
+    r1.holder_length = r2.holder_length = 0.0
+    assert gcode.length_offsets(scene, mach, [1, 2], 1)[2] == pytest.approx(-2 * MM)
+    r1.holder = r2.holder = "NONE"
+    assert gcode.length_offsets(scene, mach, [1, 2], 1)[2] == pytest.approx(-2 * MM)
+
+
+def test_a_sharp_corner_at_high_feed_is_cut_into(scene, tmp_path):
+    """Task 0049: milling reads the tool at the program's corners too (they fall between frames): a Ø6 end mill
+    at F1100 turning 90° leaves its round within 0.05 mm of the corner (before: 2.78 instead of 3.0 mm)."""
+    set_up_cnc(scene)
+    set_up_milling(scene)
+    p = tmp_path / "corner.ngc"
+    p.write_text("G21 G90 G17 G54\nS10000 M3\nG0 X-60 Y-20 Z5\nG1 Z-2 F600\nG1 X50.3 F1100\nG1 Y20\n"
+                 "G1 X-50.7\nG0 Z10\nM30\n")
+    a, _b = step(scene, str(p))
+    assert not animation.bake(scene, a)["warnings"]
+    corners = gcode.corners(scene)
+    assert len(corners) >= 4 and any(abs(f - round(f)) > 0.01 for f in corners)
+    machining.sample(scene)
+    scene.frame_set(scene.frame_end)
+    assert machining.refresh(scene, force=True)
+    blk = Block(scene)
+    zero = scene.fresing.cnc.zero_empty.matrix_world.translation / MM
+    for cx, cy, sy in ((50.3, -20, -1), (50.3, 20, 1)):
+        lo, hi = 0.0, 4.0                                          # the cut's edge on the corner's diagonal
+        for _ in range(25):
+            m = (lo + hi) / 2
+            if blk.top(zero.x + cx + m / math.sqrt(2), zero.y + cy + sy * m / math.sqrt(2)) < 29.5:
+                lo = m
+            else:
+                hi = m
+        assert abs(lo - 3.0) < 0.05, (cx, cy, lo)
+
+
+def test_tool_steps_along_x_with_the_gauge_line_at_the_origin(scene):
+    """Task 0049: ToolsUnited / Hoffmann models lie along X, the gauge line (or the shank's end) on the origin."""
+    r = row(scene, 6, "FLAT")
+    tools.import_step(scene, r, X_ENDMILL)
+    assert (Vector(r.tip) / MM - Vector((75, 0, 0))).length < 0.05, tuple(r.tip)
+    assert (Vector(r.axis) - Vector((-1, 0, 0))).length < 1e-3
+    assert r.kind == "FLAT" and abs(r.diameter / MM - 10.0) < 0.1 and abs(r.length / MM - 75.0) < 0.1
+    h = row(scene, 7, "FLAT")
+    tools.import_step(scene, h, X_BT30)                         # a holder alone: the stud end is further out
+    assert (Vector(h.tip) / MM - Vector((45, 0, 0))).length < 0.05, tuple(h.tip)
+    assert (Vector(h.axis) - Vector((-1, 0, 0))).length < 1e-3
+    # the files of 0040 still read as before (tip on the origin along +Z; a tool alone, tilted)
+    f = row(scene, 8, "FLAT")
+    tools.import_step(scene, f, FACEMILL)
+    assert (Vector(f.tip) / MM).length < 0.05 and (Vector(f.axis) - Vector((0, 0, 1))).length < 1e-3
+
+
 def test_missing_tool_is_reported_with_its_line(scene, tmp_path):
     set_up_cnc(scene)
     row(scene, 1, "FLAT")
@@ -257,7 +335,7 @@ def test_every_type_is_drawn_with_its_holder(scene, tmp_path):
     kinds = list(tcore.KINDS)
     for n, k in enumerate(kinds, start=1):
         r = row(scene, n, k)
-        r.holder = ["NONE", "ER", "SK40", "BT40", "HSK63"][n % 5]
+        r.holder = ["NONE", "ER", "SK40", "BT30", "BT40", "HSK63"][n % 6]
     prog = "G21 G90 G54\n" + "".join(f"T{n} M6\nG0 Z{20 + n}\n" for n in range(1, len(kinds) + 1)) + "M30\n"
     p = tmp_path / "all.ngc"
     p.write_text(prog)

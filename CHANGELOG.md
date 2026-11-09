@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.38 – 9 Nov 2026 – tool library fixes: BT30, tool lengths, tip and corners (task 0049)
+
+- Tools: **BT30** is a holder choice (flange Ø46, 7:24 taper, pull stud).
+- Tool lengths (G43) are now measured from the tip to the holder's gauge line: stick-out + holder length, or the
+  new **Gauge length** you type in for a tool whose part or STEP model has its holder inside. Tools in different
+  holders (a face-mill arbor and an end-mill chuck) now move the spindle by the right amount. Projects whose
+  tools all sit in one kind of holder move as before.
+- The tool tip stays on the program while the spindle turns: before, a tip read a few hundredths of a mm beside
+  the spindle's axis went round with it (up to about 0.07 mm off, sometimes sideways on a straight move).
+- Milling cuts sharp corners right into the corner, also at high feeds (before: up to 0.2–0.3 mm short).
+- Manufacturer STEP files that lie along X with the gauge line at the origin (ToolsUnited, Hoffmann) are read the
+  right way round: a tool alone and a holder alone.
+
 ## 0.2.37 – 8 Nov 2026 – user guide: new pictures (task 0044)
 
 - User guide: pictures for Way covers, Air blast, Labels, Pictures and Music.

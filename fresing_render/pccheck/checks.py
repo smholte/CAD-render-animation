@@ -1013,8 +1013,9 @@ M30
 
 
 @line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.36",
-      what="The test mill runs a program with a tool change: a Ø50 face mill faces a strip 1 mm deep, then a Ø6 drill "
-           "drills a hole 8 mm deep; both are read back from the milled block, and the time per frame")
+      what="The test mill runs a program with a tool change: a Ø50 face mill on a BT30 arbor faces a strip 1 mm deep, "
+           "then a Ø6 drill in a BT30 chuck (25 mm longer, tip to gauge line) drills a hole 8 mm deep; both are read "
+           "back from the milled block, with the length offset and the time per frame")
 def milling_tools(ctx):
     import bpy
     from mathutils import Vector
@@ -1040,8 +1041,10 @@ def milling_tools(ctx):
     machining.settings(scene).detail = "FINE"
     face = tools.add_row(scene, "FACE", 1)
     face.diameter, face.lead_angle = 0.05, 1.5707963
+    face.length, face.holder, face.holder_length = 0.04, "BT30", 0.045      # a BT30 arbor (task 0049)
     drill = tools.add_row(scene, "DRILL", 2)
     drill.diameter = 0.006
+    drill.length, drill.holder, drill.holder_length = 0.05, "BT30", 0.06    # in a BT30 chuck: 25 mm longer
     path = os.path.join(ctx.work, "pccheck_tools.ngc")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(TOOLS_PROGRAM)
@@ -1054,6 +1057,10 @@ def milling_tools(ctx):
     gcode.step_changed(scene, b)
     r = animation.bake(scene, a)
     _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    lift = gcode.length_offsets(scene, gcode.Machine(scene), [1, 2], 1).get(2, 0.0) * 1000.0
+    _check(abs(lift - 25.0) < 0.01, f"the drill's length offset is {lift:.2f} mm, not 25 mm (tip to gauge line: "
+                                    "110 against 85 mm)")
+    _check(len(gcode.corners(scene)) >= 2, "milling does not know the program's corners")
     frames = r["frames"]
     t0 = time.time()
     machining.sample(scene)
@@ -1079,7 +1086,8 @@ def milling_tools(ctx):
     _check(abs(d_face - 1.0) < 0.05, f"the face mill cut {d_face:.2f} mm deep, not 1 mm")
     _check(abs(d_edge) < 0.05, f"the face mill cut wider than Ø50 ({d_edge:.2f} mm deep 25.5 mm from its path)")
     _check(abs(d_drill - 8.0) < 0.05, f"the drill went {d_drill:.2f} mm deep, not 8 mm")
-    return f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm; {per:.0f} ms per frame"
+    return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT30 length offset 25.00 → "
+            f"{lift:.2f} mm; {per:.0f} ms per frame")
 
 
 # ---------------------------------------------------------------------------

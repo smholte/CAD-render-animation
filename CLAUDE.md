@@ -604,5 +604,9 @@ the release → Delete); the next run on `main` publishes it again.
   `blender/idprops.store_array` (deletes the key first); `tests/test_idprops.py` refuses `["…"] = np.` in `blender/`.
 - In a background script nothing reads the milling path after Build (`machining.mark_stale` only schedules a
   re-read in the UI): call `machining.sample(scene)` yourself after building or changing the motion (0037).
+- A tool's tip read from its mesh can lie a few hundredths of a mm beside the axis its spindle turns about (fluted
+  points are not round; a joint is made on another face). Turning, it went round in a circle and left the program by
+  up to twice that (0.065 mm in 0037/0048). `machining.on_turning_axis` puts the tip on the turning joint's axis
+  (`gcode._rest_tip`, `detect`, `sample`); test with a spindle joint 0.06 mm off (task 0049).
 - `actions/download-artifact` with `run-id` + `github-token` (and `actions: read`) takes another run's files: a
   reuse release ships exactly the installer that was tested. Job-level `permissions` replace the workflow's.

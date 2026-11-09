@@ -60,12 +60,13 @@ def spec_of(row) -> core.Spec:
                   inserts=row.inserts, insert_size=row.insert_size, lead_angle=math.degrees(row.lead_angle),
                   pitch=row.pitch, width=row.width, neck=row.neck, shank=row.shank, stick_out=row.length,
                   holder=row.holder, holder_diameter=row.holder_diameter, holder_length=row.holder_length,
-                  pocket=row.pocket, note=row.note, source=row.source)
+                  gauge=row.gauge_length, pocket=row.pocket, note=row.note, source=row.source)
     return core.resolved(s)
 
 
-def fill(row, spec: core.Spec, number: bool = False, name: bool = True) -> None:
-    """Put a Spec's sizes into a row (without starting an update for every field)."""
+def fill(row, spec: core.Spec, number: bool = False, name: bool = True, new_shape: bool = False) -> None:
+    """Put a Spec's sizes into a row (without starting an update for every field). ``new_shape``: the row got
+    another part or STEP model, so a gauge length typed for the old one goes too."""
     s = core.resolved(spec)
     row["_busy"] = True
     try:
@@ -91,6 +92,8 @@ def fill(row, spec: core.Spec, number: bool = False, name: bool = True) -> None:
         row.holder = s.holder
         row.holder_diameter = s.holder_diameter if s.holder != "NONE" else 0.0
         row.holder_length = s.holder_length if s.holder != "NONE" else 0.0
+        if s.gauge > 0 or new_shape:
+            row.gauge_length = s.gauge
         if s.pocket:
             row.pocket = s.pocket
         row.note = s.note
@@ -313,7 +316,7 @@ def use_part(scene, row, ob, fill_sizes: bool = True) -> None:
         guess = guess_from(ob.data, tip, axis)
         guess.number = row.number
         guess.source = "part"
-        fill(row, guess, name=not row.name)
+        fill(row, guess, name=not row.name, new_shape=True)
         row["_kind_seen"] = row.kind
     row_changed(scene, None)
 
@@ -383,7 +386,7 @@ def import_step(scene, row, path: str, timeout: float = 120.0) -> core.Spec:
     guess = guess_from(me, tip, axis)
     guess.number = row.number
     guess.source = "STEP"
-    fill(row, guess, name=False)
+    fill(row, guess, name=False, new_shape=True)
     if not row.name:
         row.name = os.path.splitext(os.path.basename(path))[0][:60]
     row["_kind_seen"] = row.kind
@@ -428,9 +431,14 @@ def combine_cache(info: dict, arrays) -> tuple:
 
 
 def tip_and_axis(me) -> tuple:
-    """Tip and axis (from the tip into the holder) of a tool's mesh in its own space, along its main axis: the end
-    on the file's origin (where manufacturers put the tip), else the narrower end, else (both ends as wide) the
-    end with the flutes (more detail)."""
+    """Tip and axis (from the tip into the holder) of a tool's mesh in its own space, along its main axis.
+
+    * A model along X with the file's origin on its axis (ToolsUnited / Hoffmann layout: the gauge line or the
+      shank's end at the origin, task 0049): the tip is on the side of the origin the tool reaches out to – the
+      only side, or, when the origin lies inside (a holder: taper on one side, flange and nose on the other), the
+      side with the flange right next to the origin.
+    * Else the end on the file's origin (where other manufacturers put the tip), else the narrower end, else (both
+      ends as wide) the end with the flutes (more detail)."""
     from . import machining
     ob = bpy.data.objects.new("FR tool probe", me)
     try:
@@ -449,7 +457,10 @@ def tip_and_axis(me) -> tuple:
 
     wa, wb = end_width(a), end_width(b)
     oa, ob_ = np.linalg.norm(np.array(a["tip"])), np.linalg.norm(np.array(b["tip"]))
-    if min(oa, ob_) < 1 * MM <= max(oa, ob_):
+    gauge = _gauge_side(pts, a)
+    if gauge is not None:
+        pick = a if gauge else b
+    elif min(oa, ob_) < 1 * MM <= max(oa, ob_):
         pick = a if oa < ob_ else b                  # manufacturers put the tip on the file's origin
     elif abs(wa - wb) > 0.2 * max(wa, wb):
         pick = a if wa < wb else b
@@ -459,6 +470,42 @@ def tip_and_axis(me) -> tuple:
         db = np.linalg.norm(np.array(b["tip"]) - centre)
         pick = a if da <= db else b
     return tuple(pick["tip"]), tuple(pick["axis"])
+
+
+def _gauge_side(pts, info):
+    """For a model along X with the origin on its axis (the gauge line at the origin): True when ``info``'s tip
+    is the tip, False when the other end is; None when the model is not laid out like that."""
+    axis = np.array(info["axis"], dtype=float)
+    axis /= np.linalg.norm(axis) or 1.0
+    if abs(axis[0]) < 0.999:
+        return None
+    tip = np.array(info["tip"], dtype=float)
+    z = (pts - tip) @ axis                          # 0 at this tip, growing towards the other end
+    z0 = float(-tip @ axis)                        # the origin along the axis
+    radial = -tip - axis * z0                      # the origin's distance from the axis
+    length = float(z.max())
+    if np.linalg.norm(radial) > 1 * MM or not -1 * MM <= z0 <= length + 1 * MM:
+        return None
+    prof = np.array(info["profile"], dtype=float).reshape(-1, 2)    # (z from this tip, widest r): between vertices
+    reach_tip, reach_far = z0, length - z0
+    if reach_far < 1 * MM:                          # the origin at the other end (a shank's end): this is the tip
+        return True
+    if reach_tip < 1 * MM:
+        return False
+    def width(lo, hi):                              # widest outline between two heights
+        out = 0.0
+        for (za, ra), (zb, rb) in zip(prof[:-1], prof[1:]):
+            if zb <= za or zb < lo or za > hi:
+                continue
+            for zq in (max(za, lo), min(zb, hi)):
+                out = max(out, ra + (rb - ra) * (zq - za) / (zb - za))
+        return out
+
+    wt = width(z0 - 8 * MM, z0 - 0.5 * MM)          # between the origin and this tip
+    wf = width(z0 + 0.5 * MM, z0 + 8 * MM)
+    if abs(wt - wf) > 1 * MM:                       # the flange is next to the gauge line, on the tool's side
+        return wt > wf
+    return reach_tip >= reach_far                   # else the side it reaches further out to
 
 
 def flip_step(scene, row) -> None:

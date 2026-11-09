@@ -94,10 +94,11 @@ def _rest_tip(ob):
     key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0)
     hit = _CACHE.get(key)
     if hit is None:
-        info = machining.detect(ob)
+        info = machining.detect(ob, snap=False)
         hit = (Vector(info["tip"]), Vector(info["axis"]).normalized(), info["tool"])
         _CACHE[key] = hit
-    return hit
+    tip, axis = machining.on_turning_axis(ob, hit[0], hit[1])   # on the spindle's axis (task 0049)
+    return tip, axis, hit[2]
 
 
 def tool_frame(ob) -> Matrix:
@@ -649,8 +650,10 @@ def first_tool(sch) -> int:
 
 
 def length_offsets(scene, mach: Machine, numbers, first: int) -> dict:
-    """{T: metres the spindle moves up for that tool}: the difference of its stick-out to the reference tool's
-    (the row of the part in the spindle, else the first tool of the step), like G43. Only tools with a row."""
+    """{T: metres the spindle moves up for that tool}: the difference of its length from the tip to the gauge line
+    to the reference tool's (the row of the part in the spindle, else the first tool of the step), like G43. Only
+    tools with a row. The length is the row's gauge length, else stick-out + holder length (task 0049): tools in
+    different holders get the right difference; tools that all share one holder the same as before."""
     from . import tools
     c = settings(scene)
     if not c.tool_lengths:
@@ -660,12 +663,12 @@ def length_offsets(scene, mach: Machine, numbers, first: int) -> dict:
         ref_row = tool_entry(scene, first)
     if ref_row is None:
         return {}
-    ref = tools.spec_of(ref_row).stick_out
+    ref = tools.core.gauge_length(tools.spec_of(ref_row))
     out = {}
     for n in numbers:
         row = tool_entry(scene, n)
         if row is not None and row.obj is not mach.tool:
-            out[n] = tools.spec_of(row).stick_out - ref
+            out[n] = tools.core.gauge_length(tools.spec_of(row)) - ref
     return out
 
 
@@ -763,6 +766,34 @@ def schedule(scene) -> list:
     return [(float(a[k]), int(a[k + 1])) for k in range(0, len(a) - 1, 2)]
 
 
+def corner_times(samples, angle: float = 2.0) -> list:
+    """Times of the keys where the path turns by more than ``angle`` degrees (a move's end meeting the next move at
+    an angle): milling reads the tool there too, so the cut goes into the corner (task 0049)."""
+    out = []
+    lim = math.cos(math.radians(angle))
+    for (_ta, a), (t, b), (_tc, c) in zip(samples, samples[1:], samples[2:]):
+        u = Vector(b) - Vector(a)
+        v = Vector(c) - Vector(b)
+        if u.length < 1e-6 or v.length < 1e-6:
+            continue
+        if u.normalized().dot(v.normalized()) < lim:
+            out.append(t)
+    return out
+
+
+def corners(scene) -> list:
+    """Frames (fractional) of the program's corners from the last build (task 0049)."""
+    c = settings(scene)
+    return [float(x) for x in c["fr_corners"]] if "fr_corners" in c else []
+
+
+def _record_corners(scene, frames) -> None:
+    from .idprops import store_array
+    c = settings(scene)
+    old = list(c["fr_corners"]) if "fr_corners" in c else []
+    store_array(c, "fr_corners", old + [float(f) for f in frames])
+
+
 def _record_schedule(scene, rows) -> None:
     from .idprops import store_array
     c = settings(scene)
@@ -806,8 +837,9 @@ def prepare(scene, anim, warnings: list) -> list:
     from . import air
     air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
     c = settings(scene)
-    if "fr_tools" in c:                                    # which tool is in the spindle: written by the steps
-        del c["fr_tools"]
+    for k in ("fr_tools", "fr_corners"):                   # which tool is in the spindle, the program's corners:
+        if k in c:                                         # written by the steps
+            del c[k]
     try:
         mach = Machine(scene)
     except SetupError:
@@ -901,6 +933,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         have = {round(t, 9) for t, _p in samples}
         samples = sorted(samples + [(sw, sch.point_at(sw)) for sw, _n, _t, _d in sch.tool_events
                                     if round(sw, 9) not in have], key=lambda x: x[0])
+    _record_corners(scene, [f0 + t * fps for t in corner_times(samples)])
     rows = [[], [], []]
     for t, pt in samples:
         f = f0 + t * fps
@@ -1036,8 +1069,9 @@ def after_clear(scene) -> None:
     """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
     c = settings(scene)
-    if "fr_tools" in c:
-        del c["fr_tools"]
+    for k in ("fr_tools", "fr_corners"):
+        if k in c:
+            del c[k]
     from . import air
     air.clear(scene)
     air.remove_cone()
