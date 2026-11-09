@@ -8,6 +8,7 @@ Render. The models themselves are **not** in this repository – only the pictur
 
 - Milling video: a Fresing CNC mill, Fresing's own design, rendered with Fresing Render – https://fresing.nl
 - Mekanika EVO CNC by Mekanika SRL, CERN-OHL-S-2.0 – https://github.com/mekanika-dev/evo
+- Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0 – https://github.com/AngelLM/Thor (first render; a corrected one follows)
 - FarmBot Genesis by FarmBot Inc., CC0 1.0 – https://genesis.farm.bot/
 - CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) – https://github.com/goscommons/CEB-Press
 

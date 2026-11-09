@@ -63,6 +63,18 @@
    "credit": "CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0)",
    "link": "https://github.com/goscommons/CEB-Press",
    "licence": "CC BY-SA 4.0"
+  },
+  "thor": {
+   "title": "Thor robot arm",
+   "credit": "Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0",
+   "link": "https://github.com/AngelLM/Thor",
+   "licence": "CC BY-SA 4.0",
+   "licence_link": "https://creativecommons.org/licenses/by-sa/4.0/"
   }
+ },
+ "feature": {
+  "file": "thor_side.jpg",
+  "caption": "Thor robot arm in the dark studio, rendered on a graphics card with Cycles",
+  "model": "thor"
  }
 }
