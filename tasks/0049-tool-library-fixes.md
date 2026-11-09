@@ -1,6 +1,6 @@
 # 0049 – Tool library fixes from the owner's demo (0048): BT30, gauge lengths, tip accuracy, sharp corners
 
-**Who:** worker · **Status:** running · **Branch:** `claude/upbeat-pascal-jf4rs4`
+**Who:** worker · **Status:** done (0.2.38) · **Branch:** `claude/upbeat-pascal-jf4rs4`
 **Started by:** lead chat, 9 Nov 2026 (from the 0048 report, problems 1–5) · **Lane:** Machining – `core/tools.py`,
 `blender/tools.py`, `core/machining.py` / `blender/machining.py` (sampling only), `core/gcode.py` / `blender/gcode.py`
 (G43 lengths only), `ui_gcode.py` (Tools rows); tests; guide "Tools" chapter
@@ -36,15 +36,15 @@ along X come in the right way round, and milling follows the program closely at 
 
 ## Done when
 
-- [ ] BT30 in the holder list (generic shape, tooltip, guide).
-- [ ] G43 lengths = tip to gauge line; a test with two tools in different holders gives the right spindle offsets;
+- [x] BT30 in the holder list (generic shape, tooltip, guide).
+- [x] G43 lengths = tip to gauge line; a test with two tools in different holders gives the right spindle offsets;
       old one-holder projects unchanged (test).
-- [ ] Item 3: cause named in the report; fixed to ≤ 0.02 mm on straight moves, or reported as not small.
-- [ ] Item 4: a test with a 90° corner at high feed cuts within 0.05 mm of the corner; sample time before/after named.
-- [ ] Item 5: X-axis tool and holder STEPs (generated) read with the right tip and axis.
-- [ ] Tooltips, guide "Tools" chapter, PC-check line `milling.tools` extended (no new line needed unless visible).
-- [ ] Tests; GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
-- [ ] Report filled in; `TASKS.md`: 0049 done, 0041 "open – can start".
+- [x] Item 3: cause named in the report; fixed to ≤ 0.02 mm on straight moves, or reported as not small.
+- [x] Item 4: a test with a 90° corner at high feed cuts within 0.05 mm of the corner; sample time before/after named.
+- [x] Item 5: X-axis tool and holder STEPs (generated) read with the right tip and axis.
+- [x] Tooltips, guide "Tools" chapter, PC-check line `milling.tools` extended (no new line needed unless visible).
+- [x] Tests; GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
+- [x] Report filled in; `TASKS.md`: 0049 done, 0041 "open – can start".
 
 ## Not in this task
 
@@ -90,6 +90,8 @@ Tool-change animation, pockets, ATC (0041). Coolant (0042). Way covers (0035). T
   samples 4,146 → 4,163, `machining.sample` 12.2 → 11.9 s (no measurable difference; first pair 21.1/19.1 s while
   other tests ran).
 - PC check `milling.tools` (bpy): OK – face 1.00, drill 8.00, BT30 offset 25.00 mm, 5.3 ms per frame.
+- GitHub: 1 full run on the branch, green first time (12.6 min; test suites 1 and 4 flagged SLOW, 9.8/11.0 min); then
+  main had moved (0045 task list only): merged, fast-forwarded.
 
 **Open points / follow-up tasks:**
 - The owner's 0037/0048 projects were not available here: the cause is shown on the test gantry; on his PC the tip
