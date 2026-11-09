@@ -448,6 +448,8 @@ def draw_step(context, box, scene, anim, b) -> None:
     wrap(box, context, f"In the video: {gcode.fmt_time(info['video_s'])}", icon="TIME", inset=12)
     if info.get("air"):
         wrap(box, context, info["air"], icon="FORCE_WIND", inset=12)
+    from . import ui_coolant
+    ui_coolant.draw_step(context, box, scene, b, info)                  # coolant (task 0042)
     box.prop(b, "gcode_clean", text="Blow the part clean at the end")
     if b.gcode_clean:
         split_props(box).prop(b, "gcode_clean_time", text="Time at end")

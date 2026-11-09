@@ -949,6 +949,16 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
+    gcode_coolant: EnumProperty(
+        name="Coolant", default="PROGRAM", update=_gcode_step_changed,
+        items=[("PROGRAM", "From the program", "Coolant flows as the program says: the flood code (M8) floods, the "
+                                               "mist code (M7) mists, M9 stops both"),
+               ("FLOOD", "Flood while cutting", "Flood coolant whenever the spindle turns (for programs without "
+                                                "coolant codes)"),
+               ("MIST", "Mist while cutting", "Mist whenever the spindle turns (for programs without coolant codes)"),
+               ("OFF", "Off", "No coolant in this step, whatever the program says")],
+        description="When coolant flows in this step (task 0042). Switch coolant on first in 4 Motion > CNC machine "
+                    "> Coolant")
 
 
 class FRAnimation(bpy.types.PropertyGroup):
@@ -1364,6 +1374,98 @@ class FRCncPocket(bpy.types.PropertyGroup):
     uid: StringProperty()
     loc: FloatVectorProperty(size=3)                 # where the tool's gauge line sits, in the part's own space
     dir: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))   # from the tool's tip into its holder, part's space
+
+
+# ---------------------------------------------------------------------------
+# coolant (task 0042): flood and mist while milling
+# ---------------------------------------------------------------------------
+
+def _coolant_changed(self, context):
+    """A coolant setting changed: the view shows it at once, the steps' summaries and the chips follow."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import coolant
+    coolant.settings_changed(context.scene)
+
+
+def _coolant_look_changed(self, context):
+    """A look-only coolant setting changed (flow, liquid, draft): the current frame is drawn again."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import coolant
+    coolant.look_changed(context.scene)
+
+
+class FRCoolantNozzle(bpy.types.PropertyGroup):
+    """A coolant nozzle that is a part of the model (on the spindle head): where the liquid comes out and which
+    way, in the part's own space."""
+    obj: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+    tip: FloatVectorProperty(
+        name="Nozzle tip", size=3, unit="LENGTH", subtype="TRANSLATION", update=_coolant_look_changed,
+        description="Where the coolant comes out, in the nozzle part's own space (found from its shape or the "
+                    "clicked point; change it here to move it)")
+    dir: FloatVectorProperty(
+        name="Points towards", size=3, subtype="DIRECTION", default=(0.0, 0.0, -1.0), update=_coolant_look_changed,
+        description="The way the nozzle squirts, in the nozzle part's own space. Drag the ball to aim it, or press "
+                    "'Aim at the tool'")
+
+
+class FRCoolant(bpy.types.PropertyGroup):
+    enabled: BoolProperty(
+        name="Coolant", default=False, update=_coolant_changed,
+        description="The machine has coolant: liquid jets from the nozzles onto the tool, splash where it cuts, a "
+                    "wet sheen on the block, table and vise, wet chips. When it flows is set per G-code step "
+                    "(6 Animation); press Build & play after switching it on")
+    flood_code: IntProperty(
+        name="Flood code", default=8, min=0, max=199, update=_coolant_changed,
+        description="The M-code that switches flood coolant on in your programs: M8 on most machines. 0: none")
+    mist_code: IntProperty(
+        name="Mist code", default=7, min=0, max=199, update=_coolant_changed,
+        description="The M-code that switches mist on: M7 on most machines. When the air-on code (Air blast) is "
+                    "M7 too, M7 also blows air (mist is air with drops). 0: M7 is not mist")
+    off_code: IntProperty(
+        name="Off code", default=9, min=0, max=199, update=_coolant_changed,
+        description="The M-code that stops the coolant: M9 on most machines (M9 always stops flood and mist)")
+    source: EnumProperty(
+        name="Nozzles", default="AUTO", update=_coolant_changed,
+        items=[("AUTO", "Automatic", "The app adds flexible coolant hoses (Loc-Line look) on a ring round the "
+                                     "spindle, aimed at the tool; they follow the tool's length after each tool "
+                                     "change"),
+               ("PARTS", "Parts of the model", "Nozzles of your model: click each nozzle part (or the spot where "
+                                               "the coolant comes out)")],
+        description="Where the coolant comes from: hoses the app adds, or nozzle parts of your model")
+    auto_count: IntProperty(
+        name="Hoses", default=2, min=1, max=4, update=_coolant_look_changed,
+        description="How many flexible hoses the app puts round the spindle (2 to 4 on most machines)")
+    auto_turn: FloatProperty(
+        name="Turn hoses", subtype="ANGLE", default=0.0, min=-math.pi, max=math.pi, update=_coolant_look_changed,
+        description="Turns the hoses round the spindle, e.g. so they do not hide the tool from the camera")
+    show_hoses: BoolProperty(
+        name="Show hoses", default=True, update=_coolant_look_changed,
+        description="Shows the app's hoses and their ring on the spindle. Off: only the liquid shows (when your "
+                    "model has its own hoses in about the same place)")
+    nozzles: CollectionProperty(type=FRCoolantNozzle)
+    nozzles_index: IntProperty(default=0)
+    liquid: EnumProperty(
+        name="Liquid", default="EMULSION", update=_coolant_look_changed,
+        items=[("EMULSION", "Emulsion", "Water-mixed coolant: milky white and see-through (most machines)"),
+               ("OIL", "Cutting oil", "Neat cutting oil: clear, slightly yellow")],
+        description="What the coolant looks like: milky emulsion or clear cutting oil")
+    flow: FloatProperty(
+        name="Flow", default=0.7, min=0.1, max=1.0, subtype="FACTOR", update=_coolant_look_changed,
+        description="How much coolant flows: low gives thin streams and few drops, full flood thick streams and "
+                    "a lot of splash")
+    dry_time: FloatProperty(
+        name="Dries in", default=4.0, min=0.5, max=30.0, unit="TIME_ABSOLUTE", update=_coolant_changed,
+        description="How many seconds the block, table and vise stay wet after the coolant stops (M9)")
+    wet_parts: BoolProperty(
+        name="Wet sheen", default=True, update=_coolant_changed,
+        description="The block, the table and the vise look wet while coolant flows: darker, glossier, drops on "
+                    "the sides; they dry after it stops")
+    draft: BoolProperty(
+        name="Draft", default=False, update=_coolant_look_changed,
+        description="Quick look for the view: plain streams, no splash or drops. Switch off for the final video")
 
 
 CHANGE_MODE_ITEMS = [("STAY", "Where it is", "The head stays where the program left it; the tool is swapped there"),
@@ -1934,6 +2036,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     milling: PointerProperty(type=FRMilling)
     # ---- CNC machine for G-code programs (task 0026) ----
     cnc: PointerProperty(type=FRCnc)
+    # ---- coolant (task 0042) ----
+    coolant: PointerProperty(type=FRCoolant)
 
     # ---- way covers (task 0034) ----
     waycover: PointerProperty(type=FRWayCover)
@@ -1950,7 +2054,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCnc,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc,
            FRSceneSettings)
 
 

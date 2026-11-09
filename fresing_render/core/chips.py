@@ -692,6 +692,7 @@ class SimIn:
     mist: bool = False
     seed: int = 28
     air: object = None                # core.air.AirIn: air that blows the chips away (task 0039); None = no air
+    wet: np.ndarray | None = None     # (k, 2) frames while coolant flows (task 0042): chips fly less far, stick more
 
 
 @dataclass
@@ -820,13 +821,16 @@ def _plan_mist(inp: SimIn, rng, am) -> dict | None:
 
 
 #: every per-chip array of _Sim (a chip blown up again by air is a new chip: a copy of these rows)
-_PER_CHIP = ("born", "bit", "change", "is_mist", "pre_speed", "pre_drag", "pre_bounce", "pre_mix", "pre_spin",
+_PER_CHIP = ("born", "bit", "change", "is_mist", "wet", "pre_speed", "pre_drag", "pre_bounce", "pre_mix", "pre_spin",
              "pre_life", "vol", "slot", "scale", "tint", "u_speed", "u_spread", "u_spin", "u_angle", "u_yaw", "u_tilt",
              "u_q0", "u_life", "u_misc", "rest_t", "end_t", "fade", "rest_p", "rest_q", "rest_space", "rest_cell",
              "rest_pile")
 _EMPTY_ROW = {"rest_t": np.inf, "end_t": np.inf, "fade": 1.0, "rest_cell": -1, "rest_pile": -1}
 BLOWN_FRICTION = 0.85             # a chip the air pushes along a surface keeps this much speed at each touch
 BLOWN_HOP = 0.6                   # m/s up: air lifts a chip it pushes against a wall (out of a pocket)
+WET_SPEED = 0.6                   # coolant (task 0042): a wet chip leaves the bit this much slower,
+WET_DRAG = 1.6                    # … the liquid slows it more in the air
+WET_BOUNCE = 0.3                  # … and it hardly bounces (sticks where it lands)
 
 
 class _Sim:
@@ -857,6 +861,17 @@ class _Sim:
         self.pre_speed = np.array([p.speed for p in presets])
         self.pre_drag = np.array([p.drag for p in presets])
         self.pre_bounce = np.array([p.bounce for p in presets])
+        # coolant (task 0042): a chip that comes off in the liquid is heavier and sticky - it flies less far and
+        # hardly bounces
+        self.wet = np.zeros(n, bool)
+        if inp.wet is not None and len(inp.wet) and n:
+            wsp = np.asarray(inp.wet, float).reshape(-1, 2)
+            for a, b in wsp:
+                self.wet |= (self.born >= a - 1e-9) & (self.born < b - 1e-9)
+            self.wet &= ~self.is_mist
+            self.pre_speed = np.where(self.wet, self.pre_speed * WET_SPEED, self.pre_speed)
+            self.pre_drag = np.where(self.wet, self.pre_drag * WET_DRAG, self.pre_drag)
+            self.pre_bounce = np.where(self.wet, self.pre_bounce * WET_BOUNCE, self.pre_bounce)
         self.pre_mix = np.array([(p.tangent, p.radial, p.up, p.spread) for p in presets]).reshape(-1, 4)
         self.pre_spin = np.array([p.spin for p in presets])
         self.pre_life = np.array([p.life for p in presets])
@@ -1396,6 +1411,7 @@ def simulate(inp: SimIn, progress=None) -> Bake:
     vol = inp.work.removed_per_frame(inp.f0, inp.f1)
     stats = {"chips": int(sim.n0), "mist": int(sim.is_mist[:sim.n0].sum()), "max_alive": int(sim.max_alive),
              "blown": int(sim.wakes), "air_s": inp.air.seconds_on(inp.fps) if inp.air is not None else 0.0,
+             "wet": int(sim.wet[:sim.n0].sum()),
              "thinned": float(plan["thin"]), "steps": int(getattr(sim, "steps", 0)),
              "seconds": time.perf_counter() - t0, "removed_mm3": float(vol.sum() * 1e9)}
     return Bake(shapes=sim.shapes, lift=np.zeros(len(sim.shapes)), born=sim.born, rest_t=sim.rest_t,

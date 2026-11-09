@@ -739,15 +739,16 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE in ("waycover", "air", "labels"):
+elif MODE in ("waycover", "air", "labels", "coolant"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel + the covers open in the view (test_waycover_b.step)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
     #   labels:   Labels, Pictures and Music folds (test crane)
+    #   coolant:  CNC machine > Coolant (task 0042) and the G-code step with its coolant line (test_gantry.step)
     # Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=waycover / air / labels.
     MILL = os.path.join(DATA, "test_gantry.step")
     WCOVER = os.path.join(DATA, "test_waycover_b.step")
-    mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE}[MODE]
+    mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -809,6 +810,39 @@ elif MODE in ("waycover", "air", "labels"):
             save_png(im[int(h * 0.463):int(h * 0.545), int(w * 0.2):int(w * 0.8)], "view_waycover")   # the model
             return 0.5
         step(_view_shot)
+
+    elif MODE == "coolant":
+        def _cool_setup():
+            sc = bpy.context.scene
+            joints = mod("blender.joints")
+            for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+                o = _named(asm)
+                joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+            with override():
+                bpy.ops.fresing.cnc_find_axes()
+                select_only(_named("TOOL T1 FLAT D6"))
+                bpy.ops.fresing.cnc_use_tool()
+                select_only(_named("STOCK 300x200x30"))
+                bpy.ops.fresing.cnc_use_workpiece()
+            select_only()
+            sc.fresing.coolant.enabled = True
+            mod("blender.ui")._OPEN_FOLDS = True
+        step(lambda: (_cool_setup(), 1.0)[1])
+        _grab("panel_4_coolant", [("FRESING_PT_cnc_coolant", False, True)])
+
+        def _gcode_step():
+            sc = bpy.context.scene
+            os.chdir(SCRATCH)                    # plain file names in the picture
+            path = "pocket.ngc"
+            with open(path, "w") as fh:
+                fh.write("%\nG21 G90 G54\nS9000 M3\nG0 X20 Y20 Z5\nM8\nG1 Z-2 F600\nG1 X120 F1500\nM9\nM30\n%\n")
+            with override():
+                bpy.ops.fresing.anim_add()
+                bpy.ops.fresing.block_add(kind="GCODE")
+            a = mod("blender.animation").active(sc)
+            b = a.blocks[a.blocks_index]
+            b.gcode_file = path
+        _grab("panel_6_gcode_coolant", [("FRESING_PT_animation", False, True)], _gcode_step)
 
     elif MODE == "air":
         def _cnc_setup():

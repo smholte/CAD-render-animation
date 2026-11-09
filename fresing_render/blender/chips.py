@@ -37,7 +37,7 @@ OBJ_WORLD = "FR Chips (fallen)"
 NODE_GROUP = "FR Chips"
 MAT_PREFIX = "FR chips "
 TAG = "fr_chips"                      # on everything made here (value: its role)
-MAT_VERSION = 1
+MAT_VERSION = 2                       # 2: wet look while coolant flows (task 0042)
 
 TRANSFORM_PATHS = ("location", "rotation_euler", "rotation_quaternion", "rotation_axis_angle", "scale",
                    "delta_location", "delta_rotation_euler", "delta_rotation_quaternion", "delta_scale")
@@ -214,7 +214,12 @@ def _key(scene) -> tuple:
     return (s.path_sig, machining._stock_key(s, wp) if wp is not None else None,
             tuple(c.key() + (c.chip,) for c in items),
             s.chips, fam, s.chip_spindle, bool(s.chip_mist), scene.render.fps, round(scene.render.fps_base, 6),
-            len(s.get("fr_wp_m", ())), air.key(scene))
+            len(s.get("fr_wp_m", ())), air.key(scene), _wet_key(scene))
+
+
+def _wet_key(scene) -> bytes:
+    from . import coolant
+    return coolant.wet_spans(scene).round(4).tobytes()
 
 
 def _inputs(scene) -> core.SimIn | None:
@@ -282,7 +287,14 @@ def _inputs(scene) -> core.SimIn | None:
     fps = scene.render.fps / (scene.render.fps_base or 1.0)
     return core.SimIn(fps=fps, f0=f0, f1=f1, bits=bits_in, work=work, ride=ride, static=static, floor_z=floor_z,
                       carry=carry, amount=s.chips, mist=bool(s.chip_mist),
-                      air=air.inputs(scene, air_in, bit_names, carry, f0) if air_in else None)
+                      air=air.inputs(scene, air_in, bit_names, carry, f0) if air_in else None,
+                      wet=_wet_spans(scene))
+
+
+def _wet_spans(scene):
+    from . import coolant
+    sp = coolant.wet_spans(scene)
+    return sp if len(sp) else None
 
 
 def _tris_world_mesh(me, m: Matrix) -> tuple:
@@ -534,9 +546,33 @@ def _material(fam: str, colour=None) -> bpy.types.Material:
         e = els.new(pos)
         e.color = (*rgb, 1.0)
     nt.links.new(attr.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Metallic"].default_value = look.metallic
-    bsdf.inputs["Roughness"].default_value = look.roughness
+    # wet chips (task 0042): darker and glossier while coolant flows (0 without coolant: as before)
+    wet = nt.nodes.new("ShaderNodeAttribute")
+    wet.attribute_type = "INSTANCER"
+    wet.attribute_name = "fr_wet"
+    wet.location = (-300, -250)
+    dark = nt.nodes.new("ShaderNodeMix")
+    dark.data_type = "RGBA"
+    dark.blend_type = "MULTIPLY"
+    dark.location = (150, 100)
+    dark.inputs["B"].default_value = (0.55, 0.55, 0.55, 1.0)
+    nt.links.new(wet.outputs["Fac"], dark.inputs["Factor"])
+    nt.links.new(ramp.outputs["Color"], dark.inputs["A"])
+    nt.links.new(dark.outputs["Result"], bsdf.inputs["Base Color"])
+    rough = nt.nodes.new("ShaderNodeMix")
+    rough.data_type = "FLOAT"
+    rough.location = (150, -150)
+    rough.inputs["A"].default_value = look.roughness
+    rough.inputs["B"].default_value = min(look.roughness, 0.1)
+    nt.links.new(wet.outputs["Fac"], rough.inputs["Factor"])
+    nt.links.new(rough.outputs["Result"], bsdf.inputs["Roughness"])
+    coat = nt.nodes.new("ShaderNodeMath")
+    coat.operation = "MULTIPLY"
+    coat.inputs[1].default_value = 0.8
+    coat.location = (150, -350)
+    nt.links.new(wet.outputs["Fac"], coat.inputs[0])
+    nt.links.new(coat.outputs[0], bsdf.inputs["Coat Weight"])
     if look.transmission:
         bsdf.inputs["Transmission Weight"].default_value = look.transmission
         bsdf.inputs["IOR"].default_value = 1.33
@@ -576,7 +612,7 @@ def _ensure_shapes(scene, bk) -> None:
     rt["shapes_key"] = key
 
 
-def _write_points(me, pos, rot, slot, scale, tint) -> None:
+def _write_points(me, pos, rot, slot, scale, tint, wet=0.0) -> None:
     me.clear_geometry()
     n = len(pos)
     if n:
@@ -585,7 +621,8 @@ def _write_points(me, pos, rot, slot, scale, tint) -> None:
     for name, kind, data in (("fr_slot", "INT", np.asarray(slot, np.int32)),
                              ("fr_rot", "QUATERNION", np.asarray(rot, np.float32)),
                              ("fr_scale", "FLOAT", np.asarray(scale, np.float32)),
-                             ("fr_tint", "FLOAT", np.asarray(tint, np.float32))):
+                             ("fr_tint", "FLOAT", np.asarray(tint, np.float32)),
+                             ("fr_wet", "FLOAT", np.full(n, float(wet), np.float32))):
         a = me.attributes.get(name)
         if a is None or a.data_type != kind:
             if a is not None:
@@ -620,9 +657,11 @@ def show(scene, T: float | None = None) -> bool:
     pos = r["pos"] @ inv[:3, :3].T + inv[:3, 3]
     q_inv = core.q_from_matrix(inv[:3, :3] / np.cbrt(max(abs(np.linalg.det(inv[:3, :3])), 1e-12)))
     rot = core.q_mul(np.broadcast_to(q_inv, (len(r["rot"]), 4)), r["rot"]) if len(r["rot"]) else r["rot"]
-    _write_points(ride.data, pos, rot, r["slot"], r["scale"], r["tint"])
+    from . import coolant
+    wet = float(coolant.wet_level(scene, [T])[0]) if coolant.is_on(scene) else 0.0
+    _write_points(ride.data, pos, rot, r["slot"], r["scale"], r["tint"], wet)
     w = data[1]
-    _write_points(world.data, w["pos"], w["rot"], w["slot"], w["scale"], w["tint"])
+    _write_points(world.data, w["pos"], w["rot"], w["slot"], w["scale"], w["tint"], wet)
     for ob in (ride, world):
         if ob.hide_render or ob.hide_viewport:
             ob.hide_render = ob.hide_viewport = False

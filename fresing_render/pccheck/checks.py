@@ -1255,6 +1255,115 @@ def milling_air(ctx):
             f"{per_off:.0f} / {per_on:.0f} ms per frame; {air.codes_text(scene)}")
 
 
+COOLANT_POCKET = """(T1 D=10. CR=0. - flat end mill)
+G21 G90 G94 G17
+S9000 M3
+G0 X-30 Y-20 Z5
+M8
+G1 Z-4 F900
+G1 X30 F2400
+G1 Y-6
+G1 X-30
+G1 Y8
+G1 X30
+M9
+G0 Z20
+G4 P2
+M5
+M30
+"""
+
+
+@line("milling.coolant", "Milling: coolant floods the tool", "0.2.47",
+      what="The test mill cuts a pocket with flood coolant (M8 ... M9) from two automatic hoses: jets and splash "
+           "while it cuts, the block gets wet and dries after M9, a frame looks the same whatever frame came "
+           "before; the time per frame with and without coolant and a Cycles picture of the flood")
+def milling_coolant(ctx):
+    import bpy
+    import numpy as np
+    from mathutils import Vector
+
+    from ..blender import animation, coolant, gcode, joints, machining
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(MILL)
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool, stock = _ob(scene, "END MILL D10"), _ob(scene, "STOCK 200x200x40")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, stock)
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    path = os.path.join(ctx.work, "pccheck_coolant.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(COOLANT_POCKET)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Coolant", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", 3.0, False
+    b.gcode_file = path
+    gcode.step_changed(scene, b)
+
+    def per_frame(frames):
+        shown = list(range(max(1, frames - 30), frames - 10))
+        t0 = time.time()
+        for f in shown:
+            scene.frame_set(f)
+        return (time.time() - t0) / len(shown) * 1000.0
+
+    frames = animation.bake(scene, a)["frames"]
+    off = per_frame(frames)
+    scene.fresing.coolant.enabled = True
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    sp = coolant.spans()
+    _check(len(sp) == 1, f"{len(sp)} coolant spans, not 1 (M8 ... M9 not seen)")
+    on = per_frame(frames)
+    ctx.metric("frame without coolant", off, "ms")
+    ctx.metric("frame with coolant", on, "ms")
+    mid = int((sp[0, 0] + sp[0, 1]) / 2)
+
+    def liquid(before):
+        scene.frame_set(before)
+        scene.frame_set(mid)
+        jets = bpy.data.objects[coolant.JETS].data
+        drops = bpy.data.objects[coolant.DROPS].data
+        a_ = np.empty(len(jets.vertices) * 3)
+        jets.vertices.foreach_get("co", a_)
+        b_ = np.empty(len(drops.vertices) * 3)
+        drops.vertices.foreach_get("co", b_)
+        return a_, b_
+    j1, d1 = liquid(10)
+    j2, d2 = liquid(frames)
+    _check(len(j1) > 0, "no jets while the coolant flows")
+    _check(len(d1) > 0, "no splash at the tool while it cuts")
+    _check(np.array_equal(j1, j2) and np.array_equal(d1, d2), "the same frame looks different after another frame")
+    root = coolant.root()
+    scene.frame_set(int(sp[0, 1]) - 1)
+    wet = float(root[coolant.WET_PROP])
+    _check(wet > 0.8, f"the block is only {wet:.2f} wet at the end of the flood")
+    scene.frame_set(frames)
+    later = float(root[coolant.WET_PROP])
+    _check(later < wet, "the block does not dry after M9")
+    n_wet = len(coolant.wet_parts(scene))
+    _check(n_wet >= 1, "no part gets wet")
+    # a picture of the flood: a camera close to the tool
+    scene.frame_set(mid)
+    cam = bpy.data.cameras.new("PC check coolant")
+    co = bpy.data.objects.new("PC check coolant", cam)
+    scene.collection.objects.link(co)
+    tip = tool.matrix_world @ gcode._rest_tip(tool)[0]
+    co.location = tip + Vector((0.12, -0.24, 0.09))
+    co.rotation_euler = ((tip + Vector((0, 0, 0.012))) - co.location).to_track_quat("-Z", "Y").to_euler()
+    scene.camera = co
+    scene.fresing.out_resolution = "preview"
+    info = _cpu_still(ctx, scene, "coolant", "Flood coolant at the tool (processor, draft)", model_check=False)
+    ctx.metric("still with coolant", info["seconds"], "s")
+    return (f"{len(j1) // 3} jet points, {len(d1) // 3} drops; wet {wet:.2f} at M9, {later:.2f} at the end; "
+            f"{n_wet} wet parts; {off:.0f} / {on:.0f} ms per frame without / with coolant")
+
+
 TOOLS_PROGRAM = """(TWO TOOLS)
 G21 G90 G94 G17 G54
 T1 M6

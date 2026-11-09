@@ -616,7 +616,7 @@ def step_changed(scene, b, path: bool = True) -> None:
             b.duration = max(0.0, sch.duration)
     finally:
         del b["_busy"]
-    _INFO[info_key(b)] = summary(prog, sch, note, scene)
+    _INFO[info_key(b)] = summary(prog, sch, note, scene, b)
     if path and b.gcode_path and mach is not None:
         try:
             show_path(scene, anim)
@@ -624,23 +624,31 @@ def step_changed(scene, b, path: bool = True) -> None:
             pass
 
 
-def summary(prog, sch, note: str = "", scene=None) -> dict:
+def summary(prog, sch, note: str = "", scene=None, b=None) -> dict:
     moves = [m for m in prog.moves if m.moving]
     probs = prog.problems
-    air_text = ""
+    air_text = cool_text = ""
     if scene is not None:                              # the air codes are shown (task 0039): not a problem
         from . import air
         c = settings(scene)
         mine = {f"M{c.air_on_code}", f"M{c.air_off_code}"}
+        from . import coolant
+        if coolant.is_on(scene):
+            mine |= coolant.codes(scene)
         probs = [p for p in probs if p.code not in mine]
         air_text = air.describe(scene, sch)
+        if b is not None:
+            try:
+                cool_text = coolant.describe(scene, sch, b)
+            except Exception:
+                cool_text = ""
     from . import toolchange
     try:
         tc_notes = toolchange.notes(scene, sch) if scene is not None else []
     except Exception:
         tc_notes = []
     return {"lines": prog.lines, "moves": len(moves), "machine_s": prog.duration, "video_s": sch.duration,
-            "air": air_text, "tool_changes": tc_notes,
+            "air": air_text, "coolant": cool_text, "tool_changes": tc_notes,
             "tools": prog.tool_numbers(), "problems": [p.describe() for p in probs], "notes": list(prog.notes),
             "note": note, "name": prog.name, "changes": len([c for c in sch.changes if c.length > 0]),
             "ended": prog.ended,
@@ -689,7 +697,7 @@ def info(scene, b) -> dict:
     if hit is None and b.gcode_file:
         try:
             prog, note = read_program(scene, b, None)
-            hit = summary(prog, core.Schedule(prog, timing(scene, _anim_of(scene, b), b)), note, scene)
+            hit = summary(prog, core.Schedule(prog, timing(scene, _anim_of(scene, b), b)), note, scene, b)
         except FileNotFoundError as exc:
             hit = {"error": f"File not found: {exc}"}
         except Exception as exc:                           # never break the panel
@@ -937,6 +945,8 @@ def prepare(scene, anim, warnings: list) -> list:
     extra = []
     from . import air
     air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
+    from . import coolant
+    coolant.prepare(scene)                                 # coolant frames: written again by the steps (task 0042)
     c = settings(scene)
     for k in ("fr_tools", "fr_corners"):                   # which tool is in the spindle, the program's corners:
         if k in c:                                         # written by the steps
@@ -1021,7 +1031,9 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     if note:
         warnings.append(f"'{name}': {note}")
     c = settings(scene)
-    probs = [p for p in prog.problems if p.code not in (f"M{c.air_on_code}", f"M{c.air_off_code}")]
+    from . import coolant
+    quiet = {f"M{c.air_on_code}", f"M{c.air_off_code}"} | (coolant.codes(scene) if coolant.is_on(scene) else set())
+    probs = [p for p in prog.problems if p.code not in quiet]
     for p in probs[:4]:
         warnings.append(f"'{name}': {p.describe(3)}")
     if len(probs) > 4:
@@ -1082,6 +1094,13 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     if sch.tool_events or sch.first_tool:
         toolchange.tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge,
                              name, offsets)
+    if coolant.is_on(scene):                                # coolant frames, after the tool copies (task 0042)
+        try:
+            coolant.record(scene, sch, b, mach, f0, fps, offsets)
+        except Exception as exc:
+            warnings.append(f"'{name}': the coolant could not be built ({exc})")
+        if coolant.problem(scene):
+            warnings.append(f"'{name}': coolant: {coolant.problem(scene)} (4 Motion > CNC machine > Coolant)")
     if b.gcode_path:
         try:
             show_path(scene, anim, mach=mach)
@@ -1173,6 +1192,8 @@ def after_clear(scene) -> None:
     from . import air
     air.clear(scene)
     air.remove_cone()
+    from . import coolant
+    coolant.clear(scene)
 
 
 # ---------------------------------------------------------------------------
@@ -1410,8 +1431,9 @@ def before_model_update(scene) -> None:
     remove_path()
     from . import toolchange
     toolchange.before_model_update(scene)
-    from . import air
+    from . import air, coolant
     air.before_model_update(scene)
+    coolant.before_model_update(scene)
     c = settings(scene)
     ob = c.zero_empty
     if ob is not None:
@@ -1457,6 +1479,8 @@ def after_model_update(scene, mapping: dict, by_uid_new: dict) -> list[str]:
         del c["_busy"]
     from . import air, toolchange
     notes += air.after_model_update(scene, new)
+    from . import coolant
+    notes += coolant.after_model_update(scene, new)
     notes += toolchange.after_model_update(scene, new)
     _CACHE.clear()
     setup_changed(scene)

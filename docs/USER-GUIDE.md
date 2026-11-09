@@ -947,6 +947,63 @@ the part clean** (2 s) 0. Working the chips out took 0.7 s without air and 0.9 s
 blast; showing a frame in the view 14 ms without and 12 ms with air; one rendered frame (processor,
 800 × 560, 32 samples) 19.7 s without and 18.7 s with air.
 
+#### Coolant
+
+<img class="wide" src="img/coolant.jpg" alt="The test mill cutting a pocket with flood coolant: two blue hoses squirt milky coolant at the tool, drops fly off it, the block is wet">
+
+A milling video with coolant looks like the real machine: when the program says **M8**, milky coolant squirts
+from the nozzles onto the tool, splashes where the tool cuts, the block, the table and the vise get a wet sheen
+and the chips come out wet. **M9** stops it and the parts dry a few seconds later. Coolant needs the CNC machine
+set up (above) and a **Run G-code program** step; milling and chips are not needed, but they get wet too.
+
+<img class="panel" src="img/panel_4_coolant.png" alt="CNC machine > Coolant: automatic hoses, liquid, flow, wet sheen, drying, draft, the M-codes">
+
+1. In 4 Motion > **CNC machine**, open **Coolant** and tick **Coolant** in its title.
+2. Where it comes from:
+   - **Automatic** (the default): the app adds flexible hoses (the blue Loc-Line look) on a ring round the
+     spindle, aimed at the tool's cutting edges. **Hoses**: 1 to 4 (2 is the default). **Turn hoses** turns
+     them round the spindle, for example so they do not hide the tool from the camera. After each tool change
+     they bend again to the new tool's length. **Show hoses** off: only the liquid shows (when your model has
+     its own hoses in about the same place).
+   - **Parts of the model**: click a nozzle part in the view and press **Use clicked part** (the coolant comes
+     out of its end nearest the tool), or press **Click point** and click the spot where it comes out. Add every
+     nozzle this way. For the nozzle selected in the list, **Aim at the tool** aims it again, the arrows button
+     turns it round, and the fold **Nozzle tip and aim** lets you drag the direction. A nozzle moves with the
+     part it is on.
+3. **Liquid**: **Emulsion** (milky white, see-through – most machines) or **Cutting oil** (clear, slightly
+   yellow). **Flow**: low gives thin streams and few drops, full gives thick streams and a lot of splash.
+4. **Wet sheen on block, table and vise**: they get darker and glossier with drops on the sides while coolant
+   flows; **Dries in** (4 s) is how long they stay wet after M9. The parts that get wet are found by themselves
+   at **Build & play**: the workpiece and the parts round it and under it (not the head).
+5. **Draft**: plain streams without splash and drops, for working in the view; switch it off for the video.
+6. In 6 Animation, the Run G-code program step has a **Coolant** setting:
+   - **From the program** (the default): **M8** floods, **M7** mists, **M9** stops both. The step says what it
+     found, for example "Coolant: flood 1 time, 4.7 s".
+   - **Flood while cutting** / **Mist while cutting**: for programs without coolant codes – coolant whenever
+     the spindle turns.
+   - **Off**: no coolant in this step, whatever the program says.
+
+   Then press **Build & play**.
+
+<img class="panel" src="img/panel_6_gcode_coolant.png" alt="The Run G-code program step with its Coolant setting and the line Coolant: flood 1 time">
+
+**Mist** (M7) shows a fine cone of tiny drops from each nozzle instead of a solid stream, and wets the parts
+less. **M7 and the air blast**: Air blast also uses M7 by default. With coolant on, M7 then switches on mist
+**and** the air (mist is air with drops), and M9 stops both, as on LinuxCNC. To keep them apart give Air blast
+another code (for example M100), or set **Mist code** to 0 so M7 is only air. The codes are in the fold
+**Codes** (Flood code, Mist code, Off code), for machines with their own numbers.
+
+The splash is strongest while the tool cuts and weaker while it moves through the air with coolant on. Wet chips
+leave the tool slower, hardly bounce and stay closer to the cut (on the test mill the pile was about a quarter
+narrower), and they look darker and shinier until the parts dry.
+
+Every frame of the coolant comes from the frame number alone – there is no simulation to run first – so the
+render queue can render frames in any order and a frame always looks the same.
+
+Not yet: coolant through the spindle (through the tool), mist or steam in the air, puddles that collect and
+coolant that runs off the table.
+
+
 ### CNC machine (G-code)
 
 <img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">
@@ -1470,13 +1527,13 @@ The fold **Lines, tool changes, spindle, toolpath** holds:
 - **Go to line …** puts the timeline where the program starts a line.
 
 Under the step's length: **Air: …** says when the program has air on (see **Air blast** in 4 Motion >
-Milling), and **Blow the part clean at the end** with **Time at end** adds a final blast that leaves the part
-clean.
+Milling), **Coolant** when coolant flows (shown when coolant is on, see **Coolant** in 4 Motion > Milling), and
+**Blow the part clean at the end** with **Time at end** adds a final blast that leaves the part clean.
 
 What the app reads (LinuxCNC's G-code, as CAM programs and hand-written programs use it): G0 G1, arcs G2
 G3 in all three planes (I J K or R, helical, several turns), G4, G17–G19, G20/G21 inch and mm, G90/G91,
 G90.1/G91.1, G93/G94/G95, work offsets G54–G59.3 and G10 L2/L20, G92, G28/G30, G53, the drilling cycles
-G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, M7 M8 M9 (air, see Air blast), parameters (`#1`, `#<name>`),
+G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, M7 M8 M9 (air and coolant, see Air blast and Coolant), parameters (`#1`, `#<name>`),
 expressions in `[ ]`, and O-word subroutines, loops and if/else (also a subroutine file `<name>.ngc` next
 to the program). **Details** lists everything the app does not show, with its line numbers: cutter
 compensation G41/G42 (the tool follows the programmed line), rotary axes A/B/C, threading, probing and
