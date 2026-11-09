@@ -17,14 +17,14 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 updates its branch to `main`.
 
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39) → 0055 Looks fixes (done, 0.2.40) → 0056 same STEP twice (done, 0.2.44); lane free
-- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → **0054 queue fixes (running)**; later: 0050 delayed queue start
+- **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → 0054 queue fixes (done, 0.2.46); lane free; later: 0050 delayed queue start
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session) → 0053 safe updates and project lock (done, 0.2.42); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (done, 0.2.37); lane free
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
 - **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0049 tool library fixes (done, 0.2.38) → 0051 milling fixes + milled faces' own look (done, 0.2.43) → 0041 tool changes + ATC (done, 0.2.45) → toolpath marks on cut faces (later, owner 9 Nov) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
-- **Flex parts lane** (new files `core/flex.py`, `blender/flex.py`, `blender/ops_flex.py`, `ui_flex.py`; small hooks in `handlers.py`, `animation.py`, `reimport.py`): **0058 hoses, cables and drag chains (open – after 0054 is merged)**
+- **Flex parts lane** (new files `core/flex.py`, `blender/flex.py`, `blender/ops_flex.py`, `ui_flex.py`; small hooks in `handlers.py`, `animation.py`, `reimport.py`): **0058 hoses, cables and drag chains (open – can start; 0054 done)**
 
 ## Problems found, waiting for a task
 
@@ -39,8 +39,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | running (Claude Code, 9 Nov) | branch `claude/friendly-cerf-hn6s1i` · tasks/0054-queue-fixes.md |
-| 0058 | **Fable day.** Flex parts lane (new): hoses, cables and drag chains follow the motion (ends on their parts, fixed length, bend, sag; chain rolls on its bend radius; CAD links re-laid) – owner's priority 1 | worker | **Fable · High** | open – after 0054 is merged | tasks/0058-hoses-cables-drag-chains.md |
+| 0058 | **Fable day.** Flex parts lane (new): hoses, cables and drag chains follow the motion (ends on their parts, fixed length, bend, sag; chain rolls on its bend radius; CAD links re-laid) – owner's priority 1 | worker | **Fable · High** | open – can start (0054 done, 0.2.46) | tasks/0058-hoses-cables-drag-chains.md |
 | 0042 | **Fable day.** Machining lane: coolant – M8 flood / M7 mist / M9, nozzles or Automatic, jets, splash, wet sheen that dries, wet chips; deterministic frames – owner's priority 2 | worker | **Fable · High** (Opus · High would do) | open – can start | tasks/0042-coolant-flood.md |
 | – | Owner's order of the big features (9 Nov), each briefed when its turn comes: **1** hoses/cables/drag chains (0058) · **2** coolant (0042) · **3** tool marks on cut faces that follow the toolpath (Machining, after 0042) · **4** motion paths (parts/cables along a curve, sheaves, winches) · **5** exact double-arm ATC swap · **6** 4th/5th axis (0029) · **7** clash warning · **8** app-made toolpath (0029, last) | lead | – | plan | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
@@ -56,6 +55,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0054 | Render queue fixes (bug hunt rows 7–10, 17, 18, 20b): queued picture = the frame shown, stopped videos never mix old frames, queue stays in its project, sharp spot in videos, five small queue faults, `//` paths, labels pass 75 → 9 ms per frame on 3,000 parts | 0.2.46 |
 | 0057 | Landing page: the owner's new milling video (T1 face mill, T2 end mill, T3 chamfer mill, 27.6 s, 7.0 MB) at the top, old air-blast video removed | no release |
 | 0041 | Tool changes: manual (head to the change position, pause 1 s / 0–5 s, optional gloved hand, optional caption) and tool changer (pockets clicked or filled round a carousel, tools in their pockets from the first frame, carousel turns the shortest way, old tool back in its own pocket; rack; changer animation split at its swap; ATC speed); Fit into still exact | 0.2.45 |
 | 0056 | The same STEP imported twice: each copy gets its own part IDs (hiding, sets, poses, Show/Hide steps, model updates keep the copies apart); old two-copy projects repaired on open (bug hunt row 11) | 0.2.44 |

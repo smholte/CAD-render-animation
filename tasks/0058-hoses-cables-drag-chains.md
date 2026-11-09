@@ -1,6 +1,6 @@
 # 0058 – Hoses, cables and drag chains that follow the motion
 
-**Who:** worker · **Status:** open – can start after 0054 is merged (it changes `animation.py`) · **Branch:**
+**Who:** worker · **Status:** open – can start (0054 merged, 0.2.46) · **Branch:**
 `task/0058-hoses-cables-drag-chains`
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 1 of the big features, 9 Nov)
 **Lane:** new **Flex parts** lane – new files `core/flex.py` (no Blender: shapes, lengths, solver),
