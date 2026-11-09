@@ -192,7 +192,13 @@ def main(argv=None) -> int:
     env["FRESING_UPDATE_URL"] = f"{base}/releases/latest/download/index.json"
     env["UPDATE_TEST_EXPECT"] = __version__
 
-    # 4. the old app finds the update, updates, starts again
+    # 4. the old app finds the update, updates, starts again. Update now refuses while another Blender of the
+    # same install runs (task 0053): a queued render of an earlier test may still be closing
+    sys.path.insert(0, ROOT)
+    from fresing_render import update_helper
+    end = time.time() + 120
+    while update_helper.other_blenders(os.path.dirname(os.path.abspath(blender))) and time.time() < end:
+        time.sleep(1.0)
     before, after = os.path.join(out, "update_before.json"), os.path.join(out, "update_after.json")
     for f in (before, after):
         if os.path.exists(f):

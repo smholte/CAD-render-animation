@@ -584,3 +584,21 @@ def test_cancel_operator_needs_a_running_check(blender, tmp_path):
             os.remove(runner.cancel_path())
         except OSError:
             pass
+
+
+def test_shortcut_script_output_that_is_not_utf8_is_read_anyway(tmp_path):
+    """0045 row 19d: PowerShell writes in the console's code page; an accented path in its output ended the thread
+    that makes the PC-check shortcuts with a UnicodeDecodeError."""
+    import sys
+    if sys.platform == "win32":
+        pytest.skip("the stand-in for powershell.exe is a script with a #! line")
+    pytest.importorskip("bpy")
+    from fresing_render.pccheck import ops
+    fake = tmp_path / "powershell"
+    fake.write_text(f"#!{sys.executable}\nimport sys\nsys.stdout.buffer.write(b'C:\\\\Users\\\\Ren\\xe9\\r\\n')\n"
+                    "sys.stderr.buffer.write(b'Fehler: \\x84\\x81\\r\\n')\nsys.exit(1)\n", encoding="utf-8")
+    fake.chmod(0o755)
+    script = tmp_path / "s.ps1"
+    script.write_text("", encoding="utf-8")
+    r = ops.run_powershell(str(script), exe=str(fake))
+    assert r.returncode == 1 and "Ren\ufffd" in r.stdout and "Fehler" in r.stderr

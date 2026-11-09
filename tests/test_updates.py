@@ -218,6 +218,10 @@ open(log, "a").write(" ".join(args) + "\n")
 if os.environ.get("FAKE_BLENDER_FAIL"):
     print("Error: could not install")
     sys.exit(3)
+if os.environ.get("FAKE_BLENDER_BREAK"):      # Blender's own installer removed the old folder, then the swap failed
+    shutil.rmtree(os.environ["FAKE_EXT_DIR"], ignore_errors=True)
+    print("Error: could not rename the new folder in (in use by another process)")
+    sys.exit(1)
 ext_dir = os.environ["FAKE_EXT_DIR"]
 tmp = ext_dir + "@"
 shutil.rmtree(tmp, ignore_errors=True)
@@ -571,7 +575,8 @@ def test_helper_marks_itself_busy_while_installing(helper_env, tmp_path, monkeyp
         return real(p)
     monkeypatch.setattr(update_helper, "run_install", spy)
     assert update_helper.run(plan)
-    assert seen["busy"] == {"pid": os.getpid(), "to": "0.2.15"}
+    assert seen["busy"]["pid"] == os.getpid() and seen["busy"]["to"] == "0.2.15"
+    assert abs(seen["busy"]["started"] - time.time()) < 60 and seen["busy"]["exe"] == sys.executable
     assert not os.path.exists(os.path.join(os.path.dirname(plan["status_file"]), update_helper.BUSY_FILE))
 
 
@@ -602,3 +607,195 @@ def test_check_and_download_over_http(tmp_path):
         for k, v in old.items():
             if v is not None:
                 os.environ[k] = v
+
+
+# ---- task 0053: safe updates (bug hunt 0045 rows 12, 14, 19c) ------------------------------------
+
+def _fake_blender_process(folder, seconds):
+    """A running process whose program file is ``folder``/blender (a copy of ``sleep``): stands in for a second
+    app window, a queued render or the PC check of the same install."""
+    import shutil
+    folder.mkdir(parents=True, exist_ok=True)
+    exe = folder / "blender"
+    shutil.copy2(shutil.which("sleep"), exe)
+    proc = subprocess.Popen([str(exe), str(seconds)])
+    end = time.time() + 5
+    while time.time() < end and not update_helper.process_image(proc.pid).endswith("blender"):
+        time.sleep(0.02)
+    return proc
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc")
+def test_process_image_and_other_blenders(tmp_path):
+    assert os.path.realpath(update_helper.process_image(os.getpid())) == os.path.realpath(sys.executable)
+    assert update_helper.process_image(0) == ""
+    app = _fake_blender_process(tmp_path / "Blender é" / "bin", 30)
+    elsewhere = _fake_blender_process(tmp_path / "other install", 30)
+    try:
+        assert update_helper.other_blenders(str(tmp_path / "Blender é")) == [app.pid]
+        assert update_helper.other_blenders(str(tmp_path / "Blender é"), exclude=(app.pid,)) == []
+        assert update_helper.other_blenders(str(tmp_path / "Blender")) == []          # a prefix is not the folder
+        assert update_helper.other_blenders("") == []
+    finally:
+        for p in (app, elsewhere):
+            p.kill()
+            p.wait()
+    assert update_helper.other_blenders(str(tmp_path / "Blender é")) == []
+
+
+def _write_busy(path, **info):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(info), encoding="utf-8")
+    return path
+
+
+def test_busy_file_of_a_killed_helper_is_removed(tmp_path):
+    """Row 12: a helper killed mid-install left installing.json for good; the app said "being installed"
+    at every start and never showed Update now again."""
+    busy = tmp_path / "cfg" / update_helper.BUSY_FILE
+    now = time.time()
+    # a helper that really works: kept
+    _write_busy(busy, pid=os.getpid(), to="0.3.0", started=now - 60, exe=sys.executable)
+    assert update_helper.busy_helper(str(busy))["to"] == "0.3.0" and busy.exists()
+    # older than any helper can take (power cut; the number now belongs to some process): removed
+    _write_busy(busy, pid=os.getpid(), to="0.3.0", started=now - update_helper.BUSY_MAX_SECONDS - 5,
+                exe=sys.executable)
+    assert update_helper.busy_helper(str(busy)) is None and not busy.exists()
+    # the helper's process has ended
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    _write_busy(busy, pid=gone.pid, to="0.3.0", started=now)
+    assert update_helper.busy_helper(str(busy)) is None and not busy.exists()
+    # an older helper wrote no start time: the file's own time counts
+    _write_busy(busy, pid=os.getpid(), to="0.3.0")
+    assert update_helper.busy_helper(str(busy)) is not None
+    old = now - update_helper.BUSY_MAX_SECONDS - 60
+    os.utime(busy, (old, old))
+    assert update_helper.busy_helper(str(busy)) is None and not busy.exists()
+    # no file, a broken file
+    assert update_helper.busy_helper(str(busy)) is None
+    busy.write_text("{broken", encoding="utf-8")
+    assert update_helper.busy_helper(str(busy)) is None
+    assert update_helper.BUSY_MAX_SECONDS >= update_helper.WAIT_SECONDS + 4 * update_helper.INSTALL_SECONDS
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc")
+def test_busy_file_whose_number_now_belongs_to_another_program(tmp_path):
+    """Windows reuses process numbers: a fresh-looking file whose number is now another program is old."""
+    busy = tmp_path / update_helper.BUSY_FILE
+    other = subprocess.Popen(["sleep", "30"])
+    try:
+        _write_busy(busy, pid=other.pid, to="0.3.0", started=time.time(), exe=r"C:\Fresing\python\bin\python.exe")
+        assert update_helper.busy_helper(str(busy)) is None and not busy.exists()
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_helper_backs_up_and_cleans_up_after_a_good_update(helper_env, tmp_path):
+    plan, _marker = helper_env
+    assert update_helper.run(plan)
+    log = pathlib.Path(plan["log_file"]).read_text(encoding="utf-8")
+    assert "backup of 0.2.14 made" in log
+    assert not (tmp_path / "cfg" / update_helper.BACKUP_DIR / "fresing_render").exists()     # removed again
+
+
+def test_failed_swap_puts_the_old_version_back(helper_env, tmp_path, monkeypatch):
+    """Row 14: Blender's installer removes the old folder before it renames the new one in. When that rename
+    fails every time, the app opened as plain Blender: no Fresing tab, no message, no Update now."""
+    plan, marker = helper_env
+    (pathlib.Path(plan["ext_dir"]) / "wheels").mkdir()
+    (pathlib.Path(plan["ext_dir"]) / "wheels" / "x.whl").write_bytes(b"wheel")
+    monkeypatch.setenv("FAKE_BLENDER_BREAK", "1")
+    plan["retry_waits"] = [0.1]
+    assert not update_helper.run(plan)
+    assert update_helper.installed_version(plan["ext_dir"]) == "0.2.14"              # the old version is back
+    assert (pathlib.Path(plan["ext_dir"]) / "wheels" / "x.whl").read_bytes() == b"wheel"
+    st = _status(plan)
+    assert not st["ok"] and st["installed"] == "0.2.14"
+    assert "old version 0.2.14 was put back" in st["message"] and "rename" not in st["message"]
+    assert "exit code 1" in st["message"]
+    assert _wait_for(marker)                                                          # the app opens again
+    assert not (tmp_path / "cfg" / update_helper.BUSY_FILE).exists()
+    assert "old version 0.2.14 put back" in pathlib.Path(plan["log_file"]).read_text(encoding="utf-8")
+
+
+def test_helper_error_after_the_old_folder_is_gone_puts_it_back(helper_env, tmp_path, monkeypatch):
+    import shutil
+    plan, marker = helper_env
+
+    def broken(p):
+        shutil.rmtree(p["ext_dir"])
+        raise RuntimeError("the helper itself stopped")
+    monkeypatch.setattr(update_helper, "run_install", broken)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(json.dumps(plan), encoding="utf-8")
+    assert update_helper.main([str(plan_file)]) == 1
+    assert update_helper.installed_version(plan["ext_dir"]) == "0.2.14"
+    assert not _status(plan)["ok"] and _status(plan)["installed"] == "0.2.14"
+    assert _wait_for(marker)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc")
+def test_helper_waits_for_other_blenders_of_the_same_install(helper_env, tmp_path):
+    """Row 19c: the helper waited only for the app itself, not for a queued render or the PC check started
+    from the same Blender (they use the files the installer swaps)."""
+    plan, _marker = helper_env
+    other = _fake_blender_process(pathlib.Path(plan["blender"]).parent / "queue", 1.5)
+    t0 = time.time()
+    try:
+        assert update_helper.run(plan)
+    finally:
+        other.kill()
+        other.wait()
+    assert time.time() - t0 >= 1.2
+    assert "waiting for the other Blender(s)" in pathlib.Path(plan["log_file"]).read_text(encoding="utf-8")
+    assert update_helper.installed_version(plan["ext_dir"]) == "0.2.15"
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc")
+def test_helper_gives_up_when_another_blender_stays_open(helper_env, tmp_path):
+    plan, marker = helper_env
+    other = _fake_blender_process(pathlib.Path(plan["blender"]).parent / "pc check", 30)
+    try:
+        plan["wait_seconds"] = 0.5
+        assert not update_helper.run(plan)
+    finally:
+        other.kill()
+        other.wait()
+    st = _status(plan)
+    assert not st["ok"] and "Another Fresing Render was still open" in st["message"]
+    assert not (tmp_path / "fake.log").exists()                      # nothing installed
+    assert update_helper.installed_version(plan["ext_dir"]) == "0.2.14"
+    assert not (tmp_path / "cfg" / update_helper.BUSY_FILE).exists()
+    assert _wait_for(marker)                                          # the app (closed by now) opens again
+
+
+def test_put_back_over_what_is_left_of_a_half_done_swap(tmp_path, monkeypatch):
+    """Review: a read-only file (or one a virus scanner holds) left in the extension folder made the put-back
+    fail, the case it is there for."""
+    ext = tmp_path / "extensions" / "fresing_render"
+    ext.mkdir(parents=True)
+    (ext / "blender_manifest.toml").write_text('version = "0.2.14"\n', encoding="utf-8")
+    (ext / "wheels").mkdir()
+    (ext / "wheels" / "a.whl").write_bytes(b"old")
+    plan = {"ext_dir": str(ext), "backup_dir": str(tmp_path / "upd" / "backup" / "fresing_render"),
+            "log_file": str(tmp_path / "log.txt")}
+    old = pathlib.Path(plan["backup_dir"])
+    old.mkdir(parents=True)
+    (old / "stale.txt").write_text("an older backup", encoding="utf-8")
+    backup = update_helper.make_backup(plan)
+    assert backup and not (old / "stale.txt").exists()
+    # half-done swap: the manifest is gone, a read-only file of the new version is left
+    (ext / "blender_manifest.toml").unlink()
+    (ext / "new.py").write_text("new", encoding="utf-8")
+    (ext / "new.py").chmod(0o444)
+    assert update_helper.restore_backup(plan, backup)
+    assert update_helper.installed_version(str(ext)) == "0.2.14" and not (ext / "new.py").exists()
+    # the folder cannot be deleted at all: the backup is copied over it
+    backup = update_helper.make_backup(plan)
+    (ext / "blender_manifest.toml").unlink()
+    monkeypatch.setattr(update_helper, "_remove_tree", lambda path, tries=3: not os.path.exists(path))
+    assert update_helper.restore_backup(plan, backup)
+    assert update_helper.installed_version(str(ext)) == "0.2.14"
+    assert (ext / "wheels" / "a.whl").read_bytes() == b"old"

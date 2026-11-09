@@ -34,9 +34,31 @@ def me() -> dict:
     return {"user": user, "computer": platform.node(), "pid": os.getpid()}
 
 
-def _is_me(info: dict) -> bool:
+def _same_place(info: dict) -> bool:
     m = me()
     return info.get("user") == m["user"] and info.get("computer") == m["computer"]
+
+
+def _window_alive(pid: int) -> bool:
+    """Is process ``pid`` (on this computer) still a running Blender? A crashed window's number may be reused by
+    another program."""
+    from .. import update_helper
+    if not update_helper.pid_alive(pid):
+        return False
+    image = os.path.basename(update_helper.process_image(pid)).lower()
+    return image.startswith("blender")          # (a window of this user can always be read)
+
+
+def _is_me(info: dict) -> bool:
+    """The lock is this window's own: same user, same computer, and this process, or a process of this user
+    that has ended. The same user with the project open in a second window is someone else (0045 row 19b)."""
+    if not _same_place(info):
+        return False
+    try:
+        pid = int(info.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    return not pid or pid == os.getpid() or not _window_alive(pid)
 
 
 def read(blend_path: str) -> dict | None:
@@ -84,6 +106,8 @@ def describe(info: dict) -> str:
     day = time.strftime("%d %b", time.localtime(float(info.get("since", time.time()))))
     today = time.strftime("%d %b")
     when = since if day == today else f"{day} {since}"
+    if _same_place(info):
+        return f"you, in another Fresing Render window on this PC, since {when}"
     return f"{info.get('user', 'someone')} on {info.get('computer', '?')} since {when}"
 
 

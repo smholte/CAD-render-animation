@@ -139,6 +139,17 @@ a newer version. When there is one, **Update available** appears at the top of t
   asks at any time.
 - A project that was never saved has to be saved first (**File > Save As**): the app says so. While the
   render queue runs or a STEP file is being imported, the update waits until you start it again.
+- **Update now refuses** (it says why in a red line, the button stays) when:
+  - a colleague has the same project open ("In use by …", [1 Import](#import)): the update saves the
+    project before closing and would save over their work. Use **File > Save As** (a new name) or open
+    another project, then **Update now**;
+  - the project is also open in a second Fresing Render window, or another Fresing Render still runs (a
+    second window, a queued render, the PC check): close it first.
+- **When an update fails** the app opens again with the old version and says **The update did not
+  work**, with the reason. It works as before; press **Update now** again later. Even when Windows held
+  a file so the new version could not be put in place, the app puts the old version back first, so the
+  Fresing tab is always there. If the PC was switched off during an update, the next start finds that
+  out by itself and offers **Update now** again.
 - Your projects, renders, templates and settings stay as they are.
 - Versions before 0.2.16 cannot do this yet: run the newest installer once over them
   ([Install](#start)). A version that needs a newer Blender also comes as an installer; the app then
@@ -214,6 +225,10 @@ copy (**More > Clear import cache** throws those copies away if disk space is sh
 
 > **Projects on a shared drive:** when someone else has the project open, a red box "In use by
 > *name* on *computer*" appears here. Save your changes under another name (File > Save As).
+> The same happens when you open one project in two Fresing Render windows on your own PC: the second
+> window says "In use by you, in another Fresing Render window on this PC". Work on in the first
+> window, or save the second under another name. When the first window closes (or crashed), the
+> second one takes the project over within two minutes.
 
 <a id="structure"></a>
 ## 2 Structure – find, select, hide and lock parts

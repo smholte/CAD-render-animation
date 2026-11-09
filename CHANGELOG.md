@@ -5,6 +5,28 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.40 – 9 Nov 2026 – safe updates and the project lock (task 0053)
+
+Updates
+- **Update now never saves over a colleague's work**: when someone else has the project open ("In use by …"),
+  Update now says so and does nothing. Save As (a new name) or open another project first. The update notice shows
+  the same red line.
+- **Update now waits for every Fresing Render**: a second window, a queued render or the PC check of the same
+  installation must be closed first (the app says so). Before, the installer could swap files they still used.
+- **A failed update never leaves plain Blender**: the old version is copied aside first and put back when Windows
+  stopped the new one from being put in place. The app opens with the old version and says what happened.
+- **An update that was cut off** (PC switched off, logged off) no longer blocks Update now: the next start sees the
+  old "being installed" note is stale and offers Update now again.
+
+Shared projects
+- **The same project in two windows on your PC** now shows "In use by you, in another Fresing Render window on this
+  PC" in the second window, as for a colleague. When the first window closes or crashed, the second takes over.
+
+PC check
+- New line **Safe updates (other windows, backup, old notes)**: tests on your PC that the app can see other Fresing
+  Render windows, put an old version back and ignore a stale update note (nothing is installed).
+- The PC-check shortcuts are made again after an update even when Windows answers with accented characters.
+
 ## 0.2.39 – 9 Nov 2026 – better materials: real metals, paint, wear (task 0046)
 
 Looks

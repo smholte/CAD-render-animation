@@ -209,7 +209,43 @@ def preflight(context, downloaded: bool = False) -> str:
         pass
     if project_dirty() and not bpy.data.filepath:
         return "This project has never been saved: save it first (File > Save As…), then press Update now"
+    other = lock_holder()
+    if other.startswith("you,"):
+        return ("This project is also open in another Fresing Render window on this PC: close that window "
+                "first, then press Update now")
+    if other:
+        return (f"Someone else has this project open ({other}): Save As first (File > Save As…, a new name), or "
+                "open another project, then press Update now. Updating would save over their work")
+    others = other_blenders()
+    if others:
+        return (f"Another Fresing Render is still open ({len(others)} more Blender running: a second window, a "
+                "queued render or the PC check). Close it first, then press Update now")
     return ""
+
+
+def lock_holder() -> str:
+    """Who else has the open project (a colleague, or this user in another window), read from its lock now; ''
+    when nobody. Update now saves the project before closing, so it must not run then (bug hunt 0045 row 4)."""
+    path = bpy.data.filepath
+    if not path:
+        return ""
+    from . import project_lock
+    try:
+        info = project_lock.other_user(path)
+    except Exception:  # noqa: BLE001 - a share that cannot be read: no lock
+        return ""
+    return project_lock.describe(info) if info else ""
+
+
+def other_blenders() -> list[int]:
+    """Other Blenders started from this app's Blender folder (the helper would have to wait for them)."""
+    exe = bpy.app.binary_path
+    if not exe or os.path.basename(exe).lower() not in update_helper.BLENDER_NAMES:
+        return []                                    # Blender as a Python module (tests)
+    try:
+        return update_helper.other_blenders(os.path.dirname(exe), exclude=(os.getpid(),))
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def project_dirty() -> bool:
@@ -424,18 +460,13 @@ def read_status() -> None:
     global _status
     if bpy.app.background and not os.environ.get(RESTART_ENV):
         return
-    busy = os.path.join(update_dir(), update_helper.BUSY_FILE)
-    try:
-        with open(busy, encoding="utf-8") as fh:
-            info = json.load(fh)
-        if update_helper.pid_alive(int(info.get("pid", 0))):
-            _status = {"ok": False, "installing": True, "to": info.get("to", ""),
-                       "message": f"Fresing Render {info.get('to', '')} is being installed right now. Close this "
-                                  "window without saving; the app opens again by itself in a moment."}
-            print("Fresing Render: an update is being installed")
-            return
-    except (OSError, ValueError, TypeError):
-        pass
+    info = update_helper.busy_helper(os.path.join(update_dir(), update_helper.BUSY_FILE))
+    if info is not None:              # a helper killed half-way leaves an old file: busy_helper removes it
+        _status = {"ok": False, "installing": True, "to": info.get("to", ""),
+                   "message": f"Fresing Render {info.get('to', '')} is being installed right now. Close this "
+                              "window without saving; the app opens again by itself in a moment."}
+        print("Fresing Render: an update is being installed")
+        return
     path = status_path()
     try:
         with open(path, encoding="utf-8") as fh:
@@ -731,6 +762,10 @@ class FRESING_PT_update(bpy.types.Panel):
         if _check.get("date"):
             line += f" ({_check['date']})"
         wrap(layout, context, line + ".")
+        from . import project_lock
+        if project_lock.warning():
+            wrap(layout, context, f"This project is in use by {project_lock.warning()}: Save As first (a new "
+                                  "name), then Update now.", icon="ERROR", alert=True)
         primary(layout, "fresing.update_install", "Update now", "IMPORT")
         wrap(layout, context, "Saves your project, closes the app, updates it and opens it again "
                               f"(download {size / 1e6:.0f} MB, about a minute).", icon="INFO")

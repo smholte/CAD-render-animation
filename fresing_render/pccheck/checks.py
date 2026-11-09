@@ -1302,6 +1302,68 @@ def updates_check(ctx):
     return f"{__version__} is the newest" if state != "needs_installer" else f"{res['version']} needs a new installer"
 
 
+@line("updates.safe", "Safe updates (other windows, backup, old notes)", "0.2.40",
+      what="Update now finds other Fresing Render windows, can put the old version back, ignores a note left by a "
+           "stopped update (nothing is installed)")
+def updates_safe(ctx):
+    import json
+    import shutil
+    import subprocess
+    import sys
+    import tempfile
+
+    import bpy
+
+    from .. import update_helper as H
+    from ..blender import project_lock
+    me = os.getpid()
+    exe = bpy.app.binary_path
+    others: list = []
+    if os.path.basename(exe).lower() in H.BLENDER_NAMES:      # (not Blender as a Python module: the tests)
+        image = H.process_image(me)                  # Windows: QueryFullProcessImageNameW
+        _check(bool(image), "the app cannot read which program a process runs: it cannot tell a second window")
+        _check(os.path.basename(image).lower() in H.BLENDER_NAMES, f"this process is {os.path.basename(image)}")
+        _check(me in H._all_pids(), "the list of running programs does not hold this one")
+        _check(H._norm(image).startswith(H._norm(os.path.dirname(exe)).rstrip("\\/") + os.sep),
+               "this Blender's own folder does not match its program's place")
+        others = H.other_blenders(os.path.dirname(exe))
+    work = tempfile.mkdtemp(prefix="fresing pc check é ")
+    try:
+        # a note left by an update that stopped: its number now belongs to another program (here: this Blender),
+        # or its helper has ended
+        note = os.path.join(work, H.BUSY_FILE)
+        if os.path.basename(exe).lower() in H.BLENDER_NAMES:
+            with open(note, "w", encoding="utf-8") as fh:
+                json.dump({"pid": me, "to": "9.9.9", "started": time.time(), "exe": "python.exe"}, fh)
+            _check(H.busy_helper(note) is None and not os.path.exists(note),
+                   "an old update note would block Update now")
+        from ..importer.runner import python_executable
+        child = subprocess.Popen([python_executable(), "-c", "pass"], creationflags=H._child_flags())
+        child.wait()
+        with open(note, "w", encoding="utf-8") as fh:
+            json.dump({"pid": child.pid, "to": "9.9.9", "started": time.time(), "exe": "python.exe"}, fh)
+        _check(H.busy_helper(note) is None, "a note of an update whose helper has ended would block Update now")
+        # backup and put back (a rename on the same disk), with a space and an accent in the path
+        ext = os.path.join(work, "extensions", "fresing_render")
+        os.makedirs(os.path.join(ext, "wheels"))
+        with open(os.path.join(ext, "blender_manifest.toml"), "w", encoding="utf-8") as fh:
+            fh.write('version = "0.0.1"\n')
+        with open(os.path.join(ext, "wheels", "x.whl"), "wb") as fh:
+            fh.write(b"x" * 1000)
+        plan = {"ext_dir": ext, "backup_dir": os.path.join(work, "backup", "fresing_render"),
+                "log_file": os.path.join(work, "log.txt")}
+        backup = H.make_backup(plan)
+        _check(bool(backup), "no backup of the extension could be made")
+        shutil.rmtree(ext)
+        _check(H.restore_backup(plan, backup) and H.installed_version(ext) == "0.0.1",
+               "the old version could not be put back")
+        # this window's own project lock is not "someone else"
+        _check(project_lock._is_me(project_lock.me()), "this window counts its own project lock as someone else's")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return "no other Fresing Render running" if not others else f"{len(others)} other Fresing Render running"
+
+
 # ---------------------------------------------------------------------------
 # the owner's own model: numbers only
 # ---------------------------------------------------------------------------
