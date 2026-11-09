@@ -16,7 +16,7 @@ lanes run at the same time, each in its own worker chat. Shared files: `blender/
 (additive changes only) and `blender/ui.py` (each lane only its own panels); whoever merges second
 updates its branch to `main`.
 
-- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (running)
+- **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39); lane free
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30); lane free; later: 0050 delayed queue start
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
 - **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session); lane free
@@ -45,7 +45,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – can start | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
-| 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker (Claude Code web, 9 Nov) | Opus · Medium | running – branch claude/fervent-bardeen-gdfzcs | tasks/0046-better-materials.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
@@ -101,5 +100,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0044 | Missing guide pictures: Way covers, Air blast, Labels, Pictures, Music | 0.2.37 |
 | 0040 | Tool library: one list per project, 8 tool types from sizes or a STEP, Fusion/LinuxCNC tool files, every tool cuts with its own shape (also after M6), tool length offsets; fluted end mills read on their outer Ø (0037 problem 2) | 0.2.36 |
 | 0049 | Tool library fixes: BT30 holder, G43 lengths tip to gauge line (Gauge length field), tool tip kept on the turning spindle's axis (0.065 mm → < 0.01), milling samples at the program's corners, manufacturer STEPs along X | 0.2.38 |
+| 0046 | Better materials: machining marks (ground, turned, milled, brushed), anodising sheen, cast iron (as cast, painted), hydraulic chrome rod, orange peel, rubber sheen, glass in EEVEE, Wear slider per group, CAD names, old projects get the new looks, material sheet + PC check line | 0.2.39 |
 
 Details per version: `CHANGELOG.md`.
