@@ -1,6 +1,6 @@
 # 0055 – Looks fixes: group renames, safer project loading, old caches, chrome rods and shafts
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0055-looks-fixes`
+**Who:** worker · **Status:** done (0.2.40) · **Branch:** `task/0055-looks-fixes`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 5, 19a, 19e, 19f; 0046 open point "part library")
 **Lane:** Looks (+ Part library) – `blender/props.py` (`_group_renamed`, group name check), `blender/handlers.py`
 (`_on_load`), import cache clean-up (importer cache code), `core/part_types_data.py` (two lines); tests; guide chapter 3
@@ -46,10 +46,13 @@ Two copies of the same STEP sharing part IDs (row 11 → 0056, Opus High). New m
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 9 Nov 2026
 
-**What changed:**
+**What changed:** `props._group_renamed` renames looks in schemes and scenes' own schemes and refuses duplicate names
+(reverts, message in `last_message`); `handlers._on_load` runs one try per scene and step (`_upgrade_steps`);
+`runner.prune_old_caches` called at import start; chrome rod / shaft / linear guide looks in `part_types_data.py`.
+Tooltips and guide unchanged (nothing new visible besides the message).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): new `tests/test_looks_fixes.py` (6 tests) plus part-type tests pass locally (4-core web machine, test_materials.step). Real-app tests left to GitHub. Helper review skipped (no Windows code).
 
 **Open points / follow-up tasks:**

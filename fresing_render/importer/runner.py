@@ -193,3 +193,27 @@ class ImportJob:
         self.error = "Cancelled"
         self.done = True
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+
+def prune_old_caches(cache_root: str) -> int:
+    """Delete stored imports of an older CACHE_VERSION (they are never used again). Never touches a cache of the
+    current version, a half-written one (.partial) or a folder that is not an import cache. Returns how many."""
+    n = 0
+    try:
+        names = os.listdir(cache_root)
+    except OSError:
+        return 0
+    for name in names:
+        d = os.path.join(cache_root, name)
+        tree = os.path.join(d, "tree.json")
+        if not os.path.isfile(tree):
+            continue
+        try:
+            with open(tree, encoding="utf-8") as fh:
+                version = json.load(fh).get("version")
+        except (OSError, ValueError):
+            continue
+        if isinstance(version, int) and version < step_reader.CACHE_VERSION:
+            shutil.rmtree(d, ignore_errors=True)
+            n += 1
+    return n

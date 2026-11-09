@@ -145,6 +145,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         if self.update_root and bpy.data.objects.get(self.update_root) is None:
             self.report({"ERROR"}, "The model to update is no longer in the project")
             return {"CANCELLED"}
+        try:                                  # 0055: stored imports of older cache versions are never used again
+            from ..importer.runner import prune_old_caches
+            prune_old_caches(cache_root())
+        except Exception as exc:
+            print("Fresing Render: pruning old caches failed:", exc)
         job = ImportJob(path, self.quality, cache_root())
         if job.cached:
             self._job = job
