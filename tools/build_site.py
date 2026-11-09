@@ -35,7 +35,7 @@ MEDIA_JSON = os.path.join(MEDIA, "media.json")
 DEFAULT_OUT = os.path.join(ROOT, "dist", "site")
 REPO = "smholte/CAD-render-animation"
 REPO_URL = f"https://github.com/{REPO}"
-ALLOWED_HOSTS = ("github.com", "fresing.nl", "www.fresing.nl")
+ALLOWED_HOSTS = ("github.com", "fresing.nl", "www.fresing.nl", "www.blender.org")
 JPG_MAX = 400_000
 VIDEO_MAX = 8_000_000
 COPY_DIRS = ("brand", "fonts")
@@ -137,6 +137,16 @@ def gallery_html(media: dict) -> str:
     return "\n".join(rows)
 
 
+def feature_html(media: dict) -> str:
+    """The picture next to "Built on Blender" (media.json "feature")."""
+    f = media.get("feature") or {}
+    if not f:
+        return ""
+    cap = f'\n      <figcaption>{_esc(f["caption"])}</figcaption>' if f.get("caption") else ""
+    return (f'<a href="media/{_esc(f["file"])}"><img src="media/{_esc(f["file"])}" alt="{_esc(f.get("caption", ""))}" '
+            f'loading="lazy" width="1000" height="1350"></a>{cap}')
+
+
 def credits_html(media: dict) -> str:
     rows = []
     for mid in used_models(media):
@@ -153,7 +163,8 @@ def credits_html(media: dict) -> str:
 
 def used_models(media: dict) -> list[str]:
     seen: list[str] = []
-    items = ([media["hero"]] if media.get("hero") else []) + media.get("pictures", [])
+    items = ([media["hero"]] if media.get("hero") else []) + media.get("pictures", []) + \
+        ([media["feature"]] if media.get("feature") else [])
     for it in items:
         if it.get("model") and it["model"] not in seen:
             seen.append(it["model"])
@@ -166,6 +177,8 @@ def media_files(media: dict) -> list[str]:
         files.append(media["hero"]["file"])
         if media["hero"].get("poster"):
             files.append(media["hero"]["poster"])
+    if media.get("feature"):
+        files.append(media["feature"]["file"])
     for p in media.get("pictures", []):
         files.append(p["file"])
         if p.get("poster"):
@@ -203,7 +216,7 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
         "download_url": download_url(version), "asset_name": asset_name(version),
         "releases_url": f"{REPO_URL}/releases", "repo_url": REPO_URL, "blender": blender_version(),
         "news_title": _esc(entry["title"][:1].upper() + entry["title"][1:]), "whats_new": md_to_html(entry["text"]),
-        "hero_video": hero_html(media), "gallery": gallery_html(media), "credits": credits_html(media),
+        "hero_video": hero_html(media), "gallery": gallery_html(media), "feature": feature_html(media), "credits": credits_html(media),
     })
     if os.path.isdir(out):
         shutil.rmtree(out)

@@ -17,6 +17,7 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+section[id], h2[id] { scroll-margin-top: 64px; }   /* the sticky top bar must not hide a heading jumped to */
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; font: 17px/1.55 var(--sans); color: var(--charcoal); background: var(--white); }
 img, video { max-width: 100%; height: auto; display: block; }
@@ -67,6 +68,17 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .points li { padding-left: 18px; border-left: 4px solid var(--green); color: var(--slate); }
 .points b { color: var(--charcoal); display: block; }
 
+/* built on Blender */
+.blender { background: var(--deep); color: var(--white); padding: 56px 0; }
+.blender-in { display: grid; grid-template-columns: 1fr 340px; gap: 48px; align-items: center; }
+.blender p { color: var(--line); max-width: 62ch; }
+.blender b { color: var(--white); }
+.blender a { color: var(--green-bright); }
+.blender .small.light { color: #9AA5AF; }
+.feature { margin: 0; }
+.feature img { width: 100%; aspect-ratio: 20 / 27; object-fit: cover; border-radius: 4px; background: #000; }
+.feature figcaption { font-size: .85rem; color: var(--line); margin-top: 8px; }
+
 /* install + what's new */
 .install { padding: 56px 0; background: var(--mist); border-top: 1px solid var(--line); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
@@ -98,7 +110,8 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .credits { padding-left: 1.2em; }
 
 @media (max-width: 860px) {
-  .hero-in, .two, .fresing-in { grid-template-columns: 1fr; gap: 28px; }
+  .hero-in, .two, .fresing-in, .blender-in { grid-template-columns: 1fr; gap: 28px; }
+  .feature { max-width: 340px; }
   .hero { padding-top: 32px; }
   .bar nav a:not(:last-child) { display: none; }
   .grid { grid-template-columns: 1fr; }

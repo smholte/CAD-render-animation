@@ -75,7 +75,7 @@ def test_links_only_to_github_and_fresing(built):
     hosts = {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', page)}
     credit_part = page[page.index('<ul class="credits">'):page.index("</ul>", page.index('<ul class="credits">'))]
     outside = page.replace(credit_part, "")
-    assert {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', outside)} <= {"github.com", "fresing.nl"}
+    assert {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', outside)} <= {"github.com", "fresing.nl", "www.blender.org"}
     assert "fresing.nl" in hosts
     assert "<script" not in page.lower() and "fonts.googleapis" not in page
 
@@ -290,3 +290,15 @@ def test_kit_colour_lines(tmp_path):
         for _pattern, mat, colour in m["colours"]:
             assert mat in materials_lib.MATERIALS, mat
             assert not colour or ral.parse_colour(colour), colour
+
+
+def test_built_on_blender_section(built):
+    """The page says what it is built on and that the installer sets Blender up as a standalone app."""
+    _out, _version, page = built
+    sec = page[page.index('<section id="blender"'):page.index("</section>", page.index('<section id="blender"'))]
+    assert "Built on Blender" in sec and 'href="https://www.blender.org"' in sec
+    assert f"Blender {build_site.blender_version()} LTS" in sec and "standalone app" in sec
+    assert "not made or endorsed by the Blender Foundation" in sec
+    media = build_site.load_media()
+    if media.get("feature"):
+        assert f'media/{media["feature"]["file"]}' in sec
