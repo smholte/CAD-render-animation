@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.41 – 9 Nov 2026 – milled faces look freshly cut; milling fixes (task 0051)
+## 0.2.42 – 9 Nov 2026 – milled faces look freshly cut; milling fixes (task 0051)
 
 Milling
 - **Cut faces get their own look**: the block keeps its raw look outside, and everything the bit cuts shows as fresh,
@@ -31,6 +31,18 @@ CNC machine (G-code)
 - The line under a Run G-code program step always shows its own program, also after removing or moving a step.
 
 PC check: new line **Milling: cut faces look freshly cut**.
+
+## 0.2.41 – 9 Nov 2026 – Model update keeps everything (task 0052)
+
+- **Two models linked together** (a crane on a ship's deck, a lamp on a lift's platform): joints, cylinders,
+  mechanisms and way covers that use parts of both models now stay when you update either of the two. Before, an
+  update could delete the joint or put it back on the wrong part.
+- **Labels and the camera's sharp spot** stay on their parts after a model update. If a label's part is no longer in
+  the new model, the update report says so (pick its point again).
+- **All or nothing**: if a model update cannot finish (a damaged file, the PC runs out of memory), the status line
+  says "Model update failed" and why, and the project stays exactly as it was. Before, joints could be lost and the
+  new model left half-built.
+- Updating a big model with joints is a bit faster (about 12 % on a 3,000-part test machine).
 
 ## 0.2.40 – 9 Nov 2026 – Looks fixes (task 0055)
 

@@ -483,7 +483,7 @@ def test_cut_faces_same_and_pick(scene):
 
 
 def test_old_project_gets_the_cut_slot(scene):
-    """A project milled before 0.2.41 has no cut slot on its milled mesh: the next frame adds it (Automatic)."""
+    """A project milled before 0.2.42 has no cut slot on its milled mesh: the next frame adds it (Automatic)."""
     _block_group(scene, "steel_raw")
     frames = anim(scene, SLOT)
     set_up(scene)
@@ -538,7 +538,7 @@ def test_decal_on_the_workpiece_survives_edits_while_milling(scene):
 
 
 def test_old_milled_mesh_with_copied_decals_is_mended(scene):
-    """A project milled before 0.2.41 has the block's decals copied onto the milled mesh: they are dropped."""
+    """A project milled before 0.2.42 has the block's decals copied onto the milled mesh: they are dropped."""
     from fresing_render.blender import decals, faces
     wp = ob(scene, STOCK)
     me = wp.data

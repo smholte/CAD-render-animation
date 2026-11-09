@@ -305,7 +305,7 @@ def _give_back(scene, ob) -> None:
 
 
 def _drop_copied_decals(s) -> None:
-    """Projects milled before 0.2.41 copied the block's decals onto the milled mesh, where an edit emptied them
+    """Projects milled before 0.2.42 copied the block's decals onto the milled mesh, where an edit emptied them
     (bug hunt 0045 row 3): drop the copies and make the real ones (on the CAD mesh) again."""
     cut = s.cut_mesh
     if cut is None or not len(cut.fresing_decals):
@@ -1273,7 +1273,7 @@ def _on_load(_dummy=None):
         return
     try:
         active = [sc for sc in bpy.data.scenes if hasattr(sc, "fresing") and is_active(sc)]
-        for sc in active:                        # projects milled before 0.2.41
+        for sc in active:                        # projects milled before 0.2.42
             lock_interface(sc)
         if active:
             _schedule(0.5)

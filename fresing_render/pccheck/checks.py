@@ -668,6 +668,58 @@ def model_update(ctx):
     return f"{len(list(build.iter_parts(scene)))} parts, new: BOOM.LAMP"
 
 
+@line("model.update_safe", "Model update across two models, labels, all or nothing", "0.2.41",
+      what="The crane's boom turns on the machine's frame and has a label: updating either model keeps both; "
+           "an update from a damaged file changes nothing")
+def model_update_safe(ctx):
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import build, callouts, joints, reimport
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    _check(bpy.ops.fresing.import_step(filepath=MACHINE, quality="draft") == {"FINISHED"}, "the machine did not import")
+    frame = next((o for o in scene.objects if o.get(build.PROP_NAME) == "FRAME"
+                  and joints._root(o).get(build.PROP_NAME) == "TEST.MACHINE"), None)
+    _check(frame is not None, "the test machine has no FRAME")
+    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], Vector((0.1, 0.3, 0.4)), Vector((0, 0, 1)),
+                      name="Slew", base=frame)
+    joints.set_value(j, math.radians(20))
+    boom = _ob(scene, "BOOM")
+    callouts.add(scene, boom, boom.matrix_world.translation, "Boom")
+    _update()
+    tip = _tip(scene).copy()
+
+    def root(name):
+        return next(r for r in build.model_roots(scene) if r.get(build.PROP_NAME) == name)
+
+    for path, model in ((MACHINE, "TEST.MACHINE"), (CRANE_B, "TEST.CRANE")):
+        res = bpy.ops.fresing.import_step(filepath=path, quality="draft", update_root=root(model).name)
+        _check(res == {"FINISHED"}, f"updating {model} returned {res}: {s.last_message}")
+        _update()
+        j = joints.find(scene, "Slew")
+        _check(j is not None and joints.is_valid(j), f"updating {model} lost the joint between the two models")
+        _check(j.frame.parent is not None and joints._root(j.frame.parent).get(build.PROP_NAME) == "TEST.MACHINE",
+               f"after updating {model} the joint no longer sits on the machine")
+        _check((_tip(scene) - tip).length < 1e-4, f"updating {model} moved the boom")
+        _check(s.callouts[0].part is _ob(scene, "BOOM"), f"updating {model} cut the label off its part")
+    bad = os.path.join(ctx.work, "damaged import")
+    os.makedirs(bad, exist_ok=True)
+    with open(os.path.join(bad, "tree.json"), "w") as f:
+        f.write("{}")
+    with open(os.path.join(bad, "meshes.npz"), "wb") as f:
+        f.write(b"damaged")
+    n_obj = len(bpy.data.objects)
+    try:
+        reimport.update_model(bpy.context, root("TEST.CRANE"), bad)
+        raise RuntimeError("an update from a damaged file did not stop")
+    except reimport.UpdateFailed:
+        pass
+    _check(len(bpy.data.objects) == n_obj and joints.find(scene, "Slew") is not None
+           and (_tip(scene) - tip).length < 1e-4, "a failed update changed the project")
+    return "joint and label kept both ways; damaged file: nothing changed"
+
+
 @line("project.reopen", "Save + reopen a project", "0.1.0",
       what="The project is saved, opened again, and its joint still works")
 def project_reopen(ctx):
@@ -898,7 +950,7 @@ def milling_cut(ctx):
     return f"{len(me.polygons)} faces after the cut"
 
 
-@line("milling.cut_look", "Milling: cut faces look freshly cut", "0.2.41",
+@line("milling.cut_look", "Milling: cut faces look freshly cut", "0.2.42",
       what="A slot in a mill-scale steel block: its walls and floor get machined steel, the outside keeps mill scale")
 def milling_cut_look(ctx):
     import numpy as np
