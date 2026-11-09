@@ -1,6 +1,6 @@
 # 0042 – Coolant: flood and mist while milling
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0042-coolant-flood`
+**Who:** worker · **Status:** running · **Branch:** `ccr-de3acade-wz4azs` (the web session's branch)
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 2 of the big features, 9 Nov; placeholder since 7 Nov)
 **Lane:** Machining – a new `core/coolant.py` + `blender/coolant.py` next to `air.py` (0039), its settings in
 `ui_machining.py` / the G-code step fold in `ui_gcode.py`, `core/gcode.py` (M7/M8/M9 events, additive), chips
