@@ -23,7 +23,7 @@ updates its branch to `main`.
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (done, 0.2.37); lane free
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0041 tool changes + ATC (open – can start) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0049 tool library fixes → 0041 tool changes + ATC (open – can start) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -39,7 +39,8 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – can start | tasks/0041-tool-changes-atc.md |
+| 0049 | Machining lane: tool library fixes from 0048 – BT30 holder, G43 lengths tip-to-gauge-line (different holders), tool-tip accuracy (≤ 0.02 mm), milling samples at sharp corners, manufacturer STEPs along X | worker | Opus · Medium | open – can start | tasks/0049-tool-library-fixes.md |
+| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – after 0049 (same lane) | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | 0045 | No lane (reads only, changes no app code): bug hunt across the whole app – crashes, lost work, old projects, wrong output, slow spots; ranked findings with proof, for the lead to turn into tasks | worker | Opus · High | open – can start | tasks/0045-bug-hunt.md |
 | 0046 | Looks lane: better materials – ground/turned/machined steel and aluminium, brushed stainless, cast iron, chrome rod, anodising, orange-peel paint, optional edge wear (slider, default 0), CAD names, old projects get the new looks, material sheet + PC-check line | worker | Opus · Medium | open – can start | tasks/0046-better-materials.md |
