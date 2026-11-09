@@ -5,6 +5,8 @@
 Photo-realistic renders and animations of large STEP assemblies (hundreds to thousands of
 parts), built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
 
+**Website and download: https://smholte.github.io/CAD-render-animation/**
+
 - **CLAUDE.md** – how the AI works on this project (read first)
 - **TASKS.md** – open and finished tasks; one file per larger task in `tasks/`
 - **CHANGELOG.md** – what changed in each version
