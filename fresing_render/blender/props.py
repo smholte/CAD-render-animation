@@ -103,7 +103,17 @@ def _group_renamed(self, context):
     from . import materials
     old = self.get("_old_name", "")
     if old and old != self.name:
+        s = context.scene.fresing
+        if any(g.name == self.name and g != self for g in s.groups):   # 0055: no two groups with one name
+            taken = self.name
+            self.name = old                      # runs this update again; old == name then, nothing to do
+            s.last_message = f"A group named '{taken}' already exists - pick another name"
+            return
         _remember_rename(context.scene, old, self.name)
+        for sch in list(s.schemes) + [sh.own_scheme for sh in s.shots]:   # 0055: schemes and scenes follow
+            for look in sch.looks:
+                if look.group == old:
+                    look.group = self.name
         mat = bpy.data.materials.get(materials.material_name(old))
         if mat is not None:
             mat.name = materials.material_name(self.name)

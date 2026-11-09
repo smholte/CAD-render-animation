@@ -51,7 +51,7 @@ The queue and its runner (0054). Import caches (0055). Anything in the app's pan
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 9 Nov 2026 (version 0.2.40)
+**Chat / date:** Claude Code on the web, 9 Nov 2026 (version 0.2.41)
 
 **What changed:**
 - Row 4: `updates.preflight` reads the project's lock afresh (`lock_holder`); someone else's lock → "Someone else has

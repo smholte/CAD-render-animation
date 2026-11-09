@@ -1302,7 +1302,7 @@ def updates_check(ctx):
     return f"{__version__} is the newest" if state != "needs_installer" else f"{res['version']} needs a new installer"
 
 
-@line("updates.safe", "Safe updates (other windows, backup, old notes)", "0.2.40",
+@line("updates.safe", "Safe updates (other windows, backup, old notes)", "0.2.41",
       what="Update now finds other Fresing Render windows, can put the old version back, ignores a note left by a "
            "stopped update (nothing is installed)")
 def updates_safe(ctx):

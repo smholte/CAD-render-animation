@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.40 – 9 Nov 2026 – safe updates and the project lock (task 0053)
+## 0.2.41 – 9 Nov 2026 – safe updates and the project lock (task 0053)
 
 Updates
 - **Update now never saves over a colleague's work**: when someone else has the project open ("In use by …"),
@@ -26,6 +26,15 @@ PC check
 - New line **Safe updates (other windows, backup, old notes)**: tests on your PC that the app can see other Fresing
   Render windows, put an old version back and ignore a stale update note (nothing is installed).
 - The PC-check shortcuts are made again after an update even when Windows answers with accented characters.
+## 0.2.40 – 9 Nov 2026 – Looks fixes (task 0055)
+
+- **Renaming a group** now also renames it in your paint schemes and in the saved scenes' own looks, so applying a
+  scheme no longer skips it.
+- **Two groups can't have the same name any more**: renaming to a name that is taken is refused with a short message.
+- **Opening a project**: if one upgrade step fails, the others still run (the reason is printed in the console).
+- **Old stored imports** of an older app version are deleted when you import, so they no longer fill the disk.
+- **Chrome rods** now get the *Hydraulic chrome rod* look and **shafts and linear guides** get *Steel, ground* in new
+  imports and new rule sets. Existing projects keep their looks.
 
 ## 0.2.39 – 9 Nov 2026 – better materials: real metals, paint, wear (task 0046)
 

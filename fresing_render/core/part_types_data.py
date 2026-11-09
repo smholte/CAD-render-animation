@@ -55,8 +55,8 @@ GROUPS: dict[str, tuple[str, str, str]] = {
     "Profile connectors & brackets": ("zinc_diecast", "", ""),
     # generic shapes
     "Plates, blocks & brackets": ("aluminium_machined", "", "paint_satin"),
-    "Shafts, pins & spacers": ("steel_machined", "", ""),
-    "Chrome rods & linear shafts": ("chrome", "", ""),
+    "Shafts, pins & spacers": ("steel_ground", "", ""),
+    "Chrome rods & linear shafts": ("chrome_rod", "", ""),
     "Covers & panels": ("paint_satin", "RAL 7035", "paint_satin"),
     "Sheet metal parts": ("powder_coat", "RAL 7035", "powder_coat"),
     "Welded frames & structures": ("paint_satin", "RAL 7035", "paint_satin"),
@@ -75,7 +75,7 @@ GROUPS: dict[str, tuple[str, str, str]] = {
     "Pipe & hose clamps": ("zinc_plated", "", ""),
     "Vacuum cups": ("rubber_black", "", ""),
     # motion
-    "Linear guides & ball screws": ("steel_machined", "", ""),
+    "Linear guides & ball screws": ("steel_ground", "", ""),
     "Bearings": ("steel_machined", "", ""),
     "Bearing housings & units": ("cast_iron", "", "paint_satin"),
     "Bushings & plain bearings": ("bronze", "", ""),
