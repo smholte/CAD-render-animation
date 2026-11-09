@@ -5,6 +5,32 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.45 – 9 Nov 2026 – tool changes: by hand and with a tool changer (task 0041)
+
+CNC machine
+- **Every tool change (M6) now plays by itself.** New panel 4 Motion > CNC machine > **Tool changes**: **Manual** or
+  **Tool changer (ATC)**.
+- **Manual**: the head goes to the change position (**Where it is**, **Z up only**, or a **Change position** in machine
+  coordinates; **Use the axes now** takes where the axes are), pauses and goes back. **Pause at M6** in the program step:
+  **1 second by default**, a slider from 0 to 5 s (it was 2 s).
+- **Show hand** (in the program step, off by default): a gloved hand reaches in, takes the old tool out of the spindle,
+  puts the new one in and leaves. It needs 2.8 s; a shorter pause grows to that and the step says so.
+- **Caption** (in the program step): "Tool change: T3 Ø50 face mill" in videos at every change, in the brand kit's
+  caption look.
+- **Tool changer (ATC)**: click the pockets on the changer (a carousel: pocket 1, then **Fill the carousel** with the
+  number of pockets). The tools stand in their pockets from the first frame; at each M6 the carousel turns the
+  shortest way, the spindle leaves the old tool in its own pocket and takes the new one, then goes back to the program.
+  Without a carousel joint the pockets are a rack and the head goes to each one. Which tool stands where: the tool's
+  **Pocket** in Tools, else the pocket it stands in in your model, else the pocket with its T number.
+- The changer's own animation (arm, cover) plays at every change, split at **Swap at**; **ATC speed** makes the changer
+  faster or slower in the video. **Fit into** still gives exactly its seconds: changes take at most half of them.
+- `T1 M6` while T1 is already in the spindle does nothing, as on the machine.
+- **Projects from before**: a step with a tool-changer animation makes the machine an ATC when the project is opened, and
+  it plays as before. Tip: **Tool lengths move the spindle** (Tools) is on since 0.2.36; untick it for the old look.
+
+PC check
+- New line "Tool changes: by hand, and a tool changer with 8 pockets" (with a picture of the hand).
+
 ## 0.2.44 – 9 Nov 2026 – the same STEP twice: two separate machines (task 0056)
 
 Import
