@@ -1065,6 +1065,89 @@ and Build warns.
 The chips (4 Motion > Milling > Chips) follow each tool's type: a face mill throws flat commas, a drill makes
 spirals; a thread mill and a slot cutter make chips like an end mill.
 
+### Tool changes
+
+Every tool change (M6) in the program plays by itself – on a machine without a tool changer, and on one with an
+automatic tool changer (ATC). Set it up in 4 Motion > CNC machine > **Tool changes**; what the video shows (the
+pause, the hand, a caption, the changer's speed) is set in the program step in 6 Animation.
+
+**Manual** (no tool changer)
+
+<img class="panel" src="img/panel_4_toolchange_manual.png" alt="Tool changes set to Manual: the head goes Z up only, to Z 60 mm">
+
+At each M6 the head goes to the change position, pauses, and goes back to where the program left off; the tool is
+swapped half way through the pause. **Head goes**:
+
+- **Where it is** – the head stays (as your program left it, for example after `G53 G0 Z0`).
+- **Z up only** – Z goes to the change position's **Z** (machine coordinates, G53), X and Y stay.
+- **Change position** – the head goes to X, Y, Z (like LinuxCNC's `TOOL_CHANGE_POSITION`), Z first.
+
+**Use the axes now** takes the position the axes are at: move them there first (a pose, or the joints' sliders).
+
+In the program step (6 Animation > **Run G-code program** > **Lines, tool changes, spindle, toolpath**):
+
+<img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Show hand and Caption ticked, a note that the hand needs 2.8 s">
+
+- **Pause at M6**: 1 second by default, 0 to 5 s with the slider. A long pause is boring in a video; the travel to
+  the change position comes on top.
+- **Show hand** (off by default): a gloved hand reaches in, takes the old tool out of the spindle, brings the new
+  one and pushes it in, and leaves. It needs 2.8 seconds: a shorter pause grows to that, and the step says so
+  ("Tool change pause: 2.8 s, not 1.0 s – the hand needs 2.8 s"; also under **Details**). With a longer pause the
+  hand waits outside while fetching the new tool.
+- **Caption**: a caption such as "Tool change: T3 Ø50 face mill" during every change of a video, in the brand
+  kit's caption look (6 Animation > Video finishing). A name typed in the tool's row is added: "Tool change: T3 Ø5
+  drill (Gühring 5 mm)".
+
+<img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand holding the tool under the spindle at a manual tool change">
+
+**Tool changer (ATC)**
+
+<img class="panel" src="img/panel_4_toolchange_atc.png" alt="Tool changes set to Tool changer (ATC): the carousel joint, 8 pockets with T1 to T4, change station 1">
+
+The tools stand in **pockets**, visible from the first frame (a pocket stays empty when its tool is in the
+spindle). At each M6: the head goes above the old tool's pocket while the carousel turns that pocket to the
+spindle, the spindle goes down and leaves the old tool in its own pocket, goes up, the carousel turns the
+**shortest way** to the new tool's pocket, the spindle goes down, takes the new tool, goes up and back to the
+program.
+
+1. Optional, for a carousel: make a **rotate** joint for it in 4 Motion and pick it as **Carousel**. Without one
+   the pockets are a **rack**: the head goes to each tool's pocket itself.
+2. **Click pockets**, then click where each tool's holder sits (the pocket's fork or ring, at the height of the
+   holder's flange); Esc when done. They are numbered in the order you click, shown in the view as small arrows
+   "FR pocket 1", "FR pocket 2" … and move with the part you clicked. A carousel: click pocket 1 only, set the
+   number of pockets and press **Fill the carousel**: they are put evenly round its axis (**Number the other way**
+   for clockwise).
+3. Which tool stands where: the row's **Pocket** in Tools (fold **Shank, holder sizes, place**); 0 means the pocket
+   with its T number. A tool of your CAD model standing in the carousel (picked with **Use clicked part**) is found
+   in the pocket it stands in. Place **Bench**: the tool has no pocket and is put in by hand (with the pause and the
+   hand, as on a manual machine).
+4. **Change station**: the pocket that is at the spindle when the carousel is as in the CAD model (usually 1).
+   **Turn per pocket**: how long the carousel takes from one pocket to the next on the machine. **Lift out**: how
+   far the spindle goes up out of a pocket.
+
+<img src="img/view_toolchange_atc.png" alt="The test gantry's carousel: tools hanging in their pockets, the head above the change station">
+
+The spindle meets each pocket exactly: the app works out where the axes must be from the pocket's point and the
+spindle's gauge line (the tool in the spindle's **Gauge length**, else its length). In the program step:
+
+- **Changer**: an animation of the rest of the changer (an arm, a cover, the carousel moving in) made as an
+  animation of its own with the changer's joints. It plays at every change, split at **Swap at (s)**: the part
+  before plays before the old tool goes into its pocket, the rest after the new one is in. A step in it that turns
+  the carousel is left out (the app turns it) – as is one that moves X, Y or Z.
+- **ATC speed**: 1 = as on the machine; 2 = the changer works twice as fast in the video, 0.5 half as fast. The
+  head's travel follows **Rapids faster**.
+
+**Timing**: the step's length includes every change. With **Fit into** the changes may take at most half of the
+seconds: when they would take more they are all shortened by the same factor (each turn at least 0.2 s, the hand
+at least 2.8 s) and the step's Details say so; the cutting gets the rest and stays exactly on the program.
+`T1 M6` while T1 is already in the spindle does nothing (as on the machine).
+
+**Projects from before 0.2.45**: a step with a **Tool changer** animation makes the machine an ATC when the
+project is opened, without pockets: the animation plays at every M6 as before and the head stays. Projects without
+one are Manual with the head staying; their changes now take the **Pause at M6** (1 s unless you had set another
+time). **Tool lengths move the spindle** (Tools, on by default since 0.2.36) moves the spindle by the difference
+of the tools' lengths after a change; for the old look – every tool's tip where the first one's was – untick it.
+
 <a id="scene"></a>
 ## 5 Scene & Render – background, light, camera and image
 
@@ -1374,11 +1457,8 @@ The fold **Lines, tool changes, spindle, toolpath** holds:
 
 - **From line** / **To line**: play only part of the program; the machine starts where the program would
   be at that line.
-- **Tool changer**: an animation of the tool changer (arm, carousel, cover – make it as an animation of its
-  own with the tool changer's joints) that plays at every M6 while the program waits; **Swap at (s)** is
-  the moment the new tool appears in the spindle. Without it, a tool change takes **Tool change (s)** and
-  the tool swaps half way. Move the head to the change position with the program itself (`G53 G0 Z0`
-  before `M6`, as LinuxCNC programs do).
+- **Tool changes**: **Pause at M6**, **Show hand** and **Caption** (manual), **Changer** and **ATC speed** (tool
+  changer) – see **Tool changes** in 4 Motion above.
 - **Spindle**: a real 10,000 rpm spindle looks still or turning backwards in a video of 25 pictures per
   second, so it is slowed down to look right (at most 1/7 turn per picture). **Real speed** turns it at
   the program's S.

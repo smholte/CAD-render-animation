@@ -418,6 +418,7 @@ def test_tool_changer_animation_plays_at_each_m6(scene, tmp_path):
     x.kind, x.joint, x.start, x.duration, x.easing = "JOINT", "Carousel", 0.0, 3.0, "LINEAR"
     x.use_from, x.to_angle = True, math.radians(90)
     a, b = step(scene, program(tmp_path, "G0 X10\nT2 M6\nG0 X20\nT3 M6\nG0 X30\nM30\n"))
+    s.cnc.changer = "ATC"                       # (an old project gets it when it is opened: test_toolchange.py)
     b.gcode_atc = "ATC"
     b.gcode_atc_swap = 1.5
     prog_s = gcode.read_program(scene, b, gcode.Machine(scene), start=gcode.start_point(gcode.Machine(scene)))[0].duration

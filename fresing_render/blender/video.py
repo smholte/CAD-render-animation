@@ -77,7 +77,7 @@ def finishing_for_animation(scene, anim, watermark: bool = False) -> Finishing:
         logo_corner=anim.fin_logo, logo_file=logo, logo_size=anim.fin_logo_size,
         title_on=anim.fin_title_on, title=anim.fin_title, subtitle=anim.fin_subtitle,
         title_seconds=anim.fin_title_seconds, end_on=anim.fin_end_on, end_seconds=anim.fin_end_seconds,
-        captions_on=anim.fin_captions, watermark=watermark_words(s) if watermark else "",
+        captions_on=anim.fin_captions or bool(change_captions(anim, scene)), watermark=watermark_words(s) if watermark else "",
         watermark_size=s.wm_size, watermark_opacity=s.wm_opacity, **_kit_fields(s))
 
 
@@ -99,6 +99,24 @@ def steps_of(anim) -> list[tuple[str, float, float]]:
     from . import animation
     return [(b.name.strip(), b.start, animation.block_end(b)) for b in anim.blocks
             if b.enabled and b.name.strip()]
+
+
+def change_captions(anim, scene=None) -> list[tuple[str, float, float]]:
+    """(text, start, end) of the tool-change captions (task 0041): G-code steps with 'Caption at tool changes'."""
+    if not any(b.enabled and b.kind == "GCODE" and b.gcode_tc_caption for b in anim.blocks):
+        return []
+    from . import toolchange
+    scene = scene or anim.id_data
+    try:
+        return toolchange.captions(scene, anim)
+    except Exception as exc:
+        print("Fresing Render: tool-change captions:", exc)
+        return []
+
+
+def captions_of(anim, scene=None) -> list[tuple[str, float, float]]:
+    """Every caption of a video: the step labels (when 'Captions' is on) and the tool changes that ask for one."""
+    return (steps_of(anim) if anim.fin_captions else []) + change_captions(anim, scene)
 
 
 def warnings_for(scene, anim=None) -> list[str]:

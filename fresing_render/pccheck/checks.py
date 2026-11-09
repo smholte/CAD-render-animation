@@ -495,6 +495,130 @@ def motion_gcode(ctx):
     return f"tip on the path to {worst:.4f} mm, {r['frames']} frames, T1 → T2"
 
 
+TOOLCHANGE_TEST = """(T1 D=6. CR=0. - flat end mill)
+(T2 D=4. CR=2. - ball end mill)
+(T3 D=5. CR=0. TAPER=118deg - drill)
+(T4 D=8. CR=1. - bullnose end mill)
+G21 G90
+G0 X10 Y0 Z5
+T2 M6
+G1 X20 F600
+T3 M6
+G0 X30 Y10 Z5
+T4 M6
+G0 X40 Y20 Z5
+T1 M6
+G0 X0 Y0 Z5
+M30
+"""
+
+
+@line("motion.toolchange", "Tool changes: by hand, and a tool changer with 8 pockets", "0.2.45",
+      what="The test gantry changes tools by hand (short pause, the gloved hand, rendered as it takes the tool) and "
+           "with a carousel of 8 pockets and 4 tools: every tool in its pocket from the first frame, the right "
+           "pocket at the spindle at every change, the old tool back in its own pocket")
+def motion_toolchange(ctx):
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import animation, cameras, gcode, joints, toolchange, tools
+    from ..core import gcode as core
+    scene = ctx.fresh(GANTRY)
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool = _ob(scene, "TOOL T1 FLAT D6")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, _ob(scene, "STOCK 300x200x30"))
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    path = os.path.join(ctx.work, "pccheck_toolchange.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(TOOLCHANGE_TEST)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Tool changes", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_file = path
+    gcode.tools_from_program(scene, b)
+    rows = {n: tools.row_of(scene, n) for n in (1, 2, 3, 4)}
+    _check(all(rows.values()), "Tools from the program did not add T1 … T4")
+    tools.use_part(scene, rows[1], tool)
+    tools.use_part(scene, rows[2], _ob(scene, "TOOL T2 BALL D4"))
+    tools.use_part(scene, rows[3], _ob(scene, "TOOL T3 DRILL D5"))
+    for n, length in ((1, 30), (2, 30), (3, 40), (4, 30)):
+        rows[n].length = length * 0.001
+
+    # by hand, with the hand
+    _check(abs(b.gcode_tc_time - 1.0) < 1e-6 and not b.gcode_hand, "the pause is not 1 s / the hand is not off "
+           "by default")
+    b.gcode_hand = True
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    sch = core.Schedule(gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(scene, a, b, mach))
+    c = sch.changes[0]
+    hand = bpy.data.objects.get(toolchange.HAND_NAME)
+    _check(hand is not None and c.hand is not None, "no hand at the manual tool change")
+    out_t, _in_t = toolchange.TC.hand_events(*c.hand)
+    f = 1 + (out_t + 0.15) * 25
+    scene.frame_set(int(f))
+    carried = next((o for o in bpy.data.objects if o.get("fr_cnc_carry") == 1), None)
+    _check(not hand.hide_render and carried is not None and not carried.hide_render and tool.hide_render,
+           "the hand does not hold the old tool after taking it out of the spindle")
+    tip = tool.matrix_world @ gcode._rest_tip(tool)[0]
+    pts = __import__("numpy").array([tuple(tip + Vector(d)) for d in ((-0.12, -0.3, -0.1), (0.12, 0.08, 0.12))])
+    cam = cameras.add_camera(scene, "ISO", 50.0, "PC check hand", points=pts)
+    scene.camera = cam
+    _small_output(scene.fresing, 480, 360)
+    _cpu_still(ctx, scene, "toolchange_hand", "Manual tool change: the hand takes T1 out (processor, draft)")
+    hand_s = c.length
+
+    # the tool changer: 8 pockets round the carousel, T1 in pocket 7, T2 and T3 in their CAD places
+    animation.clear_keys(scene)
+    car = _ob(scene, "CAROUSEL.ASM")
+    joints.create(scene, "ROTATE", [car], Vector((0.5, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    cnc = scene.fresing.cnc
+    cnc.changer = "ATC"
+    cnc.carousel_joint = "Carousel"
+    rows[1].pocket = 7
+    station = Vector((0.56, 0, 0.14))
+    toolchange.add_pocket(scene, _ob(scene, "CAROUSEL DISC"), station)
+    cnc.pocket_count = 8
+    why = toolchange.fill_carousel(scene)
+    _check(not why, why)
+    _check(not toolchange.problems(scene), "; ".join(toolchange.problems(scene)))
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("bake", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    sch = core.Schedule(gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(scene, a, b, mach))
+    changes = [x for x in sch.changes if x.length > 0]
+    _check([(x.old_pocket, x.new_pocket) for x in changes] == [(7, 1), (1, 3), (3, 4), (4, 7)],
+           "the tools go to the wrong pockets: " + ", ".join(f"{x.old_pocket}->{x.new_pocket}" for x in changes))
+    scene.frame_set(1)
+    in_pocket = {o["fr_cnc_pocket"]: o for o in bpy.data.objects if "fr_cnc_pocket" in o}
+    _check(sorted(in_pocket) == [1, 4] and in_pocket[1].hide_render and not in_pocket[4].hide_render,
+           "the tools are not shown in their pockets on the first frame")
+    pockets = {p.number: p for p in cnc.pockets}
+    worst = 0.0
+    for x in changes:
+        for when, pk in ((x.drop, x.old_pocket), (x.swap, x.new_pocket)):
+            fr = 1 + when * 25
+            scene.frame_set(int(fr), subframe=fr - int(fr))
+            got = toolchange.pocket_world(pockets[pk])[0]
+            worst = max(worst, (got - station).length / 0.001)
+    _check(worst < 0.01, f"a pocket is {worst:.3f} mm away from the spindle when the tool is swapped")
+    t3 = _ob(scene, "TOOL T3 DRILL D5")
+    fr = 1 + (changes[2].drop + 0.1) * 25
+    scene.frame_set(int(fr))
+    _check(not t3.hide_render, "T3 is not back in its pocket after the change")
+    return f"hand {hand_s:.1f} s per change; ATC: 4 changes, pockets at the spindle to {worst:.4f} mm"
+
+
 def _ob_v(scene, name):
     """A part by name, also when CAD added a version ("Section 1 v8")."""
     from ..blender import build

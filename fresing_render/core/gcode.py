@@ -1451,6 +1451,8 @@ class Timing:
     line_to: int = 0
     clean: float = 0.0              # s at the end: "Blow the part clean" (task 0039); 0 = none
     clean_sweep: bool = True        # air through the spindle: the tool goes over the part while it blows
+    changer: object = None          # core.toolchange.Changer (task 0041); None: every change is a pause of
+                                    # ``tool_change`` s with the swap at ``swap``
 
 
 CLEAN = "CLEAN"                     # Move.cycle of the moves the app adds for "Blow the part clean"
@@ -1509,10 +1511,12 @@ def clean_moves(prog: Program, last, seconds: float, sweep: bool) -> list:
 
 @dataclass(slots=True)
 class Piece:
-    """A move as it plays in the video: v0 .. v0 + vd seconds (from the step's start)."""
+    """A move as it plays in the video: v0 .. v0 + vd seconds (from the step's start). A tool change carries its
+    :class:`toolchange.Change` (the head's travel, the carousel, the swap)."""
     move: Move
     v0: float
     vd: float
+    change: object = None
 
 
 class Schedule:
@@ -1537,24 +1541,62 @@ class Schedule:
             return m.dur / rf if m.kind == "RAPID" else m.dur
 
         motion = sum(raw(m) for m in moves)
-        changes = sum(1 for m in moves if m.kind == "TOOL" and m.cycle != "M61")
+        from . import toolchange as TC
         tc = max(0.0, float(timing.tool_change))
+        ch = timing.changer
+        legacy = ch is None
+        if legacy:
+            ch = TC.Changer(pause=tc)
+        # every tool change planned first (its length), then the motion gets the rest of "Fit into"
+        plans = {}
+        cur = self.first_tool or ch.start_tool
+        v = ch.carousel_start
+        for k, m in enumerate(moves):
+            if m.kind != "TOOL":
+                continue
+            if m.cycle == "M61":
+                cur = m.tool
+                continue
+            c = TC.plan(cur, m.tool, m.b, ch, v, rf)
+            if legacy:
+                c.phases = [TC.Phase("pause", tc, a=m.b, b=m.b, least=min(tc, TC.MIN_PAUSE))] if tc > 0 else []
+            for _t0, _t1, _v0, v1 in c.turns():
+                v = v1
+            plans[k] = c
+            cur = m.tool
+        self.changes = list(plans.values())
+        total = sum(ph.dur for c in self.changes for ph in c.phases)
         if timing.speed == "FASTER":
             scale = 1.0 / max(1e-6, float(timing.factor))
+            k_tc = 1.0
         elif timing.speed == "FIT":
-            room = max(1e-3, float(timing.fit_seconds) - changes * tc)
+            fit_s = float(timing.fit_seconds)
+            k_tc = TC.fit(self.changes, TC.CHANGE_SHARE * fit_s) if total > TC.CHANGE_SHARE * fit_s else 1.0
+            used = sum((max(ph.least, ph.dur * k_tc) if ph.dur > 0 else 0.0) for c in self.changes
+                       for ph in c.phases)
+            room = max(1e-3, fit_s - used)
             scale = room / motion if motion > 0 else 1.0
         else:
             scale = 1.0
+            k_tc = 1.0
         self.scale = scale
+        self.change_scale = k_tc
         self.pieces: list = []
         self.tool_events: list = []                         # (video time of the swap, tool, start, length)
         t = 0.0
-        for m in moves:
+        for k, m in enumerate(moves):
             if m.kind == "TOOL":
-                d = 0.0 if m.cycle == "M61" else tc
-                self.tool_events.append((t + min(max(0.0, timing.swap), d), m.tool, t, d))
-                self.pieces.append(Piece(m, t, d))
+                c = plans.get(k)
+                if c is None:                               # M61: the tool is set, nothing moves
+                    self.tool_events.append((t, m.tool, t, 0.0))
+                    self.pieces.append(Piece(m, t, 0.0))
+                    continue
+                TC.place(c, t, k_tc)
+                if legacy and c.length > 0:
+                    c.swap = c.drop = t + min(max(0.0, timing.swap), c.length)
+                d = c.length
+                self.tool_events.append((c.swap, m.tool, t, d))
+                self.pieces.append(Piece(m, t, d, c))
                 t += d
                 continue
             d = raw(m) * scale
@@ -1592,6 +1634,8 @@ class Schedule:
             return self.start_point
         if p.vd <= 0:
             return p.move.b
+        if p.change is not None:
+            return p.change.point_at(t, p.move.b)
         return p.move.at((t - p.v0) / p.vd)
 
     def samples(self, fps: float, tol: float = 0.002, per_frame: bool = True):
@@ -1605,6 +1649,8 @@ class Schedule:
         for p in self.pieces:
             m = p.move
             if not m.moving:
+                if p.change is not None and p.change.moves:      # the head goes to the changer and back
+                    out += [(t, pt) for t, pt in p.change.knots()]
                 if p.vd > 0:
                     out.append((p.v0 + p.vd, m.b))
                 continue

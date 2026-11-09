@@ -116,6 +116,9 @@ def row_changed(scene, row=None) -> None:
     from . import machining
     if machining.is_active(scene):
         machining.tool_changed(scene)
+    from . import gcode
+    if gcode.settings(scene).changer == "ATC":        # pockets and lengths set how long the changes take (0041)
+        gcode.setup_changed(scene)
 
 
 def _type_changed(row) -> None:

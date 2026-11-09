@@ -22,6 +22,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=decals blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
 
+  toolchange / toolchange_view   Tool changes (task 0041) on the test gantry: the panels (as "panels") and the
+      carousel and the hand in the view (as "window").
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -871,6 +874,156 @@ elif MODE in ("waycover", "air", "labels"):
         _grab("panel_5_labels", [("FRESING_PT_labels", False, True)])
         _grab("panel_6_cards", [("FRESING_PT_cards", False, True)])
         _grab("panel_6_music", [("FRESING_PT_music", False, True)])
+
+elif MODE in ("toolchange", "toolchange_view"):
+    # task 0041: Tool changes (manual and ATC) on the test gantry; "toolchange" = the panels (xvfb 1500x7000),
+    # "toolchange_view" = the carousel and the hand in the view (xvfb 1920x1200, as "window").
+    TC_PROGRAM = ("(T1 D=6. CR=0. - flat end mill)\n(T2 D=4. CR=2. - ball end mill)\n"
+                  "(T3 D=5. CR=0. TAPER=118deg - drill)\n(T4 D=8. CR=1. - bullnose end mill)\n"
+                  "G21 G90\nG0 X10 Y0 Z5\nT2 M6\nG1 X20 F600\nT3 M6\nG0 X30 Y10 Z5\nT4 M6\nG0 X40 Y20 Z5\n"
+                  "T1 M6\nG0 X0 Y0 Z5\nM30\n")
+    step(_start)
+    step(lambda: _import(os.path.join(DATA, "test_gantry.step")))
+    step(_wait_import)
+
+    def _named(n):
+        return next(o for o in bpy.data.objects if o.get("fr_name") == n)
+
+    def _tc_setup():
+        sc = bpy.context.scene
+        joints, tools = mod("blender.joints"), mod("blender.tools")
+        for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+            o = _named(asm)
+            joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+        joints.create(sc, "ROTATE", [_named("CAROUSEL.ASM")], Vector((0.5, 0, 0)), Vector((0, 0, 1)),
+                      name="Carousel")
+        with override():
+            bpy.ops.fresing.cnc_find_axes()
+            select_only(_named("TOOL T1 FLAT D6"))
+            bpy.ops.fresing.cnc_use_tool()
+            select_only(_named("STOCK 300x200x30"))
+            bpy.ops.fresing.cnc_use_workpiece()
+        select_only()
+        os.chdir(SCRATCH)                    # plain file names in the pictures
+        with open("parts.ngc", "w") as fh:
+            fh.write(TC_PROGRAM)
+        with override():
+            bpy.ops.fresing.anim_add()
+            bpy.ops.fresing.block_add(kind="GCODE")
+        a = mod("blender.animation").active(sc)
+        b = a.blocks[a.blocks_index]
+        b.gcode_file = "parts.ngc"
+        mod("blender.gcode").tools_from_program(sc, b)
+        for n, part, length in ((1, "TOOL T1 FLAT D6", 30), (2, "TOOL T2 BALL D4", 30), (3, "TOOL T3 DRILL D5", 40),
+                                (4, None, 30)):
+            row = tools.row_of(sc, n)
+            if part:
+                tools.use_part(sc, row, _named(part))
+            row.length = length * 0.001
+        tools.row_of(sc, 1).pocket = 7
+        cnc = sc.fresing.cnc
+        cnc.change_mode = "Z"
+        cnc.change_pos = (0.0, 0.0, 0.06)
+        b.gcode_hand = True
+        b.gcode_tc_caption = True
+        mod("blender.ui")._OPEN_FOLDS = True
+
+    def _atc():
+        sc = bpy.context.scene
+        tc = mod("blender.toolchange")
+        cnc = sc.fresing.cnc
+        cnc.changer = "ATC"
+        cnc.carousel_joint = "Carousel"
+        tc.add_pocket(sc, _named("CAROUSEL DISC"), Vector((0.56, 0, 0.14)))
+        cnc.pocket_count = 8
+        tc.fill_carousel(sc)
+        cnc.pockets_index = 3
+
+    def _grab(name, spec, extra=None):
+        def show():
+            if extra:
+                extra()
+            show_only(spec)
+            wiggle()
+            return 2.5
+
+        def shoot():
+            shoot_sidebar(name)
+            return 0.5
+        show.__name__, shoot.__name__ = f"show_{name}", f"shoot_{name}"
+        step(show)
+        step(shoot)
+
+    step(lambda: (_tc_setup(), 1.0)[1])
+    if MODE == "toolchange":
+        _grab("panel_4_toolchange_manual", [("FRESING_PT_cnc_changes", False, True)])
+        _grab("panel_6_gcode_toolchange", [("FRESING_PT_animation", False, True)])
+        step(lambda: (_atc(), 1.0)[1])
+        _grab("panel_4_toolchange_atc", [("FRESING_PT_cnc_changes", False, True)])
+    else:
+        def _look(at, dist, rot):
+            win, area, region, _sb = areas()
+            sp = area.spaces.active
+            sp.overlay.show_overlays = False
+            r3d = sp.region_3d
+            r3d.view_perspective = "PERSP"
+            r3d.view_location = Vector(at)
+            r3d.view_distance = dist
+            from mathutils import Euler
+            r3d.view_rotation = Euler([math.radians(x) for x in rot]).to_quaternion()
+            wiggle(5)
+
+        def _view_shot(name):
+            def shot():
+                win, area, region, _sb = areas()
+                im = crop_region(grab_screen(), region, win.height)
+                h, w = im.shape[:2]
+                save_png(im[int(h * 0.12):int(h * 0.88), int(w * 0.18):int(w * 0.82)], name)
+                return 0.5
+            shot.__name__ = f"shot_{name}"
+            return shot
+
+        def _hand_frame():
+            sc = bpy.context.scene
+            for o in list(bpy.context.view_layer.objects):
+                o.select_set(False)
+            animation, gcode, core = mod("blender.animation"), mod("blender.gcode"), mod("core.gcode")
+            a = animation.active(sc)
+            animation.bake(sc, a)
+            b = a.blocks[0]
+            mach = gcode.Machine(sc)
+            sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                                gcode.timing(sc, a, b, mach))
+            c = sch.changes[0]
+            keys = mod("core.toolchange").hand_keys(*c.hand)
+            t = next(t for t, p in keys if p == "grip") + 0.25        # pulling the old tool out
+            sc.frame_set(int(1 + t * int(a.fps)))
+            tip = _named("TOOL T1 FLAT D6").matrix_world.translation
+            _look((tip.x, tip.y - 0.05, 0.11), 0.75, (68, 0, 28))
+            return 2.0
+
+        def _atc_frame():
+            sc = bpy.context.scene
+            animation, gcode, core = mod("blender.animation"), mod("blender.gcode"), mod("core.gcode")
+            animation.clear_keys(sc)
+            _atc()
+            a = animation.active(sc)
+            animation.bake(sc, a)
+            b = a.blocks[0]
+            mach = gcode.Machine(sc)
+            sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                                gcode.timing(sc, a, b, mach))
+            c = sch.changes[1]
+            turn = c.turns()[-1]
+            t = (turn[0] + turn[1]) / 2                                 # the carousel turning to the new pocket
+            sc.frame_set(int(1 + t * int(a.fps)))
+            _look((0.53, 0.0, 0.13), 0.42, (86, 0, 28))
+            return 2.0
+
+        step(_hand_frame)
+        step(_view_shot("view_toolchange_hand"))
+        step(_atc_frame)
+        step(_view_shot("view_toolchange_atc"))
 
 elif MODE in ("render", "looks", "decals"):
     pass

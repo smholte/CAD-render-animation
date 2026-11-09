@@ -124,8 +124,12 @@ def _upgrade_steps():
             sc.fresing.last_message = ("The sorting rules are now the new defaults (part types, "
                                        "CAD materials): press 'Sort parts into groups' to use them")
 
+    def changer(sc):
+        from . import toolchange
+        toolchange.upgrade(sc)           # a tool-changer animation (before 0.2.45): the machine has a changer
+
     return (("matrices", build.ensure_bases), ("paint faces", faces_off), ("joint drivers", drivers),
-            ("looks", looks), ("rule set", rules))
+            ("looks", looks), ("rule set", rules), ("tool changer", changer))
 
 
 @persistent

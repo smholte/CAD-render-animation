@@ -482,6 +482,73 @@ def s_reopened():
 
 
 @step
+def s_atc_start():
+    """Task 0041: the machine gets a tool changer; 'Click pockets' waits for clicks on the carousel."""
+    sc = bpy.context.scene
+    joints = mod("blender.joints")
+    joints.create(sc, "ROTATE", [find("CAROUSEL.ASM")], Vector((0.5, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    c = sc.fresing.cnc
+    c.changer = "ATC"
+    c.carousel_joint = "Carousel"
+    r3d = ui()[2].data                                     # the carousel in the middle of the view (no animation)
+    r3d.view_location = Vector((0.5, 0.0, 0.15))
+    r3d.view_distance = 1.2
+    redraw()
+    with override():
+        r = bpy.ops.fresing.cnc_pocket_click("INVOKE_DEFAULT")
+    check("'Click pockets' waits for clicks", r == {"RUNNING_MODAL"}, r)
+    return 0.8
+
+
+@step
+def s_atc_click():
+    x, y = to_window((0.56, 0.0, 0.15))                     # on the carousel's top, above T2
+    log("pocket click at", x, y)
+    click(x, y)
+    return 1.0
+
+
+@step
+def s_atc_esc():
+    win = bpy.context.window_manager.windows[0]
+    win.event_simulate(type="ESC", value="PRESS", x=700, y=500)
+    win.event_simulate(type="ESC", value="RELEASE", x=700, y=500)
+    return 1.0
+
+
+@step
+def s_atc_fill():
+    sc = bpy.context.scene
+    c = sc.fresing.cnc
+    tc = mod("blender.toolchange")
+    p = c.pockets[0] if len(c.pockets) == 1 else None
+    pos = tc.pocket_world(p)[0] if p is not None else None
+    check("a click on the carousel makes pocket 1 on it", p is not None and p.number == 1
+          and p.obj is find("CAROUSEL DISC") and 0.1399 < pos.z < 0.1501, (len(c.pockets), tuple(pos) if pos else None))
+    station = pos.copy() if pos is not None else Vector()
+    c.pocket_count = 8
+    r = op("fresing.cnc_fill_carousel")
+    marks = [o for o in bpy.data.objects if o.get("fr_cnc") == tc.POCKET_TAG]
+    check("'Fill the carousel' puts 8 pockets round it (arrows in the view)", r == {"FINISHED"} and len(c.pockets) == 8
+          and len(marks) == 8, (r, len(c.pockets), len(marks)))
+    r = op("fresing.anim_build", play=False)
+    gcode, core = mod("blender.gcode"), mod("core.gcode")
+    a = mod("blender.animation").active(sc)
+    b = next(x for x in a.blocks if x.kind == "GCODE")
+    mach = gcode.Machine(sc)
+    sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(sc, a, b, mach))
+    ch = next(x for x in sch.changes if x.length > 0)
+    f = 1 + (b.start + ch.swap) * int(a.fps)
+    sc.frame_set(int(f), subframe=f - int(f))
+    p = next((p for p in c.pockets if p.number == ch.new_pocket), None)
+    got = tc.pocket_world(p)[0] if p is not None else Vector((1e3, 0, 0))
+    check("ATC: the carousel brings T2's pocket to the spindle at the swap", r == {"FINISHED"} and ch.tool == 2
+          and (got - station).length < 0.01 * MM, (ch.new_pocket, tuple(got / MM), tuple(station / MM)))
+    return 0.5
+
+
+@step
 def s_finish():
     failed = [r for r in RESULTS if not r[1]]
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")

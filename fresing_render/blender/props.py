@@ -897,18 +897,32 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         description="Rapid moves (G0, the tool moving through the air) play this many times faster again, so the "
                     "video spends its time on the cutting. 1 = at the machine's own rapid speed")
     gcode_tc_time: FloatProperty(
-        name="Tool change (s)", default=2.0, min=0.0, soft_max=30.0, update=_gcode_step_changed,
-        description="How long each tool change (M6) takes in the video, in seconds, when no tool-changer "
-                    "animation plays. The new tool shows half way")
+        name="Tool change pause", default=1.0, min=0.0, max=5.0, unit="TIME_ABSOLUTE", update=_gcode_step_changed,
+        description="How long the machine pauses at each manual tool change (M6), 0 to 5 seconds; the head's "
+                    "travel to the change position comes on top. Short looks best in a video. The new tool shows "
+                    "half way (with the hand: when the hand has put it in)")
+    gcode_hand: BoolProperty(
+        name="Show hand", default=False, update=_gcode_step_changed,
+        description="At a manual tool change a gloved hand reaches in, takes the old tool out of the spindle, "
+                    "puts the new one in and leaves. It needs 2.8 seconds: a shorter pause grows to that (the "
+                    "step's Details say so)")
+    gcode_tc_caption: BoolProperty(
+        name="Caption at tool changes", default=False, update=_gcode_step_changed,
+        description="Shows a caption such as 'Tool change: T3 Ø50 face mill' at every tool change of a video, in "
+                    "the brand kit's caption look (6 Animation > Video finishing)")
+    gcode_changer_speed: FloatProperty(
+        name="Changer speed", default=1.0, min=0.25, max=4.0, update=_gcode_step_changed,
+        description="How fast the tool changer works in the video: 1 = real (its turns and its animation as set "
+                    "up), 2 = twice as fast, 0.5 = half as fast. The head's travel follows 'Rapids faster'")
     gcode_atc: StringProperty(
-        name="Tool changer", update=_gcode_step_changed,
-        description="An animation of the tool changer (arm, carousel, cover) that plays at every tool change "
-                    "(M6); the program waits for it. Make it as an animation of its own with the tool changer's "
-                    "joints. Empty: the tool just swaps")
+        name="Changer animation", update=_gcode_step_changed,
+        description="An animation of the tool changer (arm, cover, the carousel moving in) that plays at every tool "
+                    "change (M6); the program waits for it. Make it as an animation of its own with the tool "
+                    "changer's joints. The carousel's turn to the right pocket is made by the app. Empty: none")
     gcode_atc_swap: FloatProperty(
         name="Swap at (s)", default=1.0, min=0.0, soft_max=30.0, update=_gcode_step_changed,
-        description="When in the tool-changer animation the new tool appears in the spindle, in seconds from its "
-                    "start")
+        description="When in the changer animation the tools swap, in seconds from its start: up to here it plays "
+                    "before the old tool goes into its pocket, the rest after the new one is in the spindle")
     gcode_spindle: EnumProperty(
         name="Spindle", default="SLOW", update=_gcode_step_changed,
         description="How fast the spindle turns in the video. A real 10,000 rpm spindle looks still or turning "
@@ -1330,6 +1344,31 @@ class FRCncTool(bpy.types.PropertyGroup):
     source: StringProperty()          # where the sizes came from: "program comment", "tool table", "typed", ...
 
 
+def _pockets_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import toolchange
+    toolchange.pockets_changed(context.scene)
+
+
+class FRCncPocket(bpy.types.PropertyGroup):
+    """A pocket of the tool changer (task 0041): a point on a part (it follows the part, e.g. a turning carousel)
+    where a tool's gauge line sits, and the way the tool points from its tip into its holder."""
+    number: IntProperty(name="Pocket", default=1, min=1, max=999, update=_pockets_changed,
+                        description="The pocket's number: a tool stands in the pocket its tool list row names "
+                                    "(Pocket, under 'Shank, holder sizes, place'), or the pocket with its T number")
+    obj: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+    loc: FloatVectorProperty(size=3)                 # where the tool's gauge line sits, in the part's own space
+    dir: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))   # from the tool's tip into its holder, part's space
+
+
+CHANGE_MODE_ITEMS = [("STAY", "Where it is", "The head stays where the program left it; the tool is swapped there"),
+                     ("Z", "Z up only", "Only Z goes to the change position's Z (machine coordinates); X and Y stay"),
+                     ("XYZ", "Change position", "The head goes to the change position (machine coordinates) and "
+                                                "comes back")]
+
+
 ZERO_ITEMS = [("TOP_CENTRE", "Top, centre", "The middle of the workpiece's top face"),
               ("TOP_FL", "Top, front left corner", "Smallest X and Y, on top"),
               ("TOP_FR", "Top, front right corner", "Largest X, smallest Y, on top"),
@@ -1397,6 +1436,50 @@ class FRCnc(bpy.types.PropertyGroup):
         description="LinuxCNC's tool table (tool.tbl), optional: tool numbers, diameters and lengths. Without it "
                     "the sizes come from the tool comments at the top of the program (Fusion writes them)")
     zero_empty: PointerProperty(type=bpy.types.Object)       # the work zero marker (child of the workpiece)
+
+    # ---- tool changes (task 0041) ----
+    changer: EnumProperty(
+        name="Tool change", default="MANUAL", update=_cnc_changed,
+        items=[("MANUAL", "Manual", "No tool changer: at each M6 the head goes to the change position, pauses and the "
+                                    "tool is swapped (optionally by a hand)"),
+               ("ATC", "Tool changer (ATC)", "An automatic tool changer: the tools stand in pockets, the carousel "
+                                             "turns to the right pocket, the spindle leaves the old tool and takes "
+                                             "the new one")],
+        description="How the machine changes tools at M6: by hand, or with an automatic tool changer (ATC)")
+    change_mode: EnumProperty(
+        name="Change position", items=CHANGE_MODE_ITEMS, default="STAY", update=_cnc_changed,
+        description="Where the head goes for a manual tool change (and an ATC change without pockets): stay, lift "
+                    "Z only, or go to the change position")
+    change_pos: FloatVectorProperty(
+        name="Change position", size=3, unit="LENGTH", subtype="TRANSLATION", update=_cnc_changed,
+        description="The change position in machine coordinates (G53), like TOOL_CHANGE_POSITION in LinuxCNC's .ini. "
+                    "'Axes now' takes the position the axes are at")
+    carousel_joint: StringProperty(
+        name="Carousel", update=_pockets_changed,
+        description="The rotate joint that turns the tool carousel (made in 4 Motion). The app turns it the shortest "
+                    "way to the pocket it needs. Empty: a rack, the head goes to each pocket")
+    pockets: CollectionProperty(type=FRCncPocket)
+    pockets_index: IntProperty(default=0)
+    pocket_count: IntProperty(
+        name="Pockets", default=8, min=2, max=120,
+        description="How many pockets the carousel has: 'Fill the carousel' puts them evenly round its axis, "
+                    "starting at pocket 1")
+    pockets_reverse: BoolProperty(
+        name="Number the other way", default=False,
+        description="'Fill the carousel' numbers the pockets clockwise instead of counter-clockwise (seen from the "
+                    "carousel's axis arrow)")
+    station: IntProperty(
+        name="Change station", default=1, min=1, max=999, update=_pockets_changed,
+        description="The pocket that is at the spindle (where tools are swapped) when the carousel is as in the CAD "
+                    "model. Usually pocket 1")
+    pocket_time: FloatProperty(
+        name="Turn per pocket", default=0.5, min=0.05, soft_max=3.0, unit="TIME_ABSOLUTE", update=_cnc_changed,
+        description="How long the carousel takes to turn from one pocket to the next, in seconds (as on the "
+                    "machine). 'Changer speed' in the step makes it faster or slower in the video")
+    atc_lift: FloatProperty(
+        name="Lift above pocket", default=0.1, min=0.0, soft_max=0.5, unit="LENGTH", update=_cnc_changed,
+        description="How far the spindle goes up out of a pocket after leaving a tool, and comes down from to take "
+                    "one")
 
     # ---- air blast (task 0039) ----
     air_on_code: IntProperty(
@@ -1863,7 +1946,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRAnimBlock,
-           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool, FRCnc,
+           FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
+           FRCncPocket, FRCnc,
            FRSceneSettings)
 
 

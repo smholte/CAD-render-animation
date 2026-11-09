@@ -225,6 +225,10 @@ fresing_render/            the Blender extension (Python package)
                            Run G-code program step (keys on move ends + along arcs), tool copies at M6, the
                            toolpath (Geometry Nodes tubes); ops_gcode.py; ui_gcode.py (4 Motion > CNC machine,
                            the step's settings in 6 Animation)
+    toolchange.py          tool changes (task 0041): manual (change position, pause, the app-made gloved hand) or ATC
+                           (pockets on parts, carousel joint turned the shortest way, stations worked out from the
+                           pockets); pocket copies, the hand's keys, captions; core/toolchange.py plans each change
+                           as timed phases (no Blender); panel 4 Motion > CNC machine > Tool changes
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py

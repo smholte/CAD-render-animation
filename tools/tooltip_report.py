@@ -71,6 +71,7 @@ ITEM_TYPES = {
     "FRESING_UL_blocks": "FRAnimBlock", "FRESING_UL_queue": "FRQueueJob", "FRESING_UL_tree": "FRTreeItem",
     "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
     "FRESING_UL_mechanisms": "FRMechanism", "FRESING_UL_cnc_tools": "FRCncTool",
+    "FRESING_UL_cnc_pockets": "FRCncPocket",
 }
 
 
@@ -481,7 +482,8 @@ def collect() -> list[Item]:
               "FRESING_UL_shots": "Saved scenes", "FRESING_UL_anims": "6 Animation",
               "FRESING_UL_blocks": "6 Animation", "FRESING_UL_queue": "7 Render queue",
               "FRESING_UL_mill_bits": "Milling", "FRESING_UL_cylinders": "Cylinders",
-              "FRESING_UL_mechanisms": "Mechanisms", "FRESING_UL_cnc_tools": "CNC machine"}
+              "FRESING_UL_mechanisms": "Mechanisms", "FRESING_UL_cnc_tools": "CNC machine",
+              "FRESING_UL_cnc_pockets": "Tool changes"}
     for it in items:
         if it.panel.startswith("list "):
             cls = it.panel[5:]

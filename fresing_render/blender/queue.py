@@ -517,7 +517,7 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
                    white_under=scene.fresing.background == "TRANSPARENT", finishing=fin,
-                   steps=video.steps_of(anim))
+                   steps=video.captions_of(anim, scene))
         return mp4
     if job.get("watermark") or anim.fin_logo != "NONE" or anim.fin_title_on or anim.fin_end_on or anim.fin_captions:
         progress(96, "Logo, cards, captions and watermark only go into MP4 videos, not into PNG frames")

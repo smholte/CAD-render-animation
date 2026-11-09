@@ -181,6 +181,120 @@ class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
         layout.prop(cnc, "tool_table", text="Tool table")
 
 
+_HELD: dict = {}                     # {T: pocket} worked out once per drawing of the panel (for its list)
+
+
+class FRESING_UL_cnc_pockets(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        sub = row.row(align=True)
+        sub.ui_units_x = 3.2
+        sub.prop(item, "number", text="", emboss=False)
+        held = [n for n, pk in _HELD.items() if pk == item.number]
+        if item.obj is None:
+            row.label(text="part gone", icon="ERROR")
+        else:
+            row.label(text=", ".join(f"T{n}" for n in held) if held else "empty",
+                      icon="CHECKMARK" if held else "BLANK1")
+
+
+class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
+    """4 Motion > CNC machine > Tool changes (task 0041): manual changes or the tool changer's pockets."""
+    bl_label = "Tool changes"
+    bl_parent_id = "FRESING_PT_cnc"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="TOOL_SETTINGS")
+
+    def draw_header_preset(self, context):
+        from . import toolchange
+        cnc = gcode.settings(context.scene)
+        if cnc.changer == "ATC":
+            if toolchange.problems(context.scene):
+                header_status(self.layout, "ATC: check", icon="ERROR", alert=True)
+            else:
+                header_status(self.layout, f"ATC, {plural(len(cnc.pockets), 'pocket')}")
+        else:
+            header_status(self.layout, "manual")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        cnc = gcode.settings(scene)
+        layout.row(align=True).prop(cnc, "changer", expand=True)
+        if cnc.changer == "MANUAL":
+            draw_change_position(layout, context, cnc)
+            wrap(layout, context, "The pause, the hand and a caption are set in the step (6 Animation > Run G-code "
+                                  "program > Lines, tool changes …)", icon="INFO", inset=12)
+            return
+        draw_atc(layout, context, scene, cnc)
+
+
+def draw_change_position(layout, context, cnc) -> None:
+    col = split_props(layout)
+    col.prop(cnc, "change_mode", text="Head goes")
+    if cnc.change_mode == "Z":
+        col.prop(cnc, "change_pos", index=2, text="Z")
+    elif cnc.change_mode == "XYZ":
+        col.prop(cnc, "change_pos", text="")
+    if cnc.change_mode != "STAY":
+        layout.operator("fresing.cnc_change_here", text="Use the axes now", icon="HOME")
+
+
+def draw_atc(layout, context, scene, cnc) -> None:
+    from . import toolchange
+    s = scene.fresing
+    if not cnc.pockets:
+        steps(layout, context, ["Optional: make a rotate joint for the carousel in 4 Motion and pick it below",
+                                "Press 'Click pockets' and click where each tool's holder sits (a carousel: pocket 1 "
+                                "only, then 'Fill the carousel')",
+                                "In Tools, give each tool its pocket (or it stands in the pocket with its T number)",
+                                "Build the animation: the carousel turns, the spindle leaves and takes the tools"])
+    layout.prop_search(cnc, "carousel_joint", s, "joints", text="Carousel", icon="DRIVER_ROTATIONAL_DIFFERENCE")
+    row = layout.row(align=True)
+    row.operator("fresing.cnc_pocket_click", text="Click pockets", icon="EYEDROPPER")
+    if cnc.carousel_joint:
+        row = layout.row(align=True)
+        row.operator("fresing.cnc_fill_carousel", text="Fill the carousel", icon="MESH_CIRCLE")
+        sub = row.row(align=True)
+        sub.ui_units_x = 4.5
+        sub.prop(cnc, "pocket_count", text="")
+        layout.prop(cnc, "pockets_reverse", text="Number the other way")
+    _HELD.clear()
+    try:
+        _HELD.update(toolchange.tool_pockets(scene, [t.number for t in cnc.tools]))
+    except Exception:
+        pass
+    row = layout.row()
+    row.template_list("FRESING_UL_cnc_pockets", "", cnc, "pockets", cnc, "pockets_index",
+                      rows=list_rows(len(cnc.pockets), 3, 8))
+    col = row.column(align=True)
+    col.operator("fresing.cnc_pocket_remove", text="", icon="REMOVE")
+    col.operator("fresing.cnc_pocket_remove", text="", icon="TRASH").all = True
+    if 0 <= cnc.pockets_index < len(cnc.pockets):
+        p = cnc.pockets[cnc.pockets_index]
+        if p.obj is not None:
+            wrap(layout, context, f"Pocket {p.number} is on {gcode.label(p.obj)}", icon="RESTRICT_SELECT_OFF",
+                 inset=12)
+    for w in toolchange.problems(scene)[:3]:
+        wrap(layout, context, w, icon="ERROR", alert=True, inset=12)
+    col = split_props(layout)
+    if cnc.carousel_joint:
+        col.prop(cnc, "station", text="Change station")
+        col.prop(cnc, "pocket_time", text="Turn per pocket")
+    col.prop(cnc, "atc_lift", text="Lift out")
+    if cnc.pockets:
+        wrap(layout, context, "Tools without a pocket (place 'Bench') are put in by hand", icon="INFO", inset=12)
+    body = fold(layout, "fr_cnc_change_pos", "Change position", icon="HOME")
+    if body:
+        draw_change_position(body, context, cnc)
+
+
 def draw_tool(layout, context, tl) -> None:
     """The selected row of the tool list: type and sizes, holder and place, shape."""
     from . import tools
@@ -343,15 +457,23 @@ def draw_step(context, box, scene, anim, b) -> None:
         col = split_props(body)
         col.prop(b, "gcode_from", text="From line")
         col.prop(b, "gcode_to", text="To line")
-        col.prop_search(b, "gcode_atc", s, "animations", text="Tool changer", icon="RENDER_ANIMATION")
-        if b.gcode_atc:
-            col.prop(b, "gcode_atc_swap", text="Swap at (s)")
-        else:
-            col.prop(b, "gcode_tc_time", text="Tool change (s)")
+        cnc = gcode.settings(scene)
+        if cnc.changer == "ATC":
+            col.prop_search(b, "gcode_atc", s, "animations", text="Changer", icon="RENDER_ANIMATION")
+            if b.gcode_atc:
+                col.prop(b, "gcode_atc_swap", text="Swap at (s)")
+            col.prop(b, "gcode_changer_speed", text="ATC speed", slider=True)
+        if cnc.changer == "MANUAL" or not cnc.pockets:
+            col.prop(b, "gcode_tc_time", text="Pause at M6", slider=True)
         col.prop(b, "gcode_spindle", text="Spindle")
         col.prop(b, "gcode_path", text="Show toolpath")
         if b.gcode_path:
             col.prop(b, "gcode_path_render", text="Toolpath in renders")
+        row = body.row(align=True)
+        row.prop(b, "gcode_hand", text="Show hand")
+        row.prop(b, "gcode_tc_caption", text="Caption")
+        for line in info.get("tool_changes", [])[:2]:
+            wrap(body, context, line, icon="INFO", inset=12)
         row = body.row(align=True)
         row.operator("fresing.gcode_toolpath", text="Show toolpath now", icon="CURVE_PATH")
         if gcode.path_object() is not None:
@@ -359,4 +481,4 @@ def draw_step(context, box, scene, anim, b) -> None:
         body.operator("fresing.gcode_go_line", text="Go to line …", icon="NEXT_KEYFRAME")
 
 
-CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc, FRESING_PT_cnc_tools)
+CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc, FRESING_PT_cnc_tools, FRESING_UL_cnc_pockets, FRESING_PT_cnc_changes)

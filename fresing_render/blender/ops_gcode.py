@@ -489,6 +489,12 @@ class FRESING_OT_gcode_report(_CncOp, bpy.types.Operator):
             c = gcode.settings(context.scene)
             col.label(text=f"{info['air']} (air codes M{c.air_on_code} / M{c.air_off_code}"
                            f"{', always while the spindle turns' if c.air_always else ''})", icon="FORCE_WIND")
+        tc = info.get("tool_changes", [])
+        if tc:
+            col.separator()
+            col.label(text="Tool changes:", icon="TOOL_SETTINGS")
+            for n in tc[:8]:
+                col.label(text="   " + n)
         notes = info.get("notes", [])
         if notes:
             col.separator()
@@ -666,9 +672,127 @@ class FRESING_OT_cnc_air_aim(_CncOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
+# ---------------------------------------------------------------------------
+# tool changes (task 0041)
+# ---------------------------------------------------------------------------
+
+class FRESING_OT_cnc_change_here(_CncOp, bpy.types.Operator):
+    """Takes the position the X, Y and Z axes are at now as the change position (machine coordinates). Move the
+    axes there first (poses or the joints' sliders in 4 Motion)"""
+
+    bl_idname = "fresing.cnc_change_here"
+    bl_label = "Change position: axes now"
+
+    def execute(self, context):
+        try:
+            mach = gcode.Machine(context.scene)
+        except gcode.SetupError as exc:
+            self.report({"WARNING"}, str(exc))
+            return {"CANCELLED"}
+        c = gcode.settings(context.scene)
+        m = mach.machine_of(mach.values)
+        c.change_pos = tuple(x * gcode.MM for x in m)
+        if c.change_mode == "STAY":
+            c.change_mode = "XYZ"
+        self.report({"INFO"}, "Change position: X {:.1f}  Y {:.1f}  Z {:.1f} mm".format(*m))
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_pocket_click(_CncOp, bpy.types.Operator):
+    """Click where a tool's holder sits in the tool changer (the pocket's fork or ring, at the height of the holder's
+    flange): a new pocket there, numbered after the last one. It moves with the part you click (the carousel).
+    Esc cancels"""
+
+    bl_idname = "fresing.cnc_pocket_click"
+    bl_label = "Click a pocket"
+
+    def invoke(self, context, event):
+        if context.area is None or context.area.type != "VIEW_3D":
+            self.report({"WARNING"}, "Use this from the 3D view")
+            return {"CANCELLED"}
+        context.window.cursor_modal_set("EYEDROPPER")
+        context.workspace.status_text_set("Click a pocket of the tool changer.  Esc / right-click: done.  "
+                                          "Middle mouse / scroll: move the view")
+        context.window_manager.modal_handler_add(self)
+        self.added = 0
+        return {"RUNNING_MODAL"}
+
+    def _end(self, context):
+        context.window.cursor_modal_restore()
+        context.workspace.status_text_set(None)
+
+    def modal(self, context, event):
+        from . import toolchange
+        from .ops_motion import _raycast, over_panel
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            self._end(context)
+            return {"FINISHED"} if self.added else {"CANCELLED"}
+        if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
+            return {"PASS_THROUGH"}
+        res = _raycast(context, event)
+        if res is None or res[0].get(build.PROP_KIND) != "part":
+            context.workspace.status_text_set("Missed: click on the tool changer. Esc: done")
+            return {"RUNNING_MODAL"}
+        ob, _index, loc, _normal = res
+        p = toolchange.add_pocket(context.scene, ob, loc)
+        self.added += 1
+        context.workspace.status_text_set(f"Pocket {p.number} on '{gcode.label(ob)}'. Click the next pocket, "
+                                          "or Esc / right-click: done")
+        return {"RUNNING_MODAL"}
+
+
+class FRESING_OT_cnc_fill_carousel(_CncOp, bpy.types.Operator):
+    """Puts the carousel's pockets evenly round its axis, as many as 'Pockets' says, starting at pocket 1 (click
+    it first). Replaces the pockets there were"""
+
+    bl_idname = "fresing.cnc_fill_carousel"
+    bl_label = "Fill the carousel"
+
+    def execute(self, context):
+        from . import toolchange
+        why = toolchange.fill_carousel(context.scene)
+        if why:
+            self.report({"WARNING"}, why)
+            return {"CANCELLED"}
+        c = gcode.settings(context.scene)
+        self.report({"INFO"}, f"{plural(len(c.pockets), 'pocket')} round the carousel")
+        return {"FINISHED"}
+
+
+class FRESING_OT_cnc_pocket_remove(_CncOp, bpy.types.Operator):
+    """Removes the selected pocket (or every pocket)"""
+
+    bl_idname = "fresing.cnc_pocket_remove"
+    bl_label = "Remove pocket"
+
+    all: BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        if properties.all:
+            return "Removes every pocket of the tool changer (the tools then have no pocket until you click new ones)"
+        return "Removes the selected pocket from the list; a tool that stood in it then has no pocket"
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and len(gcode.settings(context.scene).pockets) > 0
+
+    def execute(self, context):
+        from . import toolchange
+        c = gcode.settings(context.scene)
+        if self.all:
+            c.pockets.clear()
+        elif 0 <= c.pockets_index < len(c.pockets):
+            c.pockets.remove(c.pockets_index)
+        c.pockets_index = max(0, min(c.pockets_index, len(c.pockets) - 1))
+        toolchange.pockets_changed(context.scene)
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
            FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_add_missing, FRESING_OT_cnc_tool_remove,
            FRESING_OT_cnc_tool_copy, FRESING_OT_cnc_tool_sort, FRESING_OT_cnc_tool_read, FRESING_OT_cnc_tool_step,
            FRESING_OT_cnc_tool_flip, FRESING_OT_cnc_tool_part,
            FRESING_OT_cnc_tools_from_program, FRESING_OT_gcode_toolpath, FRESING_OT_gcode_report,
-           FRESING_OT_gcode_reload, FRESING_OT_gcode_go_line)
+           FRESING_OT_gcode_reload, FRESING_OT_gcode_go_line, FRESING_OT_cnc_change_here, FRESING_OT_cnc_pocket_click,
+           FRESING_OT_cnc_fill_carousel, FRESING_OT_cnc_pocket_remove)

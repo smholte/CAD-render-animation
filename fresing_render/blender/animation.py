@@ -616,8 +616,8 @@ def bake(scene, anim) -> dict:
                 keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
                 _merge(keys, f0, hidden, "CONSTANT")
 
-    if last_key > f_end:                    # a program step ran a little longer than worked out first
-        f_end = int(math.ceil(last_key))
+    if last_key > f_end + 1e-6:             # a program step ran a little longer than worked out first
+        f_end = int(math.ceil(last_key - 1e-6))
         scene.frame_end = f_end
         seconds = (f_end - 1) / fps
 

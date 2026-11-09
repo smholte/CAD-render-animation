@@ -18,9 +18,11 @@ and the work zero (G54) is the machine position at which the tool's tip touches 
 the start and end of every move and along arcs (every frame, and as often as a chord error of 0.002 mm
 needs), so the joints move exactly as the program says between the keys too.
 
-Tool changes (M6): a copy of the new tool's part (or a simple shape) appears in the spindle at the swap
-moment; the part in the carousel disappears while it is in the spindle. An animation of the tool changer
-can play at every M6 (its steps are added to the video at that moment; the program waits for it).
+Tool changes (M6, task 0041, toolchange.py): a copy of the new tool's part (or a simple shape) appears in the
+spindle at the swap moment; the part in the carousel disappears while it is in the spindle. Manual: the head goes to
+the change position, pauses (optionally a hand swaps the tool) and comes back. ATC: tools in pockets, the carousel
+turns, the spindle leaves the old tool in its pocket and takes the new one; an animation of the rest of the changer
+can play at every M6, split at its swap moment (its steps are added to the video; the program waits for it).
 
 Toolpath: one object "FR toolpath" (a child of the work zero, so it moves with the workpiece) with the path
 as edges and a Geometry Nodes modifier that makes thin tubes: cutting moves orange, already cut green
@@ -575,14 +577,14 @@ def _atc_length(a) -> float:
     return max(ends) if ends else 0.0
 
 
-def timing(scene, anim, b) -> core.Timing:
-    a, _w = atc_animation(scene, anim, b)
-    tc = _atc_length(a) if a is not None else float(b.gcode_tc_time)
-    swap = min(float(b.gcode_atc_swap), tc) if a is not None else tc / 2
+def timing(scene, anim, b, mach: Machine | None = None) -> core.Timing:
+    """How the step plays: speed, lines, and its tool changes (task 0041: manual or ATC, see toolchange.py)."""
+    from . import toolchange
+    ch = toolchange.changer(scene, anim, b, mach)
     return core.Timing(speed=b.gcode_speed, factor=b.gcode_factor, fit_seconds=b.gcode_fit,
-                       rapid_factor=b.gcode_rapid, tool_change=tc, swap=swap, line_from=b.gcode_from,
+                       rapid_factor=b.gcode_rapid, tool_change=ch.pause, swap=ch.pause / 2, line_from=b.gcode_from,
                        line_to=b.gcode_to, clean=float(b.gcode_clean_time) if b.gcode_clean else 0.0,
-                       clean_sweep=settings(scene).air_source == "SPINDLE")
+                       clean_sweep=settings(scene).air_source == "SPINDLE", changer=ch)
 
 
 def _anim_of(scene, b):
@@ -632,10 +634,16 @@ def summary(prog, sch, note: str = "", scene=None) -> dict:
         mine = {f"M{c.air_on_code}", f"M{c.air_off_code}"}
         probs = [p for p in probs if p.code not in mine]
         air_text = air.describe(scene, sch)
+    from . import toolchange
+    try:
+        tc_notes = toolchange.notes(scene, sch) if scene is not None else []
+    except Exception:
+        tc_notes = []
     return {"lines": prog.lines, "moves": len(moves), "machine_s": prog.duration, "video_s": sch.duration,
-            "air": air_text,
+            "air": air_text, "tool_changes": tc_notes,
             "tools": prog.tool_numbers(), "problems": [p.describe() for p in probs], "notes": list(prog.notes),
-            "note": note, "name": prog.name, "changes": len(sch.tool_events), "ended": prog.ended,
+            "note": note, "name": prog.name, "changes": len([c for c in sch.changes if c.length > 0]),
+            "ended": prog.ended,
             "tool_info": {n: t.describe() for n, t in prog.tools.items()},
             "missing": _missing(scene, prog)}
 
@@ -893,18 +901,26 @@ def _record_schedule(scene, rows) -> None:
 # ---------------------------------------------------------------------------
 
 class Shifted:
-    """A step of the tool changer's animation, played at a tool change: the same step, ``offset`` s later."""
+    """A step of the tool changer's animation, played at a tool change: the same step, from ``offset`` s on, the part
+    of the changer's animation from ``s0`` s played ``scale`` times as long (task 0041: split at the swap, "Changer
+    speed", "Fit into")."""
 
-    def __init__(self, b, offset: float):
+    def __init__(self, b, offset: float, s0: float = 0.0, scale: float = 1.0):
         self._b = b
         self._offset = offset
+        self._s0 = s0
+        self._scale = scale
 
     def __getattr__(self, name):
         return getattr(self._b, name)
 
     @property
     def start(self):
-        return self._b.start + self._offset
+        return self._offset + (self._b.start - self._s0) * self._scale
+
+    @property
+    def duration(self):
+        return self._b.duration * self._scale
 
     @property
     def enabled(self):
@@ -938,16 +954,22 @@ def prepare(scene, anim, warnings: list) -> list:
             prog, _note = read_program(scene, b, mach, start=start_point(mach))
         except FileNotFoundError:
             continue
-        sch = core.Schedule(prog, timing(scene, anim, b))
+        sch = core.Schedule(prog, timing(scene, anim, b, mach))
         b["_busy"] = True
         b.duration = sch.duration
         del b["_busy"]
+        if c.changer != "ATC":
+            continue
         a, w = atc_animation(scene, anim, b)
         if w:
             warnings.append(f"'{_label(b)}': {w}")
-        if a is None or not sch.tool_events:
+        if a is None or not sch.changes:
             continue
-        axes = set(axis_joint_names(settings(scene)))
+        from . import toolchange
+        axes = set(axis_joint_names(c))
+        car = toolchange.carousel(scene)
+        turned = car.name if car is not None and c.pockets else ""
+        blocks = []
         for x in a.blocks:
             if not x.enabled or x.kind == "GCODE":
                 continue
@@ -955,8 +977,18 @@ def prepare(scene, anim, warnings: list) -> list:
                 warnings.append(f"'{_label(b)}': the tool-changer animation '{a.name}' moves '{x.joint}', an axis "
                                 "of the program: left out (move the head with the program, e.g. G53 G0 Z0 before M6)")
                 continue
-            for _swap, _n, t_start, _d in sch.tool_events:
-                extra.append(Shifted(x, b.start + t_start))
+            if x.kind in ("JOINT", "MOTOR") and turned and x.joint == turned:
+                warnings.append(f"'{_label(b)}': the tool-changer animation '{a.name}' turns the carousel "
+                                f"'{x.joint}': left out (the app turns it to the right pocket)")
+                continue
+            blocks.append(x)
+        for ch in sch.changes:
+            parts = ch.seq_parts()
+            for k, (t, s0, s1, scale) in enumerate(parts):
+                last = k == len(parts) - 1
+                for x in blocks:
+                    if s0 - 1e-9 <= x.start and (x.start < s1 - 1e-9 or last):
+                        extra.append(Shifted(x, b.start + t, s0, scale))
     return extra
 
 
@@ -994,7 +1026,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         warnings.append(f"'{name}': {p.describe(3)}")
     if len(probs) > 4:
         warnings.append(f"'{name}': {len(probs) - 4} more things the app does not show (see the step)")
-    sch = core.Schedule(prog, timing(scene, anim, b))
+    sch = core.Schedule(prog, timing(scene, anim, b, mach))
     if not sch.pieces:
         warnings.append(f"'{name}': the program has no moves on lines {b.gcode_from or 1} … {b.gcode_to or 'end'}")
         return f0
@@ -1014,10 +1046,12 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     lift = _lift(sch, offsets)
     # X, Y, Z: a key at every move's ends and along arcs
     samples = sch.samples(fps, tol=KEY_TOL)
-    if offsets:                                     # a key at each swap: the spindle adjusts after it
+    if offsets:                                     # a key where the spindle's length adjustment starts and ends
         have = {round(t, 9) for t, _p in samples}
-        samples = sorted(samples + [(sw, sch.point_at(sw)) for sw, _n, _t, _d in sch.tool_events
-                                    if round(sw, 9) not in have], key=lambda x: x[0])
+        extra_t = {x for c in sch.changes if c.length > 0 for x in (c.swap, c.out_end, c.back_start, c.start,
+                                                                     c.start + c.length)}
+        samples = sorted(samples + [(t, sch.point_at(t)) for t in sorted(extra_t) if round(t, 9) not in have],
+                         key=lambda x: x[0])
     _record_corners(scene, [f0 + t * fps for t in corner_times(samples)])
     rows = [[], [], []]
     for t, pt in samples:
@@ -1044,8 +1078,10 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     air.record(scene, sch, b, f0, fps, vkeys, merge)        # when air blows (task 0039)
     if air.problem(scene) and (b.gcode_clean or air.step_spans(scene, sch, b)):
         warnings.append(f"'{name}': air blast: {air.problem(scene)} (4 Motion > CNC machine > Air blast)")
+    from . import toolchange
     if sch.tool_events or sch.first_tool:
-        _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name, offsets)
+        toolchange.tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge,
+                             name, offsets)
     if b.gcode_path:
         try:
             show_path(scene, anim, mach=mach)
@@ -1092,62 +1128,39 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
 
 
 def _lift(sch, offsets: dict):
-    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle: it changes during the
-    tool change, from the swap to the end of the change (the new tool is in; the old one kept its point)."""
-    first = first_tool(sch)
-    spans = []
-    cur = offsets.get(first, 0.0) / MM
-    for swap, n, t0, d in sch.tool_events:
-        new = offsets.get(n, 0.0) / MM
-        spans.append((swap, max(0.0, t0 + d - swap), cur, new))
+    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle (like G43). When the head
+    stays where it is for a change, it changes from the swap to the end of the change (the new tool is in; the old one
+    kept its point). When the head goes to the changer (task 0041) it is 0 there – the spindle's gauge line is where
+    the pocket is – and changes on the way out and the way back."""
+    first = first_tool(sch) or (sch.timing.changer.start_tool if sch.timing.changer is not None else 0)
+    knots = [(0.0, offsets.get(first, 0.0) / MM)]
+    cur = knots[0][1]
+    for c in sch.changes:
+        if c.length <= 0:
+            continue
+        new = offsets.get(c.tool, 0.0) / MM
+        end = c.start + c.length
+        if c.moves:
+            knots += [(c.start, cur), (c.out_end, 0.0), (c.back_start, 0.0), (end, new)]
+        else:
+            knots += [(c.swap, cur), (end, new)]
         cur = new
-    if not any(abs(a) > 1e-9 or abs(b) > 1e-9 for _v, _d, a, b in spans) and abs(offsets.get(first, 0.0)) < 1e-12:
+    if all(abs(v) < 1e-9 for _t, v in knots):
         return lambda t: 0.0
-    start = offsets.get(first, 0.0) / MM
+    ts = [t for t, _v in knots]
 
     def lift(t: float) -> float:
-        val = start
-        for v0, vd, a, b in spans:
-            if t <= v0 + 1e-9:
-                return val
-            if vd > 0 and t < v0 + vd:
-                return a + (b - a) * (t - v0) / vd
-            val = b
-        return val
+        import bisect
+        k = bisect.bisect_right(ts, t + 1e-9) - 1
+        if k < 0:
+            return knots[0][1]
+        if k >= len(knots) - 1:
+            return knots[-1][1]
+        (ta, va), (tb, vb) = knots[k], knots[k + 1]
+        if tb - ta <= 1e-12:
+            return vb
+        return va + (vb - va) * (t - ta) / (tb - ta)
     return lift
-
-
-def _tool_keys(scene, mach, prog, sch, f0, fps, vkeys, warnings, merge, name, offsets=None) -> None:
-    numbers = sorted({n for _s, n, _t, _d in sch.tool_events if n} | ({sch.first_tool} if sch.first_tool else set()))
-    if not numbers:
-        return
-    show, away, w = tool_objects(scene, mach, prog, numbers, offsets)
-    warnings += [f"'{name}': {x}" for x in w]
-    spindle = mach.tool
-
-    def key(ob, f, hidden):
-        keys = vkeys.setdefault(ob.name, [(1, bool(ob.hide_render), "CONSTANT", "AUTO")])
-        merge(keys, f, hidden, "CONSTANT")
-
-    def load(n, f):
-        for k, ob in show.items():
-            if k != n and ob is not spindle:
-                key(ob, f, True)
-        if n in show:
-            key(show[n], f, False)
-        if show.get(n) is not spindle:
-            key(spindle, f, True)
-        for k, part in away.items():
-            key(part, f, k == n)
-
-    if sch.first_tool:
-        load(sch.first_tool, f0)
-    for swap, n, _t, _d in sch.tool_events:
-        load(n, f0 + swap * fps)
-    # which tool is in the spindle from which frame on, for milling (task 0040)
-    rows = [(f0, sch.first_tool if sch.first_tool in show else 0)]
-    rows += [(f0 + swap * fps, n) for swap, n, _t, _d in sch.tool_events]
-    _record_schedule(scene, rows)
 
 
 def after_clear(scene) -> None:
@@ -1384,7 +1397,7 @@ def tools_from_program(scene, b) -> int:
 
 def renamed_joint(scene, old: str, new: str) -> None:
     c = settings(scene)
-    for attr in ("x_joint", "y_joint", "z_joint", "spindle_joint"):
+    for attr in ("x_joint", "y_joint", "z_joint", "spindle_joint", "carousel_joint"):
         if getattr(c, attr) == old:
             c["_busy"] = True
             setattr(c, attr, new)
@@ -1395,6 +1408,8 @@ def before_model_update(scene) -> None:
     """The model is made again: the marker and the toolpath hang on the workpiece; they are made again after."""
     _remove_tool_copies(scene)
     remove_path()
+    from . import toolchange
+    toolchange.before_model_update(scene)
     from . import air
     air.before_model_update(scene)
     c = settings(scene)
@@ -1440,8 +1455,9 @@ def after_model_update(scene, mapping: dict, by_uid_new: dict) -> list[str]:
                     t.uid = ob.get(build.PROP_UID, "")
     finally:
         del c["_busy"]
-    from . import air
+    from . import air, toolchange
     notes += air.after_model_update(scene, new)
+    notes += toolchange.after_model_update(scene, new)
     _CACHE.clear()
     setup_changed(scene)
     return notes
