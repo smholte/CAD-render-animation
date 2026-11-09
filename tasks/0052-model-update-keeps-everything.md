@@ -1,6 +1,6 @@
 # 0052 – Model update keeps everything: joints across two models, labels, sharp spot, all-or-nothing
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0052-model-update-keeps-everything`
+**Who:** worker · **Status:** running · **Branch:** `claude/relaxed-ride-rve378`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 1, 2, 6, 20a)
 **Lane:** Motion – `blender/reimport.py` (`update_model`), `blender/joints.py`, cylinders, mechanisms and way-cover
 code where they share the "belongs" / rebuild-from-specs pattern; label and focus re-pointing inside `reimport.py`
