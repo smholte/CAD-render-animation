@@ -1,6 +1,6 @@
 # 0053 – Safe updates and project lock: no overwrite of a colleague's project, no stuck or broken install
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0053-safe-updates`
+**Who:** worker · **Status:** running · **Branch:** `claude/compassionate-cerf-2ychkv`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 4, 12, 14, 19b, 19c, 19d)
 **Lane:** Quality & delivery – `blender/updates.py`, `update_helper.py`, `blender/project_lock.py`,
 `pccheck/ops.py` (`ensure_shortcuts` only); their tests; guide "Updates" and "Shared projects"
