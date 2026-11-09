@@ -668,7 +668,7 @@ def model_update(ctx):
     return f"{len(list(build.iter_parts(scene)))} parts, new: BOOM.LAMP"
 
 
-@line("model.update_safe", "Model update across two models, labels, all or nothing", "0.2.40",
+@line("model.update_safe", "Model update across two models, labels, all or nothing", "0.2.41",
       what="The crane's boom turns on the machine's frame and has a label: updating either model keeps both; "
            "an update from a damaged file changes nothing")
 def model_update_safe(ctx):
