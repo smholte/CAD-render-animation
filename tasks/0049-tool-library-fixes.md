@@ -94,6 +94,8 @@ Tool-change animation, pockets, ATC (0041). Coolant (0042). Way covers (0035). T
   main had moved (0045 task list only): merged, fast-forwarded; the push to main ran full again (16.4 min, green), release
   0.2.38 published, update check on Windows and "Offer the release" green. 2 full runs.
 
+**Owner's test (9 Nov, his PC):** the different tools work with manual tool change.
+
 **Open points / follow-up tasks:**
 - The owner's 0037/0048 projects were not available here: the cause is shown on the test gantry; on his PC the tip
   check of 0048 should now give ≤ 0.02 mm (if his spindle joint lies more than 0.5 mm off the tool's tip, nothing
