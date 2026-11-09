@@ -241,7 +241,7 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
-@line("looks.materials", "Materials: the material sheet", "0.2.38",
+@line("looks.materials", "Materials: the material sheet", "0.2.39",
       what="Every ready-made material on a block with a chamfer, a disc and a shaft, rendered with Cycles: "
            "judge metals, paint, rubber and glass in one picture")
 def looks_materials(ctx):

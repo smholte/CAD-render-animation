@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.39 – 9 Nov 2026 – better materials: real metals, paint, wear (task 0046)
+
+Looks
+- **Real metals**: new **Steel, ground** (fine straight grinding lines along the part, for ways and shafts),
+  **Steel, turned** (fine rings round the part's axis) and **Hydraulic chrome rod**. **Aluminium, machined** has faint
+  face-milling arcs, **Stainless, brushed** now really looks brushed (along the part's longest side). The marks come
+  from each part's own shape, so every copy looks the same; they are finer than a millimetre and only show close up.
+- **Anodised aluminium** (natural, black, colour) has the soft satin sheen of real anodising.
+- **Cast iron** looks cast (rough, slightly mottled); new **Cast iron, painted** (any RAL colour over the casting).
+- **Paint**: gloss, satin and marine paint have a little orange peel, powder coat a finer structure.
+- **Rubber** is no longer pure black (soft sheen, a little dust); matte plastic has a fine moulded grain; **glass and
+  polycarbonate** now look like glass in Fast preview (EEVEE) too.
+- **Wear** slider per material group (3 Looks, under the material; 0 = new, the default): sharp edges turn lighter or
+  bare metal in places and corners get a little dirt. Edges in Cycles; Fast preview shows only the dirt.
+- **CAD names**: "Steel - Polished", "Steel, ground", "turned", "Hard chrome", "Piston rod", "Gray Iron" and their
+  Dutch and German words pick the new materials.
+- **Old projects** get the new looks when you open them; every group keeps its material and colour.
+- Renders are not noticeably slower without wear (test crane, Cycles HD: +0.6 %); wear costs extra render time.
+- PC check: new line **Materials: the material sheet** – every material in one picture, to judge on your PC.
+
 ## 0.2.38 – 9 Nov 2026 – tool library fixes: BT30, tool lengths, tip and corners (task 0049)
 
 - Tools: **BT30** is a holder choice (flange Ø46, 7:24 taper, pull stud).
