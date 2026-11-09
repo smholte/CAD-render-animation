@@ -314,6 +314,25 @@ def s_chips():
 
 
 @step
+def s_cut_look():
+    """Task 0051: the block as sawn aluminium plate; the faces the bit cut show machined aluminium."""
+    sc = bpy.context.scene
+    mach = mod("blender.machining")
+    wp = sc.fresing.milling.workpiece
+    sc.fresing.groups[wp["fr_group"]].material = "aluminium_sawn"
+    sc.frame_set(STATE["frames"])
+    n = int(wp.data.get(mach.CUT_SLOT, -1))
+    mat = wp.material_slots[n].material if 0 < n < len(wp.material_slots) else None
+    used = {p.material_index for p in wp.data.polygons}
+    check("cut faces: their own slot shows machined aluminium, the outside sawn plate",
+          mat is not None and mat.get("fr_material") == "aluminium_machined" and n in used and 0 in used
+          and wp.material_slots[0].material.get("fr_material") == "aluminium_sawn",
+          (n, mat.name if mat else None, sorted(used)))
+    sc.frame_set(51)
+    return 0.5
+
+
+@step
 def s_panel_alone():
     """For the user guide picture: only the Milling panel in the side panel (a top-level copy, open)."""
     shot("02_half_way")

@@ -898,6 +898,35 @@ def milling_cut(ctx):
     return f"{len(me.polygons)} faces after the cut"
 
 
+@line("milling.cut_look", "Milling: cut faces look freshly cut", "0.2.40",
+      what="A slot in a mill-scale steel block: its walls and floor get machined steel, the outside keeps mill scale")
+def milling_cut_look(ctx):
+    import numpy as np
+
+    from ..blender import machining
+    scene, frames, stock = _mill_scene(ctx)
+    g = scene.fresing.groups.get(stock.get("fr_group", ""))
+    _check(g is not None, "the block has no material group in 3 Looks")
+    g.material = "steel_raw"
+    machining.sample(scene)
+    scene.frame_set(frames)
+    machining.refresh(scene, force=True)
+    me = machining.settings(scene).cut_mesh
+    _check(me is not None and stock.data is me, "the block does not show its cut")
+    n = int(me.get(machining.CUT_SLOT, -1))
+    _check(0 < n < len(stock.material_slots), "the milled block has no material slot for cut faces")
+    mi = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get("material_index", mi)
+    cut, outside = int((mi == n).sum()), int((mi != n).sum())
+    _check(cut > 0, "no face of the slot has the cut look")
+    _check(outside > 0, "the block's outside lost its own look")
+    mat = stock.material_slots[n].material
+    _check(mat is not None and mat.get("fr_material") == "steel_machined",
+           f"cut faces show '{mat.name if mat else 'nothing'}', not machined steel")
+    _check(stock.material_slots[0].material.get("fr_material") == "steel_raw", "the outside is not mill scale")
+    return f"{cut} cut faces: {mat.name[len(machining.CUT_MAT_PREFIX):]}; {outside} faces keep the block's look"
+
+
 @line("milling.chips", "Milling: chips fly", "0.2.22",
       what="Aluminium chips appear while the bit cuts the slot and land on the machine")
 def milling_chips(ctx):

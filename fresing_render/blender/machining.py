@@ -41,6 +41,9 @@ SHARP_ANGLE = math.radians(30.0)      # edges sharper than this stay crisp; roun
 
 _RUNTIME: dict = {}                   # per scene name: {"key", "timeline", "shown", ...}
 _STATE = {"guard": 0, "pending": False}
+#: answers kept while one frame is shown (``_on_frame``): "is this part in the scene", the G-code tool copies.
+#: Both walk every object of the file; the frame code asked about 13 and 3 times a frame (bug hunt row 20c)
+_FRAME: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -55,14 +58,35 @@ def name_of(ob) -> str:
     return ob.get(build.PROP_NAME, ob.name) if ob is not None else ""
 
 
+def _in_scene(scene, ob) -> bool:
+    memo = _FRAME.get("in_scene")
+    if memo is None:
+        return ob.name in scene.objects
+    key = (scene.name, ob.name)
+    hit = memo.get(key)
+    if hit is None:
+        hit = memo[key] = ob.name in scene.objects
+    return hit
+
+
+def _tool_copies(scene) -> dict:
+    """``gcode.copies``, once per frame while a frame is shown."""
+    from . import gcode
+    if "in_scene" not in _FRAME:
+        return gcode.copies(scene)
+    if "copies" not in _FRAME:
+        _FRAME["copies"] = gcode.copies(scene)
+    return _FRAME["copies"]
+
+
 def bits(scene) -> list:
     """(bit item, object) for every bit whose part still exists."""
-    return [(b, b.obj) for b in settings(scene).bits if b.obj is not None and b.obj.name in scene.objects]
+    return [(b, b.obj) for b in settings(scene).bits if b.obj is not None and _in_scene(scene, b.obj)]
 
 
 def workpiece(scene):
     ob = settings(scene).workpiece
-    return ob if ob is not None and ob.name in scene.objects else None
+    return ob if ob is not None and _in_scene(scene, ob) else None
 
 
 def is_set_up(scene) -> bool:
@@ -798,7 +822,7 @@ def _copies(scene) -> list:
     spindle = gcode.settings(scene).tool
     if spindle is None or not any(ob is spindle for _it, ob in bits(scene)):
         return []
-    return [ob for _n, ob in sorted(gcode.copies(scene).items()) if ob.name in scene.objects]
+    return [ob for _n, ob in sorted(_tool_copies(scene).items()) if _in_scene(scene, ob)]
 
 
 def _tip_of(it):
@@ -843,7 +867,7 @@ def cut_items(scene) -> list:
     from . import gcode, tools
     sched = gcode.schedule(scene)
     spindle = gcode.settings(scene).tool
-    cps = {n: ob for n, ob in gcode.copies(scene).items() if ob.name in scene.objects}
+    cps = {n: ob for n, ob in _tool_copies(scene).items() if _in_scene(scene, ob)} if sched else {}
     out = []
     for it, ob in bits(scene):
         p = _path(it)
@@ -1196,6 +1220,8 @@ def _in_window() -> bool:
 def _on_frame(scene, _depsgraph=None):
     if _STATE["guard"] or scene is None or not hasattr(scene, "fresing"):
         return
+    _FRAME.clear()
+    _FRAME["in_scene"] = {}
     try:
         if not is_active(scene):
             return
@@ -1210,6 +1236,8 @@ def _on_frame(scene, _depsgraph=None):
         refresh(scene)
     except Exception as exc:
         print("Fresing Render: milling frame update failed:", exc)
+    finally:
+        _FRAME.clear()
 
 
 @persistent

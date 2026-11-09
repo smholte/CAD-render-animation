@@ -717,6 +717,7 @@ def _gcode_step_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
         return
     from . import gcode
+    gcode.keep_path(self, "gcode_file", gcode.PROGRAM_ABS)     # '//' next to the project (task 0051)
     gcode.step_changed(context.scene, self)
 
 
@@ -724,6 +725,14 @@ def _cnc_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
         return
     from . import gcode
+    gcode.setup_changed(context.scene)
+
+
+def _cnc_table_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import gcode
+    gcode.keep_path(self, "tool_table", gcode.TABLE_ABS)       # '//' next to the project (task 0051)
     gcode.setup_changed(context.scene)
 
 
@@ -852,9 +861,9 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                     "Motion set to Smooth, Slow start or Slow stop)")
     # Run G-code program (task 0026)
     gcode_file: StringProperty(
-        name="Program", subtype="FILE_PATH", update=_gcode_step_changed,
-        description="The CNC program (.ngc, .nc, .tap, .gcode): the one your CAM writes for the machine. A copy is "
-                    "kept in the project, so the render queue and other PCs have it too")
+        name="Program", subtype="FILE_PATH", update=_gcode_step_changed, options={"PATH_SUPPORTS_BLEND_RELATIVE"},
+        description="The CNC program (.ngc, .nc, .tap, .gcode): the one your CAM writes for the machine. A program "
+                    "next to the saved project is found there on another PC too; a copy is also kept in the project")
     gcode_from: IntProperty(
         name="From line", default=0, min=0, update=_gcode_step_changed,
         description="Plays the program from this line on (0 = from the start). The machine starts where the "
@@ -1347,8 +1356,9 @@ class FRCnc(bpy.types.PropertyGroup):
                            step=10000, update=_cnc_changed,
                            description="The machine's rapid speed on Z in mm per minute")
     spindle_joint: StringProperty(name="Spindle", update=_cnc_changed,
-                                  description="The rotate joint of the spindle (tick Motor on it). It turns as the "
-                                              "program's S and M3 / M4 / M5 say. Empty: the spindle does not turn")
+                                  description="The rotate joint of the spindle. Picking it ticks Motor on it, so it turns "
+                                              "without end, as the program's S and M3 / M4 / M5 say. Empty: the "
+                                              "spindle does not turn")
     tool: PointerProperty(type=bpy.types.Object, update=_cnc_changed)
     tool_uid: StringProperty()
     workpiece: PointerProperty(type=bpy.types.Object, update=_cnc_changed)
@@ -1373,7 +1383,7 @@ class FRCnc(bpy.types.PropertyGroup):
                     "moves the spindle up by the difference, so every tool's tip is where the program says. Off: "
                     "every tool is shown with its tip where the spindle's tool has its tip")
     tool_table: StringProperty(
-        name="Tool table", subtype="FILE_PATH", update=_cnc_changed,
+        name="Tool table", subtype="FILE_PATH", update=_cnc_table_changed, options={"PATH_SUPPORTS_BLEND_RELATIVE"},
         description="LinuxCNC's tool table (tool.tbl), optional: tool numbers, diameters and lengths. Without it "
                     "the sizes come from the tool comments at the top of the program (Fusion writes them)")
     zero_empty: PointerProperty(type=bpy.types.Object)       # the work zero marker (child of the workpiece)

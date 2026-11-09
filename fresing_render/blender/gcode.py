@@ -403,12 +403,33 @@ def _size(ob) -> float:
         return 0.1
 
 
+def spindle_is_motor(scene) -> bool:
+    """A newly picked spindle joint turns without end: tick its 'Motor' (task 0037 problem 4: Build only warned
+    afterwards). Once per pick, so 'Motor' can still be switched off by hand. True when it was ticked now."""
+    c = settings(scene)
+    name = c.spindle_joint
+    if c.get("fr_spindle_motor") == name:
+        return False
+    j = scene.fresing.joints.get(name) if name else None
+    if j is None or j.kind != "ROTATE" or j.follows or not joints.is_valid(j):
+        return False
+    c["fr_spindle_motor"] = name
+    if joints.is_motor(j):
+        return False
+    joints.set_motor(scene, j, True)
+    return True
+
+
 def setup_changed(scene) -> None:
     """Something in the set-up changed: move the zero marker, and the steps' lengths follow (rapid speeds)."""
     try:
         zero_marker(scene)
     except Exception:
         pass
+    try:
+        spindle_is_motor(scene)
+    except Exception as exc:
+        print("Fresing Render: spindle not made a motor:", exc)
     for a in scene.fresing.animations:
         for b in a.blocks:
             if b.kind == "GCODE" and b.gcode_file:
@@ -437,10 +458,48 @@ def _text_copy(path: str):
     return None
 
 
-def program_text(path_prop: str) -> tuple[str, str]:
+PROGRAM_ABS = "fr_gcode_abs"          # on a step: the program's absolute path when it was picked (task 0051)
+TABLE_ABS = "fr_tool_table_abs"       # on the CNC settings: the same for the tool table
+
+
+def file_path(path_prop: str, remembered: str = "") -> str:
+    """The absolute path of a file setting. '//…' is next to the project; when no file is there (the render queue
+    renders a copy of the project saved in another folder) the absolute path remembered when it was picked."""
+    path = bpy.path.abspath(path_prop) if path_prop else ""
+    if path and remembered and not os.path.isfile(path) and os.path.isfile(remembered):
+        return remembered
+    return path
+
+
+def keep_path(owner, prop: str, memo: str) -> None:
+    """A file setting changed: remember its absolute path, and store a file next to the saved project (or in a
+    folder below it) as '//…', so the project and its files can move to another PC together (0037 problem 6)."""
+    val = getattr(owner, prop)
+    if not val:
+        if memo in owner:
+            del owner[memo]
+        return
+    absolute = os.path.normpath(bpy.path.abspath(val))
+    owner[memo] = absolute
+    if not bpy.data.filepath or val.startswith("//"):
+        return
+    try:
+        rel = os.path.relpath(absolute, os.path.dirname(bpy.path.abspath(bpy.data.filepath)))
+    except ValueError:                                   # another drive (Windows)
+        return
+    if rel == os.pardir or rel.startswith(os.pardir + os.sep) or os.path.isabs(rel):
+        return
+    owner["_busy"] = True
+    try:
+        setattr(owner, prop, "//" + rel.replace(os.sep, "/"))
+    finally:
+        del owner["_busy"]
+
+
+def program_text(path_prop: str, remembered: str = "") -> tuple[str, str]:
     """(text, note) of a program: the file, or the copy kept in the project when the file is gone.
     Keeps the copy up to date. Raises FileNotFoundError when neither is there."""
-    path = bpy.path.abspath(path_prop) if path_prop else ""
+    path = file_path(path_prop, remembered)
     key = os.path.normcase(os.path.abspath(path)) if path else ""
     copy = _text_copy(path_prop) or (_text_copy(key) if key else None)
     if path and os.path.isfile(path):
@@ -470,7 +529,7 @@ def tool_table(scene) -> dict:
     c = settings(scene)
     if not c.tool_table:
         return {}
-    path = bpy.path.abspath(c.tool_table)
+    path = file_path(c.tool_table, c.get(TABLE_ABS, ""))
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             return core.read_tool_table(fh.read())
@@ -480,8 +539,8 @@ def tool_table(scene) -> dict:
 
 def read_program(scene, b, mach: Machine | None = None, start=None):
     """(Program, note) for a step; cached. ``mach``: the set-up (else neutral offsets, for the length only)."""
-    text, note = program_text(b.gcode_file)
-    path = bpy.path.abspath(b.gcode_file)
+    text, note = program_text(b.gcode_file, b.get(PROGRAM_ABS, ""))
+    path = file_path(b.gcode_file, b.get(PROGRAM_ABS, ""))
     g54 = mach.g54 if mach is not None else (0.0, 0.0, 0.0)
     rapid = mach.rapid if mach is not None else tuple(getattr(settings(scene), f"rapid_{a}") for a in "xyz")
     tt = tool_table(scene)
@@ -595,7 +654,7 @@ def info_key(b) -> tuple:
     """What a step's summary depends on: its program (the file's size and time, or the copy kept in the project)
     and every setting of the step. Not the step's memory address: after a step was removed or moved another step
     sat there and showed this one's lines (bug hunt 0045 row 16, task 0051)."""
-    path = bpy.path.abspath(b.gcode_file) if b.gcode_file else ""
+    path = file_path(b.gcode_file, b.get(PROGRAM_ABS, "")) if b.gcode_file else ""
     try:
         st = os.stat(path)
         prog = (path, st.st_size, st.st_mtime_ns)

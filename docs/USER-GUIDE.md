@@ -307,6 +307,10 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
   polished along the rod). The marks are smaller than a millimetre: close up you see them, from a
   distance the metal just looks real.
 - **Anodised aluminium** (natural, black, colour) has the soft satin sheen of real anodising.
+- **Raw stock for milling**: **Aluminium, sawn plate** (rolled plate, a little dull, faint rolling lines
+  along its longest side), **Steel, raw / mill scale**, **Cast iron**, **POM / PE, white** and **POM,
+  black**. Give the block one of these: the faces the bit cuts get a fresh-cut look of their own (4 Motion >
+  Milling > Cut faces).
 - **Cast iron** as cast (rough, slightly mottled) and **Cast iron, painted** (paint over the casting's
   waviness, any RAL colour).
 - **Paint**: gloss, satin and marine paint have a little orange peel (seen in reflections), powder
@@ -806,6 +810,17 @@ Good to know
 - **Detail**: **Fine** for close-ups (the bit's circle has 64 corners), **Normal**, **Fast** for long
   programs.
 - **Cut material** off shows the block as it came from CAD; the set-up is kept.
+- **Cut faces**: the faces the bit makes get a look of their own, the block keeps its look outside.
+  **Automatic (fresh cut)** makes it from the block's material in 3 Looks: any aluminium (sawn plate,
+  anodised, profile) cuts to bright *Aluminium, machined*; raw, ground or plated steel to *Steel,
+  machined*; stainless to machined stainless; cast iron to bare grey machined iron; brass, bronze and copper
+  to the same metal, brighter; plastics to the same plastic, a little more matte. Paint and other looks stay
+  as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
+  any ready-made material (one that takes a colour uses the block group's colour). The line under it says
+  what the cut faces show. A face of the block that is only partly cut keeps the block's look. Renders in
+  the queue show the same.
+- A logo or text on the block (3 Looks > Logos & stickers) stays where it is while milling, and can be
+  changed as usual.
 - After a change to the animation the cut is read again by itself (in the render queue too, before
   it renders). **Reset workpiece** starts again from the uncut block if something does not look right.
 - **More > Stop milling** removes the set-up: the block is whole again.
@@ -920,10 +935,11 @@ writes for the machine (Fusion: Manufacture > Post Process with the LinuxCNC pos
 **Set the machine up once**
 
 1. Make a **slide** joint for each axis in 4 Motion (Z sitting on X, X on Y, as on the machine – or the
-   table moving under the head) and, if you like, a **rotate** joint for the spindle with **Motor** ticked.
+   table moving under the head) and, if you like, a **rotate** joint for the spindle.
 2. In 4 Motion > **CNC machine** press **Find the axes**: it picks the slide joints that point along the
    model's X, Y and Z, and the motor as the spindle. Change one in the fields **X**, **Y**, **Z**,
-   **Spindle** when it guessed wrong.
+   **Spindle** when it guessed wrong. The joint picked as the spindle gets **Motor** ticked by itself, so it
+   turns without end.
 3. Click the tool in the spindle (the cutter itself, not its holder) and press **Tool**. Its tip is the
    point the program steers.
 4. Click the workpiece (the raw block) and press **Workpiece**.
@@ -1322,7 +1338,9 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 1. Set the machine up in 4 Motion > **CNC machine** (above).
 2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
    says how many lines and moves it has and how long it takes on the machine. A copy is kept in the
-   project, so the render queue and another PC have it too.
+   project, so the render queue and another PC have it too. Tip: keep the program (and the tool table)
+   in the project's folder or a folder below it, after saving the project: it is then stored next to the
+   project, and found there when the folder moves to another PC.
 3. **Speed**: **Real time**, **Faster** (for example 10 × faster), or **Fit into** a number of seconds.
    **Rapids faster** lets the moves through the air go quicker again, so the video spends its time on the
    cutting. The line under it says how long the step lasts in the video.

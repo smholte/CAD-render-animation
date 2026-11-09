@@ -317,6 +317,25 @@ def test_spindle_turns(scene, tmp_path):
     assert joints.get_value(j) == pytest.approx(-25 / 7 * 2 * math.pi, abs=1e-4)
 
 
+def test_picking_the_spindle_ticks_motor(scene, tmp_path):
+    """Task 0037 problem 4: the spindle joint picked in 4 Motion > CNC machine is a motor at once (no warning after
+    Build); switched off by hand afterwards it stays off."""
+    set_up(scene)
+    head = [ob(scene, "SPINDLE"), ob(scene, T1)]
+    joints.create(scene, "ROTATE", head, head[0].matrix_world.translation, Vector((0, 0, 1)), name="Spindle")
+    j = scene.fresing.joints["Spindle"]
+    assert not j.is_motor
+    scene.fresing.cnc.spindle_joint = "Spindle"
+    j = scene.fresing.joints["Spindle"]
+    assert j.is_motor
+    a, b = step(scene, program(tmp_path, "S600 M3\nG4 P2\nM5\nM30\n"))
+    warnings = animation.bake(scene, a).get("warnings", [])
+    assert not any("Motor" in w for w in warnings), warnings
+    j.is_motor = False                                      # the user's choice: kept
+    scene.fresing.cnc.rapid_x = 4000.0
+    assert not scene.fresing.joints["Spindle"].is_motor
+
+
 def test_limits_and_unknown_codes_are_reported(scene, tmp_path):
     set_up(scene)
     j = scene.fresing.joints["X"]
@@ -473,6 +492,57 @@ def test_saved_and_opened_again_and_the_file_gone(scene, tmp_path):
     assert r2["frames"] == r["frames"]
     assert any("copy saved in the project" in w for w in r2["warnings"])
     assert check_path(sc, a, b, range(1, r2["frames"] + 1, 5)) < 0.01
+
+
+def test_program_next_to_the_project_is_stored_relative(scene, tmp_path):
+    """Task 0037 problem 6: a program (and tool table) picked next to the saved project is stored as '//…', so the
+    project works on another PC; the render queue's copy of the project, saved in another folder, still finds it."""
+    import shutil
+    set_up(scene)
+    proj = tmp_path / "project"
+    proj.mkdir()
+    blend = str(proj / "cnc.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=blend)
+    sc = bpy.context.scene
+    (proj / "nc").mkdir()
+    path = str(proj / "nc" / "part.ngc")
+    with open(path, "w") as fh:
+        fh.write(PROGRAM)
+    with open(proj / "tool.tbl", "w") as fh:
+        fh.write("T1 P1 D6.0 Z+40.0 ;flat end mill\n")
+    a, b = step(sc, path)
+    assert b.gcode_file == "//nc/part.ngc"
+    sc.fresing.cnc.tool_table = str(proj / "tool.tbl")
+    assert sc.fresing.cnc.tool_table == "//tool.tbl"
+    assert 1 in gcode.tool_table(sc)
+    elsewhere = program(tmp_path, name="elsewhere.ngc")       # not below the project: stays as it is
+    _a, b2 = step(sc, elsewhere)
+    assert b2.gcode_file == elsewhere
+    a.blocks.remove(1)
+    _prog, note = gcode.read_program(sc, a.blocks[0])
+    assert note == ""
+    bpy.ops.wm.save_as_mainfile(filepath=blend)
+    # the render queue: a copy saved in another folder finds the files by the remembered path
+    qdir = tmp_path / "renders" / "_queue"
+    qdir.mkdir(parents=True)
+    bpy.ops.wm.save_as_mainfile(filepath=str(qdir / "cnc.blend"), copy=True, relative_remap=True)
+    bpy.ops.wm.open_mainfile(filepath=str(qdir / "cnc.blend"))
+    gcode.forget()
+    sc = bpy.context.scene
+    b = sc.fresing.animations["Program"].blocks[0]
+    _prog, note = gcode.read_program(sc, b)
+    assert note == "" and 1 in gcode.tool_table(sc)
+    # another PC: the project folder moved somewhere else, the old one is gone
+    moved = tmp_path / "other pc" / "project"
+    shutil.copytree(proj, moved)
+    shutil.rmtree(proj)
+    bpy.ops.wm.open_mainfile(filepath=str(moved / "cnc.blend"))
+    gcode.forget()
+    sc = bpy.context.scene
+    b = sc.fresing.animations["Program"].blocks[0]
+    _prog, note = gcode.read_program(sc, b)
+    assert note == "" and gcode.file_path(b.gcode_file) == os.path.normpath(str(moved / "nc" / "part.ngc"))
+    assert 1 in gcode.tool_table(sc)
 
 
 def test_model_update_keeps_the_set_up(scene, tmp_path):

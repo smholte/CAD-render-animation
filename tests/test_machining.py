@@ -586,3 +586,65 @@ def test_frame_handler_on_the_render_thread(scene, monkeypatch):
     assert calls == ["render"]                       # not locked: left alone off the main thread
     machining._on_frame(scene)
     assert calls[-1] == threading.main_thread().name   # the main thread always shows the frame
+
+
+def test_one_frame_walks_the_objects_at_most_once(scene, monkeypatch):
+    """Bug hunt 0045 row 20c: the frame code looked for its parts in the scene ~13 times and walked every object
+    of the file 3 times a frame. Now one look per part and at most one walk per frame."""
+    from fresing_render.blender import gcode
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    walks = []
+    real = gcode.copies
+    monkeypatch.setattr(gcode, "copies", lambda sc=None: walks.append(1) or real(sc))
+    scene.frame_current = frames
+    machining._on_frame(scene)
+    assert len(walks) <= 1
+    assert not machining._FRAME                      # nothing kept after the frame
+    box, vol = removed(scene)
+    assert vol == pytest.approx(SLOT_VOLUME, rel=0.003)
+
+
+def test_queued_still_shows_the_cut_look(scene, tmp_path):
+    """Task 0051: the render queue (a background Blender) shows the cut faces' look as the view does. The cut faces
+    get a glowing material here, so they are the only white in the picture of a dark mill-scale block."""
+    import time
+
+    from PIL import Image
+
+    from fresing_render.blender import queue
+    s = scene.fresing
+    _block_group(scene, "steel_raw")
+    frames = anim(scene, [("Z", 0.0, 0.04, -25.0), ("X", 0.04, 0.04, 50.0)])
+    set_up(scene)
+    m = machining.settings(scene)
+    m.cut_look = "PICK"
+    m.cut_material = "emission_light"
+    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+        logic.set_hidden(ob(scene, name), True)
+    cam_data = bpy.data.cameras.new("Mill cam")
+    cam = bpy.data.objects.new("Mill cam", cam_data)
+    scene.collection.objects.link(cam)
+    cam.location = (0.0, -0.12, 0.30)
+    cam.rotation_euler = (Vector((0.025, 0.0, 0.07)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    cam_data.lens = 50
+    scene.camera = cam
+    scene.frame_set(frames)
+    wp, n, mi = _cut_faces(scene)
+    assert (mi == n).sum() > 0
+    s.use_gpu = False
+    s.quality = "draft"
+    scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage = 320, 240, 100
+    queue.add_job(scene, "STILL", quality="draft")
+    bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "mill.blend"))
+    qdir = queue.start(bpy.context)
+    t0 = time.time()
+    while queue.is_running(scene) and time.time() - t0 < 600:
+        time.sleep(1.0)
+    queue.sync(scene)
+    job = s.queue[0]
+    assert job.status == "DONE", (job.message, queue.log_tail(qdir, 40))
+    img = np.asarray(Image.open(job.output).convert("RGB"), dtype=np.int16)
+    white = (img.min(axis=2) > 235).mean()
+    assert white > 0.001, white                      # the slot glows
+    assert white < 0.1, white                        # and only the slot
