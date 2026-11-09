@@ -1,8 +1,8 @@
 {
  "hero": {
-  "file": "fresing_mill_air_blast.mp4",
-  "poster": "fresing_mill_air_blast_poster.jpg",
-  "caption": "Milling on a Fresing mill: the G-code drives the machine, chips fly and the air blast blows them away (rendered with Fresing Render)",
+  "file": "fresing_mill_three_tools.mp4",
+  "poster": "fresing_mill_three_tools_poster.jpg",
+  "caption": "A Fresing CNC mill machining a plate with three tools (T1 face mill, T2 end mill, T3 chamfer mill): the G-code drives the machine and the chips fly (rendered with Fresing Render)",
   "model": "fresing_mill",
   "keep": true
  },
