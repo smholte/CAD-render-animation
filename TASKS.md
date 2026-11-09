@@ -39,6 +39,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | open – can start (0041 done) | tasks/0054-queue-fixes.md |
+| 0057 | Landing page: the owner's new video at the top (cut, ≤ 8 MB, poster, caption; old video to the gallery or out, owner decides) | worker – **new chat in the claude.ai project (Cowork)**, owner attaches the video | Sonnet · Low | open – can start | tasks/0057-landing-hero-video.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | – | Machining lane, later: tool marks on cut faces that follow the toolpath (swirls on floors, lines on walls, face-mill arcs) – owner, 9 Nov; brief when the owner asks | owner decides | Opus · High | later | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
