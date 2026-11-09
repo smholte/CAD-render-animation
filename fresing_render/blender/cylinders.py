@@ -710,16 +710,17 @@ def show(scene, visible: bool) -> None:
 # changes and model updates: a cylinder as plain data
 # ---------------------------------------------------------------------------
 
-def to_spec(c) -> dict:
-    """A cylinder as plain data (parts by their stable ID). Call in the CAD pose."""
+def to_spec(c, root=None) -> dict:
+    """A cylinder as plain data (parts by their stable ID; parts outside the model under ``root`` by name,
+    ``joints.spec_key``). Call in the CAD pose."""
     def uids(objs):
-        return [ob.get(build.PROP_UID) for ob in objs]
+        return [joints.spec_key(ob, root) for ob in objs]
     return {
         "name": c.name, "mode": c.mode, "closed": c.closed_length, "full": c.full_stroke,
         "measured": bool(c.measured),
         "barrel": uids(barrel_objs(c)), "rod": uids(rod_objs(c)), "stages": uids(stage_objs(c)),
-        "barrel_carrier": c.frame.parent.get(build.PROP_UID) if c.frame.parent is not None else None,
-        "rod_carrier": c.pin.parent.get(build.PROP_UID) if c.pin.parent is not None else None,
+        "barrel_carrier": joints.spec_key(c.frame.parent, root),
+        "rod_carrier": joints.spec_key(c.pin.parent, root),
         "frame_local": build.mat_to_list(c.frame.matrix_basis),
         "pin_local": build.mat_to_list(c.pin.matrix_basis),
         "frame_world": build.mat_to_list(c.frame.matrix_world),
@@ -758,7 +759,7 @@ def before_model_update(scene, root=None) -> list[dict]:
             if not _belongs(c, root):
                 continue
             if is_valid(c):
-                specs.append(to_spec(c))
+                specs.append(to_spec(c, root))
             else:                   # a marker deleted by hand: its parts still come back; the report says so
                 specs.append({"name": c.name, "broken": True})
             _dissolve(scene, c)

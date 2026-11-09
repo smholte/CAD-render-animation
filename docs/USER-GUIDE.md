@@ -206,11 +206,16 @@ copy (**More > Clear import cache** throws those copies away if disk space is sh
 **Update to a new revision**
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
-2. Your work stays: materials, painted faces, hidden parts, joints, poses, saved scenes and
-   animations.
+2. Your work stays: materials, painted faces, logos and stickers, hidden parts, joints, cylinders,
+   mechanisms, way covers, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
+   cylinders and mechanisms that link this model to another one in the project (a crane on a ship's
+   deck) stay too, whichever of the two you update.
 3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
-   a material) and **Missing**, and parts whose faces changed so their painted faces are gone (paint
-   them again). × closes the report.
+   a material) and **Missing**, parts whose faces changed so their painted faces are gone (paint
+   them again) and labels whose part is gone (pick their point again). × closes the report.
+4. If the update cannot finish (for example a damaged file, or the PC runs out of memory), the status
+   line says **Model update failed** and why, and the project stays exactly as it was: nothing is
+   half-updated.
 
 > **Projects on a shared drive:** when someone else has the project open, a red box "In use by
 > *name* on *computer*" appears here. Save your changes under another name (File > Save As).
