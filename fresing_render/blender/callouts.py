@@ -116,22 +116,53 @@ def anchor_pixel(scene, callout, size, mat=None) -> tuple[float, float] | None:
     return float(px[0, 0]), float(px[0, 1])
 
 
-def model_outline(scene, size, mat=None) -> tuple[float, float, float, float] | None:
-    """The rectangle (x0, y0, x1, y1 in pixels) round all parts that are shown, as seen by the camera."""
+class PartBoxes:
+    """The parts' own boxes, read once (bug hunt row 20b: reading every part's box on every frame of a video cost
+    50 ms per frame on the Heavy machine). Each frame then reads only the places and hiding of all objects, each
+    in one call."""
+
+    def __init__(self, scene):
+        objs = scene.objects
+        self.count = len(objs)
+        idx, corners = [], []
+        for i, ob in enumerate(objs):
+            if ob.type == "MESH" and ob.get(PROP_KIND) == "part":
+                idx.append(i)
+                corners.append(np.array(ob.bound_box, dtype=np.float64))
+        self.idx = np.array(idx, dtype=np.int64)
+        self.corners = (np.concatenate([np.stack(corners), np.ones((len(corners), 8, 1))], axis=2)
+                        if corners else np.zeros((0, 8, 4)))
+
+    def valid(self, scene) -> bool:
+        return len(scene.objects) == self.count
+
+    def world_corners(self, scene) -> np.ndarray:
+        """(n, 3) corners of the parts shown now."""
+        objs = scene.objects
+        n = self.count
+        m = np.empty(n * 16, dtype=np.float32)
+        objs.foreach_get("matrix_world", m)
+        hide = np.empty(n, dtype=bool)
+        objs.foreach_get("hide_render", hide)
+        keep = self.idx[~hide[self.idx]] if len(self.idx) else self.idx
+        if not len(keep):
+            return np.zeros((0, 3))
+        sel = np.isin(self.idx, keep)
+        mats = m.reshape(n, 4, 4)[keep].astype(np.float64).transpose(0, 2, 1)     # stored column by column
+        return np.einsum("nij,nkj->nki", mats, self.corners[sel])[..., :3].reshape(-1, 3)
+
+
+def model_outline(scene, size, mat=None, boxes: PartBoxes | None = None) -> tuple[float, float, float, float] | None:
+    """The rectangle (x0, y0, x1, y1 in pixels) round all parts that are shown, as seen by the camera.
+    ``boxes``: the parts' boxes read once for many frames (``PartBoxes``)."""
     mat = camera_matrix(scene, size) if mat is None else mat
     if mat is None:
         return None
-    mats, corners = [], []
-    for ob in scene.objects:
-        if ob.type != "MESH" or ob.get(PROP_KIND) != "part" or ob.hide_render:
-            continue
-        mats.append(np.array(ob.matrix_world))
-        corners.append(np.array(ob.bound_box))
-    if not mats:
+    if boxes is None or not boxes.valid(scene):
+        boxes = PartBoxes(scene)
+    world = boxes.world_corners(scene)
+    if not len(world):
         return None
-    m = np.stack(mats)                                           # (n, 4, 4)
-    c = np.concatenate([np.stack(corners), np.ones((len(corners), 8, 1))], axis=2)      # (n, 8, 4)
-    world = np.einsum("nij,nkj->nki", m, c)[..., :3].reshape(-1, 3)
     px, front = project(mat, size, world)
     if not front.any():
         return None
@@ -162,7 +193,8 @@ def measure(text: str, px: int, font_path: str = "") -> tuple[float, float]:
     return C.estimate_text_width(text, px), float(px)
 
 
-def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: str = "") -> list[C.LabelDraw]:
+def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: str = "",
+             boxes: PartBoxes | None = None) -> list[C.LabelDraw]:
     """The labels as they are drawn in the picture the camera sees now. ``seconds``/``anim``: a moment of an
     animation (labels tied to a step fade in and out); None: a still (every label that is on)."""
     s = scene.fresing
@@ -189,8 +221,8 @@ def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: st
     for text, _a, _al in todo:
         w, h = measure(text, px_size, font_path)
         sizes.append(C.box_size(w, h, px_size))
-    boxes = C.place_labels([a for _t, a, _al in todo], sizes, size, model_outline(scene, size, mat))
-    return [C.LabelDraw(t, a, b, al) for (t, a, al), b in zip(todo, boxes)]
+    placed = C.place_labels([a for _t, a, _al in todo], sizes, size, model_outline(scene, size, mat, boxes))
+    return [C.LabelDraw(t, a, b, al) for (t, a, al), b in zip(todo, placed)]
 
 
 def track_for_animation(scene, anim, body_frames: int, fps: int, size, font_path: str = "", progress=None,
@@ -201,11 +233,12 @@ def track_for_animation(scene, anim, body_frames: int, fps: int, size, font_path
     out: dict[int, list[C.LabelDraw]] = {}
     if not s.callouts_on or not any(usable(c) for c in s.callouts):
         return out
+    boxes = PartBoxes(scene)
     for f in range(1, body_frames + 1):
         if should_stop is not None and should_stop():
             break
         scene.frame_set(f)
-        d = draws_at(scene, size, (f - 1) / fps, anim, font_path)
+        d = draws_at(scene, size, (f - 1) / fps, anim, font_path, boxes)
         if d:
             out[f] = d
         if progress is not None and f % 20 == 0:

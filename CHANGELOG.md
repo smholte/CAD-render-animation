@@ -5,6 +5,34 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.46 – 9 Nov 2026 – render queue fixes (task 0054)
+
+Render queue
+- **Current view in a built animation queues the frame you see.** Stopped at a frame of a built animation, **Current
+  view** used to queue the model as it was before the animation, from the start camera. Now it takes that frame: the
+  pose, the parts hidden at that moment and the camera where the animation has it.
+- **A video started again never mixes old frames in.** Stop a video, change the animation (or shorten it), start the
+  queue again: the job used to keep frames from before, even past the new end. Now it keeps them only when nothing
+  changed (it says so when it renders all frames again), and the video takes exactly its own frames.
+- **The queue stays in its own project.** Opening another project while a queue renders used to show that queue's jobs
+  in the other project and block its own Start queue. Each project now keeps its own list.
+- **Small queue faults fixed:** a waiting job removed while the queue runs is left out (it used to render and come
+  back); **All scenes** no longer adds the hidden scenes of earlier **Current view** clicks; renaming an animation keeps
+  "Time test" and "(with watermark)" in the job's name; a picture whose saved scene was deleted fails with that
+  reason instead of rendering something else; a renderer that could not start marks its jobs **Failed** instead of
+  leaving them waiting.
+- **Files typed as `//…`** (next to the project: 360° photo, logo, font, music, pictures) are found by the queue too.
+
+Videos
+- **The sharp spot stays sharp in videos.** When the sharp-spot part had moved (a joint, a pose, the start scene), the
+  video was sharp where the part used to be. Now it is worked out again when the animation is built, and a moving
+  camera keeps the spot sharp on every frame, also while its part moves.
+- **Videos with labels are made faster:** working out where the labels go took about 75 ms per frame on a machine of
+  3,000 parts, now about 9 ms (about 35 s less for a 500-frame video).
+
+PC check
+- New line **Queued picture of an animation frame = the view**.
+
 ## 0.2.45 – 9 Nov 2026 – tool changes: by hand and with a tool changer (task 0041)
 
 CNC machine

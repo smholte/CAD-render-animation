@@ -176,10 +176,35 @@ def explode(scene, target, factor: float, direction: str = "RADIAL", level: str 
 
 
 def capture_visibility(scene, vis) -> None:
+    """Store what is hidden now. In a built animation, Show/Hide steps hide parts by keys (``fr_anim_hide``), not
+    by the ``fr_hidden`` flag: what the frame shows counts (bug hunt row 7). Only the top of a hidden branch is
+    stored, as hiding it hides everything below."""
     vis.hidden.clear()
+    hidden = []
+    keyed = False
     for ob in scene.objects:
-        if ob.get(build.PROP_KIND) in build.MODEL_KINDS and logic.is_hidden(ob):
-            vis.hidden.add().uid = ob.get(build.PROP_UID, ob.name)
+        if ob.get(build.PROP_KIND) not in build.MODEL_KINDS:
+            continue
+        if ob.get("fr_anim_hide"):
+            keyed = True
+            if ob.hide_render:
+                hidden.append(ob)
+        elif logic.is_hidden(ob):
+            hidden.append(ob)
+    if keyed:
+        names = {ob.name for ob in hidden}
+
+        def covered(ob) -> bool:
+            p, n = ob.parent, 0
+            while p is not None and n < 256:
+                if p.name in names:
+                    return True
+                p, n = p.parent, n + 1
+            return False
+
+        hidden = [ob for ob in hidden if not covered(ob)]
+    for ob in hidden:
+        vis.hidden.add().uid = ob.get(build.PROP_UID, ob.name)
 
 
 def save_visibility(scene, name: str):
@@ -283,7 +308,10 @@ def apply_settings_json(scene, text: str) -> None:
 
 def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visibility: str = CURRENT,
               camera=None):
-    """Save the current look as a scene. CURRENT stores a copy inside the scene item."""
+    """Save the current look as a scene. CURRENT stores a copy inside the scene item.
+
+    In a built animation the pose and visibility are those of the frame shown; the camera is the static one the
+    animation started from (pass ``camera`` to store another, e.g. the queue's copy of the animation camera)."""
     s = scene.fresing
     shot = s.shots.get(name)
     if shot is None:
@@ -293,7 +321,7 @@ def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visi
     shot.pose = pose
     shot.visibility = visibility
     cam = camera if camera is not None else scene.camera
-    if cam is not None and cam.get("fr_anim_camera"):      # never the camera an animation moves
+    if camera is None and cam is not None and cam.get("fr_anim_camera"):   # never the camera an animation moves
         cam = bpy.data.objects.get(s.anim_restore_camera) or cam
     shot.camera = cam
     if scheme == CURRENT:

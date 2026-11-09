@@ -1552,15 +1552,25 @@ plays everywhere.
 The queue renders pictures and videos with a second copy of the app in the background. Keep working,
 or close the app and let it run overnight: the PC stays awake while it renders.
 
-- **Current view** adds a picture of the model as it is now, from the active camera; **All scenes** adds
-  one per saved scene.
+- **Current view** adds a picture of the model exactly as the view shows it now, from the active camera.
+  In a built animation that is the frame you are on: its pose, the parts hidden at that moment and the
+  camera where it is at that frame. **All scenes** adds one per saved scene.
   Videos come from **Render animation** in 6.
 - **Start queue** starts rendering. While it runs: **Stop after this frame**, or **Stop now** (the
-  frame being rendered is lost). **Start queue** later continues a video where it stopped.
+  frame being rendered is lost). **Start queue** later continues a video where it stopped. If you changed
+  the animation or its settings in between, the video starts again from the first frame, so a video never
+  mixes old and new frames (the job's message says so).
 - Click a job to see its progress and messages; when it is done, **Open** plays or opens it and
   **Show in folder** opens Explorer with the file selected.
-- **−** removes the selected job; the brush removes all finished jobs.
-- **Open log** shows the time per frame and any errors.
+- **−** removes the selected job, also a waiting one while the queue runs: the queue then leaves it out.
+  The brush removes all finished jobs.
+- **Open log** shows the time per frame and any errors. A picture whose saved scene was deleted, or a
+  renderer that could not start, shows as **Failed** with the reason.
+- The queue belongs to its project: open another project while it renders and that project keeps its own
+  list (open the first project again to follow it). Files typed as `//…` (next to the project: 360°
+  photo, logo, font, music, pictures) are found by the queue too.
+- A video's sharp spot stays on its part, also when the part moves during the video or the start scene
+  puts it elsewhere.
 
 <a id="tips"></a>
 ## Tips

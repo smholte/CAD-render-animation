@@ -1166,8 +1166,8 @@ class FRESING_OT_queue_add(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         return {
-            "STILL": "Adds a picture of the model as it is now, from the active camera, to the queue. Start "
-                     "queue renders it in the background",
+            "STILL": "Adds a picture of the model as the view shows it now, from the active camera, to the queue "
+                     "(in a built animation: the frame you are on). Start queue renders it in the background",
             "SHOT": "Adds a picture of the selected scene to 7 Render queue. Start queue there renders it in the "
                     "background",
             "ALL_SHOTS": "Adds a picture of every saved scene to 7 Render queue. Start queue there renders them in "
@@ -1193,7 +1193,8 @@ class FRESING_OT_queue_add(bpy.types.Operator):
             queue.add_job(scene, "STILL", shot=name)
         elif self.kind == "ALL_SHOTS":
             for shot in s.shots:
-                queue.add_job(scene, "STILL", shot=shot.name)
+                if not shot.get(queue.QUEUE_ONLY):     # not the hidden scenes of earlier "Add image" clicks
+                    queue.add_job(scene, "STILL", shot=shot.name)
         else:
             if scene.camera is None:
                 self.report({"WARNING"}, "Add a camera first")
@@ -1201,8 +1202,9 @@ class FRESING_OT_queue_add(bpy.types.Operator):
             # the current view: saved as a hidden scene so the queue renders exactly this
             name = states.unique_shot_name(scene, f"Queue {scene.camera.name}")
             keep_index = s.shots_index
-            shot = states.save_shot(scene, name)
-            shot["fr_queue_only"] = True          # hidden from the scene list
+            # in a built animation: the pose, hiding and camera of the frame shown (bug hunt row 7)
+            shot = states.save_shot(scene, name, camera=queue.view_camera(scene))
+            shot[queue.QUEUE_ONLY] = True         # hidden from the scene list
             s.shots_index = keep_index
             queue.add_job(scene, "STILL", shot=name)
         if self.start and not queue.is_running(scene):
@@ -1260,7 +1262,8 @@ class FRESING_OT_queue_remove(bpy.types.Operator):
     def description(cls, context, properties):
         if properties.finished:
             return "Takes all finished jobs out of the list. Their files stay"
-        return "Takes the selected job out of the queue. Files it already rendered stay"
+        return ("Takes the selected job out of the queue; a waiting job is left out even while the queue runs. "
+                "Files it already rendered stay")
 
     def execute(self, context):
         s = context.scene.fresing
@@ -1272,11 +1275,12 @@ class FRESING_OT_queue_remove(bpy.types.Operator):
             if s.queue[s.queue_index].status == "RUNNING":
                 self.report({"WARNING"}, "Stop the queue first")
                 return {"CANCELLED"}
+            job = s.queue[s.queue_index]
+            if job.status == "WAITING" and queue.is_running(context.scene):
+                queue.skip(context.scene, job.job_id)     # the running queue leaves it out (bug hunt row 17a)
             s.queue.remove(s.queue_index)
         s.queue_index = min(s.queue_index, max(0, len(s.queue) - 1))
-        for shot in [x for x in s.shots if x.get("fr_queue_only")]:
-            if not any(j.shot == shot.name for j in s.queue):
-                s.shots.remove(list(s.shots).index(shot))
+        queue.tidy_queue_only(context.scene)
         return {"FINISHED"}
 
 

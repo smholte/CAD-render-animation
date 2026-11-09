@@ -252,16 +252,19 @@ def _renamer(kind: str):
             for a in s.animations:
                 if a.start_shot == old:
                     a.start_shot = new
+            from . import queue
             for j in s.queue:
                 if j.shot == old:
                     j.shot = new
+                    queue.relabel(j)
             if s.active_shot == old:
                 s.active_shot = new
         elif kind == "animation":
+            from . import queue
             for j in s.queue:
                 if j.animation == old:
                     j.animation = new
-                    j.label = f"Animation: {new}"
+                    queue.relabel(j)         # keeps "Time test" and "(with watermark)" (bug hunt row 17c)
             if s.anim_baked == old:
                 s.anim_baked = new
             for a in s.animations:                  # G-code steps play another animation at tool changes
@@ -351,7 +354,7 @@ def _model_object_poll(self, ob):
 
 
 def _camera_poll(self, ob):
-    return ob.type == "CAMERA" and not ob.get("fr_anim_camera")
+    return ob.type == "CAMERA" and not ob.get("fr_anim_camera") and not ob.get("fr_queue_only")
 
 
 def _joint_renamed(self, context):

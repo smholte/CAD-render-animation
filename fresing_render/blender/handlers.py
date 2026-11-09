@@ -145,9 +145,9 @@ def _on_load(_dummy=None):
                     print(f"Fresing Render: upgrade step '{step}' failed for scene '{sc.name}': {exc}")
     try:                                     # a render queue started earlier may still be going
         scene = bpy.context.scene
-        if scene is not None and hasattr(scene, "fresing") and scene.fresing.queue_dir:
-            from . import queue
-            queue.sync(scene)
+        from . import queue
+        if scene is not None and hasattr(scene, "fresing") and (scene.fresing.queue_dir or queue.belongs_here(scene)):
+            queue.sync(scene)                # (only this project's own queue: bug hunt row 9)
             if scene.fresing.queue_pid:
                 queue.ensure_polling()
     except Exception:

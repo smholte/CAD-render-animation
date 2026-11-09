@@ -337,6 +337,34 @@ def _camera_track(anim, segs, start: CamState, centre: Vector, f_end: int) -> li
     return out
 
 
+def _cameras_of(scene, anim) -> list:
+    """The start camera and every camera a Move to / Cut step goes to."""
+    out = [scene.camera] if scene.camera is not None and scene.camera.type == "CAMERA" else []
+    for b in anim.blocks:
+        if b.enabled and b.kind == "CAMERA" and b.camera_mode != "ORBIT" and b.camera is not None \
+                and b.camera.type == "CAMERA" and b.camera not in out:
+            out.append(b.camera)
+    return out
+
+
+def _fresh_blur(scene, anim) -> None:
+    """The sharp distance of every camera of the animation, worked out again now that the start scene's pose is on:
+    the copy stored on the camera was made where its sharp-spot part was then (bug hunt row 10)."""
+    from . import cameras
+    for cam in _cameras_of(scene, anim):
+        if not cam.get("fr_anim_camera"):
+            cameras.update_blur(cam, scene)
+
+
+def _one_marker(start_cam, cam_blocks):
+    """The sharp-spot marker every camera of the move shares, or None (no spot, or cameras with different ones)."""
+    from . import cameras
+    cams = [start_cam] + [b.camera for b in cam_blocks if b.camera_mode != "ORBIT" and b.camera is not None
+                          and b.camera.type == "CAMERA"]
+    markers = {cameras.focus_marker(c) for c in cams}
+    return markers.pop() if len(markers) == 1 else None
+
+
 def _anim_camera(scene, like) -> bpy.types.Object:
     from . import cameras
     ob = next((o for o in bpy.data.objects if o.get("fr_anim_camera")), None)
@@ -389,6 +417,7 @@ def bake(scene, anim) -> dict:
     if anim.start_shot:
         warnings += states.apply_shot(scene, anim.start_shot)
     bpy.context.view_layer.update()
+    _fresh_blur(scene, anim)
 
     from . import gcode
     atc_blocks = gcode.prepare(scene, anim, warnings)    # G-code steps: their length from the program
@@ -714,7 +743,11 @@ def bake(scene, anim) -> dict:
             dcb = _channelbag(cam.data, "CAMERA")
             _write(dcb, "lens", 0, [(f, st.lens, "LINEAR", "AUTO") for f, _l, _r, st in rows])
             _write(dcb, "ortho_scale", 0, [(f, st.ortho_scale, "LINEAR", "AUTO") for f, _l, _r, st in rows])
-            if cam.data.dof.use_dof:
+            # one sharp spot for the whole move: the camera keeps it in focus on every frame, also while its
+            # part moves (bug hunt row 10); otherwise the sharp distance goes from one camera's to the next
+            marker = _one_marker(start_cam, cam_blocks)
+            cam.data.dof.focus_object = marker
+            if cam.data.dof.use_dof and marker is None:
                 _write(dcb, "dof.focus_distance", 0, [(f, st.focus, "LINEAR", "AUTO") for f, _l, _r, st in rows])
             scene.camera = cam
 

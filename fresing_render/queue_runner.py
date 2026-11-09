@@ -70,6 +70,10 @@ def main() -> int:
         if should_stop():
             st.update(status="STOPPED", message="Stopped")
             continue
+        if os.path.exists(os.path.join(qdir, "skip_" + job["id"])):     # taken out of the list in the app
+            st.update(status="STOPPED", message="Removed from the queue")
+            write()
+            continue
         st.update(status="RUNNING", message="Opening project", progress=0.0)
         write()
         last = [0.0]

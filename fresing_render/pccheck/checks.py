@@ -1486,6 +1486,52 @@ def video_labels(ctx):
     return f"label drawn; video with music: {frames} frames, sound {seconds:.2f} s"
 
 
+@line("queue.frame_shown", "Queued picture of an animation frame = the view", "0.2.46", requires=("import.crane",),
+      what="A built animation stopped at a frame (boom up, cover hidden, camera orbiting): Add image to the queue "
+           "renders that frame, the same as Render image")
+def queue_frame_shown(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import animation, build, queue, render
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s)
+    from mathutils import Vector
+
+    from ..blender import joints
+    j = _boom_joint(scene)
+    boom = _ob(scene, "BOOM")
+    joints.set_value(j, math.radians(30))
+    bpy.context.view_layer.update()
+    up = (boom.matrix_world @ Vector((1.5, 0, 0))).z > 0.4      # the boom goes up, not into the floor
+    joints.set_value(j, 0.0)
+    a = _short_animation(scene, "PC check frame", j.name, angle_deg=30.0 if up else -30.0, seconds=2.0,
+                         quality="draft")
+    cover = _ob(scene, "COVER")
+    h = a.blocks.add()
+    h.kind, h.start, h.target_uid, h.target_name = "HIDE", 1.0, cover[build.PROP_UID], "COVER"
+    c = a.blocks.add()
+    c.kind, c.camera_mode, c.orbit_angle, c.start, c.duration = "CAMERA", "ORBIT", math.radians(90), 0.0, 2.0
+    animation.bake(scene, a)
+    scene.frame_set(40)
+    view = os.path.join(ctx.work, "frame_view.png")
+    render.render_still(scene, s, "draft", filepath=view)
+    _check(bpy.ops.fresing.queue_add(kind="STILL") == {"FINISHED"}, "Add image did not work")
+    q = s.queue[-1]
+    job = {"id": q.job_id, "kind": "STILL", "shot": q.shot, "camera": "", "quality": "draft",
+           "out_dir": os.path.join(ctx.work, "frame_queue"), "label": q.label, "watermark": False}
+    out = queue.run_job(scene, job, lambda *a: None, lambda: False)       # what the background queue does
+    _check(cover.hide_render, "the queue showed the cover that is hidden at this frame")
+    diff = float(np.abs(runner.read_pixels(out) - runner.read_pixels(view)).mean())
+    ctx.metric("difference", round(diff, 4), "")
+    _check(diff < 0.02, f"the queued picture differs from the view (mean difference {diff:.3f})")
+    ctx.picture(out, "queue_frame", "Queued picture of frame 40: boom up, cover hidden (processor, draft)")
+    return f"same picture as the view (difference {diff:.4f})"
+
+
 @line("queue.eevee", "Short EEVEE video through the queue", "0.2.4", (Q, F), requires=("import.crane",),
       what="The same short motion with Fast preview (EEVEE) in the background queue")
 def queue_eevee(ctx):

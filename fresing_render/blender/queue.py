@@ -52,16 +52,71 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
     if kind in ("ANIMATION", "TEST"):
         anim = s.animations.get(animation)
         job.quality = quality or (anim.quality if anim else "preview")
-        job.label = f"{'Time test' if kind == 'TEST' else 'Animation'}: {animation}"
     else:
         job.quality = quality or s.quality
-        job.label = f"Image: {shot or camera or 'current view'}"
     job.watermark = bool(s.wm_on) and kind != "TEST"
-    if job.watermark:
-        job.label += " (with watermark)"
+    relabel(job)
     job.status = "WAITING"
     s.queue_index = len(s.queue) - 1
     return job
+
+
+QUEUE_ONLY = "fr_queue_only"     # on a hidden saved scene or camera made by "Add image" (not in any list)
+
+
+def view_camera(scene):
+    """The camera "Add image" stores: the active camera, or, while a built animation moves the camera, a still copy
+    of it as it is at this frame (bug hunt row 7: the queue clears the keys, and the animation camera with them)."""
+    cam = scene.camera
+    if cam is None or not cam.get("fr_anim_camera") or not scene.fresing.anim_baked:
+        return cam
+    from . import cameras
+    bpy.context.view_layer.update()
+    data = cam.data.copy()
+    if data.animation_data is not None:
+        data.animation_data_clear()
+    name = "Queue camera"
+    n = 2
+    while name in bpy.data.objects:
+        name = f"Queue camera {n}"
+        n += 1
+    data.name = name
+    ob = bpy.data.objects.new(name, data)
+    ob.matrix_world = cam.matrix_world.copy()
+    ob[QUEUE_ONLY] = True
+    cameras.collection(scene).objects.link(ob)
+    try:
+        ob.hide_set(True)
+    except RuntimeError:
+        pass
+    return ob
+
+
+def tidy_queue_only(scene) -> None:
+    """Remove hidden "Add image" scenes and cameras that no job uses any more."""
+    s = scene.fresing
+    used = {j.shot for j in s.queue}
+    for shot in [x for x in s.shots if x.get(QUEUE_ONLY)]:
+        if shot.name not in used:
+            s.shots.remove(list(s.shots).index(shot))
+    cams = {x.camera.name for x in s.shots if x.camera is not None}
+    for ob in [o for o in bpy.data.objects if o.get(QUEUE_ONLY) and o.type == "CAMERA"]:
+        if ob.name not in cams and ob is not scene.camera:
+            data = ob.data
+            bpy.data.objects.remove(ob)
+            if data is not None and data.users == 0:
+                bpy.data.cameras.remove(data)
+
+
+def relabel(job) -> None:
+    """The job's name in the list, from what it renders (also after a rename: bug hunt row 17c)."""
+    if job.kind in ("ANIMATION", "TEST"):
+        label = f"{'Time test' if job.kind == 'TEST' else 'Animation'}: {job.animation}"
+    else:
+        label = f"Image: {job.shot or job.camera or 'current view'}"
+    if job.watermark:
+        label += " (with watermark)"
+    job.label = label
 
 
 def last_time_test(scene, animation: str):
@@ -74,13 +129,30 @@ def last_time_test(scene, animation: str):
 
 # Runtime state of the queue in this session. Kept outside the scene so undo cannot
 # make the app forget a running renderer; the scene copy is for reopening the project.
-_RUNTIME = {"pid": 0, "dir": "", "killed": False}
+# It belongs to the project that started it: another project opened afterwards keeps its own queue (bug hunt row 9).
+_RUNTIME = {"pid": 0, "dir": "", "killed": False, "project": ""}
 _ALIVE_CACHE: dict[int, tuple[float, bool]] = {}
+
+
+def _ours(scene) -> bool:
+    """True when the queue this session started belongs to the open project: the same file, or the scene still
+    names its folder (saved under a new name since)."""
+    if not _RUNTIME["pid"] and not _RUNTIME["dir"]:
+        return False
+    if _RUNTIME["dir"] and scene.fresing.queue_dir == _RUNTIME["dir"]:
+        return True
+    return os.path.normcase(os.path.abspath(bpy.data.filepath)) == _RUNTIME["project"] if bpy.data.filepath \
+        else _RUNTIME["project"] == ""
+
+
+def belongs_here(scene) -> bool:
+    """A queue this session started for the open project is still going (used when a project is opened)."""
+    return bool(_RUNTIME["pid"]) and _ours(scene)
 
 
 def current(scene) -> tuple[int, str]:
     s = scene.fresing
-    if _RUNTIME["pid"]:
+    if _RUNTIME["pid"] and _ours(scene):
         return _RUNTIME["pid"], _RUNTIME["dir"]
     return s.queue_pid, s.queue_dir
 
@@ -206,7 +278,12 @@ def start(context) -> str:
                      "camera": j.camera, "quality": j.quality, "out_dir": out_dir, "label": j.label,
                      "watermark": bool(j.watermark)})
     s.queue_dir = qdir
-    bpy.ops.wm.save_as_mainfile(filepath=blend, copy=True, compress=False, relative_remap=True)
+    undo = _absolute_paths(scene)                # '//…' would point next to the copy (bug hunt row 18)
+    try:
+        bpy.ops.wm.save_as_mainfile(filepath=blend, copy=True, compress=False, relative_remap=True)
+    finally:
+        for owner, key, value in undo:
+            owner[key] = value
     with open(os.path.join(qdir, "queue.json"), "w", encoding="utf-8") as fh:
         json.dump({"blend": blend, "project": bpy.data.filepath, "jobs": jobs}, fh, indent=1)
     env = dict(os.environ)
@@ -226,12 +303,66 @@ def start(context) -> str:
         proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=qdir, **kwargs)
     s.queue_pid = proc.pid
     _PROCS[proc.pid] = proc
-    _RUNTIME.update(pid=proc.pid, dir=qdir, killed=False)
+    project = os.path.normcase(os.path.abspath(bpy.data.filepath)) if bpy.data.filepath else ""
+    _RUNTIME.update(pid=proc.pid, dir=qdir, killed=False, project=project)
     ensure_polling()
     return qdir
 
 
 _PROCS: dict[int, subprocess.Popen] = {}
+
+PATH_KEYS = ("hdri_path", "light_hdri_path", "brand_logo", "brand_font")    # file settings of scene.fresing
+
+
+def _absolute_paths(scene) -> list:
+    """Make every '//…' file setting absolute for the queue's copy (it is saved in another folder, and Blender only
+    remaps its own file paths). Written as ID properties, so no world rebuild runs. Returns what to put back."""
+    if not bpy.data.filepath:
+        return []
+    undo = []
+
+    def fix(owner, key):
+        val = owner.get(key)
+        if isinstance(val, str) and val.startswith("//"):
+            undo.append((owner, key, val))
+            owner[key] = os.path.normpath(bpy.path.abspath(val))
+
+    s = scene.fresing
+    for key in PATH_KEYS:
+        fix(s, key)
+    for anim in s.animations:
+        fix(anim, "music_file")
+        for card in anim.cards:
+            fix(card, "path")
+    for shot in s.shots:                         # a saved scene keeps its 360° photo in its world settings
+        try:
+            data = json.loads(shot.world or "{}")
+        except ValueError:
+            continue
+        changed = False
+        for key in ("hdri_path", "light_hdri_path"):
+            val = data.get(key)
+            if isinstance(val, str) and val.startswith("//"):
+                data[key] = os.path.normpath(bpy.path.abspath(val))
+                changed = True
+        if changed:
+            undo.append((shot, "world", shot.world))
+            shot["world"] = json.dumps(data)
+    return undo
+
+
+def skip(scene, job_id: str) -> None:
+    """A waiting job was taken out of the list while the queue runs: the runner leaves it out (bug hunt row 17a)."""
+    _pid, qdir = current(scene)
+    if qdir:
+        try:
+            open(os.path.join(qdir, f"skip_{job_id}"), "w").close()
+        except OSError:
+            pass
+
+
+def skipped(qdir: str, job_id: str) -> bool:
+    return bool(qdir) and os.path.exists(os.path.join(qdir, f"skip_{job_id}"))
 
 
 def _tidy_old_queues(root: str) -> None:
@@ -317,13 +448,14 @@ def sync(scene) -> bool:
     pid, qdir = current(scene)
     if not qdir:
         return False
-    if _RUNTIME["pid"]:                      # after an undo the scene may have lost these
+    if _RUNTIME["pid"] and _ours(scene):     # after an undo the scene may have lost these
         s.queue_pid, s.queue_dir = pid, qdir
     st = read_status(qdir)
     jobs_info = st.get("jobs", {})
     known = {j.job_id for j in s.queue}
-    for qj in _queued_jobs(qdir):            # jobs the scene lost (undo) are shown again
-        if qj["id"] not in known and qj["id"] in jobs_info:
+    queued = _queued_jobs(qdir)
+    for qj in queued:                        # jobs the scene lost (undo) are shown again
+        if qj["id"] not in known and qj["id"] in jobs_info and not skipped(qdir, qj["id"]):
             j = s.queue.add()
             j.job_id, j.kind, j.label = qj["id"], qj["kind"], qj.get("label", "")
             j.shot, j.animation, j.camera, j.quality = qj["shot"], qj["animation"], qj["camera"], qj["quality"]
@@ -350,11 +482,16 @@ def sync(scene) -> bool:
                 pass
         if pid:
             s.queue_pid = 0
-            _RUNTIME["pid"] = 0
+            if pid == _RUNTIME["pid"]:
+                _RUNTIME["pid"] = 0
+            ids = {qj["id"] for qj in queued}
             for j in s.queue:
-                if j.status == "RUNNING":       # the runner died while rendering
+                if j.status == "RUNNING" or (j.status == "WAITING" and j.job_id in ids
+                                             and j.job_id not in jobs_info):
+                    # the runner died while rendering, or before it wrote anything (bug hunt row 17e)
                     j.status = "STOPPED" if killed else "FAILED"
-                    j.message = "Stopped" if killed else "Renderer stopped unexpectedly: " + log_tail(qdir)
+                    j.message = "Stopped" if killed else "Renderer stopped unexpectedly: " + (
+                        log_tail(qdir) or "no log (Blender did not start)")
     return alive
 
 
@@ -387,6 +524,8 @@ def run_job(scene, job: dict, progress, should_stop):
     s.out_folder = job["out_dir"]
     if job["kind"] == "STILL":
         if job.get("shot"):
+            if s.shots.get(job["shot"]) is None:          # bug hunt row 17d: never a picture of something else
+                raise RuntimeError(f"The saved scene '{job['shot']}' was deleted")
             for w in states.apply_shot(scene, job["shot"]):
                 progress(0, w)
         if job.get("camera"):
@@ -484,6 +623,7 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
     size = setup["size"]
     folder = os.path.join(job["out_dir"], f"{setup['name']}_{job['id']}")
     os.makedirs(folder, exist_ok=True)
+    keep_frames(folder, fingerprint(scene, setup), f_end, progress)
     t0 = time.time()
     done = 0
     for f in range(1, f_end + 1):
@@ -517,11 +657,108 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
         mp4 = folder + ".mp4"
         encode_mp4(folder, mp4, size.width, size.height, int(anim.fps),
                    white_under=scene.fresing.background == "TRANSPARENT", finishing=fin,
-                   steps=video.captions_of(anim, scene))
+                   steps=video.captions_of(anim, scene), last=f_end)
         return mp4
     if job.get("watermark") or anim.fin_logo != "NONE" or anim.fin_title_on or anim.fin_end_on or anim.fin_captions:
         progress(96, "Logo, cards, captions and watermark only go into MP4 videos, not into PNG frames")
     return folder
+
+
+FINGERPRINT = "fingerprint.txt"
+
+
+def fingerprint(scene, setup: dict) -> str:
+    """What the frames of a built animation depend on: size, quality, length, every key of the animation (parts,
+    joints, hiding, camera), and the place, hiding and look of every object at frame 1. A job started again after a
+    stop keeps its frames only when this is unchanged (bug hunt row 8)."""
+    import hashlib
+    from . import animation
+    h = hashlib.sha256()
+
+    def add(*vals):
+        h.update(repr(vals).encode("utf-8", "replace"))
+
+    r = scene.render
+    add("v1", setup["frames"], setup["quality"], r.resolution_x, r.resolution_y, r.engine, r.fps,
+        r.film_transparent, setup.get("composite"), tuple(round(c, 4) for c in setup.get("color", ())))
+    add(sorted((k, str(v)) for k, v in _scene_settings(scene.fresing)))
+    for act in sorted((a for a in bpy.data.actions if a.get(animation.TAG) and a.users), key=lambda a: a.name):
+        for slot_bag in _fcurves(act):
+            for fc in slot_bag:
+                co = [0.0] * (2 * len(fc.keyframe_points))
+                fc.keyframe_points.foreach_get("co", co)
+                add(act.name, fc.data_path, fc.array_index, [round(x, 5) for x in co],
+                    [k.interpolation for k in fc.keyframe_points])
+    scene.frame_set(1)
+    for ob in sorted(scene.objects, key=lambda o: o.name):
+        if ob.type not in ("MESH", "CAMERA", "LIGHT", "EMPTY", "CURVES", "POINTCLOUD", "VOLUME", "FONT", "CURVE"):
+            continue
+        mats = tuple(sl.material.name if sl.material else "" for sl in ob.material_slots)
+        add(ob.name, ob.type, ob.hide_render, ob.data.name if ob.data else "", mats,
+            [round(x, 5) for row in ob.matrix_world for x in row])
+    cam = scene.camera
+    if cam is not None and cam.type == "CAMERA":
+        d = cam.data
+        add(cam.name, d.type, round(d.lens, 4), round(d.ortho_scale, 4), d.dof.use_dof,
+            round(d.dof.focus_distance, 4), round(d.dof.aperture_fstop, 4),
+            d.dof.focus_object.name if d.dof.focus_object else "")
+    return h.hexdigest()
+
+
+def _scene_settings(s):
+    from . import states
+    for key in states.WORLD_KEYS + ("camera_blur",):
+        if hasattr(s, key):
+            yield key, states._plain(getattr(s, key))
+    for g in s.groups:
+        yield "group " + g.name, (g.material, states._plain(g.color))
+
+
+def _fcurves(act):
+    """The F-curves of an action, slot by slot (Blender 5 keeps them in channel bags)."""
+    out = []
+    for layer in getattr(act, "layers", []):
+        for strip in layer.strips:
+            for bag in getattr(strip, "channelbags", []):
+                out.append(list(bag.fcurves))
+    if not out and hasattr(act, "fcurves"):
+        out.append(list(act.fcurves))
+    return out
+
+
+def _frame_number(name: str) -> int:
+    """frame_0012.png -> 12; anything else -> 0."""
+    if not (name.startswith("frame_") and name.endswith(".png")) or name.endswith((".tmp.png", ".part.png")):
+        return 0
+    digits = name[6:-4]
+    return int(digits) if digits.isdigit() else 0
+
+
+def keep_frames(folder: str, print_: str, f_end: int, progress=None) -> None:
+    """Frames already in ``folder`` are kept only when they were made from the same animation and settings, and only
+    up to its last frame; anything else is deleted before rendering (bug hunt row 8)."""
+    path = os.path.join(folder, FINGERPRINT)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            old = fh.read().strip()
+    except OSError:
+        old = ""
+    frames = [f for f in os.listdir(folder) if _frame_number(f)]
+    if old != print_:
+        drop = frames
+        if drop and progress is not None:
+            progress(0, f"The animation or its settings changed since the last run: rendering all "
+                        f"{f_end} frames again")
+    else:
+        drop = [f for f in frames if _frame_number(f) > f_end]
+    for f in drop:
+        try:
+            os.remove(os.path.join(folder, f))
+        except OSError:
+            pass
+    if old != print_:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(print_ + "\n")
 
 
 def time_test(scene, job: dict, progress, should_stop) -> tuple[str, str]:
@@ -575,17 +812,18 @@ def _no_frame_cache(enc) -> None:
 
 
 def encode_mp4(frames_dir: str, out_path: str, width: int, height: int, fps: int, white_under: bool = False,
-               finishing=None, steps=None) -> str:
+               finishing=None, steps=None, last: int | None = None) -> str:
     """Put numbered PNG frames into an H.264 MP4 with Blender's own video encoder.
 
-    ``finishing`` (core.brand.Finishing) adds the logo, title and end card, captions (from ``steps``) and
-    the watermark (task 0018)."""
-    def number(name: str) -> int:
-        digits = "".join(ch for ch in name if ch.isdigit())
-        return int(digits) if digits else 0
-
-    files = sorted((f for f in os.listdir(frames_dir) if f.startswith("frame_") and f.endswith(".png")
-                    and not f.endswith((".tmp.png", ".part.png"))), key=number)
+    ``last``: the animation's last frame; only frame_0001 … frame_<last> go in, and all of them must be there (bug
+    hunt row 8: frames of an older, longer run stayed in the folder). ``finishing`` (core.brand.Finishing) adds the
+    logo, title and end card, captions (from ``steps``) and the watermark (task 0018)."""
+    files = sorted((f for f in os.listdir(frames_dir) if _frame_number(f)), key=_frame_number)
+    if last is not None:
+        files = [f for f in files if _frame_number(f) <= last]
+        missing = sorted(set(range(1, last + 1)) - {_frame_number(f) for f in files})
+        if missing:
+            raise RuntimeError(f"{len(missing)} of {last} frames are missing (first: frame {missing[0]})")
     if not files:
         raise RuntimeError("No frames to put in the video")
     enc = bpy.data.scenes.new("FR encode")

@@ -362,7 +362,9 @@ def test_render_queue_still_and_video(scene, tmp_path):
     assert os.path.isfile(still) and still.endswith(".png")
     assert os.path.isfile(video) and video.endswith(".mp4") and os.path.getsize(video) > 1000
     frames = os.path.splitext(video)[0]
-    assert sorted(os.listdir(frames)) == ["frame_0001.png", "frame_0002.png", "frame_0003.png"]
+    assert sorted(f for f in os.listdir(frames) if f.endswith(".png")) == \
+        ["frame_0001.png", "frame_0002.png", "frame_0003.png"]
+    assert sorted(os.listdir(frames)) == ["fingerprint.txt", "frame_0001.png", "frame_0002.png", "frame_0003.png"]
     test = s.queue[2]                                   # time test: the middle frame and an estimate
     assert test.label == "Time test: Short" and queue.last_time_test(scene, "Short") == test
     assert os.path.isfile(test.output) and test.output.endswith("_frame_0002.png"), test.output
