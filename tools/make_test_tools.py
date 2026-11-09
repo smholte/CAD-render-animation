@@ -6,6 +6,11 @@ test_tool_endmill.step     a fluted flat end mill Ø12: three helical flutes (30
                            clearance, a 0.3 mm corner chamfer, the outer diameter only on the lands between the flutes (0037 problem 2: read as Ø10.4 before).
 test_tool_facemill.step    an assembly "FACE MILL D50 + SK40": a Ø50 face mill (body + 5 inserts, 45°, 40 mm out of
                            the holder) in a simple SK40 holder; tip at the origin, axis +Z.
+test_tool_x_endmill.step   task 0049: a fluted Ø10 end mill alone, laid out like ToolsUnited / Hoffmann models: along
+                           +X, the shank's end on the origin, the tip at X = 75.
+test_tool_x_bt30.step      task 0049: a BT30 chuck alone in the same layout: the gauge line on the origin, the flange
+                           Ø46 and the nose Ø32 along +X (nose end at X = 45), the 7:24 taper and a pull stud along -X
+                           (stud end at X = -71.4: further from the origin than the nose).
 
 Downloaded manufacturer models are never committed (licences); these are made here.
 
@@ -114,6 +119,31 @@ def sk40_holder():
     return BRepAlgoAPI_Fuse(BRepAlgoAPI_Fuse(nose, flange).Shape(), taper).Shape()
 
 
+X_MILL_D = 10.0
+X_MILL_LEN = 75.0
+BT30_A = 45.0                             # nose end to the gauge line
+
+
+def x_endmill():
+    """The tip at +X 75, the shank's end on the origin: a fluted mill along +Z turned onto -X, moved by 75 mm."""
+    return moved(fluted_mill(X_MILL_D / 2, 22.0, X_MILL_LEN, depth=2.6, n=24), (X_MILL_LEN, 0.0, 0.0), (-1.0, 0.0, 0.0))
+
+
+def x_bt30():
+    """A BT30 chuck along +Z from its nose (z = 0) to the gauge line (z = 45), taper and stud beyond; then turned
+    onto -X with the gauge line on the origin (the nose at +X 45)."""
+    a = BT30_A
+    nose = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), 16.0, a - 20.0).Shape()
+    bore = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, -1), gp_Dir(0, 0, 1)), 6.0, 30.0).Shape()
+    flange = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, a - 20.0), gp_Dir(0, 0, 1)), 23.0, 20.0).Shape()
+    taper = BRepPrimAPI_MakeCone(gp_Ax2(gp_Pnt(0, 0, a), gp_Dir(0, 0, 1)), 15.875, 15.875 - 48.4 * 7 / 48,
+                                 48.4).Shape()
+    stud = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, a + 48.4), gp_Dir(0, 0, 1)), 5.0, 23.0).Shape()
+    shape = BRepAlgoAPI_Fuse(BRepAlgoAPI_Fuse(nose, flange).Shape(), taper).Shape()
+    shape = BRepAlgoAPI_Cut(BRepAlgoAPI_Fuse(shape, stud).Shape(), bore).Shape()
+    return moved(shape, (a, 0.0, 0.0), (-1.0, 0.0, 0.0))
+
+
 def write(path: str, parts, assembly: str | None = None) -> None:
     app = XCAFApp_Application.GetApplication_s()
     doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
@@ -143,6 +173,8 @@ def build(folder: str) -> None:
     write(os.path.join(folder, "test_tool_facemill.step"), [(face_mill(), "FACE MILL D50"),
                                                              (sk40_holder(), "SK40 HOLDER")],
           assembly="FACE MILL D50 + SK40")
+    write(os.path.join(folder, "test_tool_x_endmill.step"), [(x_endmill(), "END MILL D10 ALONG X")])
+    write(os.path.join(folder, "test_tool_x_bt30.step"), [(x_bt30(), "BT30 ER CHUCK ALONG X")])
 
 
 if __name__ == "__main__":

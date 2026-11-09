@@ -26,7 +26,7 @@ def test_every_type_has_sizes_that_work_at_once():
         assert tools.describe(s).startswith(tools.type_name(k))
 
 
-@pytest.mark.parametrize("holder", ["ER", "SK40", "BT40", "HSK63"])
+@pytest.mark.parametrize("holder", ["ER", "SK40", "BT30", "BT40", "HSK63"])
 def test_holders_sit_above_the_stick_out(holder):
     s = tools.default("FLAT")
     s.holder = holder
@@ -36,7 +36,47 @@ def test_holders_sit_above_the_stick_out(holder):
     assert abs(hv[:, 2].min() - s.stick_out) < 1e-9
     assert tools.gauge_length(s) == pytest.approx(s.stick_out + s.holder_length)
     if holder != "ER":
-        assert np.hypot(hv[:, 0], hv[:, 1]).max() == pytest.approx(31.75 * MM if holder != "HSK63" else 31.5 * MM)
+        flange = {"HSK63": 31.5, "BT30": 23.0}.get(holder, 31.75) * MM
+        assert np.hypot(hv[:, 0], hv[:, 1]).max() == pytest.approx(flange)
+
+
+def test_bt30_holder_shape():
+    """Task 0049: BT30 – flange Ø46, 7:24 taper from Ø31.75 at the gauge line, 48.4 long, a pull stud above."""
+    s = tools.resolved(tools.Spec(kind="FLAT", diameter=10 * MM, stick_out=40 * MM, holder="BT30"))
+    assert s.holder_length == pytest.approx(45 * MM) and s.holder_diameter == pytest.approx(32 * MM)
+    rings = tools.holder_rings(s)
+    a = s.holder_length
+    at_gauge = [r for z, r in rings if abs(z - a) < 1e-9]
+    assert 15.875 * MM in [pytest.approx(r) for r in at_gauge]
+    top = max(z for z, r in rings)
+    assert top == pytest.approx(a + 48.4 * MM + 23 * MM)
+    small = [r for z, r in rings if abs(z - (a + 48.4 * MM)) < 1e-9]
+    assert any(r == pytest.approx((31.75 - 48.4 * 7 / 24) / 2 * MM) for r in small)
+    assert "BT30" in tools.HOLDERS
+
+
+def test_gauge_length_is_tip_to_gauge_line():
+    """Task 0049: G43 lengths from the tip to the gauge line; a typed gauge length wins."""
+    arbor = tools.resolved(tools.Spec(kind="FACE", diameter=50 * MM, stick_out=40 * MM, holder="BT30",
+                                      holder_length=45 * MM))
+    chuck = tools.resolved(tools.Spec(kind="FLAT", diameter=8 * MM, stick_out=38 * MM, holder="BT30",
+                                      holder_length=60 * MM))
+    assert tools.gauge_length(arbor) == pytest.approx(85 * MM)
+    assert tools.gauge_length(chuck) == pytest.approx(98 * MM)
+    assert tools.gauge_length(tools.Spec(kind="FLAT", stick_out=30 * MM)) == pytest.approx(30 * MM)   # no holder
+    typed = tools.Spec(kind="VEE", diameter=10 * MM, stick_out=50 * MM, holder="BT30", gauge=90 * MM)
+    assert tools.gauge_length(typed) == pytest.approx(90 * MM)
+
+
+def test_fusion_bt30_holder_is_read():
+    doc = {"data": [{"type": "flat end mill", "description": "EM 6", "unit": "millimeters",
+                     "geometry": {"DC": 6, "LCF": 12, "LB": 30, "NOF": 3}, "post-process": {"number": 1},
+                     "holder": {"description": "BT30 ER25 chuck A60",
+                                "segments": [{"height": 25, "lower-diameter": 42, "upper-diameter": 42},
+                                             {"height": 35, "lower-diameter": 46, "upper-diameter": 46}]}}]}
+    t = tools.read_fusion(json.dumps(doc)).tools[0]
+    assert t.holder == "BT30" and t.holder_length == pytest.approx(60 * MM)
+    assert tools.gauge_length(t) == pytest.approx(90 * MM)
 
 
 def test_drawn_end_mill_outer_diameter_is_on_the_lands():

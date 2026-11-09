@@ -209,9 +209,15 @@ def draw_tool(layout, context, tl) -> None:
         col.prop(tl, "flutes", text="Flutes")
     col.prop(tl, "length", text="Stick-out")
     col.prop(tl, "holder", text="Holder")
-    wrap(box, context, tools.core.describe(tools.spec_of(tl)) + (f" – sizes from the {tl.source}"
-                                                                  if tl.source and tl.source != "typed" else ""),
+    if tl.obj is not None or tl.step_mesh is not None:          # its holder may be inside the shape (task 0049)
+        col.prop(tl, "gauge_length", text="Gauge length")
+    spec = tools.spec_of(tl)
+    wrap(box, context, tools.core.describe(spec) + (f" – sizes from the {tl.source}"
+                                                    if tl.source and tl.source != "typed" else ""),
          icon="CHECKMARK", inset=12)
+    wrap(box, context, f"Length for G43 (tip to gauge line): {tools.core.gauge_length(spec) * 1000:.1f} mm"
+         + ("" if tl.gauge_length > 0 else (" = stick-out + holder" if tl.holder != "NONE" else " = stick-out")),
+         icon="DRIVER_DISTANCE", inset=12)
     if tl.note:
         wrap(box, context, tl.note, icon="INFO", inset=12)
     # its shape
@@ -230,6 +236,8 @@ def draw_tool(layout, context, tl) -> None:
         if tl.holder != "NONE":
             col.prop(tl, "holder_diameter", text="Holder nose Ø")
             col.prop(tl, "holder_length", text="Holder length")
+        if tl.obj is None and tl.step_mesh is None:
+            col.prop(tl, "gauge_length", text="Gauge length")
         col.prop(tl, "place", text="Place")
         if tl.place == "POCKET":
             col.prop(tl, "pocket", text="Pocket")

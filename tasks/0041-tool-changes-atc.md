@@ -1,6 +1,6 @@
 # 0041 – Tool changes: manual change and ATC, animated from the program
 
-**Who:** worker · **Status:** open – after 0049 · **Branch:** `task/0041-tool-changes-atc`
+**Who:** worker · **Status:** open – can start · **Branch:** `task/0041-tool-changes-atc`
 **Started by:** lead chat, 7 Nov 2026 (owner accepted: 2B-ii – the operator's hand as an optional choice in the
 animation set-up; 2C-ii split – this is part 2 after 0040; pause at a manual change short by default and adjustable)
 **Area:** Machining lane + G-code – `core/gcode.py` / `blender/gcode.py` (M6 handling, timing), `animation.py`

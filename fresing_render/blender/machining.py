@@ -126,7 +126,50 @@ def _main_axis(ob, pts):
     return core.axis_from_points(pts)
 
 
-def detect(ob, toward=None, flip: bool = False) -> dict:
+#: a tool's tip read from its mesh this close to the axis its spindle turns about is put on that axis (task 0049)
+SNAP_DIST = 0.5e-3
+SNAP_ANGLE = 3.0                 # degrees
+
+
+def on_turning_axis(ob, tip, axis, scene=None) -> tuple:
+    """(tip, axis) in ``ob``'s own space, moved onto the axis of the rotate joint that turns ``ob`` (the spindle)
+    when they are close (``SNAP_DIST``, ``SNAP_ANGLE``). A tip read from the mesh can lie a few hundredths of a mm
+    beside the spindle's axis (a fluted tool's points are not round): turning, it went round in a small circle and
+    the tip left the program's path by up to twice that (task 0049). Unchanged when nothing turns the part."""
+    tip, axis = Vector(tip), Vector(axis)
+    if scene is None:
+        scene = ob.users_scene[0] if getattr(ob, "users_scene", ()) else None
+    if scene is None or not hasattr(scene, "fresing") or axis.length < 1e-12:
+        return tip, axis
+    from . import joints
+    axis = axis.normalized()
+    mw = ob.matrix_world
+    tip_w = mw @ tip
+    ax_w = (mw.to_3x3() @ axis).normalized()
+    best = None
+    for j in scene.fresing.joints:
+        if j.kind != "ROTATE" or j.motion is None or j.frame is None:
+            continue
+        p = ob
+        while p is not None and p is not j.motion:
+            p = p.parent
+        if p is None:
+            continue
+        o, d = joints.axis_world(j)
+        if abs(d.dot(ax_w)) < math.cos(math.radians(SNAP_ANGLE)):
+            continue
+        foot = o + d * (tip_w - o).dot(d)
+        dist = (tip_w - foot).length
+        if dist <= SNAP_DIST and (best is None or dist < best[0]):
+            best = (dist, foot, d if d.dot(ax_w) >= 0 else -d)
+    if best is None:
+        return tip, axis
+    inv = mw.inverted()
+    new_axis = (inv.to_3x3() @ best[2]).normalized()
+    return inv @ best[1], new_axis
+
+
+def detect(ob, toward=None, flip: bool = False, snap: bool = True) -> dict:
     """Recognise the bit from its mesh: tip and axis (in its own space) and the shape.
 
     ``toward``: a world point the tip faces (the workpiece's centre); without it the tip is the
@@ -150,6 +193,9 @@ def detect(ob, toward=None, flip: bool = False) -> dict:
         d = -d
         prof, zmin, zmax = core.profile_from_points(pts, origin, d, tris)
     tip = origin + d * zmin
+    if snap:                                         # on the spindle's axis when it turns the part (task 0049)
+        t2, d2 = on_turning_axis(ob, Vector(tip), Vector(d))
+        tip, d = np.array(t2), np.array(d2)
     tool = core.classify(prof)
     return {"tip": tuple(float(x) for x in tip), "axis": tuple(float(x) for x in d), "tool": tool,
             "profile": prof}
@@ -454,6 +500,7 @@ def signature(scene) -> str:
                  f"{tuple(round(x, 7) for x in ob['fr_axis'])}".encode())
     from . import gcode
     h.update(repr(gcode.schedule(scene)).encode())
+    h.update(repr([round(f, 6) for f in gcode.corners(scene)]).encode())
     wp = workpiece(scene)
     h.update(f"wp:{wp.name if wp else ''}:{s.detail}".encode())
     from . import air
@@ -507,6 +554,9 @@ def sample(scene, progress=None) -> int:
     tips = [Vector(_tip_of(it)) for it, _o in items]
     axes = [Vector(_axis_of(it)).normalized() if Vector(_axis_of(it)).length > 1e-9 else Vector((0, 0, 1))
             for it, _o in items]
+    for k, (it, ob) in enumerate(items):            # a bit the spindle turns: its tip on the spindle's axis (0049)
+        if not isinstance(it, bpy.types.Object):
+            tips[k], axes[k] = on_turning_axis(ob, tips[k], axes[k], scene)
     tools = [core.Cutter(_tool_any(it), "FAST") for it, _o in items]
     tol = core.detail(s.detail)["tol"]
     # the stock's box in its own space, to skip refining moves far away from it
@@ -528,10 +578,24 @@ def sample(scene, progress=None) -> int:
             return [_pose(wi, ob, tip, ax) for (_it, ob), tip, ax in zip(items, tips, axes)]
 
         rows = [[] for _ in items]                  # per bit: (t, o, d)
+        from . import gcode
+        # the program's corners between frames: read there too, or the cut goes straight across them (task 0049)
+        corner = sorted(t for t in gcode.corners(scene) if f0 < t < f1 and abs(t - round(t)) > 1e-4)
+        ci = 0
         wp_m = []                                   # the workpiece in the world at every frame (chips, task 0028)
-        prev = None
+        prev, prev_t = None, float(f0)
         total = f1 - f0 + 1
         for n, f in enumerate(range(f0, f1 + 1)):
+            while ci < len(corner) and corner[ci] < f:
+                if prev is not None and corner[ci] > f - 1:
+                    tc = corner[ci]
+                    pc = read(tc)
+                    extra = _refine(read, prev_t, tc, prev, pc, tools, tol, lo, hi, depth=0)
+                    for t, poses in extra + [(tc, pc)]:
+                        for b, (o, d) in enumerate(poses):
+                            rows[b].append((t, o, d))
+                    prev, prev_t = pc, tc
+                ci += 1
             cur = read(float(f))
             wp_m.append([v for row in wp.matrix_world for v in row])
             if nozzle:
@@ -539,13 +603,13 @@ def sample(scene, progress=None) -> int:
                 air_o.append(o)
                 air_d.append(d)
             if prev is not None:
-                extra = _refine(read, float(f - 1), float(f), prev, cur, tools, tol, lo, hi, depth=0)
+                extra = _refine(read, prev_t, float(f), prev, cur, tools, tol, lo, hi, depth=0)
                 for t, poses in extra:
                     for b, (o, d) in enumerate(poses):
                         rows[b].append((t, o, d))
             for b, (o, d) in enumerate(cur):
                 rows[b].append((float(f), o, d))
-            prev = cur
+            prev, prev_t = cur, float(f)
             if progress is not None and n % 50 == 0:
                 progress(n / total)
     finally:

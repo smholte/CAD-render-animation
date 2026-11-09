@@ -5,7 +5,7 @@ Every tool is a row with its T number, a type and the sizes of that type (``Spec
 * the **cutting shape** (``cutting_tool``): the outline milling sweeps (``core/machining.Tool``), so every tool
   cuts with its own shape, also after a tool change;
 * a **mesh to show** (``tool_mesh``): the tool with flutes along a helix (end mills, drills), inserts on a face
-  mill, teeth on a thread mill or a slot cutter, and an optional generic holder (SK40, BT40, HSK63, ER collet);
+  mill, teeth on a thread mill or a slot cutter, and an optional generic holder (SK40, BT30, BT40, HSK63, ER collet);
 * the **chip type** (``chip_kind``) for the chips (task 0028).
 
 The rows are filled from sizes typed in, from files the owner already has (``read_fusion`` for Fusion tool
@@ -52,6 +52,7 @@ HOLDERS = {
     "NONE": "None (the spindle of the model holds it)",
     "ER": "ER collet",
     "SK40": "SK40 (DIN 69871)",
+    "BT30": "BT30",
     "BT40": "BT40",
     "HSK63": "HSK63",
 }
@@ -68,7 +69,7 @@ _DEFAULTS_MM = {
     "SLOT": dict(diameter=25, width=6, neck=12, flutes=8, stick_out=35),
 }
 _LENGTHS = ("diameter", "corner", "flute_length", "insert_size", "pitch", "width", "neck", "shank", "stick_out",
-            "holder_diameter", "holder_length")
+            "holder_diameter", "holder_length", "gauge")
 
 
 @dataclass
@@ -93,6 +94,7 @@ class Spec:
     holder: str = "NONE"
     holder_diameter: float = 0.0  # nose of the holder
     holder_length: float = 0.0    # from the nose to the spindle face (gauge length of the holder)
+    gauge: float = 0.0            # from the tip to the gauge line (0: stick-out + holder length), task 0049
     pocket: int = 0               # changer pocket (task 0041)
     note: str = ""                # e.g. "Fusion type 'lollipop mill' read as a ball end mill"
     source: str = ""              # typed, program comment, tool table, Fusion library, STEP, part
@@ -248,13 +250,23 @@ def checks(spec: Spec, travel=None) -> list:
 # ---------------------------------------------------------------------------
 
 #: holder type -> (nose diameter, gauge length from the nose to the spindle face), metres
-HOLDER_SIZES = {"ER": (50 * MM, 22 * MM), "SK40": (40 * MM, 60 * MM), "BT40": (40 * MM, 60 * MM),
-                "HSK63": (40 * MM, 60 * MM)}
+HOLDER_SIZES = {"ER": (50 * MM, 22 * MM), "SK40": (40 * MM, 60 * MM), "BT30": (32 * MM, 45 * MM),
+                "BT40": (40 * MM, 60 * MM), "HSK63": (40 * MM, 60 * MM)}
+
+#: steep-taper and HSK holders: flange radius, flange thickness (from the gauge line), taper radius at the gauge
+#: line, taper length, pull stud (length, radius); metres
+_TAPERS = {"SK40": (31.75 * MM, 15.9 * MM, 22.225 * MM, 68.4 * MM, 25 * MM, 7 * MM),
+           "BT30": (23.0 * MM, 20.0 * MM, 15.875 * MM, 48.4 * MM, 23 * MM, 5 * MM),
+           "BT40": (31.75 * MM, 22.0 * MM, 22.225 * MM, 65.4 * MM, 25 * MM, 7 * MM),
+           "HSK63": (31.5 * MM, 20.0 * MM, 24.0 * MM, 32.0 * MM, 0.0, 0.0)}
 
 
 def gauge_length(spec: Spec) -> float:
-    """From the tip to the spindle face: the stick-out plus the holder."""
+    """From the tip to the gauge line (the spindle face): the length a tool length offset (G43) uses. The gauge length
+    typed in when there is one (a part or STEP model with its holder inside), else the stick-out plus the holder."""
     s = resolved(spec)
+    if s.gauge > 0:
+        return s.gauge
     return s.stick_out + (s.holder_length if s.holder != "NONE" else 0.0)
 
 
@@ -456,18 +468,16 @@ def holder_rings(s: Spec) -> list:
     r = D / 2
     if s.holder == "ER":                                # a collet nut and the bit of the chuck above it
         return [(0.0, r * 0.7), (0.15 * A, r), (A, r), (A, r * 0.9), (A + 6 * MM, r * 0.9)]
-    flange_r = 31.75 * MM if s.holder != "HSK63" else 31.5 * MM
-    ft = {"SK40": 15.9, "BT40": 22.0, "HSK63": 20.0}[s.holder] * MM
+    flange_r, ft, taper_r, tl, stud_l, stud_r = _TAPERS[s.holder]
     rings = [(0.0, r * 0.85), (2 * MM, r), (max(A - ft - 4 * MM, 3 * MM), r),
              (max(A - ft, 4 * MM), flange_r * 0.9), (max(A - ft, 4 * MM) + 1 * MM, flange_r)]
     gz = max(A - ft, 4 * MM) + ft * 0.5                  # the V-groove the changer grips
     rings += [(gz - 2.5 * MM, flange_r), (gz, flange_r - 3 * MM), (gz + 2.5 * MM, flange_r), (A, flange_r)]
     if s.holder == "HSK63":                              # hollow short taper
-        rings += [(A, 24 * MM), (A + 32 * MM, 23 * MM), (A + 32 * MM, 0.0)]
+        rings += [(A, taper_r), (A + tl, taper_r - 1 * MM), (A + tl, 0.0)]
     else:                                                # 7:24 steep taper and a pull stud
-        tl = 68.4 * MM if s.holder == "SK40" else 65.4 * MM
-        rings += [(A, 22.225 * MM), (A + tl, 22.225 * MM - tl * 7 / 48), (A + tl, 8 * MM), (A + tl + 25 * MM, 7 * MM),
-                  (A + tl + 25 * MM, 0.0)]
+        rings += [(A, taper_r), (A + tl, taper_r - tl * 7 / 48), (A + tl, stud_r + 1 * MM), (A + tl + stud_l, stud_r),
+                  (A + tl + stud_l, 0.0)]
     return rings
 
 
@@ -641,7 +651,7 @@ def read_fusion(data) -> ReadResult:
         holder = row.get("holder") or {}
         if isinstance(holder, dict) and holder:
             hd = str(holder.get("description", "") or holder.get("product-id", "")).upper().replace("-", "")
-            ht = next((h for h in ("HSK63", "SK40", "BT40") if h in hd.replace(" ", "")), "")
+            ht = next((h for h in ("HSK63", "SK40", "BT30", "BT40") if h in hd.replace(" ", "")), "")
             if not ht and ("ER" in hd.split() or re.search(r"\bER\d", hd)):
                 ht = "ER"
             segs = holder.get("segments") or []

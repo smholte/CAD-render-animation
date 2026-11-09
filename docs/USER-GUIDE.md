@@ -981,22 +981,34 @@ after a tool change (M6): while T3 is in the spindle, the workpiece is cut with 
 | Slot / T-slot cutter | Diameter, cutting width, neck diameter |
 
 **Flute length** is how far up the tool cuts; a size left at 0 is what the type usually has. **Stick-out** is
-how far the tool comes out of its holder. With **Tool lengths move the spindle** ticked (as a tool length
-offset G43 does), a tool that sticks out further than the one in the spindle moves the spindle up by the
-difference, so every tool's tip is where the program says; the spindle adjusts right after the swap. **Holder**
-draws a simple **ER collet**, **SK40**, **BT40** or **HSK63** holder above the tool; leave it at **None** when your
-model's spindle has its own. The line under the sizes says what the row is, for example "Flat end mill Ø8 mm –
-sizes from the program comment". Sizes that look wrong (a tool wider than 250 mm, longer than 300 mm, flutes longer
-than the stick-out) give a warning above the row – nothing is refused.
+how far the tool comes out of its holder (tip to the holder's nose). **Holder** draws a simple **ER collet**,
+**SK40**, **BT30**, **BT40** or **HSK63** holder above the tool; leave it at **None** when your model's spindle has
+its own. The line under the sizes says what the row is, for example "Flat end mill Ø8 mm – sizes from the program
+comment", and the line below it the tool's **length for G43**: from the tip to the holder's gauge line (where it
+meets the spindle), that is the stick-out plus the holder's length.
+
+With **Tool lengths move the spindle** ticked (as a tool length offset G43 does), a tool that is longer than the
+one in the spindle moves the spindle up by the difference, so every tool's tip is where the program says; the
+spindle adjusts right after the swap. Tools in different holders work too: a face mill 40 mm out of a 45 mm BT30
+arbor (85 mm) and an end mill 38 mm out of a 60 mm BT30 chuck (98 mm) differ by 13 mm. For a tool shown by a part
+or a STEP model with its holder inside, type the **Gauge length** (tip to gauge line, as on the tool's data sheet
+or the presetter) into the row: it wins over stick-out + holder. Projects from before 0.2.38 whose tools all sit in
+one kind of holder move the spindle as before.
+
+Sizes that look wrong (a tool wider than 250 mm, longer than 300 mm, flutes longer than the stick-out) give a
+warning above the row – nothing is refused.
 
 **What it looks like**
 
 - **Drawn from the sizes** (no part, no STEP): flutes along a helix, inserts round a face mill, teeth on a
   thread mill or slot cutter, and the holder if one is picked.
 - **Import STEP of the tool**: a manufacturer's STEP model of the tool, or the tool in its holder (from the
-  maker's website). The app reads it like any STEP file, finds its axis and its tip (the end on the file's
-  origin, else the narrower end), and reads its sizes into the row as a first guess: the **outer diameter over
-  the flutes**, the stick-out up to where the holder starts. **Tip at the other end** turns it round.
+  maker's website). The app reads it like any STEP file, finds its axis and its tip, and reads its sizes into
+  the row as a first guess: the **outer diameter over the flutes**, the stick-out up to where the holder starts.
+  The tip: for a model lying along X with its gauge line (or the shank's end) on the file's origin – the way
+  ToolsUnited and Hoffmann models come – the end the tool reaches out to from there; for a holder alone, the
+  nose side (the flange sits next to the gauge line); otherwise the end on the file's origin, else the narrower
+  end. **Tip at the other end** turns it round.
 - **Use clicked part**: a part of your model (for example a tool standing in the carousel). At the tool change
   it disappears from there and shows in the spindle. Its sizes are read from the part too.
 - **×** goes back to the shape drawn from the sizes.
@@ -1005,7 +1017,8 @@ Whatever it looks like, **the tool cuts with the sizes in the row**: check them 
 (fluted end mills are read on their outer diameter since 0.2.36; before, one was read too small).
 
 **Shank, holder sizes, place** (fold): the shank diameter, the holder's nose diameter and length (from its nose
-to the spindle face), and where the tool is when the program starts (**Spindle**, a changer **Pocket**, the
+to its gauge line), the **Gauge length** of a drawn tool (0: stick-out + holder), and where the tool is when the
+program starts (**Spindle**, a changer **Pocket**, the
 **Bench**) – used by the tool changer.
 
 **A tool the program uses is not in the list**: the program step in 6 Animation says "T7 (line 42) is not in
@@ -1313,7 +1326,9 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 3. **Speed**: **Real time**, **Faster** (for example 10 × faster), or **Fit into** a number of seconds.
    **Rapids faster** lets the moves through the air go quicker again, so the video spends its time on the
    cutting. The line under it says how long the step lasts in the video.
-4. **Build & play**. The tool follows the program exactly – also the arcs, between frames too. With
+4. **Build & play**. The tool follows the program exactly – also the arcs, between frames too, and while the
+   spindle turns (the tip is put on the axis the spindle turns about). Milling reads the tool at every corner of
+   the program as well, so a sharp corner is cut right into the corner even at a high feed. With
    **Show toolpath** the path is drawn on the block: cutting moves orange, turning green once cut, rapids
    dashed blue (**Toolpath in renders** shows it in pictures and videos as well).
 
