@@ -199,7 +199,9 @@ def s_side_panel_click():
     check("Shift+click: back to the look of the part", sets_of("BLOCK") == [], sets_of("BLOCK"))
     win, area, region, sb = ui()
     before = sets_of("COVER")
-    click(sb.x + sb.width // 2, sb.y + 40)                     # on the side panel, not on the model
+    # on the side panel, not on the model: its empty right margin. The middle hit whatever button the layout put
+    # there (the Wear slider of 0.2.39 moved the rows), and that button's undo step broke the undo check below
+    click(sb.x + sb.width - 3, sb.y + 40)
     check("a click on the side panel paints nothing", sets_of("COVER") == before
           and bpy.context.scene.fresing.face_painting)
     return 0.5
