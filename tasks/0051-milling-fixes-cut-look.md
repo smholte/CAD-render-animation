@@ -146,5 +146,5 @@ own faults (0054). Materials of the machine's parts (0046 is done; only add new 
 - Bug hunt row 18 (other `//` paths in the queue copy) stays with 0054; the G-code file and tool table no longer need it.
 - Runs: 2 on the branch. Run 42617370033 green (full, 14.1 min; test suites 1, 3, 4 and callouts flagged SLOW, 11–13 min
   against 4–9 usual – the whole run was slow, not one test); then 0052 took 0.2.41 meanwhile, so main was merged
-  again and the version renumbered to 0.2.42 (second run, green: 42619684638); 0053 took 0.2.42 meanwhile, so once more: 0.2.43 (third run), then main fast-forwarded to it (reuse).
+  again and the version renumbered to 0.2.42 (second run, green: 42619684638); 0053 took 0.2.42 meanwhile, so once more: 0.2.43 (third run, green: 42622418808); a task-list commit on main then blocked the fast-forward, so main ran in full once more (42624545245, green, released) – 4 runs in all, 3 of them only for version clashes.
 - Leftover branch for the owner to delete on github.com: `claude/cad-render-task-0051-qkvu7v`.
