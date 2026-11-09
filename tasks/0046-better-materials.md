@@ -1,6 +1,6 @@
 # 0046 – Better materials: real metals, machined surfaces, paint with wear
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0046-better-materials`
+**Who:** worker · **Status:** running · **Branch:** `claude/fervent-bardeen-gdfzcs`
 **Started by:** lead chat, 8 Nov 2026 · **Lane:** Looks – `core/materials_lib.py`, `blender/materials.py`,
 `core/cad_materials.py`, panel 3 Looks in `blender/ui.py`, `blender/props.py` (additive), tests, guide chapter 3,
 PC check line, CHANGELOG

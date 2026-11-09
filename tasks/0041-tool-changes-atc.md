@@ -1,6 +1,6 @@
 # 0041 – Tool changes: manual change and ATC, animated from the program
 
-**Who:** worker · **Status:** open – after 0040 · **Branch:** `task/0041-tool-changes-atc`
+**Who:** worker · **Status:** open – after 0049 · **Branch:** `task/0041-tool-changes-atc`
 **Started by:** lead chat, 7 Nov 2026 (owner accepted: 2B-ii – the operator's hand as an optional choice in the
 animation set-up; 2C-ii split – this is part 2 after 0040; pause at a manual change short by default and adjustable)
 **Area:** Machining lane + G-code – `core/gcode.py` / `blender/gcode.py` (M6 handling, timing), `animation.py`
@@ -72,6 +72,8 @@ moves, the old tool goes back into its pocket and the new one comes out.
   (`python3 tools/ci_status.py --run <green run> --record`) and commit `tools/ci_times.json`.
 - Task 0048 (owner's demo with face mill + chamfer mill, no code) may run at the same time; it uses M6 with
   `G43 Hn`. Your changes must keep such a program building without edits.
+
+- 0049 (before you) changes G43 lengths to tip-to-gauge-line and adds samples at corners: build on it.
 
 ## Not in this task
 

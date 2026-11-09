@@ -1,6 +1,6 @@
 # 0045 – Bug hunt across the whole app (findings only, no code changes)
 
-**Who:** worker · **Status:** open – can start · **Branch:** none – the report goes to `main` (task files only)
+**Who:** worker · **Status:** running (9 Nov 2026) · **Branch:** none – the report goes to `main` (task files only)
 **Started by:** lead chat, 8 Nov 2026 · **Lane:** none – reads everything, **changes no app code**, so it runs next to
 every lane
 **Model:** Opus · effort High · **Environment:** "CAD-render-animation" (real Blender at start, CLAUDE.md section 4)

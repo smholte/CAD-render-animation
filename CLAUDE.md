@@ -387,6 +387,8 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   or screenshots of his (or his clients') machines. Generic examples only; numbers in reports.
   Exception: a file the owner has said is generic and may be committed as a test model (so far: the
   way-cover sub-assembly, task 0034, 6 Nov 2026) – only after checking it holds nothing of a client's.
+  Also the owner's own renders and his milling video on the landing page (`site/media/`, task 0047, owner's
+  choice 8 Nov 2026) – only what he sends for the page.
 - New behaviour gets a test. A bug fix gets a test that failed before.
 - Speed claims are measured, with the model and machine named. Before/after numbers in the
   task report.
