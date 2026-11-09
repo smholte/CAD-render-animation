@@ -1,7 +1,7 @@
 # 0056 – The same STEP imported twice: each copy gets its own part IDs
 
-**Who:** worker · **Status:** open – can start (lead, 9 Nov: 0055 done; 0054 waits for 0041, so `states.py` is free – finish before 0054 starts) · **Branch:**
-`task/0056-same-step-twice`
+**Who:** worker · **Status:** running (Claude Code web session, 9 Nov) · **Branch:**
+`claude/epic-pasteur-rxl5c4`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 row 11)
 **Lane:** Looks (importer) – `importer/step_reader.py` (uid), `blender/states.py` (`by_uid`), `blender/reimport.py`
 (uid mapping, additive); tests
