@@ -1,6 +1,6 @@
 # 0051 – Milling fixes from the bug hunt, and milled faces get their own look
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0051-milling-fixes-cut-look`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-task-0051-qkvu7v`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 3, 13, 15, 16, 20c; 0046 open point "chips";
 0037 problems 4 and 6; owner's wish 9 Nov: fresh-cut faces and raw stock looks, his points 1 and 2)
 **Lane:** Machining – `blender/machining.py`, `core/machining.py`, `blender/ops_machining.py`, `ui_machining.py`,
