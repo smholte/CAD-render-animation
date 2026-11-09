@@ -127,7 +127,7 @@ size). Per-part wear painting by hand. Decals.
 - GitHub runs: 2. Run 1 (42542385670) red in real app ui: `ui_test_faces.py` "undo takes the painting back" – its
   "click on the side panel" hit the middle of the panel's bottom rows, which the new Wear row had moved onto a
   button; that button's own undo step was undone instead of the painting. Fixed in the test (click the panel's
-  empty right margin), 10/10 locally. Run 2 on the merged commit: green, then `main` fast-forwarded (reuse).
+  empty right margin), 10/10 locally. Run 2 (42543789831, the test fix) green; the merge of `main` on top changed only task files, so it had no run of its own and the push to `main` ran full once more (42545045106, green, 16.3 min) and published v0.2.39.
 
 **Open points / follow-up tasks:**
 - Part library (not touched, as the brief says): "Chrome rods & linear shafts" still get *Chrome*, "Shafts" and
