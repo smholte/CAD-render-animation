@@ -362,7 +362,7 @@ def test_queue_render_shows_chips(scene, tmp_path):
     queue.sync(scene)
     job = s.queue[0]
     assert job.status == "DONE", (job.message, queue.log_tail(qdir, 40))
-    names = sorted(os.listdir(job.output))
+    names = sorted(f for f in os.listdir(job.output) if f.endswith(".png"))      # (fingerprint.txt: task 0054)
     assert len(names) == frames
     first = np.asarray(Image.open(os.path.join(job.output, names[0])).convert("RGB"), dtype=np.int16)
     last = np.asarray(Image.open(os.path.join(job.output, names[-1])).convert("RGB"), dtype=np.int16)

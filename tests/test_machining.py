@@ -389,7 +389,7 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
     queue.sync(scene)
     job = s.queue[0]
     assert job.status == "DONE", (job.message, queue.log_tail(qdir, 40))
-    frames = sorted(os.listdir(job.output))
+    frames = sorted(f for f in os.listdir(job.output) if f.endswith(".png"))      # (fingerprint.txt: task 0054)
     assert frames == ["frame_0001.png", "frame_0002.png", "frame_0003.png"]
     first = np.asarray(Image.open(os.path.join(job.output, frames[0])).convert("RGB"), dtype=np.int16)
     last = np.asarray(Image.open(os.path.join(job.output, frames[-1])).convert("RGB"), dtype=np.int16)
