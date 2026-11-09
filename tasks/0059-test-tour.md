@@ -1,6 +1,6 @@
 # 0059 – Test tour: one project the owner opens to see every function work, and an automatic run through it
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0059-test-tour`
+**Who:** worker · **Status:** running · **Branch:** `task/0059-test-tour`
 **Started by:** lead chat, 9 Nov 2026 (owner: "make it easier/faster for me to check the functions – a test Blender
 file to open and see the functions work, and a test running through it")
 **Lane:** Quality & delivery + PC check – new files `blender/tour.py`, `blender/ops_tour.py`, `ui_tour.py` (its own
