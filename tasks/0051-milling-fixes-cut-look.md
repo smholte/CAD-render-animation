@@ -1,6 +1,6 @@
 # 0051 – Milling fixes from the bug hunt, and milled faces get their own look
 
-**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-task-0051-qkvu7v`
+**Who:** worker · **Status:** done (0.2.42) · **Branch:** `claude/cad-render-task-0051-qkvu7v`
 **Started by:** lead chat, 9 Nov 2026 (bug hunt 0045 rows 3, 13, 15, 16, 20c; 0046 open point "chips";
 0037 problems 4 and 6; owner's wish 9 Nov: fresh-cut faces and raw stock looks, his points 1 and 2)
 **Lane:** Machining – `blender/machining.py`, `core/machining.py`, `blender/ops_machining.py`, `ui_machining.py`,
@@ -69,17 +69,17 @@ cutter (`src < 0`) get slot 0, so a pocket in a mill-scale block looks like mill
 
 ## Done when
 
-- [ ] Cut faces with their own look (Automatic / Same as the block / Pick); old projects → Automatic; queue = view.
-- [ ] *Aluminium, sawn plate* and *POM, black* in the library, ready-made list and chips map.
-- [ ] Picture for the report: the test mill block with a pocket, before/after (Cycles, small, generic shapes), and
+- [x] Cut faces with their own look (Automatic / Same as the block / Pick); old projects → Automatic; queue = view.
+- [x] *Aluminium, sawn plate* and *POM, black* in the library, ready-made list and chips map.
+- [x] Picture for the report: the test mill block with a pocket, before/after (Cycles, small, generic shapes), and
       the new look on the material sheet (`tools/material_sheet.py`).
-- [ ] Rows 3, 13, 15, 16 fixed with a test each (row 13: test or reasoning in the report); 20c if small.
-- [ ] Chips keys for the new materials; 0037 problems 4 and 6.
-- [ ] Render time of the milling test scene before/after (should be the same).
-- [ ] Tooltips; guide "Milling" chapter (cut faces, raw stock looks) and its picture; PC-check line `milling.*`
+- [x] Rows 3, 13, 15, 16 fixed with a test each (row 13: test or reasoning in the report); 20c if small.
+- [x] Chips keys for the new materials; 0037 problems 4 and 6.
+- [x] Render time of the milling test scene before/after (should be the same).
+- [x] Tooltips; guide "Milling" chapter (cut faces, raw stock looks) and its picture; PC-check line `milling.*`
       checks that cut faces have the cut material.
-- [ ] Tests; GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
-- [ ] Report filled in; `TASKS.md`: 0051 done, 0041 "open – can start".
+- [x] Tests; GitHub green; merged to `main`, next free version, released (CLAUDE.md section 7).
+- [x] Report filled in; `TASKS.md`: 0051 done, 0041 "open – can start".
 
 ## Not in this task
 
@@ -90,10 +90,61 @@ own faults (0054). Materials of the machine's parts (0046 is done; only add new 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, branch `claude/cad-render-task-0051-qkvu7v`, 9 Nov 2026 – released as 0.2.42.
 
 **What changed:**
+- **Cut faces' own look** (Part A): the milled mesh gets one extra material slot after the block's own slots
+  (`fr_cut_slot`); faces the cutter made use it, uncut faces keep their CAD face's slot. Setting **Cut faces**
+  (Automatic / Same as the block / Pick a material…, `cut_look`, `cut_material`); old projects open with Automatic
+  and get the slot at the next frame. Automatic is `core/machining.cut_look(block id)`: a library material plus
+  tweaks (no new ids for the cut looks): aluminium → *Aluminium, machined*; raw/machined/ground/turned/plated steel,
+  black oxide, chrome → *Steel, machined*; stainless → stainless without brushing, with milling marks; cast iron
+  (both) → grey machined iron; brass/bronze/copper/nickel → same metal, 0.1 less rough, milling marks; plastics →
+  same plastic, +0.12 roughness; paint and the rest → the block's own. Materials "FR_cut …" rebuilt when the look
+  changes; a group look change in 3 Looks shows at once. Stop milling takes the slot off again.
+- **Found on the way:** uncut faces never kept their CAD face: Manifold's `original_id()` of the stock is -1, so every
+  face counted as cut (painted CAD faces on a milled block also showed slot 0). Fixed in `core/machining.Workpiece`
+  (the id is read from the mesh's run).
+- New library materials *Aluminium, sawn plate* (47) and *POM, black* (48); chips map for those plus `steel_ground`,
+  `steel_turned`, `chrome_rod`, `cast_iron_painted`.
+- Row 3: decals live on the CAD mesh (`decals.cad_mesh`); the milled mesh's copied list is cleared, older projects
+  are mended on the next frame. Row 13: **both** – milling locks the interface for renders started in the window
+  (`use_lock_interface`, also set on load for projects that mill), and `_on_frame` returns at once off the main thread
+  when the lock is off (user switched it off). Why both: returning early alone would freeze the cut in a Ctrl+F12
+  animation from the window; the lock alone can be undone by the user. In the background (queue) nothing changes.
+  Row 15: the node group's Collection is set only on change. Row 16: summaries keyed by program (file size + time or
+  the kept copy) + every `gcode_*` setting; cleared on file load. Row 20c: per-frame memo of "part in scene" and the
+  tool copies (`machining._FRAME`), copies only read with a tool schedule.
+- 0037 problem 4: `gcode.spindle_is_motor` ticks Motor once per newly picked spindle (unticked by hand it stays off).
+  Problem 6: `gcode_file` / `tool_table` allow `//`; a file in or below the saved project's folder is stored as
+  `//…`; the absolute path is kept (`fr_gcode_abs`, `fr_tool_table_abs`) and used when `//` finds nothing (the
+  queue's copy lives in `_queue/<time>/`).
+- PC-check line `milling.cut_look` (MIN_LINES_FULL 40 with 0052's line); real-app milling test +1 check (25); guide: Milling (Cut
+  faces, logos), raw stock in "What the materials look like", spindle Motor, program next to the project; pictures
+  `panel_4_milling.png`, `material_sheet.jpg`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, no graphics card):
+- New tests: `test_machining.py` (cut look, Same/Pick, old project, decals ×2, render thread, objects walked once,
+  queued still shows the cut look – fails with "Same as the block"), `test_chips.py` (chip keys; frame change does
+  not update every object – failed before the fix), `test_gcode.py` (summaries after removing a step – failed before:
+  5 lines instead of 203; spindle Motor; relative program/tool table, queue copy, moved project folder).
+- Row 15, test mill + 3,000 empties, chips Few, median frame change: **88.9 → 23.2 ms** (bug hunt measured 168 ms).
+- Row 20c, same scene, milling only, the frame handler: **7.0 → 3.6 ms** per frame (cProfile, 58 frames).
+- Render time of the milling test scene (pocket, Cycles CPU, 480 × 320, 64 samples), Same as the block → Automatic:
+  steel 7.84 → 8.04 s, aluminium 8.48 → 8.77 s (+3 %: the milling marks in the cut material).
+- Pictures: `tasks/img/0051_cut_look_cycles.jpg` (top: mill-scale steel, bottom: sawn aluminium; left Same as the
+  block, right Automatic), `tasks/img/0051_new_materials_cycles.jpg` (sawn plate, machined, POM black/white, mill
+  scale, machined steel).
+- Locally: the tests of the changed areas, `ui_test_milling` (25/25), PC-check lines milling.cut / cut_look / chips,
+  tooltip check 474/474. GitHub: see runs below.
 
 **Open points / follow-up tasks:**
+- Later task (owner, 9 Nov): tool marks that follow the toolpath on cut faces (swirls on floors, lines on walls,
+  face-mill arcs) – the cut faces now have their own material, which that task can build on.
+- Picking a face *on the milled block* (paint faces, a new decal) while milling uses the milled mesh, which has no CAD
+  faces: stop milling (or switch Cut material off) to place a decal on the block. Not changed here.
+- Bug hunt row 18 (other `//` paths in the queue copy) stays with 0054; the G-code file and tool table no longer need it.
+- Runs: 2 on the branch. Run 42617370033 green (full, 14.1 min; test suites 1, 3, 4 and callouts flagged SLOW, 11–13 min
+  against 4–9 usual – the whole run was slow, not one test); then 0052 took 0.2.41 meanwhile, so main was merged
+  again and the version renumbered to 0.2.42 (second run), then main fast-forwarded to it (reuse).
+- Leftover branch for the owner to delete on github.com: `claude/cad-render-task-0051-qkvu7v`.
