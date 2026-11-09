@@ -23,7 +23,7 @@ updates its branch to `main`.
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (done, 0.2.37); lane free
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
-- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0049 tool library fixes (done, 0.2.38) → **0051 milling fixes + milled faces' own look (running)** → 0041 tool changes + ATC (after 0051) → toolpath marks on cut faces (later, owner 9 Nov) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
+- **Machining lane** (new files `machining.py`, `ops_machining.py`, `chips.py`, `ui_machining.py`; sub-panel of 4 Motion in its own file): 0027 material removal (done, 0.2.19) → 0028 chips (done, 0.2.22) → 0029 later (owner decides); 0038 milling memory crash (done, 0.2.33) → 0039 air blast (done, 0.2.34) → 0040 tool library (done, 0.2.36) → 0049 tool library fixes (done, 0.2.38) → 0051 milling fixes + milled faces' own look (done, 0.2.43) → **0041 tool changes + ATC (open – can start)** → toolpath marks on cut faces (later, owner 9 Nov) → 0042 coolant (later); these four also touch the G-code files (`core/gcode.py`, `blender/gcode.py`, `ui_gcode.py`), so the Motion lane waits for them; 0034 way covers (done, 0.2.28) → 0035 way-cover follow-ups (later)
 
 ## Problems found, waiting for a task
 
@@ -38,10 +38,9 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0051 | Machining lane: milling fixes from the bug hunt (rows 3, 13, 15, 16, 20c), chips of the 0046 materials, 0037 problems 4 and 6; **cut faces get their own fresh-cut look** (Automatic / Same as the block / Pick), new raw stock *Aluminium, sawn plate* and *POM, black* (owner, 9 Nov) | worker | Opus · Medium | running | claude/cad-render-task-0051-qkvu7v · tasks/0051-milling-fixes-cut-look.md |
 | 0054 | Motion lane (queue): queued picture = view, queue stays in its project, no old frames, sharp spot in videos, five small queue faults, `//` paths, faster labels (rows 7–10, 17, 18, 20b) | worker | Opus · Medium | after 0041 (0052 done) | tasks/0054-queue-fixes.md |
 | 0056 | Looks lane (importer): the same STEP imported twice gets its own part IDs (row 11) | worker | Opus · High | open – can start (0054 is a different lane) | tasks/0056-same-step-twice.md |
-| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | after 0051 | tasks/0041-tool-changes-atc.md |
+| 0041 | Machining lane: tool changes – manual (short pause 1 s, slider 0–5 s, optional caption, optional operator's hand) and ATC (pockets, tools visible, carousel turns, swap animated) | worker | Opus · High | open – can start | tasks/0041-tool-changes-atc.md |
 | 0042 | Machining lane, later: coolant flood (M8, liquid look) – brief when the owner asks | owner decides | – | later | – |
 | – | Machining lane, later: tool marks on cut faces that follow the toolpath (swirls on floors, lines on walls, face-mill arcs) – owner, 9 Nov; brief when the owner asks | owner decides | Opus · High | later | – |
 | 0050 | Motion lane (panel 7 Render queue), later: **Start queue in …** – a delay slider next to Start queue (e.g. 0–12 h, or a clock time) so the queue starts by itself later (owner, 9 Nov); shows the countdown, can be cancelled, survives nothing (the app must stay open) – brief when the owner asks | owner decides | Sonnet · Medium | later | – |
@@ -57,6 +56,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0051 | Milling: cut faces get their own fresh-cut look (Automatic / Same as the block / Pick), raw stock Aluminium, sawn plate and POM, black; bug hunt rows 3, 13, 15, 16, 20c; chips of the 0046 materials; spindle ticks Motor, programs stored next to the project | 0.2.43 |
 | – | Phase 1 (stills), phase 2 (motion), installer, self-test | 0.1.0 – 0.2.2 |
 | – | STEP import on all cores | 0.2.3 |
 | 0045 | Bug hunt across the whole app: 20 ranked findings with proof (5 lost work + 1 suspected, 6 wrong output, 2 suspected crash risks, slow spots, small ones); old projects 0.2.20/0.2.24/0.2.30 open fine; Heavy machine measured | – (no code) |
