@@ -139,4 +139,8 @@ moves, the old tool goes back into its pocket and the new one comes out.
   animation; an exact arm swap would be a later idea.
 - A program step that starts after another one keeps the carousel's turn times worked out from frame 1's carousel
   position (only matters when an earlier step turned the carousel by hand).
-- Lead note 0040 (record CI times): see Runs.
+- Lead note 0040: suites 1 and 3 were flagged SLOW (7.0 and 14.1 min); times of run 42654061924 recorded into `tools/ci_times.json` (pushed after the release).
+
+**Runs:** 1 full run on the branch (42654061924, green, 14.7 min; no failures, no version clash), then `main`
+fast-forwarded to it: reuse run 42656618494 published 0.2.45, the Windows update check passed, offered to the apps
+(2.5 min). A last push records the CI times (one more full run on `main`, no release).
