@@ -292,10 +292,13 @@ class Mesh:
         if not self.closed or dist <= ON_SURFACE:
             return False
         s = self.sign * ((p[0] - loc[0]) * nor[0] + (p[1] - loc[1]) * nor[1] + (p[2] - loc[2]) * nor[2])
-        if s < -0.5 * dist:
+        if s < -FACING * dist:
             return True                     # straight below a face
         if s < 0.5 * dist:
-            return self._inside_by_rays(p)  # beside an edge or a corner: the face says little
+            # beside an edge or a corner: the face says little. Beside a sharp outer edge (the cut end of a U-shaped
+            # claw, task 0067) a point outside lies well "below" the face whose edge is nearest: "below" by half its
+            # distance called points 15 mm outside an arm 15 … 60 mm inside it
+            return self._inside_by_rays(p)
         return False
 
     def _orient(self) -> None:
@@ -356,6 +359,7 @@ class Mesh:
 
 RAYS = ((0.5772, 0.5774, 0.5776), (-0.3117, 0.8436, -0.4372), (0.8018, -0.2673, 0.5345))
 RAY_STEP = 2e-6                          # m past a face before looking for the next one
+FACING = 0.999                           # a point straight below a face: -side > this × its distance (else rays)
 ON_SURFACE = 1e-5                        # m: a point closer than this to a surface touches it (not inside)
 POLISH = 2                               # the deepest few sampled points are moved to the deepest spot nearby
 QUICK = 96                               # corners tried first when one deep point is enough

@@ -17,7 +17,9 @@ TEST.LINKAGES
     FOURBAR.BASE.ASM               crank 120, coupler 350, rocker 250; the crank at 60° in the CAD pose
     FOURBAR.CRANK, FOURBAR.COUPLER (with a tool block), FOURBAR.ROCKER
   CRANK.ASM                        slider-crank at x = 3200: crank pivot O (3200, 300), crank 100 at 30°,
-    CRANK.BASE.ASM                 rod 300, piston pin 20 mm above O's line (offset), guide tube along X
+    CRANK.BASE.ASM                 rod 300, piston pin 20 mm above O's line (offset), guide tube along X;
+                                   CRANK.BEARING (post with the bore at O) at y -52 … -22, behind the crank's
+                                   own pin (y -20 … 20) that sweeps past it (task 0067)
     CRANK.CRANK, CRANK.ROD, CRANK.PISTON
 
 Hand calculation (mm): scissor c = 1000 cos 15° = 965.926, s = 1000 sin 15° = 258.819; fixed pin (0, 100);
@@ -274,9 +276,10 @@ def build(path: str, revision: str = "A") -> None:
     sbase = assy("CRANK.BASE.ASM")
     place(sbase, part(BRepPrimAPI_MakeBox(gp_Pnt(SC_X - 150, -40, 0), 800.0, 120.0, 60.0).Shape(),
                       "CRANK.BASE", grey))
-    place(sbase, part(_bored_block(SC_X - 30, SC_X + 30, -40, -10, 60, SC_Z + 30, [(SC_X, SC_Z)], 10.0),
+    # the bearing post stands 12 mm behind the crank: the crank's own pin (y -20 … 20) sweeps past it (task 0067)
+    place(sbase, part(_bored_block(SC_X - 30, SC_X + 30, -52, -22, 60, SC_Z + 30, [(SC_X, SC_Z)], 10.0),
                       "CRANK.BEARING", grey))
-    place(sbase, part(_cyl_y(SC_X, SC_Z, 10.0, -40, 10), "CRANK.PIN.O", chrome))
+    place(sbase, part(_cyl_y(SC_X, SC_Z, 10.0, -52, 10), "CRANK.PIN.O", chrome))
     guide = BRepAlgoAPI_Cut(_cyl_x(SC_X + 250, SC_X + 600, 40, SC_Z + SC_E, 34),
                             _cyl_x(SC_X + 249, SC_X + 601, 40, SC_Z + SC_E, 26)).Shape()
     place(sbase, part(guide, "CRANK.GUIDE", grey))

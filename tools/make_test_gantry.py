@@ -10,14 +10,14 @@ TEST.GANTRY
     GANTRY SIDE L / R       boxes at x = -390 and x = 370 (20 mm thick)
     BEAM                    box across, z 200..260, y 40..100
     X.ASM                   moves along X on the beam
-      CARRIAGE              box
+      CARRIAGE              plate x -50..50, y 26..40, z 150..260 (behind the spindle, clear of it and the tool)
       Z.ASM                 moves along Z
         SPINDLE             cylinder Ø50, z 110..230 (nose at z = 110)
         TOOL T1 FLAT D6     flat end mill Ø6 x 30, tip at x = 0, y = 0, z = 80 (50 mm above the stock)
   CAROUSEL.ASM              tool carousel beside the bed, turns about the vertical axis x = 500, y = 0
-    CAROUSEL DISC           cylinder Ø200 x 10, z 140..150
-    TOOL T2 BALL D4         ball end mill Ø4 x 30 standing in the disc, tip at (560, 0, 110)
-    TOOL T3 DRILL D5        drill Ø5 x 40 with a 118° point, tip at (500, 60, 100)
+    CAROUSEL DISC           cylinder Ø170 x 10, z 128..138, 8 holes Ø10 on radius 60 (one every 45° from +X)
+    TOOL T2 BALL D4         ball end mill Ø4 x 30 hanging through a hole, tip at (560, 0, 110), top at z 140
+    TOOL T3 DRILL D5        drill Ø5 x 40 with a 118° point, tip at (500, 60, 100), top at z 140
 
 usage: python make_test_gantry.py out.step
 """
@@ -25,7 +25,7 @@ usage: python make_test_gantry.py out.step
 import math
 import sys
 
-from OCP.BRepAlgoAPI import BRepAlgoAPI_Fuse
+from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone, BRepPrimAPI_MakeCylinder, BRepPrimAPI_MakeSphere
 from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec
 from OCP.IFSelect import IFSelect_RetDone
@@ -44,6 +44,10 @@ T1_TIP = (0.0, 0.0, 80.0)
 T2_TIP = (560.0, 0.0, 110.0)
 T3_TIP = (500.0, 60.0, 100.0)
 CAROUSEL_AXIS = (500.0, 0.0)
+# the carousel (task 0067): the tools hang through holes in the disc, their top (the pocket, z 140) just above it, so the
+# spindle comes down onto a tool without going into the disc; the disc stays inside x > 410 (the gantry's right side)
+DISC_Z, DISC_R = 128.0, 85.0
+POCKETS, POCKET_R, HOLE_R = 8, 60.0, 5.0
 
 
 def flat_mill(radius: float, length: float):
@@ -101,15 +105,20 @@ def build(path: str) -> None:
     side_l = part(box(-410, 40, 0, 20, 60, 260), "GANTRY SIDE L", blue)
     side_r = part(box(390, 40, 0, 20, 60, 260), "GANTRY SIDE R", blue)
     beam = part(box(-410, 40, 200, 820, 60, 60), "BEAM", blue)
-    carriage = part(box(-50, 0, 150, 100, 40, 110), "CARRIAGE", grey)
+    carriage = part(box(-50, 26, 150, 100, 14, 110), "CARRIAGE", grey)
     spindle = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, 110), gp_Dir(0, 0, 1)), 25.0, 120.0).Shape(),
                    "SPINDLE", grey)
     t1 = part(flat_mill(3.0, 30.0), "TOOL T1 FLAT D6", steel)
     t2 = part(ball_mill(2.0, 30.0), "TOOL T2 BALL D4", steel)
     t3 = part(drill(2.5, 40.0), "TOOL T3 DRILL D5", steel)
     cx, cy = CAROUSEL_AXIS
-    disc = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(cx, cy, 140), gp_Dir(0, 0, 1)), 100.0, 10.0).Shape(),
-                "CAROUSEL DISC", grey)
+    disc = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(cx, cy, DISC_Z), gp_Dir(0, 0, 1)), DISC_R, 10.0).Shape()
+    for k in range(POCKETS):
+        a = 2 * math.pi * k / POCKETS
+        px, py = cx + POCKET_R * math.cos(a), cy + POCKET_R * math.sin(a)
+        disc = BRepAlgoAPI_Cut(disc, BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(px, py, DISC_Z - 1), gp_Dir(0, 0, 1)),
+                                                              HOLE_R, 12.0).Shape()).Shape()
+    disc = part(disc, "CAROUSEL DISC", grey)
 
     z_asm = asm("Z.ASM")
     place(z_asm, spindle)

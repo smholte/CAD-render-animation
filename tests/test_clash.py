@@ -5,9 +5,9 @@ ends exactly 6.0 mm inside B's flat side (deepest at the last frame). Arm A pass
 miss) and, turned the other way within one frame, goes through a thin post (found only between frames). Pins turn
 in their bores all the time (touching, never a clash).
 
-The test tour's projects (crane, cylinder, mechanisms, way cover, CNC gantry, tool changes by hand and with the
-changer, milling) are checked too: no false clashes; the clashes the check finds there are real faults of those
-simple test models or of their set-ups, each named below with the reason.
+Task 0067: every animation of every test-tour project is built and checked: 0 rows (the clash model keeps its 6.0 mm).
+The faults the check found there were fixed in the test models (double arm, carousel gantry, slider-crank) and the
+tour's set-ups (the scissor lift's cylinder), and one in the check itself (points beside a sharp outer edge).
 """
 
 import math
@@ -288,10 +288,7 @@ def test_gantry_the_spindle_hits_a_block_placed_too_high(tmp_path):
     sc = _set("gantry", tmp_path)
     a = sc.fresing.animations["G-code"]
     animation.bake(sc, a)
-    rows = clash.check(sc).rows
-    # the test gantry's right side runs through the tool carousel's disc when the gantry moves along Y (its CAD:
-    # the disc reaches x 400 … 600, the side x 390 … 410): a real fault of the test model
-    assert {frozenset((r.a, r.b)) for r in rows} == {frozenset(("GANTRY SIDE R", "CAROUSEL DISC"))}
+    assert not clash.check(sc).rows             # (0067: the carousel's disc is clear of the gantry's side)
     # a clamp block put on the bed 40 mm higher than the stock under the program's path
     stock = named(sc, "STOCK 300x200x30")
     clamp = stock.copy()
@@ -320,58 +317,85 @@ def Matrix_translation(x, y, z):
 
 
 # ---------------------------------------------------------------------------
-# the test tour's projects: no false clashes
+# the test tour's projects: no false clashes (task 0067)
 # ---------------------------------------------------------------------------
 
-def _rows(sc, anim):
-    animation.bake(sc, sc.fresing.animations[anim])
-    return clash.check(sc).rows
+TOUR_SECONDS = 300          # time box of the whole check below (build ~40 s, checks ~70 s on a 4-core machine)
 
 
-def test_no_false_clashes_crane_and_way_cover(tmp_path):
-    sc = _set("crane", tmp_path)
-    for a in ("Boom up", "Boom and trolley", "Finished video", "Queue video", "Turntable"):
-        assert not _rows(sc, a), a
-    sc = _set("waycover", tmp_path)
-    assert not _rows(sc, "X axis out and back")
+def test_every_tour_animation_has_no_clash(tmp_path):
+    """Every animation of every test-tour project is built and checked: 0 rows, except the clash model's own 6.0 mm.
+    A new tour set (a new function's stop) is checked here by itself."""
+    import time
+    t0 = time.perf_counter()
+    folder = str(tmp_path / "tour")
+    out = tour.build_all(folder, "9.9.9")
+    assert not out["errors"], out["errors"]
+    found, checked = {}, 0
+    for sid in tour.SETS:
+        tour.open_set(folder, "9.9.9", sid)
+        sc = bpy.context.scene
+        for a in list(sc.fresing.animations):
+            animation.bake(sc, a)
+            rows = clash.check(sc, store=False).rows
+            checked += 1
+            if sid == "clash":
+                assert [frozenset((r.a, r.b)) for r in rows] == [frozenset(("ARM.A", "ARM.B"))], sid
+                assert abs(rows[0].depth / MM - tour.CLASH_DEPTH) < 0.1
+            elif rows:
+                found[f"{sid} / {a.name}"] = [core.row_text(r) for r in rows[:5]]
+    assert not found, found
+    assert checked >= 15
+    assert time.perf_counter() - t0 < TOUR_SECONDS
 
 
-def test_no_false_clashes_cylinder_and_mechanisms(tmp_path):
-    sc = _set("cylinder", tmp_path)
-    # only the front cylinder is set up in the tour: the second one and the telescopic one stand still while the
-    # arm lifts, so the arm's pin is torn through them (real). Left out, the rest has no clash.
-    rows = _rows(sc, "Stroke out")
-    assert rows and all("ARM.ROD.PIN" in (r.a, r.b) for r in rows)
-    still = [o for o in sc.objects if o.get(build.PROP_NAME) in ("CYL.ASM", "TELE.ASM")
-             and abs(o.matrix_world.translation.y - 0.08) > 0.01]
-    assert len(still) == 2
-    logic.exclude(still)
-    assert not _rows(sc, "Stroke out")
-    sc = _set("linkage", tmp_path)
-    # the lifting cylinder is no part of the tour's scissor mechanism: it stands still and the arm's pin is torn
-    # through its rod end (real); the slider-crank's crank pin goes through the bearing block on every turn (the
-    # test model's bearing is a solid block): 10 mm, the pin's radius
-    logic.exclude([named(sc, "LIFT.CYL.ASM")])
-    rows = _rows(sc, "Lift and crank")
-    assert [frozenset((r.a, r.b)) for r in rows] == [frozenset(("CRANK.BEARING", "CRANK.CRANK.PIN"))]
-    assert abs(rows[0].depth / MM - 10.0) < 0.2
+# ---------------------------------------------------------------------------
+# the inside test beside sharp edges, the double arm's hand-overs (task 0067)
+# ---------------------------------------------------------------------------
+
+def _wedge(deg):
+    """A prism along Y (100 mm) whose cross-section is a triangle with a ``deg``° knife edge on the Y axis."""
+    L = 0.1
+    h = L * math.tan(math.radians(deg))
+    sec = [(0.0, 0.0), (L, 0.0), (L, h)]
+    v = [(x, y, z) for y in (-0.05, 0.05) for x, z in sec]
+    t = [(0, 1, 2), (3, 5, 4), (0, 3, 4), (0, 4, 1), (1, 4, 5), (1, 5, 2), (2, 5, 3), (2, 3, 0)]
+    return clash.Mesh(np.array(v, dtype=float), np.array(t))
 
 
-def test_no_false_clashes_tool_changes(tmp_path):
-    sc = _set("tools", tmp_path)
-    animation.clear_keys(sc)
-    machining.set_finished(sc, named(sc, "FINISHED PART"))
-    sc.fresing.animations["Three tools"].start_shot = ""
-    # tool copies in the spindle, the hand, the cut: nothing
-    assert not _rows(sc, "Three tools")
-    sc = _set("atc", tmp_path)
-    rows = _rows(sc, "Tool changer")
-    # the test gantry's crude shapes: the spindle (a plain cylinder) goes down through the carousel disc to the
-    # pockets, the carriage box hangs below the spindle nose when Z is up, the gantry side runs through the disc.
-    # Never a tool against its own spindle or pocket.
-    allowed = {frozenset(("SPINDLE", "CAROUSEL DISC")), frozenset(("GANTRY SIDE R", "CAROUSEL DISC"))}
-    for r in rows:
-        pair = frozenset((r.a, r.b))
-        assert pair in allowed or pair == frozenset(("CARRIAGE", r.a if r.b == "CARRIAGE" else r.b)), core.row_text(r)
-        tool = any(n.startswith(("FR tool", "TOOL ")) for n in (r.a, r.b))
-        assert not ({r.a, r.b} & {"SPINDLE", "CAROUSEL DISC"} and tool)
+@pytest.mark.parametrize("deg", [10, 20, 45])
+def test_points_beside_a_sharp_outer_edge_are_outside(deg, monkeypatch):
+    # 2 mm round the knife edge, all the way round outside it: none inside (the U claw's cut end, task 0067: points
+    # 15 mm outside the arm read 15 … 60 mm inside it, because the face whose edge was nearest pointed away)
+    m = _wedge(deg)
+    out = [(0.002 * math.cos(math.radians(k + 0.5)), 0.0, 0.002 * math.sin(math.radians(k + 0.5)))
+           for k in range(360) if not 0 <= k + 0.5 <= deg]
+    d, _g = m.depths(np.array(out))
+    assert not np.any(d > 0), int(np.count_nonzero(d > 0))
+    # inside, near the same edge: inside, as deep as the nearer face is away
+    a = math.radians(deg / 2)
+    p = np.array([[0.02 * math.cos(a), 0.0, 0.02 * math.sin(a)]])
+    assert abs(m.depths(p)[0][0] - 0.02 * math.sin(a)) < 1e-6
+    # the rule before 0.2.54 ("below the nearest face by half the distance") called some of them inside
+    monkeypatch.setattr(clash, "FACING", 0.5)
+    assert np.any(m.depths(np.array(out))[0] > 0)
+
+
+def test_double_arm_held_tools_are_skipped_and_reported_when_left_behind(tmp_path):
+    """The tools the arm holds are copies on the arm (one body with it), the ones in the pots copies on the pots, the
+    spindle's tool sits in the spindle: none is a clash. Left in the spindle (the spindle's tool kept showing after
+    the arm took it), the claw's closed side turns through it: reported."""
+    sc = _set("doublearm", tmp_path)
+    a = sc.fresing.animations["Double-arm changer"]
+    animation.bake(sc, a)
+    assert not clash.check(sc, store=False).rows
+    t1 = named(sc, "TOOL T1 BT30 FLAT D10")
+    held = [o for o in sc.objects if o.get("fr_cnc_carry") == 1]
+    assert held and all(o.parent is not None and o.parent.get("fr_atc") for o in held)     # on the arm's turn
+    sc.frame_set(260)                                       # mid-swap: T1 is on the arm, its spindle part hidden
+    assert t1.hide_render and any(not o.hide_render for o in held)
+    t1.animation_data_clear()
+    t1.hide_render = t1.hide_viewport = False
+    rows = clash.check(sc, store=False).rows
+    pairs = {frozenset((r.a, r.b)) for r in rows}
+    assert frozenset(("TOOL T1 BT30 FLAT D10", "CHANGER ARM")) in pairs, [core.row_text(r) for r in rows]
