@@ -1,6 +1,6 @@
 # 0063 – Faster test run again (back to about 12 minutes)
 
-**Who:** worker · **Status:** running (10 Nov), alongside 0064 · **Branch:** `task/0063-faster-test-run-again`
+**Who:** worker · **Status:** done (10 Nov), alongside 0064 · **Branch:** `task/0063-faster-test-run-again`
 **Started by:** lead chat, 10 Nov 2026 (review of 0060: the full run is still ~16 min, the Windows job is now the
 long pole)
 **Lane:** Quality & delivery – `.github/workflows/`, `tools/ci_*.py`, `tools/ci_times.json`, `tools/ci_groups.py`,
@@ -89,3 +89,13 @@ must find `main` green.
 **Tested and measured** (name the machine and the model):
 
 **Open points / follow-up tasks:**
+
+**Chat / date:** Claude Code on the web, 10 Nov 2026.
+
+**Where the time went** (run 42815485418, 15.7 min): Windows job 14.6 min = update + install/repair ~3.5 min, **PC check Full 10.3 min** (46 lines; video.labels 217 s, queue.video 101, queue.time_test 68, scene.turntable 59, tour.make 35, looks.materials 22, milling.coolant 21), Heavy 0.4 min. Linux pytest: 4 groups of ~13 min each (total ~52 min of tests); one test, `test_air.py::test_queue_render_blows_the_part_clean` (queued render in a background Blender), takes ~576 s alone; other queue tests 130–260 s. Real app: pccheck 11.1 min (same lines), callouts/surroundings/ui1 each one test of 6–7.5 min, motion 10.2 (nine tests in one job). Landing page 9.9 min: the Pages service stayed in `syncing_files` for ~9.5 min (step "Publish", `deploy-pages`); the same workflow's runs on site pushes take 22–26 s, so it is GitHub's service, not our build. Nothing in our workflow can speed that up; it comes after "Offer the release", so it holds nothing back.
+
+**What changed** (CI only, no app code, no version): (1) pytest in **7 groups** (`PYTEST_GROUPS`), `test_air.py` alone in one; `ci_times.json` keeps the last 3 times per file and balances by the slowest (`ci_status.py --record`, `merge_file_times`). (2) Real-app jobs regrouped: pccheck, pccheck-b, callouts, paths-heavy, tour, ui, scenes, motion, machines (largest ones alone; comment in `ci_real_app.py`). (3) PC check Full split in two Linux jobs (`tools/ci_pccheck_lines.py`: `video.labels` + `queue.time_test` in `pccheck-b`, which also runs `import.crane` they need; every other Full line in `pccheck`); the precheck fails if the halves stop covering every Full line. (4) Windows runs the Full lines except 7 long app-only renders (`WINDOWS_SKIPS`), launched from the Start-menu shortcut with `FRESING_PCCHECK_ONLY`; all of them still run on Linux. CLAUDE.md section 5 says which lines run where. New tests in `tests/test_ci_tools.py`. `MIN_CHECKS`/`MIN_LINES_*` not lowered (new `MIN_CHECKS["pccheck2"]` = 2).
+
+**Tested and measured** (GitHub runners, 4 cores): run 42827xxx failed in `pccheck-b` (the two lines need `import.crane`; fixed) after 9.1 min. Then two green full runs on the branch: **8.8 min** (42828538561) and **11.9 min** (next one; one pytest group 11.5 min that time, a slow runner). Before: 15.7 / 18.0. Windows job 5.7 / 6.7 min (was 14.6). Times recorded from the first green run (the second is recorded by the next task's merge or by hand with `ci_status.py --record`). Runs needed: 3 (one real failure).
+
+**Open points:** a run's length now varies 9–12 min with runner speed; the air queue test (~6–10 min) is the floor unless its render is made cheaper (changes what it checks – not done). Run-to-run noise: record every green full run. Leftover branch for the owner to delete after merge: `claude/fervent-tesla-q9r5at`.
