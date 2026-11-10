@@ -1129,6 +1129,37 @@ def _check_atc(scene):
     return "4 changes, every tool to its own pocket"
 
 
+@tour_set("doublearm", "Double-arm tool changer", "test_atc.step")
+def build_doublearm(b: Build):
+    from mathutils import Vector
+
+    from . import doublearm
+    sc = b.scene
+    a = _animation(b, "Double-arm changer")
+    blk = _gcode_step(a, _program(b, "Tour double-arm.ngc", doublearm.TEST_PROGRAM), sc)
+    doublearm.set_up_test_model(sc, blk)
+    bad = [t for ok, t in doublearm.check(sc) if not ok]
+    _check(not bad, "; ".join(bad[:2]))
+    _close_camera(b, Vector((-0.17, 0.0, 0.26)), 0.42, "Tour double arm")
+    a.start_shot = _shot(b, "Tour: double arm").name
+
+
+def _check_doublearm(scene):
+    import bpy
+    a = scene.fresing.animations.get("Double-arm changer")
+    sch = _changes(scene, a)
+    arm = [x for x in sch.changes if x.kind == "arm"]
+    _check([(x.tool, x.new_pocket) for x in arm] == [(2, 2), (3, 5), (1, 2)],
+           "the tools go to the wrong pots: " + ", ".join(f"T{x.tool} from pot {x.new_pocket}" for x in arm))
+    t = arm[0].arm_times()
+    mid = (t["swap"][0] + t["swap"][1]) / 2
+    fr = 1 + mid * int(a.fps)
+    scene.frame_set(int(fr), subframe=fr - int(fr))
+    held = sorted(o["fr_cnc_carry"] for o in bpy.data.objects if o.get("fr_cnc_carry") and not o.hide_render)
+    _check(held == [1, 2], f"the arm does not hold T1 and T2 at its half turn (it holds {held})")
+    return f"3 changes, random pots; arm {t['back'][1] - t['grip'][0]:.1f} s per change"
+
+
 TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT30)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
@@ -1388,6 +1419,12 @@ stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
      "the right pocket comes to the spindle and the old tool goes back to its own pocket.",
      where="4 Motion > CNC machine > Tool changes (Tool changer)", animation="Tool changer", play=True,
      check=_check_atc, auto="clip")
+stop("doublearm", MACH, "doublearm", "Double-arm tool change",
+     "Three BT30 tools: at each Tn the magazine turns the next tool's pot to the arm and tips it down; at M6 the head "
+     "goes up, the arm turns onto both tools, pulls them out, turns half round and pushes them in. The old tool goes "
+     "into the pot the new one came from; no tool ever jumps or hangs in the air.",
+     where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
+     since="0.2.51", check=_check_doublearm, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table and the block.",
      where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip")

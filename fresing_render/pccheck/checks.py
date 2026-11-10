@@ -31,6 +31,7 @@ DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
+ATC = os.path.join(DATA, "test_atc.step")
 WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 
@@ -617,6 +618,89 @@ def motion_toolchange(ctx):
     scene.frame_set(int(fr))
     _check(not t3.hide_render, "T3 is not back in its pocket after the change")
     return f"hand {hand_s:.1f} s per change; ATC: 4 changes, pockets at the spindle to {worst:.4f} mm"
+
+
+@line("motion.doublearm", "Double-arm tool changer: grip, pull, half turn, push", "0.2.51",
+      what="The test mill with a double-arm changer and a 12-pot magazine changes three BT30 tools: the pot tips "
+           "down, the arm grips both tools, pulls, turns 180° and pushes; every hand-over within 0.01 mm, the old "
+           "tool in the pot the new one came from; rendered at the half turn")
+def motion_doublearm(ctx):
+    import bpy
+    import numpy as np
+    from mathutils import Vector
+
+    from ..blender import animation, cameras, doublearm, gcode
+    from ..core import gcode as core
+    scene = ctx.fresh(ATC)
+    path = os.path.join(ctx.work, "pccheck_doublearm.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(doublearm.TEST_PROGRAM)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Double-arm", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_file = path
+    doublearm.set_up_test_model(scene, b)
+    bad = [t for ok, t in doublearm.check(scene) if not ok]
+    _check(not bad, "; ".join(bad[:2]))
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("bake", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    sch = core.Schedule(gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(scene, a, b, mach))
+    arm = [x for x in sch.changes if x.kind == "arm"]
+    _check([(x.tool, x.new_pocket) for x in arm] == [(2, 2), (3, 5), (1, 2)],
+           "the tools go to the wrong pots: " + ", ".join(f"T{x.tool} from {x.new_pocket}" for x in arm))
+    rows = {p.number: p for p in scene.fresing.cnc.pockets}
+
+    def world(o):
+        return o.parent.matrix_world @ o.matrix_parent_inverse @ o.matrix_basis
+
+    def gap(p, q):
+        me = p.data
+        idx = range(0, len(me.vertices), max(1, len(me.vertices) // 6))
+        mp, mq = world(p), world(q)
+        return max((mp @ me.vertices[i].co - mq @ me.vertices[i].co).length for i in idx) / 0.001
+
+    def held(n, tag, parent=None):
+        return next(o for o in bpy.data.objects if o.get(tag) == n and (parent is None or o.parent is parent)
+                    and not o.hide_render)
+
+    def spindle_of(n):
+        return mach.tool if n == 1 else gcode.copies()[n]
+
+    worst = 0.0
+    fps = 25
+    for x in arm:
+        times = x.arm_times()
+        pot = rows[x.new_pocket].obj
+        for when, pairs in ((times["grip"][1] + 1e-4, ((x.old, "spindle"), (x.tool, "pot"))),
+                            (times["push"][1] - 1e-4, ((x.tool, "spindle"), (x.old, "pot")))):
+            fr = 1 + when * fps
+            scene.frame_set(int(fr), subframe=fr - int(fr))
+            for n, other in pairs:
+                on_arm = held(n, "fr_cnc_carry")
+                there = spindle_of(n) if other == "spindle" else next(
+                    o for o in bpy.data.objects if o.get("fr_cnc_pocket") == n and o.parent is pot)
+                worst = max(worst, gap(on_arm, there))
+    _check(worst < 0.01, f"a tool jumps {worst:.3f} mm when it goes from one holder to the next")
+    ctx.metric("handover", worst * 1000.0, "µm")
+    first = arm[0]
+    t = first.arm_times()
+    ctx.metric("change", t["back"][1] - t["grip"][0], "s")
+    mid = (t["swap"][0] + t["swap"][1]) / 2
+    fr = 1 + mid * fps
+    scene.frame_set(int(fr), subframe=fr - int(fr))
+    centre = Vector((-0.13, 0.0, 0.24))
+    pts = np.array([tuple(centre + Vector(d)) for d in ((-0.2, -0.16, -0.12), (0.2, 0.16, 0.1))])
+    cam = cameras.add_camera(scene, "ISO", 50.0, "PC check arm", points=pts)
+    scene.camera = cam
+    _small_output(scene.fresing, 480, 360)
+    _cpu_still(ctx, scene, "doublearm", "Double-arm changer at its half turn (processor, draft)")
+    return (f"3 changes, T1 back from pot 2; hand-overs within {worst:.4f} mm; arm {t['back'][1] - t['grip'][0]:.2f} "
+            "s per change")
 
 
 def _ob_v(scene, name):

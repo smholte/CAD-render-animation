@@ -57,7 +57,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 29,
-              "paths": 8, "pccheck": 31, "pccheckheavy": 10, "update": 29, "tour": 30, "tourui": 15}
+              "paths": 8, "pccheck": 31, "pccheckheavy": 10, "update": 29, "tour": 31, "tourui": 15,
+              "doublearm": 19}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036). Balanced by measured minutes
@@ -73,7 +74,7 @@ GROUPS = {
     "paths-heavy": ["paths", "pccheckheavy"],
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
     "ui": ["ui1", "ui2", "faces"],
-    "scenes": ["surroundings", "rulesets", "decals"],
+    "scenes": ["surroundings", "rulesets", "decals", "doublearm"],
     "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover", "gcode", "tourui"],
 }
 
@@ -102,6 +103,8 @@ TESTS = {
                  "ui_test_waycover.py", True),
     "gcode": ("Real app: CNC machine and Run G-code program – clicks, tip on the path, tool change "
               "(ui_test_gcode.py)", "ui_test_gcode.py", True),
+    "doublearm": ("Real app: double-arm tool changer – click the hub and the hinge, Check, hand-overs "
+                  "(ui_test_doublearm.py)", "ui_test_doublearm.py", True),
     "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
     "pccheck": ("PC check, Full, from the installed launcher (pccheck/launcher.py)", "", "pccheck"),
     "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),

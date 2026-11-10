@@ -188,8 +188,11 @@ def problems(scene) -> list[str]:
     """What is wrong with the changer's set-up, in plain words."""
     c = settings(scene)
     out = []
-    if c.changer != "ATC":
+    if c.changer not in ("ATC", "ARM"):
         return out
+    if c.changer == "ARM":
+        from . import doublearm
+        out += doublearm.problems(scene)
     if c.carousel_joint and carousel(scene) is None:
         out.append(f"'{c.carousel_joint}' is not a rotate joint: pick the carousel's rotate joint")
     nums = [p.number for p in c.pockets]
@@ -207,7 +210,8 @@ def problems(scene) -> list[str]:
         if c.pockets and c.station not in nums:
             out.append(f"The change station is pocket {c.station}, which does not exist")
     if c.pockets and c.tools:
-        where = tool_pockets(scene, [t.number for t in c.tools])
+        skip = start_tool(scene) if c.changer == "ARM" else -1     # double-arm: the spindle's tool is in no pot
+        where = tool_pockets(scene, [t.number for t in c.tools if t.number != skip])
         for pk in sorted(set(where.values())):
             ts = sorted(n for n, x in where.items() if x == pk)
             if len(ts) > 1:
@@ -347,7 +351,8 @@ def stations(scene, mach) -> tuple[dict, dict, list]:
 def changer(scene, anim, b, mach=None) -> TC.Changer:
     """The step's tool changes as the core plans them."""
     c = settings(scene)
-    atc = c.changer == "ATC"
+    arm = c.changer == "ARM"
+    atc = c.changer == "ATC" or arm
     ch = TC.Changer(atc=atc, pause=min(TC.PAUSE_MAX, max(0.0, float(b.gcode_tc_time))), hand=bool(b.gcode_hand),
                     speed=float(b.gcode_changer_speed), turn_time=float(c.pocket_time),
                     approach=float(c.atc_lift) / MM, start_tool=start_tool(scene))
@@ -355,7 +360,17 @@ def changer(scene, anim, b, mach=None) -> TC.Changer:
         ch.position = (None, None, c.change_pos[2] / MM)
     elif c.change_mode == "XYZ":
         ch.position = tuple(x / MM for x in c.change_pos)
-    if atc:
+    if arm:                                            # double-arm changer (task 0064)
+        from . import doublearm
+        ch.arm = True
+        ch.arm_times = {"grip": float(c.arm_grip_time), "pull": float(c.arm_stroke_time),
+                        "swap": float(c.arm_swap_time), "push": float(c.arm_stroke_time),
+                        "back": float(c.arm_grip_time)}
+        tipping = c.pot_tip and any(p.tip_joint for p in c.pockets)
+        ch.tip = float(c.pot_tip_time) if tipping else 0.0
+        sp = scene.fresing.joints.get(c.spindle_joint) if c.spindle_joint else None
+        ch.orient = TC.ORIENT_TIME if sp is not None else 0.0
+    if c.changer == "ATC":
         a, _w = gcode.atc_animation(scene, anim, b)
         if a is not None:
             ch.seq = gcode._atc_length(a)
@@ -381,6 +396,8 @@ def changer(scene, anim, b, mach=None) -> TC.Changer:
             pass
         numbers.add(ch.start_tool)
         ch.pockets = tool_pockets(scene, sorted(x for x in numbers if x))
+        if arm:                                        # the tool in the spindle is in no pot
+            ch.pockets.pop(ch.start_tool, None)
         j = carousel(scene)
         if j is not None:
             ch.carousel_start = gcode._first_value(j)
@@ -586,6 +603,17 @@ def gauge_of(scene, prog, n: int) -> float:
 
 def tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge, name,
               offsets=None) -> None:
+    """Visibility keys of the tools and the changer's joints, for one step."""
+    if settings(scene).changer == "ARM":
+        from . import doublearm
+        return doublearm.tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings,
+                                   merge, name, offsets)
+    return tool_keys_plain(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge,
+                           name, offsets)
+
+
+def tool_keys_plain(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge, name,
+                    offsets=None) -> None:
     """Visibility keys of the tools (spindle, pockets, hand) and the carousel's turns, for one step."""
     from . import animation
     ch = sch.timing.changer

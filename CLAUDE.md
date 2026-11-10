@@ -229,6 +229,12 @@ fresing_render/            the Blender extension (Python package)
                            (pockets on parts, carousel joint turned the shortest way, stations worked out from the
                            pockets); pocket copies, the hand's keys, captions; core/toolchange.py plans each change
                            as timed phases (no Blender); panel 4 Motion > CNC machine > Tool changes
+    doublearm.py           double-arm tool changer (task 0064): the arm's two joints and the pots' tip joints made by
+                           the app (tagged ``fr_atc``, never an axis or the spindle), Check, the bake (a tool copy per
+                           holder: spindle, arm, pot; hand-overs worked out from the joints' frames with
+                           ``world_at``); random pockets and Tn pre-indexing are planned in core/toolchange.py +
+                           core/gcode.py Schedule; ops_doublearm.py; the shared set-up of the test model
+                           (``set_up_test_model``, test_atc.step from tools/make_test_atc.py)
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
@@ -624,5 +630,8 @@ the release → Delete); the next run on `main` publishes it again.
   points are not round; a joint is made on another face). Turning, it went round in a circle and left the program by
   up to twice that (0.065 mm in 0037/0048). `machining.on_turning_axis` puts the tip on the turning joint's axis
   (`gcode._rest_tip`, `detect`, `sample`); test with a spindle joint 0.06 mm off (task 0049).
+- An object hidden in the viewport (``hide_viewport``, as tool copies are between their keys) is not evaluated:
+  its ``matrix_world`` is stale. A test that compares a hidden copy with a visible one works its world matrix out
+  from the parent's: ``parent.matrix_world @ matrix_parent_inverse @ matrix_basis`` (task 0064).
 - `actions/download-artifact` with `run-id` + `github-token` (and `actions: read`) takes another run's files: a
   reuse release ships exactly the installer that was tested. Job-level `permissions` replace the workflow's.

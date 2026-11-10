@@ -154,6 +154,9 @@ class Program:
     name: str = ""                                      # the program's title comment, if any
     # coolant / air codes (M7 M8 M9, user codes M100-M199; task 0039): (moves before it, M number, line)
     m_events: list = field(default_factory=list)
+    # Tn without M6 on its line (task 0064): (moves before it, T, line) - a double-arm changer turns its magazine
+    # to that tool's pot while the machine still cuts
+    t_events: list = field(default_factory=list)
 
     @property
     def duration(self) -> float:
@@ -827,6 +830,8 @@ class Reader:
         if "t" in words:
             self.next_tool = int(round(words["t"]))
             self.prog.tools.setdefault(self.next_tool, ToolInfo(self.next_tool, source="program"))
+            if 6 not in ms and 61 not in ms:
+                self.prog.t_events.append((len(self.prog.moves), self.next_tool, self.top_line or self.line_no))
         # 2 tool change
         if 6 in ms or 61 in ms:
             if 61 in ms:
@@ -1547,17 +1552,77 @@ class Schedule:
         legacy = ch is None
         if legacy:
             ch = TC.Changer(pause=tc)
+        self._tn = self._tn_moves(prog, moves) if ch.arm else {}
+        # a double-arm changer turns its magazine at the Tn before an M6 while the machine cuts; when that is not
+        # done before the arm wants the pot, that change does it at its M6 instead (planned again without it)
+        late: set = set()
+        for _round in range(len(self._tn) + 1):
+            t = self._plan_place(moves, timing, ch, legacy, motion, raw, rf, tc, late)
+            more = self._late_preps() - late
+            if not more:
+                break
+            late |= more
+        self.pocket_table = dict(ch.pockets)
+        self.program_end = t
+        self.clean_span = None                              # (start, end) of "Blow the part clean", s
+        if timing.clean > 0 and self.pieces:
+            last = self.pieces[-1].move
+            for mv, d in clean_moves(prog, last.b, float(timing.clean), bool(timing.clean_sweep)):
+                mv.spindle, mv.tool, mv.line, mv.top = last.spindle, last.tool, last.line, last.top
+                self.pieces.append(Piece(mv, t, d))
+                t += d
+            self.clean_span = (self.program_end, t)
+        self.duration = t
+        self._starts = [p.v0 for p in self.pieces]
+        self._moves = moves
+
+    @staticmethod
+    def _tn_moves(prog: Program, moves: list) -> dict:
+        """{index in ``moves`` of an M6: (index in ``moves`` of the first move after its Tn)} for the M6s that have
+        a Tn of the same tool after the change before (task 0064)."""
+        if not prog.t_events:
+            return {}
+        index = {id(m): i for i, m in enumerate(prog.moves)}
+        pidx = [index.get(id(m), -1) for m in moves]
+        out = {}
+        prev = -1
+        for k, m in enumerate(moves):
+            if m.kind != "TOOL" or m.cycle == "M61":
+                continue
+            p = pidx[k]
+            hits = [cnt for cnt, n, _line in prog.t_events if n == m.tool and prev < cnt <= p]
+            if hits:
+                cnt = hits[-1]
+                out[k] = next((j for j in range(k + 1) if pidx[j] >= cnt), k)
+            prev = p
+        return out
+
+    def _plan_place(self, moves, timing, ch, legacy, motion, raw, rf, tc, late) -> float:
+        from . import toolchange as TC
         # every tool change planned first (its length), then the motion gets the rest of "Fit into"
         plans = {}
         cur = self.first_tool or ch.start_tool
         v = ch.carousel_start
+        where = dict(ch.pockets)                            # double-arm: the old tool lands in the new one's pot
+        n_arm = 0
         for k, m in enumerate(moves):
             if m.kind != "TOOL":
                 continue
             if m.cycle == "M61":
                 cur = m.tool
                 continue
-            c = TC.plan(cur, m.tool, m.b, ch, v, rf)
+            if ch.arm:
+                c, v = TC.plan_arm(cur, m.tool, m.b, ch, v, where, rf, pre=k in self._tn and k not in late)
+                if c.kind == "arm":
+                    c.index = n_arm
+                    n_arm += 1
+                    where.pop(m.tool, None)
+                    if cur:
+                        where[cur] = c.new_pocket
+                elif m.tool != cur:
+                    where.pop(cur, None)
+            else:
+                c = TC.plan(cur, m.tool, m.b, ch, v, rf)
             if legacy:
                 c.phases = [TC.Phase("pause", tc, a=m.b, b=m.b, least=min(tc, TC.MIN_PAUSE))] if tc > 0 else []
             for _t0, _t1, _v0, v1 in c.turns():
@@ -1565,15 +1630,15 @@ class Schedule:
             plans[k] = c
             cur = m.tool
         self.changes = list(plans.values())
-        total = sum(ph.dur for c in self.changes for ph in c.phases)
+        self._plans = plans
+        total = sum(c.total(1.0) for c in self.changes)
         if timing.speed == "FASTER":
             scale = 1.0 / max(1e-6, float(timing.factor))
             k_tc = 1.0
         elif timing.speed == "FIT":
             fit_s = float(timing.fit_seconds)
             k_tc = TC.fit(self.changes, TC.CHANGE_SHARE * fit_s) if total > TC.CHANGE_SHARE * fit_s else 1.0
-            used = sum((max(ph.least, ph.dur * k_tc) if ph.dur > 0 else 0.0) for c in self.changes
-                       for ph in c.phases)
+            used = sum(c.total(k_tc) for c in self.changes)
             room = max(1e-3, fit_s - used)
             scale = room / motion if motion > 0 else 1.0
         else:
@@ -1602,18 +1667,25 @@ class Schedule:
             d = raw(m) * scale
             self.pieces.append(Piece(m, t, d))
             t += d
-        self.program_end = t
-        self.clean_span = None                              # (start, end) of "Blow the part clean", s
-        if timing.clean > 0 and self.pieces:
-            last = self.pieces[-1].move
-            for mv, d in clean_moves(prog, last.b, float(timing.clean), bool(timing.clean_sweep)):
-                mv.spindle, mv.tool, mv.line, mv.top = last.spindle, last.tool, last.line, last.top
-                self.pieces.append(Piece(mv, t, d))
-                t += d
-            self.clean_span = (self.program_end, t)
-        self.duration = t
-        self._starts = [p.v0 for p in self.pieces]
-        self._moves = moves
+        # the magazine's work at the Tn (double-arm): from the Tn, once the change before has tipped its pot up
+        free = 0.0
+        for k, c in plans.items():
+            if c.prep:
+                j = self._tn[k]
+                c.pre_at = self.pieces[j].v0 if j < len(self.pieces) else t
+                TC.place_prep(c, max(c.pre_at, free), k_tc)
+            if c.kind == "arm":
+                free = c.start + c.length
+        return t
+
+    def _late_preps(self) -> set:
+        """Indexes (in the step's moves) of the M6s whose magazine work at the Tn is not done in time."""
+        from . import toolchange as TC
+        out = set()
+        for k, c in self._plans.items():
+            if c.prep and c.prep[-1].t0 + c.prep[-1].dur > TC.arm_start(c) + 1e-9:
+                out.add(k)
+        return out
 
     def piece_at(self, t: float):
         import bisect

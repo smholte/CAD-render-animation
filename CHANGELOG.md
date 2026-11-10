@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.51 – 10 Nov 2026 – double-arm tool changer (task 0064)
+
+CNC machine > Tool changes
+- **Double-arm tool changer.** A third kind next to Manual and **Carousel / umbrella** (the old "Tool changer
+  (ATC)", unchanged). At the **Tn** before an M6 the magazine turns the next tool's pot to the arm and tips it down
+  while the machine still cuts; at the M6 the head goes up, the spindle stops at its orient angle, the arm turns onto
+  both tools, pulls them out, turns half round, pushes them in and turns back. About 1.6 s per change at ATC speed 1;
+  "Fit into" and ATC speed work as before.
+- **Random pockets:** the old tool goes into the pot the new one came from, as on the machine. Every tool is held
+  by the spindle, the arm or a pot at every frame; at each hand-over they meet within 0.01 mm, so nothing jumps.
+- **Set-up in a few clicks, no joints to make by hand:** click the arm's hub (the app makes its turn and stroke and
+  reads the grip angle from the claws), click the hinge of the pot at the change station (the app finds every pot
+  and makes their tip joints). **Check** plays one change in the view and says what does not fit.
+- The kind of changer is now picked from a drop-down (the three names did not fit as buttons).
+- A new generic test model with an arm and a 12-pot magazine, a PC check line and a test tour stop.
+
 ## 0.2.50 – 10 Nov 2026 – small fixes (task 0060)
 
 Pictures

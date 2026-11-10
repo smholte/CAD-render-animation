@@ -214,11 +214,12 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         from . import toolchange
         cnc = gcode.settings(context.scene)
-        if cnc.changer == "ATC":
+        if cnc.changer in ("ATC", "ARM"):
+            what = "arm" if cnc.changer == "ARM" else "ATC"
             if toolchange.problems(context.scene):
-                header_status(self.layout, "ATC: check", icon="ERROR", alert=True)
+                header_status(self.layout, f"{what}: check", icon="ERROR", alert=True)
             else:
-                header_status(self.layout, f"ATC, {plural(len(cnc.pockets), 'pocket')}")
+                header_status(self.layout, f"{what}, {plural(len(cnc.pockets), 'pot' if what == 'arm' else 'pocket')}")
         else:
             header_status(self.layout, "manual")
 
@@ -226,11 +227,14 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         cnc = gcode.settings(scene)
-        layout.row(align=True).prop(cnc, "changer", expand=True)
+        split_props(layout).prop(cnc, "changer", text="Changer")       # three kinds: a drop-down (labels fit)
         if cnc.changer == "MANUAL":
             draw_change_position(layout, context, cnc)
             wrap(layout, context, "The pause, the hand and a caption are set in the step (6 Animation > Run G-code "
                                   "program > Lines, tool changes …)", icon="INFO", inset=12)
+            return
+        if cnc.changer == "ARM":
+            draw_arm(layout, context, scene, cnc)
             return
         draw_atc(layout, context, scene, cnc)
 
@@ -293,6 +297,99 @@ def draw_atc(layout, context, scene, cnc) -> None:
     body = fold(layout, "fr_cnc_change_pos", "Change position", icon="HOME")
     if body:
         draw_change_position(body, context, cnc)
+
+
+def _pocket_list(layout, context, scene, cnc) -> None:
+    from . import toolchange
+    _HELD.clear()
+    try:
+        skip = toolchange.start_tool(scene) if cnc.changer == "ARM" else -1
+        _HELD.update(toolchange.tool_pockets(scene, [t.number for t in cnc.tools if t.number != skip]))
+    except Exception:
+        pass
+    row = layout.row()
+    row.template_list("FRESING_UL_cnc_pockets", "", cnc, "pockets", cnc, "pockets_index",
+                      rows=list_rows(len(cnc.pockets), 3, 8))
+    col = row.column(align=True)
+    col.operator("fresing.cnc_pocket_remove", text="", icon="REMOVE")
+    col.operator("fresing.cnc_pocket_remove", text="", icon="TRASH").all = True
+    if 0 <= cnc.pockets_index < len(cnc.pockets):
+        p = cnc.pockets[cnc.pockets_index]
+        if p.obj is not None:
+            wrap(layout, context, f"Pocket {p.number} is on {gcode.label(p.obj)}", icon="RESTRICT_SELECT_OFF",
+                 inset=12)
+
+
+def draw_arm(layout, context, scene, cnc) -> None:
+    """The double-arm changer (task 0064): the arm, the magazine and its pots, the settings, Check."""
+    from . import doublearm, toolchange
+    s = scene.fresing
+    slide, turn = doublearm.arm_joints(scene)
+    if turn is None or not cnc.pockets:
+        steps(layout, context, ["Make a rotate joint for the magazine in 4 Motion and pick it as Magazine",
+                                "Select the arm's subassembly (or nothing: one part), press 'Click the arm's hub' "
+                                "and click its round hub",
+                                "Pots that tip: tick 'Pots tip down', press 'Click the hinge' and click the hinge of "
+                                "the pot under the arm's second claw. Else: 'Click pockets', 'Fill the carousel'",
+                                "Set the change position (the head must go there), then press Check"])
+    # the arm
+    col = layout.column(align=True)
+    row = col.row(align=True)
+    row.operator("fresing.cnc_arm_hub", text="Click the arm's hub" if turn is None else "Click the hub again",
+                 icon="EYEDROPPER")
+    if turn is not None:
+        row.operator("fresing.cnc_arm_remove", text="", icon="X")
+        parts = [gcode.label(o) for o in doublearm._arm_parts(scene, turn)]
+        wrap(layout, context, "Arm: " + (", ".join(parts[:2]) or "-") + (" …" if len(parts) > 2 else ""),
+             icon="CON_ROTLIKE", inset=12)
+        sp = split_props(layout)
+        sp.prop(cnc, "arm_rest", text="Rest angle")
+        sp.prop(cnc, "arm_grip", text="Grip angle")
+        sp.prop(cnc, "arm_stroke", text="Pull-out stroke")
+        layout.operator("fresing.cnc_arm_read", text="Read from the model", icon="FILE_REFRESH")
+    # the magazine
+    layout.prop_search(cnc, "carousel_joint", s, "joints", text="Magazine", icon="DRIVER_ROTATIONAL_DIFFERENCE")
+    row = layout.row(align=True)
+    row.prop(cnc, "pot_tip", text="Pots tip down")
+    sub = row.row(align=True)
+    sub.ui_units_x = 4.5
+    sub.prop(cnc, "pocket_count", text="")
+    layout.prop(cnc, "pockets_reverse", text="Number the other way")
+    if cnc.pot_tip:
+        row = layout.row(align=True)
+        row.operator("fresing.cnc_arm_hinge", text="Click the hinge", icon="EYEDROPPER")
+        sub = row.row(align=True)
+        sub.ui_units_x = 4.5
+        sub.prop(cnc, "pot_tip_angle", text="")
+    else:
+        row = layout.row(align=True)
+        row.operator("fresing.cnc_pocket_click", text="Click pockets", icon="EYEDROPPER")
+        if cnc.carousel_joint:
+            row.operator("fresing.cnc_fill_carousel", text="Fill the carousel", icon="MESH_CIRCLE")
+    _pocket_list(layout, context, scene, cnc)
+    wrap(layout, context, "Random pockets: the old tool goes into the pot the new one came from. The list shows "
+                          "where the tools are at frame 1", icon="INFO", inset=12)
+    col = split_props(layout)
+    if cnc.carousel_joint:
+        col.prop(cnc, "station", text="Change station")
+    if cnc.spindle_joint:
+        col.prop(cnc, "orient_angle", text="Orient angle")
+    draw_change_position(layout, context, cnc)
+    for w in toolchange.problems(scene)[:3]:
+        wrap(layout, context, w, icon="ERROR", alert=True, inset=12)
+    body = fold(layout, "fr_cnc_arm_times", "Times (as on the machine)", icon="TIME")
+    if body:
+        col = split_props(body)
+        col.prop(cnc, "arm_grip_time", text="Grip")
+        col.prop(cnc, "arm_stroke_time", text="Pull out")
+        col.prop(cnc, "arm_swap_time", text="Half turn")
+        if cnc.pot_tip:
+            col.prop(cnc, "pot_tip_time", text="Pot tips")
+        if cnc.carousel_joint:
+            col.prop(cnc, "pocket_time", text="Turn per pot")
+    primary(layout, "fresing.cnc_arm_check", "Check", "PLAY")
+    for ok, line in doublearm.LAST_CHECK[:6]:
+        wrap(layout, context, line, icon="CHECKMARK" if ok else "ERROR", alert=not ok, inset=12)
 
 
 def draw_tool(layout, context, tl) -> None:
@@ -464,6 +561,8 @@ def draw_step(context, box, scene, anim, b) -> None:
             col.prop_search(b, "gcode_atc", s, "animations", text="Changer", icon="RENDER_ANIMATION")
             if b.gcode_atc:
                 col.prop(b, "gcode_atc_swap", text="Swap at (s)")
+            col.prop(b, "gcode_changer_speed", text="ATC speed", slider=True)
+        elif cnc.changer == "ARM":
             col.prop(b, "gcode_changer_speed", text="ATC speed", slider=True)
         if cnc.changer == "MANUAL" or not cnc.pockets:
             col.prop(b, "gcode_tc_time", text="Pause at M6", slider=True)

@@ -17,6 +17,14 @@ each phase down to its minimum (:func:`fit`).
 
 All positions are machine coordinates in mm of the reference tool's tip (the tool in the spindle when the set-up was
 made): a station is where that tip is when the spindle's gauge line sits in the pocket.
+
+Double-arm changer (task 0064, ``Changer.arm``): the tools stand in pots of a magazine; the head goes to the change
+position while the spindle stops at its orient angle; the magazine turns the new tool's pot to the change station
+and the pot tips down (both already at the Tn before the M6 when the program has one: :func:`prep`, placed by
+``Schedule`` while the machine still cuts). Then the arm turns from rest and grips both tools, pulls them out, turns
+180°, pushes them in and turns back; the pot tips up and the head goes back. The old tool lands in the pot the new one
+came from (random pockets: ``Schedule`` keeps the table). Such a change's phases run in *groups* one after the other;
+the phases of a group's *tracks* (head, spindle, magazine, arm) run side by side.
 """
 
 from __future__ import annotations
@@ -29,6 +37,15 @@ MIN_TURN = 0.2               # s: the shortest carousel turn (also when "Fit int
 MIN_PAUSE = 0.2              # s: the shortest manual pause when "Fit into" squeezes the changes
 CHANGE_SHARE = 0.5           # "Fit into": tool changes may take at most this share of the step's seconds
 PAUSE_MAX = 5.0              # s: the pause slider's end
+
+#: double-arm changer (task 0064): seconds of each arm phase at "ATC speed" 1 (a BT30 tool-to-tool change about
+#: 1.5–2.5 s), and the shortest each may get when "Fit into" squeezes the changes
+ARM_PHASES = ("grip", "pull", "swap", "push", "back")
+ARM_TIMES = {"grip": 0.3, "pull": 0.25, "swap": 0.5, "push": 0.25, "back": 0.3}
+ARM_MIN = 0.08
+ORIENT_TIME = 0.3            # s: the spindle stops at its orient angle (M19) on the way to the change position
+TIP_TIME = 0.4               # s: a pot tips down (or up) at the change station
+TIP_MIN = 0.1
 
 #: the operator's hand (manual change, "Show hand"): seconds of each move, in order. Between "away" and "back" it
 #: waits for the rest of the pause (fetching the new tool).
@@ -93,6 +110,12 @@ class Changer:
     approach: float = 100.0
     start_tool: int = 0
     rapid: tuple = (5000.0, 5000.0, 5000.0)
+    # double-arm changer (task 0064): ``arm_times`` {phase: s at speed 1}; ``tip``: s a pot takes to tip (0: the pots
+    # do not tip); ``orient``: s the spindle takes to stop at its orient angle
+    arm: bool = False
+    arm_times: dict = field(default_factory=lambda: dict(ARM_TIMES))
+    tip: float = 0.0
+    orient: float = ORIENT_TIME
 
     def pause_length(self) -> float:
         p = max(0.0, float(self.pause))
@@ -123,6 +146,10 @@ class Phase:
     span: int = 1                # a turn (v0 -> v1) lasts this phase and the next span - 1 ones
     role: str = ""               # 'out': the way from the program to the changer, 'back': the way back
     t0: float = 0.0              # when it starts (s from the step's start), set by place()
+    group: int = -1              # double-arm changes: phases of one group run side by side, one per track, the
+    track: str = ""              # groups one after the other (-1: every phase after the one before)
+    name: str = ""               # 'arm' phases: grip, pull, swap, push, back; 'tip': down, up
+    pocket: int | None = None    # 'tip' / 'turn' of a double-arm change: the pot it moves to the station or tips
 
 
 @dataclass
@@ -142,6 +169,30 @@ class Change:
     moves: bool = False          # the head goes somewhere (else it stays where the program left it)
     hand: tuple | None = None    # (start, length) of the hand's pause
     note: str = ""
+    kind: str = ""               # 'arm': a double-arm change (task 0064)
+    prep: list = field(default_factory=list)   # double-arm: the magazine's turn and the pot's tip at the Tn before
+    pre_at: float | None = None  # the Tn's moment (s) when ``prep`` plays before the change (pre-indexed)
+    index: int = 0               # double-arm: how many double-arm changes came before this one in the step
+
+    def total(self, k: float = 1.0) -> float:
+        """Its length with every phase ``k`` times as long (not under its minimum): groups side by side."""
+        return group_length(self.phases, k)
+
+    def arm_times(self) -> dict:
+        """{arm phase: (start, end)} of a double-arm change, once placed."""
+        return {ph.name: (ph.t0, ph.t0 + ph.dur) for ph in self.phases if ph.kind == "arm"}
+
+    def tips(self) -> list:
+        """[(t0, t1, pocket, down)] of the pot tipping (``down``: tipping down), the Tn's included."""
+        return [(ph.t0, ph.t0 + ph.dur, ph.pocket, ph.name == "down") for ph in self.prep + self.phases
+                if ph.kind == "tip" and ph.dur > 0]
+
+    def orient_span(self):
+        """(start, end) of the spindle stopping at its orient angle, or None."""
+        for ph in self.phases:
+            if ph.kind == "orient":
+                return ph.t0, ph.t0 + ph.dur
+        return None
 
     def knots(self) -> list:
         """[(t, (x, y, z))] of the head, from the change's start to its end."""
@@ -165,8 +216,9 @@ class Change:
         return k[-1][1]
 
     def turns(self) -> list:
-        """[(t0, t1, v0, v1)] of the carousel."""
-        out = []
+        """[(t0, t1, v0, v1)] of the carousel (a double-arm change: its turn at the Tn too)."""
+        out = [(ph.t0, ph.t0 + ph.dur, ph.v0, ph.v1) for ph in self.prep
+               if ph.v0 is not None and abs(ph.v1 - ph.v0) > 1e-12]
         for k, ph in enumerate(self.phases):
             if ph.v0 is not None and abs(ph.v1 - ph.v0) > 1e-12:
                 last = self.phases[min(len(self.phases), k + ph.span) - 1]
@@ -337,6 +389,8 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
 def place(c: Change, start: float, scale: float = 1.0) -> Change:
     """Put the change at ``start`` (s), each phase ``scale`` times its length (but not under its minimum); sets the
     swap and drop moments, the hand and the ramps of the tool length offsets."""
+    if c.kind == "arm":
+        return _place_arm(c, start, scale)
     t = start
     c.start = start
     c.drop = c.swap = None
@@ -375,7 +429,7 @@ def fit(changes: list, target: float) -> float:
     """The factor every phase is scaled by so all changes together last ``target`` seconds (each phase not under its
     minimum). 1 when they already fit."""
     def total(k):
-        return sum(max(ph.least, ph.dur * k) if ph.dur > 0 else 0.0 for c in changes for ph in c.phases)
+        return sum(c.total(k) for c in changes)
     if total(1.0) <= target + 1e-9:
         return 1.0
     lo, hi = 0.0, 1.0
@@ -386,3 +440,133 @@ def fit(changes: list, target: float) -> float:
         else:
             lo = mid
     return lo
+
+
+# ---------------------------------------------------------------------------
+# double-arm changer (task 0064)
+# ---------------------------------------------------------------------------
+
+def scaled(ph: Phase, k: float) -> float:
+    """A phase's length when every phase is ``k`` times as long (not under its minimum)."""
+    return max(ph.least, ph.dur * k) if ph.dur > 0 else 0.0
+
+
+def group_length(phases: list, k: float = 1.0) -> float:
+    """Length of phases where those of a group (``group`` >= 0) run side by side, one track after the other each."""
+    total = 0.0
+    groups: dict = {}
+    for ph in phases:
+        if ph.group < 0:
+            total += scaled(ph, k)
+        else:
+            tracks = groups.setdefault(ph.group, {})
+            tracks[ph.track] = tracks.get(ph.track, 0.0) + scaled(ph, k)
+    return total + sum(max(t.values(), default=0.0) for t in groups.values())
+
+
+def _arm_time(ch: Changer, name: str) -> float:
+    return max(0.0, float(ch.arm_times.get(name, ARM_TIMES[name]))) / max(1e-3, float(ch.speed or 1.0))
+
+
+def prep(ch: Changer, pocket, v: float) -> tuple[list, float]:
+    """The magazine's work before the arm can take the tool from ``pocket``: turn it to the station (the shortest way,
+    from carousel value ``v``) and tip the pot down. Returns (phases, carousel value after)."""
+    out = []
+    speed = max(1e-3, float(ch.speed or 1.0))
+    if pocket is None:
+        return out, v
+    if pocket in ch.carousel:
+        v1 = nearest_turn(v, ch.carousel[pocket], ch.carousel_limits)
+        if abs(v1 - v) > 1e-9:
+            tt = max(MIN_TURN, abs(v1 - v) / max(1e-9, ch.pitch) * ch.turn_time) / speed
+            out.append(Phase("turn", tt, v0=v, v1=v1, least=MIN_TURN, track="mag", pocket=pocket))
+        v = v1
+    if ch.tip > 0:
+        out.append(Phase("tip", ch.tip / speed, least=TIP_MIN, track="mag", name="down", pocket=pocket))
+    return out, v
+
+
+def plan_arm(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, pockets: dict,
+             rapid_factor: float = 1.0, pre: bool = False) -> tuple[Change, float]:
+    """One double-arm change from tool ``old`` to ``new`` with the head at ``p`` (machine mm), the carousel at
+    ``carousel_value`` and the tools in ``pockets`` ({T: pot}, now). ``pre``: the magazine already did its work at
+    the Tn before (the phases are in ``Change.prep``, placed by ``Schedule``). Returns (change, carousel value after).
+    A new tool without a pot is put in by hand (a pause, as a manual change)."""
+    rf = max(1e-6, float(rapid_factor or 1.0))
+    speed = max(1e-3, float(ch.speed or 1.0))
+    p = tuple(float(x) for x in p)
+    pn = pockets.get(new)
+    if old == new and old:
+        return Change(tool=new, old=old), carousel_value
+    if pn is None:
+        c = plan(old, new, p, Changer(position=ch.position, pause=ch.pause, hand=ch.hand, rapid=ch.rapid), 0.0, rf)
+        c.note = f"T{new} has no pot in the magazine: it is put in by hand"
+        return c, carousel_value
+    c = Change(tool=new, old=old, kind="arm", old_pocket=pn, new_pocket=pn)
+    where = resolve(p, ch.position) if ch.position is not None else p
+    c.moves = math.dist(where, p) > 1e-9
+    mag, v = prep(ch, pn, carousel_value)
+    ph: list = []
+    for x in _role(_legs(p, where, ch.rapid, rf, True), "out") if c.moves else []:
+        x.group, x.track = 0, "head"
+        ph.append(x)
+    if ch.orient > 0:
+        ph.append(Phase("orient", ch.orient / speed, a=where, b=where, least=min(ch.orient / speed, ARM_MIN),
+                        group=0, track="spindle"))
+    if pre:
+        c.prep = mag
+    else:
+        for x in mag:
+            x.group = 0
+        ph += mag
+    for name in ARM_PHASES:
+        d = _arm_time(ch, name)
+        ph.append(Phase("arm", d, a=where, b=where, least=min(d, ARM_MIN), group=1, track="arm", name=name,
+                        after={"grip": "drop", "push": "swap"}.get(name, "")))
+    for x in _role(_legs(where, p, ch.rapid, rf, False), "back") if c.moves else []:
+        x.group, x.track = 2, "head"
+        ph.append(x)
+    if ch.tip > 0:
+        ph.append(Phase("tip", ch.tip / speed, least=TIP_MIN, group=2, track="mag", name="up", pocket=pn))
+    c.phases = ph
+    return c, v
+
+
+def _place_arm(c: Change, start: float, scale: float) -> Change:
+    t = start
+    c.start = start
+    for g in sorted({ph.group for ph in c.phases}):
+        ends = {}
+        for ph in (x for x in c.phases if x.group == g):
+            ph.dur = scaled(ph, scale)
+            ph.t0 = ends.get(ph.track, t)
+            ends[ph.track] = ph.t0 + ph.dur
+        t = max(ends.values(), default=t)
+    c.length = t - start
+    times = c.arm_times()
+    c.drop = times["grip"][1] if "grip" in times else start
+    c.swap = times["push"][1] if "push" in times else start + c.length
+    outs = [ph for ph in c.phases if ph.role == "out"]
+    backs = [ph for ph in c.phases if ph.role == "back"]
+    if c.moves and outs and backs:
+        c.out_end = max(ph.t0 + ph.dur for ph in outs)
+        c.back_start = min(ph.t0 for ph in backs)
+    else:
+        c.out_end = c.back_start = c.swap
+    return c
+
+
+def arm_start(c: Change) -> float:
+    """When the arm starts to turn (s), once placed."""
+    times = c.arm_times()
+    return times["grip"][0] if "grip" in times else c.start
+
+
+def place_prep(c: Change, at: float, scale: float) -> float:
+    """Put a pre-indexed change's magazine work from ``at`` on (each phase scaled); returns when it is done."""
+    t = at
+    for ph in c.prep:
+        ph.dur = scaled(ph, scale)
+        ph.t0 = t
+        t += ph.dur
+    return t
