@@ -56,7 +56,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
-| 0063 | Quality & delivery lane: full GitHub run back to ~12 min (now 15.7–18; Windows job 14.6, suites 4/1 13.7/12.4, landing-page job 9.9) without fewer or weaker tests; no new version | worker | Sonnet · Medium | done (10 Nov, no new version; full run 8.8–11.9 min) | tasks/0063-faster-test-run-again.md |
+| 0063 | Faster test run again (done 10 Nov): full GitHub run 15.7–18 → 8.8 / 11.9 min (7 pytest groups, regrouped real-app jobs, PC check Full in two Linux halves, Windows runs its own lines: 14.6 → 5.7–6.7 min); no fewer tests; landing-page delay was GitHub Pages `syncing_files` | none (CI only) |
 | 0060 | Small fixes: queued still of an animation frame has the video's floor, still with logo no longer black off frame 1, Blender folder 8.3/subst spellings, ci_status on merge commits, test tour in its own CI group (run 16.1 → 15.7 min) | 0.2.50 |
 | 0050 | Render queue: **Start later** (in 0–12 h or at a clock time; countdown, Cancel, Start now; cleared when the project closes); test tour stop | 0.2.49 |
 | 0042 | Coolant: M8 flood / M7 mist / M9 (or always / off per step), automatic Loc-Line hoses or nozzle parts, jets, splash at the tool, wet sheen that dries, wet chips, emulsion/oil, flow, draft; every frame from the frame number (Cycles +12 % on the test mill) | 0.2.48 |
