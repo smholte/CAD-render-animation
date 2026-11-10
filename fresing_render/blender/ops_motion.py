@@ -1186,6 +1186,12 @@ class FRESING_OT_queue_add(bpy.types.Operator):
             if a is None:
                 return {"CANCELLED"}
             queue.add_job(scene, self.kind, animation=a.name)
+            if self.kind == "ANIMATION":             # a one-line note, it stops nothing (task 0065)
+                from . import clash
+                note = clash.queue_note(scene, a.name)
+                if note:
+                    s.last_message = note
+                    self.report({"WARNING"}, note)
         elif self.kind == "SHOT":
             name = self.name or (s.shots[s.shots_index].name if 0 <= s.shots_index < len(s.shots) else "")
             if not name:

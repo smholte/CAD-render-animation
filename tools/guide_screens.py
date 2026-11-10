@@ -24,6 +24,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   tour   the Test tour panel (task 0059): the tour made and opened, a few stops marked (as "panels").
 
+  clash  6 Animation > Clash check (task 0065) on the clash test model, checked and its row clicked, and the two
+      arms drawn red in the view (as "panels").
+
   toolchange / toolchange_view   Tool changes (task 0041) on the test gantry: the panels (as "panels") and the
       carousel and the hand in the view (as "window").
 
@@ -1099,6 +1102,49 @@ elif MODE == "tour":
         return 2.5
     step(_tour_marks)
     step(lambda: (shoot_sidebar("panel_tour"), 0.5)[1])
+
+elif MODE == "clash":
+    # task 0065: 6 Animation > Clash check on the clash test model (test_clash.step): built, checked, the row clicked;
+    # and the two arms drawn red in the view. Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=clash.
+    step(_start)
+    step(lambda: _import(os.path.join(DATA, "test_clash.step")))
+    step(_wait_import)
+
+    def _clash_setup():
+        sc = bpy.context.scene
+        a = sc.fresing.animations.add()
+        a.name, a.tail, a.fps = "Arms meet", 0.0, "25"
+        mod("blender.tour").clash_arms(sc, a)
+        sc.fresing.animations_index = len(sc.fresing.animations) - 1
+        with override():
+            bpy.ops.fresing.anim_build()
+            bpy.ops.fresing.clash_check()
+        sc.fresing.clash.use_near = True
+        with override():
+            bpy.ops.fresing.clash_check()
+        sc.fresing.clash.rows_index = 0                  # a click on the row: frame, selection, red
+        show_only([("FRESING_PT_clash", False, True)])
+        wiggle()
+        return 2.5
+    step(_clash_setup)
+    step(lambda: (shoot_sidebar("panel_6_clash"), 0.5)[1])
+
+    def _clash_view():
+        restore_panels()
+        areas()[1].spaces.active.overlay.show_overlays = False
+        with override():
+            bpy.ops.view3d.view_selected()
+        wiggle(5)
+        return 2.0
+    step(_clash_view)
+
+    def _clash_view_shot():
+        win, area, region, sb = areas()
+        im = crop_region(grab_screen(), region, win.height)
+        h, w = im.shape[:2]
+        save_png(im[int(h * 0.455):int(h * 0.535), int(w * 0.15):int(w * 0.80)], "view_clash")
+        return 0.5
+    step(_clash_view_shot)
 
 elif MODE in ("render", "looks", "decals"):
     pass

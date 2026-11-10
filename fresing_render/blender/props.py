@@ -1693,6 +1693,56 @@ class FRWayCover(bpy.types.PropertyGroup):
                     "others then share the travel in one step less. Off: the sections are the moving covers")
 
 
+def _clash_row_picked(self, context):
+    """Click a row of 6 Animation > Clash check: go to its deepest frame, select both parts, show them red."""
+    if self.get("_quiet") or context is None or context.scene is None:
+        return
+    from . import clash
+    clash.show_row(context, context.scene, self.rows_index)
+
+
+class FRClashRow(bpy.types.PropertyGroup):
+    """One clash (or near miss) the clash check found (task 0065)."""
+    kind: EnumProperty(items=[("CLASH", "Clash", ""), ("NEAR", "Near miss", "")], default="CLASH")
+    part_a: StringProperty()             # object names
+    part_b: StringProperty()
+    label_a: StringProperty()            # the names as the tree shows them
+    label_b: StringProperty()
+    frame_from: IntProperty()
+    frame_to: IntProperty()
+    deep: FloatProperty()                # the moment of the deepest overlap (a frame, maybe between two)
+    depth: FloatProperty()               # m inside each other (a near miss: the gap)
+
+
+class FRClash(bpy.types.PropertyGroup):
+    """6 Animation > Clash check (task 0065): settings and the last result (kept with the project)."""
+    depth: FloatProperty(
+        name="Clash depth", unit="LENGTH", default=0.0005, min=0.00001, soft_max=0.01, precision=2,
+        description="Two parts count as a clash when they go further into each other than this. Parts that "
+                    "already touch or overlap in the CAD model (a pin in its bore) only count when they go this "
+                    "much deeper than at the first frame")
+    use_near: BoolProperty(
+        name="Warn about near misses", default=False,
+        description="Also list parts that come closer than the distance on the right without touching (they were "
+                    "further apart at the first frame). Then press Check for clashes again")
+    near_distance: FloatProperty(
+        name="Closer than", unit="LENGTH", default=0.005, min=0.0001, soft_max=0.05, precision=1,
+        description="A near miss: two parts come closer than this without touching. Used when 'Warn about near "
+                    "misses' is ticked")
+    rows: CollectionProperty(type=FRClashRow)
+    rows_index: IntProperty(
+        default=-1, update=_clash_row_picked,
+        description="Click a row: the time line goes to the moment the two parts are deepest in each other, both "
+                    "are selected and shown red, and the view zooms to them")
+    checked: BoolProperty(default=False)
+    clashes: IntProperty(default=0)      # all clashes found (the list keeps the first 200)
+    near_misses: IntProperty(default=0)
+    anim: StringProperty()               # the animation that was checked
+    signature: StringProperty()          # fingerprint of its built keys (clash.build_signature)
+    seconds: FloatProperty()             # how long the check took
+    moments: IntProperty()               # frames and moments between frames looked at
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -2054,6 +2104,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
     # ---- way covers (task 0034) ----
     waycover: PointerProperty(type=FRWayCover)
+    # ---- clash check (task 0065) ----
+    clash: PointerProperty(type=FRClash)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2067,7 +2119,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash,
            FRSceneSettings)
 
 

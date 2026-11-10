@@ -188,7 +188,9 @@ fresing_render/            the Blender extension (Python package)
                            linkages.py (planar mechanisms: pins, tracks, sliders; exact steps + Newton, the
                            assembly mode kept by walking; pins from shared round faces; scissor layout)
                            gcode.py (G-code reader, LinuxCNC/RS274NGC: moves in machine coordinates, arcs,
-                           cycles, o-words, parameters, Fusion tool comments; Schedule = program time -> video)
+                           cycles, o-words, parameters, Fusion tool comments; Schedule = program time -> video),
+                           clash.py (clash check, task 0065: rigid bodies from the motion, boxes, screw motion between
+                           frames, tool zones, rows and texts)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -237,6 +239,12 @@ fresing_render/            the Blender extension (Python package)
                            the strips for labels, picture cards and music are made in video.py
     files.py               open a file / show it in Explorer
     updates.py             in-app updates: start-up check, "Update available" panel, Update now, template refresh
+    clash.py               clash check (task 0065): reads every part's place per frame (and G-code corners), groups
+                           rigid bodies, checks pairs that move against each other (boxes, then BVH: depth = deepest
+                           surface point inside the other, long faces split), between frames where a pair moves fast;
+                           rows + markers + fingerprint of the built keys in scene.fresing.clash; red overlay (gpu draw
+                           handler); HOOKS for later tasks (hoses); ops_clash.py, ui_clash.py (6 Animation > Clash
+                           check)
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -627,3 +635,15 @@ the release → Delete); the next run on `main` publishes it again.
   (`gcode._rest_tip`, `detect`, `sample`); test with a spindle joint 0.06 mm off (task 0049).
 - `actions/download-artifact` with `run-id` + `github-token` (and `actions: read`) takes another run's files: a
   reuse release ships exactly the installer that was tested. Job-level `permissions` replace the workflow's.
+- Blender's `BVHTree.find_nearest` / `find_nearest_range` are millimetres off on long thin triangles (draft meshes have
+  faces 1 m long and 2.5 mm wide; a point lying on one was reported 0.7 mm away, and the range search skipped the face
+  at 2 mm). Cut long faces into short ones before a nearest-point tree (`core/clash.split_long`), and build the tree
+  round the mesh's own centre (32-bit numbers; parts drawn metres from their origin lost the micrometres a ray needs).
+- The app-made tool copies (task 0040) are meshes of several pieces with faces turned both ways: an inside/outside
+  test that trusts the face normals goes wrong on them (`clash.Mesh._orient` turns them right).
+- "Build animation" first puts back the visibility (and pose) it saved at the *previous* Build: a part hidden after
+  that Build shows again. Clear the keys, then hide, then build (found in the clash tests).
+- A copy of a part (`ob.copy()`) keeps `fr_cad_basis`/`fr_rest_basis`: a pose or a start scene puts it back on the
+  original's place. Give it its own basis when a test moves it.
+- The clash check found that the test tour's "Boom up" turned the boom down through the base (the joint axis from
+  `axis_from_hit` pointed along +Y): fixed in 0065. Run it on a new tour set's animations.

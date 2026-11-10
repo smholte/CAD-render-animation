@@ -377,6 +377,8 @@ def _boom_joint(scene):
     from . import joints
     pin = _ob(scene, "BOOM.PIN")
     origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector((0.1, 0.3, 0.42)), Vector((0, 0, 1)))
+    if direction.y > 0:              # + turns the boom up (along +Y it went down through the base: found by 0065)
+        direction = -direction
     return joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
 
 
@@ -1017,6 +1019,57 @@ M30
 """
 
 
+# ----- clash check (task 0065) -----
+
+CLASH_ARMS = (("Arm B", "ARM.B.ASM", (1.0, 0.0, 0.0), 90.0), ("Arm A", "ARM.A.ASM", (0.0, 0.044, 0.0), -90.0))
+CLASH_DEPTH = 6.0                # mm: arm A's underside goes this far into arm B (tools/make_test_clash.py)
+
+
+def clash_arms(scene, a, seconds: float = 1.0) -> None:
+    """The clash test model: a joint on each arm's pin; arm B turns into place, then arm A turns down onto it until
+    A's underside is 6.0 mm inside B (also used by the PC check and the tests)."""
+    from mathutils import Vector
+
+    from . import joints
+    for k, (name, asm, pivot, deg) in enumerate(CLASH_ARMS):
+        if joints.find(scene, name) is None:
+            joints.create(scene, "ROTATE", [_ob(scene, asm)], Vector(pivot), Vector((0, 0, 1)), name=name)
+        _joint_step(a, name, k * seconds, seconds, math.radians(deg))
+
+
+@tour_set("clash", "Clash check", "test_clash.step")
+def build_clash(b: Build):
+    sc = b.scene
+    _look("PRODUCT")
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: clash check")
+    clash_arms(sc, _animation(b, "Arms meet", shot.name))
+
+
+def _clash_setup(scene):
+    """Go: check the built animation and show its clash (as clicking Check for clashes, then the row)."""
+    from . import clash
+    clash.check(scene)
+    c = clash.settings(scene)
+    if len(c.rows):
+        c.rows_index = 0                      # what a click on the row does: frame, selection, red
+
+
+def _check_clash(scene):
+    from . import clash
+    c = clash.settings(scene)
+    if not c.checked:
+        clash.check(scene)
+    rows = [r for r in c.rows if r.kind == "CLASH"]
+    _check(len(rows) == 1, f"{len(rows)} clashes found, not 1: " + "; ".join(f"{r.label_a} × {r.label_b}"
+                                                                           for r in rows[:3]))
+    r = rows[0]
+    _check({r.label_a, r.label_b} == {"ARM.A", "ARM.B"}, f"the clash is {r.label_a} × {r.label_b}, not the arms")
+    _check(abs(r.depth * 1000 - CLASH_DEPTH) < 0.2, f"the arms are {r.depth * 1000:.2f} mm deep, not 6.0 mm")
+    _check(r.frame_to == scene.frame_end, f"the clash ends at frame {r.frame_to}, not at the end")
+    return f"ARM.A × ARM.B, frames {r.frame_from}–{r.frame_to}, {r.depth * 1000:.1f} mm"
+
+
 def _gantry(b: Build, tools_too: bool = False):
     from . import gcode, tools
     sc = b.scene
@@ -1370,6 +1423,13 @@ stop("update", MOTION, "update", "Model update A → B",
      "The crane is revision B: it has a new lamp on the boom (selected). The boom is still at 20° and the cover "
      "is still hidden: the work survived the update.", where="1 Import > Update model", select=("BOOM.LAMP",),
      check=_check_update)
+
+stop("clash", MOTION, "clash", "Clash check: two arms meet",
+     "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
+     "lists ARM.A × ARM.B, deepest 6.0 mm at the last frame; that row is clicked: both arms are selected and drawn "
+     "red in the 3D view (their own colour stays in renders).", where="6 Animation > Clash check",
+     since="0.2.51", animation="Arms meet", at=1.0, select=("ARM.A", "ARM.B"), check=_check_clash,
+     setup=_clash_setup)
 
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "

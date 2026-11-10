@@ -20,6 +20,8 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
            the tip follows the program, tool change, toolpath, save and open again
     waycover tools/ui_test_waycover.py - way covers: axis, Add section x5, Make it, the axis drives the covers, Flip,
            Remove section, save and open again, Remove way cover
+    clash  tools/ui_test_clash.py - clash check: Build, Check for clashes, click the row (frame, red, zoom), Cancel,
+           the queue note, Build again clears the result, save and open again
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
     pccheck  the PC check (Full), started like its Start-menu shortcut: the launcher inside the installed
            extension, in a background Blender; judged by tools/ci_check_pccheck.py (task 0032)
@@ -57,14 +59,16 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 29,
-              "paths": 8, "pccheck": 31, "pccheck2": 2, "pccheckheavy": 10, "update": 29, "tour": 30, "tourui": 15}
+              "paths": 8, "pccheck": 32, "pccheck2": 2, "pccheckheavy": 11, "update": 29, "tour": 31, "tourui": 15,
+              "clash": 21}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
 # takes more than about 8 minutes). Seconds of the tests on a runner (run 42815485418, 10 Nov 2026): pccheck (Full, first
 # part, ~44 lines) ~250 | pccheck-b: pccheck2 (video.labels + queue.time_test) ~215 + ui2 51 + faces 14 + rulesets 32 +
 # decals 20 | callouts 442 (its queued video varies most: alone) | paths 130 + pccheckheavy ~330 | tour ~210 | ui1 377 |
-# surroundings 403 | video 219 + studio 96 + update 28 | milling 32 + cylinder 24 + linkage 27 + waycover + gcode + tourui.
+# surroundings 403 | video 219 + studio 96 + update 28 | milling 32 + cylinder 24 + linkage 27 + waycover + gcode + tourui
+# + clash (task 0065).
 # Add about 1 minute of set-up per job. A new test goes into the group with the fewest minutes
 # (add it to TESTS and MIN_CHECKS too); a test that is in no group, or in two, fails the precheck
 # (tools/ci_precheck.py). The longest job sets the run's length (with the queued-render test of test_air.py, ~10 min).
@@ -77,7 +81,7 @@ GROUPS = {
     "ui": ["ui1"],
     "scenes": ["surroundings"],
     "motion": ["video", "studio", "update"],
-    "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui"],
+    "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "clash"],
 }
 
 TESTS = {
@@ -115,6 +119,8 @@ TESTS = {
              "pccheck"),
     "tourui": ("Real app: test tour – make, open, Go here and in another project, OK / Problem, Copy results "
                "(ui_test_tour.py)", "ui_test_tour.py", True),
+    "clash": ("Real app: clash check – Build, Check for clashes, click the row (frame, red, zoom), Cancel, queue note, "
+              "Build again clears it (ui_test_clash.py)", "ui_test_clash.py", True),
     "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                "ci_update_test.py", None),
 }

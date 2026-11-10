@@ -547,6 +547,33 @@ def heavy_playback(ctx):
     return f"{frames} frames, {ms:.1f} ms per frame"
 
 
+@line("heavy.clash", "Big machine: clash check of a 10 s animation", "0.2.51", (H,), requires=("heavy.import",),
+      expected=60,
+      what="A module of the 3,000-part machine turns, another slides 4 m, a third runs as a motor (10 s); the clash "
+           "check goes through every frame and between frames where parts move fast",
+      shows="How long Check for clashes takes on a big machine (aim: well under a minute), how many clashes it "
+            "lists (the made-up machine's modules really run through each other)",
+      not_shown="Your own model's motion (try Check for clashes on it), the red parts in the view")
+def heavy_clash(ctx):
+    from ..blender import animation, clash
+    z = sizes()
+    scene = ctx.scene_of("heavy.import")
+    a = _heavy_animation(ctx, scene, "Heavy clash", z["seconds"], "preview")
+    animation.bake(scene, a)
+    t0 = time.time()
+    run = clash.check(scene, store=False)
+    secs = time.time() - t0
+    animation.clear_keys(scene)
+    st = run.stats
+    ctx.metric("clash check", secs, "s")
+    ctx.metric("moments", st["moments"] + st["between"], "")
+    ctx.metric("clashes", len(run.rows), "")
+    _check(st["moments"] > 0 and st["parts"] > 100, "the check did not go through the machine")
+    _check(secs < 600.0, f"the clash check took {secs:.0f} s: far too slow")
+    return (f"{st['parts']} parts, {st['bodies']} bodies, {st['moments']} frames + {st['between']} between: "
+            f"{len(run.rows)} clashes in {secs:.1f} s")
+
+
 # ---------------------------------------------------------------------------
 # Heavy with the owner's own model: numbers only
 # ---------------------------------------------------------------------------

@@ -33,6 +33,7 @@ LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
 WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
+CLASH = os.path.join(DATA, "test_clash.step")
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -684,6 +685,41 @@ def machining_waycover(ctx):
     _check(all(abs(g - 115.0) < 0.05 for g in gaps), "the sections are not 115 mm apart when fully open: "
            + ", ".join(f"{g:.1f}" for g in gaps))
     return f"5 sections to {got[-1]:.1f} mm; way-cover model open: gaps {gaps[0]:.1f} mm"
+
+
+@line("animation.clash", "Clash check: parts that run into each other", "0.2.51",
+      what="An arm comes down onto another one (6.0 mm deep at the end): the check finds that pair, its frames and "
+           "depth; an "
+           "arm swung past a thin post within one frame is caught between the frames; pins turning in their bores "
+           "give no clash")
+def animation_clash(ctx):
+    from ..blender import animation, clash, tour
+    scene = ctx.fresh(CLASH)
+    s = scene.fresing
+    a = s.animations.add()
+    a.name, a.tail, a.fps = "Arms meet", 0.0, "25"
+    tour.clash_arms(scene, a)
+    animation.bake(scene, a)
+    t0 = time.time()
+    run = clash.check(scene)
+    ctx.metric("clash check", time.time() - t0, "s")
+    rows = [r for r in run.rows if r.kind == "CLASH"]
+    _check(len(rows) == 1, f"{len(rows)} clashes found, not 1: " + "; ".join(clash.core.row_text(r) for r in rows[:3]))
+    r = rows[0]
+    _check({r.a, r.b} == {"ARM.A", "ARM.B"}, f"the clash found is {r.a} × {r.b}, not the two arms")
+    _check(abs(r.depth * 1000 - tour.CLASH_DEPTH) < 0.2, f"the arms are {r.depth * 1000:.2f} mm deep, not 6.0 mm")
+    _check(any(m.name.startswith(clash.MARK) for m in scene.timeline_markers), "no marker on the time line")
+    # an arm swung through a thin post in one frame (0.04 s): found between the frames
+    fast = s.animations.add()
+    fast.name, fast.tail, fast.fps = "Fast swing", 0.2, "25"
+    b = fast.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.use_from, b.to_angle = "JOINT", "Arm A", 0.0, 0.04, True, math.radians(90)
+    animation.bake(scene, fast)
+    run2 = clash.check(scene)
+    post = [x for x in run2.rows if x.kind == "CLASH" and "POST" in (x.a, x.b)]
+    _check(bool(post), "an arm swung through a post within one frame and was not found")
+    _check(post[0].t_deep != round(post[0].t_deep), "the post was found on a frame, not between frames")
+    return f"{clash.core.row_text(r)}; post found at frame {post[0].t_deep:.2f}; {run.stats['seconds']:.1f} s"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

@@ -1599,6 +1599,52 @@ a music file under it. Both only go into MP4 videos.
 Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
 plays everywhere.
 
+<a id="clash"></a>
+**Clash check: parts that run into each other**
+
+<img class="panel" src="img/panel_6_clash.png" alt="Clash check: ARM.A × ARM.B, frames 49–51, 6.0 mm; a near miss with the block 2.0 mm"> <img class="panel" src="img/view_clash.png" alt="The two arms drawn red in the view">
+
+A part that drives through another one ruins a video, and can hide a real design fault. The **Clash check**
+fold goes through the built animation and lists every two parts that run into each other.
+
+1. **Build & play** the animation first.
+2. **Check for clashes**. It shows how far it is; **Cancel** (or <kbd>Esc</kbd>) stops it. The panel's header
+   then says **3 clashes**, **No clashes**, or **Not checked since the last Build**.
+3. The list: the two parts (their names as in the tree), the frames from–to, and how deep they go into each
+   other at the worst moment, deepest first. A marker on the time line shows where each clash starts.
+4. **Click a row**: the time line goes to the moment they are deepest in each other, both parts are selected,
+   drawn red and the view zooms to them. The red is only drawn in the 3D view: their material does not change
+   and renders never show it. **No red** takes it off, **Show again** goes back to it.
+
+What counts:
+
+- **Clash depth** (0.5 mm): parts that go further into each other than this.
+- Only parts that move against each other are compared. Parts that keep their place against each other the whole
+  animation (a welded frame, a bolt in its hole, everything one joint carries) never are.
+- Parts that already touch or overlap in the CAD model at the first frame (a pin in its bore, a press fit) only
+  count when they go clearly deeper: by more than the clash depth plus half of the overlap they start with.
+- Hidden parts are left out while they are hidden (Show / Hide steps, visibility sets).
+- Milling: the cutting part of a tool (from its tip up to the end of its flutes, from the tool list) going
+  through the workpiece is meant to cut: it is not a clash. The rest of the tool, its holder and the spindle are
+  checked against the workpiece, the vice and the table. With milling on, the workpiece is checked as it is cut at
+  that moment; without it the shank may follow the hole the flutes make. A tool in the spindle or standing in its
+  changer pocket touches them on purpose.
+- Chips, coolant, air, labels, logos and stickers, the toolpath, the surroundings and props are not parts:
+  left out.
+- Fast moves (G-code rapids, a turning arm) are checked between frames too, so a part cannot jump through
+  another one in one frame step.
+- **Warn about near misses** (off at first): also list parts that come closer than the distance under it
+  (5 mm) without touching, when they were further apart at the first frame.
+
+The result is kept with the project. Building the animation again with other steps clears it (the same steps
+built again keep it). Adding an animation to the render queue that has clashes, or was never checked, gives a
+one-line note in the status bar; the video is rendered anyway.
+
+How long it takes, measured on the 4-core cloud test machine: the test crane's animations 0.1–0.3 s, the CNC
+gantry's 2,983-frame tool-change program 7 s, the scissor lift and crank (49 parts that touch everywhere) 15 s,
+the PC check's made-up 3,000-part machine 10 s long 73 s (its modules run through each other on purpose: 1,668
+clashes). Expected on a PC with a fast processor: about half as long (not measured yet).
+
 **Make the video**
 
 1. **Size** (from 960 × 540 to 4K), **Shape** (**16:9**, **1:1**, or **9:16** upright for phones; the
