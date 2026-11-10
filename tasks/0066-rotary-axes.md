@@ -1,6 +1,6 @@
 # 0066 – 4th and 5th axis: rotary axes A/B/C in G-code, joints and milling
 
-**Who:** worker · **Status:** open – start now (10 Nov); **must be merged before Thursday 12 Nov 08:00** (0061 starts
+**Who:** worker · **Status:** running (10 Nov, branch `ccr-d3dbbfca-yscg1s`); **must be merged before Thursday 12 Nov 08:00** (0061 starts
 in the same lane that morning) · **Branch:** worker's own
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 6 of the big features; split off 0029, which keeps only the
 app-made toolpath, priority 8). 4 motion paths waits for 0058, 5 double arm is done (0064), 7 clash warning runs (0065).
