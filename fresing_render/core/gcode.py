@@ -10,7 +10,9 @@
     problems   everything the reader does not support, with the lines it is on (never silently skipped)
     notes      things that are read but not shown (path blending, tool length offsets ...)
 
-All positions are **machine coordinates in mm** (G53): the app maps them to its X/Y/Z joints. The program's
+All positions are **machine coordinates in mm** (G53): the app maps them to its X/Y/Z joints. The rotary axes
+A, B and C (task 0066) are kept in **degrees** next to them (``Move.ra`` / ``Move.rb``), as the program says them
+(LinuxCNC ``trivkins``: just joint angles); what they turn is the app's business (blender/gcode.py, rotary.py). The program's
 own coordinates (G54 … G59.3, G92) are turned into machine coordinates with the work offsets: ``g54`` is
 where the program's zero is in machine coordinates (the app works it out from the clicked work zero). The
 other work offsets are the same as G54 unless the program sets them (G10 L2 / L20).
@@ -30,13 +32,19 @@ Supported (what CAM post-processors and hand-written LinuxCNC programs commonly 
     repeat / endrepeat, break, continue; a subroutine file <name>.ngc next to the program
     ( comments ) and ; comments, N line numbers, % and / block delete
 
-Not supported (reported): cutter compensation G41 / G42 (the tool follows the programmed line), rotary and
-extra axes A B C U V W (task 0029), threading G33 / G76, splines G5, probing G38, lathe modes, user M-codes
-M100-M199.
+Rotary axes A B C (task 0066): on G0 G1 G2 G3 (an arc's rotary part goes evenly along the arc), G28 G30 G53
+G92 G10 L2 / L20; degrees, never inch; "wrapped" axes (LinuxCNC ``WRAPPED_ROTARY``) count 0 … 360 and an absolute
+move goes the way its sign says (A90 the + way to 90°, A-90 the - way to 90°), as LinuxCNC does.
+Feed with rotary words (LinuxCNC's rule): F is mm/min along X/Y/Z when they move; a move of the rotary axes only
+uses F as degrees per minute (their combined angle); G93 inverse time (F = 1 / minutes for the whole move) and
+back with G94.
 
-Times: a rapid takes as long as its slowest axis needs at that axis' rapid speed; a feed move at its feed
-(never faster than the axes' rapid speeds). Acceleration is left out: a real machine is a little slower on
-short moves.
+Not supported (reported): cutter compensation G41 / G42 (the tool follows the programmed line), extra axes U V W,
+threading G33 / G76, splines G5, probing G38, lathe modes, user M-codes M100-M199.
+
+Times: a rapid takes as long as its slowest axis needs at that axis' rapid speed (rotary axes in degrees per
+minute); a feed move at its feed (never faster than the axes' rapid speeds). Acceleration is left out: a real
+machine is a little slower on short moves.
 """
 
 from __future__ import annotations
@@ -53,6 +61,9 @@ PLANE_NAMES = {17: "G17 (XY)", 18: "G18 (XZ)", 19: "G19 (YZ)"}
 MAX_STEPS = 3_000_000           # lines executed before a loop is taken to never end
 PECK_CLEAR = 0.010 * INCH       # G83 / G73: how far above the last depth a peck starts again (LinuxCNC's value)
 ARC_TOL = 0.01                  # mm: start and end radius of an arc may differ this much (else reported)
+ROT = "abc"                     # the rotary axes' letters (task 0066)
+NO_TURN = (0.0, 0.0, 0.0)
+TURN_EPS = 1e-9                 # degrees: a smaller change of a rotary axis is no move
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +89,25 @@ class Move:
     length: float = 0.0         # mm along the path
     cycle: str = ""             # the drilling cycle it belongs to (G81 …), else ''
     top: int = 0                # the program's own line it comes from (a subroutine call's line)
+    ra: tuple = ()              # rotary axes A, B, C at the start, degrees (task 0066); () = all 0
+    rb: tuple = ()              # … and at the end; they change evenly along the move (also along an arc)
+
+    def rot_at(self, u: float) -> tuple:
+        """A, B, C (degrees) a fraction ``u`` (0..1) along the move."""
+        ra = self.ra or NO_TURN
+        rb = self.rb or ra
+        if u <= 0.0:
+            return ra
+        if u >= 1.0:
+            return rb
+        return (ra[0] + (rb[0] - ra[0]) * u, ra[1] + (rb[1] - ra[1]) * u, ra[2] + (rb[2] - ra[2]) * u)
+
+    @property
+    def turn(self) -> float:
+        """The rotary axes' combined change in this move, degrees (0: no rotary axis moves)."""
+        ra = self.ra or NO_TURN
+        rb = self.rb or ra
+        return math.sqrt(sum((b - a) ** 2 for a, b in zip(ra, rb)))
 
     def at(self, u: float) -> tuple:
         """The point a fraction ``u`` (0..1) along the move."""
@@ -157,6 +187,8 @@ class Program:
     # Tn without M6 on its line (task 0064): (moves before it, T, line) - a double-arm changer turns its magazine
     # to that tool's pot while the machine still cuts
     t_events: list = field(default_factory=list)
+    # rotary axes the program moves (task 0066): {'a': first line, ...}
+    rotary: dict = field(default_factory=dict)
 
     @property
     def duration(self) -> float:
@@ -567,9 +599,19 @@ def _gnum(v: float) -> int:
 
 class Reader:
     def __init__(self, g54=(0.0, 0.0, 0.0), rapid=(5000.0, 5000.0, 5000.0), home=(0.0, 0.0, 0.0),
-                 tools=None, base_dir: str = "", loader=None, start=None):
+                 tools=None, base_dir: str = "", loader=None, start=None, rot_rapid=(3600.0, 3600.0, 3600.0),
+                 wrapped=(False, False, False), start_rot=None):
         self.prog = Program()
         self.rapid = tuple(max(1e-6, float(v)) for v in rapid)
+        # rotary axes A, B, C (task 0066): degrees; rapid in degrees per minute
+        self.rot_rapid = tuple(max(1e-6, float(v)) for v in rot_rapid)
+        self.wrapped = tuple(bool(w) for w in wrapped)
+        self.rot = [float(v) for v in start_rot] if start_rot is not None else [0.0, 0.0, 0.0]
+        self.origins_rot = {p: [0.0, 0.0, 0.0] for p in range(1, 10)}
+        self.g92_rot = [0.0, 0.0, 0.0]
+        self.g92_rot_saved = [0.0, 0.0, 0.0]
+        self.home28_rot = [0.0, 0.0, 0.0]
+        self.home30_rot = [0.0, 0.0, 0.0]
         self.origins = {p: list(g54) for p in range(1, 10)}       # work offsets, machine coordinates
         self.origins_set = {1}                                      # G54 is set by the app
         self.cs = 1
@@ -622,10 +664,16 @@ class Reader:
     def _system_param(self, key: int):
         if 5161 <= key <= 5163:
             return self.home28[key - 5161] / self._k()
+        if 5164 <= key <= 5166:
+            return self.home28_rot[key - 5164]
         if 5181 <= key <= 5183:
             return self.home30[key - 5181] / self._k()
+        if 5184 <= key <= 5186:
+            return self.home30_rot[key - 5184]
         if 5211 <= key <= 5213:
             return self.g92[key - 5211] / self._k()
+        if 5214 <= key <= 5216:
+            return self.g92_rot[key - 5214]
         if key == 5220:
             return float(self.cs)
         if key == 5400:
@@ -637,9 +685,13 @@ class Reader:
             p, axis = divmod(key - 5221, 20)
             if axis < 3 and 1 + p in self.origins:
                 return self.origins[1 + p][axis] / self._k()
+            if axis < 6 and 1 + p in self.origins_rot:
+                return self.origins_rot[1 + p][axis - 3]
             return None
         if 5420 <= key <= 5422:
             return self.work(self.pos)[key - 5420]
+        if 5423 <= key <= 5425:
+            return self.work_rot()[key - 5423]
         return None
 
     def _k(self) -> float:
@@ -654,8 +706,20 @@ class Reader:
         o = self.offset()
         return [(machine[i] - o[i]) / self._k() for i in range(3)]
 
+    def offset_rot(self) -> list:
+        o = self.origins_rot[self.cs]
+        return [o[i] + self.g92_rot[i] for i in range(3)]
+
+    def work_rot(self) -> list:
+        """The rotary axes in program coordinates (degrees; a wrapped axis 0 … 360)."""
+        o = self.offset_rot()
+        out = [self.rot[i] - o[i] for i in range(3)]
+        return [v % 360.0 if w else v for v, w in zip(out, self.wrapped)]
+
     # -- moves ---------------------------------------------------------------
     def _add(self, mv: Move) -> Move:
+        if not mv.ra:                                        # a move that does not turn: the axes stay
+            mv.ra = mv.rb = tuple(self.rot)
         mv.t0 = self.t
         mv.top = self.top_line or self.line_no
         mv.spindle = self.speed * self.spin
@@ -672,17 +736,30 @@ class Reader:
             self._add(Move("SPINDLE", self.line_no, p, p))
             self._last_rpm = rpm
 
-    def _axis_time(self, a, b) -> float:
-        return max(abs(b[i] - a[i]) / self.rapid[i] for i in range(3)) * 60.0
+    def _axis_time(self, a, b, ra=None, rb=None) -> float:
+        t = max(abs(b[i] - a[i]) / self.rapid[i] for i in range(3))
+        if ra is not None and rb is not None:
+            t = max([t] + [abs(rb[i] - ra[i]) / self.rot_rapid[i] for i in range(3)])
+        return t * 60.0
 
-    def rapid_to(self, target, cycle: str = "") -> None:
+    def _turn(self, rot) -> tuple:
+        """(start, end) of the rotary axes for a move to ``rot`` (None: they stay)."""
+        ra = tuple(self.rot)
+        rb = tuple(float(v) for v in rot) if rot is not None else ra
+        return ra, rb
+
+    def rapid_to(self, target, cycle: str = "", rot=None) -> None:
         a = tuple(self.pos)
         b = tuple(target)
+        ra, rb = self._turn(rot)
         length = math.dist(a, b)
-        if length < 1e-9:
+        turn = math.dist(ra, rb)
+        if length < 1e-9 and turn < TURN_EPS:
             return
-        self._add(Move("RAPID", self.line_no, a, b, dur=self._axis_time(a, b), length=length, cycle=cycle))
+        self._add(Move("RAPID", self.line_no, a, b, dur=self._axis_time(a, b, ra, rb), length=length, cycle=cycle,
+                       ra=ra, rb=rb))
         self.pos = list(b)
+        self.rot = list(rb)
 
     def _feed_rate(self, length: float, inverse_f) -> float:
         """mm/min for a feed move (G93: from the F on the line)."""
@@ -698,23 +775,28 @@ class Reader:
             return self.feed * self.speed
         return self.feed
 
-    def feed_to(self, target, inverse_f=None, cycle: str = "") -> None:
+    def feed_to(self, target, inverse_f=None, cycle: str = "", rot=None) -> None:
         a = tuple(self.pos)
         b = tuple(target)
+        ra, rb = self._turn(rot)
         length = math.dist(a, b)
-        if length < 1e-9:
+        turn = math.dist(ra, rb)
+        if length < 1e-9 and turn < TURN_EPS:
             return
-        f = self._feed_rate(length, inverse_f)
-        limit = self._axis_time(a, b)
+        # LinuxCNC: F is along X/Y/Z when they move; a move of the rotary axes only takes F as degrees per minute
+        span = length if length >= 1e-9 else turn
+        f = self._feed_rate(span, inverse_f)
+        limit = self._axis_time(a, b, ra, rb)
         if f <= 0:
             self.problem("F0", "A feed move without a feed (F): shown at the rapid speed")
             dur = limit
         else:
-            dur = max(length / f * 60.0, limit)
-        self._add(Move("FEED", self.line_no, a, b, dur=dur, feed=f, length=length, cycle=cycle))
+            dur = max(span / f * 60.0, limit)
+        self._add(Move("FEED", self.line_no, a, b, dur=dur, feed=f, length=length, cycle=cycle, ra=ra, rb=rb))
         self.pos = list(b)
+        self.rot = list(rb)
 
-    def arc_to(self, target, cw: bool, words: dict, inverse_f=None) -> None:
+    def arc_to(self, target, cw: bool, words: dict, inverse_f=None, rot=None) -> None:
         i, j, k = PLANES[self.plane]
         a = list(self.pos)
         b = list(target)
@@ -764,7 +846,7 @@ class Reader:
                          "drawn as a spiral")
         if r0 < 1e-9:
             self.problem("arc zero", "An arc starts at its own centre: drawn as a straight line")
-            self.feed_to(target, inverse_f)
+            self.feed_to(target, inverse_f, rot=rot)
             return
         a0 = math.atan2(a[j] - cv, a[i] - cu)
         a1 = math.atan2(b[j] - cv, b[i] - cu)
@@ -787,14 +869,17 @@ class Reader:
         f = self._feed_rate(length, inverse_f)
         vmax = min(self.rapid[i], self.rapid[j])
         limit = length / vmax * 60.0
+        ra, rb = self._turn(rot)
+        limit = max(limit, max(abs(rb[n] - ra[n]) / self.rot_rapid[n] for n in range(3)) * 60.0)
         if f <= 0:
             self.problem("F0", "A feed move without a feed (F): shown at the rapid speed")
             dur = limit
         else:
             dur = max(length / f * 60.0, limit)
         self._add(Move("ARC", self.line_no, tuple(a), tuple(b), dur=dur, feed=f, centre=tuple(centre),
-                       plane=self.plane, sweep=sweep, r0=r0, r1=r1, length=length))
+                       plane=self.plane, sweep=sweep, r0=r0, r1=r1, length=length, ra=ra, rb=rb))
         self.pos = b
+        self.rot = list(rb)
 
     # -- one block -----------------------------------------------------------
     def target(self, words: dict, machine: bool = False) -> list:
@@ -810,6 +895,33 @@ class Reader:
                 out[ax] = v + off[ax]
             else:
                 out[ax] = self.pos[ax] + v
+        return out
+
+    def rot_target(self, words: dict, machine: bool = False):
+        """Where the rotary words of a block turn the axes (degrees, machine), or None without any. A wrapped axis
+        (absolute) goes the way the number's sign says, to the number's angle in 0 … 360 (LinuxCNC's
+        ``unwrap_rotary``); the value kept goes on from the current one, so a key moves the short way it turns."""
+        if not any(key in words for key in ROT):
+            return None
+        out = list(self.rot)
+        off = [0.0, 0.0, 0.0] if machine else self.offset_rot()
+        for ax, key in enumerate(ROT):
+            if key not in words:
+                continue
+            self.prog.rotary.setdefault(key, self.top_line or self.line_no)
+            v = float(words[key])
+            if not (self.absolute or machine):
+                out[ax] = self.rot[ax] + v
+            elif self.wrapped[ax]:
+                cur = (self.rot[ax] - off[ax]) % 360.0
+                want = abs(v) % 360.0
+                if v >= 0 and not math.copysign(1.0, v) < 0:
+                    goal = want if want >= cur else want + 360.0
+                else:
+                    goal = want if want <= cur else want - 360.0
+                out[ax] = self.rot[ax] + (goal - cur)
+            else:
+                out[ax] = v + off[ax]
         return out
 
     def block(self, gs: list, ms: list, words: dict) -> bool:
@@ -891,19 +1003,29 @@ class Reader:
             return True
         if 280 in g_set or 300 in g_set:
             home = self.home28 if 280 in g_set else self.home30
+            home_r = self.home28_rot if 280 in g_set else self.home30_rot
             given = [ax for ax, key in enumerate("xyz") if key in words]
-            if given:
-                self.rapid_to(self.target(words))
+            given_r = [ax for ax, key in enumerate(ROT) if key in words]
+            if given or given_r:                              # first to the point on the line, then home
+                self.rapid_to(self.target(words), rot=self.rot_target(words))
             dest = list(self.pos)
-            for ax in (given or [0, 1, 2]):
+            dest_r = list(self.rot)
+            if not given and not given_r:                     # no axis words: every axis goes home
+                given, given_r = [0, 1, 2], [0, 1, 2]
+            for ax in given:
                 dest[ax] = home[ax]
-            self.rapid_to(dest)
+            for ax in given_r:                                # (a wrapped axis: the short way, without whole turns)
+                dest_r[ax] = (self.rot[ax] + ((home_r[ax] - self.rot[ax] + 180.0) % 360.0 - 180.0)
+                              if self.wrapped[ax] else home_r[ax])
+            self.rapid_to(dest, rot=dest_r)
             return True
         if 281 in g_set:
             self.home28 = list(self.pos)
+            self.home28_rot = list(self.rot)
             return True
         if 301 in g_set:
             self.home30 = list(self.pos)
+            self.home30_rot = list(self.rot)
             return True
         if 920 in g_set:
             k = self._k()
@@ -911,22 +1033,30 @@ class Reader:
             for ax, key in enumerate("xyz"):
                 if key in words:
                     self.g92[ax] = self.pos[ax] - o[ax] - words[key] * k
+            o_r = self.origins_rot[self.cs]
+            for ax, key in enumerate(ROT):
+                if key in words:
+                    self.g92_rot[ax] = self.rot[ax] - o_r[ax] - words[key]
             return True
         if 921 in g_set or 922 in g_set:
             if 921 in g_set:
                 self.g92_saved = [0.0, 0.0, 0.0]
+                self.g92_rot_saved = [0.0, 0.0, 0.0]
             else:
                 self.g92_saved = list(self.g92)
+                self.g92_rot_saved = list(self.g92_rot)
             self.g92 = [0.0, 0.0, 0.0]
+            self.g92_rot = [0.0, 0.0, 0.0]
         if 923 in g_set:
             self.g92 = list(self.g92_saved)
+            self.g92_rot = list(self.g92_rot_saved)
         # 7 motion
         motion = next((g for g in gs if g in _MOTION), None)
         if motion is not None:
             self.motion = motion
             if motion in _CYCLES:
                 self.cycle_vals = {}
-        has_axis = any(key in words for key in "xyz")
+        has_axis = any(key in words for key in "xyzabc")
         if self.motion == 800 and has_axis and motion is None:
             self.problem("G80 axis", "Axis words after G80 (cycles off) without G0/G1: no motion mode, "
                          "line skipped")
@@ -934,12 +1064,15 @@ class Reader:
             if machine and self.motion not in (0, 10):
                 self.problem("G53 mode", "G53 only works with G0 or G1: line skipped")
             elif self.motion == 0:
-                self.rapid_to(self.target(words, machine))
+                self.rapid_to(self.target(words, machine), rot=self.rot_target(words, machine))
             elif self.motion == 10:
-                self.feed_to(self.target(words, machine), inverse_f)
+                self.feed_to(self.target(words, machine), inverse_f, rot=self.rot_target(words, machine))
             elif self.motion in (20, 30):
-                self.arc_to(self.target(words), self.motion == 20, words, inverse_f)
+                self.arc_to(self.target(words), self.motion == 20, words, inverse_f, rot=self.rot_target(words))
             elif self.motion in _CYCLES:
+                if any(key in words for key in ROT):
+                    self.problem("cycle ABC", "A, B or C on a drilling cycle line is left out (turn the axis on a "
+                                 "line of its own before the cycle)")
                 self._cycle(words)
         # 8 stop
         if 0 in ms or 1 in ms or 60 in ms:
@@ -970,6 +1103,10 @@ class Reader:
                         o[ax] = words[key] * k
                     else:                              # L20: the current point gets this value
                         o[ax] = self.pos[ax] - self.g92[ax] - words[key] * k
+            o_r = self.origins_rot[p]
+            for ax, key in enumerate(ROT):
+                if key in words:
+                    o_r[ax] = words[key] if l_ == 2 else self.rot[ax] - self.g92_rot[ax] - words[key]
             self.origins_set.add(p)
             if "r" in words:
                 self.problem("G10 R", "A rotated work offset (G10 … R) is not supported: no rotation used")
@@ -1128,10 +1265,10 @@ class Reader:
                 self.problem(f"M{m}", f"User M-code M{m} (runs a script on the machine) is not shown")
             else:
                 self.problem(f"M{m}", f"Unknown or unsupported M-code M{m}: left out")
-        for letter in "abcuvw":
+        for letter in "uvw":
             if letter in words:
                 self.problem(f"{letter.upper()} axis", f"{letter.upper()} axis moves are not supported (only X, Y, "
-                             "Z): that axis stays put")
+                             "Z, A, B, C): that axis stays put")
         for letter in words:
             if letter in "eo":
                 self.problem(f"word {letter}", f"Unknown word {letter.upper()}: left out")
@@ -1180,12 +1317,16 @@ def _structure(lines: list) -> dict:
 
 
 def read(text: str, g54=(0.0, 0.0, 0.0), rapid=(5000.0, 5000.0, 5000.0), home=(0.0, 0.0, 0.0), tools=None,
-         base_dir: str = "", start=None) -> Program:
+         base_dir: str = "", start=None, rot_rapid=(3600.0, 3600.0, 3600.0), wrapped=(False, False, False),
+         start_rot=None) -> Program:
     """Run a LinuxCNC program (see the module's docstring). ``g54``: the program's zero in machine
     coordinates (mm); ``rapid``: each axis' rapid speed (mm/min); ``home``: the G28 / G30 position (machine
     coordinates; also where the machine starts unless ``start`` is given); ``tools``: {number: ToolInfo}
-    from a tool table; ``base_dir``: where subroutine files (<name>.ngc) are looked for."""
-    rd = Reader(g54=g54, rapid=rapid, home=home, tools=tools, base_dir=base_dir, start=start)
+    from a tool table; ``base_dir``: where subroutine files (<name>.ngc) are looked for. Rotary axes A, B, C
+    (task 0066): ``rot_rapid`` degrees per minute, ``wrapped`` per axis, ``start_rot`` where they are at the start
+    (degrees; else 0)."""
+    rd = Reader(g54=g54, rapid=rapid, home=home, tools=tools, base_dir=base_dir, start=start, rot_rapid=rot_rapid,
+                wrapped=wrapped, start_rot=start_rot)
     raw_lines = text.splitlines()
     rd.prog.lines = len(raw_lines)
     codes, comments = [], []
@@ -1537,6 +1678,7 @@ class Schedule:
             if m.kind == "TOOL":
                 self.first_tool = m.tool
         self.start_point = moves[0].a if moves else (before[-1].b if before else None)
+        self.start_rot = ((moves[0].ra or NO_TURN) if moves else ((before[-1].rb or NO_TURN) if before else NO_TURN))
         self.start_spindle = before[-1].spindle if before else 0.0
         rf = max(1e-6, float(timing.rapid_factor or 1.0))
 
@@ -1569,6 +1711,7 @@ class Schedule:
             last = self.pieces[-1].move
             for mv, d in clean_moves(prog, last.b, float(timing.clean), bool(timing.clean_sweep)):
                 mv.spindle, mv.tool, mv.line, mv.top = last.spindle, last.tool, last.line, last.top
+                mv.ra = mv.rb = last.rb or NO_TURN
                 self.pieces.append(Piece(mv, t, d))
                 t += d
             self.clean_span = (self.program_end, t)
@@ -1710,10 +1853,40 @@ class Schedule:
             return p.change.point_at(t, p.move.b)
         return p.move.at((t - p.v0) / p.vd)
 
-    def samples(self, fps: float, tol: float = 0.002, per_frame: bool = True):
+    def rot_at(self, t: float) -> tuple:
+        """The rotary axes A, B, C (degrees) ``t`` seconds into the step (task 0066). They stay put during a tool
+        change and while the part is blown clean."""
+        if not self.pieces:
+            return tuple(self.start_rot)
+        if t >= self.duration:
+            return tuple(self.pieces[-1].move.rb or NO_TURN)
+        p = self.piece_at(t)
+        if p is None:
+            return tuple(self.start_rot)
+        if p.vd <= 0 or p.change is not None:
+            return tuple(p.move.rb or NO_TURN)
+        return p.move.rot_at((t - p.v0) / p.vd)
+
+    @property
+    def turns(self) -> bool:
+        """True when a rotary axis moves in this step."""
+        return any(p.move.moving and p.move.turn > TURN_EPS for p in self.pieces)
+
+    def turns_or_turned(self) -> bool:
+        """True when a rotary axis moves in this step or stands away from 0 in it."""
+        return self.turns or any(abs(x) > TURN_EPS for p in self.pieces[:1] for x in (p.move.ra or NO_TURN))
+
+    def turn_spans(self) -> list:
+        """[(start, end)] seconds of the moves in which a rotary axis turns (joined where they touch)."""
+        return merge_spans((p.v0, p.v0 + p.vd) for p in self.pieces
+                           if p.move.moving and p.move.turn > TURN_EPS and p.vd > 0)
+
+    def samples(self, fps: float, tol: float = 0.002, per_frame: bool = True, turn_step: float = 0.0):
         """Times (s from the step's start) where the path needs a key so that straight keys between them
         follow it within ``tol`` mm: every move's start and end, and along arcs every frame plus as many
-        points as the chord error needs. Returns sorted [(t, (x, y, z))]."""
+        points as the chord error needs. ``turn_step`` (degrees, task 0066): in a move that turns a rotary axis,
+        a key at least every this many degrees (the tool following the turning part). Returns sorted
+        [(t, (x, y, z))]."""
         out = []
         if self.start_point is None:
             return out
@@ -1726,11 +1899,17 @@ class Schedule:
                 if p.vd > 0:
                     out.append((p.v0 + p.vd, m.b))
                 continue
-            if m.kind == "ARC" and p.vd > 0:
-                r = max(m.r0, m.r1, 1e-6)
-                step = 2 * math.acos(max(-1.0, 1 - tol / r)) if tol < r else math.pi / 2
-                n = max(1, int(math.ceil(abs(m.sweep) / max(step, 1e-6))))
-                us = {k / n for k in range(1, n)}
+            turning = turn_step > 0 and m.turn > TURN_EPS
+            if (m.kind == "ARC" or turning) and p.vd > 0:
+                us = set()
+                if m.kind == "ARC":
+                    r = max(m.r0, m.r1, 1e-6)
+                    step = 2 * math.acos(max(-1.0, 1 - tol / r)) if tol < r else math.pi / 2
+                    n = max(1, int(math.ceil(abs(m.sweep) / max(step, 1e-6))))
+                    us |= {k / n for k in range(1, n)}
+                if turning:
+                    n = min(20000, max(1, int(math.ceil(m.turn / turn_step))))
+                    us |= {k / n for k in range(1, n)}
                 if per_frame:
                     f0 = math.floor(p.v0 * fps) + 1
                     f1 = math.ceil((p.v0 + p.vd) * fps)
@@ -1800,10 +1979,11 @@ class Schedule:
                 out.append((p.v0, p.move.spindle))
         return out
 
-    def path(self, tol: float = 0.01, max_step: float = 0.0):
+    def path(self, tol: float = 0.01, max_step: float = 0.0, turn_step: float = 0.0):
         """Polylines of the path for drawing: [(rapid?, [(x, y, z, t)...])], consecutive feed moves joined.
         ``max_step``: split long straight moves so no piece takes longer than this (s), for the "already
-        milled" colour; 0 = not split."""
+        milled" colour; 0 = not split. ``turn_step``: split moves that turn a rotary axis every this many
+        degrees (task 0066: drawn on the turning part they are curves); 0 = not split."""
         lines = []
         cur = None
         for p in self.pieces:
@@ -1821,6 +2001,8 @@ class Schedule:
                 n = max(1, int(math.ceil(abs(m.sweep) / max(step, 1e-6))))
             if max_step > 0 and p.vd > max_step:
                 n = max(n, int(math.ceil(p.vd / max_step)))
+            if turn_step > 0 and m.turn > TURN_EPS:
+                n = max(n, int(math.ceil(m.turn / turn_step)))
             n = min(n, 2000)
             for k in range(1, n + 1):
                 u = k / n

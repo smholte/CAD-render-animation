@@ -59,6 +59,9 @@ DETAIL = {
     "FAST": {"seg": 24, "tol": 0.01 * MM, "tile": 12000, "label": "Fast"},
 }
 ANGLE_TOL = math.radians(0.05)            # the bit's axis may turn this much within one straight segment
+# … while a rotary axis turns the part (task 0066): the tip's chord still keeps to the detail level's tolerance, but
+# the bit's axis may turn this much in one cut (a 4th-axis turn would otherwise be cut in 0.05° slices)
+TURN_ANGLE_TOL = math.radians(0.5)
 
 
 def detail(name: str) -> dict:
@@ -421,19 +424,24 @@ def find_segments(o: np.ndarray, d: np.ndarray, tol: float, angle_tol: float = A
     """Split samples into straight runs: (first sample, last sample) pairs, end = next start.
 
     A run keeps going while every sample stays within ``tol`` of the line from its first to its
-    current last sample, moves forwards along it, and the axis turns less than ``angle_tol``."""
+    current last sample, moves forwards along it, and the axis turns less than ``angle_tol`` (one angle, or one
+    per sample: the run keeps to the smallest of its samples', task 0066)."""
     n = len(o)
     if n == 0:
         return []
     if n == 1:
         return [(0, 0)]
-    cos_tol = math.cos(angle_tol)
+    per_sample = not np.isscalar(angle_tol)
+    if per_sample:
+        cos_each = np.cos(np.asarray(angle_tol, float).reshape(-1))
+    cos_tol = math.cos(angle_tol) if not per_sample else 1.0
     segs = []
     i = 0
     while i < n - 1:
         def ok(k):
             a, b = o[i], o[k]
-            if np.min(d[i + 1:k + 1] @ d[i]) < cos_tol:
+            lim = float(np.max(cos_each[i:k + 1])) if per_sample else cos_tol
+            if np.min(d[i + 1:k + 1] @ d[i]) < lim:
                 return False
             ab = b - a
             L = float(np.linalg.norm(ab))
@@ -618,6 +626,7 @@ class Path:
     t: np.ndarray
     o: np.ndarray
     d: np.ndarray
+    angle_tol: object = None      # per sample (radians) where the part turns (task 0066); None: ANGLE_TOL
 
     def __post_init__(self):
         self.t = np.asarray(self.t, float).reshape(-1)
@@ -667,7 +676,8 @@ class Timeline:
         self.bit_segs: list[list[_Seg]] = []
         for b, (cut, p) in enumerate(zip(cutters, paths)):
             mine = []
-            for i0, i1 in find_segments(p.o, p.d, self.tol):
+            for i0, i1 in find_segments(p.o, p.d, self.tol,
+                                        ANGLE_TOL if p.angle_tol is None else p.angle_tol):
                 s = _Seg(b, i0, i1, float(p.t[i0]), float(p.t[i1]))
                 s.cuts = self._may_cut(cut, p, i0, i1)
                 mine.append(s)

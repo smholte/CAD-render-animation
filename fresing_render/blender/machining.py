@@ -647,6 +647,9 @@ def signature(scene) -> str:
     from . import gcode
     h.update(repr(gcode.schedule(scene)).encode())
     h.update(repr([round(f, 6) for f in gcode.corners(scene)]).encode())
+    turns = gcode.turns(scene)
+    if turns:                                       # (only when the part turns: old projects keep their signature)
+        h.update(repr([(round(a, 6), round(b, 6)) for a, b in turns]).encode())
     wp = workpiece(scene)
     h.update(f"wp:{wp.name if wp else ''}:{s.detail}".encode())
     from . import air
@@ -727,6 +730,7 @@ def sample(scene, progress=None) -> int:
         from . import gcode
         # the program's corners between frames: read there too, or the cut goes straight across them (task 0049)
         corner = sorted(t for t in gcode.corners(scene) if f0 < t < f1 and abs(t - round(t)) > 1e-4)
+        turns = gcode.turns(scene)                  # where a rotary axis turns the part (task 0066)
         ci = 0
         wp_m = []                                   # the workpiece in the world at every frame (chips, task 0028)
         prev, prev_t = None, float(f0)
@@ -736,7 +740,8 @@ def sample(scene, progress=None) -> int:
                 if prev is not None and corner[ci] > f - 1:
                     tc = corner[ci]
                     pc = read(tc)
-                    extra = _refine(read, prev_t, tc, prev, pc, tools, tol, lo, hi, depth=0)
+                    extra = _refine(read, prev_t, tc, prev, pc, tools, tol, lo, hi, depth=0,
+                                    max_depth=_turn_depth(turns, prev_t, tc))
                     for t, poses in extra + [(tc, pc)]:
                         for b, (o, d) in enumerate(poses):
                             rows[b].append((t, o, d))
@@ -749,7 +754,8 @@ def sample(scene, progress=None) -> int:
                 air_o.append(o)
                 air_d.append(d)
             if prev is not None:
-                extra = _refine(read, prev_t, float(f), prev, cur, tools, tol, lo, hi, depth=0)
+                extra = _refine(read, prev_t, float(f), prev, cur, tools, tol, lo, hi, depth=0,
+                                max_depth=_turn_depth(turns, prev_t, float(f)))
                 for t, poses in extra:
                     for b, (o, d) in enumerate(poses):
                         rows[b].append((t, o, d))
@@ -785,8 +791,17 @@ def sample(scene, progress=None) -> int:
     return count
 
 
-def _refine(read, ta, tb, pa, pb, tools, tol, lo, hi, depth) -> list:
-    """Extra samples between ``ta`` and ``tb`` where a bit near the stock moves on a curve."""
+TURN_DEPTH = 7                        # halvings between two frames while the part turns (task 0066): 128 reads
+
+
+def _turn_depth(turns, ta: float, tb: float) -> int:
+    """How often a frame step may be halved: 4, or TURN_DEPTH where a rotary axis turns the part."""
+    return TURN_DEPTH if any(a < tb and b > ta for a, b in turns) else 4
+
+
+def _refine(read, ta, tb, pa, pb, tools, tol, lo, hi, depth, max_depth: int = 4) -> list:
+    """Extra samples between ``ta`` and ``tb`` where a bit near the stock moves on a curve (halving up to
+    ``max_depth`` times: more where a rotary axis turns the part, task 0066)."""
     need = False
     for (oa, da), (ob_, db), tool in zip(pa, pb, tools):
         oa, ob_, da, db = np.array(oa), np.array(ob_), np.array(da), np.array(db)
@@ -798,19 +813,20 @@ def _refine(read, ta, tb, pa, pb, tools, tol, lo, hi, depth) -> list:
         if np.linalg.norm(ob_ - oa) > 0.25 * tool.reach or float(da @ db) < math.cos(math.radians(0.5)):
             need = True
             break
-    if not need or depth >= 4:
+    if not need or depth >= max_depth:
         return []
     tm = 0.5 * (ta + tb)
     pm = read(tm)
     curved = False
     for (oa, da), (om, dm), (ob_, db) in zip(pa, pm, pb):
         mid = 0.5 * (np.array(oa) + np.array(ob_))
-        if np.linalg.norm(np.array(om) - mid) > tol or float(np.array(da) @ np.array(dm)) < math.cos(core.ANGLE_TOL):
+        ang = core.ANGLE_TOL if max_depth <= 4 else core.TURN_ANGLE_TOL
+        if np.linalg.norm(np.array(om) - mid) > tol or float(np.array(da) @ np.array(dm)) < math.cos(ang):
             curved = True
     if not curved:
         return []
-    return (_refine(read, ta, tm, pa, pm, tools, tol, lo, hi, depth + 1) + [(tm, pm)]
-            + _refine(read, tm, tb, pm, pb, tools, tol, lo, hi, depth + 1))
+    return (_refine(read, ta, tm, pa, pm, tools, tol, lo, hi, depth + 1, max_depth) + [(tm, pm)]
+            + _refine(read, tm, tb, pm, pb, tools, tol, lo, hi, depth + 1, max_depth))
 
 
 def _copies(scene) -> list:
@@ -992,9 +1008,18 @@ def _timeline(scene):
         return rt["timeline"]
     wpc = _workpiece_solid(scene)
     cutters, paths = [], []
+    from . import gcode
+    spans = gcode.turns(scene)
     for c in items:
         cutters.append(core.Cutter(c.tool, s.detail))
-        paths.append(c.path)
+        p = c.path
+        if spans:                                   # the part turns: looser axis tolerance there (task 0066)
+            inside = np.zeros(len(p.t), dtype=bool)
+            for a, b in spans:
+                inside |= (p.t >= a - 1e-6) & (p.t <= b + 1e-6)
+            if inside.any():
+                p = core.Path(p.t, p.o, p.d, np.where(inside, core.TURN_ANGLE_TOL, core.ANGLE_TOL))
+        paths.append(p)
     tl = core.Timeline(wpc, cutters, paths, s.detail) if paths else None
     rt["timeline"], rt["key"], rt["shown"] = tl, key, None
     return tl
