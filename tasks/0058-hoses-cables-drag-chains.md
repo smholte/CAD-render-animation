@@ -11,7 +11,7 @@ additive); tests; guide chapter "Hoses and drag chains"; PC-check line
 **Model:** **Fable · effort High** (the owner's "Fable day") · **Place:** Claude Code on the web, environment
 "CAD-render-animation"
 
-May run at the same time as 0042 coolant (Machining lane): do not touch machining, chips, air, G-code, toolchange
+Runs at the same time as 0061 tool marks (Machining lane, Fable day): do not touch machining, coolant, chips, air, G-code, toolchange
 files. If it needs a change in `gcode.py` (drag chains following the axes during a G-code run), keep it to a hook
 and say so in the report.
 

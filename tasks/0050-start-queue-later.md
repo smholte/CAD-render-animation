@@ -1,7 +1,6 @@
 # 0050 – Start queue in …: the render queue starts by itself later
 
-**Who:** worker · **Status:** open – can start when 0042 or 0059 has finished (at most two releasing tasks at a
-time) and before 0058 (Thursday) · **Branch:** `task/0050-start-queue-later`
+**Who:** worker · **Status:** open – can start (start now, 10 Nov, with 0060; before 0058 on Thursday) · **Branch:** `task/0050-start-queue-later`
 **Started by:** owner's wish 9 Nov 2026, briefed by the lead 9 Nov
 **Lane:** Motion (panel 7 Render queue) – `blender/queue.py`, `ui_motion.py` (queue panel only), `blender/ops_motion.py`
 (queue operators only); tests; guide "7 Render queue"
