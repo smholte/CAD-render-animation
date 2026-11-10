@@ -19,7 +19,7 @@ updates its branch to `main`.
 - **Looks lane** (rules, materials, importer, 3 Looks): 0008 (done, 0.2.8) → 0010 (done, 0.2.9) → 0015 (done, 0.2.13) → 0023 clean-up (done, 0.2.15) → 0024 decals (done, 0.2.21) → 0046 better materials (done, 0.2.39) → 0055 Looks fixes (done, 0.2.40) → 0056 same STEP twice (done, 0.2.44); lane free
 - **Motion lane** (joints, poses, animation; `ui_motion.py` = panels 4 Motion, 6 Animation, 7 Render queue): 0011 (done, 0.2.10) → 0012 (done, 0.2.18) → 0013 (done, 0.2.25) → 0014 (done, 0.2.26) → 0026 G-code (done, 0.2.30) → 0052 model update keeps everything (done, 0.2.41) → 0054 queue fixes (done, 0.2.46); lane free; later: 0050 delayed queue start
 - **Scene & Render lane** (`world.py`, `cameras.py`, `render.py`, panel 5 Scene & Render): 0016 (done, 0.2.12) → 0017 (done, 0.2.17) → 0018 (done, 0.2.23) → 0025 (done, 0.2.27) → 0043 hall stays put + MP4 memory (done, 0.2.35); lane free
-- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session) → 0053 safe updates and project lock (done, 0.2.42); lane free
+- **Quality & delivery lane** (`.github/`, `installer/`, `tools/`, no app code): 0019 (done) → 0020 (done, 0.2.16) → 0036 faster automatic tests (done, 0.2.31) → 0031 Claude Code set-up (done 8 Nov) → 0047 landing page on GitHub Pages (done 8 Nov; the owner's renders are swapped in by a later session) → 0053 safe updates and project lock (done, 0.2.42) → 0059 test tour (done, 0.2.47); lane free
 - **Docs lane** (`docs/`, Help-menu link): 0021 (done, 0.2.11); later tasks keep their own chapter up to date; 0044 missing pictures (done, 0.2.37); lane free
 - **Part library lane** (`core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests only): 0022 (done, 0.2.14) → 0030 fasteners in supplier notation (done, 0.2.20); lane free
 - **PC check lane** (new `fresing_render/pccheck/`; additive: installer shortcut, Help-menu item, CI steps): 0032 PC check (done, 0.2.24) → 0033 Heavy mode (done, 0.2.32); lane free
@@ -29,6 +29,10 @@ updates its branch to `main`.
 ## Problems found, waiting for a task
 
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
+
+- **0059 (test tour) found: a still with a logo or watermark is black when the timeline is not on frame 1.**
+  `video.finish_picture` renders its sequencer scene with `render(scene=…)`, which uses the frame of the scene in the
+  context. Fix: `temp_override(scene=enc)`. Details and repro in the 0059 report (open point 1). Suggest: 0060.
 
 - **Bug hunt 0045 (20 rows)** became tasks on 9 Nov: rows 3, 13, 15, 16, 20c → 0051; 1, 2, 6, 20a → 0052;
   4, 12, 14, 19b–d → 0053; 7–10, 17, 18, 20b → 0054; 5, 19a, 19e, 19f → 0055; 11 → 0056. Row 19g needs nothing.
@@ -40,10 +44,9 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0058 | **Fable day.** Flex parts lane (new): hoses, cables and drag chains follow the motion (ends on their parts, fixed length, bend, sag; chain rolls on its bend radius; CAD links re-laid) – owner's priority 1 | worker | **Fable · High** | **Thursday 12 Nov (Fable day)**; after 0050 | tasks/0058-hoses-cables-drag-chains.md |
-| 0059 | Quality & delivery + PC check: **test tour** – "Make test tour project" (generic models, every function as a numbered stop with Go, OK/Problem, note, Copy results) + automatic run (PC check mode Tour, HTML report with a picture per stop); rule: every new function adds its stop | worker | Opus · High | running (worker, 9 Nov, branch `task/0059-test-tour`) | tasks/0059-test-tour.md |
-| 0060 | Small fixes: floor of a queued still = the video's floor, `ci_status.py --wait` on merge commits, Blender folder 8.3/subst spellings (0053, 0054 open points) | worker | Sonnet · Medium | after 0059 | tasks/0060-small-fixes.md |
+| 0060 | Small fixes: floor of a queued still = the video's floor, `ci_status.py --wait` on merge commits, Blender folder 8.3/subst spellings (0053, 0054 open points) | worker | Sonnet · Medium | open – can start | tasks/0060-small-fixes.md |
 | – | Owner's order of the big features (9 Nov), each briefed when its turn comes: **1** hoses/cables/drag chains (0058) · **2** coolant (0042) · **3** tool marks on cut faces that follow the toolpath (Machining, can start: 0042 done) · **4** motion paths (parts/cables along a curve, sheaves, winches) · **5** exact double-arm ATC swap · **6** 4th/5th axis (0029) · **7** clash warning · **8** app-made toolpath (0029, last) | lead | – | plan | – |
-| 0050 | Motion lane (panel 7 Render queue): **Start queue in … / at …** with countdown, Cancel, Start now (owner, 9 Nov) | worker | Sonnet · Medium | open – can start (0042 done), before 0058 | tasks/0050-start-queue-later.md |
+| 0050 | Motion lane (panel 7 Render queue): **Start queue in … / at …** with countdown, Cancel, Start now (owner, 9 Nov) | worker | Sonnet · Medium | open – can start (0042 and 0059 done), before 0058 | tasks/0050-start-queue-later.md |
 | 0029 | Machining lane, later: milling without a CAM program (app-made toolpath), 4/5-axis | owner decides | Opus · High | later | tasks/0029-milling-later.md |
 | 0035 | Machining lane, follow-up to 0034/0025: the carriage as last way-cover section (share 1, no new joint), 8 sections tested in Blender; guide pictures of Way covers, Labels, Pictures/Music | worker | Sonnet · Medium | later – owner put it on hold (6 Nov); after 0031 | tasks/0035-waycover-follow-ups.md |
 | 0001 | Owner's list of interface wishes (first part became 0008–0010; more may follow) | lead | – | open | – |
@@ -57,6 +60,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Version |
 | --- | --- | --- |
 | 0042 | Coolant: M8 flood / M7 mist / M9 (or always / off per step), automatic Loc-Line hoses or nozzle parts, jets, splash at the tool, wet sheen that dries, wet chips, emulsion/oil, flow, draft; every frame from the frame number (Cycles +12 % on the test mill) | 0.2.48 |
+| 0059 | Test tour: Help > Make / Open test tour project (14 small projects from the test models), the Test tour panel with 27 stops (Go, OK / Problem, note, Copy results), PC check mode Tour (a picture per stop, 191 s on the web machine), PC check line tour.make; rule: every new function adds its stop | 0.2.47 |
 | 0054 | Render queue fixes (bug hunt rows 7–10, 17, 18, 20b): queued picture = the frame shown, stopped videos never mix old frames, queue stays in its project, sharp spot in videos, five small queue faults, `//` paths, labels pass 75 → 9 ms per frame on 3,000 parts | 0.2.46 |
 | 0057 | Landing page: the owner's new milling video (T1 face mill, T2 end mill, T3 chamfer mill, 27.6 s, 7.0 MB) at the top, old air-blast video removed | no release |
 | 0041 | Tool changes: manual (head to the change position, pause 1 s / 0–5 s, optional gloved hand, optional caption) and tool changer (pockets clicked or filled round a carousel, tools in their pockets from the first frame, carousel turns the shortest way, old tool back in its own pocket; rack; changer animation split at its swap; ATC speed); Fit into still exact | 0.2.45 |

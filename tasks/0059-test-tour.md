@@ -1,6 +1,6 @@
 # 0059 – Test tour: one project the owner opens to see every function work, and an automatic run through it
 
-**Who:** worker · **Status:** running · **Branch:** `task/0059-test-tour`
+**Who:** worker · **Status:** done (0.2.47) · **Branch:** `ccr-5464fcca-ugf81y` (the session's branch; `task/0059-test-tour` was pushed at the start pointing at `main` and is unused: delete it on github.com)
 **Started by:** lead chat, 9 Nov 2026 (owner: "make it easier/faster for me to check the functions – a test Blender
 file to open and see the functions work, and a test running through it")
 **Lane:** Quality & delivery + PC check – new files `blender/tour.py`, `blender/ops_tour.py`, `ui_tour.py` (its own
@@ -55,12 +55,12 @@ not for looking at a function and saying "yes, that's right".
 
 ## Done when
 
-- [ ] Make test tour project → a working tour project in ≤ ~2 min; all stops with Go, OK/Problem, note.
-- [ ] Copy results; automatic run with the HTML report (picture or clip per stop).
-- [ ] Tests as in 4; GitHub green.
-- [ ] Guide chapter, tooltips, CLAUDE.md rule, notes in 0042 and 0058.
-- [ ] Merged to `main`, next free version, released (CLAUDE.md section 7).
-- [ ] Report filled in, with the list of stops; `TASKS.md`: 0059 done.
+- [x] Make test tour project → a working tour project in ≤ ~2 min; all stops with Go, OK/Problem, note.
+- [x] Copy results; automatic run with the HTML report (picture or clip per stop).
+- [x] Tests as in 4; GitHub green.
+- [x] Guide chapter, tooltips, CLAUDE.md rule, notes in 0042 and 0058.
+- [x] Merged to `main`, next free version, released (CLAUDE.md section 7).
+- [x] Report filled in, with the list of stops; `TASKS.md`: 0059 done.
 
 ## Not in this task
 
@@ -70,10 +70,70 @@ New app functions or fixes (write problems found as open points). Coolant's and 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 9 Nov 2026. Version **0.2.47**.
 
 **What changed:**
+- `blender/tour.py` – the stops and the sets. 27 stops in 4 groups, 14 small projects (the crane is the hub,
+  "Test tour <version>.blend"; the others in "Test tour <version> files\"). Adding a stop = one `stop(...)` entry
+  (title, what you should see, where, set, `shot` via `_shot(b, "@id")` or `animation`/`at`/`play`, `select`, a number
+  `check`, optional `auto`). Go = `apply()`: the stop's saved scene (camera, pose, visibility, looks, background, size)
+  or its animation built (start scene = the stop's shot) at its frame; milling read again; parts selected; labels only
+  on the Labels stop. Results (OK / Problem / note, the stop picked) in "Test tour <version> results.json", shared by
+  all projects of the tour.
+- `blender/ops_tour.py` – Help > **Make test tour project…** (background Blender `launcher.py -- tourbuild <folder>`,
+  progress in the status bar, a popup with **Open test tour project** when done; log "Make test tour log.txt"),
+  Help > **Open test tour project**, Go (opens another project and sets the stop up after loading: load_post handler +
+  timer, then Go again with its own undo step), OK / Problem (second click takes it off), Note…, **Copy results**
+  (clipboard + "…results.txt"), **Run the whole tour by itself** (= PC check mode Tour), Show the tour folder. A tour
+  project opens with the side panel on the Fresing tab.
+- `blender/ui_tour.py` – the **Test tour** panel (only in a tour project, on top of the Fresing tab): stops in folds
+  per group with a mark icon, the picked stop's box (what you should see, where, big Go, OK / Problem, note, Next),
+  Copy results, More (run by itself, folder, make again).
+- `pccheck/tour.py` + `runner.py`/`core.py`/`ops.py` – PC check mode **Tour** ("Test tour" in the PC check dialog):
+  builds a fresh tour in its work folder, one line per stop (Go + number check + a picture; motion stops three frames
+  side by side; the finished video read back from the MP4: title card, motion, end card; labels, queue and 9:16 / 1:1
+  through the queue's own code). Report "Fresing Render test tour.html" with a card per stop. Pictures 480 px on the
+  processor (Draft), 960 px on the graphics card (Preview).
+- `blender/queue.py` – one additive line: a job may carry `scale` (only the tour uses it: video frames at a quarter of
+  540p on the processor, half on the graphics card).
+- PC check Full line `tour.make` (builds the tour, Go + check of every stop, no pictures) – so the Windows job also
+  builds the tour on Windows at every push. `MIN_LINES_FULL` 44 → 45, new `MIN_LINES_TOUR` 28 (precheck counts the
+  `stop(` entries).
+- Guide chapter "Test tour" with `docs/img/panel_tour.png` (`guide_screens.py` mode `tour`); CLAUDE.md rule "Test tour
+  stop" (section 6) + layout and test table; notes in 0042 and 0058.
 
-**Tested and measured** (name the machine and the model):
+**The stops:** Look: 1 Ready-made materials and Wear · 2 Painted faces · 3 Logos and stickers · 4 Cut faces and raw
+stock · 5 Surroundings: open sea · 6 Light looks. Motion: 7 Joint: the boom turns · 8 Stacked joints: boom + trolley ·
+9 Exploded view · 10 Cylinder: stroke drives the arm · 11 Mechanisms: scissor lift, crank · 12 Way cover follows the
+axis · 13 Two copies of one STEP · 14 Model update A → B. Machining: 15 G-code program runs the machine · 16 Three
+tools with M6 and G43 (BT30 face mill, end mill, chamfer mill) · 17 Tool change by hand (BT30) · 18 Tool changer:
+8-pocket carousel · 19 Chips fly · 20 Air blast. Pictures and videos: 21 Still picture · 22 Camera views and blur ·
+23 Turntable video · 24 Finished video: cards, captions · 25 Labels with lines · 26 Render queue: picture + video ·
+27 Upright 9:16 and square 1:1.
+
+**Tested and measured** (web machine: 4 cores, Intel Xeon 2.3 GHz, no graphics card; generic test models only):
+- Make test tour project: 14 projects in 20–27 s (bpy module and real Blender 5.2.3).
+- Automatic run (mode Tour) in the real Blender from the installed launcher (`ci_real_app.py --only tour`): 28/28 OK
+  in 191 s (finished video 37 s, queue 40 s, every other stop 2–8 s). On the owner's PC: expectation, not measured.
+- `tests/test_tour.py`: 37 tests (every stop's Go + check, buttons, marks, Copy results, automatic run for 5 stops)
+  in about 1 min. Real-app `ui_test_tour.py` 15/15 (Make, Open, Go here: built + playing + camera view; Go into another
+  project: opened and set up after loading; marks, note, Copy results). PC check line `tour.make` 23 s.
+- Pictures of all 27 stops looked at once (contact sheet of the report): every stop shows its model and function.
+- GitHub: see the run in the commit history of this task (runs: 1 full run of the branch, then the reuse run on main).
+- Helper-agent review skipped: no Windows-only code (the build's subprocess start is the PC check's existing pattern;
+  the Windows job runs `tour.make` inside the PC check Full).
 
 **Open points / follow-up tasks:**
+1. **Bug (found by the tour): a still with a logo or a watermark comes out black when the timeline is not on
+   frame 1.** `render.render_still` → `video.finish_picture` renders its throw-away sequencer scene with
+   `bpy.ops.render.render(scene=enc.name)`, which takes the frame of the scene in the context (frame 26 → nothing in
+   the sequencer → black). Repro: crane, brand logo, 5 Scene & Render logo on pictures "Bottom right", timeline at 26,
+   render a picture → mean brightness 0.0 (at frame 1: 0.8). Probably also queued pictures of an animation frame
+   (0.2.46) with logo or watermark. Fix: render with `bpy.context.temp_override(scene=enc)` (the tour's own video
+   read-back does exactly this). The tour keeps the still logo off until then. Suggest: into 0060 small fixes.
+2. Go cannot open a closed sub-panel (Blender has no way to do that from Python): each stop says where to look
+   ("Where: 4 Motion > Cylinders").
+3. Labels are drawn only in renders, not in the view: the Labels stop says so; the automatic run shows them.
+4. The tour's projects are saved in the background, so their window layout is Blender's default; the app shows the
+   side panel on the Fresing tab when a tour project opens.
+5. Coolant (0042) and hoses/drag chains (0058) add their stops in their own tasks (notes in their Done-when lists).
