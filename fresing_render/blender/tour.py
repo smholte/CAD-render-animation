@@ -1160,7 +1160,7 @@ def _check_doublearm(scene):
     return f"3 changes, random pots; arm {t['back'][1] - t['grip'][0]:.1f} s per change"
 
 
-@tour_set("rotary4", "4th axis: rotary table", "test_4axis.step")
+@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step")
 def build_rotary4(b: Build):
     from mathutils import Vector
 
@@ -1176,7 +1176,7 @@ def build_rotary4(b: Build):
     a.start_shot = _shot(b, "Tour: 4th axis").name
 
 
-@tour_set("rotary5", "5th axis: trunnion", "test_5axis.step")
+@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step")
 def build_rotary5(b: Build):
     from mathutils import Vector
 
