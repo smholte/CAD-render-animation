@@ -373,15 +373,19 @@ jobs:
           $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-$($env:BLENDER_VERSION)-windows-x64.zip"
           ./tools/ci_windows_install.ps1 -ReleaseZip $release.FullName -BlenderZip $blender `
             -OldReleaseZip $old.FullName -UpdateRepo (Join-Path $env:RUNNER_TEMP "update-listing") `
-            -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
+            -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results `
+            -PcCheckOnly (python tools/ci_pccheck_lines.py windows)
 
       - name: Self-test verdict
         if: ${{ !cancelled() }}
         run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test" --strict
 
-      - name: PC check verdict (Full, started from its Start-menu shortcut)
+      - name: PC check verdict (the Windows lines of Full, started from its Start-menu shortcut)
         if: ${{ !cancelled() }}
-        run: python tools/ci_check_pccheck.py "windows-results/pccheck_last_run.txt" --title "Windows PC check"
+        run: |
+          # the other Full lines are app-only (same code as on Linux) and run there, tools/ci_pccheck_lines.py (task 0063)
+          $n = python tools/ci_pccheck_lines.py count windows
+          python tools/ci_check_pccheck.py "windows-results/pccheck_last_run.txt" --title "Windows PC check" --min-lines $n
 
       - name: PC check verdict (Heavy, scaled down, from its Start-menu shortcut)
         if: ${{ !cancelled() }}

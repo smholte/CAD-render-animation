@@ -202,6 +202,25 @@ def _log(job_id: int) -> str:
     return "\n".join(ln[29:] if len(ln) > 29 and ln[4] == "-" and ln[10] == "T" else ln for ln in text.splitlines())
 
 
+HISTORY = 3                                       # runs whose file times are kept; the slowest of them balances the groups
+
+
+def merge_file_times(times: dict, files: dict) -> None:
+    """Add one run's seconds per test file. `pytest_history` keeps the last HISTORY values per file and
+    `pytest_files` (what tools/ci_groups.py balances by) is the slowest of them, so one fast run (or a runner that
+    happened to be quick) does not unbalance the next split (task 0063)."""
+    hist = times.setdefault("pytest_history", {})
+    for name, secs in files.items():
+        if name not in hist:                       # the first time: the old single value counts as one sample
+            old = times.get("pytest_files", {}).get(name)
+            hist[name] = [old] if old is not None else []
+        hist[name] = (hist[name] + [secs])[-HISTORY:]
+    times.setdefault("pytest_files", {})
+    for name, values in hist.items():
+        if values:
+            times["pytest_files"][name] = round(max(values), 1)
+
+
 def record(run) -> int:
     """Copy a green run's job minutes and pytest file seconds into tools/ci_times.json (balances the groups)."""
     if run.get("conclusion") != "success":
@@ -225,7 +244,7 @@ def record(run) -> int:
                 m = _minutes(steps[0].get("started_at"), steps[0].get("completed_at")) if steps else None
                 if m:
                     files["packaged self-test"] = round(m * 60, 1)
-    times.setdefault("pytest_files", {}).update(files)
+    merge_file_times(times, files)
     times["recorded_from"] = f"run {run['id']} ({run['head_branch']} @ {run['head_sha'][:7]}, {run['created_at'][:10]})"
     with open(TIMES, "w", encoding="utf-8") as fh:
         json.dump(times, fh, indent=1)

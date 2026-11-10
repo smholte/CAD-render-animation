@@ -45,7 +45,8 @@ param(
     [string]$UpdateRepo,             # ...from this local update listing (index.json + zip + changelog.json)
     [string]$UpdateFrom = "",        # ...or from this address ("github" = the newest release on GitHub)
     [string]$Expect = "",            # the version the update must bring (default: the one in -ReleaseZip)
-    [switch]$OnlyUpdate
+    [switch]$OnlyUpdate,
+    [string]$PcCheckOnly = ""        # run only these lines of the PC check (Full): comma-separated ids (task 0063)
 )
 
 $ErrorActionPreference = "Stop"
@@ -316,6 +317,7 @@ if ($Uninstall) {
         $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check ($pcMode).lnk"
         $pcTag = if ($pcMode -eq "heavy") { "pccheck_heavy" } else { "pccheck" }
         $env:FRESING_PCCHECK_HEAVY_SMALL = if ($pcMode -eq "heavy") { "1" } else { "" }
+        $env:FRESING_PCCHECK_ONLY = if ($pcMode -eq "full") { $PcCheckOnly } else { "" }
         if ($BlenderExe -and (Test-Path -LiteralPath $pcLnk)) {
             $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($pcLnk)
             Note "PC check: `"$($lnk.TargetPath)`" $($lnk.Arguments)"
@@ -349,6 +351,7 @@ if ($Uninstall) {
         }
         }
         $env:FRESING_PCCHECK_HEAVY_SMALL = ""
+        $env:FRESING_PCCHECK_ONLY = ""
     }
 }
 
