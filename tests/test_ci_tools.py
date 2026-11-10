@@ -345,7 +345,7 @@ def test_pc_check_lines_split_over_the_runners():
     full = pl.full_ids()
     assert len(full) >= 46 and len(set(full)) == len(full)
     one, two = pl.ids_for("linux1"), pl.ids_for("linux2")
-    assert set(one) | set(two) == set(full) and not set(one) & set(two) and two
+    assert set(one) | set(two) == set(full) and set(one) & set(two) == set(pl.LINUX2_NEEDS)
     win = pl.ids_for("windows")
     assert set(win) < set(full) and set(pl.WINDOWS_SKIPS) == set(full) - set(win)
     for keep in ("app.start", "import.crane", "render.cpu", "queue.frame_shown", "updates.check"):

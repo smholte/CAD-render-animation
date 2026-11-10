@@ -25,11 +25,12 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CHECKS = os.path.join(ROOT, "fresing_render", "pccheck", "checks.py")
 
-# Linux job `pccheck2`: the two longest lines (video with labels ~3 min on Windows' CPU, the queue's time test).
+# Linux job `pccheck2` (plus LINUX2_NEEDS): the two longest lines (video with labels ~3 min on Windows' CPU, the queue's time test).
 LINUX2 = ("video.labels", "queue.time_test")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Start-menu shortcut and the report.
+LINUX2_NEEDS = ("import.crane",)       # lines those two need first (`requires=`): run again in job `pccheck2`
 WINDOWS_SKIPS = ("video.labels", "queue.time_test", "queue.video", "scene.turntable", "tour.make",
                  "looks.materials", "milling.coolant")
 
@@ -59,7 +60,7 @@ def full_ids(path: str = CHECKS) -> list[str]:
 def ids_for(job: str, full: list[str] | None = None) -> list[str]:
     full = full_ids() if full is None else full
     if job == "linux2":
-        return [i for i in full if i in LINUX2]
+        return [i for i in full if i in LINUX2 or i in LINUX2_NEEDS]
     if job == "linux1":
         return [i for i in full if i not in LINUX2]
     if job == "windows":
