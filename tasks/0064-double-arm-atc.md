@@ -1,6 +1,6 @@
 # 0064 – Double-arm tool changer: the exact arm swap
 
-**Who:** worker · **Status:** running (10 Nov) · **Branch:** `claude/jolly-ramanujan-l2rjv9`
+**Who:** worker · **Status:** done (10 Nov, 0.2.51) · **Branch:** `claude/jolly-ramanujan-l2rjv9`
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 5 of the big features; owner 10 Nov: his new Fresing mill
 gets a **double-arm** changer, **no CAD model of it yet**)
 **Lane:** Machining – `core/toolchange.py`, `blender/toolchange.py`, the tool-change part of `core/gcode.py` /
@@ -167,4 +167,6 @@ other lines. CI grouping beyond adding your own test (0063 works there).
   'Click the hinge' again or 'Remove the arm' (which removes every joint the app made for the changer).
 - The changer animation of the carousel ATC ("Changer" in the step) is not offered for the double arm.
 
-**Runs:** (filled in after the GitHub runs)
+**Runs:** 2 full runs on the branch, both green: 42833922694 (16.0 min), then 42836756958 (12.9 min) after merging
+`main` once (task 0063 had regrouped the CI jobs; the real-app test went into group `machines`). No failures, no
+version clash. `main` fast-forwarded to that commit: the reuse run published 0.2.51.
