@@ -1,6 +1,6 @@
 # 0063 – Faster test run again (back to about 12 minutes)
 
-**Who:** worker · **Status:** open – can start (10 Nov) · **Branch:** `task/0063-faster-test-run-again`
+**Who:** worker · **Status:** running (10 Nov) · **Branch:** `task/0063-faster-test-run-again`
 **Started by:** lead chat, 10 Nov 2026 (review of 0060: the full run is still ~16 min, the Windows job is now the
 long pole)
 **Lane:** Quality & delivery – `.github/workflows/`, `tools/ci_*.py`, `tools/ci_times.json`, `tools/ci_groups.py`,
