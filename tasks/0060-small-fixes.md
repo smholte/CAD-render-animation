@@ -1,6 +1,6 @@
 # 0060 – Small fixes: floor in queued stills vs videos, test-run waiting, Blender folder spellings, black still with logo, test-run time
 
-**Who:** worker · **Status:** open – can start (start now, 10 Nov, with 0050) · **Branch:** `task/0060-small-fixes`
+**Who:** worker · **Status:** done (0.2.50) · **Branch:** `task/0060-small-fixes`
 **Started by:** lead chat, 9 Nov 2026 (open points of 0053 and 0054); fixes 4–5 added 10 Nov (0059 review)
 **Lane:** Quality & delivery (`tools/ci_status.py`, `update_helper.py`) + Scene & Render (floor placement, the
 surroundings code that places the floor; `blender/video.py` `finish_picture` for fix 4; `tools/ci_real_app.py` GROUPS and `tools/ci_times.json` for fix 5; no `animation.py` changes unless the floor of a video is set there – then
@@ -70,5 +70,7 @@ in the report. Take the version number last; whoever finishes second merges `mai
 `tests/test_tour.py`, `test_queue_fixes.py`, `test_video.py`, `test_updates.py`, `test_ci_tools.py`, `test_user_guide.py` pass.
 Run times: see below.
 
+**Runs / times:** 2 runs on the branch (first 16.1 min green; second after merging 0050, which took 0.2.49 first, renumbered to 0.2.50: 15.7 min green), main = reuse run, released. Before (run 42812649917, tour in paths-heavy): total 16.1 min, suites 2/3 15.4/15.8 min, paths-heavy 7.0, tour 7.1. After recording times (run 42815485418): total 15.7 min, suites 8.4–13.7, tour 4.7, paths-heavy 7.5. The ~20 min of run 42726152004 was already ~16 on this branch. Suite 4 / 1 are still the long pole (13.7 / 12.4): record again from the next full run.
+
 **Open points / follow-up tasks:** 8.3 / `subst` matching is only proven with mocks and links; the Windows job runs
-`updates.safe`. Run times before/after and `ci_times.json` recording: see the last push.
+`updates.safe`. Times recorded (`ci_times.json`) from run 42812649917; the 8.3/subst matching is only mock-tested.
