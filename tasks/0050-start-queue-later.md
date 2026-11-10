@@ -38,10 +38,18 @@ says so if that happens.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 10 Nov 2026
 
-**What changed:**
+**What changed:** 7 Render queue got **Start later**: choose In … (0–12 h + minutes) or At … (clock time, today or
+tomorrow), click Start later; the panel shows "Starts in 2 h 14 min - at 18:30" with Start now and Cancel. A Blender
+timer (looks every 30 s, panel refreshes then) calls the same `queue.start` as Start queue; "already running / empty"
+gives a note instead. Closing or switching the project clears it (load_pre handler) and a note says so; not kept in
+the file. Operators `fresing.queue_start_later` (hidden test-only `seconds`), `queue_start_cancel`, `queue_start_now`.
+Test tour stop 29 "Render queue: start later" (`MIN_LINES_TOUR` 30). Guide chapter 7 + new panel picture. Version 0.2.49.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core-class web machine, test crane): `tests/test_queue_delayed.py` 8 tests (clock maths,
+schedule/describe, Cancel, timer start, Start now, already running, project closed, other project) – pass;
+`test_tour.py` 39 pass; tooltip report strict 0 missing; precheck ok. GitHub run: see below.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** No PC-check line (a delayed start needs minutes of waiting; the tour stop covers the
+button path). Windows behaviour is the same code path as Start queue. Clock time follows the PC's local time zone.
