@@ -1,6 +1,6 @@
 # 0065 – Clash warning: parts that run into each other in an animation
 
-**Who:** worker · **Status:** open – can start (10 Nov) · **Branch:** `task/0065-clash-warning`
+**Who:** worker · **Status:** running (10 Nov) · **Branch:** `claude/peaceful-heisenberg-t8bw07`
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 7 of the big features; the only one not waiting on a busy
 lane: 4 motion paths waits for 0058, 5 double-arm = 0064 running, 6 4th/5th axis is in the Machining lane)
 **Lane:** new **Clash lane** – new files `core/clash.py` (no Blender), `blender/clash.py`, `blender/ops_clash.py`,
