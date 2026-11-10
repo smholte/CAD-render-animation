@@ -51,10 +51,24 @@ in the report. Take the version number last; whoever finishes second merges `mai
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 10 Nov 2026 – version 0.2.49
 
 **What changed:**
+1. Floor: "Current view" in a built animation stores the video's floor (lowest point at frame 1, `queue.animation_floor_z`)
+   on the hidden scene; the runner pins it (`scene["fr_floor_pin_z"]`, used by `world.update_floor`). Touched
+   `ops_motion.py` (+3 lines in `queue_add`) and `queue.py` (helper + 3 lines in `run_job`); nothing in `animation.py`.
+   Guide: note under Floor in 5 Scene & Render.
+2. `ci_status.py`: a merge commit is never judged "task list only" (`commit_only_task_list`).
+3. `update_helper.py`: `_norm` writes 8.3 names out (`GetLongPathNameW`); `same_place` / `is_inside` also compare file
+   identity (volume + index), so `subst` drives and links match. Used by `other_blenders` and the helper-note check.
+4. `video.finish_picture` renders inside `temp_override(scene=enc)`. Tour: still logo bottom right is on.
+5. `tour` is its own real-app group (`GROUPS`).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core web machine, test crane): new tests `test_queued_still_of_an_animation_frame_keeps_the_videos_floor`,
+`test_a_still_with_logo_is_not_black_when_the_timeline_is_not_on_frame_1` (fails without the fix),
+`test_ci_status_merge_commit_…`, `test_blender_folder_spellings_match_by_identity` (Linux, links stand in for subst);
+`tests/test_tour.py`, `test_queue_fixes.py`, `test_video.py`, `test_updates.py`, `test_ci_tools.py`, `test_user_guide.py` pass.
+Run times: see below.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** 8.3 / `subst` matching is only proven with mocks and links; the Windows job runs
+`updates.safe`. Run times before/after and `ci_times.json` recording: see the last push.
