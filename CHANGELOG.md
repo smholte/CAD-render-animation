@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.49 – 10 Nov 2026 – small fixes (task 0060)
+## 0.2.50 – 10 Nov 2026 – small fixes (task 0060)
 
 Pictures
 - **A still with a logo or watermark is no longer black** when the timeline stands anywhere but frame 1 (the test
@@ -18,6 +18,15 @@ Updates and tests
   update waits for it too.
 - **The automatic test run is faster again:** the test tour has its own group.
 - `ci_status.py --wait` no longer says "no test run" for a merge commit.
+
+## 0.2.49 – 10 Nov 2026 – render queue starts by itself later (task 0050)
+
+Render queue
+- **Start later.** In 7 Render queue, under the list: choose **In …** (0–12 hours and minutes) or **At …** (a clock
+  time, today or tomorrow) and click **Start later**. The panel counts down ("Starts in 2 h 14 min – at 18:30") with
+  **Start now** and **Cancel**. At the time the queue starts exactly as with Start queue. The app must stay open: a
+  delayed start is not kept when you close the project or the app, and the panel says so.
+- The test tour has a new stop for it.
 
 ## 0.2.48 – 9 Nov 2026 – coolant: flood and mist while milling (task 0042)
 

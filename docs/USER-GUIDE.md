@@ -1626,6 +1626,11 @@ or close the app and let it run overnight: the PC stays awake while it renders.
   frame being rendered is lost). **Start queue** later continues a video where it stopped. If you changed
   the animation or its settings in between, the video starts again from the first frame, so a video never
   mixes old and new frames (the job's message says so).
+- **Start later** (under the list): pick **In …** and set hours and minutes (0–12 h), or **At …** and a clock
+  time (today, or tomorrow when it has passed), then click **Start later**. The panel shows "Starts in 2 h 14 min –
+  at 18:30" with **Start now** (starts at once) and **Cancel**. **The app must stay open** until the time comes: a
+  delayed start is not kept when you close the project or the app, and the panel says so if that happened.
+  At the time it does exactly what **Start queue** does.
 - Click a job to see its progress and messages; when it is done, **Open** plays or opens it and
   **Show in folder** opens Explorer with the file selected.
 - **−** removes the selected job, also a waiting one while the queue runs: the queue then leaves it out.
@@ -1643,7 +1648,7 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 
 After an update you want to see quickly that everything still works. The **test tour** is a set of small
 projects, made from the app's own test models (a crane, a mill, a gantry, a cylinder, a scissor lift, a way
-cover…), with every function already set up: 28 numbered **stops**, from materials and painted faces through
+cover…), with every function already set up: 29 numbered **stops**, from materials and painted faces through
 joints, cylinders and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
 
 <img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">

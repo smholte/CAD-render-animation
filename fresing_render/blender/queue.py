@@ -333,6 +333,117 @@ def start(context) -> str:
     return qdir
 
 
+# ---------------------------------------------------------------------------
+# delayed start (task 0050): "Start in ..." / "Start at ..."
+# ---------------------------------------------------------------------------
+
+# one delayed start per open project; kept only in this session (not in the file)
+_DELAY = {"when": 0.0, "project": "", "note": ""}
+_DELAY_TICK = 30.0                      # the timer looks this often; the panel text refreshes about once a minute
+
+
+def _project_key() -> str:
+    return os.path.normcase(os.path.abspath(bpy.data.filepath)) if bpy.data.filepath else ""
+
+
+def delay_pending() -> bool:
+    return bool(_DELAY["when"])
+
+
+def delay_remaining() -> float:
+    """Seconds until the delayed start (0 when none is set)."""
+    return max(0.0, _DELAY["when"] - time.time()) if _DELAY["when"] else 0.0
+
+
+def delay_clock() -> str:
+    """The clock time of the delayed start, e.g. '18:30' ('' when none is set)."""
+    return time.strftime("%H:%M", time.localtime(_DELAY["when"])) if _DELAY["when"] else ""
+
+
+def seconds_until_clock(hour: int, minute: int, now: float | None = None) -> float:
+    """Seconds from now to the next HH:MM (today, or tomorrow when it has passed)."""
+    now = time.time() if now is None else now
+    lt = time.localtime(now)
+    target = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, int(hour), int(minute), 0, 0, 0, -1))
+    if target <= now:
+        target = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday + 1, int(hour), int(minute), 0, 0, 0, -1))
+    return target - now
+
+
+def describe_delay() -> str:
+    """'Starts in 2 h 14 min - at 18:30' for the panel."""
+    secs = delay_remaining()
+    mins = int(secs // 60) + (1 if secs % 60 else 0)
+    h, m = divmod(mins, 60)
+    left = f"{h} h {m:02d} min" if h else f"{m} min" if m else "under a minute"
+    return f"Starts in {left} - at {delay_clock()}"
+
+
+def schedule(scene, seconds: float) -> None:
+    """Start the queue by itself after ``seconds`` (the app must stay open)."""
+    if is_running(scene):
+        raise RuntimeError("The queue is already running")
+    if not any(j.status in ("WAITING", "STOPPED", "FAILED") for j in scene.fresing.queue):
+        raise RuntimeError("Nothing to render: add images or animations to the queue first")
+    _DELAY.update(when=time.time() + max(0.0, float(seconds)), project=_project_key(), note="")
+    if bpy.app.timers.is_registered(_delay_tick):
+        bpy.app.timers.unregister(_delay_tick)
+    bpy.app.timers.register(_delay_tick, first_interval=min(_DELAY_TICK, max(0.2, float(seconds))), persistent=True)
+
+
+def cancel_delay(note: str = "") -> None:
+    _DELAY.update(when=0.0, project="", note=note)
+    if bpy.app.timers.is_registered(_delay_tick):
+        bpy.app.timers.unregister(_delay_tick)
+
+
+def delay_lost(why: str = "The delayed start was cancelled: the project was closed. Set it again.") -> None:
+    """A project is being closed or opened: a delayed start is not kept."""
+    if _DELAY["when"]:
+        cancel_delay(why)
+
+
+def take_note() -> str:
+    note, _DELAY["note"] = _DELAY["note"], ""
+    return note
+
+
+def start_delayed_now(context) -> str:
+    """Do what Start queue does, now; the delay ends either way. Returns the queue folder."""
+    cancel_delay()
+    return start(context)
+
+
+def _redraw() -> None:
+    try:
+        for area in bpy.context.screen.areas if bpy.context.screen else []:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+    except Exception:
+        pass
+
+
+def _delay_tick():
+    if not _DELAY["when"]:
+        return None
+    if _DELAY["project"] != _project_key():          # another project is open now (or it was saved under a new name)
+        cancel_delay("The delayed start was cancelled: another project is open now.")
+        _redraw()
+        return None
+    if time.time() < _DELAY["when"]:
+        _redraw()
+        return min(_DELAY_TICK, max(0.2, _DELAY["when"] - time.time()))
+    scene = bpy.context.scene
+    try:
+        qdir = start_delayed_now(bpy.context)
+        scene.fresing.last_message = f"Queue started on time ({qdir})"
+    except (RuntimeError, OSError) as exc:           # already running, emptied, or the folder is not writable
+        _DELAY["note"] = f"The delayed start did not start the queue: {exc}"
+        scene.fresing.last_message = _DELAY["note"]
+    _redraw()
+    return None
+
+
 _PROCS: dict[int, subprocess.Popen] = {}
 
 PATH_KEYS = ("hdri_path", "light_hdri_path", "brand_logo", "brand_font")    # file settings of scene.fresing

@@ -962,6 +962,28 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         else:
             row = big_row(layout)
             row.operator("fresing.queue_start", text="Start queue", icon="PLAY")
+        if queue.delay_pending() and not running:
+            box = layout.box()
+            box.label(text=queue.describe_delay(), icon="TIME")
+            row = box.row(align=True)
+            row.scale_y = MEDIUM
+            row.operator("fresing.queue_start_now", text="Start now", icon="PLAY")
+            row.operator("fresing.queue_start_cancel", text="Cancel", icon="CANCEL")
+            box.label(text="Keep the app open until then", icon="INFO")
+        elif not running and any(j.status in ("WAITING", "STOPPED", "FAILED") for j in s.queue):
+            box = layout.box()
+            row = box.row(align=True)
+            row.prop(s, "queue_delay_mode", expand=True)
+            row = box.row(align=True)
+            if s.queue_delay_mode == "AT":
+                row.prop(s, "queue_at_hour", text="h")
+                row.prop(s, "queue_at_minute", text="min")
+            else:
+                row.prop(s, "queue_delay_hours", text="h")
+                row.prop(s, "queue_delay_minutes", text="min")
+            box.operator("fresing.queue_start_later", text="Start later", icon="TIME")
+        if not queue.delay_pending() and queue._DELAY["note"]:
+            wrap(layout, context, queue._DELAY["note"], icon="INFO")
         if s.queue_dir:
             layout.operator("fresing.queue_log", text="Open log (time per frame, errors)", icon="TEXT")
 

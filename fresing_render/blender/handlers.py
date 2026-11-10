@@ -143,6 +143,13 @@ def _on_load(_dummy=None):
                     fn(sc)
                 except Exception as exc:
                     print(f"Fresing Render: upgrade step '{step}' failed for scene '{sc.name}': {exc}")
+    try:                                     # say so when a delayed queue start was lost with the old project
+        from . import queue
+        note = queue.take_note()
+        if note and bpy.context.scene is not None and hasattr(bpy.context.scene, "fresing"):
+            bpy.context.scene.fresing.last_message = note
+    except Exception:
+        pass
     try:                                     # a render queue started earlier may still be going
         scene = bpy.context.scene
         from . import queue
@@ -167,6 +174,11 @@ def _after_undo(_dummy=None):
 
 @persistent
 def _before_load(_dummy=None):
+    try:
+        from . import queue
+        queue.delay_lost()               # a delayed queue start is not kept when the project closes (0050)
+    except Exception:
+        pass
     from .ops_import import cancel_running_job
     cancel_running_job()
 
