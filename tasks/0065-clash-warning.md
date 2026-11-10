@@ -1,6 +1,6 @@
 # 0065 – Clash warning: parts that run into each other in an animation
 
-**Who:** worker · **Status:** done (10 Nov, 0.2.52) · **Branch:** `claude/peaceful-heisenberg-t8bw07`
+**Who:** worker · **Status:** done (10 Nov, 0.2.53) · **Branch:** `claude/peaceful-heisenberg-t8bw07`
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 7 of the big features; the only one not waiting on a busy
 lane: 4 motion paths waits for 0058, 5 double-arm = 0064 running, 6 4th/5th axis is in the Machining lane)
 **Lane:** new **Clash lane** – new files `core/clash.py` (no Blender), `blender/clash.py`, `blender/ops_clash.py`,
@@ -81,7 +81,7 @@ Fixing clashes for the user, clash-free toolpaths, hoses/cables (0058), anything
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus), 10 Nov 2026. Released as **0.2.52**.
+**Chat / date:** Claude Code on the web (Opus), 10 Nov 2026. Released as **0.2.53**.
 
 **What changed:**
 - **Design** (`core/clash.py` without Blender, `blender/clash.py`): every frame of the built animation (+ the G-code

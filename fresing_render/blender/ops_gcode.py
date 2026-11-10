@@ -128,8 +128,8 @@ class FRESING_OT_cnc_zero_click(_CncOp, bpy.types.Operator):
 
 
 class FRESING_OT_cnc_home(_CncOp, bpy.types.Operator):
-    """Machine zero (G53 X0 Y0 Z0, where G28 goes): the X, Y and Z joints as they are now. Move them to the
-    machine's home position first (usually Z right up). Off: the CAD position"""
+    """Machine zero (G53 X0 Y0 Z0, where G28 goes): the X, Y and Z joints as they are now, and the rotary axes' A0 B0
+    C0 too. Move them to the machine's home position first (usually Z right up). Off: the CAD position"""
 
     bl_idname = "fresing.cnc_home"
     bl_label = "Machine zero here"
@@ -139,7 +139,7 @@ class FRESING_OT_cnc_home(_CncOp, bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.clear:
-            return "Machine zero (G53 X0 Y0 Z0) back at the CAD position: every axis joint at 0"
+            return "Machine zero (G53 X0 Y0 Z0, A0 B0 C0) back at the CAD position: every axis joint at 0"
         return cls.__doc__.replace("\n", " ")
 
     def execute(self, context):
@@ -789,7 +789,77 @@ class FRESING_OT_cnc_pocket_remove(_CncOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
+
+class FRESING_OT_cnc_rotary_check(_CncOp, bpy.types.Operator):
+    """Turns each rotary axis (A, B, C) through its range in the view and says which way it turns, where its centre
+    is from the work zero and, with Tool follows the part, how far the tool tip strays from its point on the part:
+    a wrongly picked joint shows at once"""
+
+    bl_idname = "fresing.cnc_rotary_check"
+    bl_label = "Check"
+    bl_options = {"REGISTER"}
+
+    def _report(self, context):
+        from . import rotary
+        lines = rotary.check(context.scene)
+        bad = [t for ok, t in lines if not ok]
+        if bad:
+            self.report({"WARNING"}, "; ".join(bad[:3]))
+        else:
+            self.report({"INFO"}, "; ".join(t for _ok, t in lines[:3]))
+        return {"FINISHED"}
+
+    def execute(self, context):
+        return self._report(context)
+
+    def invoke(self, context, event):
+        import time
+        from . import rotary
+        sc = context.scene
+        self.poses = rotary.check_poses(sc)
+        if not self.poses or context.area is None:
+            return self._report(context)
+        animation.clear_keys(sc)
+        self.keep = dict(self.poses[0][1])
+        self.t0 = time.time()
+        self.timer = context.window_manager.event_timer_add(1 / 30, window=context.window)
+        context.window_manager.modal_handler_add(self)
+        return {"RUNNING_MODAL"}
+
+    def _pose(self, context, values):
+        from . import joints
+        for name, v in values.items():
+            j = context.scene.fresing.joints.get(name)
+            if j is not None:
+                joints.set_value(j, v, use_limits=False)
+        context.view_layer.update()
+        for area in context.screen.areas if context.screen else []:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+
+    def modal(self, context, event):
+        import time
+        if event.type == "ESC":
+            return self._finish(context)
+        if event.type != "TIMER":
+            return {"PASS_THROUGH"}
+        t = time.time() - self.t0
+        poses = self.poses
+        if t >= poses[-1][0]:
+            return self._finish(context)
+        for (ta, va), (tb, vb) in zip(poses, poses[1:]):
+            if ta <= t <= tb:
+                u = 0.0 if tb <= ta else (t - ta) / (tb - ta)
+                self._pose(context, {k: va[k] + (vb[k] - va[k]) * u for k in va})
+                break
+        return {"RUNNING_MODAL"}
+
+    def _finish(self, context):
+        context.window_manager.event_timer_remove(self.timer)
+        self._pose(context, self.keep)
+        return self._report(context)
+
+CLASSES = (FRESING_OT_cnc_rotary_check, FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
            FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_add_missing, FRESING_OT_cnc_tool_remove,
            FRESING_OT_cnc_tool_copy, FRESING_OT_cnc_tool_sort, FRESING_OT_cnc_tool_read, FRESING_OT_cnc_tool_step,
            FRESING_OT_cnc_tool_flip, FRESING_OT_cnc_tool_part,

@@ -52,6 +52,7 @@ NODE_GROUP = "FR toolpath tubes"
 PATH_RADIUS = 0.4 * MM
 DASH, GAP = 3.0, 2.0                # mm: rapids are drawn as dashes this long, with gaps this long
 KEY_TOL = 0.002                      # mm: chord error allowed between two keys on an arc
+PATH_TURN = 2.0                      # degrees: the toolpath on a turning part is drawn with a point at least this often
 SLOW_TURN = 1.0 / 7.0                # "Looks right": at most this much of a turn per picture
 TEXT_PREFIX = "FR program "
 WORLD_AXES = (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
@@ -93,7 +94,9 @@ def _carries(j, ob) -> bool:
 def _rest_tip(ob):
     """(tip, axis) of a tool part in its own space; the axis points from the tip into the holder."""
     from . import machining
-    key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0)
+    # (the mesh's address too: another file can have a tool of the same name and size elsewhere, task 0066)
+    key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0,
+           ob.data.as_pointer() if ob.data else 0)
     hit = _CACHE.get(key)
     if hit is None:
         info = machining.detect(ob, snap=False)
@@ -162,8 +165,10 @@ class Machine:
                                  "(usually Z: +Z must lift the tool)")
             raise SetupError("The X, Y and Z joints are not at right angles to each other")
         self.rot = Matrix((ex, ey, ez)).transposed()           # columns: the program's axes in the world
-        self.zero = self._zero_point(c)                         # world
-        tip_world = self.tool.matrix_world @ _rest_tip(self.tool)[0]
+        from . import rotary                                    # A, B, C (task 0066): turned back to 0 first
+        rotary.build(self, c, s, _carries, [j.name for j in self.joints])
+        self.zero = self._zero_point(c)                         # world, as at A0 B0 C0
+        tip_world = self.unturn_tool @ (self.tool.matrix_world @ _rest_tip(self.tool)[0])
         t_local = self.rot.transposed() @ (tip_world - self.zero)
         self.values = [joints.get_value(j) for j in self.joints]
         self.home = list(c.home) if c.home_set else [0.0, 0.0, 0.0]
@@ -171,13 +176,19 @@ class Machine:
         v_wz = [v - s_ * t for v, s_, t in zip(self.values, self.sign, t_local)]
         self.g54 = tuple(s_ * (v - h) / MM for s_, v, h in zip(self.sign, v_wz, self.home))
         self.rapid = (c.rapid_x, c.rapid_y, c.rapid_z)
+        self.rot_rapid = (c.rapid_a, c.rapid_b, c.rapid_c)
+        self.wrapped = (c.a_wrapped, c.b_wrapped, c.c_wrapped)
+        rotary.finish(self)
 
     def _zero_point(self, c) -> Vector:
         wp = self.workpiece
         if c.zero_mode == "POINT":
-            p = wp.matrix_world @ Vector(c.zero_point)
+            p = self.unturn_part @ (wp.matrix_world @ Vector(c.zero_point))
         else:
             co = _world_points(wp)
+            if self.axes:
+                un = np.array(self.unturn_part)
+                co = co @ un[:3, :3].T + un[:3, 3]
             loc = co @ np.array(self.rot)                      # coordinates along the program's axes
             lo, hi = loc.min(axis=0), loc.max(axis=0)
             mid = (lo + hi) / 2
@@ -196,13 +207,18 @@ class Machine:
         return tuple(s_ * (v - h) / MM for s_, v, h in zip(self.sign, values, self.home))
 
     def zero_matrix(self) -> Matrix:
-        return Matrix.Translation(self.zero) @ self.rot.to_4x4()
+        """The work zero's frame in the world as the model is now (with the rotary axes as they are)."""
+        m = Matrix.Translation(self.zero) @ self.rot.to_4x4()
+        return self.unturn_part.inverted() @ m if self.axes else m
 
     def describe_axes(self) -> list:
         out = []
         for letter, j, s_, t in zip("XYZ", self.joints, self.sign, self.moves_tool):
             out.append(f"{letter}: '{j.name}' moves the {'tool' if t else 'workpiece'}"
                        + ("" if s_ * (1 if t else -1) > 0 else " (joint's + = program's -)"))
+        if self.axes:
+            from . import rotary
+            out += rotary.describe(self)
         return out
 
 
@@ -236,8 +252,23 @@ def _first_value(j) -> float:
 
 def start_point(mach: Machine | None):
     """Where the machine is when the animation starts (machine coordinates, mm): a program step starts from
-    there. (The same whatever frame is shown, so the step's length does not change while scrubbing.)"""
-    return mach.machine_of([_first_value(j) for j in mach.joints]) if mach is not None else None
+    there. (The same whatever frame is shown, so the step's length does not change while scrubbing.) With TCP
+    (task 0066) the program's point, not the X/Y/Z joints' one."""
+    if mach is None:
+        return None
+    m = mach.machine_of([_first_value(j) for j in mach.joints])
+    if mach.axes:
+        from . import rotary
+        m = rotary.program_point(mach, m, rotary.first_rot(mach))
+    return m
+
+
+def start_rot(mach: Machine | None):
+    """A, B, C (degrees) when the animation starts (task 0066)."""
+    if mach is None or not mach.axes:
+        return None
+    from . import rotary
+    return rotary.first_rot(mach)
 
 
 def problem(scene) -> str:
@@ -344,9 +375,16 @@ def set_home_here(scene, here: bool = True) -> None:
             j = s.joints.get(name)
             vals.append(joints.get_value(j) if j is not None else 0.0)
         c.home = vals
+        from . import rotary                        # the rotary axes' zero too (task 0066)
+        rv = []
+        for name in rotary.joint_names(c):
+            j = s.joints.get(name) if name else None
+            rv.append(joints.get_value(j) if j is not None else 0.0)
+        c.home_rot = rv
         c.home_set = True
     else:
         c.home = (0.0, 0.0, 0.0)
+        c.home_rot = (0.0, 0.0, 0.0)
         c.home_set = False
     setup_changed(scene)
 
@@ -542,20 +580,28 @@ def tool_table(scene) -> dict:
         return {}
 
 
-def read_program(scene, b, mach: Machine | None = None, start=None):
-    """(Program, note) for a step; cached. ``mach``: the set-up (else neutral offsets, for the length only)."""
+def read_program(scene, b, mach: Machine | None = None, start=None, rot=None):
+    """(Program, note) for a step; cached. ``mach``: the set-up (else neutral offsets, for the length only).
+    ``start``: where X/Y/Z start (else the machine zero); ``rot``: where A, B, C start (degrees; else where they are at
+    frame 1)."""
     text, note = program_text(b.gcode_file, b.get(PROGRAM_ABS, ""))
     path = file_path(b.gcode_file, b.get(PROGRAM_ABS, ""))
     g54 = mach.g54 if mach is not None else (0.0, 0.0, 0.0)
-    rapid = mach.rapid if mach is not None else tuple(getattr(settings(scene), f"rapid_{a}") for a in "xyz")
+    c = settings(scene)
+    rapid = mach.rapid if mach is not None else tuple(getattr(c, f"rapid_{a}") for a in "xyz")
+    rot_rapid = tuple(getattr(c, f"rapid_{a}") for a in "abc")
+    wrapped = tuple(bool(getattr(c, f"{a}_wrapped")) for a in "abc")
+    if rot is None:
+        rot = start_rot(mach)
     tt = tool_table(scene)
     key = ("prog", _sig(text), tuple(round(x, 6) for x in g54), tuple(rapid),
            tuple(round(x, 6) for x in start) if start is not None else None,
-           tuple(sorted((n, t.diameter, t.length) for n, t in tt.items())), os.path.dirname(path))
+           tuple(sorted((n, t.diameter, t.length) for n, t in tt.items())), os.path.dirname(path),
+           rot_rapid, wrapped, tuple(round(x, 6) for x in rot) if rot is not None else None)
     prog = _CACHE.get(key)
     if prog is None:
         prog = core.read(text, g54=g54, rapid=rapid, home=(0.0, 0.0, 0.0), tools=tt, base_dir=os.path.dirname(path),
-                         start=start)
+                         start=start, rot_rapid=rot_rapid, wrapped=wrapped, start_rot=rot)
         if len(_CACHE) > 24:
             _CACHE.clear()
         _CACHE[key] = prog
@@ -951,8 +997,8 @@ def prepare(scene, anim, warnings: list) -> list:
     from . import coolant
     coolant.prepare(scene)                                 # coolant frames: written again by the steps (task 0042)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners"):                   # which tool is in the spindle, the program's corners:
-        if k in c:                                         # written by the steps
+    for k in ("fr_tools", "fr_corners", "fr_turns"):       # which tool is in the spindle, the program's corners
+        if k in c:                                         # and turns: written by the steps
             del c[k]
     try:
         mach = Machine(scene)
@@ -1023,11 +1069,19 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     except SetupError as exc:
         warnings.append(f"'{name}': {exc}")
         return f0
+    from . import rotary
+    rot0 = None
     start = mach.machine_of([jstate[j.name] for j in mach.joints])
+    if mach.axes:                                      # A, B, C where the step starts (task 0066)
+        rot0 = rotary.rot_of(mach, {ax.joint.name: jstate.get(ax.joint.name, joints.get_value(ax.joint))
+                                    for ax in mach.axes.values()})
+        if all(abs(a - b_) < 1e-6 for a, b_ in zip(rot0, start_rot(mach))):
+            rot0 = start_rot(mach)
+        start = rotary.program_point(mach, start, rot0)
     if all(abs(a - b_) < 1e-6 for a, b_ in zip(start, start_point(mach))):
         start = start_point(mach)                      # the same numbers as for the step's length: one read
     try:
-        prog, note = read_program(scene, b, mach, start=start)
+        prog, note = read_program(scene, b, mach, start=start, rot=rot0)
     except FileNotFoundError as exc:
         warnings.append(f"'{name}': file not found ({exc})")
         return f0
@@ -1047,7 +1101,12 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         return f0
     fps = animation.fps_of(anim)
     span = sch.duration * fps
-    for j in mach.joints:
+    for k, line in sorted(prog.rotary.items()):
+        if "abc".index(k) not in mach.axes:
+            warnings.append(f"'{name}': the program turns {k.upper()} (first at line {line}) but no {k.upper()} joint "
+                            "is picked (4 Motion > CNC machine > Rotary axes): it stays put")
+    turning = [ax.joint for ax in mach.axes.values()]
+    for j in mach.joints + turning:
         if busy_until.get(j.name, 0) > f0:
             warnings.append(f"Two steps move '{j.name}' at the same time; the later one takes over")
         busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + int(math.ceil(span)))
@@ -1059,22 +1118,47 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     offsets = length_offsets(scene, mach, numbers, first_tool(sch) or (sch.tool_events[0][1] if sch.tool_events
                                                                         else 0))
     lift = _lift(sch, offsets)
-    # X, Y, Z: a key at every move's ends and along arcs
-    samples = sch.samples(fps, tol=KEY_TOL)
-    if offsets:                                     # a key where the spindle's length adjustment starts and ends
+    tcp = rotary.tcp(mach)
+    shift = _tcp_shift(sch, mach) if tcp else None
+    # X, Y, Z: a key at every move's ends and along arcs (TCP: also every few degrees while the part turns)
+    samples = sch.samples(fps, tol=KEY_TOL, turn_step=rotary.turn_step(mach, prog))
+    if offsets or tcp:                              # a key where the spindle's length adjustment starts and ends
         have = {round(t, 9) for t, _p in samples}
         extra_t = {x for c in sch.changes if c.length > 0 for x in (c.swap, c.out_end, c.back_start, c.start,
                                                                      c.start + c.length)}
         samples = sorted(samples + [(t, sch.point_at(t)) for t in sorted(extra_t) if round(t, 9) not in have],
                          key=lambda x: x[0])
-    _record_corners(scene, [f0 + t * fps for t in corner_times(samples)])
+    spans = sch.turn_spans()
+    _record_corners(scene, [f0 + t * fps for t in corner_times(samples)]
+                    + [f0 + t * fps for a, z in spans for t in (a, z)])
+    if spans:
+        _record_turns(scene, [(f0 + a * fps, f0 + z * fps) for a, z in spans])
     rows = [[], [], []]
+    rrows = {k: [] for k in mach.axes}
     for t, pt in samples:
         f = f0 + t * fps
         dz = lift(t)
+        if mach.axes:
+            r = sch.rot_at(t)
+            if shift is not None:
+                pt = shift(t, pt, r)
+            for k, (_j, v) in zip(sorted(mach.axes), rotary.values_for(mach, r)):
+                rrows[k].append((f, v))
         vals = mach.values_for((pt[0], pt[1], pt[2] + dz) if dz else pt)
         for i, v in enumerate(vals):
             rows[i].append((f, v))
+    for k, ax in mach.axes.items():
+        j = ax.joint
+        keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
+        for n, (f, v) in enumerate(rrows[k]):
+            merge(keys, f, v, "LINEAR" if n < len(rrows[k]) - 1 else "CONSTANT")
+        if rrows[k]:
+            jstate[j.name] = rrows[k][-1][1]
+        if j.use_limits and any(joints.outside_limits(j, v) for _f, v in rrows[k]):
+            first = next((p.move.line for p in sch.pieces
+                          if joints.outside_limits(j, ax.value((p.move.rb or (0, 0, 0))[k]))), "?")
+            warnings.append(f"'{name}': '{j.name}' ({ax.letter}) turns beyond its limits (first at line {first}); the "
+                            "joint stops there")
     for i, j in enumerate(mach.joints):
         keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
         for n, (f, v) in enumerate(rows[i]):
@@ -1084,6 +1168,8 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
             for p in sch.pieces:
                 m = p.move
                 pts = [m.b] + ([m.at(k / 8) for k in range(1, 8)] if m.kind == "ARC" else [])
+                if tcp:
+                    pts = [rotary.machine_point(mach, pt, m.rb or (0.0, 0.0, 0.0)) for pt in pts]
                 if any(joints.outside_limits(j, mach.values_for(pt)[i]) for pt in pts):
                     warnings.append(f"'{name}': '{j.name}' goes beyond its limits (first at line {m.line}); the "
                                     "joint stops there")
@@ -1180,6 +1266,44 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
     busy_until[j.name] = max(busy_until.get(j.name, 0), f0 + int(math.ceil(end * fps)))
 
 
+def _tcp_shift(sch, mach):
+    """TCP (task 0066): f(t, point, rot) -> X/Y/Z for the program's point, turned with the part. During a tool change
+    that sends the head to the changer, the head goes there in plain machine coordinates: the shift fades out on the
+    way there and in on the way back (like the tool length's lift)."""
+    from . import rotary
+
+    def shift(t, pt, rot):
+        p = sch.piece_at(t)
+        full = rotary.machine_point(mach, pt, rot)
+        if p is None or p.change is None or not p.change.moves or p.vd <= 0:
+            return full
+        c = p.change
+        knots = [(c.start, 1.0), (c.out_end, 0.0), (c.back_start, 0.0), (c.start + c.length, 1.0)]
+        w = 1.0
+        for (ta, wa), (tb, wb) in zip(knots, knots[1:]):
+            if ta - 1e-12 <= t <= tb + 1e-12:
+                w = wa if tb - ta <= 1e-12 else wa + (wb - wa) * (t - ta) / (tb - ta)
+                break
+        m = p.move.b
+        d = [a - b_ for a, b_ in zip(rotary.machine_point(mach, m, rot), m)]
+        return tuple(x + w * dx for x, dx in zip(pt, d))
+    return shift
+
+
+def turns(scene) -> list:
+    """[(first frame, last frame)] in which the program turns a rotary axis, from the last build (task 0066)."""
+    c = settings(scene)
+    a = list(c["fr_turns"]) if "fr_turns" in c else []
+    return [(float(a[k]), float(a[k + 1])) for k in range(0, len(a) - 1, 2)]
+
+
+def _record_turns(scene, spans) -> None:
+    from .idprops import store_array
+    c = settings(scene)
+    old = list(c["fr_turns"]) if "fr_turns" in c else []
+    store_array(c, "fr_turns", old + [float(x) for ab in spans for x in ab])
+
+
 def _lift(sch, offsets: dict):
     """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle (like G43). When the head
     stays where it is for a change, it changes from the swap to the end of the change (the new tool is in; the old one
@@ -1220,7 +1344,7 @@ def after_clear(scene) -> None:
     """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners"):
+    for k in ("fr_tools", "fr_corners", "fr_turns"):
         if k in c:
             del c[k]
     from . import air
@@ -1345,7 +1469,7 @@ def _dashes(pts: list) -> list:
 def path_geometry(scene, anim, mach: Machine) -> tuple:
     """(points (n x 3, m, in the work zero's frame), edges (k x 2), frame per point, rapid per point) of
     every G-code step of ``anim`` with Show toolpath on."""
-    from . import animation
+    from . import animation, rotary
     fps = animation.fps_of(anim)
     pts, edges, frames, rapid = [], [], [], []
     g54 = np.array(mach.g54)
@@ -1358,7 +1482,12 @@ def path_geometry(scene, anim, mach: Machine) -> tuple:
             continue
         sch = core.Schedule(prog, timing(scene, anim, b))
         f0 = animation.frame_of(anim, b.start)
-        for is_rapid, line in sch.path(tol=0.01, max_step=1.0 / fps):
+        # the rotary axes (task 0066): drawn on the part as it lies at A0 B0 C0 (the marker turns with it). TCP: the
+        # program's points are already that; Plain: where the tool touches the turned part
+        plain = bool(rotary.part_axes(mach)) and not rotary.tcp(mach) and sch.turns_or_turned()
+        for is_rapid, line in sch.path(tol=0.01, max_step=1.0 / fps, turn_step=PATH_TURN if plain else 0.0):
+            if plain:
+                line = [rotary.on_part(mach, (x, y, z), sch.rot_at(t)) + (t,) for x, y, z, t in line]
             pieces = _dashes(line) if is_rapid else [line]
             for piece in pieces:
                 if len(piece) < 2:
@@ -1452,7 +1581,7 @@ def tools_from_program(scene, b) -> int:
 
 def renamed_joint(scene, old: str, new: str) -> None:
     c = settings(scene)
-    for attr in ("x_joint", "y_joint", "z_joint", "spindle_joint", "carousel_joint"):
+    for attr in ("x_joint", "y_joint", "z_joint", "spindle_joint", "carousel_joint", "a_joint", "b_joint", "c_joint"):
         if getattr(c, attr) == old:
             c["_busy"] = True
             setattr(c, attr, new)

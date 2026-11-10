@@ -1528,6 +1528,76 @@ class FRCnc(bpy.types.PropertyGroup):
                     "not on a corner or the centre")
     home: FloatVectorProperty(size=3)              # the X/Y/Z joint values at machine zero (G53 X0 Y0 Z0, G28)
     home_set: BoolProperty(default=False)
+
+    # ---- rotary axes A, B, C (task 0066) ----
+    a_joint: StringProperty(
+        name="A", update=_cnc_changed,
+        description="The rotate joint the program's A turns (4th / 5th axis, about +X), made in 4 Motion. "
+                    "Empty: the machine has no A axis")
+    a_reverse: BoolProperty(
+        name="Reverse A", default=False, update=_cnc_changed,
+        description="Tick when the program's +A turns the axis the other way than the app thinks. The app "
+                    "takes + as the tool going round the part right-handed about +X (the table turns the other way). "
+                    "Check shows which way it turns")
+    rapid_a: FloatProperty(
+        name="A rapid (°/min)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The A axis' rapid speed in degrees per minute (MAX_VELOCITY in LinuxCNC's .ini × 60). "
+                    "Sets how long G0 turns take; a feed move never turns faster")
+    a_wrapped: BoolProperty(
+        name="Wrapped", default=False, update=_cnc_changed,
+        description="The A axis counts 0 … 360° and keeps turning (LinuxCNC WRAPPED_ROTARY): A90 turns "
+                    "the + way to 90°, A-90 the - way to 90°. Off: plain degrees (A0 after A720 "
+                    "turns back two turns)")
+    b_joint: StringProperty(
+        name="B", update=_cnc_changed,
+        description="The rotate joint the program's B turns (4th / 5th axis, about +Y), made in 4 Motion. "
+                    "Empty: the machine has no B axis")
+    b_reverse: BoolProperty(
+        name="Reverse B", default=False, update=_cnc_changed,
+        description="Tick when the program's +B turns the axis the other way than the app thinks. The app "
+                    "takes + as the tool going round the part right-handed about +Y (the table turns the other way). "
+                    "Check shows which way it turns")
+    rapid_b: FloatProperty(
+        name="B rapid (°/min)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The B axis' rapid speed in degrees per minute (MAX_VELOCITY in LinuxCNC's .ini × 60). "
+                    "Sets how long G0 turns take; a feed move never turns faster")
+    b_wrapped: BoolProperty(
+        name="Wrapped", default=False, update=_cnc_changed,
+        description="The B axis counts 0 … 360° and keeps turning (LinuxCNC WRAPPED_ROTARY): B90 turns "
+                    "the + way to 90°, B-90 the - way to 90°. Off: plain degrees (B0 after B720 "
+                    "turns back two turns)")
+    c_joint: StringProperty(
+        name="C", update=_cnc_changed,
+        description="The rotate joint the program's C turns (4th / 5th axis, about +Z), made in 4 Motion. "
+                    "Empty: the machine has no C axis")
+    c_reverse: BoolProperty(
+        name="Reverse C", default=False, update=_cnc_changed,
+        description="Tick when the program's +C turns the axis the other way than the app thinks. The app "
+                    "takes + as the tool going round the part right-handed about +Z (the table turns the other way). "
+                    "Check shows which way it turns")
+    rapid_c: FloatProperty(
+        name="C rapid (°/min)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The C axis' rapid speed in degrees per minute (MAX_VELOCITY in LinuxCNC's .ini × 60). "
+                    "Sets how long G0 turns take; a feed move never turns faster")
+    c_wrapped: BoolProperty(
+        name="Wrapped", default=False, update=_cnc_changed,
+        description="The C axis counts 0 … 360° and keeps turning (LinuxCNC WRAPPED_ROTARY): C90 turns "
+                    "the + way to 90°, C-90 the - way to 90°. Off: plain degrees (C0 after C720 "
+                    "turns back two turns)")
+    home_rot: FloatVectorProperty(size=3)          # the A/B/C joint values (rad) at machine zero (A0 B0 C0, G28)
+    kinematics: EnumProperty(
+        name="Kinematics", default="PLAIN", update=_cnc_changed,
+        items=[("PLAIN", "Plain", "A, B and C are just angles of the joints; the CAM post worked out X, Y and Z for the "
+                                  "turned part (LinuxCNC trivkins, most 4th-axis set-ups)"),
+               ("TCP", "Follows part (TCP)", "Tool follows the part: the program is written for the part as it lies at A0 B0 C0; "
+                                                      "the app moves X, Y and Z so the tool tip stays on that point "
+                                                      "while the table turns (LinuxCNC TCP kinematics, table side "
+                                                      "only)")],
+        description="How X, Y and Z go with the rotary axes: Plain (the CAM post did the maths) or Tool follows the "
+                    "part (TCP) for a rotary table or trunnion")
     tools: CollectionProperty(type=FRCncTool)
     tools_index: IntProperty(default=0)
     add_kind: EnumProperty(name="Type", items=TOOL_KIND_ITEMS, default="FLAT",

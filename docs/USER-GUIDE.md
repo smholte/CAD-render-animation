@@ -1045,7 +1045,53 @@ next to its field (**Reverse**).
   how long rapid moves take; feed moves take the program's F.
 - **Shift zero**: moves the work zero along X, Y and Z, for a zero that is not on a corner or the centre.
 - **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
-  you moved the joints to the machine's home position (usually Z right up).
+  you moved the joints to the machine's home position (usually Z right up). It keeps the rotary axes' A0 B0 C0
+  too.
+
+#### Rotary axes (4th / 5th axis)
+
+<img class="panel" src="img/panel_4_rotary.png" alt="Rotary axes: A and C picked on a trunnion, rapid speeds, Kinematics Follows part (TCP), the lines of Check">
+
+A rotary table (4th axis) or a trunnion (5th axis) turns the part under the tool. The program's **A**, **B** and **C**
+turn rotate joints of your model, while X, Y and Z move as before; the material comes off in the right places on the
+turning part, and the toolpath is drawn on the part and turns with it.
+
+1. Make a **rotate** joint for each rotary axis in 4 Motion: the rotary table (a 4th axis), or the trunnion's tilt and
+   its table (made after the tilt, so it rides on it).
+2. In 4 Motion > CNC machine > **Rotary axes**, pick them as **A** (turns about X), **B** (about Y) or **C** (about Z).
+   Any of the three can stay empty.
+3. Next to each: **Reverse** (the arrows) when your program turns the other way, **Wrapped** (the loop) for an axis
+   that counts 0 … 360° and keeps turning (LinuxCNC `WRAPPED_ROTARY`: `A90` turns the + way to 90°, `A-90` the − way
+   to 90°). Below: the **rapid** speed of each axis in degrees per minute.
+4. **Kinematics**:
+   - **Plain** (most 4th-axis set-ups, LinuxCNC `trivkins`): A, B, C are just the joints' angles; your CAM post
+     already worked out X, Y and Z for the turned part. The post needs the rotary axis' centre: **Check** says where
+     it is from the work zero.
+   - **Follows part (TCP)** (tool follows the part): the program is written for the part as it lies at A0 B0 C0, and
+     the app moves X, Y and Z so the tool tip stays on that point while the table turns. Only for axes that turn the
+     part (a rotary table, a trunnion); a turning head stays Plain.
+5. Press **Check**: each axis turns through its range in the view, and the lines say which way it turns the part,
+   its centre from the work zero, and – with TCP – how far the tool tip strays from its point on the part (should be
+   0.00 mm). A wrongly picked joint shows at once.
+
++A (+B, +C) means the tool goes round the part right-handed about +X (+Y, +Z), like X/Y/Z where + is the tool's move
+relative to the part: a rotary table therefore turns the other way. When your post counts the other way, tick
+Reverse.
+
+<img src="img/view_rotary.png" alt="The 4-axis test mill: the bar turns between chuck and tailstock, a slot wrapped round it, the toolpath lying on the bar">
+
+**What the program may use**: A, B, C on G0, G1, G2, G3 (on an arc the rotary axis turns evenly along the arc),
+G28 / G30, G53, G92 and G10 L2 / L20 with A, B, C, and G93 (inverse time: F = 1 / minutes for the whole line) and back
+with G94. The feed follows LinuxCNC: F is mm/min along X, Y and Z when they move; a line that only turns a rotary axis
+takes F as degrees per minute. A rotary word on a drilling-cycle line is left out (and reported); U, V, W are not
+supported.
+
+**What follows the part**: the milled shape, the toolpath, chips that landed on the workpiece, and whatever sits on
+the rotary table (chuck, vise, fixture – they hang under its joint). Chips on the table or the bed stay. Coolant and
+air aim at the tool as before. Tool changes (by hand, carousel, double arm) keep the rotary axes where they are.
+
+**Milling on a turning part**: while an axis turns, the app reads the tool more often (each cut piece at most 0.5°
+of turn, the tool tip's chord within the detail level's tolerance: 0.005 mm at Normal), so a wrapped slot is smooth.
 
 ### Tools
 

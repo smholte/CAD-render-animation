@@ -337,13 +337,13 @@ def test_comments_semicolons_line_numbers_and_block_delete():
 
 
 def test_unknown_codes_reported_with_line_numbers():
-    text = "G0 X1\nG12 X2\nM123\nG41 D1\nG1 X3 A45 F100\nG1 X4 A90\nM77\n"
+    text = "G0 X1\nG12 X2\nM123\nG41 D1\nG1 X3 U45 F100\nG1 X4 U90\nM77\n"
     p = run(text)
     lines = p.problem_lines()
     assert any("G12" in t and "line 2" in t for t in lines)
     assert any("M123" in t and "line 3" in t for t in lines)
     assert any("G41" in t and "line 4" in t for t in lines)
-    assert any("A axis" in t and "lines 5, 6" in t for t in lines)
+    assert any("U axis" in t and "lines 5, 6" in t for t in lines)    # (A/B/C are read since task 0066)
     assert any("M77" in t and "line 7" in t for t in lines)
     assert close(motions(p)[-1].b, (4, 0, 0))              # the rest of those lines still ran
 
@@ -356,8 +356,8 @@ def test_a_broken_line_is_reported_and_the_rest_runs():
 
 
 def test_many_lines_of_one_problem_are_summed_up():
-    p = run("".join(f"G1 X{i} B{i} F100\n" for i in range(1, 21)))
-    t = [x for x in p.problem_lines() if "B axis" in x][0]
+    p = run("".join(f"G1 X{i} V{i} F100\n" for i in range(1, 21)))
+    t = [x for x in p.problem_lines() if "V axis" in x][0]
     assert "lines 1, 2, 3, 4, 5 and 15 more" in t
 
 

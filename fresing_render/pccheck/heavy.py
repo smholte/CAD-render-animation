@@ -547,7 +547,7 @@ def heavy_playback(ctx):
     return f"{frames} frames, {ms:.1f} ms per frame"
 
 
-@line("heavy.clash", "Big machine: clash check of a 10 s animation", "0.2.52", (H,), requires=("heavy.import",),
+@line("heavy.clash", "Big machine: clash check of a 10 s animation", "0.2.53", (H,), requires=("heavy.import",),
       expected=60,
       what="A module of the 3,000-part machine turns, another slides 4 m, a third runs as a motor (10 s); the clash "
            "check goes through every frame and between frames where parts move fast",

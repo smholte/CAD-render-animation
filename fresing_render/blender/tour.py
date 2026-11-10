@@ -1213,6 +1213,66 @@ def _check_doublearm(scene):
     return f"3 changes, random pots; arm {t['back'][1] - t['grip'][0]:.1f} s per change"
 
 
+@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step")
+def build_rotary4(b: Build):
+    from mathutils import Vector
+
+    from . import rotary
+    sc = b.scene
+    a = _animation(b, "4th axis")
+    blk = _gcode_step(a, _program(b, "Tour 4th axis.ngc", rotary.TEST_PROGRAM_4AXIS), sc, gcode_path=True,
+                      gcode_speed="FIT", gcode_fit=14.0)
+    rotary.set_up_test_model(sc, blk)
+    bad = [t for ok, t in rotary.check(sc) if not ok]
+    _check(not bad, "; ".join(bad[:2]))
+    _close_camera(b, Vector((-0.03, 0.0, 0.16)), 0.3, "Tour 4th axis")
+    a.start_shot = _shot(b, "Tour: 4th axis").name
+
+
+@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step")
+def build_rotary5(b: Build):
+    from mathutils import Vector
+
+    from . import rotary
+    sc = b.scene
+    a = _animation(b, "5th axis")
+    blk = _gcode_step(a, _program(b, "Tour 5th axis.ngc", rotary.TEST_PROGRAM_5AXIS), sc, gcode_path=True,
+                      gcode_speed="FIT", gcode_fit=12.0)
+    rotary.set_up_test_model(sc, blk, five=True)
+    bad = [t for ok, t in rotary.check(sc) if not ok]
+    _check(not bad, "; ".join(bad[:2]))
+    _close_camera(b, Vector((0.0, 0.0, 0.17)), 0.26, "Tour 5th axis")
+    a.start_shot = _shot(b, "Tour: 5th axis").name
+
+
+def _rotary_at(scene, name: str, letter: str, when):
+    """(the joint's angle in the program's degrees, the program's) at the move ``when`` picks, halfway through it."""
+    from . import gcode, rotary
+    a = scene.fresing.animations.get(name)
+    sch = _changes(scene, a)
+    p = next(p for p in sch.pieces if when(p.move))
+    t = p.v0 + p.vd / 2
+    fr = 1 + t * int(a.fps)
+    scene.frame_set(int(fr), subframe=fr - int(fr))
+    mach = gcode.Machine(scene)
+    k = rotary.LETTERS.index(letter)
+    return mach.axes[k].angle_of(rotary.joints.get_value(mach.axes[k].joint)), sch.rot_at(t)[k]
+
+
+def _check_rotary4(scene):
+    got, want = _rotary_at(scene, "4th axis", "A", lambda m: m.kind == "FEED" and m.turn > 1)
+    _check(abs(got - want) < 0.01, f"A is at {got:.2f}° halfway along the wrapped slot, the program says {want:.2f}°")
+    return f"A at {got:.1f}° halfway along the slot (as the program says)"
+
+
+def _check_rotary5(scene):
+    from . import gcode
+    _check(gcode.settings(scene).kinematics == "TCP", "the trunnion is not set to Tool follows the part")
+    got, want = _rotary_at(scene, "5th axis", "C", lambda m: m.kind == "FEED" and m.turn > 1)
+    _check(abs(got - want) < 0.01, f"C is at {got:.2f}° halfway along the groove, the program says {want:.2f}°")
+    return f"C at {got:.1f}° halfway along the groove, the tool follows the part"
+
+
 TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT30)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
@@ -1459,7 +1519,7 @@ stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
      "lists ARM.A × ARM.B, deepest 6.0 mm at the last frame; that row is clicked: both arms are selected and drawn "
      "red in the 3D view (their own colour stays in renders).", where="6 Animation > Clash check",
-     since="0.2.52", animation="Arms meet", at=1.0, select=("ARM.A", "ARM.B"), check=_check_clash,
+     since="0.2.53", animation="Arms meet", at=1.0, select=("ARM.A", "ARM.B"), check=_check_clash,
      setup=_clash_setup)
 
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -1485,6 +1545,16 @@ stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "into the pot the new one came from; no tool ever jumps or hangs in the air.",
      where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
      since="0.2.51", check=_check_doublearm, auto="clip")
+stop("rotary4", MACH, "rotary4", "4th axis: the bar turns",
+     "A rotary table turns a round bar while the tool cuts a slot wrapped once round it, then mills a flat on top, "
+     "turns the bar half round and mills the same flat underneath. The orange toolpath lies on the bar and turns "
+     "with it.", where="4 Motion > CNC machine > Rotary axes (4th / 5th axis)", animation="4th axis", play=True,
+     since="0.2.52", check=_check_rotary4, auto="clip")
+stop("rotary5", MACH, "rotary5", "5th axis: tilt and turn (TCP)",
+     "The trunnion tilts the block 30° and the tool mills a pocket on its side, the table turns half round for the "
+     "second pocket, then a groove is cut while the table turns 90°. With Tool follows the part the tool tip stays "
+     "on the block's path the whole time.", where="4 Motion > CNC machine > Rotary axes (Kinematics: Tool follows "
+     "the part)", animation="5th axis", play=True, since="0.2.52", check=_check_rotary5, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table and the block.",
      where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip")
