@@ -134,7 +134,7 @@ Fixing clashes for the user, clash-free toolpaths, hoses/cables (0058), anything
   clashes is far quicker than this worst case.
 - Locally: test_clash (27), test_clash_core, test_tour, test_pccheck, test_panels, test_blender, tooltip report
   --strict (0 missing), PC-check lines animation.clash / heavy.clash (scaled down), real-app clash + tourui.
-- GitHub runs: see below.
+- GitHub: 2 full runs on the branch, both green first time (9.7 and 9.6 min); the second only because task 0066 took 0.2.52 meanwhile (merge + renumber to 0.2.53). `main` fast-forwarded: reuse run 42861324917 published v0.2.53, the old-version update check on Windows passed, offered to the apps.
 
 **Open points / follow-up tasks:**
 - The Heavy line's own animation is a worst case (modules through each other); 73 s here. If the owner's number is
