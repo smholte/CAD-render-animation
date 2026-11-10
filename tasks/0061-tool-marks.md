@@ -102,7 +102,8 @@ landing page and customers: the close-ups must look like a real part off a real 
 
 - Real surface roughness as geometry (displacement) – shader only.
 - Chatter marks, built-up edge, burrs, tool wear. Turning (lathe) marks.
-- An app-made toolpath (0029), 4th/5th axis.
+- An app-made toolpath (0029). 4th/5th axis is task 0066 (merged before this one starts, if on time): cuts made
+  during a rotary move may keep the plain milled look, but must not break – run 0066's 4-axis test model once.
 - Coolant, chips, air, tool changes; anything in the Flex parts lane (0058 runs at the same time).
 
 ---

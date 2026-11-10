@@ -1134,8 +1134,8 @@ spirals; a thread mill and a slot cutter make chips like an end mill.
 
 ### Tool changes
 
-Every tool change (M6) in the program plays by itself – on a machine without a tool changer, and on one with an
-automatic tool changer (ATC). Set it up in 4 Motion > CNC machine > **Tool changes**; what the video shows (the
+Every tool change (M6) in the program plays by itself – on a machine without a tool changer, on one with a
+carousel or umbrella tool changer (ATC), and on one with a double-arm tool changer. Set it up in 4 Motion > CNC machine > **Tool changes**; what the video shows (the
 pause, the hand, a caption, the changer's speed) is set in the program step in 6 Animation.
 
 **Manual** (no tool changer)
@@ -1167,9 +1167,9 @@ In the program step (6 Animation > **Run G-code program** > **Lines, tool change
 
 <img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand holding the tool under the spindle at a manual tool change">
 
-**Tool changer (ATC)**
+**Carousel / umbrella** (called **Tool changer (ATC)** before 0.2.51; it works as before)
 
-<img class="panel" src="img/panel_4_toolchange_atc.png" alt="Tool changes set to Tool changer (ATC): the carousel joint, 8 pockets with T1 to T4, change station 1">
+<img class="panel" src="img/panel_4_toolchange_atc.png" alt="Tool changes set to Carousel / umbrella: the carousel joint, 8 pockets with T1 to T4, change station 1">
 
 The tools stand in **pockets**, visible from the first frame (a pocket stays empty when its tool is in the
 spindle). At each M6: the head goes above the old tool's pocket while the carousel turns that pocket to the
@@ -1203,6 +1203,49 @@ spindle's gauge line (the tool in the spindle's **Gauge length**, else its lengt
   the carousel is left out (the app turns it) – as is one that moves X, Y or Z.
 - **ATC speed**: 1 = as on the machine; 2 = the changer works twice as fast in the video, 0.5 half as fast. The
   head's travel follows **Rapids faster**.
+
+**Double-arm**
+
+<img class="panel" src="img/panel_4_toolchange_arm.png" alt="Tool changes set to Double-arm: the arm made from its hub, grip angle 90°, stroke 76 mm, the magazine with 12 tipping pots, and Check saying everything fits">
+
+The tools stand in **pots** of a magazine beside the spindle; a swinging **arm** with a claw at each end swaps them.
+At each M6:
+
+1. Already at the **Tn** before the M6 (while the machine still cuts), the magazine turns the next tool's pot to the
+   **change station** the shortest way, and the pot **tips down** so the tool hangs like the one in the spindle.
+   Without an earlier Tn this happens at the M6.
+2. The head goes to the **change position** and the spindle stops at its **Orient angle** (M19).
+3. The arm turns from rest onto **both tools** at once, pulls them out, turns **half round**, pushes them in and
+   turns back. The pot tips up again and the head goes back to the program.
+
+**Random pockets**: the old tool goes into the pot the new one came from (as LinuxCNC's `RANDOM_TOOLCHANGER = 1`).
+The app keeps track during the program; the pot list shows where the tools are at the first frame. A tool without
+a pot (place **Bench**) is put in by hand at the change position, with the pause and the hand.
+
+Set it up – the app makes every joint it needs:
+
+1. Make a **rotate** joint for the magazine in 4 Motion and pick it as **Magazine**. Set the number of pots.
+2. Press **Click the arm's hub** and click a round face of the arm's hub (if the arm is several parts, select its
+   subassembly first). The app makes the arm's turn and its pull-out stroke (two joints, "Changer arm turn" and
+   "Changer arm stroke") and reads the **Grip angle** from the arm's round claws. **Pull-out stroke** is set for the
+   spindle tool's holder (76 mm for BT30). **Rest angle** 0° means the arm rests as in the CAD model. **Read from
+   the model** reads both again; type a value when the arm should turn the other way.
+3. Pots that lie down and tip at the station: tick **Pots tip down**, press **Click the hinge** and click the hinge
+   (its pin or bore) of the pot under the arm's second claw. The app puts a pot in every place round the magazine
+   and makes a tip joint for each ("Pot 1 tip" …). Pots that are already parallel with the spindle: **Click
+   pockets** on the station pot and **Fill the carousel**, as for a carousel.
+4. Set the **change position** (the head must go there: **Z up only** or **Change position**). With a spindle joint,
+   **Orient angle** is the spindle's angle at the change (0° = as in the CAD model).
+5. Press **Check**: it plays one change in the view and says what does not fit – the claw not on the spindle's axis
+   (more than 0.1 mm off: change the grip angle or the change position), the station pot not under the second
+   claw, a stroke too short for the holder's taper and pull stud.
+
+<img src="img/view_toolchange_arm.png" alt="The test mill: the arm at its half turn, holding the old tool and the new one under the spindle and the tipped pot">
+
+**Times (as on the machine)** (a fold): **Grip** (turning onto the tools, and back), **Pull out** (and push in),
+**Half turn**, **Pot tips**, **Turn per pot**. At **ATC speed** 1 a BT30 tool-to-tool change takes about 1.6 s;
+**ATC speed** in the program step makes it faster or slower in the video. Every tool is held by the spindle, the
+arm or a pot at every frame: at each hand-over the two meet within 0.01 mm, so nothing jumps.
 
 **Timing**: the step's length includes every change. With **Fit into** the changes may take at most half of the
 seconds: when they would take more they are all shortened by the same factor (each turn at least 0.2 s, the hand
@@ -1529,7 +1572,7 @@ The fold **Lines, tool changes, spindle, toolpath** holds:
 - **From line** / **To line**: play only part of the program; the machine starts where the program would
   be at that line.
 - **Tool changes**: **Pause at M6**, **Show hand** and **Caption** (manual), **Changer** and **ATC speed** (tool
-  changer) – see **Tool changes** in 4 Motion above.
+  changer; a double-arm changer has **ATC speed** only) – see **Tool changes** in 4 Motion above.
 - **Spindle**: a real 10,000 rpm spindle looks still or turning backwards in a video of 25 pictures per
   second, so it is slowed down to look right (at most 1/7 turn per picture). **Real speed** turns it at
   the program's S.

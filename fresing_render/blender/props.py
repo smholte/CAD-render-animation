@@ -1374,6 +1374,7 @@ class FRCncPocket(bpy.types.PropertyGroup):
     uid: StringProperty()
     loc: FloatVectorProperty(size=3)                 # where the tool's gauge line sits, in the part's own space
     dir: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))   # from the tool's tip into its holder, part's space
+    tip_joint: StringProperty()                      # double-arm changer (task 0064): the joint that tips this pot
 
 
 # ---------------------------------------------------------------------------
@@ -1547,10 +1548,15 @@ class FRCnc(bpy.types.PropertyGroup):
         name="Tool change", default="MANUAL", update=_cnc_changed,
         items=[("MANUAL", "Manual", "No tool changer: at each M6 the head goes to the change position, pauses and the "
                                     "tool is swapped (optionally by a hand)"),
-               ("ATC", "Tool changer (ATC)", "An automatic tool changer: the tools stand in pockets, the carousel "
-                                             "turns to the right pocket, the spindle leaves the old tool and takes "
-                                             "the new one")],
-        description="How the machine changes tools at M6: by hand, or with an automatic tool changer (ATC)")
+               ("ATC", "Carousel / umbrella", "A carousel or umbrella tool changer: the tools stand in pockets, the "
+                                              "carousel turns to the right pocket, the spindle leaves the old tool "
+                                              "and takes the new one"),
+               ("ARM", "Double-arm", "A double-arm tool changer: the magazine turns the new tool's pot to the change "
+                                     "station and tips it down, the arm grips both tools, pulls them out, turns "
+                                     "180° and pushes them in. The old tool goes into the pot the new one came "
+                                     "from")],
+        description="How the machine changes tools at M6: by hand, with a carousel or umbrella tool changer, or with "
+                    "a double-arm tool changer")
     change_mode: EnumProperty(
         name="Change position", items=CHANGE_MODE_ITEMS, default="STAY", update=_cnc_changed,
         description="Where the head goes for a manual tool change (and an ATC change without pockets): stay, lift "
@@ -1585,6 +1591,50 @@ class FRCnc(bpy.types.PropertyGroup):
         name="Lift above pocket", default=0.1, min=0.0, soft_max=0.5, unit="LENGTH", update=_cnc_changed,
         description="How far the spindle goes up out of a pocket after leaving a tool, and comes down from to take "
                     "one")
+
+    # ---- double-arm tool changer (task 0064) ----
+    arm_slide: StringProperty()                      # the joints the app made for the arm (stroke, turn)
+    arm_turn: StringProperty()
+    arm_rest: FloatProperty(
+        name="Rest angle", subtype="ANGLE", default=0.0, soft_min=-math.pi, soft_max=math.pi, update=_cnc_changed,
+        description="Where the arm waits between tool changes, as its turn from the CAD model (0°: as in the CAD "
+                    "model). After each change it waits half a turn further on, which looks the same")
+    arm_grip: FloatProperty(
+        name="Grip angle", subtype="ANGLE", default=math.radians(90.0), soft_min=-math.pi, soft_max=math.pi,
+        update=_cnc_changed,
+        description="Where the arm grips the tools, as its turn from the CAD model: one claw round the spindle's "
+                    "tool, the other round the tool in the tipped pot. Read from the arm's claws when the arm is "
+                    "made; type another value if it turns the wrong way")
+    arm_stroke: FloatProperty(
+        name="Pull-out stroke", unit="LENGTH", default=0.076, min=0.005, soft_max=0.2, update=_cnc_changed,
+        description="How far the arm moves down to pull both tools out (and up to push them in). It must clear "
+                    "the holder's taper and pull stud: 76 mm for BT30, 95 to 100 mm for BT40 or SK40")
+    orient_angle: FloatProperty(
+        name="Orient angle", subtype="ANGLE", default=0.0, update=_cnc_changed,
+        description="The spindle's angle when it stops for a tool change (M19), so the holder's drive keys line up "
+                    "with the arm: 0° = as in the CAD model. Only with a spindle joint")
+    arm_grip_time: FloatProperty(
+        name="Grip", default=0.3, min=0.02, soft_max=2.0, unit="TIME_ABSOLUTE", update=_cnc_changed,
+        description="Seconds the arm takes to turn from rest onto both tools (and back after the change), as on "
+                    "the machine. 'ATC speed' in the step makes it faster or slower in the video")
+    arm_stroke_time: FloatProperty(
+        name="Pull out", default=0.25, min=0.02, soft_max=2.0, unit="TIME_ABSOLUTE", update=_cnc_changed,
+        description="Seconds the arm takes to pull both tools out (and to push them in), as on the machine")
+    arm_swap_time: FloatProperty(
+        name="Half turn", default=0.5, min=0.02, soft_max=3.0, unit="TIME_ABSOLUTE", update=_cnc_changed,
+        description="Seconds the arm takes for its 180° turn that swaps the tools, as on the machine")
+    pot_tip: BoolProperty(
+        name="Pots tip down", default=False, update=_cnc_changed,
+        description="Tick when the magazine's pots lie at an angle and the pot at the change station tips down "
+                    "so the tool hangs parallel with the spindle. Then press 'Click the hinge'")
+    pot_tip_angle: FloatProperty(
+        name="Tip angle", subtype="ANGLE", default=math.radians(90.0), min=math.radians(5.0), max=math.radians(180.0),
+        update=_cnc_changed,
+        description="How far a pot tips down at the change station (usually 90°)")
+    pot_tip_sign: FloatProperty(default=1.0)         # which way the pot joints turn to tip down (worked out)
+    pot_tip_time: FloatProperty(
+        name="Pot tips", default=0.4, min=0.02, soft_max=2.0, unit="TIME_ABSOLUTE", update=_cnc_changed,
+        description="Seconds a pot takes to tip down (and up again), as on the machine")
 
     # ---- air blast (task 0039) ----
     air_on_code: IntProperty(

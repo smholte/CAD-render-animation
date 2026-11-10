@@ -254,7 +254,9 @@ def find_axes(scene) -> list[str]:
     about the Z direction that carries the tool). Returns what was set, in words."""
     c = settings(scene)
     s = scene.fresing
-    slides = [j for j in s.joints if j.kind == "SLIDE" and not j.follows and joints.is_valid(j)]
+    from . import doublearm
+    slides = [j for j in s.joints if j.kind == "SLIDE" and not j.follows and joints.is_valid(j)
+              and not doublearm.app_joint(j)]
     done, used = [], set()
     for letter, w, attr in zip("XYZ", WORLD_AXES, ("x_joint", "y_joint", "z_joint")):
         best, score = None, 0.9
@@ -270,7 +272,8 @@ def find_axes(scene) -> list[str]:
             setattr(c, attr, best.name)
             del c["_busy"]
             done.append(f"{letter} = '{best.name}'")
-    rot = [j for j in s.joints if j.kind == "ROTATE" and not j.follows and joints.is_valid(j)]
+    rot = [j for j in s.joints if j.kind == "ROTATE" and not j.follows and joints.is_valid(j)
+           and not doublearm.app_joint(j)]
     spin = [j for j in rot if j.is_motor] or [j for j in rot if abs(joints.axis_world(j)[1].z) > 0.9
                                               and (c.tool is None or _carries(j, c.tool))]
     if spin:
@@ -1121,7 +1124,8 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
                         "itself: the spindle does not turn")
         return
     keys_rpm = sch.spindle_keys()
-    if all(abs(r) < 1e-9 for _t, r in keys_rpm):
+    if all(abs(r) < 1e-9 for _t, r in keys_rpm) and not (c.changer == "ARM" and any(
+            x.kind == "arm" for x in sch.changes)):
         return
     fps = animation.fps_of(anim)
     cap = SLOW_TURN * fps * 60.0
@@ -1132,10 +1136,40 @@ def _spindle_keys(scene, anim, b, sch, f0, jstate, jkeys, busy_until, warnings, 
     # M3 = clockwise seen from above: a negative turn about an axis pointing up
     way = -1.0 if joints.axis_world(j)[1].z >= 0 else 1.0
     rows = [(0.0, angle)]
-    for (t0, rpm), (t1, _r) in zip(pts, pts[1:]):
-        shown = rpm if b.gcode_spindle == "REAL" else math.copysign(min(abs(rpm), cap), rpm)
-        angle += way * shown * joints.TURN / 60.0 * max(0.0, t1 - t0)
-        rows.append((t1, angle))
+    holds = []
+    if c.changer == "ARM":                 # double-arm changer: the spindle stops at its orient angle (task 0064)
+        from . import doublearm
+        holds = doublearm.spindle_holds(sch)
+    if holds:
+        def rpm_at(t):
+            r = keys_rpm[0][1]
+            for tk, rk in keys_rpm:
+                if tk <= t + 1e-12:
+                    r = rk
+            return r
+        ts = sorted({0.0, end} | {t for t, _r in keys_rpm} | {x for h in holds for x in h})
+        ts = [t for t in ts if 0.0 <= t <= end]
+        target = {}
+        for a, b_ in zip(ts, ts[1:]):
+            h = next((h for h in holds if h[0] - 1e-12 <= a and b_ <= h[2] + 1e-12), None)
+            if h is None:
+                rpm = rpm_at(a)
+                shown = rpm if b.gcode_spindle == "REAL" else math.copysign(min(abs(rpm), cap), rpm)
+                angle += way * shown * joints.TURN / 60.0 * max(0.0, b_ - a)
+            else:
+                if h not in target:
+                    target[h] = (angle, joints.TURN * round((angle - c.orient_angle) / joints.TURN) + c.orient_angle)
+                a0, tg = target[h]
+                if b_ <= h[1] + 1e-12 and h[1] > h[0]:
+                    angle = a0 + (tg - a0) * (b_ - h[0]) / (h[1] - h[0])
+                else:
+                    angle = tg
+            rows.append((b_, angle))
+    else:
+        for (t0, rpm), (t1, _r) in zip(pts, pts[1:]):
+            shown = rpm if b.gcode_spindle == "REAL" else math.copysign(min(abs(rpm), cap), rpm)
+            angle += way * shown * joints.TURN / 60.0 * max(0.0, t1 - t0)
+            rows.append((t1, angle))
     lo, hi = joints.limits(j)
     if not joints.is_motor(j) and any(not lo <= v <= hi for _t, v in rows):
         warnings.append(f"'{name}': tick 'Motor' on the spindle joint '{j.name}' in 4 Motion so it can turn "

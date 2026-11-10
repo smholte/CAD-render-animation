@@ -30,6 +30,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   toolchange / toolchange_view   Tool changes (task 0041) on the test gantry: the panels (as "panels") and the
       carousel and the hand in the view (as "window").
 
+  doublearm / doublearm_view   the double-arm tool changer (task 0064) on the test mill with an arm (test_atc.step):
+      the Tool changes panel (as "panels") and the arm at its half turn in the view (as "window").
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -1064,6 +1067,77 @@ elif MODE in ("toolchange", "toolchange_view"):
         step(_view_shot("view_toolchange_hand"))
         step(_atc_frame)
         step(_view_shot("view_toolchange_atc"))
+
+elif MODE in ("doublearm", "doublearm_view"):
+    # task 0064: the double-arm changer on the test mill with an arm; "doublearm" = the Tool changes panel (xvfb
+    # 1500x7000), "doublearm_view" = the arm at its half turn in the view (xvfb 1920x1200, as "window").
+    step(_start)
+    step(lambda: _import(os.path.join(DATA, "test_atc.step")))
+    step(_wait_import)
+
+    def _arm_setup():
+        sc = bpy.context.scene
+        os.chdir(SCRATCH)                    # plain file names in the pictures
+        dbl = mod("blender.doublearm")
+        with open("parts.ngc", "w") as fh:
+            fh.write(dbl.TEST_PROGRAM)
+        with override():
+            bpy.ops.fresing.anim_add()
+            bpy.ops.fresing.block_add(kind="GCODE")
+        a = mod("blender.animation").active(sc)
+        b = a.blocks[a.blocks_index]
+        b.gcode_file = "parts.ngc"
+        dbl.set_up_test_model(sc, b)
+        dbl.LAST_CHECK[:] = dbl.check(sc)
+        sc.fresing.cnc.pockets_index = 1
+        select_only()
+
+    step(lambda: (_arm_setup(), 1.0)[1])
+    if MODE == "doublearm":
+        def _show_arm():
+            show_only([("FRESING_PT_cnc_changes", False, True)])
+            wiggle()
+            return 2.5
+
+        def _shoot_arm():
+            shoot_sidebar("panel_4_toolchange_arm")
+            return 0.5
+        step(_show_arm)
+        step(_shoot_arm)
+    else:
+        def _arm_frame():
+            sc = bpy.context.scene
+            animation, gcode, core = mod("blender.animation"), mod("blender.gcode"), mod("core.gcode")
+            a = animation.active(sc)
+            animation.bake(sc, a)
+            b = a.blocks[0]
+            mach = gcode.Machine(sc)
+            sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                                gcode.timing(sc, a, b, mach))
+            c = next(x for x in sch.changes if x.kind == "arm")
+            t = c.arm_times()
+            f = 1 + (t["swap"][0] + (t["swap"][1] - t["swap"][0]) * 0.4) * int(a.fps)
+            sc.frame_set(int(f), subframe=f - int(f))
+            win, area, region, _sb = areas()
+            sp = area.spaces.active
+            sp.overlay.show_overlays = False
+            r3d = sp.region_3d
+            r3d.view_perspective = "PERSP"
+            r3d.view_location = Vector((-0.15, 0.0, 0.27))
+            r3d.view_distance = 0.75
+            from mathutils import Euler
+            r3d.view_rotation = Euler([math.radians(x) for x in (72, 0, 24)]).to_quaternion()
+            wiggle(5)
+            return 2.0
+
+        def _arm_shot():
+            win, area, region, _sb = areas()
+            im = crop_region(grab_screen(), region, win.height)
+            h, w = im.shape[:2]
+            save_png(im[int(h * 0.12):int(h * 0.88), int(w * 0.18):int(w * 0.82)], "view_toolchange_arm")
+            return 0.5
+        step(_arm_frame)
+        step(_arm_shot)
 
 elif MODE == "tour":
     # task 0059: the Test tour panel (Help > Make test tour project, then open it). Same command as "panels"

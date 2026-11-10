@@ -5,6 +5,47 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.52 – 10 Nov 2026 – clash check (task 0065)
+
+6 Animation > Clash check (new)
+- **Check for clashes** after Build: a list of every two parts that run into each other in the animation – which
+  two (their names as in the tree), from which frame to which, and how deep (deepest first). A marker on the time
+  line shows where each clash starts. The panel's header says "3 clashes", "No clashes" or "Not checked since the
+  last Build"; it shows how far the check is, and **Cancel** stops it.
+- **Click a row:** the time line goes to the moment the two are deepest in each other, both are selected, drawn red
+  in the view (their materials do not change, renders never show it) and the view zooms to them.
+- **What counts:** an overlap deeper than the **Clash depth** (0.5 mm). Parts that move together are never compared;
+  parts that already touch in the CAD model (a pin in its bore) only count when they go clearly deeper. The cutting
+  part of a milling tool going through the workpiece is no clash; its holder and the spindle are. Hidden parts are
+  left out while hidden. Fast moves (G-code rapids, a turning arm) are checked between frames too. **Warn about
+  near misses** also lists parts that come closer than a distance you set.
+- The result is kept with the project and cleared when the animation is built again with other steps. Adding an
+  animation with clashes (or never checked) to the render queue gives a one-line note; it renders anyway.
+- Measured on the 4-core test machine: the test crane 0.1–0.3 s, a scissor lift with a crank 15 s, a 2,983-frame
+  G-code program with tool changes 7 s, the PC check's 3,000-part machine (10 s, its modules run through each other on
+  purpose) 73 s.
+
+Test tour and PC check
+- New stop **Clash check: two arms meet** (a new generic test model: arm A comes down 6.0 mm into arm B), PC-check
+  lines "Clash check" (Full) and "Big machine: clash check" (Heavy).
+- The tour's **Boom up** now really turns the boom up (it went down through the base: the clash check found it).
+
+## 0.2.51 – 10 Nov 2026 – double-arm tool changer (task 0064)
+
+CNC machine > Tool changes
+- **Double-arm tool changer.** A third kind next to Manual and **Carousel / umbrella** (the old "Tool changer
+  (ATC)", unchanged). At the **Tn** before an M6 the magazine turns the next tool's pot to the arm and tips it down
+  while the machine still cuts; at the M6 the head goes up, the spindle stops at its orient angle, the arm turns onto
+  both tools, pulls them out, turns half round, pushes them in and turns back. About 1.6 s per change at ATC speed 1;
+  "Fit into" and ATC speed work as before.
+- **Random pockets:** the old tool goes into the pot the new one came from, as on the machine. Every tool is held
+  by the spindle, the arm or a pot at every frame; at each hand-over they meet within 0.01 mm, so nothing jumps.
+- **Set-up in a few clicks, no joints to make by hand:** click the arm's hub (the app makes its turn and stroke and
+  reads the grip angle from the claws), click the hinge of the pot at the change station (the app finds every pot
+  and makes their tip joints). **Check** plays one change in the view and says what does not fit.
+- The kind of changer is now picked from a drop-down (the three names did not fit as buttons).
+- A new generic test model with an arm and a 12-pot magazine, a PC check line and a test tour stop.
+
 ## 0.2.50 – 10 Nov 2026 – small fixes (task 0060)
 
 Pictures

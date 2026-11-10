@@ -11,7 +11,7 @@
    OpenCAMLib (LGPL, drop-cutter/waterline) does exactly this but has no Python 3.13 wheels
    (latest 2023.1.11: Python 3.7–3.11): build it for Blender's Python on GitHub's runners, or
    write a simple drop-cutter in numpy.
-2. **Rotary axes A/B/C** (4th axis, 5-axis): G-code reader and joints already allow rotate
+2. **Moved to task 0066 (10 Nov).** Rotary axes A/B/C (4th axis, 5-axis): G-code reader and joints already allow rotate
    joints; material removal needs a volume method (dexels/voxels or SDF grids) instead of a
    height map.
 
