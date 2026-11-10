@@ -336,3 +336,30 @@ def test_ci_status_merge_commit_is_never_a_task_list_only_commit():
     assert not ci_status.commit_only_task_list({"parents": [{}, {}], "files": only})
     assert not ci_status.commit_only_task_list({"parents": [{}], "files": only + [{"filename": "docs/a.md"}]})
     assert not ci_status.commit_only_task_list({"parents": [{}], "files": []})
+
+
+def test_pc_check_lines_split_over_the_runners():
+    """Task 0063: the two Linux halves of the PC check (Full) add up to every Full line; Windows runs a subset
+    of them, and it keeps the lines that depend on Windows itself."""
+    import ci_pccheck_lines as pl
+    full = pl.full_ids()
+    assert len(full) >= 46 and len(set(full)) == len(full)
+    one, two = pl.ids_for("linux1"), pl.ids_for("linux2")
+    assert set(one) | set(two) == set(full) and set(one) & set(two) == set(pl.LINUX2_NEEDS)
+    win = pl.ids_for("windows")
+    assert set(win) < set(full) and set(pl.WINDOWS_SKIPS) == set(full) - set(win)
+    for keep in ("app.start", "import.crane", "render.cpu", "queue.frame_shown", "updates.check"):
+        assert keep in win, keep
+    assert pl.problems() == []
+    assert pl.problems([i for i in full if i != "video.labels"]) != []          # a name that is no line any more is noticed
+
+
+def test_ci_status_keeps_the_slowest_of_the_last_runs():
+    import ci_status
+    times = {"pytest_files": {"tests/test_a.py": 50.0}}
+    ci_status.merge_file_times(times, {"tests/test_a.py": 20.0, "tests/test_b.py": 5.0})
+    assert times["pytest_files"] == {"tests/test_a.py": 50.0, "tests/test_b.py": 5.0}
+    for secs in (30.0, 25.0, 22.0):                      # the 50 s leaves the last three runs
+        ci_status.merge_file_times(times, {"tests/test_a.py": secs})
+    assert times["pytest_files"]["tests/test_a.py"] == 30.0
+    assert times["pytest_history"]["tests/test_a.py"] == [30.0, 25.0, 22.0]

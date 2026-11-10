@@ -3,7 +3,7 @@
     python tools/ci_groups.py                 # the pytest groups and the real-app groups, with expected minutes
 
 pytest: every `tests/test_*.py` file goes into one of PYTEST_GROUPS groups, balanced by the seconds recorded
-for it in `tools/ci_times.json` (longest first, each into the lightest group). A new file without a
+for it in `tools/ci_times.json` (the slowest of the last three runs, `ci_status.py --record`) (longest first, each into the lightest group). A new file without a
 recorded time counts NEW_FILE_SECS until its time is recorded (`python3 tools/ci_status.py --record`), so
 no file is ever left out. The packaged self-test (built zip installed into Blender, ~100 s) is placed the
 same way, as one more item; it runs after the group's tests.
@@ -20,7 +20,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TIMES = os.path.join(ROOT, "tools", "ci_times.json")
-PYTEST_GROUPS = 4
+PYTEST_GROUPS = 7                                  # task 0063: 4 groups took 8-14 min; test_air.py's queue render (~10 min) is a group of its own
 NEW_FILE_SECS = 30.0
 SELFTEST = "packaged self-test"
 

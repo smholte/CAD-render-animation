@@ -201,6 +201,8 @@ def check_groups() -> list[str]:
         if k not in seen:
             problems.append(f"real-app test '{k}' is in no group: add it to the group with the fewest minutes in "
                             "GROUPS (tools/ci_real_app.py)")
+    import ci_pccheck_lines                      # the PC check (Full): Linux halves add up to every line (task 0063)
+    problems += [f"tools/ci_pccheck_lines.py: {p}" for p in ci_pccheck_lines.problems()]
     files = ci_groups.test_files()
     grouped = [f for g in ci_groups.matrix_pytest() for f in g["files"].split()]
     if sorted(grouped) != files:
