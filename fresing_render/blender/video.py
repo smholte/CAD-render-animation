@@ -529,7 +529,10 @@ def finish_picture(path: str, fin: Finishing, file_type: str = "PNG") -> None:
         tmp = path + ".fin.png" if not jpeg else path + ".fin.jpg"
         r.use_file_extension = False
         r.filepath = tmp
-        bpy.ops.render.render(write_still=True, scene=enc.name)
+        # the frame comes from the scene in the context: with the project's timeline on frame 26 the sequencer of
+        # this one-frame scene would be empty and the picture black (task 0060)
+        with bpy.context.temp_override(scene=enc):
+            bpy.ops.render.render(write_still=True, scene=enc.name)
         os.replace(tmp, path)
     finally:
         bpy.data.scenes.remove(enc)

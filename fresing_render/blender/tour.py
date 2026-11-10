@@ -464,8 +464,7 @@ def build_crane(b: Build):
     s.brand_logo = logo
     s.brand_contact = "www.example.com · test tour"
     s.wm_kind, s.wm_text, s.wm_size, s.wm_opacity = "CUSTOM", "TEST TOUR", 0.3, 0.5
-    # no logo on stills: a still with a logo or watermark is black when the timeline is not on frame 1 (found by
-    # this task, open point for a fix task); the video's logo is in the stop "Video finishing"
+    s.still_logo = "BR"          # the still's logo (a still with a logo was black off frame 1 until task 0060)
     a = _animation(b, "Finished video", "Tour view")
     _joint_step(a, "Boom", 0.0, 1.0, math.radians(30), label="The boom goes up")
     a.fin_logo, a.fin_title_on, a.fin_end_on, a.fin_captions = "BR", True, True, True
@@ -1389,7 +1388,7 @@ stop("coolant", MACH, "coolant", "Coolant (flood)",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48")
 
 stop("still", OUT, HUB_SET, "Still picture",
-     "The crane in the Product studio look from the tour's camera. Render picture (F12) makes it in full quality.",
+     "The crane in the Product studio look from the tour's camera, the tour logo bottom right. Render picture (F12) makes it in full quality.",
      where="5 Scene & Render > Image size & render", check=_check_still)
 stop("blur", OUT, HUB_SET, "Camera views and blur",
      "A long lens close on the crane; the trolley is sharp, the background softly blurred (in the camera view and "

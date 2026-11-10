@@ -189,17 +189,76 @@ def _all_pids() -> list[int]:
         return []
 
 
+def _long_path(path: str) -> str:
+    """Windows: the long spelling of a path (8.3 short names like PROGRA~1 written out), case as stored.
+    Returns the path unchanged when it cannot be asked (Linux, a path that does not exist)."""
+    if sys.platform != "win32":
+        return path
+    try:
+        import ctypes
+        buf = ctypes.create_unicode_buffer(32768)
+        n = ctypes.windll.kernel32.GetLongPathNameW(path, buf, len(buf))
+        return buf.value if 0 < n < len(buf) else path
+    except (OSError, AttributeError):
+        return path
+
+
 def _norm(path: str) -> str:
-    # Windows: the names as the system reports them (no realpath: it opens every file); Linux: links resolved
-    return os.path.normcase(os.path.abspath(path) if sys.platform == "win32" else os.path.realpath(path))
+    # Windows: the names as the system reports them, short 8.3 names written out (no realpath: it opens every
+    # file); Linux: links resolved
+    if sys.platform == "win32":
+        return os.path.normcase(os.path.abspath(_long_path(os.path.abspath(path))))
+    return os.path.normcase(os.path.realpath(path))
+
+
+def _identity(path: str):
+    """(volume, file index) of a file or folder: the same thing under any spelling, also a ``subst`` drive
+    letter or a link. None when it cannot be asked."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino) if st.st_ino else None
+
+
+def same_place(a: str, b: str) -> bool:
+    """Do two paths name the same file or folder: same normalised long spelling, or same file identity."""
+    if not a or not b:
+        return False
+    if _norm(a) == _norm(b):
+        return True
+    ia, ib = _identity(a), _identity(b)
+    return ia is not None and ia == ib
+
+
+def is_inside(path: str, root: str, depth: int = 8) -> bool:
+    """Is ``path`` inside the folder ``root`` (any spelling, also a ``subst`` drive): by the normalised names
+    first, then by looking for ``root``'s identity among the first ``depth`` parent folders of ``path``."""
+    if not path or not root:
+        return False
+    base = _norm(root).rstrip("\\/") + os.sep
+    if _norm(path).startswith(base):
+        return True
+    want = _identity(root)
+    if want is None:
+        return False
+    cur = os.path.dirname(os.path.abspath(path))
+    for _ in range(depth):
+        if _identity(cur) == want:
+            return True
+        up = os.path.dirname(cur)
+        if up == cur:
+            break
+        cur = up
+    return False
 
 
 def other_blenders(install_dir: str, exclude=()) -> list[int]:
     """Running Blenders started from ``install_dir`` (the app's own Blender folder), apart from ``exclude`` and
-    this process: a second app window, a queued render, the PC check. As Install.bat checks."""
+    this process: a second app window, a queued render, the PC check. As Install.bat checks. Matches by long
+    spelling and by file identity, so 8.3 short names and ``subst`` drives are found too (task 0060)."""
     if not install_dir:
         return []
-    root = _norm(install_dir).rstrip("\\/") + os.sep
     skip = {int(p) for p in exclude if p} | {os.getpid()}
     found = []
     for pid in _all_pids():
@@ -208,7 +267,7 @@ def other_blenders(install_dir: str, exclude=()) -> list[int]:
         image = process_image(pid)
         if not image or os.path.basename(image).lower() not in BLENDER_NAMES:
             continue
-        if _norm(image).startswith(root) and pid_alive(pid):
+        if is_inside(image, install_dir) and pid_alive(pid):
             found.append(pid)
     return sorted(found)
 
@@ -377,7 +436,7 @@ def busy_helper(path: str, now: float | None = None) -> dict | None:
         want = info.get("exe") or ""
         if not image:
             stale = f"process {pid} is not the update helper"
-        elif want and _norm(image) != _norm(want):
+        elif want and not same_place(image, want):
             stale = f"process {pid} is now {os.path.basename(image)}"
         elif not want and not os.path.basename(image).lower().startswith("python"):
             stale = f"process {pid} is now {os.path.basename(image)}"

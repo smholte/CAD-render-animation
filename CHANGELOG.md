@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.49 – 10 Nov 2026 – small fixes (task 0060)
+
+Pictures
+- **A still with a logo or watermark is no longer black** when the timeline stands anywhere but frame 1 (the test
+  tour found it). The still logo is now switched on in the test tour's "Still picture" stop.
+- **A queued picture of a frame of a built animation has the video's floor.** A part that swings below the floor
+  was cut by it in the video but not in the picture; now they match. The guide says how the floor is placed.
+
+Updates and tests
+- **Another Blender is found under any spelling of its folder** (8.3 short names, a `subst` drive, a link), so the
+  update waits for it too.
+- **The automatic test run is faster again:** the test tour has its own group.
+- `ci_status.py --wait` no longer says "no test run" for a merge commit.
+
 ## 0.2.48 – 9 Nov 2026 – coolant: flood and mist while milling (task 0042)
 
 Milling

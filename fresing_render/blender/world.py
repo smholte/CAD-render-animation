@@ -274,7 +274,8 @@ def update_floor(scene, s) -> None:
     floor.hide_render = False
     floor.hide_viewport = False
     floor.hide_select = True
-    floor.location = (center[0], center[1], mn[2] - s.floor_offset)
+    pin = scene.get("fr_floor_pin_z")          # a queued picture of an animation frame: the video's floor (0060)
+    floor.location = (center[0], center[1], float(pin) if pin is not None else mn[2] - s.floor_offset)
     floor.scale = (size * 4, size * 4, 1)
     floor.is_shadow_catcher = s.floor == "SHADOW"
     color = s.floor_color if s.floor_use_own_color else s.background_color

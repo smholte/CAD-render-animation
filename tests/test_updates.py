@@ -799,3 +799,31 @@ def test_put_back_over_what_is_left_of_a_half_done_swap(tmp_path, monkeypatch):
     assert update_helper.restore_backup(plan, backup)
     assert update_helper.installed_version(str(ext)) == "0.2.14"
     assert (ext / "wheels" / "a.whl").read_bytes() == b"old"
+
+
+def test_blender_folder_spellings_match_by_identity(tmp_path, monkeypatch):
+    """Task 0060: another spelling of the same Blender folder (a link here, a subst drive or an 8.3 name on
+    Windows) still counts as the same place, a different folder does not."""
+    real = tmp_path / "Blender 5.2"
+    real.mkdir()
+    exe = real / "blender.exe"
+    exe.write_bytes(b"x")
+    other = tmp_path / "Other"
+    other.mkdir()
+    (other / "blender.exe").write_bytes(b"x")
+    try:
+        (tmp_path / "alias").symlink_to(real, target_is_directory=True)
+    except OSError:
+        pytest.skip("no symlinks")
+    assert update_helper.same_place(str(tmp_path / "alias" / "blender.exe"), str(exe))
+    assert not update_helper.same_place(str(other / "blender.exe"), str(exe))
+    # inside a folder given under a spelling the names do not show (identity route: names differ on purpose)
+    monkeypatch.setattr(update_helper, "_norm", lambda p: p)
+    assert update_helper.is_inside(str(tmp_path / "alias" / "blender.exe"), str(real))
+    assert not update_helper.is_inside(str(other / "blender.exe"), str(real))
+    # other_blenders finds a Blender that runs from the alias
+    monkeypatch.setattr(update_helper, "_all_pids", lambda: [4242])
+    monkeypatch.setattr(update_helper, "process_image", lambda pid: str(tmp_path / "alias" / "blender.exe"))
+    monkeypatch.setattr(update_helper, "pid_alive", lambda pid: True)
+    assert update_helper.other_blenders(str(real)) == [4242]
+    assert update_helper.other_blenders(str(other)) == []

@@ -1291,6 +1291,10 @@ Their settings appear under the choice:
 - **Floor** (studio backgrounds only): **None** (the model floats), **Shadow only** (an invisible
   floor that only shows shadows: the usual choice) or **Visible floor** (with **Own colour** if you
   want). **Gap** moves the floor a little away from the model.
+  The floor is placed once under the model's lowest point. A picture sits under the model as it is shown; a **video**
+  keeps the floor of its first frame, so a part that swings below it is cut by the floor in every frame. A picture
+  of one frame of a built animation (**Current view** in the render queue) uses the video's floor too, so it looks
+  exactly like that frame of the video.
 
 Render time, measured on a slow 2-core test machine without a graphics card: the 360° photo and
 the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8 times as long.

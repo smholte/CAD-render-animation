@@ -441,3 +441,43 @@ def test_part_boxes_give_the_same_outline(scene):
     corners = boxes.world_corners(scene)
     shown = [o for o in scene.objects if o.type == "MESH" and o.get(build.PROP_KIND) == "part" and not o.hide_render]
     assert len(corners) == 8 * len(shown)
+
+
+# ---------------------------------------------------------------------------
+# task 0060: a queued picture of an animation frame has the video's floor
+# ---------------------------------------------------------------------------
+
+
+def test_queued_still_of_an_animation_frame_keeps_the_videos_floor(scene):
+    from fresing_render.blender import logic, world
+    s = scene.fresing
+    s.floor = "SOLID" if "SOLID" in [i.identifier for i in s.bl_rna.properties["floor"].enum_items] else s.floor
+    base = ob(scene, "BOOM.ASM")                         # a part that sinks below frame 1's lowest point
+    j = joints.create(scene, "SLIDE", [base], PIVOT, Vector((0, 0, 1)))
+    a = s.animations.add()
+    a.name, a.fps, a.tail = "Sink", "25", 0.0
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration = "JOINT", j.name, 0.0, 2.0
+    b.use_from, b.to_dist = False, -3.0
+    animation.bake(scene, a)
+    scene.frame_set(1)
+    low1 = logic.update_bounds(scene)[0][2]
+    world.apply(scene, s)
+    video_floor = bpy.data.objects[world.FLOOR_NAME].location.z
+    assert abs(video_floor - (low1 - s.floor_offset)) < 1e-4
+    scene.frame_set(40)
+    low40 = logic.update_bounds(scene)[0][2]
+    assert low40 < low1 - 1e-3, "the test needs a part below frame 1's lowest point"
+    assert bpy.ops.fresing.queue_add(kind="STILL") == {"FINISHED"}
+    assert scene.frame_current == 40, "adding does not move the timeline"
+    shot = s.shots[s.queue[-1].shot]
+    assert abs(shot[queue.FLOOR_PIN] - video_floor) < 1e-4
+    # without the pin the still would put the floor lower, cutting nothing of the part; with it, the video's
+    for w in states.apply_shot(scene, s.queue[-1].shot):
+        raise AssertionError(w)
+    s.bounds_valid = False
+    world.update_floor(scene, s)
+    assert bpy.data.objects[world.FLOOR_NAME].location.z < video_floor - 1e-3
+    scene["fr_floor_pin_z"] = float(shot[queue.FLOOR_PIN])
+    world.update_floor(scene, s)
+    assert abs(bpy.data.objects[world.FLOOR_NAME].location.z - video_floor) < 1e-4

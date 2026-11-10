@@ -47,9 +47,18 @@ SKIPPED_PATHS = ("TASKS.md", "tasks/")          # the workflow's paths-ignore: s
 def only_task_list(sha: str) -> bool:
     """True when the commit changes only the task list: GitHub starts no test run for it."""
     try:
-        files = [f["filename"] for f in gh(f"repos/{REPO}/commits/{sha}").get("files", [])]
+        commit = gh(f"repos/{REPO}/commits/{sha}")
     except RuntimeError:
         return False
+    return commit_only_task_list(commit)
+
+
+def commit_only_task_list(commit: dict) -> bool:
+    """The judgement on one commit's API answer. A merge commit (two parents) is never judged by its diff against
+    the first parent: GitHub looks at what the push brought in and runs the tests (task 0060)."""
+    if len(commit.get("parents", [])) > 1:
+        return False
+    files = [f["filename"] for f in commit.get("files", [])]
     return bool(files) and all(f == SKIPPED_PATHS[0] or f.startswith(SKIPPED_PATHS[1]) for f in files)
 
 

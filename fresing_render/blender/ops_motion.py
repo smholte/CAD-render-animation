@@ -1205,6 +1205,9 @@ class FRESING_OT_queue_add(bpy.types.Operator):
             # in a built animation: the pose, hiding and camera of the frame shown (bug hunt row 7)
             shot = states.save_shot(scene, name, camera=queue.view_camera(scene))
             shot[queue.QUEUE_ONLY] = True         # hidden from the scene list
+            floor_z = queue.animation_floor_z(scene)      # the video's floor under this frame (task 0060)
+            if floor_z is not None:
+                shot[queue.FLOOR_PIN] = floor_z
             s.shots_index = keep_index
             queue.add_job(scene, "STILL", shot=name)
         if self.start and not queue.is_running(scene):

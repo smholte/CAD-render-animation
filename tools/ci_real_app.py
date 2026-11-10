@@ -70,7 +70,8 @@ MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],
     "callouts": ["callouts"],
-    "paths-heavy": ["paths", "pccheckheavy", "tour"],
+    "paths-heavy": ["paths", "pccheckheavy"],
+    "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
     "ui": ["ui1", "ui2", "faces"],
     "scenes": ["surroundings", "rulesets", "decals"],
     "motion": ["video", "studio", "update", "milling", "cylinder", "linkage", "waycover", "gcode", "tourui"],

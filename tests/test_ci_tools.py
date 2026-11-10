@@ -326,3 +326,13 @@ def test_ci_status_flags_a_slow_job():
     assert "SLOW: usually 8.0 min" in ci_status.slow_note("Linux - real app ui", 12.5, rec)
     assert ci_status.slow_note("Precheck", 0.9, {"Precheck": 0.3}) == ""            # under a minute: never
     assert ci_status.slow_note("new job", 30, rec) == ""                            # nothing recorded yet
+
+
+def test_ci_status_merge_commit_is_never_a_task_list_only_commit():
+    import ci_status
+    only = [{"filename": "TASKS.md"}, {"filename": "tasks/0060-x.md"}]
+    assert ci_status.commit_only_task_list({"parents": [{}], "files": only})
+    # a merge commit: its diff against the first parent is only the task list, but GitHub ran the tests
+    assert not ci_status.commit_only_task_list({"parents": [{}, {}], "files": only})
+    assert not ci_status.commit_only_task_list({"parents": [{}], "files": only + [{"filename": "docs/a.md"}]})
+    assert not ci_status.commit_only_task_list({"parents": [{}], "files": []})

@@ -356,6 +356,23 @@ def test_a_still_gets_logo_and_watermark(tmp_path):
         assert fh.read(3) == b"\xff\xd8\xff"
 
 
+def test_a_still_with_logo_is_not_black_when_the_timeline_is_not_on_frame_1(tmp_path):
+    """Task 0060 (found by the test tour): the throw-away sequencer scene took the frame of the project's scene."""
+    path = _png(tmp_path / "still.png", (200, 200, 200))
+    fin = Finishing(logo_corner="BR", logo_file=_logo(tmp_path), logo_size=0.25)
+    main = bpy.context.scene
+    old = (main.frame_start, main.frame_end, main.frame_current)
+    main.frame_start, main.frame_end = 1, 60
+    main.frame_current = 26
+    try:
+        video.finish_picture(path, fin, "PNG")
+    finally:
+        main.frame_start, main.frame_end, main.frame_current = old
+    px = _pixels(path)
+    assert px[:, :, :3].mean() / 255.0 > 0.5, "the picture is not black"
+    assert _near(px[H // 2, W // 2], (200, 200, 200), 6)
+
+
 def test_shape_fit_crop_keeps_the_height_extend_keeps_the_width():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene

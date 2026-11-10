@@ -64,6 +64,30 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
 QUEUE_ONLY = "fr_queue_only"     # on a hidden saved scene or camera made by "Add image" (not in any list)
 
 
+FLOOR_PIN = "fr_floor_z"         # on a hidden saved scene: the floor of the built animation (task 0060)
+
+
+def animation_floor_z(scene):
+    """World z of the floor a video of the built animation has: under the lowest point of the model at frame 1
+    (the video places its floor once, when it starts). None when no animation is built. Puts the timeline and
+    the cached size of the model back as they were."""
+    s = scene.fresing
+    if not s.anim_baked:
+        return None
+    from . import logic
+    here = scene.frame_current
+    old = (s.bounds_valid, tuple(s.bounds_min), tuple(s.bounds_max))
+    try:
+        if here != 1:
+            scene.frame_set(1)
+        mn, _mx = logic.update_bounds(scene)
+        return float(mn[2]) - s.floor_offset
+    finally:
+        if here != 1:
+            scene.frame_set(here)
+        s.bounds_min, s.bounds_max, s.bounds_valid = old[1], old[2], old[0]
+
+
 def view_camera(scene):
     """The camera "Add image" stores: the active camera, or, while a built animation moves the camera, a still copy
     of it as it is at this frame (bug hunt row 7: the queue clears the keys, and the animation camera with them)."""
@@ -528,6 +552,9 @@ def run_job(scene, job: dict, progress, should_stop):
                 raise RuntimeError(f"The saved scene '{job['shot']}' was deleted")
             for w in states.apply_shot(scene, job["shot"]):
                 progress(0, w)
+            pin = s.shots[job["shot"]].get(FLOOR_PIN)
+            if pin is not None:                   # a frame of a built animation: the video's floor (task 0060)
+                scene["fr_floor_pin_z"] = float(pin)
         if job.get("camera"):
             cam = bpy.data.objects.get(job["camera"])
             if cam is not None:
