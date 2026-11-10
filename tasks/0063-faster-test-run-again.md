@@ -1,15 +1,16 @@
 # 0063 – Faster test run again (back to about 12 minutes)
 
-**Who:** worker · **Status:** running (10 Nov) · **Branch:** `task/0063-faster-test-run-again`
+**Who:** worker · **Status:** running (10 Nov), alongside 0064 · **Branch:** `task/0063-faster-test-run-again`
 **Started by:** lead chat, 10 Nov 2026 (review of 0060: the full run is still ~16 min, the Windows job is now the
 long pole)
 **Lane:** Quality & delivery – `.github/workflows/`, `tools/ci_*.py`, `tools/ci_times.json`, `tools/ci_groups.py`,
 `tools/ci_windows_install.ps1`, test *grouping* and test *speed* only (fixtures, shared set-up), CLAUDE.md section 5
 **Model:** **Sonnet · effort Medium** · **Place:** Claude Code on the web, environment "CAD-render-animation"
 
-**Must be merged by Wednesday 11 Nov, evening.** On Thursday 12 Nov two Fable tasks (0058, 0061) run at the same time
-and both profit from a shorter run. If it is not green by Wednesday evening, stop, push the branch, write in the
-report how far you got, and do not merge – the lead decides.
+Thursday 12 Nov two Fable tasks (0058, 0061) run at the same time and both profit from a shorter run, so finish
+when you can – no hard deadline (owner, 10 Nov: don't hold tasks back for Thursday). Runs alongside **0064**
+(Machining lane, releases a version): if both change `GROUPS` / `MIN_CHECKS` in `tools/ci_real_app.py`, whoever
+merges second merges `main` once and keeps both.
 
 ## Goal
 
@@ -67,7 +68,7 @@ from the next full run".
 - [ ] Landing-page job back to about 1 min, or the reason written down.
 - [ ] CLAUDE.md section 5 (the job table, the times, "about 11–14 minutes") updated to the new numbers.
 - [ ] `tools/ci_times.json` recorded from the new runs.
-- [ ] Merged to `main` by Wednesday evening (see top). **No new version** – no app code changes (like 0031/0036's
+- [ ] Merged to `main`. **No new version** – no app code changes (like 0031/0036's
       CI-only parts); if you find you must change app code, stop and ask the lead.
 - [ ] Report below filled in; leftover branch named for the owner.
 
