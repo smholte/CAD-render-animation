@@ -32,6 +32,8 @@ LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
 ATC = os.path.join(DATA, "test_atc.step")
+FOUR_AXIS = os.path.join(DATA, "test_4axis.step")
+FIVE_AXIS = os.path.join(DATA, "test_5axis.step")
 WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 
@@ -701,6 +703,98 @@ def motion_doublearm(ctx):
     _cpu_still(ctx, scene, "doublearm", "Double-arm changer at its half turn (processor, draft)")
     return (f"3 changes, T1 back from pot 2; hand-overs within {worst:.4f} mm; arm {t['back'][1] - t['grip'][0]:.2f} "
             "s per change")
+
+
+@line("milling.rotary", "4th and 5th axis: rotary table and trunnion", "0.2.52",
+      what="The 4-axis test mill turns its round bar while a slot is milled wrapped round it and two flats are cut "
+           "(Plain); the 5-axis trunnion tilts and turns its block while the tool follows the part (TCP); the cut "
+           "depths are measured, the tool tip stays on its point of the part within 0.01 mm; rendered")
+def milling_rotary(ctx):
+    import math
+
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+
+    from ..blender import animation, cameras, gcode, machining, rotary
+    from ..core import gcode as core
+
+    def program(scene, name, text):
+        path = os.path.join(ctx.work, f"pccheck_{name}.ngc")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        a = scene.fresing.animations.add()
+        a.name, a.tail = name, 0.0
+        b = a.blocks.add()
+        b.kind = "GCODE"
+        b.gcode_file = path
+        b.gcode_speed, b.gcode_fit = "FIT", 6.0
+        return a, b
+
+    # 5 axes first (no render): the tool tip on its point of the turning block
+    scene = ctx.fresh(FIVE_AXIS)
+    a, b = program(scene, "5axis", rotary.TEST_PROGRAM_5AXIS)
+    rotary.set_up_test_model(scene, b, five=True, milling=False)
+    bad = [t for ok, t in rotary.check(scene) if not ok]
+    _check(not bad, "; ".join(bad[:2]))
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    sch = core.Schedule(gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(scene, a, b, mach))
+    tip_l = gcode._rest_tip(mach.tool)[0]
+    wp = mach.workpiece
+    scene.frame_set(1)
+    home_inv = wp.matrix_world.inverted()
+    worst = 0.0
+    for k in range(60):
+        t = sch.duration * (k + 0.5) / 60
+        if any(c.start <= t <= c.start + c.length for c in sch.changes):
+            continue
+        fr = 1 + t * 25
+        scene.frame_set(int(fr), subframe=fr - int(fr))
+        want = wp.matrix_world @ (home_inv @ (mach.zero + mach.rot @ (Vector(sch.point_at(t)) - Vector(mach.g54))
+                                              * 0.001))
+        worst = max(worst, ((mach.tool.matrix_world @ tip_l) - want).length / 0.001)
+    _check(worst < 0.01, f"with TCP the tool tip strays {worst:.3f} mm from its point on the turning block")
+    ctx.metric("tcp", worst * 1000.0, "µm")
+
+    # 4 axes, Plain: the wrapped slot and the flats are cut into the bar
+    scene = ctx.fresh(FOUR_AXIS)
+    a, b = program(scene, "4axis", rotary.TEST_PROGRAM_4AXIS)
+    rotary.set_up_test_model(scene, b)
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    scene.frame_set(1)
+    home = machining.workpiece(scene).matrix_world.copy()
+    machining.sample(scene)
+    end = scene.frame_end
+    _check(machining.refresh(scene, frame=end, force=True), machining.status(scene))
+    ctx.metric("cut", time.time() - t0, "s")
+    me = machining.settings(scene).cut_mesh
+    me.calc_loop_triangles()
+    w = home
+    verts = [w @ v.co for v in me.vertices]
+    bvh = BVHTree.FromPolygons(verts, [tuple(t.vertices) for t in me.loop_triangles], all_triangles=True)
+
+    def radius(x, ang):
+        d = Vector((0.0, -math.sin(math.radians(ang)), math.cos(math.radians(ang))))
+        start = Vector((x * 0.001, 0.0, 0.15)) + d * 0.06
+        hit = bvh.ray_cast(start, -d)[0]
+        return 60.0 - ((hit - start).length / 0.001) if hit is not None else 0.0
+    got = [radius(-90.0 + 80.0 * th / 360.0, th) for th in (90.0, 270.0)] + [radius(35.0, 0.0), radius(35.0, 180.0)]
+    want = [23.0, 23.0, 22.0, 22.0]
+    err = max(abs(g - w_) for g, w_ in zip(got, want))
+    _check(err < 0.05, "the cuts on the bar are not where the program puts them: radius "
+           + ", ".join(f"{g:.2f}" for g in got) + " mm (should be 23, 23, 22, 22)")
+    scene.frame_set(int(end * 0.3))
+    pts = [(-0.12, -0.03, 0.12), (0.12, 0.03, 0.2)]
+    import numpy as np
+    cam = cameras.add_camera(scene, "ISO", 50.0, "PC check rotary", points=np.array(pts))
+    scene.camera = cam
+    _small_output(scene.fresing, 480, 360)
+    _cpu_still(ctx, scene, "rotary", "4th axis: the bar turns, the slot wraps round it (processor, draft)")
+    return f"cut depths within {err:.3f} mm; TCP tip within {worst:.4f} mm"
 
 
 def _ob_v(scene, name):

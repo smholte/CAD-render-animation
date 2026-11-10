@@ -188,7 +188,8 @@ fresing_render/            the Blender extension (Python package)
                            linkages.py (planar mechanisms: pins, tracks, sliders; exact steps + Newton, the
                            assembly mode kept by walking; pins from shared round faces; scissor layout)
                            gcode.py (G-code reader, LinuxCNC/RS274NGC: moves in machine coordinates, arcs,
-                           cycles, o-words, parameters, Fusion tool comments; Schedule = program time -> video)
+                           cycles, o-words, parameters, Fusion tool comments; rotary axes A/B/C in degrees with
+                           G93 and LinuxCNC's mixed feed rule, task 0066; Schedule = program time -> video)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -225,6 +226,11 @@ fresing_render/            the Blender extension (Python package)
                            Run G-code program step (keys on move ends + along arcs), tool copies at M6, the
                            toolpath (Geometry Nodes tubes); ops_gcode.py; ui_gcode.py (4 Motion > CNC machine,
                            the step's settings in 6 Animation)
+    rotary.py              rotary axes A/B/C (task 0066): which rotate joint is which axis, the turn back to A0 B0 C0
+                           when the machine is worked out, Plain (angles only) or TCP (X/Y/Z follow the turning part:
+                           centres K and directions u in machine mm), Check, the toolpath on the part; the two test
+                           models' programs and set-up (test_4axis.step / test_5axis.step from tools/make_test_4axis.py,
+                           make_test_5axis.py); panel 4 Motion > CNC machine > Rotary axes in ui_gcode.py
     toolchange.py          tool changes (task 0041): manual (change position, pause, the app-made gloved hand) or ATC
                            (pockets on parts, carousel joint turned the shortest way, stations worked out from the
                            pockets); pocket copies, the hand's keys, captions; core/toolchange.py plans each change

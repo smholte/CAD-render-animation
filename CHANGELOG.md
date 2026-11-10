@@ -5,6 +5,36 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.52 – 10 Nov 2026 – 4th and 5th axis (task 0066)
+
+CNC machine > Rotary axes (new)
+- **A rotary table or a trunnion turns the part under the tool.** Pick a rotate joint for **A** (turns about X),
+  **B** (about Y) and/or **C** (about Z); each with **Reverse**, **Wrapped** (0 … 360°, LinuxCNC `WRAPPED_ROTARY`)
+  and its rapid speed in degrees per minute. **Machine zero** keeps A0 B0 C0 too.
+- **Kinematics: Plain** (the default; your CAM post already worked out X, Y, Z for the turned part, LinuxCNC
+  `trivkins`) or **Follows part (TCP)**: the program is for the part as it lies at A0 B0 C0, and X, Y and Z follow
+  so the tool tip stays on its point while the table or trunnion turns (within 0.01 mm; measured 0.0013 mm on the
+  test trunnion). TCP is for axes that turn the part; a turning head stays Plain.
+- **Check** turns each axis through its range in the view and says which way it turns, where its centre is from the
+  work zero (the number your post needs), and with TCP how far the tool tip strays: a wrong joint shows at once.
+
+G-code
+- A, B, C on G0, G1, G2, G3 (on an arc the axis turns evenly along it), G28 / G30, G53, G92, G10 L2 / L20; G93
+  inverse-time feed and back with G94; LinuxCNC's feed rule (F along X/Y/Z when they move, degrees per minute for a
+  line that only turns). U, V, W are still reported as not supported.
+
+Milling, toolpath, chips
+- The material comes off in the right places on the turning part (a slot wrapped round a bar, flats, pockets on a
+  tilted face). While an axis turns the app reads the tool more often, so the cut stays smooth (the tip within the
+  detail level's tolerance, at most 0.5° of turn per piece). Three-axis programs cut exactly as before.
+- The toolpath is drawn on the part and turns with it. Chips that landed on the part turn with it; chips on the
+  bed stay. Tool changes keep the rotary axes where they are.
+
+Test models and checks
+- Two generic test machines ship with the app: a 4th-axis table with tailstock holding a round bar, and an A/C
+  trunnion holding a block. PC check line "4th and 5th axis: rotary table and trunnion", test tour stops 20 and 21
+  (the stops after them move up by two).
+
 ## 0.2.51 – 10 Nov 2026 – double-arm tool changer (task 0064)
 
 CNC machine > Tool changes

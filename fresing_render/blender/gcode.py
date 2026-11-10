@@ -94,7 +94,9 @@ def _carries(j, ob) -> bool:
 def _rest_tip(ob):
     """(tip, axis) of a tool part in its own space; the axis points from the tip into the holder."""
     from . import machining
-    key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0)
+    # (the mesh's address too: another file can have a tool of the same name and size elsewhere, task 0066)
+    key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0,
+           ob.data.as_pointer() if ob.data else 0)
     hit = _CACHE.get(key)
     if hit is None:
         info = machining.detect(ob, snap=False)

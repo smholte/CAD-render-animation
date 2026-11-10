@@ -305,7 +305,7 @@ def check(scene) -> list:
                                    f"{sign_word}{'XYZ'[k]}" + (f" ({dev:.1f}° off)" if dev >= 0.05 else "")))
             if ax.part:
                 cen = Vector(ax.centre) - Vector(mach.g54)
-                parts = [f"{'XYZ'[i]} {cen[i]:.2f}" for i in range(3) if i != k]
+                parts = [f"{'XYZ'[i]} {cen[i] + 0.0:.2f}".replace("-0.00", "0.00") for i in range(3) if i != k]
                 out.append((True, f"{ax.letter} centre from the work zero: " + ", ".join(parts) + " mm"))
             stray = _stray(scene, mach, ax, keep)
             if ax.part and tcp(mach):
@@ -383,7 +383,7 @@ def _flat(y_from: float, y_to: float, x0: float, x1: float, depth: float, step: 
 
 
 #: test_4axis.step, Plain kinematics, work zero on top of the bar in its middle (the A axis at Y0 Z-25): a slot
-#: wrapped once round the bar (X -90 .. -50 while A turns 0 .. 360, 2 deep) and a flat 3 deep at A0 and at A180
+#: wrapped once round the bar (X -90 .. -10 while A turns 0 .. 360, 2 deep) and a flat 3 deep at A0 and at A180
 TEST_PROGRAM_4AXIS = "\n".join([
     "(4-AXIS TEST: WRAPPED SLOT AND TWO FLATS)",
     "(T1 D=6 CR=0 - ZMIN=-3 - flat end mill)",
@@ -393,7 +393,7 @@ TEST_PROGRAM_4AXIS = "\n".join([
     "G0 Z10",
     "G0 X-90 Y0 A0",
     "G1 Z-2 F300",
-    "G1 X-50 A360 F400",
+    "G1 X-10 A360 F400",
     "G0 Z10",
     "G0 A0",
     *_flat(-13, 12, 20, 50, -3, 5),
@@ -522,3 +522,37 @@ def set_up_test_model(scene, b, five: bool = False, milling: bool = True) -> Non
         machining.add_bit(scene, tool)
         machining.set_workpiece(scene, wp)
     gcode.step_changed(scene, b)
+
+
+def check_poses(scene, seconds: float = 1.6) -> list:
+    """[(seconds, {joint name: value})] for Check to play in the view: each axis in turn through its range and back
+    to where it was (with TCP the X/Y/Z joints follow, so the tool tip stays on its point of the part)."""
+    from . import gcode
+    try:
+        mach = gcode.Machine(scene)
+    except gcode.SetupError:
+        return []
+    if not mach.axes:
+        return []
+    names = [j.name for j in mach.joints] + [ax.joint.name for ax in mach.axes.values()]
+    keep = {n: joints.get_value(scene.fresing.joints[n]) for n in names}
+    rot0 = rot_of(mach)
+    p = program_point(mach, mach.machine_of([keep[j.name] for j in mach.joints]), rot0)
+    out = [(0.0, dict(keep))]
+    t = 0.0
+    for k, ax in sorted(mach.axes.items()):
+        angles = check_angles(ax, 24)
+        seq = [rot0[k]] + angles + [rot0[k]]
+        for n, a in enumerate(seq[1:], 1):
+            rot = list(rot0)
+            rot[k] = a
+            v = dict(keep)
+            for j, val in values_for(mach, rot):
+                v[j.name] = val
+            if tcp(mach):
+                for j, val in zip(mach.joints, mach.values_for(machine_point(mach, p, rot))):
+                    v[j.name] = val
+            dt = seconds / len(angles) if 1 < n < len(seq) - 1 else seconds / 4
+            t += dt
+            out.append((t, v))
+    return out

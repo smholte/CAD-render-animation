@@ -119,7 +119,7 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             col.prop(cnc, "rapid_y", text="Y rapid")
             col.prop(cnc, "rapid_z", text="Z rapid")
             col.prop(cnc, "zero_shift", text="Shift zero")
-            wrap(body, context, "Machine zero (G53, G28): " + ("set to a position of the axes" if cnc.home_set
+            wrap(body, context, "Machine zero (G53, G28; A0 B0 C0): " + ("set to a position of the axes" if cnc.home_set
                                                               else "the CAD position"), icon="HOME", inset=12)
             row = body.row(align=True)
             row.operator("fresing.cnc_home", text="Axes now", icon="HOME")
@@ -127,6 +127,75 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
 
         draw_air(layout, context, scene, cnc)
 
+
+
+class FRESING_PT_cnc_rotary(_Panel, bpy.types.Panel):
+    """4 Motion > CNC machine > Rotary axes (task 0066): A, B, C – a rotary table, a trunnion."""
+    bl_label = "Rotary axes"
+    bl_parent_id = "FRESING_PT_cnc"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="DRIVER_ROTATIONAL_DIFFERENCE")
+
+    def draw_header_preset(self, context):
+        from . import rotary
+        cnc = gcode.settings(context.scene)
+        picked = [L for L, n in zip(rotary.LETTERS, rotary.joint_names(cnc)) if n]
+        if not picked:
+            header_status(self.layout, "none")
+            return
+        if any(not ok for ok, _t in rotary.LAST_CHECK):
+            header_status(self.layout, "check", icon="ERROR", alert=True)
+            return
+        header_status(self.layout, " + ".join(picked) + (", TCP" if cnc.kinematics == "TCP" else ""))
+
+    def draw(self, context):
+        from . import rotary
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        cnc = gcode.settings(scene)
+        names = rotary.joint_names(cnc)
+        if not any(names):
+            steps(layout, context, ["Make a rotate joint for each rotary axis in 4 Motion (the rotary table; a "
+                                    "trunnion: its tilt and its table)",
+                                    "Pick it as A (turns about X), B (about Y) or C (about Z) below",
+                                    "Kinematics: Plain, unless your CAM post writes the program for the part as it "
+                                    "lies at A0 B0 C0 (then Tool follows the part)",
+                                    "Press Check: each axis turns through its range in the view"])
+        box = layout.box()
+        for L in "abc":
+            row = box.row(align=True)
+            row.prop_search(cnc, f"{L}_joint", s, "joints", text=L.upper(), icon="CON_ROTLIKE")
+            row.prop(cnc, f"{L}_reverse", text="", icon="ARROW_LEFTRIGHT", toggle=True)
+            row.prop(cnc, f"{L}_wrapped", text="", icon="LOOP_FORWARDS", toggle=True)
+        if any(names):
+            col = split_props(layout)
+            for L, n in zip("abc", names):
+                if n:
+                    col.prop(cnc, f"rapid_{L}", text=f"{L.upper()} rapid °/min")
+        split_props(layout).prop(cnc, "kinematics", text="Kinematics")
+        if cnc.kinematics == "TCP":
+            wrap(layout, context, "Tool follows the part only for axes that turn the workpiece; a turning head "
+                                  "stays Plain", icon="INFO", inset=12)
+        if any(names):
+            try:
+                m = gcode.Machine(scene)
+                for line in rotary.describe(m):
+                    wrap(layout, context, line, icon="CHECKMARK", inset=12)
+            except gcode.SetupError as exc:
+                wrap(layout, context, str(exc), icon="ERROR", alert=True)
+            primary(layout, "fresing.cnc_rotary_check", "Check", "PLAY")
+            for ok, line in rotary.LAST_CHECK[:8]:
+                wrap(layout, context, line, icon="CHECKMARK" if ok else "ERROR", alert=not ok, inset=12)
+            wrap(layout, context, "+A (+B, +C): the tool goes round the part right-handed about +X (+Y, +Z); a table "
+                                  "turns the other way. Tick Reverse if your post counts the other way",
+                 icon="INFO", inset=12)
 
 class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
     """4 Motion > CNC machine > Tools (task 0040): the project's tool list."""
@@ -582,4 +651,4 @@ def draw_step(context, box, scene, anim, b) -> None:
         body.operator("fresing.gcode_go_line", text="Go to line …", icon="NEXT_KEYFRAME")
 
 
-CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc, FRESING_PT_cnc_tools, FRESING_UL_cnc_pockets, FRESING_PT_cnc_changes)
+CLASSES = (FRESING_UL_cnc_tools, FRESING_PT_cnc, FRESING_PT_cnc_rotary, FRESING_PT_cnc_tools, FRESING_UL_cnc_pockets, FRESING_PT_cnc_changes)

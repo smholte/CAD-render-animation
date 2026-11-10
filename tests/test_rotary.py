@@ -3,7 +3,7 @@
 test_4axis.step (tools/make_test_4axis.py): a moving column carries the tool (X/Y/Z); the rotary table turns about the
 X line y = 0, z = 150 mm and holds a bar Ø50 (x -120 .. 120). Plain kinematics; the work zero is on the bar's top in
 its middle, (0, 0, 175). The program (rotary.TEST_PROGRAM_4AXIS) cuts a slot 2 deep wrapped once round the bar (X -90
-.. -50 while A turns 0 .. 360) and a flat 3 deep (X 20 .. 50) at A0 and at A180.
+.. -10 while A turns 0 .. 360) and a flat 3 deep (X 20 .. 50) at A0 and at A180.
 
 test_5axis.step (tools/make_test_5axis.py): a trunnion tilts about the X line y = 0, z = 140 (A) and its table turns
 about the vertical through x = y = 0 (C, riding on A); the block 60 x 60 x 40 sits on it (top at z = 180). Tool
@@ -144,9 +144,9 @@ def test_4axis_joints_follow_the_program(tmp_path):
         want = m.values_for(sch.point_at(t))                  # Plain: X/Y/Z as the program says
         for j, v in zip(m.joints, want):
             assert joints.get_value(j) == pytest.approx(v, abs=2e-6)
-    # the slot: A goes 0 -> 360 in G1 X-50 A360 F400 (40 mm at 400 mm/min = 6 s)
+    # the slot: A goes 0 -> 360 in G1 X-10 A360 F400 (80 mm at 400 mm/min = 12 s)
     p = next(p for p in sch.pieces if p.move.kind == "FEED" and p.move.turn > 1)
-    assert p.vd == pytest.approx(6.0) and p.move.rb[0] == pytest.approx(360.0)
+    assert p.vd == pytest.approx(12.0) and p.move.rb[0] == pytest.approx(360.0)
 
 
 def test_4axis_wrapped_slot_and_flats_are_cut(tmp_path):
@@ -174,9 +174,9 @@ def test_4axis_wrapped_slot_and_flats_are_cut(tmp_path):
         start = Vector((x_mm * MM, axis_y, axis_z)) + d * 0.06
         return 60.0 - depth_from_outside(bvh, start, -d)
 
-    # the wrapped slot: at A = θ the tool is at X -90 + 40 θ / 360, 2 deep
+    # the wrapped slot: at A = θ the tool is at X -90 + 80 θ / 360, 2 deep
     for theta in (45.0, 90.0, 200.0, 300.0):
-        x = -90.0 + 40.0 * theta / 360.0
+        x = -90.0 + 80.0 * theta / 360.0
         assert radius(x, theta) == pytest.approx(23.0, abs=0.05), theta
         # the other side is untouched (as at x = 0, between the cuts: the draft mesh's facets are a little inside 25)
         assert radius(x, theta + 180.0) == pytest.approx(radius(0.0, theta + 180.0), abs=0.01), theta
@@ -218,7 +218,7 @@ def test_toolpath_lies_on_the_turning_bar(tmp_path):
     rapid = np.empty(len(path.data.vertices))
     path.data.attributes["fr_rapid"].data.foreach_get("value", rapid)
     co = co[rapid < 0.5]
-    slot = co[(co[:, 0] > -89.0) & (co[:, 0] < -51.0)]
+    slot = co[(co[:, 0] > -89.0) & (co[:, 0] < -11.0)]
     r = np.hypot(slot[:, 1], slot[:, 2] + 25.0)
     assert len(slot) > 100 and np.all(np.abs(r - 23.0) < 0.05)   # the helix 2 deep round the bar
 
@@ -357,3 +357,41 @@ def test_program_turns_an_axis_without_a_joint(tmp_path):
     gcode.settings(sc).a_joint = ""
     r = animation.bake(sc, a)
     assert any("turns A" in w and "no A joint" in w for w in r.get("warnings", [])), r.get("warnings")
+
+
+def test_rotary_panel_draws_and_check_poses(tmp_path):
+    import sys
+    sys.path.insert(0, HERE)
+    from test_blender import FakeLayout
+    from fresing_render.blender import ui_gcode
+    errors = []
+    sc, a, b = load(tmp_path, five=True, milling=False)
+
+    def draw_all():
+        fake = type("P", (), {"layout": FakeLayout(errors)})()
+        for extra in ("draw", "draw_header", "draw_header_preset"):
+            getattr(ui_gcode.FRESING_PT_cnc_rotary, extra)(fake, bpy.context)
+    draw_all()
+    rotary.check(sc)
+    gcode.settings(sc).kinematics = "PLAIN"
+    draw_all()
+    gcode.settings(sc).a_joint = gcode.settings(sc).c_joint = ""
+    draw_all()
+    assert not errors, errors
+    gcode.settings(sc).a_joint, gcode.settings(sc).c_joint = "Trunnion A", "Table C"
+    gcode.settings(sc).kinematics = "TCP"
+    poses = rotary.check_poses(sc)
+    assert len(poses) > 20 and poses[-1][1] == pytest.approx(poses[0][1])     # back where it was
+    assert {"Trunnion A", "Table C", "X", "Y", "Z"} <= set(poses[0][1])
+
+
+def test_chips_ride_on_the_turning_bar_and_fall_on_the_bed(tmp_path):
+    from fresing_render.blender import chips
+    sc, a, b = load(tmp_path, fit=6.0)
+    bake(sc, a)
+    machining.sample(sc)
+    machining.settings(sc).chips = "FEW"
+    bk = chips.bake(sc, force=True)
+    assert bk is not None, chips.status(sc)
+    riding, world = (len(x["pos"]) for x in bk.at(float(sc.frame_end))[:2])
+    assert riding > 0 and world > 0                      # on the bar (they turn with it) and on the bed

@@ -30,6 +30,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   doublearm / doublearm_view   the double-arm tool changer (task 0064) on the test mill with an arm (test_atc.step):
       the Tool changes panel (as "panels") and the arm at its half turn in the view (as "window").
 
+  rotary / rotary_view   the rotary axes (task 0066): the Rotary axes panel on the trunnion (test_5axis.step, as
+      "panels") and the 4th axis turning the bar with its wrapped slot cut (test_4axis.step, as "window").
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -1135,6 +1138,84 @@ elif MODE in ("doublearm", "doublearm_view"):
             return 0.5
         step(_arm_frame)
         step(_arm_shot)
+
+elif MODE in ("rotary", "rotary_view"):
+    # task 0066: "rotary" = 4 Motion > CNC machine > Rotary axes on the trunnion after Check (xvfb 1500x7000);
+    # "rotary_view" = the 4th axis turning the bar, the wrapped slot cut and the toolpath on it (xvfb 1920x1200)
+    five = MODE == "rotary"
+    step(_start)
+    step(lambda: _import(os.path.join(DATA, "test_5axis.step" if five else "test_4axis.step")))
+    step(_wait_import)
+
+    def _rot_setup():
+        sc = bpy.context.scene
+        os.chdir(SCRATCH)
+        rot = mod("blender.rotary")
+        with open("parts.ngc", "w") as fh:
+            fh.write(rot.TEST_PROGRAM_5AXIS if five else rot.TEST_PROGRAM_4AXIS)
+        with override():
+            bpy.ops.fresing.anim_add()
+            bpy.ops.fresing.block_add(kind="GCODE")
+        a = mod("blender.animation").active(sc)
+        b = a.blocks[a.blocks_index]
+        b.gcode_file = "parts.ngc"
+        b.gcode_speed, b.gcode_fit = "FIT", 12.0
+        b.gcode_path = True
+        rot.set_up_test_model(sc, b, five=five, milling=not five)
+        rot.check(sc)
+        select_only()
+
+    step(lambda: (_rot_setup(), 1.0)[1])
+    if five:
+        def _show_rot():
+            show_only([("FRESING_PT_cnc_rotary", False, True)])
+            wiggle()
+            return 2.5
+
+        def _shoot_rot():
+            shoot_sidebar("panel_4_rotary")
+            return 0.5
+        step(_show_rot)
+        step(_shoot_rot)
+    else:
+        def _rot_frame():
+            sc = bpy.context.scene
+            animation, machining = mod("blender.animation"), mod("blender.machining")
+            gcode, core = mod("blender.gcode"), mod("core.gcode")
+            a = animation.active(sc)
+            animation.bake(sc, a)
+            machining.sample(sc)
+            b = a.blocks[0]
+            mach = gcode.Machine(sc)
+            sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                                gcode.timing(sc, a, b, mach))
+            # halfway through G0 A180: the slot wrapped round, the first flat cut, the bar turned 90°
+            p = next(p for p in sch.pieces if p.move.kind == "RAPID" and abs(p.move.rb[0] - 180.0) < 1e-6
+                     and abs(p.move.ra[0]) < 1e-6)
+            f = int(1 + (p.v0 + p.vd * 0.5) * int(a.fps))
+            sc.frame_set(f)
+            machining.refresh(sc, frame=f, force=True)
+            win, area, region, _sb = areas()
+            sp = area.spaces.active
+            sp.overlay.show_overlays = False
+            sp.shading.type = "SOLID"
+            r3d = sp.region_3d
+            r3d.view_perspective = "PERSP"
+            r3d.view_location = Vector((-0.04, 0.0, 0.155))
+            r3d.view_distance = 0.30
+            from mathutils import Euler
+            r3d.view_rotation = Euler([math.radians(x) for x in (66, 0, 28)]).to_quaternion()
+            wiggle(5)
+            return 2.0
+
+        def _rot_shot():
+            win, area, region, _sb = areas()
+            im = crop_region(grab_screen(), region, win.height)
+            h, w = im.shape[:2]
+            save_png(im[int(h * 0.12):int(h * 0.88), int(w * 0.18):int(w * 0.82)], "view_rotary")
+            return 0.5
+        step(_rot_frame)
+        step(_rot_shot)
 
 elif MODE == "tour":
     # task 0059: the Test tour panel (Help > Make test tour project, then open it). Same command as "panels"

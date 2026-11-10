@@ -1592,7 +1592,7 @@ class FRCnc(bpy.types.PropertyGroup):
         name="Kinematics", default="PLAIN", update=_cnc_changed,
         items=[("PLAIN", "Plain", "A, B and C are just angles of the joints; the CAM post worked out X, Y and Z for the "
                                   "turned part (LinuxCNC trivkins, most 4th-axis set-ups)"),
-               ("TCP", "Tool follows the part (TCP)", "The program is written for the part as it lies at A0 B0 C0; "
+               ("TCP", "Follows part (TCP)", "Tool follows the part: the program is written for the part as it lies at A0 B0 C0; "
                                                       "the app moves X, Y and Z so the tool tip stays on that point "
                                                       "while the table turns (LinuxCNC TCP kinematics, table side "
                                                       "only)")],

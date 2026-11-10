@@ -265,7 +265,8 @@ def test_every_line_is_complete():
 
 def test_test_models_in_the_extension_are_the_test_data():
     for name in ("test_machine.step", "test_materials.step", "test_crane_a.step", "test_crane_b.step",
-                 "test_faces_a.step", "test_mill.step", "test_decals_a.step", "test_gantry.step", "test_atc.step"):
+                 "test_faces_a.step", "test_mill.step", "test_decals_a.step", "test_gantry.step", "test_atc.step",
+                 "test_4axis.step", "test_5axis.step"):
         a = os.path.join(ROOT, "fresing_render", "data", name)
         b = os.path.join(ROOT, "tests", "data", name)
         with open(a, "rb") as fa, open(b, "rb") as fb:
