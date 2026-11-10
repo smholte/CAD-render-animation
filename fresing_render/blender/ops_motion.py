@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 
 import bpy
-from bpy.props import BoolProperty, EnumProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, FloatProperty, StringProperty
 from mathutils import Vector
 
 from ..core.words import plural
@@ -1228,6 +1228,66 @@ class FRESING_OT_queue_start(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_queue_start_later(bpy.types.Operator):
+    """Start the queue by itself later: in a few hours or at a clock time (keep the app open until then)"""
+
+    bl_idname = "fresing.queue_start_later"
+    bl_label = "Start later"
+
+    seconds: FloatProperty(name="Seconds", default=-1.0, options={"HIDDEN", "SKIP_SAVE"},
+                           description="Test only: wait this many seconds instead of the panel's setting")
+
+    @classmethod
+    def description(cls, context, properties):
+        return ("Starts the queue by itself after the time you set: in a number of hours and minutes, or at a clock "
+                "time. The app must stay open until then (a delayed start is not kept when you close it). "
+                "Cancel stops the wait, Start now starts at once")
+
+    def execute(self, context):
+        s = context.scene.fresing
+        if self.seconds >= 0:
+            wait = self.seconds
+        elif s.queue_delay_mode == "AT":
+            wait = queue.seconds_until_clock(s.queue_at_hour, s.queue_at_minute)
+        else:
+            wait = s.queue_delay_hours * 3600 + s.queue_delay_minutes * 60
+        try:
+            queue.schedule(context.scene, wait)
+        except RuntimeError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        s.last_message = queue.describe_delay()
+        return {"FINISHED"}
+
+
+class FRESING_OT_queue_start_cancel(bpy.types.Operator):
+    """Cancel the delayed start (the queue stays as it is)"""
+
+    bl_idname = "fresing.queue_start_cancel"
+    bl_label = "Cancel"
+
+    def execute(self, context):
+        queue.cancel_delay()
+        context.scene.fresing.last_message = "Delayed start cancelled"
+        return {"FINISHED"}
+
+
+class FRESING_OT_queue_start_now(bpy.types.Operator):
+    """Start the queue now, without waiting for the delayed start time"""
+
+    bl_idname = "fresing.queue_start_now"
+    bl_label = "Start now"
+
+    def execute(self, context):
+        try:
+            qdir = queue.start_delayed_now(context)
+        except (RuntimeError, OSError) as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        context.scene.fresing.last_message = f"Queue started ({qdir})"
+        return {"FINISHED"}
+
+
 class FRESING_OT_queue_stop(bpy.types.Operator):
     """Stop after the current frame or image (start again later to continue an animation)"""
 
@@ -1363,5 +1423,6 @@ CLASSES = (
     FRESING_OT_block_move, FRESING_OT_block_duplicate, FRESING_OT_block_target, FRESING_OT_anim_build,
     FRESING_OT_anim_fit_camera, FRESING_OT_anim_clear,
     FRESING_OT_queue_add, FRESING_OT_queue_start, FRESING_OT_queue_stop, FRESING_OT_queue_remove,
+    FRESING_OT_queue_start_later, FRESING_OT_queue_start_cancel, FRESING_OT_queue_start_now,
     FRESING_OT_queue_open, FRESING_OT_queue_log, FRESING_OT_open_file, FRESING_OT_show_in_folder,
 )

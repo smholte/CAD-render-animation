@@ -2025,6 +2025,19 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     queue_index: IntProperty(default=0)
     queue_dir: StringProperty()
     queue_pid: IntProperty(default=0)
+    queue_delay_mode: EnumProperty(
+        name="Start", default="IN",
+        description="When the queue starts by itself: a number of hours and minutes from now, or at a clock time",
+        items=[("IN", "In …", "Starts after the hours and minutes you set"),
+               ("AT", "At …", "Starts at the clock time you set, today or tomorrow")])
+    queue_delay_hours: IntProperty(name="Hours", default=1, min=0, max=12,
+                                   description="Hours to wait before the queue starts (0–12)")
+    queue_delay_minutes: IntProperty(name="Minutes", default=0, min=0, max=59,
+                                     description="Minutes to wait before the queue starts (0–59)")
+    queue_at_hour: IntProperty(name="Hour", default=18, min=0, max=23,
+                               description="Hour of the clock time the queue starts (0–23)")
+    queue_at_minute: IntProperty(name="Minute", default=0, min=0, max=59,
+                                 description="Minute of the clock time the queue starts (0–59)")
 
     # ---- model update report ----
     report_new: CollectionProperty(type=FRReportLine)

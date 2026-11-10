@@ -487,6 +487,7 @@ def build_crane(b: Build):
     queue.add_job(sc, "STILL", shot="Still picture", quality="draft")
     queue.add_job(sc, "ANIMATION", animation="Queue video", quality="draft")
     _shot(b, "@queue")
+    _shot(b, "@startlater")
 
     s.out_format = "social"
     from . import render
@@ -614,6 +615,19 @@ def _check_queue(scene):
     kinds = sorted(j.kind for j in s.queue)
     _check(kinds == ["ANIMATION", "STILL"], f"the queue holds {kinds}, not a picture and a video")
     return "a picture and a video waiting"
+
+
+def _check_start_later(scene):
+    from . import queue
+    try:
+        queue.schedule(scene, 3600)              # the same call as the Start later button; then cancelled again
+        _check(queue.delay_pending() and queue.describe_delay().startswith("Starts in"),
+               "Start later did not set a delayed start")
+        text = queue.describe_delay()
+    finally:
+        queue.cancel_delay()
+    _check(not queue.delay_pending(), "Cancel did not stop the delayed start")
+    return text
 
 
 def _check_shapes(scene):
@@ -1410,6 +1424,10 @@ stop("queue", OUT, HUB_SET, "Render queue: picture + video",
      "7 Render queue holds a picture and a short video, both waiting. Start queue renders them in the background "
      "while you keep working; the finished files open from the list.", where="7 Render queue",
      check=_check_queue)
+stop("startlater", OUT, HUB_SET, "Render queue: start later",
+     "Under the queue's list, Start later with 'In …' (hours and minutes) or 'At …' (a clock time). Click it: the panel "
+     "shows 'Starts in … - at …' with Start now and Cancel. Click Cancel. The app must stay open for a delayed start.",
+     where="7 Render queue > Start later", check=_check_start_later)
 stop("shapes", OUT, HUB_SET, "Upright 9:16 and square 1:1",
      "The camera frame is upright (9:16, for phones). Switch Shape to 1:1 to see the square frame.",
      where="5 Scene & Render > Image size & render (Shape)", check=_check_shapes)
