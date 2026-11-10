@@ -393,5 +393,6 @@ def test_chips_ride_on_the_turning_bar_and_fall_on_the_bed(tmp_path):
     machining.settings(sc).chips = "FEW"
     bk = chips.bake(sc, force=True)
     assert bk is not None, chips.status(sc)
-    riding, world = (len(x["pos"]) for x in bk.at(float(sc.frame_end))[:2])
+    d = bk.at(float(sc.frame_end))
+    riding, world = len(d[0]["pos"]), len(d[1]["pos"])
     assert riding > 0 and world > 0                      # on the bar (they turn with it) and on the bed
