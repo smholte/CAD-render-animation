@@ -1,6 +1,6 @@
 # 0064 – Double-arm tool changer: the exact arm swap
 
-**Who:** worker · **Status:** open – can start (10 Nov) · **Branch:** `task/0064-double-arm-atc`
+**Who:** worker · **Status:** running (10 Nov) · **Branch:** `claude/jolly-ramanujan-l2rjv9`
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 5 of the big features; owner 10 Nov: his new Fresing mill
 gets a **double-arm** changer, **no CAD model of it yet**)
 **Lane:** Machining – `core/toolchange.py`, `blender/toolchange.py`, the tool-change part of `core/gcode.py` /
