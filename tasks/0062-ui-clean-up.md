@@ -23,7 +23,8 @@ tidy start every time the app opens.
    milling* (CNC machine, Tools, Tool changes, Milling, Chips, Air blast, Coolant, Way covers, tool marks), *Mechanisms
    & cylinders*, *Hoses & drag chains* (0058), *Video finishing* (brand kit, labels, pictures, music) – or a few ready
    profiles ("Machine stills", "Machine animation", "CNC demo", "Everything"). Hidden families keep their settings;
-   a project that already uses a family shows it (never hide work the owner has done); one click shows everything.
+   a project that already uses a family shows it when it opens (the user may hide it afterwards, with the warning
+   below); one click shows everything.
    Saved with the project and in templates.
    **Owner's choice 10 Nov: both** – ticks per family *and* ready-made sets – **plus the user's own sets**: a set he
    makes ("Offshore cranes", "Mill demos") is saved as **one file in the app's library folder** (the same shared
@@ -31,6 +32,12 @@ tidy start every time the app opens.
    that file into his own library folder. Ready-made sets are built in and cannot be overwritten; an own set with the
    same name wins and says so. A set file from a newer version opens in an older one without errors (unknown families
    ignored).
+   **Owner's choice 10 Nov (2): switch on and off at any time.** A family can be turned on or off in the middle of a
+   project, as often as the user likes, so everyone can shape his own workflow. Turning off a **main function** (a
+   family the project uses: set-up, steps or keys in it) shows a **warning popup** that names what is set up ("This
+   project has a CNC machine, 3 tools and a G-code step. They stay in the project and keep working in renders; only
+   the panels are hidden.") with **Hide anyway** and **Cancel** – it is allowed, never blocked. Turning it on again
+   shows everything as it was. Hiding a family never deletes or switches off its work.
 2. **More visual separation between the buttons and sections.** Clear headers per section, spacing between groups,
    boxes or lines between a section's steps, the main button of each section stands out (`primary()`), consistent
    icons; the layout rules at the top of `blender/ui.py` stay and get a "separation" rule.
@@ -53,7 +60,8 @@ tidy start every time the app opens.
 - [ ] The owner's choice from point 5 is in the report.
 - [ ] Ticks per family, built-in sets and own sets (save, rename, delete; one file each in the library folder; a
       copied file shows up after Refresh / restart – tested with a second settings folder).
-- [ ] Function families can be hidden and shown per project; nothing set up is ever hidden silently; templates and
+- [ ] Function families can be switched on and off at any time in a project; hiding one that is in use shows the
+      warning popup (Hide anyway / Cancel) and keeps all its work (renders, queue, model update unchanged – test); templates and
       old projects open with everything they use visible.
 - [ ] Start-up: Fresing tab open, Blender's toolbar folded, sections 1–7 folded (user setting to keep them as left) – checked for a new project, an old
       project, a tour project and after Update now (real-app test).
