@@ -59,6 +59,22 @@ cylinders (hydraulic hoses).
 6. Not now: hoses touching and pushing other parts (collision); cables over sheaves and winch drums (that is the later
    "motion paths" task); hoses with three or more ends; cable bundles. Write ideas into the report.
 
+## Lead's decisions from the motion paths study 0075 (11 Nov)
+
+Read the report of `tasks/0075-motion-paths-design.md` (Summary points 2 and 4, the numbers table, the Blender 5.2
+lessons) before designing the per-frame part.
+- **Bake at Build, not a frame handler, for renders.** Writing curves/meshes in a frame handler costs ~6 ms per frame on
+  3,000 parts whatever the solver (20 hoses in one handler: +8.3 ms), also in the queue. So: *Build animation* solves
+  every frame's shape once and writes all hoses/chains of an animation into one hidden "bake" mesh (a frame attribute
+  per point); Geometry Nodes picks the current frame's slice (Scene Time → Sample Index). Deterministic, works in the
+  queue and with scripts off. The frame handler is only for **live posing** (no built animation, or the user drags a
+  joint) and is not used while a built animation plays or renders.
+- **Reusable for motion paths:** keep the tube builder (centreline → tube with diameter + material), the bake/slice
+  module and the handler hook generic in `blender/flex.py` / `core/flex.py`, so the later motion-paths tasks (rope over
+  sheaves, catenary) only add to them. Part types Sheave / Winch drum / Track pad are **not** in this task (they come
+  with motion-paths task 1).
+- Motion paths go in this lane (Flex parts) after 0058.
+
 ## Accuracy and speed (tests)
 
 - Ends exact (< 0.1 mm, direction < 1°); hose length within 0.5 %; no bend under the minimum radius (or the
