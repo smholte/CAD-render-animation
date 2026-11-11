@@ -1,6 +1,6 @@
 # 0085 – Vessel motion at sea (study 0069 #4)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0085-vessel-motion` (or the session's own branch)
+**Who:** worker · **Status:** running · **Branch:** `claude/kind-lovelace-yk40cq`
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study; the owner can change it)
 **Lane:** new **Sea lane** – new files `core/vessel_motion.py` (no Blender), `blender/vessel_motion.py`,
 `blender/ops_vessel_motion.py`, `blender/ui_vessel_motion.py` (a sub-panel of 5 Scene & Render in its own file); additive
