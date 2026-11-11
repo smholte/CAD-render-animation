@@ -1170,6 +1170,9 @@ def motion_fade(ctx):
         render.render_still(scene, s, "draft", filepath=path)
         times[key] = time.time() - t1
     ctx.picture(path, "fade", "Cover half way to X-ray, the trolley's trail (processor, draft)")
+    epath = os.path.join(ctx.work, "fade_eevee.png")
+    render.render_still(scene, s, "eevee", filepath=epath)            # the same frame in EEVEE
+    ctx.picture(epath, "fade_eevee", "Cover half way to X-ray (EEVEE)")
     ctx.metric("render fading frame", times["fade"], "s")
     ratio = times["fade"] / max(times["plain"], 1e-3)
     bpy.context.view_layer.update()

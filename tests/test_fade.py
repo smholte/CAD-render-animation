@@ -191,35 +191,69 @@ def _pixels(path, n):
     return px.reshape(n, n, 4)[..., :3]
 
 
-@pytest.mark.parametrize("engine", ["CYCLES", "BLENDER_EEVEE"])
-def test_render_fades_in_both_engines(scene, tmp_path, engine):
-    cover = ob(scene, "COVER")
-    scene.camera = cameras.add_camera(scene, "ISO", 50.0, "T")
-    a = _anim(scene)
+def _render_ratio(sc, out_dir, engine):
+    """Render the cover at the start, half way and the end of a linear fade; how far (0 … 1) the half-way picture is
+    from the first towards the last, where the cover was."""
+    cover = ob(sc, "COVER")
+    sc.camera = cameras.add_camera(sc, "ISO", 50.0, "T")
+    a = _anim(sc)
     _fade(a, cover, duration=2.0, easing="LINEAR")
-    animation.bake(scene, a)
+    animation.bake(sc, a)
     n = 48
-    r = scene.render
+    r = sc.render
     r.engine = engine
     r.resolution_x = r.resolution_y = n
     r.resolution_percentage = 100
     if engine == "CYCLES":
-        scene.cycles.samples, scene.cycles.device = 16, "CPU"
-        scene.cycles.use_denoising = False
-        scene.cycles.seed = 1
+        sc.cycles.samples, sc.cycles.device = 16, "CPU"
+        sc.cycles.use_denoising = False
+        sc.cycles.seed = 1
     else:
-        scene.eevee.taa_render_samples = 4
+        sc.eevee.taa_render_samples = 4
     shots = {}
     for f in (1, 26, 51):
-        scene.frame_set(f)
-        r.filepath = str(tmp_path / f"f{f}.png")
+        sc.frame_set(f)
+        r.filepath = os.path.join(str(out_dir), f"f{f}.png")
         bpy.ops.render.render(write_still=True)
         shots[f] = _pixels(r.filepath, n)
     full = np.abs(shots[51] - shots[1]).sum(axis=2)
     mask = full > 0.15                                                 # where the cover was
     assert mask.sum() >= 4, mask.sum()
-    half = np.abs(shots[26] - shots[1]).sum(axis=2)[mask].mean() / full[mask].mean()
+    return float(np.abs(shots[26] - shots[1]).sum(axis=2)[mask].mean() / full[mask].mean())
+
+
+def test_render_fades_in_cycles(scene, tmp_path):
+    half = _render_ratio(scene, tmp_path, "CYCLES")
     assert 0.2 < half < 0.8, half                                      # half way: half see-through
+
+
+EEVEE_CHILD = """
+import sys
+sys.path.insert(0, {root!r})
+sys.path.insert(0, {tests!r})
+import test_fade as T
+import bpy, addon_utils, fresing_render
+bpy.ops.wm.read_factory_settings(use_empty=True)
+addon_utils.enable("cycles", default_set=True)
+fresing_render.register()
+sc = T._fresh()
+print("RATIO", T._render_ratio(sc, {out!r}, "BLENDER_EEVEE"))
+"""
+
+
+def test_render_fades_in_eevee(tmp_path):
+    """EEVEE needs a GL context: Blender as a Python module aborts without one (GitHub's runners), so the render runs
+    in a process of its own and the test is skipped there. The real app renders EEVEE in the PC check."""
+    import subprocess
+    import sys
+    code = EEVEE_CHILD.format(root=os.path.dirname(HERE), tests=HERE, out=str(tmp_path))
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=600)
+    line = next((x for x in p.stdout.splitlines() if x.startswith("RATIO ")), None)
+    if line is None and p.returncode < 0 or p.returncode in (134, -6):
+        pytest.skip("EEVEE cannot start here (no GL context)")
+    assert line is not None, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
+    half = float(line.split()[1])
+    assert 0.2 < half < 0.8, half
 
 
 def test_queue_copy_gives_the_same_frames_and_reopens(scene, tmp_path):
