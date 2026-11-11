@@ -1,7 +1,6 @@
 # 0029 – Milling without a CAM program: the app makes the toolpath
 
-**Who:** worker · **Model:** **Opus · effort High** · **Status:** open – start now (Wed 11 Nov); **merged before
-Thursday 12 Nov 08:00** (0061 starts in the same lane then) · **Branch:** worker's own
+**Who:** worker · **Model:** **Opus · effort High** · **Status:** done (0.2.55, 11 Nov) · **Branch:** ccr-2a446bad-jskpd8
 **Started by:** lead chat, 5 Nov 2026; brief written out 11 Nov (owner's priority 8; 1–7 are done or set for Thursday,
 4 motion paths waits for 0058). 4th/5th axis was split off into 0066 (done, 0.2.52).
 **Lane:** Machining – new `core/toolpath.py` (no Blender), new `blender/toolpath.py` + `ops_toolpath.py`, a part of the
@@ -89,7 +88,7 @@ believable roughing + finishing program that cuts the block into the part – ne
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 11 Nov 2026 (branch ccr-2a446bad-jskpd8)
+**Chat / date:** worker, Claude Code on the web, 11 Nov 2026 (branch ccr-2a446bad-jskpd8, released as 0.2.55)
 
 **What changed:**
 - New **4 Motion > Milling > Make a toolpath** (`core/toolpath.py`, `blender/toolpath.py`, `ops_toolpath.py`, panel in
@@ -146,11 +145,29 @@ believable roughing + finishing program that cuts the block into the part – ne
   Machining time of the Normal program 1 h 01 min (plays in 30 s).
 - PC check `milling.toolpath` (Draft): OK, 102 s on the web machine (make 8.8 s, cut 91 s with the limit on).
 - Tour: all projects build (55 s), the new stop's Go + check pass (27 s).
-- Clash check on the made program: **not run** (no time left; the holder/spindle of the test tools stay 15 mm above
-  the stock at the deepest cut by their sizes) – follow-up below.
+- Clash check (0065/0067) on the made program: **0 rows** (Draft program of the test model, 4,541 moves: 575 s on the web
+  machine). The tour's coarse toolpath animation: 0 rows, 152 s here.
+- GitHub: 5 runs on the branch. 1: a real failure (the clash test of the tour's "Three tools", see below); 2: version
+  clash with 0067 (renumbered 0.2.54 → 0.2.55); 3–4: the all-tour clash test (0067) over its 300 s box with my tour
+  animation in it (517 s, 338 s; no clash); 5: green, 12.1 min (that test 275 s). `main` fast-forwarded to it.
+
+**Found on the way (outside the new files):**
+- `animation._write`: keys less than 0.01 frame apart were merged by `FCurve.update()` – a fast program lost its lifts
+  and cut straight through the part. Now all kept (one-line change in `animation.py`, which the brief left to 0058;
+  needed for the no-gouge rule; 0058 starts from `main` after this).
+- Keeping them showed what the merge had hidden in the tour's "Three tools" set (test_mill): 8 s for 8.4 s of hand
+  tool changes squeezed all cuts into a hundredth of a frame; the face pass went 1 mm into the finished part (its top
+  is the block's top) and the ball mill hanging beside the spindle touched the block. Fixed in the set: Fit into
+  14 s, cuts inside the pocket, face pass from X-10, a square-shoulder face mill.
+- For the clash lane: a 45° face mill copy is wider at the top of its inserts (r 31 mm for Ø50) than the clash
+  check's "may cut" zone (the tool's radius, 25 mm), so its cut counts as a clash (`clash.Tool` could take the widest
+  radius of `tool_profile`). The tour now uses a 90° face mill; not changed in `clash.py`.
+- The all-tour clash test's time box was raised 300 → 360 s (`tests/test_clash.py`): the tour holds a whole milling
+  program now (made coarse, milling detail Fast, 10 s). No clash is allowed, only the time grew (measured 275 s).
 
 **Open points / follow-up tasks:**
-- Run 0065's clash check on the made program (holder and spindle against the stock → 0 rows) as a test.
+- The clash check costs about 0.12 s per program move on a milled block (a 7,000-move program: ~15 min): worth a
+  look in the clash lane (the made program had 0 rows).
 - When the step is the app's own program, "finish at the CAD part" could be skipped for speed (75 → 59 s).
 - Not built (as the brief said): waterline pass for steep walls, drilling holes with G81, rest machining, 4/5 axis.
 - Wall crossings dominate the finishing moves (a ball rolling over sharp edges); a steep/shallow split (waterline on
