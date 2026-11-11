@@ -1178,9 +1178,15 @@ class FRESING_OT_queue_add(bpy.types.Operator):
                     "with these settings",
         }.get(properties.kind, "Adds a render to the queue")
 
+    def invoke(self, context, event):
+        if self.start:
+            return _confirm_second_runner(self, context, event)
+        return self.execute(context)
+
     def execute(self, context):
         scene = context.scene
         s = scene.fresing
+        before = {j.job_id for j in s.queue}
         if self.kind in ("ANIMATION", "TEST"):
             a = s.animations.get(self.name) if self.name else _active_anim(context)
             if a is None:
@@ -1217,8 +1223,29 @@ class FRESING_OT_queue_add(bpy.types.Operator):
             s.shots_index = keep_index
             queue.add_job(scene, "STILL", shot=name)
         if self.start and not queue.is_running(scene):
-            return bpy.ops.fresing.queue_start()
+            if not queue.delay_pending():
+                return bpy.ops.fresing.queue_start()
+            # a delayed start waits for the other jobs (overnight): start only this one now (0068 row 5)
+            new = {j.job_id for j in s.queue} - before
+            try:
+                qdir = queue.start(context, only=new)
+            except (RuntimeError, OSError) as exc:
+                self.report({"ERROR"}, str(exc))
+                return {"CANCELLED"}
+            msg = (f"Queue started with this job only ({qdir}). The other jobs still start at "
+                   f"{queue.delay_clock()}")
+            s.last_message = msg
+            self.report({"INFO"}, msg)
         return {"FINISHED"}
+
+
+def _confirm_second_runner(op, context, event):
+    """Ask first when another project's queue of this session still renders: one graphics card (0068 row 4)."""
+    note = queue.describe_others(context.scene)
+    if not note or queue.is_running(context.scene):
+        return op.execute(context)
+    return context.window_manager.invoke_confirm(op, event, title="Start a second render queue?", message=note,
+                                                 confirm_text="Start anyway", icon="WARNING")
 
 
 class FRESING_OT_queue_start(bpy.types.Operator):
@@ -1227,13 +1254,28 @@ class FRESING_OT_queue_start(bpy.types.Operator):
     bl_idname = "fresing.queue_start"
     bl_label = "Start queue"
 
+    @classmethod
+    def description(cls, context, properties):
+        return ("Starts rendering the jobs of the list in the background; it keeps going when you close the app. "
+                "While a delayed start waits, this starts them now and cancels the wait")
+
+    def invoke(self, context, event):
+        return _confirm_second_runner(self, context, event)
+
     def execute(self, context):
+        waited = queue.delay_pending()
         try:
-            qdir = queue.start(context)
+            qdir = queue.start_delayed_now(context) if waited else queue.start(context)
         except (RuntimeError, OSError) as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
-        context.scene.fresing.last_message = f"Queue started ({qdir})"
+        msg = f"Queue started ({qdir})"
+        if waited:
+            msg = f"Queue started now; the delayed start is cancelled ({qdir})"
+        note = queue.describe_others(context.scene)
+        if note:
+            self.report({"WARNING"}, note)
+        context.scene.fresing.last_message = msg
         return {"FINISHED"}
 
 
@@ -1286,6 +1328,9 @@ class FRESING_OT_queue_start_now(bpy.types.Operator):
 
     bl_idname = "fresing.queue_start_now"
     bl_label = "Start now"
+
+    def invoke(self, context, event):
+        return _confirm_second_runner(self, context, event)
 
     def execute(self, context):
         try:

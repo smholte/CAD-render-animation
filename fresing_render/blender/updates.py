@@ -201,10 +201,13 @@ def preflight(context, downloaded: bool = False) -> str:
         pass
     try:
         from . import queue
-        for scene in bpy.data.scenes:
-            if queue.is_running(scene):
-                return ("The render queue is still running (panel 7): update when it has finished, "
-                        "or stop it first")
+        if any(queue.is_running(scene) for scene in bpy.data.scenes) or any(
+                r["pid"] and queue._pid_alive(r["pid"], r["dir"]) for r in queue._RUNS.values()):
+            return ("The render queue is still running (panel 7): update when it has finished, "
+                    "or stop it first")
+        if queue.delay_pending():           # the restart would drop it silently (0068 row 3)
+            return (f"A delayed queue start is set for {queue.delay_clock()} (panel 7): cancel it (Cancel), or "
+                    "update when that queue has finished")
     except Exception:  # noqa: BLE001
         pass
     if project_dirty() and not bpy.data.filepath:

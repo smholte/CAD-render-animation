@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.56 – 11 Nov 2026 – render queue and update safety (task 0070)
+
+7 Render queue – overnight renders you can trust
+- **Start later survives saving:** saving the project (also the first Save, or Save As under a new name) no longer
+  cancels a delayed start.
+- **Render animation / Time test while a delayed start waits** render only that new job now; the waiting jobs still
+  start at the set time. If a render is still going at that time, the delayed start begins as soon as it ends.
+  **Start queue** while a delayed start waits starts everything now and says the wait is cancelled.
+- **The PC does not go to sleep** while a delayed start waits (Windows), not only while the queue renders.
+- **One queue per project:** start A's queue, open B and start B's, open A again: A shows its jobs running; Stop now in
+  B stops only B. Starting a second queue while another still renders asks first (they share the graphics card). The
+  same jobs are never rendered twice, also after the app was closed and started again.
+- **Starting a queue no longer removes the project copy of another queue that is still running** (one that has just
+  started, or one running on a colleague's PC from the same shared folder). Every queue gets its own folder.
+- **Update now** refuses while a delayed start waits ("A delayed queue start is set for 22:00 …"), instead of dropping it.
+- Small: the "in use by" lock file is written whole (a colleague never reads a half-written one); a finished job never
+  shows "Failed" when the renderer's last status write was lost; the app's own process is never taken for a renderer.
+
 ## 0.2.55 – 11 Nov 2026 – the app makes the toolpath (task 0029)
 
 4 Motion > Milling > Make a toolpath (new)

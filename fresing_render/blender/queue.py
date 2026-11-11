@@ -151,34 +151,63 @@ def last_time_test(scene, animation: str):
     return None
 
 
-# Runtime state of the queue in this session. Kept outside the scene so undo cannot
-# make the app forget a running renderer; the scene copy is for reopening the project.
-# It belongs to the project that started it: another project opened afterwards keeps its own queue (bug hunt row 9).
-_RUNTIME = {"pid": 0, "dir": "", "killed": False, "project": ""}
+# Runtime state of the queues this session started, one per queue folder (task 0070, bug hunt 0068 row 4). Kept
+# outside the scene so undo cannot make the app forget a running renderer, and per project: start A's queue, open B
+# and start B's, reopen A, and A still shows its own jobs running; Stop now in B stops only B.
+#   _RUNS[queue folder] = {"pid", "dir", "killed", "project" (normcase path, '' unsaved), "label" (file name)}
+_RUNS: dict[str, dict] = {}
 _ALIVE_CACHE: dict[int, tuple[float, bool]] = {}
 
 
+def _run_of(scene) -> dict | None:
+    """The run of the open project: the folder the scene names, else the newest run started from this file (its
+    queue_pid/queue_dir may not have been saved: starting a queue does not make the file dirty)."""
+    qdir = scene.fresing.queue_dir
+    if qdir and qdir in _RUNS:
+        return _RUNS[qdir]
+    key = _project_key()
+    runs = [r for r in _RUNS.values() if r["project"] == key]
+    if not key:                              # an unsaved project: only a run that is still going
+        runs = [r for r in runs if r["pid"]]
+    if not runs:
+        return None
+    live = [r for r in runs if r["pid"]]
+    return (live or runs)[-1]
+
+
 def _ours(scene) -> bool:
-    """True when the queue this session started belongs to the open project: the same file, or the scene still
-    names its folder (saved under a new name since)."""
-    if not _RUNTIME["pid"] and not _RUNTIME["dir"]:
-        return False
-    if _RUNTIME["dir"] and scene.fresing.queue_dir == _RUNTIME["dir"]:
-        return True
-    return os.path.normcase(os.path.abspath(bpy.data.filepath)) == _RUNTIME["project"] if bpy.data.filepath \
-        else _RUNTIME["project"] == ""
+    return _run_of(scene) is not None
 
 
 def belongs_here(scene) -> bool:
     """A queue this session started for the open project is still going (used when a project is opened)."""
-    return bool(_RUNTIME["pid"]) and _ours(scene)
+    run = _run_of(scene)
+    return bool(run and run["pid"])
 
 
 def current(scene) -> tuple[int, str]:
+    run = _run_of(scene)
+    if run is not None and run["pid"]:
+        return run["pid"], run["dir"]
     s = scene.fresing
-    if _RUNTIME["pid"] and _ours(scene):
-        return _RUNTIME["pid"], _RUNTIME["dir"]
     return s.queue_pid, s.queue_dir
+
+
+def other_runs(scene) -> list[dict]:
+    """Queues this session started for other projects that are still rendering (one graphics card: a second
+    runner makes both slower)."""
+    mine = _run_of(scene)
+    return [r for r in _RUNS.values() if r is not mine and r["pid"] and _pid_alive(r["pid"], r["dir"])]
+
+
+def describe_others(scene) -> str:
+    """'Another queue is still rendering (crane.blend): both share the graphics card' or ''."""
+    runs = other_runs(scene)
+    if not runs:
+        return ""
+    names = ", ".join(r["label"] or "an unsaved project" for r in runs)
+    return (f"Another render queue of this app is still rendering ({names}): two queues share the graphics card, "
+            "so both take longer")
 
 
 def is_running(scene) -> bool:
@@ -214,7 +243,10 @@ def _status_says_running(qdir: str, pid: int) -> bool:
 
 
 def _pid_alive_os(pid: int) -> bool:
-    """True if ``pid`` is a running Blender (or Python, in tests) process."""
+    """True if ``pid`` is a running Blender (or Python, in tests) process. This app's own number never counts: a
+    stale pid that happens to be ours must not show "running", and Stop now must not end the app (0068 row 19g)."""
+    if pid <= 0 or pid == os.getpid():
+        return False
     if sys.platform == "win32":
         import ctypes
         from ctypes import wintypes
@@ -272,20 +304,44 @@ def runner_command(queue_dir: str) -> list[str]:
     return [sys.executable, RUNNER, queue_dir, os.path.basename(PACKAGE_DIR)]
 
 
-def start(context) -> str:
-    """Save a snapshot of the project with the waiting jobs and start the runner. Returns the queue folder."""
+def _out_dir(scene) -> str:
+    s = scene.fresing
+    return bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
+
+
+def new_queue_dir(root: str) -> str:
+    """A folder name no other start can share: the time plus a random part (two starts in the same second, or two
+    PCs on one share, used to get one folder). An existing folder is refused, never reused (0068 row 2)."""
+    os.makedirs(root, exist_ok=True)
+    qdir = os.path.join(root, time.strftime("%Y-%m-%d_%H%M%S") + "_" + uuid.uuid4().hex[:6])
+    os.makedirs(qdir)                        # FileExistsError (an OSError) rather than sharing a folder
+    return qdir
+
+
+def start(context, only=None) -> str:
+    """Save a snapshot of the project with the waiting jobs and start the runner. Returns the queue folder.
+    ``only``: job IDs to start (the new job of Render animation / Time test while a delayed start waits for the
+    others, 0068 row 5); None = every waiting, stopped or failed job."""
     scene = context.scene
     s = scene.fresing
     if is_running(scene):
         raise RuntimeError("The queue is already running")
-    waiting = [j for j in s.queue if j.status in ("WAITING", "STOPPED", "FAILED")]
+    waiting = [j for j in s.queue if j.status in ("WAITING", "STOPPED", "FAILED")
+               and (only is None or j.job_id in only)]
     if not waiting:
         raise RuntimeError("Nothing to render: add images or animations to the queue first")
-    out_dir = bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
+    out_dir = _out_dir(scene)
     os.makedirs(out_dir, exist_ok=True)
-    _tidy_old_queues(os.path.join(out_dir, "_queue"))
-    qdir = os.path.join(out_dir, "_queue", time.strftime("%Y-%m-%d_%H%M%S"))
-    os.makedirs(qdir, exist_ok=True)
+    root = os.path.join(out_dir, "_queue")
+    live = live_queue_for(root, {j.job_id for j in waiting})
+    if live:                                 # e.g. started before the app was restarted: never render them twice
+        _adopt(scene, live)
+        raise RuntimeError("These jobs are already being rendered by a queue started at "
+                           f"{time.strftime('%H:%M', time.localtime(live['started']))}"
+                           + (f" on {live['host']}" if live["host"] and live["host"] != _host() else "")
+                           + ": wait for it or stop it first")
+    _tidy_old_queues(root)
+    qdir = new_queue_dir(root)
     stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not stem:                             # not saved yet: name the renders after the model
         from . import build
@@ -309,7 +365,8 @@ def start(context) -> str:
         for owner, key, value in undo:
             owner[key] = value
     with open(os.path.join(qdir, "queue.json"), "w", encoding="utf-8") as fh:
-        json.dump({"blend": blend, "project": bpy.data.filepath, "jobs": jobs}, fh, indent=1)
+        json.dump({"blend": blend, "project": bpy.data.filepath, "host": _host(), "started": time.time(),
+                   "jobs": jobs}, fh, indent=1)
     env = dict(os.environ)
     cmd = runner_command(qdir)
     if cmd[0] == sys.executable:
@@ -327,10 +384,92 @@ def start(context) -> str:
         proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=qdir, **kwargs)
     s.queue_pid = proc.pid
     _PROCS[proc.pid] = proc
-    project = os.path.normcase(os.path.abspath(bpy.data.filepath)) if bpy.data.filepath else ""
-    _RUNTIME.update(pid=proc.pid, dir=qdir, killed=False, project=project)
+    _RUNS[qdir] = {"pid": proc.pid, "dir": qdir, "killed": False, "project": _project_key(),
+                   "label": os.path.basename(bpy.data.filepath)}
     ensure_polling()
     return qdir
+
+
+def _host() -> str:
+    import platform
+    return platform.node()
+
+
+def live_queue_for(root: str, job_ids, project: str | None = None) -> dict | None:
+    """A queue folder under ``root`` that is still rendering any of ``job_ids`` of this project (``project``: the
+    normcase path, default the open one; a copy saved under another name has the same job IDs): on this PC its
+    runner is alive; on another PC (a shared folder) it wrote in the last 15 minutes.
+    {"dir", "pid", "host", "started"} or None."""
+    project = _project_key() if project is None else project
+    if not os.path.isdir(root) or not job_ids:
+        return None
+    for name in sorted(os.listdir(root), reverse=True):
+        qd = os.path.join(root, name)
+        try:
+            with open(os.path.join(qd, "queue.json"), encoding="utf-8") as fh:
+                q = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if not {j.get("id") for j in q.get("jobs", [])} & set(job_ids):
+            continue
+        made_from = q.get("project") or ""
+        if (os.path.normcase(os.path.abspath(made_from)) if made_from else "") != project:
+            continue
+        st = read_status(qd)
+        host = st.get("host") or q.get("host") or ""
+        pid = int(st.get("pid", 0) or 0)
+        info = {"dir": qd, "pid": pid, "host": host, "started": float(st.get("started") or q.get("started") or 0)}
+        if not st:                               # just started, no status yet: live for a minute
+            if time.time() - _last_write(qd) < 60:
+                return info
+            continue
+        if not st.get("running"):
+            continue
+        if host and host != _host():
+            if time.time() - _last_write(qd) < 15 * 60:
+                return info
+        elif _PROCS.get(pid) is not None and _PROCS[pid].poll() is None or _pid_alive_os(pid):
+            return info
+    return None
+
+
+def _adopt(scene, live: dict) -> None:
+    """Follow a live queue of this project found on disk (this PC): the panel shows its jobs running again."""
+    if not live["pid"] or (live["host"] and live["host"] != _host()):
+        return
+    run = _RUNS.setdefault(live["dir"], {"pid": live["pid"], "dir": live["dir"], "killed": False,
+                                         "project": _project_key(), "label": os.path.basename(bpy.data.filepath)})
+    run["pid"] = live["pid"]
+    scene.fresing.queue_dir, scene.fresing.queue_pid = live["dir"], live["pid"]
+    ensure_polling()
+
+
+def find_live(scene) -> bool:
+    """When a project is opened: a queue of its jobs still rendering on this PC (started before the app was
+    restarted, or its folder not saved in the file) is followed again. True when one was found."""
+    s = scene.fresing
+    ids = {j.job_id for j in s.queue if j.status in ("WAITING", "RUNNING")}
+    if not ids:
+        return False
+    try:
+        live = live_queue_for(os.path.join(_out_dir(scene), "_queue"), ids)
+    except OSError:
+        return False
+    if live and live["pid"] and (not live["host"] or live["host"] == _host()):
+        _adopt(scene, live)
+        return True
+    return False
+
+
+def _last_write(qdir: str) -> float:
+    """Newest change of the runner's files in ``qdir`` (the log grows with every frame)."""
+    newest = 0.0
+    for f in ("status.json", "log.txt", "queue.json"):
+        try:
+            newest = max(newest, os.path.getmtime(os.path.join(qdir, f)))
+        except OSError:
+            pass
+    return newest
 
 
 # ---------------------------------------------------------------------------
@@ -389,12 +528,50 @@ def schedule(scene, seconds: float) -> None:
     if bpy.app.timers.is_registered(_delay_tick):
         bpy.app.timers.unregister(_delay_tick)
     bpy.app.timers.register(_delay_tick, first_interval=min(_DELAY_TICK, max(0.2, float(seconds))), persistent=True)
+    keep_awake(True)                         # Windows must not sleep before the start (0068 row 19e)
 
 
 def cancel_delay(note: str = "") -> None:
     _DELAY.update(when=0.0, project="", note=note)
     if bpy.app.timers.is_registered(_delay_tick):
         bpy.app.timers.unregister(_delay_tick)
+    keep_awake(False)
+
+
+def project_saved() -> None:
+    """save_post: the open project now has this file name (first Save, or Save As). A delayed start follows it
+    instead of taking it for another project (0068 row 1); so does the run the scene names."""
+    if _DELAY["when"]:
+        _DELAY["project"] = _project_key()
+    try:
+        run = _RUNS.get(bpy.context.scene.fresing.queue_dir)
+    except AttributeError:
+        run = None
+    if run is not None:
+        run["project"], run["label"] = _project_key(), os.path.basename(bpy.data.filepath)
+
+
+_AWAKE = {"on": False}
+
+
+def _set_execution_state(flags: int) -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(ctypes.c_uint(flags))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def keep_awake(on: bool) -> None:
+    """Windows: no sleep while a delayed start waits (the runner keeps the PC awake once it renders). Called on the
+    app's main thread (where Blender's timers run), cleared when the delay ends either way."""
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+    if on == _AWAKE["on"]:
+        return
+    _AWAKE["on"] = on
+    _set_execution_state(ES_CONTINUOUS | ES_SYSTEM_REQUIRED if on else ES_CONTINUOUS)
 
 
 def delay_lost(why: str = "The delayed start was cancelled: the project was closed. Set it again.") -> None:
@@ -412,6 +589,11 @@ def start_delayed_now(context) -> str:
     """Do what Start queue does, now; the delay ends either way. Returns the queue folder."""
     cancel_delay()
     return start(context)
+
+
+def delay_waits_for_run(scene) -> bool:
+    """The delayed start is due but another render of this project is still going: it starts when that ends."""
+    return delay_pending() and delay_remaining() <= 0 and is_running(scene)
 
 
 def _redraw() -> None:
@@ -434,6 +616,9 @@ def _delay_tick():
         _redraw()
         return min(_DELAY_TICK, max(0.2, _DELAY["when"] - time.time()))
     scene = bpy.context.scene
+    if is_running(scene):                            # e.g. a Time test started during the day: start after it
+        _redraw()
+        return _DELAY_TICK / 3
     try:
         qdir = start_delayed_now(bpy.context)
         scene.fresing.last_message = f"Queue started on time ({qdir})"
@@ -500,17 +685,39 @@ def skipped(qdir: str, job_id: str) -> bool:
     return bool(qdir) and os.path.exists(os.path.join(qdir, f"skip_{job_id}"))
 
 
+TIDY_AFTER = 24 * 3600                       # a queue folder untouched this long is certainly not running
+
+
+def _finished(qd: str) -> bool:
+    """May this queue folder's project copy go? Only when its runner has ended: the status says so, or the runner
+    was on this PC and is gone, or nothing was written for a day. A queue that has just started (no status yet) or
+    runs on a colleague's PC from the same shared folder is kept (0068 row 2)."""
+    if time.time() - _last_write(qd) > TIDY_AFTER:
+        return True
+    st = read_status(qd)
+    if not st:
+        return False                         # just started (or the status is being written)
+    if not st.get("running"):
+        return True
+    host = st.get("host", "")
+    if host and host != _host():
+        return False
+    pid = int(st.get("pid", 0) or 0)
+    if not host and not any(r["dir"] == qd for r in _RUNS.values()):
+        return False                         # an older runner on an unknown PC: wait for the day to pass
+    return not _pid_alive_os(pid) and not (_PROCS.get(pid) is not None and _PROCS[pid].poll() is None)
+
+
 def _tidy_old_queues(root: str) -> None:
-    """Remove project copies left by queues that were killed (they can be big on a share)."""
+    """Remove project copies left by queues that have ended (they can be big on a share)."""
     if not os.path.isdir(root):
         return
     for name in os.listdir(root):
         qd = os.path.join(root, name)
         if not os.path.isdir(qd):
             continue
-        st = read_status(qd)
-        if st.get("running") and _pid_alive_os(int(st.get("pid", 0))):
-            continue                         # a queue that is really still running
+        if not _finished(qd):
+            continue                         # a queue that may still be running
         for f in os.listdir(qd):
             if f.endswith(".blend") or f.endswith(".blend1"):
                 try:
@@ -545,7 +752,9 @@ def kill(scene) -> None:
                 os.kill(pid, 15)
     except Exception:
         pass
-    _RUNTIME["killed"] = True
+    run = _run_of(scene)
+    if run is not None:                      # only this project's run: another project's queue keeps going
+        run["killed"] = True
     for j in s.queue:
         if j.status in ("RUNNING", "WAITING"):
             j.status = "STOPPED"
@@ -569,6 +778,16 @@ def log_tail(qdir: str, lines: int = 6) -> str:
         return ""
 
 
+def _done_note(qdir: str, job_id: str) -> dict:
+    """The runner writes done_<job>.json when a job has finished: a lost last status write cannot turn it into
+    'Failed'."""
+    try:
+        with open(os.path.join(qdir, f"done_{job_id}.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
 def _queued_jobs(qdir: str) -> list[dict]:
     try:
         with open(os.path.join(qdir, "queue.json"), encoding="utf-8") as fh:
@@ -583,7 +802,8 @@ def sync(scene) -> bool:
     pid, qdir = current(scene)
     if not qdir:
         return False
-    if _RUNTIME["pid"] and _ours(scene):     # after an undo the scene may have lost these
+    run = _run_of(scene)
+    if run is not None and run["pid"]:      # after an undo (or a reopen) the scene may have lost these
         s.queue_pid, s.queue_dir = pid, qdir
     st = read_status(qdir)
     jobs_info = st.get("jobs", {})
@@ -595,12 +815,17 @@ def sync(scene) -> bool:
             j.job_id, j.kind, j.label = qj["id"], qj["kind"], qj.get("label", "")
             j.shot, j.animation, j.camera, j.quality = qj["shot"], qj["animation"], qj["camera"], qj["quality"]
             j.watermark = bool(qj.get("watermark"))
-    killed = _RUNTIME["killed"]
+    killed = bool(run and run["dir"] == qdir and run["killed"])
     for j in s.queue:
         info = jobs_info.get(j.job_id)
         if not info:
             continue
         status = info.get("status", j.status)
+        done = _done_note(qdir, j.job_id)
+        if done:                             # the runner's own note per finished job (0068 row 19h)
+            info = dict(info, status="DONE", progress=100.0, message=done.get("message", ""),
+                        output=done.get("output", ""))
+            status = "DONE"
         if killed and status in ("RUNNING", "WAITING"):
             status = "STOPPED"
         j.status = status
@@ -617,8 +842,9 @@ def sync(scene) -> bool:
                 pass
         if pid:
             s.queue_pid = 0
-            if pid == _RUNTIME["pid"]:
-                _RUNTIME["pid"] = 0
+            for r in _RUNS.values():
+                if r["pid"] == pid:
+                    r["pid"] = 0
             ids = {qj["id"] for qj in queued}
             for j in s.queue:
                 if j.status == "RUNNING" or (j.status == "WAITING" and j.job_id in ids

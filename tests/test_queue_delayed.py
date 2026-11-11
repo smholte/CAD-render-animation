@@ -28,7 +28,7 @@ def addon():
 def scene(tmp_path, monkeypatch):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
-    monkeypatch.setattr(queue, "_RUNTIME", {"pid": 0, "dir": "", "killed": False, "project": ""})
+    monkeypatch.setattr(queue, "_RUNS", {})
     monkeypatch.setattr(queue, "_DELAY", {"when": 0.0, "project": "", "note": ""})
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
@@ -88,13 +88,16 @@ def test_start_now_starts_at_once(scene):
     assert scene.fresing.queue_dir
 
 
-def test_queue_already_running_gives_a_note(scene, monkeypatch):
+def test_a_running_render_makes_it_wait(scene, monkeypatch):
+    """0070: at the time, a render still going (a Time test of the day) is waited for, then the queue starts."""
     add_still(scene)
     bpy.ops.fresing.queue_start_later(seconds=0)
     monkeypatch.setattr(queue, "is_running", lambda sc: True)
-    queue._delay_tick()
-    assert not queue.delay_pending()
-    assert "already running" in scene.fresing.last_message
+    assert queue._delay_tick() > 0
+    assert queue.delay_pending() and queue.delay_waits_for_run(scene)
+    monkeypatch.setattr(queue, "is_running", lambda sc: False)
+    assert queue._delay_tick() is None
+    assert not queue.delay_pending() and "on time" in scene.fresing.last_message
 
 
 def test_closing_the_project_clears_it(scene):

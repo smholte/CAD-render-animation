@@ -46,19 +46,37 @@ def main() -> int:
 
     with open(os.path.join(qdir, "queue.json"), encoding="utf-8") as fh:
         q = json.load(fh)
-    status = {"pid": os.getpid(), "running": True, "started": time.time(), "jobs": {}}
+    import platform
+    status = {"pid": os.getpid(), "host": platform.node(), "running": True, "started": time.time(), "jobs": {}}
     for job in q["jobs"]:
         status["jobs"][job["id"]] = {"status": "WAITING", "progress": 0.0, "message": "Waiting", "output": ""}
 
-    def write():
+    def write(tries=5):
+        """``tries`` x 0.2 s while the app reads the file (Windows refuses the replace then). The last write (the
+        queue has ended) tries for a minute: a lost one left 'running' and the app failed finished jobs."""
         tmp = os.path.join(qdir, "status.json.tmp")
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(status, fh, indent=1)
-        for _ in range(5):
+        for _ in range(tries):
             try:
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    json.dump(status, fh, indent=1)
                 os.replace(tmp, os.path.join(qdir, "status.json"))
-                return
+                return True
             except PermissionError:          # Windows: the app is reading it right now
+                time.sleep(0.2)
+            except OSError:                  # a share that is away for a moment
+                time.sleep(0.2)
+        return False
+
+    def note_done(job_id, out, msg):
+        """done_<job>.json: the app trusts it even when a later status write is lost (0068 row 19h)."""
+        path = os.path.join(qdir, f"done_{job_id}.json")
+        for _ in range(25):
+            try:
+                with open(path + ".tmp", "w", encoding="utf-8") as fh:
+                    json.dump({"output": out, "message": msg}, fh)
+                os.replace(path + ".tmp", path)
+                return
+            except OSError:
                 time.sleep(0.2)
 
     def should_stop() -> bool:
@@ -92,6 +110,7 @@ def main() -> int:
             res = queue.run_job(bpy.context.scene, job, progress, should_stop)
             out, msg = res if isinstance(res, tuple) else (res, "Saved " + os.path.basename(res))
             st.update(status="DONE", progress=100.0, message=msg, output=out)
+            note_done(job["id"], out, msg)
         except queue.Stopped:
             st.update(status="STOPPED", message="Stopped (start the queue again to continue)")
         except Exception as exc:
@@ -100,7 +119,7 @@ def main() -> int:
         write()
     status["running"] = False
     status["finished"] = time.time()
-    write()
+    write(tries=300)
     try:                                     # the copy of the project is not needed any more
         bpy.ops.wm.read_homefile(use_empty=True)
         os.remove(q["blend"])
