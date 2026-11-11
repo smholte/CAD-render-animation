@@ -601,6 +601,37 @@ def gauge_of(scene, prog, n: int) -> float:
     return tcore.gauge_length(gcode.tool_spec(scene, prog, n))
 
 
+def earlier_keys(vkeys) -> bool:
+    """Whether an earlier program step of this build keyed tool copies."""
+    return any(o is not None and o.get(gcode.TAG) == "tool" for o in (bpy.data.objects.get(n) for n in vkeys))
+
+
+def start_of_step(scene, mach, f0, vkeys, merge) -> bool:
+    """A later program step of the same build starts (task 0071, bug hunt 0068 rows 6 + 7). Every program starts
+    with its start tool in the spindle and the other tools in their pockets: what an earlier step left in the
+    spindle, on the arm, in the hand or in another pot goes back at the step's first frame (the step's own keys then
+    put its start tool in, at the same frame). Returns whether an earlier step keyed tools."""
+    c = settings(scene)
+    arm = c.changer == "ARM"
+    parts = {t.obj.name for t in c.tools if t.obj is not None and t.obj is not mach.tool}
+    later = False
+    for name, keys in vkeys.items():
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            continue
+        if ob.get(gcode.TAG) == "tool":
+            hidden = arm if "fr_cnc_pocket" in ob else True     # in its pocket (the arm's step shows its own pots)
+        elif name in parts:
+            hidden = arm                                         # a CAD tool in the carousel (the arm: copies)
+        else:
+            continue
+        later = True
+        merge(keys, f0, hidden, "CONSTANT")
+    if later and mach.tool.name in vkeys:
+        merge(vkeys[mach.tool.name], f0, False, "CONSTANT")
+    return later
+
+
 def tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge, name,
               offsets=None) -> None:
     """Visibility keys of the tools and the changer's joints, for one step."""
@@ -831,7 +862,8 @@ def captions(scene, anim) -> list[tuple[str, float, float]]:
         except gcode.SetupError:
             mach = None
         try:
-            prog, _n = gcode.read_program(scene, b, mach, start=gcode.start_point(mach))
+            st, rot = gcode.step_start_of(b, mach)             # where the last Build started it (task 0071)
+            prog, _n = gcode.read_program(scene, b, mach, start=st, rot=rot)
         except Exception:
             continue
         from ..core import gcode as core

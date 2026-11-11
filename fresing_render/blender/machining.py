@@ -70,12 +70,12 @@ def _in_scene(scene, ob) -> bool:
 
 
 def _tool_copies(scene) -> dict:
-    """``gcode.copies``, once per frame while a frame is shown."""
+    """``gcode.copies_all`` ({T: [copies]}), once per frame while a frame is shown."""
     from . import gcode
     if "in_scene" not in _FRAME:
-        return gcode.copies(scene)
+        return gcode.copies_all(scene)
     if "copies" not in _FRAME:
-        _FRAME["copies"] = gcode.copies(scene)
+        _FRAME["copies"] = gcode.copies_all(scene)
     return _FRAME["copies"]
 
 
@@ -847,7 +847,7 @@ def _copies(scene) -> list:
     spindle = gcode.settings(scene).tool
     if spindle is None or not any(ob is spindle for _it, ob in bits(scene)):
         return []
-    return [ob for _n, ob in sorted(_tool_copies(scene).items()) if _in_scene(scene, ob)]
+    return [ob for _n, obs in sorted(_tool_copies(scene).items()) for ob in obs if _in_scene(scene, ob)]
 
 
 def _tip_of(it):
@@ -892,7 +892,7 @@ def cut_items(scene) -> list:
     from . import gcode, tools
     sched = gcode.schedule(scene)
     spindle = gcode.settings(scene).tool
-    cps = {n: ob for n, ob in _tool_copies(scene).items() if _in_scene(scene, ob)} if sched else {}
+    cps = {n: [o for o in obs if _in_scene(scene, o)] for n, obs in _tool_copies(scene).items()} if sched else {}
     out = []
     for it, ob in bits(scene):
         p = _path(it)
@@ -912,8 +912,8 @@ def cut_items(scene) -> list:
             if b <= a:
                 continue
             src, spec = ob, None
-            if n and n in cps:
-                src = cps[n]
+            if n and cps.get(n):
+                src = gcode.copy_in_spindle(cps[n], a, b)         # the copy shown then (task 0071)
                 spec = _spec_of_copy(src)
                 path = _path(src)
             else:

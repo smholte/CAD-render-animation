@@ -613,6 +613,7 @@ class _Bake:
         self.start = start
         numbers = sorted({c.tool for c in sch.changes if c.tool} | {n for _s, n, _t, _d in sch.tool_events if n}
                          | {n for n in sch.pocket_table} | ({start} if start else set()))
+        self.later = toolchange.earlier_keys(vkeys)     # a second program step of the build (task 0071)
         self.show, self.away, w = gcode.tool_objects(scene, mach, prog, numbers, offsets)
         warnings += [f"'{name}': {x}" for x in w]
         self.spindle = mach.tool
@@ -644,6 +645,14 @@ class _Bake:
             self.ws[n] = world_at(self.scene, self.in_spindle(n), vals)
         return self.ws[n]
 
+    def _made(self, tag: str, n: int, parent, extra: tuple = ()):
+        """A copy an earlier program step of this build made (task 0071: one per tool and pot, or arm side)."""
+        for o in bpy.data.objects:
+            if o.get(gcode.TAG) == "tool" and o.get(tag) == n and o.parent is parent and \
+                    all(o.get(k) == v for k, v in extra):
+                return o
+        return None
+
     def pot_copy(self, n, pocket, t):
         hit = self.pots.get((n, pocket))
         if hit is not None:
@@ -651,6 +660,10 @@ class _Bake:
         p = self.rows.get(pocket)
         if p is None or p.obj is None:
             return None
+        hit = self._made("fr_cnc_pocket", n, p.obj) if self.later else None
+        if hit is not None:
+            self.pots[(n, pocket)] = hit
+            return hit
         pw = world_at(self.scene, p.obj, station_values(self.scene, p, self.values.get(pocket), True))
         local = pw.inverted() @ self.rot @ self.w_spindle(n, t)
         ob = _copy(f"FR tool T{n} pot {pocket}", self.in_spindle(n), p.obj, local, self.col, "fr_cnc_pocket", n)
@@ -661,6 +674,10 @@ class _Bake:
     def arm_copy(self, n, side, theta, t):
         k = (side + int(round((theta - float(self.c.arm_grip)) / math.pi))) % 2
         hit = self.arms.get((n, k))
+        if hit is None and self.later:
+            hit = self._made("fr_cnc_carry", n, self.turn.motion, (("fr_arm_side", k),))
+            if hit is not None:
+                self.arms[(n, k)] = hit
         if hit is not None:
             return hit
         w = self.w_spindle(n, t)
@@ -668,6 +685,7 @@ class _Bake:
             w = self.rot @ w
         local = arm_at(self.scene, self.turn, self.slide, theta).inverted() @ w
         ob = _copy(f"FR tool T{n} on arm", self.in_spindle(n), self.turn.motion, local, self.col, "fr_cnc_carry", n)
+        ob["fr_arm_side"] = k
         ob.hide_render = ob.hide_viewport = True
         self.arms[(n, k)] = ob
         return ob
@@ -702,7 +720,8 @@ class _Bake:
                 continue
             cp = self.pot_copy(n, pk, t_first)
             if cp is not None:
-                cp.hide_render = cp.hide_viewport = False
+                if cp.name not in self.vkeys:          # in its pot from the first frame (a later step's new copy:
+                    self.vkeys[cp.name] = [(1, self.later, "CONSTANT", "AUTO")]       # from the step's start)
                 self.key(cp, 0.0, False)
         rest = float(c.arm_rest)
         grip = float(c.arm_grip)
