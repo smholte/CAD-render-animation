@@ -1,6 +1,6 @@
 # 0086 – Cutaway / section view (study 0069 #1)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0086-cutaway` (or the session's own branch)
+**Who:** worker · **Status:** running · **Branch:** `claude/serene-noether-vmu9y5`
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study; the owner can change it)
 **Lane:** new **Cutaway lane** – new files `blender/section.py`, `blender/ops_section.py`, `blender/ui_section.py` (a
 sub-panel of 3 Looks in its own file), `core/section.py` if useful (no Blender); the material hook next to the Fade
