@@ -320,7 +320,8 @@ def Matrix_translation(x, y, z):
 # the test tour's projects: no false clashes (task 0067)
 # ---------------------------------------------------------------------------
 
-TOUR_SECONDS = 300          # time box of the whole check below (build ~40 s, checks ~70 s on a 4-core machine)
+TOUR_SECONDS = 360          # time box of the whole check below (build ~40 s, checks ~70 s on a 4-core machine; the
+                            # toolpath set's milling program adds ~2 min, task 0029)
 
 
 def test_every_tour_animation_has_no_clash(tmp_path):

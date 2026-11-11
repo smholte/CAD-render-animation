@@ -1294,6 +1294,7 @@ def build_toolpath(b: Build):
     _a, blk = toolpath.step(sc)
     blk.gcode_fit = 10.0
     machining.settings(sc).chips = "NONE"
+    machining.settings(sc).detail = "FAST"         # (the clash check of every tour animation reads it per moment)
     _close_camera(b, Vector((0.0, 0.0, 0.07)), 0.22, "Tour toolpath")
     a.start_shot = _shot(b, "Tour: toolpath").name
 
