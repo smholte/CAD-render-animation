@@ -720,6 +720,7 @@ def default_place(scene, cut):
     """(handle's world matrix, box size, plane size) for ``cut`` through the middle of what it cuts, taking away the
     side that faces the camera."""
     from . import logic
+    bpy.context.view_layer.update()              # a camera or a part moved just now: its world place
     root = cut_root(scene, cut)
     parts = target_parts(scene, cut, logic.Tree(scene))
     lo, hi = bounds(parts) or (Vector((-0.5,) * 3), Vector((0.5,) * 3))

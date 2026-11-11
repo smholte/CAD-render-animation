@@ -494,3 +494,38 @@ def test_operators_and_decals_go_along():
     cut = sc.fresing.cuts[0]
     cut.name = "Housing cut"                                           # the joint follows the name
     assert section.joint_of(sc, cut).name == "Housing cut" and cut.joint == "Housing cut"
+
+
+def test_milled_cut_faces_made_later_are_cut_too(tmp_path):
+    """The milling code makes the block's cut-face material when it cuts: a render (and the render queue) wraps it
+    without the milling files knowing about cuts."""
+    from fresing_render.blender import tour
+    sc = _fresh(os.path.join(DATA, "test_mill.step"))
+    tour.build_mill(tour.Build(sc, str(tmp_path), "9.9.9"))
+    stock = ob(sc, "STOCK 200x200x40")
+    sc.frame_set(1)
+    cut = section.add(sc, [("PART", stock, "")], "BOX")
+    sc.frame_set(sc.frame_end)
+    tour._milled(sc)
+    mats = section._materials(stock)
+    assert any(m.get("fr_material") == "steel_machined" for m in mats)
+    section._on_render_init(sc)                                         # what a picture or the queue does first
+    assert all(section.is_wrapped(m) for m in section._materials(stock))
+    assert stock[section.ATTR + cut.key] == 1.0
+
+
+def test_new_cut_faces_a_camera_made_just_before(scene):
+    """A camera made in the same step has no world place until the scene updates: the cut must still face it (the
+    box went to the far quarter of the demo vessel)."""
+    frame = ob(scene, "FRAME")
+    _camera(scene, (3.0, 2.0, 1.0), (0.5, 0.3, 0.0), 1.0)                 # +X +Y of the frame
+    cut = section.add(scene, [("PART", frame, "")], "BOX")
+    _update()
+    c = cut.shape.matrix_world.translation
+    assert c.x > 0.5 and c.y > 0.3, tuple(c)
+    section.place_default(scene, cut)
+    cut.shape_kind = "PLANE"
+    section.place_default(scene, cut)
+    _update()
+    _o, d = joints.axis_world(section.joint_of(scene, cut))
+    assert (d - Vector((1, 0, 0))).length < 1e-6                              # the +X half (towards it) goes
