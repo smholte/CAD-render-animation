@@ -546,6 +546,7 @@ if MODE == "panels":
         ("panel_3_schemes", [("FRESING_PT_schemes", False, True)]),
         ("panel_3_faces", [("FRESING_PT_faces", False, True)]),
         ("panel_3_decals", [("FRESING_PT_decals", False, True)]),
+        ("panel_3_xray", [("FRESING_PT_xray", False, True)]),             # the cover in X-ray (task 0073)
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_4_coupling", [("FRESING_PT_motion", False, True)]),     # a wheel follows the trolley
@@ -558,6 +559,8 @@ if MODE == "panels":
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
         ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
+        ("panel_6_fade", [("FRESING_PT_animation", False, True)]),      # a Fade out step to X-ray (task 0073)
+        ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
         # the whole side panel with every section closed: the headers show the state of each
         ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_import", "FRESING_PT_structure",
@@ -622,6 +625,30 @@ if MODE == "panels":
                 b.kind, b.joint, b.start, b.duration, b.speed_rpm = "MOTOR", "Winch drum", 5.0, 5.0, 12.0
                 b.easing, b.ramp = "SMOOTH", 0.5
                 a.blocks_index = len(a.blocks) - 1
+            elif name == "panel_3_xray":                # the cover in X-ray, the cover clicked
+                mod("blender.fade").apply_look(sc, [ob("COVER")])
+                sc.fresing.pick_mode = "PART"
+                select_only(ob("COVER"))
+            elif name in ("panel_6_fade", "panel_6_trails"):
+                fade = mod("blender.fade")
+                fade.remove_look(sc, fade.xray_parts(sc))
+                if not sc.fresing.animations:
+                    a = sc.fresing.animations.add()
+                    a.name = "Animation"
+                a = sc.fresing.animations[0]
+                c = ob("COVER")
+                if name == "panel_6_fade":
+                    b = a.blocks.add()
+                    b.kind, b.start, b.duration = "FADE_OUT", 1.0, 1.5
+                    b.target_uid, b.target_name = c["fr_uid"], "COVER"
+                    b.fade_xray = True
+                    a.blocks_index = len(a.blocks) - 1
+                else:
+                    trails = mod("blender.trails")
+                    t = trails.add(sc, ob("TROLLEY"))
+                    t.animation = a.name
+                    mod("blender.animation").bake(sc, a)
+                    sc.frame_set(1)
             elif name == "panel_5_surroundings":        # a built-in surrounding: its settings below the choice
                 sc.fresing.background = "DECK"
             elif name == "panel_5_camera":              # strong blur, sharp at the trolley (picked on the model)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.59 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
+## 0.2.60 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
 
 Import
 - **Big round parts stay smooth:** carousels, drums and slewing rings get their facets in millimetres. The flat spots
@@ -21,6 +21,25 @@ Render queue
 - **Every paint scheme** (7 Render queue): tick paint schemes, click **Animation** or **Current view**: one job per
   scheme, each file named after its scheme. The scheme is only set in the background render; your project keeps its
   colours. Works with **Start later** for an overnight run.
+
+## 0.2.59 – 11 Nov 2026 – fade, X-ray and trail lines (task 0073)
+
+6 Animation
+- **New:** steps **Fade out** and **Fade in**: a subassembly (e.g. a housing) fades away over the step's duration
+  and comes back later. **Stop at** keeps a faint ghost (e.g. 20 %); at 0 % the parts are hidden after the fade, so
+  they cost no render time and cast no shadow. **Fade to X-ray** turns them see-through with glowing edges instead.
+  Each part fades on its own (other parts with the same material stay), logos and stickers fade with their part.
+  Works in Cycles and EEVEE, in the view (rendered), pictures, videos and the render queue.
+- **New:** **Trail lines**: a line that draws the path of a point of a part – its origin, a clicked point or the
+  tool tip – as the animation plays (or the whole path at once). Colour, thickness, in renders on/off; several
+  per project. It is drawn again at every Build.
+
+3 Looks
+- **New:** **X-ray look**: give a subassembly, a part or a whole material group a see-through look with glowing
+  edges (colour and strength to choose), for stills and videos.
+
+Test tour and PC check
+- A new tour stop "Fade, X-ray and trail" and a PC check line "Fade to X-ray and a trail line".
 
 ## 0.2.58 – 11 Nov 2026 – clash check and decal fixes (task 0072)
 

@@ -917,7 +917,8 @@ class FRESING_OT_block_add(bpy.types.Operator):
     bl_label = "Add step"
     bl_options = {"REGISTER", "UNDO"}
 
-    kind: EnumProperty(items=[(k, {"SHOW": "Show subassembly", "HIDE": "Hide subassembly"}.get(k, label), desc,
+    kind: EnumProperty(items=[(k, {"SHOW": "Show subassembly", "HIDE": "Hide subassembly", "FADE_OUT": "Fade out subassembly",
+                                      "FADE_IN": "Fade in subassembly"}.get(k, label), desc,
                                icon, n) for k, label, desc, icon, n in props.BLOCK_KINDS])
 
     def execute(self, context):
@@ -930,7 +931,7 @@ class FRESING_OT_block_add(bpy.types.Operator):
         b = a.blocks.add()
         b.kind = self.kind
         b.start = round(prev_end, 2)
-        b.duration = 0.0 if self.kind in ("SHOW", "HIDE") else 2.0
+        b.duration = {"SHOW": 0.0, "HIDE": 0.0, "FADE_OUT": 1.0, "FADE_IN": 1.0}.get(self.kind, 2.0)
         if self.kind == "MOTOR":
             # the selected joint when it is a motor, else the first motor, else the selected joint
             j = _active_joint(context)
@@ -980,7 +981,7 @@ class FRESING_OT_block_add(bpy.types.Operator):
         elif self.kind == "CAMERA":
             b.camera = context.scene.camera if context.scene.camera and not context.scene.camera.get(
                 "fr_anim_camera") else None
-        elif self.kind in ("SHOW", "HIDE"):
+        elif self.kind in ("SHOW", "HIDE", "FADE_OUT", "FADE_IN"):
             ob = _target_subassembly(context)
             if ob is not None:
                 b.target_uid = ob.get(build.PROP_UID, ob.name)

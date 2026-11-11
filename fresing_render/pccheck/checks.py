@@ -1130,6 +1130,55 @@ def _cpu_still(ctx, scene, key, title, model_check=True, quality="draft"):
     return info
 
 
+@line("motion.fade", "Fade to X-ray and a trail line", "0.2.59",
+      what="The crane's cover fades to X-ray while the boom turns up and the trolley runs out; a line draws the "
+           "trolley's path. A frame half way is rendered small (processor, draft), and its time compared with the "
+           "same frame without the fade")
+def motion_fade(ctx):
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import animation, joints, render, tour
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    tour._boom_joint(scene)
+    trolley = _ob(scene, "TROLLEY.ASM")
+    joints.create(scene, "SLIDE", [trolley], trolley.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(scene, "BOOM.ASM"), name="Trolley")
+    a = s.animations.add()
+    a.name, a.tail, a.fps = tour.FADE_ANIM, 0.0, "25"
+    tour.fade_and_trail(scene, a)
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with trail line", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_fade(scene)
+    _small_output(s)
+    s.use_gpu = False
+    mid = 1 + round(1.25 * 25)                     # half way through the fade
+    times = {}
+    for key, fading in (("plain", False), ("fade", True)):
+        if not fading:
+            a.blocks[2].enabled = False
+            animation.bake(scene, a)
+        else:
+            a.blocks[2].enabled = True
+            animation.bake(scene, a)
+        scene.frame_set(mid)
+        path = os.path.join(ctx.work, f"fade_{key}.png")
+        t1 = time.time()
+        render.render_still(scene, s, "draft", filepath=path)
+        times[key] = time.time() - t1
+    ctx.picture(path, "fade", "Cover half way to X-ray, the trolley's trail (processor, draft)")
+    epath = os.path.join(ctx.work, "fade_eevee.png")
+    render.render_still(scene, s, "eevee", filepath=epath)            # the same frame in EEVEE
+    ctx.picture(epath, "fade_eevee", "Cover half way to X-ray (EEVEE)")
+    ctx.metric("render fading frame", times["fade"], "s")
+    ratio = times["fade"] / max(times["plain"], 1e-3)
+    bpy.context.view_layer.update()
+    return f"{note}; fading frame {times['fade']:.1f} s vs {times['plain']:.1f} s without ({ratio:.2f}x)"
+
+
 @line("scene.sea", "Surroundings: open sea", "0.2.12", what="The crane on the open sea (Simple), rendered small")
 def scene_sea(ctx):
     from ..blender import surroundings
@@ -1904,7 +1953,7 @@ def queue_frame_shown(ctx):
     return f"same picture as the view (difference {diff:.4f})"
 
 
-@line("queue.schemes", "Queued pictures in every paint scheme", "0.2.59", requires=("import.crane",),
+@line("queue.schemes", "Queued pictures in every paint scheme", "0.2.60", requires=("import.crane",),
       what="Every paint scheme (7 Render queue): the same view in two schemes, each file named after its scheme, "
            "the crane's yellow parts blue in the second; the open project keeps its colours")
 def queue_schemes(ctx):

@@ -211,25 +211,21 @@ jobs:
 
       - name: Virtual screen and screenshot tools
         run: |
-          pkgs="xvfb xauth imagemagick libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 \
+          PKGS="xvfb xauth imagemagick libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 \
             libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1"
-          opts="-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-          install() { sudo apt-get update -q $opts && sudo apt-get install -y -q --no-install-recommends $opts $pkgs; }
-          if ! install; then
-            # 11 Nov 2026 (task 0074): the runners could not resolve azure.archive.ubuntu.com nor archive.ubuntu.com
-            # for hours and every real-app job failed here. Try Ubuntu's main archive, then the runner image's own
-            # tools (ubuntu-24.04 ships Xvfb and ImageMagick); a library that is really missing fails the test later.
-            echo "::warning::the runner's apt mirror failed; trying archive.ubuntu.com"
+          sudo apt-get update -q
+          if ! sudo apt-get install -y -q --no-install-recommends $PKGS; then
+            # 11 Nov 2026: the runners could not resolve *.ubuntu.com (the mirror list and archive/security alike), so
+            # every package failed. Fall back to an independent Ubuntu mirror (the same signed packages) and retry
+            echo "::warning::the Ubuntu mirrors failed; trying mirrors.edge.kernel.org"
             for f in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
-              [ -f "$f" ] && sudo sed -i -e 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#' \
-                -e 's#http://azure.archive.ubuntu.com/ubuntu/#http://archive.ubuntu.com/ubuntu/#' "$f"
+              if [ -f "$f" ]; then
+                sudo sed -i -E \
+                  's#(mirror\+file:/etc/apt/apt-mirrors\.txt|https?://[a-z.]*ubuntu\.com/ubuntu/?)#http://mirrors.edge.kernel.org/ubuntu/#g' "$f"
+              fi
             done
-            if ! install; then
-              missing=""
-              for c in xvfb-run Xvfb xauth import convert; do command -v "$c" >/dev/null || missing="$missing $c"; done
-              if [ -n "$missing" ]; then echo "::error::apt unreachable and not on the runner:$missing"; exit 1; fi
-              echo "::warning::apt unreachable: using the Xvfb and ImageMagick already on the runner"
-            fi
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends $PKGS
           fi
 
       - name: "Real-app tests (group ${{ matrix.group.name }} - ${{ matrix.group.tests }})"
