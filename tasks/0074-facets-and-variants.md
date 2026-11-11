@@ -45,7 +45,7 @@ and 3 Looks panels, `trails.py`). Do not touch its parts of those files, nor mac
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 11 Nov 2026 · version 0.2.59 · branch `claude/festive-hopper-5bglo9`
+**Chat / date:** Claude Code on the web, 11 Nov 2026 · version 0.2.60 · branch `claude/festive-hopper-5bglo9`
 
 **What changed:**
 - `importer/step_reader.py`: `FACETS` per Detail and `mesh_params()`. A part whose relative gap could exceed the cap
@@ -89,7 +89,13 @@ and 3 Looks panels, `trails.py`). Do not touch its parts of those files, nor mac
   a hole moved), `tests/test_queue_schemes.py` (6: ticked/all jobs and names, current view sharing one hidden scene,
   each job's colours at render time, video names, queue.json + Start later, two real Cycles renders red vs blue);
   `test_faces`, `test_model_update`, `test_importer`, `test_step_meta`, queue tests, `test_tour` (45), PC-check lines
-  `import.crane` + `queue.schemes` locally OK. GitHub: RUNS_NOTE.
+  `import.crane` + `queue.schemes` locally OK. GitHub: 3 code runs. The first (16b9486) and the second (c2a9215) had every pytest group, the build
+  and the Windows install green, but all real-app jobs failed installing Xvfb/ImageMagick: the runners could not
+  resolve *.ubuntu.com for hours on 11 Nov (0073 hit the same). My workflow fallback (archive.ubuntu.com, then the
+  runner's own tools) did not help – ImageMagick is not on the runner image; the 7th re-run of c2a9215 went green once
+  the mirrors were back. Meanwhile 0073 released 0.2.59 with a kernel.org mirror fallback: merged main once, took
+  main's workflow, renumbered to 0.2.60, counts to 52 Full / 37 tour lines (both tasks added one), the tour test
+  allows up to 40 stops; the third run (merge commit) is the one main was fast-forwarded to.
 
 **What the owner sees on an existing project:** nothing until **Update to new revision…** (or a fresh import): the
 cache of version 5 is not reused, so the next import meshes again; after the update the big round parts are smooth
