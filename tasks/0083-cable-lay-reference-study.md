@@ -346,6 +346,21 @@ band ~0.10 × Ø wide, ~0.07 × Ø black between the two bands of a pair, one pa
 run **almost round the cable, ~15–20° off square to the axis** (a slow helix). The serving is matte, with a slight
 sheen where it is wet. No length marks are visible.
 
+**Public numbers of comparable spreads** (owner, 11 Nov: his references are recent cable-lay vessels with this layout and a
+modular cable-lay system of the same kind he is working on). From public trade-press pages; the names and links are
+**left out on purpose** (the owner's work and his clients' equipment do not belong in this public repository; the lead
+has them in the chat):
+- A ~123 m × 28 m DP2 cable-lay vessel: carousel **Ø 26 m outer, > 5,000 t**, **2 × 20 t** tensioners (listed as
+  vertical), a 170 t knuckle-boom crane.
+- A ~130 m × 28 m vessel of the same family: **two carousels (on and below deck), 8,000 t together**, can lay two
+  cables at once; inter-array cables of **1–1.5 km**, about **3 cables per 24 h**; at the tower end the cable end is
+  lowered with the **quadrant** and pulled into the tower.
+- A **modular 30 t cable-lay system**: **2 × 15 t tensioners**, **MBR 5 m**, a **50 t A&R winch**, cable **Ø 50–500 mm**,
+  a quadrant handling system that overboards the quadrant without a crane (it doubles as a joint-handling arm in
+  repairs). A motion-compensated version of such a system: line pull 35 t including dynamics, Ø 50–500 mm.
+So the demo model's sizes (Ø 24 m carousel, 2 tensioners, MBR 3.5 m at Ø 200, vessel ~124 m × 27 m) sit right in this
+range; for a "Ø 500 mm" demo the MBR of 5 m+ and 15–20 t tensioners are the numbers to use.
+
 ### Check against 0076 (0076 was finished on its branch while this ran; compared with its `params.py` and report)
 
 | # | 0076 has | Reference says | Suggested change (lead decides) |
@@ -419,7 +434,9 @@ sheen where it is wet. No length marks are visible.
 - Answered by the owner (11 Nov): one tensioner per side, the route, the quadrant sequence, the CPS run, the cable look,
   loading from the quay in the demo; the cable goes through **both** tensioners; the quadrant sequence is how the
   cable is **put into the sea** (its end lowered to the seabed), and the same steps backwards **pull it up again**.
-  Still open: which hosts the environment may open so a follow-up can read the full datasheets.
+  Datasheets: web search works from a web session, opening pages does not; a later task that needs a full datasheet asks
+  for its host when it needs it (the owner approves the network change then): royalihc.com, macartney.com,
+  azure.macartney.com, briggsmarine.com, swanhunter.com, jandenul.com.
 - The check against 0076 now has 16 rows. Rows 1, 2, 7 and 13–16 change the layout a lot: a follow-up task on the Demo
   models lane ("0076 b: deck re-layout") before 0077 is worth it (lead decides).
 - Not answered by public sources (estimates only): pad pitch, squeeze stroke, roller spacing, CPS dimensions, stripe
