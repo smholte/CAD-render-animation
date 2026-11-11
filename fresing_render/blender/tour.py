@@ -1286,7 +1286,7 @@ def build_toolpath(b: Build):
     _look("PRODUCT")
     toolpath.set_up_test_model(sc, detail="DRAFT")
     t = toolpath.settings(sc)                      # a coarse program, quick to cut and to check for clashes
-    t.scallop, t.step_down, t.stepover = 0.0002, 0.006, 70.0
+    t.scallop, t.step_down, t.stepover = 0.0005, 0.010, 90.0
     a = _animation(b, "Toolpath")
     sc.fresing.animations_index = list(sc.fresing.animations).index(a)
     out = toolpath.make(sc, b.file("Tour toolpath.ngc"))
