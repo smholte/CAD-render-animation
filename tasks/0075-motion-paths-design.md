@@ -239,3 +239,40 @@ The prototype's maths (tangents, belts, spooling, catenary with both edge cases)
 - Lane: put motion paths in the Flex parts lane after 0058 (as above), or a lane of its own that waits for 0058?
 - The importer keeps only the largest radius per axis. Task 1 reads the groove from the mesh (no cache change). Is a
   `CACHE_VERSION` bump to store torus radii worth it later (it would also help joint picking show the groove Ø)?
+
+---
+
+## Owner's answers and the lead's plan (11 Nov 2026, evening)
+
+**Owner's answers to the 10 questions:**
+1. First machine: the cable-lay spread – **carousel** usually (chute or quadrant at the stern, depending on the client).
+   Cable **Ø 50–500 mm**. Also the **quadrant, quadrant handling winch, quadrant tipping winches**, and **handling winches
+   that help the tensioners** when extra pull is needed.
+2. Hook blocks with several falls: not needed (none in years).
+3. Cable lay: **carousel** and **standalone storage carousels**; a drum rarely for cable lay, but standalone **drum/reel
+   winders** exist. Winches: normally **spiral groove** drums, now also **Lebus** for one client.
+4. Drum look: **spiral groove**, later **Lebus** grooving.
+5. Under water: a cut-away + clearer water, **with a slider to set the water clarity by hand**.
+6. Cable speed in m/min; lay speed about **10 m/min**.
+7. Tensioner pads: **separate parts**; a large chain with pads on it.
+8. Sheave and drum grooves: real grooves (default kept).
+9. Looks: **steel wire rope** = the typical winch wire look; **power cable** (laid / in the carousel) = **black with yellow
+   angled stripes**. The texture must visibly move along the path.
+10. The tensioner **squeezes** in the video.
+
+**No company CAD:** the owner cannot give his employer's models to an AI. Task **0076** makes an invented, generic
+cable-lay vessel spread (vessel, carousel + loading arm, cable route, two track tensioners with pad chains, chute,
+quadrant + handling/tipping winches, handling winches with spiral-groove and Lebus drums, CPS, route JSON, joint sheet).
+It replaces `test_cable_lay.step` above as the test model of every task below. Task **0077** makes the **demo project**
+from it (Help > Make demo project: joints, cameras, Open sea / own vessel, waves, an animation); every task below adds its
+part to that demo project and its own tour stop.
+
+**Plan (Flex parts lane after 0058; numbers reserved, briefs written when each turn comes):**
+| # | Task | Model · effort |
+| --- | --- | --- |
+| 0078 | Cable paths: one cable speed (m/min), cable along the route over rollers/sheaves/guide wheels, wrap side, groove from the mesh, rollers turn, **cable looks with moving texture** (steel wire rope; power cable black + yellow angled stripes), bake at Build (0058's module) | **Fable · High** |
+| 0079 | Tensioner tracks: chain of CAD pads round sprockets/idlers at cable speed, pads grip the cable, **squeeze** by the top-track joint/cylinders | Opus · High |
+| 0080 | Carousel spooling (coil layers, carousel turns, loading arm follows the layer), standalone storage carousel; drums: **spiral groove** + **Lebus**, reel winders; level wind/fleet angle | Opus · High |
+| 0081 | Cable into the sea: catenary that keeps its length, touch-down, **water clarity slider**, cut-away behind the stern, CPS on the cable; with study #4 vessel motion on waves if the owner wants both | Opus · High |
+| 0082 | Quadrant operations: cable end onto the quadrant, quadrant handling winch lowers it, tipping winches tip it over the stern, handling winches pulling with the tensioners (wire to a grip on the cable) | Opus · High |
+Order: 0078 → (0079 and 0080 side by side) → 0081 → 0082. 0077 can run before 0078 (new files; Help menu additive).
