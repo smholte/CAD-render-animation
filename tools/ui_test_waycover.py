@@ -1,6 +1,7 @@
-"""Real-app test, way covers (task 0034): pick the axis, click the parts of five sections (two of them of two
-parts), Add section x5, a part twice is refused, Make it, the axis dragged (the covers follow 100 mm per 500 mm),
-Flip, Remove section, save and open again, Remove way cover.
+"""Real-app test, way covers (task 0034, 0035): Add way cover, pick the axis, click the parts of five sections (two of
+them of two parts), Add section x5, a part twice is refused, the carriage mixed with another part is refused, Make it,
+the axis dragged (the covers follow 100 mm per 500 mm), Flip, Remove section, a second cover added and removed, save
+and open again, Remove this cover.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1800x1400x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -118,7 +119,7 @@ SECTIONS = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", 
 
 
 def cover():
-    return bpy.context.scene.fresing.waycover
+    return mod("blender.waycover").settings(bpy.context.scene)
 
 
 def min_x(o):
@@ -183,6 +184,8 @@ def s_axis():
     j = joints.create(sc, "SLIDE", [named("CARRIAGE")], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
     j.use_limits = True
     j.slide_min, j.slide_max = 0.0, 0.5
+    r = op("fresing.waycover_cover_add")
+    check("Add way cover: one cover in the list", r == {"FINISHED"} and len(sc.fresing.waycovers) == 1)
     cover().axis = "X axis"
     check("the axis is picked and accepted", mod("blender.waycover").axis_problem(sc) == "")
     r = op("fresing.waycover_read_total")
@@ -203,9 +206,9 @@ def s_sections():
     select([named("COVER.2"), named("COVER.4")])
     r = op("fresing.waycover_add")
     check("a part in a section already is refused", r == {"CANCELLED"} and len(c.sections) == 5, bpy.context.scene.fresing.last_message)
-    select([named("CARRIAGE")])
+    select([named("CARRIAGE"), named("BASE")])
     r = op("fresing.waycover_add")
-    check("the carriage (moved by the axis) is refused", r == {"CANCELLED"} and len(c.sections) == 5)
+    check("the carriage mixed with another part is refused", r == {"CANCELLED"} and len(c.sections) == 5)
     return 0.5
 
 
@@ -252,6 +255,12 @@ def s_flip():
     check("Remove section: four sections share the travel (125 mm for the first)", r == {"FINISHED"}
           and len(c.sections) == 4 and abs(got1 - 125) < 0.05, f"{got1:.2f}")
     check("the removed section's part is back in CAD", abs(min_x(named("COVER.2")) - rest[1]) < 2e-5)
+    sc = bpy.context.scene
+    r1 = op("fresing.waycover_cover_add")
+    two = len(sc.fresing.waycovers) == 2 and sc.fresing.waycovers_index == 1 and not len(cover().sections)
+    r2 = op("fresing.waycover_remove_all")
+    check("a second cover is added (empty, chosen) and removed again", r1 == r2 == {"FINISHED"} and two
+          and len(sc.fresing.waycovers) == 1 and len(cover().sections) == 4)
     open_panel()
     redraw()
     wiggle()
@@ -278,7 +287,7 @@ def s_reopened():
     check("reopened: axis, four sections, all made", c.axis == "X axis" and len(c.sections) == 4
           and all(wc.is_made(sc, s) for s in c.sections))
     r = op("fresing.waycover_remove_all")
-    check("Remove way cover: no sections, the axis stays", r == {"FINISHED"} and len(c.sections) == 0
+    check("Remove this cover: no cover left, the axis stays", r == {"FINISHED"} and len(sc.fresing.waycovers) == 0
           and sc.fresing.joints.get("X axis") is not None and len(sc.fresing.joints) == 1)
     shot("04_removed")
     return 0.5

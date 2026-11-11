@@ -37,6 +37,7 @@ FOUR_AXIS = os.path.join(DATA, "test_4axis.step")
 FIVE_AXIS = os.path.join(DATA, "test_5axis.step")
 WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
+WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
 
 LINES: list[Line] = []
@@ -866,6 +867,45 @@ def machining_waycover(ctx):
     return f"5 sections to {got[-1]:.1f} mm; way-cover model open: gaps {gaps[0]:.1f} mm"
 
 
+@line("machining.waycover_two", "Two way covers on one axis", "0.2.61", modes=(F,),
+      what="A cover each side of the carriage on one 500 mm axis, the plate next to the carriage bolted to it (the "
+           "carriage section): the left cover opens and the right one closes, section k by k/5 of the axis; a Build "
+           "gives no warning")
+def machining_waycover_two(ctx):
+    from mathutils import Vector
+
+    from ..blender import animation, joints, waycover
+    scene = ctx.fresh(WAYCOVER_TWO)
+
+    def min_x(o):
+        return min((o.matrix_world @ Vector(c)).x for c in o.bound_box)
+
+    rest = {f"{s}{k}": min_x(_ob(scene, f"COVER.{s}.{k}")) for s in "LR" for k in range(1, 6)}
+    covers = waycover.set_up_test_model(scene, carriage=True)
+    _check(len(covers) == 2 and all(waycover.is_made(scene, x) for c in covers for x in c.sections),
+           "the two covers were not made")
+    _check(all(c.sections[4].carriage for c in covers), "the sections next to the carriage are not carriage sections")
+    worst = 0.0
+    for axis in (0.5, 0.2):
+        joints.set_value(joints.find(scene, "X axis"), axis)
+        _update()
+        _update()
+        for key, r in rest.items():
+            k = int(key[1:])
+            mm = (min_x(_ob(scene, f"COVER.{key[0]}.{k}")) - r) * 1000.0
+            worst = max(worst, abs(mm - axis * 1000.0 * k / 5))
+            _check(abs(mm - axis * 1000.0 * k / 5) < 0.05,
+                   f"section {k} of the {'left' if key[0] == 'L' else 'right'} cover moved {mm:.2f} mm, not "
+                   f"{axis * 1000.0 * k / 5:.1f} mm")
+    a = scene.fresing.animations.add()
+    a.name, a.fps = "Covers", "25"
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.use_from, b.to_dist = "JOINT", "X axis", 0, 2, False, 0.0
+    res = animation.bake(scene, a)
+    _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    return f"2 covers, 10 sections, worst {worst:.3f} mm off; no warning at Build"
+
+
 @line("animation.clash", "Clash check: parts that run into each other", "0.2.53",
       what="An arm comes down onto another one (6.0 mm deep at the end): the check finds that pair, its frames and "
            "depth; an "
@@ -1179,7 +1219,7 @@ def motion_fade(ctx):
     return f"{note}; fading frame {times['fade']:.1f} s vs {times['plain']:.1f} s without ({ratio:.2f}x)"
 
 
-@line("motion.hover", "Hover highlight when picking an axis", "0.2.61",
+@line("motion.hover", "Hover highlight when picking an axis", "0.2.62",
       what="20 spots on the test crane (holes, shafts, flat faces) worked out as the mouse would: the face that lights "
            "up is the CAD face the click then uses, with the same axis; the time per mouse move")
 def motion_hover(ctx):

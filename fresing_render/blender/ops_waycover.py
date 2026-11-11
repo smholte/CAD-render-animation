@@ -1,4 +1,4 @@
-"""Operators for way covers (4 Motion > Way covers, task 0034)."""
+"""Operators for way covers (4 Motion > Way covers, task 0034; several covers: task 0035)."""
 
 from __future__ import annotations
 
@@ -19,13 +19,15 @@ class _Op:
 
 class FRESING_OT_waycover_add(_Op, bpy.types.Operator):
     """Makes the parts you clicked one section of the way cover. Click all parts of the section (any number
-    of parts or subassemblies), start at the fixed end and work towards the moving end. Then press Make it"""
+    of parts or subassemblies), start at the fixed end and work towards the moving end. Parts the axis moves
+    itself (the plate bolted to the carriage) may come last: they become the carriage section. Then press Make it"""
 
     bl_idname = "fresing.waycover_add"
     bl_label = "Add section"
 
     def execute(self, context):
         movers = selected_movers(context)
+        waycover.ensure_cover(context.scene)
         try:
             sec = waycover.add_section(context.scene, movers)
         except RuntimeError as exc:
@@ -43,6 +45,7 @@ class FRESING_OT_waycover_remove(_Op, bpy.types.Operator):
     bl_label = "Remove section"
 
     def execute(self, context):
+        waycover.migrate(context.scene)
         c = waycover.settings(context.scene)
         if not c.sections:
             return {"CANCELLED"}
@@ -52,7 +55,7 @@ class FRESING_OT_waycover_remove(_Op, bpy.types.Operator):
 
 class FRESING_OT_waycover_move(_Op, bpy.types.Operator):
     """Moves the chosen section one place towards the fixed end or the moving end. The order decides how far
-    each section slides"""
+    each section slides. The carriage section always stays last"""
 
     bl_idname = "fresing.waycover_move"
     bl_label = "Move section"
@@ -60,8 +63,12 @@ class FRESING_OT_waycover_move(_Op, bpy.types.Operator):
     direction: IntProperty(default=1)
 
     def execute(self, context):
+        waycover.migrate(context.scene)
         c = waycover.settings(context.scene)
-        waycover.move_section(context.scene, c.sections_index, self.direction)
+        reason = waycover.move_section(context.scene, c.sections_index, self.direction)
+        if reason:
+            self.report({"WARNING"}, reason)
+            return {"CANCELLED"}
         return {"FINISHED"}
 
 
@@ -99,6 +106,7 @@ class FRESING_OT_waycover_read_total(_Op, bpy.types.Operator):
     bl_label = "Read from the axis"
 
     def execute(self, context):
+        waycover.migrate(context.scene)
         reason = waycover.read_total(context.scene)
         if reason:
             self.report({"WARNING"}, reason)
@@ -115,6 +123,7 @@ class FRESING_OT_waycover_make(_Op, bpy.types.Operator):
     bl_label = "Make it"
 
     def execute(self, context):
+        waycover.migrate(context.scene)
         try:
             built, problems = waycover.make(context.scene)
         except RuntimeError as exc:
@@ -128,15 +137,32 @@ class FRESING_OT_waycover_make(_Op, bpy.types.Operator):
 
 
 class FRESING_OT_waycover_remove_all(_Op, bpy.types.Operator):
-    """Removes the way cover: the section joints it made go and the parts return to their CAD place. The axis
-    joint and everything else stay as they are"""
+    """Removes the chosen way cover from the list: the section joints it made go and its parts return to their
+    CAD place. The axis joint, the carriage and the other covers stay as they are"""
 
     bl_idname = "fresing.waycover_remove_all"
-    bl_label = "Remove way cover"
+    bl_label = "Remove this cover"
 
     def execute(self, context):
-        n = waycover.remove_all(context.scene)
-        self.report({"INFO"}, f"Way cover removed ({n} section{'s' if n != 1 else ''})")
+        waycover.migrate(context.scene)
+        if not len(context.scene.fresing.waycovers):
+            return {"CANCELLED"}
+        name = waycover.settings(context.scene).name
+        n = waycover.remove_cover(context.scene)
+        self.report({"INFO"}, f"Way cover '{name}' removed ({n} section{'s' if n != 1 else ''})")
+        return {"FINISHED"}
+
+
+class FRESING_OT_waycover_cover_add(_Op, bpy.types.Operator):
+    """Adds a new way cover to the list, for example the cover on the other side of the table or one on another
+    axis. Then pick its axis and add its sections below"""
+
+    bl_idname = "fresing.waycover_cover_add"
+    bl_label = "Add way cover"
+
+    def execute(self, context):
+        c = waycover.add_cover(context.scene)
+        self.report({"INFO"}, f"'{c.name}' added: pick its axis, then add its sections")
         return {"FINISHED"}
 
 
@@ -152,6 +178,7 @@ class FRESING_OT_waycover_axis_from_selection(_Op, bpy.types.Operator):
         if not selected_movers(context):
             self.report({"WARNING"}, "First click the carriage: the part that the axis moves")
             return {"CANCELLED"}
+        waycover.ensure_cover(context.scene)
         bpy.ops.fresing.joint_add("INVOKE_DEFAULT", kind="SLIDE")
         _watch_new_joint(context.scene, before)
         return {"FINISHED"}
@@ -178,4 +205,4 @@ def _watch_new_joint(scene, before: set) -> None:
 
 CLASSES = (FRESING_OT_waycover_add, FRESING_OT_waycover_remove, FRESING_OT_waycover_move,
            FRESING_OT_waycover_select, FRESING_OT_waycover_read_total, FRESING_OT_waycover_make,
-           FRESING_OT_waycover_remove_all, FRESING_OT_waycover_axis_from_selection)
+           FRESING_OT_waycover_remove_all, FRESING_OT_waycover_cover_add, FRESING_OT_waycover_axis_from_selection)

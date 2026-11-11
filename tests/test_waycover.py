@@ -204,8 +204,8 @@ def test_two_sections_cannot_share_a_part_and_followers_are_refused(scene):
     joints.set_follows(scene, other, "X axis", ratio=0.3)
     with pytest.raises(RuntimeError, match="follows 'X axis'"):
         waycover.add_section(scene, [ob(scene, "COVER.4")])
-    with pytest.raises(RuntimeError, match="carriage|axis joint"):
-        waycover.add_section(scene, [ob(scene, "CARRIAGE")])
+    with pytest.raises(RuntimeError, match="axis joint 'X axis' itself"):        # carriage mixed with a cover: no
+        waycover.add_section(scene, [ob(scene, "CARRIAGE"), ob(scene, "COVER.5")])
 
 
 def test_axis_must_be_a_slide_joint(scene):
@@ -348,3 +348,255 @@ def test_owner_model_housing_counts_420_mm(tmp_path):
             assert abs((z[k] - z[k - 1]) - in_mm / 1000) < TOL, (axis, k)
         assert abs(z[0] - start[0]) < TOL                  # the housing never moves
     assert joints.couplings_simple(sc)
+
+
+
+# ---------------------------------------------------------------------------
+# task 0035: several covers, the carriage as the last section, 8 sections, old projects
+# ---------------------------------------------------------------------------
+
+TWO = os.path.join(HERE, "data", "test_waycover_c.step")       # a cover each side of the carriage (5 + 5 sections)
+
+
+def make_tool_model(tmp_path, **kw):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("mtw", os.path.join(HERE, "..", "tools", "make_test_waycover.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    path = str(tmp_path / "wc.step")
+    m.build(path, **kw)
+    return path
+
+
+def bake_out_and_back(sc, total=0.5):
+    a = sc.fresing.animations.add()
+    a.fps = "25"
+    for start, to in ((0, total), (2.5, 0.0)):
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.use_from, b.to_dist, b.easing = (
+            "JOINT", "X axis", start, 2, False, to, "LINEAR")
+    return animation.bake(sc, a)
+
+
+def two_covers(sc, carriage=False):
+    """Axis X (0 … 500 mm) on the carriage; 'X left' and 'X right' with five sections each. ``carriage``: the
+    sections next to the carriage are bolted to it (members of the axis) and become the carriage sections."""
+    members = [ob(sc, "CARRIAGE")] + ([ob(sc, "COVER.L.5"), ob(sc, "COVER.R.5")] if carriage else [])
+    j = joints.create(sc, "SLIDE", members, Vector((0.2, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
+    j.use_limits = True
+    j.slide_min, j.slide_max = 0.0, 0.5
+    for side in ("L", "R"):
+        c = waycover.add_cover(sc, "X left" if side == "L" else "X right")
+        c.axis = "X axis"
+        assert waycover.read_total(sc) == ""
+        for k in range(1, 6):
+            waycover.add_section(sc, [ob(sc, f"COVER.{side}.{k}")])
+        built, problems = waycover.make(sc)
+        assert built == (4 if carriage else 5) and not problems, problems
+    return [c for c in sc.fresing.waycovers]
+
+
+def cover_x(sc, side):
+    return [min_x(ob(sc, f"COVER.{side}.{k}")) for k in range(1, 6)]
+
+
+def check_two_covers(sc, rest_l, rest_r):
+    for a in (0.0, 0.13, 0.5, 0.31):
+        axis_to(sc, a)
+        for side, rest in (("L", rest_l), ("R", rest_r)):
+            for k, (got, r) in enumerate(zip(cover_x(sc, side), rest), start=1):
+                assert abs((got - r) - a * k / 5) < TOL, (side, k, a, got - r)
+
+
+def test_two_covers_on_one_axis_build_without_warnings(tmp_path):
+    sc = load(TWO, tmp_path)
+    rest_l, rest_r = cover_x(sc, "L"), cover_x(sc, "R")
+    cs = two_covers(sc)
+    assert [c.name for c in cs] == ["X left", "X right"] and len(waycover.covers(sc)) == 2
+    assert len([j for j in sc.fresing.joints if j.follows == "X axis"]) == 10
+    check_two_covers(sc, rest_l, rest_r)
+    # fully over: the left cover is open, the right one closed against the carriage (sections 20 mm apart)
+    axis_to(sc, 0.5)
+    r = cover_x(sc, "R")
+    assert all(abs((r[k] - r[k + 1]) - 0.02) < TOL for k in range(4))
+    assert abs(r[4] - (min_x(ob(sc, "CARRIAGE")) + 0.2)) < TOL
+    res = bake_out_and_back(sc)
+    assert not res["warnings"], res["warnings"]
+    for f, a in ((1, 0.0), (26, 0.25), (51, 0.5), (114, 0.0)):
+        sc.frame_set(f)
+        update()
+        for k, (got, rr) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1):
+            assert abs((got - rr) - a * k / 5) < 1e-4, (f, k)
+    assert joints.couplings_simple(sc)
+    for c in cs:
+        assert waycover.status(sc, c) == "5 sections · 100 mm each · follows 'X axis'"
+
+
+def test_a_part_belongs_to_one_cover_only(tmp_path):
+    sc = load(TWO, tmp_path)
+    two_covers(sc)
+    c = waycover.add_cover(sc, "Extra")
+    c.axis = "X axis"
+    with pytest.raises(RuntimeError, match="already"):
+        waycover.add_section(sc, [ob(sc, "COVER.L.2")])
+
+
+def test_remove_one_cover_leaves_the_other_and_the_axis(tmp_path):
+    sc = load(TWO, tmp_path)
+    rest_l, rest_r = cover_x(sc, "L"), cover_x(sc, "R")
+    two_covers(sc)
+    sc.fresing.waycovers_index = 0
+    assert waycover.remove_cover(sc) == 5
+    assert [c.name for c in sc.fresing.waycovers] == ["X right"]
+    assert sorted(j.name for j in sc.fresing.joints if not j.follows) == ["X axis"]
+    axis_to(sc, 0.5)
+    assert all(abs(g - r) < TOL for g, r in zip(cover_x(sc, "L"), rest_l))
+    assert all(abs((g - r) - 0.1 * k) < TOL for k, (g, r) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1))
+
+
+def test_carriage_as_the_last_section(scene):
+    rest = positions(scene)
+    axis = joints.create(scene, "SLIDE", [ob(scene, "CARRIAGE"), ob(scene, "COVER.5")], Vector((0.1, 0.15, 0.1)),
+                         Vector((1, 0, 0)), name="X axis")
+    axis.use_limits = True
+    axis.slide_min, axis.slide_max = 0.0, 0.5
+    c = waycover.ensure_cover(scene)
+    c.axis, c.total = "X axis", 0.5
+    with pytest.raises(RuntimeError, match="axis joint 'X axis' itself"):      # mixed: refused with the reason
+        waycover.add_section(scene, [ob(scene, "COVER.5"), ob(scene, "COVER.4")])
+    add_sections(scene, SECTIONS[:4])
+    sec = waycover.add_section(scene, [ob(scene, "COVER.5")])
+    assert sec.carriage and sec.name == "Section 5"
+    n_joints = len(scene.fresing.joints)
+    built, problems = waycover.make(scene)
+    assert built == 4 and not problems, problems
+    assert len(scene.fresing.joints) == n_joints + 4                          # no joint for the carriage section
+    assert waycover.is_made(scene, waycover.settings(scene).sections[4])
+    axis_to(scene, 0.5)
+    for got, r, e in zip(positions(scene), rest, [100, 200, 300, 400, 500]):
+        assert abs((got - r) - e / 1000) < TOL
+    axis_to(scene, 0.2)
+    for got, r, e in zip(positions(scene), rest, [40, 80, 120, 160, 200]):
+        assert abs((got - r) - e / 1000) < TOL
+    # the refusals: nothing after the carriage, the carriage stays last, one carriage section
+    with pytest.raises(RuntimeError, match="must stay the last section"):
+        waycover.add_section(scene, [ob(scene, "BASE")])
+    with pytest.raises(RuntimeError, match="is the carriage already"):
+        waycover.add_section(scene, [ob(scene, "CARRIAGE")])
+    assert "stays the last section" in waycover.move_section(scene, 4, -1)
+    assert "stays the last section" in waycover.move_section(scene, 3, 1)
+    assert waycover.move_section(scene, 0, 1) == ""                            # the others still move
+    # remove the cover: the axis and the carriage stay
+    assert waycover.remove_cover(scene) == 5
+    assert not len(scene.fresing.waycovers)
+    ax = joints.find(scene, "X axis")
+    assert ax is not None and len(joints.members(ax)) == 2
+    axis_to(scene, 0.5)
+    assert abs(min_x(ob(scene, "COVER.5")) - rest[4] - 0.5) < TOL
+    assert abs(min_x(ob(scene, "COVER.4")) - rest[3]) < TOL
+
+
+def test_carriage_section_removed_keeps_the_carriage(scene):
+    axis = joints.create(scene, "SLIDE", [ob(scene, "CARRIAGE"), ob(scene, "COVER.5")], Vector((0.1, 0.15, 0.1)),
+                         Vector((1, 0, 0)), name="X axis")
+    axis.use_limits = True
+    axis.slide_min, axis.slide_max = 0.0, 0.5
+    c = waycover.ensure_cover(scene)
+    c.axis, c.total = "X axis", 0.5
+    add_sections(scene, SECTIONS[:3])
+    waycover.add_section(scene, [ob(scene, "COVER.5")])
+    waycover.make(scene)
+    assert c.sections[3].carriage
+    waycover.remove_section(scene, 1)
+    assert c.sections[2].carriage and not any(x.carriage for x in list(c.sections)[:2])
+    waycover.remove_section(scene, 2)
+    assert len(joints.members(joints.find(scene, "X axis"))) == 2
+
+
+def test_eight_sections(tmp_path):
+    sc = load(make_tool_model(tmp_path, sections=8), tmp_path)
+    names = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"]] + \
+        [[f"COVER.{k}"] for k in range(4, 9)]
+    rest = [min_x(ob(sc, g[0])) for g in names]
+    make_axis(sc)
+    c = waycover.settings(sc)
+    c.total = 0.5
+    add_sections(sc, names)
+    built, problems = waycover.make(sc)
+    assert built == 8 and not problems, problems
+    assert waycover.status(sc) == "8 sections · 62.5 mm each · follows 'X axis'"
+    for a in (0.5, 0.37, 0.1, 0.0):
+        axis_to(sc, a)
+        for k, (g, r) in enumerate(zip([min_x(ob(sc, n[0])) for n in names], rest), start=1):
+            assert abs((g - r) - a * k / 8) < TOL, (a, k)
+    res = bake_out_and_back(sc)
+    assert not res["warnings"], res["warnings"]
+
+
+def test_old_one_cover_project_opens_as_the_first_cover(scene, tmp_path):
+    """A project saved before task 0035 keeps its cover in ``scene.fresing.waycover``: it opens as the first item of
+    the list, with the same joints, ratios, limits and motion."""
+    rest = positions(scene)
+    set_up(scene)                                   # no list yet: written to the single cover, as 0.2.28 … did
+    assert not len(scene.fresing.waycovers) and scene.fresing.waycover.axis == "X axis"
+    before = {j.name: (j.follows, round(j.couple_ratio, 6), j.use_limits, round(j.slide_min, 6),
+                       round(j.slide_max, 6)) for j in scene.fresing.joints}
+    path = str(tmp_path / "old.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    assert len(sc.fresing.waycovers) == 1 and not sc.fresing.waycover.axis and not len(sc.fresing.waycover.sections)
+    c = sc.fresing.waycovers[0]
+    assert c.axis == "X axis" and abs(c.total - 0.5) < 1e-6 and len(c.sections) == 5
+    after = {j.name: (j.follows, round(j.couple_ratio, 6), j.use_limits, round(j.slide_min, 6),
+                      round(j.slide_max, 6)) for j in sc.fresing.joints}
+    assert after == before
+    axis_to(sc, 0.5)
+    for k, (got, r) in enumerate(zip(positions(sc), rest), start=1):
+        assert abs((got - r) - 0.1 * k) < TOL
+    res = bake_out_and_back(sc)
+    assert not res["warnings"], res["warnings"]
+    c2 = waycover.add_cover(sc)                      # and more covers can be added next to it
+    assert c2.name == "Way cover 2" and len(waycover.covers(sc)) == 2
+
+
+def test_two_covers_with_carriage_survive_save_and_model_update(tmp_path):
+    sc = load(TWO, tmp_path)
+    rest_l, rest_r = cover_x(sc, "L"), cover_x(sc, "R")
+    two_covers(sc, carriage=True)
+    path = str(tmp_path / "two.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    assert [c.name for c in sc.fresing.waycovers] == ["X left", "X right"]
+    assert all(waycover.is_made(sc, s) for c in waycover.covers(sc) for s in c.sections)
+    check_two_covers(sc, rest_l, rest_r)
+    axis_to(sc, 0.2)
+    root = build.model_roots(sc)[0]
+    assert bpy.ops.fresing.import_step(filepath=TWO, quality="draft", update_root=root.name) == {"FINISHED"}
+    update()
+    assert not [n.text for n in sc.fresing.report_notes if "Way cover" in n.text]
+    cs = waycover.covers(sc)
+    assert len(cs) == 2 and all(waycover.is_made(sc, s) for c in cs for s in c.sections)
+    assert all(c.sections[4].carriage for c in cs)
+    check_two_covers(sc, rest_l, rest_r)
+    res = bake_out_and_back(sc)
+    assert not res["warnings"], res["warnings"]
+
+
+def test_panel_draws_with_several_covers(tmp_path):
+    import sys
+    sys.path.insert(0, HERE)
+    from test_blender import FakeLayout
+    from fresing_render.blender import ui_waycover
+    errors = []
+    sc = load(TWO, tmp_path)
+
+    def draw_all():
+        fake = type("P", (), {"layout": FakeLayout(errors)})()
+        for extra in ("draw", "draw_header", "draw_header_preset"):
+            getattr(ui_waycover.FRESING_PT_waycover, extra)(fake, bpy.context)
+    draw_all()                                       # empty: the steps and 'Add way cover'
+    two_covers(sc, carriage=True)
+    draw_all()
+    assert not errors, errors
