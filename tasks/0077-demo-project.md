@@ -1,6 +1,6 @@
 # 0077 – Demo project "Cable-lay vessel" (Help > Make demo project)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0077-demo-project`
+**Who:** worker · **Status:** running · **Branch:** `claude/sweet-mendel-tecn1z`
 **Started by:** lead chat, 12 Nov 2026 (plan in tasks/0075, model from 0076 + 0084, facts and shot list in 0083)
 **Lane:** Demo models – new files only: the model maker moves into the extension (see "Where the model maker lives"),
 new `blender/demo.py`, `blender/ops_demo.py`; additive: one Help-menu item next to the test tour (`pccheck/ops.py`
