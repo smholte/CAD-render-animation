@@ -630,6 +630,48 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 # 6 Animation
 # =============================================================================
 
+def _pick_row(layout, name: str, empty: str, op: str) -> None:
+    row = layout.row(align=True)
+    row.label(text=name or empty, icon="OBJECT_DATA" if name else "ERROR")
+    row.operator(op, text="Use selected", icon="EYEDROPPER")
+
+
+def _draw_camera_step(context, box, b) -> None:
+    """The settings of a Camera step: the six modes in two rows, then the mode's own settings (task 0087)."""
+    for modes in (("CUT", "MOVE", "ORBIT"), ("RIDE", "PATH", "AIM")):
+        row = box.row(align=True)
+        for m in modes:
+            row.prop_enum(b, "camera_mode", m)
+    mode = b.camera_mode
+    if mode == "ORBIT":
+        split_props(box).prop(b, "orbit_angle", text="Turn")
+    elif mode in ("CUT", "MOVE"):
+        split_props(box).prop(b, "camera", text="To camera")
+    elif mode == "RIDE":
+        box.label(text="Ride on:")
+        _pick_row(box, b.target_name, "Pick the part it rides on", "fresing.block_target")
+        col = split_props(box)
+        col.prop(b, "ride_camera", text="Seat camera")
+        col.prop(b, "ride_look", text="Look")
+        if b.ride_look == "WITH":
+            col.prop(b, "ride_level", text="Keep level")
+    elif mode == "PATH":
+        n = len(b.path_points)
+        box.label(text=f"Path: {plural(n, 'point')}" + ("" if n else " – make it below"), icon="CURVE_PATH")
+        row = big_row(box, MEDIUM)
+        row.operator("fresing.path_from_cameras", text="Make path from saved cameras", icon="OUTLINER_OB_CAMERA")
+        row = box.row(align=True)
+        row.operator("fresing.path_add_view", text="Add this view", icon="ADD")
+        row.operator("fresing.path_remove_point", text="", icon="REMOVE")
+        row.operator("fresing.path_clear", text="", icon="TRASH")
+        col = split_props(box)
+        col.prop(b, "path_from_here", text="From where it is")
+        col.prop(b, "path_look", text="Look")
+    if mode == "AIM" or (mode == "RIDE" and b.ride_look == "PART") or (mode == "PATH" and b.path_look == "PART"):
+        box.label(text="Keep in the middle:")
+        _pick_row(box, b.aim_name, "Pick the part to keep in the middle", "fresing.aim_target")
+
+
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL"}
@@ -830,12 +872,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
             elif b.kind == "POSE":
                 col.prop_search(b, "pose", s, "poses", text="Pose", icon="ARMATURE_DATA")
             elif b.kind == "CAMERA":
-                box.row(align=True).prop(b, "camera_mode", expand=True)
-                col = split_props(box)
-                if b.camera_mode == "ORBIT":
-                    col.prop(b, "orbit_angle", text="Turn")
-                else:
-                    col.prop(b, "camera", text="To camera")
+                _draw_camera_step(context, box, b)
             else:
                 row = box.row(align=True)
                 row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")
@@ -848,9 +885,13 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 pass                                # its length follows from the program (shown above)
             elif b.kind not in ("SHOW", "HIDE") and not (b.kind == "CAMERA" and b.camera_mode == "CUT"):
                 col.prop(b, "duration", text="Duration (s)")
-                col.prop(b, "easing", text="Motion")
-                if b.kind == "MOTOR" and b.easing != "LINEAR":
+                new_cam = b.kind == "CAMERA" and b.camera_mode in ("RIDE", "PATH", "AIM")
+                if not (new_cam and b.camera_mode != "PATH"):      # a ride or a turn follows its part
+                    col.prop(b, "easing", text="Motion")
+                if (b.kind == "MOTOR" or (new_cam and b.camera_mode == "PATH")) and b.easing != "LINEAR":
                     col.prop(b, "ramp", text="Ramp (s)")
+                if new_cam:
+                    col.prop(b, "cam_blend", text="Blend in (s)")
             col.prop(b, "name", text="Label")
 
         # -- check it

@@ -1004,6 +1004,8 @@ class FRESING_OT_block_remove(bpy.types.Operator):
             return {"CANCELLED"}
         a.blocks.remove(a.blocks_index)
         a.blocks_index = max(0, a.blocks_index - 1)
+        from . import camera_path
+        camera_path.tidy_paths(context.scene)      # a Fly a path step's line goes with it (task 0087)
         return {"FINISHED"}
 
 
@@ -1043,6 +1045,7 @@ class FRESING_OT_block_duplicate(bpy.types.Operator):
         b = _active_block(context)
         if b is None:
             return {"CANCELLED"}
+        src = a.blocks_index
         nb = a.blocks.add()
         for key in b.bl_rna.properties.keys():
             if key in ("rna_type",):
@@ -1052,6 +1055,9 @@ class FRESING_OT_block_duplicate(bpy.types.Operator):
             except (AttributeError, TypeError):
                 pass
         nb.start = animation.block_end(b)
+        if nb.kind == "CAMERA" and nb.camera_mode == "PATH":
+            from . import camera_path               # its own points and its own line (task 0087)
+            camera_path.copy_path(context.scene, a.blocks[src], nb)
         a.blocks_index = len(a.blocks) - 1
         return {"FINISHED"}
 

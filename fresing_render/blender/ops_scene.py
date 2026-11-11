@@ -184,5 +184,135 @@ class FRESING_OT_turntable(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# ---------------------------------------------------------------------------
+# camera steps that ride along, fly a path or keep a part in the middle (task 0087)
+# ---------------------------------------------------------------------------
+
+def _path_step(context):
+    """The selected step of the animation when it is a Fly a path camera step, else None."""
+    from .ops_motion import _active_block
+    b = _active_block(context)
+    if b is None or b.kind != "CAMERA" or b.camera_mode != "PATH":
+        return None
+    return b
+
+
+def _after_path_change(context, b) -> None:
+    from . import animation, camera_path
+    camera_path.show_path(context.scene, b)
+    if context.scene.fresing.anim_baked:
+        animation.clear_keys(context.scene)          # the built camera no longer matches: build again
+    _redraw(context)
+
+
+class FRESING_OT_path_from_cameras(bpy.types.Operator):
+    """Makes the path go through every saved camera (5 Scene & Render > Cameras), in the order of that list. The
+    camera flies through their places; where it looks is set by Look"""
+
+    bl_idname = "fresing.path_from_cameras"
+    bl_label = "Make path from saved cameras"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return _path_step(context) is not None
+
+    def execute(self, context):
+        from . import camera_path
+        b = _path_step(context)
+        pts = camera_path.from_cameras(context.scene)
+        if len(pts) < 2:
+            self.report({"WARNING"}, "Save at least two cameras first (5 Scene & Render > Cameras)")
+            return {"CANCELLED"}
+        b.path_points.clear()
+        for p in pts:
+            b.path_points.add().co = p
+        _after_path_change(context, b)
+        self.report({"INFO"}, f"Path through {len(pts)} cameras")
+        return {"FINISHED"}
+
+
+class FRESING_OT_path_add_view(bpy.types.Operator):
+    """Adds the place you look from in the 3D view as the next point of the path. Move the view to the next spot
+    (or look through a camera) and click again"""
+
+    bl_idname = "fresing.path_add_view"
+    bl_label = "Add this view"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return _path_step(context) is not None
+
+    def execute(self, context):
+        from . import camera_path
+        b = _path_step(context)
+        p = camera_path.view_point(context)
+        if p is None:
+            self.report({"WARNING"}, "No 3D view found")
+            return {"CANCELLED"}
+        b.path_points.add().co = tuple(p)
+        _after_path_change(context, b)
+        return {"FINISHED"}
+
+
+class FRESING_OT_path_remove_point(bpy.types.Operator):
+    """Removes the last point of the path"""
+
+    bl_idname = "fresing.path_remove_point"
+    bl_label = "Remove last point"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        b = _path_step(context)
+        return b is not None and len(b.path_points) > 0
+
+    def execute(self, context):
+        b = _path_step(context)
+        b.path_points.remove(len(b.path_points) - 1)
+        _after_path_change(context, b)
+        return {"FINISHED"}
+
+
+class FRESING_OT_path_clear(bpy.types.Operator):
+    """Removes every point of the path, to start it again"""
+
+    bl_idname = "fresing.path_clear"
+    bl_label = "Clear path"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        b = _path_step(context)
+        return b is not None and len(b.path_points) > 0
+
+    def execute(self, context):
+        b = _path_step(context)
+        b.path_points.clear()
+        _after_path_change(context, b)
+        return {"FINISHED"}
+
+
+class FRESING_OT_aim_target(bpy.types.Operator):
+    """Uses the selected part or subassembly as the part the camera keeps in the middle of the picture. Click it in
+    the view (or pick it in 2 Structure) first"""
+
+    bl_idname = "fresing.aim_target"
+    bl_label = "Use selected"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        from .ops_motion import _active_block, _target_subassembly
+        b = _active_block(context)
+        ob = _target_subassembly(context)
+        if b is None or ob is None:
+            return {"CANCELLED"}
+        b.aim_uid = ob.get(build.PROP_UID, ob.name)
+        b.aim_name = ob.get(build.PROP_NAME, ob.name)
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_light_look, FRESING_OT_focus_pick, FRESING_OT_focus_clear, FRESING_OT_env_simple,
-           FRESING_OT_turntable)
+           FRESING_OT_turntable, FRESING_OT_path_from_cameras, FRESING_OT_path_add_view, FRESING_OT_path_remove_point,
+           FRESING_OT_path_clear, FRESING_OT_aim_target)

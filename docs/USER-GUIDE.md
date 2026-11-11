@@ -1677,7 +1677,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
     - **Move joint**: a joint goes from where it is (or **From** a value) **To** a value.
     - **Go to pose**: everything moves to a saved pose.
     - **Camera**: **Cut to** a camera, **Move to** a camera (a smooth flight) or **Orbit** (turn around
-      the model by an angle).
+      the model by an angle); **Ride along** a moving part, **Fly a path** through points, or **Watch part**
+      (see **Camera that rides along, flies a path or watches a part** below).
     - **Show** / **Hide**: a subassembly appears or disappears (select it, then **Use selected**).
     - **Fade out** / **Fade in**: a subassembly fades away (or turns X-ray) or comes back, over the
       step's duration (see **Fade a housing away** below).
@@ -1759,6 +1760,36 @@ about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, too
 6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
+
+**Camera that rides along, flies a path or watches a part**
+
+<img class="panel" src="img/panel_6_camera_ride.png" alt="A Camera step Ride along: rides on the boom, Keep level ticked">
+
+<img class="panel" src="img/panel_6_camera_path.png" alt="A Camera step Fly a path: a path through the saved cameras, looking at the trolley">
+
+Add a **Camera** step and pick one of the three buttons on its second row:
+
+- **Ride along**: the camera sits on a part and moves with it – on the carriage while it cuts, at the boom tip,
+  on the vessel. Select the part (click it in the view, or pick it in 2 Structure), then **Use selected**.
+  It rides from where the camera is when the step starts; to put it somewhere else on the part, save a camera
+  there first (with the model as it stands at the start) and pick it as **Seat camera**.
+  **Keep level**: the camera stays upright when the part tilts or rolls (a vessel at sea, a boom that lifts); it
+  still turns with the part seen from above. **Look**: **With the part** keeps its view on the part; **At a part**
+  turns it so another part stays in the middle of the picture.
+- **Fly a path**: the camera flies along a smooth curve through points, at an even speed.
+  **Make path from saved cameras** puts a point at every saved camera (5 Scene & Render > Cameras), in the order
+  of that list. Or fly the view to a spot and click **Add this view**, then the next spot, and so on (the minus
+  removes the last point, the bin all of them). The path shows as a thin line in the view – never in pictures or
+  videos. **From where it is** (on) starts the path where the camera is, so it never jumps. **Look**:
+  **Ahead** (like a drone), **At the model** or **At a part**. **Motion** and **Ramp (s)** set the gentle start
+  and stop; in between the speed stays even.
+- **Watch part**: the camera stays where it is and turns, so the part you pick stays in the middle of the
+  picture – a hook, the tool, the carriage.
+
+**Blend in (s)**: how long the camera takes to glide from where it was into the step's view (0: it jumps). After
+the step the camera stays where the step left it; the next camera step starts from there. With background blur on,
+the sharp spot follows the part the camera looks at. Like all steps, they work in the render queue and with scripts
+switched off.
 
 **Fade a housing away (or to X-ray)**
 
