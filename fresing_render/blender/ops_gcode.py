@@ -816,10 +816,11 @@ class FRESING_OT_cnc_rotary_check(_CncOp, bpy.types.Operator):
         import time
         from . import rotary
         sc = context.scene
-        self.poses = rotary.check_poses(sc)
-        if not self.poses or context.area is None:
+        if context.area is None:
             return self._report(context)
-        animation.clear_keys(sc)
+        self.poses = rotary.start_check(sc)             # the keys go first, then the pose is read (0068 row 11)
+        if not self.poses:
+            return self._report(context)
         self.keep = dict(self.poses[0][1])
         self.t0 = time.time()
         self.timer = context.window_manager.event_timer_add(1 / 30, window=context.window)

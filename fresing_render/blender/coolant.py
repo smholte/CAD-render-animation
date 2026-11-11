@@ -48,6 +48,13 @@ MM = 0.001
 
 _STATE = {"guard": 0}
 _HOSE_KEY: dict = {}                  # scene name -> key of the hoses drawn now
+#: scene name -> names of the parts marked wet, and the materials' state last checked for new ones (task 0071: walking
+#: every part of a big machine at every frame cost 2-5 ms). Dropped when parts are marked, on load, undo, model update
+_WET: dict = {}
+
+
+def forget() -> None:
+    _WET.clear()
 
 
 def settings(scene):
@@ -63,9 +70,19 @@ def root():
     return ob if ob is not None and ob.get(TAG) == "root" else None
 
 
+def _in_scene(scene, ob) -> bool:
+    """``ob.name in scene.objects`` walks every object of the scene (0.7 ms next to a big machine): the coolant's
+    objects are in a collection right under the scene's own."""
+    top = scene.collection
+    for col in ob.users_collection:
+        if col == top or top.children.get(col.name) == col:
+            return True
+    return ob.name in scene.objects
+
+
 def built(scene) -> bool:
     r = root()
-    return r is not None and "fr_spans" in r and r.name in scene.objects
+    return r is not None and "fr_spans" in r and _in_scene(scene, r)
 
 
 # ---------------------------------------------------------------------------
@@ -503,13 +520,22 @@ def _materials_of(ob) -> list:
 
 
 def wet_parts(scene) -> list:
-    return [ob for ob in scene.objects if WET_ATTR in ob]
+    names = _WET.get(scene.name)
+    if names is not None:
+        obs = [bpy.data.objects.get(n) for n in names]
+        if all(o is not None and WET_ATTR in o for o in obs):
+            return obs
+    obs = [ob for ob in scene.objects if WET_ATTR in ob]
+    _WET[scene.name] = [o.name for o in obs]
+    return obs
 
 
 def apply_wet(scene, r) -> int:
     """Marks the parts that get wet and puts the sheen into their materials. Returns how many parts."""
     for ob in wet_parts(scene):
         del ob[WET_ATTR]
+    _WET.pop(scene.name, None)
+    _WET.pop((scene.name, "mats"), None)
     if not settings(scene).wet_parts:
         unpatch_all()
         return 0
@@ -518,15 +544,23 @@ def apply_wet(scene, r) -> int:
         ob[WET_ATTR] = float(round(amount, 3))
         for mat in _materials_of(ob):
             patch_material(mat, r)
+    _WET[scene.name] = [ob.name for ob, _a in obs]
     return len(obs)
 
 
 def _patch_new_materials(scene, r) -> None:
-    """Materials that came after the build (the milled block's cut faces) get the sheen too."""
-    for ob in wet_parts(scene):
+    """Materials that came after the build (the milled block's cut faces) get the sheen too. Looked at again only
+    when a material was added or a wet part's slots changed."""
+    obs = wet_parts(scene)
+    key = (len(bpy.data.materials), tuple((o.name, tuple(s.material.name if s.material else "" for s in
+                                                          o.material_slots)) for o in obs))
+    if _WET.get((scene.name, "mats")) == key:
+        return
+    for ob in obs:
         for mat in _materials_of(ob):
             if not is_patched(mat):
                 patch_material(mat, r)
+    _WET[(scene.name, "mats")] = key
 
 
 def unpatch_all() -> None:
@@ -561,7 +595,7 @@ def prepare(scene) -> None:
     store_array(r, "fr_spans", np.zeros(0))
     store_array(r, "fr_cut", np.zeros(0))
     store_array(r, "fr_tools", np.zeros(0))
-    g = r.matrix_world.to_3x3().inverted_safe() @ Vector((0.0, 0.0, -core.G))
+    g = space_matrix(scene).to_3x3().inverted_safe() @ Vector((0.0, 0.0, -core.G))
     r["fr_g"] = list(g)
 
 
@@ -595,8 +629,10 @@ def _layout(scene, r) -> None:
     a = np.array(axis.normalized())
     top = float((co @ a).max())                       # the tool part's top end: the spindle nose is about there
     r_tool = float(np.linalg.norm(co - np.outer(co @ a, a), axis=1).max())
-    # the spindle nose: the narrowest part of the head that the axis passes through just above the tool
-    inv = r.matrix_world.inverted_safe()
+    # the spindle nose: the narrowest part of the head that the axis passes through just above the tool. The root's
+    # world matrix is not worked out yet when it was just made or parented (bug hunt 0068 row 9: the first Build
+    # mounted the hoses 80 mm too high): its place is the coolant space itself
+    inv = space_matrix(scene).inverted_safe()
     nose = None
     h = head(scene)
     if h is not None:
@@ -744,6 +780,7 @@ def remove(scene) -> None:
     """Coolant switched off: every coolant object, the sheen nodes and the marks on parts go."""
     for ob in wet_parts(scene):
         del ob[WET_ATTR]
+    forget()
     unpatch_all()
     for name in (JETS, DROPS, HOSES, ROOT):
         ob = bpy.data.objects.get(name)
@@ -880,6 +917,8 @@ def _nozzles(scene, r, aim) -> list:
 
 
 def _write_mesh(me, verts, faces) -> None:
+    if not len(verts) and not len(me.vertices):
+        return                                         # still empty: no update for Blender to work out
     me.clear_geometry()
     if len(verts):
         nv = len(verts)
@@ -896,8 +935,10 @@ def _write_mesh(me, verts, faces) -> None:
 
 
 def _write_points(me, pos, size) -> None:
-    me.clear_geometry()
     n = len(pos)
+    if not n and not len(me.vertices) and "fr_size" in me.attributes:
+        return
+    me.clear_geometry()
     if n:
         me.vertices.add(n)
         me.vertices.foreach_set("co", np.asarray(pos, np.float32).reshape(-1))
@@ -946,7 +987,7 @@ def _hoses(scene, r, aim) -> None:
 def refresh(scene, T: float | None = None) -> bool:
     """Draws the coolant as it is at frame ``T`` (default: the current frame). True when drawn."""
     r = root()
-    if r is None or "fr_spans" not in r or not is_on(scene) or r.name not in scene.objects:
+    if r is None or "fr_spans" not in r or not is_on(scene) or not _in_scene(scene, r):
         return False
     s = settings(scene)
     if T is None:
@@ -981,7 +1022,8 @@ def refresh(scene, T: float | None = None) -> bool:
         setmat.inputs["Material"].default_value = mat
     _write_points(drops.data, fr.drops, fr.sizes)
     for ob in (jets, drops):
-        ob.visible_shadow = False
+        if ob.visible_shadow:                          # (set only on change: a set tags the object for an update)
+            ob.visible_shadow = False
     return True
 
 
@@ -989,12 +1031,16 @@ def _off_main_thread() -> bool:
     return threading.current_thread() is not threading.main_thread()
 
 
-@persistent
-def _on_frame(scene, _depsgraph=None):
+def _draw_frame(scene, pre: bool) -> None:
     if _STATE["guard"] or scene is None or not hasattr(scene, "fresing"):
         return
     try:
-        if not is_on(scene) or not built(scene):
+        if not is_on(scene):
+            return
+        # automatic hoses need nothing of the new frame but its number: drawn before the frame is worked out, so
+        # Blender works the scene out once (task 0071; after it, a second time: ~11 ms next to a big machine).
+        # Picked nozzles are read where they are at the new frame: after it
+        if pre != (settings(scene).source == "AUTO") or not built(scene):
             return
         if not bpy.app.background and _off_main_thread() and not scene.render.use_lock_interface:
             return
@@ -1012,8 +1058,19 @@ def _on_frame(scene, _depsgraph=None):
 
 
 @persistent
+def _on_frame(scene, _depsgraph=None):
+    _draw_frame(scene, False)
+
+
+@persistent
+def _on_frame_pre(scene, _depsgraph=None):
+    _draw_frame(scene, True)
+
+
+@persistent
 def _on_load(_dummy=None):
     _HOSE_KEY.clear()
+    forget()
 
 
 # ---------------------------------------------------------------------------
@@ -1056,8 +1113,11 @@ def settings_changed(scene) -> None:
 
 
 def before_model_update(scene) -> None:
-    for ob in wet_parts(scene):
+    obs = wet_parts(scene)
+    for ob in obs:
         del ob[WET_ATTR]
+    forget()
+    _WET["had_wet"] = bool(obs)
 
 
 def after_model_update(scene, new) -> list:
@@ -1080,16 +1140,30 @@ def after_model_update(scene, new) -> list:
         finally:
             del it["_busy"]
     s.nozzles_index = min(s.nozzles_index, max(0, len(s.nozzles) - 1))
+    # the hoses hang on the new head part, and the parts that get wet are marked again (bug hunt 0068 row 18)
+    r = root()
+    if r is not None and is_on(scene):
+        from . import gcode
+        try:
+            bpy.context.view_layer.update()
+            if not gcode.problem(scene):
+                ensure_root(scene)
+                if _WET.pop("had_wet", False) or len(spans(r)):
+                    apply_wet(scene, r)
+        except Exception as exc:
+            notes.append(f"Coolant: could not be put on the new head ({exc}); build the animation again")
     return notes
 
 
 def register():
-    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame), (bpy.app.handlers.load_post, _on_load)):
+    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame), (bpy.app.handlers.frame_change_pre, _on_frame_pre),
+                    (bpy.app.handlers.load_post, _on_load)):
         if fn not in lst:
             lst.append(fn)
 
 
 def unregister():
-    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame), (bpy.app.handlers.load_post, _on_load)):
+    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame), (bpy.app.handlers.frame_change_pre, _on_frame_pre),
+                    (bpy.app.handlers.load_post, _on_load)):
         while fn in lst:
             lst.remove(fn)

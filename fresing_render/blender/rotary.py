@@ -118,13 +118,7 @@ def build(mach, c, s, carries, xyz_names) -> None:
     rapid = (c.rapid_a, c.rapid_b, c.rapid_c)
     wrapped = (c.a_wrapped, c.b_wrapped, c.c_wrapped)
     for k, j, w in picked:
-        _o, d = joints.axis_world(j)
-        rel = -d if w else d                                     # the tool's turn relative to the part
-        e = mach.rot @ PROG_AXES[k]
-        auto = 1.0 if rel.dot(e) >= 0 else -1.0
-        ax = Axis(k, j, auto * (-1.0 if rev[k] else 1.0), home_rot[k], w, rapid[k], wrapped[k])
-        ax.auto = auto
-        mach.axes[k] = ax
+        mach.axes[k] = Axis(k, j, 1.0, home_rot[k], w, rapid[k], wrapped[k])
     mach.axis_order = [k for k, _j, _w in picked]               # inner first
     # back to A0 B0 C0: undo each axis' turn, the inner one first (its axis as it is now)
     for k in mach.axis_order:
@@ -135,6 +129,18 @@ def build(mach, c, s, carries, xyz_names) -> None:
             mach.unturn_part = ax.back @ mach.unturn_part
         else:
             mach.unturn_tool = ax.back @ mach.unturn_tool
+    # which way + turns: from the axis as it lies at A0 B0 C0 (the outer axes turned back, as ``finish`` does), not
+    # as it lies now – C on a trunnion at A >= 90° pointed the other way (task 0071, bug hunt 0068 row 10)
+    for n, k in enumerate(mach.axis_order):
+        ax = mach.axes[k]
+        _o, d = joints.axis_world(ax.joint)
+        for k2 in mach.axis_order[n + 1:]:
+            if mach.axes[k2].part == ax.part:
+                d = mach.axes[k2].back.to_3x3() @ d
+        rel = -d if ax.part else d                               # the tool's turn relative to the part
+        e = mach.rot @ PROG_AXES[k]
+        ax.auto = 1.0 if rel.dot(e) >= 0 else -1.0
+        ax.sign = ax.auto * (-1.0 if rev[k] else 1.0)
 
 
 def finish(mach) -> None:
@@ -522,6 +528,14 @@ def set_up_test_model(scene, b, five: bool = False, milling: bool = True) -> Non
         machining.add_bit(scene, tool)
         machining.set_workpiece(scene, wp)
     gcode.step_changed(scene, b)
+
+
+def start_check(scene) -> list:
+    """Before Check plays in the view: the animation's keys go first (bug hunt 0068 row 11: read before them, the
+    pose of the frame shown was put back afterwards and the next Build started from there). Returns the poses."""
+    from . import animation
+    animation.clear_keys(scene)
+    return check_poses(scene)
 
 
 def check_poses(scene, seconds: float = 1.6) -> list:

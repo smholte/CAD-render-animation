@@ -59,6 +59,9 @@ WORLD_AXES = (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
 
 _CACHE: dict = {}                    # program key -> core.Program
 _INFO: dict = {}                     # program signature + step settings -> summary for the panel (info_key)
+#: {T: [names]} of the tool copies a build made (task 0071: looked up at every frame by milling, chips and coolant;
+#: walking every object of a big machine cost 3.3 ms a time). Dropped when copies are made or removed, on load, undo.
+_COPIES: dict = {}
 
 
 class SetupError(RuntimeError):
@@ -261,6 +264,40 @@ def start_point(mach: Machine | None):
         from . import rotary
         m = rotary.program_point(mach, m, rotary.first_rot(mach))
     return m
+
+
+FROM = "fr_gc_from"                   # on a step: the joints' values where it starts, from the last Build (task 0071)
+
+
+def step_start(mach: Machine, jstate: dict) -> tuple:
+    """(X/Y/Z start, A/B/C start or None) of a program step that starts with the joints at ``jstate`` (machine mm,
+    degrees); the numbers of ``start_point`` / ``start_rot`` when they are the same (one program read)."""
+    from . import rotary
+    rot0 = None
+    start = mach.machine_of([jstate.get(j.name, joints.get_value(j)) for j in mach.joints])
+    if mach.axes:                                      # A, B, C where the step starts (task 0066)
+        rot0 = rotary.rot_of(mach, {ax.joint.name: jstate.get(ax.joint.name, joints.get_value(ax.joint))
+                                    for ax in mach.axes.values()})
+        if all(abs(a - b_) < 1e-6 for a, b_ in zip(rot0, start_rot(mach))):
+            rot0 = start_rot(mach)
+        start = rotary.program_point(mach, start, rot0)
+    if all(abs(a - b_) < 1e-6 for a, b_ in zip(start, start_point(mach))):
+        start = start_point(mach)
+    return start, rot0
+
+
+def step_start_of(b, mach: Machine | None) -> tuple:
+    """Where step ``b`` starts (as ``step_start``): from the joints' values the last Build found there (a joint step
+    or another program before it moves the head, bug hunt 0068 row 8), else the animation's start."""
+    if mach is None:
+        return None, None
+    st = b.get(FROM)
+    if st is None:
+        return start_point(mach), start_rot(mach)
+    try:
+        return step_start(mach, {k: float(v) for k, v in st.items()})
+    except Exception:
+        return start_point(mach), start_rot(mach)
 
 
 def start_rot(mach: Machine | None):
@@ -654,7 +691,8 @@ def step_changed(scene, b, path: bool = True) -> None:
     except SetupError:
         mach = None
     try:
-        prog, note = read_program(scene, b, mach, start=start_point(mach))
+        st, rot = step_start_of(b, mach)
+        prog, note = read_program(scene, b, mach, start=st, rot=rot)
     except FileNotFoundError as exc:
         _INFO[info_key(b)] = {"error": f"File not found: {exc}"}
         return
@@ -735,8 +773,12 @@ def info_key(b) -> tuple:
 
 
 def forget() -> None:
-    """Drop every cached summary (a project was opened)."""
+    """Drop every cached summary (a project was opened), the tool copies' names and the last rotary Check."""
     _INFO.clear()
+    _COPIES.clear()
+    from . import doublearm, rotary
+    rotary.LAST_CHECK.clear()                              # (bug hunt 0068 row 19c)
+    doublearm.LAST_CHECK.clear()
 
 
 def info(scene, b) -> dict:
@@ -823,6 +865,7 @@ def length_offsets(scene, mach: Machine, numbers, first: int) -> dict:
 
 
 def _remove_tool_copies(scene=None) -> None:
+    _COPIES.clear()
     obs = [o for o in bpy.data.objects if o.get(TAG) == "tool"]
     meshes = {o.data for o in obs if o.data is not None and o.data.get(TAG) == "tool"}
     for o in obs:
@@ -837,7 +880,11 @@ def tool_objects(scene, mach: Machine, prog, numbers, offsets: dict | None = Non
     None). Copies are made as needed: a part of the model, the row's STEP model, or a tool drawn from its sizes
     (task 0040); a longer tool reaches further below the spindle (``offsets``). Each copy carries its sizes
     (``fr_spec``) and its tip and axis in its own space (``fr_tip``, ``fr_axis``) so milling cuts with it.
-    Returns ({n: show}, {n: carousel part}, warnings)."""
+    Returns ({n: show}, {n: carousel part}, warnings).
+
+    One copy per tool and build (task 0071, bug hunt 0068 row 6): a later program step of the same build uses the
+    copies an earlier step made (the same tool at the same length), so no tool is shown twice and milling reads the
+    copy that is in the spindle."""
     from . import tools
     spindle = mach.tool
     world = spindle.matrix_world @ tool_frame(spindle)          # where every tool's tip goes, Z into the spindle
@@ -853,7 +900,15 @@ def tool_objects(scene, mach: Machine, prog, numbers, offsets: dict | None = Non
             show[n] = spindle
             continue
         spec = tool_spec(scene, prog, n)
-        shift = Matrix.Translation((0.0, 0.0, -offsets.get(n, 0.0)))
+        off = float(offsets.get(n, 0.0))
+        same = next((o for o in copies_all().get(n, []) if abs(float(o.get("fr_shift", 0.0)) - off) < 1e-9), None)
+        if same is not None:                     # an earlier step of this build made it
+            if part is not None and same.data is part.data:     # (the CAD tool standing in the carousel)
+                away[n] = part
+            show[n] = same
+            continue
+        _COPIES.clear()
+        shift = Matrix.Translation((0.0, 0.0, -off))
         frame = None
         if part is not None:
             try:
@@ -889,6 +944,7 @@ def tool_objects(scene, mach: Machine, prog, numbers, offsets: dict | None = Non
         ax = (frame.to_3x3() @ Vector((0, 0, 1))) if frame is not None else Vector((0, 0, 1))
         ob[TAG] = "tool"
         ob["fr_cnc_t"] = n
+        ob["fr_shift"] = off
         ob["fr_spec"] = tools.spec_json(spec)
         ob["fr_tip"] = list(tip)
         ob["fr_axis"] = list(ax.normalized())
@@ -902,9 +958,52 @@ def tool_objects(scene, mach: Machine, prog, numbers, offsets: dict | None = Non
     return show, away, warnings
 
 
+def copies_all(scene=None) -> dict:
+    """{T: [copy objects]} of the tool copies a build made (more than one for a T only when two program steps hold
+    it at another length). Kept by name between calls (``_COPIES``)."""
+    names = _COPIES.get("names")
+    if names is not None:
+        out = {}
+        for n, lst in names.items():
+            obs = [bpy.data.objects.get(x) for x in lst]
+            if any(o is None or o.get(TAG) != "tool" or o.get("fr_cnc_t") != n for o in obs):
+                out = None
+                break
+            out[n] = obs
+        if out is not None:
+            return out
+    out = {}
+    for o in bpy.data.objects:
+        if o.get(TAG) == "tool" and "fr_cnc_t" in o:
+            out.setdefault(int(o["fr_cnc_t"]), []).append(o)
+    for v in out.values():
+        v.sort(key=lambda o: o.name)
+    _COPIES["names"] = {n: [o.name for o in v] for n, v in out.items()}
+    return out
+
+
 def copies(scene=None) -> dict:
-    """{T: copy object} of the tool copies a build made."""
-    return {int(o["fr_cnc_t"]): o for o in bpy.data.objects if o.get(TAG) == "tool" and "fr_cnc_t" in o}
+    """{T: copy object} of the tool copies a build made (the first, when a T has two)."""
+    return {n: v[0] for n, v in copies_all(scene).items()}
+
+
+def shown_at(ob, frame: float) -> bool:
+    """Whether ``ob`` is shown in renders at ``frame`` by its keys (without changing the frame)."""
+    from . import machining
+    for fc in machining._fcurves(ob):
+        if fc.data_path == "hide_render":
+            return fc.evaluate(frame) < 0.5
+    return not ob.hide_render
+
+
+def copy_in_spindle(cands: list, a: float, b: float):
+    """Of the copies of one tool, the one shown in the spindle between frames ``a`` and ``b`` (task 0071)."""
+    if len(cands) == 1:
+        return cands[0]
+    lo = a if math.isfinite(a) else (b - 1.0 if math.isfinite(b) else 1.0)
+    hi = b if math.isfinite(b) else lo + 1.0
+    mid = 0.5 * (lo + hi)
+    return next((o for o in cands if shown_at(o, mid)), cands[0])
 
 
 def schedule(scene) -> list:
@@ -992,6 +1091,8 @@ def prepare(scene, anim, warnings: list) -> list:
     """Before a bake: every G-code step's length from its program; returns the tool changer's steps to add
     (shifted to each tool change)."""
     extra = []
+    from . import machining
+    machining.runtime(scene).pop("sig_ok", None)           # the motion is made again: milling checks it (task 0071)
     from . import air
     air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
     from . import coolant
@@ -1004,19 +1105,30 @@ def prepare(scene, anim, warnings: list) -> list:
         mach = Machine(scene)
     except SetupError:
         mach = None
-    for b in anim.blocks:
-        if not b.enabled or b.kind != "GCODE":
+    # the joints' values as the bake will have them at each step's start (task 0071, bug hunt 0068 row 8): a joint
+    # step or an earlier program moves the head, so the program, its length and the changer's blocks start there
+    jstate = {j.name: joints.get_value(j) for j in scene.fresing.joints if not j.follows}
+    for b in sorted((x for x in anim.blocks if x.enabled), key=lambda x: x.start):
+        if b.kind != "GCODE":
+            _walk(scene, b, jstate)
             continue
         if not b.gcode_file:
             continue
+        start, rot = (None, None)
+        if mach is not None:
+            start, rot = step_start(mach, jstate)
+            b[FROM] = {j.name: float(jstate.get(j.name, joints.get_value(j)))
+                       for j in mach.joints + [ax.joint for ax in mach.axes.values()]}
         try:
-            prog, _note = read_program(scene, b, mach, start=start_point(mach))
+            prog, _note = read_program(scene, b, mach, start=start, rot=rot)
         except FileNotFoundError:
             continue
         sch = core.Schedule(prog, timing(scene, anim, b, mach))
         b["_busy"] = True
         b.duration = sch.duration
         del b["_busy"]
+        if mach is not None:
+            _end_state(scene, mach, sch, jstate)
         if c.changer != "ATC":
             continue
         a, w = atc_animation(scene, anim, b)
@@ -1051,6 +1163,51 @@ def prepare(scene, anim, warnings: list) -> list:
     return extra
 
 
+def _walk(scene, b, jstate: dict) -> None:
+    """A step that is not a program, in ``prepare``: the joints' values at its end, as the bake makes them (joint
+    and pose steps; motors, cylinders and lifts do not move a CNC axis)."""
+    from . import animation, states
+    s = scene.fresing
+    if b.kind == "JOINT":
+        j = s.joints.get(b.joint)
+        if j is not None and not j.follows:
+            jstate[j.name] = joints.clamp(j, animation._block_values(j, b)[1])
+    elif b.kind == "POSE":
+        pose = s.poses.get(b.pose)
+        if pose is None:
+            return
+        values, _d = states.pose_targets(scene, pose)
+        for j in s.joints:
+            if not j.follows and j.name in values:
+                jstate[j.name] = joints.clamp(j, values[j.name])
+
+
+def _offsets(scene, mach, sch) -> dict:
+    """The step's tool length offsets (as the bake uses them)."""
+    numbers = sorted({n for _s, n, _t, _d in sch.tool_events if n} | ({sch.first_tool} if sch.first_tool else set()))
+    return length_offsets(scene, mach, numbers, first_tool(sch) or (sch.tool_events[0][1] if sch.tool_events
+                                                                     else 0))
+
+
+def _end_state(scene, mach, sch, jstate: dict) -> None:
+    """The X/Y/Z (and A/B/C) joints' values at the end of a program step: its last key (``bake_step``)."""
+    from . import rotary
+    if not sch.pieces:
+        return
+    p = sch.pieces[-1]
+    t = p.v0 + p.vd
+    pt = p.move.b
+    dz = _lift(sch, _offsets(scene, mach, sch))(t)
+    if mach.axes:
+        r = sch.rot_at(t)
+        if rotary.tcp(mach):
+            pt = _tcp_shift(sch, mach)(t, pt, r)
+        for j, v in rotary.values_for(mach, r):
+            jstate[j.name] = v
+    for j, v in zip(mach.joints, mach.values_for((pt[0], pt[1], pt[2] + dz) if dz else pt)):
+        jstate[j.name] = v
+
+
 def _label(b) -> str:
     from . import animation
     return animation.block_label(b)
@@ -1070,16 +1227,12 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
         warnings.append(f"'{name}': {exc}")
         return f0
     from . import rotary
-    rot0 = None
-    start = mach.machine_of([jstate[j.name] for j in mach.joints])
-    if mach.axes:                                      # A, B, C where the step starts (task 0066)
-        rot0 = rotary.rot_of(mach, {ax.joint.name: jstate.get(ax.joint.name, joints.get_value(ax.joint))
-                                    for ax in mach.axes.values()})
-        if all(abs(a - b_) < 1e-6 for a, b_ in zip(rot0, start_rot(mach))):
-            rot0 = start_rot(mach)
-        start = rotary.program_point(mach, start, rot0)
-    if all(abs(a - b_) < 1e-6 for a, b_ in zip(start, start_point(mach))):
-        start = start_point(mach)                      # the same numbers as for the step's length: one read
+    start, rot0 = step_start(mach, jstate)
+    pre, pre_rot = step_start_of(b, mach)              # what 'prepare' placed the step's length and changer from
+    if pre is not None and all(abs(a - b_) < 1e-6 for a, b_ in zip(start, pre)) and (
+            (rot0 is None) == (pre_rot is None)) and (rot0 is None or all(abs(a - b_) < 1e-6
+                                                                          for a, b_ in zip(rot0, pre_rot))):
+        start, rot0 = pre, pre_rot                     # the same numbers as for the step's length: one read
     try:
         prog, note = read_program(scene, b, mach, start=start, rot=rot0)
     except FileNotFoundError as exc:
@@ -1114,9 +1267,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     for n, line in tools.missing(scene, prog):
         warnings.append(f"'{name}': T{n} (line {line}) is not in the tool list: it is drawn from the program's "
                         "sizes – add it in 4 Motion > CNC machine > Tools")
-    numbers = sorted({n for _s, n, _t, _d in sch.tool_events if n} | ({sch.first_tool} if sch.first_tool else set()))
-    offsets = length_offsets(scene, mach, numbers, first_tool(sch) or (sch.tool_events[0][1] if sch.tool_events
-                                                                        else 0))
+    offsets = _offsets(scene, mach, sch)
     lift = _lift(sch, offsets)
     tcp = rotary.tcp(mach)
     shift = _tcp_shift(sch, mach) if tcp else None
@@ -1180,9 +1331,13 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     if air.problem(scene) and (b.gcode_clean or air.step_spans(scene, sch, b)):
         warnings.append(f"'{name}': air blast: {air.problem(scene)} (4 Motion > CNC machine > Air blast)")
     from . import toolchange
+    later = toolchange.start_of_step(scene, mach, f0, vkeys, merge)   # a second program step (task 0071)
     if sch.tool_events or sch.first_tool:
         toolchange.tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge,
                              name, offsets)
+    elif later:
+        _record_schedule(scene, [(f0, 0)])                  # the part in the spindle again
+    air.key_cones(scene, sch, b, f0, fps, vkeys, merge, offsets)   # the air cone on the tool in the spindle
     if coolant.is_on(scene):                                # coolant frames, after the tool copies (task 0042)
         try:
             coolant.record(scene, sch, b, mach, f0, fps, offsets)
@@ -1343,6 +1498,8 @@ def _lift(sch, offsets: dict):
 def after_clear(scene) -> None:
     """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
+    from . import machining
+    machining.runtime(scene).pop("sig_ok", None)
     c = settings(scene)
     for k in ("fr_tools", "fr_corners", "fr_turns"):
         if k in c:
@@ -1358,9 +1515,21 @@ def after_clear(scene) -> None:
 # the toolpath
 # ---------------------------------------------------------------------------
 
+def no_light(mat) -> None:
+    """A glowing material that does not light the scene (study 0069 #5, as ``surroundings.py``): Cycles then does not
+    sample it as a light – a long drawn toolpath took 2.0-2.6 s a frame, 0.6 s without; it looks the same. Set only on
+    change (a set render setting stops a running viewport preview)."""
+    for owner in (mat, getattr(mat, "cycles", None)):
+        if owner is not None and hasattr(owner, "emission_sampling"):
+            if owner.emission_sampling != "NONE":
+                owner.emission_sampling = "NONE"
+            return
+
+
 def _material(name: str, rgb) -> bpy.types.Material:
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get(TAG) == "path":
+        no_light(mat)                                  # (projects from before 0.2.56)
         return mat
     if mat is None:
         mat = bpy.data.materials.new(name)
@@ -1377,6 +1546,7 @@ def _material(name: str, rgb) -> bpy.types.Material:
     em.inputs["Color"].default_value = (*rgb, 1.0)
     em.inputs["Strength"].default_value = 1.5
     nt.links.new(em.outputs[0], out.inputs["Surface"])
+    no_light(mat)
     return mat
 
 
@@ -1477,7 +1647,8 @@ def path_geometry(scene, anim, mach: Machine) -> tuple:
         if not (b.enabled and b.kind == "GCODE" and b.gcode_file and b.gcode_path):
             continue
         try:
-            prog, _n = read_program(scene, b, mach, start=start_point(mach))
+            st, rot = step_start_of(b, mach)
+            prog, _n = read_program(scene, b, mach, start=st, rot=rot)
         except FileNotFoundError:
             continue
         sch = core.Schedule(prog, timing(scene, anim, b))
@@ -1657,7 +1828,8 @@ def frame_of_line(scene, anim, b, line: int):
         mach = Machine(scene)
     except SetupError:
         mach = None
-    prog, _n = read_program(scene, b, mach, start=start_point(mach))
+    st, rot = step_start_of(b, mach)
+    prog, _n = read_program(scene, b, mach, start=st, rot=rot)
     sch = core.Schedule(prog, timing(scene, anim, b))
     p = next((p for p in sch.pieces if p.move.line >= line), None)
     if p is None:

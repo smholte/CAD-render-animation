@@ -171,6 +171,7 @@ def prepare(scene) -> None:
     c = settings(scene)
     if "fr_air" in c:
         del c["fr_air"]
+    _remove_cone_copies()
     if c.air_show:
         try:
             cone(scene)
@@ -204,12 +205,61 @@ def record(scene, sch, b, f0: float, fps: float, vkeys: dict, merge) -> None:
     c = settings(scene)
     old = spans(scene)
     store_array(c, "fr_air", np.concatenate([old, np.array(rows, dtype=np.float64)]).reshape(-1))
+
+
+def key_cones(scene, sch, b, f0: float, fps: float, vkeys: dict, merge, offsets: dict) -> None:
+    """The cone's visibility keys of a step (after its tool keys): shown while the air blows. Through the spindle,
+    on the tip of the tool in the spindle (task 0071, bug hunt 0068 row 19b): a tool longer than the spindle's part
+    blows from a copy of the cone that far further down."""
+    c = settings(scene)
     ob = bpy.data.objects.get(CONE_NAME)
-    if c.air_show and ob is not None and ob.name in scene.objects:
-        keys = vkeys.setdefault(ob.name, [(1, True, "CONSTANT", "AUTO")])
-        for a, z, _cl in rows:
+    if not c.air_show or ob is None or ob.get(TAG) != "cone" or ob.name not in scene.objects:
+        return
+    rows = [(f0 + a * fps, f0 + z * fps) for a, z, _cl in step_spans(scene, sch, b) if z > a]
+    if not rows:
+        return
+    windows = [(f0, 0)]
+    if c.air_source == "SPINDLE" and offsets:
+        from . import gcode
+        windows = [(f, n) for f, n in gcode.schedule(scene) if f >= f0 - 1e-6] or windows
+    bounds = [f for f, _n in windows[1:]] + [math.inf]
+    pieces: dict = {}                                # cone -> [(from, to)]
+    for (wa, n), wb in zip(windows, bounds):
+        off = float(offsets.get(n, 0.0)) if n else 0.0
+        cone_ob = ob if abs(off) < 1e-9 else _cone_copy(scene, ob, n, off)
+        for a, z in rows:
+            lo, hi = max(a, wa), min(z, wb)
+            if hi > lo:
+                pieces.setdefault(cone_ob.name, []).append((lo, hi))
+    for name, spans_ in pieces.items():
+        keys = vkeys.setdefault(name, [(1, True, "CONSTANT", "AUTO")])
+        for a, z in sorted(spans_):
             merge(keys, a, False, "CONSTANT")
             merge(keys, z, True, "CONSTANT")
+
+
+def _cone_copy(scene, ob, n: int, off: float):
+    """The cone on the tip of tool ``n``, ``off`` (m) further out than the spindle's part (shares the cone's mesh)."""
+    name = f"{CONE_NAME} T{n}"
+    cp = bpy.data.objects.get(name)
+    if cp is None or cp.get(TAG) != "cone":
+        cp = bpy.data.objects.new(name, ob.data)
+        cp[TAG] = "cone"
+        cp[build.PROP_KIND] = "cnc"
+        for col in ob.users_collection:
+            col.objects.link(cp)
+    cp.parent = ob.parent
+    cp.matrix_parent_inverse = ob.matrix_parent_inverse.copy()
+    down = ob.matrix_basis.to_3x3() @ Vector((0, 0, -1))         # the cone's -Z: the way the air blows
+    cp.matrix_basis = Matrix.Translation(down.normalized() * off) @ ob.matrix_basis
+    cp.hide_select = True
+    cp.visible_shadow = False
+    try:
+        cp.visible_diffuse = cp.visible_glossy = cp.visible_transmission = False
+    except AttributeError:
+        pass
+    cp.hide_render = cp.hide_viewport = True
+    return cp
 
 
 def describe(scene, sch) -> str:
@@ -317,8 +367,10 @@ def _cone_mesh(length: float, angle: float, seg: int = 32) -> bpy.types.Mesh:
 
 
 def _cone_material() -> bpy.types.Material:
+    from .gcode import no_light
     mat = bpy.data.materials.get(CONE_NAME)
     if mat is not None and mat.get(TAG) == "cone":
+        no_light(mat)                                  # (projects from before 0.2.56)
         return mat
     mat = bpy.data.materials.new(CONE_NAME)
     mat[TAG] = "cone"
@@ -340,6 +392,7 @@ def _cone_material() -> bpy.types.Material:
     except (AttributeError, TypeError):
         pass
     mat.diffuse_color = (0.85, 0.92, 1.0, 0.1)
+    no_light(mat)                                      # glows, lights nothing (study 0069 #5)
     return mat
 
 
@@ -396,12 +449,16 @@ def cone(scene):
 
 
 def remove_cone() -> None:
-    ob = bpy.data.objects.get(CONE_NAME)
-    if ob is not None and ob.get(TAG) == "cone":
+    for ob in [o for o in bpy.data.objects if o.get(TAG) == "cone" and o.name.startswith(CONE_NAME)]:
         me = ob.data
         bpy.data.objects.remove(ob)
         if me is not None and me.users == 0:
             bpy.data.meshes.remove(me)
+
+
+def _remove_cone_copies() -> None:
+    for ob in [o for o in bpy.data.objects if o.get(TAG) == "cone" and o.name.startswith(CONE_NAME + " T")]:
+        bpy.data.objects.remove(ob)
 
 
 # ---------------------------------------------------------------------------
