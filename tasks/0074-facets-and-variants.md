@@ -82,7 +82,7 @@ and 3 Looks panels, `trails.py`). Do not touch its parts of those files, nor mac
   31,472 / 240,992 (−55 % placed)**; Fine 54,436 / 876,032 → 55,396 / 413,668. All 27 test models + bench, placed:
   Normal 742,086 → 444,538, Draft 433,634 → 248,594, Fine 1,304,188 → 838,072; unique within ±1 %.
 - Import time, all 27 test models + bench in a row, median of 5: Normal 5.21 → 5.18 s, Draft 5.04 → 4.81 s,
-  Fine wait (reading the STEP dominates; meshing is ~0.3 s of the bench's 0.9 s). Not measured on the EGR model
+  Fine 6.57 → 6.47 s (reading the STEP dominates; meshing is ~0.3 s of the bench's 0.9 s). Not measured on the EGR model
   (not in the repository).
 - Tests: `tests/test_facets.py` (8: gap ≤ cap at each Detail on the ring and drum, bolt segments, other parts
   unchanged, rules, cache version 5 refused, painted faces kept through a model update to another Detail and lost when
