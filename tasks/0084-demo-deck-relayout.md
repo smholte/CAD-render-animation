@@ -1,6 +1,6 @@
 # 0084 – Demo model: deck re-layout as the owner works (oval route through both tensioners, quadrant on rails)
 
-**Who:** worker · **Status:** open – can start (Wed 11 Nov night) · **Branch:** `task/0084-demo-deck-relayout`
+**Who:** worker · **Status:** running · **Branch:** `claude/epic-hopper-et0knn` (the session's branch)
 **Started by:** lead chat, 11 Nov 2026 (after 0076 and the reference study 0083)
 **Lane:** **Demo models** – `tools/make_demo_cable_lay.py`, `tools/demo_cable_lay/`, `tests/test_demo_cable_lay.py`,
 `tasks/img/0084-*.png`. No app code (`fresing_render/`), no version, no release.
