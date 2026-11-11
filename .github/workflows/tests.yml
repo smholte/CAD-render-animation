@@ -211,9 +211,18 @@ jobs:
 
       - name: Virtual screen and screenshot tools
         run: |
+          PKGS="xvfb xauth imagemagick libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 \
+            libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1"
           sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends xvfb xauth imagemagick libgl1 libglx-mesa0 \
-            libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1
+          if ! sudo apt-get install -y -q --no-install-recommends $PKGS; then
+            # the runner's mirror list starts with azure.archive.ubuntu.com; when that name does not resolve (11 Nov
+            # 2026) every package fails: use the Ubuntu archive directly and try again
+            echo "::warning::apt mirror list failed; trying archive.ubuntu.com directly"
+            sudo sed -i 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#' \
+              /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends $PKGS
+          fi
 
       - name: "Real-app tests (group ${{ matrix.group.name }} - ${{ matrix.group.tests }})"
         env:
