@@ -1,6 +1,6 @@
 # 0088 – Hover highlight when picking an axis (face, hole, shaft light up under the mouse)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0088-hover-highlight` (or the session's own branch)
+**Who:** worker · **Status:** running · **Branch:** `task/0088-hover-highlight` (or the session's own branch)
 **Started by:** lead chat, 11 Nov 2026 (owner's wish)
 **Lane:** new **Pick & hover lane** – a new `blender/hover.py` (the highlight: what is under the mouse, the drawing);
 the click-to-pick operators that give an **axis**: `ops_motion.py` (Add joint / Set axis), `ops_cylinders.py` (the
