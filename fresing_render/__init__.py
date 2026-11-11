@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.61"
+__version__ = "0.2.62"
 
 _modules = []
 
@@ -59,6 +59,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    from .blender import waycover
+    waycover.register()                      # task 0035: one-cover projects open with it in the list
     vessel_motion.register()
     updates.register()
     from . import pccheck
@@ -75,6 +77,8 @@ def unregister():
     from .blender import vessel_motion
     vessel_motion.unregister()
     clash.unregister()
+    from .blender import waycover
+    waycover.unregister()
     linkages.unregister()
     coolant.unregister()
     machining.unregister()

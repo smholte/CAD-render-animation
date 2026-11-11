@@ -5,25 +5,33 @@ from __future__ import annotations
 import bpy
 
 from ..core import waycover as core
+from ..core.words import plural
 from . import waycover
 from .ui import MEDIUM, _has_model, _Panel, big_row, header_status, list_rows, primary, split_props, steps, wrap
+
+
+class FRESING_UL_waycovers(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        scene = context.scene
+        row = layout.split(factor=0.55, align=True)
+        n, made = waycover.state_counts(scene, item)
+        row.prop(item, "name", text="", emboss=False, icon="CHECKMARK" if n and made == n else "MOD_ARRAY")
+        row.label(text=plural(n, "section") if item.axis else "no axis yet")
 
 
 class FRESING_UL_waycover_sections(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         scene = context.scene
-        row = layout.row(align=True)
+        row = layout.split(factor=0.62, align=True)
         made = waycover.is_made(scene, item)
         parts = waycover.parts_of(scene, item)
-        row.prop(item, "name", text="", emboss=False, icon="CHECKMARK" if made else "DOT")
-        sub = row.row(align=True)
-        sub.ui_units_x = 5.2
-        c = waycover.settings(scene)
+        row.prop(item, "name", text="", emboss=False,
+                 icon="PINNED" if item.carriage else ("CHECKMARK" if made else "DOT"))
+        c = data
         n = len(c.sections)
-        share = waycover.shares(scene)[index] if index < n else 0.0
+        share = waycover.shares(scene, c)[index] if index < n else 0.0
         mm = abs(share) * c.total * 1000.0
-        word = "part" if len(parts) == 1 else "parts"
-        sub.label(text=f"{len(parts)} {word} · {mm:g} mm")
+        row.label(text="carriage" if item.carriage else (f"{mm:g} mm" if parts else "no parts"))
 
 
 class FRESING_PT_waycover(_Panel, bpy.types.Panel):
@@ -39,26 +47,44 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
         self.layout.label(icon="MOD_ARRAY")
 
     def draw_header_preset(self, context):
-        n, made = waycover.state_counts(context.scene)
+        scene = context.scene
+        n, made = waycover.state_counts(scene)
+        k = len(waycover.covers(scene))
         if n:
-            header_status(self.layout, f"{n} section{'s' if n != 1 else ''}",
-                          icon="NONE" if made == n else "ERROR", alert=made < n)
+            text = plural(n, "section") if k < 2 else plural(k, "cover")
+            header_status(self.layout, text, icon="NONE" if made == n else "ERROR", alert=made < n)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        c = waycover.settings(scene)
-        if not c.axis and not c.sections:
-            steps(layout, context, ["Pick the slide joint the covers follow (the machine axis)",
+        s = scene.fresing
+        if not waycover.covers(scene) and not len(s.waycovers):
+            steps(layout, context, ["Add a way cover (one for each cover of the machine: a cover on each side of "
+                                    "the table is two)",
+                                    "Pick the slide joint it follows (the machine axis)",
                                     "Click the parts of one cover section, then 'Add section' – "
                                     "from the fixed end to the moving end",
                                     "Check the total length of movement, then 'Make it'"])
+            primary(layout, "fresing.waycover_cover_add", "Add way cover", "ADD", MEDIUM)
+            return
+        c = waycover.settings(scene)
+
+        # -- covers
+        if len(s.waycovers):
+            layout.label(text="Covers", icon="MOD_ARRAY")
+            row = layout.row()
+            row.template_list("FRESING_UL_waycovers", "", s, "waycovers", s, "waycovers_index",
+                              rows=list_rows(len(s.waycovers), 1, 4))
+            col = row.column(align=True)
+            col.operator("fresing.waycover_cover_add", text="", icon="ADD")
+            col.operator("fresing.waycover_remove_all", text="", icon="REMOVE")
+            layout.separator()
 
         # -- 1 axis
         layout.label(text="1  Axis", icon="DRIVER")
         row = layout.row(align=True)
         row.prop_search(c, "axis", scene.fresing, "joints", text="", icon="DRIVER")
-        problem = waycover.axis_problem(scene) if c.axis else ""
+        problem = waycover.axis_problem(scene, c) if c.axis else ""
         if problem:
             wrap(layout, context, problem, icon="ERROR", alert=True)
         elif not c.axis:
@@ -75,6 +101,10 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
             col.operator("fresing.waycover_remove", text="", icon="REMOVE")
             col.operator("fresing.waycover_move", text="", icon="TRIA_UP").direction = -1
             col.operator("fresing.waycover_move", text="", icon="TRIA_DOWN").direction = 1
+            if 0 <= c.sections_index < len(c.sections) and c.sections[c.sections_index].carriage:
+                sec = c.sections[c.sections_index]
+                wrap(layout, context, f"{sec.name} – on the carriage: the axis '{c.axis}' moves it itself, so it "
+                     "needs no joint of its own. It stays the last section", icon="PINNED")
             layout.operator("fresing.waycover_select", icon="RESTRICT_SELECT_OFF")
         big_row(layout, MEDIUM).operator("fresing.waycover_add", text="Add section", icon="ADD")
 
@@ -91,16 +121,16 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
 
         # -- 4 make
         layout.separator()
-        n, made = waycover.state_counts(scene)
+        n, made = waycover.state_counts(scene, c)
         label = "Make it" if not made else ("Make it (new sections)" if made < n else "Make it again")
         if c.sections and made < n:
             primary(layout, "fresing.waycover_make", label, "CHECKMARK", MEDIUM)
         else:
             big_row(layout, MEDIUM).operator("fresing.waycover_make", text=label, icon="CHECKMARK")
         if n and made == n and not problem:
-            wrap(layout, context, waycover.status(scene), icon="CHECKMARK")
-        if c.sections:
-            layout.operator("fresing.waycover_remove_all", icon="TRASH")
+            wrap(layout, context, waycover.status(scene, c), icon="CHECKMARK")
+        if not len(s.waycovers):
+            layout.operator("fresing.waycover_cover_add", text="Add another way cover", icon="ADD")
 
 
-CLASSES = (FRESING_UL_waycover_sections, FRESING_PT_waycover)
+CLASSES = (FRESING_UL_waycovers, FRESING_UL_waycover_sections, FRESING_PT_waycover)

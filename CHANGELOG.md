@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.61 – 11 Nov 2026 – vessel motion at sea (task 0085)
+## 0.2.62 – 11 Nov 2026 – vessel motion at sea (task 0085)
 
 Scene & Render
 - **Vessel motion** (new, 5 Scene & Render > Vessel motion, on the Open sea and the Vessel deck): tick **Move with
@@ -27,6 +27,19 @@ Test tour and PC check
 - New tour stop **Vessel motion at sea** (the crane on the vessel deck in a calm beam sea), PC-check lines
   **Vessel motion at sea** (a picture and the measured roll, pitch and heave) and, in Heavy, **Big machine: vessel
   motion on the open sea** (time per frame with and without).
+
+## 0.2.61 – 11 Nov 2026 – several way covers: one each side of the table, the carriage as last section (task 0035)
+
+4 Motion > Way covers
+- **Several covers per project:** a **Covers** list with **+** / **−**. A cover on each side of the table is two covers
+  on the same axis (for example "X left" and "X right"); covers on other axes are more lines. Each has its own axis,
+  sections and travel. Two covers on one axis no longer warn "goes beyond its own limits" at **Build**.
+- **The plate bolted to the carriage** can be the last section: click its parts (they already move with the axis)
+  and **Add section**. It counts as a section (five sections over 500 mm: the others slide 100, 200, 300, 400 mm) but
+  gets no joint of its own; the list shows it with a pin and "carriage". It always stays the last section.
+- Tested with 8 sections. **Remove this cover** (the **−** next to the Covers list) leaves the axis and the carriage
+  alone.
+- Projects saved with one way cover open with it as the first line of the list and move exactly as before.
 
 ## 0.2.60 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
 

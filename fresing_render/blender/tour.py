@@ -1026,6 +1026,37 @@ def build_waycover(b: Build):
     _joint_step(a, "X axis", 2.5, 2.0, 0.0, slide=True)
 
 
+@tour_set("waycover2", "Two way covers", "test_waycover_c.step")
+def build_waycover_two(b: Build):
+    from . import waycover
+    sc = b.scene
+    _look("PRODUCT")
+    waycover.set_up_test_model(sc, carriage=True)
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: two way covers")
+    a = _animation(b, "Carriage across and back", shot.name)
+    _joint_step(a, "X axis", 0.0, 2.0, 0.5, slide=True)
+    _joint_step(a, "X axis", 2.5, 2.0, 0.0, slide=True)
+
+
+def _check_waycover_two(scene):
+    from mathutils import Vector
+
+    def min_x(o):
+        return min((o.matrix_world @ Vector(c)).x for c in o.bound_box)
+
+    scene.frame_set(1)
+    _update()
+    rest = [min_x(_ob(scene, f"COVER.R.{k}")) for k in (1, 4)]
+    scene.frame_set(round(1 + 2.0 * 25))
+    _update()
+    _update()
+    mm = [(min_x(_ob(scene, f"COVER.R.{k}")) - r) * 1000 for k, r in zip((1, 4), rest)]
+    _check(abs(mm[0] - 100) < 0.1 and abs(mm[1] - 400) < 0.1,
+           f"the right cover's sections 1 and 4 moved {mm[0]:.1f} and {mm[1]:.1f} mm, not 100 and 400 mm")
+    return "right cover closed: sections 100 … 500 mm"
+
+
 def _check_waycover(scene):
     from mathutils import Vector
 
@@ -1681,7 +1712,7 @@ stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
      "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
-     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.61", animation=VESSEL_ANIM,
+     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.62", animation=VESSEL_ANIM,
      at=0.5, play=True, check=_check_vessel, auto="clip")
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
@@ -1715,6 +1746,11 @@ stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 500 mm along X and back; the five cover sections telescope out and in with it, each by "
      "its own share.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
      check=_check_waycover, auto="clip")
+stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
+     "A cover on each side of the carriage: as it slides 500 mm to the right the left cover opens and the right one "
+     "closes, every section by its own share; the plates next to the carriage ride on it. And back.",
+     where="4 Motion > Way covers", animation="Carriage across and back", play=True,
+     check=_check_waycover_two, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

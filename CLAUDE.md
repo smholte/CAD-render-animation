@@ -221,7 +221,9 @@ fresing_render/            the Blender extension (Python package)
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
     idprops.py             store_array: arrays into ID properties safely (task 0038)
     waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
-                           k/N of its travel (coupling ratios + limits); ops_waycover.py, ui_waycover.py
+                           k/N of its travel (coupling ratios + limits); several covers per project in
+                           scene.fresing.waycovers (task 0035; the old single cover moves in at load), the last section
+                           may be the carriage (no joint); ops_waycover.py, ui_waycover.py
                            (4 Motion > Way covers); core/waycover.py has the shares
     chips.py               chips: inputs from the milling set-up, catch areas (rays down), bake, two point
                            clouds + a Geometry Nodes instancer (4 Motion > Milling > Chips)

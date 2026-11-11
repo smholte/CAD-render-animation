@@ -574,7 +574,7 @@ def heavy_clash(ctx):
             f"{len(run.rows)} clashes in {secs:.1f} s")
 
 
-@line("heavy.vessel", "Big machine: vessel motion on the open sea", "0.2.61", (H,), requires=("heavy.import",),
+@line("heavy.vessel", "Big machine: vessel motion on the open sea", "0.2.62", (H,), requires=("heavy.import",),
       expected=30,
       what="The 3,000-part machine on the open sea: frames of the time line stepped through with vessel motion off "
            "and on (calm, beam sea); every part then moves each frame",
