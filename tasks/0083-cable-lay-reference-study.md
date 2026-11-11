@@ -346,20 +346,13 @@ band ~0.10 × Ø wide, ~0.07 × Ø black between the two bands of a pair, one pa
 run **almost round the cable, ~15–20° off square to the axis** (a slow helix). The serving is matte, with a slight
 sheen where it is wet. No length marks are visible.
 
-**Public numbers of comparable spreads** (owner, 11 Nov: his references are recent cable-lay vessels with this layout and a
-modular cable-lay system of the same kind he is working on). From public trade-press pages; the names and links are
-**left out on purpose** (the owner's work and his clients' equipment do not belong in this public repository; the owner
-has them in the 0083 session):
+**Public numbers of recent cable-lay vessels** (trade-press pages; names and links left out):
 - A ~123 m × 28 m DP2 cable-lay vessel: carousel **Ø 26 m outer, > 5,000 t**, **2 × 20 t** tensioners (listed as
   vertical), a 170 t knuckle-boom crane.
-- A ~130 m × 28 m vessel of the same family: **two carousels (on and below deck), 8,000 t together**, can lay two
-  cables at once; inter-array cables of **1–1.5 km**, about **3 cables per 24 h**; at the tower end the cable end is
-  lowered with the **quadrant** and pulled into the tower.
-- A **modular 30 t cable-lay system**: **2 × 15 t tensioners**, **MBR 5 m**, a **50 t A&R winch**, cable **Ø 50–500 mm**,
-  a quadrant handling system that overboards the quadrant without a crane (it doubles as a joint-handling arm in
-  repairs). A motion-compensated version of such a system: line pull 35 t including dynamics, Ø 50–500 mm.
-So the demo model's sizes (Ø 24 m carousel, 2 tensioners, MBR 3.5 m at Ø 200, vessel ~124 m × 27 m) sit right in this
-range; for a "Ø 500 mm" demo the MBR of 5 m+ and 15–20 t tensioners are the numbers to use.
+- A ~130 m × 28 m vessel: **two carousels (on and below deck), 8,000 t together**, can lay two cables at once;
+  inter-array cables of **1–1.5 km**, about **3 cables per 24 h**; at the tower end the cable end is lowered with the
+  **quadrant** and pulled into the tower.
+So the demo model's sizes (Ø 24 m carousel, 2 tensioners, vessel ~124 m × 27 m) sit right in this range.
 
 ### Check against 0076 (0076 was finished on its branch while this ran; compared with its `params.py` and report)
 
