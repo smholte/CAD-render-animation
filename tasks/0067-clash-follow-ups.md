@@ -62,10 +62,49 @@ test tour: every row he sees must be a real problem.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 10–11 Nov 2026, branch `ccr-b84f1206-n8rnm0`; version 0.2.54.
 
 **What changed:**
+- **Clash code (a real fault):** `clash.Mesh._inside` called a point inside when it lay "below" the nearest face by
+  half its distance. Beside a sharp outer edge (the cut end of the double arm's U claw) the face whose edge is nearest
+  points away, so points 15 mm *outside* the arm read 15–60 mm inside it: 18 of the 27 double-arm rows (spindle × arm,
+  arm × pot). Now the normal decides only when the point is straight below the face (`FACING` 0.999), else rays.
+  Test: a knife-edge wedge (10°, 20°, 45°), all round the edge outside = 0, and the old rule shown to fail.
+- **Clash speed:** each cut workpiece mesh (milling timeline, one per moment) was "oriented" face by face with rays:
+  85 % of the time. Manifold's meshes are closed and outward: taken as they are. 4th-axis tour check **587 s → 34 s**
+  (same 0 rows). Test: the full orient pass leaves a cut mesh unchanged.
+- **Double arm (make_test_atc.py):** the claw's open side is cut along the ring round the hub that the flange sweeps
+  (the bar stood in the opening: tool × arm 3–6 mm, 6 rows); bar/claw z 281–299 (1 mm under the spindle's nose);
+  magazine disc Ø320 → Ø280 (the tipped pot's hinge block swung 11.6 mm into it, 3 rows). **27 → 0 rows.**
+  Intended contacts: the held tools are copies parented to the arm's turn / the pot (one rigid body with their holder:
+  never compared) and the spindle's tool is skipped by `_mounted`; nothing extra was needed. Test: the held T1 is on
+  the arm while its spindle part is hidden – kept showing in the spindle, the claw turning through it **is** reported.
+  No fault of the app's arm motion found (stroke 76 mm clears the taper; the arm turns only at stroke 0 or −76).
+- **Gantry (make_test_gantry.py):** carriage now a plate behind the spindle (y 26–40; the tool ran into the old box
+  when Z was up: 8 rows); carousel disc Ø170, z 130–140 (its top is the pockets' height, so the spindle comes down
+  onto it instead of 10 mm into it: 8 rows; clear of the gantry side x ≤ 410). **16 → 0** (tool changer), **1 → 0** (G-code).
+  `ui_test_gcode.py`: the pocket click aims at the new disc top from a view tilted 40° down.
+- **Slider-crank (make_test_linkage.py, A and B):** the bearing post moved behind the crank (y −52…−22), its pin O
+  longer; the crank's own pin (y −20…20) swept 10 mm through the solid post. (A bore would not help: the pin circles.)
+- **Tour set-ups (tour.py):** the scissor lift's cylinder is set up (follows the bottom inner arm); the cylinder set's
+  second and telescopic cylinders follow the arm; the milling sets hide the test mill's FINISHED PART (it lies on the
+  stock) and the BALL MILL D6 beside the end mill when it is not a bit (it went 4 mm into the stock in "Air blast").
+- **Regression test:** `test_every_tour_animation_has_no_clash` builds every tour set and checks every animation
+  (17): 0 rows, the clash model's 6.0 mm row. Old per-set tests replaced. Rule added to CLAUDE.md (with the edge lesson).
+- **CI balance:** `ci_times.json` re-recorded from run 42859520339 (0.2.53 branch run, 9.6 min); groups ~6.9 min + air 10.2.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core cloud test machine):
+- Rows before → after: double arm 27 → 0, tool changer 16 → 0, gantry 1 → 0, mechanisms 2 → 0, cylinder 4 → 0,
+  milling 1 → 0, air (found by the new test on GitHub) → 0; crane, way cover, 4th/5th axis, three tools, coolant 0;
+  clash model 6.0 mm.
+- Locally: test_clash (17, the all-tours test 111 s), test_doublearm(+core), test_linkages, test_toolchange,
+  test_gcode, test_tools, test_model_update, test_pccheck, test_tour (43) green; real app gcode 29/29, doublearm 19/19,
+  linkage 25/25, cylinder 22/22. Double-arm hand-overs unchanged (< 0.01 mm, test_doublearm).
+- GitHub runs: 1st (WIP) red – the pocket click (disc with holes), air rows, the all-tours test 427 s (4th axis 6 min),
+  and the Windows PC-check line `milling.rotary` ("cuts not where the program puts them", task 0066's code, not touched
+  here; it was green on main). Final run: see below.
 
 **Open points / follow-up tasks:**
+- Guide pictures that show the gantry carousel / double arm were not re-made (no panel changed; the models look a
+  little different).
+- If `milling.rotary` on Windows fails again: a 0066 follow-up (Machining lane).
