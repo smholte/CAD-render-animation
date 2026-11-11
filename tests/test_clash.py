@@ -399,3 +399,17 @@ def test_double_arm_held_tools_are_skipped_and_reported_when_left_behind(tmp_pat
     rows = clash.check(sc, store=False).rows
     pairs = {frozenset((r.a, r.b)) for r in rows}
     assert frozenset(("TOOL T1 BT30 FLAT D10", "CHANGER ARM")) in pairs, [core.row_text(r) for r in rows]
+
+
+def test_cut_workpiece_meshes_need_no_turning(tmp_path):
+    # the check takes Manifold's cut workpiece as it is (task 0067: turning its faces took 85 % of the 4th-axis
+    # tour's check): every face already points outwards, the full turning pass changes nothing
+    sc = _set("mill", tmp_path)
+    animation.bake(sc, sc.fresing.animations["Mill a slot"])
+    machining.update_if_needed(sc)
+    tl = machining._timeline(sc)
+    v, t, _src = tl.mesh_at(float(clash.sample_times(sc)[-1]))         # the slot cut, as the check reads it
+    v, t = np.asarray(v, dtype=np.float64), np.asarray(t, dtype=np.int64)
+    m = clash.Mesh(v, t)
+    assert m.closed and m.sign == 1.0
+    assert np.array_equal(m.t, t)

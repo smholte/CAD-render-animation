@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.54 – 11 Nov 2026 – clash check: only real clashes (task 0067)
+
+6 Animation > Clash check
+- **No false clashes beside sharp edges:** a part passing close beside a sharp outer edge (the cut end of a U-shaped
+  gripper claw) could be listed as 15–60 mm inside it. Fixed: the double-arm tool changer's 27 rows were 18 of these.
+- **Faster on a turning or milled workpiece:** the 4th-axis test program's check took 10 minutes, now about half a
+  minute (measured on the 4-core test machine).
+
+Test models and test tour
+- Every animation of the test tour now gives **No clashes** (the clash model keeps its one 6.0 mm clash): the double
+  arm's claws are real U claws clear of the spindle, its magazine disc clear of the tipping pots; the gantry's
+  carriage is behind the spindle and its carousel clear of the gantry and the spindle; the slider-crank's bearing post
+  stands behind the crank; the scissor lift's cylinder and the luffing arm's two other cylinders follow their arms;
+  the test mill's finished-part shape and its second tool are hidden in the milling projects.
+- An automatic test builds and checks every tour animation, so a new function's tour stop is checked too.
+
 ## 0.2.53 – 10 Nov 2026 – clash check (task 0065)
 
 6 Animation > Clash check (new)

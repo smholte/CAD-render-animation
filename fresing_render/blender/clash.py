@@ -231,7 +231,7 @@ class Mesh:
     centre: Blender's trees work in 32-bit numbers, and parts drawn far from their origin (a few metres) lost the
     tenths of a micrometre a ray needs to step past a face."""
 
-    def __init__(self, verts: np.ndarray, tris: np.ndarray):
+    def __init__(self, verts: np.ndarray, tris: np.ndarray, oriented: bool = False):
         self.v = np.ascontiguousarray(verts, dtype=np.float64)
         self.t = np.ascontiguousarray(tris, dtype=np.int64)
         self.lo = self.v.min(axis=0) if len(self.v) else np.zeros(3)
@@ -244,7 +244,7 @@ class Mesh:
         self.closed = abs(vol) > 1e-4 * box        # a sheet (no volume): no inside, only its surface counts
         self._tree = None
         self._ptree = None
-        if self.closed:
+        if self.closed and not oriented:
             self._orient()
 
     @property
@@ -671,7 +671,9 @@ class Check:
             if hit is None:
                 try:
                     v, tri, _src = self.timeline.mesh_at(float(t))
-                    hit = Mesh(np.asarray(v, dtype=np.float64), np.asarray(tri, dtype=np.int64))
+                    # Manifold's meshes are closed with every face outwards: no face needs turning (task 0067:
+                    # checking each face of every cut workpiece took 85 % of the 4th-axis tour's 10 min check)
+                    hit = Mesh(np.asarray(v, dtype=np.float64), np.asarray(tri, dtype=np.int64), oriented=True)
                 except Exception:  # noqa: BLE001 - fall back to the uncut block
                     hit = self.meshes[self.mesh_key[p]]
                 if len(cache) > 6:
