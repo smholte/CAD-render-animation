@@ -1285,10 +1285,14 @@ def build_toolpath(b: Build):
     sc = b.scene
     _look("PRODUCT")
     toolpath.set_up_test_model(sc, detail="DRAFT")
+    t = toolpath.settings(sc)                      # a coarse program, quick to cut and to check for clashes
+    t.scallop, t.step_down, t.stepover = 0.0002, 0.006, 70.0
     a = _animation(b, "Toolpath")
     sc.fresing.animations_index = list(sc.fresing.animations).index(a)
     out = toolpath.make(sc, b.file("Tour toolpath.ngc"))
     _check(not out["problems"], "; ".join(out["problems"][:2]))
+    _a, blk = toolpath.step(sc)
+    blk.gcode_fit = 10.0
     machining.settings(sc).chips = "NONE"
     _close_camera(b, Vector((0.0, 0.0, 0.07)), 0.22, "Tour toolpath")
     a.start_shot = _shot(b, "Tour: toolpath").name
@@ -1299,7 +1303,7 @@ def _check_toolpath(scene):
     _a, blk = toolpath.step(scene)
     _check(blk is not None, "the toolpath's step is missing")
     r = toolpath.result(scene)
-    _check(r.get("moves", 0) > 500, "the toolpath has hardly any moves")
+    _check(r.get("moves", 0) > 300, "the toolpath has hardly any moves")
     _check([p["tool"] for p in r.get("passes", [])] == [1, 2], "roughing with T1 and finishing with T2 are not both "
                                                               "there")
     _check("Undercut" in r.get("undercut", ""), "the cap that hangs over is not reported as an undercut")
