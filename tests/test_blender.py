@@ -257,6 +257,12 @@ class FakeLayout:
         if name not in data.bl_rna.properties:
             self.errors.append(f"missing property {type(data).__name__}.{name}")
 
+    def prop_enum(self, data, name, value, *a, **k):
+        self.prop(data, name)
+        if data is not None and name in data.bl_rna.properties and \
+                value not in data.bl_rna.properties[name].enum_items.keys():
+            self.errors.append(f"missing enum item {type(data).__name__}.{name} = {value}")
+
     def operator(self, idname, *a, **k):
         mod, op = idname.split(".")
         try:
