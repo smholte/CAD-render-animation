@@ -343,11 +343,14 @@ def _pick(role: str, ob) -> None:
 
 
 def _hide_finished(scene) -> None:
-    """The test mill's FINISHED PART lies on the stock (a shape for "finish at the CAD part"): shown, the bit cut
-    through it in every milling tour project and the clash check said so (task 0067). Hidden, as a user would."""
-    from . import build, logic
+    """The test mill's FINISHED PART lies on the stock (a shape for "finish at the CAD part") and its BALL MILL D6 sits
+    on the head beside the end mill, its tip as low: shown, the bit cut through the one and the other went into the
+    stock (the clash check said so, task 0067). Hidden, as a user would, unless the ball mill is a bit."""
+    from . import build, logic, machining
+    bits = {ob.name for _it, ob in machining.bits(scene)}
     for ob in scene.objects:
-        if ob.get(build.PROP_NAME) == "FINISHED PART" and not logic.is_hidden(ob):
+        if (ob.get(build.PROP_NAME) in ("FINISHED PART", "BALL MILL D6") and ob.name not in bits
+                and not logic.is_hidden(ob)):
             logic.set_hidden(ob, True)
 
 
