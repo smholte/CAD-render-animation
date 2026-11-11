@@ -1864,9 +1864,15 @@ class FRWayCoverSection(bpy.types.PropertyGroup):
     name: StringProperty(name="Name", description="Name of this way cover section. Double-click to rename it")
     joint: StringProperty()                                # the slide joint made for it ('' until Make it)
     parts: CollectionProperty(type=FRObjectRef)            # chosen parts, until the section is made
+    carriage: BoolProperty(default=False)                  # task 0035: parts of the carriage itself (last section,
+    #                                                        share 1, no joint of its own; ``parts`` stay)
+    uids: StringProperty()                                 # the carriage parts' IDs, one per line (model update)
 
 
 class FRWayCover(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", default="Way cover",
+                         description="Name of this way cover, for example 'X left' and 'X right'. Double-click to "
+                                     "rename it")
     axis: StringProperty(
         name="Axis", update=_waycover_changed,
         description="The slide joint (the machine axis) the covers follow. Pick it from the list, or make one "
@@ -2504,7 +2510,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     coolant: PointerProperty(type=FRCoolant)
 
     # ---- way covers (task 0034) ----
-    waycover: PointerProperty(type=FRWayCover)
+    waycover: PointerProperty(type=FRWayCover)           # one cover per project (0.2.28 …): moved into the list on load
+    waycovers: CollectionProperty(type=FRWayCover)       # task 0035: several covers (one each side, several axes)
+    waycovers_index: IntProperty(default=0)
     # ---- clash check (task 0065) ----
     clash: PointerProperty(type=FRClash)
     # ---- the app makes the toolpath (task 0029) ----

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.60"
+__version__ = "0.2.62"
 
 _modules = []
 
@@ -60,6 +60,8 @@ def register():
     clash.register()
     from .blender import section
     section.register()                       # cutaways (task 0086): new materials of cut parts get wrapped
+    from .blender import waycover
+    waycover.register()                      # task 0035: one-cover projects open with it in the list
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -75,6 +77,8 @@ def unregister():
     from .blender import section
     section.unregister()
     clash.unregister()
+    from .blender import waycover
+    waycover.unregister()
     linkages.unregister()
     coolant.unregister()
     machining.unregister()

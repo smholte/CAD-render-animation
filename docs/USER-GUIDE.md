@@ -812,21 +812,34 @@ and coolant stay off the guide ways. Here the sections follow the axis by themse
 every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
 and closes the covers.
 
-<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: axis, five sections, travel 500 mm"> <img class="wide" src="img/view_waycover.png" alt="The test machine with its way covers opened by 500 mm">
+<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: two covers on the X axis, five sections each, the last one on the carriage"> <img class="wide" src="img/view_waycover.png" alt="The test machine with a way cover on each side of the carriage, the carriage 300 mm along">
 
 **Set it up**
 
-1. In 4 Motion > **Way covers**, step **1 Axis**: pick the **slide joint** the covers follow (the machine axis,
+1. In 4 Motion > **Way covers**, press **Add way cover**. Every cover of the machine is one line in the
+   **Covers** list: a cover on each side of the table is two covers (name them "X left" and "X right" with a
+   double-click), and covers on other axes are more lines. **+** next to the list adds the next one, **−** removes
+   the chosen one. Everything below the list belongs to the chosen cover.
+2. Step **1 Axis**: pick the **slide joint** the cover follows (the machine axis,
    made in Joints above). A machine without a joint yet: click the carriage and press **Make one from the
-   selection**, then click a hole or face for the direction.
-2. Step **2 Sections**: click the parts of one cover section – any number of parts or subassemblies – and press
+   selection**, then click a hole or face for the direction. Two covers on one axis both pick the same joint.
+3. Step **2 Sections**: click the parts of one cover section – any number of parts or subassemblies – and press
    **Add section**. Do the same for every section, starting at the **fixed end** and working towards the
-   moving end. The arrows next to the list change the order; **−** takes a section out; **Select the
-   section's parts** shows which parts it holds. A part can be in one section only, and a part that already
-   moves with a joint (or follows one) is refused, with the reason.
-3. Step **3 Travel**: **Total movement** is how far the axis moves in all; **Read from the axis** takes it from
-   the axis limits (Min and Max). **Flip direction** opens the covers the other way round.
-4. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+   moving end (the carriage). The arrows next to the list change the order; **−** takes a section out; **Select
+   the section's parts** shows which parts it holds. A part can be in one section (of one cover) only, and a
+   part that already moves with a joint (or follows one) is refused, with the reason.
+4. **The biggest plate bolted to the carriage.** When the last section is fastened to the carriage – its parts
+   are already moved by the axis joint – click those parts and press **Add section** as the last one. The list
+   shows it with a pin and "carriage": it counts as a section (with five sections over 500 mm the others
+   slide 100, 200, 300 and 400 mm), but it needs no joint of its own, because the axis moves it. It must stay
+   the last section: adding a section after it, or moving it up, is refused with the reason. Remove it first,
+   add the other section, then add the carriage parts again.
+5. Step **3 Travel**: **Total movement** is how far the axis moves in all; **Read from the axis** takes it from
+   the axis limits (Min and Max). **Flip direction** makes the sections slide against the axis' direction
+   (rarely needed: a cover on the other side of the table still slides *with* the carriage, so it needs no
+   Flip – it closes where the first one opens).
+6. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+   With several covers, choose each one in the list and press its **Make it**.
 
 **How the travel is shared out.** Every section slides the same distance relative to its neighbour. With the
 axis moving 500 mm and five sections, the sections stand 100, 200, 300, 400 and 500 mm from their CAD place
@@ -838,11 +851,15 @@ Tick **Housing counts** for those: the first section stays, the others share the
 five sections over 500 mm give 0, 125, 250, 375 and 500 mm.
 
 **Changing it later.** Adding, removing or reordering sections, changing the travel, Flip and Housing counts
-re-share the travel at once. Sections you added since **Make it** need **Make it** once more. **Remove way
-cover** removes the sections' joints and puts their parts back; the axis joint and everything else stay as
-they are.
+re-share the travel at once. Sections you added since **Make it** need **Make it** once more. **−** next to the
+Covers list (**Remove this cover**) removes the chosen cover: its sections' joints go and their parts go back;
+the axis joint, the carriage and the other covers stay as they are.
 
-Under the hood each section is an ordinary slide joint ("Way cover Section 1") that follows the axis (see
+**Projects from before 0.2.61** had one way cover: they open with it as the first line of the Covers list,
+moving exactly as before.
+
+Under the hood each section is an ordinary slide joint ("Way cover Section 1"; with several covers "X left
+Section 1") that follows the axis (see
 couplings, above), so the covers move in animations, in saved scenes and in the render queue, also on a PC that
 does not allow scripts in project files. They stay through a model update (1 Import) and in saved projects.
 To move the covers in a video, use the animation step **Move joint** on the axis – nothing else is needed.

@@ -290,7 +290,7 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += cylinders.rebuild_from_specs(scene, st.cyl_specs or [], by_uid)  # after the joints: drive mode needs them
     notes += machining.after_model_update(scene, mapping, by_uid)
     notes += gcode.after_model_update(scene, mapping, by_uid)
-    notes += waycover.after_joints_rebuilt(scene)                            # way covers (task 0034)
+    notes += waycover.after_joints_rebuilt(scene, mapping, by_uid)           # way covers (task 0034, 0035)
     from . import trails
     notes += trails.after_model_update(scene, by_uid, mapping)               # trail lines (task 0073)
     from . import section

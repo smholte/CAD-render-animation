@@ -1,67 +1,113 @@
-# 0035 – Way covers: the carriage as last section, 8 sections; missing guide pictures (way covers, labels, pictures & music)
+# 0035 – Way covers: several covers per axis, the carriage as last section, 8 sections
 
-> **Lead, 8 Nov 2026:** the guide pictures (step 3 and its "Done when" line) moved to task **0044**. 0035 is now only the
-> way-cover code: the carriage as last section, 8 sections, and two way covers on one axis (0037 problem 3).
+> **Lead, 11 Nov 2026:** taken off hold by the owner and re-briefed. The guide pictures of the first brief were done in
+> **0044**; this task is only the way-cover code, now with several covers per project (0037 problem 3).
 
+**Who:** worker · **Status:** done (0.2.61) · **Branch:** `task/0035-waycover-follow-ups` (or the session's own branch)
+**Started by:** lead chat, 6 Nov 2026; re-briefed 11 Nov 2026
+**Lane:** new **Way-cover lane** (split off the Machining lane: 0061 does not touch these files) – `blender/waycover.py`,
+`blender/ops_waycover.py`, `blender/ui_waycover.py`, `core/waycover.py`, `tools/make_test_waycover.py`, their tests;
+additive only: `blender/props.py` (the new list of covers, the old single cover kept for old projects),
+`blender/reimport.py` only if the model-update hook needs it; tour stop, PC-check line, guide chapter 4 "Way covers"
+**Model:** **Opus · effort Medium** (saved-project data changes: old projects must keep opening) · **Place:** Claude
+Code on the web, environment "CAD-render-animation"
 
-**Who:** worker · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web · **Status:** open – after 0031
-**Branch:** `task/0035-waycover-follow-ups`
-**Started by:** lead chat, 6 Nov 2026 · **Lane:** Machining (`waycover.py`, `ops_waycover.py`, `ui_waycover.py`,
-their tests) plus `docs/` pictures and guide text. The label/picture/music pictures belong to the Scene & Render lane's
-panels, which is free: this task only **photographs** them – no code change in that lane.
+Runs at the same time as **0084** (demo model, `tools/demo_cable_lay/`), **0085** (vessel motion), **0086** (cutaway:
+`section*.py`, `fade.py`, `materials.py`, maybe a hook in `joints.py`), **0087** (camera: `cameras.py`, the camera part
+of `animation.py`, `ui_motion.py`) and, from Thursday 08:00, **0058** (Flex parts: `flex*.py`, hooks in `handlers.py`,
+`animation.py`, `reimport.py`) and **0061** (Machining). Touch none of their files beyond the additive lines above.
+Several releasing tasks at once: take the version number last; whoever finishes later merges `main` once and renumbers.
 
 ## Goal
 
-The open points of tasks 0034 and 0025: a way cover whose last section sits on the carriage works without
-tricks, 8 sections are proven in Blender, and the user guide gets the pictures it is missing.
+Way covers as real machines have them: a cover on **each side** of the table on one axis, covers on several axes, the
+biggest plate bolted to the carriage, and covers with many sections – without warnings at every Build.
 
 ## Background
 
-- Read the reports of `tasks/0034-waycover.md` and `tasks/0025-callouts-pictures-music.md` (open points only).
-- **Why after 0031:** guide pictures need the real Blender (`tools/guide_screens.py`). Task 0031 stores Blender in
-  every worker session. If it is still not there when you start, do it the way 0026 did: make the pictures in a
-  GitHub real-app job and read them back from the job log (see the 0026 report), and say so in the report.
-- Refusal today: `waycover.check_section` (around line 125 of `blender/waycover.py`) refuses parts that move with the
-  axis joint itself ("pick the parts of the covers, not the carriage"). On many machines the last (biggest) cover
-  plate is bolted to the carriage – it already moves 1:1 with the axis.
+- Reports of `tasks/0034-waycover.md` (open points) and `tasks/0037-owner-mill-gcode-demo.md` "problem 3": the owner's
+  mill has a cover on each side of the table on one axis; the panel holds one cover, so the limits it wrote (7 sections,
+  housing counts 0, 33 … 200 mm) did not match the ratios he set by hand (1, 0.75, 0.5, 0.25 per side), and every Build
+  warns "Way cover Section 1/2 … goes beyond its own limits". The motion itself was right.
+- Today: one cover per project (`scene.fresing.waycover`); `waycover.check_parts` refuses parts that move with the axis
+  joint itself ("pick the parts of the covers, not the carriage").
 
 ## What to build
 
-1. **Carriage section:** parts that move with the axis joint itself may be added as the **last** section only. It
-   gets share 1 (it moves with the axis already), makes **no** new joint or coupling, and counts in N, so the other
-   shares stay k/N (5 sections over 500 mm: 100…400 mm for sections 1–4, section 5 = the carriage). The list shows it
-   as "Section 5 – on the carriage". Adding another section after it, or moving it up, is refused with the reason in
-   plain words. Housing counts, Flip, Read from the axis, Remove way cover (leaves the axis joint and the carriage
-   alone), model update and save/reopen keep working. Tooltip for anything new; PC-check line unchanged unless the
-   check can cover it in one line (then raise `MIN_LINES_FULL`).
-2. **8 sections in Blender:** the generator `tools/make_test_waycover.py` takes a section count (keep 5 the default
-   and the committed model unchanged); a Blender test with 8 sections checks every section's travel against k/8 of
-   the axis at a few axis positions, and one with a carriage section.
-3. **Guide pictures (docs/img + `docs/USER-GUIDE.md`):** the Way covers panel and a render of the generic way-cover
-   test model (chapter 4 "Way covers"); the Labels fold of panel 5 and the Pictures / Music folds of panel 6
-   (chapters 5 and 6), plus one still of the test crane with two labels if `guide_screens.py` can make it cheaply.
-   Generic test models only (public repository). Add the shots to `tools/guide_screens.py` so they can be made again.
+1. **Several way covers per project** (4 Motion > Way covers): a list of covers, each with its own axis joint, its own
+   sections, Housing counts / Flip / Read from the axis; Add / Remove cover; two covers on the same axis (one each side
+   of the table, typically one Flipped) give no warnings at Build. An **old project** opens with its one cover as the
+   first item of the list, motion and limits unchanged (test with a project saved by the current release).
+2. **Carriage section:** parts that move with the axis joint itself may be added as the **last** section only. It gets
+   share 1, makes **no** new joint or coupling, and counts in N, so the other shares stay k/N (5 sections over 500 mm:
+   100…400 mm for sections 1–4, section 5 = the carriage). The list shows "Section 5 – on the carriage". Adding a section
+   after it or moving it up is refused with the reason in plain words. Remove cover leaves the axis joint and the
+   carriage alone.
+3. **8 sections:** `tools/make_test_waycover.py` takes a section count (keep 5 the default and the committed models
+   unchanged); a Blender test with 8 sections checks every section's travel against k/8 of the axis at a few positions.
+4. Model update, save/reopen, poses, G-code runs and the render queue move every cover. Every new button a tooltip; guide
+   chapter 4 updated (panel picture replaced); PC-check line `machining.waycover` extended (two covers on one axis) or a
+   new line; tour stop "Two way covers on one axis" (a set on the generic way-cover test model); `CHANGELOG.md`.
 
 ## Done when
 
-- [ ] Carriage section works as described, with tests that failed before; 8-section test passes
-- [ ] Guide has the pictures above; `tools/build_guide.py` builds; tooltip check 0 missing
-- [ ] GitHub run green; merged; released (version taken last, CLAUDE.md section 2)
-- [ ] Report filled in (runs needed and why)
+- [ ] Tests that failed before: two covers on one axis build with 0 warnings and each section's travel = its share at
+      sampled axis positions; carriage section as described (and the refusals); 8-section test; an old one-cover project
+      opens and moves exactly as before; model update and save/reopen keep every cover.
+- [ ] Screenshots of the Way covers panel checked; guide picture replaced; tooltip check 0 missing.
+- [ ] Tour stop, PC-check line; the all-tour clash test still 0 rows; GitHub green incl. Windows; merged to `main` with
+      the next free version, released.
+- [ ] Report filled in (runs needed and why); `TASKS.md`: 0035 done.
 
 ## Not in this task
 
-Label, picture-card or music code (Scene & Render lane); milling's bit switching at tool changes (later, Machining lane);
+Milling's bit switching, anything in the Machining lane; bellows-style or roll-up covers (later, if the owner wants them);
 the owner's way-cover STEP stays as committed.
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 11 Nov 2026 (branch `claude/dreamy-cori-of1n4l`), released as 0.2.61
 
 **What changed:**
+- `scene.fresing.waycovers` (list) + `waycovers_index`; `FRWayCover.name`; section `carriage` + `uids`. The old
+  `scene.fresing.waycover` stays: a load_post handler (`waycover.migrate`, registered in `__init__.py`) moves it into
+  the list; until then it counts as the only cover. Every `waycover.*` function takes `cover=` (default: the chosen
+  one); `refresh`, rename and model-update hooks walk all covers. Joints of a second cover are named "<cover> Section k".
+- Carriage section: parts the cover's axis joint moves itself, added last; share 1, counts in N, no joint; refused:
+  a second one, any section after it, moving it or moving another below it, carriage parts mixed with others. Its
+  parts are found again by part ID after a model update (`after_joints_rebuilt(scene, mapping, by_uid)`: the one
+  additive line in `reimport.py`). Remove section / Remove this cover leave the axis and carriage alone.
+- Panel: Covers list (+ / −) above the old steps; with no cover the steps and a blue **Add way cover**; the sections
+  list shows "100 mm" / "carriage" (labels were cut off before), a pin line under the list for the carriage section.
+- `tools/make_test_waycover.py --sections N`, `--both-sides` → new `test_waycover_c.step` (a cover each side of the
+  carriage, 5 + 5 sections; in `tests/data` and `fresing_render/data`). The committed `_a`/`_b` models unchanged.
+- `waycover.set_up_test_model` (shared by tour, PC check, guide pictures); PC-check line `machining.waycover_two`;
+  tour stop/set `waycover2` "Two way covers on one axis"; guide chapter 4 Way covers + both pictures replaced;
+  ui_test_waycover.py: Add way cover, mixed carriage refused, a second cover added/removed (16 checks).
+- Lead's brief said "typically one Flipped": not needed – the far-side cover's sections also slide *with* the
+  carriage (it closes as the other opens); the guide says so. Flip is unchanged.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, Linux):
+- `tests/test_waycover.py` 30 tests (10 new: two covers with 0 Build warnings and every section at k/5 at 4 axis
+  positions + in the baked animation; one part in one cover; remove one cover; carriage section 100…400 + 500 mm and
+  the refusals; carriage section stays last after a remove; 8 sections k/8 at 4 positions + 0 warnings; old
+  one-cover project → first item, same joints/ratios/limits/motion; two covers with carriage sections through
+  save/reopen and a model update; panel draw). test_model_update, test_pccheck, test_tour (47), the all-tour clash
+  test (0 rows with the new set), PC-check lines machining.waycover + waycover_two OK, real-app waycover 16/16,
+  tooltip check 0 missing of 558.
+- Old project saved by the 0.2.60 code (git worktree of main), opened with the new code: one cover in the list,
+  sections at 60/140/220/300/380 mm before and after, all ratios and limits identical.
+- Owner's cover (`test_waycover_a.step`, sections pushed to 290 mm with OCP for the demo) twice on the X axis of the
+  toolpath test mill: section 5…2 + section 1 with the mounting plate as carriage section, housing counts; X ±120 mm:
+  170 … 410 mm per side, no Build warning; three renders sent to the owner (not committed).
+
+**Runs needed:** 1 full run on the branch (green, 43113891835); main moved by a task-list commit only, merged without a new run.
 
 **Open points / follow-up tasks:**
+- A cover drawn in another position than the machine's axis zero (the owner's STEP is drawn at mid-travel, 376.5 mm)
+  only fits when the CAD pose matches; for the demo the file was re-posed. A per-cover "the cover is as drawn when
+  the axis is at … mm" (coupling offset) would let any CAD pose be used.
+- Moving a whole model copy by its root (`matrix_basis`) without updating `fr_rest_basis` puts it back at the next
+  Build (found while placing the demo copies; not in this lane).
