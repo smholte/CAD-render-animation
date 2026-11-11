@@ -1,6 +1,6 @@
 # 0083 – Reference study: how a cable-lay spread really looks and moves
 
-**Who:** worker · **Status:** open – can start (Wed 11 Nov evening), next to 0076 · **Branch:**
+**Who:** worker · **Status:** running (Wed 11 Nov evening), next to 0076 · **Branch:**
 `task/0083-cable-lay-reference`
 **Started by:** lead chat, 11 Nov 2026
 **Area:** findings only – this task file and, at most, small notes in `tasks/0076-demo-cable-lay-model.md` (a "Notes
