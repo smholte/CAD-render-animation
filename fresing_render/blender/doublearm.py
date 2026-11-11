@@ -258,6 +258,7 @@ def make_arm(scene, objs, origin: Vector, direction: Vector, ref=None) -> str:
         return ("The hub's axis is not parallel with the spindle: click a round face of the hub that turns about the "
                 "arm's axis")
     remove_arm(scene)
+    slide_name = ""
     try:
         slide = joints.create(scene, "SLIDE", objs, Vector(origin), d, name="Changer arm stroke", ref=ref)
         slide_name = slide.name
@@ -266,6 +267,9 @@ def make_arm(scene, objs, origin: Vector, direction: Vector, ref=None) -> str:
         turn.motion[ARM_TAG] = "arm"
         turn_name = turn.name
     except RuntimeError as exc:
+        half = scene.fresing.joints.get(slide_name) if slide_name else None
+        if half is not None:                           # no half-made arm (bug hunt 0068 row 19a)
+            joints.remove(scene, half)
         return str(exc)
     for name in (slide_name, turn_name):
         j = scene.fresing.joints.get(name)
@@ -379,11 +383,9 @@ def make_pots(scene, pot, origin: Vector, direction: Vector) -> str:
     centre = sum((Vector(b) for b in pot.bound_box), Vector()) / 8
     centre = pot.matrix_world @ centre
     others = [o for o in bpy.data.objects if o.type == "MESH" and o.data is data and gcode._carries(car, o)]
-    remove_pots(scene)
-    c.pockets.clear()
     num0 = max(1, int(c.station))
-    made = []
-    for k in range(n):
+    found = []                                     # every pot first: a wrong click leaves the old pockets as they were
+    for k in range(n):                             # (bug hunt 0068 row 19a)
         r = Matrix.Rotation(way * TC.TURN * k / n, 3, a_d)
         want = a_o + r @ (centre - a_o)
         part = min(others, key=lambda o: (o.matrix_world @ (sum((Vector(b) for b in o.bound_box), Vector()) / 8)
@@ -393,6 +395,11 @@ def make_pots(scene, pot, origin: Vector, direction: Vector) -> str:
             return (f"No pot found {k} pockets on from the station: the magazine's pots must be parts of the same "
                     "shape, evenly round its axis (check 'Pockets' and 'Number the other way')")
         others.remove(part)
+        found.append((k, r, part))
+    remove_pots(scene)
+    c.pockets.clear()
+    made = []
+    for k, r, part in found:
         inv = part.matrix_world.inverted()
         p = c.pockets.add()
         p["_busy"] = True

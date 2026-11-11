@@ -1430,6 +1430,9 @@ def spec_key(ob, root=None):
     return ob.get(build.PROP_UID)
 
 
+SPEC_TAGS = ("fr_atc",)          # tags on a joint's motion empty that a model update keeps (task 0071: the double arm's)
+
+
 def to_specs(scene, values: dict | None = None, only=None, root=None) -> list[dict]:
     """Joints as plain data (object references by stable part ID; objects outside the model under
     ``root`` by name, see ``spec_key``). Call in the CAD pose.
@@ -1453,6 +1456,7 @@ def to_specs(scene, values: dict | None = None, only=None, root=None) -> list[di
             # couplings and motors (task 0012); specs without them come from older versions
             "follows": j.follows, "ratio": j.couple_ratio, "offset_angle": j.couple_offset_angle,
             "offset_dist": j.couple_offset_dist, "motor": bool(j.is_motor),
+            "tags": {k: j.motion[k] for k in SPEC_TAGS if j.motion is not None and k in j.motion},
         })
     return out
 
@@ -1609,6 +1613,8 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             j.rot_min, j.rot_max = sp["rot_min"], sp["rot_max"]
             j.slide_min, j.slide_max = sp["slide_min"], sp["slide_max"]
             _set_raw(j, is_motor=bool(sp.get("motor", False)) and sp["kind"] == "ROTATE")
+            for k, v in (sp.get("tags") or {}).items():         # (bug hunt 0068 row 14)
+                j.motion[k] = v
             apply_limits(j, _model_size(scene))
             values[j.name] = sp["value"]                # (a follower's driver overrides it while its leader is there)
             built.append(sp["name"])

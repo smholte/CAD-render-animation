@@ -1091,6 +1091,8 @@ def prepare(scene, anim, warnings: list) -> list:
     """Before a bake: every G-code step's length from its program; returns the tool changer's steps to add
     (shifted to each tool change)."""
     extra = []
+    from . import machining
+    machining.runtime(scene).pop("sig_ok", None)           # the motion is made again: milling checks it (task 0071)
     from . import air
     air.prepare(scene)                                     # air frames: written again by the steps (task 0039)
     from . import coolant
@@ -1335,6 +1337,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
                              name, offsets)
     elif later:
         _record_schedule(scene, [(f0, 0)])                  # the part in the spindle again
+    air.key_cones(scene, sch, b, f0, fps, vkeys, merge, offsets)   # the air cone on the tool in the spindle
     if coolant.is_on(scene):                                # coolant frames, after the tool copies (task 0042)
         try:
             coolant.record(scene, sch, b, mach, f0, fps, offsets)
@@ -1495,6 +1498,8 @@ def _lift(sch, offsets: dict):
 def after_clear(scene) -> None:
     """'Clear keys': the tool copies go (they are made again by the next build), and the air with them."""
     _remove_tool_copies(scene)
+    from . import machining
+    machining.runtime(scene).pop("sig_ok", None)
     c = settings(scene)
     for k in ("fr_tools", "fr_corners", "fr_turns"):
         if k in c:
@@ -1510,9 +1515,21 @@ def after_clear(scene) -> None:
 # the toolpath
 # ---------------------------------------------------------------------------
 
+def no_light(mat) -> None:
+    """A glowing material that does not light the scene (study 0069 #5, as ``surroundings.py``): Cycles then does not
+    sample it as a light – a long drawn toolpath took 2.0-2.6 s a frame, 0.6 s without; it looks the same. Set only on
+    change (a set render setting stops a running viewport preview)."""
+    for owner in (mat, getattr(mat, "cycles", None)):
+        if owner is not None and hasattr(owner, "emission_sampling"):
+            if owner.emission_sampling != "NONE":
+                owner.emission_sampling = "NONE"
+            return
+
+
 def _material(name: str, rgb) -> bpy.types.Material:
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get(TAG) == "path":
+        no_light(mat)                                  # (projects from before 0.2.56)
         return mat
     if mat is None:
         mat = bpy.data.materials.new(name)
@@ -1529,6 +1546,7 @@ def _material(name: str, rgb) -> bpy.types.Material:
     em.inputs["Color"].default_value = (*rgb, 1.0)
     em.inputs["Strength"].default_value = 1.5
     nt.links.new(em.outputs[0], out.inputs["Surface"])
+    no_light(mat)
     return mat
 
 

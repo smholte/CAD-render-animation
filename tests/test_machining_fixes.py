@@ -71,9 +71,9 @@ def two_steps(sc, a, b, gap=1.0):
     return b2
 
 
-def gantry_changes(sc, tmp_path, kind):
+def gantry_changes(sc, tmp_path, kind, text=PROGRAM_T3):
     set_up(sc)
-    a, b = step(sc, program(tmp_path, PROGRAM_T3))
+    a, b = step(sc, program(tmp_path, text))
     a.fps = str(FPS)
     rows = tools(sc)
     c = sc.fresing.cnc
@@ -232,3 +232,273 @@ def test_changer_animation_in_step_after_a_joint_step(scene, tmp_path):
     have = _keys(door)
     for f in want:
         assert any(abs(k - f) < 0.51 for k in have), (f, have)
+
+
+# ---------------------------------------------------------------------------
+# rows 10 + 11 + 19c: rotary axes
+# ---------------------------------------------------------------------------
+
+PROGRAM_C90 = "(T1 D=6. CR=0. - flat end mill)\nG21 G90\nT1 M6\nG0 C90\nM30\n"
+
+
+def test_c_turns_the_same_way_when_built_with_a_tipped(tmp_path):
+    from test_rotary import load
+    from fresing_render.blender import rotary
+    sc, a, b = load(tmp_path, five=True, program=PROGRAM_C90,
+                     milling=False)
+    trunnion, table = sc.fresing.joints["Trunnion A"], sc.fresing.joints["Table C"]
+    signs, ends, words = [], [], []
+    for deg in (0.0, 60.0, 95.0, 120.0):
+        animation.clear_keys(sc)
+        joints.set_value(trunnion, math.radians(deg), use_limits=False)
+        joints.set_value(table, 0.0, use_limits=False)
+        bpy.context.view_layer.update()
+        mach = gcode.Machine(sc)
+        signs.append(mach.axes[2].sign)
+        r = animation.bake(sc, a)
+        sc.frame_set(r["frames"])
+        ends.append(round(math.degrees(joints.get_value(table)), 3))
+        words += [t for _ok, t in rotary.check(sc) if t.startswith("C:")]
+    assert signs == [signs[0]] * 4, signs
+    assert words == [words[0]] * 4, words                  # Check says the same at every A
+    assert ends == [ends[0]] * 4, ends
+
+
+def test_rotary_check_starts_from_the_static_pose(tmp_path):
+    from test_rotary import load
+    from fresing_render.blender import rotary
+    sc, a, b = load(tmp_path, milling=False)
+    names = ("X", "Y", "Z", "Rotary A")
+    static = {n: joints.get_value(sc.fresing.joints[n]) for n in names}
+    r = animation.bake(sc, a)
+    sc.frame_set(min(400, r["frames"]))
+    moved = {n: joints.get_value(sc.fresing.joints[n]) for n in names}
+    assert any(abs(moved[n] - static[n]) > 1e-4 for n in names)
+    poses = rotary.start_check(sc)
+    keep = poses[0][1]
+    for n in names:
+        assert keep[n] == pytest.approx(static[n], abs=1e-7), n
+    assert not animation.has_keys(sc)
+
+
+def test_rotary_check_forgotten_on_load_and_pick(tmp_path):
+    from test_rotary import load
+    from fresing_render.blender import rotary
+    sc, a, b = load(tmp_path, milling=False)
+    rotary.check(sc)
+    assert rotary.LAST_CHECK
+    sc.fresing.cnc.a_reverse = True                          # another set-up: the old Check is gone
+    assert not rotary.LAST_CHECK
+    rotary.check(sc)
+    path = str(tmp_path / "p.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    assert not rotary.LAST_CHECK
+
+
+# ---------------------------------------------------------------------------
+# rows 9 + 18: automatic coolant hoses on the first Build and after a model update
+# ---------------------------------------------------------------------------
+
+def mill_scene(tmp_path, update_tool=None):
+    import test_coolant as tc
+    from fresing_render.blender import chips
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    machining._RUNTIME.clear()
+    chips.forget()
+    gcode._CACHE.clear()
+    gcode._INFO.clear()
+    sc = bpy.context.scene
+    sc.fresing.out_folder = str(tmp_path)
+    assert bpy.ops.fresing.import_step(filepath=tc.MILL, quality="draft") == {"FINISHED"}
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = tc.ob(sc, asm)
+        joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    assert bpy.ops.fresing.cnc_find_axes() == {"FINISHED"}
+    tc.click(tc.ob(sc, tc.TOOL))
+    assert bpy.ops.fresing.cnc_use_tool() == {"FINISHED"}
+    tc.click(tc.ob(sc, tc.STOCK))
+    assert bpy.ops.fresing.cnc_use_workpiece() == {"FINISHED"}
+    sc["tmp"] = str(tmp_path)
+    return sc
+
+
+def test_coolant_hoses_same_on_the_first_build(tmp_path):
+    import test_coolant as tc
+    from fresing_render.blender import coolant
+    sc = mill_scene(tmp_path)
+    x = sc.fresing.joints["X"]                              # the head away from x = y = 0
+    joints.set_value(x, 0.06)
+    bpy.context.view_layer.update()
+    sc.fresing.coolant.enabled = True
+    tc.build_program(sc)
+    first = (coolant.root()["fr_mount_z"], coolant.root()["fr_ring"], *coolant.root()["fr_g"])
+    tc.build_program(sc)
+    second = (coolant.root()["fr_mount_z"], coolant.root()["fr_ring"], *coolant.root()["fr_g"])
+    assert first == pytest.approx(second, abs=1e-9)
+
+
+def test_coolant_after_a_model_update(tmp_path):
+    import test_coolant as tc
+    from fresing_render.blender import coolant
+    sc = mill_scene(tmp_path)
+    sc.fresing.coolant.enabled = True
+    tc.build_program(sc)
+    wet = len(coolant.wet_parts(sc))
+    assert wet > 0 and coolant.root().parent is not None
+    root = next(r for r in build.model_roots(sc))
+    assert bpy.ops.fresing.import_step(filepath=tc.MILL, quality="draft", update_root=root.name) == {"FINISHED"}
+    bpy.context.view_layer.update()
+    r = coolant.root()
+    assert r.parent is not None and r.parent.name in sc.objects     # on the new head part
+    assert r.parent is coolant.head(sc)
+    assert len(coolant.wet_parts(sc)) == wet                         # still wet until the next Build
+
+
+# ---------------------------------------------------------------------------
+# rows 14 + 15: a model update keeps the double arm's tags; old two-copy projects keep their CNC on copy 2
+# ---------------------------------------------------------------------------
+
+def test_model_update_keeps_the_double_arm(atc_scene, tmp_path):
+    sc = atc_scene
+    arm_set_up(sc, tmp_path)
+
+    def tagged():
+        return sorted(j.name for j in sc.fresing.joints if doublearm.app_joint(j))
+    before = tagged()
+    assert len(before) == 14
+    root = next(r for r in build.model_roots(sc))
+    assert bpy.ops.fresing.import_step(filepath=ATC_MODEL, quality="draft", update_root=root.name) == {"FINISHED"}
+    assert tagged() == before
+    c = sc.fresing.cnc
+    c.pocket_count = 11                                     # one pocket fewer, then Remove arm: nothing left behind
+    doublearm.remove_pots(sc)
+    doublearm.remove_arm(sc)
+    assert tagged() == []
+
+
+def test_old_two_copy_project_keeps_the_cnc_on_copy_two(tmp_path):
+    from test_same_step_twice import CRANE_A, _make_old, load, part, roots
+    sc = load(tmp_path, CRANE_A, CRANE_A)
+    _make_old(sc)
+    one, two = roots(sc)
+    tool, wp = part(sc, "COVER", two), part(sc, "BOOM", two)
+    c, m = sc.fresing.cnc, machining.settings(sc)
+    c["_busy"] = True
+    c.tool, c.workpiece = tool, wp
+    del c["_busy"]
+    c.tool_uid, c.workpiece_uid = tool[build.PROP_UID], wp[build.PROP_UID]
+    m.workpiece, m.workpiece_uid = wp, wp[build.PROP_UID]
+    assert build.repair_uids(sc) == 1
+    assert tool[build.PROP_UID].startswith("~2/")
+    assert (c.tool_uid, c.workpiece_uid, m.workpiece_uid) == (tool[build.PROP_UID], wp[build.PROP_UID],
+                                                              wp[build.PROP_UID])
+
+
+# ---------------------------------------------------------------------------
+# row 16: per-frame work
+# ---------------------------------------------------------------------------
+
+def test_milling_frame_work_is_light(tmp_path, monkeypatch):
+    from test_rotary import load
+    sc, a, b = load(tmp_path)
+    r = animation.bake(sc, a)
+    machining.sample(sc)
+    # the cut is written before Blender works the frame out (one pass, not two)
+    assert machining._on_frame in bpy.app.handlers.frame_change_pre
+    assert machining._on_frame not in bpy.app.handlers.frame_change_post
+    calls = {"sig": 0, "walk": 0}
+    sig = machining.signature
+
+    def counted(scene):
+        calls["sig"] += 1
+        return sig(scene)
+    monkeypatch.setattr(machining, "signature", counted)
+    sc.frame_set(100)
+    shown = machining.settings(sc).cut_mesh
+    before = len(shown.polygons)
+    for f in range(101, 121):
+        sc.frame_set(f)
+    assert calls["sig"] == 0                                # the motion's fingerprint only after a change
+    assert gcode.copies_all() == gcode.copies_all()          # (kept by name)
+    # a change of the motion is still seen: Build again
+    animation.bake(sc, a)
+    sc.frame_set(130)
+    assert calls["sig"] >= 1
+    assert r["frames"] > 130 and before >= 0
+
+
+def test_wet_parts_kept_and_dropped():
+    from fresing_render.blender import coolant
+    sc = bpy.context.scene
+    obs = [o for o in sc.objects if o.type == "MESH"][:2]
+    if len(obs) < 2:
+        pytest.skip("needs a scene with parts")
+    coolant.forget()
+    for o in obs:
+        o[coolant.WET_ATTR] = 0.5
+    assert {o.name for o in coolant.wet_parts(sc)} == {o.name for o in obs}
+    del obs[0][coolant.WET_ATTR]                             # a part dried outside the cache: seen
+    assert [o.name for o in coolant.wet_parts(sc)] == [obs[1].name]
+    del obs[1][coolant.WET_ATTR]
+    coolant.forget()
+
+
+# ---------------------------------------------------------------------------
+# rows 19a, 19b and study 0069 #5
+# ---------------------------------------------------------------------------
+
+def test_wrong_pot_click_keeps_the_pockets(atc_scene, tmp_path):
+    sc = atc_scene
+    arm_set_up(sc, tmp_path)
+    c = sc.fresing.cnc
+    pots = [(p.number, p.tip_joint) for p in c.pockets]
+    assert len(pots) == 12
+    c.pocket_count = 13                                     # one more than the magazine has: no pot found
+    why = doublearm.make_pots(sc, doublearm.test_station_pot(sc), Vector(doublearm.TEST_HINGE[0]),
+                              Vector(doublearm.TEST_HINGE[1]))
+    assert why.startswith("No pot found")
+    assert [(p.number, p.tip_joint) for p in c.pockets] == pots
+    assert all(sc.fresing.joints.get(t) is not None for _n, t in pots)
+
+
+def test_air_cone_on_the_tip_of_the_tool_in_the_spindle(scene, tmp_path):
+    from fresing_render.blender import air
+    a, b, _parts = gantry_changes(scene, tmp_path, "MANUAL", PROGRAM_T3.replace("G21 G90\n", "G21 G90\nS9000 M3\n"))
+    c = scene.fresing.cnc
+    c.air_always, c.air_show = True, True
+    r = animation.bake(scene, a)
+    assert not r["warnings"], r["warnings"]
+    cones = [o for o in bpy.data.objects if o.get(air.TAG) == "cone"]
+    assert len(cones) >= 2                                  # T2 and T3 are longer than T1: their own cone
+    mach = gcode.Machine(scene)
+    checked = 0
+    for f, n in gcode.schedule(scene):
+        g = int(f) + 3
+        scene.frame_set(g)
+        bpy.context.view_layer.update()
+        if gcode.schedule(scene)[-1][0] < f:
+            continue
+        vis = [o for o in cones if shown(o)]
+        if not vis:
+            continue
+        assert len(vis) == 1, g
+        tool = gcode.copies().get(n) or mach.tool
+        tip = tool.matrix_world @ (gcode._rest_tip(tool)[0] if tool is mach.tool else Vector(tool["fr_tip"]))
+        assert (vis[0].matrix_world.translation - tip).length < 0.05 * MM, (n, g)
+        checked += 1
+    assert checked >= 3
+
+
+def test_glowing_toolpath_and_cone_light_nothing(scene, tmp_path):
+    from fresing_render.blender import air
+    set_up(scene)
+    a, b = step(scene, program(tmp_path), gcode_path=True)
+    scene.fresing.cnc.air_show = True
+    animation.bake(scene, a)
+    mats = [m for m in bpy.data.materials if m.get(gcode.TAG) == "path" or m.get(air.TAG) == "cone"]
+    assert len(mats) >= 2
+    for m in mats:
+        owner = m if hasattr(m, "emission_sampling") else m.cycles
+        assert owner.emission_sampling == "NONE", m.name

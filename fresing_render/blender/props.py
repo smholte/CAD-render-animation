@@ -741,6 +741,15 @@ def _cnc_changed(self, context):
     gcode.setup_changed(context.scene)
 
 
+def _rotary_changed(self, context):
+    """A, B or C picked (or reversed) again: the last Check is of another set-up (task 0071, bug hunt 0068 row 19c)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import gcode, rotary
+    rotary.LAST_CHECK.clear()
+    gcode.setup_changed(context.scene)
+
+
 def _cnc_table_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
         return
@@ -1531,11 +1540,11 @@ class FRCnc(bpy.types.PropertyGroup):
 
     # ---- rotary axes A, B, C (task 0066) ----
     a_joint: StringProperty(
-        name="A", update=_cnc_changed,
+        name="A", update=_rotary_changed,
         description="The rotate joint the program's A turns (4th / 5th axis, about +X), made in 4 Motion. "
                     "Empty: the machine has no A axis")
     a_reverse: BoolProperty(
-        name="Reverse A", default=False, update=_cnc_changed,
+        name="Reverse A", default=False, update=_rotary_changed,
         description="Tick when the program's +A turns the axis the other way than the app thinks. The app "
                     "takes + as the tool going round the part right-handed about +X (the table turns the other way). "
                     "Check shows which way it turns")
@@ -1550,11 +1559,11 @@ class FRCnc(bpy.types.PropertyGroup):
                     "the + way to 90°, A-90 the - way to 90°. Off: plain degrees (A0 after A720 "
                     "turns back two turns)")
     b_joint: StringProperty(
-        name="B", update=_cnc_changed,
+        name="B", update=_rotary_changed,
         description="The rotate joint the program's B turns (4th / 5th axis, about +Y), made in 4 Motion. "
                     "Empty: the machine has no B axis")
     b_reverse: BoolProperty(
-        name="Reverse B", default=False, update=_cnc_changed,
+        name="Reverse B", default=False, update=_rotary_changed,
         description="Tick when the program's +B turns the axis the other way than the app thinks. The app "
                     "takes + as the tool going round the part right-handed about +Y (the table turns the other way). "
                     "Check shows which way it turns")
@@ -1569,11 +1578,11 @@ class FRCnc(bpy.types.PropertyGroup):
                     "the + way to 90°, B-90 the - way to 90°. Off: plain degrees (B0 after B720 "
                     "turns back two turns)")
     c_joint: StringProperty(
-        name="C", update=_cnc_changed,
+        name="C", update=_rotary_changed,
         description="The rotate joint the program's C turns (4th / 5th axis, about +Z), made in 4 Motion. "
                     "Empty: the machine has no C axis")
     c_reverse: BoolProperty(
-        name="Reverse C", default=False, update=_cnc_changed,
+        name="Reverse C", default=False, update=_rotary_changed,
         description="Tick when the program's +C turns the axis the other way than the app thinks. The app "
                     "takes + as the tool going round the part right-handed about +Z (the table turns the other way). "
                     "Check shows which way it turns")

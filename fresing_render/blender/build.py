@@ -348,7 +348,40 @@ def repair_uids(scene) -> int:
             root[PROP_UID_SCOPE] = scope + uid_scope(root)
             changed += 1
         used.update(ob.get(PROP_UID, "") for ob in members)
+    if changed:
+        _uid_strings_again(scene)
     return changed
+
+
+def _uid_strings_again(scene) -> None:
+    """After ``repair_uids``: the part IDs the CNC machine, its tools and pockets, the air nozzle, the coolant nozzles
+    and milling keep as text are taken again from the objects they point at (task 0071, bug hunt 0068 row 15: a CNC
+    set up on copy 2 jumped to copy 1 at the next model update)."""
+    s = scene.fresing
+    pairs = []
+    cnc = getattr(s, "cnc", None)
+    if cnc is not None:
+        pairs += [(cnc, "tool", "tool_uid"), (cnc, "workpiece", "workpiece_uid"), (cnc, "air_nozzle", "air_nozzle_uid")]
+        pairs += [(t, "obj", "uid") for t in getattr(cnc, "tools", ())]
+        pairs += [(p, "obj", "uid") for p in getattr(cnc, "pockets", ())]
+    mill = getattr(s, "milling", None)
+    if mill is not None:
+        pairs += [(mill, "workpiece", "workpiece_uid"), (mill, "finished", "finished_uid")]
+        pairs += [(b, "obj", "uid") for b in getattr(mill, "bits", ())]
+    cool = getattr(s, "coolant", None)
+    if cool is not None:
+        pairs += [(n, "obj", "uid") for n in getattr(cool, "nozzles", ())]
+    for owner, ptr, key in pairs:
+        ob = getattr(owner, ptr, None)
+        if ob is None or not hasattr(owner, key):
+            continue
+        uid = ob.get(PROP_UID, "")
+        if uid and getattr(owner, key) != uid:
+            owner["_busy"] = True
+            try:
+                setattr(owner, key, uid)
+            finally:
+                del owner["_busy"]
 
 
 def world_bounds(objs) -> tuple:

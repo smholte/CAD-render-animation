@@ -795,6 +795,7 @@ def sample(scene, progress=None) -> int:
     s["fr_wp_f0"] = f0
     s.path_sig = signature(scene)
     rt = runtime(scene)
+    rt["sig_ok"] = s.path_sig                      # checked: nothing changed since (``_on_frame``, task 0071)
     rt["sample_s"] = time.perf_counter() - t0
     rt["timeline"] = None
     return count
@@ -888,6 +889,8 @@ def cut_items(scene) -> list:
     one (a program with tool changes, task 0040): the part in the spindle is split up – while tool T is in the
     spindle, T's copy cuts with T's sizes (its tool list row); a row that is the spindle's own part cuts with that
     row's sizes."""
+    if "in_scene" in _FRAME and "cut_items" in _FRAME:     # (asked by the cut and by the chips in one frame)
+        return _FRAME["cut_items"]
     from ..core import tools as tcore
     from . import gcode, tools
     sched = gcode.schedule(scene)
@@ -930,6 +933,8 @@ def cut_items(scene) -> list:
             tool = tcore.cutting_tool(spec) if spec is not None else tool_of(it)
             chip = tcore.chip_kind(spec) if spec is not None else ""
             out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob))
+    if "in_scene" in _FRAME:
+        _FRAME["cut_items"] = out
     return out
 
 
@@ -1118,6 +1123,7 @@ def mark_stale(scene) -> None:
     """Something that moves the bits changed: read the path again (soon, in the 3D view)."""
     rt = runtime(scene)
     rt["timeline"] = None
+    rt.pop("sig_ok", None)
     if bpy.app.background:
         return
     _schedule()
@@ -1262,7 +1268,15 @@ def _on_frame(scene, _depsgraph=None):
         if _in_window() and _off_main_thread() and not scene.render.use_lock_interface:
             return                               # a render in the window that may draw this mesh meanwhile
         s = settings(scene)
-        if s.path_sig != signature(scene):
+        rt = runtime(scene)
+        # the motion's signature walks the whole chain of the bits (6.8 ms a frame next to a big machine, bug hunt
+        # 0068 row 16): worked out again only after something changed (``_on_depsgraph``, undo, load, Build)
+        if rt.get("sig_ok") != s.path_sig or not s.path_sig:
+            if s.path_sig and s.path_sig == signature(scene):
+                rt["sig_ok"] = s.path_sig
+            else:
+                rt.pop("sig_ok", None)
+        if rt.get("sig_ok") != s.path_sig or not s.path_sig:
             runtime(scene)["status"] = "The motion changed: reading it again"
             mark_stale(scene)                    # 3D view: read soon; the queue reads it before rendering
             if not bpy.app.background:
@@ -1281,19 +1295,34 @@ def _on_depsgraph(scene, depsgraph=None):
     try:
         if not is_active(scene):
             return
-        names = runtime(scene).get("chain_names")
+        rt = runtime(scene)
+        names = rt.get("chain_names")
         if names is None:
             names = {o.name for o in chain_objects(scene)}
-            runtime(scene)["chain_names"] = names
+            rt["chain_names"] = names
         for u in depsgraph.updates:
             idb = u.id
+            if isinstance(idb, bpy.types.Scene):
+                rt.pop("sig_ok", None)                   # (settings, frame range: the signature is checked again)
             if isinstance(idb, bpy.types.Action) or (
                     isinstance(idb, bpy.types.Object) and u.is_updated_transform and idb.name in names):
-                runtime(scene).pop("chain_names", None)
+                rt.pop("chain_names", None)
+                rt.pop("sig_ok", None)
                 _schedule()
                 return
     except Exception:
         pass
+
+
+@persistent
+def _on_undo(_scene=None, _dummy=None):
+    """Undo / redo put back older data: the kept answers are checked again (task 0071)."""
+    for rt in _RUNTIME.values():
+        rt.pop("sig_ok", None)
+        rt.pop("chain_names", None)
+    from . import coolant, gcode
+    gcode._COPIES.clear()
+    coolant.forget()
 
 
 @persistent
@@ -1316,17 +1345,26 @@ def _on_load(_dummy=None):
 
 
 def register():
-    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame),
+    # the cut is written before the frame is worked out (task 0071): written after it, Blender works the whole scene
+    # out a second time (about 11 ms a frame next to a 3,000-part machine). It needs nothing of the new frame but
+    # its number: the bits' paths are read beforehand (``sample``)
+    while _on_frame in bpy.app.handlers.frame_change_post:
+        bpy.app.handlers.frame_change_post.remove(_on_frame)
+    for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
-                    (bpy.app.handlers.load_post, _on_load)):
+                    (bpy.app.handlers.load_post, _on_load),
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
         if fn not in lst:
             lst.append(fn)
 
 
 def unregister():
-    for lst, fn in ((bpy.app.handlers.frame_change_post, _on_frame),
+    while _on_frame in bpy.app.handlers.frame_change_post:
+        bpy.app.handlers.frame_change_post.remove(_on_frame)
+    for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
-                    (bpy.app.handlers.load_post, _on_load)):
+                    (bpy.app.handlers.load_post, _on_load),
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
         while fn in lst:
             lst.remove(fn)
     if bpy.app.timers.is_registered(_check_timer):
