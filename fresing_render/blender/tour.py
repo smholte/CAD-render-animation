@@ -1307,25 +1307,28 @@ def _check_rotary5(scene):
     return f"C at {got:.1f}° halfway along the groove, the tool follows the part"
 
 
+# the cuts lie in the finished part's pocket (x -50..50, y -30..30, 10 deep): elsewhere the block is the finished part
+# up to its top, and a cut there goes into it; the face pass starts at X-10 so the ball mill hanging 120 mm beside the
+# spindle stays off the block (the clash check says so since task 0029 keeps every key of a fast program)
 TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT30)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S6000 M3
-G0 X-130 Y-50 Z5
+G0 X-10 Y0 Z5
 G1 Z-1 F3000
-G1 X130
+G1 X20
 G0 Z10
 M5
 T2 M6 G43 H2
 S12000 M3
-G0 X-40 Y30 Z5
+G0 X-40 Y20 Z5
 G1 Z-6 F600
 G1 X40 F1500
 G0 Z10
 M5
 T3 M6 G43 H3
 S10000 M3
-G0 X-40 Y38 Z5
+G0 X-40 Y-20 Z5
 G1 Z-2 F800
 G1 X40 F1200
 G0 Z20
@@ -1352,12 +1355,13 @@ def build_tools(b: Build):
     _pick("workpiece", stock)
     face = tools.add_row(sc, "FACE", 1)
     face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.lead_angle = 1.5707963
     end = tools.add_row(sc, "FLAT", 2)
     end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
     vee = tools.add_row(sc, "VEE", 3)
     vee.diameter, vee.length, vee.holder, vee.holder_length = 0.01, 0.09, "BT30", 0.06
     a = _animation(b, "Three tools")
-    _gcode_step(a, _program(b, "Tour three tools.ngc", TOOLS_TOUR), sc, gcode_speed="FIT", gcode_fit=8.0,
+    _gcode_step(a, _program(b, "Tour three tools.ngc", TOOLS_TOUR), sc, gcode_speed="FIT", gcode_fit=14.0,
                 gcode_tc_time=1.0, gcode_hand=True)
     del machining, toolchange
     tip = stock.matrix_world.translation + Vector((0.0, 0.0, 0.08))
