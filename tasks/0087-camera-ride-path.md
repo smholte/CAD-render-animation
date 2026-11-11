@@ -1,6 +1,6 @@
 # 0087 – Camera that rides along, flies a path or keeps a part in the middle (study 0069 #7)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0087-camera-ride-path` (or the session's own branch)
+**Who:** worker · **Status:** done (0.2.62) · **Branch:** `task/0087-camera-ride-path` (or the session's own branch)
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study; the owner can change it)
 **Lane:** **Scene & Render lane** – `blender/cameras.py`, `blender/ops_scene.py`, the camera part of
 `blender/animation.py` (the CAMERA step's plan and the Animation camera), the Camera step's settings in
@@ -41,14 +41,14 @@ Fly along the cable route, ride on the gantry while it cuts, follow a hook – w
 
 ## Done when
 
-- [ ] Tests: riding camera = part's world matrix × the start offset at sampled frames (< 0.01 mm, < 0.01°), Keep level
+- [x] Tests: riding camera = part's world matrix × the start offset at sampled frames (< 0.01 mm, < 0.01°), Keep level
       upright within 0.01°; path passes through its points, start/end right, speed even within 2 % (ease excluded);
       keep-in-middle: the part's projected centre within 1 % of the picture's middle; blend from the previous camera
       without a jump; scripts off; queue-runner frames = view frames; save/reopen; old camera steps' keys unchanged.
-- [ ] Screenshots of the changed panels checked (`tools/ui_screens.py`); guide pictures replaced.
-- [ ] Tour stop, PC-check line, guide, tooltips strict; the all-tour clash test still 0 rows; GitHub green incl.
+- [x] Screenshots of the changed panels checked (`tools/ui_screens.py`); guide pictures replaced.
+- [x] Tour stop, PC-check line, guide, tooltips strict; the all-tour clash test still 0 rows; GitHub green incl.
       Windows; merged to `main` with the next free version, released.
-- [ ] Report filled in; `TASKS.md`: 0087 done; Scene & Render lane free.
+- [x] Report filled in; `TASKS.md`: 0087 done; Scene & Render lane free.
 
 ## Not in this task
 
@@ -58,7 +58,7 @@ Motion blur (study #6), steady videos (study #14), a camera shake, the one-click
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 11 Nov 2026.
+**Chat / date:** Claude Code on the web (worker), 11 Nov 2026. Released as **0.2.62**.
 
 **What changed:**
 - Camera step: three new modes on a second row of buttons – **Ride along**, **Fly a path**, **Watch part** (= "keep a
@@ -92,6 +92,9 @@ Motion blur (study #6), steady videos (study #14), a camera shake, the one-click
   0.00 % off the middle; 6 small frames in 14 s total.
 - `tests/test_tour.py` + all-tour clash test: 48 passed (the new animation has 0 clashes).
 - Tooltip report: 567, 0 missing. Panel pictures checked (no cut-off labels after shortening).
+- GitHub: 3 full runs. Run 1 red: the panel test's fake layout had no `prop_enum` (added to `tests/test_blender.py`),
+  and the PC-check line's `since` was ahead of the version (expected before the bump). Run 2 green (0.2.61), but
+  0035 released 0.2.61 meanwhile; run 3 after merging main as 0.2.62 green (11.8 min), `main` fast-forwarded to it.
 
 **Open points / follow-up tasks:**
 - **Vessel (0085):** 0085 was not on `main` when this merged, so 0085 (merging second) makes the vessel a ride target
