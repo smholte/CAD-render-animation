@@ -611,10 +611,11 @@ def start_of_step(scene, mach, f0, vkeys, merge) -> bool:
     with its start tool in the spindle and the other tools in their pockets: what an earlier step left in the
     spindle, on the arm, in the hand or in another pot goes back at the step's first frame (the step's own keys then
     put its start tool in, at the same frame). Returns whether an earlier step keyed tools."""
+    if not earlier_keys(vkeys):                      # the first program step (a Hide step's parts stay as keyed)
+        return False
     c = settings(scene)
     arm = c.changer == "ARM"
     parts = {t.obj.name for t in c.tools if t.obj is not None and t.obj is not mach.tool}
-    later = False
     for name, keys in vkeys.items():
         ob = bpy.data.objects.get(name)
         if ob is None:
@@ -625,11 +626,10 @@ def start_of_step(scene, mach, f0, vkeys, merge) -> bool:
             hidden = arm                                         # a CAD tool in the carousel (the arm: copies)
         else:
             continue
-        later = True
         merge(keys, f0, hidden, "CONSTANT")
-    if later and mach.tool.name in vkeys:
+    if mach.tool.name in vkeys:
         merge(vkeys[mach.tool.name], f0, False, "CONSTANT")
-    return later
+    return True
 
 
 def tool_keys(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_until, warnings, merge, name,

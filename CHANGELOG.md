@@ -5,6 +5,32 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.57 – 11 Nov 2026 – machining fixes: two programs in one animation, coolant, rotary axes, smoother milling (task 0071)
+
+CNC machine and tool changes
+- **Fixed:** two "Run G-code program" steps in one animation: the tool left in the spindle by the first program no
+  longer stays next to the second program's tool, no tool shows twice (spindle, pocket, magazine pot, double arm),
+  and milling and chips cut with the tool that is really in the spindle. Each program starts with its start tool in
+  the spindle and the others in their pockets, as the program expects.
+- **Fixed:** the tool changer's own animation now plays in step with M6 when the program does not start where the
+  animation starts (a joint step or another program before it); the step's length is worked out from there too.
+- **Fixed:** automatic coolant hoses sat 80 mm too high after the first Build (the second Build and the queue's
+  video were right); after a model update they hang on the new head and the wet sheen stays.
+- **Fixed:** with the trunnion tipped 90° or more when you press Build, C turned the wrong way; rotary **Check** no
+  longer leaves the machine in the pose of the frame shown, and its old result goes when you pick other axes or open
+  another project.
+- **Fixed:** a model update kept the double arm's joints but forgot they were the arm's; old projects with the same
+  STEP twice keep the CNC machine on the copy it was set up on.
+- **Fixed:** a wrong click on the pot's hinge no longer removes the magazine's pockets; the "Show air" cone sits on
+  the tip of the tool in the spindle (also a longer one).
+
+Speed
+- Milling, chips and coolant play about twice as smoothly next to a big machine: measured on the web test machine
+  (3,000-part machine + the 5-axis test model), 40 → about 20 ms a frame with milling, chips and coolant on (the
+  cut is exactly the same).
+- The drawn toolpath and the air cone glow without lighting the scene: renders with a long drawn toolpath are much
+  quicker (study: 2.0–2.6 → 0.6 s a frame), and look the same.
+
 ## 0.2.55 – 11 Nov 2026 – the app makes the toolpath (task 0029)
 
 4 Motion > Milling > Make a toolpath (new)
