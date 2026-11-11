@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.61 – 11 Nov 2026 – vessel motion at sea (task 0085)
+
+Scene & Render
+- **Vessel motion** (new, 5 Scene & Render > Vessel motion, on the Open sea and the Vessel deck): tick **Move with
+  the sea** and the machine, the deck and the props heave, pitch and roll gently with the waves, while the sea, the
+  sky and the camera stay put. The vessel rises when a wave crest passes under it: it moves on the same waves the sea
+  shows (with vessel motion on, the sea gets a long, low swell; off, the sea is exactly as before).
+- **Calm** is a working day of a cable-lay vessel: roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
+  heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats. **Rough** is about three times that.
+- **Waves from**: head sea, bow quarter, beam sea (rolls the most), stern quarter, following sea. **Strength**
+  0–200 %. The fold **Vessel**: length and beam (from the deck or the model, or typed in), roll period, the point it
+  turns about (Auto or a clicked point).
+- **Stays still**: pick a subassembly and it keeps its place in the world (**Still**: a motion-compensated gangway, a
+  hook that holds its place) or stays level and only rises and falls (**Level**). Its joints still work.
+- Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It
+  plays with scripts off, in the render queue and at any frame rate, and stays through Save, a model update and saved
+  scenes. It costs no render time; about 6 ms per frame of playback on a 3,000-part machine.
+
+Test tour and PC check
+- New tour stop **Vessel motion at sea** (the crane on the vessel deck in a calm beam sea), PC-check lines
+  **Vessel motion at sea** (a picture and the measured roll, pitch and heave) and, in Heavy, **Big machine: vessel
+  motion on the open sea** (time per frame with and without).
+
 ## 0.2.60 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
 
 Import
