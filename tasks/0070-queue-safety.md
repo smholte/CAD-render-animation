@@ -1,6 +1,6 @@
 # 0070 – Render queue and update safety (bug hunt 0068 rows 1–5, 19e–h)
 
-**Who:** worker · **Status:** open – start now (Wed 11 Nov); **merged before Thursday 12 Nov 08:00** · **Branch:** own
+**Who:** worker · **Status:** running (Wed 11 Nov); **merged before Thursday 12 Nov 08:00** · **Branch:** own
 **Started by:** lead chat, 11 Nov 2026 (from bug hunt 0068)
 **Lane:** Motion (queue) + Quality & delivery – `blender/queue.py`, `queue_runner.py`, `ops_queue.py`/the queue panel,
 `blender/updates.py` (preflight), `project_lock.py`; a `save_post` handler (in `handlers.py` – a few lines; 0058 starts
