@@ -68,10 +68,46 @@ the owner's way-cover STEP stays as committed.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 11 Nov 2026 (branch `claude/dreamy-cori-of1n4l`), released as 0.2.61
 
 **What changed:**
+- `scene.fresing.waycovers` (list) + `waycovers_index`; `FRWayCover.name`; section `carriage` + `uids`. The old
+  `scene.fresing.waycover` stays: a load_post handler (`waycover.migrate`, registered in `__init__.py`) moves it into
+  the list; until then it counts as the only cover. Every `waycover.*` function takes `cover=` (default: the chosen
+  one); `refresh`, rename and model-update hooks walk all covers. Joints of a second cover are named "<cover> Section k".
+- Carriage section: parts the cover's axis joint moves itself, added last; share 1, counts in N, no joint; refused:
+  a second one, any section after it, moving it or moving another below it, carriage parts mixed with others. Its
+  parts are found again by part ID after a model update (`after_joints_rebuilt(scene, mapping, by_uid)`: the one
+  additive line in `reimport.py`). Remove section / Remove this cover leave the axis and carriage alone.
+- Panel: Covers list (+ / −) above the old steps; with no cover the steps and a blue **Add way cover**; the sections
+  list shows "100 mm" / "carriage" (labels were cut off before), a pin line under the list for the carriage section.
+- `tools/make_test_waycover.py --sections N`, `--both-sides` → new `test_waycover_c.step` (a cover each side of the
+  carriage, 5 + 5 sections; in `tests/data` and `fresing_render/data`). The committed `_a`/`_b` models unchanged.
+- `waycover.set_up_test_model` (shared by tour, PC check, guide pictures); PC-check line `machining.waycover_two`;
+  tour stop/set `waycover2` "Two way covers on one axis"; guide chapter 4 Way covers + both pictures replaced;
+  ui_test_waycover.py: Add way cover, mixed carriage refused, a second cover added/removed (16 checks).
+- Lead's brief said "typically one Flipped": not needed – the far-side cover's sections also slide *with* the
+  carriage (it closes as the other opens); the guide says so. Flip is unchanged.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, Linux):
+- `tests/test_waycover.py` 30 tests (10 new: two covers with 0 Build warnings and every section at k/5 at 4 axis
+  positions + in the baked animation; one part in one cover; remove one cover; carriage section 100…400 + 500 mm and
+  the refusals; carriage section stays last after a remove; 8 sections k/8 at 4 positions + 0 warnings; old
+  one-cover project → first item, same joints/ratios/limits/motion; two covers with carriage sections through
+  save/reopen and a model update; panel draw). test_model_update, test_pccheck, test_tour (47), the all-tour clash
+  test (0 rows with the new set), PC-check lines machining.waycover + waycover_two OK, real-app waycover 16/16,
+  tooltip check 0 missing of 558.
+- Old project saved by the 0.2.60 code (git worktree of main), opened with the new code: one cover in the list,
+  sections at 60/140/220/300/380 mm before and after, all ratios and limits identical.
+- Owner's cover (`test_waycover_a.step`, sections pushed to 290 mm with OCP for the demo) twice on the X axis of the
+  toolpath test mill: section 5…2 + section 1 with the mounting plate as carriage section, housing counts; X ±120 mm:
+  170 … 410 mm per side, no Build warning; three renders sent to the owner (not committed).
+
+**Runs needed:** see below.
 
 **Open points / follow-up tasks:**
+- A cover drawn in another position than the machine's axis zero (the owner's STEP is drawn at mid-travel, 376.5 mm)
+  only fits when the CAD pose matches; for the demo the file was re-posed. A per-cover "the cover is as drawn when
+  the axis is at … mm" (coupling offset) would let any CAD pose be used.
+- Moving a whole model copy by its root (`matrix_basis`) without updating `fr_rest_basis` puts it back at the next
+  Build (found while placing the demo copies; not in this lane).
