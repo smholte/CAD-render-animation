@@ -84,8 +84,12 @@ test tour: every row he sees must be a real problem.
   when Z was up: 8 rows); carousel disc Ø170, z 130–140 (its top is the pockets' height, so the spindle comes down
   onto it instead of 10 mm into it: 8 rows; clear of the gantry side x ≤ 410). **16 → 0** (tool changer), **1 → 0** (G-code).
   `ui_test_gcode.py`: the pocket click aims at the new disc top from a view tilted 40° down.
-- **Slider-crank (make_test_linkage.py, A and B):** the bearing post moved behind the crank (y −52…−22), its pin O
-  longer; the crank's own pin (y −20…20) swept 10 mm through the solid post. (A bore would not help: the pin circles.)
+- **Slider-crank and lift (make_test_linkage.py, A and B):** the bearing post moved behind the crank (y −52…−22), its
+  pin O longer; the crank's own pin (y −20…20) swept 10 mm through the solid post (a bore would not help: the pin
+  circles). The lift cylinder's eyes turned inside a *solid* bracket (8 mm) and lug (5 mm), the crank rod inside the
+  solid piston (15 mm) and the guide's wall (10 mm): constant start overlaps that sit on the check's threshold (start
+  + 0.5 mm) – GitHub listed 4 frames of 8.1 mm that this machine did not. Now forks/slots: every part of the
+  mechanisms starts at most 0.11 mm (meshing) inside another.
 - **Tour set-ups (tour.py):** the scissor lift's cylinder is set up (follows the bottom inner arm); the cylinder set's
   second and telescopic cylinders follow the arm; the milling sets hide the test mill's FINISHED PART (it lies on the
   stock) and the BALL MILL D6 beside the end mill when it is not a bit (it went 4 mm into the stock in "Air blast").
@@ -102,9 +106,14 @@ test tour: every row he sees must be a real problem.
   linkage 25/25, cylinder 22/22. Double-arm hand-overs unchanged (< 0.01 mm, test_doublearm).
 - GitHub runs: 1st (WIP) red – the pocket click (disc with holes), air rows, the all-tours test 427 s (4th axis 6 min),
   and the Windows PC-check line `milling.rotary` ("cuts not where the program puts them", task 0066's code, not touched
-  here; it was green on main). Final run: see below.
+  here; green on main and in the next run: a one-off). 2nd (77d6a65) red only in the all-tours test: the lift
+  cylinder's 8.1 mm frames (above); all-tours test 149 s there, the rest green incl. Windows. 3rd (0f498fc): below.
 
 **Open points / follow-up tasks:**
+- Same pattern left in models outside this lane (green on every run so far, but on the threshold by design): the
+  crane's boom turns 30 mm inside its pedestal, the luffing arm 50 mm inside its post and the cylinders' rods
+  15–20 mm inside ARM.BRACKET (make_test_crane.py, make_test_cylinder.py). If the all-tours test ever lists one of
+  them, give those a fork/bore as here.
 - Guide pictures that show the gantry carousel / double arm were not re-made (no panel changed; the models look a
   little different).
 - If `milling.rotary` on Windows fails again: a 0066 follow-up (Machining lane).
