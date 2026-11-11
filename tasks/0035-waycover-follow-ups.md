@@ -3,7 +3,7 @@
 > **Lead, 11 Nov 2026:** taken off hold by the owner and re-briefed. The guide pictures of the first brief were done in
 > **0044**; this task is only the way-cover code, now with several covers per project (0037 problem 3).
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0035-waycover-follow-ups` (or the session's own branch)
+**Who:** worker · **Status:** running · **Branch:** `task/0035-waycover-follow-ups` (or the session's own branch)
 **Started by:** lead chat, 6 Nov 2026; re-briefed 11 Nov 2026
 **Lane:** new **Way-cover lane** (split off the Machining lane: 0061 does not touch these files) – `blender/waycover.py`,
 `blender/ops_waycover.py`, `blender/ui_waycover.py`, `core/waycover.py`, `tools/make_test_waycover.py`, their tests;
