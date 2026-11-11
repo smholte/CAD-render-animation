@@ -10,7 +10,7 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty, StringProperty
 from mathutils import Vector
 
 from ..core.words import plural
-from . import animation, build, files, joints, logic, props, queue, states
+from . import animation, build, files, hover, joints, logic, props, queue, states
 
 # =============================================================================
 # helpers
@@ -279,25 +279,26 @@ class FRESING_OT_joint_pick_axis(bpy.types.Operator):
                 self.report({"WARNING"}, reason)
                 return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set(
-            "Click a hole or shaft (axis through its centre) or a flat face (axis at right angles to it).  "
-            "Esc / right-click: cancel.  Middle mouse / scroll: move the view")
+        hover.start(context, self, "Click a hole or shaft (axis through its centre) or a flat face (axis at right "
+                                   "angles to it).  Esc / right-click: cancel.  Middle mouse / scroll: move the view")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
-        if res is None or res[0].get(build.PROP_KIND) != "part":
-            context.workspace.status_text_set("Missed the model (or hit the floor): click a part. Esc: cancel")
+        res = hover.pick(context, event)
+        if res is None:
+            hover.prompt(context, "Missed the model (or hit the floor): click a part. Esc: cancel")
             return {"RUNNING_MODAL"}           # keep waiting
         ob, index, loc, normal = res
         origin, direction, desc = joints.axis_from_hit(ob, index, loc, normal)

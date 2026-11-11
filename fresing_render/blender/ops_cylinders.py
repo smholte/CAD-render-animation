@@ -6,8 +6,8 @@ import bpy
 from bpy.props import EnumProperty, StringProperty
 
 from ..core.words import plural
-from . import build, cylinders, joints, logic
-from .ops_motion import _raycast, _redraw, over_panel, selected_movers
+from . import build, cylinders, hover, joints, logic
+from .ops_motion import _redraw, over_panel, selected_movers
 
 
 def _active(context):
@@ -95,25 +95,28 @@ class FRESING_OT_cylinder_add(bpy.types.Operator):
             return {"CANCELLED"}
         self._first = None
         context.window.cursor_modal_set("EYEDROPPER")
+        hover.start(context, self, "")
         self._status(context, "1 of 2: click the BARREL's pin (on the machine side): the pin, or the hole it is in")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _status(self, context, text):
-        context.workspace.status_text_set(f"{text}.  Esc / right-click: cancel.  Middle mouse / scroll: move the view")
+        hover.prompt(context, f"{text}.  Esc / right-click: cancel.  Middle mouse / scroll: move the view")
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
-        if res is None or res[0].get(build.PROP_KIND) != "part":
+        res = hover.pick(context, event)
+        if res is None:
             self._status(context, "Missed the model: click a pin or the hole it is in")
             return {"RUNNING_MODAL"}
         ob, index, loc, normal = res
@@ -168,18 +171,20 @@ class FRESING_OT_cylinder_pins(bpy.types.Operator):
             return {"CANCELLED"}
         self._first = None
         context.window.cursor_modal_set("EYEDROPPER")
+        hover.start(context, self, "")
         FRESING_OT_cylinder_add._status(self, context, "1 of 2: click the BARREL's pin (on the machine side)")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             FRESING_OT_cylinder_add._end(self, context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
-        if res is None or res[0].get(build.PROP_KIND) != "part":
+        res = hover.pick(context, event)
+        if res is None:
             return {"RUNNING_MODAL"}
         ob, index, loc, normal = res
         origin, direction, _desc = joints.axis_from_hit(ob, index, loc, normal)

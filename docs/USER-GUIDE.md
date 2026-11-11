@@ -589,6 +589,18 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
    face** (the axis stands at right angles to it). The line at the bottom of the window says what to
    do; you can still turn and zoom the view. <kbd>Esc</kbd> or a right-click cancels.
 
+**Before you click, the face lights up.** While the app waits for that click, the face under the mouse
+turns magenta – the whole hole, shaft or flat face, as one piece – with the axis it would give: a line
+through a hole's or shaft's centre, or an arrow standing on a flat face. Next to the mouse (and at the
+bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
+centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
+empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
+same happens for a cylinder's pins and the double arm's hub and pot hinge. It is only drawn in the view:
+never in a render or in the project. Switch it off under Edit > Preferences > Add-ons > Fresing Render >
+"Highlight the face under the mouse when picking an axis".
+
+<img class="small" src="img/view_hover.png" alt="Add rotate joint: the pedestal's bore lit up in magenta with its axis line">
+
 <img class="small" src="img/view_joints.png" alt="The boom of the test crane raised 20° by its joint">
 
 <img class="panel" src="img/panel_4_motion.png" alt="4 Motion with two joints">

@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.61 – 11 Nov 2026 – the face lights up before you click an axis (task 0088)
+
+- **Add joint, Set axis, a cylinder's pins, the double arm's hub and pot hinge:** while the app waits for your
+  click, the face under the mouse lights up in magenta – the whole hole, shaft or flat face – with the axis it would
+  give (a line through the centre of a hole or shaft, an arrow on a flat face) and a short text next to the mouse,
+  e.g. "Hole Ø40.4 mm – axis through its centre". The floor and empty space say "Not a part"; a spot the click
+  would refuse turns red with the reason. The click does exactly what it did before.
+- Only drawn in the view: never in a render or the saved project; it goes with Esc, a right-click, the click, undo
+  or opening another file. Quick on big models (about 2 ms per mouse move on the 3,000-part test machine).
+- A click on a logo or sticker now counts as a click on the part under it (it said "missed" before).
+- Switch: Edit > Preferences > Add-ons > Fresing Render > "Highlight the face under the mouse when picking an axis".
+- PC check: new line "Hover highlight when picking an axis".
+
 ## 0.2.60 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
 
 Import

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.60"
+__version__ = "0.2.61"
 
 _modules = []
 
@@ -38,7 +38,7 @@ def _classes():
 def register():
     import bpy
 
-    from .blender import clash, coolant, decals, handlers, linkages, machining, project_lock, props, updates
+    from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     props.register()
     decals.register()
     for cls in _classes():
@@ -55,6 +55,7 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    hover.register()
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -64,9 +65,10 @@ def unregister():
     import bpy
 
     from . import pccheck
-    from .blender import clash, coolant, decals, handlers, linkages, machining, project_lock, props, updates
+    from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     pccheck.unregister()
     updates.unregister()
+    hover.unregister()
     clash.unregister()
     linkages.unregister()
     coolant.unregister()
