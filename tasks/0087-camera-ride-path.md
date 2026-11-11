@@ -1,6 +1,6 @@
 # 0087 – Camera that rides along, flies a path or keeps a part in the middle (study 0069 #7)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0087-camera-ride-path` (or the session's own branch)
+**Who:** worker · **Status:** running · **Branch:** `task/0087-camera-ride-path` (or the session's own branch)
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study; the owner can change it)
 **Lane:** **Scene & Render lane** – `blender/cameras.py`, `blender/ops_scene.py`, the camera part of
 `blender/animation.py` (the CAMERA step's plan and the Animation camera), the Camera step's settings in
