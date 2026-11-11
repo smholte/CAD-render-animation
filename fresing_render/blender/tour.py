@@ -502,6 +502,14 @@ def build_crane(b: Build):
     queue.add_job(sc, "ANIMATION", animation="Queue video", quality="draft")
     _shot(b, "@queue")
     _shot(b, "@startlater")
+    from . import logic                          # Every paint scheme (task 0074): two schemes to queue in
+    logic.save_scheme(s, "Factory colours")
+    g = s.groups.get("Colour #F9A800") or (s.groups[0] if len(s.groups) else None)
+    if g is not None:
+        g.color = "RAL 5010"
+        logic.save_scheme(s, "Blue")
+        logic.apply_scheme(sc, "Factory colours")
+    _shot(b, "@schemes")
 
     s.out_format = "social"
     from . import render
@@ -642,6 +650,26 @@ def _check_start_later(scene):
         queue.cancel_delay()
     _check(not queue.delay_pending(), "Cancel did not stop the delayed start")
     return text
+
+
+def _check_schemes(scene):
+    from . import queue
+    s = scene.fresing
+    names = queue.schemes_to_queue(scene, "ALL")
+    _check(len(names) >= 2, f"{len(names)} paint schemes: the tour needs two")
+    looks = [(g.name, g.color, g.material) for g in s.groups]
+    before = len(s.queue)
+    try:
+        jobs = queue.add_in_schemes(scene, "ANIMATION", names, animation="Queue video")
+        got = [(j.kind, j.scheme) for j in s.queue[before:]]
+        _check(len(jobs) == len(names) and got == [("ANIMATION", n) for n in names],
+               f"the queue got {got}, not one video per scheme")
+        _check(all(j.label.endswith(f"in {j.scheme}") for j in s.queue[before:]), "a job does not name its scheme")
+    finally:
+        for i in reversed(range(before, len(s.queue))):
+            s.queue.remove(i)
+    _check([(g.name, g.color, g.material) for g in s.groups] == looks, "queueing changed the project's colours")
+    return f"{len(names)} videos: " + ", ".join(names)
 
 
 def _check_shapes(scene):
@@ -1675,6 +1703,11 @@ stop("startlater", OUT, HUB_SET, "Render queue: start later",
      "Under the queue's list, Start later with 'In …' (hours and minutes) or 'At …' (a clock time). Click it: the panel "
      "shows 'Starts in … - at …' with Start now and Cancel. Click Cancel. The app must stay open for a delayed start.",
      where="7 Render queue > Start later", check=_check_start_later)
+stop("schemes", OUT, HUB_SET, "Render queue: every paint scheme",
+     "7 Render queue > Every paint scheme lists the schemes 'Factory colours' and 'Blue', both ticked. Animation "
+     "queues the selected animation once per ticked scheme (files named after the scheme); Current view does the same "
+     "for a picture. Your own colours stay as they are.",
+     where="7 Render queue > Every paint scheme", check=_check_schemes)
 stop("shapes", OUT, HUB_SET, "Upright 9:16 and square 1:1",
      "The camera frame is upright (9:16, for phones). Switch Shape to 1:1 to see the square frame.",
      where="5 Scene & Render > Image size & render (Shape)", check=_check_shapes)

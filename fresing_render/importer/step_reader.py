@@ -33,10 +33,12 @@ import numpy as np
 try:                                   # inside the package (tests, Blender)
     from . import step_meta
     from ..core import cad_materials
+    from ..core import fasteners
 except ImportError:                    # run as a script by the import job
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core"))
     import step_meta                   # noqa: E402  (next to this file)
     import cad_materials               # noqa: E402
+    import fasteners                   # noqa: E402
 
 # Linear deflection relative to each part's size, angular deflection in radians.
 QUALITY = {
@@ -45,8 +47,25 @@ QUALITY = {
     "fine": (0.0006, 0.18),
 }
 
-CACHE_VERSION = 5          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
-                           # 5: triangle range of every face (f<mesh>), appearance names of face colours
+# Facets by size (task 0074). The relative deflection above gives every round edge about the same number of
+# segments, whatever its size (OpenCascade's angle alone gives about 4 pi / angle: 42 at Normal): an M10 bolt
+# got 47 it can never show, a Ø10 m slewing ring 3.7 mm flat spots on its outline. Per Detail:
+#   cap_mm      the gap between facet and true surface stays below this: a part whose relative gap could be
+#               bigger is meshed in mm instead (its holes keep the Detail's angle, so they keep their segments);
+#   small_mm    a standard part (bolt, nut, washer, pin: recognised by its name, core/fasteners.py) whose
+#               biggest side is shorter gets
+#   small_gap   mm, and small_ang: deflection and angle – about 12 / 20 / 32 segments round (measured: the gap
+#               between facet and circle is about half the deflection). Other small parts (end mills, lamps,
+#               workpieces) keep the relative deflection: they are often what a close-up shows.
+FACETS = {
+    "draft": {"cap_mm": 2.0, "small_mm": 200.0, "small_gap": 0.7, "small_ang": 1.05},
+    "normal": {"cap_mm": 0.5, "small_mm": 200.0, "small_gap": 0.25, "small_ang": 0.63},
+    "fine": {"cap_mm": 0.2, "small_mm": 200.0, "small_gap": 0.1, "small_ang": 0.39},
+}
+
+CACHE_VERSION = 6          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
+                           # 5: triangle range of every face (f<mesh>), appearance names of face colours;
+                           # 6: facets by size (FACETS): capped in mm for big parts, fewer for small ones
 MM_TO_M = 0.001
 
 
@@ -352,16 +371,56 @@ def _record_normals(occ, face, tri, rec_normals, n_nodes: int):
     return np.array([normal(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)
 
 
+def _part_size(occ, shape) -> float:
+    """Biggest side of the part's bounding box in mm (0 when it has none)."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    box = Bnd_Box()
+    BRepBndLib.Add_s(shape, box, False)
+    if box.IsVoid():
+        return 0.0
+    lo, hi = box.CornerMin(), box.CornerMax()
+    return max(hi.X() - lo.X(), hi.Y() - lo.Y(), hi.Z() - lo.Z())
+
+
+def is_standard_part(name: str) -> bool:
+    """A bolt, nut, washer, pin … by its name: these get fewer segments (task 0074)."""
+    try:
+        return fasteners.parse(name or "") is not None
+    except Exception:
+        return False
+
+
+def mesh_params(lin_rel: float, ang: float, size_mm: float, facets: dict | None, standard: bool = False):
+    """(deflection, relative?, angle) for a part of this size (task 0074).
+
+    OpenCascade's relative deflection gives an edge of a part of size S at most lin_rel * S / 2 (its edge
+    factor stays between 0.5 and 2). Big parts whose gap could exceed ``cap_mm`` are meshed with the cap in mm;
+    small standard parts (``standard``: bolts, nuts … by name) with a fixed small gap and a wider angle.
+    Everything else keeps the relative deflection."""
+    if not facets or size_mm <= 0:
+        return lin_rel, True, ang
+    if lin_rel * size_mm / 2.0 > facets["cap_mm"]:
+        return facets["cap_mm"], False, ang
+    if standard and size_mm < facets["small_mm"]:
+        return facets["small_gap"], False, max(ang, facets["small_ang"])
+    return lin_rel, True, ang
+
+
 def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=False, axes: _Axes | None = None,
-                bulk: bool = True, face_starts: list | None = None):
+                bulk: bool = True, face_starts: list | None = None, facets: dict | None = None,
+                standard: bool = False):
     """Tessellate one part. Returns (positions, normals, triangles, tri_color_idx, colours).
 
     ``face_colours``: from _face_colour_list (a colour or None per face), or None.
     ``bulk``: read the triangles in one block (False: node by node, the old way).
     ``face_starts``: filled with the first triangle of every meshed face, plus the total at the
-    end (the triangles of a face are one block): picking a whole CAD face with a click."""
+    end (the triangles of a face are one block): picking a whole CAD face with a click.
+    ``facets``: FACETS[quality] – deflection by the part's size (task 0074); None: relative only.
+    ``standard``: a bolt, nut, washer … (``is_standard_part``): fewer segments when small."""
     if not already_meshed:
-        occ["BRepMesh_IncrementalMesh"](shape, lin_rel, True, ang, True)
+        defl, rel, a = mesh_params(lin_rel, ang, _part_size(occ, shape) if facets else 0.0, facets, standard)
+        occ["BRepMesh_IncrementalMesh"](shape, defl, rel, a, True)
     positions, normals, tris, tri_col = [], [], [], []
     palette = []
     offset = 0
@@ -572,7 +631,8 @@ def _exit_with_parent(parent_pid: int) -> None:
     threading.Thread(target=watch, daemon=True).start()
 
 
-def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: float):
+def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: float, facets: dict | None = None,
+              standard: bool = False):
     """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error, face starts)."""
     if os.environ.get("FRESING_TEST_CRASH_PART") == str(mid):
         os._exit(3)                                  # tests: a helper that dies on one part
@@ -583,7 +643,8 @@ def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: flo
         occ["BinTools"].Read_s(shape, io.BytesIO(blob))
         axes = _Axes()
         starts: list = []
-        res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes, face_starts=starts)
+        res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes, face_starts=starts, facets=facets,
+                          standard=standard)
     except Exception as exc:
         return mid, None, [], [], str(exc) or exc.__class__.__name__, []
     return mid, res, axes.axes, axes.faces, None, starts
@@ -818,6 +879,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     t0 = time.time()
     occ = _occ()
     lin_rel, ang = QUALITY.get(quality, QUALITY["normal"])
+    facets = FACETS.get(quality, FACETS["normal"])
     os.makedirs(out_dir, exist_ok=True)
 
     emit("read", 2, "Reading STEP file")
@@ -941,6 +1003,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     shapes = [occ["XCAFDoc_ShapeTool"].GetShape_s(label) for label in mesh_labels]
     face_colours = [_face_colour_list(occ, shapes[mid], _face_colors(occ, stool, ctool, label))
                     for mid, label in enumerate(mesh_labels)]
+    standard = [is_standard_part(mesh_names[mid]) for mid in range(len(mesh_labels))]
     results: list = [None] * len(mesh_labels)       # (mesh result, axes, axis faces, error, face starts)
     counter = [0]
     where = [""]
@@ -960,7 +1023,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         jobs, pending = [], []
         for mid in range(len(shapes)):
             try:
-                jobs.append([mid, _part_blob(occ, shapes[mid]), face_colours[mid], lin_rel, ang])
+                jobs.append([mid, _part_blob(occ, shapes[mid]), face_colours[mid], lin_rel, ang, facets,
+                             standard[mid]])
             except Exception:                           # (out of memory...) this part is meshed here instead
                 pending.append(mid)
         jobs.sort(key=lambda j: -len(j[1]))            # biggest parts first: no core waits at the end
@@ -987,7 +1051,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         axes = _Axes()
         starts: list = []
         try:
-            res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes, face_starts=starts)
+            res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes, face_starts=starts,
+                              facets=facets, standard=standard[mid])
             store((mid, res, axes.axes, axes.faces, None, starts))
         except Exception as exc:  # keep going, report the part
             store((mid, None, [], [], str(exc), []))

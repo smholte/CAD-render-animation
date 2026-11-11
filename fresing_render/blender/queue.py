@@ -41,7 +41,9 @@ class Stopped(Exception):
 # ---------------------------------------------------------------------------
 
 
-def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str = "", camera: str = ""):
+def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str = "", camera: str = "",
+            scheme: str = ""):
+    """``scheme``: a paint scheme the job renders in (task 0074); the open project keeps its colours."""
     s = scene.fresing
     job = s.queue.add()
     job.job_id = uuid.uuid4().hex[:8]
@@ -49,6 +51,7 @@ def add_job(scene, kind: str, shot: str = "", animation: str = "", quality: str 
     job.shot = shot
     job.animation = animation
     job.camera = camera
+    job.scheme = scheme
     if kind in ("ANIMATION", "TEST"):
         anim = s.animations.get(animation)
         job.quality = quality or (anim.quality if anim else "preview")
@@ -138,6 +141,8 @@ def relabel(job) -> None:
         label = f"{'Time test' if job.kind == 'TEST' else 'Animation'}: {job.animation}"
     else:
         label = f"Image: {job.shot or job.camera or 'current view'}"
+    if job.scheme:
+        label += f" in {job.scheme}"
     if job.watermark:
         label += " (with watermark)"
     job.label = label
@@ -356,7 +361,7 @@ def start(context, only=None) -> str:
         j.message = "Waiting"
         jobs.append({"id": j.job_id, "kind": j.kind, "shot": j.shot, "animation": j.animation,
                      "camera": j.camera, "quality": j.quality, "out_dir": out_dir, "label": j.label,
-                     "watermark": bool(j.watermark)})
+                     "watermark": bool(j.watermark), "scheme": j.scheme})
     s.queue_dir = qdir
     undo = _absolute_paths(scene)                # '//…' would point next to the copy (bug hunt row 18)
     try:
@@ -878,6 +883,42 @@ def ensure_polling() -> None:
 # ---------------------------------------------------------------------------
 
 
+def schemes_to_queue(scene, which: str = "TICKED") -> list[str]:
+    """The paint schemes "Every paint scheme" renders in: all, or the ticked ones (task 0074)."""
+    return [sch.name for sch in scene.fresing.schemes if which == "ALL" or sch.queue_on]
+
+
+def add_in_schemes(scene, kind: str, schemes, animation: str = "", shot: str = "") -> list:
+    """One job per paint scheme (task 0074): an animation, or a picture of a saved scene. Returns the jobs."""
+    return [add_job(scene, kind, animation=animation, shot=shot, scheme=name) for name in schemes]
+
+
+def _apply_job_scheme(scene, job: dict, progress) -> None:
+    """The job's paint scheme, set in the queue's copy of the project only (the open project keeps its look)."""
+    name = job.get("scheme")
+    if not name:
+        return
+    from . import logic
+    if scene.fresing.schemes.get(name) is None:      # never a render in other colours under this scheme's name
+        raise RuntimeError(f"The paint scheme '{name}' was deleted")
+    logic.apply_scheme(scene, name)
+    progress(0, f"Paint scheme: {name}")
+
+
+def _with_scheme(path: str, scheme: str) -> str:
+    """``picture.png`` -> ``picture_<scheme>.png`` (a free name): one file per scheme, side by side."""
+    if not scheme or not path or not os.path.isfile(path):
+        return path
+    stem, ext = os.path.splitext(path)
+    new = f"{stem}_{render._safe(scheme)}{ext}"
+    k = 2
+    while os.path.exists(new):
+        new = f"{stem}_{render._safe(scheme)}_{k}{ext}"
+        k += 1
+    os.replace(path, new)
+    return new
+
+
 def run_job(scene, job: dict, progress, should_stop):
     """Returns the output path, or (output path, message) for a time test."""
     from . import states
@@ -896,13 +937,15 @@ def run_job(scene, job: dict, progress, should_stop):
             cam = bpy.data.objects.get(job["camera"])
             if cam is not None:
                 scene.camera = cam
+        _apply_job_scheme(scene, job, progress)  # after the saved scene: its own colours give way (task 0074)
         if should_stop():
             raise Stopped()
         from . import machining                  # milling (task 0027): the cut at this frame
         machining.prepare(scene, progress)
         progress(5, "Rendering image")
         info = render.render_still(scene, s, job.get("quality") or s.quality, watermark=bool(job.get("watermark")))
-        return info["path"]
+        return _with_scheme(info["path"], job.get("scheme", ""))
+    _apply_job_scheme(scene, job, progress)
     if job["kind"] == "TEST":
         return time_test(scene, job, progress, should_stop)
     return render_animation(scene, job, progress, should_stop)
@@ -961,9 +1004,14 @@ def _setup_animation(scene, job: dict, progress) -> dict:
     im.color_mode = "RGBA"
     im.color_depth = "8"
     stem = render._safe(os.path.splitext(os.path.basename(bpy.data.filepath))[0] or "animation")
+    if job.get("scheme"):                        # task 0074: the same video in every paint scheme, side by side
+        stem += "_" + render._safe(anim.name) + "_" + render._safe(job["scheme"])
+        anim_part = ""
+    else:
+        anim_part = "_" + render._safe(anim.name)
     return {"anim": anim, "frames": info["frames"], "quality": quality, "size": size, "device": device,
             "composite": composite, "color": tuple(render.linear_to_srgb(c) for c in s.background_color[:3]),
-            "name": f"{stem}_{render._safe(anim.name)}_{size.width}x{size.height}_{quality}"}
+            "name": f"{stem}{anim_part}_{size.width}x{size.height}_{quality}"}
 
 
 def _render_frame(scene, setup: dict, f: int, final: str) -> tuple[float, float]:

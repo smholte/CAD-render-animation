@@ -204,7 +204,13 @@ your work.
 **Import**
 
 1. **Detail**: **Draft** (fast, coarse curves), **Normal** (good for most renders) or **Fine** (smooth
-   curves for close-ups; slower, more memory).
+   curves for close-ups; slower, more memory). Round parts get their facets by size: a big carousel,
+   drum or slewing ring stays smooth on its outline (the flat spots are at most 2 mm deep at Draft, 0.5 mm at
+   Normal, 0.2 mm at Fine; a Ø10 m ring used to have 3.7 mm at Normal), while bolts, nuts and washers that
+   the app recognises by name get fewer segments (about 12 / 20 / 32 round), which you cannot see in a render
+   but which makes big models lighter. Other small parts (cutters, lamps, workpieces) stay as detailed as before.
+   A project imported earlier keeps its meshes until its next **Update to new revision…**: then the round parts
+   come in with the new facets, and painted faces, joints and looks stay.
 2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back.
 3. Click **Import STEP…** and pick the file, or drag a .step file onto the view.
 4. Wait for the progress bar. Big files are read on all processor cores but one, so the PC stays
@@ -1822,6 +1828,13 @@ or close the app and let it run overnight: the PC stays awake while it renders.
   In a built animation that is the frame you are on: its pose, the parts hidden at that moment and the
   camera where it is at that frame. **All scenes** adds one per saved scene.
   Videos come from **Render animation** in 6.
+- **Every paint scheme** (a fold under it): the same video or picture in every colour option, for a customer,
+  rendered overnight in one go. Tick the paint schemes (saved in 3 Looks > Paint schemes; **All** / **None** tick
+  them all or none), then click **Animation** (the animation selected in 6 Animation) or **Current view**. The
+  queue gets one job per ticked scheme, named "Animation: Boom up in Blue"; each file gets the scheme's name at the
+  end ("crane_Boom_up_Blue_1920x1080_final_….mp4", a picture "crane_Camera_1920x1080_Blue.png"). The scheme is only set inside the background render: your
+  project keeps the colours it has. Then **Start queue**, or **Start later** for the night. A scheme deleted before
+  its job renders makes that job **Failed** (never a video in the wrong colours).
 - **Start queue** starts rendering. While it runs: **Stop after this frame**, or **Stop now** (the
   frame being rendered is lost). **Start queue** later continues a video where it stopped. If you changed
   the animation or its settings in between, the video starts again from the first frame, so a video never

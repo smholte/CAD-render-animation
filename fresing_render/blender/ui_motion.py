@@ -902,6 +902,37 @@ def _queue_status(scene) -> tuple[str, str, bool]:
     return "", "NONE", False
 
 
+def _draw_every_scheme(layout, context, scene) -> None:
+    """Every paint scheme (task 0074): the same animation or picture once per ticked scheme."""
+    s = scene.fresing
+    ticked = sum(1 for sch in s.schemes if sch.queue_on)
+    title = "Every paint scheme" + (f" ({ticked} of {len(s.schemes)})" if s.schemes else "")
+    body = fold(layout, "fr_queue_schemes", title, icon="COLOR")
+    if body is None:
+        return
+    if not s.schemes:
+        wrap(body, context, "Save paint schemes in 3 Looks > Paint schemes first. Then one click here queues the "
+                            "same video in each of them.", icon="INFO")
+        return
+    row = body.row(align=True)
+    row.label(text="Render in:")
+    row.operator("fresing.queue_schemes_tick", text="All").on = True
+    row.operator("fresing.queue_schemes_tick", text="None").on = False
+    flow = body.grid_flow(columns=2, even_columns=True, align=True)
+    for sch in s.schemes:
+        flow.prop(sch, "queue_on", text=sch.name)
+    a = animation.active(scene)
+    row = big_row(body, MEDIUM)
+    sub = row.row(align=True)
+    sub.enabled = ticked > 0 and a is not None
+    sub.operator("fresing.queue_schemes", text="Animation", icon="RENDER_ANIMATION").kind = "ANIMATION"
+    sub = row.row(align=True)
+    sub.enabled = ticked > 0 and scene.camera is not None
+    sub.operator("fresing.queue_schemes", text="Current view", icon="IMAGE_DATA").kind = "STILL"
+    if a is not None and ticked:
+        body.label(text=f"'{a.name}' × {plural(ticked, 'scheme')}", icon="INFO")
+
+
 class FRESING_PT_queue(_Panel, bpy.types.Panel):
     bl_label = "7  Render queue"
     bl_order = 6
@@ -930,6 +961,7 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         op = row.operator("fresing.queue_add", text="All scenes", icon="DOCUMENTS")
         op.kind = "ALL_SHOTS"
         layout.label(text="Animations: Render animation in 6", icon="INFO")
+        _draw_every_scheme(layout, context, scene)
         row = layout.row()
         row.template_list("FRESING_UL_queue", "", s, "queue", s, "queue_index", rows=list_rows(len(s.queue), 3, 8))
         col = row.column(align=True)

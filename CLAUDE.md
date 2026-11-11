@@ -196,7 +196,8 @@ fresing_render/            the Blender extension (Python package)
                            zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
                            greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
-    step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
+    step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes;
+                           facets by size (task 0074, `FACETS`): big parts capped in mm, small standard parts lighter
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
   blender/                 bpy code
     build.py               builds objects from the cache (one mesh per unique part)
@@ -212,7 +213,8 @@ fresing_render/            the Blender extension (Python package)
     render.py world.py cameras.py materials.py   (cameras.py: views, blur, sharp spot, turntable camera)
     surroundings.py        surroundings and props: meshes, procedural materials (hall cut-away), sea waves, photo ground
     turntable.py           one-click turntable: camera, saved scene and animation "Turntable"
-    queue.py               render queue: background Blender runs queue_runner.py
+    queue.py               render queue: background Blender runs queue_runner.py; a job's paint scheme is set only in
+                           the background copy (task 0074, ops_queue_schemes.py: 7 Render queue > Every paint scheme)
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
     idprops.py             store_array: arrays into ID properties safely (task 0038)

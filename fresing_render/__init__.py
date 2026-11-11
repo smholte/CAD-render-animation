@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.58"
+__version__ = "0.2.59"
 
 _modules = []
 
@@ -17,6 +17,7 @@ def _classes():
                           ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
                           ui_clash, ui_coolant, ui_decals, ui_gcode, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_waycover, updates)
+    from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -29,7 +30,7 @@ def _classes():
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES)
+            + ui_clash.CLASSES + ops_queue_schemes.CLASSES)
 
 
 def register():

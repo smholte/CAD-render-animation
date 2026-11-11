@@ -285,6 +285,9 @@ class FRScheme(bpy.types.PropertyGroup):
     name: StringProperty(name="Name", default="Scheme", update=_renamer("scheme"),
                          description="Name of the paint scheme, also used in saved scenes. Double-click to rename")
     looks: CollectionProperty(type=FRSchemeLook)
+    queue_on: BoolProperty(name="Queue in this scheme", default=True,
+                           description="Ticked: the buttons under Every paint scheme (7 Render queue) render in "
+                                       "this scheme too. Untick a scheme to leave it out")
 
 
 class FRRule(bpy.types.PropertyGroup):
@@ -1083,6 +1086,7 @@ class FRQueueJob(bpy.types.PropertyGroup):
     message: StringProperty()
     output: StringProperty()
     watermark: BoolProperty(default=False)
+    scheme: StringProperty()           # task 0074: the paint scheme this job renders in ("" = as the project is)
 
 
 class FRReportLine(bpy.types.PropertyGroup):

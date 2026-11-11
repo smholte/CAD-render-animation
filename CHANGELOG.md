@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.59 – 11 Nov 2026 – smooth big round parts, light bolts; a video in every paint scheme (task 0074)
+
+Import
+- **Big round parts stay smooth:** carousels, drums and slewing rings get their facets in millimetres. The flat spots
+  on a Ø10 m ring are now at most 0.5 mm deep at Normal (were 3.7 mm), 2 mm at Draft and 0.2 mm at Fine.
+- **Bolts, nuts and washers are lighter:** standard parts the app recognises by name get about 20 segments round at
+  Normal (were 42–47): you cannot see the difference in a render, but a model with many fasteners has far fewer
+  triangles (an invented offshore test model: 536,000 → 241,000). Cutters, lamps and other small parts stay as
+  detailed as before.
+- A project imported earlier keeps its meshes. **Update to new revision…** brings the new facets; painted faces,
+  joints and looks stay (a model update now recognises a part meshed with other settings as the same part).
+
+Render queue
+- **Every paint scheme** (7 Render queue): tick paint schemes, click **Animation** or **Current view**: one job per
+  scheme, each file named after its scheme. The scheme is only set in the background render; your project keeps its
+  colours. Works with **Start later** for an overnight run.
+
 ## 0.2.58 – 11 Nov 2026 – clash check and decal fixes (task 0072)
 
 Clash check

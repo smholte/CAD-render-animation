@@ -161,8 +161,49 @@ def polygons_of_faces(starts: np.ndarray, faces) -> np.ndarray:
 
 
 def layout(me) -> tuple:
-    """What a model update compares: the number of triangles of every CAD face."""
+    """The number of triangles of every CAD face."""
     return tuple(np.diff(face_starts(me)).tolist())
+
+
+def _face_shapes(me) -> tuple[np.ndarray, np.ndarray, float]:
+    """Area and centre of every CAD face (in the mesh's own coordinates), and the mesh's size."""
+    starts = face_starts(me)
+    co = np.empty(len(me.vertices) * 3, dtype=np.float64)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    tris = _triangles(me)
+    if not len(tris) or not len(co):
+        return np.zeros(len(starts) - 1), np.zeros((len(starts) - 1, 3)), 0.0
+    p0, p1, p2 = co[tris[:, 0]], co[tris[:, 1]], co[tris[:, 2]]
+    area = 0.5 * np.linalg.norm(np.cross(p1 - p0, p2 - p0), axis=1)
+    mid = (p0 + p1 + p2) / 3.0
+    face = np.searchsorted(starts, np.arange(len(tris)), side="right") - 1
+    n = len(starts) - 1
+    a = np.bincount(face, weights=area, minlength=n)
+    c = np.stack([np.bincount(face, weights=area * mid[:, k], minlength=n) for k in range(3)], axis=1)
+    c /= np.maximum(a, 1e-30)[:, None]
+    return a, c, float(np.linalg.norm(co.max(axis=0) - co.min(axis=0)))
+
+
+def same_faces(old_me, new_me) -> bool:
+    """What a model update compares: the same CAD faces, in the same order. The same number of triangles on every
+    face, or – meshed with other settings (task 0074: facets by size) – the same number of faces, each with about
+    the same area and centre (a coarser mesh of a round face has a few % less area)."""
+    a = layout(old_me)
+    b = layout(new_me)
+    if a == b:
+        return True
+    if len(a) != len(b):
+        return False
+    area_a, mid_a, size_a = _face_shapes(old_me)
+    area_b, mid_b, size_b = _face_shapes(new_me)
+    if abs(size_a - size_b) > 0.01 * max(size_a, size_b) + 1e-6:
+        return False
+    scale = max(size_a, 1e-9)
+    big = np.maximum(area_a, area_b)
+    ok_area = np.abs(area_a - area_b) <= 0.08 * big + 1e-4 * scale * scale
+    ok_mid = np.linalg.norm(mid_a - mid_b, axis=1) <= 0.02 * scale + 1e-6
+    return bool(np.all(ok_area & ok_mid))
 
 
 # ---------------------------------------------------------------------------
@@ -456,7 +497,7 @@ def carry_over(pairs) -> list[str]:
 
     ``pairs``: (old object, new object). Faces painted in CAD always come from the new file;
     groups chosen for them and faces painted by hand are kept when the part has the same CAD faces
-    (same number of triangles on every face). Returns the names of parts that lost painted faces."""
+    (``same_faces``). Returns the names of parts that lost painted faces."""
     by_mesh: dict = {}
     for old, new in pairs:
         if old.type != "MESH" or new.type != "MESH" or old.data is None or new.data is None:
@@ -466,7 +507,7 @@ def carry_over(pairs) -> list[str]:
     for old_me, new_me, obs in by_mesh.values():
         if not _worth_keeping(old_me, [o for o, _n in obs]):
             continue
-        if layout(old_me) != layout(new_me):
+        if not same_faces(old_me, new_me):
             lost.append(obs[0][0].get(build.PROP_NAME, obs[0][0].name))
             continue
         old_sets = get_sets(old_me)

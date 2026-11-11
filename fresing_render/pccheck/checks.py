@@ -1904,6 +1904,52 @@ def queue_frame_shown(ctx):
     return f"same picture as the view (difference {diff:.4f})"
 
 
+@line("queue.schemes", "Queued pictures in every paint scheme", "0.2.59", requires=("import.crane",),
+      what="Every paint scheme (7 Render queue): the same view in two schemes, each file named after its scheme, "
+           "the crane's yellow parts blue in the second; the open project keeps its colours")
+def queue_schemes(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import cameras, logic, queue
+    from . import runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s)
+    if scene.camera is None:
+        cameras.add_camera(scene, "ISO")
+    yellow = next((g for g in s.groups if g.color.upper() == "#F9A800"), None)
+    _check(yellow is not None, "the crane has no yellow group")
+    logic.save_scheme(s, "Factory")
+    yellow.color = "RAL 5010"
+    logic.save_scheme(s, "Blue")
+    logic.apply_scheme(scene, "Factory")
+    for i in reversed(range(len(s.queue))):
+        s.queue.remove(i)
+    _check(bpy.ops.fresing.queue_schemes(kind="STILL") == {"FINISHED"}, "Every paint scheme > Current view did "
+                                                                         "not work")
+    _check([j.scheme for j in s.queue] == ["Factory", "Blue"], f"jobs: {[j.label for j in s.queue]}")
+    t0 = time.time()
+    outs = {}
+    for q in list(s.queue):                       # what the background queue does, one job after the other
+        job = {"id": q.job_id, "kind": "STILL", "shot": q.shot, "camera": "", "quality": "draft", "scheme": q.scheme,
+               "out_dir": os.path.join(ctx.work, "schemes"), "label": q.label, "watermark": False}
+        outs[q.scheme] = queue.run_job(scene, job, lambda *a: None, lambda: False)
+        logic.apply_scheme(scene, "Factory")      # the background queue opens the project afresh for every job
+    ctx.metric("two pictures", time.time() - t0, "s")
+    _check(all(os.path.basename(p).endswith(f"_{n}.png") for n, p in outs.items()),
+           f"the files are not named after their scheme: {[os.path.basename(p) for p in outs.values()]}")
+    a, b = runner.read_pixels(outs["Factory"])[..., :3], runner.read_pixels(outs["Blue"])[..., :3]
+    changed = np.abs(a - b).max(axis=-1) > 0.1
+    _check(changed.sum() > 50, "the two schemes gave the same picture")
+    fa, fb = a[changed].mean(axis=0), b[changed].mean(axis=0)
+    _check(fb[2] > fb[0] and fa[0] > fa[2], f"wrong colours: factory {fa.round(2)}, blue {fb.round(2)}")
+    _check(yellow.color.upper() == "#F9A800", "queueing changed the project's colours")
+    ctx.picture(outs["Blue"], "queue_schemes", "The same view queued in the scheme 'Blue' (processor, draft)")
+    return f"2 pictures, {int(changed.sum())} pixels changed colour"
+
+
 @line("queue.eevee", "Short EEVEE video through the queue", "0.2.4", (Q, F), requires=("import.crane",),
       what="The same short motion with Fast preview (EEVEE) in the background queue")
 def queue_eevee(ctx):
