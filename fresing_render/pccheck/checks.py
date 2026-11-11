@@ -268,7 +268,7 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
-@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.63",
+@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
            "same frame without the cut")
@@ -1257,6 +1257,54 @@ def motion_fade(ctx):
     ratio = times["fade"] / max(times["plain"], 1e-3)
     bpy.context.view_layer.update()
     return f"{note}; fading frame {times['fade']:.1f} s vs {times['plain']:.1f} s without ({ratio:.2f}x)"
+
+
+@line("motion.hover", "Hover highlight when picking an axis", "0.2.63",
+      what="20 spots on the test crane (holes, shafts, flat faces) worked out as the mouse would: the face that lights "
+           "up is the CAD face the click then uses, with the same axis; the time per mouse move")
+def motion_hover(ctx):
+    import statistics
+
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import build, faces, hover, joints
+    scene = ctx.fresh(CRANE_A)
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    parts = sorted((o for o in scene.objects if o.get(build.PROP_KIND) == "part"), key=lambda o: o.name)
+    spots, times, kinds = 0, [], set()
+    for ob in parts * 3:
+        if spots >= 20:
+            break
+        me = ob.data
+        starts = faces.face_starts(me)
+        face = (spots * 7 + len(ob.name)) % (len(starts) - 1)
+        poly = me.polygons[int(starts[face])]
+        mw = ob.matrix_world
+        at = mw @ poly.center
+        n = (mw.to_3x3().inverted().transposed() @ poly.normal).normalized()
+        origin, direction = at + n * 0.0005, -n
+        part, index, loc, normal = hover.cast(scene, dg, origin, direction)
+        if part is not ob or index != poly.index:
+            continue                               # another part lies in front of this spot
+        t0 = time.perf_counter()
+        h = hover.look(scene, dg, origin, direction)
+        times.append((time.perf_counter() - t0) * 1000.0)
+        o, d, _desc = joints.axis_from_hit(part, index, loc, normal)
+        _check(h.part == ob.name and h.face == face,
+               f"{ob.name}: the highlight shows face {h.face} of '{h.part}', the click uses face {face}")
+        _check((h.origin - o).length < 1e-9 and (h.direction - d).length < 1e-9,
+               f"{ob.name}: the highlighted axis is not the axis the click gives")
+        kinds.add(h.kind)
+        spots += 1
+    _check(spots >= 20, f"only {spots} spots on the crane could be reached")
+    _check("flat" in kinds and kinds & {"hole", "shaft"}, f"not every kind of face was tried: {sorted(kinds)}")
+    h = hover.look(scene, dg, Vector((0, 0, 50)), Vector((0, 0, 1)))
+    _check(not h.part, "empty space lit up as a part")
+    ctx.metric("time per mouse move (median)", round(statistics.median(times), 2), "ms")
+    ctx.metric("time per mouse move (slowest)", round(max(times), 2), "ms")
+    return f"{spots} spots right ({', '.join(sorted(kinds))}); {statistics.median(times):.2f} ms per mouse move"
 
 
 @line("scene.sea", "Surroundings: open sea", "0.2.12", what="The crane on the open sea (Simple), rendered small")

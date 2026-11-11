@@ -21,7 +21,7 @@ import sys
 
 ROW = re.compile(r"^(?:NEW )?\[(?P<tag> OK |FAIL|SKIP)\] (?P<id>[\w.]+) (?P<secs>[\d.]+) s(?P<rest>.*)$")
 ALLOWED_SKIP = "no graphics card"
-MIN_LINES_FULL = 55          # raise it when the check gets new lines
+MIN_LINES_FULL = 56          # raise it when the check gets new lines
 MIN_LINES_HEAVY = 11         # the Heavy lines (task 0033)
 MIN_LINES_TOUR = 40          # the test tour: Make test tour project + one line per stop (task 0059)
 
