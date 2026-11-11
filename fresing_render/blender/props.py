@@ -12,6 +12,7 @@ from ..core import materials_lib, presets
 from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
+from ..core import vessel_motion as vessel_core
 
 # Blender keeps only references to enum item strings: the list lives in a module global
 BACKGROUND_ITEMS = env.enum_items()
@@ -1935,6 +1936,84 @@ class FRClash(bpy.types.PropertyGroup):
     moments: IntProperty()               # frames and moments between frames looked at
 
 
+def _vessel_changed(self, context):
+    """5 Scene & Render > Vessel motion (task 0085): the rig follows (cheap when nothing changed)."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_motion
+    try:
+        vessel_motion.changed(context.scene)
+    except Exception as exc:                 # never break the UI over a preview update
+        print("Fresing Render: vessel motion update failed:", exc)
+
+
+def _vessel_sea_changed(self, context):
+    """On/off and the heading change the swell: the sea is built again (then the rig follows)."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_motion
+    try:
+        vessel_motion.changed(context.scene, sea=True)
+    except Exception as exc:
+        print("Fresing Render: vessel motion update failed:", exc)
+
+
+class FRVesselStill(bpy.types.PropertyGroup):
+    """A subassembly that keeps its place while the vessel moves (task 0085)."""
+    uid: StringProperty()                # part ID (stays right through a model update)
+    label: StringProperty()              # its name, as the tree shows it
+    mode: EnumProperty(
+        name="Keeps", default="STILL", update=_vessel_changed,
+        description="How this subassembly keeps its place while the vessel moves",
+        items=[("STILL", "Still", "Stays where it is in the world: no heave, pitch or roll (a motion-compensated "
+                                  "gangway, or a hook that holds its place)"),
+               ("LEVEL", "Level", "Stays level: roll and pitch are taken out, it still rises and falls with the "
+                                  "vessel")])
+
+
+class FRVessel(bpy.types.PropertyGroup):
+    """5 Scene & Render > Vessel motion (task 0085): the model and the deck move with the sea."""
+    enabled: BoolProperty(
+        name="Vessel motion", default=False, update=_vessel_sea_changed,
+        description="The machine, the vessel deck and the props heave, pitch and roll gently with the sea, while "
+                    "the sea, the sky and the camera stay put. Play the time line to see it. Works with the Open sea "
+                    "and the Vessel deck")
+    strength: FloatProperty(
+        name="Strength", default=100.0, min=0.0, max=200.0, subtype="PERCENTAGE", precision=0,
+        update=_vessel_changed,
+        description="How much the vessel moves: 100% is the sea state's own motion, 0% holds it still, 200% "
+                    "doubles it")
+    heading: EnumProperty(
+        name="Heading", default="BOW", update=_vessel_sea_changed,
+        description="Where the waves come from, seen from the vessel. Beam seas roll it the most, head and "
+                    "following seas make it pitch",
+        items=[(k, v[0], v[2]) for k, v in vessel_core.HEADINGS.items()])
+    auto_size: BoolProperty(
+        name="Size from the model", default=True, update=_vessel_changed,
+        description="On: the vessel's length and beam come from the Vessel deck (or, on the Open sea, from the "
+                    "model's size). Off: type them in. A long vessel ignores short waves")
+    length: FloatProperty(
+        name="Length", default=124.0, min=5.0, soft_max=300.0, unit="LENGTH", precision=0, update=_vessel_changed,
+        description="Length of the vessel, bow to stern. Used when 'Size from the model' is off")
+    beam: FloatProperty(
+        name="Beam", default=28.0, min=2.0, soft_max=60.0, unit="LENGTH", precision=0, update=_vessel_changed,
+        description="Width of the vessel. Used when 'Size from the model' is off")
+    roll_period: FloatProperty(
+        name="Roll period", default=11.0, min=5.0, max=25.0, precision=1, update=_vessel_changed,
+        description="Seconds the vessel takes to roll from one side to the other and back. Most work vessels: "
+                    "10 to 12 s. A longer period rolls slower")
+    pivot_mode: EnumProperty(
+        name="Turns about", default="AUTO", update=_vessel_changed,
+        description="The point the vessel turns about",
+        items=[("AUTO", "Auto", "At the waterline under the middle of the vessel (on the Open sea: under the "
+                                "middle of the model)"),
+               ("PICK", "Picked point", "A point you clicked with 'Pick'")])
+    pivot: FloatVectorProperty(name="Pivot", size=3, unit="LENGTH", default=(0.0, 0.0, 0.0), update=_vessel_changed,
+                               description="The point the vessel turns about (picked in the view)")
+    still: CollectionProperty(type=FRVesselStill)
+    still_index: IntProperty(default=0, description="Subassemblies that keep their place while the vessel moves")
+
+
 _TP_TOOL_ITEMS = []                      # kept: Blender needs the strings of dynamic items to stay alive
 
 
@@ -2403,6 +2482,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     clash: PointerProperty(type=FRClash)
     # ---- the app makes the toolpath (task 0029) ----
     toolpath: PointerProperty(type=FRToolpath)
+    # ---- vessel motion at sea (task 0085) ----
+    vessel: PointerProperty(type=FRVessel)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2416,7 +2497,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel,
            FRSceneSettings)
 
 

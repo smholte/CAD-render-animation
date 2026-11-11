@@ -192,6 +192,8 @@ fresing_render/            the Blender extension (Python package)
                            G93 and LinuxCNC's mixed feed rule, task 0066; Schedule = program time -> video),
                            clash.py (clash check, task 0065: rigid bodies from the motion, boxes, screw motion between
                            frames, tool zones, rows and texts),
+                           vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
+                           hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
                            toolpath.py (the app makes the toolpath, task 0029: drop-cutter for flat/ball/bull in NumPy,
                            zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
                            greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
@@ -268,6 +270,12 @@ fresing_render/            the Blender extension (Python package)
                            set-up (``set_up_test_model``, test_toolpath.step from tools/make_test_toolpath.py);
                            ops_toolpath.py (Make toolpath: progress + Cancel); panel 4 Motion > Milling > Make a toolpath
                            in ui_machining.py
+    vessel_motion.py       vessel motion at sea (task 0085): a rig of empties ("FR Vessel", "FR Vessel pivot") whose
+                           channels are a driver giving the time in seconds + built-in sine modifiers (no Python, any
+                           fps); model roots, deck objects and props get a Child Of "FR vessel motion" (set_inverse_pending
+                           off!); "Still"/"Level" parts a Child Of on the inverse rig; ``at_rest`` mutes it all while the
+                           surroundings or a model update measure world places; ops_vessel_motion.py, ui_vessel_motion.py
+                           (5 Scene & Render > Vessel motion); the swell goes into the sea only while it is on
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -696,5 +704,8 @@ the release → Delete); the next run on `main` publishes it again.
   (OpenCascade's writer puts the colour on each solid, the reader on sub-shapes): its frames rendered in the group's
   default colour (task 0076). Test models make every part one solid (`fuse`, a pipe swept along a route);
   `tools/demo_cable_lay/geom.write_step` refuses anything else.
+- A Child Of constraint made with `constraints.new("CHILD_OF")` sets its inverse to the target's place at its first
+  evaluation (`set_inverse_pending` is on): the model stayed where it was at that frame and moved only by the
+  difference (task 0085). Switch `set_inverse_pending` off and keep `inverse_matrix` the identity.
 - A ruled loft between hull stations meshes light (0.3 M triangles at Normal); a smooth loft of the same stations gave
   1.4 M, because Normal caps the facet gap at 0.5 mm on big parts (task 0074).

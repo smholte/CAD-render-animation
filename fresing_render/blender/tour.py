@@ -1608,6 +1608,52 @@ def _check_air(scene):
     return f"{bk.count} chips; {air.codes_text(scene)}"
 
 
+# ----- vessel motion at sea (task 0085) -----
+
+VESSEL_ANIM = "Vessel at sea"
+
+
+@tour_set("vessel", "Vessel motion", "test_crane_a.step")
+def build_vessel(b: Build):
+    from mathutils import Vector
+
+    from . import joints
+    sc, s = b.scene, b.s
+    _look("PRODUCT")
+    _boom_joint(sc)
+    trolley = _ob(sc, "TROLLEY.ASM")              # rides on the boom (else the boom turns through it)
+    joints.create(sc, "SLIDE", [trolley], trolley.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(sc, "BOOM.ASM"), name="Trolley")
+    s.env_detail = "DETAILED"
+    s.background = "DECK"
+    s.sea_state = "CALM"
+    s.vessel.heading = "BEAM"
+    s.vessel.enabled = True
+    _update()
+    _camera(b, "ISO", "Tour deck", lens=24.0)
+    a = _animation(b, VESSEL_ANIM)
+    _joint_step(a, "Boom", 1.0, 6.0, math.radians(20), label="Boom up at sea")
+    a.start_shot = _shot(b, "@vessel").name
+
+
+def _check_vessel(scene):
+    from . import vessel_motion
+    _check(vessel_motion.effective(scene), "vessel motion is off (or the surroundings are not the Vessel deck)")
+    _check(vessel_motion.rig("pivot") is not None, "the vessel's rig is missing")
+    sea = next((o for o in scene.objects if o.get("fr_env") == "sea"), None)
+    _check(sea is not None and not sea.constraints, "the sea moves with the vessel")
+    pk = vessel_motion.peaks(scene)
+    _check(1.0 <= pk.get("roll", 0.0) <= 2.0, f"roll ±{pk.get('roll', 0.0):.2f}° is not a calm beam sea (1-2°)")
+    _check(pk.get("roll", 0.0) > 2 * pk.get("pitch", 9.0), "in a beam sea the vessel should roll more than pitch")
+    base = _ob(scene, "BASE")
+    scene.frame_set(1)
+    a = base.matrix_world.copy()
+    scene.frame_set(max(2, scene.frame_end // 2))
+    moved = (base.matrix_world.translation - a.translation).length
+    _check(moved > 0.01, f"the crane's base moved only {moved * 1000:.0f} mm")
+    return vessel_motion.words(scene)
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -1632,6 +1678,11 @@ stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)
+stop("vessel", LOOK, "vessel", "Vessel motion at sea",
+     "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
+     "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
+     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.61", animation=VESSEL_ANIM,
+     at=0.5, play=True, check=_check_vessel, auto="clip")
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks)

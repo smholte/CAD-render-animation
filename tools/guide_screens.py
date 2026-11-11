@@ -554,6 +554,7 @@ if MODE == "panels":
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
         ("panel_5_camera", [("FRESING_PT_camera", False, True)]),
         ("panel_5_props", [("FRESING_PT_props", False, True)]),
+        ("panel_5_vessel_motion", [("FRESING_PT_vessel_motion", False, True)]),   # task 0085, on the vessel deck
         ("panel_5_output", [("FRESING_PT_output", False, True)]),
         ("panel_5_turntable", [("FRESING_PT_turntable", False, True)]),
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
@@ -663,7 +664,17 @@ if MODE == "panels":
                 if not sur.props(sc):
                     sur.add_prop(sc, "PERSON")
                     sur.add_prop(sc, "CONTAINER")
+            elif name == "panel_5_vessel_motion":       # on, a beam sea, the trolley kept still
+                sc.fresing.env_detail = "DETAILED"
+                sc.fresing.background = "DECK"
+                v = sc.fresing.vessel
+                v.heading = "BEAM"
+                v.enabled = True
+                mod("blender.vessel_motion").add_marks(sc, [ob("TROLLEY.ASM")], "STILL")
+                sc.frame_set(60)
             elif name == "panel_5_output":              # back to the studio for the rest
+                sc.fresing.vessel.enabled = False
+                sc.frame_set(1)
                 sc.fresing.background = "COLOR"
                 sur = mod("blender.surroundings")
                 sur.remove_props(sc)

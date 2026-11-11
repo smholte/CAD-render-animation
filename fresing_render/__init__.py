@@ -18,12 +18,15 @@ def _classes():
                           ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_waycover, updates)
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
+    from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
     looks[at:at] = ui_decals.PANELS
     at = looks.index(ui_decals.PANELS[-1]) + 1
     looks[at:at] = ui_fade.PANELS                # 3 Looks > X-ray look (task 0073)
+    at = looks.index(ui.FRESING_PT_props) + 1
+    looks[at:at] = ui_vessel_motion.CLASSES      # 5 Scene & Render > Vessel motion (task 0085), after Props
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
     return (updates.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
@@ -32,13 +35,14 @@ def _classes():
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES)
+            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES)
 
 
 def register():
     import bpy
 
     from .blender import clash, coolant, decals, handlers, linkages, machining, project_lock, props, updates
+    from .blender import vessel_motion
     props.register()
     decals.register()
     for cls in _classes():
@@ -55,6 +59,7 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    vessel_motion.register()
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -67,6 +72,8 @@ def unregister():
     from .blender import clash, coolant, decals, handlers, linkages, machining, project_lock, props, updates
     pccheck.unregister()
     updates.unregister()
+    from .blender import vessel_motion
+    vessel_motion.unregister()
     clash.unregister()
     linkages.unregister()
     coolant.unregister()

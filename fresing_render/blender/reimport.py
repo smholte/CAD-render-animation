@@ -247,18 +247,24 @@ def update_model(context, old_root, cache_dir: str) -> dict:
         raise UpdateFailed(f"the new revision could not be built ({exc or type(exc).__name__}). "
                            "Nothing was changed") from exc
     st = _State(old_root, new_root, before)
-    try:
-        return _carry_over(context, st)
-    except Exception as exc:
-        if st.old_objs is None:            # past the point of no return (the old model is deleted)
-            raise UpdateFailed(f"it failed after the old model was replaced ({exc or type(exc).__name__}). "
-                               "Check the model, or reopen the project without saving") from exc
+    from . import vessel_motion
+    with vessel_motion.at_rest(scene):           # task 0085: joints are rebuilt from world places on a still sea
         try:
-            _roll_back(scene, st)
-        except Exception as exc2:
-            raise UpdateFailed(f"it failed ({exc or type(exc).__name__}) and could not be undone "
-                               f"({exc2 or type(exc2).__name__}). Reopen the project without saving") from exc
-        raise UpdateFailed(f"it failed ({exc or type(exc).__name__}). The project is as it was before") from exc
+            out = _carry_over(context, st)
+        except Exception as exc:
+            if st.old_objs is None:            # past the point of no return (the old model is deleted)
+                raise UpdateFailed(f"it failed after the old model was replaced ({exc or type(exc).__name__}). "
+                                   "Check the model, or reopen the project without saving") from exc
+            try:
+                _roll_back(scene, st)
+            except Exception as exc2:
+                raise UpdateFailed(f"it failed ({exc or type(exc).__name__}) and could not be undone "
+                                   f"({exc2 or type(exc2).__name__}). Reopen the project without saving") from exc
+            raise UpdateFailed(f"it failed ({exc or type(exc).__name__}). The project is as it was before") from exc
+    for n in vessel_motion.after_model_update(scene, st.mapping or {}):   # the new model moves with the vessel
+        scene.fresing.report_notes.add().text = n
+        out["notes"].append(n)
+    return out
 
 
 def _set_up_hooks():

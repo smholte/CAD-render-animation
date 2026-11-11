@@ -1483,6 +1483,55 @@ Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Eu
 2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
 3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
 
+### Vessel motion
+
+<img class="panel" src="img/panel_5_vessel_motion.png" alt="Vessel motion">
+
+The machine really works on a moving ship: the deck, the machine and the props heave (rise and fall), pitch (bow
+and stern up and down) and roll (side to side) gently with the sea, while the sea, the sky and the camera stay put –
+as a drone sees it. It works on the **Open sea** and the **Vessel deck** (for other surroundings the panel says so).
+
+1. Tick **Move with the sea**. Press Play (Space) on the time line to see it; a picture of one frame shows the
+   vessel as it lies at that moment.
+2. **Sea**: **Calm** or **Rough** (the same setting as under Background & surroundings).
+   - **Calm** (a working day of a cable-lay vessel): roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
+     heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats.
+   - **Rough** (near the working limit): about three times that, roll up to about ±4°.
+3. **Waves from**: **Head sea** (at the bow: it pitches, hardly rolls), **Bow quarter** (the usual heading; the
+   numbers above are for this one), **Beam sea** (from the side: it rolls the most, Calm up to about ±2°),
+   **Stern quarter**, **Following sea**.
+4. **Strength**: 100% is the sea state's own motion, 0% holds it still, 200% doubles it.
+
+The line under them says what the vessel does over 2 minutes ("roll ±1.5° (every 11 s) …"); the panel's header
+shows "Calm · roll ±1.5°" or "Off".
+
+The vessel rises when a wave crest passes under it: it moves on the same waves the sea shows. With vessel motion on
+the sea gets a long, low swell (with Detail **Detailed** you see it near the machine); switched off, the sea is
+exactly as before.
+
+**Vessel** (the fold):
+
+- **Size from the model**: on the Vessel deck the deck's own hull, on the Open sea the model's size (your model is
+  the vessel). Untick it to type in **Length** and **Beam**. A long vessel ignores short waves.
+- **Roll period (s)**: the time of one roll from side to side and back (most work vessels 10–12 s).
+- **Turns about**: **Auto** (at the waterline under the middle of the vessel; on the Open sea under the middle of the
+  model) or a **Picked point**: click the pipette, then a point on the deck, the machine or the water.
+
+**Stays still** (the fold): select a subassembly (in the view or in 2 Structure), then
+
+- **Still**: it keeps its place in the world – a motion-compensated gangway, or a hook that holds its place over
+  the seabed while the vessel moves under it;
+- **Level**: roll and pitch are taken out, it still rises and falls with the vessel.
+
+Its joints still work as if the vessel lay still (a boom marked Still still turns when its joint turns). × in the
+list makes it move with the vessel again.
+
+Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It plays
+with "Auto Run Python Scripts" off, in the render queue and at any frame rate, and stays through Save, a model
+update and saved scenes (it is one setting for the whole project, not per saved scene). It costs no render time
+(measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
+about 6 ms per frame of playback on a 3,000-part machine.
+
 ### Camera
 
 <img class="panel" src="img/panel_5_camera.png" alt="Camera">

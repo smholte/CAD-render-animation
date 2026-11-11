@@ -574,6 +574,43 @@ def heavy_clash(ctx):
             f"{len(run.rows)} clashes in {secs:.1f} s")
 
 
+@line("heavy.vessel", "Big machine: vessel motion on the open sea", "0.2.61", (H,), requires=("heavy.import",),
+      expected=30,
+      what="The 3,000-part machine on the open sea: frames of the time line stepped through with vessel motion off "
+           "and on (calm, beam sea); every part then moves each frame",
+      shows="What vessel motion adds to each frame of a big model (playback in the view, building a video)",
+      not_shown="The render time itself (about the same with and without it), the swell in the sea (Detail Simple)")
+def heavy_vessel(ctx):
+    from ..blender import vessel_motion
+    z = sizes()
+    scene = ctx.scene_of("heavy.import")
+    s = scene.fresing
+    before = (s.background, s.env_detail)
+    s.env_detail = "SIMPLE"
+    s.background = "SEA"
+    frames = max(10, int(z["seconds"] * scene.render.fps))
+    times = {}
+    try:
+        for on in (False, True):
+            s.vessel.heading = "BEAM"
+            s.vessel.enabled = on
+            _check(on == (vessel_motion.rig("pivot") is not None),
+                   "vessel motion did not switch " + ("on" if on else "off"))
+            scene.frame_set(1)
+            t0 = time.time()
+            for f in range(2, frames + 2):
+                scene.frame_set(f)
+            times[on] = (time.time() - t0) * 1000.0 / frames
+        ctx.metric("per frame, off", times[False], "ms/frame")
+        ctx.metric("per frame, on", times[True], "ms/frame")
+        _check(times[True] < 2000.0, f"a frame takes {times[True]:.0f} ms with vessel motion: far too slow")
+    finally:
+        s.vessel.enabled = False
+        s.background, s.env_detail = before
+    return (f"{frames} frames: {times[False]:.1f} ms per frame without, {times[True]:.1f} ms with vessel motion "
+            f"(+{times[True] - times[False]:.1f} ms)")
+
+
 # ---------------------------------------------------------------------------
 # Heavy with the owner's own model: numbers only
 # ---------------------------------------------------------------------------

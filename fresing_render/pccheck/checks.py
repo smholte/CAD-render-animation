@@ -1192,6 +1192,56 @@ def scene_sea(ctx):
     return f"rendered in {info['seconds']} s"
 
 
+@line("scene.vessel_motion", "Vessel motion at sea", "0.2.61",
+      what="The crane on the Vessel deck in a calm beam sea: the deck and the crane heave, pitch and roll, the sea "
+           "and the camera stay. Amplitudes measured over 2 minutes; a frame rendered small (processor, draft)")
+def scene_vessel_motion(ctx):
+    import math
+
+    import bpy
+
+    from ..blender import surroundings, vessel_motion
+    from ..core import vessel_motion as vcore
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.env_detail = "SIMPLE"
+    s.background = "DECK"
+    s.sea_state = "CALM"
+    s.vessel.heading = "BEAM"
+    s.vessel.enabled = True
+    _check(surroundings.root_object() is not None, "the vessel deck was not built")
+    piv = vessel_motion.rig("pivot")
+    _check(piv is not None, "vessel motion did not set itself up")
+    p = vessel_motion.pivot(scene)
+    sea = next((o for o in scene.objects if o.get(surroundings.TAG) == "sea"), None)
+    _check(sea is not None and not sea.constraints, "the sea moves with the vessel")
+    roll, pitch, heave = [], [], []
+    t0 = time.time()
+    n = 0
+    for f in range(0, int(120 * scene.render.fps), 4):         # 2 minutes, every 4th frame
+        scene.frame_set(f)
+        mw = piv.matrix_world
+        e = mw.to_3x3().to_euler("XYZ")
+        roll.append(e.x)
+        pitch.append(e.y)
+        heave.append((mw @ p).z - p.z)
+        n += 1
+    ctx.metric("frame change with vessel motion", (time.time() - t0) / max(n, 1) * 1000, "ms")
+    dt = 4 / scene.render.fps
+    r, q, h = math.degrees(vcore.peak(roll)), math.degrees(vcore.peak(pitch)), vcore.peak(heave)
+    rs = vcore.mean_period(roll, dt)
+    ctx.metric("roll", r, "deg")
+    ctx.metric("pitch", q, "deg")
+    ctx.metric("heave", h, "m")
+    _check(1.0 <= r <= 2.0 and 9.0 <= rs <= 13.0, f"roll ±{r:.2f}° every {rs:.1f} s is not a calm beam sea")
+    _check(q < r and 0.05 <= h <= 0.5, f"pitch ±{q:.2f}°, heave ±{h:.2f} m: not a calm sea")
+    scene.frame_set(int(5.5 * scene.render.fps))                 # the vessel well over to one side
+    bpy.context.view_layer.update()
+    _small_output(s)
+    info = _cpu_still(ctx, scene, "vessel", "Vessel deck, rolling (processor, draft)", model_check=False)
+    return (f"roll ±{r:.1f}° every {rs:.0f} s, pitch ±{q:.2f}°, heave ±{h:.2f} m; rendered in {info['seconds']} s")
+
+
 @line("scene.hall", "Surroundings: CNC hall", "0.2.12", what="The crane in the CNC hall (Simple), rendered small")
 def scene_hall(ctx):
     from ..blender import surroundings
