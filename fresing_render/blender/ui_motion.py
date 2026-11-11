@@ -957,19 +957,25 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
             sub.alert = True
             sub.operator("fresing.queue_stop", text="Stop now", icon="CANCEL").now = True
             layout.label(text="Keeps going if you close the app", icon="INFO")
+        elif queue.delay_pending():
+            pass                                 # Start now in the box below does it (0068 row 5)
         elif any(j.status in ("WAITING", "STOPPED", "FAILED") for j in s.queue):
             primary(layout, "fresing.queue_start", "Start queue", "PLAY")
         else:
             row = big_row(layout)
             row.operator("fresing.queue_start", text="Start queue", icon="PLAY")
-        if queue.delay_pending() and not running:
+        if queue.delay_pending():
             box = layout.box()
-            box.label(text=queue.describe_delay(), icon="TIME")
+            if queue.delay_waits_for_run(scene):
+                box.label(text=f"Due at {queue.delay_clock()}: starts when this render ends", icon="TIME")
+            else:
+                box.label(text=queue.describe_delay(), icon="TIME")
             row = box.row(align=True)
             row.scale_y = MEDIUM
-            row.operator("fresing.queue_start_now", text="Start now", icon="PLAY")
+            if not running:
+                row.operator("fresing.queue_start_now", text="Start now", icon="PLAY")
             row.operator("fresing.queue_start_cancel", text="Cancel", icon="CANCEL")
-            box.label(text="Keep the app open until then", icon="INFO")
+            box.label(text="Keep the app open and the PC on until then", icon="INFO")
         elif not running and any(j.status in ("WAITING", "STOPPED", "FAILED") for j in s.queue):
             box = layout.box()
             row = box.row(align=True)

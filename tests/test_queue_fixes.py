@@ -34,7 +34,7 @@ def addon():
 def scene(tmp_path, monkeypatch):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
-    monkeypatch.setattr(queue, "_RUNTIME", {"pid": 0, "dir": "", "killed": False, "project": ""})
+    monkeypatch.setattr(queue, "_RUNS", {})
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
     assert bpy.ops.fresing.import_step(filepath=CRANE_A, quality="draft") == {"FINISHED"}
@@ -207,35 +207,40 @@ def test_running_queue_stays_in_its_project(scene, tmp_path):
     a_path, b_path = str(tmp_path / "A.blend"), str(tmp_path / "B.blend")
     qdir = str(tmp_path / "_queue" / "a")
     os.makedirs(qdir)
-    with open(os.path.join(qdir, "queue.json"), "w") as fh:
-        json.dump({"jobs": [{"id": "aaaa", "kind": "STILL", "shot": "", "animation": "", "camera": "",
-                             "quality": "draft", "label": "Image: A"}]}, fh)
-    with open(os.path.join(qdir, "status.json"), "w") as fh:
-        json.dump({"pid": os.getpid(), "running": True, "jobs": {"aaaa": {"status": "RUNNING"}}}, fh)
-    bpy.ops.wm.save_as_mainfile(filepath=a_path)
-    queue._RUNTIME.update(pid=os.getpid(), dir=qdir, killed=False,
-                          project=os.path.normcase(os.path.abspath(a_path)))
-    s.queue_dir, s.queue_pid = qdir, os.getpid()
-    assert queue.current(scene) == (os.getpid(), qdir)
-    # another project is opened (here: saved under another name, with no queue of its own)
-    s.queue_dir, s.queue_pid = "", 0
-    bpy.ops.wm.save_as_mainfile(filepath=b_path)
-    assert queue.current(scene) == (0, "")
-    assert not queue.is_running(scene)
-    queue.sync(scene)
-    assert not len(s.queue) and s.queue_dir == "", "B does not take A's jobs"
-    assert not queue.belongs_here(scene)
-    # B's own old queue has ended: that does not make the app forget A's
-    own = str(tmp_path / "_queue" / "b")
-    os.makedirs(own)
-    open(os.path.join(own, "queue.json"), "w").write('{"jobs": []}')
-    s.queue_dir, s.queue_pid = own, _dead_pid()
-    assert not queue.sync(scene)
-    assert s.queue_pid == 0 and queue._RUNTIME["pid"] == os.getpid()
-    s.queue_dir = ""
-    # the project saved under a new name while its queue runs keeps it (the scene names the folder)
-    s.queue_dir = qdir
-    assert queue.current(scene) == (os.getpid(), qdir)
+    runner = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        with open(os.path.join(qdir, "queue.json"), "w") as fh:
+            json.dump({"jobs": [{"id": "aaaa", "kind": "STILL", "shot": "", "animation": "", "camera": "",
+                                 "quality": "draft", "label": "Image: A"}]}, fh)
+        with open(os.path.join(qdir, "status.json"), "w") as fh:
+            json.dump({"pid": runner.pid, "running": True, "jobs": {"aaaa": {"status": "RUNNING"}}}, fh)
+        bpy.ops.wm.save_as_mainfile(filepath=a_path)
+        queue._RUNS[qdir] = {"pid": runner.pid, "dir": qdir, "killed": False, "label": "A.blend",
+                             "project": os.path.normcase(os.path.abspath(a_path))}
+        s.queue_dir, s.queue_pid = qdir, runner.pid
+        assert queue.current(scene) == (runner.pid, qdir)
+        # another project is opened (here: saved under another name, with no queue of its own)
+        s.queue_dir, s.queue_pid = "", 0
+        bpy.ops.wm.save_as_mainfile(filepath=b_path)
+        assert queue.current(scene) == (0, "")
+        assert not queue.is_running(scene)
+        queue.sync(scene)
+        assert not len(s.queue) and s.queue_dir == "", "B does not take A's jobs"
+        assert not queue.belongs_here(scene)
+        # B's own old queue has ended: that does not make the app forget A's
+        own = str(tmp_path / "_queue" / "b")
+        os.makedirs(own)
+        open(os.path.join(own, "queue.json"), "w").write('{"jobs": []}')
+        s.queue_dir, s.queue_pid = own, _dead_pid()
+        assert not queue.sync(scene)
+        assert s.queue_pid == 0 and queue._RUNS[qdir]["pid"] == runner.pid
+        s.queue_dir = ""
+        # the project saved under a new name while its queue runs keeps it (the scene names the folder)
+        s.queue_dir = qdir
+        assert queue.current(scene) == (runner.pid, qdir)
+    finally:
+        runner.kill()
+        runner.wait()
 
 
 # ---------------------------------------------------------------------------

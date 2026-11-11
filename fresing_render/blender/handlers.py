@@ -153,10 +153,13 @@ def _on_load(_dummy=None):
     try:                                     # a render queue started earlier may still be going
         scene = bpy.context.scene
         from . import queue
-        if scene is not None and hasattr(scene, "fresing") and (scene.fresing.queue_dir or queue.belongs_here(scene)):
-            queue.sync(scene)                # (only this project's own queue: bug hunt row 9)
-            if scene.fresing.queue_pid:
-                queue.ensure_polling()
+        if scene is not None and hasattr(scene, "fresing"):
+            if not queue.belongs_here(scene) and not queue.is_running(scene):
+                queue.find_live(scene)       # its queue still renders, its folder not in the file (0068 row 4)
+            if scene.fresing.queue_dir or queue.belongs_here(scene):
+                queue.sync(scene)            # (only this project's own queue: bug hunt row 9)
+                if queue.is_running(scene):
+                    queue.ensure_polling()
     except Exception:
         pass
 
@@ -165,9 +168,18 @@ def _on_load(_dummy=None):
 def _after_undo(_dummy=None):
     try:
         from . import queue
-        if queue._RUNTIME["pid"]:
+        if queue.belongs_here(bpy.context.scene):
             queue.sync(bpy.context.scene)    # put the running queue back into the restored scene
             queue.ensure_polling()
+    except Exception:
+        pass
+
+
+@persistent
+def _after_save(_dummy=None):
+    try:
+        from . import queue
+        queue.project_saved()            # a delayed start follows the project's new name (0068 row 1)
     except Exception:
         pass
 
@@ -198,6 +210,8 @@ def register():
         bpy.app.handlers.load_post.append(_on_load)
     if _before_load not in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.append(_before_load)
+    if _after_save not in bpy.app.handlers.save_post:
+        bpy.app.handlers.save_post.append(_after_save)
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         if _after_undo not in lst:
             lst.append(_after_undo)
@@ -213,6 +227,8 @@ def unregister():
         bpy.app.handlers.load_post.remove(_on_load)
     if _before_load in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.remove(_before_load)
+    while _after_save in bpy.app.handlers.save_post:
+        bpy.app.handlers.save_post.remove(_after_save)
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         while _after_undo in lst:
             lst.remove(_after_undo)

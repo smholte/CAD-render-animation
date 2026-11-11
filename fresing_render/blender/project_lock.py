@@ -85,11 +85,31 @@ def write(blend_path: str, since: float | None = None) -> None:
     old = read(blend_path)
     info["since"] = since or (old.get("since") if old and _is_me(old) else None) or time.time()
     info["heartbeat"] = time.time()
+    _write_whole(lock_path(blend_path), json.dumps(info))
+
+
+def _write_whole(path: str, text: str) -> None:
+    """Write a temp file and swap it in (``os.replace``): a colleague reading the lock over the network never sees
+    a half-written (empty) file and takes it as free (0068 row 19f). Windows refuses the swap while someone reads
+    the file: try again a few times; the next heartbeat writes it anyway."""
+    tmp = f"{path}.{os.getpid()}.tmp"
     try:
-        with open(lock_path(blend_path), "w", encoding="utf-8") as fh:
-            json.dump(info, fh)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(text)
     except OSError:
-        pass                                   # read-only share: no lock, no problem
+        return                                 # read-only share: no lock, no problem
+    for _ in range(5):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(0.05)
+        except OSError:
+            break
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
 
 
 def release(blend_path: str) -> None:

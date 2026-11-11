@@ -1826,9 +1826,15 @@ or close the app and let it run overnight: the PC stays awake while it renders.
   mixes old and new frames (the job's message says so).
 - **Start later** (under the list): pick **In …** and set hours and minutes (0–12 h), or **At …** and a clock
   time (today, or tomorrow when it has passed), then click **Start later**. The panel shows "Starts in 2 h 14 min –
-  at 18:30" with **Start now** (starts at once) and **Cancel**. **The app must stay open** until the time comes: a
-  delayed start is not kept when you close the project or the app, and the panel says so if that happened.
-  At the time it does exactly what **Start queue** does.
+  at 18:30" with **Start now** (starts at once) and **Cancel**. **The app must stay open and the PC on** until the
+  time comes: a delayed start is not kept when you close the project or the app, and the panel says so if that
+  happened. While it waits, Windows does not go to sleep by itself (shutting the PC down or closing the lid still
+  stops it). Saving the project, also under a new name (**Save As**), keeps the delayed start.
+  At the time it does exactly what **Start queue** does; if a render is still going then (a time test of the day),
+  it starts as soon as that one has finished.
+- **Render animation** and **Time test** while a delayed start waits render only that new job now; the jobs that
+  were waiting still start at the set time. **Start now** starts them all at once (and ends the wait).
+  **Update now** is refused while a delayed start waits: cancel it, or update when the queue has finished.
 - Click a job to see its progress and messages; when it is done, **Open** plays or opens it and
   **Show in folder** opens Explorer with the file selected.
 - **−** removes the selected job, also a waiting one while the queue runs: the queue then leaves it out.
@@ -1836,7 +1842,10 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 - **Open log** shows the time per frame and any errors. A picture whose saved scene was deleted, or a
   renderer that could not start, shows as **Failed** with the reason.
 - The queue belongs to its project: open another project while it renders and that project keeps its own
-  list (open the first project again to follow it). Files typed as `//…` (next to the project: 360°
+  list (open the first project again to follow it, also after closing and starting the app again). Starting a
+  second project's queue while the first still renders asks first: both share the graphics card, so both take
+  longer. The same jobs are never rendered twice: Start queue says so when they are already being rendered (also
+  by a colleague's PC from the same shared folder). Files typed as `//…` (next to the project: 360°
   photo, logo, font, music, pictures) are found by the queue too.
 - A video's sharp spot stays on its part, also when the part moves during the video or the start scene
   puts it elsewhere.

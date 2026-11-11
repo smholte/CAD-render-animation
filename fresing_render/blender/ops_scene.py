@@ -170,8 +170,8 @@ class FRESING_OT_turntable(bpy.types.Operator):
         if queue.is_running(scene):
             msg += ". It starts when you press Start queue (another render is running)"
         else:
-            try:
-                queue.start(context)
+            try:                             # a delayed start keeps the other jobs for later (0068 row 5)
+                queue.start(context, only={job_id} if queue.delay_pending() else None)
             except (RuntimeError, OSError) as exc:
                 for i in reversed(range(len(s.queue))):     # nothing started: no job left waiting
                     if s.queue[i].job_id == job_id:
