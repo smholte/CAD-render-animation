@@ -348,8 +348,8 @@ sheen where it is wet. No length marks are visible.
 
 **Public numbers of comparable spreads** (owner, 11 Nov: his references are recent cable-lay vessels with this layout and a
 modular cable-lay system of the same kind he is working on). From public trade-press pages; the names and links are
-**left out on purpose** (the owner's work and his clients' equipment do not belong in this public repository; the lead
-has them in the chat):
+**left out on purpose** (the owner's work and his clients' equipment do not belong in this public repository; the owner
+has them in the 0083 session):
 - A ~123 m × 28 m DP2 cable-lay vessel: carousel **Ø 26 m outer, > 5,000 t**, **2 × 20 t** tensioners (listed as
   vertical), a 170 t knuckle-boom crane.
 - A ~130 m × 28 m vessel of the same family: **two carousels (on and below deck), 8,000 t together**, can lay two
