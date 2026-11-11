@@ -3,7 +3,7 @@
 > **Lead, 11 Nov 2026:** taken off hold by the owner and re-briefed. The guide pictures of the first brief were done in
 > **0044**; this task is only the way-cover code, now with several covers per project (0037 problem 3).
 
-**Who:** worker · **Status:** running · **Branch:** `task/0035-waycover-follow-ups` (or the session's own branch)
+**Who:** worker · **Status:** done (0.2.61) · **Branch:** `task/0035-waycover-follow-ups` (or the session's own branch)
 **Started by:** lead chat, 6 Nov 2026; re-briefed 11 Nov 2026
 **Lane:** new **Way-cover lane** (split off the Machining lane: 0061 does not touch these files) – `blender/waycover.py`,
 `blender/ops_waycover.py`, `blender/ui_waycover.py`, `core/waycover.py`, `tools/make_test_waycover.py`, their tests;
@@ -103,7 +103,7 @@ the owner's way-cover STEP stays as committed.
   toolpath test mill: section 5…2 + section 1 with the mounting plate as carriage section, housing counts; X ±120 mm:
   170 … 410 mm per side, no Build warning; three renders sent to the owner (not committed).
 
-**Runs needed:** see below.
+**Runs needed:** 1 full run on the branch (green, 43113891835); main moved by a task-list commit only, merged without a new run.
 
 **Open points / follow-up tasks:**
 - A cover drawn in another position than the machine's axis zero (the owner's STEP is drawn at mid-travel, 376.5 mm)
