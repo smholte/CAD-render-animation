@@ -295,7 +295,11 @@ installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no 
 tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
-                           ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt
+                           ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
+                           make_demo_cable_lay.py + demo_cable_lay/ (task 0076: the invented cable-lay vessel spread,
+                           STEP files + demo_cable_route.json + demo_joints.json written at run time, too big to commit;
+                           params.py one parameter set, route.py the route maths, geom.py shapes + scene tree + writer,
+                           machines.py, layout.py, pictures.py renders it with the app)
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
@@ -688,3 +692,9 @@ the release → Delete); the next run on `main` publishes it again.
   straight below the face (`FACING` 0.999), else by rays (`tests/test_clash.py`, a knife-edge wedge).
 - The clash check found that the test tour's "Boom up" turned the boom down through the base (the joint axis from
   `axis_from_hit` pointed along +Y): fixed in 0065. Run it on a new tour set's animations.
+- A STEP part whose shape is several solids (a compound of boxes) comes back from the importer **without its colour**
+  (OpenCascade's writer puts the colour on each solid, the reader on sub-shapes): its frames rendered in the group's
+  default colour (task 0076). Test models make every part one solid (`fuse`, a pipe swept along a route);
+  `tools/demo_cable_lay/geom.write_step` refuses anything else.
+- A ruled loft between hull stations meshes light (0.3 M triangles at Normal); a smooth loft of the same stations gave
+  1.4 M, because Normal caps the facet gap at 0.5 mm on big parts (task 0074).
