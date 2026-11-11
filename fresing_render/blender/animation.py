@@ -3,7 +3,8 @@
 Block kinds
     JOINT   move one joint from a value to a value
     POSE    move every joint and free-moved subassembly to a saved pose (exploded view...)
-    CAMERA  cut to a saved camera, move to it, or orbit around the model
+    CAMERA  cut to a saved camera, move to it, or orbit around the model; ride along a moving part, fly a path,
+            or keep a part in the middle (task 0087, camera_path.py)
     SHOW / HIDE   make a subassembly appear or disappear (assembly sequences)
     FADE_OUT / FADE_IN  fade a subassembly away (to nothing or to the X-ray look) or back in (task 0073, fade.py)
     MOTOR   run a motor at a speed (rpm, or mm/s for a slide) for a while, with a ramp
@@ -94,6 +95,9 @@ def block_label(b, scene=None) -> str:
     if b.kind == "POSE":
         return f"To pose {b.pose}" if b.pose else "To pose"
     if b.kind == "CAMERA":
+        if b.camera_mode in ("RIDE", "PATH", "AIM"):
+            from . import camera_path
+            return camera_path.label(b)
         cam = b.camera.name if b.camera else "?"
         return {"CUT": f"Cut to {cam}", "MOVE": f"Camera to {cam}",
                 "ORBIT": f"Orbit {math.degrees(b.orbit_angle):.0f}°"}.get(b.camera_mode, "Camera")
@@ -325,12 +329,25 @@ class CamState:
         return out
 
 
-def _camera_track(anim, segs, start: CamState, centre: Vector, f_end: int) -> list[CamState]:
-    """Camera state for every frame 1..f_end."""
-    plan = []                     # (f0, f1, start_state, end_state, mode, angle, easing)
+def _camera_track(anim, segs, start: CamState, centre: Vector, f_end: int, ctx=None,
+                  warnings: list | None = None) -> list[CamState]:
+    """Camera state for every frame 1..f_end. ``ctx`` (camera_path.Context) is needed by the steps that ride along,
+    fly a path or keep a part in the middle (task 0087); without it they are left out."""
+    plan = []                     # (f0, f1, state at a frame of the step, end state)
     cur = start
     for b in segs:
         f0, f1 = frame_of(anim, b.start), frame_of(anim, b.start + b.duration)
+        if b.camera_mode in ("RIDE", "PATH", "AIM"):
+            if ctx is None:
+                continue
+            from . import camera_path
+            got = camera_path.plan(ctx, anim, b, cur, f0, f1, warnings if warnings is not None else [])
+            if got is None:
+                continue
+            at, end = got
+            plan.append((f0, max(f1, f0), at, end))
+            cur = end
+            continue
         if b.camera_mode == "ORBIT":
             end = cur.orbited(centre, b.orbit_angle)
         elif b.camera is not None and b.camera.type == "CAMERA":
@@ -339,19 +356,23 @@ def _camera_track(anim, segs, start: CamState, centre: Vector, f_end: int) -> li
             continue
         if b.camera_mode == "CUT":
             f1 = f0
-        plan.append((f0, max(f1, f0), cur, end, b.camera_mode, b.orbit_angle, b.easing))
+        f1 = max(f1, f0)
+
+        def at(f, a=cur, b_end=end, f0=f0, f1=f1, mode=b.camera_mode, angle=b.orbit_angle, easing=b.easing):
+            p = ease(easing, (f - f0) / max(1, f1 - f0))
+            return a.orbited(centre, angle * p) if mode == "ORBIT" else a.blend(b_end, p)
+        plan.append((f0, f1, at, end))
         cur = end
     out = []
     for f in range(1, f_end + 1):
         st = start
-        for f0, f1, a, b_end, mode, angle, easing in plan:
+        for f0, f1, at, b_end in plan:
             if f < f0:
                 break
             if f >= f1:
                 st = b_end
                 continue
-            p = ease(easing, (f - f0) / max(1, f1 - f0))
-            st = a.orbited(centre, angle * p) if mode == "ORBIT" else a.blend(b_end, p)
+            st = at(f)
         out.append(st)
     return out
 
@@ -360,9 +381,9 @@ def _cameras_of(scene, anim) -> list:
     """The start camera and every camera a Move to / Cut step goes to."""
     out = [scene.camera] if scene.camera is not None and scene.camera.type == "CAMERA" else []
     for b in anim.blocks:
-        if b.enabled and b.kind == "CAMERA" and b.camera_mode != "ORBIT" and b.camera is not None \
-                and b.camera.type == "CAMERA" and b.camera not in out:
-            out.append(b.camera)
+        cam = b.ride_camera if b.camera_mode == "RIDE" else b.camera if b.camera_mode in ("CUT", "MOVE") else None
+        if b.enabled and b.kind == "CAMERA" and cam is not None and cam.type == "CAMERA" and cam not in out:
+            out.append(cam)
     return out
 
 
@@ -378,8 +399,10 @@ def _fresh_blur(scene, anim) -> None:
 def _one_marker(start_cam, cam_blocks):
     """The sharp-spot marker every camera of the move shares, or None (no spot, or cameras with different ones)."""
     from . import cameras
-    cams = [start_cam] + [b.camera for b in cam_blocks if b.camera_mode != "ORBIT" and b.camera is not None
+    cams = [start_cam] + [b.camera for b in cam_blocks if b.camera_mode in ("CUT", "MOVE") and b.camera is not None
                           and b.camera.type == "CAMERA"]
+    cams += [b.ride_camera for b in cam_blocks if b.camera_mode == "RIDE" and b.ride_camera is not None
+             and b.ride_camera.type == "CAMERA"]
     markers = {cameras.focus_marker(c) for c in cams}
     return markers.pop() if len(markers) == 1 else None
 
@@ -803,7 +826,11 @@ def bake(scene, anim) -> dict:
             warnings.append("Camera blocks need a start camera: pick one in the start scene or add a cut")
         else:
             centre = _model_centre(scene)
-            track = _camera_track(anim, cam_blocks, CamState.of(start_cam), centre, f_end)
+            ctx = None
+            if any(b.camera_mode in ("RIDE", "PATH", "AIM") for b in cam_blocks):
+                from . import camera_path
+                ctx = camera_path.Context(scene, anim, cam_blocks, uids, centre, warnings)
+            track = _camera_track(anim, cam_blocks, CamState.of(start_cam), centre, f_end, ctx, warnings)
             cam = _anim_camera(scene, start_cam)
             cb = _channelbag(cam, "OBJECT")
             rows = []
@@ -824,6 +851,10 @@ def bake(scene, anim) -> dict:
             # one sharp spot for the whole move: the camera keeps it in focus on every frame, also while its
             # part moves (bug hunt row 10); otherwise the sharp distance goes from one camera's to the next
             marker = _one_marker(start_cam, cam_blocks)
+            if ctx is not None and any(camera_path.looks_at_part(b) or (b.camera_mode == "PATH" and
+                                                                         b.path_look == "MODEL")
+                                       for b in cam_blocks if b.camera_mode in camera_path.MODES):
+                marker = None           # the sharp distance follows the part the camera watches (task 0087)
             cam.data.dof.focus_object = marker
             if cam.data.dof.use_dof and marker is None:
                 _write(dcb, "dof.focus_distance", 0, [(f, st.focus, "LINEAR", "AUTO") for f, _l, _r, st in rows])

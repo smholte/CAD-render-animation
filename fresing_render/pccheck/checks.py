@@ -1232,7 +1232,7 @@ def scene_sea(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("scene.vessel_motion", "Vessel motion at sea", "0.2.62",
+@line("scene.vessel_motion", "Vessel motion at sea", "0.2.63",
       what="The crane on the Vessel deck in a calm beam sea: the deck and the crane heave, pitch and roll, the sea "
            "and the camera stay. Amplitudes measured over 2 minutes; a frame rendered small (processor, draft)")
 def scene_vessel_motion(ctx):
@@ -1375,6 +1375,46 @@ def _per_frame(message: str) -> float:
         return float(message.split(" s per frame")[0].split()[-1])
     except (ValueError, IndexError):
         raise RuntimeError(f"no time per frame in '{message}'") from None
+
+
+@line("camera.path", "Camera rides along a part and flies a path", "0.2.62",
+      what="The crane's boom turns up while the trolley runs out; the camera rides on the boom for 2 s, then flies a "
+           "path round the crane keeping the trolley in the middle. Its error numbers are measured; six frames are "
+           "rendered small (processor, draft) as a contact sheet")
+def camera_path(ctx):
+    from mathutils import Vector
+
+    from ..blender import animation, joints, render, tour
+    from . import core, runner
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    tour._boom_joint(scene)
+    trolley = _ob(scene, "TROLLEY.ASM")
+    joints.create(scene, "SLIDE", [trolley], trolley.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(scene, "BOOM.ASM"), name="Trolley")
+    a = s.animations.add()
+    a.name, a.tail, a.fps = tour.CAMERA_ANIM, 0.0, "25"
+    tour.camera_rides(scene, a)
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_camera(scene)
+    _small_output(s)
+    s.use_gpu = False
+    frames = [round(1 + k * (info["frames"] - 1) / 5) for k in range(6)]
+    pics = []
+    for f in frames:
+        scene.frame_set(f)
+        path = os.path.join(ctx.work, f"camera_{f:03d}.png")
+        render.render_still(scene, s, "draft", filepath=path)
+        pics.append(runner.read_pixels(path))
+    for f, px in zip(frames, pics):
+        bad = core.picture_problems(px, True)
+        _check(not bad, f"frame {f} is {'; '.join(bad)}")
+    ctx.picture_pixels(core.contact_sheet(pics, cols=3), "camera_path", "Ride on the boom, then fly round the crane",
+                       width=760, settings=f"frames {', '.join(str(f) for f in frames)} (processor, draft)")
+    return note
 
 
 @line("video.finishing", "Logo and watermark on a picture (brand kit)", "0.2.23",

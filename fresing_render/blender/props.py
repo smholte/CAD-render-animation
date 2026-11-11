@@ -866,6 +866,11 @@ class FRCallout(bpy.types.PropertyGroup):
                                      "out). Empty: all the time. Stills always show every label that is on")
 
 
+class FRCamPathPoint(bpy.types.PropertyGroup):
+    """One point of a Fly a path camera step (task 0087), in world metres."""
+    co: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0), subtype="XYZ", unit="LENGTH")
+
+
 class FRAnimBlock(bpy.types.PropertyGroup):
     name: StringProperty(name="Label", description="Shown in the list and as a marker on the timeline. Empty: a "
                                                    "name made from the step")
@@ -896,11 +901,53 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     camera_mode: EnumProperty(name="Camera", default="MOVE", items=[
         ("CUT", "Cut to", "Switches to a saved camera at once"),
         ("MOVE", "Move to", "Flies smoothly to a saved camera"),
-        ("ORBIT", "Orbit", "Turns around the model")],
+        ("ORBIT", "Orbit", "Turns around the model"),
+        ("RIDE", "Ride along", "The camera rides on a part: it keeps its place and view on the part while the part "
+                               "moves (on the carriage, the boom tip, a vessel)"),
+        ("PATH", "Fly a path", "The camera flies along a smooth path through points, at an even speed. Make the "
+                               "path from saved cameras or add points from the view"),
+        ("AIM", "Watch part", "Keeps a part in the middle: the camera stays where it is and turns, so a part you "
+                              "pick stays in the middle of the picture (a hook, the tool, the carriage)")],
         description="Cut to: switch to a camera at once. Move to: fly smoothly to a camera. Orbit: turn around "
-                    "the model")
+                    "the model. Ride along: ride on a moving part. Fly a path: fly through points. Watch part: "
+                    "turn so a part stays in the middle")
     camera: PointerProperty(type=bpy.types.Object, name="Camera", poll=_camera_poll,
                             description="The camera to cut or fly to (cameras are made in 5 Scene & Render)")
+    # camera rides along / flies a path / keeps a part in the middle (task 0087)
+    ride_camera: PointerProperty(
+        type=bpy.types.Object, name="Seat", poll=_camera_poll,
+        description="A saved camera that shows where the camera sits on the part and how it looks (place it with "
+                    "the model as it stands at the start). Empty: it rides from where the camera is when the step "
+                    "starts")
+    ride_level: BoolProperty(
+        name="Keep level", default=False,
+        description="The riding camera stays upright when its part tilts or rolls (on a vessel at sea, a boom that "
+                    "lifts): it follows the part's place and its turn seen from above, not its tilt")
+    ride_look: EnumProperty(
+        name="Look", default="WITH",
+        items=[("WITH", "With the part", "Keeps its view on the part: it turns when the part turns"),
+               ("PART", "At a part", "Turns so the part you pick below stays in the middle of the picture")],
+        description="With the part: the camera keeps its view on the part it rides. At a part: it turns so another "
+                    "part (or the same one) stays in the middle of the picture")
+    path_look: EnumProperty(
+        name="Look", default="AHEAD",
+        items=[("AHEAD", "Ahead", "Looks where the path goes, like from a drone"),
+               ("MODEL", "At the model", "Looks at the middle of the model all the way"),
+               ("PART", "At a part", "Turns so the part you pick below stays in the middle of the picture")],
+        description="Where the camera looks while it flies: ahead along the path, at the middle of the model, or "
+                    "at a part you pick (it stays in the middle of the picture)")
+    aim_uid: StringProperty()
+    aim_name: StringProperty(name="Part to keep in the middle")
+    cam_blend: FloatProperty(
+        name="Blend in (s)", default=1.0, min=0.0, soft_max=10.0, step=10, precision=2,
+        description="How long the camera takes to glide from where it was into this step's view, in seconds (0: it "
+                    "jumps there at once)")
+    path_from_here: BoolProperty(
+        name="Start where the camera is", default=True,
+        description="The path starts where the camera is when this step begins, so it never jumps. Off: it starts "
+                    "at the path's first point (it glides there during Blend in)")
+    path_points: CollectionProperty(type=FRCamPathPoint)
+    path_obj: PointerProperty(type=bpy.types.Object)
     orbit_angle: FloatProperty(name="Angle", subtype="ANGLE", default=math.radians(90),
                                description="How far the camera turns around the model, in degrees (360 = once "
                                            "round; negative: the other way)")
@@ -929,8 +976,8 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     to_height: FloatProperty(name="To", unit="LENGTH", default=1.0,
                              description="The platform's height the step moves to, in mm (pin to pin)")
     ramp: FloatProperty(name="Ramp (s)", default=0.5, min=0.0, soft_max=10.0, step=10, precision=2,
-                        description="How long the motor takes to get up to speed and to stop, in seconds (with "
-                                    "Motion set to Smooth, Slow start or Slow stop)")
+                        description="How long the motor (or the camera flying a path) takes to get up to speed and "
+                                    "to stop, in seconds (with Motion set to Smooth, Slow start or Slow stop)")
     # Run G-code program (task 0026)
     gcode_file: StringProperty(
         name="Program", subtype="FILE_PATH", update=_gcode_step_changed, options={"PATH_SUPPORTS_BLEND_RELATIVE"},
@@ -2503,7 +2550,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
-           FRShot, FRPictureCard, FRCallout, FRTrail, FRAnimBlock,
+           FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel,
            FRSceneSettings)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.62 – 11 Nov 2026 – vessel motion at sea (task 0085)
+## 0.2.63 – 11 Nov 2026 – vessel motion at sea (task 0085)
 
 Scene & Render
 - **Vessel motion** (new, 5 Scene & Render > Vessel motion, on the Open sea and the Vessel deck): tick **Move with
@@ -28,6 +28,20 @@ Test tour and PC check
   **Vessel motion at sea** (a picture and the measured roll, pitch and heave) and, in Heavy, **Big machine: vessel
   motion on the open sea** (time per frame with and without).
 
+## 0.2.62 – 11 Nov 2026 – camera rides along, flies a path, watches a part (task 0087)
+
+6 Animation
+- **New camera steps** (Camera step, second row of buttons):
+  - **Ride along:** the camera sits on a part and moves with it – on the carriage while it cuts, at the boom tip.
+    **Keep level** keeps it upright when the part tilts. A saved camera as **Seat camera** sets where it sits.
+  - **Fly a path:** a smooth flight through points at an even speed, with a gentle start and stop. **Make path from
+    saved cameras** or **Add this view**; it looks ahead, at the model or at a part. The path shows as a thin line in
+    the view, never in renders.
+  - **Watch part:** the camera stays where it is and turns so a part stays in the middle of the picture (a hook, the
+    tool). Ride along and Fly a path can watch a part too.
+- **Blend in** glides the camera from where it was into the new step: no jump. With background blur on, the sharp
+  spot follows the part the camera watches. Works in the render queue and with scripts off; camera steps of older
+  projects give exactly the same video as before.
 ## 0.2.61 – 11 Nov 2026 – several way covers: one each side of the table, the carriage as last section (task 0035)
 
 4 Motion > Way covers
