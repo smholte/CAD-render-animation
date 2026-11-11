@@ -17,7 +17,9 @@ TEST.LINKAGES
     FOURBAR.BASE.ASM               crank 120, coupler 350, rocker 250; the crank at 60° in the CAD pose
     FOURBAR.CRANK, FOURBAR.COUPLER (with a tool block), FOURBAR.ROCKER
   CRANK.ASM                        slider-crank at x = 3200: crank pivot O (3200, 300), crank 100 at 30°,
-    CRANK.BASE.ASM                 rod 300, piston pin 20 mm above O's line (offset), guide tube along X
+    CRANK.BASE.ASM                 rod 300, piston pin 20 mm above O's line (offset), guide tube along X;
+                                   CRANK.BEARING (post with the bore at O) at y -52 … -22, behind the crank's
+                                   own pin (y -20 … 20) that sweeps past it (task 0067)
     CRANK.CRANK, CRANK.ROD, CRANK.PISTON
 
 Hand calculation (mm): scissor c = 1000 cos 15° = 965.926, s = 1000 sin 15° = 258.819; fixed pin (0, 100);
@@ -110,9 +112,21 @@ def _bar(length, width, y0, y1, holes, hole_r):
 
 
 def _lug(x):
-    """A lug under the inner arm (in front of it, y -100 … 0) with a bore Ø20 at x along the arm."""
+    """A lug under the inner arm (in front of it, y -100 … 0) with a bore Ø20 at x along the arm; a fork: the rod's
+    eye (y -95 … -65) and the rod turn in its slot (y -97 … -63; task 0067: a solid lug held the eye 5 mm deep)."""
     body = BRepPrimAPI_MakeBox(gp_Pnt(x - 30, -100, -30), 60.0, 100.0, 60.0).Shape()
+    body = BRepAlgoAPI_Cut(body, BRepPrimAPI_MakeBox(gp_Pnt(x - 31, -97, -31), 62.0, 34.0, 62.0).Shape()).Shape()
     return BRepAlgoAPI_Cut(body, _cyl_y(x, 0, 10.0, -101, 1)).Shape()
+
+
+def _clevis(x, z, y0, y1, slot0, slot1, below, above, half, r):
+    """Two cheeks (y y0 … slot0 and slot1 … y1) round a bore of radius r at (x, z): a fork an eye turns in."""
+    out = None
+    for a, b in ((y0, slot0), (slot1, y1)):
+        cheek = BRepPrimAPI_MakeBox(gp_Pnt(x - half, a, z - below), 2 * half, b - a, below + above).Shape()
+        cheek = BRepAlgoAPI_Cut(cheek, _cyl_y(x, z, r, a - 1, b + 1)).Shape()
+        out = cheek if out is None else BRepAlgoAPI_Fuse(out, cheek).Shape()
+    return out
 
 
 def _tube_x(x0, x1, r_in, r_out, y):
@@ -218,8 +232,9 @@ def build(path: str, revision: str = "A") -> None:
     gx, gz = CYL_G
     rx, rz = (ARM * CYL_AT * math.cos(PHI0), Z0 + ARM * CYL_AT * math.sin(PHI0))
     length = math.hypot(rx - gx, rz - gz)
-    place(base, part(_bored_block(gx - 30, gx + 30, -100, -60, Z0 - ROLLER_R, Z0 + 30, [(gx, gz)], 10.0),
-                     "LIFT.BASE.CYL.BRACKET", grey))
+    # a fork: the barrel's eye (Ø36, y -95 … -65) turns between its cheeks; low and narrow, so the tube (from 25 mm
+    # out along the cylinder) clears them (task 0067: a solid block held the eye 8 mm deep)
+    place(base, part(_clevis(gx, gz, -100, -60, -96, -64, ROLLER_R, 12.0, 15.0, 10.0), "LIFT.BASE.CYL.BRACKET", grey))
     place(base, part(_cyl_y(gx, gz, 10.0, -110, -50), "LIFT.BASE.CYL.PIN", chrome))
     barrel = assy("LIFT.CYL.BARREL")
     place(barrel, part(BRepAlgoAPI_Fuse(_tube_x(25, 200, 20, 25, -80), _eye_y(0, 18, 10, -95, -65)).Shape(),
@@ -274,11 +289,15 @@ def build(path: str, revision: str = "A") -> None:
     sbase = assy("CRANK.BASE.ASM")
     place(sbase, part(BRepPrimAPI_MakeBox(gp_Pnt(SC_X - 150, -40, 0), 800.0, 120.0, 60.0).Shape(),
                       "CRANK.BASE", grey))
-    place(sbase, part(_bored_block(SC_X - 30, SC_X + 30, -40, -10, 60, SC_Z + 30, [(SC_X, SC_Z)], 10.0),
+    # the bearing post stands 12 mm behind the crank: the crank's own pin (y -20 … 20) sweeps past it (task 0067)
+    place(sbase, part(_bored_block(SC_X - 30, SC_X + 30, -52, -22, 60, SC_Z + 30, [(SC_X, SC_Z)], 10.0),
                       "CRANK.BEARING", grey))
-    place(sbase, part(_cyl_y(SC_X, SC_Z, 10.0, -40, 10), "CRANK.PIN.O", chrome))
+    place(sbase, part(_cyl_y(SC_X, SC_Z, 10.0, -52, 10), "CRANK.PIN.O", chrome))
     guide = BRepAlgoAPI_Cut(_cyl_x(SC_X + 250, SC_X + 600, 40, SC_Z + SC_E, 34),
                             _cyl_x(SC_X + 249, SC_X + 601, 40, SC_Z + SC_E, 26)).Shape()
+    # the rod (y 10 … 30) runs in a slot along the guide's side (task 0067: it went through the guide's wall)
+    guide = BRepAlgoAPI_Cut(guide, BRepPrimAPI_MakeBox(gp_Pnt(SC_X + 249, 4, SC_Z + SC_E - 40), 352.0, 28.0,
+                                                       80.0).Shape()).Shape()
     place(sbase, part(guide, "CRANK.GUIDE", grey))
     place(sc, sbase)
     link("CRANK.CRANK", po, pbb, -10, 10, yellow)
@@ -286,6 +305,8 @@ def build(path: str, revision: str = "A") -> None:
     del rod
     piston = assy("CRANK.PISTON.ASM")
     body = BRepAlgoAPI_Cut(_cyl_x(pp[0] - 40, pp[0] + 40, 40, pp[1], 25), _cyl_y(pp[0], pp[1], 10.0, 10, 70)).Shape()
+    # the rod's end turns in the piston's slot (y 9 … 31; task 0067: it sat 15 mm inside a solid piston)
+    body = BRepAlgoAPI_Cut(body, BRepPrimAPI_MakeBox(gp_Pnt(pp[0] - 41, 9, pp[1] - 26), 82.0, 22.0, 52.0).Shape()).Shape()
     place(piston, part(body, "CRANK.PISTON", blue))
     place(sc, piston)
     place(root, sc)

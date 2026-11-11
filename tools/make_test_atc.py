@@ -16,11 +16,13 @@ TEST.ATC
     TOOL T1 BT30 FLAT D10   BT30 holder + flat end mill Ø10, stick-out 40: tip at (0, 0, 215), gauge length 85
   ATC HOUSING, MAGAZINE POST   fixed, above the arm's hub and in the magazine's middle
   ARM.ASM
-    CHANGER ARM             hub (round, Ø60) on the axis x = -130, y = 0, vertical; a bar with a U-shaped claw at
-                            each end (round inside, Ø47, around a BT30 flange). In the CAD it is at rest, along Y;
-                            turned +90° about +Z its claws are round x = 0 (the spindle) and x = -260 (the station)
+    CHANGER ARM             hub (round, Ø60) on the axis x = -130, y = 0, vertical; a bar (z 281..299, 1 mm under
+                            the spindle's nose) with a U-shaped claw at each end (round inside, Ø47, around a BT30
+                            flange Ø46); the claw's open side is cut along the ring round the hub the flange sweeps
+                            when the arm turns in. In the CAD it is at rest, along Y; turned +90° about +Z its claws
+                            are round x = 0 (the spindle) and x = -260 (the station)
   MAGAZINE.ASM              turns about the vertical axis x = -460, y = 0
-    MAGAZINE DISC           Ø320, z 330..350
+    MAGAZINE DISC           Ø280, z 330..350 (inside the pots' hinges: a tipped pot clears it)
     POT                     12 of the same part, one every 30° counter-clockwise from +X (pot 1 at the station):
                             a sleeve lying radially (the tool points outward), its mouth (the gauge line) at radius
                             200, z = 400; it tips down 90° about a hinge pin (round, along the tangent) at radius 150,
@@ -33,7 +35,7 @@ usage: python make_test_atc.py out.step
 import math
 import sys
 
-from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
+from OCP.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
 from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCP.BRepPrimAPI import (BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone, BRepPrimAPI_MakeCylinder,
                              BRepPrimAPI_MakeSphere)
@@ -57,6 +59,7 @@ POTS = 12
 POT_R = 200.0                       # the pot's mouth (gauge line), from the magazine's axis
 POT_Z = 400.0
 HINGE_R, HINGE_Z = 150.0, 350.0
+DISC_R = 140.0                      # inside the hinges: a tipping pot's block swings down past the disc's rim
 T1_STICK, T2_STICK = 40.0, 35.0
 BT30_GAUGE = 45.0                   # from the holder's nose to its gauge line (core/tools.py HOLDER_SIZES)
 
@@ -102,7 +105,7 @@ def bt30_tool(stick: float, radius: float, ball: bool = False):
 def changer_arm():
     """The arm in its grip pose (claws round x = 0 and x = -260), then turned back -90° about its hub to rest."""
     hx, hy = HUB
-    z0, h = GAUGE_Z - 20.0, 20.0
+    z0, h = GAUGE_Z - 19.0, 18.0              # 1 mm clear of the spindle's nose, round the flange (z 280 … 300)
     bar = _box(-GRIP_R * 2, -15.0, z0, GRIP_R * 2, 30.0, h)
     hub = _cyl(hx, hy, z0, 30.0, 60.0)
     shapes = [bar, hub]
@@ -115,6 +118,13 @@ def changer_arm():
     arm = _fuse(*shapes)
     arm = BRepAlgoAPI_Cut(arm, _cyl(0, 0, z0 - 1, 23.5, h + 2)).Shape()
     arm = BRepAlgoAPI_Cut(arm, _cyl(-2 * GRIP_R, 0, z0 - 1, 23.5, h + 2)).Shape()
+    # the way in: the arm turns about its hub, so the flange sweeps a ring round the hub (radius 130 ± 23); nothing of
+    # the claw or the bar may stand in that ring on the open side (task 0067: the bar narrowed the opening)
+    ring = BRepAlgoAPI_Cut(_cyl(hx, hy, z0 - 1, GRIP_R + 23.5, h + 2), _cyl(hx, hy, z0 - 2, GRIP_R - 23.5, h + 4)).Shape()
+    for cx, opening in ((0.0, 1.0), (-2 * GRIP_R, -1.0)):
+        y0 = 0.0 if opening > 0 else -45.0
+        way = BRepAlgoAPI_Common(ring, _box(cx - 40.0, y0, z0 - 1, 80.0, 45.0, h + 2)).Shape()
+        arm = BRepAlgoAPI_Cut(arm, way).Shape()
     t = gp_Trsf()
     t.SetRotation(gp_Ax1(gp_Pnt(hx, hy, 0), gp_Dir(0, 0, 1)), -math.pi / 2)
     return _moved(arm, t)
@@ -177,7 +187,7 @@ def build(path: str) -> None:
     post = part(_fuse(_cyl(mx, my, 350, 25.0, 170.0), _box(mx - 20, my, 480, 40, 250, 40),
                       _box(mx - 20, 230, 380, 40, 20, 140)), "MAGAZINE POST", blue)
     arm = part(changer_arm(), "CHANGER ARM", dark)
-    disc = part(_cyl(mx, my, 330, 160.0, 20.0), "MAGAZINE DISC", grey)
+    disc = part(_cyl(mx, my, 330, DISC_R, 20.0), "MAGAZINE DISC", grey)
     pot_lab = part(pot(), "POT", dark)
     t2 = part(bt30_tool(T2_STICK, 4.0, ball=True), "TOOL T2 BT30 BALL D8", steel)
 

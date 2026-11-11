@@ -1675,7 +1675,7 @@ def milling_tools(ctx):
             f"{lift:.2f} mm; {per:.0f} ms per frame")
 
 
-@line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.54",
+@line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.55",
       what="The toolpath test model: a block and the finished part (pocket, rounded boss, dome, a cap that hangs "
            "over, a hole). The app makes the roughing (flat Ø10) and finishing (ball Ø10) program at Draft, adds its "
            "step, builds it and cuts to the end; the block is measured against the part from above")

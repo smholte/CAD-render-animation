@@ -339,6 +339,19 @@ def _pick(role: str, ob) -> None:
         machining.add_bit(bpy_scene(), ob)
     else:
         machining.set_workpiece(bpy_scene(), ob)
+        _hide_finished(bpy_scene())
+
+
+def _hide_finished(scene) -> None:
+    """The test mill's FINISHED PART lies on the stock (a shape for "finish at the CAD part") and its BALL MILL D6 sits
+    on the head beside the end mill, its tip as low: shown, the bit cut through the one and the other went into the
+    stock (the clash check said so, task 0067). Hidden, as a user would, unless the ball mill is a bit."""
+    from . import build, logic, machining
+    bits = {ob.name for _it, ob in machining.bits(scene)}
+    for ob in scene.objects:
+        if (ob.get(build.PROP_NAME) in ("FINISHED PART", "BALL MILL D6") and ob.name not in bits
+                and not logic.is_hidden(ob)):
+            logic.set_hidden(ob, True)
 
 
 def bpy_scene():
@@ -816,6 +829,14 @@ def build_cylinder(b: Build):
                                  (rod_pin, along_y, _ob(sc, "ARM.ROD.PIN")), name="Luff cylinder")
     _update()
     cylinders.set_mode(sc, c, "DRIVE")
+    # the second cylinder and the telescopic one follow the arm (task 0067: left standing, the arm's pin tore through
+    # their eyes)
+    for barrel, rod, stage, y in (("CYL.BARREL", "CYL.ROD", "", 0.32), ("TELE.BARREL", "TELE.ROD", "TELE.STAGE", 0.2)):
+        cylinders.create(sc, [at_y(barrel, y)], [at_y(rod, y)],
+                         (Vector((0.5, y, 0.15)), along_y, _ob(sc, "BASE.PIN")),
+                         (Vector((0.8, y, 0.45)), along_y, _ob(sc, "ARM.ROD.PIN")),
+                         name=f"Follower {barrel.split('.')[0].lower()}", stages=[at_y(stage, y)] if stage else ())
+    _update()
     _camera(b, "FRONT", "Tour view")
     shot = _shot(b, "Tour: cylinder")
     a = _animation(b, "Stroke out", shot.name)
@@ -856,9 +877,14 @@ def _check_cylinder(scene):
     return f"arm {abs(math.degrees(a1 - a0)):.1f}°, eye on its pin to {err * 1000:.3f} mm"
 
 
+LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
+
+
 @tour_set("linkage", "Mechanisms", "test_linkage_a.step")
 def build_linkage(b: Build):
-    from . import linkages
+    from mathutils import Vector
+
+    from . import cylinders, linkages
     sc = b.scene
     _look("PRODUCT")
     arms = [_ob(sc, f"LIFT.ARM.{s}.{i}") for i in (1, 2, 3) for s in ("IN", "OUT")]
@@ -868,6 +894,12 @@ def build_linkage(b: Build):
                          base=_ob(sc, "CRANK.BASE.ASM"), name="Slider-crank")
     j = linkages.input_joint(sc, s2)
     _update()
+    _update()
+    # the lifting cylinder follows the bottom inner arm (task 0067: left standing, the arm's pin tore through its eye)
+    along_y = Vector((0, 1, 0))
+    cylinders.create(sc, [_ob(sc, "LIFT.CYL.BARREL")], [_ob(sc, "LIFT.CYL.ROD")],
+                     (Vector((0.45, -0.08, 0.1)), along_y, _ob(sc, "LIFT.BASE.CYL.PIN")),
+                     (Vector(LIFT_ROD_PIN), along_y, _ob(sc, "LIFT.CYL.PIN")), name="Lift cylinder")
     _update()
     _camera(b, "FRONT", "Tour view")
     shot = _shot(b, "Tour: mechanisms")
@@ -1597,7 +1629,7 @@ stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "The app made the program itself: the flat end mill T1 roughs the block level by level (zigzag, then once round "
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
      "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
-     where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.54",
+     where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table and the block.",

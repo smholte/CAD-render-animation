@@ -21,7 +21,7 @@ import traceback
 
 import bpy
 from bpy_extras import view3d_utils
-from mathutils import Quaternion, Vector
+from mathutils import Euler, Quaternion, Vector
 
 OUT = os.environ.get("UITEST_OUT", os.path.join(os.path.expanduser("~"), "fresing_ui_test_gcode"))
 MODEL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests", "data", "test_gantry.step")
@@ -493,6 +493,7 @@ def s_atc_start():
     r3d = ui()[2].data                                     # the carousel in the middle of the view (no animation)
     r3d.view_location = Vector((0.5, 0.0, 0.15))
     r3d.view_distance = 1.2
+    r3d.view_rotation = Euler((math.radians(50.0), 0.0, 0.0)).to_quaternion()   # from the front, 40° down onto it
     redraw()
     with override():
         r = bpy.ops.fresing.cnc_pocket_click("INVOKE_DEFAULT")
@@ -502,7 +503,7 @@ def s_atc_start():
 
 @step
 def s_atc_click():
-    x, y = to_window((0.56, 0.0, 0.15))                     # on the carousel's top, above T2
+    x, y = to_window((0.545, 0.0, 0.14))                    # on the carousel's top (z 140, task 0067), beside T2
     log("pocket click at", x, y)
     click(x, y)
     return 1.0
@@ -524,7 +525,7 @@ def s_atc_fill():
     p = c.pockets[0] if len(c.pockets) == 1 else None
     pos = tc.pocket_world(p)[0] if p is not None else None
     check("a click on the carousel makes pocket 1 on it", p is not None and p.number == 1
-          and p.obj is find("CAROUSEL DISC") and 0.1399 < pos.z < 0.1501, (len(c.pockets), tuple(pos) if pos else None))
+          and p.obj is find("CAROUSEL DISC") and 0.1395 < pos.z < 0.1505, (len(c.pockets), tuple(pos) if pos else None))
     station = pos.copy() if pos is not None else Vector()
     c.pocket_count = 8
     r = op("fresing.cnc_fill_carousel")

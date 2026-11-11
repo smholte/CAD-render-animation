@@ -462,6 +462,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   see", where in the side panel, the set it lives in, `shot` or `animation`, a number `check`), set up in that set's
   build function (another test model: a new `@tour_set`). Raise `MIN_LINES_TOUR` in `tools/ci_check_pccheck.py` and
   `MIN_CHECKS["tour"]` in `tools/ci_real_app.py` (the precheck says so); `tests/test_tour.py` runs its Go and check.
+  **Every tour animation gives 0 clashes** (task 0067): `tests/test_clash.py::test_every_tour_animation_has_no_clash`
+  builds and checks every animation of every set by itself (only the clash model keeps its 6.0 mm). A new set that
+  fails it has a fault in its test model or its set-up (a part left standing that the motion runs through, a shape
+  in the way): fix that, do not loosen the test.
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
@@ -676,5 +680,9 @@ the release → Delete); the next run on `main` publishes it again.
 - Geometry Nodes objects that are only drawn (the toolpath tubes, chips, coolant) are worked out again at every
   `frame_set`: reading the milling path of a 7,000-move program took 67 s, 1.2 s with them hidden while it reads
   (`machining.sample` does that).
+- An inside test that trusts the nearest face's normal fails beside a sharp outer edge: the face whose edge is nearest
+  can point away from the point (the cut end of a U-shaped claw), so a point 15 mm *outside* read 15–60 mm inside
+  (task 0067: 18 of the double arm's 27 rows). `clash.Mesh._inside` decides by the normal only when the point lies
+  straight below the face (`FACING` 0.999), else by rays (`tests/test_clash.py`, a knife-edge wedge).
 - The clash check found that the test tour's "Boom up" turned the boom down through the base (the joint axis from
   `axis_from_hit` pointed along +Y): fixed in 0065. Run it on a new tour set's animations.
