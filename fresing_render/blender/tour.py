@@ -452,6 +452,7 @@ def build_crane(b: Build):
     a = _animation(b, "Boom and trolley", "Tour view")
     _joint_step(a, "Boom", 0.0, 3.0, math.radians(25))
     _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
+    fade_and_trail(sc, _animation(b, FADE_ANIM, "Tour view"))
     from . import build, states
     root = build.model_roots(sc)[0]
     states.explode(sc, root, 0.6)
@@ -513,6 +514,53 @@ def build_crane(b: Build):
     sc.camera = view
     states.apply_shot(sc, "Tour view")
     bpy.context.view_layer.update()
+
+
+FADE_ANIM = "Fade and trail"
+
+
+def fade_and_trail(scene, a) -> None:
+    """Fade, X-ray and trail (task 0073): the boom turns up while the trolley runs out; the cover turns X-ray, a line
+    draws the trolley's path. Also used by the PC check line motion.fade."""
+    from . import build, trails
+    _joint_step(a, "Boom", 0.0, 3.0, math.radians(25), label="The boom goes up")
+    _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
+    cover = _ob(scene, "COVER")
+    blk = a.blocks.add()
+    blk.kind, blk.start, blk.duration, blk.easing = "FADE_OUT", 0.5, 1.5, "SMOOTH"
+    blk.target_uid, blk.target_name = cover[build.PROP_UID], "COVER"
+    blk.fade_xray = True
+    blk.name = "The cover turns X-ray"
+    trolley = _ob(scene, "TROLLEY")
+    co = [v.co for v in trolley.data.vertices]
+    centre = [(min(c[k] for c in co) + max(c[k] for c in co)) / 2 for k in range(3)]
+    t = trails.add(scene, trolley, "CLICKED", centre)
+    t.animation = a.name
+    t.name = "Trolley path"
+    t.color, t.thickness = (0.05, 0.85, 0.2), 0.008       # green: the crane is yellow
+
+
+def _check_fade(scene):
+    from mathutils import Vector
+
+    from . import fade, trails
+    cover = _ob(scene, "COVER")
+    end = scene.frame_end
+    scene.frame_set(1)
+    _check(float(cover.get(fade.FADE, 0.0)) == 0.0, "the cover is see-through at the start")
+    scene.frame_set(end)
+    _check(abs(float(cover.get(fade.FADE, 0.0)) - 1.0) < 1e-6 and cover.get(fade.XRAY) == 1.0,
+           "the cover did not turn X-ray")
+    _check(not cover.hide_render, "the cover is hidden instead of X-ray")
+    t = next((x for x in scene.fresing.trails if x.animation == FADE_ANIM), None)
+    _check(t is not None and t.obj is not None and not t.obj.hide_viewport, "the trolley's trail line is not drawn")
+    fr, pts = trails.frame_points(scene, t)
+    _check(len(fr) > 20, f"the trail line has only {len(fr)} points")
+    want = t.part.matrix_world @ Vector(t.local)
+    off = (Vector(pts[-1]) - want).length
+    _check(off < 1e-5, f"the trail line ends {off * 1000:.3f} mm from the trolley")
+    length = float(sum((Vector(pts[k + 1]) - Vector(pts[k])).length for k in range(len(pts) - 1)))
+    return f"cover X-ray at frame {end}; trail {len(fr)} points, {length * 1000:.0f} mm long"
 
 
 def _looks() -> list:
@@ -1568,6 +1616,12 @@ stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",
      "The boom turns up while the trolley slides out along it: the two moves add up, the trolley stays on the "
      "boom.", where="4 Motion (the trolley's joint rides on the boom)", animation="Boom and trolley", play=True,
      select=("TROLLEY",), check=_check_stack, auto="clip")
+stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
+     "The boom turns up while the trolley runs out along it; meanwhile the cover fades into a light-blue X-ray "
+     "(see-through, glowing edges) and a green line draws the path of the trolley's centre behind it. Look in "
+     "rendered view: the solid view shows no see-through.", where="6 Animation (Fade out step), 6 Animation > Trail "
+     "lines, 3 Looks > X-ray look", since="0.2.59", animation=FADE_ANIM, at=1.0, play=True, check=_check_fade,
+     auto="clip")
 stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode)

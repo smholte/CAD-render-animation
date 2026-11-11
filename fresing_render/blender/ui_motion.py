@@ -632,7 +632,7 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
-              "GCODE": "FILE_SCRIPT"}
+              "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -644,6 +644,26 @@ def _follower_note(context, box, scene, j) -> bool:
     wrap(box, context, f"'{j.name}' follows another joint and moves with it: pick {who} here instead",
          icon="ERROR", alert=True, inset=12)
     return True
+
+
+def _draw_fade(context, box, b) -> None:
+    """The settings of a Fade out / Fade in step (task 0073)."""
+    col = split_props(box)
+    col.prop(b, "fade_stop", text="Stop at" if b.kind == "FADE_OUT" else "Start at", slider=True)
+    box.prop(b, "fade_xray", text="Fade to X-ray" if b.kind == "FADE_OUT" else "Fade in from X-ray")
+    if b.fade_xray:
+        col = split_props(box)
+        col.prop(b, "fade_color", text="X-ray colour")
+        col.prop(b, "fade_strength", text="Strength", slider=True)
+    if b.fade_xray:
+        text = "The parts turn see-through with glowing edges; the mechanism inside shows"
+    elif b.fade_stop < 0.5:
+        text = ("Gone at the end: hidden from then on" if b.kind == "FADE_OUT"
+                else "Hidden until the step starts, then fades in")
+    else:
+        text = f"A {b.fade_stop:.0f} % ghost stays"
+    hint = wrap(box, context, text + ". Shows in rendered view, pictures and videos", icon="INFO", inset=12)
+    hint.active = False
 
 
 class FRESING_UL_anims(bpy.types.UIList):
@@ -820,6 +840,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 row = box.row(align=True)
                 row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")
                 row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
+                if b.kind in ("FADE_OUT", "FADE_IN"):
+                    _draw_fade(context, box, b)
             col = split_props(box)
             col.prop(b, "start", text="Start (s)")
             if b.kind == "GCODE":

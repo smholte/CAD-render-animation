@@ -495,6 +495,21 @@ Good to know:
   puts them on parts with the same name, where the spot lies on the part.
 
 <a id="find"></a>
+### X-ray look
+
+<img class="panel" src="img/panel_3_xray.png" alt="3 Looks > X-ray look with the cover in X-ray">
+
+See inside or behind a part in a still picture: an X-ray part is see-through with glowing edges.
+
+1. Pick the **Colour** (light blue by default) and the **Strength**.
+2. Select a subassembly or a part and click **X-ray the selected**; or pick a material group in the list
+   above and click **X-ray this group** (the parts in it now).
+3. **Back to normal** takes the look off the selected parts, **All back** off every part. Changing the
+   colour or strength changes every X-ray part.
+
+It shows in the rendered view, in pictures and videos (Cycles and EEVEE), and is kept with the project. For a
+housing that turns X-ray *during* a video, use a **Fade out** step with **Fade to X-ray** (6 Animation).
+
 ### Find & sort parts
 
 <img class="panel" src="img/panel_3_find.png" alt="Find & sort parts">
@@ -1629,6 +1644,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
     - **Camera**: **Cut to** a camera, **Move to** a camera (a smooth flight) or **Orbit** (turn around
       the model by an angle).
     - **Show** / **Hide**: a subassembly appears or disappears (select it, then **Use selected**).
+    - **Fade out** / **Fade in**: a subassembly fades away (or turns X-ray) or comes back, over the
+      step's duration (see **Fade a housing away** below).
     - **Run motor**: a motor turns at a speed (**Speed (rpm)**; a slide joint: **Speed (mm/s)**) for
       the step's duration. Joints that follow it move along (see couplings in 4 Motion).
     - **Move cylinder**: a cylinder's rod goes from where it is (or **From** a stroke) **To** a stroke
@@ -1707,6 +1724,45 @@ about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, too
 6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
+
+**Fade a housing away (or to X-ray)**
+
+<img class="panel" src="img/panel_6_fade.png" alt="A Fade out step on the cover with Fade to X-ray ticked">
+
+The most common shot in a machine video: the housing fades away to show the mechanism working inside, then comes
+back.
+
+1. Select the housing (a subassembly or a part) in the view or in 2 Structure.
+2. Add a step **Fade out subassembly** (**+** next to the steps). It takes the selected subassembly and lasts
+   1 s; set **Start**, **Duration** and **Motion** as for any step.
+3. **Stop at**: how much stays visible at the end. 0 % = gone: the parts are hidden from the end of the step
+   on, so they cost no render time and cast no shadow any more. 20 % = a faint ghost stays.
+4. Or tick **Fade to X-ray**: the parts turn see-through with glowing edges in the **X-ray colour** (light blue
+   by default) instead of vanishing; **Strength** sets how strongly.
+5. To bring it back: a step **Fade in subassembly** later on. With **Start at** 0 % a part that was showing is
+   hidden until the step starts.
+6. **Build & play**. The fade shows in the rendered view (Z > Rendered), in pictures and in videos, in both
+   Cycles and EEVEE. The grey solid view does not show see-through parts.
+
+Each part fades on its own: other parts with the same material stay as they are. Logos and stickers on a part
+fade with it. A fading frame renders about as fast as the same frame without the fade.
+
+**Trail lines: the path of a point**
+
+<img class="panel" src="img/panel_6_trails.png" alt="6 Animation > Trail lines with a line on the trolley">
+
+A line that draws where a point of the machine goes: the hook of a crane, the tip of a tool, a carriage.
+
+1. Select the part, open 6 Animation > **Trail lines** and click **+**. A milling bit or CNC tool draws from its
+   tip; other parts from their origin.
+2. **Point**: **Part's origin**, **Tool tip**, or **Clicked point** (then **Click the point…** and click the
+   spot on the part, e.g. the hook's eye).
+3. **Animation**: the animation that draws it (empty: every animation). **Colour** and **Thickness**.
+4. **Draw as it goes**: the line grows behind the point as the video plays; off, the whole path shows from the
+   first frame. **In pictures and videos**: off, the line shows only in the view.
+5. **Build & play** draws the line (it is read again at every Build). A project can have several lines.
+
+The line glows in its colour without lighting the scene, so it costs almost no render time.
 
 **Finishing: ready to post or send**
 

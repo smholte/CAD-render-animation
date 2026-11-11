@@ -722,6 +722,9 @@ BLOCK_KINDS = [
      "follows", "SORT_DESC", 7),
     ("GCODE", "Run G-code program", "Moves the CNC machine's X, Y and Z joints (and its spindle) exactly as a "
      "CNC program would (set the machine up in 4 Motion > CNC machine)", "FILE_SCRIPT", 8),
+    ("FADE_OUT", "Fade out", "A subassembly fades away (or turns X-ray) over the step's duration, e.g. a housing that "
+     "shows the mechanism inside", "MOD_OPACITY", 9),
+    ("FADE_IN", "Fade in", "A subassembly fades back in over the step's duration", "MATSHADERBALL", 10),
 ]
 
 
@@ -776,6 +779,49 @@ AIR_SOURCE_ITEMS = [("SPINDLE", "Through the spindle", "The air comes out at the
 GCODE_SPEED_ITEMS = [("REAL", "Real time", "As long as the program takes on the machine"),
                      ("FASTER", "Faster", "A number of times faster than the machine"),
                      ("FIT", "Fit into", "The whole program fills a set number of seconds")]
+
+
+def _xray_style(self, context):
+    if context is not None and context.scene is not None:
+        from . import fade
+        fade.restyle(context.scene)
+
+
+def _trail_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import trails
+    trails.style(context.scene, self)
+
+
+class FRTrail(bpy.types.PropertyGroup):
+    """A line that draws the path of a point of a part (task 0073)."""
+    name: StringProperty(name="Name", description="Shown in the list: the part's name unless you type something else")
+    enabled: BoolProperty(name="On", default=True, update=_trail_changed,
+                          description="Switches this trail line on or off (in the view and in renders)")
+    part: PointerProperty(type=bpy.types.Object, name="Part",
+                          description="The part whose point the line follows (a hook, a tool, a carriage)")
+    part_uid: StringProperty()
+    point: EnumProperty(name="Point", default="ORIGIN",
+                        description="Which point of the part draws the line",
+                        items=[("ORIGIN", "Part's origin", "The part's own origin (its zero point from CAD)"),
+                               ("CLICKED", "Clicked point", "A point you click on the part"),
+                               ("TIP", "Tool tip", "The tip of the milling bit or CNC tool this part is")])
+    local: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0), subtype="XYZ")
+    animation: StringProperty(name="Animation", update=_trail_changed,
+                              description="The animation whose Build draws this line. Empty: every animation")
+    color: FloatVectorProperty(name="Colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(1.0, 0.35, 0.05),
+                               update=_trail_changed, description="The colour of the line")
+    thickness: FloatProperty(name="Thickness", unit="LENGTH", default=0.004, min=0.0002, soft_max=0.05,
+                             precision=4, update=_trail_changed,
+                             description="How thick the line is drawn, in mm")
+    grow: BoolProperty(name="Draw as it goes", default=True, update=_trail_changed,
+                       description="On: the line grows behind the point as the animation plays. Off: the whole path "
+                                   "shows from the first frame")
+    in_render: BoolProperty(name="In renders", default=True, update=_trail_changed,
+                            description="Also shows the line in pictures and videos. Off: only in the 3D view")
+    obj: PointerProperty(type=bpy.types.Object)
+    count: IntProperty(default=0)
 
 
 class FRPictureCard(bpy.types.PropertyGroup):
@@ -955,6 +1001,19 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         name="Time at end", default=2.0, min=0.5, max=10.0, unit="TIME_ABSOLUTE", update=_gcode_step_changed,
         description="How many seconds the air blows the part clean at the end of the step (0.5 to 10 s). Through "
                     "the spindle the tool goes over the part in that time; then it stays still")
+    # Fade out / Fade in (task 0073)
+    fade_stop: FloatProperty(name="Stop at", subtype="PERCENTAGE", default=0.0, min=0.0, max=95.0, precision=0,
+                             description="How much of the part stays visible at the faded end, in %: 0 = gone "
+                                         "(then hidden, it costs nothing), 20 = a faint ghost stays")
+    fade_xray: BoolProperty(name="Fade to X-ray", default=False,
+                            description="The parts turn see-through with glowing edges (X-ray) instead of vanishing, "
+                                        "so the mechanism inside shows and the housing's outline stays")
+    fade_color: FloatVectorProperty(name="X-ray colour", subtype="COLOR", size=3, min=0.0, max=1.0,
+                                    default=(0.35, 0.65, 1.0),
+                                    description="The colour of the X-ray look of this step")
+    fade_strength: FloatProperty(name="X-ray strength", default=0.7, min=0.0, max=1.0, subtype="FACTOR",
+                                 description="How strongly the X-ray look shows: 0 = almost invisible, 1 = clearly "
+                                             "drawn edges and a coloured haze")
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
@@ -2284,6 +2343,16 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- labels pointing at parts (task 0025) ----
     callouts: CollectionProperty(type=FRCallout)
     callouts_index: IntProperty(default=0)
+    # ---- X-ray look and trail lines (task 0073) ----
+    xray_color: FloatVectorProperty(name="X-ray colour", subtype="COLOR", size=3, min=0.0, max=1.0,
+                                    default=(0.35, 0.65, 1.0), update=_xray_style,
+                                    description="The colour of the X-ray look (every X-ray part follows it)")
+    xray_strength: FloatProperty(name="Strength", default=0.7, min=0.0, max=1.0, subtype="FACTOR",
+                                 update=_xray_style,
+                                 description="How strongly the X-ray look shows: 0 = almost invisible, 1 = clearly "
+                                             "drawn edges and a coloured haze")
+    trails: CollectionProperty(type=FRTrail)
+    trails_index: IntProperty(default=0)
     callouts_on: BoolProperty(name="Labels in renders", default=True,
                               description="Draws the labels (with their lines) in stills and in MP4 videos. Off: "
                                           "none of them is drawn")
@@ -2341,7 +2410,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
-           FRShot, FRPictureCard, FRCallout, FRAnimBlock,
+           FRShot, FRPictureCard, FRCallout, FRTrail, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath,
            FRSceneSettings)

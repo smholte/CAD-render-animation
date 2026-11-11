@@ -289,6 +289,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += machining.after_model_update(scene, mapping, by_uid)
     notes += gcode.after_model_update(scene, mapping, by_uid)
     notes += waycover.after_joints_rebuilt(scene)                            # way covers (task 0034)
+    from . import trails
+    notes += trails.after_model_update(scene, by_uid, mapping)               # trail lines (task 0073)
     return notes
 
 

@@ -5,6 +5,7 @@ Block kinds
     POSE    move every joint and free-moved subassembly to a saved pose (exploded view...)
     CAMERA  cut to a saved camera, move to it, or orbit around the model
     SHOW / HIDE   make a subassembly appear or disappear (assembly sequences)
+    FADE_OUT / FADE_IN  fade a subassembly away (to nothing or to the X-ray look) or back in (task 0073, fade.py)
     MOTOR   run a motor at a speed (rpm, or mm/s for a slide) for a while, with a ramp
             up and down; joints that follow it move along (their drivers read its keys)
     CYLINDER  move a cylinder's rod from a stroke to a stroke: the arm's joint gets a key on
@@ -97,7 +98,17 @@ def block_label(b, scene=None) -> str:
         return {"CUT": f"Cut to {cam}", "MOVE": f"Camera to {cam}",
                 "ORBIT": f"Orbit {math.degrees(b.orbit_angle):.0f}°"}.get(b.camera_mode, "Camera")
     target = b.target_name or "?"
+    if b.kind == "FADE_OUT":
+        return f"Fade {target} to X-ray" if b.fade_xray else f"Fade out {target}"
+    if b.kind == "FADE_IN":
+        return f"Fade in {target}"
     return f"{'Show' if b.kind == 'SHOW' else 'Hide'} {target}"
+
+
+def fade_ends(b) -> tuple[float, float]:
+    """(fade at the start, fade at the end) of a Fade step: 0 = the part as it is, 1 = gone (or fully X-ray)."""
+    rest = 1.0 - min(max(float(b.fade_stop), 0.0), 100.0) / 100.0      # where the faded end lies
+    return (0.0, rest) if b.kind == "FADE_OUT" else (rest, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -168,15 +179,18 @@ def _channelbag(id_block, id_type: str):
     return anim_utils.action_ensure_channelbag_for_slot(act, slot)
 
 
-def _shared_visibility(objs, rows, n: int) -> None:
-    """One action + slot with hide keys, assigned to every object in ``objs``."""
+def _shared_visibility(objs, rows, n: int, fade_rows=None) -> None:
+    """One action + slot with hide keys (and fade keys, task 0073), assigned to every object in ``objs``."""
     from bpy_extras import anim_utils
     act = bpy.data.actions.new(f"FR visibility {n + 1}")
     act[TAG] = True
     slot = act.slots.new(id_type="OBJECT", name=f"Visibility {n + 1}")
     cb = anim_utils.action_ensure_channelbag_for_slot(act, slot)
-    _write(cb, "hide_viewport", 0, rows)
-    _write(cb, "hide_render", 0, rows)
+    if rows:
+        _write(cb, "hide_viewport", 0, rows)
+        _write(cb, "hide_render", 0, rows)
+    if fade_rows:
+        _write(cb, '["fr_fade"]', 0, list(fade_rows))
     for ob in objs:
         ad = ob.animation_data or ob.animation_data_create()
         ad.action = act
@@ -253,7 +267,9 @@ def clear_keys(scene, restore: bool = True) -> None:
         cam = bpy.data.objects.get(s.anim_restore_camera)
         if cam is not None:
             scene.camera = cam
-    from . import gcode
+    from . import fade, gcode, trails
+    fade.after_clear(scene)                        # faded parts look as without the animation (task 0073)
+    trails.after_clear(scene)
     gcode.after_clear(scene)                       # tool copies shown at tool changes (task 0026)
     if was_baked:
         from . import linkages
@@ -438,6 +454,8 @@ def bake(scene, anim) -> dict:
     jkeys: dict[str, list] = {}
     okeys: dict[str, list] = {}
     vkeys: dict[str, list] = {}
+    fkeys: dict[str, list] = {}          # fade (task 0073): name -> [(frame, fade, interp, easing)]
+    fxray: dict[str, tuple] = {}         # name -> (X-ray on, colour, strength)
     tree = logic.Tree(scene)
     uids = states.by_uid(scene)
     ident = Matrix.Identity(4)
@@ -595,6 +613,46 @@ def bake(scene, anim) -> dict:
             return None
         return j
 
+    def fade_step(b, f0, f1):
+        """Keys for a Fade step: the fade of every part of the subassembly (and its decals) eases from -> to; a
+        part faded out fully is hidden from the last frame on, a part faded in shows from the first."""
+        from . import fade
+        ob = uids.get(b.target_uid)
+        if ob is None:
+            warnings.append(f"'{block_label(b)}': subassembly not found" if b.target_uid else
+                            f"'{block_label(b)}': pick a subassembly")
+            return
+        v0, v1 = fade_ends(b)
+        f1 = max(f1, f0 + 1)
+        interp, ez = EASING.get(b.easing, EASING["SMOOTH"])
+        xray = (bool(b.fade_xray), tuple(b.fade_color), float(b.fade_strength))
+        gone = not b.fade_xray and max(v0, v1) >= 1.0 - 1e-9
+        for t in [ob] + tree.descendants(ob):
+            if t.get(build.PROP_EXCLUDED) or t.type != "MESH":
+                continue
+            for o in fade.prepare(t):
+                if o.name in fxray and fxray[o.name][0] != xray[0]:
+                    warnings.append(f"'{block_label(b)}': '{o.get(build.PROP_NAME, o.name)}' fades to X-ray in one "
+                                    "step and to nothing in another: the last one counts")
+                fxray[o.name] = xray
+                start = float(o.get(fade.FADE, 0.0)) if not o.get(fade.LOOK) else 0.0
+                if b.kind == "FADE_IN":
+                    start = v0                       # (before the step it is faded, or hidden)
+                keys = fkeys.setdefault(o.name, [(1, start, "CONSTANT", "AUTO")])
+                _merge(keys, f0, v0, interp, ez)
+                _merge(keys, f1, v1, "CONSTANT")
+            if not gone:
+                if b.kind == "FADE_IN":
+                    keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
+                    _merge(keys, f0, False, "CONSTANT")
+                continue
+            if b.kind == "FADE_OUT":
+                keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
+                _merge(keys, f1, True, "CONSTANT")
+            else:                                    # it was not there before: hidden until the fade starts
+                keys = vkeys.setdefault(t.name, [(1, True, "CONSTANT", "AUTO")])
+                _merge(keys, f0, False, "CONSTANT")
+
     cam_blocks = []
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
     last_key = 0.0
@@ -647,6 +705,8 @@ def bake(scene, anim) -> dict:
                     continue
                 keys = vkeys.setdefault(t.name, [(1, bool(t.hide_render), "CONSTANT", "AUTO")])
                 _merge(keys, f0, hidden, "CONSTANT")
+        elif b.kind in ("FADE_OUT", "FADE_IN"):
+            fade_step(b, f0, f1)
 
     if last_key > f_end + 1e-6:             # a program step ran a little longer than worked out first
         f_end = int(math.ceil(last_key - 1e-6))
@@ -695,28 +755,43 @@ def bake(scene, anim) -> dict:
             _write(cb, "location", i, [(f, loc[i], it, ez) for f, loc, _r, it, ez in rows])
         for i in range(4):
             _write(cb, "rotation_quaternion", i, [(f, rot[i], it, ez) for f, _l, rot, it, ez in rows])
-    # Parts that only appear/disappear, all at the same moments, share ONE action and slot:
+    # Parts that only appear/disappear (or fade), all at the same moments, share ONE action and slot:
     # a subassembly of 1,000 parts then costs one action instead of 1,000.
+    from . import fade
     shared: dict[tuple, list] = {}
-    for name, keys in vkeys.items():
+    for name, (on, color, strength) in fxray.items():
+        ob = by_name.get(name)
+        if ob is not None:
+            fade.set_xray(ob, on, color, strength)
+            ob[fade.ANIM] = True
+    for name in set(vkeys) | set(fkeys):
         ob = by_name.get(name)
         if ob is None:
             continue
-        try:
-            if ob.hide_get():          # the viewport follows the keys from now on (hide_set is slow)
-                ob.hide_set(False)
-        except RuntimeError:
-            pass
-        ob["fr_anim_hide"] = True
-        rows = [(f, 1.0 if h else 0.0, "CONSTANT", "AUTO") for f, h, _i, _e in keys]
+        rows, frows = None, None
+        if name in vkeys:
+            try:
+                if ob.hide_get():          # the viewport follows the keys from now on (hide_set is slow)
+                    ob.hide_set(False)
+            except RuntimeError:
+                pass
+            ob["fr_anim_hide"] = True
+            rows = [(f, 1.0 if h else 0.0, "CONSTANT", "AUTO") for f, h, _i, _e in vkeys[name]]
+        if name in fkeys:
+            ob[fade.ANIM] = True
+            frows = fkeys[name]
         if name in okeys:              # it also moves: its own action holds both
             cb = _channelbag(ob, "OBJECT")
-            _write(cb, "hide_viewport", 0, rows)
-            _write(cb, "hide_render", 0, rows)
+            if rows:
+                _write(cb, "hide_viewport", 0, rows)
+                _write(cb, "hide_render", 0, rows)
+            if frows:
+                _write(cb, f'["{fade.FADE}"]', 0, frows)
         else:
-            shared.setdefault(tuple((r[0], r[1]) for r in rows), []).append(ob)
-    for n, (sig, obs) in enumerate(shared.items()):
-        _shared_visibility(obs, [(f, v, "CONSTANT", "AUTO") for f, v in sig], n)
+            sig = (tuple((r[0], r[1]) for r in rows) if rows else None, tuple(frows) if frows else None)
+            shared.setdefault(sig, []).append(ob)
+    for n, ((sig, fsig), obs) in enumerate(shared.items()):
+        _shared_visibility(obs, [(f, v, "CONSTANT", "AUTO") for f, v in sig] if sig else None, n, fsig)
 
     # ---- camera -------------------------------------------------------------
     start_cam = scene.camera
@@ -757,6 +832,8 @@ def bake(scene, anim) -> dict:
     for b in blocks:
         scene.timeline_markers.new("▸ " + block_label(b), frame=frame_of(anim, b.start))
     s.anim_baked = anim.name
+    from . import trails
+    warnings += trails.update_all(scene, anim)     # trail lines (task 0073): read along the built motion
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
 
