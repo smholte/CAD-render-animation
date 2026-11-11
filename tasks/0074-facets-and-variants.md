@@ -1,6 +1,6 @@
 # 0074 – Smooth big round parts, light small ones; a video in every paint scheme (study 0069 #17 and #12)
 
-**Who:** worker · **Status:** running (web session, 11 Nov); **merged before Thursday 12 Nov 08:00** · **Branch:** `task/0074-facets-and-variants`
+**Who:** worker · **Status:** running (web session, 11 Nov); **merged before Thursday 12 Nov 08:00** · **Branch:** `claude/festive-hopper-5bglo9`
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study – the owner can change it afterwards)
 **Lane:** Looks (importer) + Motion (queue) – `importer/step_reader.py` (meshing, `QUALITY`, `CACHE_VERSION`),
 `blender/queue.py` / the queue panel in `ui_motion.py` (the queue part only), scheme code in `blender/materials.py`
