@@ -211,9 +211,21 @@ jobs:
 
       - name: Virtual screen and screenshot tools
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends xvfb xauth imagemagick libgl1 libglx-mesa0 \
-            libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1
+          pkgs="xvfb xauth imagemagick libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 \
+            libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1"
+          opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
+          sudo apt-get update -q $opts || true
+          if ! sudo apt-get install -y -q --no-install-recommends $opts $pkgs; then
+            # 11 Nov 2026 (task 0074): the runners' own mirror (azure.archive.ubuntu.com) did not resolve for hours
+            # and every real-app job failed here. Fall back to Ubuntu's main archive.
+            echo "::warning::the runner's apt mirror failed; trying archive.ubuntu.com"
+            for f in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+              [ -f "$f" ] && sudo sed -i -e 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#' \
+                -e 's#http://azure.archive.ubuntu.com/ubuntu/#http://archive.ubuntu.com/ubuntu/#' "$f"
+            done
+            sudo apt-get update -q $opts
+            sudo apt-get install -y -q --no-install-recommends $opts $pkgs
+          fi
 
       - name: "Real-app tests (group ${{ matrix.group.name }} - ${{ matrix.group.tests }})"
         env:
