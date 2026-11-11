@@ -17,6 +17,8 @@ Scene & Render
 - **Waves from**: head sea, bow quarter, beam sea (rolls the most), stern quarter, following sea. **Strength**
   0–200 %. The fold **Vessel**: length and beam (from the deck or the model, or typed in), roll period, the point it
   turns about (Auto or a clicked point).
+- **Camera on board**: a **Ride along** camera step (6 Animation) on any part of the machine rolls with the vessel;
+  with **Keep level** the horizon stays still.
 - **Stays still**: pick a subassembly and it keeps its place in the world (**Still**: a motion-compensated gangway, a
   hook that holds its place) or stays level and only rises and falls (**Level**). Its joints still work.
 - Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It

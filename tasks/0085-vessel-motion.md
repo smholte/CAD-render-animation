@@ -163,8 +163,11 @@ Cable catenary into the sea (0081), the camera riding the vessel (0087), motion 
 - GitHub: RUNS
 
 **Open points / follow-up tasks:**
-- **0087 (camera rides along):** 0087 merges after this one, so it makes the vessel a ride target: ride
-  "FR Vessel pivot" (its world matrix is the whole motion) or any model root.
+- **0087 (camera rides along) – done here:** 0087 merged first (0.2.62), so this task made the vessel a ride target:
+  a Ride along step on the model root (or any part on deck) rides the vessel – no new code needed, the root carries
+  the motion. Test `test_camera_rides_on_the_vessel`: camera = root × seat at every frame (< 0.01 mm, < 0.01°), it
+  rolls with the vessel; Keep level keeps the camera upright within 0.01° while it rides. A hint in the panel and the
+  guide. A riding camera is baked at Build: after changing the sea or heading, Build again (said in the guide).
 - Vessel motion is one project setting, not per saved scene (would need `states.WORLD_KEYS` + the vessel keys).
 - The swell is only seen with Detail "Detailed" (as all geometric waves) and fades out 40–64 m from the machine like
   the sea's own waves; a 124 m hull reaches past that.

@@ -508,3 +508,43 @@ def test_queue_copy_shows_the_same_frames(tmp_path):
     got = json.loads(line[6:])
     for f in frames:
         assert np.allclose(np.array(got[str(f)]), np.array(view[str(f)]), atol=1e-6), f
+
+
+def test_camera_rides_on_the_vessel():
+    """Camera on board (with task 0087's Ride along): a Ride along step on the model's root rides the vessel – the
+    camera keeps its place and view on the deck while the vessel rolls; with Keep level it stays upright."""
+    from fresing_render.blender import animation, cameras, camera_path
+    sc = fresh(heading="BEAM")
+    cam = cameras.add_camera(sc, "ISO", name="On board")
+    sc.camera = cam
+    update()
+    root = build.model_roots(sc)[0]
+    a = sc.fresing.animations.add()
+    a.name, a.fps, a.tail = "On board", "25", 0.0
+    b = a.blocks.add()
+    b.kind, b.camera_mode, b.start, b.duration, b.cam_blend = "CAMERA", "RIDE", 0.0, 8.0, 0.0
+    b.target_uid, b.target_name = root.get(build.PROP_UID), root.get(build.PROP_NAME)
+    info = animation.bake(sc, a)                         # (sets the animation's 25 fps: the seat is read after it)
+    assert not info["warnings"], info
+    at(sc, 1)
+    c0 = sc.camera.matrix_world.copy()
+    offset = root.matrix_world.inverted() @ c0
+    worst_mm = worst_deg = tilt = 0.0
+    for f in range(1, info["frames"] + 1, 7):
+        at(sc, f)
+        want = root.matrix_world @ offset
+        worst_mm = max(worst_mm, (sc.camera.matrix_world.translation - want.translation).length * 1000)
+        worst_deg = max(worst_deg, camera_path.angle_between(sc.camera.matrix_world, want))
+        tilt = max(tilt, camera_path.angle_between(sc.camera.matrix_world, c0))
+    assert worst_mm < 0.01 and worst_deg < 0.01, (worst_mm, worst_deg)
+    assert tilt > 0.3                                    # it rolls with the vessel (calm beam sea: about 1.5°)
+    # Keep level: the horizon stays put (no roll or pitch), the camera still rides along
+    b.ride_level = True
+    animation.bake(sc, a)
+    up0 = c0.to_3x3() @ Vector((0, 1, 0))
+    for f in range(1, info["frames"] + 1, 7):
+        at(sc, f)
+        up = sc.camera.matrix_world.to_3x3() @ Vector((0, 1, 0))
+        assert abs(math.degrees(up.angle(Vector((0, 0, 1)))) - math.degrees(up0.angle(Vector((0, 0, 1))))) < 0.01
+        want = (root.matrix_world @ offset).translation
+        assert (sc.camera.matrix_world.translation - want).length < 1e-5

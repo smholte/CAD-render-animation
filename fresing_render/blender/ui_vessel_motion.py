@@ -64,6 +64,9 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
             wrap(layout, context, "The waves stand still ('Moving' is off above); the vessel moves all the same.",
                  icon="INFO")
 
+        wrap(layout, context, "Camera on board: in 6 Animation add a Camera step, Ride along, and pick any part of "
+             "the machine (Keep level: the horizon stays still).", icon="CAMERA_DATA")
+
         # -- the vessel
         body = fold(layout, "fr_vessel_size", "Vessel", "MOD_OCEAN")
         if body:

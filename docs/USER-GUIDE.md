@@ -1543,6 +1543,11 @@ exactly as before.
 Its joints still work as if the vessel lay still (a boom marked Still still turns when its joint turns). × in the
 list makes it move with the vessel again.
 
+**Camera on board:** the cameras stay in the world (a drone's view). To film from the deck, add a **Camera** step in
+6 Animation, choose **Ride along** and pick any part of the machine: the camera then rolls with the vessel. Tick
+**Keep level** and it rides along while the horizon stays still. After changing the sea or the heading, press
+**Build & play** again: a riding camera is worked out when the animation is built.
+
 Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It plays
 with "Auto Run Python Scripts" off, in the render queue and at any frame rate, and stays through Save, a model
 update and saved scenes (it is one setting for the whole project, not per saved scene). It costs no render time
