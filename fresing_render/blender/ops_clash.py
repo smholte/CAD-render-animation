@@ -39,7 +39,10 @@ class FRESING_OT_clash_check(bpy.types.Operator):
     def _finish(self, context) -> set:
         scene = context.scene
         run = self._run
-        clash.save(scene, run)
+        if not clash.save(scene, run):
+            scene.fresing.last_message = clash.STALE_RUN
+            self.report({"WARNING"}, clash.STALE_RUN)
+            return {"CANCELLED"}
         st = clash.state(scene)
         secs = run.stats.get("seconds", 0.0)
         msg = (f"Clash check: {st['text'].lower() if st['clashes'] else st['text']} in "

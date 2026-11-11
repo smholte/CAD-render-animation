@@ -275,6 +275,36 @@ def test_template_puts_decals_on_parts_of_the_same_name(scene, logo, tmp_path):
     assert decals.count(sc) == 2
 
 
+def _twice():
+    sc = fresh()
+    assert bpy.ops.fresing.import_step(filepath=DECALS_A, quality="draft") == {"FINISHED"}
+    return bpy.context.scene
+
+
+def test_template_with_the_same_step_twice(logo, tmp_path):
+    """0068 row 13: a decal on copy 2 only lands on copy 2; 'every copy' decals on both machines reach both."""
+    sc = _twice()
+    sc.fresing.out_folder = str(tmp_path)
+    p1, p2 = part(sc, "PANEL", 0), part(sc, "PANEL", 1)
+    assert p2[build.PROP_UID].startswith("~2/") and p1.data != p2.data
+    decals.add(p2, TOP, (0.2, 0.15, 0.01), (0, 0, 1), "PICTURE", picture=logo, only_copy=True)
+    for p in (p1, p2):
+        decals.add(p, TOP, (0.1, 0.1, 0.01), (0, 0, 1), "STICKER", sticker="CE")
+    t = ops_main._template_from_scene(sc)
+    assert len(t.decals) == 3
+    path = str(tmp_path / "t.json")
+    t.save(path)
+    sc = _twice()
+    ops_main.apply_template(sc, Template.load(path))
+    q1, q2 = part(sc, "PANEL", 0), part(sc, "PANEL", 1)
+    names1 = [it.name for it in decals.items_of(q1)]
+    names2 = [it.name for it in decals.items_of(q2)]
+    assert len(names1) == 1 and len(names2) == 2 and "Logo ä" in names2 and "Logo ä" not in names1
+    assert [it.name for it in q2.fresing_decals] == ["Logo ä"]       # on this copy only
+    ops_main.apply_template(sc, Template.load(path))                # used twice: nothing more
+    assert len(decals.items_of(q1)) == 1 and len(decals.items_of(q2)) == 2
+
+
 def test_panel_draws(scene, logo):
     from test_blender import FakeLayout
     from fresing_render.blender import ui_decals

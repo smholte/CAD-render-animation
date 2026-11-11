@@ -234,6 +234,53 @@ def test_kept_with_the_project_and_cleared_by_another_build(scene, tmp_path):
     assert bpy.ops.fresing.clash_check() == {"CANCELLED"}
 
 
+def test_a_build_while_the_check_runs_drops_its_result(scene):
+    """0068 row 12: the animation built again while the check reads frames (it lets clicks through): the result is
+    not stored as up to date (it belongs to the earlier build, or to a mix of both)."""
+    sc = scene
+    run = clash.Check(sc)
+    gen = run.steps()
+    next(gen)                                                       # the set-up
+    next(gen)                                                       # reading frames
+    a = arms(sc, "Other")                                           # the user builds another animation
+    a.blocks[1].to_angle = math.radians(-85)
+    animation.bake(sc, a)
+    for _p in gen:
+        pass
+    assert not clash.save(sc, run)
+    c = clash.settings(sc)
+    assert not c.checked and not len(c.rows) and clash.state(sc)["text"] == "Not checked since the last Build"
+    # the same through the whole check: stored, up to date
+    run = clash.check(sc)
+    assert run.stored and c.checked and clash.state(sc)["checked"]
+
+
+def test_milling_and_coolant_follow_a_scrub_while_the_check_reads(scene, monkeypatch):
+    """0068 row 19d: the guard (milling and coolant skip their per-frame work) is let go between two ticks, and a
+    frame the user goes to meanwhile is where the time line ends up."""
+    from fresing_render.blender import coolant
+    monkeypatch.setattr(clash, "READ_BATCH", 3)
+    sc = scene
+    sc.frame_set(2)
+    run = clash.Check(sc)
+    gen = run.steps()
+    next(gen)
+    seen = 0
+    for p in gen:
+        if p >= 0.4:
+            break
+        assert machining._STATE["guard"] == 0 and coolant._STATE["guard"] == 0
+        assert sc.frame_current == (2 if seen < 2 else 7)
+        seen += 1
+        if seen == 2:
+            sc.frame_set(7)                                         # the user scrubs between two ticks
+    for _p in gen:
+        pass
+    assert seen > 3 and sc.frame_current == 7
+    assert machining._STATE["guard"] == 0 and coolant._STATE["guard"] == 0
+    assert clash.save(sc, run) and len(run.rows) == 1               # the same result as without the scrub
+
+
 def test_the_render_queue_note(scene):
     sc = scene
     s = sc.fresing
@@ -414,3 +461,43 @@ def test_cut_workpiece_meshes_need_no_turning(tmp_path):
     m = clash.Mesh(v, t)
     assert m.closed and m.sign == 1.0
     assert np.array_equal(m.t, t)
+
+
+# ---------------------------------------------------------------------------
+# a 45° face mill: its inserts are wider at the top than its diameter (task 0072)
+# ---------------------------------------------------------------------------
+
+def _frustum(r0, r1, h, n=48):
+    ang = np.linspace(0, 2 * math.pi, n, endpoint=False)
+    ring = lambda r, z: [(r * math.cos(t), r * math.sin(t), z) for t in ang]          # noqa: E731
+    v = ring(r0, 0.0) + ring(r1, h) + [(0.0, 0.0, 0.0), (0.0, 0.0, h)]
+    t = []
+    for i in range(n):
+        j = (i + 1) % n
+        t += [(i, j, n + j), (i, n + j, n + i), (2 * n, j, i), (2 * n + 1, n + i, n + j)]
+    return clash.Mesh(np.array(v), np.array(t))
+
+
+def _box(lo, hi):
+    (x0, y0, z0), (x1, y1, z1) = lo, hi
+    v = [(x, y, z) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)]
+    t = [(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6), (0, 6, 4),
+         (1, 5, 7), (1, 7, 3)]
+    return clash.Mesh(np.array(v, dtype=float), np.array(t))
+
+
+def test_a_45_degree_face_mill_cutting_is_not_a_clash():
+    from fresing_render.core import tools as tcore
+    tool = tcore.cutting_tool(tcore.default("FACE"))                # Ø50, inserts 6 mm high, 45°: Ø62 at their top
+    t = clash.Tool((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), tool)
+    assert abs(t.cut[2] - 31 * MM) < 1e-6 and abs(t.follow[2] - 31 * MM) < 1e-6
+    cutter = _frustum(25 * MM, 31 * MM, 6 * MM)
+    block = _box((-0.1, -0.1, -0.04), (0.1, 0.1, 4 * MM))           # the inserts 4 mm deep in the block
+    assert narrow(block, cutter, (), (t.cut,)) == 0.0
+    # the zone as wide as the tool's diameter (before 0.2.57): the top of the inserts counted as a clash
+    old = core.zone((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), tool.radius, -math.inf, tool.length)
+    assert narrow(block, cutter, (), (old,)) > 1 * MM
+
+
+def narrow(a, b, za, zb):
+    return clash.narrow(a, b, np.eye(4), za, zb)[0]

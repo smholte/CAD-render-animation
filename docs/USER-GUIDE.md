@@ -1777,7 +1777,7 @@ What counts:
   count when they go clearly deeper: by more than the clash depth plus half of the overlap they start with.
 - Hidden parts are left out while they are hidden (Show / Hide steps, visibility sets).
 - Milling: the cutting part of a tool (from its tip up to the end of its flutes, from the tool list) going
-  through the workpiece is meant to cut: it is not a clash. The rest of the tool, its holder and the spindle are
+  through the workpiece is meant to cut: it is not a clash (a 45° face mill: as wide as the top of its inserts). The rest of the tool, its holder and the spindle are
   checked against the workpiece, the vice and the table. With milling on, the workpiece is checked as it is cut at
   that moment; without it the shank may follow the hole the flutes make. A tool in the spindle or standing in its
   changer pocket touches them on purpose.
@@ -1789,7 +1789,9 @@ What counts:
   (5 mm) without touching, when they were further apart at the first frame.
 
 The result is kept with the project. Building the animation again with other steps clears it (the same steps
-built again keep it). Adding an animation to the render queue that has clashes, or was never checked, gives a
+built again keep it). Building again *while* the check runs drops its result ("…built again while the clash check
+ran: check again"): it would belong to neither build. You can scrub the time line while it runs; milling and coolant
+follow. Adding an animation to the render queue that has clashes, or was never checked, gives a
 one-line note in the status bar; the video is rendered anyway.
 
 How long it takes, measured on the 4-core cloud test machine: the test crane's animations 0.1–0.3 s, the CNC

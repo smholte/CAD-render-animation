@@ -171,9 +171,21 @@ class Tool:
     copy the app made, the part above its gauge line (inside the spindle or the pocket: never checked)."""
 
     def __init__(self, tip, axis, tool, stick_out: float = math.inf, gauge: float | None = None):
-        self.cut = core.zone(tip, axis, tool.radius, -math.inf, tool.length)
-        self.follow = core.zone(tip, axis, tool.radius, -math.inf, max(stick_out, tool.length))
+        r = widest(tool)
+        self.cut = core.zone(tip, axis, r, -math.inf, tool.length)
+        self.follow = core.zone(tip, axis, r, -math.inf, max(stick_out, tool.length))
         self.mount = core.zone(tip, axis, math.inf, gauge, math.inf) if gauge else None
+
+
+def widest(tool) -> float:
+    """The widest radius of the part of a tool that cuts: a 45° face mill is wider at the top of its inserts than its
+    nominal radius (Ø50: 31 mm against 25), and all of that may be in the workpiece (task 0072)."""
+    from ..core import machining as mcore
+    try:
+        prof = mcore.tool_profile(tool)
+        return max([float(tool.radius)] + [float(r) for _z, r in prof])
+    except Exception:  # noqa: BLE001 - a tool without a profile: its radius
+        return float(tool.radius)
 
 
 def tools_of(scene) -> dict:
@@ -576,6 +588,9 @@ class _Guard:
         return False
 
 
+READ_BATCH = 20                          # moments read between two yields (the guard is let go at each yield)
+
+
 def sample_times(scene) -> list:
     """Every frame of the animation and the corners of a G-code program between frames."""
     from . import gcode
@@ -611,6 +626,10 @@ class Check:
         scene = self.scene
         if not is_built(scene):
             raise ClashError("Build the animation first (Build & play above)")
+        # the build this check reads: a Build while it runs (it lets clicks through) makes the result belong to no
+        # build, and ``save`` drops it (task 0072, 0068 row 12)
+        self.signature = build_signature(scene)
+        self.anim = scene.fresing.anim_baked
         self.objs = objects(scene)
         if len(self.objs) < 2:
             raise ClashError("There are not two parts to compare")
@@ -649,38 +668,92 @@ class Check:
         T = len(self.times)
         self.mats = np.empty((T, len(sel), 4, 4))
         self.vis = np.empty((T, len(sel)), dtype=bool)
+        # the guard (milling and coolant skip their per-frame work) is held only while frames are read, never across
+        # a ``yield``: between two ticks the user may scrub, and milling and coolant must follow (task 0072, 0068
+        # row 19d). Before each yield the time goes back to the user's frame (to where the user moved it, if so)
         keep = (scene.frame_current, scene.frame_subframe)
-        try:
+        k = 0
+        while k < T:
+            now = (scene.frame_current, scene.frame_subframe)
+            if k and now != keep:
+                keep = now                              # the user moved the time line between two ticks
             with _Guard():
-                for k, t in enumerate(self.times):
-                    _set_time(scene, t)
-                    all_obs.foreach_get("matrix_world", buf)
-                    all_obs.foreach_get("hide_render", hb)
-                    self.mats[k] = buf.reshape(n_all, 4, 4)[sel].transpose(0, 2, 1)    # stored by columns
-                    self.vis[k] = ~hb[sel]
-                    if k % 10 == 0:
-                        yield 0.4 * k / T
-        finally:
-            scene.frame_set(keep[0], subframe=keep[1])
+                try:
+                    for k in range(k, min(T, k + READ_BATCH)):
+                        _set_time(scene, self.times[k])
+                        all_obs.foreach_get("matrix_world", buf)
+                        all_obs.foreach_get("hide_render", hb)
+                        self.mats[k] = buf.reshape(n_all, 4, 4)[sel].transpose(0, 2, 1)    # stored by columns
+                        self.vis[k] = ~hb[sel]
+                    k += 1
+                finally:
+                    scene.frame_set(keep[0], subframe=keep[1])
+            yield 0.4 * k / T
 
     # -- the pairs -------------------------------------------------------------
-    def _mesh_at(self, p: int, t: float) -> Mesh:
-        if self.timeline is not None and self.objs[p] is self.mill:
-            cache = self.wp_cache
-            hit = cache.get(t)
-            if hit is None:
-                try:
-                    v, tri, _src = self.timeline.mesh_at(float(t))
-                    # Manifold's meshes are closed with every face outwards: no face needs turning (task 0067:
-                    # checking each face of every cut workpiece took 85 % of the 4th-axis tour's 10 min check)
-                    hit = Mesh(np.asarray(v, dtype=np.float64), np.asarray(tri, dtype=np.int64), oriented=True)
-                except Exception:  # noqa: BLE001 - fall back to the uncut block
-                    hit = self.meshes[self.mesh_key[p]]
-                if len(cache) > 6:
-                    cache.pop(next(iter(cache)))
-                cache[t] = hit
-            return hit
-        return self.meshes[self.mesh_key[p]]
+    def _meshes_at(self, p: int, t: float) -> list:
+        """The meshes of part p at moment t: one, or the tiles of the milled workpiece as it is cut at t.
+
+        The workpiece is kept in tiles (``core/machining.Workpiece``); a cut changes only the tiles it reaches, the
+        others stay the same objects. Each tile is a mesh of its own here, made once and kept with its trees while
+        the tile lives (task 0072: making the whole cut workpiece and its trees again at every moment cost ~0.12 s
+        per program move). A point inside the workpiece is inside one tile, and that tile's surface is the nearest
+        to it, so depths are the same as with the whole mesh (seams included, as before)."""
+        if self.timeline is None or self.objs[p] is not self.mill:
+            return [self.meshes[self.mesh_key[p]]]
+        # between two frames (program corners, the extra moments of fast moves) the workpiece as it is at the frame
+        # before (task 0072). It holds at least the material it really has then (a cut only takes material away), so
+        # nothing that runs into it can be missed; what it has too much was just cut by the flutes, whose zone may be
+        # in it anyway. Working the cut out again at every corner and extra moment cost ~90 % of a milled program's
+        # check (0.12 s per program move)
+        t = float(math.floor(t + 1e-6))
+        if self.wp_at[0] == t:                                  # every pair with the workpiece at this moment
+            return self.wp_at[1]
+        try:
+            tiles = [x for x in self.timeline.at(float(t)) if x.ntri]
+        except Exception:  # noqa: BLE001 - fall back to the uncut block
+            return [self.meshes[self.mesh_key[p]]]
+        self.wp_calls += 1
+        cache = self.wp_cache
+        out = []
+        for x in tiles:
+            hit = cache.get(id(x.solid))
+            if hit is None or hit[0] is not x.solid:
+                v, tri, _src = self.timeline.wp._tile_mesh(x.solid)
+                # Manifold's meshes are closed with every face outwards: no face needs turning (task 0067)
+                hit = (x.solid, Mesh(np.asarray(v, dtype=np.float64), np.asarray(tri, dtype=np.int64),
+                                     oriented=True))
+                cache[id(x.solid)] = hit
+            out.append(hit[1])
+        if len(cache) > 2 * len(tiles) + 16:                    # forget the tiles that were cut since
+            alive = {id(x.solid) for x in tiles}
+            for k in [k for k in cache if k not in alive]:
+                del cache[k]
+        self.wp_at = (t, out)
+        return out
+
+    def _narrow(self, p: int, q: int, t: float, rel, za, zb, fine: bool = False, enough: float = math.inf) -> tuple:
+        """``narrow`` for parts p and q at moment t; a tiled workpiece tile by tile (only the tiles near the other
+        part get past the box test; each tile's result is kept while neither the tile nor the place changes)."""
+        A, B = self._meshes_at(p, t), self._meshes_at(q, t)
+        if len(A) == 1 and len(B) == 1:
+            return narrow(A[0], B[0], rel, za, zb, self.near, fine, enough)
+        deep, gap = 0.0, math.inf
+        rkey = np.round(rel, 7).tobytes()
+        for a in A:
+            for b in B:
+                key = (id(a), id(b), p, q, rkey, fine, self.near)          # (the zones follow from p and q)
+                hit = self.tile_memo.get(key)
+                if hit is None or hit[0] is not a or hit[1] is not b:
+                    hit = (a, b, narrow(a, b, rel, za, zb, self.near, fine, math.inf))
+                    self.tile_memo[key] = hit
+                d, g = hit[2]
+                deep, gap = max(deep, d), min(gap, g)
+                if deep > enough:
+                    return deep, 0.0
+        if len(self.tile_memo) > 20000:
+            self.tile_memo.clear()
+        return deep, gap
 
     def _zones(self, p: int, q: int) -> tuple:
         """The zones of p (its space) and of q (its space) whose points do not count against the other."""
@@ -709,7 +782,7 @@ class Check:
         if hit is not None:
             return hit
         za, zb = self._zones(p, q)
-        hit = narrow(self._mesh_at(p, t), self._mesh_at(q, t), rel, za, zb, self.near, fine, enough)
+        hit = self._narrow(p, q, t, rel, za, zb, fine, enough)
         self.memo[key] = hit
         self.narrow_calls += 1
         return hit
@@ -884,7 +957,11 @@ class Check:
             rel = self.rels.get((p, q, h.t))
             if rel is None:
                 continue
-            d, _g = narrow(self._mesh_at(p, h.t), self._mesh_at(q, h.t), rel, za, zb)
+            nr, self.near = self.near, 0.0
+            try:
+                d, _g = self._narrow(p, q, h.t, rel, za, zb)
+            finally:
+                self.near = nr
             if d > row.depth:
                 row.depth, row.t_deep = d, h.t
 
@@ -901,7 +978,7 @@ class Check:
         G = int(groups.max()) + 1 if P else 0
         self.members = [np.flatnonzero(groups == g) for g in range(G)]
         self.memo, self.base, self.hits, self.near_hits, self.last, self.rels = {}, {}, {}, {}, {}, {}
-        self.wp_cache = {}
+        self.wp_cache, self.tile_memo, self.wp_at, self.wp_calls = {}, {}, (None, None), 0
         self.narrow_calls = self.pruned = 0
         self.skip = self._mounted(groups)
         self.groups = groups
@@ -951,7 +1028,8 @@ class Check:
         self.rows = core.sort_rows(rows)
         self.stats = {"seconds": time.perf_counter() - t_start, "read_s": t_read,
                       "check_s": time.perf_counter() - t1, "moments": T, "between": subs, "parts": P,
-                      "bodies": G, "pairs": len(self.base), "narrow": self.narrow_calls, "pruned": self.pruned}
+                      "bodies": G, "pairs": len(self.base), "narrow": self.narrow_calls, "pruned": self.pruned,
+                      "workpiece": self.wp_calls}
         yield 1.0
 
 
@@ -961,7 +1039,7 @@ def check(scene, store: bool = True, **kw) -> Check:
     for _p in run.steps():
         pass
     if store:
-        save(scene, run)
+        run.stored = save(scene, run)
     return run
 
 
@@ -976,7 +1054,15 @@ def clear_markers(scene) -> int:
     return len(gone)
 
 
-def save(scene, run: Check) -> None:
+STALE_RUN = "The animation was built again while the clash check ran: its result was dropped. Check again"
+
+
+def save(scene, run: Check) -> bool:
+    """Keep the result with the project. False (nothing stored) when the animation was built again since the check
+    started: its rows belong to the earlier build, or to a mix of both (task 0072)."""
+    sig = getattr(run, "signature", None)
+    if sig is not None and (not is_built(scene) or build_signature(scene) != sig):
+        return False
     c = settings(scene)
     c.rows.clear()
     clash_rows = [r for r in run.rows if r.kind == "CLASH"]
@@ -1011,6 +1097,7 @@ def save(scene, run: Check) -> None:
         seen.add(key)
         scene.timeline_markers.new(f"{MARK}{r.a} × {r.b}", frame=f)
     hide_red()
+    return True
 
 
 def clear(scene) -> None:

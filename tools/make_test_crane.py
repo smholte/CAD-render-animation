@@ -2,7 +2,9 @@
 
 TEST.CRANE
   BASE                          box 1000 x 600 x 100
-  PEDESTAL                      box, carries the boom pin
+  PEDESTAL                      a block with a fork on top (two cheeks, bore Ø40.4) that carries the boom pin; the
+                                boom turns between the cheeks, 20 mm above the block (task 0072: no part starts
+                                inside another, so the clash check never sits on its threshold)
   BOOM.ASM
     BOOM                        box 1500 x 100 x 100, starts at the pivot
     BOOM.PIN                    cylinder Ø40 along Y at the pivot (pick target for the joint axis)
@@ -20,6 +22,7 @@ usage: python make_test_crane.py out.step [A|B]
 
 import sys
 
+from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder, BRepPrimAPI_MakeSphere
 from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec
 from OCP.IFSelect import IFSelect_RetDone
@@ -79,8 +82,14 @@ def build(path: str, revision: str = "A", inventor_names: bool = False) -> None:
 
     px, py, pz = PIVOT
     base = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 1000.0, 600.0, 100.0).Shape(), "BASE", (0.976, 0.659, 0.0))
-    pedestal = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 120.0, 160.0, 280.0).Shape(), "PEDESTAL",
-                    (0.976, 0.659, 0.0))
+    # the pedestal in its own space (x 0..120, y 0..160, z 0..340; the pivot at (60, *, 300)): a block up to 20 mm
+    # under the boom and two cheeks 25 mm thick either side of it (the boom is 100 wide: 5 mm free each side)
+    ped = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 120.0, 160.0, 230.0).Shape()
+    for y0 in (0.0, 135.0):
+        ped = BRepAlgoAPI_Fuse(ped, BRepPrimAPI_MakeBox(gp_Pnt(20, y0, 200), 80.0, 25.0, 140.0).Shape()).Shape()
+    ped = BRepAlgoAPI_Cut(ped, BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(60, -10, 300), gp_Dir(0, 1, 0)), 20.2,
+                                                        180.0).Shape()).Shape()
+    pedestal = part(ped, "PEDESTAL", (0.976, 0.659, 0.0))
     boom = part(BRepPrimAPI_MakeBox(gp_Pnt(0, -50, -50), 1500.0, 100.0, 100.0).Shape(), "BOOM",
                 (0.976, 0.659, 0.0))
     pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, -90, 0), gp_Dir(0, 1, 0)), 20.0, 180.0).Shape(),

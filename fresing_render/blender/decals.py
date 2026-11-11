@@ -1097,6 +1097,9 @@ def to_template(scene) -> list[dict]:
         d.update({k: list(getattr(it, k)) for k in VECTOR_KEYS})
         d["part"] = part.get(build.PROP_NAME, part.name)
         d["copy"] = "" if on_all_copies(it) else part.get(build.PROP_INSTANCE, "") or build.path_of(part)
+        # the exact part (with the model's scope, "~2/..." for the second copy of the same STEP): preferred when the
+        # template is used on a project that has it (task 0072, 0068 row 13)
+        d["uid"] = part.get(build.PROP_UID, "")
         d["source"] = bpy.path.abspath(it.source) if it.source else ""
         out.append(d)
     return out
@@ -1114,14 +1117,22 @@ def from_template(scene, entries: list[dict]) -> tuple[int, list[str]]:
         if d.get("copy"):
             parts = [p for p in parts if d["copy"] in (p.get(build.PROP_INSTANCE, ""), p.get(build.PROP_UID, ""),
                                                    build.path_of(p))]
+        # the exact part first (the same STEP twice: copy 2's decal belongs on copy 2), then the others
+        uid = d.get("uid", "")
+        exact = [p for p in parts if uid and p.get(build.PROP_UID, "") == uid]
+        if exact and d.get("copy"):
+            parts = exact                                     # this copy only: never another copy instead
+        elif exact:
+            parts = exact + [p for p in parts if p not in exact]
+        # "already there" is asked per part: the second machine's entry of the same name goes on the second machine
+        # (a template used twice still adds nothing)
+        parts = [p for p in parts if not any(it.name == d.get("name") for it in items_of(p))]
         if not parts:
             continue
         part = parts[0]
         if d.get("kind") == "PICTURE" and not os.path.isfile(d.get("source", "")):
             notes.append(f"Decal '{d.get('name')}': its picture {d.get('source')} was not found")
             continue
-        if any(it.name == d.get("name") for it in items_of(part)):
-            continue                                          # already there (template used twice)
         target = part.fresing_decals if d.get("copy") else part.data.fresing_decals
         it = target.add()
         it.key = "d-" + uuid.uuid4().hex[:10]

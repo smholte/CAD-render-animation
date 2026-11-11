@@ -2,13 +2,15 @@
 
 TEST.LUFFER                      mm; every pin turns about Y
   BASE                           box 1200 x 400 x 100
-  POST                           carries the arm pivot (100, *, 600)
-  BASE.BRACKET                   carries the barrel pins (500, *, 150), bore Ø40
+  POST                           carries the arm pivot (100, *, 600): a block up to 30 mm under the arm and a fork
+                                 (two cheeks, bore Ø40.4) the arm turns in
+  BASE.BRACKET                   carries the barrel pins (500, *, 150), bore Ø40; a slot for each cylinder (task 0072:
+                                 no part starts inside another, so the clash check never sits on its threshold)
   BASE.PIN                       Ø40 along Y through the barrel pins (pick target)
   ARM.ASM                        turns about the pivot
     ARM                          box 1500 x 100 x 100 from the pivot along X
     ARM.PIN                      Ø40 along Y at the pivot (pick target for the arm joint)
-    ARM.BRACKET                  under the arm, carries the rod pins (800, *, 450), bore Ø40
+    ARM.BRACKET                  under the arm, carries the rod pins (800, *, 450), bore Ø40; a slot per cylinder
     ARM.ROD.PIN                  Ø40 along Y through the rod pins (pick target)
   CYL.ASM  (twice: y = 80 and y = 320, side by side)
     CYL.BARREL                   BARREL.CAP (end cap + eye), BARREL.TUBE (Ø100/80), BARREL.GLAND (bore Ø32)
@@ -48,6 +50,7 @@ ROD_PIN = (800.0, 450.0)
 LENGTH = math.hypot(ROD_PIN[0] - BARREL_PIN[0], ROD_PIN[1] - BARREL_PIN[1])     # 424.26
 CYL_Y = (80.0, 320.0)
 TELE_Y = 200.0
+SLOT = 55.0                     # half the width of a bracket's slot round a cylinder (Ø100 barrel, gland)
 
 
 def _along_x(x0, x1, r):
@@ -109,10 +112,20 @@ def build(path: str, revision: str = "A") -> None:
     L = LENGTH
 
     base = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 1200.0, 400.0, 100.0).Shape(), "BASE", yellow)
-    post = part(BRepPrimAPI_MakeBox(gp_Pnt(px - 60, 150, 100), 120.0, 100.0, pz - 100 + 40).Shape(), "POST", yellow)
-    bracket = BRepPrimAPI_MakeBox(gp_Pnt(bx - 40, 20, 100), 80.0, 360.0, 90.0).Shape()
+    # the post: a block up to 30 mm under the arm (which is 100 wide at y 150..250), cheeks either side of it
+    post = BRepPrimAPI_MakeBox(gp_Pnt(px - 60, 115, 100), 120.0, 170.0, pz - 50 - 30 - 100).Shape()
+    for y0 in (115.0, 255.0):
+        post = _fuse(post, BRepPrimAPI_MakeBox(gp_Pnt(px - 40, y0, pz - 120), 80.0, 30.0, 160.0).Shape())
+    post = BRepAlgoAPI_Cut(post, BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(px, 100, pz), gp_Dir(0, 1, 0)), 20.2,
+                                                          200.0).Shape()).Shape()
+    post = part(post, "POST", yellow)
+    bracket = BRepPrimAPI_MakeBox(gp_Pnt(bx - 40, 10, 100), 80.0, 380.0, 90.0).Shape()
     bore = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(bx, 0, bz), gp_Dir(0, 1, 0)), 20.0, 400.0).Shape()
-    base_bracket = part(BRepAlgoAPI_Cut(bracket, bore).Shape(), "BASE.BRACKET", yellow)
+    bracket = BRepAlgoAPI_Cut(bracket, bore).Shape()
+    for y in CYL_Y + (TELE_Y,):                                    # a slot for each cylinder's barrel (Ø100)
+        bracket = BRepAlgoAPI_Cut(bracket, BRepPrimAPI_MakeBox(gp_Pnt(bx - 50, y - SLOT, bz - 35), 100.0, 2 * SLOT,
+                                                               100.0).Shape()).Shape()
+    base_bracket = part(bracket, "BASE.BRACKET", yellow)
     base_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(bx, -20, bz), gp_Dir(0, 1, 0)), 20.0, 440.0).Shape(),
                     "BASE.PIN", chrome)
 
@@ -121,9 +134,13 @@ def build(path: str, revision: str = "A") -> None:
     arm_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, -90, 0), gp_Dir(0, 1, 0)), 20.0, 180.0).Shape(),
                    "ARM.PIN", chrome)
     ax, az = rx - px, rz - pz                                      # rod pin relative to the pivot
-    abox = BRepPrimAPI_MakeBox(gp_Pnt(ax - 40, -180, az - 40), 80.0, 360.0, -50 - (az - 40)).Shape()
+    abox = BRepPrimAPI_MakeBox(gp_Pnt(ax - 40, -190, az - 40), 80.0, 380.0, -50 - (az - 40)).Shape()
     abore = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(ax, -200, az), gp_Dir(0, 1, 0)), 20.0, 400.0).Shape()
-    arm_bracket = part(BRepAlgoAPI_Cut(abox, abore).Shape(), "ARM.BRACKET", yellow)
+    abox = BRepAlgoAPI_Cut(abox, abore).Shape()
+    for y in CYL_Y + (TELE_Y,):                                    # a slot for each rod end and gland (Ø100)
+        abox = BRepAlgoAPI_Cut(abox, BRepPrimAPI_MakeBox(gp_Pnt(ax - 50, y - 200 - SLOT, az - 50), 100.0, 2 * SLOT,
+                                                         110.0).Shape()).Shape()
+    arm_bracket = part(abox, "ARM.BRACKET", yellow)
     arm_rod_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(ax, -220, az), gp_Dir(0, 1, 0)), 20.0,
                                                 440.0).Shape(), "ARM.ROD.PIN", chrome)
     lamp = part(BRepPrimAPI_MakeSphere(30.0).Shape(), "ARM.LAMP") if revision == "B" else None
