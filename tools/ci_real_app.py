@@ -18,7 +18,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
            step, save and open again, Remove
     gcode  tools/ui_test_gcode.py - CNC machine: axes, tool, workpiece, clicked work zero; Run G-code program step,
            the tip follows the program, tool change, toolpath, save and open again
-    waycover tools/ui_test_waycover.py - way covers: axis, Add section x5, Make it, the axis drives the covers, Flip,
+    waycover tools/ui_test_waycover.py - way covers: Add way cover, axis, Add section x5, Make it, the axis drives the covers, Flip,
            Remove section, save and open again, Remove way cover
     clash  tools/ui_test_clash.py - clash check: Build, Check for clashes, click the row (frame, red, zoom), Cancel,
            the queue note, Build again clears the result, save and open again
@@ -58,8 +58,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
-              "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 12, "gcode": 29,
-              "paths": 8, "pccheck": 32, "pccheck2": 2, "pccheckheavy": 11, "update": 29, "tour": 37, "tourui": 15,
+              "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
+              "paths": 8, "pccheck": 33, "pccheck2": 2, "pccheckheavy": 11, "update": 29, "tour": 38, "tourui": 15,
               "doublearm": 19, "clash": 21}
 MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 

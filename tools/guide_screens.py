@@ -783,13 +783,13 @@ elif MODE == "update":
 
 elif MODE in ("waycover", "air", "labels", "coolant"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
-    #   waycover: Way covers panel + the covers open in the view (test_waycover_b.step)
+    #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
     #   labels:   Labels, Pictures and Music folds (test crane)
     #   coolant:  CNC machine > Coolant (task 0042) and the G-code step with its coolant line (test_gantry.step)
     # Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=waycover / air / labels.
     MILL = os.path.join(DATA, "test_gantry.step")
-    WCOVER = os.path.join(DATA, "test_waycover_b.step")
+    WCOVER = os.path.join(DATA, "test_waycover_c.step")
     mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL}[MODE]
 
     step(_start)
@@ -815,25 +815,13 @@ elif MODE in ("waycover", "air", "labels", "coolant"):
         return next(o for o in bpy.data.objects if o.get("fr_name") == n)
 
     if MODE == "waycover":
-        SECTIONS = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"],
-                    ["COVER.4"], ["COVER.5"]]
-
         def _wc_setup():
             sc = bpy.context.scene
-            joints = mod("blender.joints")
-            car = _named("CARRIAGE")
-            j = joints.create(sc, "SLIDE", [car], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
-            j.use_limits = True
-            j.slide_min, j.slide_max = 0.0, 0.5
-            sc.fresing.waycover.axis = "X axis"
             with override():
-                bpy.ops.fresing.waycover_read_total()
-                for g in SECTIONS:
-                    select_only(*[_named(n) for n in g])
-                    bpy.ops.fresing.waycover_add()
-                bpy.ops.fresing.waycover_make()
+                mod("blender.waycover").set_up_test_model(sc, carriage=True)   # 'X left' + 'X right', carriage sections
+            sc.fresing.waycovers_index = 0
             select_only()
-            joints.set_value(sc.fresing.joints.get("X axis"), 0.5)
+            mod("blender.joints").set_value(sc.fresing.joints.get("X axis"), 0.3)
             bpy.context.view_layer.update()
         step(lambda: (_wc_setup(), 1.0)[1])
         _grab("panel_4_waycover", [("FRESING_PT_waycover", False, True)])
