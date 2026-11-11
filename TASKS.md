@@ -46,9 +46,9 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 - **0035 follow-ups (Way-cover lane, small):** a per-cover "the cover is as drawn when the axis is at … mm" (CAD drawn
   at mid-travel only fits when re-posed). **Bug for a small-fixes task:** moving a whole model copy by its root without
   updating `fr_rest_basis` puts it back at the next Build.
-- **0084 question for the owner:** the stern turn lies a few metres forward of the quadrant handler, not in the stern
-  corner – does his vessel turn the cable in the corner itself? (Changes how the D-quadrant passes it; 0082.) The
-  quadrant's tip joint must also ride the handler's tilt: 0082 decides.
+- **0084 stern turn (owner, 12 Nov):** keep it as in the demo, a few metres forward of the quadrant handler and under
+  the rails – only the place differs from a real vessel, not the motion. The rails clear the cable by 10 cm: 0077's and
+  0082's clash checks confirm it. The quadrant's tip joint must also ride the handler's tilt: 0082 decides.
 - **0087 follow-ups:** the vessel as a ride target goes with whichever of 0085 / 0077 merges second; per-frame cost of
   Ride along / Watch part on a big model is measured in 0077.
 - **0066 follow-up:** chips on a table that moves *and* carries the 4th axis land on the fixed bed (a third chip space) – Machining lane, after 0061.
