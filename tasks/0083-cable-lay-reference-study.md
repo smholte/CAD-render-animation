@@ -271,16 +271,17 @@ keeps its own sizes and shapes and must not copy that vessel's layout one-to-one
   along the inside of a big inverted U) over which the cable goes from deck level up and down into the carousel. The
   arch **only slews** about the tower's upright axis to reach every coil radius from the core to the rim. It does not go
   up or down: a hanging guide frame with a platform at its end drops the cable into the coil.
-- **Three lanes run aft**, all raised roller highways (V roller cradles on trestles, a grating walkway beside each):
-  a **side lane** on each side and a **middle lane**. The middle lane has **rails** for the quadrant.
-- **Two track tensioners**, one in each side lane near the stern. Only one is in the cable's path for a given route
-  (the second one is used for the mirrored route). To let the cable out, the tensioner's **top track lifts up and tilts
-  back**.
+- **Two side lanes** of raised roller highways (V roller cradles on trestles, a grating walkway beside each), one on
+  each side, and a **lower path ~1–1.5 m below** one of them. Between them lies the **middle lane**, with the
+  **rails** for the quadrant (no cable on it during lay).
+- **Two track tensioners**, one in each side lane near the stern. **The cable passes through both, one after the
+  other** (forward through the first one, aft through the second one; owner, 11 Nov). To let the cable out, each
+  tensioner's **top track lifts up and tilts back**.
 - **Stern:** a curved **radius controller** in each stern corner turns the cable 180° from one lane into the next. The
   **quadrant handler**, a big frame lying flat in the middle lane at the stern, is hinged at the transom and tilted by
   hydraulic cylinders from 0° to **about 100°**, hanging over the sea. It has a **pulley at its top centre** for the
-  quadrant handling wire. Big curved **overboarding chutes** (fair "horns") sit at the stern on both sides of the
-  handler.
+  quadrant handling wire. Big curved **overboarding chutes** (fair "horns") sit at the stern ends of the side lanes,
+  one on each side of the handler: the cable goes overboard down the chute behind the second tensioner.
 - **Quadrant:** a **D-shaped frame** (a semicircle with a straight bar across, spokes inside, a cable gutter round the
   curve). Its **stationary position** is lying flat at the **forward end of the middle lane**, where it serves as the
   180° turn of the cable route. It **travels on the rails** along the middle lane.
@@ -295,12 +296,15 @@ keeps its own sizes and shapes and must not copy that vessel's layout one-to-one
 **Cable route during lay** (owner's steps 0,1–0,6; loading from the quay is the same route backwards, with the
 tensioner pulling the cable in and the carousel turning in step, ~10 m/min):
 1. From the carousel coil up into the arch's hanging guide, over the arch, down the tower to deck level.
-2. On a **lower path, ~1–1.5 m below** the highways, aft along one side. Where the route crosses itself it passes under.
-3. At the stern, round that corner's radius controller (180°), then forward **through the tensioner** in the other
-   side lane.
-4. Straight forward along that side lane to the quadrant at its stationary position, round the quadrant's curve
-   (180°), then straight aft down the middle lane.
-5. Aft along the middle lane, over the stern and **down the chute** into the sea.
+2. On the **lower path, ~1–1.5 m below** the highway, aft along side A (under the run that comes back aft on top).
+3. At the stern, round side A's corner radius controller across to side B (180°), then forward **through tensioner 1**
+   in side B's lane.
+4. Straight forward along side B to the quadrant at its stationary position, round the quadrant's curve (180°) to
+   side A.
+5. Straight aft along side A's highway (over the lower path), **through tensioner 2**, and down **side A's stern
+   chute** into the sea.
+So the cable makes a closed oval on deck (an "O-loop": the tensioners sit between the carousel and the sea, and the
+quadrant is one of its turns).
 
 **Coil in the carousel:** the cable end goes through a **hole at the foot of the core** and is fastened inside it. The
 first turn lies along the core. The first layer fills **from the core outwards**, the second **from the rim inwards**,
@@ -346,7 +350,7 @@ sheen where it is wet. No length marks are visible.
 
 | # | 0076 has | Reference says | Suggested change (lead decides) |
 | --- | --- | --- | --- |
-| 1 | Two tensioners **in a row** on one centre line; cable carousel → arm → deck line → tensioners → chute in one straight line | **Owner (11 Nov): one tensioner in each side lane**, and the route as in "Cable route during lay" above: three lanes, a lower path under the crossing, 180° turns at the stern corners and round the quadrant, then aft down the middle lane to the chute | **Re-lay the deck:** two side lanes + a middle lane, a tensioner in each side lane (mirror pair), stern-corner radius controllers, a lower path 1–1.5 m down, the middle-lane end at the chute. Route JSON: the lay route through one tensioner, and the mirrored route through the other. |
+| 1 | Two tensioners **in a row** on one centre line; cable carousel → arm → deck line → tensioners → chute in one straight line | **Owner (11 Nov): one tensioner in each side lane**, and the route as in "Cable route during lay" above: an oval through **both** tensioners: lower path aft on side A, 180° at the stern, forward through tensioner 1 on side B, 180° round the quadrant, aft through tensioner 2 on side A, down side A's chute | **Re-lay the deck:** two side lanes (a tensioner in each) + the quadrant's middle lane, a lower path 1–1.5 m under side A, a stern-corner radius controller, the chute at side A's stern. Route JSON: this one oval route, through both tensioners. |
 | 2 | Tensioner fixed in the line | Owner: the **top track lifts up and tilts back** to let the cable out (step 4) | Give the top-track carriage a lift (squeeze cylinders, longer stroke) plus a tilt hinge at its aft end, and add both to the joint sheet. |
 | 3 | Track gripping run 20 × 300 = **6 m** | 15 t class: 3–3.2 m; range 1.75–5.5 m | 6 m is long but possible for ~25–30 t. For a "15–25 t" look, use **12–14 links (3.6–4.2 m)**, which also saves triangles. |
 | 4 | Pads with a **120° V** | 160° V, rubber, 70 Shore A | Keep it if the 120° V is needed for Ø 50–500 on one pad, or make it **150–160°** and let the squeeze stroke cover the range. Make the pads look rubber (dark, matte) on a steel back plate. |
@@ -361,7 +365,7 @@ sheen where it is wet. No length marks are visible.
 | 13 | Loading tower + slewing arm with a trolley that moves in/out | Owner: an **overhead arch** (~180° radius controller) that **only slews**; a hanging guide frame drops the cable into the coil | Replace the trolley's in/out by slewing alone (the guide's radius follows from the slew angle). The arch's rollers along its inside are the cable's bend. |
 | 14 | Cable end at the core: not modelled | Owner: the cable end goes through a **hole at the foot of the core** and is fastened inside; first turn along the core; layer 1 outwards, layer 2 inwards | Add the core hole (and a simple clamp inside). The coil solid: flat layers. |
 | 15 | No CPS store | Owner: CPS racks along one side, an orange twisted **ramp** and a curved slide to the route at the quadrant | Add a rack with 4–6 CPS sets, the ramp and the slide (set dressing, and a path for 0082's CPS run). |
-| 16 | One stern chute in the middle | Owner: chute at the end of the middle lane, curved overboarding "horns" on both sides of the handler, 180° radius controllers in the stern corners | Add the corner radius controllers and the horns; keep the chute at the middle lane. |
+| 16 | One stern chute in the middle | Owner: the chutes are the curved overboarding "horns" at the stern ends of the side lanes, on both sides of the handler; a 180° radius controller across the stern | Move the chute to side A's stern (a horn on side B for the mirrored set-up), add the stern radius controller; the middle lane's stern end is the handler. |
 
 ### Facts per task 0077–0082
 
@@ -413,9 +417,9 @@ sheen where it is wet. No length marks are visible.
 
 **Open points:**
 - Answered by the owner (11 Nov): one tensioner per side, the route, the quadrant sequence, the CPS run, the cable look,
-  loading from the quay in the demo. Still open: which hosts the environment may open so a follow-up can read the full
-  datasheets; whether the quadrant sequence above is used at the cable's first end, its second end or both (the
-  pictures show the CPS'd end going over the chute first, then the quadrant lowering the bight).
+  loading from the quay in the demo; the cable goes through **both** tensioners; the quadrant sequence is how the
+  cable is **put into the sea** (its end lowered to the seabed), and the same steps backwards **pull it up again**.
+  Still open: which hosts the environment may open so a follow-up can read the full datasheets.
 - The check against 0076 now has 16 rows. Rows 1, 2, 7 and 13–16 change the layout a lot: a follow-up task on the Demo
   models lane ("0076 b: deck re-layout") before 0077 is worth it (lead decides).
 - Not answered by public sources (estimates only): pad pitch, squeeze stroke, roller spacing, CPS dimensions, stripe
