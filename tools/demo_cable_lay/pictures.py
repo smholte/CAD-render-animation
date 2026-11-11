@@ -1,10 +1,11 @@
-"""Pictures of the demo cable-lay spread (task 0076) with the app's own importer, surroundings and Cycles.
+"""Pictures of the demo cable-lay spread (tasks 0076, 0084) with the app's own importer, surroundings and Cycles.
 
     ~/venv/bin/python tools/demo_cable_lay/pictures.py <demo_cable_lay.step> <out folder> [--width 960] [--quality draft]
-                                                       [--only overview,tensioners,quadrant,carousel]
+                      [--only overview,stern,tensioners,arch,cps,quadrant,quay] [--also demo_quay_loading.step]
+                      [--prefix 0084]
 
-Blender as a Python module (bpy), processor only. Imports the STEP at Normal detail with the built-in sorting rules,
-light look "Sun", surroundings "Open sea", then renders each view to <out>/0076-<view>.png.
+Blender as a Python module (bpy), processor only. Imports the STEP(s) at Normal detail with the built-in sorting
+rules, light look "Sun", surroundings "Open sea", then renders each view to <out>/<prefix>-<view>.png.
 """
 
 from __future__ import annotations
@@ -21,10 +22,13 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 
 # camera (m) -> target (m), lens (mm): model coordinates (x to the bow, transom at 0, y to port, z up)
 VIEWS = {
-    "overview": ((-38.0, -58.0, 34.0), (52.0, 0.0, 2.0), 30.0),
-    "tensioners": ((14.0, -15.0, 11.5), (27.0, 0.0, 4.6), 28.0),
-    "quadrant": ((-16.0, -24.0, 10.5), (-0.5, -5.5, 3.5), 30.0),
-    "carousel": ((92.0, -34.0, 30.0), (64.0, 0.0, 6.0), 30.0),
+    "overview": ((-30.0, -52.0, 42.0), (36.0, 0.0, 3.0), 30.0),
+    "stern": ((-13.0, -21.0, 13.0), (6.0, 0.0, 4.0), 28.0),
+    "tensioners": ((17.0, -17.0, 11.0), (28.0, 0.0, 5.0), 28.0),
+    "arch": ((40.0, -36.0, 24.0), (60.0, -4.0, 8.0), 30.0),
+    "cps": ((26.0, 22.0, 13.0), (16.0, 7.0, 5.0), 26.0),
+    "quadrant": ((34.0, 14.0, 11.0), (44.0, 0.0, 5.0), 28.0),
+    "quay": ((-36.0, -62.0, 36.0), (8.0, -18.0, 4.0), 30.0),
 }
 
 
@@ -51,6 +55,8 @@ def main(argv=None) -> int:
     ap.add_argument("--width", type=int, default=960)
     ap.add_argument("--quality", default="draft")
     ap.add_argument("--only", default="")
+    ap.add_argument("--also", default="", help="more STEP files to import into the same scene (comma separated)")
+    ap.add_argument("--prefix", default="0084")
     a = ap.parse_args(argv)
     import bpy
     pkg = load_app()
@@ -64,6 +70,10 @@ def main(argv=None) -> int:
     res = bpy.ops.fresing.import_step(filepath=os.path.abspath(a.step), quality="normal")
     if res != {"FINISHED"}:
         raise SystemExit(f"import: {res} {s.last_message}")
+    for extra in [x for x in a.also.split(",") if x]:
+        res = bpy.ops.fresing.import_step(filepath=os.path.abspath(extra), quality="normal")
+        if res != {"FINISHED"}:
+            raise SystemExit(f"import {extra}: {res} {s.last_message}")
     print(f"imported in {time.time() - t0:.0f} s")
     bpy.ops.fresing.light_look(look="SUN")
     s.env_detail = "DETAILED"
@@ -82,7 +92,7 @@ def main(argv=None) -> int:
         look_at(ob, loc, target)
         scene.camera = ob
         t1 = time.time()
-        info = render.render_still(scene, s, a.quality, filepath=os.path.join(os.path.abspath(a.out), f"0076-{v}.png"))
+        info = render.render_still(scene, s, a.quality, filepath=os.path.join(os.path.abspath(a.out), f"{a.prefix}-{v}.png"))
         print(f"{v}: {info['size']} in {time.time() - t1:.0f} s")
     return 0
 
