@@ -839,6 +839,69 @@ def _mill_set(b: Build, chips: str = "", raw: str = ""):
     return a
 
 
+CUT_ANIM = "The pedestal opens up"
+CUT_FROM = 0.2                  # the cut starts 200 mm in front of the pedestal (nothing cut) and slides to the middle
+
+
+def cutaway(scene, a=None):
+    """Cutaway (task 0086): a plane cut through the crane's pedestal and boom, hatched, taking away the half that
+    faces the camera; ``a``: a Move joint step slides it in from 200 mm in front. Also used by the PC check line
+    looks.cutaway. Returns the cut."""
+    from mathutils import Euler, Matrix, Vector
+
+    from . import section
+    ped = _ob(scene, "PEDESTAL")
+    cut = section.add(scene, [("PART", ped, ""), ("PART", _ob(scene, "BOOM"), "")], "PLANE")
+    centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
+    # through the pedestal's middle, along the boom; the arrow to the front (-Y): the front half goes
+    section.set_world(scene, cut, Matrix.Translation(centre) @ Euler((math.pi / 2, 0.0, 0.0)).to_matrix().to_4x4())
+    cut.hatch = True
+    if a is not None:
+        blk = _joint_step(a, section.joint_of(scene, cut).name, 0.0, 2.0, 0.0, slide=True,
+                          label="The cut slides in", easing="SMOOTH")
+        blk.use_from = False
+        blk.from_dist = CUT_FROM
+    return cut
+
+
+@tour_set("cutaway", "Cutaway", "test_crane_a.step")
+def build_cutaway(b: Build):
+    from mathutils import Vector
+    sc = b.scene
+    _look("PRODUCT")
+    ped = _ob(sc, "PEDESTAL")
+    centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
+    _close_camera(b, centre + Vector((0.1, 0.0, 0.05)), 0.55, "Tour cutaway")
+    shot = _shot(b, "Tour: cutaway")
+    cutaway(sc, _animation(b, CUT_ANIM, shot.name))
+
+
+def _check_cutaway(scene):
+    from mathutils import Vector
+
+    from . import joints, section
+    cut = scene.fresing.cuts[0] if len(scene.fresing.cuts) else None
+    _check(cut is not None and cut.enabled, "there is no cut, or it is off")
+    names = sorted(p.get("fr_name", p.name) for p in section.cut_parts(scene, cut))
+    _check(names == ["BOOM", "PEDESTAL"], f"the cut cuts {names}, not the boom and the pedestal")
+    _check(all(section.is_wrapped(m) for p in section.cut_parts(scene, cut) for m in section._materials(p)),
+           "a material of a cut part shows no cut")
+    j = section.joint_of(scene, cut)
+    _check(j is not None, "the cut has no slide joint")
+    _o, d = joints.axis_world(j)
+    scene.frame_set(1)
+    start = cut.shape.matrix_world.translation.copy()
+    scene.frame_set(scene.frame_end)
+    end = cut.shape.matrix_world.translation.copy()
+    moved = (start - end).dot(d)
+    _check(abs(moved - CUT_FROM) < 1e-5, f"the cut slid {moved * 1000:.1f} mm, not {CUT_FROM * 1000:.0f} mm")
+    ped = _ob(scene, "PEDESTAL")
+    centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
+    off = abs((end - centre).dot(d))
+    _check(off < 1e-4, f"at the end the cut is {off * 1000:.1f} mm from the pedestal's middle")
+    return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
+
+
 @tour_set("mill", "Milling a slot", "test_mill.step")
 def build_mill(b: Build):
     _mill_set(b, chips="FEW", raw="steel_raw")
@@ -1625,6 +1688,12 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals)
+stop("cutaway", LOOK, "cutaway", "Cutaway: the pedestal opens up",
+     "A cut slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
+     "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
+     "view: the grey solid view shows the parts whole.", where="3 Looks > Cutaway; 6 Animation (Move joint step "
+     "with the joint 'Cut 1')", since="0.2.61", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
+     auto="clip")
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",

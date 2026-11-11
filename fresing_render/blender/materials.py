@@ -383,6 +383,9 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
     mat["fr_color"] = color_text
     mat["fr_wear"] = float(wear)
     mat[PROP_LOOK] = LOOK_VERSION
+    if mat.get("fr_section_wrap"):              # parts of it are cut (task 0086): keep that after a rebuild
+        from . import section
+        section.wrap(mat)
     if mat.get("fr_fade_wrap"):                 # parts of it fade or are X-ray (task 0073): keep that after a rebuild
         from . import fade
         fade.wrap(mat)

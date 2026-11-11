@@ -334,6 +334,8 @@ def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visi
     if visibility == CURRENT:
         capture_visibility(scene, shot.own_visibility)
     shot.world = settings_json(s, WORLD_KEYS)
+    from . import section
+    shot.cuts = section.capture(scene)              # which cuts are on (task 0086)
     shot.output = settings_json(s, OUTPUT_KEYS)
     s.shots_index = list(s.shots).index(shot)
     return shot
@@ -380,6 +382,8 @@ def apply_shot(scene, name: str) -> list[str]:
         warnings.append("The camera of this scene was deleted")
     apply_settings_json(scene, shot.output)
     apply_settings_json(scene, shot.world)
+    from . import section
+    section.apply_saved(scene, shot.cuts)           # cuts on/off (task 0086); where they are is the pose
     s.active_shot = shot.name
     s.bounds_valid = False
     return warnings

@@ -267,6 +267,46 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
+@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.61",
+      what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
+           "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
+           "same frame without the cut")
+def looks_cutaway(ctx):
+    import numpy as np
+    from mathutils import Vector
+
+    from ..blender import animation, cameras, render, tour
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    ped = _ob(scene, "PEDESTAL")
+    centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
+    pts = np.array([tuple(centre + Vector((0.1 + dx, dy, 0.05 + dz)) * 1.0) for dx in (-0.27, 0.27)
+                    for dy in (-0.27, 0.27) for dz in (-0.27, 0.27)])
+    scene.camera = cameras.add_camera(scene, "ISO", 50.0, "Cut view", points=pts)
+    a = s.animations.add()
+    a.name, a.tail, a.fps = tour.CUT_ANIM, 0.0, "25"
+    t0 = time.time()
+    cut = tour.cutaway(scene, a)
+    ctx.metric("add cut", time.time() - t0, "s")
+    info = animation.bake(scene, a)
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_cutaway(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_end)
+    times = {}
+    for key, on in (("warm", True), ("plain", False), ("cut", True)):     # the first render loads the scene
+        cut.enabled = on
+        path = os.path.join(ctx.work, f"cutaway_{key}.png")
+        t1 = time.time()
+        render.render_still(scene, s, "draft", filepath=path)
+        times[key] = time.time() - t1
+    ctx.picture(path, "cutaway", "The pedestal and boom cut open, red hatched cut faces (processor, draft)")
+    ctx.metric("render with cut", times["cut"], "s")
+    ratio = times["cut"] / max(times["plain"], 1e-3)
+    return f"{note}; frame {times['cut']:.1f} s with the cut vs {times['plain']:.1f} s without ({ratio:.2f}x)"
+
+
 @line("rules.switch", "Rule sets: switch and back", "0.2.13",
       what="Another rule set sorts the parts its way; hand picks stay; back to Standard")
 def rules_switch(ctx):

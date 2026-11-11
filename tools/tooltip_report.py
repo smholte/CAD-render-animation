@@ -33,7 +33,7 @@ sys.path.insert(0, ROOT)
 
 UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
             "fresing_render/blender/ui_machining.py", "fresing_render/blender/ui_decals.py",
-            "fresing_render/blender/ui_gcode.py",
+            "fresing_render/blender/ui_gcode.py", "fresing_render/blender/ui_section.py",
             "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 # drawing functions called from a panel in another file: {file: {function: panel}}
@@ -50,7 +50,7 @@ LANE_OF_PANEL = {
     "Props for scale": "Scene & Render lane",
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
-    "Logos & stickers": "Looks lane",
+    "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
@@ -63,6 +63,7 @@ OWNER_TYPES = {
     "cyl": "FRCylinder",                                      # 4 Motion > Cylinders
     "mech": "FRMechanism",                                    # 4 Motion > Mechanisms
     "cnc": "FRCnc", "tl": "FRCncTool",                        # 4 Motion > CNC machine (ui_gcode.py)
+    "cut": "FRCut",                                           # 3 Looks > Cutaway (ui_section.py)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -72,7 +73,7 @@ ITEM_TYPES = {
     "FRESING_UL_blocks": "FRAnimBlock", "FRESING_UL_queue": "FRQueueJob", "FRESING_UL_tree": "FRTreeItem",
     "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
     "FRESING_UL_mechanisms": "FRMechanism", "FRESING_UL_cnc_tools": "FRCncTool",
-    "FRESING_UL_cnc_pockets": "FRCncPocket",
+    "FRESING_UL_cnc_pockets": "FRCncPocket", "FRESING_UL_cuts": "FRCut",
 }
 
 

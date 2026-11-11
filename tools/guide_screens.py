@@ -22,6 +22,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=decals blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
 
+  cutaway  the crane with a hatched cut through its pedestal and boom (cutaway.jpg, task 0086; as "decals").
+
   tour   the Test tour panel (task 0059): the tour made and opened, a few stops marked (as "panels").
 
   clash  6 Animation > Clash check (task 0065) on the clash test model, checked and its row clicked, and the two
@@ -567,6 +569,7 @@ if MODE == "panels":
                                                          "FRESING_PT_looks", "FRESING_PT_motion",
                                                          "FRESING_PT_scene", "FRESING_PT_animation",
                                                          "FRESING_PT_queue")]),
+        ("panel_3_cutaway", [("FRESING_PT_cutaway", False, True)]),     # last: its cut joint (task 0086)
     ]
 
     def _make_shot(name, spec):
@@ -625,6 +628,12 @@ if MODE == "panels":
                 b.kind, b.joint, b.start, b.duration, b.speed_rpm = "MOTOR", "Winch drum", 5.0, 5.0, 12.0
                 b.easing, b.ramp = "SMOOTH", 0.5
                 a.blocks_index = len(a.blocks) - 1
+            elif name == "panel_3_cutaway":             # a hatched plane cut through the pedestal and the boom
+                fade = mod("blender.fade")
+                fade.remove_look(sc, fade.xray_parts(sc))
+                mod("blender.tour").cutaway(sc)
+                sc.fresing.pick_mode = "SUBASSEMBLY"
+                select_only(ob("PEDESTAL"))
             elif name == "panel_3_xray":                # the cover in X-ray, the cover clicked
                 mod("blender.fade").apply_look(sc, [ob("COVER")])
                 sc.fresing.pick_mode = "PART"
@@ -1457,9 +1466,10 @@ def render_looks():
     log("saved looks", f"{os.path.getsize(out) // 1024} KB")
 
 
-def render_crane(with_decals: bool = False):
+def render_crane(with_decals: bool = False, with_cut: bool = False):
     """A finished render of the test crane, the way a user makes one (background mode, processor);
-    with decals on it for the picture of 3 Looks > Logos & stickers."""
+    with decals on it for the picture of 3 Looks > Logos & stickers; with a hatched cut through the pedestal and the
+    boom for 3 Looks > Cutaway (task 0086)."""
     import addon_utils
     addon_utils.enable(pkg(), default_set=True)
     assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}
@@ -1479,6 +1489,8 @@ def render_crane(with_decals: bool = False):
         add_decals()
     cams = mod("blender.cameras")
     cam = cams.add_camera(sc, "LOW", 35.0, name="Low hero")
+    if with_cut:
+        mod("blender.tour").cutaway(sc)
     sc.camera = cam
     bpy.context.view_layer.update()
     cams.fit(cam, sc)                        # the raised boom too ("Fit model")
@@ -1488,15 +1500,15 @@ def render_crane(with_decals: bool = False):
     t = time.time()
     assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
     log("render", s.last_render, f"{time.time() - t:.0f} s")
-    name = "decals" if with_decals else "render_crane"
+    name = "decals" if with_decals else "cutaway" if with_cut else "render_crane"
     path = os.path.join(OUT, name + ".jpg")
     subprocess.run(["convert", s.last_render, "-strip", "-quality", "88", path], check=True)
     log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
-if MODE in ("render", "looks", "decals"):
+if MODE in ("render", "looks", "decals", "cutaway"):
     try:
-        render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals")
+        render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals", with_cut=MODE == "cutaway")
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)
