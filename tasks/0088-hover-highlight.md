@@ -1,6 +1,6 @@
 # 0088 – Hover highlight when picking an axis (face, hole, shaft light up under the mouse)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0088-hover-highlight` (or the session's own branch)
+**Who:** worker · **Status:** done (0.2.63) · **Branch:** `task/0088-hover-highlight` (or the session's own branch)
 **Started by:** lead chat, 11 Nov 2026 (owner's wish)
 **Lane:** new **Pick & hover lane** – a new `blender/hover.py` (the highlight: what is under the mouse, the drawing);
 the click-to-pick operators that give an **axis**: `ops_motion.py` (Add joint / Set axis), `ops_cylinders.py` (the
@@ -52,15 +52,15 @@ has to click, check and redo.
 
 ## Done when
 
-- [ ] Tests: for spots on the test crane (a hole, a shaft, a flat face, the floor, empty space) the hover gives the right
+- [x] Tests: for spots on the test crane (a hole, a shaft, a flat face, the floor, empty space) the hover gives the right
       CAD face (triangle range) and the same axis as the click; nothing is drawn after Esc / finish / file load; the
       overlay never appears in a render; a real-app test (`event_simulate` mouse moves during Add joint) checks the
       highlight state and the status text; the existing joint, cylinder and double-arm real-app tests still pass.
-- [ ] Time per mouse move (test crane, Heavy scaled down) in the report; screenshots of a highlighted hole and face
+- [x] Time per mouse move (test crane, Heavy scaled down) in the report; screenshots of a highlighted hole and face
       checked (cropped small).
-- [ ] PC-check line, guide, tooltips strict; GitHub green incl. Windows; merged to `main` with the next free version,
+- [x] PC-check line, guide, tooltips strict; GitHub green incl. Windows; merged to `main` with the next free version,
       released.
-- [ ] Report filled in; `TASKS.md`: 0088 done.
+- [x] Report filled in; `TASKS.md`: 0088 done.
 
 ## Not in this task
 
@@ -73,10 +73,61 @@ whole subassemblies in the tree or the view (outside a pick).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (session branch `claude/hopeful-hamilton-985bip`), 11 Nov 2026
 
 **What changed:**
+- New `blender/hover.py`: `look()` is the work of one mouse move (the pickers' ray `cast()`, the CAD face from
+  `fr_face_starts`, `joints.axis_from_hit`, hole/shaft/flat, the text); `start` / `on_event` / `prompt` / `pick` /
+  `end` are the few lines per picker. Drawing: two 3D-view draw handlers (face fill 35 % + outline on a dark line,
+  the axis line past the part or an arrow on a flat face; a text box next to the mouse) and the status bar.
+- **Colour: magenta** (1.0, 0.1, 0.8), not orange: Blender draws the selection outline in orange and the test crane
+  (and many machines) is painted yellow/orange – orange did not read (checked on a screenshot). Refused spots: red
+  with the reason.
+- Pickers: Add joint / Set axis (`ops_motion.py`), Add cylinder and Pins again (`ops_cylinders.py`), the double arm's
+  hub and pot hinge (`ops_doublearm.py`, with refusals worked out while hovering: hub not parallel with the
+  spindle; no carousel / no arm yet / pot not on the carousel). Mechanisms (`ops_linkages.py`) have no click pick
+  (they use the selection), so nothing to do there.
+- Click result unchanged, with one deliberate exception: the click now looks through a logo/sticker to the part under
+  it (`decals.through`, as its docstring intended for joint axes); before, it said "missed". `_raycast` itself is
+  unchanged (callouts and G-code pickers of other lanes still use it).
+- Only an overlay: nothing in `bpy.data`, `fr_face_starts` is not written by a hover (old meshes: worked out in
+  memory), no draw handler in background mode. Ends with Esc / right-click / click / refused pick; undo clears it,
+  opening another file ends it (`load_pre`), and a pick that died with an error is noticed by the draw callback
+  (the freed operator raises) and removed.
+- Preference "Highlight the face under the mouse when picking an axis" (on by default). PC-check line `motion.hover`
+  (MIN_LINES_FULL 55 after the merges). Guide: paragraph + `view_hover.png` in chapter 4 (new mode `hover` in `tools/guide_screens.py`).
 
 **Tested and measured** (name the machine and the model):
+- `tests/test_hover.py` (10 tests, bpy module): shaft (BOOM.PIN, polygons 0–52), hole (PEDESTAL bore Ø40.4, the pin
+  moved out), flat face (BASE, arrow up), floor and empty space ("Not a part"), two copies of WHEEL (each its own
+  axis, one cached face), a refused spot, highlight = click (same part, face, triangle range, axis), nothing in
+  bpy.data changes and a Cycles render is pixel-identical with a hover on, gone after end / undo / file load.
+- Real app `ui_test_app.py` (ui1, 27/27 quick locally; +9 checks, MIN_CHECKS 32 / quick 27): mouse moves during Add
+  joint – sky says "Not a part", the pin lights up (face 0) with "Shaft Ø40 mm – axis through its centre" in the
+  status bar, draw handlers on; the joint the click makes has the highlighted axis; gone after the click; Set axis +
+  Esc: gone. `ui_test_cylinder.py` 22/22 and `ui_test_doublearm.py` 19/19 still pass.
+- Time per mouse move (`hover.look`, 4-core web machine, bpy module, iso-view rays at random parts, first time on a
+  spot / same spot again):
+  - test crane: 0.04 ms (PC-check line: median 0.09 ms, slowest 0.54 ms over 20 spots)
+  - Heavy scaled down (300 parts, 0.2 M unique triangles): median 0.09 ms, 95 % 1.75 ms, max 12.4 ms (the first
+    touch of a big part reads its mesh once) / again: median 0.08, max 0.43 ms – under the 15 ms aim
+  - Heavy full size (2,992 parts, 2.3 M unique triangles): median 2.1 ms, 95 % 13.2 ms, max 23 ms / again: median
+    2.0, max 4.5 ms (the 2 ms is Blender's own `scene.ray_cast` over 3,000 objects – the click costs the same)
+- Screenshots checked (cropped): the pedestal's bore with its axis line (guide picture) and a flat face with its
+  arrow (scratch only).
+- PC check `motion.hover` run locally: OK, 20 spots (flat, shaft).
+
+**Runs:** 3 full GitHub runs, all green: the first push, then twice a merge of `main` because 0035 and 0087 took
+0.2.61 and 0.2.62 in the meantime (renumbered to 0.2.63, PC-check line counts raised with theirs). One local test
+(`test_real_app_verdicts`) had the old quick count of ui1 hard-coded: it reads the table now.
+
+**Tour stop:** none. The tour's Go sets up a scene and takes a picture without a mouse; the highlight only exists
+while a click picker runs and the mouse moves over the view, so a stop could only show a staged copy, not the real
+thing. The PC-check line and the real-app test cover it instead.
 
 **Open points / follow-up tasks:**
+- The other click pickers (ATC pockets in `ops_gcode.py`, sharp spot in `ops_scene.py`, labels, decals, trail points,
+  coolant nozzles, toolpath parts): each needs `hover.start` in invoke, `hover.on_event` first in modal,
+  `hover.pick` for the click and `hover.end` in its end – a few lines per picker.
+- Only the owner can see it on the RTX 3090 / Windows: the colour on his own paint schemes and that the view stays
+  smooth on his big models.
