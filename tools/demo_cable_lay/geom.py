@@ -431,6 +431,46 @@ def grooved_barrel(rc: float, rr: float, z0: float, z1: float, pitch: float, kin
     return cut(barrel, groove), turns
 
 
+def loft(sections, ruled: bool = True):
+    """A solid through closed polygon sections (lists of 3D points, the same count each)."""
+    from OCP.BRepOffsetAPI import BRepOffsetAPI_ThruSections
+    ts = BRepOffsetAPI_ThruSections(True, ruled, 1e-6)
+    for pts in sections:
+        poly = BRepBuilderAPI_MakePolygon()
+        for q in pts:
+            poly.Add(P(q))
+        poly.Close()
+        ts.AddWire(poly.Wire())
+    ts.CheckCompatibility(False)
+    ts.Build()
+    return ts.Shape()
+
+
+def riser_wedge(ro: float, h: float, width: float, angle_deg: float, z_flange: float, side: int, n: int = 9):
+    """Lebus riser / filler: a ramp on the barrel (radius ro) against a flange at z_flange (side -1: the flange is
+    below, +1: above), rising from 10 % to 100 % of h over angle_deg (about local z)."""
+    z0, z1 = (z_flange, z_flange + width) if side < 0 else (z_flange - width, z_flange)
+    secs = []
+    for k in range(n):
+        t = k / (n - 1)
+        a = math.radians(angle_deg * t)
+        hh = h * (0.1 + 0.9 * t)
+        rs = (ro - 5.0, ro + hh)
+        secs.append([(r * math.cos(a), r * math.sin(a), z) for r, z in
+                     ((rs[0], z0), (rs[1], z0), (rs[1], z1), (rs[0], z1))])
+    return loft(secs)
+
+
+def trough(points, frames, profile):
+    """A trough (open-topped channel) along sampled ``points`` with a local (side, up) frame at each: ``profile`` is
+    a closed polygon of (side, up) offsets. Ruled between the samples."""
+    secs = []
+    for q, (sd, up) in zip(points, frames):
+        q, sd, up = np.asarray(q, float), np.asarray(sd, float), np.asarray(up, float)
+        secs.append([q + a * sd + b * up for a, b in profile])
+    return loft(secs)
+
+
 # ---------------------------------------------------------------------------------------------------------
 # Scene tree
 # ---------------------------------------------------------------------------------------------------------
@@ -522,7 +562,15 @@ def resolve_joints(root: Asm) -> list[dict]:
     for node, uid, W, _label, path in walk(root):
         if not isinstance(node, Asm):
             continue
-        prefix = "".join(f"{c.instance or c.node.name}: " for c in path)
+        labels = [c.instance or c.node.name for c in path]
+        prefix = "".join(f"{lb}: " for lb in labels)
+
+        def ref(name: str) -> str:
+            """A joint named relative to this assembly; each leading "../" goes one assembly up."""
+            k = 0
+            while name.startswith("../"):
+                name, k = name[3:], k + 1
+            return "".join(f"{lb}: " for lb in labels[:len(labels) - k]) + name
         for j in node.joints:
             parts = [path_uid(uid, p) for p in j.parts]
             d = {"name": prefix + j.name, "type": j.kind, "parts": parts,
@@ -530,9 +578,9 @@ def resolve_joints(root: Asm) -> list[dict]:
                           "direction": [round(float(v), 6) for v in W[:3, :3] @ j.direction]},
                  "limits": j.limits, "drive": dict(j.drive), "assembly": uid}
             if "follows" in d["drive"]:
-                d["drive"]["follows"] = prefix + d["drive"]["follows"]
+                d["drive"]["follows"] = ref(d["drive"]["follows"])
             for k, v in j.extra.items():
-                d[k] = v
+                d[k] = ref(v) if k == "rides_on" else v
             out.append(d)
     return out
 

@@ -1,4 +1,4 @@
-"""The cable route and rope paths of the demo model (task 0076): pure Python + NumPy, no OpenCascade.
+"""The cable route and rope paths of the demo model (tasks 0076, 0084): pure Python + NumPy, no OpenCascade.
 
 A route is a chain of straights (``Line``) and circular arcs (``Arc``) that meet with the same direction (G1). Every
 arc of the cable route has a radius of at least the cable's MBR. ``positions`` places the machines along the vessel
@@ -210,78 +210,277 @@ class Route:
 
 
 # ---------------------------------------------------------------------------------------------------------
-# Where things go
+# Where things go (task 0084: the owner's deck layout)
 # ---------------------------------------------------------------------------------------------------------
 
-TENSIONER_HALF = 3750.0         # half the tensioner's length along the cable (frame)
-TROLLEY_IN = 500.0              # the loading arm's guide goes this close to the core / the rim
-TROLLEY_OUT = 800.0
+TENSIONER_HALF = 3100.0         # half the tensioner's length along the cable (frame + tilt hinge)
+TENSIONER_WIDTH = 1380.0        # half its width (frame + side cylinders)
+ENGINE_HALF = 1700.0            # half the linear cable engine's length
+GUIDE_IN = 500.0                # the arch's guide reaches this close to the core
+GUIDE_RIM = 700.0               # its hanging frame stays this far inside the rim
+WINCH_HALF = 1450.0             # quadrant handling winch: half its length along x
+CPS_OUT = 2000.0                # the CPS ramp runs this much outboard of side B (clear of tensioner 1)
+
+
+def turn(r: Route, side: int, radius: float, deg: float, **info):
+    """Horizontal bend: side +1 turns left (seen from above), -1 right."""
+    t = r.end_tangent
+    left = unit(np.cross([0.0, 0.0, 1.0], t))
+    return r.arc(side * left, radius, deg, **info)
+
+
+def pitch(r: Route, up: int, radius: float, deg: float, **info):
+    """Vertical bend in the plane of the tangent and z: up +1 bends upwards, -1 downwards."""
+    t = r.end_tangent
+    z = np.array([0.0, 0.0, 1.0])
+    b = z - t * float(t @ z)
+    return r.arc(up * unit(b), radius, deg, **info)
+
+
+def s_bend_angle(offset: float, radius: float) -> float:
+    """Each arc's angle (deg) of an S-bend of two arcs (radius) that shifts the line sideways by ``offset``."""
+    if offset > 2 * radius:
+        raise ValueError("S-bend offset larger than 2 x the radius")
+    return math.degrees(math.acos(1.0 - offset / (2.0 * radius)))
+
+
+def arch_geometry(p, tower_xy, centre_xy, coil_rs: tuple, rest_r: float, rim_r: float, side: int = -1) -> dict:
+    """The overhead arch on a loading tower: span (tower axis -> guide), the guide at the rest coil radius, the
+    slew limits (deg, about +z, 0 = rest) for the guide over the coil radii ``coil_rs`` (min, max).
+
+    The cable lifts off the coil at radius rho turning clockwise (seen from above): its vertical rise (the guide)
+    lies at hypot(rho, R) from the carousel's centre."""
+    R = p.bend_r
+    T = np.asarray(tower_xy, float)
+    C = np.asarray(centre_xy, float)
+    D = float(np.linalg.norm(C - T))
+    r_lo, r_hi = coil_rs
+    r_hi = min(r_hi, math.sqrt(max((rim_r - GUIDE_RIM) ** 2 - R ** 2, 1.0)))
+    d_lo, d_hi = math.hypot(r_lo, R), math.hypot(r_hi, R)
+    span = max(2.0 * R, D - d_lo + 300.0)
+    base = math.atan2(C[1] - T[1], C[0] - T[0])
+
+    def ang(d):
+        c = (D * D + span * span - d * d) / (2.0 * D * span)
+        return math.acos(max(-1.0, min(1.0, c)))
+    a_rest = base + side * ang(math.hypot(rest_r, R))
+    guide = T + span * np.array([math.cos(a_rest), math.sin(a_rest)])
+    lims = sorted(math.degrees(base + side * ang(d) - a_rest) for d in (d_lo, d_hi))
+    return {"span": span, "guide": guide, "slew_rest_deg": math.degrees(a_rest), "slew_limits": lims,
+            "coil_radii": [r_lo, r_hi], "distance": D}
 
 
 def positions(p) -> dict:
-    """Machine positions for the parameter set (mm). From the stern forward; defaults are minimums."""
-    R = p.bend_r
-    rc_out = p.carousel_d / 2.0
-    rim_top = p.turntable_t + p.rim_h
-    pos: dict = {"bend_r": R, "line_z": p.line_z}
-    # chute: an arc of the bend radius from the cable line down to 500 mm above the water, at most 90°
+    """Machine positions for the parameter set (mm), from the stern forward. A bigger cable (bigger bends) moves
+    everything forward and the lanes outward instead of breaking the route."""
+    R, Rq, cr = p.bend_r, p.quadrant_r, p.cable_r
+    pos: dict = {"bend_r": R, "line_z": p.line_z, "low_z": p.low_z, "rail_z": p.rail_z}
+    yA, yB = -p.lane_y, p.lane_y
+    y_low = yA - p.lower_off
+    pos.update({"side_a_y": yA, "side_b_y": yB, "lower_y": y_low})
+    # horn A: an arc of the bend radius from the highway down to 500 mm above the water, at most 90°
     drop = p.line_z - 500.0
     chute_deg = 90.0 if drop >= R else math.degrees(math.acos(1.0 - drop / R))
     pos["chute_deg"] = chute_deg
-    x_ch = p.chute_drop_x + R * math.sin(math.radians(chute_deg))
-    pos["chute_x"] = x_ch                              # where the chute's arc starts (cable still level)
-    t2 = max(p.tensioner_x[1], x_ch + 2500.0 + TENSIONER_HALF)
-    t1 = max(p.tensioner_x[0], t2 + 2 * TENSIONER_HALF + 2500.0)
-    pos["tensioners"] = [t1, t2]
-    # loading tower: its bottom bend ends at least 3.5 m forward of tensioner 1 (handling winches go there)
-    x_t = max(p.tower_x, t1 + TENSIONER_HALF + 3500.0 + R)
-    pos["tower_x"] = x_t
-    pos["handling_winch_x"] = t1 + TENSIONER_HALF + 1750.0
-    # carousel: the guide wheel on the loading arm's trolley (radius R + its flange) stays clear of the arm's
-    # tower-top radius controller (x_t … x_t + R) even with the trolley out at the rim
-    r_max = rc_out - TROLLEY_OUT
-    r_min = p.core_r + TROLLEY_IN
-    xc = max(p.carousel_x, x_t + 3 * R + 750.0 + p.cable_r + math.hypot(r_max, R))
+    pos["horn_x"] = p.chute_drop_x + R * math.sin(math.radians(chute_deg))   # where the horn's bend starts
+    # quadrant handler: hinged at the transom, lying flat forward of it; its top pulley at the forward end
+    handler_len = Rq + 1500.0
+    pos["hinge_x"] = p.hinge_x
+    pos["handler_len"] = handler_len
+    pos["pulley_x"] = p.hinge_x + handler_len
+    # stern turn: 180° from the lower path (side A, outboard) across to side B, forward of the handler
+    r_turn = 0.5 * (yB - y_low)
+    pos["stern_turn_r"] = r_turn
+    pos["stern_turn_y"] = 0.5 * (yB + y_low)
+    x_st = pos["pulley_x"] + 1500.0 + r_turn
+    pos["stern_turn_x"] = x_st                       # the turn's centre; it starts and ends at this x
+    # side B: rise from the lower level to the highway, cable engine, tensioner 1
+    rise = p.line_z - p.low_z
+    pos["rise_deg"] = s_bend_angle(rise, R)
+    x = x_st + 400.0
+    pos["rise_x"] = x
+    x += 2.0 * R * math.sin(math.radians(pos["rise_deg"]))
+    pos["engine_x"] = x + 600.0 + ENGINE_HALF
+    t_x = pos["engine_x"] + ENGINE_HALF + 800.0 + TENSIONER_HALF
+    pos["tensioners"] = [t_x, t_x]                   # tensioner 1 on side B, tensioner 2 on side A, side by side
+    # the CPS slide runs outboard of tensioner 1 and joins side B forward of it with an S-curve
+    pos["cps_level_y"] = p.lane_y + CPS_OUT
+    pos["cps_s_deg"] = s_bend_angle(CPS_OUT, R)
+    pos["cps_join_x"] = t_x + TENSIONER_HALF + 300.0 + 2.0 * R * math.sin(math.radians(pos["cps_s_deg"]))
+    pos["s_bend_x"] = pos["cps_join_x"] + 1500.0
+    pos["s_bend_deg"] = s_bend_angle(p.lane_y - Rq, R)
+    x_q = pos["s_bend_x"] + 2.0 * R * math.sin(math.radians(pos["s_bend_deg"]))
+    pos["quadrant_x"] = x_q                          # the D's straight bar (its curve's centre line)
+    pos["quadrant_apex_x"] = x_q + Rq
+    pos["quadrant_travel"] = x_q - (p.hinge_x + 700.0)   # rails: from the stationary position onto the handler
+    # quadrant handling winch in front of the carousel, on the centre line
+    pos["qh_winch_x"] = x_q + Rq + cr + 250.0 + 1500.0 + WINCH_HALF
+    well_r = p.carousel_d / 2.0 + 900.0
+    pos["well_r"] = well_r
+    xc = max(p.carousel_x, pos["qh_winch_x"] + WINCH_HALF + 1500.0 + well_r)
     pos["carousel_x"] = xc
-    pos["trolley_coil_r"] = [r_min, r_max]
-    pos["guide_x"] = xc - math.hypot(p.coil_r, R)      # where the cable rises to the guide wheel (rest pose)
-    z0 = p.coil_top_z + p.cable_r
+    # loading tower beside the carousel (on the lower path's line), as close as the well allows
+    reach = well_r + 1800.0
+    x_t = xc - math.sqrt(max(reach ** 2 - y_low ** 2, 0.0))
+    x_t = min(x_t, xc - 1000.0)
+    pos["tower_x"] = x_t
+    pos["tower_y"] = y_low
+    rc_out = p.carousel_d / 2.0
+    coil_in = p.core_r + 60.0
+    coil_out = rc_out - 300.0
+    arch = arch_geometry(p, (x_t, y_low), (xc, 0.0), (p.core_r + GUIDE_IN, coil_out - cr), p.coil_r, rc_out)
+    pos["arch"] = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in arch.items()}
+    z0 = p.coil_top_z + cr
     pos["coil_z"] = z0
-    pos["arm_z"] = max(p.arm_h, z0 + 2 * R + 1500.0, rim_top + 2 * R + 700.0)
+    rim_top = p.turntable_t + p.rim_h
+    pos["arch_z"] = max(p.arch_h, z0 + 2 * R + 1000.0, rim_top + R + 1500.0)
+    pos["coil_in"], pos["coil_out"] = coil_in, coil_out
+    # the hull's length follows the carousel; the deckhouse and the bow forward of it
     pos["length"] = max(p.length, xc + rc_out + 900.0 + 41100.0)
-    pos["quadrant_y"] = p.quadrant_y
-    pos["quadrant_hinge"] = list(p.quadrant_hinge)
+    pos["beam"] = p.beam
+    # stern: tipping winches and their swivel sheaves (port +1, starboard -1)
+    pos["tipping_winch"] = [2500.0, p.lane_y + 4150.0]
+    pos["swivel_sheave"] = [400.0, p.lane_y + 1150.0, p.deck_z + 5500.0]
+    # where the quay's cable comes aboard (task 0084: loading from the quay, vessel moored starboard side to)
+    pos["board_x"] = pos["tipping_winch"][0] + 2450.0    # the quay cable crosses the deck edge here, heading +y
+    pos["cps_shelf_z"] = p.deck_z + 3600.0          # the CPS rack's top shelf (CPS centre line)
     return pos
 
 
-def main_route(p, pos: dict) -> Route:
-    """Carousel coil -> loading arm -> tower -> tensioners -> chute -> into the sea."""
+def lift_off(p, centre, rest_r: float, guide_xy, z0: float):
+    """The coil point where the cable lifts off (clockwise coil, seen from above) and its direction."""
     R = p.bend_r
-    xc, rc, z0 = pos["carousel_x"], p.coil_r, pos["coil_z"]
-    d = math.atan2(R, rc)
-    phi = math.pi + d
-    lift = np.array([xc + rc * math.cos(phi), rc * math.sin(phi), z0])
-    # the last quarter turn on the coil's top layer, clockwise seen from above (the carousel pays out turning
-    # clockwise), ending where the cable lifts off along t = (-sin d, cos d, 0)
-    coil_start = np.array([xc, 0.0, z0]) + rotate(lift - np.array([xc, 0.0, z0]), [0, 0, 1], math.pi / 2)
+    C = np.asarray(centre, float)[:2]
+    G = np.asarray(guide_xy, float)
+    a = math.atan2(G[1] - C[1], G[0] - C[0]) + math.atan2(R, rest_r)
+    u = np.array([math.cos(a), math.sin(a)])
+    L = C + rest_r * u
+    t = np.array([u[1], -u[0]])
+    return np.array([L[0], L[1], z0]), np.array([t[0], t[1], 0.0])
+
+
+def coil_to_tower(r: Route, p, centre, rest_r: float, guide_xy, z0: float, tower_xy, z_arch: float, z_foot: float,
+                  foot_dir, names: dict):
+    """Coil (last quarter turn) -> lift-off bend (the guide's roller cage) -> up the hanging guide -> over the arch
+    (two 90° bends and the straight between) -> down the tower's axis -> the foot bend to level ``foot_dir``."""
+    R = p.bend_r
+    C3 = np.array([centre[0], centre[1], z0])
+    L, t1 = lift_off(p, centre, rest_r, guide_xy, z0)
+    start = C3 + rotate(L - C3, [0, 0, 1], math.pi / 2)
+    r.add(Arc(C3, [0, 0, -1], start, math.pi / 2), support="coil", on=names.get("coil"))
+    r.arc([0, 0, 1], R, 90.0, support="rollers", rollers=names["cage"],
+          note="lifts off the coil through the guide's roller cage (bellmouth)")
+    G = np.asarray(guide_xy, float)
+    r.line_to([G[0], G[1], z_arch - R], support="rollers", rollers=names["guide"], note="up the hanging guide frame")
+    T = np.asarray(tower_xy, float)
+    w = np.r_[unit(T - G), 0.0]
+    r.arc(w, R, 90.0, support="rollers", rollers=names["arch"])
+    span = float(np.linalg.norm(T - G))
+    if span - 2 * R > 1.0:
+        r.line_to([G[0] + (span - R) * w[0], G[1] + (span - R) * w[1], z_arch], support="rollers",
+                  rollers=names["arch"], note="over the arch")
+    r.arc([0, 0, -1], R, 90.0, support="rollers", rollers=names["arch"])
+    r.line_to([T[0], T[1], z_foot + R], support="free", note="down the tower's slewing axis")
+    r.arc(np.r_[unit(np.asarray(foot_dir, float)[:2]), 0.0], R, 90.0, support="rollers", rollers=names["foot"])
+    return L
+
+
+def main_route(p, pos: dict) -> Route:
+    """The owner's oval: carousel coil -> arch -> tower -> lower path aft (side A, outboard) -> stern turn (180°) ->
+    side B forward (rise, cable engine, tensioner 1) -> round the quadrant (180°) -> side A aft (tensioner 2) ->
+    horn A -> into the sea."""
+    R, Rq = p.bend_r, p.quadrant_r
+    xc = pos["carousel_x"]
     r = Route("main", p.cable_d)
-    r.add(Arc(np.array([xc, 0.0, z0]), [0, 0, -1], coil_start, math.pi / 2), support="coil", on="CABLE COIL")
-    r.arc([0, 0, 1], R, 90.0, support="free", note="lifts off the coil up to the loading arm's guide wheel")
-    xg = pos["guide_x"]
-    za = pos["arm_z"]
-    r.line_to([xg, 0.0, za - R], support="free")
-    r.arc([-1, 0, 0], R, 90.0, support="wheel", wheel="guide")
-    x_t = pos["tower_x"]
-    r.line_to([x_t + R, 0.0, za], support="free", note="along the loading arm")
-    r.arc([0, 0, -1], R, 90.0, support="rollers", rollers="tower top")
-    r.line_to([x_t, 0.0, p.line_z + R], support="free", note="down the tower's slewing axis")
-    r.arc([-1, 0, 0], R, 90.0, support="rollers", rollers="tower bottom")
-    r.line_to([pos["chute_x"], 0.0, p.line_z], support="rollers",
-              note="cable rollers, tensioner 1, tensioner 2 (their tracks grip it), cable rollers")
-    r.arc([0, 0, -1], R, pos["chute_deg"], support="rollers", rollers="chute")
+    names = {"coil": "CABLE COIL", "cage": "guide cage", "guide": "guide frame", "arch": "arch",
+             "foot": "tower foot"}
+    coil_to_tower(r, p, (xc, 0.0), p.coil_r, pos["arch"]["guide"], pos["coil_z"], (pos["tower_x"], pos["tower_y"]),
+                  pos["arch_z"], p.low_z, [-1.0, 0.0], names)
+    r.line_to([pos["stern_turn_x"], pos["lower_y"], p.low_z], support="rollers", rollers="lower path",
+              note="the lower path aft, beside and below side A's highway")
+    turn(r, -1, pos["stern_turn_r"], 180.0, support="rollers", rollers="stern turn",
+         note="the stern turn: from the lower path across to side B, under the quadrant's rails")
+    r.line_to([pos["rise_x"], p.lane_y, p.low_z], support="rollers", rollers="side B")
+    pitch(r, +1, R, pos["rise_deg"], support="rollers", rollers="side B rise")
+    pitch(r, -1, R, pos["rise_deg"], support="rollers", rollers="side B rise")
+    r.line_to([pos["s_bend_x"], p.lane_y, p.line_z], support="rollers", rollers="side B",
+              note="side B forward: cable engine, tensioner 1 (its tracks grip the cable), V roller cradles")
+    turn(r, -1, R, pos["s_bend_deg"], support="rollers", rollers="side B bend")
+    turn(r, +1, R, pos["s_bend_deg"], support="rollers", rollers="side B bend")
+    turn(r, -1, Rq, 180.0, support="rollers", rollers="quadrant gutter",
+         note="round the D-quadrant at its stationary position")
+    turn(r, +1, R, pos["s_bend_deg"], support="rollers", rollers="side A bend")
+    turn(r, -1, R, pos["s_bend_deg"], support="rollers", rollers="side A bend")
+    r.line_to([pos["horn_x"], -p.lane_y, p.line_z], support="rollers", rollers="side A",
+              note="side A aft: tensioner 2 (its tracks grip the cable), V roller cradles")
+    pitch(r, -1, R, pos["chute_deg"], support="rollers", rollers="horn A")
     t = r.end_tangent
     k = (p.sea_end_z - r.end[2]) / t[2]
     r.line_to(r.end + k * t, support="free", note="into the sea (task 0081 makes the catenary)")
+    return r
+
+
+def cps_slide_route(p, pos: dict) -> Route:
+    """The CPS's way from the rack's top shelf down the orange twisted ramp (outboard of tensioner 1) and the curved
+    slide (an S-curve) onto side B's highway, joining the cable route tangentially just forward of tensioner 1."""
+    R = p.bend_r
+    J = np.array([pos["cps_join_x"], p.lane_y, p.line_z])
+    back = Route("cps back", 400.0)
+    back.add(Line(J + [1.0, 0, 0], J))
+    turn(back, -1, R, pos["cps_s_deg"])
+    turn(back, +1, R, pos["cps_s_deg"])
+    pitch(back, +1, R, 8.0)
+    t = back.end_tangent
+    k = (pos["cps_shelf_z"] - back.end[2]) / t[2]
+    back.line_to(back.end + k * t)
+    # reversed: rack -> ramp -> slide -> J
+    out = Route("cps_slide", 400.0)
+    segs = back.segments[1:][::-1]
+    for i, seg in enumerate(segs):
+        if seg.kind == "line":
+            s2 = Line(seg.end, seg.start)
+            info = {"support": "ramp", "note": "the orange twisted ramp from the rack's top shelf"}
+        else:
+            s2 = Arc(seg.centre, -seg.normal, seg.end, seg.angle)
+            info = {"support": "slide", "note": "the curved slide onto side B's highway"}
+        out.add(s2, **info)
+    return out
+
+
+def core_end_route(p, coil_in: float, z: float) -> Route:
+    """The cable's end at the carousel's core (carousel coordinates, centre on the z axis): the last part of the
+    first turn along the core, then a bend (the MBR) inward through the hole at the foot of the core to the clamp."""
+    cr = p.cable_r
+    rho = coil_in + cr
+    a = p.mbr
+    r = Route("core_end", p.cable_d)
+    start = np.array([rho, 0.0, z])
+    r.add(Arc(np.array([0.0, 0.0, z]), [0, 0, 1], start, math.radians(60.0)), support="coil",
+          note="the first turn, along the core")
+    # internally tangent circle of radius a: turn left (towards the centre) until inside the core by 600 mm
+    target = p.core_r - 600.0
+    off = rho - a
+    c = (target ** 2 - off ** 2 - a ** 2) / (2.0 * off * a)
+    phi = math.degrees(math.acos(max(-1.0, min(1.0, c))))
+    turn(r, +1, a, phi, support="hole", note="through the hole at the foot of the core")
+    r.line_to(r.end + 500.0 * r.end_tangent, support="clamp", note="the cable end, held by the clamp inside the core")
+    return r
+
+
+def quay_route(p, pos: dict, q: dict) -> Route:
+    """Loading from the quay (task 0084): the storage carousel's coil -> its arch -> down the quay tower -> rollers
+    across the quay -> over the vessel's starboard side at the stern -> a 90° bend onto side A's highway (heading
+    forward: the vessel's route backwards from there)."""
+    R = p.bend_r
+    r = Route("quay_loading", p.cable_d)
+    names = {"coil": "CABLE COIL", "cage": "guide cage", "guide": "guide frame", "arch": "arch",
+             "foot": "tower foot"}
+    coil_to_tower(r, p, q["carousel_xy"], q["rest_r"], q["arch"]["guide"], q["coil_z"], q["tower_xy"], q["arch_z"],
+                  p.line_z, [0.0, 1.0], names)
+    xb = q["tower_xy"][0]
+    r.line_to([xb, -p.lane_y - R, p.line_z], support="rollers", rollers="quay",
+              note="across the quay on cable rollers, a free span over the quay edge and the vessel's side")
+    turn(r, -1, R, 90.0, support="rollers", rollers="boarding bend", note="onto side A's highway, heading forward")
     return r
 
 
@@ -339,8 +538,9 @@ def tangent_circles(c1, r1: float, w1: int, c2, r2: float, w2: int):
     return tangent_to_point(c1, r1, w1, T2), T2
 
 
-def rope_route(name: str, d: float, y: float, items: list) -> Route:
-    """A rope in the vertical plane at ``y``: items are ("point", (x, z)) or ("sheave", (x, z), radius, wrap, info)
+def rope_route(name: str, d: float, y: float, items: list, origin=None, udir=None) -> Route:
+    """A rope in the vertical plane at ``y`` (x, z), or – with ``origin`` (x, y) and a horizontal ``udir`` – in the
+    vertical plane through origin along udir (u, z): items are ("point", (x, z)) or ("sheave", (x, z), radius, wrap, info)
     with radius = the rope centre's radius on that sheave or drum. The first and last item are points or the
     first item a drum (the rope leaves it)."""
     pts2 = []                                  # list of (kind, data) resolved to 2D tangent points
@@ -359,7 +559,12 @@ def rope_route(name: str, d: float, y: float, items: list) -> Route:
             entry[i + 1] = np.asarray(b[1], float)
         else:
             leave[i], entry[i + 1] = tangent_circles(a[1], a[2], a[3], b[1], b[2], b[3])
-    to3 = lambda q: np.array([q[0], y, q[1]])  # noqa: E731
+    if udir is None:
+        o3, u3 = np.array([0.0, y, 0.0]), np.array([1.0, 0.0, 0.0])
+    else:
+        o3, u3 = np.array([origin[0], origin[1], 0.0]), unit([udir[0], udir[1], 0.0])
+    to3 = lambda q: o3 + q[0] * u3 + np.array([0.0, 0.0, q[1]])  # noqa: E731
+    axis = np.cross(u3, [0.0, 0.0, 1.0])            # (u, z) anticlockwise turns about u x z
     r = Route(name, d)
     for i in range(n - 1):
         a = items[i]
@@ -371,8 +576,7 @@ def rope_route(name: str, d: float, y: float, items: list) -> Route:
                 ang += 2 * math.pi
             if a[3] < 0 and ang > 0:
                 ang -= 2 * math.pi
-            # (x, z) anticlockwise is a turn about -y in model coordinates
-            r.add(Arc(to3(c), [0, -a[3], 0], to3(entry[i]), abs(ang)), support="sheave", **a[4])
+            r.add(Arc(to3(c), a[3] * axis, to3(entry[i]), abs(ang)), support="sheave", **a[4])
         seg = Line(to3(leave[i]), to3(entry[i + 1]))
         if r.segments:
             r.add(seg, support="free")

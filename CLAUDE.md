@@ -298,10 +298,12 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
-                           make_demo_cable_lay.py + demo_cable_lay/ (task 0076: the invented cable-lay vessel spread,
-                           STEP files + demo_cable_route.json + demo_joints.json written at run time, too big to commit;
-                           params.py one parameter set, route.py the route maths, geom.py shapes + scene tree + writer,
-                           machines.py, layout.py, pictures.py renders it with the app)
+                           make_demo_cable_lay.py + demo_cable_lay/ (tasks 0076, 0084: the invented cable-lay vessel
+                           spread laid out as the owner works – side lanes, the cable's oval through both tensioners and
+                           round the D-quadrant, quadrant handler, arch, CPS store, quay file; STEP files +
+                           demo_cable_route.json + demo_joints.json written at run time, too big to commit; params.py one
+                           parameter set, route.py the route maths + positions, geom.py shapes + scene tree + writer,
+                           machines.py, deck.py (the deck machines), layout.py, pictures.py renders it with the app)
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
