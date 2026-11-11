@@ -453,6 +453,7 @@ def build_crane(b: Build):
     _joint_step(a, "Boom", 0.0, 3.0, math.radians(25))
     _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
     fade_and_trail(sc, _animation(b, FADE_ANIM, "Tour view"))
+    camera_rides(sc, _animation(b, CAMERA_ANIM, "Tour view"))
     from . import build, states
     root = build.model_roots(sc)[0]
     states.explode(sc, root, 0.6)
@@ -569,6 +570,84 @@ def _check_fade(scene):
     _check(off < 1e-5, f"the trail line ends {off * 1000:.3f} mm from the trolley")
     length = float(sum((Vector(pts[k + 1]) - Vector(pts[k])).length for k in range(len(pts) - 1)))
     return f"cover X-ray at frame {end}; trail {len(fr)} points, {length * 1000:.0f} mm long"
+
+
+CAMERA_ANIM = "Camera rides and flies"
+RIDE_END, PATH_END = 2.0, 4.0
+
+
+def camera_rides(scene, a) -> None:
+    """Camera that rides along and flies a path (task 0087): the boom turns up while the trolley runs out; for 2 s the
+    camera rides on the boom, then it flies a path round the crane and keeps the trolley in the middle. Also used by
+    the PC check line camera.path."""
+    from mathutils import Vector
+
+    from . import build
+    _joint_step(a, "Boom", 0.0, PATH_END, math.radians(30), label="The boom goes up")
+    _joint_step(a, "Trolley", 0.0, PATH_END, 0.35, slide=True)
+    boom, trolley = _ob(scene, "BOOM"), _ob(scene, "TROLLEY")
+    ride = a.blocks.add()
+    ride.kind, ride.camera_mode, ride.start, ride.duration, ride.cam_blend = "CAMERA", "RIDE", 0.0, RIDE_END, 0.0
+    ride.target_uid, ride.target_name = boom[build.PROP_UID], "BOOM"
+    ride.name = "The camera rides on the boom"
+    fly = a.blocks.add()
+    fly.kind, fly.camera_mode, fly.start, fly.duration = "CAMERA", "PATH", RIDE_END, PATH_END - RIDE_END
+    fly.easing, fly.cam_blend, fly.path_look = "LINEAR", 0.5, "PART"
+    fly.aim_uid, fly.aim_name = trolley[build.PROP_UID], "TROLLEY"
+    fly.name = "The camera flies round, watching the trolley"
+    s = scene.fresing
+    mn, mx = Vector(s.bounds_min), Vector(s.bounds_max)
+    c, size = (mn + mx) / 2, max((mx - mn).length, 0.5)
+    for d in ((0.9, -1.1, 0.7), (-0.2, -1.4, 0.9), (-1.2, -0.6, 1.1)):
+        fly.path_points.add().co = c + Vector(d) * size
+    from . import camera_path
+    camera_path.show_path(scene, fly)
+
+
+def _check_camera(scene):
+    """The camera's error numbers: the ride against the boom, the path's end and speed, the trolley in the middle."""
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+
+    from . import animation, camera_path
+    a = scene.fresing.animations.get(CAMERA_ANIM) or animation.active(scene)
+    boom = _ob(scene, "BOOM")
+    fps = animation.fps_of(a)
+    f_ride, f_end = animation.frame_of(a, RIDE_END), animation.frame_of(a, PATH_END)
+    scene.frame_set(1)
+    cam = scene.camera
+    _check(cam is not None and cam.get("fr_anim_camera"), "the animation has no Animation camera")
+    offset = boom.matrix_world.inverted() @ cam.matrix_world
+    ride_mm = ride_deg = 0.0
+    for f in range(1, f_ride + 1):
+        scene.frame_set(f)
+        want = boom.matrix_world @ offset
+        ride_mm = max(ride_mm, (cam.matrix_world.translation - want.translation).length * 1000)
+        ride_deg = max(ride_deg, camera_path.angle_between(cam.matrix_world, want))
+    _check(ride_mm < 0.01 and ride_deg < 0.01,
+           f"the riding camera is {ride_mm:.3f} mm / {ride_deg:.3f}° off the boom")
+    fly = next(b for b in a.blocks if b.kind == "CAMERA" and b.camera_mode == "PATH")
+    last = Vector(fly.path_points[len(fly.path_points) - 1].co)
+    start_blend = f_ride + int(round(fly.cam_blend * fps))
+    pos, middle = [], 0.0
+    trolley = _ob(scene, "TROLLEY")
+    for f in range(f_ride, f_end + 1):
+        scene.frame_set(f)
+        pos.append(cam.matrix_world.translation.copy())
+        if f >= start_blend:
+            uv = world_to_camera_view(scene, cam, camera_path._middle(trolley))
+            middle = max(middle, abs(uv.x - 0.5), abs(uv.y - 0.5))
+    end_mm = (pos[-1] - last).length * 1000
+    from ..core import camera_path as P                   # speed measured along the path (a bend is no slow-down)
+    path = P.Path([tuple(pos[0])] + [tuple(p.co) for p in fly.path_points])
+    along = [path.locate(tuple(p)) for p in pos]
+    steps = [along[i + 1] - along[i] for i in range(len(along) - 1)]
+    even = (max(steps) / max(min(steps), 1e-9) - 1.0) * 100
+    _check(end_mm < 0.01, f"the path ends {end_mm:.3f} mm from its last point")
+    _check(even < 2.0, f"the speed along the path changes by {even:.1f} %")
+    _check(middle < 0.01, f"the trolley is {middle * 100:.1f} % off the middle of the picture")
+    return (f"ride {ride_mm:.4f} mm / {ride_deg:.4f}° off the boom; path end {end_mm:.4f} mm, speed even within "
+            f"{even:.2f} %; trolley {middle * 100:.2f} % off the middle")
 
 
 def _looks() -> list:
@@ -1723,7 +1802,7 @@ stop("cutaway", LOOK, "cutaway", "Cutaway: the pedestal opens up",
      "A cut slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
      "view: the grey solid view shows the parts whole.", where="3 Looks > Cutaway; 6 Animation (Move joint step "
-     "with the joint 'Cut 1')", since="0.2.62", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
+     "with the joint 'Cut 1')", since="0.2.63", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
      auto="clip")
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
@@ -1750,6 +1829,12 @@ stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
      "rendered view: the solid view shows no see-through.", where="6 Animation (Fade out step), 6 Animation > Trail "
      "lines, 3 Looks > X-ray look", since="0.2.59", animation=FADE_ANIM, at=1.0, play=True, check=_check_fade,
      auto="clip")
+stop("camera", MOTION, HUB_SET, "Camera rides and flies",
+     "The boom turns up while the trolley runs out. For two seconds the camera rides on the boom: the boom stays put "
+     "in the picture while the base turns away below it. Then the camera flies round the crane on a smooth path, "
+     "keeping the trolley in the middle of the picture. The thin line in the view is the path (never in renders).",
+     where="6 Animation (Camera step: Ride along, Fly a path, Watch part)", since="0.2.62", animation=CAMERA_ANIM,
+     play=True, check=_check_camera, auto="clip")
 stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode)

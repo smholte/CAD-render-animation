@@ -562,6 +562,8 @@ if MODE == "panels":
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
         ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
         ("panel_6_fade", [("FRESING_PT_animation", False, True)]),      # a Fade out step to X-ray (task 0073)
+        ("panel_6_camera_ride", [("FRESING_PT_animation", False, True)]),   # a Ride along camera step (task 0087)
+        ("panel_6_camera_path", [("FRESING_PT_animation", False, True)]),   # a Fly a path camera step (task 0087)
         ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
         # the whole side panel with every section closed: the headers show the state of each
@@ -638,6 +640,23 @@ if MODE == "panels":
                 mod("blender.fade").apply_look(sc, [ob("COVER")])
                 sc.fresing.pick_mode = "PART"
                 select_only(ob("COVER"))
+            elif name in ("panel_6_camera_ride", "panel_6_camera_path"):     # task 0087
+                a = sc.fresing.animations[0]
+                b = a.blocks.add()
+                b.kind, b.start, b.duration = "CAMERA", 0.0, 2.0
+                if name == "panel_6_camera_ride":
+                    boom = ob("BOOM")
+                    b.camera_mode, b.ride_level = "RIDE", True
+                    b.target_uid, b.target_name = boom["fr_uid"], "BOOM"
+                else:
+                    cp = mod("blender.camera_path")
+                    b.camera_mode, b.path_look, b.duration, b.easing, b.ramp = "PATH", "PART", 5.0, "SMOOTH", 1.0
+                    for p in cp.from_cameras(sc):
+                        b.path_points.add().co = p
+                    cp.show_path(sc, b)
+                    trolley = ob("TROLLEY")
+                    b.aim_uid, b.aim_name = trolley["fr_uid"], "TROLLEY"
+                a.blocks_index = len(a.blocks) - 1
             elif name in ("panel_6_fade", "panel_6_trails"):
                 fade = mod("blender.fade")
                 fade.remove_look(sc, fade.xray_parts(sc))

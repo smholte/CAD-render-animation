@@ -103,7 +103,7 @@ the owner's way-cover STEP stays as committed.
   toolpath test mill: section 5…2 + section 1 with the mounting plate as carriage section, housing counts; X ±120 mm:
   170 … 410 mm per side, no Build warning; three renders sent to the owner (not committed).
 
-**Runs needed:** 1 full run on the branch (green, 43113891835); main moved by a task-list commit only, merged without a new run.
+**Runs needed:** 2 full runs, both green: the branch (43113891835) and `main` (43115479084, full again because main had moved by a task-list commit and the merge made a new tree; release 0.2.61 published and offered to the apps).
 
 **Open points / follow-up tasks:**
 - A cover drawn in another position than the machine's axis zero (the owner's STEP is drawn at mid-travel, 376.5 mm)

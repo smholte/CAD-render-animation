@@ -414,6 +414,8 @@ def remap_uids(scene, mapping: dict) -> None:
         for b in anim.blocks:
             if b.target_uid in mapping:
                 b.target_uid = mapping[b.target_uid]
+            if b.aim_uid in mapping:                  # a camera step's part to keep in the middle (task 0087)
+                b.aim_uid = mapping[b.aim_uid]
 
 
 def unique_pose_name(scene, base="Pose") -> str:
