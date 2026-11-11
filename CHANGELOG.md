@@ -5,6 +5,25 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.58 – 11 Nov 2026 – clash check and decal fixes (task 0072)
+
+Clash check
+- **Fixed:** building the animation again while the clash check runs no longer stores the old result as up to date:
+  the result is dropped and the status bar says to check again.
+- **Fixed:** scrubbing the time line while the clash check reads the animation: milling and coolant follow again.
+- **Fixed:** a 45° face mill cutting the block no longer counts as a clash (it is wider at the top of its inserts
+  than its diameter).
+- **Faster** on milled programs: the app's own Normal toolpath on the test part (7,326 moves) is checked in about
+  4 minutes instead of about 15.
+
+Logos and stickers
+- **Fixed:** the same STEP imported twice: a template's logo meant for the second machine lands on the second machine,
+  and "every copy" logos on both machines reach both.
+
+Test models
+- The test crane's pedestal and the test luffer's post now hold their arm in a fork, and the luffer's brackets have a
+  slot for each cylinder: no part starts inside another one.
+
 ## 0.2.57 – 11 Nov 2026 – machining fixes: two programs in one animation, coolant, rotary axes, smoother milling (task 0071)
 
 CNC machine and tool changes
