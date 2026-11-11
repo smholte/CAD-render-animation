@@ -49,7 +49,7 @@ LANE_OF_PANEL = {
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
     "Props for scale": "Scene & Render lane",
     "Update notice": "Quality lane",
-    "Milling": "Machining lane", "Chips": "Machining lane", "CNC machine": "Motion lane",
+    "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
     "Logos & stickers": "Looks lane",
 }
 
@@ -58,6 +58,7 @@ OWNER_TYPES = {
     "s": "FRSceneSettings", "g": "FRMaterialGroup", "r": "FRRule", "j": "FRJoint", "b": "FRAnimBlock",
     "a": "FRAnimation", "shot": "FRShot", "scene.camera.data": "Camera", "scene.camera.data.dof": "CameraDOFSettings",
     "m": "FRMilling", "bit": "FRMillBit",                     # 4 Motion > Milling (ui_machining.py)
+    "tp": "FRToolpath",                                       # 4 Motion > Milling > Make a toolpath
     "d": "FRDecalSettings", "it": "FRDecal",                  # 3 Looks > Logos & stickers (ui_decals.py)
     "cyl": "FRCylinder",                                      # 4 Motion > Cylinders
     "mech": "FRMechanism",                                    # 4 Motion > Mechanisms

@@ -191,7 +191,10 @@ fresing_render/            the Blender extension (Python package)
                            cycles, o-words, parameters, Fusion tool comments; rotary axes A/B/C in degrees with
                            G93 and LinuxCNC's mixed feed rule, task 0066; Schedule = program time -> video),
                            clash.py (clash check, task 0065: rigid bodies from the motion, boxes, screw motion between
-                           frames, tool zones, rows and texts)
+                           frames, tool zones, rows and texts),
+                           toolpath.py (the app makes the toolpath, task 0029: drop-cutter for flat/ball/bull in NumPy,
+                           zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
+                           greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes
     runner.py              ImportJob: starts the reader with Blender's own Python, follows its progress
@@ -257,6 +260,12 @@ fresing_render/            the Blender extension (Python package)
                            rows + markers + fingerprint of the built keys in scene.fresing.clash; red overlay (gpu draw
                            handler); HOOKS for later tasks (hoses); ops_clash.py, ui_clash.py (6 Animation > Clash
                            check)
+    toolpath.py            the app makes the toolpath (task 0029): inputs from the milling set-up (block, finished part)
+                           and the CNC machine (work zero), the program next to the project, its "Run G-code program"
+                           step (tagged ``fr_toolpath``, replaced when made again), the result line, the test model's
+                           set-up (``set_up_test_model``, test_toolpath.step from tools/make_test_toolpath.py);
+                           ops_toolpath.py (Make toolpath: progress + Cancel); panel 4 Motion > Milling > Make a toolpath
+                           in ui_machining.py
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -660,5 +669,12 @@ the release → Delete); the next run on `main` publishes it again.
   that Build shows again. Clear the keys, then hide, then build (found in the clash tests).
 - A copy of a part (`ob.copy()`) keeps `fr_cad_basis`/`fr_rest_basis`: a pose or a start scene puts it back on the
   original's place. Give it its own basis when a test moves it.
+- `FCurve.update()` merges keys less than 0.01 frame apart (the later value lands on the earlier time). A G-code
+  program squeezed into a short video has moves that short: a lift, a move over and the way down became one straight
+  cut through the part (found by task 0029). `animation._write` sorts and recalculates handles instead
+  (`keyframe_points.sort()`, `.handles_recalc()`); test `test_keys_close_together_are_kept`.
+- Geometry Nodes objects that are only drawn (the toolpath tubes, chips, coolant) are worked out again at every
+  `frame_set`: reading the milling path of a 7,000-move program took 67 s, 1.2 s with them hidden while it reads
+  (`machining.sample` does that).
 - The clash check found that the test tour's "Boom up" turned the boom down through the base (the joint axis from
   `axis_from_hit` pointed along +Y): fixed in 0065. Run it on a new tour set's animations.

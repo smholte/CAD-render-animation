@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.54 – 11 Nov 2026 – the app makes the toolpath (task 0029)
+
+4 Motion > Milling > Make a toolpath (new)
+- **No CAM program needed:** pick the block (workpiece) and the CAD part it becomes (finished part), a roughing and a
+  finishing tool from the tool list, press **Make toolpath**. The app writes a LinuxCNC program next to the project
+  and adds it as a "Run G-code program" step (Fit into 30 s): Build animation and the block turns into the part –
+  spindle, tool change, coolant, chips and the drawn toolpath as for any program.
+- **Roughing** level by level (step-down, plus a level at every flat face of the part), zigzag lines, once round the
+  walls, ramping into material (never straight down), lifting just over the material between areas; leaves the
+  stock you set (0.3 mm). **Finishing** in lines across the part, set apart by the scallop height (0.01 mm) for a
+  ball or bull-nose tool. Measured on the test model: at most 0.007 mm into the part (the limit is 0.01 mm).
+- Flat, ball and bull-nose end mills and face mills (roughing). Speeds and feeds from the stock material (aluminium,
+  steel, POM) and the tool, or typed in. Flood, mist or air. **Detail**: Draft, Normal, Fine.
+- Holes through the part are left full; **undercuts** (faces looking down under an overhang) are left and reported.
+- Making it again replaces its step's program, and asks first when you changed the file by hand.
+- Test model (block with pocket, rounded boss, dome, overhanging cap, hole), PC check line, test tour stop, user
+  guide section.
+
+Milling and animations
+- **Fixed:** a G-code program played fast (many moves within one hundredth of a frame) could lose a lift: the tool
+  then cut straight across the part. Keys that close together are now all kept.
+- Reading the milling path got much faster when the toolpath is drawn (a 7,000-move program: 67 s → 1.2 s).
+
 ## 0.2.53 – 10 Nov 2026 – clash check (task 0065)
 
 6 Animation > Clash check (new)

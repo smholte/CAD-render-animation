@@ -1245,6 +1245,40 @@ def build_rotary5(b: Build):
     a.start_shot = _shot(b, "Tour: 5th axis").name
 
 
+@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step")
+def build_toolpath(b: Build):
+    from mathutils import Vector
+
+    from . import machining, toolpath
+    sc = b.scene
+    _look("PRODUCT")
+    toolpath.set_up_test_model(sc, detail="DRAFT")
+    a = _animation(b, "Toolpath")
+    sc.fresing.animations_index = list(sc.fresing.animations).index(a)
+    out = toolpath.make(sc, b.file("Tour toolpath.ngc"))
+    _check(not out["problems"], "; ".join(out["problems"][:2]))
+    machining.settings(sc).chips = "NONE"
+    _close_camera(b, Vector((0.0, 0.0, 0.07)), 0.22, "Tour toolpath")
+    a.start_shot = _shot(b, "Tour: toolpath").name
+
+
+def _check_toolpath(scene):
+    from . import toolpath
+    _a, blk = toolpath.step(scene)
+    _check(blk is not None, "the toolpath's step is missing")
+    r = toolpath.result(scene)
+    _check(r.get("moves", 0) > 500, "the toolpath has hardly any moves")
+    _check([p["tool"] for p in r.get("passes", [])] == [1, 2], "roughing with T1 and finishing with T2 are not both "
+                                                              "there")
+    _check("Undercut" in r.get("undercut", ""), "the cap that hangs over is not reported as an undercut")
+    return f"{r['moves']:,} moves (T1 roughing, T2 finishing), {gcode_time(r)} on the machine; undercut reported"
+
+
+def gcode_time(r: dict) -> str:
+    from . import gcode
+    return gcode.fmt_time(r.get("machine_s", 0.0))
+
+
 def _rotary_at(scene, name: str, letter: str, when):
     """(the joint's angle in the program's degrees, the program's) at the move ``when`` picks, halfway through it."""
     from . import gcode, rotary
@@ -1555,6 +1589,12 @@ stop("rotary5", MACH, "rotary5", "5th axis: tilt and turn (TCP)",
      "second pocket, then a groove is cut while the table turns 90°. With Tool follows the part the tool tip stays "
      "on the block's path the whole time.", where="4 Motion > CNC machine > Rotary axes (Kinematics: Tool follows "
      "the part)", animation="5th axis", play=True, since="0.2.52", check=_check_rotary5, auto="clip")
+stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
+     "The app made the program itself: the flat end mill T1 roughs the block level by level (zigzag, then once round "
+     "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
+     "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
+     where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.54",
+     check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table and the block.",
      where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip")

@@ -198,7 +198,10 @@ def _write(cb, path: str, index: int, keys) -> None:
         if k[2] not in ("CONSTANT", "LINEAR", "BEZIER"):
             kp.easing = k[3]
         kp.handle_left_type = kp.handle_right_type = "AUTO_CLAMPED"
-    fc.update()
+    # not fc.update(): it merges keys less than 0.01 frame apart, and a G-code program played fast has moves that
+    # short - a lift, a move over and the way down became one straight cut through the part (task 0029)
+    pts.sort()
+    pts.handles_recalc()
 
 
 def _merge(keys: list, frame: int, value, interp: str, easing: str = "AUTO") -> None:

@@ -1863,6 +1863,99 @@ class FRClash(bpy.types.PropertyGroup):
     moments: IntProperty()               # frames and moments between frames looked at
 
 
+_TP_TOOL_ITEMS = []                      # kept: Blender needs the strings of dynamic items to stay alive
+
+
+def _toolpath_tool_items(self, context):
+    """The tool list's rows a toolpath can be made with (task 0029), as menu items; '0' = none."""
+    from ..core import toolpath as tp_core
+    out = [("0", "None", "No tool: this pass is left out", 0)]
+    scene = getattr(context, "scene", None) if context is not None else None
+    rows = list(scene.fresing.cnc.tools) if scene is not None and hasattr(scene, "fresing") else []
+    seen = set()
+    for r in rows:
+        if r.number <= 0 or r.number in seen or r.kind not in tp_core.KINDS:
+            continue
+        seen.add(r.number)
+        d = r.diameter * 1000
+        kind = {"FLAT": "flat", "BALL": "ball", "BULL": "bull-nose", "FACE": "face mill"}[r.kind]
+        text = f"T{r.number} {r.name or ''}".strip() if r.name else f"T{r.number} Ø{d:g} {kind}"
+        out.append((str(r.number), text, f"T{r.number}: {kind} Ø{d:g} mm", r.number))
+    _TP_TOOL_ITEMS[:] = out
+    return _TP_TOOL_ITEMS
+
+
+class FRToolpath(bpy.types.PropertyGroup):
+    """4 Motion > Milling > Make a toolpath (task 0029): the settings and the last result."""
+    rough_tool: EnumProperty(
+        name="Roughing tool", items=_toolpath_tool_items,
+        description="The tool that takes most of the block away, level by level (a flat or bull-nose end mill, or a "
+                    "face mill). Pick it from the tool list (4 Motion > CNC machine > Tools). None: no roughing")
+    finish_tool: EnumProperty(
+        name="Finishing tool", items=_toolpath_tool_items,
+        description="The tool that cuts the part to size in parallel lines over its whole top (a ball or bull-nose "
+                    "end mill gives smooth slopes and domes; a flat end mill flat faces). None: no finishing")
+    leave: FloatProperty(
+        name="Leave stock", unit="LENGTH", default=0.0003, min=0.0, soft_max=0.003, precision=2,
+        description="How much material roughing leaves on the part for the finishing tool to take off")
+    step_down: FloatProperty(
+        name="Step-down", unit="LENGTH", default=0.003, min=0.0001, soft_max=0.02, precision=1,
+        description="How deep the roughing tool cuts in one level. The flat faces of the part get a level of "
+                    "their own, so pocket floors and the tops of bosses are roughed evenly")
+    stepover: FloatProperty(
+        name="Stepover", subtype="PERCENTAGE", default=50.0, min=5.0, max=95.0,
+        description="Roughing: how far apart the lines are, as a share of the tool's diameter. A flat finishing "
+                    "tool uses it too")
+    scallop: FloatProperty(
+        name="Scallop height", unit="LENGTH", default=0.00001, min=0.000001, soft_max=0.0005, precision=3,
+        description="Finishing with a ball or bull-nose end mill: how high the ridges between two lines may be. "
+                    "The lines are set this close together. Smaller is smoother and takes longer")
+    angle: FloatProperty(
+        name="Pass direction", subtype="ANGLE", default=0.0, min=-math.pi, max=math.pi,
+        description="The direction of the lines, from the program's +X axis (0° = along X, 90° = along Y)")
+    detail: EnumProperty(
+        name="Detail", default="NORMAL",
+        description="How closely the finishing lines follow the part. Fewer moves cut faster in the view; the "
+                    "tool never goes into the part at any of them",
+        items=[("DRAFT", "Draft", "Quickest: finishing lines at least as far apart as a 0.04 mm scallop, points 0.5 mm "
+                                  "apart along them, kept within 0.05 mm"),
+               ("NORMAL", "Normal", "Points 0.25 mm apart along the finishing lines, kept within 0.03 mm"),
+               ("FINE", "Fine", "Points 0.12 mm apart along the finishing lines, kept within 0.01 mm: smoothest, most "
+                                "moves")])
+    material: EnumProperty(
+        name="Stock material", default="AUTO",
+        description="Sets the spindle speeds and feeds when they are left at 0",
+        items=[("AUTO", "From the stock", "Read from the stock's material in 3 Looks and its name"),
+               ("ALU", "Aluminium", "300 m/min, a chip of 0.6 % of the diameter per tooth"),
+               ("STEEL", "Steel", "120 m/min, a chip of 0.4 % of the diameter per tooth"),
+               ("POM", "POM / plastic", "250 m/min, a chip of 0.8 % of the diameter per tooth")])
+    rough_rpm: FloatProperty(
+        name="Roughing speed (rpm)", default=0.0, min=0.0, soft_max=40000.0, precision=0, step=10000,
+        description="Spindle speed of the roughing tool in turns per minute. 0: worked out from the stock material "
+                    "and the tool's diameter")
+    rough_feed: FloatProperty(
+        name="Roughing feed (mm/min)", default=0.0, min=0.0, soft_max=20000.0, precision=0, step=10000,
+        description="Feed of the roughing tool in mm per minute (ramps go at half of it). 0: worked out from the "
+                    "speed, the flutes and the stock material")
+    finish_rpm: FloatProperty(
+        name="Finishing speed (rpm)", default=0.0, min=0.0, soft_max=40000.0, precision=0, step=10000,
+        description="Spindle speed of the finishing tool in turns per minute. 0: worked out")
+    finish_feed: FloatProperty(
+        name="Finishing feed (mm/min)", default=0.0, min=0.0, soft_max=20000.0, precision=0, step=10000,
+        description="Feed of the finishing tool in mm per minute. 0: worked out")
+    coolant: EnumProperty(
+        name="Coolant", default="FLOOD",
+        description="What the program switches on while the tools cut. The coolant and air blast settings of 4 "
+                    "Motion > CNC machine show it",
+        items=[("NONE", "None", "No coolant code in the program"),
+               ("FLOOD", "Flood (M8)", "M8: coolant floods the tool"),
+               ("MIST", "Mist (M7)", "M7: a mist of coolant"),
+               ("AIR", "Air blast", "The air-on code set in 4 Motion > CNC machine > Air blast")])
+    # the last result (shown in the panel)
+    result: StringProperty()             # JSON: moves, lengths, times, undercut …
+    program_sig: StringProperty()        # fingerprint of the program as written: an edit by hand is noticed
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -2226,6 +2319,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     waycover: PointerProperty(type=FRWayCover)
     # ---- clash check (task 0065) ----
     clash: PointerProperty(type=FRClash)
+    # ---- the app makes the toolpath (task 0029) ----
+    toolpath: PointerProperty(type=FRToolpath)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2239,7 +2334,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath,
            FRSceneSettings)
 
 

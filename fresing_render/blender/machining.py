@@ -719,6 +719,13 @@ def sample(scene, progress=None) -> int:
     air_o, air_d = [], []                           # the air nozzle in the world at every frame (task 0039)
     _STATE["guard"] += 1
     t0 = time.perf_counter()
+    # objects only drawn (Geometry Nodes: the toolpath, chips, coolant) are worked out again at every frame read:
+    # the toolpath of a long program cost 6 ms a read (task 0029); hidden while the path is read
+    needed = {wp} | {ob for _it, ob in items}
+    shy = [o for o in scene.objects if not o.hide_viewport and o not in needed
+           and any(m.type == "NODES" for m in getattr(o, "modifiers", ()))]
+    for o in shy:
+        o.hide_viewport = True
     try:
         def read(t: float):
             f = math.floor(t + 1e-9)
@@ -765,6 +772,8 @@ def sample(scene, progress=None) -> int:
             if progress is not None and n % 50 == 0:
                 progress(n / total)
     finally:
+        for o in shy:
+            o.hide_viewport = False
         scene.frame_set(keep[0], subframe=keep[1])
         _STATE["guard"] -= 1
     count = 0

@@ -211,4 +211,108 @@ class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
             c.prop(m, "chip_mist", text="Coolant mist")
 
 
-CLASSES = (FRESING_UL_mill_bits, FRESING_PT_milling, FRESING_PT_milling_chips)
+class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
+    """Milling > Make a toolpath (task 0029): the app writes the program that cuts the block into the part."""
+    bl_label = "Make a toolpath"
+    bl_parent_id = "FRESING_PT_milling"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context) and core.available()
+
+    def draw_header(self, context):
+        self.layout.label(icon="IPO_EASE_IN_OUT")
+
+    def draw_header_preset(self, context):
+        from . import toolpath
+        scene = context.scene
+        rt = toolpath.runtime(scene)
+        if rt.get("running"):
+            header_status(self.layout, f"{rt.get('progress', 0.0) * 100:.0f}%")
+            return
+        r = toolpath.result(scene)
+        if r and toolpath.step(scene)[1] is not None:
+            header_status(self.layout, f"{r.get('moves', 0):,} moves")
+
+    def draw(self, context):
+        from ..core import toolpath as tp_core
+        from . import toolpath
+        layout = self.layout
+        scene = context.scene
+        tp = toolpath.settings(scene)
+        rt = toolpath.runtime(scene)
+        why = toolpath.problem(scene)
+        r_row, f_row = toolpath.picked(scene)
+        if why and not (r_row or f_row):
+            steps(layout, context, ["Above: the raw block as workpiece and the finished part (the CAD part it "
+                                    "becomes) as finished part",
+                                    "4 Motion > CNC machine: the axes, the tool in the spindle, the workpiece and "
+                                    "the work zero; and the tools in its tool list",
+                                    "Pick a roughing and a finishing tool below and press Make toolpath"])
+        m = machining.settings(scene)
+        col = layout.column(align=True)
+        col.label(text=f"Stock: {machining.name_of(m.workpiece) if m.workpiece else '–'}", icon="MESH_CUBE")
+        col.label(text=f"Finished part: {machining.name_of(m.finished) if m.finished else '–'}",
+                  icon="MOD_SOLIDIFY")
+
+        layout.separator()
+        layout.label(text="Tools", icon="MOD_SCREW")
+        col = split_props(layout)
+        col.prop(tp, "rough_tool", text="Roughing")
+        col.prop(tp, "finish_tool", text="Finishing")
+        wrap(layout, context, f"Allowed: {tp_core.KIND_TEXT}", icon="INFO", inset=0)
+
+        layout.separator()
+        col = split_props(layout)
+        if r_row is not None:
+            col.prop(tp, "leave", text="Leave stock")
+            col.prop(tp, "step_down", text="Step-down")
+            col.prop(tp, "stepover", text="Stepover")
+        if f_row is not None:
+            col.prop(tp, "scallop", text="Scallop height")
+        col.prop(tp, "angle", text="Pass direction")
+        col.prop(tp, "detail", text="Detail")
+        col.prop(tp, "coolant", text="Coolant")
+
+        body = fold(layout, "fr_toolpath_feeds", "Speeds and feeds")
+        if body:
+            c = split_props(body)
+            c.prop(tp, "material", text="Stock material")
+            mat, how = toolpath.material(scene)
+            wrap(body, context, f"Speeds for {tp_core.MATERIALS[mat][0].lower()} ({how}); 0 = worked out",
+                 icon="INFO", inset=0)
+            c = split_props(body)
+            if r_row is not None:
+                c.prop(tp, "rough_rpm", text="Roughing rpm")
+                c.prop(tp, "rough_feed", text="Roughing feed")
+            if f_row is not None:
+                c.prop(tp, "finish_rpm", text="Finishing rpm")
+                c.prop(tp, "finish_feed", text="Finishing feed")
+
+        layout.separator()
+        if rt.get("running"):
+            row = big_row(layout, MEDIUM)
+            row.label(text=f"{rt.get('text', 'Working')} … {rt.get('progress', 0.0) * 100:.0f}%", icon="SORTTIME")
+            row.operator("fresing.toolpath_cancel", text="Cancel", icon="CANCEL")
+            return
+        if why:
+            wrap(layout, context, why, icon="ERROR", alert=bool(r_row or f_row))
+        row = big_row(layout)
+        row.enabled = not why
+        row.operator("fresing.toolpath_make", text="Make toolpath", icon="PLAY", depress=not why)
+        lines = toolpath.result_lines(scene)
+        a, b = toolpath.step(scene)
+        if lines and b is not None:
+            box = layout.box()
+            for k, line in enumerate(lines):
+                wrap(box, context, line, icon="CHECKMARK" if k == 0 else "NONE", inset=12)
+            res = toolpath.result(scene)
+            if res.get("undercut"):
+                wrap(box, context, res["undercut"], icon="ERROR", inset=12)
+            wrap(box, context, f"Step '{b.name or 'Run G-code program'}' in the animation '{a.name}' (Fit into "
+                               f"{b.gcode_fit:g} s: change it in 6 Animation)", icon="SEQUENCE", inset=12)
+            box.operator("fresing.toolpath_go_step", text="Show its step", icon="SEQUENCE")
+
+
+CLASSES = (FRESING_UL_mill_bits, FRESING_PT_milling, FRESING_PT_milling_chips, FRESING_PT_milling_toolpath)

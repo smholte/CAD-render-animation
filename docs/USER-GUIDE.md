@@ -1009,6 +1009,69 @@ Not yet: coolant through the spindle (through the tool), mist or steam in the ai
 coolant that runs off the table.
 
 
+#### Make a toolpath
+
+<img class="panel" src="img/panel_4_toolpath.png" alt="Make a toolpath: stock and finished part, the roughing and finishing tool, leave stock, step-down, stepover, scallop height, pass direction, Detail, Coolant, Make toolpath and its result">
+
+No CAM program yet? The app writes one itself: a block turns into your part in a roughing and a finishing pass,
+never into the part. Good for a video of a part that has not been programmed in Fusion CAM.
+
+<img src="img/view_toolpath.png" alt="The toolpath test model after the program the app made: the block cut down to the part with its rounded boss, dome and pocket; the stock under the overhanging cap stays">
+
+1. **Milling** (above): the raw block as **workpiece** and the CAD part it becomes as **finished part** (both at
+   their place in the model: the part inside the block).
+2. **4 Motion > CNC machine**: the X, Y and Z joints, the tool in the spindle, the block as **Workpiece** and the
+   work zero (usually the top centre of the block). Add your tools to its **Tools** list (a face mill or end mill
+   for roughing, a ball or bull-nose end mill for finishing).
+3. Open **Milling > Make a toolpath**, pick the **Roughing** and the **Finishing** tool from the list. Allowed:
+   flat, ball and bull-nose end mills, and face mills (for roughing). Pick **None** to leave a pass out.
+4. Check the settings (below) and press **Make toolpath**. A progress line shows; **Cancel** (or Esc) stops it and
+   changes nothing.
+5. The program is written next to your project (`<project> toolpath.ngc`) and added as a **Run G-code program**
+   step to the animation shown in 6 Animation (a new animation "Toolpath" when there is none). It plays in 30 s
+   (**Fit into**; change it in the step). Press **Build animation**: spindle, tool change, coolant, chips and the
+   drawn toolpath work as for any program.
+
+The settings
+
+- **Leave stock** (0.3 mm): what roughing leaves on the part for the finishing tool.
+- **Step-down** (3 mm): how deep roughing cuts per level. Flat faces of the part (pocket floors, tops of bosses)
+  get a level of their own, so they are roughed evenly.
+- **Stepover** (50 %): how far apart the roughing lines are, as a share of the tool's diameter.
+- **Scallop height** (0.01 mm): the ridges a ball or bull-nose tool may leave between two finishing lines on a flat
+  face; the lines are set that close (a Ø10 ball: 0.63 mm apart).
+- **Pass direction**: the direction of the lines (0° = along X).
+- **Detail**: **Draft** is quickest (fewer lines and moves); **Normal**; **Fine** follows round shapes closest. The
+  tool never goes into the part at any of them.
+- **Coolant**: flood (M8), mist (M7), the air-blast code of the CNC machine, or none.
+- **Speeds and feeds** (fold): left at 0 they are worked out from the stock material (aluminium, steel or POM,
+  read from the stock's material in 3 Looks or picked) and the tool's diameter and flutes, at most 15,000 rpm.
+
+How it cuts
+
+- **Roughing** goes down level by level. Each level is cleared in lines across (zigzag), then the tool goes once
+  round the part's walls, so the walls carry an even layer for the finish. Between areas it lifts just over the
+  material, and it goes into material on a ramp (3°), never straight down.
+- **Finishing** runs lines across the whole part at the pass direction. The tool follows the part's top within the
+  detail's tolerance; on the test model it went at most 0.007 mm into it (the limit is 0.01 mm).
+- **Holes through the part** are not drilled: the tool goes over them, the stock in them stays.
+- **Undercuts** (faces that look down, under an overhang) cannot be reached from the top: the stock under them
+  stays, and the result says so ("Undercut: … mm²").
+- Only 3 axes, from the top (+Z of the work zero). The holder and spindle are not checked while the path is made:
+  run 6 Animation > **Clash check** on the built animation.
+
+Make toolpath again after changing a setting: the same step gets the new program. If you changed the program file
+by hand since, the app asks first.
+
+Measured on the 4-core web test machine, test model (block 120 × 80 × 40 mm with a pocket, rounded boss, dome and
+an overhanging cap; flat Ø10 roughing, ball Ø10 finishing; reading the path before the cut: 1–2 s):
+
+| Detail | Moves | Making it | Cut to the end in the view |
+| --- | --- | --- | --- |
+| Draft | 4,541 | 8 s | 39 s |
+| Normal | 7,326 | 14 s | 59 s (75 s with the finished part kept as the limit) |
+| Fine | 8,993 | 29 s | 106 s |
+
 ### CNC machine (G-code)
 
 <img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">

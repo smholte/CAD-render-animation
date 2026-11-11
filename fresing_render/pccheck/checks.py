@@ -27,6 +27,7 @@ CRANE_A = os.path.join(DATA, "test_crane_a.step")
 CRANE_B = os.path.join(DATA, "test_crane_b.step")
 FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
+TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
@@ -1672,6 +1673,54 @@ def milling_tools(ctx):
     _check(abs(d_drill - 8.0) < 0.05, f"the drill went {d_drill:.2f} mm deep, not 8 mm")
     return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT30 length offset 25.00 → "
             f"{lift:.2f} mm; {per:.0f} ms per frame")
+
+
+@line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.54",
+      what="The toolpath test model: a block and the finished part (pocket, rounded boss, dome, a cap that hangs "
+           "over, a hole). The app makes the roughing (flat Ø10) and finishing (ball Ø10) program at Draft, adds its "
+           "step, builds it and cuts to the end; the block is measured against the part from above")
+def milling_toolpath(ctx):
+    import numpy as np
+    from mathutils import Vector
+
+    from ..blender import animation, machining, toolpath
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(TOOLPATH, "normal")
+    toolpath.set_up_test_model(scene, detail="DRAFT")
+    _check(toolpath.problem(scene) == "", toolpath.problem(scene))
+    t0 = time.time()
+    out = toolpath.make(scene)
+    ctx.metric("make", time.time() - t0, "s")
+    ctx.metric("moves", out["moves"])
+    _check(not out["problems"], "; ".join(out["problems"][:2]))
+    _check("Undercut" in out["undercut"], "the cap that hangs over was not reported as an undercut")
+    a, _b = toolpath.step(scene)
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    t0 = time.time()
+    machining.sample(scene)
+    scene.frame_set(scene.frame_end)
+    _check(machining.refresh(scene, force=True), machining.status(scene) or "the block does not show its cut")
+    ctx.metric("cut to the end", time.time() - t0, "s")
+    wp = machining.settings(scene).workpiece
+    me = wp.data
+    from mathutils.bvhtree import BVHTree
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+
+    def top(x, y):                          # mm, in the block's own space (the model's: base top at 55)
+        hit = bvh.ray_cast(Vector((x * 0.001, y * 0.001, 0.2)), Vector((0, 0, -1)))
+        _check(hit[0] is not None, f"nothing under ({x}, {y}) mm")
+        return hit[0].z * 1000.0
+
+    got = {"base top": (top(0.0, -30.0), 55.0), "pocket floor": (top(30.0, -21.0), 47.0),
+           "boss top": (top(-40.0, -20.0), 65.0), "dome top": (top(-22.0, 18.0), 65.0)}
+    for name, (z, want) in got.items():
+        _check(z >= want - 0.01, f"the {name} was cut {want - z:.3f} mm too deep")
+        _check(z <= want + 0.15, f"the {name} kept {z - want:.3f} mm of stock")
+    worst = max(z - want for z, want in got.values())
+    del np
+    return (f"{out['moves']:,} moves made in {out['seconds']:.1f} s; base, pocket, boss and dome within "
+            f"{worst:.3f} mm of the part; undercut reported")
 
 
 # ---------------------------------------------------------------------------

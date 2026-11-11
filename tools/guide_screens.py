@@ -33,6 +33,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   doublearm / doublearm_view   the double-arm tool changer (task 0064) on the test mill with an arm (test_atc.step):
       the Tool changes panel (as "panels") and the arm at its half turn in the view (as "window").
 
+  toolpath / toolpath_view   Milling > Make a toolpath (task 0029) on test_toolpath.step after Make toolpath (as
+      "panels"), and the block cut to the end by that program (as "window").
+
   rotary / rotary_view   the rotary axes (task 0066): the Rotary axes panel on the trunnion (test_5axis.step, as
       "panels") and the 4th axis turning the bar with its wrapped slot cut (test_4axis.step, as "window").
 
@@ -1300,6 +1303,68 @@ elif MODE == "clash":
         save_png(im[int(h * 0.455):int(h * 0.535), int(w * 0.15):int(w * 0.80)], "view_clash")
         return 0.5
     step(_clash_view_shot)
+
+elif MODE in ("toolpath", "toolpath_view"):
+    # task 0029: 4 Motion > Milling > Make a toolpath on the toolpath test model, made (as "panels", xvfb 1500x7000);
+    # "toolpath_view" = the block cut to the end by the program the app made (xvfb 1920x1200)
+    step(_start)
+    step(lambda: _import(os.path.join(DATA, "test_toolpath.step")))
+    step(_wait_import)
+
+    def _tp_setup():
+        sc = bpy.context.scene
+        tp = mod("blender.toolpath")
+        tp.set_up_test_model(sc)
+        with override():
+            bpy.ops.fresing.anim_add()
+        tp.make(sc, os.path.join(SCRATCH, "toolpath.ngc"))
+        select_only()
+        return 1.0
+    step(_tp_setup)
+    if MODE == "toolpath":
+        def _show_tp():
+            show_only([("FRESING_PT_milling_toolpath", False, True)])
+            wiggle()
+            return 2.5
+        step(_show_tp)
+        step(lambda: (shoot_sidebar("panel_4_toolpath"), 0.5)[1])
+    else:
+        def _tp_frame():
+            sc = bpy.context.scene
+            animation, machining = mod("blender.animation"), mod("blender.machining")
+            a = animation.active(sc)
+            animation.bake(sc, a)
+            machining.sample(sc)
+            sc.frame_set(sc.frame_end)
+            machining.refresh(sc, frame=sc.frame_end, force=True)
+            p = mod("blender.gcode").path_object()
+            if p is not None:
+                p.hide_viewport = True
+            for o in sc.objects:
+                if o.get("fr_name") in ("SPINDLE", "END MILL D10", "CARRIAGE", "COLUMN") or o.get("fr_cnc") == "tool":
+                    o.hide_viewport = True
+            win, area, region, _sb = areas()
+            sp = area.spaces.active
+            sp.overlay.show_overlays = False
+            sp.shading.type = "SOLID"
+            r3d = sp.region_3d
+            r3d.view_perspective = "PERSP"
+            wp = machining.settings(sc).workpiece
+            r3d.view_location = wp.matrix_world @ Vector((0.0, 0.0, 0.055))
+            r3d.view_distance = 0.26
+            from mathutils import Euler
+            r3d.view_rotation = Euler([math.radians(x) for x in (55, 0, 30)]).to_quaternion()
+            wiggle(5)
+            return 2.0
+
+        def _tp_shot():
+            win, area, region, _sb = areas()
+            im = crop_region(grab_screen(), region, win.height)
+            h, w = im.shape[:2]
+            save_png(im[int(h * 0.15):int(h * 0.85), int(w * 0.2):int(w * 0.8)], "view_toolpath")
+            return 0.5
+        step(_tp_frame)
+        step(_tp_shot)
 
 elif MODE in ("render", "looks", "decals"):
     pass
