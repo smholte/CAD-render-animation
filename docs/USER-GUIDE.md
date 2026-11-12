@@ -2015,9 +2015,11 @@ What counts:
 - **Parts that turn in place** – rollers, sheaves, drums, a coil, a shaft or a pin in its bore – fill the same room
   at every angle. The check finds them by itself: a part that turns about an axis that stays put (against the world,
   or against the carriage it rides on) and is round about that axis is held where it is and only moves with what
-  carries it. That makes the check of a cable-lay deck with hundreds of rollers minutes instead of hours. A part that
-  turns but is not round – a flat or a key on it, a sprocket's teeth, a cam, a wheel turning off its round centre – is
-  checked at every moment, as before.
+  carries it. A part that turns but is not round – a flat or a key on it, a sprocket's teeth, a cam, a wheel turning
+  off its round centre – is checked at every moment, as before; only a part resting against it well away from what is
+  not round (the rope in the groove of a sheave with spokes) is checked once per turn. Big parts far apart are also
+  passed over quickly. Together that makes the check of a cable-lay deck with hundreds of rollers minutes instead of
+  hours.
 - **Warn about near misses** (off at first): also list parts that come closer than the distance under it
   (5 mm) without touching, when they were further apart at the first frame.
 

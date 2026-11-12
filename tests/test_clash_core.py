@@ -322,3 +322,15 @@ def test_line_box_distance():
     g = np.stack(np.meshgrid(*[np.linspace(lo[0, i], hi[0, i], 21) for i in range(3)]), axis=-1).reshape(-1, 3)
     r = np.linalg.norm(g - (g @ u)[:, None] * u, axis=1)
     assert d <= r.min() + 1e-9 and d >= r.min() - 0.01
+
+
+def test_connected_pieces():
+    t = np.array([(0, 1, 2), (2, 3, 0), (4, 5, 6), (7, 8, 9), (9, 10, 7), (10, 11, 8)])
+    lab = C.connected(13, t)
+    assert len({lab[0], lab[1], lab[2], lab[3]}) == 1 and lab[4] == lab[5] == lab[6]
+    assert len({lab[i] for i in (7, 8, 9, 10, 11)}) == 1 and lab[12] == 12
+    assert len({lab[0], lab[4], lab[7], lab[12]}) == 4
+    # a long strip (a path 2,000 faces long) ends as one piece
+    m = 2000
+    t = np.array([(i, i + 1, i + 2) for i in range(m)])
+    assert len(set(C.connected(m + 2, t))) == 1

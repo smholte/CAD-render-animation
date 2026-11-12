@@ -267,7 +267,7 @@ def corners(lo: np.ndarray, hi: np.ndarray) -> np.ndarray:
 
 def transform(m: np.ndarray, pts: np.ndarray) -> np.ndarray:
     """``m`` (..., 4, 4) applied to ``pts`` (..., K, 3)."""
-    return np.einsum("...ij,...kj->...ki", m[..., :3, :3], pts) + m[..., None, :3, 3]
+    return np.matmul(pts, np.swapaxes(m[..., :3, :3], -1, -2)) + m[..., None, :3, 3]
 
 
 def world_boxes(mats: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> tuple:
@@ -861,6 +861,27 @@ def split_long(verts: np.ndarray, tris: np.ndarray, longest: float = 25 * MM, ro
     tri = tri[area > 0.0]                                                # the strip's two end pieces are points
     v = tri.reshape(-1, 3)
     return v, np.arange(len(v)).reshape(-1, 3)
+
+
+def connected(n: int, tris: np.ndarray) -> np.ndarray:
+    """A number per corner (``n`` corners): corners joined by faces ``tris`` share it (the smallest corner index of
+    their piece)."""
+    lab = np.arange(n)
+    if not len(tris):
+        return lab
+    e0 = np.concatenate([tris[:, 0], tris[:, 1]])
+    e1 = np.concatenate([tris[:, 1], tris[:, 2]])
+    while True:
+        a, b = lab[e0], lab[e1]
+        m = np.minimum(a, b)
+        new = lab.copy()
+        np.minimum.at(new, a, m)
+        np.minimum.at(new, b, m)
+        for _k in range(8):                                   # follow the links to the root
+            new = new[new]
+        if np.array_equal(new, lab):
+            return lab
+        lab = new
 
 
 def signed_volume(verts: np.ndarray, tris: np.ndarray) -> float:

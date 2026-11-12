@@ -258,6 +258,7 @@ class Mesh:
         self._ptree = None
         self._leaves = None
         self._tbox = None
+        self._pieces = None
         if self.closed and not oriented:
             self._orient()
 
@@ -268,6 +269,13 @@ class Mesh:
             tri = self.v[self.t]
             self._tbox = (tri.min(axis=1), tri.max(axis=1))
         return self._tbox
+
+    @property
+    def pieces(self) -> np.ndarray:
+        """Which connected piece of the surface each corner belongs to (corners joined by faces share a number)."""
+        if self._pieces is None:
+            self._pieces = core.connected(len(self.v), self.t)
+        return self._pieces
 
     @property
     def boxes(self) -> tuple:
@@ -488,8 +496,10 @@ def narrow(a: Mesh, b: Mesh, rel: np.ndarray, zones_a=(), zones_b=(), near: floa
     grow = 2.0 * margin
     nb = _near_box(b, a, inv, grow)                          # round a's box, in b's space
     na = _near_box(a, b, rel, grow)                          # round b's box, in a's space
-    vb = core.transform(rel, b.v[_inside_box(b.v, *nb, 0.0)])   # b's corners near a, in a's space
-    va = core.transform(inv, a.v[_inside_box(a.v, *na, 0.0)])   # a's corners near b, in b's space
+    ib = np.flatnonzero(_inside_box(b.v, *nb, 0.0))
+    ia = np.flatnonzero(_inside_box(a.v, *na, 0.0))
+    vb = core.transform(rel, b.v[ib])                        # b's corners near a, in a's space
+    va = core.transform(inv, a.v[ia])                        # a's corners near b, in b's space
     if math.isfinite(enough):
         # a few corners first: two parts deep in each other show it at once
         for me, other, corners_o, to_me in ((b, a, vb, inv), (a, b, va, rel)):
@@ -524,6 +534,11 @@ def narrow(a: Mesh, b: Mesh, rel: np.ndarray, zones_a=(), zones_b=(), near: floa
             if pairs and len(pa):
                 ta = core.transform(inv, a.v[a.t[np.unique(pa[:, 0])]].reshape(-1, 3)).reshape(-1, 3, 3)
                 tb = vb_used[b.t[idx[np.unique(pa[:, 1])]]]                # b's triangles, a's space
+    if near <= 0.0 and not len(ta) and not zones_a and not zones_b:
+        # no faces cross (task 0092): every connected piece of either surface lies wholly inside the other part or
+        # wholly outside it, so one corner of each piece near the other part tells; all outside: not in each other
+        if not _piece_inside(b, a, ib, vb) and not _piece_inside(a, b, ia, va):
+            return 0.0, math.inf
     sides = ((b, a, vb, tb, inv, rel), (a, b, va, ta, rel, inv))
     found = {}
     for me, other, corners_o, _tris, to_me, _from in sides:
@@ -574,6 +589,20 @@ def narrow(a: Mesh, b: Mesh, rel: np.ndarray, zones_a=(), zones_b=(), near: floa
     if deep > 0.0:
         gap = 0.0
     return deep, gap
+
+
+def _piece_inside(me: Mesh, other: Mesh, idx: np.ndarray, pts: np.ndarray) -> bool:
+    """Whether any connected piece of ``me``'s surface with corners ``idx`` (``pts``: those corners in ``other``'s
+    space) lies inside ``other``: one corner of each piece inside ``other``'s box is tested."""
+    if not len(idx) or not other.closed:
+        return False
+    sel = _inside_box(pts, other.lo, other.hi, 0.0)
+    if not np.any(sel):
+        return False
+    lab = me.pieces[idx[sel]]
+    _u, first = np.unique(lab, return_index=True)
+    d, _g = other.depths(pts[sel][first])
+    return bool(np.any(d > 0.0))
 
 
 def _flat_contact(ta: np.ndarray, tb: np.ndarray, tol: float = ON_SURFACE) -> np.ndarray:
