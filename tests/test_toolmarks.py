@@ -477,6 +477,22 @@ print("HAS", float(B.render({out!r} + "/has.exr", 56, 56, 4).mean()))
 """
 
 
+CYCLES_ONLY = ("ShaderNodeBevel", "ShaderNodeScript", "ShaderNodeOutputAOV", "ShaderNodeTexIES",
+               "ShaderNodeWireframe", "ShaderNodeTexPointDensity")
+
+
+def _only_nodes_eevee_knows():
+    from fresing_render.blender import toolmarks as TB
+    nodes = TB.ensure_group().nodes
+    assert len(nodes) > 20
+    known = ("ShaderNode", "NodeGroupInput", "NodeGroupOutput", "NodeReroute", "NodeFrame")
+    bad = sorted({n.bl_idname for n in nodes if n.bl_idname in CYCLES_ONLY or not n.bl_idname.startswith(known)})
+    assert not bad, f"the tool marks group has nodes EEVEE cannot work out: {bad}"
+    attrs = [n for n in nodes if n.bl_idname == "ShaderNodeAttribute"]
+    assert len(attrs) == 4 and all(n.attribute_type == "GEOMETRY" for n in attrs)
+    assert not any(n.bl_idname == "ShaderNodeTexImage" for n in nodes)
+
+
 def test_node_group_in_eevee(tmp_path):
     """The same nodes in EEVEE (per-face attributes, the part's own space, the camera's distance). EEVEE needs a
     GL context: as the fade and section tests, the render runs in a process of its own (skipped without one)."""
@@ -487,7 +503,10 @@ def test_node_group_in_eevee(tmp_path):
     p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=600)
     got = dict(line.split() for line in p.stdout.splitlines() if line.split(" ")[0] in ("RIDGE", "NORMAL", "HAS"))
     if "RIDGE" not in got and (p.returncode < 0 or p.returncode == 134):
-        pytest.skip("EEVEE cannot start here (no GL context)")
+        # no GL context here (GitHub's test machines): EEVEE cannot draw, so at least check that the group holds
+        # nothing EEVEE cannot work out – no Cycles-only nodes, attributes read from the mesh
+        _only_nodes_eevee_knows()
+        return
     assert len(got) == 3, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
     assert float(got["RIDGE"]) < 0.03 and float(got["NORMAL"]) < 0.008 and abs(float(got["HAS"]) - 1.0) < 1e-3, got
 
