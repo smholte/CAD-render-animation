@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.74 – 12 Nov 2026 – brushed, ground and turned parts shine the right way (task 0098)
+
+The bright band on a brushed or ground plate now runs across the brush lines, and on a turned shaft along the shaft –
+as on real parts. Before, it ran the wrong way round. Older projects get the corrected look when you open them. The
+material sheet picture in the guide is new.
+
 ## 0.2.73 – 12 Nov 2026 – tool marks on cut faces (task 0061)
 
 Milling (4 Motion > Milling)
