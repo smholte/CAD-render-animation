@@ -294,7 +294,7 @@ def test_box_tree_holds_every_piece_and_bounds_the_distance():
     nlo, nhi, kids = C.box_tree(plo, phi)
     assert np.allclose(nlo[0], v.min(axis=0)) and np.allclose(nhi[0], v.max(axis=0))
     leaves = kids[:, 0] < 0
-    assert np.all(nhi[leaves] - nlo[leaves] < 0.2)                    # small boxes along the ring
+    assert np.all(nhi[leaves] - nlo[leaves] < 0.6)                    # small boxes along the ring (1 m faces cut)
     bv = np.array([(x, y, z) for x in (0, 0.2) for y in (0, 0.2) for z in (0.2, 0.4)], dtype=float)
     bt = np.array([(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6),
                    (0, 6, 4), (1, 5, 7), (1, 7, 3)])

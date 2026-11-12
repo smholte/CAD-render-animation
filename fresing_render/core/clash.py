@@ -119,9 +119,10 @@ def piece_boxes(verts: np.ndarray, tris: np.ndarray, pieces: int = PIECES) -> tu
     edge = np.max(np.linalg.norm(tri - np.roll(tri, 1, axis=1), axis=2), axis=1)
     ext = float(np.max(verts.max(axis=0) - verts.min(axis=0)))
     size = max(PIECE_MIN, ext / 400.0)
+    most = max(min(pieces, 8 * len(tri)), len(tri))                  # a small part: a small tree
     for _k in range(30):
         n = np.clip(np.ceil(edge / size), 1, 64).astype(np.int64)
-        if int(np.sum(n * n)) <= max(pieces, len(tri)):
+        if int(np.sum(n * n)) <= most:
             break
         size *= 1.5
     los, his = [tri.min(axis=1)[n == 1]], [tri.max(axis=1)[n == 1]]

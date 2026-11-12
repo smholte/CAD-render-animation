@@ -417,7 +417,7 @@ ON_SURFACE = 1e-5                        # m: a point closer than this to a surf
 SEP_NEED = 0.25                          # m: a distance bound this big is enough (task 0092; the pair is skipped
                                          # until the two have moved that much against each other)
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
-SEP_TRIS = 4000                          # two parts with more faces than this together: a gap is looked for first
+SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
 CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
 CARRIERS_NEAR = 12                       # … and the smallest ones
 POLISH = 2                               # the deepest few sampled points are moved to the deepest spot nearby
@@ -1016,10 +1016,17 @@ class Check:
         near to tell) and have hardly moved against each other since (two parts that touch have very many boxes close
         together: looking costs, and finds none)."""
         was = self.last.get((p, q))
-        if was is None or was[3] > 0.0:
+        if was is None:
+            return not self._was_in(p, q)
+        if was[3] > 0.0:
             return True
         moved = self._moved(np.array([p]), np.array([q]), was[2][None], rel[None])[0]
-        return float(moved) > SEP_NEED
+        return float(moved) > SEP_NEED + max(0.0, float(was[0]))       # in each other by d: apart only past d
+
+    def _was_in(self, p: int, q: int) -> bool:
+        """Whether parts p and q were in each other at the start (then a gap is not looked for before they moved)."""
+        hit = self.base.get((p, q))
+        return hit is not None and hit[0] > 0.0
 
     def _big(self, p: int, q: int) -> bool:
         """Whether testing parts p and q point by point costs enough to look for a gap first (``SEP_TRIS``)."""
