@@ -1,6 +1,6 @@
 # 0099 – Web 3D model: export the machine with baked textures, turn it on the website (study 0069 #15)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0099-web-3d-model`
+**Who:** worker · **Status:** running · **Branch:** `claude/elegant-fermat-u6q25p`
 **Started by:** lead chat, 12 Nov 2026 (owner's pick from study 0069: #15, **with baked textures** – owner, 12 Nov)
 **Lane:** Web 3D (new) – new files `blender/web3d.py`, `blender/ops_web3d.py`, `blender/ui_web3d.py` (a sub-panel of
 5 Scene & Render: "Web 3D model"), `core/web3d.py` (sizes, budgets, file lists – plain Python), `tests/test_web3d*.py`;
