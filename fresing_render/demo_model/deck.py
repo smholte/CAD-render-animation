@@ -90,6 +90,39 @@ def trestle(kit: Kit, h: float) -> Part:
     return kit.get(("trestle", round(h)), make)
 
 
+LIFT_TOP = 160.0                        # a cradle's highest point above the cable's centre (roller ends + radius)
+
+
+def lifting_cradle(p, kit: Kit, h: float, drop: float) -> Asm:
+    """A V roller cradle that can drop out of the D-quadrant's way (task 0091: the S-bend's cradles in the middle lane).
+    Local: as ``cradle`` (the cable's centre at the origin, travelling towards -x). The fixed part is a trestle of
+    height h whose legs are guide tubes; the cradle sits on a lift frame (top beam + two posts sliding in the tubes)
+    that a slide joint lowers by up to ``drop`` (the joint is made by the caller, on ``info["lift"]``)."""
+    def make():
+        z0 = -(CRADLE_BASE + 40.0) - h         # the deck, in the cradle's frame
+        tube_top = h - 200.0 - drop - 10.0       # the top beam stops 10 mm above the tubes
+        post = h - 240.0 - drop                  # dropped, the posts end 40 mm above the deck
+        if post - drop - 10.0 < 80.0:
+            raise ValueError(f"a lifting cradle {h:.0f} mm high cannot drop {drop:.0f} mm")
+        legs, posts = [], []
+        for y in (-480.0, 480.0):
+            legs.append(g.cut(g.box(-120, y - 120, z0, 240, 240, tube_top),
+                              g.box(-90, y - 90, z0 + 30.0, 180, 180, tube_top)))
+            legs.append(g.box(-250, y - 250, z0, 500, 500, 30))
+            posts.append(g.box(-80, y - 80, z0 + h - 200.0 - post, 160, 160, post + 1.0))
+        brace = g.box(-100, -375, z0 + 0.35 * h, 200, 750, 120)          # into the tubes' walls, not their bores
+        base = Part("ROLLER TRESTLE", g.fuse(*legs, brace), YELLOW)
+        frame = Part("CRADLE LIFT FRAME", g.fuse(g.box(-150, -600, z0 + h - 200.0, 300, 1200, 200), *posts), YELLOW)
+        lift = Asm("CRADLE LIFT")
+        lift.add(cradle(p, kit))
+        lift.add(frame)
+        a = Asm("LIFTING CRADLE")
+        a.add(base)
+        a.info.update({"lift": a.add(lift), "drop": drop, "h": h})
+        return a
+    return kit.get(("lifting_cradle", round(h), round(drop)), make)
+
+
 def walkway(x0: float, x1: float, y_in: float, y_out: float, z: float) -> Part:
     """A grating walkway from x0 to x1 between y_in and y_out (model), its top at z, on posts from the deck at
     deck_z = z - h (posts every 3 m), with a handrail on the outer side. Built in model coordinates (placed at I)."""
@@ -140,7 +173,7 @@ def sector(profile, a0: float, a1: float):
 
 
 def flat_bend(p, kit: Kit, R: float, z: float, z_deck: float, a0: float = 270.0, a1: float = 90.0,
-              name: str = "STERN RADIUS CONTROLLER", label: str = "Stern turn") -> Asm:
+              name: str = "STERN RADIUS CONTROLLER", label: str = "Stern turn", slots=()) -> Asm:
     """A horizontal radius controller: vertical rollers inside the bend, rollers under the cable. Local: the bend's
     centre at the origin (model z); the cable travels clockwise (seen from above) from angle a0 to a1 (a0 > a1).
     The stern turn: 270° -> 90° (from the lower path round the aft side to side B, under the quadrant's rails)."""
@@ -152,7 +185,10 @@ def flat_bend(p, kit: Kit, R: float, z: float, z_deck: float, a0: float = 270.0,
     top = z + cr + 25.0
     prof = [(web_in, z_deck), (R + 450.0, z_deck), (R + 450.0, z_deck + 30.0), (web_in + 40.0, z_deck + 30.0),
             (web_in + 40.0, top), (R - cr + 15.0, top), (R - cr + 15.0, top + 30.0), (web_in, top + 30.0)]
-    a.add(Part("RADIUS CONTROLLER", sector(prof, a1, a0), YELLOW))
+    rc = sector(prof, a1, a0)
+    if slots:                                   # holes in the web (a wire passing through: ``slots`` are local boxes)
+        rc = g.cut(rc, *[g.box(*s) for s in slots])
+    a.add(Part("RADIUS CONTROLLER", rc, YELLOW))
     # bottom rollers under the cable (axis radial), on blocks
     n = max(3, int(round((a0 - a1) / 14.0)))
     for k in range(n):
@@ -337,6 +373,8 @@ def cable_engine(p, kit: Kit) -> Asm:
 
 RAIL_Y = 2000.0                         # the quadrant's rails at y = +-RAIL_Y
 BOGIE_H = 350.0                         # rail top -> the D's underside
+WHEEL_R = 120.0                         # rail wheel tread radius (its flange 30 more)
+HINGE_SHEAVE_R = 448.0                  # the handling wire's sheave on the handler's hinge axis (rope centre)
 
 
 def quadrant_d(p, kit: Kit) -> Asm:
@@ -381,9 +419,11 @@ def quadrant_d(p, kit: Kit) -> Asm:
         A.add(Part("PAD EYE", lug, YELLOW))
         eyes[key] = c
     # rail bogies: two on each rail, each with two wheels (they turn with the travel)
-    wr = 160.0
-    wheel = kit.get(("rail_wheel",), lambda: Part("RAIL WHEEL", g.fuse(
-        g.cyl(wr, 90.0, (0, -45, 0), (0, 1, 0)), g.cyl(wr + 30, 20.0, (0, 45, 0), (0, 1, 0))), STEEL))
+    wr = WHEEL_R
+    # the tread covers the rail head (140 wide), the flange runs beside it, inboard; the bogie's top plate clears
+    # the flange (task 0091: the flange used to cut into the rail head, the tread into the top plate)
+    wheel = kit.get(("rail_wheel", wr), lambda: Part("RAIL WHEEL", g.fuse(
+        g.cyl(wr, 150.0, (0, -75, 0), (0, 1, 0)), g.cyl(wr + 30, 20.0, (0, 75, 0), (0, 1, 0))), STEEL))
     bogie = kit.get(("bogie",), lambda: Part("RAIL BOGIE", g.fuse(
         g.box(-650, -170, wr, 1300, 40, BOGIE_H - wr), g.box(-650, 130, wr, 1300, 40, BOGIE_H - wr),
         g.box(-650, -170, BOGIE_H - 60, 1300, 340, 61)), YELLOW))
@@ -394,7 +434,7 @@ def quadrant_d(p, kit: Kit) -> Asm:
             for dx in (-400.0, 400.0):
                 k += 1
                 ctr = np.array([xb + dx, sy * RAIL_Y, wr])
-                c = A.add(wheel, T(*ctr))
+                c = A.add(wheel, T(*ctr) if sy < 0 else T(*ctr) @ Rot((0, 0, 1), 180.0))     # flange inboard
                 A.joint(f"Rail wheel {k} turn", "rotate", [c], ctr, (0, 1, 0), None,
                         {"by": "follows", "follows": "../Quadrant travel", "ratio": round(360.0 / (2 * math.pi * wr), 9),
                          "note": "rolls on the rail (degrees per mm of travel; travel is aft, -x)"})
@@ -413,6 +453,8 @@ def rail_girder(x0: float, x1: float) -> Part:
 def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) -> Asm:
     """The quadrant handler: a frame lying flat in the middle lane, hinged at the transom, tilted 0 -> ~100° over
     the stern by two cylinders; rails on top (the quadrant rolls on), the handling wire's pulley at its top centre.
+    The handling wire reaches the frame over a sheave on the hinge axis (as on an A-frame): the run from the deck to
+    that sheave stays put while the handler tilts, the run along the frame tilts with it (task 0091).
 
     Local: the hinge axis along y through the origin (model z = z_hinge); the frame lies along +x."""
     A = Asm("QUADRANT HANDLER")
@@ -422,13 +464,18 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
     fr = []
     for sy in (-1, 1):
         fr.append(g.box(0, sy * RAIL_Y - 250, -350, length, 500, rail_top - 100 + 350))
-        fr.append(g.cyl(300.0, 600.0, (0, sy * RAIL_Y - 300, 0), (0, 1, 0)))
-    for x in np.linspace(600.0, length - 400.0, 4):
+        fr.append(g.cyl(300.0, 580.0, (0, sy * RAIL_Y - 290, 0), (0, 1, 0)))      # 10 mm from the brackets' cheeks
+    # cross beams: the first one far enough from the hinge to swing over the brackets and round the hinge sheave
+    for x in np.linspace(1100.0, length - 1000.0, 4):
         fr.append(g.box(x - 200, -RAIL_Y, -250, 400, 2 * RAIL_Y, 400))
     # the top pulley's head at the forward (top) end
     rp = max(8 * p.quadrant_rope_d, 300.0)
-    pc = np.array([length + 150.0, 0.0, rail_top + rp * 0.35])
-    fr.append(g.box(length - 400, -RAIL_Y, -250, 400, 2 * RAIL_Y, rail_top - 100 + 250))
+    # the wire along the frame: level from the hinge sheave's top (6 mm clear of its groove) over the top pulley's top;
+    # the pulley stays below the D's underside: the D travels over the handler's forward end onto it (task 0091)
+    run_z = HINGE_SHEAVE_R + 6.0
+    pc = np.array([length + 150.0, 0.0, run_z - rp])
+    fr.append(g.cut(g.box(length - 400, -RAIL_Y, -250, 400, 2 * RAIL_Y, rail_top - 100 + 250),
+                    g.box(length - 450, -60, -300, 500, 120, rail_top + 400)))          # a slot for the pulley
     for sy in (-1, 1):
         fr.append(g.box(length - 350, sy * 260 - 40, -250, 700 + rp * 0.6, 80, pc[2] + 250 + 150))
     frame.add(Part("HANDLER FRAME", g.fuse(*fr), YELLOW))
@@ -444,21 +491,33 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
             {"by": "operator", "note": "tilts the handler up and over the stern (positive); the quadrant rides on it"})
     A.joint("Top pulley turn", "rotate", [[cf, cp]], pc, (0, -1, 0), None,
             cable_drive(rp, note="turned by the quadrant handling wire (positive = paying out)"))
+    # the hinge sheave on the hinge pin (fixed), with cheek plates
+    hub = 200.0
+    A.add(Part("HINGE SHEAVE", g.sheave(HINGE_SHEAVE_R, p.quadrant_rope_d / 2, hub_r=hub, bore_r=125.0, holes=5),
+               YELLOW), Rot((1, 0, 0), 90))
+    cheek_r = HINGE_SHEAVE_R + 1.25 * p.quadrant_rope_d / 2 + 60.0
+    for sy in (-1, 1):
+        y0 = sy * (1.3 * p.quadrant_rope_d / 2 + 25.0)
+        A.add(Part("SHEAVE CHEEK", g.tube(cheek_r, 125.0, 20.0, (0, y0 if sy > 0 else y0 - 20.0, 0), (0, 1, 0)),
+                   YELLOW))
     # hinge brackets on the transom (fixed)
     for sy in (-1, 1):
         br = [g.box(-500, sy * RAIL_Y + o, zd, 800, 120, -zd + 450) for o in (-420.0, 300.0)]
         br += [g.box(-650, sy * RAIL_Y - 450, zd, 1000, 900, 40)]
         A.add(Part("HINGE BRACKET", g.fuse(*br), YELLOW))
     A.add(Part("HINGE PIN", g.cyl(120.0, 2 * RAIL_Y + 1000, (0, -RAIL_Y - 500, 0), (0, 1, 0)), STEEL))
-    # tilt cylinders: base pins on deck brackets forward of the frame's end, rod pins on the frame's sides
+    # tilt cylinders: base pins on deck brackets just forward of the transom, outboard of the hinge brackets; rod pins
+    # on the frame's sides. The base pin is nearer the hinge than the rod pin (806 < 1507 mm), so the cylinder's angle
+    # changes the same way over the whole tilt and never stands still (task 0091: with the base pins forward of the
+    # frame's end it stood still near 75°, where the clash check's step between frames lost the rod in its barrel)
     cyls = []
-    yc = RAIL_Y + 420.0
-    base = np.array([length + 450.0, 0.0, zd + 350.0])
+    yc = RAIL_Y + 700.0
+    base = np.array([-400.0, 0.0, -700.0])
     rodpin = np.array([1500.0, 0.0, -150.0])
     L0 = float(np.linalg.norm(base - rodpin))
     Lb = L0 - 450.0
     barrel = kit.get(("handler_barrel", round(Lb)), lambda: Part("BARREL", g.fuse(
-        g.tube(180.0, 106.0, Lb, (0, 0, 0)), g.cyl(180.0, 60.0, (0, 0, 0))), YELLOW))
+        g.tube(180.0, 115.0, Lb, (0, 0, 0)), g.cyl(180.0, 60.0, (0, 0, 0))), YELLOW))      # bore 15 mm round the rod
     rod = kit.get(("handler_rod", round(L0)), lambda: Part("PISTON ROD", g.cyl(100.0, L0 - 200.0, (0, 0, 0)), CHROME))
     for sy in (-1, 1):
         b = base + [0, sy * yc, 0]
@@ -476,7 +535,8 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
         y0, y1 = sorted((sy * (RAIL_Y + 200.0), sy * (yc + 150.0)))
         frame.add(Part("CYLINDER LUG", g.box(rodpin[0] - 200, y0, -350, 400, y1 - y0, 400), YELLOW))
     A.info.update({"pulley_centre": pc.tolist(), "pulley_r": rp, "frame_path": [cf], "pulley_path": [cf, cp],
-                   "cylinders": cyls, "rail_top": rail_top})
+                   "cylinders": cyls, "rail_top": rail_top, "frame": frame, "run_z": run_z,
+                   "hinge_sheave_r": HINGE_SHEAVE_R})
     return A
 
 

@@ -2147,7 +2147,7 @@ engine, a D-quadrant on rails, the quadrant handler at the stern, winches and a 
 
 **Make it (once per version)**
 1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/307", "Animation"). You can keep
+   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/311", "Animation"). You can keep
    working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
@@ -2158,22 +2158,27 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 307 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 311 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
   support rollers follow the carousel, the quadrant's rail wheels its travel; the tensioners' top tracks lift and
-  tilt (a stack); the quadrant handler's two **cylinders** follow its tilt.
+  tilt (a stack); the quadrant handler's two **cylinders** follow its tilt. The quadrant system is a stack too: the
+  D-quadrant's **travel** rides on the **Handler tilt** and its **tip** on the travel, so once the D is on the
+  handler it tilts with it. The four roller cradles of the S-bends that stand in the D's way **drop** out of it
+  (move "Cradle … drop": the others follow).
 - **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 75 s with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 78 s with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
-  turning with the cable, a tensioner opening and squeezing, then X-ray with labels, a winch drum close-up with a
-  blurred background, and a flight over the D-quadrant to the quadrant handler at the stern. The captions say where
-  it runs faster than real. Click **Build & play**, or put it in the render queue.
+  turning with the cable, a tensioner opening and squeezing, then X-ray with labels, a close-up of a winch's
+  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: the
+  cradles drop, the D-quadrant travels aft onto the handler (× 60 time-lapse), the handler tilts over the stern
+  carrying it and the quadrant tips. The captions say where it runs faster than real. Click **Build & play**, or put
+  it in the render queue.
 
 The moving cable, the tensioner tracks running, the cable spooling, the cable going into the sea and the quadrant
-operations come in later updates: they are added to this same demo. The labels of the X-ray step also show in
+operations with its wires (the cable stays where it is while the D moves) come in later updates: they are added to this same demo. The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 

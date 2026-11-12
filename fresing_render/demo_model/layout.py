@@ -216,7 +216,10 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     S.handles["cable_engine"] = [root.add(ce, T(pos["engine_x"], yB, p.line_z) @ Rot((0, 0, 1), 180.0), "CABLE ENGINE")]
     # ---- handling winches (starboard, outboard of the lower path; their ropes inboard)
     t = time.time()
-    hw = m.winch(p, kit, "HANDLING WINCH", p.handling_rope_d, 600.0, 1600.0, layers=4, wound=0.6, fairlead=True)
+    # Lebus grooving (35° crossovers, risers at the flanges, task 0091): the demo's drum close-up shows it; less wire
+    # on the drum so more of the grooves show
+    hw = m.winch(p, kit, "HANDLING WINCH", p.handling_rope_d, 600.0, 1600.0, layers=4, wound=0.45, fairlead=True,
+                 groove="lebus")
     S.files["handling_winch"] = hw
     for k, x in enumerate((pos["quadrant_x"] - 3000.0, pos["quadrant_x"] + 3500.0)):
         c = root.add(hw, T(x, y_low - 3450.0, p.deck_z) @ Rot((0, 0, 1), 90.0), f"HANDLING WINCH {k + 1}")
@@ -231,7 +234,10 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
         ch = m.chute(p, kit, R, pos["chute_deg"], p.deck_z - o[2], 0.0 - o[0])
         S.handles[f"horn_{key}"] = [root.add(ch, T(*o), f"HORN {key}")]
     # ---- stern turn under the quadrant's rails
-    st = dk.flat_bend(p, kit, pos["stern_turn_r"], p.low_z, p.deck_z)
+    # a slot in its web where the quadrant handling wire passes under the cable at the middle of the vessel (y = 0)
+    xs = -math.sqrt((pos["stern_turn_r"] - 350.0) ** 2 - pos["stern_turn_y"] ** 2)
+    st = dk.flat_bend(p, kit, pos["stern_turn_r"], p.low_z, p.deck_z,
+                      slots=[(xs - 300.0, -pos["stern_turn_y"] - 150.0, p.deck_z + 400.0, 600.0, 300.0, 400.0)])
     S.handles["stern_turn"] = [root.add(st, T(pos["stern_turn_x"], pos["stern_turn_y"], 0), "STERN RADIUS CONTROLLER")]
     # ---- quadrant system: D-quadrant, rails, handler, handling winch, tipping winches + swivel sheaves, wires
     t = time.time()
@@ -293,6 +299,7 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
     rr = 125.0
     S.stations = {"highway": [], "lower path": []}
     n_hw, n_lp = 0, 0
+    lead = None
     hw_keys = {"side A", "side B", "side B rise", "side B bend", "side A bend"}
     for s, i in _stations(main, hw_keys | {"lower path"}, p.roller_step):
         _i, q, t = _where(main, s)
@@ -320,11 +327,42 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
         up = np.array([0, 0, 1.0]) - t * t[2]
         up /= np.linalg.norm(up)
         M = g.Frame(q, -t, up)
-        root.add(cradle, M, f"CRADLE {n_hw}")
         base = _pt(M, [0, 0, -dk.CRADLE_BASE - 40.0])
         h = base[2] - p.deck_z
-        root.add(dk.trestle(kit, h), T(base[0], base[1], p.deck_z) @ Rot((0, 0, 1), _deg(t)), f"TRESTLE {n_hw}")
+        drop = lift_drop(p, M)
+        if drop:                                # in the D-quadrant's lane: a cradle that drops out of its way
+            st = dk.lifting_cradle(p, kit, h, drop)
+            c = root.add(st, M, f"CRADLE {n_hw}")
+            if lead is None:
+                lead = f"Cradle {n_hw} drop"
+                drive = {"by": "operator", "note": "lowers the S-bend's cradles in the middle lane (the others follow) "
+                                                   "so the D-quadrant can travel aft over them; 0 = holding the cable"}
+            else:
+                drive = {"by": "follows", "follows": lead, "ratio": 1.0, "note": "drops with the first one"}
+            root.joint(f"Cradle {n_hw} drop", "slide", [[c, st.info["lift"]]], q, (0.0, 0.0, -1.0), [0.0, drop], drive)
+            S.stations.setdefault("lifting", []).append(n_hw)
+        else:
+            root.add(cradle, M, f"CRADLE {n_hw}")
+            root.add(dk.trestle(kit, h), T(base[0], base[1], p.deck_z) @ Rot((0, 0, 1), _deg(t)), f"TRESTLE {n_hw}")
         S.stations["highway"].append(round(float(s), 1))
+
+
+def d_lane(p) -> dict:
+    """The room the D-quadrant sweeps on its way aft (model mm): everything of it lies within |y| <= half_width, and
+    away from its bogies (|y| > RAIL_Y + 300) nothing of it is lower than low_z."""
+    return {"half_width": p.quadrant_r + 300.0 + 60.0, "low_z": p.rail_z + dk.BOGIE_H}
+
+
+def lift_drop(p, M) -> float:
+    """How far a highway cradle placed at M must drop to let the D-quadrant pass over it (0: it is not in the way)."""
+    lane = d_lane(p)
+    corners = np.array([[x, y, z, 1.0] for x in (-310.0, 310.0) for y in (-640.0, 640.0)
+                        for z in (-dk.CRADLE_BASE - 40.0, dk.LIFT_TOP)]) @ M.T
+    if np.abs(corners[:, 1]).min() >= lane["half_width"]:
+        return 0.0
+    top = corners[:, 2].max()
+    clear = lane["low_z"] - 60.0
+    return float(math.ceil(max(0.0, top - clear) / 50.0) * 50.0)
 
 
 def quay_positions(p, pos: dict) -> dict:
@@ -362,14 +400,18 @@ def quadrant_system(p, S: Scene) -> Asm:
     # D-quadrant
     quad = dk.quadrant_d(p, kit)
     cq = qs.add(quad, T(xq, 0, p.rail_z), "QUADRANT")
+    # the travel rides on the handler's tilt (task 0091): with the handler down its rails continue the deck's, so the
+    # travel is the same; once the D is on the handler it tilts with it, and the tip (riding on the travel) too
     qs.joint("Quadrant travel", "slide", [cq], (xq, 0, p.rail_z), (-1, 0, 0), [0.0, round(pos["quadrant_travel"], 3)],
              {"by": "operator", "note": "travels aft on its rails (positive) from its stationary position (0, the "
-                                        "cable's forward turn) onto the quadrant handler at the stern"})
+                                        "cable's forward turn) onto the quadrant handler at the stern; tilt the "
+                                        "handler only with the D on it (the travel rides on the tilt)"},
+             rides_on="QUADRANT HANDLER: Handler tilt")
     hang = _pt(T(xq, 0, p.rail_z), quad.info["hang_off"])
     qs.joint("Quadrant tip", "rotate", [cq], hang, (0, -1, 0), [-180.0, 180.0],
              {"by": "operator", "note": "turns about the hang-off point (the handling wire) along the bar: positive "
-                                        "lifts the curve; on the handler it rides the handler's tilt (task 0082 "
-                                        "decides the order)"}, rides_on="Quadrant travel")
+                                        "lifts the curve; it rides on the travel, which rides on the handler's tilt"},
+             rides_on="Quadrant travel")
     # rails on girders and trestles along the middle lane (they bridge the stern turn)
     x0, x1 = pos["pulley_x"] + 50.0, pos["quadrant_apex_x"]
     route_pts, _ss = _samples(S.routes["main"])
@@ -392,23 +434,37 @@ def quadrant_system(p, S: Scene) -> Asm:
     S.sheaves.append({"name": "Handler top pulley (quadrant handling wire)", "path": [ch] + hd.info["pulley_path"],
                       "pitch_r": hd.info["pulley_r"], "groove_r": p.quadrant_rope_d / 2, "carries": "wire rope",
                       "local": True})
-    # quadrant handling winch in front of the carousel, on a pedestal; its wire over the D to the handler's pulley
+    # quadrant handling winch in front of the carousel, on a pedestal; its wire runs aft low under the D (through a
+    # slot in the stern turn's web) to the sheave on the handler's hinge axis, along the handler's frame to the top
+    # pulley and over it; its end hangs parked from the pulley (task 0091: the part along the frame tilts with it)
     qw = m.winch(p, kit, "QUADRANT HANDLING WINCH", p.quadrant_rope_d, 700.0, 1400.0, layers=5, wound=0.7,
                  fairlead=False)
     xw = pos["qh_winch_x"]
     qs.add(Part("WINCH PEDESTAL", g.box(xw - 1500, -1700, p.deck_z, 3000, 3400, 300), m.YELLOW))
     cqw = qs.add(qw, T(xw, 0, p.deck_z + 300.0) @ Rot((0, 0, 1), 180.0), "QUADRANT HANDLING WINCH")
     dz = qw.info["drum_centre"][2] + p.deck_z + 300.0
-    pc = _pt(T(pos["hinge_x"], 0, z_h), hd.info["pulley_centre"])
-    rp = hd.info["pulley_r"]
+    pcl = np.array(hd.info["pulley_centre"])
+    pc = _pt(T(pos["hinge_x"], 0, z_h), pcl)
+    rp, rs, run_z = hd.info["pulley_r"], hd.info["hinge_sheave_r"], hd.info["run_z"]
+    park = pcl + [rp, 0.0, -150.0]                        # the parked end, beyond the handler's end (its frame)
     ropes = {}
+    hx = pos["hinge_x"]
     hr = rt.rope_route("quadrant handling wire", p.quadrant_rope_d, 0.0, [
-        ("sheave", (xw, dz), qw.info["rope_centre_r"], +1, {"name": "drum"}),
-        ("sheave", (pc[0], pc[2]), rp, +1, {"name": "handler top pulley"}),
-        ("point", (pc[0] - rp, p.rail_z + 150.0))])
+        ("sheave", (xw, dz), qw.info["rope_centre_r"], -1, {"name": "drum"}),
+        ("sheave", (hx, z_h), rs, -1, {"name": "hinge sheave"}),
+        ("sheave", (pc[0], pc[2]), rp, -1, {"name": "handler top pulley"}),
+        ("point", (hx + park[0], z_h + park[2]))])
     ropes["quadrant handling wire"] = hr
-    qs.add(Part("WIRE ROPE", g.route_solid(hr, p.quadrant_rope_d / 2), m.ROPE_GREY))
-    qs.add(_shackle(p.quadrant_rope_d), T(pc[0] - rp, 0, p.rail_z + 150.0))
+    deck_run = rt.rope_route("quadrant handling wire (deck)", p.quadrant_rope_d, 0.0, [
+        ("sheave", (xw, dz), qw.info["rope_centre_r"], -1, {"name": "drum"}), ("point", (hx, z_h - rs))])
+    qs.add(Part("WIRE ROPE", g.route_solid(deck_run, p.quadrant_rope_d / 2), m.ROPE_GREY))
+    frame_run = rt.rope_route("quadrant handling wire (handler)", p.quadrant_rope_d, 0.0, [
+        ("point", (100.0, run_z)), ("sheave", (pcl[0], pcl[2]), rp, -1, {"name": "handler top pulley"}),
+        ("point", (park[0], park[2]))])
+    frame = hd.info["frame"]
+    frame.add(Part("WIRE ROPE", g.route_solid(frame_run, p.quadrant_rope_d / 2), m.ROPE_GREY))
+    frame.add(_shackle(p.quadrant_rope_d), T(*park))
+    S.info["handling_wire"] = {"deck_run": deck_run, "frame_run": frame_run}
     # tipping winches (port, starboard) and their swivel sheaves on the stern
     tw = m.winch(p, kit, "TIPPING WINCH", p.tipping_rope_d, 400.0, 800.0, layers=4, wound=0.5, fairlead=False)
     trp = max(8 * p.tipping_rope_d, 288.0)

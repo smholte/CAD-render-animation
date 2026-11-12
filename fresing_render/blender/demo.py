@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 10                            # time-lapse factor of the carousel shot
-MIN_JOINTS = 308                      # the joint sheet's 307 + Cable travel (the quay's come on top)
+MIN_JOINTS = 312                      # the joint sheet's 311 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -398,12 +398,13 @@ LOOKS = [
       "HYDRAULIC MOTOR", "PLANETARY GEARBOX", "DRIVE BRACKET", "WINCH PEDESTAL"), ()),
     ("Demo: orange", "paint_marine", "RAL 2004",
      ("RIM FENCE", "TURNTABLE", "BARREL", "TOP TRACK LIFT FRAME", "CPS RAMP", "CPS SLIDE", "INNER CORE",
-      "WINCH DRUM", "DRUM FLANGE"), ()),
+      "WINCH DRUM", "DRUM FLANGE", "LEBUS RISER"), ()),
     ("Demo: yellow structure", "paint_marine", "RAL 1003",
      ("ROLLER CRADLE", "ROLLER STAND", "ROLLER TRESTLE", "TOWER COLUMN", "ARCH", "ARCH FRAME", "GUIDE CAGE",
       "GUIDE FRAME", "SLEW HOUSING", "RADIUS CONTROLLER", "CHUTE", "CHUTE SUPPORT", "RAMP SUPPORT", "CPS RACK",
       "QUADRANT FRAME", "QUADRANT GUTTER", "HANDLER FRAME", "RAIL TRESTLE", "RAIL BOGIE", "SHEAVE POST",
-      "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME"), ()),
+      "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME",
+      "CRADLE LIFT FRAME", "HINGE SHEAVE", "SHEAVE CHEEK"), ()),
     ("Demo: deck grey", "paint_marine", "RAL 7037", ("MAIN DECK", "CAROUSEL WELL"), ()),
     ("Demo: walkways", "paint_marine", "RAL 6011", ("GRATING WALKWAY",), ()),
     ("Demo: rubber pads", "rubber_black", "", ("TRACK PAD", "CABLE ENGINE WHEEL"), ()),
@@ -527,14 +528,16 @@ def turning_in_place(scene) -> list:
     """The parts that only turn about their own round axis (rollers, sheaves, wheels, drums, the carousel with its coil)
     and the static cable: what the test's clash check leaves out (``tests/test_demo_project.py``). Such a part sweeps
     only its own room, so it cannot run into anything it does not touch at the start; checked frame by frame, the
-    300 rollers made the check take hours on this model (task 0077, open point for the clash lane)."""
+    300 rollers made the check take hours on this model (task 0077, open point for the clash lane). The D-quadrant's
+    rail wheels too (task 0091): in the time-lapse they turn ~170° a frame, and the check's step between two frames
+    (one screw motion) then carries a rolling wheel's centre off its straight path into the rail."""
     from . import build, joints
     out = []
     for j in scene.fresing.joints:
         if j.kind != "ROTATE":
             continue
         top = joints.driver_of(scene, j)
-        if top is None or not (top.name == CABLE or top.name.endswith("Drum turn")):
+        if top is None or not (top.name in (CABLE, TRAVEL) or top.name.endswith("Drum turn")):
             continue
         for m in joints.members(j):
             out.append(m)
@@ -719,8 +722,8 @@ def shot_fly(d: Demo):
 def shot_deck(d: Demo):
     cam = d.scene.objects.get("Deck from above")
     d.camera_step("MOVE", d.t, 2.0, "The deck: carousel, highways, tensioners, quadrant", camera=cam)
-    d.camera_step("ORBIT", d.t + 2.0, 6.0, "", orbit_angle=math.radians(30.0), easing="LINEAR")
-    d.t += 8.0
+    d.camera_step("ORBIT", d.t + 2.0, 4.0, "", orbit_angle=math.radians(20.0), easing="LINEAR")
+    d.t += 6.0
 
 
 @stage("shot_carousel", "Shot 3: carousel and arch")
@@ -738,7 +741,7 @@ def shot_carousel(d: Demo):
 
 @stage("shot_rollers", "Shot 4: roller highways")
 def shot_rollers(d: Demo):
-    secs = 8.0
+    secs = 7.0
     start = getattr(d, "cable_end", 0.0)
     metres = start + SPEED / 60.0 * secs * 3              # x 3
     cam = d.scene.objects.get("Roller highway")
@@ -811,27 +814,55 @@ def shot_drum(d: Demo):
     d.scene.camera = keep
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
     d.joint("HANDLING WINCH 1: Drum turn", d.t, 7.0, 360.0, easing="SMOOTH",
-            label="Handling winch: wire on the spiral-groove drum")
+            label="Handling winch: Lebus drum, 35° crossovers and risers at the flanges")
     d.t += 7.0
 
 
-@stage("shot_quadrant", "Shot 7: the quadrant system at the stern")
+QUADRANT_SPEED = 6.0                  # m/min: the D-quadrant's travel aft (an invented, plausible speed)
+QUADRANT_LAPSE = 60                   # its time-lapse factor in shot 7
+TRAVEL = "QUADRANT SYSTEM: Quadrant travel"
+TILT = "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
+TIP = "QUADRANT SYSTEM: Quadrant tip"
+TILT_TO, TIP_TO = 100.0, 40.0         # degrees at the end of shot 7 (the tilt: its whole range)
+
+
+def cradle_drop(d: Demo) -> tuple[str, float]:
+    """The S-bend's cradles in the D's lane (task 0091): the joint the others follow and how far it drops (m)."""
+    for j in d.sheet("joints")["joints"]:
+        if j["name"].endswith(" drop") and j["drive"].get("by") == "operator":
+            return j["name"], j["limits"][1] / 1000.0
+    raise RuntimeError("the demo model has no cradle that drops")
+
+
+@stage("shot_quadrant", "Shot 7: the D-quadrant travels aft, the handler tilts, the quadrant tips")
 def shot_quadrant(d: Demo):
-    """A flight from the D-quadrant on its rails to the handler at the stern. Nothing moves yet: the clash check found
-    the model's quadrant system not ready to (task 0077): the S-bend's roller cradles stand in the D's way aft, the
-    handler's frame cuts its hinge brackets past about 30° and the parked handling wire stays behind. Task 0082
-    (quadrant operations) moves them, here or in a stage of its own."""
+    """The quadrant system's whole move (task 0091): the S-bend's cradles in the middle lane drop, the D travels aft on
+    its rails onto the handler (time-lapse), the handler tilts over the stern carrying it, and the quadrant tips about
+    its hang-off. The travel rides on the tilt and the tip on the travel (the sheet's stack). 0 clash rows over the
+    shot (``tests/test_demo_project.py``)."""
     from . import build
+    t = d.t
     cam = d.scene.objects.get("Quadrant")
-    handler = d.part("HANDLER FRAME", root=d.root())
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    fly = d.camera_step("PATH", d.t, 9.0, "The D-quadrant on its rails, the quadrant handler at the stern",
-                        easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(handler),
-                        aim_name=handler.get(build.PROP_NAME, "HANDLER FRAME"))
-    for p in ((18000.0, 17000.0, 11000.0), (2000.0, 16000.0, 9000.0), (-14000.0, 9000.0, 8000.0)):
+    quad = d.part("QUADRANT FRAME", root=d.root())
+    lead, drop = cradle_drop(d)
+    travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
+    secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
+    d.camera_step("CUT", t, 0.0, "", camera=cam)
+    d.joint(lead, t, 1.5, drop, slide=True, label="The S-bend's cradles drop out of the D-quadrant's way")
+    t += 1.5
+    d.joint(TRAVEL, t, secs, travel, slide=True, easing="SMOOTH",
+            label=f"The D-quadrant travels aft onto the handler (x {QUADRANT_LAPSE})")
+    fly = d.camera_step("PATH", t, secs, "", easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(quad),
+                        aim_name=quad.get(build.PROP_NAME, "QUADRANT FRAME"))
+    for p in ((22000.0, 15500.0, 9500.0), (-3000.0, 15000.0, 9000.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
-    d.t += 9.0
+    t += secs
+    d.camera_step("MOVE", t, 1.5, "", camera=d.scene.objects.get("Stern"))
+    d.joint(TILT, t, 4.0, TILT_TO, label="The handler tilts over the stern, carrying the quadrant")
+    t += 4.0
+    d.joint(TIP, t, 2.5, TIP_TO, label="… and the quadrant tips about its hang-off")
+    d.t = t + 4.0
 
 
 @stage("finish", "Animation")

@@ -692,9 +692,16 @@ def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layer
     a = Asm(name)
     drum = Asm("WINCH DRUM UNIT")
     key = ("barrel", rope_d, rc, length, groove)
+    cz = {"crossover_deg": p.lebus_crossover_deg} if groove == "lebus" else {}
     barrel = kit.get(key, lambda: Part("WINCH DRUM", g.xform(
-        g.grooved_barrel(rc, rr, -length / 2, length / 2, pitch, groove)[0], Rot((1, 0, 0), -90)), YELLOW))
+        g.grooved_barrel(rc, rr, -length / 2, length / 2, pitch, groove, **cz)[0], Rot((1, 0, 0), -90)), YELLOW))
     drum.add(barrel)
+    if groove == "lebus":                       # riser / filler wedges at both flanges (as ``lebus_drum``)
+        ro = rc - rr + 0.7 * rr
+        for side, z_fl in ((-1, -length / 2), (1, length / 2)):
+            w = kit.get(("riser", rope_d, rc, length, side), lambda: Part("LEBUS RISER", g.xform(
+                g.riser_wedge(ro, rope_d * 0.85, 0.5 * pitch, 120.0, z_fl, side), Rot((1, 0, 0), -90)), YELLOW))
+            drum.add(w)
     flange = kit.get(("flange", flange_r), lambda: Part("DRUM FLANGE", g.cyl(flange_r, 60.0, (0, -30, 0), (0, 1, 0)),
                                                          YELLOW))
     drum.add(flange, T(0, -length / 2 - 30, 0))
