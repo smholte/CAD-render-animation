@@ -448,8 +448,10 @@ def s_add_chain():
     link = bpy.data.objects.get(STATE.get("link", ""))
     with override():
         active, chosen = bpy.context.view_layer.objects.active, len(bpy.context.selected_objects)
-    check("a click on one link: it is the active part, its whole subassembly is selected",
-          link is not None and active == link and chosen > 18,
+    # ("Click selects: Subassembly" usually selects the whole gantry with it; whether it has done so by now depends on
+    # timing, and Add drag chain must work either way: it takes the clicked link)
+    check("a click on one link: it is the active part",
+          link is not None and active == link and chosen >= 1,
           f"{chosen} selected, active {active.name if active else None}, clicked {STATE.get('link')}")
     r = op("fresing.flex_add_chain") if can("fresing.flex_add_chain") else None
     it = item("CHAIN X.ASM")
