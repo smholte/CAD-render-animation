@@ -425,6 +425,104 @@ def test_a_hose_with_two_shapes_changes_over_once():
         assert np.abs(alone - h.points[i]).max() <= 1e-9
 
 
+def _swing(frames=81, to=28.0):
+    """The motion of the test above, the fitting swinging from −35° to ``to``: (p0, t0, p1, t1 per frame,
+    length, stiff). Up to about 31° the hose can stay in the shape it starts in; at 35° that shape is gone."""
+    u = np.linspace(0.0, 1.0, frames)
+    a = np.radians(-35.0 + (to + 35.0) * u)
+    return (0, 0, 0), (0.6, 0.05, 0.8), (1.0, 0.0, 0.0), np.stack([np.cos(a), np.sin(a), 0.0 * u], axis=1), 1.4, 0.4
+
+
+def test_a_motion_solved_as_a_whole_keeps_its_shape():
+    """``solve_motion``: the same swing, all frames in one call: the hose is followed from frame to frame and
+    does not jump; ends, segments and end directions are as exact as ever."""
+    args = _swing()
+    plain = F.solve_hoses(*args)
+    whole = F.solve_motion(*args)
+    t1 = args[3]
+    drive = 1.4 * angle(t1[1:], t1[:-1])                  # what the fitting's turn moves, as a length
+    was = np.linalg.norm(np.diff(plain.points, axis=0), axis=2).max(axis=1) / drive
+    now = np.linalg.norm(np.diff(whole.points, axis=0), axis=2).max(axis=1) / drive
+    print("\nswing: largest move per frame %.1f × the fitting's own with solve_hoses, %.1f × with solve_motion"
+          % (was.max(), now.max()))
+    assert was.max() > 20.0 and now.max() <= 3.0
+    assert (whole.start == plain.start[0]).all()
+    # what it cannot do: swung on to 35° the shape it kept is lost near the end, and the hose jumps there, once
+    far = _swing(81, to=35.0)
+    lost = np.linalg.norm(np.diff(F.solve_motion(*far).points, axis=0), axis=2).max(axis=1)
+    assert (lost > 0.05).sum() == 1 and lost.argmax() > 70
+    assert F.largest_move(whole.points) == pytest.approx(np.linalg.norm(np.diff(whole.points, axis=0), axis=2).max())
+    assert np.array_equal(whole.points[0], plain.points[0])                # it starts as the first frame is solved
+    d, ln = segments(whole.points)
+    assert np.abs(ln / (1.4 / (N - 1)) - 1.0).max() <= 1e-9
+    assert angle(d[:, 0], unit(np.array(args[1]))).max() <= 1e-7 and angle(d[:, -1], t1).max() <= 1e-7
+    assert np.abs(whole.points[:, 0]).max() == 0.0 and np.abs(whole.points[:, -1] - (1.0, 0.0, 0.0)).max() == 0.0
+    assert not whole.short.any() and np.allclose(whole.min_radius, F.bend_radius(whole.points), rtol=1e-6)
+    # a pure function of the whole motion
+    F.solve_hoses(*generic(10, seed=3))
+    assert np.array_equal(F.solve_motion(*args).points, whole.points)
+    # every frame is a shape the hose can be in: the solver, started from it, stays (same energy as its own
+    # answer or the other of the two shapes)
+    e_whole = energy(whole.points, 1.4, 0.4, 1.0)
+    e_plain = energy(plain.points, 1.4, 0.4, 1.0)
+    assert (e_whole >= e_plain - 1e-9 * np.abs(e_plain)).sum() >= 70      # (the plain one takes the lower)
+    # a motion without a jump is exactly what solve_hoses gives, frame for frame
+    for name, *calm, sag in _paths()[:3]:
+        one = F.solve_motion(*calm, sag=sag)
+        assert np.array_equal(one.points, F.solve_hoses(*calm, sag=sag).points), name
+    # one frame, short frames, a limit: nothing special
+    assert F.solve_motion(args[0], args[1], args[2], t1[:1], 1.4, 0.4).points.shape == (1, N, 3)
+    length = np.where(np.arange(81) % 20 == 7, 0.9, 1.4)                   # four frames too short
+    mixed = F.solve_motion(args[0], args[1], args[2], t1, length, 0.4, min_radius=0.05)
+    assert np.array_equal(mixed.short, np.arange(81) % 20 == 7) and np.isfinite(mixed.points).all()
+    _d, ln = segments(mixed.points[~mixed.short])
+    assert np.abs(ln / (1.4 / (N - 1)) - 1.0).max() <= 1e-9
+
+
+def test_a_given_start():
+    """``start``: one of the three starts by name. Every guarantee holds as for the best of the three."""
+    a = generic(60, seed=21)
+    best = F.solve_hoses(*a)
+    assert best.start.shape == (60,) and set(np.unique(best.start)) <= {0, 1, 2}
+    assert np.array_equal(F.solve_hoses(*a, start=-1).points, best.points)
+    assert np.array_equal(F.solve_hoses(*a, start=np.full(60, -1)).points, best.points)
+    shapes = []
+    for k in (0, 1, 2):
+        h = F.solve_hoses(*a, start=k)
+        assert (h.start == k).all() and np.isfinite(h.points).all() and not h.short.any()
+        d, ln = segments(h.points)
+        assert np.abs(ln / (a[4] / (N - 1))[:, None] - 1.0).max() <= 1e-9
+        assert max(angle(d[:, 0], a[1]).max(), angle(d[:, -1], a[3]).max()) <= 1e-7
+        assert np.array_equal(h.points[:, 0], a[0]) and np.array_equal(h.points[:, -1], a[2])
+        assert np.array_equal(F.solve_hoses(*a, start=k).points, h.points)          # bit for bit again
+        shapes.append(h.points)
+    # the best of the three is one of the three
+    for i in range(60):
+        assert np.abs(shapes[best.start[i]][i] - best.points[i]).max() <= 1e-9
+    # a mixed batch: each hose as it is alone, whatever the others were asked
+    want = np.arange(60) % 4 - 1                                           # −1, 0, 1, 2, −1 …
+    mixed = F.solve_hoses(*a, start=want)
+    worst = 0.0
+    for i in range(60):
+        alone = F.solve_hose(*[x[i] for x in a], start=want[i])
+        worst = max(worst, np.abs(alone.points[0] - mixed.points[i]).max())
+        assert alone.start[0] == mixed.start[i] and (want[i] < 0 or mixed.start[i] == want[i])
+    order = np.random.default_rng(5).permutation(60)
+    again = F.solve_hoses(*[x[order] for x in a], start=want[order])
+    print("\ngiven starts, mixed batch against alone %.1e m; %d of 60 hoses take a wound start by themselves"
+          % (worst, (best.start > 0).sum()))
+    assert worst <= 1e-9 and np.abs(again.points - mixed.points[order]).max() <= 1e-9
+    # nothing to choose: short, taut, too few points for the wound starts
+    dist = np.linalg.norm(a[2] - a[0], axis=1)
+    assert (F.solve_hoses(*a[:4], 0.5 * dist, a[5], start=2).start == 0).all()
+    assert (F.solve_hoses(*a, n=6, start=1).start == 0).all()
+    line = F.solve_hose((0, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), 1.0, 0.2, start=1)
+    assert line.start[0] == 0 and np.isfinite(line.points).all()
+    for bad in (3, -2, 0.5, [0, 7]):
+        with pytest.raises(ValueError):
+            F.solve_hoses(*a[:4], a[4], a[5], start=bad)
+
+
 def test_nearly_taut_and_very_slack_hoses():
     rng = np.random.default_rng(71)
     count = 40
@@ -632,6 +730,17 @@ def test_speed():
           "U-loop %.2f ms;" % (1e3 * t1, 1e3 * t20, 50.0 * t20, 1e3 * held, 1e3 * ttyp))
     print("5,000 generic hoses %.2f s (%.2f ms each); 5,000 frames of one U-loop %.2f s"
           % (t5000, 0.2 * t5000, tframes))
+    # a whole motion of 250 frames: without a jump (as solve_hoses), and with one (followed frame by frame)
+    calm = _paths()[0]
+    u = np.linspace(0.0, 1.0, 250)
+    calm_p1 = np.stack([0.25 + 0.6 * u, 0.0 * u, 0.3 * u], axis=1)
+    t_calm = _best(lambda: F.solve_motion(calm[1], calm[2], calm_p1, calm[4], calm[5], calm[6]), 3)
+    t_same = _best(lambda: F.solve_hoses(calm[1], calm[2], calm_p1, calm[4], calm[5], calm[6]), 3)
+    swing = _swing(250)
+    t_jump = _best(lambda: F.solve_motion(*swing), 3)
+    print("a motion of 250 frames: %.0f ms (solve_hoses: %.0f ms); one with a jump, followed: %.0f ms"
+          % (1e3 * t_calm, 1e3 * t_same, 1e3 * t_jump))
+    assert t_calm <= 2.0 and t_jump <= 5.0
     assert t1 <= 0.040
     assert t20 <= 0.060
     assert held <= 0.300

@@ -65,7 +65,7 @@ the force in the hose come out of one linear system (2 · free segments + 3 unkn
   stay in: one winding like a right-handed screw, one like a left-handed. The coarsest level therefore starts
   three times: from a fold (the first half of the hose in one direction, the second half in another, on the side
   the fittings and the weight push it to) and from that fold wound a little each way. The wound start with less
-  energy is taken if it is clearly better than the plain one.
+  energy is taken if it is clearly better than the plain one (``start`` asks for one of the three by name).
 * It stops when the Newton step is below 1e-4 rad (the error is about its square), not after a fixed number of
   steps. (The design suggested a fixed number of smoothing steps with a constant matrix. That does not reach the
   equilibrium of a stiff hose in an affordable number of steps – it needs about n² of them – and an unfinished
@@ -80,7 +80,8 @@ What that gives, and what it cannot
   of the present position alone has to choose**, and along a motion from where the one is the relaxed shape to
   where the other is, the choice changes: the hose jumps there, once, where the two have the same energy (on the
   coarsest level). A real hose stays in the shape it is in until that shape is lost; that needs the frame before,
-  which this function does not have by design (frames are rendered in any order). Hoses with little slack and
+  which this function does not have by design (frames are rendered in any order); ``solve_motion`` has it: it
+  takes all frames of one hose at once and follows the hose from frame to frame. Hoses with little slack and
   fittings that roughly face each other have one shape; the more slack and the more the fittings point out of
   one plane, the more often there are two. Measured on random motions (fittings up to ~45° off the line between
   the ends, in any direction; the end moves 30 % of the distance and the fitting turns 40° in 40 frames): one
@@ -115,6 +116,7 @@ batch of 20: 10 ms (20 poses of a U-loop) … 17 ms (20 unrelated hoses, a quart
 sideways or backwards); 5,000 in one call 2.7 s (0.54 ms each). Small batches are slow per hose because every
 NumPy call has a fixed cost: solve all hoses of a frame, or all frames of a hose, in one call. From n = 65 on
 the linear systems are large enough for the BLAS library to start its threads (1.3 ms per hose in a batch).
+``solve_motion`` for 250 frames of one hose: 70 ms as ``solve_hoses``; 0.3 s when the hose jumps and is followed.
 
 NumPy only (Blender's Python has no SciPy). Everything is vectorised over the batch: 20 hoses at one frame, or one
 hose at 250 frames, are one call.
@@ -133,6 +135,7 @@ TAUT = 1e-7                # slack (as a share of the free length) under which t
 SHORT = 1e-9               # … and how far past the limit before it counts as too short
 TIGHT = 0.99               # ``tight``: the result bends tighter than this share of the limit
 CHUNK = 256                # hoses solved together (keeps the matrices in the processor's cache)
+JUMP = 6.0                 # solve_motion: a point moving this many times as far as the ends did is a jump
 
 # the model's small additions
 _FLOOR = 1e-3              # smallest bending length, as a share of the length (keeps a weightless rope defined)
@@ -168,6 +171,9 @@ class Hoses:
     need: np.ndarray         # (B,) the shortest length that reaches (>= length when short)
     min_radius: np.ndarray   # (B,) the tightest bend along the hose (np.inf when straight)
     tight: np.ndarray        # (B,) bool: a limit was asked (> 0) and min_radius is under it (beyond 1 %)
+    start: np.ndarray        # (B,) int: the start whose answer this is: 0 the plain fold, 1 / 2 the fold wound
+    #                          right- / left-handed (0 where there was nothing to choose: short, taut, and for
+    #                          n = 5, 6, 8, 9, whose coarsest level has no room for the wound starts)
 
 
 # ---------------------------------------------------------------------------
@@ -711,26 +717,40 @@ def _refine(d, lam, lv, tol):
     return d, lam
 
 
-def _solve(n, t0, t1, rel, length, ell3, sagv, rmin):
-    """Directions of the n − 3 free segments for a chunk of hoses that reach and are not taut: (b, n − 3, 3)."""
+def _solve(n, t0, t1, rel, length, ell3, sagv, rmin, start):
+    """Directions of the n − 3 free segments for a chunk of hoses that reach and are not taut: (b, n − 3, 3), and
+    the start each answer came from (b,). ``start`` (b,) int: −1 = the best of the three, 0 / 1 / 2 = that one."""
     pen = bool((rmin > 0.0).any())
     qs = _levels(n - 3)
     seg = length / (n - 1)
     free = length - 2.0 * seg
     tol = _TOL if len(qs) == 1 else _TOL_COARSE
     lv = _make_level(qs[0], seg, free, t0, t1, rel, ell3, sagv, rmin, pen)
+    b = len(seg)
+    which = np.zeros(b, dtype=int)
     if qs[0] == 4 and _TWIST:
         # a hose with slack between fittings that do not lie in one plane often has two shapes, one winding like
         # a right-handed screw and one like a left-handed: both are looked for (the fold wound each way), and the
         # one with less energy is taken. The plain fold is the third start: its answer stays unless a wound one
         # is clearly better, so a set-up that is symmetric gets nothing unsymmetric from the winding.
-        b = len(seg)
-        three = lv.take(np.arange(3 * b) % b)
-        d = np.concatenate((_fold(lv, sagv), _fold(lv, sagv, _TWIST), _fold(lv, sagv, -_TWIST)), axis=0)
-        d, lam = _settle(d, _force(d, three), three, tol)
-        e = _energy(d, _joints(d, three)[1], three).reshape(3, b)
-        wound = 1 + (e[2] < e[1] - 1e-9 * lv.emax)
-        pick = np.arange(b) + b * np.where(e[wound, np.arange(b)] < e[0] - _CLEARLY * lv.emax, wound, 0)
+        # (A hose whose start is given is settled from that start alone.)
+        ar = np.arange(b)
+        free_choice = start < 0
+        hose = np.concatenate([ar[free_choice | (start == k)] for k in range(3)])
+        kind = np.concatenate([np.full(int((free_choice | (start == k)).sum()), k) for k in range(3)])
+        folds = np.stack((_fold(lv, sagv), _fold(lv, sagv, _TWIST), _fold(lv, sagv, -_TWIST)))
+        d = folds[kind, hose]
+        many = lv.take(hose)
+        d, lam = _settle(d, _force(d, many), many, tol)
+        e = np.full((3, b), np.inf)
+        e[kind, hose] = _energy(d, _joints(d, many)[1], many)
+        where = np.zeros((3, b), dtype=int)
+        where[kind, hose] = np.arange(len(hose))
+        with np.errstate(invalid="ignore"):
+            wound = 1 + (e[2] < e[1] - 1e-9 * lv.emax)
+            best = np.where(e[wound, ar] < e[0] - _CLEARLY * lv.emax, wound, 0)
+        which = np.where(free_choice, best, np.clip(start, 0, 2))
+        pick = where[which, ar]
         d, lam = d[pick], lam[pick]
     else:
         d = _fold(lv, sagv)
@@ -750,14 +770,15 @@ def _solve(n, t0, t1, rel, length, ell3, sagv, rmin):
         else:
             d, lam = _refine(d, lam * (qf / qc), lv, tol)
     d, _res = _close(d, lv.s, iters=3, tol=1e-15)
-    return d
+    return d, which
 
 
 # ---------------------------------------------------------------------------
 # the public solver
 # ---------------------------------------------------------------------------
 
-def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33) -> Hoses:
+def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33,
+                start=None) -> Hoses:
     """The shapes of B hoses at once.
 
     p0, p1 (B, 3) the ends; t0, t1 (B, 3) the directions along the hose at end 0 and end 1 (both from end 0
@@ -765,19 +786,40 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
     length, see ``stiff_length``), sag, min_radius: one number or (B,); gravity: the direction things fall in,
     (3,) or (B, 3), any length; n: points per hose (at least 5). One hose may be given as plain (3,) vectors.
 
+    start: None (or −1) = of the three starts on the coarsest level the one with the least energy, as the module's
+    text says. 0, 1 or 2 (one number or (B,), −1 for "the best" in between): that start alone – the plain fold,
+    the fold wound right-handed, the fold wound left-handed; every guarantee holds for a given start as well.
+    (It rarely changes the answer: the three mostly settle on one coarse shape, and which of two shapes a hose
+    takes is then decided a level later, by the side it leans to. To keep a hose in one shape over a motion use
+    ``solve_motion``, which follows it from frame to frame.)
+
     Result (``Hoses``): n points per hose with exact ends; unless ``short``, all n − 1 segments are length/(n − 1)
-    long, the first along t0, the last along t1. Nothing is remembered between calls.
+    long, the first along t0, the last along t1; ``start`` says which start each answer came from. Nothing is
+    remembered between calls.
     """
+    return _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start)[0]
+
+
+class _Batch:
+    """What ``_run`` worked out about a batch on the way (for ``solve_motion``, which goes on from there)."""
+
+
+def _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start):
+    """``solve_hoses``, and the batch as it was prepared and solved."""
     n = int(n)
     if n < MIN_POINTS:
         raise ValueError("a hose needs at least %d points (n=%d)" % (MIN_POINTS, n))
     p0, t0, p1, t1 = _rows(p0), _rows(t0), _rows(p1), _rows(t1)
     grav = _rows(gravity)
     length, stiff, sag, rmin = _col(length), _col(stiff), _col(sag), _col(min_radius)
-    b = max(len(x) for x in (p0, t0, p1, t1, grav, length, stiff, sag, rmin))
+    want = np.array(-1 if start is None else start).reshape(-1)
+    if not np.isin(want, (-1, 0, 1, 2)).all():
+        raise ValueError("start is None, -1 (the best), 0, 1 or 2, got %r" % (start,))
+    want = want.astype(int)
+    b = max(len(x) for x in (p0, t0, p1, t1, grav, length, stiff, sag, rmin, want))
     try:
         p0, t0, p1, t1, grav = (np.broadcast_to(x, (b, 3)) for x in (p0, t0, p1, t1, grav))
-        length, stiff, sag, rmin = (np.broadcast_to(x, (b,)) for x in (length, stiff, sag, rmin))
+        length, stiff, sag, rmin, want = (np.broadcast_to(x, (b,)) for x in (length, stiff, sag, rmin, want))
     except ValueError:
         raise ValueError("the inputs do not fit one batch of %d hoses" % b) from None
 
@@ -809,14 +851,15 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
     taut = ~short & (slack <= TAUT)
     work = ~short & ~taut
 
-    points = np.empty((b, n, 3))
-    w = np.linspace(0.0, 1.0, n)[None, :, None]
-    points[:] = p0[:, None, :] + w * chord[:, None, :]    # short: the straight line (kept for the others' ends)
-
     dirs = np.empty((b, n - 1, 3))
     dirs[:, 0], dirs[:, -1] = t0, t1
+    came = np.zeros(b, dtype=int)
     if taut.any():
         dirs[taut, 1:-1] = (rel[taut] / (q * seg[taut])[:, None])[:, None, :]
+    pr = _Batch()
+    pr.n, pr.p0, pr.p1, pr.t0, pr.t1, pr.length, pr.seg, pr.free, pr.rel = n, p0, p1, t0, t1, length, seg, free, rel
+    pr.rmin, pr.short, pr.work, pr.need = rmin, short, work, need
+    pr.ell3, pr.sagv = np.zeros(b), np.zeros((b, 3))
     if work.any():
         idx = np.flatnonzero(work)
         ell = np.maximum(np.nan_to_num(stiff[idx]), 0.0)
@@ -829,10 +872,21 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
         side /= (1.0 + np.where(dist[idx] > 0.0, across * across, 0.0))[:, None]
         ghost = _GHOST * ell3 / length[idx] ** 3
         sagv = (sag[idx] + ghost)[:, None] * gw + (ghost * _norm(gw))[:, None] * side
+        pr.ell3[idx], pr.sagv[idx] = ell3, sagv
         for lo in range(0, len(idx), CHUNK):
             c = idx[lo:lo + CHUNK]
             k = slice(lo, lo + CHUNK)
-            dirs[c, 1:-1] = _solve(n, t0[c], t1[c], rel[c], length[c], ell3[k], sagv[k], rmin[c])
+            dirs[c, 1:-1], came[c] = _solve(n, t0[c], t1[c], rel[c], length[c], ell3[k], sagv[k], rmin[c], want[c])
+    pr.dirs, pr.came = dirs, came
+    return _finish(pr, dirs, came), pr
+
+
+def _finish(pr, dirs, came) -> Hoses:
+    """The points and the tightest bend from the segments' directions."""
+    n, p0, p1, seg, short = pr.n, pr.p0, pr.p1, pr.seg, pr.short
+    b = len(seg)
+    w = np.linspace(0.0, 1.0, n)[None, :, None]
+    points = p0[:, None, :] + w * (p1 - p0)[:, None, :]   # short: the straight line (kept for the others' ends)
     bent = ~short
     if bent.any():
         points[bent] = p0[bent, None, :] + seg[bent, None, None] * np.concatenate(
@@ -844,12 +898,95 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
         turn = _norm(dirs[bent, 1:] - dirs[bent, :-1]).max(axis=1)
         with np.errstate(divide="ignore"):
             radius[bent] = np.where(turn > 1e-12, seg[bent] / np.where(turn > 1e-12, turn, 1.0), np.inf)
-    tight = (rmin > 0.0) & (radius < TIGHT * rmin)
-    return Hoses(points=points, short=short, need=need, min_radius=radius, tight=tight)
+    tight = (pr.rmin > 0.0) & (radius < TIGHT * pr.rmin)
+    return Hoses(points=points, short=short, need=pr.need, min_radius=radius, tight=tight, start=came)
 
 
-def solve_hose(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33) -> Hoses:
+def solve_hose(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33,
+               start=None) -> Hoses:
     """One hose: as ``solve_hoses`` with B = 1 (``points`` is (1, n, 3))."""
     one = [np.array(x, dtype=float).reshape(3) for x in (p0, t0, p1, t1, gravity)]
     return solve_hoses(one[0], one[1], one[2], one[3], float(length), float(stiff), float(sag), float(min_radius),
-                       one[4], n)
+                       one[4], n, None if start is None else int(start))
+
+
+def largest_move(points) -> float:
+    """The largest distance any point of a hose moves between two neighbouring frames: (F, n, 3) → metres."""
+    pts = np.asarray(points, dtype=float)
+    if len(pts) < 2:
+        return 0.0
+    step = pts[1:] - pts[:-1]
+    return float(np.sqrt(np.einsum("fnk,fnk->fn", step, step).max()))
+
+
+def solve_motion(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33) -> Hoses:
+    """ONE hose at the F frames of a motion, in their order (inputs (F, 3), numbers or (F,)): as ``solve_hoses``,
+    but the hose keeps the shape it has over the whole motion where it can.
+
+    All frames are solved as ``solve_hoses`` does. If the hose jumps somewhere (a point moves more than ``JUMP``
+    times as far between two frames as the ends and fittings did – it has two shapes, and the relaxed one changes
+    along the way), the hose is *followed*: from the first frame's shape each frame is solved starting from the
+    shape of the frame before, which keeps it in that shape for as long as the shape exists. If that still jumps,
+    the same is done from the last frame backwards, and of the three (as solved, followed forwards, followed
+    backwards) the one whose largest move of a point between two frames is smallest is returned (on a tie in that
+    order). ``Hoses.start`` of a followed frame is the start of the frame it was followed from.
+
+    Still a pure function – of the whole motion: the same frames in the same order give the same shapes, whatever
+    was solved before. What it cannot do, and what the caller must know:
+    * a shape that stops existing along the motion still jumps where it is lost;
+    * the shape kept is not at every frame the one with the least energy, and a frame solved alone
+      (``solve_hoses``) can differ from the same frame in the motion: store these shapes, do not mix the two;
+    * other frames (a longer animation, another first frame) can keep another shape;
+    * frames that are short are the straight line in every case, and a shape is not followed across them.
+    Costs one solve of the F frames; following is one frame after the other (about 0.5 ms each) and only happens
+    when there was a jump."""
+    first, pr = _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, None)
+    f = len(first.points)
+    if f < 2 or not _jumps(first.points, pr):
+        return first
+    best, least = first, largest_move(first.points)
+    for order in (range(f), range(f - 1, -1, -1)):
+        cand = _finish(pr, *_follow(pr, order))
+        move = largest_move(cand.points)
+        if move < least:
+            best, least = cand, move
+        if not _jumps(cand.points, pr):
+            break
+    return best
+
+
+def _follow(pr, order):
+    """The directions of every frame, each solved (on the fine level only) from the frame before it in ``order``;
+    the first frame, and every frame after one that was not solved (short, taut), as ``_run`` left it."""
+    q = pr.n - 3
+    dirs, came = pr.dirs.copy(), pr.came.copy()
+    before = lam = None
+    for f in order:
+        if not pr.work[f]:
+            before = lam = None
+            continue
+        if before is not None:
+            k = slice(f, f + 1)
+            lv = _make_level(q, pr.seg[k], pr.free[k], pr.t0[k], pr.t1[k], pr.rel[k], pr.ell3[k], pr.sagv[k],
+                             pr.rmin[k], bool(pr.rmin[f] > 0.0))
+            d, res = _close_safe(dirs[before:before + 1, 1:-1], lv.s)
+            if res[0] <= 1e-10:
+                d, lam = _refine(d, _force(d, lv) if lam is None else lam, lv, _TOL)
+                d, res = _close(d, lv.s, iters=3, tol=1e-15)
+            if res[0] <= 1e-10 and np.isfinite(d).all():
+                dirs[f, 1:-1], came[f] = d[0], came[before]
+            else:                                         # (never seen) this frame stays as it was solved
+                lam = None
+        before = f
+    return dirs, came
+
+
+def _jumps(points, pr) -> bool:
+    """Does any point move more than JUMP times as far between two frames as the two ends moved and the two
+    fittings turned (as a length: angle × hose length) and the length changed?"""
+    step = points[1:] - points[:-1]
+    moved = np.sqrt(np.einsum("fnk,fnk->fn", step, step).max(axis=1))
+    reach = np.abs(pr.length)
+    drive = _norm(pr.p0[1:] - pr.p0[:-1]) + _norm(pr.p1[1:] - pr.p1[:-1]) + np.abs(reach[1:] - reach[:-1]) \
+        + (_norm(pr.t0[1:] - pr.t0[:-1]) + _norm(pr.t1[1:] - pr.t1[:-1])) * reach[1:]
+    return bool((moved > JUMP * drive + 1e-9 * reach[1:]).any())
