@@ -5,6 +5,31 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.73 – 12 Nov 2026 – tool marks on cut faces (task 0061)
+
+Milling (4 Motion > Milling)
+- **Cut faces show the marks of the tool that made them**, in the direction it went: the arcs of a face mill on a
+  faced top, the finer arcs of an end mill on a pocket floor, fine upright lines on walls, a level line where each
+  depth of a wall starts, rings in a drilled hole, lines along a chamfer, fine lines across a ball-mill pass. The
+  **sheen follows the marks**: on a faced top the bright band swirls with the arcs when the camera or the light
+  moves. Where a later tool cuts a face again it shows the new tool's marks; the rest keeps the old ones.
+- The distance between the marks is real: from the program's **feed (F) and spindle speed (S)** and the tool's
+  number of teeth. Without a program the app takes a typical feed for what the block is made of. A line in the
+  panel says which one is used.
+- Three new settings under **Cut faces**: **Tool marks** (on by itself, also in older projects), **Mark size**
+  (1 = real, often only 0.05 to 0.3 mm apart, so a picture of the whole machine shows the sheen; raise it up to 10
+  for a close-up) and **Strength**. Crisp on aluminium, finer on steel, dull on cast iron, faint on plastic and
+  on paint.
+- **No more dark patches in reflections on cut faces** (and on the block's faces next to a cut): the app now works
+  out the milled block's shading itself. Flat faces are flat, round walls smooth, sharp edges crisp.
+- Scrubbing is as fast as before: while the frame changes the block is shaded the quick way, a moment after it
+  stands still – and in every render – it gets the exact shading. Measured on the 4-core test machine: 29 ms a
+  frame on a 28,000-triangle cut (34 ms before), 2.9 ms on a small one (2.7 before). A close-up render with marks
+  took 31 s against 28 s without (Cycles on the processor, 640 x 384).
+- Works with "Auto Run Python Scripts" off, in the render queue, after a save and reopen and after a model update.
+- Test tour: new stop **Tool marks on cut faces** (a faced strip, a pocket in two depths, a drilled hole, seen
+  close). PC check: new line **Milling: tool marks on the cut faces**. User guide: Milling > Tool marks.
+
 ## 0.2.72 – 12 Nov 2026 – clash check: fast with parts that turn in place (task 0092)
 
 Clash check (6 Animation > Clash check)

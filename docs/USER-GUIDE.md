@@ -1011,6 +1011,10 @@ Good to know
   view), while you scrub or play, in pictures, turntables and renders in the queue.
 - A save, a reopen and a model update keep them.
 - Look at them in rendered view: the grey solid view shows no materials.
+- A block that is still **painted** (as it is imported) keeps its paint on the cut faces, with faint marks.
+  For bright cut metal give its group a metal in 3 Looks; the line "Cut faces: …" says what the cuts show.
+- While you scrub or play, the block is shaded the quick way, so scrubbing is as fast as before. A moment
+  after the frame stands still – and in every render – it gets its exact shading, without dark patches.
 
 #### Chips
 

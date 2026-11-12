@@ -496,7 +496,12 @@ def cut_look(scene, wp) -> tuple | None:
     else:
         look = core.cut_look(block_id)
         if look is None:
-            return None
+            # paint and other looks stay as the block (task 0051) - with the tool marks on, as a material of their
+            # own that draws them (an imported part is painted until its group gets a material in 3 Looks)
+            spec = materials_lib.MATERIALS.get(block_id)
+            if not s.marks or spec is None or any(spec.get(k) for k in ("transmission", "emission", "grid")):
+                return None
+            look = (block_id, {}, f"{spec['label']} (cut)")
     mid, tweak, label = look
     return mid, tweak, label, (colour if materials_lib.needs_color(mid) else "")
 
@@ -1210,8 +1215,13 @@ def _write_stock(cut, stock) -> None:
     _write_mesh(cut, v, t, mats[p] if len(p) else np.zeros(0, np.int32))
 
 
-def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
-    """Show the workpiece as it is at ``frame`` (default: the current frame). True when shown."""
+def refresh(scene, frame: float | None = None, force: bool = False, quick: bool = False) -> bool:
+    """Show the workpiece as it is at ``frame`` (default: the current frame). True when shown.
+
+    ``quick`` (the frame handler in the window, while the frame is changed by hand or played): the mesh gets
+    Blender's own smooth-by-angle normals, which cost nothing, and the exact ones (``core/cut_normals``, 12 ms a
+    frame on a 30,000-triangle cut) follow a moment after the frame stands still (``_fine_timer``). Renders, the
+    render queue and every other caller get the exact ones at once."""
     rt = runtime(scene)
     if not core.available() or not is_set_up(scene):
         return False
@@ -1230,13 +1240,15 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
             return False
         marks = None
         want = bool(s.marks)         # tool marks on the cut faces (task 0061)
-        if not force and rt.get("shown") == (id(tl), T, want):
+        shown = rt.get("shown")
+        if not force and shown is not None and shown[:3] == (id(tl), T, want) and (quick or not shown[3]):
             _cut_slot(scene, wp)                       # a look changed in 3 Looks shows at once
             return True
+        out = tl.mesh_at(T, marks=want, normals=not quick)
+        v, t, src = out[:3]
         if want:
-            v, t, src, _move, marks, normals = tl.mesh_at(T, marks=True, normals=True)
-        else:
-            v, t, src, normals = tl.mesh_at(T, normals=True)
+            marks = out[4]
+        normals = None if quick else out[-1]
         mats = rt.get("mats")
         mi = np.zeros(len(t), dtype=np.int32)
         mi[src < 0] = _cut_slot(scene, wp)             # faces the cutter made: their own look (task 0051)
@@ -1244,7 +1256,9 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
             ok = (src >= 0) & (src < len(mats))
             mi[ok] = mats[src[ok]]
         _write_mesh(s.cut_mesh, v, t, mi, marks=marks, normals=normals)   # normals: no dark facets (0042)
-        rt["shown"] = (id(tl), T, want)
+        rt["shown"] = (id(tl), T, want, quick)
+        if quick:
+            _schedule_fine()
         _show_chips(scene, T)
         st = tl.stats
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
@@ -1293,6 +1307,78 @@ def _check_timer():
     except Exception as exc:                         # never break the app over a preview update
         print("Fresing Render: milling update failed:", exc)
     return None
+
+
+FINE_DELAY = 0.3                      # s the frame must stand still before the exact normals are worked out
+
+
+def _quick_now() -> bool:
+    """The frame handler may write the quick normals: in the window, on the main thread, and nothing renders."""
+    if bpy.app.background or _off_main_thread() or _STATE.get("rendering"):
+        return False
+    try:
+        return not bpy.app.is_job_running("RENDER")
+    except Exception:
+        return True
+
+
+def _schedule_fine() -> None:
+    _STATE["fine_at"] = time.monotonic() + FINE_DELAY
+    if _STATE.get("fine_pending") or bpy.app.background:
+        return
+    _STATE["fine_pending"] = True
+    bpy.app.timers.register(_fine_timer, first_interval=FINE_DELAY)
+
+
+def _fine_timer():
+    """The frame stands still (and nothing plays): the milled blocks shown with quick normals get the exact ones."""
+    try:
+        left = _STATE.get("fine_at", 0.0) - time.monotonic()
+        if left > 0.01:
+            return left
+        if any(sc.is_animation_playing for sc in bpy.data.screens):
+            return FINE_DELAY
+        _STATE["fine_pending"] = False
+        make_fine()
+    except Exception as exc:                         # never break the app over a preview update
+        _STATE["fine_pending"] = False
+        print("Fresing Render: milling normals failed:", exc)
+    return None
+
+
+def make_fine(scene=None) -> None:
+    """Exact normals for every milled block that shows the quick ones (``scene``: only that one)."""
+    for sc in ([scene] if scene is not None else list(bpy.data.scenes)):
+        if not hasattr(sc, "fresing") or not is_active(sc):
+            continue
+        shown = runtime(sc).get("shown")
+        if shown is not None and len(shown) > 3 and shown[3]:
+            refresh(sc)
+
+
+@persistent
+def _on_render_init(scene, _depsgraph=None):
+    _STATE["rendering"] = True
+
+
+@persistent
+def _on_render_done(scene, _depsgraph=None):
+    _STATE["rendering"] = False
+
+
+@persistent
+def _on_render_pre(scene, _depsgraph=None):
+    """A frame is about to be rendered: never with the quick normals (a still rendered right after scrubbing).
+    Off the main thread only when the interface is locked, as the frame handler."""
+    _STATE["rendering"] = True
+    try:
+        if scene is None or not hasattr(scene, "fresing") or _STATE["guard"]:
+            return
+        if _in_window() and _off_main_thread() and not scene.render.use_lock_interface:
+            return
+        make_fine(scene)
+    except Exception as exc:
+        print("Fresing Render: milling normals before a render failed:", exc)
 
 
 def update_if_needed(scene, progress=None) -> bool:
@@ -1429,7 +1515,7 @@ def _on_frame(scene, _depsgraph=None):
             mark_stale(scene)                    # 3D view: read soon; the queue reads it before rendering
             if not bpy.app.background:
                 return
-        refresh(scene)
+        refresh(scene, quick=_quick_now())
     except Exception as exc:
         print("Fresing Render: milling frame update failed:", exc)
     finally:
@@ -1501,7 +1587,10 @@ def register():
     for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
                     (bpy.app.handlers.load_post, _on_load),
-                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo),
+                    (bpy.app.handlers.render_init, _on_render_init), (bpy.app.handlers.render_pre, _on_render_pre),
+                    (bpy.app.handlers.render_complete, _on_render_done),
+                    (bpy.app.handlers.render_cancel, _on_render_done)):
         if fn not in lst:
             lst.append(fn)
 
@@ -1512,12 +1601,17 @@ def unregister():
     for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
                     (bpy.app.handlers.load_post, _on_load),
-                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo),
+                    (bpy.app.handlers.render_init, _on_render_init), (bpy.app.handlers.render_pre, _on_render_pre),
+                    (bpy.app.handlers.render_complete, _on_render_done),
+                    (bpy.app.handlers.render_cancel, _on_render_done)):
         while fn in lst:
             lst.remove(fn)
-    if bpy.app.timers.is_registered(_check_timer):
-        bpy.app.timers.unregister(_check_timer)
+    for timer in (_check_timer, _fine_timer):
+        if bpy.app.timers.is_registered(timer):
+            bpy.app.timers.unregister(timer)
     _STATE["pending"] = False
+    _STATE["fine_pending"] = _STATE["rendering"] = False
     _RUNTIME.clear()
     from . import chips
     chips.forget()

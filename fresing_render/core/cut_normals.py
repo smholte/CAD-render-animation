@@ -21,6 +21,18 @@ What ``corner_normals`` does
   later cut chopped a strip into odd triangles, and on both sides of a seam between two tiles. (Weights by area or
   by corner angle change from vertex to vertex: ripples along the wall, a visible line at a seam.) The triangles
   of one plane share its vote by how well their direction is known (height squared).
+* **A big flat face stays flat.** Two planes that meet at a vertex are compared by how far each reaches away from
+  the edge they share. One that reaches ``BIG`` times further than the other is the flat face and the other a small
+  facet next to it: the small one has no say in the big one's normal, and takes the big one's direction at that
+  edge. A floor next to the shallow facets a ball mill left, the flank of a V-groove next to the fan of its round
+  end, a straight wall next to its rounded corner: the flat face keeps exactly its own normal and the small facets
+  run into it smoothly – as on the CAD part, where a rounding starts with the flat face's direction. (Before, such
+  a floor leaned up to 18 degrees at the corners that touch the facets: found by the independent tests of task
+  0061.) The strips of a round wall all reach as far from their edges as each other – their width, however long
+  they are and wherever a seam between tiles cuts them – and blend as before.
+  (Narrow flat strips between the shallow facets of ball-mill passes are as small as those facets and blend with
+  them: a scalloped surface is shaded smooth. Comparing whole planes by their area in the mesh was tried and
+  dropped: it differs on the two sides of a seam between tiles.)
 * A triangle **too thin to trust** (lower than ``NOISE`` rounding steps of 32-bit coordinates, or than ``SLIVER``
   x its longest edge) counts for nothing in its neighbours' normals, and takes the direction of the real triangle
   across its longest edge (through other needles if need be) as its own - it is shaded as a piece of that face.
@@ -47,6 +59,10 @@ NOISE = 128.0                         # ... or lower than this many 32-bit round
 WELD = 1e-7                           # weld=True: points closer than about this are one vertex
 PAIRS = 1_500_000                     # pairs of triangles round a vertex worked out in one go (memory)
 EXACT = 8                             # fans up to this size are worked out with others of exactly that size
+BIG = 6.0                             # a plane reaching this many times less far from a shared edge has no say
+BIG_POWER = 8                         # (a plane's reach at a vertex: its triangles' reaches, summed with this power)
+RUN_IN = math.radians(16.0)           # a small facet takes the flat face's direction up to this angle between them
+_COS_RUN_IN = math.cos(RUN_IN)
 ROUNDS = 16                           # needles next to needles: how far a real neighbour's direction is passed on
 _EPS32 = float(np.finfo(np.float32).eps)
 
@@ -69,6 +85,18 @@ def corner_normals(verts, tris, angle: float = SHARP_ANGLE, weld: bool = False, 
     if skip is not None:
         hidden = np.asarray(skip, dtype=bool).reshape(-1)
         trust[hidden] = 0.0
+    # from every corner to the two other corners of its triangle (nothing for needles and hidden faces): how far
+    # a triangle reaches away from an edge at that vertex
+    p = v.take(t, axis=0)
+    to_a = np.zeros((3 * m + 1, 3))
+    to_b = np.zeros((3 * m + 1, 3))
+    to_a[:3 * m] = (p[:, (1, 2, 0)] - p).reshape(-1, 3)
+    to_b[:3 * m] = (p[:, (2, 0, 1)] - p).reshape(-1, 3)
+    gone = np.repeat(thin if hidden is None else (thin | hidden), 3)
+    to_a[:3 * m][gone] = 0.0
+    to_b[:3 * m][gone] = 0.0
+    np.nan_to_num(to_a, copy=False)
+    np.nan_to_num(to_b, copy=False)
     ids = _weld(v)[t] if weld else t
     # the corners sorted by vertex: the triangles round one vertex lie next to each other
     vid = ids.reshape(-1)
@@ -111,7 +139,9 @@ def corner_normals(verts, tris, angle: float = SHARP_ANGLE, weld: bool = False, 
                 rows = np.nonzero(thin_.take(f))
                 if len(rows[0]):                         # a needle looks round with its neighbour's direction
                     dots[rows] = np.matmul(n[rows[0]], ref_[f[rows]][:, :, None])[:, :, 0]
-            out[order.take(at)] = _blend(dots, n, trust_.take(f), fuzz_.take(f), cos)
+            corner = order.take(at)
+            out[corner] = _blend(dots, n, trust_.take(f), fuzz_.take(f), cos, to_a.take(corner, axis=0),
+                                 to_b.take(corner, axis=0), thin_.take(f) if any_thin else None)
     out = out[:3 * m]
     if hidden is not None:
         flat = np.flatnonzero(hidden & ~thin)
@@ -163,17 +193,44 @@ def _huge(out, order, face, a: int, k: int, fn, ref, trust, fuzz, cos: float) ->
         out[order[a + r:a + min(k, r + rows)]] = near.astype(np.float64) @ contrib
 
 
-def _blend(dots, n, w, fuzz, cos: float) -> np.ndarray:
+def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None) -> np.ndarray:
     """Round each vertex (first axis): for every triangle the sum of the planes that point within the angle of it.
 
     Every plane counts once: its triangles share its vote by how well their direction is known (``w``). Two
     triangles are one plane when they are closer than their directions are certain (``fuzz``).
+
+    ``to_a``, ``to_b``: from the vertex to each triangle's two other corners. A plane that reaches ``BIG`` times
+    further from the edge it shares with another is the flat face of the two: the small one has no say in its
+    normal and takes its direction. (How far triangle j reaches from its edge with plane i is how far its corners
+    stand out of plane i, over the sine of the angle between the two – the same sine both ways, so it drops out.)
+    ``thin``: the needles; they look round with their neighbour's direction and are left out of this.
     """
     limit = fuzz[:, :, None] + fuzz[:, None, :]
     limit *= limit
-    share = np.matmul((1.0 - dots < limit).astype(np.float64), w[:, :, None])                  # (vertices, k, 1)
+    same = 1.0 - dots < limit
+    share = np.matmul(same.astype(np.float64), w[:, :, None])                                  # (vertices, k, 1)
     contrib = n * (w[:, :, None] / np.maximum(share, 1e-300))
-    return np.matmul((dots > cos).astype(np.float64), contrib)
+    near = dots > cos
+    # rise[i, j]: how far triangle j stands out of the plane of triangle i; reach[i, j]: the same for all of j's plane
+    rise = np.maximum(np.abs(np.matmul(n, to_a.transpose(0, 2, 1))), np.abs(np.matmul(n, to_b.transpose(0, 2, 1))))
+    scale = np.maximum(rise.max(axis=(1, 2), keepdims=True), 1e-300)
+    reach = np.matmul((rise / scale) ** BIG_POWER, same.astype(np.float64))
+    limit8 = BIG ** BIG_POWER
+    mine = reach.transpose(0, 2, 1)                       # mine[i, j]: how far i's plane stands out of j's
+    other = near & ~same
+    # over[i, j]: j is the flat face, i a small facet next to it
+    over = reach > limit8 * mine
+    under = over.transpose(0, 2, 1)
+    # ... and the two nearly in line (the first strip of a rounding, the first facet of a ball pass): a steeper
+    # small face keeps its own say and shows the crease it has
+    rules = other & over & ~under & (dots > _COS_RUN_IN)
+    small = other & under & ~over                         # the other way round: j has no say in i's normal
+    if thin is not None:
+        rules &= ~thin[:, :, None]
+        small &= ~thin[:, :, None]
+    ruled = rules.any(axis=2, keepdims=True)
+    votes = np.where(ruled, rules, near & ~small)
+    return np.matmul(votes.astype(np.float64), contrib)
 
 
 def _faces(v: np.ndarray, t: np.ndarray) -> tuple:

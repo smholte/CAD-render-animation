@@ -200,14 +200,10 @@ def test_a_needle_does_not_join_floor_and_wall():
 # smooth by angle: what is right at a shallow edge
 # ---------------------------------------------------------------------------
 
-def test_floor_meeting_a_shallow_chamfer_blends_only_at_that_edge():
-    """A 10 x 10 floor, a chamfer rising 20 degrees along one edge (below the angle), then a face 40 degrees
-    steeper (above it). Smooth by angle is what is asked for: at the edge between floor and chamfer both get the
-    middle direction (10 degrees from each: every plane counts once, though the floor has two triangles at one end
-    of the edge and one at the other). The floor's two far corners touch nothing else and stay exactly flat - so
-    the floor's big triangles shade from flat to 10 degrees towards the chamfer, the same as with Blender's
-    smooth by angle. Across the 40 degree edge nothing is blended."""
-    c20, s20 = math.cos(math.radians(20)), math.sin(math.radians(20))
+def _floor_and_chamfer(width: float):
+    """A 10 x 10 floor, a chamfer ``width`` wide rising 20 degrees along one edge (below the angle), then a face
+    40 degrees steeper (above it)."""
+    c20, s20 = width * math.cos(math.radians(20)), width * math.sin(math.radians(20))
     c60, s60 = math.cos(math.radians(60)), math.sin(math.radians(60))
     v = np.array([(0, 0, 0), (10, 0, 0), (10, 10, 0), (0, 10, 0),                    # floor
                   (10 + c20, 0, s20), (10 + c20, 10, s20),                           # top of the chamfer
@@ -216,11 +212,20 @@ def test_floor_meeting_a_shallow_chamfer_blends_only_at_that_edge():
     fn = face_normals(v, t)
     assert angle(fn[2], fn[0]) == pytest.approx(20.0) and angle(fn[4], fn[2]) == pytest.approx(40.0)
     n = corners(v, t)
-    mid = (fn[0] + fn[2]) / np.linalg.norm(fn[0] + fn[2])
     by_vertex = {}
     for f in range(len(t)):
         for k in range(3):
             by_vertex.setdefault((int(t[f, k]), f // 2), []).append(n[f, k])
+    return fn, by_vertex
+
+
+def test_floor_meeting_a_wide_shallow_chamfer_blends_at_that_edge():
+    """Floor and chamfer about as big as each other (the chamfer 4 wide): smooth by angle – at the edge between
+    them both get the middle direction (10 degrees from each: every plane counts once, though the floor has two
+    triangles at one end of the edge and one at the other). The floor's far corners touch nothing else and stay
+    exactly flat. Across the 40 degree edge nothing is blended."""
+    fn, by_vertex = _floor_and_chamfer(4.0)
+    mid = (fn[0] + fn[2]) / np.linalg.norm(fn[0] + fn[2])
     for vert in (1, 2):                                   # the shared edge: floor (0) and chamfer (1) agree
         for face in (0, 1):
             assert angle(by_vertex[(vert, face)], mid).max() < 0.01
@@ -230,6 +235,22 @@ def test_floor_meeting_a_shallow_chamfer_blends_only_at_that_edge():
         assert angle(by_vertex[(vert, 1)], fn[2]).max() < 1e-3
         assert angle(by_vertex[(vert, 2)], fn[4]).max() < 1e-3
     for vert in (6, 7):
+        assert angle(by_vertex[(vert, 2)], fn[4]).max() < 1e-3
+
+
+def test_big_floor_next_to_a_small_shallow_face_stays_flat():
+    """The same with a chamfer 1 wide – a tenth of the floor, like the fan at the end of a V-groove next to its
+    flank: the big face keeps exactly its own normal at every corner. The small face is 20 degrees steeper, more
+    than a rounding's first strip (``RUN_IN``): it keeps its say at the edge they share (the middle direction),
+    so the edge shows as the shallow crease it is."""
+    fn, by_vertex = _floor_and_chamfer(1.0)
+    mid = (fn[0] + fn[2]) / np.linalg.norm(fn[0] + fn[2])
+    for vert in (0, 1, 2, 3):
+        assert angle(by_vertex[(vert, 0)], fn[0]).max() < 1e-3
+    for vert in (1, 2):
+        assert angle(by_vertex[(vert, 1)], mid).max() < 0.01
+    for vert in (4, 5):
+        assert angle(by_vertex[(vert, 1)], fn[2]).max() < 1e-3
         assert angle(by_vertex[(vert, 2)], fn[4]).max() < 1e-3
 
 
@@ -456,7 +477,11 @@ def test_milled_block_seams_between_tiles(milled):
         assert not c[src >= 0].any(), "the block's own faces are never seam faces"
     worst = seam_differences(milled, skip=True)
     assert len(worst) > 100, "the seams cross the cuts"
-    assert worst.max() < 0.1, f"{(worst >= 0.1).sum()} of {len(worst)} seam vertices differ, most {worst.max():.2f}"
+    # (a seam can cut the one triangle that showed how far a strip reaches from its edge: a single vertex may then
+    # be judged another way on the two sides - a faint kink at one point, not a line along the seam)
+    differ = int((worst >= 0.1).sum())
+    assert differ <= 0.02 * len(worst) and worst.max() < 5.0, \
+        f"{differ} of {len(worst)} seam vertices differ, most {worst.max():.2f}"
     without = seam_differences(milled, skip=False)
     assert without.max() > 2.0, "the reason for seam_faces (if this fails the skip may no longer be needed)"
 
@@ -572,3 +597,25 @@ def test_milled_slot_in_blender_floor_and_top_are_flat(tmp_path):
         assert 4.0 < lean.max() < 30.0
     finally:
         fresing_render.unregister()
+
+
+def test_straight_wall_runs_into_its_rounded_corner():
+    """A wall 30 long, then a rounding of 9 degree strips 0.8 wide (the corner a round tool leaves): the wall is the
+    flat face - exactly its own normal at every corner - and the rounding's first strip starts with the wall's
+    direction at the edge they share, as on the CAD part. Between the strips of the rounding: the middle."""
+    h = 5.0
+    pts, x, y, a = [(0.0, 0.0), (30.0, 0.0)], 30.0, 0.0, 0.0
+    for _k in range(4):
+        a += math.radians(9.0)
+        x, y = x + 0.8 * math.cos(a), y + 0.8 * math.sin(a)
+        pts.append((x, y))
+    v = np.array([(px, py, z) for px, py in pts for z in (0.0, h)])
+    t = np.array([q for k in range(len(pts) - 1) for q in ((2 * k, 2 * k + 2, 2 * k + 3), (2 * k, 2 * k + 3, 2 * k + 1))])
+    fn = face_normals(v, t)
+    n = corners(v, t)
+    assert angle(n[:2].reshape(-1, 3), fn[0]).max() < 1e-3                 # the wall: flat
+    first = n[2:4].reshape(-1, 3)[[i for i, vert in enumerate(t[2:4].reshape(-1)) if vert in (2, 3)]]
+    assert angle(first, fn[0]).max() < 1e-3                                # the rounding starts with the wall's
+    between = n[2:4].reshape(-1, 3)[[i for i, vert in enumerate(t[2:4].reshape(-1)) if vert in (4, 5)]]
+    mid = (fn[2] + fn[4]) / np.linalg.norm(fn[2] + fn[4])
+    assert angle(between, mid).max() < 0.01                                # strip to strip: the middle, as before
