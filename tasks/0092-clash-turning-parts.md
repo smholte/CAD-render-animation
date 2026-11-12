@@ -1,6 +1,6 @@
 # 0092 – Clash check: fast with parts that turn in place (rollers, drums, a coil)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0092-clash-turning-parts`
+**Who:** worker · **Status:** running · **Branch:** `task/0092-clash-turning-parts`
 **Started by:** lead chat, 12 Nov 2026 (0077's open point)
 **Lane:** Clash – `core/clash.py`, `blender/clash.py`, `ops_clash.py`, `ui_clash.py`; tests
 **Model:** Opus · effort High (algorithm + speed) · **Place:** Claude Code on the web, environment "CAD-render-animation"

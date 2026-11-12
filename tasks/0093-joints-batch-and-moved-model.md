@@ -1,6 +1,6 @@
 # 0093 – Joints made in a batch: fast and right; a model moved by its root keeps its place
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0093-joints-batch-moved-model`
+**Who:** worker · **Status:** running · **Branch:** `claude/sleepy-archimedes-jo86od` (the web session's branch)
 **Started by:** lead chat, 12 Nov 2026 (0077's and 0035's open points)
 **Lane:** Motion – `blender/joints.py`, `blender/build.py`, `blender/logic.py`, `blender/states.py` if needed; tests.
 **Not** `animation.py`, `handlers.py`, `reimport.py` (0058 adds hooks there today): if the fix needs them, stop and say so.
