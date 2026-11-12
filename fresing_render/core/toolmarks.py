@@ -63,7 +63,8 @@ KIND_NAMES = {NONE: "none", ARCS: "arcs", FLANK: "flank", ALONG: "along", RINGS:
 MM = 0.001
 # marks are never drawn closer together or further apart than this (m)
 SPACING_MIN, SPACING_MAX = 0.01 * MM, 2.0 * MM
-# spacing of the marks that do not come from the feed: lines along a chamfer, rings on a drill point / plunge bottom
+# spacing of the marks that do not come from the feed: lines along a chamfer; rings on a drill point / plunge bottom
+# only when no feed per turn is known (task 0096: they follow F/S like the rest)
 SPACING_ALONG = 0.06 * MM
 SPACING_RINGS = 0.08 * MM
 # a wall's lines are drawn this much weaker than a floor's arcs (at the same strength they read as fluting)

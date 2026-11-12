@@ -1136,7 +1136,7 @@ def prepare(scene, anim, warnings: list) -> list:
     from . import coolant
     coolant.prepare(scene)                                 # coolant frames: written again by the steps (task 0042)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds"):   # which tool is in the spindle, the program's
+    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds", "fr_g43"):   # which tool is in the spindle, the program's
         if k in c:                                         # corners, turns and feeds: written by the steps
             del c[k]
     try:
@@ -1307,14 +1307,22 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
                         "sizes – add it in 4 Motion > CNC machine > Tools")
     offsets = _offsets(scene, mach, sch)
     lift = _lift(sch, offsets)
+    g43 = []
+    for tool_n, h, diff, line, t0, t1 in length_mismatches(sch, offsets):
+        warnings.append(f"'{name}': {length_text(tool_n, h, diff, line)}")
+        if diff > 0:                                # the tip runs below the program: the clash check shows it
+            g43 += [f0 + t0 * fps, f0 + t1 * fps, diff * MM, float(tool_n)]
+    if g43:
+        from .idprops import store_array
+        store_array(c, "fr_g43", (list(c["fr_g43"]) if "fr_g43" in c else []) + g43)
     tcp = rotary.tcp(mach)
     shift = _tcp_shift(sch, mach) if tcp else None
     # X, Y, Z: a key at every move's ends and along arcs (TCP: also every few degrees while the part turns)
     samples = sch.samples(fps, tol=KEY_TOL, turn_step=rotary.turn_step(mach, prog))
     if offsets or tcp:                              # a key where the spindle's length adjustment starts and ends
         have = {round(t, 9) for t, _p in samples}
-        extra_t = {x for c in sch.changes if c.length > 0 for x in (c.swap, c.out_end, c.back_start, c.start,
-                                                                     c.start + c.length)}
+        extra_t = {x for c in sch.changes if c.length > 0 for x in (c.swap, c.drop, c.out_end, c.back_start, c.start,
+                                                                     c.lift_end, c.lift_start, c.start + c.length)}
         samples = sorted(samples + [(t, sch.point_at(t)) for t in sorted(extra_t) if round(t, 9) not in have],
                          key=lambda x: x[0])
     spans = sch.turn_spans()
@@ -1498,23 +1506,55 @@ def _record_turns(scene, spans) -> None:
     store_array(c, "fr_turns", old + [float(x) for ab in spans for x in ab])
 
 
+def length_mismatches(sch, offsets: dict) -> list:
+    """Tool changes without a G43 for the new tool (task 0096): [(tool, tool whose offset stays, mm the new tool is
+    longer (negative: shorter), line of the M6, s from, s to)] - from the end of the change to the next change (or the
+    step's end). Only tools whose lengths differ by more than 0.01 mm."""
+    out = []
+    pieces = [p for p in sch.pieces if p.change is not None and p.change.length > 0]
+    for k, p in enumerate(pieces):
+        c = p.change
+        if not c.h or c.h == c.tool:
+            continue
+        diff = (offsets.get(c.tool, 0.0) - offsets.get(c.h, 0.0)) / MM
+        if abs(diff) <= 0.01:
+            continue
+        t1 = pieces[k + 1].v0 if k + 1 < len(pieces) else sch.duration
+        out.append((c.tool, c.h, diff, p.move.line, c.start + c.length, t1))
+    return out
+
+
+def length_text(tool_n: int, h: int, diff: float, line) -> str:
+    """The check line for an M6 without a G43 for the new tool."""
+    way, side = ("longer", "below") if diff > 0 else ("shorter", "above")
+    return (f"T{tool_n} (M6 on line {line}) is {abs(diff):.1f} mm {way} than T{h} and has no G43 H{tool_n}: T{h}'s "
+            f"length offset stays, so its tip runs {abs(diff):.1f} mm {side} the programmed points, as on the machine "
+            f"- add G43 H{tool_n} after the M6")
+
+
+def g43_rows(scene) -> list:
+    """[(frame from, frame to, m below the program, tool)] of the last build: a longer tool without G43 (task 0096)."""
+    c = settings(scene)
+    a = list(c["fr_g43"]) if "fr_g43" in c else []
+    return [(float(a[k]), float(a[k + 1]), float(a[k + 2]), int(round(a[k + 3]))) for k in range(0, len(a) - 3, 4)]
+
+
 def _lift(sch, offsets: dict):
-    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle (like G43). When the head
-    stays where it is for a change, it changes from the swap to the end of the change (the new tool is in; the old one
-    kept its point). When the head goes to the changer (task 0041) it is 0 there – the spindle's gauge line is where
-    the pocket is – and changes on the way out and the way back."""
-    first = first_tool(sch) or (sch.timing.changer.start_tool if sch.timing.changer is not None else 0)
+    """Machine Z (mm) added at a moment of the step for the length of the tool in the spindle (like G43). The knots of
+    a change come from ``core.toolchange.lift_knots`` (task 0096): the head goes to the changer – 0 there (the spindle's
+    gauge line is where the pocket is), fading on the first leg out and growing on the last leg back; the head stays –
+    the spindle rises before a longer tool goes in, so the new tool's tip never goes below the program's point. After
+    an M6 without a G43 for the new tool the old offset stays (``Change.h``), as on the machine."""
+    from ..core import toolchange as TC
+    first = getattr(sch, "first_h", 0) or first_tool(sch) or (
+        sch.timing.changer.start_tool if sch.timing.changer is not None else 0)
     knots = [(0.0, offsets.get(first, 0.0) / MM)]
     cur = knots[0][1]
     for c in sch.changes:
         if c.length <= 0:
             continue
-        new = offsets.get(c.tool, 0.0) / MM
-        end = c.start + c.length
-        if c.moves:
-            knots += [(c.start, cur), (c.out_end, 0.0), (c.back_start, 0.0), (end, new)]
-        else:
-            knots += [(c.swap, cur), (end, new)]
+        new = offsets.get(c.h or c.tool, 0.0) / MM
+        knots += TC.lift_knots(c, cur, new)
         cur = new
     if all(abs(v) < 1e-9 for _t, v in knots):
         return lambda t: 0.0
@@ -1540,7 +1580,7 @@ def after_clear(scene) -> None:
     from . import machining
     machining.runtime(scene).pop("sig_ok", None)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds"):
+    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds", "fr_g43"):
         if k in c:
             del c[k]
     from . import air

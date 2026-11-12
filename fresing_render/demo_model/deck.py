@@ -65,7 +65,7 @@ def cradle(p, kit: Kit) -> Asm:
             ctr = -(cr + rr) * n + CRADLE_OFF * ax
             part, M = roller_about(kit, ctr, ax, rr, CRADLE_LEN - 120.0)
             c = a.add(part, M)
-            contact = -cr * n
+            contact = ctr + rr * n               # the surface point straight towards the cable (not along the axle)
             a.joint(f"Roller {'port' if sy > 0 else 'stb'} turn", "rotate", [c], ctr,
                     turn_axis(ctr, contact, [-1.0, 0.0, 0.0]), None, cable_drive(rr))
             for t in (-CRADLE_LEN / 2, CRADLE_LEN / 2):

@@ -1,6 +1,6 @@
 # 0097 – Demo: the drop cradles' side rollers turn about their own axis
 
-**Who:** worker · **Status:** open · **Branch:** `task/0097-demo-cradle-rollers`
+**Who:** worker · **Status:** done · **Branch:** `task/0097-demo-cradle-rollers`
 **Started by:** lead chat, 12 Nov 2026 (0092's open point)
 **Lane:** Demo models – `fresing_render/demo_model/` (`deck.py`, `layout.py`, the joint sheet it writes),
 `blender/demo.py` only if the joint list is read there, `tests/test_demo_*.py`
@@ -42,7 +42,21 @@ The carousel rim fence's clash cost (Clash lane, later), cable paths (0078), hos
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 12 Nov 2026
+
+**What changed:** `deck.py` `cradle()`: the roller joint's lever arm used the cable contact point (offset `CRADLE_OFF` along the
+axle), which tilted the axis 63.4°; it now uses the roller surface point straight towards the cable. New test
+`test_every_turning_roller_turns_about_its_own_axis` (256 roller joints, < 0.5°, incl. the 66 cradle rollers).
+`test_demo_project.py` no longer leaves `turning_in_place` out; only the static cable is left out.
+
+**Tested and measured** (4-core web machine, full demo): all 256 roller joints within 0.5°. Clash check of the whole
+animation (sea at rest): 0 rows with only the cable left out; test took 13.2 min wall time including the ~1.5 min
+build and partly in parallel with another test – not a clean before/after of the check itself (0092: 12.4 min with the
+leave-out list), so no speed claim. Rows from the static cable were not counted (it is still left out). Make-demo time
+and shot 7: not measured separately here (the test's build and shot-7 test are in the GitHub run).
+
+**Open points / follow-up tasks:** 0078/0082 (cable paths) – then drop the cable leave-out too.
+
 
 **What changed:**
 

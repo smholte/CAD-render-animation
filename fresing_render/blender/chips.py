@@ -11,10 +11,13 @@ The physics is in ``core/chips.py``; this module connects it to the scene:
 * **Worked out once** ("baked") whenever the motion, the bits or the chip settings change: in the 3D view a
   moment after the change, in the render queue before the first frame (``machining.prepare``). Same input,
   same chips, on every PC and in any frame order.
-* **Shown** as two point clouds whose points carry a chip shape, rotation, size and colour shade, instanced
+* **Shown** as point clouds whose points carry a chip shape, rotation, size and colour shade, instanced
   with a small Geometry Nodes group (no Python drivers, so it also works with scripts off): "FR Chips" rides
   along with the workpiece (Copy Transforms), "FR Chips (fallen)" holds the chips on the machine bed and the
   floor. The frame handler of milling writes them at every frame change.
+* **Carrier** (task 0096): a workpiece that turns on a 4th axis riding on a moving table. The table and the
+  parts on it move with the axis's carrier (``carrier``: the next moving object above the workpiece's own);
+  their chips are in "FR Chips (on the table)", which follows the carrier.
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ COLLECTION = "FR Chips"
 SHAPES_COLLECTION = "FR Chip shapes"
 OBJ_RIDE = "FR Chips"
 OBJ_WORLD = "FR Chips (fallen)"
+OBJ_CARRIER = "FR Chips (on the table)"
 NODE_GROUP = "FR Chips"
 MAT_PREFIX = "FR chips "
 TAG = "fr_chips"                      # on everything made here (value: its role)
@@ -144,6 +148,21 @@ def mover(ob, cache: dict) -> str:
     return out
 
 
+def carrier(scene, wp=None):
+    """The object that carries the workpiece's own mover (task 0096): a table sliding under a turning 4th axis.
+    None when the workpiece does not move, or nothing above its mover moves."""
+    wp = wp if wp is not None else machining.workpiece(scene)
+    if wp is None:
+        return None
+    cache: dict = {}
+    m1 = mover(wp, cache)
+    ob1 = bpy.data.objects.get(m1) if m1 else None
+    if ob1 is None or ob1.parent is None:
+        return None
+    m2 = mover(ob1.parent, cache)
+    return bpy.data.objects.get(m2) if m2 else None
+
+
 def _tris_world(ob, m: Matrix) -> tuple:
     return _tris_world_mesh(ob.data, m)
 
@@ -206,6 +225,14 @@ def _carry(s) -> tuple:
     return m0, ms @ inv0
 
 
+def _carry_c(s) -> tuple:
+    """(Mc0, per-frame carrier->world matrices) of the carrier read with the paths (task 0096), or (None, None)."""
+    if "fr_carrier_m" not in s or len(s["fr_carrier_m"]) < 16:
+        return None, None
+    ms = np.array(s["fr_carrier_m"], dtype=np.float64).reshape(-1, 4, 4)
+    return ms[0], ms @ np.linalg.inv(ms[0])
+
+
 def _key(scene) -> tuple:
     s = settings(scene)
     wp = machining.workpiece(scene)
@@ -214,7 +241,7 @@ def _key(scene) -> tuple:
     return (s.path_sig, machining._stock_key(s, wp) if wp is not None else None,
             tuple(c.key() + (c.chip,) for c in items),
             s.chips, fam, s.chip_spindle, bool(s.chip_mist), scene.render.fps, round(scene.render.fps_base, 6),
-            len(s.get("fr_wp_m", ())), air.key(scene), _wet_key(scene))
+            len(s.get("fr_wp_m", ())), len(s.get("fr_carrier_m", ())), air.key(scene), _wet_key(scene))
 
 
 def _wet_key(scene) -> bytes:
@@ -281,12 +308,15 @@ def _inputs(scene) -> core.SimIn | None:
         floor = _cast(wgrid, _bvh([(fv, ft)]), hi[2] + 0.01, down=True)
     work = core.WorkField(wgrid, bottom, floor)
     core.stamp_paths(work, bits_in)
-    ride, static, floor_z = _catch(scene, wp, M0, lo, hi, reach, carry)
+    mc0, carry_c = _carry_c(s)
+    car = carrier(scene, wp) if mc0 is not None and len(carry_c) == len(carry) else None
+    ride, static, floor_z, cgrid = _catch(scene, wp, M0, lo, hi, reach, carry, car, mc0)
     f0 = int(s.get("fr_wp_f0", scene.frame_start))
     f1 = f0 + len(carry) - 1
     fps = scene.render.fps / (scene.render.fps_base or 1.0)
     return core.SimIn(fps=fps, f0=f0, f1=f1, bits=bits_in, work=work, ride=ride, static=static, floor_z=floor_z,
-                      carry=carry, amount=s.chips, mist=bool(s.chip_mist),
+                      carry=carry, carrier=cgrid, carry_c=carry_c if cgrid is not None else None,
+                      amount=s.chips, mist=bool(s.chip_mist),
                       air=air.inputs(scene, air_in, bit_names, carry, f0) if air_in else None,
                       wet=_wet_spans(scene))
 
@@ -307,8 +337,9 @@ def _tris_world_mesh(me, m: Matrix) -> tuple:
     return v.reshape(-1, 3) @ mm[:3, :3].T + mm[:3, 3], t.reshape(-1, 3)
 
 
-def _catch(scene, wp, M0: Matrix, lo, hi, reach: float, carry) -> tuple:
-    """Height fields of what moves with the workpiece (riding space) and what stands still (world), and the floor."""
+def _catch(scene, wp, M0: Matrix, lo, hi, reach: float, carry, car=None, mc0=None) -> tuple:
+    """Height fields of what moves with the workpiece (riding space) and what stands still (world), the floor, and
+    of what moves with the carrier ``car`` (carrier space, task 0096; None without one)."""
     s = settings(scene)
     skip = {wp.name}
     if s.finished is not None:
@@ -316,7 +347,7 @@ def _catch(scene, wp, M0: Matrix, lo, hi, reach: float, carry) -> tuple:
     skip |= {ob.name for _it, ob in machining.bits(scene)}
     cache = {}
     wp_mover = mover(wp, cache)
-    riding, static, all_parts = [], [], []
+    riding, static, carried, all_parts = [], [], [], []
     for ob in build.iter_parts(scene):
         if ob.get(build.PROP_EXCLUDED):
             continue
@@ -326,6 +357,8 @@ def _catch(scene, wp, M0: Matrix, lo, hi, reach: float, carry) -> tuple:
         mv = mover(ob, cache)
         if wp_mover and mv == wp_mover:
             riding.append(ob)
+        elif car is not None and mv == car.name:
+            carried.append(ob)
         elif not mv:
             static.append(ob)
     if not wp_mover:                                  # the workpiece stands still: so does everything around it
@@ -350,7 +383,17 @@ def _catch(scene, wp, M0: Matrix, lo, hi, reach: float, carry) -> tuple:
         static_grid = core.grid_for(slo, shi, 4 * core.MM)
         z_from = level + 0.001 if np.isfinite(level) else float(hi[2]) + 0.05
         static_grid.h = _cast(static_grid, _bvh([_tris_world(ob, ob.matrix_world) for ob in near_s]), z_from)
-    return rgrid, static_grid, floor_z
+    # the carrier: the table under the turning axis, in carrier space (the world at the first frame carried by it)
+    cgrid = None
+    if car is not None and carried:
+        to_c = Matrix([list(r) for r in mc0]) @ car.matrix_world.inverted()
+        near_c = [ob for ob in carried if _overlaps(ob, lambda o: to_c @ o.matrix_world, box_lo, box_hi)]
+        if near_c:
+            cgrid = core.grid_for(box_lo, box_hi, 2 * core.MM)
+            cgrid.h = _cast(cgrid, _bvh([_tris_world(ob, to_c @ ob.matrix_world) for ob in near_c]), hi[2] + 0.05)
+            if not np.isfinite(cgrid.h).any():
+                cgrid = None
+    return rgrid, static_grid, floor_z, cgrid
 
 
 def _overlaps(ob, m_of, lo, hi) -> bool:
@@ -498,12 +541,12 @@ def _display_object(scene, name: str, role: str):
     return ob
 
 
-def _follow(ob, wp) -> None:
+def _follow(ob, wp, name: str = "Follow the workpiece") -> None:
     """The riding chips go wherever the workpiece goes (also with scripts off: a constraint, no Python)."""
-    con = ob.constraints.get("Follow the workpiece")
+    con = ob.constraints.get(name)
     if con is None:
         con = ob.constraints.new("COPY_TRANSFORMS")
-        con.name = "Follow the workpiece"
+        con.name = name
     if con.target is not wp:
         con.target = wp
 
@@ -662,28 +705,47 @@ def show(scene, T: float | None = None) -> bool:
     _write_points(ride.data, pos, rot, r["slot"], r["scale"], r["tint"], wet)
     w = data[1]
     _write_points(world.data, w["pos"], w["rot"], w["slot"], w["scale"], w["tint"], wet)
-    for ob in (ride, world):
+    shown_obs = [ride, world]
+    c = data.get(2)
+    mc0, _cm = _carry_c(settings(scene))
+    car = carrier(scene, wp) if mc0 is not None else None
+    if c is not None and len(c["pos"]) and car is not None:        # on the table under a 4th axis (task 0096)
+        cob = _display_object(scene, OBJ_CARRIER, "carrier")
+        _follow(cob, car, "Follow the table")
+        inv_c = np.linalg.inv(mc0)
+        pos_c = c["pos"] @ inv_c[:3, :3].T + inv_c[:3, 3]
+        q_c = core.q_from_matrix(inv_c[:3, :3] / np.cbrt(max(abs(np.linalg.det(inv_c[:3, :3])), 1e-12)))
+        rot_c = core.q_mul(np.broadcast_to(q_c, (len(c["rot"]), 4)), c["rot"])
+        _write_points(cob.data, pos_c, rot_c, c["slot"], c["scale"], c["tint"], wet)
+        shown_obs.append(cob)
+    else:
+        _empty(OBJ_CARRIER)
+    for ob in shown_obs:
         if ob.hide_render or ob.hide_viewport:
             ob.hide_render = ob.hide_viewport = False
     rt["shown"] = T
-    rt["count"] = int(len(r["pos"]) + len(w["pos"]))
+    rt["count"] = int(sum(len(v["pos"]) for v in data.values()))
     return True
+
+
+def _empty(name: str) -> None:
+    ob = bpy.data.objects.get(name)
+    if ob is not None and ob.get(TAG) and ob.data is not None and len(ob.data.vertices):
+        ob.data.clear_geometry()
+        ob.data.update()
 
 
 def hide(scene) -> None:
     """No chips in the picture (milling off, chips None, nothing to show): the objects stay, empty."""
-    for name in (OBJ_RIDE, OBJ_WORLD):
-        ob = bpy.data.objects.get(name)
-        if ob is not None and ob.get(TAG) and ob.data is not None and len(ob.data.vertices):
-            ob.data.clear_geometry()
-            ob.data.update()
+    for name in (OBJ_RIDE, OBJ_WORLD, OBJ_CARRIER):
+        _empty(name)
     runtime(scene)["count"] = 0
 
 
 def remove(scene) -> None:
     """Take every chip object, shape and node group out of the file."""
     _RUNTIME.pop(scene.name, None)
-    for name in (OBJ_RIDE, OBJ_WORLD):
+    for name in (OBJ_RIDE, OBJ_WORLD, OBJ_CARRIER):
         ob = bpy.data.objects.get(name)
         if ob is not None and ob.get(TAG):
             me = ob.data

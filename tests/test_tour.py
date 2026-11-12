@@ -208,3 +208,48 @@ def test_automatic_run_renders_a_picture_per_stop(built, tmp_path, monkeypatch):
     assert "Fresing Render test tour" in page and page.count("class='card stop'") == 5
     block = (tmp_path / "hist" / "last_run.txt").read_text(encoding="utf-8")
     assert block.startswith("Fresing Render PC check") and "Test tour" in block.splitlines()[0]
+
+
+def test_three_tools_cuts_nothing_outside_the_program(built):
+    """Task 0096: after the manual changes at Z10 the end mill (27.7 mm longer than the face mill) dove 17.7 mm into
+    the block at X20 Y0. The milled block now has nothing cut deeper than the end mill's slot (Z-6), and at X20 Y0
+    (the face mill's strip) nothing deeper than its 1 mm."""
+    import manifold3d as mf
+    import numpy as np
+
+    from fresing_render.blender import animation, machining
+    from fresing_render.core import machining as mcore
+    bpy, folder, _out = built
+    tour.open_set(folder, "9.9.9", "tools")
+    sc = bpy.context.scene
+    a = sc.fresing.animations["Three tools"]
+    r = animation.bake(sc, a)
+    assert not [w for w in r["warnings"] if "G43" in w], r["warnings"]
+    wp = machining.workpiece(sc)
+    assert wp is not None and machining.is_active(sc)
+
+    def solid():
+        me = wp.evaluated_get(bpy.context.evaluated_depsgraph_get()).to_mesh()
+        me.calc_loop_triangles()
+        v = np.empty(len(me.vertices) * 3, np.float32)
+        me.vertices.foreach_get("co", v)
+        t = np.empty(len(me.loop_triangles) * 3, np.int32)
+        me.loop_triangles.foreach_get("vertices", t)
+        mw = np.array(wp.matrix_world)
+        zero = np.array(sc.fresing.cnc.zero_empty.matrix_world.inverted())
+        m = zero @ mw                                 # the block in the program's coordinates (m)
+        pts = v.reshape(-1, 3).astype(float) @ m[:3, :3].T + m[:3, 3]
+        return mcore.solid_from_mesh(pts * 1000.0, t.reshape(-1, 3))      # mm
+
+    sc.frame_set(sc.frame_start)
+    machining.sample(sc)
+    sc.frame_set(sc.frame_start)
+    before = solid()
+    sc.frame_set(sc.frame_end)
+    after = solid()
+    gone = before - after
+    assert gone.volume() > 1000.0                     # it did cut (mm³)
+    lo = np.array(gone.bounding_box()[:3])
+    assert lo[2] >= -6.05, lo                         # the end mill's slot is the deepest cut
+    probe = mf.Manifold.cube((6.0, 6.0, 30.0)).translate((17.0, -3.0, -31.05))   # X17..23 Y-3..3, below Z-1.05
+    assert (gone ^ probe).volume() < 1e-3

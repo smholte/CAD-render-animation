@@ -382,6 +382,9 @@ def changer(scene, anim, b, mach=None) -> TC.Changer:
             mach = None
     if mach is not None:
         ch.rapid = tuple(mach.rapid)
+        # the tools' length offsets (mm): the way to and from the changer is planned for the spindle (task 0096)
+        lift = gcode.length_offsets(scene, mach, sorted({t.number for t in c.tools if t.number}), ch.start_tool)
+        ch.lengths = {n: v / MM for n, v in lift.items()}
     if atc and mach is not None and c.pockets:
         try:
             ch.stations, ch.carousel, _notes = stations(scene, mach)
@@ -420,6 +423,13 @@ def notes(scene, sch) -> list[str]:
         if c.note and c.note not in seen:
             seen.add(c.note)
             out.append(c.note)
+    try:                                       # an M6 without a G43 for the new tool (task 0096)
+        mach = gcode.Machine(scene)
+        offsets = gcode._offsets(scene, mach, sch)
+        for tool_n, h, diff, line, _t0, _t1 in gcode.length_mismatches(sch, offsets):
+            out.append(gcode.length_text(tool_n, h, diff, line))
+    except gcode.SetupError:
+        pass
     if sch.change_scale < 1.0 - 1e-6:
         out.append(f"'Fit into': tool changes shortened to {sch.change_scale * 100:.0f} % (they may take half of "
                    "the seconds)")
