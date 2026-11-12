@@ -613,7 +613,8 @@ class Workpiece:
 
     def tile_meshes(self, tiles: tuple, cache: dict | None = None, ids: dict | None = None) -> list:
         """One row per tile that has triangles: ``[solid, verts, tris, source, move, marks]`` (the tile's own
-        vertex numbers; ``marks`` is None until ``Timeline.mesh_at`` fills it in). Rows are kept in ``cache``."""
+        vertex numbers; ``marks`` is None until ``Timeline.mesh_at`` fills it in). Rows are kept in ``cache``.
+        After these six a row has the tile's corner normals (None until asked for) and its box (lo, hi)."""
         ids = self.cut_ids if ids is None else ids
         rows = []
         for t in tiles:
@@ -622,7 +623,7 @@ class Workpiece:
             key = id(t.solid)
             hit = cache.get(key) if cache is not None else None
             if hit is None or hit[0] is not t.solid:
-                hit = [t.solid, *self._tile_arrays(t.solid, ids), None]
+                hit = [t.solid, *self._tile_arrays(t.solid, ids), None, None, t.lo, t.hi]
                 if cache is not None:
                     cache[key] = hit
             rows.append(hit)
@@ -635,7 +636,7 @@ class Workpiece:
             out = (np.zeros((0, 3), np.float32), np.zeros((0, 3), np.int32), np.zeros(0, np.int32))
             return out + (np.zeros(0, np.int32),) if moves else out
         if len(rows) == 1:
-            _s, v, tr, src, mv, _mk = rows[0]
+            _s, v, tr, src, mv = rows[0][:5]
             return (v, tr, src, mv) if moves else (v, tr, src)
         off = np.cumsum([0] + [len(r[1]) for r in rows[:-1]])
         out = (np.concatenate([r[1] for r in rows]), np.concatenate([r[2] + o for r, o in zip(rows, off)]),
@@ -929,7 +930,7 @@ class Timeline:
         f = 0.0 if b - a <= 1e-12 else (T - a) / (b - a)
         return p.o[s.i0 + j - 1] * (1 - f) + p.o[s.i0 + j] * f
 
-    def mesh_at(self, T: float, moves: bool = False, marks: bool = False) -> tuple:
+    def mesh_at(self, T: float, moves: bool = False, marks: bool = False, normals: bool = False) -> tuple:
         """The workpiece's mesh at time ``T``: (verts, tris, source) as ``Workpiece.mesh``.
 
         ``moves=True``: also int32 per triangle, the row in ``self.moves`` of the move that made it last (-1: a
@@ -938,7 +939,12 @@ class Timeline:
         (``moves.owner``): their solids lie on each other.
 
         ``marks=True``: five results – the move and, fifth, the four arrays of ``mark_faces``, worked out once
-        per tile and kept with its mesh, so a frame that changes one tile works out the marks of that tile only."""
+        per tile and kept with its mesh, so a frame that changes one tile works out the marks of that tile only.
+
+        ``normals=True``: one more result at the end – a unit normal per triangle corner, float32
+        (triangles * 3, 3), from ``cut_normals.corner_normals`` (flat faces flat, round walls smooth, needle
+        triangles take their neighbour's; the faces that close a tile inside the material do not count), also
+        worked out once per tile."""
         t0 = time.perf_counter()
         tiles = self.at(T)
         if len(self.mesh_cache) > 2 * len(tiles) + 8:      # forget meshes of tiles no longer shown
@@ -956,6 +962,17 @@ class Timeline:
                 out += (tuple(np.concatenate([r[5][k] for r in rows]) for k in range(4)),)
             else:
                 out += (tuple(np.zeros((0, 3), np.float32) for _k in range(4)),)
+        if normals:
+            from . import cut_normals
+            for r in rows:
+                if r[6] is None:
+                    r[6] = cut_normals.corner_normals(r[1], r[2], skip=cut_normals.seam_faces(r[1], r[2], r[7], r[8]))
+            if len(rows) == 1:
+                out += (rows[0][6],)
+            elif rows:
+                out += (np.concatenate([r[6] for r in rows]),)
+            else:
+                out += (np.zeros((0, 3), np.float32),)
         self.stats.last_ms = (time.perf_counter() - t0) * 1000
         self.stats.triangles = int(len(out[1]))
         self.stats.tiles = sum(1 for t in tiles if t.ntri)
@@ -1134,7 +1151,8 @@ def cut_look(block_id: str) -> tuple | None:
                 "Stainless, machined")
     if block_id in ("cast_iron", "cast_iron_painted"):      # bare grey iron, a little dull
         return ("steel_machined", dict(base_color=(0.47, 0.47, 0.48), metallic=0.9, roughness=0.34,
-                                       marks=dict(_MILLED, rough=0.06)), "Cast iron, machined")
+                                       marks=dict(_MILLED, rough=0.06), marks_look="cast_iron"),
+                "Cast iron, machined")
     if block_id == "nickel_plated":                         # plated brass fittings: brass underneath
         block_id = "brass"
     if block_id in _CUT_BRIGHT:

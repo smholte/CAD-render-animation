@@ -508,6 +508,9 @@ def cut_material(scene, wp):
     if look is None:
         return None
     mid, tweak, label, colour = look
+    s = settings(scene)
+    if s.marks:                                    # tool marks (task 0061): strengths by what the cut is made of
+        tweak = dict(tweak, toolmarks=toolmarks.look(tweak.get("marks_look") or mid))
     key = json.dumps([mid, tweak, colour, materials.LOOK_VERSION], sort_keys=True)
     name = CUT_MAT_PREFIX + label + (f" {colour}" if colour else "")
     mat = bpy.data.materials.get(name)
@@ -519,7 +522,21 @@ def cut_material(scene, wp):
             mat.use_nodes = True
         materials.build_nodes(mat, mid, colour, 0.0, tweak)
         mat[CUT_KEY] = key
+    if s.marks:                                    # Mark size and Strength: set on the nodes, nothing is rebuilt
+        from . import toolmarks as marks_nodes
+        marks_nodes.set_inputs(mat, s.marks_size, s.marks_strength, _pixel_angle(scene))
     return mat
+
+
+def _pixel_angle(scene) -> float | None:
+    """The angle one pixel of the picture covers through the scene's camera (rad): marks finer than about two
+    pixels fade out and leave the sheen. None without a camera with a lens (the node group's own value stays)."""
+    cam = scene.camera
+    if cam is None or cam.type != "CAMERA" or cam.data.type != "PERSP":
+        return None
+    r = scene.render
+    width = max(1, int(r.resolution_x * r.resolution_percentage / 100))
+    return float(f"{toolmarks.pixel_angle(width, cam.data.lens, cam.data.sensor_width):.3g}")
 
 
 def _cut_slot(scene, wp) -> int:
@@ -553,6 +570,13 @@ def cut_look_changed(scene) -> None:
         return
     _cut_slot(scene, wp)
     wp.update_tag()
+
+
+def marks_changed(scene) -> None:
+    """'Tool marks' ticked or cleared: the cut faces' material changes and the mesh gets or loses what the marks
+    read, so write it again."""
+    cut_look_changed(scene)
+    refresh(scene, force=True)
 
 
 def cut_look_text(scene) -> str:
@@ -1205,21 +1229,21 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
             rt["status"] = "Waiting for the motion to be read"
             return False
         marks = None
-        want = bool(getattr(s, "marks", True))         # tool marks on the cut faces (task 0061)
+        want = bool(s.marks)         # tool marks on the cut faces (task 0061)
         if not force and rt.get("shown") == (id(tl), T, want):
             _cut_slot(scene, wp)                       # a look changed in 3 Looks shows at once
             return True
         if want:
-            v, t, src, _move, marks = tl.mesh_at(T, marks=True)
+            v, t, src, _move, marks, normals = tl.mesh_at(T, marks=True, normals=True)
         else:
-            v, t, src = tl.mesh_at(T)
+            v, t, src, normals = tl.mesh_at(T, normals=True)
         mats = rt.get("mats")
         mi = np.zeros(len(t), dtype=np.int32)
         mi[src < 0] = _cut_slot(scene, wp)             # faces the cutter made: their own look (task 0051)
         if mats is not None and len(mats):
             ok = (src >= 0) & (src < len(mats))
             mi[ok] = mats[src[ok]]
-        _write_mesh(s.cut_mesh, v, t, mi, marks=marks)
+        _write_mesh(s.cut_mesh, v, t, mi, marks=marks, normals=normals)   # normals: no dark facets (0042)
         rt["shown"] = (id(tl), T, want)
         _show_chips(scene, T)
         st = tl.stats
