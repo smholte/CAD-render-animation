@@ -339,7 +339,7 @@ class Mesh:
             # beside an edge or a corner: the face says little. Beside a sharp outer edge (the cut end of a U-shaped
             # claw, task 0067) a point outside lies well "below" the face whose edge is nearest: "below" by half its
             # distance called points 15 mm outside an arm 15 … 60 mm inside it
-            return self._inside_by_rays(p)
+            return self._inside_by_rays(p, dist=dist)
         return False
 
     def _orient(self) -> None:
@@ -382,11 +382,14 @@ class Mesh:
         d, _g = self.depths(np.asarray(p, dtype=np.float64)[None])
         return float(d[0])
 
-    def _inside_by_rays(self, p, tree=None) -> bool:
-        """Inside when rays from the point cross the surface an odd number of times (two of three rays agree)."""
-        votes = 0
+    def _inside_by_rays(self, p, tree=None, dist: float = 0.0) -> bool:
+        """Inside when rays from the point cross the surface an odd number of times (two of three rays agree). A
+        point found inside further than ``RAY_CONFIRM`` from the surface is asked again with seven more rays (eight of
+        the ten must agree): a big CAD mesh can have tiny gaps between its faces a ray slips through, and a gearbox's
+        corner 0.58 m from a thin rim fence read as inside it (task 0092)."""
         ray = (tree or self.ptree).ray_cast
-        for d in RAYS:
+
+        def odd(d) -> int:
             n, start = 0, p
             for _k in range(256):
                 loc, _nor, _i, _dist = ray(start, d)
@@ -394,11 +397,20 @@ class Mesh:
                     break
                 n += 1
                 start = (loc[0] + d[0] * RAY_STEP, loc[1] + d[1] * RAY_STEP, loc[2] + d[2] * RAY_STEP)
-            votes += n % 2
-        return votes >= 2
+            return n % 2
+        votes = sum(odd(d) for d in RAYS)
+        if votes < 2:
+            return False
+        if dist <= RAY_CONFIRM:
+            return True
+        return votes + sum(odd(d) for d in RAYS_MORE) >= 8
 
 
 RAYS = ((0.5772, 0.5774, 0.5776), (-0.3117, 0.8436, -0.4372), (0.8018, -0.2673, 0.5345))
+RAYS_MORE = tuple(tuple(float(x) for x in v / np.linalg.norm(v)) for v in np.array(
+    [(-0.62, -0.51, 0.59), (0.13, -0.97, -0.21), (-0.88, 0.17, 0.44), (0.36, 0.48, -0.8), (-0.29, -0.33, -0.9),
+     (0.71, -0.69, -0.13), (-0.05, 0.71, 0.7)]))
+RAY_CONFIRM = 5.0 * core.MM              # a point this deep inside by rays is confirmed with more rays
 RAY_STEP = 2e-6                          # m past a face before looking for the next one
 FACING = 0.999                           # a point straight below a face: -side > this × its distance (else rays)
 ON_SURFACE = 1e-5                        # m: a point closer than this to a surface touches it (not inside)

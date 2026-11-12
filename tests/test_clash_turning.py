@@ -308,3 +308,19 @@ def test_a_spoked_sheave_and_its_rope_are_checked_once_per_turn(sc):
     assert r.stats["held"] == 0 and r.stats["still_pairs"] == 1
     pairs = {frozenset((x.a, x.b)) for x in r.rows if x.kind == "CLASH"}
     assert pairs == {frozenset(("SHEAVE", "PIN"))}, [core.row_text(x) for x in r.rows]
+
+
+def test_a_gap_in_a_big_mesh_does_not_make_a_far_point_inside(monkeypatch):
+    """A closed box plus a stray open sheet (a face left over where a CAD mesh has a gap): from a point 1 m from any
+    face, two of the three usual rays cross the sheet once (odd: "inside"). More rays disagree: outside (task 0092: a
+    gearbox's corner read 0.58 m inside a thin rim fence)."""
+    bv, bt = box((2.0, 2.0, 2.0), (3.0, 3.0, 3.0))
+    sheet_v = [(-2.0, 1.0, -2.0), (2.0, 1.0, -2.0), (2.0, 1.0, 2.0), (-2.0, 1.0, 2.0)]
+    v = list(bv) + sheet_v
+    t = list(bt) + [(8, 9, 10), (8, 10, 11)]
+    m = _mesh((v, t))
+    p = (np.zeros(3) - m.c).tolist()                                   # (the rays work round the mesh's centre)
+    assert not m._inside_by_rays(p, dist=1.0)
+    assert m._inside_by_rays(p, dist=0.001 * MM)                       # near a face: the three rays decide
+    monkeypatch.setattr(clash, "RAY_CONFIRM", math.inf)             # only the three rays (before task 0092)
+    assert m._inside_by_rays(p, dist=1.0)
