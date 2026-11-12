@@ -112,6 +112,10 @@ class Changer:
     rapid: tuple = (5000.0, 5000.0, 5000.0)
     # double-arm changer (task 0064): ``arm_times`` {phase: s at speed 1}; ``tip``: s a pot takes to tip (0: the pots
     # do not tip); ``orient``: s the spindle takes to stop at its orient angle
+    # task 0096: {T: mm} each tool's length offset (how far the spindle sits higher for it than for the reference
+    # tool). The head's way to and from the changer is planned for the spindle, so a longer new tool never comes back
+    # lower than the program's point; a manual change in place lifts the spindle before a longer tool goes in.
+    lengths: dict = field(default_factory=dict)
     arm: bool = False
     arm_times: dict = field(default_factory=lambda: dict(ARM_TIMES))
     tip: float = 0.0
@@ -173,6 +177,11 @@ class Change:
     prep: list = field(default_factory=list)   # double-arm: the magazine's turn and the pot's tip at the Tn before
     pre_at: float | None = None  # the Tn's moment (s) when ``prep`` plays before the change (pre-indexed)
     index: int = 0               # double-arm: how many double-arm changes came before this one in the step
+    h_old: int = 0               # task 0096: whose length offset is in force before / after the change (the new
+    h: int = 0                   # tool's, unless the program has no G43 for it)
+    lift_end: float = 0.0        # task 0096: the spindle's length adjustment ends with the first leg out and
+    lift_start: float = 0.0      # starts with the last leg back (the head's path is planned for the spindle)
+    lift_mid: float = 0.0        # the lift in between: 0 at a pocket, the longer tool's at a manual change position
 
     def total(self, k: float = 1.0) -> float:
         """Its length with every phase ``k`` times as long (not under its minimum): groups side by side."""
@@ -282,13 +291,57 @@ def _legs(a: tuple, b: tuple, rapid, rapid_factor: float, z_first: bool) -> list
     return out
 
 
-def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid_factor: float = 1.0) -> Change:
+def _way(a: tuple, b: tuple, rapid, rf: float) -> list:
+    """Rapids from ``a`` to ``b`` that never go below the lower end: up first when going up, down last when going
+    down (task 0096)."""
+    return _legs(a, b, rapid, rf, b[2] > a[2] + 1e-9)
+
+
+def _spindle(p: tuple, lift: float) -> tuple:
+    return (p[0], p[1], p[2] + lift)
+
+
+def _shift(legs: list, dz: float) -> list:
+    """Legs planned for the spindle, as the reference tip's path when the spindle sits ``dz`` mm higher."""
+    if dz:
+        for ph in legs:
+            ph.a, ph.b = _spindle(ph.a, -dz), _spindle(ph.b, -dz)
+    return legs
+
+
+def _from_program(legs: list, p: tuple) -> list:
+    """The first leg of the way out starts at the program's point (the spindle's lift fades on it)."""
+    if legs:
+        legs[0].a = p
+    return legs
+
+
+def _to_program(legs: list, p: tuple) -> list:
+    """The last leg of the way back ends at the program's point (the new tool's lift grows on it)."""
+    if legs:
+        legs[-1].b = p
+    return legs
+
+
+def lengths_of(ch: Changer, h_old: int, h_new: int) -> tuple[float, float]:
+    """(mm, mm): the spindle's lift for the offset in force before and after a change."""
+    lg = ch.lengths or {}
+    return float(lg.get(h_old, 0.0)), float(lg.get(h_new, 0.0))
+
+
+def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid_factor: float = 1.0,
+         h_old: int | None = None, h_new: int | None = None) -> Change:
     """The phases of one tool change from tool ``old`` to ``new`` with the head at ``p`` (machine mm) and the carousel
-    at ``carousel_value``. Times are relative (``place`` puts them on the time line)."""
+    at ``carousel_value``. Times are relative (``place`` puts them on the time line). ``h_old`` / ``h_new``: the tools
+    whose length offsets are in force before and after (default: ``old`` / ``new``). The way out and back is planned
+    for the spindle (``Changer.lengths``): its first knot and last knot are the program's point, where the lift of the
+    old / new offset fades out and in (:func:`lift_knots`)."""
     c = Change(tool=new, old=old)
     rf = max(1e-6, float(rapid_factor or 1.0))
     speed = max(1e-3, float(ch.speed or 1.0))
     p = tuple(float(x) for x in p)
+    cur_l, new_l = lengths_of(ch, old if h_old is None else h_old, new if h_new is None else h_new)
+    p_out, p_back = _spindle(p, cur_l), _spindle(p, new_l)
     if old == new and old:
         return c                                       # T1 M6 with T1 in the spindle: nothing happens
     po = ch.pockets.get(old) if ch.has_pocket(old) else None
@@ -321,7 +374,7 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
 
         first = station(po if po is not None else pn)
         here = above(first)
-        out = _role(_legs(p, here, ch.rapid, rf, True), "out")
+        out = _role(_from_program(_way(p_out, here, ch.rapid, rf), p), "out")
         v0, v1 = turn_to(po if po is not None else pn)
         tt = turn_time(v0, v1)
         if out and tt:                                 # the carousel turns while the head travels
@@ -366,12 +419,17 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
             c.note = f"T{new} has no pocket: it is put in by hand"
         if seq_b > 0:
             ph.append(Phase("seq", seq_b / speed, a=here, b=here, s0=seq_a, s1=ch.seq))
-        ph += _role(_legs(here, p, ch.rapid, rf, False), "back")
+        ph += _role(_to_program(_way(here, p_back, ch.rapid, rf), p), "back")
         c.moves = True
     else:
         where = resolve(p, ch.position) if ch.position is not None else p
+        where = (where[0], where[1], max(where[2], p[2]))  # never lower than the program's point (task 0096)
         moves = math.dist(where, p) > 1e-9
-        out = _role(_legs(p, where, ch.rapid, rf, True), "out") if moves else []
+        # no pocket here: the spindle sits as high as the longer of the two tools needs, so both tips stay at or
+        # above the change position (and so above the program's point)
+        c.lift_mid = max(cur_l, new_l)
+        w_s = _spindle(where, c.lift_mid)
+        out = _role(_from_program(_shift(_way(p_out, w_s, ch.rapid, rf), c.lift_mid), p), "out") if moves else []
         ph += out
         if ch.atc and ch.seq > 0:                      # a changer animation without pockets (task 0026)
             ph.append(Phase("seq", seq_a / speed, a=where, b=where, s0=0.0, s1=seq_a, after="swap"))
@@ -380,7 +438,7 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
             pl = ch.pause_length()
             ph.append(Phase("pause", pl, a=where, b=where, hand=ch.hand, after="swap",
                             least=HAND_MIN if ch.hand else min(pl, MIN_PAUSE)))
-        ph += _role(_legs(where, p, ch.rapid, rf, False), "back") if moves else []
+        ph += _role(_to_program(_shift(_way(w_s, p_back, ch.rapid, rf), c.lift_mid), p), "back") if moves else []
         c.moves = moves
     c.phases = ph
     return c
@@ -422,7 +480,40 @@ def place(c: Change, start: float, scale: float = 1.0) -> Change:
         c.back_start = backs[0].t0
     else:
         c.out_end = c.back_start = c.swap
+    _lift_span(c, outs, backs)
     return c
+
+
+def _lift_span(c: Change, outs: list, backs: list) -> None:
+    if c.moves and outs and backs:
+        first = min(outs, key=lambda ph: ph.t0)
+        last = max(backs, key=lambda ph: ph.t0)
+        c.lift_end = first.t0 + first.dur
+        c.lift_start = last.t0
+    else:
+        c.lift_end, c.lift_start = c.out_end, c.back_start
+
+
+def lift_knots(c: Change, cur: float, new: float) -> list:
+    """[(s, lift)] of the spindle over one placed change (task 0096): ``cur`` / ``new`` the lift of the offset in
+    force before and after (any unit). The head goes somewhere: the lift fades on the first leg out (the path was
+    planned for the spindle, so the tip only rises) and grows on the last leg back. The head stays: before a longer
+    tool goes in, the spindle rises (while the hand has the old tool away, else from the change's start), and after
+    the swap it comes down to the new tool's lift - the new tool's tip never goes below the program's point."""
+    if c.length <= 0:
+        return []
+    end = c.start + c.length
+    if c.moves and c.lift_end > c.start - 1e-12:
+        return [(c.start, cur), (c.lift_end, c.lift_mid), (c.lift_start, c.lift_mid), (end, new)]
+    if c.kind == "arm":                          # the arm hands the tools over at the spindle: it does not move then
+        return [(c.swap, cur), (end, new)]
+    hi = max(cur, new)
+    up = c.drop if c.swap - c.drop > 1e-6 else c.start
+    knots = [(c.start, cur)]
+    if up > c.start + 1e-9:
+        knots.append((up, cur))
+    knots += [(c.swap, hi), (end, new)]
+    return knots
 
 
 def fit(changes: list, target: float) -> float:
@@ -487,7 +578,8 @@ def prep(ch: Changer, pocket, v: float) -> tuple[list, float]:
 
 
 def plan_arm(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, pockets: dict,
-             rapid_factor: float = 1.0, pre: bool = False) -> tuple[Change, float]:
+             rapid_factor: float = 1.0, pre: bool = False, h_old: int | None = None,
+             h_new: int | None = None) -> tuple[Change, float]:
     """One double-arm change from tool ``old`` to ``new`` with the head at ``p`` (machine mm), the carousel at
     ``carousel_value`` and the tools in ``pockets`` ({T: pot}, now). ``pre``: the magazine already did its work at
     the Tn before (the phases are in ``Change.prep``, placed by ``Schedule``). Returns (change, carousel value after).
@@ -499,15 +591,17 @@ def plan_arm(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, p
     if old == new and old:
         return Change(tool=new, old=old), carousel_value
     if pn is None:
-        c = plan(old, new, p, Changer(position=ch.position, pause=ch.pause, hand=ch.hand, rapid=ch.rapid), 0.0, rf)
+        c = plan(old, new, p, Changer(position=ch.position, pause=ch.pause, hand=ch.hand, rapid=ch.rapid,
+                                      lengths=ch.lengths), 0.0, rf, h_old=h_old, h_new=h_new)
         c.note = f"T{new} has no pot in the magazine: it is put in by hand"
         return c, carousel_value
     c = Change(tool=new, old=old, kind="arm", old_pocket=pn, new_pocket=pn)
     where = resolve(p, ch.position) if ch.position is not None else p
     c.moves = math.dist(where, p) > 1e-9
+    cur_l, new_l = lengths_of(ch, old if h_old is None else h_old, new if h_new is None else h_new)
     mag, v = prep(ch, pn, carousel_value)
     ph: list = []
-    for x in _role(_legs(p, where, ch.rapid, rf, True), "out") if c.moves else []:
+    for x in _role(_from_program(_way(_spindle(p, cur_l), where, ch.rapid, rf), p), "out") if c.moves else []:
         x.group, x.track = 0, "head"
         ph.append(x)
     if ch.orient > 0:
@@ -523,7 +617,7 @@ def plan_arm(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, p
         d = _arm_time(ch, name)
         ph.append(Phase("arm", d, a=where, b=where, least=min(d, ARM_MIN), group=1, track="arm", name=name,
                         after={"grip": "drop", "push": "swap"}.get(name, "")))
-    for x in _role(_legs(where, p, ch.rapid, rf, False), "back") if c.moves else []:
+    for x in _role(_to_program(_way(where, _spindle(p, new_l), ch.rapid, rf), p), "back") if c.moves else []:
         x.group, x.track = 2, "head"
         ph.append(x)
     if ch.tip > 0:
@@ -553,6 +647,7 @@ def _place_arm(c: Change, start: float, scale: float) -> Change:
         c.back_start = min(ph.t0 for ph in backs)
     else:
         c.out_end = c.back_start = c.swap
+    _lift_span(c, outs, backs)
     return c
 
 

@@ -2160,11 +2160,11 @@ stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
 stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
      "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
      "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
-     animation=HOSES_ANIM, play=True, since="0.2.76", check=_check_hoses, auto="clip")
+     animation=HOSES_ANIM, play=True, since="0.2.77", check=_check_hoses, auto="clip")
 stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
-     since="0.2.76", check=_check_chains, auto="clip")
+     since="0.2.77", check=_check_chains, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)
@@ -2186,11 +2186,13 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      animation="G-code", play=True, check=_check_gcode, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
-     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43.",
+     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "
+     "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
+     "new tool would get a line in the Build result and a row in the clash check.",
      where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip")
 stop("hand", MACH, "tools", "Tool change by hand (BT30)",
-     "At a tool change the head goes up, a gloved hand takes the tool out by its BT30 holder and puts the next one "
-     "in.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
+     "At a tool change a gloved hand takes the tool out by its BT30 holder and puts the next one in; for a longer "
+     "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
      at=-1.0, check=_check_hand)
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "

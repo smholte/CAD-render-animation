@@ -256,7 +256,8 @@ def bend_radius(points, hose=False):
     """The tightest bend of each polyline (..., n, 3) → (...): the smallest circle through three neighbouring
     points; np.inf for a straight line (or fewer than three points). ``hose``: the points are a hose of this
     solver, whose first and last segment lie in the fittings: the bend at the two end joints is spread over 1.5
-    segments (see the module's text), so the circle there counts 1.5 times its radius (meant for 5 points or more, as every solved hose has) – this is what
+    segments (see the module's text), so the circle there counts 1.5 times its radius (meant for 5 points or
+    more, as every solved hose has) – this is what
     ``Hoses.min_radius`` reports."""
     pts = np.asarray(points, dtype=float)
     if pts.shape[-2] < 3:
@@ -1009,9 +1010,9 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
     its shape counts – which way it bows beside the line between the ends – not its length or where exactly it is.
     The hose starts from the guide's shape and keeps its belly in the plane of the guide's (see the module's
     text); ``start`` is ignored for it and ``Hoses.start`` is 3. A guide that is no line (all its points in one
-    place, or not finite) is no guide; fewer than 2 points are refused (ValueError). What the caller gives: the hose's centreline in the pose it was drawn in, each point carried
-    along by the part of end 0 and by the part of end 1 and the two blended along the hose (all of end 0's at
-    the start, all of end 1's at the end, a smooth step between).
+    place, or not finite) is no guide; fewer than 2 points are refused (ValueError). What the caller gives: the
+    hose's centreline in the pose it was drawn in, carried along by the part of end 0 and by the part of end 1,
+    going over from the one to the other along the hose (``carried``).
 
     Result (``Hoses``): n points per hose with exact ends; unless ``short``, all n − 1 segments are length/(n − 1)
     long, the first along t0, the last along t1; ``start`` says which start each answer came from. Nothing is

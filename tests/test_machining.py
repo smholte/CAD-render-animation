@@ -689,3 +689,46 @@ def test_queued_still_shows_the_cut_look(scene, tmp_path):
     white = (img.min(axis=2) > 235).mean()
     assert white > 0.001, white                      # the slot glows
     assert white < 0.1, white                        # and only the slot
+
+
+def test_f12_right_after_scrubbing_renders_the_exact_normals(scene, monkeypatch):
+    """Task 0096: Blender's own F12 (or Render Animation) in the window calls the render handlers on its render
+    thread. They write the exact normals only with the interface locked - a user who switched 'Lock Interface' off
+    and pressed F12 within 0.3 s of scrubbing got the quick ones. Showing quick normals switches the lock on again,
+    and the handler on the render thread then writes the exact ones."""
+    import threading
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    me = scene.fresing.milling.cut_mesh
+    monkeypatch.setattr(machining, "_quick_now", lambda: True)             # as in the window
+    monkeypatch.setattr(machining, "_schedule_fine", lambda: None)
+    monkeypatch.setattr(machining, "_in_window", lambda: True)
+    scene.render.use_lock_interface = False                                # the user switched it off
+    scene.frame_set(frames - 5)                                            # scrubbing: quick normals
+    assert "custom_normal" not in me.attributes and machining.runtime(scene)["shown"][3] is True
+    assert scene.render.use_lock_interface, "quick normals shown with the interface unlocked"
+    # F12: render_init, render_pre on the render thread (not the main one)
+    errors = []
+
+    def render_thread():
+        try:
+            machining._on_render_init(scene)
+            machining._on_render_pre(scene)
+        except Exception as exc:                                            # pragma: no cover
+            errors.append(exc)
+
+    th = threading.Thread(target=render_thread)
+    th.start()
+    th.join()
+    assert not errors, errors
+    assert "custom_normal" in me.attributes and machining.runtime(scene)["shown"][3] is False
+    machining._on_render_done(scene)
+    # with the lock off the render thread leaves the mesh alone (as before): the reason for keeping it on
+    scene.frame_set(frames - 8)
+    scene.render.use_lock_interface = False
+    th = threading.Thread(target=lambda: machining._on_render_pre(scene))
+    th.start()
+    th.join()
+    assert "custom_normal" not in me.attributes
+    machining._on_render_done(scene)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.76 – 13 Nov 2026 – hoses, cables and drag chains follow the motion (task 0058)
+## 0.2.77 – 13 Nov 2026 – hoses, cables and drag chains follow the motion (task 0058)
 
 New: 4 Motion > **Hoses and drag chains**
 - **Hoses and cables bend along when the machine moves.** Click the hose in the 3D view and press **Add hose** (or
@@ -42,6 +42,24 @@ New: 4 Motion > **Hoses and drag chains**
   motion paths; hoses with three ends; cable bundles.
 - Test tour: two new stops, "Hoses and a cable follow the arm" and "Drag chains roll with the axes". PC check: a
   new line "Hoses, a cable and drag chains follow the motion". User guide: section "Hoses and drag chains".
+## 0.2.76 – 12 Nov 2026 – milling fixes: no dive after a tool change, chips on a moving 4th-axis table (task 0096)
+
+Tool changes (4 Motion > CNC machine)
+- **No more holes where the program does not cut.** After a tool change the new tool, when it is longer, could
+  dive into the part (in the test tour's "Three tools" the end mill went 17.7 mm into the block). Now the spindle
+  rises before a longer tool goes in, and on the way back from the change position the head comes down onto the
+  program's point with the new tool's length. Works for changes by hand, the carousel and the double arm.
+- **An M6 without G43 for the new tool** is shown as on the machine: the old tool's length stays, so the new tool
+  runs too deep (or too high). The Build says so with the number of mm and the line, and the clash check lists it.
+
+Milling (4 Motion > Milling)
+- **Chips on a table that carries the 4th axis**: when the rotary table sits on a table that moves, chips that fall
+  past the chuck land on that table and move with it; chips past it land on the bed.
+- **A floor stays flat up to a slope**: where a pocket floor meets a gentle slope a ball end mill finished, the floor
+  no longer shows a shaded band along the edge (197 mm² of floor on the test model, now none).
+- **Drill rings** on the drill point and a plunge's bottom are spaced by the feed per turn (F / S), like the rest.
+- **F12 straight after scrubbing** now always renders the exact shading of the milled block ("Lock Interface" is
+  kept on while milling).
 
 ## 0.2.75 – 12 Nov 2026 – demo vessel: the cradle rollers turn the right way (task 0097)
 

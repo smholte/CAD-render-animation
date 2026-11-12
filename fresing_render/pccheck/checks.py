@@ -487,7 +487,7 @@ M30
 """
 
 
-@line("motion.flex", "Hoses, a cable and drag chains follow the motion", "0.2.76",
+@line("motion.flex", "Hoses, a cable and drag chains follow the motion", "0.2.77",
       what="A luffing arm with three hydraulic hoses and a hanging cable, a gantry with a drag chain on each axis: "
            "posed and in a built animation the hose ends stay on their fittings, the hoses keep their length, the "
            "chains' links keep their length and the moving ends stay on their parts; the same frame always gives "

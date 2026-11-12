@@ -1305,11 +1305,12 @@ def test_app_made_toolpath_flat_floors_stay_flat(tmp_path_factory):
             e = np.linalg.norm(P[:, (1, 2, 0)] - P, axis=2)
             wide = 2.0 * m.area[floors] / np.maximum(e.max(axis=1), 1e-30) > 2.0 * MM
             bad &= wide
-            # Left open (the task's report): where such a floor meets a long gentle slope of the finished part
-            # (11 to 18 degrees here, under the 30 degree limit) the two are blended at that edge, as Blender's own
-            # "smooth by angle" does - measured 197 of 2,229 mm2. It must not get more.
+            # Where such a floor meets the long, narrow strips the ball left on a gentle slope, the two were
+            # blended at that edge (197 of 2,229 mm2 in 0.2.73: the floor's triangles there are slivers, so it looked
+            # as narrow as the strips). Since task 0096 a plane's reach is measured over its whole flat region at a
+            # steep edge: 0 mm2. A little room for the meshes of other runs.
             share = m.area[floors][bad].sum() / m.area[floors].sum()
-            assert share < 0.10, (
+            assert share < 0.01, (
                 f"{when}: {bad.sum()} wide floor faces are shaded off flat, up to {off[bad].max():.1f} degrees: "
                 f"{m.area[floors][bad].sum() / MM ** 2:.0f} of {m.area[floors].sum() / MM ** 2:.0f} mm2 of floor")
             continue

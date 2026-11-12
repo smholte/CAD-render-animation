@@ -296,7 +296,7 @@ def test_a_plunge_has_rings():
     assert set(f.kind[f.floor(33.0)]) == {TM.RINGS} and set(f.kind[f.walls()]) == {TM.RINGS_WALL}
     assert set(f.kind[cut]) == {TM.RINGS, TM.RINGS_WALL}
     assert np.allclose(f.d[cut], 0) and np.allclose(f.a[cut], (0, 0, 1))
-    assert np.allclose(f.p[f.floor(33.0), 2], TM.SPACING_RINGS) and np.allclose(f.p[f.floor(33.0), 1], 5 * MM)
+    assert np.allclose(f.p[f.floor(33.0), 2], tl.moves.per_rev[0]) and np.allclose(f.p[f.floor(33.0), 1], 5 * MM)
     assert np.allclose(f.p[f.walls(), 2], tl.moves.per_rev[0])                  # the wall: one ring per turn
     assert np.allclose(f.o[cut], np.array((0, 0, 50)) * MM, atol=1e-7)          # on the axis: the move's start
 
@@ -319,6 +319,22 @@ def test_a_drill_has_rings():
     assert cone.any() and set(f.kind[cone]) == {TM.RINGS}
     assert f.walls().any() and set(f.kind[f.walls()]) == {TM.RINGS_WALL}
     assert np.allclose(f.p[cut, 1], 0.0)                                       # a point: no flat bottom
+
+
+def test_drill_point_rings_are_spaced_by_the_feed_per_turn():
+    """Task 0096: the rings on a drill's point (and a plunge's bottom) are one per turn of the spindle - F / S, as
+    the hole's wall - no longer a fixed 0.08 mm; still kept between the limits."""
+    tl = timeline(DRILL8, path([(10, 10, 50), (10, 10, 25), (10, 10, 50)]))
+    for per_rev in (0.05 * MM, 0.2 * MM):
+        tl.set_feeds(np.full(len(tl.moves), per_rev / 2), np.full(len(tl.moves), per_rev))
+        f = Faces(tl)
+        cone = (f.src < 0) & (f.n[:, 2] > 0.1)
+        assert cone.any() and set(f.kind[cone]) == {TM.RINGS}
+        assert np.allclose(f.p[cone, 2], per_rev), (per_rev, np.unique(f.p[cone, 2]))
+        assert np.allclose(f.p[f.walls(), 2], per_rev)
+    tl.set_feeds(np.full(len(tl.moves), 1e-9), np.full(len(tl.moves), 1e-9))
+    f = Faces(tl)
+    assert np.allclose(f.p[(f.src < 0) & (f.n[:, 2] > 0.1), 2], TM.SPACING_MIN)
 
 
 def test_a_drill_moved_sideways_still_has_rings_on_its_point():

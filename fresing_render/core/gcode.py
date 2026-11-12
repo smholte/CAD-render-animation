@@ -24,7 +24,8 @@ Supported (what CAM post-processors and hand-written LinuxCNC programs commonly 
     G54-G59 G59.1-G59.3 work offsets, G10 L2 / L20 to set them, G92 G92.1 G92.2 G92.3
     G28 G28.1 G30 G30.1 home positions, G53 machine coordinates
     G80 G81 G82 G83 G73 G85 G86 G89 drilling and boring cycles (expanded into moves; G98 / G99, L repeats)
-    G40 G43 G43.1 G49 G61 G61.1 G64 G97 (read; the tool tip is always put at the programmed point)
+    G40 G43 G43.1 G49 G61 G61.1 G64 G97 (read; the tool tip is put at the programmed point, except after an M6
+    without a G43 for the new tool: the old tool's length offset stays, as on the machine - task 0096)
     F S T, M0 M1 M2 M3 M4 M5 M6 M7 M8 M9 M30 M60 M61 M48 M49 M50-M53 M62-M68 M19
     #1 … #5400, #<named> and #<_global> parameters, [ ] expressions with + - * / MOD ** EQ NE GT GE LT LE
     AND OR XOR and ABS ACOS ASIN ATAN COS EXP FIX FUP ROUND LN SIN SQRT TAN EXISTS (angles in degrees)
@@ -91,6 +92,8 @@ class Move:
     top: int = 0                # the program's own line it comes from (a subroutine call's line)
     ra: tuple = ()              # rotary axes A, B, C at the start, degrees (task 0066); () = all 0
     rb: tuple = ()              # … and at the end; they change evenly along the move (also along an arc)
+    h: int = 0                  # task 0096: the tool whose length offset (G43 Hn) is in force when that is not the
+                                # tool in the spindle (an M6 without a new G43); 0: the tool in the spindle's own
 
     def rot_at(self, u: float) -> tuple:
         """A, B, C (degrees) a fraction ``u`` (0..1) along the move."""
@@ -566,8 +569,8 @@ _NOTED_G = {
     610: "Exact stop (G61): corners are always shown sharp",
     611: "Exact stop (G61.1): corners are always shown sharp",
     640: "Path blending (G64): corners are shown sharp, the real machine rounds them a little",
-    430: "Tool length offsets (G43): the app puts the tool's tip at the programmed point, so the tool "
-         "lengths come from the model",
+    430: "Tool length offsets (G43): the tool lengths come from the tool list (an M6 without a G43 for the new "
+         "tool keeps the old tool's offset, as on the machine)",
     431: "Tool length offsets (G43.1): the app puts the tool's tip at the programmed point",
     432: "Tool length offsets (G43.2): the app puts the tool's tip at the programmed point",
 }
@@ -630,6 +633,7 @@ class Reader:
         self.spin = 0                                                # +1 M3, -1 M4, 0 off
         self.tool = 0
         self.next_tool = 0
+        self.h = None                                                # G43 Hn in force (task 0096); None: G49 / none
         self.motion = 10                                             # G1 until told otherwise
         self.retract_r = False                                       # G99: back to R (else G98: old Z)
         self.cycle_vals: dict = {}
@@ -725,6 +729,7 @@ class Reader:
         mv.spindle = self.speed * self.spin
         if mv.kind != "TOOL":
             mv.tool = self.tool
+        mv.h = self.h if self.h and self.h != mv.tool else 0
         self.t += mv.dur
         self.prog.moves.append(mv)
         return mv
@@ -954,6 +959,12 @@ class Reader:
                 p = tuple(self.pos)
                 self.tool = self.next_tool
                 self._add(Move("TOOL", self.line_no, p, p, tool=self.tool, cycle="M61" if 61 in ms else ""))
+        # 8 (LinuxCNC's step 'tool length offset', run after the change): G43 Hn - without H the tool in the spindle;
+        # G43.1 / G43.2 / G49: the app's own rule (every tool by its own length)
+        if 430 in g_set:
+            self.h = int(round(words["h"])) if "h" in words else self.tool
+        if 431 in g_set or 432 in g_set or 490 in g_set:
+            self.h = None
         # 3 spindle, coolant, overrides
         if 3 in ms:
             self.spin = 1
@@ -1745,6 +1756,8 @@ class Schedule:
         # every tool change planned first (its length), then the motion gets the rest of "Fit into"
         plans = {}
         cur = self.first_tool or ch.start_tool
+        offs = self._length_tools(moves, cur)
+        self.first_h = offs.get(-1, cur)
         v = ch.carousel_start
         where = dict(ch.pockets)                            # double-arm: the old tool lands in the new one's pot
         n_arm = 0
@@ -1754,8 +1767,10 @@ class Schedule:
             if m.cycle == "M61":
                 cur = m.tool
                 continue
+            h_old, h_new = offs.get(k, (cur, m.tool))
             if ch.arm:
-                c, v = TC.plan_arm(cur, m.tool, m.b, ch, v, where, rf, pre=k in self._tn and k not in late)
+                c, v = TC.plan_arm(cur, m.tool, m.b, ch, v, where, rf, pre=k in self._tn and k not in late,
+                                   h_old=h_old, h_new=h_new)
                 if c.kind == "arm":
                     c.index = n_arm
                     n_arm += 1
@@ -1765,7 +1780,8 @@ class Schedule:
                 elif m.tool != cur:
                     where.pop(cur, None)
             else:
-                c = TC.plan(cur, m.tool, m.b, ch, v, rf)
+                c = TC.plan(cur, m.tool, m.b, ch, v, rf, h_old=h_old, h_new=h_new)
+            c.h_old, c.h = h_old, h_new
             if legacy:
                 c.phases = [TC.Phase("pause", tc, a=m.b, b=m.b, least=min(tc, TC.MIN_PAUSE))] if tc > 0 else []
             for _t0, _t1, _v0, v1 in c.turns():
@@ -1820,6 +1836,37 @@ class Schedule:
             if c.kind == "arm":
                 free = c.start + c.length
         return t
+
+    @staticmethod
+    def _length_tools(moves: list, first: int) -> dict:
+        """Whose length offset is in force (task 0096): {index of an M6 in ``moves``: (tool before, tool after)} and
+        {-1: tool at the step's start}. The tool after an M6 is the one its first move after it runs with: the new
+        tool, or with no G43 for it the tool of the offset still in force (``Move.h``)."""
+        out: dict = {}
+        before = first
+        start = None
+        pending = None                                     # the M6 waiting for its first move
+        changed = False
+        for k, m in enumerate(moves):
+            if m.kind == "TOOL":
+                changed = True
+                if m.cycle == "M61":
+                    before, pending = m.tool, None
+                    continue
+                out[k] = (before, m.tool)
+                before, pending = m.tool, k
+                continue
+            if not m.moving:
+                continue
+            h = m.h or m.tool or before
+            if start is None and not changed:
+                start = h
+            if pending is not None:
+                out[pending] = (out[pending][0], h)
+                pending = None
+            before = h
+        out[-1] = start if start is not None else first
+        return out
 
     def _late_preps(self) -> set:
         """Indexes (in the step's moves) of the M6s whose magazine work at the Tn is not done in time."""
