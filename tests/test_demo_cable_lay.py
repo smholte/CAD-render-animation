@@ -849,3 +849,24 @@ def test_big_files_are_not_in_the_repository():
     for name in ("demo_cable_lay.step", "demo_vessel.step", "demo_drum_lebus.step", "demo_quay_loading.step"):
         for folder in ("tests/data", "fresing_render/data"):
             assert not os.path.exists(os.path.join(ROOT, folder, name))
+
+
+def test_every_turning_roller_turns_about_its_own_axis():
+    """Task 0097: every roller joint of the demo (the 66 side rollers of the 33 highway cradles included) turns about
+    the roller's long direction (< 0.5°). The cradles' joints once took the cable's contact point along the axle for
+    the lever arm, which tilted the axis 63° and made them wobble through the cable."""
+    from fresing_render.demo_model import geom as g, layout
+    S = layout.build()
+    places = {uid: M for _node, uid, M, _label, _path in g.walk(S.root)}
+    n = 0
+    for j in g.resolve_joints(S.root):
+        if j["type"] != "rotate" or "oller" not in j["name"] or len(j["parts"]) != 1:
+            continue
+        long_dir = places[j["parts"][0]][:3, :3] @ np.array([0.0, 1.0, 0.0])
+        long_dir /= np.linalg.norm(long_dir)
+        d = np.asarray(j["axis"]["direction"], float)
+        d /= np.linalg.norm(d)
+        assert math.degrees(math.acos(min(1.0, abs(long_dir @ d)))) < 0.5, j["name"]
+        n += 1
+    assert n >= 250 and sum(1 for j in g.resolve_joints(S.root) if j["name"].startswith("CRADLE")
+                            and "Roller" in j["name"]) == 66

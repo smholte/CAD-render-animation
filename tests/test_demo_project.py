@@ -251,7 +251,8 @@ def test_no_clash_in_the_animation(made, monkeypatch):
             off = c - o
             off -= dvec * off.dot(dvec)
             assert off.length < 0.01, (j.name, off.length)
-    monkeypatch.setattr(clash, "HOOKS", clash.HOOKS + [lambda scene: ((), leave)])
+    cable = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "CABLE"]   # the static cable (0078/0082)
+    monkeypatch.setattr(clash, "HOOKS", clash.HOOKS + [lambda scene: ((), cable)])
     # the sea at rest (task 0091): the vessel's sway moves the whole model as one, so it changes nothing between two
     # parts; but where the sway turns very slowly while a part slides (a lift, the cylinder rods) the check's step
     # between two frames came out up to centimetres off (screw_between reads a tiny turn from float32 matrices), and
