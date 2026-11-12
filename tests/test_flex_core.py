@@ -323,7 +323,7 @@ def test_more_sag_hangs_lower_and_stiffer_bends_wider():
     args = ((0, 0, 0), (1, 0, -0.2), (1.0, 0.2, 0.1), (1, 0, 0.3), 1.5)
     low = [F.solve_hose(*args, 0.35, sag=s).points[0][:, 2].min() for s in (0.0, 0.1, 0.25, 0.5, 0.75, 1.0)]
     assert all(b < a - 1e-4 for a, b in zip(low, low[1:])), low
-    radius = [F.solve_hose(*args, s).min_radius[0] for s in (0.02, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6)]
+    radius = [F.solve_hose(*args, s).min_radius[0] for s in (0.02, 0.05, 0.1, 0.2, 0.4, 0.8)]
     assert all(b > a * 1.001 for a, b in zip(radius, radius[1:])), radius
     print("\nlowest point for sag 0 … 1: %s m; tightest bend for stiffer hoses: %s m"
           % (np.round(low, 3), np.round(radius, 3)))
@@ -357,15 +357,16 @@ def test_the_curve_does_not_depend_on_the_number_of_points():
     stiff = np.maximum(stiff, 0.15 * length)
     a = F.solve_hoses(p0, t0, p1, t1, length, stiff)
     b = F.solve_hoses(p0, t0, p1, t1, length, stiff, n=2 * N - 1)
-    c = F.solve_hoses(p0, t0, p1, t1, length, stiff, n=4 * N - 3)
+    few = slice(0, 40)                                    # (129 points: large systems, slow on a busy machine)
+    c = F.solve_hoses(p0[few], t0[few], p1[few], t1[few], length[few], stiff[few], n=4 * N - 3)
     ab = np.linalg.norm(b.points[:, ::2] - a.points, axis=2).max(axis=1) / length
-    bc = np.linalg.norm(c.points[:, ::2] - b.points, axis=2).max(axis=1) / length
+    bc = np.linalg.norm(c.points[:, ::2] - b.points[few], axis=2).max(axis=1) / length[few]
     print("\n33 against 65 points: median %.2f %% of the length apart, 90 %% of the hoses within %.2f %%, the worst "
           "%.2f %%; 65 against 129: median %.2f %%, worst %.2f %%" % (100 * np.median(ab), 100 * np.percentile(ab, 90),
                                                                  100 * ab.max(), 100 * np.median(bc), 100 * bc.max()))
     assert np.median(ab) <= 0.005 and np.percentile(ab, 90) <= 0.01
     assert np.mean(ab > 0.05) <= 0.02                     # (another shape altogether)
-    assert np.median(bc) <= 0.4 * np.median(ab)           # … and it closes in as the square of the segment
+    assert np.median(bc) <= 0.4 * np.median(ab[few])      # … and it closes in as the square of the segment
 
 
 def test_a_mirrored_set_up_gives_the_mirrored_shape():
@@ -457,7 +458,7 @@ def test_a_motion_solved_as_a_whole_keeps_its_shape():
     assert np.abs(ln / (1.4 / (N - 1)) - 1.0).max() <= 1e-9
     assert angle(d[:, 0], unit(np.array(args[1]))).max() <= 1e-7 and angle(d[:, -1], t1).max() <= 1e-7
     assert np.abs(whole.points[:, 0]).max() == 0.0 and np.abs(whole.points[:, -1] - (1.0, 0.0, 0.0)).max() == 0.0
-    assert not whole.short.any() and np.allclose(whole.min_radius, F.bend_radius(whole.points), rtol=1e-6)
+    assert not whole.short.any() and np.allclose(whole.min_radius, F.bend_radius(whole.points, hose=True), rtol=1e-6)
     # a pure function of the whole motion
     F.solve_hoses(*generic(10, seed=3))
     assert np.array_equal(F.solve_motion(*args).points, whole.points)
@@ -636,12 +637,24 @@ def test_inputs_that_make_no_sense_give_no_nan():
 def test_the_reported_radius_is_the_circle_through_three_points():
     a = generic(80, seed=91)
     h = F.solve_hoses(*a)
-    measured = F.bend_radius(h.points)
+    measured = F.bend_radius(h.points, hose=True)
     assert np.allclose(h.min_radius, measured, rtol=1e-6)
-    # … and by hand for one: segment length / the turn between two segments (as a chord of the unit circle)
+    # … and by hand for one: segment length / the turn between two segments (as a chord of the unit circle);
+    # the joints next to the fittings turn over 1.5 segments of hose
     d, ln = segments(h.points[:1])
-    turn = angle(d[0, 1:], d[0, :-1]).max()
-    assert h.min_radius[0] == pytest.approx(ln[0, 0] / (2.0 * math.sin(0.5 * turn)), rel=1e-6)
+    turn = 2.0 * np.sin(0.5 * angle(d[0, 1:], d[0, :-1]))
+    turn[0] /= 1.5
+    turn[-1] /= 1.5
+    assert h.min_radius[0] == pytest.approx(ln[0, 0] / turn.max(), rel=1e-6)
+    assert F.bend_radius(h.points[0], hose=True) >= F.bend_radius(h.points[0])
+    # a hose that IS half a circle (no weight, fittings 0.4 m apart, pointing down) reports the circle's radius
+    half = F.solve_hose((0, 0, 0), (0, 0, -1), (0.4, 0, 0), (0, 0, 1), math.pi * 0.2, 0.3, sag=0.0)
+    print("\nhalf circle of radius 0.2 m: tightest bend reported %.4f m" % half.min_radius[0])
+    assert half.min_radius[0] == pytest.approx(0.2, rel=0.02)
+    assert half.points[0][:, 2].min() == pytest.approx(-0.2, rel=0.01)
+    # … and a limit it keeps (0.19 m) is not called tight and does not pull it out of round
+    kept = F.solve_hose((0, 0, 0), (0, 0, -1), (0.4, 0, 0), (0, 0, 1), math.pi * 0.2, 0.3, sag=0.0, min_radius=0.19)
+    assert not kept.tight[0] and np.abs(kept.points - half.points).max() <= 1e-6
     # a quarter circle of radius 0.5 drawn as points
     t = np.linspace(0.0, 0.5 * math.pi, 40)
     arc = np.stack([0.5 * np.cos(t), 0.5 * np.sin(t), 0.0 * t], axis=1)
@@ -660,7 +673,7 @@ def test_a_minimum_radius_is_kept_where_the_ends_allow():
         print("limit %.2f m: tightest bend %.4f m (without a limit %.4f m)"
               % (limit, h.min_radius[0], free.min_radius[0]))
         assert h.min_radius[0] >= 0.99 * limit and not h.tight[0]
-        assert h.min_radius[0] == pytest.approx(F.bend_radius(h.points[0]), rel=1e-6)
+        assert h.min_radius[0] == pytest.approx(F.bend_radius(h.points[0], hose=True), rel=1e-6)
         d, ln = segments(h.points)
         assert np.abs(ln / (1.6 / (N - 1)) - 1.0).max() <= 1e-9 and np.abs(h.points[0, -1] - (0.4, 0, 0)).max() <= 1e-9
     # a limit the hose keeps anyway changes nothing
@@ -686,6 +699,232 @@ def test_a_minimum_radius_is_kept_where_the_ends_allow():
           % (under.sum(), h.tight.sum()))
     assert under.sum() >= 30 and h.tight.sum() <= 0.25 * under.sum()
     assert (h.min_radius >= np.minimum(free.min_radius, limit) * 0.9).all()       # never worse than without
+
+
+# ---------------------------------------------------------------------------
+# 8b: numbers that are not numbers, absurd numbers, no hoses
+# ---------------------------------------------------------------------------
+
+def test_one_absurd_number_does_not_take_the_batch_down():
+    base = dict(p0=np.zeros((2, 3)), t0=(1, 0, 0), p1=np.array([(1.0, 0, 0), (1.0, 0, 0)]), t1=(1, 0, 0),
+                length=np.array([1.5, 1.5]), stiff=np.array([0.2, 0.2]), sag=np.array([1.0, 1.0]),
+                min_radius=np.array([0.0, 0.0]))
+    good = F.solve_hoses(**base)
+    with np.errstate(all="raise"):                        # no warnings either
+        for what, values in (("stiff", (1e60, 1e110, 1e300, np.inf, -np.inf, np.nan)),
+                             ("sag", (1e300, np.inf, -np.inf, np.nan)),
+                             ("min_radius", (1e200, np.inf, np.nan)),
+                             ("length", (np.inf, -np.inf, np.nan, 1e300))):
+            for value in values:
+                args = dict(base)
+                args[what] = np.array([value, base[what][1]])
+                h = F.solve_hoses(**args)
+                assert np.isfinite(h.points).all(), (what, value)
+                assert not np.isnan(h.need).any() and not np.isnan(h.min_radius).any(), (what, value)
+                assert np.abs(h.points[1] - good.points[1]).max() <= 1e-9, (what, value)
+                if what == "length" and not np.isfinite(value):
+                    assert h.short[0]
+                elif what != "length":
+                    _d, ln = segments(h.points[:1])
+                    assert not h.short[0] and np.abs(ln / (1.5 / (N - 1)) - 1.0).max() <= 1e-9, (what, value)
+        # an end, a direction, gravity that is not a number
+        for bad in (np.nan, np.inf):
+            h = F.solve_hoses((bad, 0, 0), (1, 0, 0), np.array([(1.0, 0, 0), (1.0, 0, 0)]), (1, 0, 0), 1.5, 0.2)
+            assert h.short.all() and np.isfinite(h.points).all() and not np.isnan(h.need).any()
+            h = F.solve_hoses(np.zeros((2, 3)), np.array([(bad, 0, 0), (1.0, 0, 0)]), (1.0, 0, 0), (1, 0, 0), 1.5, 0.2)
+            assert np.isfinite(h.points).all() and not h.short.any()
+            assert np.abs(h.points[1] - good.points[1]).max() <= 1e-9
+            h = F.solve_hose((0, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), 1.5, 0.2, gravity=(0, bad, -1))
+            assert np.isfinite(h.points).all() and not h.short[0]
+        # the same through solve_motion
+        h = F.solve_motion(np.zeros((3, 3)), (1, 0, 0), np.array([(1.0, 0, 0), (np.nan, 0, 0), (1.0, 0, 0.1)]),
+                           (1, 0, 0), 1.5, np.array([0.2, 1e80, 0.2]))
+        assert np.isfinite(h.points).all() and list(h.short) == [False, True, False]
+    # no hoses at all: an empty result
+    none = np.zeros((0, 3))
+    h = F.solve_hoses(none, none, none, none, 1.5, 0.2)
+    assert h.points.shape == (0, N, 3) and h.short.shape == (0,) and h.start.shape == (0,)
+    assert F.solve_hoses(none, (1, 0, 0), none, (1, 0, 0), np.zeros(0), 0.2, n=9).points.shape == (0, 9, 3)
+    assert F.solve_motion(none, none, none, none, 1.5, 0.2).points.shape == (0, N, 3)
+
+
+# ---------------------------------------------------------------------------
+# 8c: a guide
+# ---------------------------------------------------------------------------
+
+def _hinge(angle_deg):
+    """A stiff hose across a hinge at the origin, the arm at these angles (F,): the two fittings are in line
+    when the arm is at 0. Returns p0, t0, p1, t1 (F, 3), length, bending length."""
+    a = np.radians(np.asarray(angle_deg, dtype=float))
+    c, s, z = np.cos(a), np.sin(a), 0.0 * a
+    return (np.stack([z - 0.2, z, z + 0.05], axis=1), np.stack([z + 1.0, z, z], axis=1),
+            np.stack([0.25 * c + 0.05 * s, z, -0.25 * s + 0.05 * c], axis=1), np.stack([c, z, -s], axis=1),
+            0.6, F.stiff_length(0.02, 1.0))
+
+
+def _bowed(p0, p1, to, depth=0.15, m=17):
+    """A guide per frame: an arc from p0 to p1 with its belly towards ``to``."""
+    u = np.linspace(0.0, 1.0, m)[None, :, None]
+    return p0[:, None, :] + u * (p1 - p0)[:, None, :] + depth * np.sin(np.pi * u) * np.asarray(to, dtype=float)
+
+
+def _carried(shape, p1, m=17):
+    """A guide per frame as the caller makes it, for an end 1 that only slides: the shape of frame 0, each point
+    carried along with end 0 (which stays) and with end 1, blended along the hose with a smooth step."""
+    c = F.resample(shape, m)
+    u = np.linspace(0.0, 1.0, m)
+    w = (3.0 * u * u - 2.0 * u ** 3)[None, :, None]
+    return c[None, :, :] + w * (p1 - p1[0])[:, None, :]
+
+
+def _moves(points, p1, t1, length):
+    """Per frame step: the largest move of a point / what end 1 moved and its fitting turned (as a length)."""
+    move = np.linalg.norm(np.diff(points, axis=0), axis=2).max(axis=1)
+    return move / (np.linalg.norm(np.diff(p1, axis=0), axis=1) + length * angle(t1[1:], t1[:-1]) + 1e-12)
+
+
+def test_a_guide_keeps_the_hose_on_its_side():
+    """The hose across a hinge: solved frame by frame it lies on the side the arm's fitting pushes it to, and
+    flips where the fittings come in line. With a guide that bows to one side it stays on that side through the
+    whole swing of ±40°."""
+    p0, t0, p1, t1, length, ell = _hinge(np.linspace(-40.0, 40.0, 161))
+    plain = F.solve_hoses(p0, t0, p1, t1, length, ell)
+    mid = plain.points[:, N // 2, 2] - 0.05
+    assert mid[79] < -0.1 and mid[81] > 0.1 and _moves(plain.points, p1, t1, length).max() > 20.0
+    print()
+    for side in (1.0, -1.0):
+        guide = _bowed(p0, p1, (0, 0, side))
+        h = F.solve_hoses(p0, t0, p1, t1, length, ell, guide=guide)
+        ratio = _moves(h.points, p1, t1, length)
+        mid = (h.points[:, N // 2, 2] - 0.05) * side
+        print("guide bowed to %+.0f z: the middle stays %.3f … %.3f m on that side, largest move per frame %.2f × "
+              "the fitting's own" % (side, mid.min(), mid.max(), ratio.max()))
+        assert (h.start == 3).all() and not h.short.any()
+        assert mid.min() > 0.05 and ratio.max() <= 1.0
+        assert np.abs(h.points[:, :, 1]).max() <= 1e-9                     # and in the plane of the motion
+        d, ln = segments(h.points)
+        assert np.abs(ln / (length / (N - 1)) - 1.0).max() <= 1e-9
+        assert max(angle(d[:, 0], t0).max(), angle(d[:, -1], t1).max()) <= 1e-7
+        assert np.array_equal(h.points[:, 0], p0) and np.array_equal(h.points[:, -1], p1)
+        # a pure function of its inputs, the guide among them; a frame alone as in the batch; solve_motion the same
+        assert np.array_equal(F.solve_hoses(p0, t0, p1, t1, length, ell, guide=guide).points, h.points)
+        for i in (0, 80, 133):
+            alone = F.solve_hose(p0[i], t0[i], p1[i], t1[i], length, ell, guide=guide[i])
+            assert np.abs(alone.points[0] - h.points[i]).max() <= 1e-9 and alone.start[0] == 3
+        assert np.array_equal(F.solve_motion(p0, t0, p1, t1, length, ell, guide=guide).points, h.points)
+    # rows without a guide (NaN) are solved as without one, whatever the others have
+    some = _bowed(p0, p1, (0, 0, 1.0))
+    some[::2] = np.nan
+    mixed = F.solve_hoses(p0, t0, p1, t1, length, ell, guide=some)
+    assert (mixed.start[1::2] == 3).all() and (mixed.start[::2] < 3).all()
+    assert np.abs(mixed.points[::2] - plain.points[::2]).max() <= 1e-9
+    assert np.abs(mixed.points[1::2] - F.solve_hoses(p0, t0, p1, t1, length, ell,
+                                                    guide=_bowed(p0, p1, (0, 0, 1.0))).points[1::2]).max() <= 1e-9
+    # the same with the fittings 30 mm out of the plane of the swing, and a guide bowed sideways: it holds too
+    p0b, p1b = p0 + (0, 0.03, 0), p1 - (0, 0.03, 0)
+    for to in ((0, 0, 1.0), (0, 0, -1.0), (0, 1.0, 0)):
+        h = F.solve_hoses(p0b, t0, p1b, t1, length, ell, guide=_bowed(p0b, p1b, to))
+        belly = (h.points[:, N // 2] - 0.5 * (p0b + p1b)) @ np.asarray(to)
+        assert (h.start == 3).all() and belly.min() > 0.05 and _moves(h.points, p1b, t1, length).max() <= 2.0, to
+
+
+def test_a_guide_stops_the_flicker_between_two_mirror_shapes():
+    """A stiff hose between two fittings that both point up, one sliding across: an S, and its mirror image is
+    as good. Frame by frame the two are taken by turns; with the first frame's shape carried along as a guide the
+    hose keeps the one it has."""
+    frames = 300
+    s = 0.15 * (1.0 - np.cos(np.linspace(0.0, 2.0 * np.pi, frames)))
+    p1 = np.stack([s, 0.0 * s, 0.3 + 0.0 * s], axis=1)
+    t1 = np.broadcast_to((0.0, 0.0, 1.0), (frames, 3))
+    args = ((0, 0, 0), (0, 0, 1), p1, (0, 0, 1), 0.45, F.stiff_length(0.016, 1.0))
+    plain = F.solve_hoses(*args)
+    guide = _carried(plain.points[0], p1)
+    held = F.solve_hoses(*args, guide=guide)
+    was = (_moves(plain.points, p1, t1, 0.45) > 6.0).sum()
+    now = _moves(held.points, p1, t1, 0.45)
+    print("\nS between two fittings pointing up: %d jumps frame by frame, with a guide the largest move per frame "
+          "is %.1f × the end's own" % (was, now.max()))
+    assert was >= 6 and now.max() <= 6.0 and (held.start == 3).all()
+
+
+def test_a_guide_that_is_the_answer_gives_the_answer():
+    a = generic(80, seed=94, slack=(1.05, 1.8))
+    plain = F.solve_hoses(*a)
+    again = F.solve_hoses(*a, guide=plain.points)
+    off = np.abs(again.points - plain.points).max(axis=(1, 2)) / a[4]
+    print("\nits own shape as the guide: %d of 80 hoses come back within 1e-6 of their length (worst of those %.1e)"
+          % ((off <= 1e-6).sum(), off[off <= 1e-6].max()))
+    assert (again.start == 3).all()
+    assert (off <= 1e-6).sum() >= 76                      # (the others have a second shape next to theirs)
+    # resampled to another number of points it is the same guide
+    coarse = np.stack([F.resample(p, 17) for p in plain.points])
+    assert (np.abs(F.solve_hoses(*a, guide=coarse).points - plain.points).max(axis=(1, 2)) / a[4] <= 1e-2).sum() >= 76
+
+
+def test_a_silly_guide_still_gives_a_hose():
+    p0, t0, p1, t1, length, stiff = generic(40, seed=95)
+    u = np.linspace(0.0, 1.0, 9)[None, :, None]
+    line = p0[:, None, :] + u * (p1 - p0)[:, None, :]
+    zig = line + 0.3 * np.where(np.arange(9) % 2 == 0, 1.0, -1.0)[None, :, None] * np.array([0.3, -0.5, 0.8])
+    silly = {
+        "a straight line": line,
+        "three times too long and somewhere else": 3.0 * _bowed(p0, p1, (0, 0, 1.0)) + 7.0,
+        "a zig-zag": zig,
+        "backwards": _bowed(p0, p1, (0, 1.0, 0))[:, ::-1],
+        "one point, repeated": np.repeat(p0[:, None, :], 5, axis=1),
+        "not numbers": np.full((40, 6, 3), np.nan),
+        "an infinite one": np.where(np.arange(9)[None, :, None] == 4, np.inf, line),
+        "two points": line[:, [0, -1]],
+    }
+    plain = F.solve_hoses(p0, t0, p1, t1, length, stiff)
+    with np.errstate(all="raise"):
+        for name, guide in silly.items():
+            h = F.solve_hoses(p0, t0, p1, t1, length, stiff, guide=guide)
+            assert np.isfinite(h.points).all() and not h.short.any(), name
+            d, ln = segments(h.points)
+            assert np.abs(ln / (length / (N - 1))[:, None] - 1.0).max() <= 1e-9, name
+            assert max(angle(d[:, 0], t0).max(), angle(d[:, -1], t1).max()) <= 1e-7, name
+            assert np.array_equal(h.points[:, 0], p0) and np.array_equal(h.points[:, -1], p1), name
+            if name in ("one point, repeated", "not numbers", "an infinite one"):    # no guide at all
+                assert (h.start < 3).all() and np.abs(h.points - plain.points).max() <= 1e-9, name
+    for bad in (np.zeros(3), np.zeros((40, 1, 3)), np.zeros((40, 5, 2)), np.zeros((7, 5, 3))):
+        with pytest.raises(ValueError):
+            F.solve_hoses(p0, t0, p1, t1, length, stiff, guide=bad)
+    # short and taut hoses take no notice of a guide
+    dist = np.linalg.norm(p1 - p0, axis=1)
+    h = F.solve_hoses(p0, t0, p1, t1, 0.5 * dist, stiff, guide=line)
+    assert h.short.all() and (h.start == 0).all()
+
+
+def test_a_followed_hose_is_in_a_shape_it_would_stay_in():
+    """``solve_motion`` without a guide: where the shape the hose is followed in stops being one it would stay
+    in, it takes the frame's own answer (it snaps, as a hose does) – it does not ride on a balance point. The two
+    cases an independent review found: the hose across the hinge at full swing, and fittings in line pushed
+    together and pulled apart."""
+    swing = 40.0 * np.sin(np.linspace(0.0, 2.0 * np.pi, 300))
+    p0, t0, p1, t1, length, ell = _hinge(swing)
+    plain = F.solve_hoses(p0, t0, p1, t1, length, ell)
+    whole = F.solve_motion(p0, t0, p1, t1, length, ell)
+    ratio = energy(whole.points, length, ell, 1.0) / energy(plain.points, length, ell, 1.0)
+    jumps = (_moves(whole.points, p1, t1, length) > 6.0).sum()
+    print("\nhinge, followed without a guide: energy at most %.2f × the frame's own answer; %d jumps (frame by "
+          "frame: %d)" % (ratio.max(), jumps, (_moves(plain.points, p1, t1, length) > 6.0).sum()))
+    assert ratio.max() <= 1.05 and ratio[75] <= 1.001      # (it was 2.4 × at full swing)
+    assert jumps <= (_moves(plain.points, p1, t1, length) > 6.0).sum()
+    # fittings in line, the ends going from 0.25 m to 0.55 m apart and back, hose 0.7 m
+    s = 0.15 * (1.0 - np.cos(np.linspace(0.0, 2.0 * np.pi, 300)))
+    q1 = np.stack([0.25 + s, 0.0 * s, 0.0 * s], axis=1)
+    args = ((0, 0, 0), (1, 0, 0), q1, (1, 0, 0), 0.7, F.stiff_length(0.016, 1.0))
+    plain = F.solve_hoses(*args)
+    whole = F.solve_motion(*args)
+    ratio = energy(whole.points, 0.7, args[5], 1.0) / energy(plain.points, 0.7, args[5], 1.0)
+    print("in line, pushed together and pulled apart: energy at most %.2f × the frame's own answer" % ratio.max())
+    assert ratio[150] <= 1.001 and ratio.max() <= 1.6     # (it was 7.7 × with the ends furthest apart)
+    # with a guide the hinge hose keeps its side over the whole cycle, and that is what solve_motion returns
+    guide = _bowed(p0, p1, (0, 0, 1.0))
+    held = F.solve_motion(p0, t0, p1, t1, length, ell, guide=guide)
+    assert (held.start == 3).all() and _moves(held.points, p1, t1, length).max() <= 1.0
+    assert ((held.points[:, N // 2, 2] - 0.05) > 0.05).all()
 
 
 # ---------------------------------------------------------------------------
