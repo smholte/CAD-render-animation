@@ -226,11 +226,10 @@ def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
 
 
 def test_no_clash_in_the_animation(made, monkeypatch):
-    """The clash check over the whole animation: 0 rows (a clash is a fault in the model or the set-up). Left out:
-    the parts that only turn about their own round axis (rollers, wheels, drums, the carousel with its coil) and the
-    static cable – they sweep only their own room; checked frame by frame, they made the check take hours on this
-    model (task 0077, an open point for the clash lane). That they really turn about their own axis is checked
-    here too."""
+    """The clash check over the whole animation: 0 rows (a clash is a fault in the model or the set-up). Left out: only
+    the static cable (until the cable paths of 0078/0082 move it, it lies on the rollers and gives rows). The rollers,
+    wheels and drums are checked too since task 0097: they turn about their own axis, so the clash check holds them
+    still on their carrier (task 0092). That they really turn about their own axis is checked here too."""
     from mathutils import Vector
 
     from fresing_render.blender import animation, build, clash, joints, vessel_motion

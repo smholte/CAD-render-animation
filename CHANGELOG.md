@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.75 – 12 Nov 2026 – demo vessel: the cradle rollers turn the right way (task 0097)
+
+In the demo cable-lay vessel the 66 side rollers of the 33 roller cradles turned about a wrong, nearly upright axis and
+wobbled through the cable. Now every roller turns about its own axis. Projects made before need Help > Make demo
+project again.
+
 ## 0.2.74 – 12 Nov 2026 – brushed, ground and turned parts shine the right way (task 0098)
 
 The bright band on a brushed or ground plate now runs across the brush lines, and on a turned shaft along the shaft –
