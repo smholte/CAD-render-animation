@@ -272,7 +272,17 @@ def main(argv=None) -> int:
             env["PATHS_TEST_DIR"] = pdir
             cmd = [blender, "--background", "--python-exit-code", "1", "--python", script_path]
         print(f"\n== {title}", flush=True)
+        crash_files = [os.path.join(tempfile.gettempdir(), n) for n in ("blender.crash.txt",)]
+        for cf in crash_files:
+            if os.path.isfile(cf):
+                os.remove(cf)
         code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
+        if code not in (0, 1):                       # Blender itself stopped (139 = it crashed): show where
+            import glob
+            for cf in sorted(set(crash_files + glob.glob(os.path.join(tempfile.gettempdir(), "*.crash.txt")))):
+                if os.path.isfile(cf):
+                    with open(cf, encoding="utf-8", errors="replace") as fh:
+                        print(f"-- Blender's crash file {cf} (exit code {code}):\n" + fh.read()[:6000], flush=True)
         verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
         if gui == "pccheck":                         # skips only for "no graphics card", every line there
             import ci_check_pccheck
