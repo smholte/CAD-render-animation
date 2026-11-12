@@ -334,14 +334,15 @@ lessons) before designing the per-frame part.
 
 **Chat / date:** Claude Code on the web, 12 Nov 2026, branch `claude/sleepy-mccarthy-3zpzfu`.
 
-**State (for a session that has to continue this task; delete when done):** design committed (section "Design");
-`props.py` has `FRFlex` / `scene.fresing.flex`; `blender/flex.py` is a do-nothing skeleton with the hooks in
-`animation.py` (bake, clear_keys), `states.py` (poses), `reimport.py`, `__init__.py` already calling it. Wave 1 of
-subagents (A1 hose solver, A2 chain geometry, C centreline reader + test models) was cut off once by the usage limit
-(5-hour limit, 12 Nov) and restarted. **On the branch now:** A2 `core/flex_chain.py` (38 tests), C `core/flex_fit.py`,
-`tools/make_test_flex.py`, the three `test_flex_*.step` models (88 tests). **Not yet:** A1 `core/flex.py` (running), B
-`blender/flex.py` (running, started before A1 landed). Still to do after
-them: B `blender/flex.py`, D operators + panel, E independent tests + review, tour stops, PC-check line, guide, release.
+**State (for a session that has to continue this task; delete when done), 12 Nov late:** on the branch: the solver
+(A1, with `solve_motion`), chain geometry (A2), centreline reader + test models (C), the Blender side (B), panel +
+operators + real-app test "flex" + part names (D), guide section + pictures (F), tour stops "hoses" / "chains",
+PC-check line `motion.flex`, CLAUDE.md. **Open:** (1) on GitHub real Blender crashes (exit 139) in the PC-check line
+`motion.flex` right after its hoses render, twice in a row; not reproduced on the web machine (alone, after the 14
+lines before it, with `--debug-memory`); `tools/ci_real_app.py` now prints Blender's crash file – read it in the
+"Linux - real app pccheck" job. (2) E (independent tests + review of `core/flex*.py`) still running; its findings
+are to be judged and fixed. (3) Version (next free after `main`), CHANGELOG, `since=` of the two stops and the
+PC-check line (now "0.2.73"), report, `TASKS.md`, merge, release.
 
 **What changed:**
 
