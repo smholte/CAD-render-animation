@@ -735,3 +735,10 @@ the release → Delete); the next run on `main` publishes it again.
   joint empty made in the same batch (still the identity: a stacked joint landed metres off).
 - A model's **root** is never a free move (task 0093): `joints.free_moves` / `apply_free_moves` skip it, so a model
   (or a second copy) moved or turned by its root keeps that place through Build, poses, saved scenes and updates.
+- The clash check's step between two frames (`core/clash.screw_between`) reads the turn of a body from float32
+  matrices with `acos`: when a body turns very slowly while it moves a lot (a slide on a vessel whose sway is at a
+  turning point, a cylinder whose angle stands still) that turn is off by ~1e-4 rad and the in-between place by up to
+  centimetres: false rows of 1–2 mm (task 0091). The demo's test checks with the sea at rest (`vessel_motion.at_rest`),
+  and a cylinder's base pin nearer its hinge than its rod pin keeps its angle moving (clash lane open point).
+- A part that rides on something travelling far (the D-quadrant onto its handler) must ride on the thing that will
+  carry it later: the travel rides on the handler's tilt, so once on the handler it tilts with it (task 0091).

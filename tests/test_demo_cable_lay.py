@@ -253,6 +253,7 @@ def test_part_counts(made):
     assert count("CABLE ENGINE WHEEL") == 8
     assert count("QUADRANT GUTTER") == 1 and count("RAIL BOGIE") == 4 and count("QUADRANT RAIL") >= 4
     assert count("HANDLER FRAME") == 1 and count("CHUTE") == 2                     # horns A and B
+    assert count("HINGE SHEAVE") == 1 and count("SHEAVE CHEEK") == 2 and count("CRADLE LIFT FRAME") >= 4
     assert count("PULL HEAD") == 5 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
     assert count("CABLE") == 1 and count("CABLE END") == 1 and count("CABLE COIL") == 1
     assert count("CABLE END CLAMP") == 1 and count("ARCH FRAME") == 1 and count("GUIDE FRAME") == 1
@@ -583,6 +584,73 @@ def test_lebus_drum_crossovers_and_risers(made):
     assert max(spans) == pytest.approx(180.0 - 35.0, abs=0.5)
     risers = [c.node for c in lebus.children if c.node.name == "LEBUS RISER"]
     assert len(risers) == 2
+
+
+def test_handling_winches_have_the_lebus_drum(made):
+    """Task 0091: the deck's handling winches carry the Lebus drum (the demo's drum close-up shows it)."""
+    hw = made["S"].files["handling_winch"]
+    unit = [c.node for c in hw.children if c.node.name == "WINCH DRUM UNIT"][0]
+    assert len([c for c in unit.children if c.node.name == "LEBUS RISER"]) == 2
+    info = made["trees"]["assembly"][0]
+    assert sum(1 for n in _parts(info) if n["name"] == "LEBUS RISER") == 4
+
+
+def test_quadrant_system_can_move(made):
+    """Task 0091: the D-quadrant's way aft is free. The S-bend's cradles in its lane drop out of the way (one joint, the
+    others follow it), every other cradle stands outside the lane; the travel rides on the handler's tilt (the tip on
+    the travel); the handling wire runs low under the D to a sheave on the hinge axis and along the handler's frame
+    (that part tilts with it); nothing of the handler's forward end stands in the D's way."""
+    from fresing_render.demo_model import deck as dk
+    from fresing_render.demo_model import geom as g
+    S, layout = made["S"], made["layout"]
+    p = S.p
+    lane = layout.d_lane(p)
+    joints = made["joints"]["joints"]
+    by = {j["name"]: j for j in joints}
+    drops = [j for j in joints if j["name"].endswith(" drop")]
+    assert len(drops) == len(S.stations["lifting"]) >= 4
+    lead = [j for j in drops if j["drive"]["by"] == "operator"]
+    assert len(lead) == 1
+    for j in drops:
+        assert j["type"] == "slide" and j["axis"]["direction"] == [0.0, 0.0, -1.0]
+        assert j is lead[0] or (j["drive"]["follows"] == lead[0]["name"] and j["drive"]["ratio"] == 1.0)
+        # dropped, the cradle's top is below the D's underside
+        assert j["axis"]["point"][2] + dk.LIFT_TOP - j["limits"][1] < lane["low_z"] - 50.0
+        assert abs(j["axis"]["point"][1]) < lane["half_width"] + 700.0
+    # the other highway cradles stand clear of the lane
+    for node, _uid, W, label, _path in g.walk(S.root):
+        if label.startswith("CRADLE ") and node.name == "ROLLER CRADLE":
+            corners = np.array([[x, y, z, 1.0] for x in (-310.0, 310.0) for y in (-640.0, 640.0)
+                                for z in (-460.0, dk.LIFT_TOP)]) @ W.T
+            assert np.abs(corners[:, 1]).min() >= lane["half_width"], label
+    assert by["QUADRANT SYSTEM: Quadrant travel"]["rides_on"] == "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
+    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
+    # the handling wire: the deck run at y = 0 between the deck and the D's underside, ending under the hinge sheave
+    deck_run = S.info["handling_wire"]["deck_run"]
+    pts = np.array([deck_run.segments[0].start, deck_run.segments[0].end])
+    assert np.allclose(pts[:, 1], 0.0) and (pts[:, 2] > p.deck_z + 300.0).all()
+    assert (pts[:, 2] + p.quadrant_rope_d / 2 < lane["low_z"] - 50.0).all()
+    hinge_z = p.rail_z - 400.0
+    assert pts[1] == pytest.approx([S.pos["hinge_x"], 0.0, hinge_z - dk.HINGE_SHEAVE_R])
+    # ... it passes under the stern turn's cable and the frame run lies on the handler, under the D
+    pos = S.pos
+    x_web = pos["stern_turn_x"] - math.sqrt((pos["stern_turn_r"] - 350.0) ** 2 - pos["stern_turn_y"] ** 2)
+    z_web = float(np.interp(x_web, pts[::-1, 0], pts[::-1, 2]))
+    assert z_web + p.quadrant_rope_d / 2 < p.low_z - p.cable_r - 50.0               # under the cable
+    assert p.deck_z + 400.0 < z_web - p.quadrant_rope_d / 2 and z_web + p.quadrant_rope_d / 2 < p.deck_z + 800.0
+    hd = S.quadrant_info["handler_asm"]
+    frame = hd.info["frame"]
+    assert [c for c in frame.children if c.node.name == "WIRE ROPE"]
+    run = S.info["handling_wire"]["frame_run"]
+    d_low_local = lane["low_z"] - hinge_z
+    for seg in run.segments:
+        assert max(seg.start[2], seg.end[2]) + p.quadrant_rope_d / 2 < d_low_local - 100.0
+    pc = np.array(hd.info["pulley_centre"])
+    assert pc[2] + hd.info["pulley_r"] + 1.25 * p.quadrant_rope_d / 2 < d_low_local - 100.0
+    # the whole route (the route sheet) goes drum -> hinge sheave -> top pulley -> the parked end
+    hr = [r for r in made["route"]["ropes"] if r["name"] == "quadrant handling wire"][0]
+    names = [s.get("name") for s in hr["segments"] if s["type"] == "arc"]
+    assert names == ["hinge sheave", "handler top pulley"]
 
 
 def test_carousel_coil_layers_and_cable_end_through_the_core(made):

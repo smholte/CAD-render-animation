@@ -77,7 +77,7 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 307
+    assert len(sheet) == 311
     by = {j.name: j for j in sc.fresing.joints}
     assert len(by) == len(sheet) + 1 and demo.CABLE in by          # + Cable travel (no quay in the small form)
     cable_turned = 0
@@ -233,7 +233,7 @@ def test_no_clash_in_the_animation(made, monkeypatch):
     here too."""
     from mathutils import Vector
 
-    from fresing_render.blender import animation, build, clash, joints
+    from fresing_render.blender import animation, build, clash, joints, vessel_motion
     from fresing_render.core import clash as core
     sc = _scene()
     animation.bake(sc, sc.fresing.animations[demo.ANIM])
@@ -241,7 +241,7 @@ def test_no_clash_in_the_animation(made, monkeypatch):
     assert 250 < len(leave) < 600
     for j in sc.fresing.joints:                                    # round about their own axis
         top = joints.driver_of(sc, j)
-        if j.kind != "ROTATE" or top is None or top.name != demo.CABLE:
+        if j.kind != "ROTATE" or top is None or top.name not in (demo.CABLE, demo.TRAVEL):
             continue
         o, dvec = joints.axis_world(j)
         for m in joints.members(j):
@@ -252,9 +252,81 @@ def test_no_clash_in_the_animation(made, monkeypatch):
             off -= dvec * off.dot(dvec)
             assert off.length < 0.01, (j.name, off.length)
     monkeypatch.setattr(clash, "HOOKS", clash.HOOKS + [lambda scene: ((), leave)])
-    run = clash.check(sc, store=False)
+    # the sea at rest (task 0091): the vessel's sway moves the whole model as one, so it changes nothing between two
+    # parts; but where the sway turns very slowly while a part slides (a lift, the cylinder rods) the check's step
+    # between two frames came out up to centimetres off (screw_between reads a tiny turn from float32 matrices), and
+    # the rows it gave (1.2 mm, 0.8 mm) moved with the sea's phase. Open point for the clash lane (task 0092).
+    with vessel_motion.at_rest(sc):
+        run = clash.check(sc, store=False)
     assert run.stats["parts"] > 700
     assert not run.rows, [core.row_text(r) for r in run.rows[:5]]
+
+
+def test_shot_7_moves_the_whole_quadrant_system(made):
+    """Task 0091: shot 7 drops the S-bend's cradles in the D's lane, runs the D-quadrant's whole travel onto the handler,
+    tilts the handler its whole range carrying the D (the travel rides on the tilt) and tips the quadrant. The clash
+    check over the whole animation (above) covers this shot too."""
+    from fresing_render.blender import animation, build, joints
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    s = sc.fresing
+    lead, drop = demo.cradle_drop(demo.Demo(sc, made["folder"], VERSION, small=True))
+    followers = [j for j in s.joints if j.follows == lead]
+    assert len(followers) >= 3
+    blocks = {b.joint: b for b in a.blocks if b.kind == "JOINT"}
+    travel = made["sheet"]["joints"]
+    t_max = next(j for j in travel if j["name"] == demo.TRAVEL)["limits"][1] / 1000.0
+    assert blocks[demo.TRAVEL].to_dist == pytest.approx(t_max)
+    assert any("x 60" in b.name for b in a.blocks)
+
+    def part(name):
+        return next(o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == name)
+    hf, qf = part("HANDLER FRAME"), part("QUADRANT FRAME")
+    fps = int(a.fps)
+
+    def at(seconds):
+        sc.frame_set(int(round(seconds * fps)) + 1)
+        return hf.matrix_world.inverted() @ qf.matrix_world
+    tilt, tip = blocks[demo.TILT], blocks[demo.TIP]
+    on_handler = at(tilt.start)
+    assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(0.0, abs=1e-3)
+    assert joints.get_value(s.joints[demo.TRAVEL]) == pytest.approx(t_max, abs=1e-4)
+    assert joints.get_value(s.joints[lead]) == pytest.approx(drop, abs=1e-4)
+    assert all(joints.get_value(j) == pytest.approx(drop, abs=1e-4) for j in followers)
+    tilted = at(tilt.start + tilt.duration)
+    assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(100.0, abs=1e-3)
+    assert np.allclose(np.array(tilted), np.array(on_handler), atol=1e-4)      # the D tilts with the handler
+    at(tip.start + tip.duration)
+    assert math.degrees(joints.get_value(s.joints[demo.TIP])) == pytest.approx(demo.TIP_TO, abs=1e-3)
+    # the D sits on the handler's rails: its bar where the sheet's travel puts it (handler mm: hinge at 0)
+    assert on_handler.translation.z * 1000 == pytest.approx(400.0, abs=0.5)
+    sc.frame_set(1)
+
+
+def test_xray_labels_apart_and_inside_the_picture(made):
+    """Task 0091: in shot 5's X-ray step no two label boxes overlap and every box lies inside the picture (with the
+    placer's margin), on every frame of the step, at the video's size (HD) and smaller."""
+    from fresing_render.blender import animation, callouts
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    fps = int(a.fps)
+    w = callouts.window_for(a, sc.fresing.callouts[0])
+    boxes = callouts.PartBoxes(sc)
+    for size in ((1920, 1080), (960, 540)):
+        margin = 0.02 * min(size)
+        seen = 0
+        for f in range(int(w[0] * fps), int(w[1] * fps) + 1, 3):
+            sc.frame_set(f + 1)
+            d = callouts.draws_at(sc, size, f / fps, a, "", boxes)
+            seen = max(seen, len(d))
+            for i, x in enumerate(d):
+                assert x.box.inside(size[0], size[1], margin - 1.0), (size, f, x.text)
+                for y in d[i + 1:]:
+                    assert not x.box.overlaps(y.box), (size, f, x.text, y.text)
+        assert seen == len(demo.LABELS), size
+    sc.frame_set(1)
 
 
 def test_cancel_leaves_nothing(made, tmp_path, monkeypatch):

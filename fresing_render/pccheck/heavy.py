@@ -677,7 +677,7 @@ def own_heavy_video(ctx):
 # ---------------------------------------------------------------------------
 
 @line("heavy.demo", "Demo project: cable-lay vessel", "0.2.68", (H,), expected=300,
-      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 415 "
+      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 419 "
            "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
            "animation",
       shows="How long the demo takes to make on this PC, the Build time of its animation, the time per frame while "

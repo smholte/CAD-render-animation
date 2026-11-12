@@ -40,7 +40,7 @@ the view, e.g. the second copy of the same STEP) stays where the user put it aft
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort Medium), 12 Nov 2026. Branch `claude/sleepy-archimedes-jo86od`
-(the session's own branch, not `task/0093-…`). GitHub runs: 2 – the first (43205137419) failed only because the
+(the session's own branch, not `task/0093-…`). GitHub runs: 4 (+1 re-run of the PC check: `milling.rotary` failed once, passed 3/3 locally and on the re-run – the known one-off of TASKS.md) – two merges of main (0094, 0091 took 0.2.69); the first (43205137419) failed only because the
 new test file, counted 30 s, moved test_fade.py and test_section.py (one EEVEE skip each) into one group; its
 measured 5.9 s is now in `tools/ci_times.json` (the file is also sorted now, no other value changed).
 
@@ -57,7 +57,7 @@ measured 5.9 s is now in `tools/ci_times.json` (the file is also sorted now, no 
   `animation.py`, `handlers.py`: the model update already copies the old root's `matrix_basis` to the new root.
   Old projects open unchanged (nothing is written on load).
 - User guide (1 Import, "The same file twice": placing a copy; 4 Motion: Everything back), CLAUDE.md section 8,
-  CHANGELOG 0.2.69.
+  CHANGELOG 0.2.70 (0.2.69 went to task 0091 meanwhile).
 
 **Tested and measured** (4-core web machine, small demo = the PC check's form, Blender as a module):
 - Demo joints stage: **67.0 s → 2.1 s** (with the profiler on); whole small "Make demo project": **160 s → 90 s**
