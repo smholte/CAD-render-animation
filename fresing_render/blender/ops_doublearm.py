@@ -5,8 +5,9 @@ from __future__ import annotations
 import time
 
 import bpy
+from mathutils import Vector
 
-from . import build, doublearm, gcode, joints
+from . import build, doublearm, gcode, hover, joints
 
 
 class _ArmOp:
@@ -34,6 +35,33 @@ def _arm_objects(context, part):
     return top
 
 
+def hub_refused(scene, direction) -> str:
+    """What ``doublearm.make_arm`` would refuse about a hub axis, for the hover highlight ('' = fine)."""
+    import math
+    d = Vector(direction).normalized()
+    up = doublearm.spindle_axis(scene)
+    if up is None or up.length < 1e-9:
+        return ""
+    if d.dot(up) < 0:
+        d = -d
+    if d.angle(up) > math.radians(5):
+        return "not parallel with the spindle: click a round face of the hub"
+    return ""
+
+
+def hinge_refused(scene, pot) -> str:
+    """What ``doublearm.make_pots`` would refuse about a clicked pot, for the hover highlight ('' = fine)."""
+    from . import toolchange
+    car = toolchange.carousel(scene)
+    if car is None:
+        return "pick the magazine's rotate joint (Carousel) first"
+    if doublearm.arm_joints(scene)[1] is None:
+        return "make the arm first ('Click the arm's hub')"
+    if not gcode._carries(car, pot):
+        return f"not turned by '{car.name}': click the hinge of a pot on the magazine"
+    return ""
+
+
 class _Click:
     """A one-click eyedropper on a round face: ``picked(context, part, origin, direction)`` returns '' or why not."""
 
@@ -44,25 +72,31 @@ class _Click:
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set(self.prompt + "  Esc / right-click: cancel.  Middle mouse / scroll: move "
-                                          "the view")
+        hover.start(context, self, self.prompt + "  Esc / right-click: cancel.  Middle mouse / scroll: move the view",
+                    refuse=lambda ob, o, d: self.refuse(context, ob, o, d))
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
+    def refuse(self, context, ob, origin, direction) -> str:
+        """Why a click here would be refused, worked out while the mouse moves ('' = fine)."""
+        return ""
+
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
-        if res is None or res[0].get(build.PROP_KIND) != "part":
-            context.workspace.status_text_set("Missed: " + self.prompt + "  Esc: cancel")
+        res = hover.pick(context, event)
+        if res is None:
+            hover.prompt(context, "Missed: " + self.prompt + "  Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, index, loc, normal = res
         origin, direction, _desc = joints.axis_from_hit(ob, index, loc, normal)
@@ -83,6 +117,9 @@ class FRESING_OT_cnc_arm_hub(_Click, _ArmOp, bpy.types.Operator):
     bl_label = "Click the arm's hub"
     prompt = "Click a round face of the arm's hub (the arm turns about it)."
 
+    def refuse(self, context, ob, origin, direction) -> str:
+        return hub_refused(context.scene, direction)
+
     def picked(self, context, ob, origin, direction):
         objs = _arm_objects(context, ob)
         why = doublearm.make_arm(context.scene, objs, origin, direction, ref=ob)
@@ -100,6 +137,9 @@ class FRESING_OT_cnc_arm_hinge(_Click, _ArmOp, bpy.types.Operator):
     bl_idname = "fresing.cnc_arm_hinge"
     bl_label = "Click the hinge"
     prompt = "Click the hinge pin of the pot at the change station."
+
+    def refuse(self, context, ob, origin, direction) -> str:
+        return hinge_refused(context.scene, ob)
 
     def picked(self, context, ob, origin, direction):
         why = doublearm.make_pots(context.scene, ob, origin, direction)

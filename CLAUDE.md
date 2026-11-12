@@ -272,6 +272,11 @@ fresing_render/            the Blender extension (Python package)
                            set-up (``set_up_test_model``, test_toolpath.step from tools/make_test_toolpath.py);
                            ops_toolpath.py (Make toolpath: progress + Cancel); panel 4 Motion > Milling > Make a toolpath
                            in ui_machining.py
+    hover.py               hover highlight while picking an axis (task 0088): ``look`` = the work of one mouse move
+                           (``scene.ray_cast`` + ``decals.through`` = ``cast``, the CAD face from ``fr_face_starts``,
+                           ``joints.axis_from_hit``), ``start``/``on_event``/``prompt``/``pick``/``end`` for a click
+                           picker's modal; two draw handlers (POST_VIEW face + axis, POST_PIXEL text), nothing in
+                           bpy.data; used by ops_motion (Add joint / Set axis), ops_cylinders, ops_doublearm
     vessel_motion.py       vessel motion at sea (task 0085): a rig of empties ("FR Vessel", "FR Vessel pivot") whose
                            channels are a driver giving the time in seconds + built-in sine modifiers (no Python, any
                            fps); model roots, deck objects and props get a Child Of "FR vessel motion" (set_inverse_pending

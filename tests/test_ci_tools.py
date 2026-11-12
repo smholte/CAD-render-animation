@@ -128,7 +128,8 @@ def test_real_app_verdicts():
     # checks that silently disappear
     v, detail, _ = R.judge("ui2", 0, "[UITEST] RESULT 20/20 passed\n", 15)
     assert v is False and f"at least {n} checks" in detail
-    assert R.judge("ui1", 0, "[UITEST] RESULT 18/18 passed\n", 15, quick=True)[0] is True
+    q = R.MIN_CHECKS_QUICK["ui1"]
+    assert R.judge("ui1", 0, f"[UITEST] RESULT {q}/{q} passed\n", 15, quick=True)[0] is True
     # a Python error outside the steps (e.g. a panel that fails to draw) turns it red ...
     stray = ok + "Traceback (most recent call last):\n  File \"ui.py\", line 3, in draw\nAttributeError: 'NoneType'\n"
     v, detail, fails = R.judge("ui2", 0, stray, 15)

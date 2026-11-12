@@ -1791,7 +1791,7 @@ stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
      "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
-     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.63", animation=VESSEL_ANIM,
+     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.64", animation=VESSEL_ANIM,
      at=0.5, play=True, check=_check_vessel, auto="clip")
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
