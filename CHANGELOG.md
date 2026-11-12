@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.66 – 12 Nov 2026 – the face lights up for every click (task 0089)
+## 0.2.67 – 12 Nov 2026 – the face lights up for every click (task 0089)
 
 Picking
 - **Every click on the model now shows what it will hit before you click**, as the axis pickers already did: the
@@ -14,6 +14,15 @@ Picking
   **coolant nozzle**, **tool-changer pockets** and **Add decal** ("lies flat" or "wraps round"). A spot the click would
   refuse (the tool as a workpiece, the workpiece as a nozzle) turns red and says why. The clicks themselves do what
   they did. The preference is now called "Highlight what is under the mouse when picking" (your setting is kept).
+
+## 0.2.66 – 12 Nov 2026 – way cover drawn at any axis position (task 0090)
+
+Motion
+- **Way covers: "Drawn at"** (4 Motion > Way covers > 3 Travel). A cover drawn in CAD with the machine at
+  mid-travel now works: type the axis position it was drawn at, or press **Drawn at: read from the axis**. There every
+  section stays on its CAD place and the sections share the movement from there. A line under it shows where the
+  sections stand at 0 mm and warns when the value is outside the axis limits. Every cover has its own value; old
+  projects keep 0 and move exactly as before.
 
 ## 0.2.65 – 12 Nov 2026 – vessel motion at sea (task 0085)
 

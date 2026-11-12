@@ -56,6 +56,7 @@ def _copy(src, dst) -> None:
     dst["total"] = src.total
     dst["flip"] = src.flip
     dst["housing_counts"] = src.housing_counts
+    dst["drawn_at"] = src.drawn_at
     for sec in src.sections:
         d = dst.sections.add()
         d.name, d.joint, d.carriage, d.uids = sec.name, sec.joint, sec.carriage, sec.uids
@@ -397,9 +398,11 @@ def shares(scene, cover=None) -> list[float]:
     return core.signed(core.shares(len(c.sections), c.housing_counts), c.flip)
 
 
-def _limits_for(axis, share: float, total: float) -> tuple[float, float]:
+def _limits_for(axis, share: float, total: float, drawn: float = 0.0) -> tuple[float, float]:
+    """The section's slide limits (m). ``drawn``: the axis value the CAD file shows (task 0090): the section
+    is at its CAD place there, so every value is ``share * (axis - drawn)``."""
     lo, hi = (axis.slide_min, axis.slide_max) if axis.use_limits else (0.0, total)
-    a, b = lo * share, hi * share
+    a, b = share * (lo - drawn), share * (hi - drawn)
     return (min(a, b), max(a, b))
 
 
@@ -407,15 +410,44 @@ def _apply(scene, c, sec, share: float, axis) -> bool:
     """Make section ``sec``'s joint follow ``axis`` with ``share``; True when something changed."""
     j = section_joint(scene, sec)
     changed = False
-    if j.follows != axis.name or abs(j.couple_ratio - share) > 1e-6:
-        joints.set_follows(scene, j, axis.name, ratio=share)
+    off = -share * c.drawn_at
+    cur = j.couple_offset_dist
+    if (j.follows != axis.name or abs(j.couple_ratio - share) > 1e-6 or abs(cur - off) > 1e-7):
+        joints.set_follows(scene, j, axis.name, ratio=share, offset_value=off)
         changed = True
-    lo, hi = _limits_for(axis, share, c.total)
+    lo, hi = _limits_for(axis, share, c.total, c.drawn_at)
     if (not j.use_limits or abs(j.slide_min - lo) > 1e-6 or abs(j.slide_max - hi) > 1e-6):
         joints._set_raw(j, use_limits=True, slide_min=lo, slide_max=hi)
         joints.apply_limits(j, joints._model_size(scene), clamp=False)
         changed = True
     return changed
+
+
+def read_drawn(scene, cover=None) -> str:
+    """Take "Drawn at" from the axis joint's current value (the axis posed where the CAD shows it)."""
+    c = cover or settings(scene)
+    reason = axis_problem(scene, c)
+    if reason:
+        return reason
+    c.drawn_at = float(joints.get_value(axis_joint(scene, c)))
+    return ""
+
+
+def check_line(scene, cover=None) -> str:
+    """A short line for the panel: where the sections stand at axis 0, or why a section would leave its housing."""
+    c = cover or settings(scene)
+    n = len(c.sections)
+    if not n:
+        return ""
+    sh = shares(scene, c)
+    at0 = [-s * c.drawn_at * 1000.0 for s in sh]
+    text = " / ".join(f"{v:.0f}" if abs(v) > 0.05 else "0" for v in at0)
+    line = f"At 0 mm: section 1 … {n} at {text} mm"
+    ax = axis_joint(scene, c) if not axis_problem(scene, c) else None
+    lo, hi = ((ax.slide_min, ax.slide_max) if ax is not None and ax.use_limits else (0.0, c.total))
+    if c.drawn_at < min(lo, hi) - 1e-6 or c.drawn_at > max(lo, hi) + 1e-6:
+        line += f" · Warning: {c.drawn_at * 1000:g} mm is outside the axis limits, so the sections would leave their housing"
+    return line
 
 
 def _refresh_one(scene, c) -> int:

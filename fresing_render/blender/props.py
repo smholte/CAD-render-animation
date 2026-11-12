@@ -1931,6 +1931,11 @@ class FRWayCover(bpy.types.PropertyGroup):
         name="Total length of movement", unit="LENGTH", default=0.5, min=0.0, soft_max=5.0, update=_waycover_changed,
         description="How far the axis moves in all, in mm. The sections share it out. 'Read from the axis' "
                     "takes it from the axis limits")
+    drawn_at: FloatProperty(
+        name="Drawn at", unit="LENGTH", default=0.0, soft_min=-5.0, soft_max=5.0, update=_waycover_changed,
+        description="The axis position the covers were drawn at in the CAD file, in mm (0 = the axis zero). At this "
+                    "position every section stays exactly where CAD put it. 'Read from the axis' takes the "
+                    "axis' current value")
     flip: BoolProperty(
         name="Flip", default=False, update=_waycover_changed,
         description="The covers open the other way round: use this when they slide against the axis' direction")

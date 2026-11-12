@@ -114,6 +114,21 @@ class FRESING_OT_waycover_read_total(_Op, bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_waycover_read_drawn(_Op, bpy.types.Operator):
+    """Takes 'Drawn at' from the axis' current value: pose the axis where the CAD file shows it first, then press this"""
+
+    bl_idname = "fresing.waycover_read_drawn"
+    bl_label = "Read from the axis"
+
+    def execute(self, context):
+        waycover.migrate(context.scene)
+        reason = waycover.read_drawn(context.scene)
+        if reason:
+            self.report({"WARNING"}, reason)
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
 class FRESING_OT_waycover_make(_Op, bpy.types.Operator):
     """Makes the sections follow the axis: each one slides its share of the travel, so the covers move
     with the axis by hand, in poses, in animation steps and in the render queue. Press it again after
@@ -204,5 +219,6 @@ def _watch_new_joint(scene, before: set) -> None:
 
 
 CLASSES = (FRESING_OT_waycover_add, FRESING_OT_waycover_remove, FRESING_OT_waycover_move,
-           FRESING_OT_waycover_select, FRESING_OT_waycover_read_total, FRESING_OT_waycover_make,
+           FRESING_OT_waycover_select, FRESING_OT_waycover_read_total, FRESING_OT_waycover_read_drawn,
+           FRESING_OT_waycover_make,
            FRESING_OT_waycover_remove_all, FRESING_OT_waycover_cover_add, FRESING_OT_waycover_axis_from_selection)

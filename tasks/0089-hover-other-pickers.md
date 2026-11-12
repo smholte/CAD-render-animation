@@ -1,6 +1,6 @@
 # 0089 – Hover highlight for all other click pickers
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0089-hover-other-pickers`
+**Who:** worker · **Status:** done (0.2.66) · **Branch:** `task/0089-hover-other-pickers`
 **Started by:** lead chat, 12 Nov 2026 (follow-up of 0088, the owner's wish)
 **Lane:** Pick & hover – `blender/hover.py` (only additions it needs, e.g. a "point" mode without an axis), and the
 click pickers in `ops_scene.py` (sharp spot), `ops_callouts.py` (label point on a part), `ops_decals.py` (where a decal
@@ -52,10 +52,25 @@ The axis pickers' look, any picker's result.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 12 Nov 2026
 
-**What changed:**
+**What changed:** `hover.py` got a point mode (`start(..., point=True, note=, refuse=)`, `look_point`): the face lights up,
+a dot marks where the click lands, a note says what the click does; red with a reason when refused. Wired in: sharp spot
+(`ops_scene`), label add / move and trail point (`_PickPart` in `ops_callouts`, used by `ops_fade`), CNC zero, air nozzle,
+tool-changer pockets (`ops_gcode`), coolant nozzle (`ops_coolant`), Add decal (`ops_decals`; note "lies flat" /
+"wraps round" from `decals.wraps_round`, cached per face). These clicks now go through `hover.pick`, so highlight and
+click use the same ray (and a click through a sticker counts as the part, as with joints). Preference renamed to "Highlight
+what is under the mouse when picking" (same property). Guide sentences in Motion, Decals, CNC zero, Labels, trails and
+sharp spot. PC-check line `motion.hover` also checks the point mode. Version 0.2.66.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core Linux box, test crane): `tests/test_hover.py` 24 tests pass (point look equals the
+click's part / face / spot; empty space; refusal; a failing note; decal note flat and round; every picker uses the helper;
+end leaves no draw handler). Time per mouse move: 0.03 ms axis, 0.01 ms point (50 moves, warm). PC-check line OK
+(median 0.10 ms, slowest 0.62 ms). Tooltip check 0 missing. Not run: the PC check's Heavy machine (no change to the heavy
+path; per-move work is one ray + a cached face), real clicks in a window (no graphics card here; GitHub's real-app tests
+cover start-up of the modals only via the existing tests).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** "Toolpath block / finished part" and "set workpiece" are not click pickers (they use
+the selection), so nothing to do there. Vessel motion's "click the pivot" picker (0085) also clicks water and deck, which
+hover does not treat as parts: left as it is. Hover over a Tool-change hand-over or other pickers added later: use
+`hover.start(..., point=True)`.

@@ -1,6 +1,6 @@
 # 0085 – Vessel motion at sea (study 0069 #4)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/kind-lovelace-yk40cq`
+**Who:** worker · **Status:** done (0.2.65) · **Branch:** `claude/kind-lovelace-yk40cq`
 **Started by:** lead chat, 11 Nov 2026 (lead's pick from the improvement study; the owner can change it)
 **Lane:** new **Sea lane** – new files `core/vessel_motion.py` (no Blender), `blender/vessel_motion.py`,
 `blender/ops_vessel_motion.py`, `blender/ui_vessel_motion.py` (a sub-panel of 5 Scene & Render in its own file); additive
@@ -160,7 +160,13 @@ Cable catenary into the sea (0081), the camera riding the vessel (0087), motion 
   10.4 ms on (+6 ms)** – every part's place changes each frame.
 - Locally also: test_surroundings, test_model_update, test_panels, test_pccheck, test_user_guide, test_ci_tools,
   test_tour (266 tests); tooltip check strict 572/572.
-- GitHub: RUNS
+- GitHub: 7 full runs on the branch, all for the version race: run 1 cancelled by my own tooltip-check fix; run 2
+  green (0.2.61) but 0035 had released 0.2.61; run 3 green (0.2.62) but 0087 had released it – then the vessel as
+  a ride target was added here; run 4 had one Windows failure in the test script itself (`ci_windows_install.ps1`
+  line 195: a process ended between two reads of its `.Path`, "You cannot call a method on a null-valued
+  expression") – the failed job re-run green, same app code had passed before; run 5 green (0.2.64) but 0086 had
+  released it; run 6 green (0.2.65), `main` fast-forwarded after merging the lead's briefs (task files only).
+  Real app scenes job 7.8 min once (usually 4.7; my test adds ~20 s + one install).
 
 **Open points / follow-up tasks:**
 - **0087 (camera rides along) – done here:** 0087 merged first (0.2.62), so this task made the vessel a ride target:
@@ -172,5 +178,9 @@ Cable catenary into the sea (0081), the camera riding the vessel (0087), motion 
 - The swell is only seen with Detail "Detailed" (as all geometric waves) and fades out 40–64 m from the machine like
   the sea's own waves; a 124 m hull reaches past that.
 - A small vessel moves as much as a big one at the same sea state (scaled to the table); Strength adjusts it.
+- **Lead's note "a model copy moved by hand by its root is put back at the next Build (`fr_rest_basis`)":** vessel
+  motion never touches a root's basis (it is a constraint), so that bug is not this code's; it stays a separate fix.
+- The Windows CI script race above (`tools/ci_windows_install.ps1` line 195): read `$_.Path` once into a variable –
+  Quality lane, one line.
 - Not checked on the owner's PC: playback speed in the view with the RTX 3090 and a real offshore model (PC check
   Heavy line `heavy.vessel` measures it there).
