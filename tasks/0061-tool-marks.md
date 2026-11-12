@@ -1,7 +1,7 @@
 # 0061 – Tool marks on cut faces that follow the toolpath
 
-**Who:** worker · **Status:** open – can start (Fable day, 12 Nov; split over subagents, see below) · **Branch:**
-`task/0061-tool-marks`
+**Who:** worker · **Status:** running (12 Nov; split over subagents, see below) · **Branch:**
+`claude/cool-galileo-hasuug` (the web session's branch)
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 3 of the big features, 9 Nov: "milled faces own look now,
 toolpath marks later")
 **Lane:** Machining – `core/machining.py`, `blender/machining.py`, `ui_machining.py`, `ops_machining.py`; reading
