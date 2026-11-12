@@ -40,7 +40,9 @@ the view, e.g. the second copy of the same STEP) stays where the user put it aft
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort Medium), 12 Nov 2026. Branch `claude/sleepy-archimedes-jo86od`
-(the session's own branch, not `task/0093-…`); GitHub runs: see below.
+(the session's own branch, not `task/0093-…`). GitHub runs: 2 – the first (43205137419) failed only because the
+new test file, counted 30 s, moved test_fade.py and test_section.py (one EEVEE skip each) into one group; its
+measured 5.9 s is now in `tools/ci_times.json` (the file is also sorted now, no other value changed).
 
 **What changed:**
 - `joints._batch` updates the scene once on the way in (the CAD pose) and once on the way out; `create` and

@@ -192,7 +192,7 @@ if ($Uninstall) {
             $gone = (Get-Date).AddSeconds(90)
             do {
                 $left = Get-Process -Name blender, blender-launcher, python -ErrorAction SilentlyContinue |
-                    Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
+                    Where-Object { $procPath = $_.Path; $procPath -and $procPath.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
                 if ($left) { Start-Sleep -Seconds 1 }
             } while ($left -and (Get-Date) -lt $gone)
             if ($left) { Problem "still running 90 s after the update: $($left.Path -join ', ')" }
