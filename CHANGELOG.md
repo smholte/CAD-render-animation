@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.69 – 12 Nov 2026 – demo: the quadrant system moves, Lebus drum close-up (task 0091)
+
+Demo project (make it again: Help > Make demo project…)
+- **The quadrant system moves all the way now**, and the animation shows it at the end: the roller cradles of the
+  S-bends that stood in the D-quadrant's way **drop** out of it, the D travels aft on its rails onto the handler
+  (× 60 time-lapse), the handler **tilts over the stern carrying it**, and the quadrant **tips**. The clash check
+  finds nothing running into anything over this part.
+- What was changed in the invented model for it: four cradles drop (one joint, the other three follow), the D's travel
+  rides on the handler's tilt and its tip on the travel, the quadrant handling wire runs low under the D to a sheave on
+  the handler's hinge and along the handler (that part tilts with it), the handler's top pulley sits lower (the D rolls
+  over it), the handler's frame swings clear of its hinge brackets, the tilt cylinders sit nearer the hinge, the rail
+  wheels' flanges run beside the rail head. 419 joints in all (311 on the vessel).
+- The winch drum close-up shows a **Lebus drum** (35° crossovers, risers at the flanges) on the handling winches.
+- The X-ray labels of the tensioner shot stay apart and inside the picture.
+- The animation lasts about 78 s with title and end card.
+
 ## 0.2.68 – 12 Nov 2026 – demo project: an invented cable-lay vessel (task 0077)
 
 Demo project
