@@ -31,7 +31,7 @@ updates its branch to `main`.
 - **Pick & hover lane** (new `blender/hover.py`; the axis pickers in `ops_motion.py`, `ops_cylinders.py`, `ops_doublearm.py`, `ops_linkages.py`): 0088 hover highlight when picking an axis (done, 0.2.63) → 0089 the other pickers (done, 0.2.67); lane free
 - **Sea lane** (new files `core/vessel_motion.py`, `blender/vessel_motion.py`, `ops_vessel_motion.py`, `ui_vessel_motion.py` = sub-panel of 5; additive: `props.py`, `reimport.py`, the sea in `surroundings.py`): 0085 vessel motion at sea (done, 0.2.65); lane free
 - **Cutaway lane** (new files `section.py`, `ops_section.py`, `ui_section.py` = sub-panel of 3 Looks; the material hook next to `fade.py`; additive: `props.py`, `reimport.py`): 0086 cutaway / section view (done, 0.2.64); lane free; no new step kind (the cut moves as an app-made slide joint)
-- **Demo models lane** (new files only: `tools/make_demo_*.py`, `tests/test_demo_*.py`; the demo project in 0077: new `blender/demo.py`, `ops_demo.py`, an additive Help-menu item): 0076 invented cable-lay vessel spread (done 11 Nov) → 0084 deck re-layout as the owner works (done 12 Nov) → **0077 demo project "Cable-lay vessel" (running)**
+- **Demo models lane** (new files only: `tools/make_demo_*.py`, `tests/test_demo_*.py`; the demo project in 0077: new `blender/demo.py`, `ops_demo.py`, an additive Help-menu item): 0076 invented cable-lay vessel spread (done 11 Nov) → 0084 deck re-layout as the owner works (done 12 Nov) → 0077 demo project "Cable-lay vessel" (done, 0.2.68; the maker now lives in `fresing_render/demo_model/`, the project in `blender/demo.py` as stages); lane free – 0078–0082 add their stages to `demo.py`
 
 ## Problems found, waiting for a task
 
@@ -47,12 +47,20 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
   same code): a model copy moved by hand by its root is put back at the next Build (`fr_rest_basis`, `build.py`).
 - **0086 follow-ups (owner decides):** a slide-axis choice for box cuts; a cut that rides on another joint (slewing part).
 - **0084 stern turn (owner, 12 Nov):** keep it as in the demo, a few metres forward of the quadrant handler and under
-  the rails – only the place differs from a real vessel, not the motion. The rails clear the cable by 10 cm: 0077's and
-  0082's clash checks confirm it. The quadrant's tip joint must also ride the handler's tilt: 0082 decides.
+  the rails – only the place differs from a real vessel, not the motion. The rails clear the cable by 10 cm: 0082's clash
+  check confirms it (0077's left the static cable out and does not move the quadrant). The quadrant's tip joint must also ride the handler's tilt: 0082 decides.
 - **0087 follow-ups:** the vessel as a ride target: done in 0085 (Ride along on any part of the model rides the vessel, tested); per-frame cost of
-  Ride along / Watch part on a big model is measured in 0077.
+  Ride along / Watch part on a big model: measured in 0077 (7.2–9.1 ms per frame change on the 1,250-part demo, Blender
+  as a module) – nothing to do.
 - **0066 follow-up:** chips on a table that moves *and* carries the 4th axis land on the fixed bed (a third chip space) – Machining lane, after 0061.
 - **0066 decision (lead, 11 Nov):** Wrapped follows LinuxCNC's sign rule (A-90 goes the − way), not "shortest way" – kept, matches the machine.
+- **0077 follow-ups** (details in its report): **Demo models lane / 0082:** the quadrant system cannot move in the
+  demo yet – the D runs into the S-bend's roller cradles at the start of its travel (125 mm), the handler frame cuts
+  its hinge brackets past ~30° (139 mm), the parked handling wire stays behind; until then shot 7 flies over it.
+  **Clash lane:** parts that only turn about their own axis (300 rollers, the coil) make the check take hours on the
+  demo – a "turns in place" shortcut. **Motion lane:** `joints.create` in `joints._batch` reads a stacked joint's base
+  before the update (the demo works round it); create/set_follows update the whole scene each (69 s for 415 joints).
+  **Scene & Render:** step-tied labels show in stills; the X-ray labels crowd at the picture's edge.
 - **0037 problem 3** (two way covers on one axis): in 0035 (re-briefed 11 Nov). Problems 4 and 6 are in 0051, problem 5 was fixed
   in 0043, problem 2 in 0040, problem 7 in 0038.
 
@@ -60,7 +68,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0077 | **Demo project "Cable-lay vessel"** (Help > Make demo project): the model maker ships with the app, 0084's model imported with groups and looks, all 307 joints (stacks, couplings, a Cable travel joint for 0078), cylinders, Open sea + "Loading at the quay" scenes, saved cameras, a 60–80 s animation of what the app can do today (fly-in, carousel, rollers, tensioner lift/squeeze + X-ray, drum close-up, quadrant); stages that 0078–0082 extend; Heavy PC-check line | worker | Opus · Medium | **running** (Claude Code on the web, 12 Nov) | `claude/sweet-mendel-tecn1z`, tasks/0077-demo-project.md |
 | 0061 | **Fable day.** Machining lane: tool marks on cut faces that follow the toolpath (face-mill arcs + anisotropic sheen, end-mill floor and wall lines, step-downs, ball scallops, drill rings; each cut face knows the move that made it last); fixes the dark facets on cut faces (0042) – owner's priority 3 | worker | **Fable · High** | **open – can start Thursday 12 Nov (Fable day)**, with 0058; 0071 is merged (0.2.57) | tasks/0061-tool-marks.md |
 | 0058 | **Fable day.** Flex parts lane (new): hoses, cables and drag chains follow the motion (ends on their parts, fixed length, bend, sag; chain rolls on its bend radius; CAD links re-laid) – owner's priority 1 | worker | **Fable · High** | **Thursday 12 Nov (Fable day)**; after 0050 | tasks/0058-hoses-cables-drag-chains.md |
 | – | Owner's order of the big features (9 Nov), each briefed when its turn comes: **1** hoses/cables/drag chains (0058) · **2** coolant (0042, done) · **3** tool marks on cut faces (0061, Fable day) · **4** motion paths (parts/cables along a curve, sheaves, winches; after 0058) · **5** exact double-arm ATC swap (0064, done 0.2.51) · **6** 4th/5th axis (0066, done 0.2.52) · **7** clash warning (0065, done 0.2.53) · **8** app-made toolpath (0029, now) | lead | – | plan | – |
@@ -75,6 +82,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0077 | Demo project "Cable-lay vessel" (Help > Make demo project / Cancel / Open): the model maker in the extension, 415 joints (Cable travel leads the cable-turned ones), handler cylinders, open sea with vessel motion + "Loading at the quay", saved cameras, brand kit, "What it can do today" (74 s) as stages for 0078–0082; tour stop, Heavy line; clash check no longer runs out of memory on a hull | 0.2.68 |
 | 0089 | Hover highlight for all other click pickers (sharp spot, labels, trail points, CNC zero, air/coolant nozzles, ATC pockets, decals) | 0.2.67 |
 | 0090 | Way cover drawn at any axis position: "Drawn at" per cover + Read from the axis + check line (4 Motion > Way covers) | 0.2.66 |
 | 0085 | Vessel motion at sea (5 Scene & Render > Vessel motion): heave / pitch / roll from the sea's own waves + a long swell (only while on), Calm = 0083's numbers, Rough ~3×, heading, strength, size, roll period, pivot; model + deck + props move by a Child Of on a rig of sine-modifier drivers (scripts off, queue, any fps); Still / Level parts; camera on board via 0087's Ride along | 0.2.65 |
