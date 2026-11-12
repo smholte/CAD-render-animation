@@ -100,6 +100,8 @@ def apply_pose_data(scene, pose, joints_only: bool = False) -> None:
     linkages.refresh_all(scene)                     # mechanisms follow their drive joint (also with no 3D view)
     if not joints_only:
         joints.apply_free_moves(scene, deltas, reset_others=True)
+    from . import flex
+    flex.refresh(scene)                             # hoses and drag chains follow (task 0058; also with no 3D view)
     scene.fresing.bounds_valid = False
 
 
@@ -117,6 +119,8 @@ def reset_pose(scene) -> None:
     from . import linkages
     linkages.refresh_all(scene)
     joints.apply_free_moves(scene, {}, reset_others=True)
+    from . import flex
+    flex.refresh(scene)
     scene.fresing.bounds_valid = False
 
 

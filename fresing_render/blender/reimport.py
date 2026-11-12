@@ -301,6 +301,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += trails.after_model_update(scene, by_uid, mapping)               # trail lines (task 0073)
     from . import section
     notes += section.after_model_update(scene, by_uid, mapping)              # cutaways (task 0086)
+    from . import flex
+    notes += flex.after_model_update(scene, by_uid, mapping)                 # hoses and drag chains (task 0058)
     return notes
 
 
