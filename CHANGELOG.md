@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.69 – 12 Nov 2026 – joints made fast in one go; a moved model keeps its place (task 0093)
+
+Motion
+- A model moved or turned by its top row (for example the second copy of the same STEP file, placed beside the
+  first) now stays where you put it: through **Build animation**, poses, saved scenes, the start scene,
+  **Everything back to CAD position** and model updates. Before, it jumped back at the next Build. A part moved by
+  hand *inside* a model still goes back, as before.
+- Many joints made at once (the demo project, model updates) take seconds instead of a minute: the demo's 415
+  joints 67 s → 2 s on the 4-core test machine, the whole small demo 160 s → 90 s. A joint stacked on another one
+  made in the same go now lands on its right axis.
+
 ## 0.2.68 – 12 Nov 2026 – demo project: an invented cable-lay vessel (task 0077)
 
 Demo project

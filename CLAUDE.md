@@ -729,5 +729,9 @@ the release → Delete); the next run on `main` publishes it again.
   3^10 pieces, a vessel's deck and hull billions, and the clash check ran out of memory. Since task 0077 a long thin
   face is cut into a strip (about 2 x length / 25 mm pieces), a wide face stays whole, and a mesh past
   `MESH_BUDGET` is cut coarser.
-- `joints.create` and `joints.set_follows` each update the whole scene once, even inside `joints._batch`: 0.1 s
-  per call on the 1,250-part demo vessel, 75 s for its 415 joints (task 0077; Motion lane open point).
+- `joints.create` and `joints.set_follows` each updated the whole scene once, even inside `joints._batch`: 0.1 s per
+  call on the 1,250-part demo vessel, 67 s for its 415 joints. Since task 0093 a batch updates once on the way in
+  and once on the way out (2 s); inside it, read places with `joints.world_of(scene, ob)`, never `matrix_world` of a
+  joint empty made in the same batch (still the identity: a stacked joint landed metres off).
+- A model's **root** is never a free move (task 0093): `joints.free_moves` / `apply_free_moves` skip it, so a model
+  (or a second copy) moved or turned by its root keeps that place through Build, poses, saved scenes and updates.

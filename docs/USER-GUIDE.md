@@ -225,6 +225,11 @@ a part, visibility sets, poses, Show/Hide steps and model updates of one copy ne
 Sorting rules and materials treat both copies alike. Projects made before 0.2.44 with a file imported
 twice are sorted out when they are opened: the first copy keeps everything that was saved for it.
 
+**Placing a copy:** select the model's top row (its root) and move or turn it in the 3D view (<kbd>G</kbd>,
+<kbd>R</kbd>). The whole model stays where you put it: through Build animation, poses, saved scenes, the start
+scene, **Everything back to CAD position** and model updates. A part moved by hand *inside* a model is different:
+that goes back to its place at the next pose or Build, unless a pose or an animation step holds it.
+
 **Update to a new revision**
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
@@ -663,7 +668,8 @@ Edit > Preferences > Add-ons > Fresing Render > "Highlight what is under the mou
   the crane's trolley sits on the boom.
 - **−** next to the list removes the joint; its parts go back to their CAD position. Joints that
   followed it stay where they are and move by themselves from then on.
-- **Everything back to CAD position** puts every joint and moved subassembly back.
+- **Everything back to CAD position** puts every joint and moved subassembly back. A whole model moved by its
+  top row stays where you put it.
 
 **Two or more joints on one subassembly**
 

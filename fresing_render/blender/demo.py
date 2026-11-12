@@ -488,10 +488,7 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
             base = None
             if j.get("rides_on"):
                 below = joints.find(sc, prefix + j["rides_on"])
-                base = below.motion if below is not None else None
-                # inside the batch, create() reads the base's place before its own update: a joint made a moment
-                # ago has none yet (the tilt's hinge landed metres off). Update first (Motion lane open point)
-                joints._update(sc)
+                base = below.motion if below is not None else None     # (made in this batch: fine, task 0093)
             jt = joints.create(sc, "ROTATE" if j["type"] == "rotate" else "SLIDE", objs, origin, direction,
                                name=prefix + j["name"], base=base)
             if jt.name != prefix + j["name"]:
@@ -503,17 +500,15 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
                 else:
                     jt.slide_min, jt.slide_max = lim[0] / 1000.0, lim[1] / 1000.0
                 jt.use_limits = True
-    by = {jt.name: jt for jt in sc.fresing.joints}
-    for j in order:                                     # couplings once every joint is there
-        drive = j["drive"]
-        jt = sc.fresing.joints.get(prefix + j["name"])
-        if drive.get("by") == "follows":
-            joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
-        elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
-            if not waits_for_tracks(j["name"]):
-                joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
-        joints.apply_limits(jt, joints._model_size(sc))
-    del by
+        for j in order:                                 # couplings once every joint is there
+            drive = j["drive"]
+            jt = sc.fresing.joints.get(prefix + j["name"])
+            if drive.get("by") == "follows":
+                joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
+            elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
+                if not waits_for_tracks(j["name"]):
+                    joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
+            joints.apply_limits(jt, joints._model_size(sc))
     return total
 
 
