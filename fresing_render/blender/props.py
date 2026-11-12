@@ -1230,6 +1230,13 @@ def _mill_cut_look_changed(self, context):
     machining.cut_look_changed(context.scene)
 
 
+def _mill_marks_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import machining
+    machining.marks_changed(context.scene)
+
+
 def _chips_changed(self, context):
     if context is None or context.scene is None:
         return
@@ -1311,6 +1318,22 @@ class FRMilling(bpy.types.PropertyGroup):
         update=_mill_cut_look_changed,
         description="The ready-made material of the faces the bit cuts. A material that takes a colour uses the "
                     "colour of the block's group in 3 Looks")
+    # ---- tool marks on cut faces (task 0061) ----
+    marks: BoolProperty(
+        name="Tool marks", default=True, update=_mill_marks_changed,
+        description="Cut faces show the marks of the tool that made them, in the direction it went: the arcs of a "
+                    "face mill or end mill on a floor, fine lines on walls, rings in a drilled hole, and the sheen "
+                    "that follows them. Off: every cut face gets the same plain machined look")
+    marks_size: FloatProperty(
+        name="Mark size", default=1.0, min=1.0, max=10.0, step=10, precision=1, update=_mill_cut_look_changed,
+        description="How far apart the tool marks are drawn. 1 is real: the feed per tooth of the program, often "
+                    "0.05 to 0.3 mm, so in a shot of the whole machine you only see the sheen. For a close-up, "
+                    "raise it (up to 10 times wider) until the arcs show")
+    marks_strength: FloatProperty(
+        name="Strength", default=1.0, min=0.0, max=2.0, step=10, precision=2, update=_mill_cut_look_changed,
+        description="How deep the tool marks look. 1 is a normal fresh cut; lower for a fine finishing cut, "
+                    "higher for a rough one. The marks also depend on the cut faces' material: crisp on "
+                    "aluminium, finer on steel, faint on plastic")
 
     # ---- chips (task 0028) ----
     chips: EnumProperty(

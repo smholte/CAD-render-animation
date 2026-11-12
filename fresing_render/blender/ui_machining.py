@@ -135,8 +135,15 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             col.prop(m, "cut_look", text="Cut faces")
             if m.cut_look == "PICK":
                 col.prop(m, "cut_material", text="Material")
+            if m.cut_look != "SAME":
+                col.prop(m, "marks", text="Tool marks")
+                if m.marks:
+                    col.prop(m, "marks_size", text="Mark size", slider=True)
+                    col.prop(m, "marks_strength", text="Strength", slider=True)
             if m.workpiece is not None:
                 wrap(layout, context, machining.cut_look_text(scene), icon="MATERIAL", inset=0)
+                if m.marks and m.cut_look != "SAME":
+                    wrap(layout, context, machining.marks_source(scene), icon="FORCE_VORTEX", inset=0)
             rt = machining.runtime(scene)
             if rt.get("error"):
                 wrap(layout, context, rt["error"], icon="ERROR", alert=True)
