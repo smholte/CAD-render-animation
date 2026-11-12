@@ -11,6 +11,7 @@ Render. The models themselves are **not** in this repository – only the pictur
 - Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0 – https://github.com/AngelLM/Thor (first render; a corrected one follows)
 - FarmBot Genesis by FarmBot Inc., CC0 1.0 – https://genesis.farm.bot/
 - CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) – https://github.com/goscommons/CEB-Press
+- Test mill with a double-arm tool changer: an invented machine made by Fresing Render's own test-model maker (tools/make_test_atc.py) – the 3D model of "Turn it yourself" (task 0099), exported with 5 Scene & Render > Web 3D model
 
 Rendered by the owner on his PC with `site/render_kit` (RTX 3090, Final quality, 9 Nov 2026). The test-model
 placeholders of the first version are gone. Thor and OpenArm follow after a second run (see below).
@@ -32,6 +33,14 @@ CAD not licensed, Open-MiRoREA – non-commercial).
 
 Not used: anything from GrabCAD (its terms do not allow it), MPCNC / LowRider (non-commercial licence), PrintNC
 (CAD moved off the licensed repository), and models whose licence could not be confirmed.
+
+## The 3D viewer
+
+- "Turn it yourself" (model/index.html) shows the web model with Google's model-viewer 4.4.0, Apache-2.0
+  (`vendor/model-viewer-umd.min.js` and its licence, copied from `fresing_render/web/`; three.js MIT and lit
+  BSD-3-Clause are inside it with their notes). Nothing is loaded from other sites. Only invented or openly licensed
+  models go there – never the Fresing 400 (not public, owner 12 Nov 2026). Swap the model with
+  `tools/build_site.py --web-model <file.glb> --model <id>` after adding its credit here and in media.json.
 
 ## Type and logo
 

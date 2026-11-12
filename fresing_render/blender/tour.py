@@ -2145,6 +2145,27 @@ stop("shapes", OUT, HUB_SET, "Upright 9:16 and square 1:1",
      where="5 Scene & Render > Image size & render (Shape)", check=_check_shapes)
 
 
+def _check_web3d(scene):
+    """Web 3D model (task 0099): export the crane next to the tour (512 px, quick) and read the file back."""
+    import tempfile
+
+    from ..core import web3d as core
+    from . import web3d
+    folder, version = tour_of_file(scene)
+    out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_")
+    os.makedirs(out_dir, exist_ok=True)
+    scene.fresing.web3d.texture_size = "512"
+    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512)
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file is not valid glTF: {bad[:1]}")
+    info = core.summary(data)
+    _check(info["parts"] == out["parts"] > 0, f"{info['parts']} parts in the file, {out['parts']} shown")
+    _check(os.path.exists(out["html"]), "the viewer page was not written")
+    _check(info["names"][1:3] == ["Part 1", "Part 2"], "the part names are not hidden")
+    return f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel)"
+
 
 def _check_demo(scene):
     """The demo project (task 0077): never made inside the tour (it takes minutes); read its summary if it is there."""
@@ -2163,6 +2184,11 @@ def _check_demo(scene):
     return (f"demo project {__version__}: {info['joints']} joints, '{demo.ANIM}' {info['seconds']:.0f} s "
             f"({info['frames']} frames)")
 
+stop("web3d", OUT, HUB_SET, "Web 3D model",
+     "This stop saves the crane as a web 3D model next to the tour. Press Open page in 5 Scene & Render > Web 3D "
+     "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
+     "scroll to zoom. The page is one file and also works without internet.",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "

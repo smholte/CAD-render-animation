@@ -12,7 +12,13 @@ result (every file there, every model credited, links only to GitHub and fresing
 Swapping in pictures (a later session, the same tool):
     tools/build_site.py --take <folder with site_pictures.json>   # the owner's renders from site/render_kit
     tools/build_site.py --hero-video <file.mp4> --start 12 --length 15 --model <id>   # cut + compress the top video
+    tools/build_site.py --web-model <file.glb> --model <id> --caption "…"   # the model of "Turn it yourself"
 Both compress with ImageMagick / ffmpeg (JPG <= 400 KB, video <= 8 MB) and update site/media/media.json.
+
+"Turn it yourself" (task 0099): the landing page itself has no script. Its section links to model/index.html, a small
+viewer page that loads the vendored model-viewer (fresing_render/web/, copied to vendor/) and media/<model>.glb only
+when it is opened. --web-model takes a .glb the app exported (5 Scene & Render > Web 3D model) and makes its poster
+picture with headless Chromium (tools/web3d_shot.js). Only openly licensed or invented models – never the Fresing 400.
 """
 
 from __future__ import annotations
@@ -38,9 +44,12 @@ REPO_URL = f"https://github.com/{REPO}"
 ALLOWED_HOSTS = ("github.com", "fresing.nl", "www.fresing.nl", "www.blender.org")
 JPG_MAX = 400_000
 VIDEO_MAX = 8_000_000
+GLB_MAX = 15_000_000                       # the web model: a phone on a slow line must still get it
+FORBIDDEN_MODELS = ("fresing_400", "fresing400", "f400")   # not public (owner, 12 Nov 2026)
 COPY_DIRS = ("brand", "fonts")
 
 sys.path.insert(0, ROOT)
+from fresing_render.core import web3d  # noqa: E402
 
 
 def asset_name(version: str) -> str:
@@ -147,6 +156,40 @@ def feature_html(media: dict) -> str:
             f'loading="lazy" width="1000" height="1350"></a>{cap}')
 
 
+def turn_html(media: dict) -> str:
+    """The "Turn it yourself" section (media.json "web_model"), '' without a model."""
+    w = media.get("web_model") or {}
+    if not w:
+        return ""
+    size = os.path.getsize(os.path.join(MEDIA, w["file"])) if os.path.exists(os.path.join(MEDIA, w["file"])) else 0
+    pic = ""
+    if w.get("poster"):
+        pic = (f'\n    <figure class="turn-poster"><a href="model/"><img src="media/{_esc(w["poster"])}" '
+               f'alt="{_esc(w.get("caption", "3D model"))}" loading="lazy" width="1200" height="800"></a>'
+               f'<figcaption>{_esc(w.get("caption", ""))}</figcaption></figure>')
+    return f"""<section id="turn" class="turn">
+  <div class="wrap turn-in">
+    <div>
+      <h2>Turn it yourself</h2>
+      <p>Fresing Render also saves a machine as one 3D file with its looks, and a page that shows it in any web browser: drag to turn it, scroll to zoom. E-mail it to a customer or put it on your website.</p>
+      <p class="buttons"><a class="button" href="model/">Open the 3D model</a></p>
+      <p class="small">{_esc(web3d.mb(size))}, loads only when you open it. Made with 5 Scene &amp; Render &gt; Web 3D model.</p>
+    </div>{pic}
+  </div>
+</section>
+"""
+
+
+def model_page(media: dict) -> str:
+    """model/index.html: the viewer page of the web model (loads the vendored viewer and the model)."""
+    w = media["web_model"]
+    title = media.get("models", {}).get(w.get("model", ""), {}).get("title") or "3D model"
+    note = ('<a href="../">← Fresing Render</a> · model-viewer by Google (Apache-2.0) · '
+            + _esc(media.get("models", {}).get(w.get("model", ""), {}).get("credit", "")))
+    return web3d.viewer_html(title, src="../media/" + w["file"], script_src="../vendor/" + web3d.MV_FILE,
+                             note=note)
+
+
 def credits_html(media: dict) -> str:
     rows = []
     for mid in used_models(media):
@@ -164,7 +207,8 @@ def credits_html(media: dict) -> str:
 def used_models(media: dict) -> list[str]:
     seen: list[str] = []
     items = ([media["hero"]] if media.get("hero") else []) + media.get("pictures", []) + \
-        ([media["feature"]] if media.get("feature") else [])
+        ([media["feature"]] if media.get("feature") else []) + \
+        ([media["web_model"]] if media.get("web_model") else [])
     for it in items:
         if it.get("model") and it["model"] not in seen:
             seen.append(it["model"])
@@ -183,6 +227,11 @@ def media_files(media: dict) -> list[str]:
         files.append(p["file"])
         if p.get("poster"):
             files.append(p["poster"])
+    w = media.get("web_model") or {}
+    if w:
+        files.append(w["file"])
+        if w.get("poster"):
+            files.append(w["poster"])
     return files
 
 
@@ -217,6 +266,7 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
         "releases_url": f"{REPO_URL}/releases", "repo_url": REPO_URL, "blender": blender_version(),
         "news_title": _esc(entry["title"][:1].upper() + entry["title"][1:]), "whats_new": md_to_html(entry["text"]),
         "hero_video": hero_html(media), "gallery": gallery_html(media), "feature": feature_html(media), "credits": credits_html(media),
+        "turn_section": turn_html(media), "turn_nav": '\n      <a href="#turn">Turn it</a>' if media.get("web_model") else "",
     })
     if os.path.isdir(out):
         shutil.rmtree(out)
@@ -228,6 +278,13 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
         shutil.copytree(os.path.join(SITE, d), os.path.join(out, d))
     for f in media_files(media):
         shutil.copy2(os.path.join(MEDIA, f), os.path.join(out, "media", f))
+    if media.get("web_model"):
+        os.makedirs(os.path.join(out, "model"))
+        with open(os.path.join(out, "model", "index.html"), "w", encoding="utf-8") as fh:
+            fh.write(model_page(media))
+        os.makedirs(os.path.join(out, "vendor"))
+        for f in (web3d.MV_FILE, "LICENSE-model-viewer.txt"):
+            shutil.copy2(os.path.join(web3d.WEB_DIR, f), os.path.join(out, "vendor", f))
     with open(os.path.join(out, ".nojekyll"), "w"):
         pass
     if guide:
@@ -319,6 +376,43 @@ def check(out: str, media: dict | None = None) -> list[str]:
             problems.append(f"video too big for the web: {f} ({size / 1e6:.1f} MB, at most {VIDEO_MAX / 1e6:.0f})")
     if "<script" in page.lower():
         problems.append("the page has a script (none allowed)")
+    problems += check_model(out, media, credits_md)
+    return problems
+
+
+def check_model(out: str, media: dict, credits_md: str) -> list[str]:
+    """The web model's page: everything from the site itself, the viewer and its licence there, the model a valid
+    glTF small enough for the web, model-viewer credited."""
+    w = media.get("web_model") or {}
+    if not w:
+        return []
+    problems = []
+    if any(f in (w.get("model", "") + w["file"]).lower() for f in FORBIDDEN_MODELS):
+        problems.append(f"the web model '{w.get('model')}' may not be published (not public)")
+    page_path = os.path.join(out, "model", "index.html")
+    if not os.path.exists(page_path):
+        return problems + ["missing file: model/index.html"]
+    page = open(page_path, encoding="utf-8").read()
+    p = _Links()
+    p.feed(page)
+    for tag, ref, _ in p.refs:
+        if re.match(r"^[a-z]+:", ref):
+            if tag != "a":
+                problems.append(f"model page loads something from another site: {ref}")
+            continue
+        if not os.path.exists(os.path.join(out, "model", ref.split("#")[0])):
+            problems.append(f"model page: missing file {ref}")
+    for f in (web3d.MV_FILE, "LICENSE-model-viewer.txt"):
+        if not os.path.exists(os.path.join(out, "vendor", f)):
+            problems.append(f"missing file: vendor/{f}")
+    if "model-viewer" not in credits_md:
+        problems.append("model-viewer is not in site/CREDITS.md")
+    glb = os.path.join(out, "media", w["file"])
+    if os.path.exists(glb):
+        data = open(glb, "rb").read()
+        if len(data) > GLB_MAX:
+            problems.append(f"web model too big: {w['file']} ({len(data) / 1e6:.1f} MB, at most {GLB_MAX / 1e6:.0f})")
+        problems += [f"web model: {x}" for x in web3d.problems(data)]
     return problems
 
 
@@ -412,6 +506,54 @@ def hero_video(src: str, start: float, length: float, model: str, caption: str, 
     return media
 
 
+def poster_of_model(glb: str, dst: str) -> bool:
+    """A poster picture of a .glb as model-viewer shows it (headless Chromium, tools/web3d_shot.js). False when
+    Node with Playwright is not there."""
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    page = os.path.join(tmp, "page.html")
+    with open(page, "w", encoding="utf-8") as fh:
+        fh.write(web3d.viewer_html("", glb=open(glb, "rb").read()))
+    png = os.path.join(tmp, "shot.png")
+    try:
+        subprocess.run(["node", os.path.join(ROOT, "tools", "web3d_shot.js"), page, png, "1200", "800", "",
+                        "--hide-ui"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"no poster picture ({exc})")
+        return False
+    web_jpg(png, dst, 1200)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return True
+
+
+def web_model(src: str, model: str, caption: str) -> dict:
+    """Swap in the model of "Turn it yourself": copy the .glb, make its poster, update media.json."""
+    if not model:
+        raise SystemExit("--web-model needs --model <id> (an entry of media.json 'models', with its credit)")
+    if any(f in (model + os.path.basename(src)).lower() for f in FORBIDDEN_MODELS):
+        raise SystemExit(f"'{model}' may not go on the site: the Fresing 400 is not public")
+    data = open(src, "rb").read()
+    bad = web3d.problems(data)
+    if bad:
+        raise SystemExit(f"{src} is not a valid glTF file: {bad[0]}")
+    if len(data) > GLB_MAX:
+        raise SystemExit(f"{src} is {len(data) / 1e6:.1f} MB; at most {GLB_MAX / 1e6:.0f} MB for the web "
+                         "(export it again with Texture size 512)")
+    media = load_media()
+    if model not in media.get("models", {}):
+        raise SystemExit(f"add '{model}' to 'models' in site/media/media.json (title, credit, licence) and to "
+                         "site/CREDITS.md first")
+    name = re.sub(r"[^a-z0-9]+", "_", model.lower()).strip("_")
+    shutil.copy2(src, os.path.join(MEDIA, name + ".glb"))
+    item = {"file": name + ".glb", "caption": caption or media["models"][model].get("title", ""), "model": model}
+    if poster_of_model(os.path.join(MEDIA, name + ".glb"), os.path.join(MEDIA, name + "_poster.jpg")):
+        item["poster"] = name + "_poster.jpg"
+    media["web_model"] = item
+    _tidy(media)
+    save_media(media)
+    return media
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Build the landing page into dist/site")
     ap.add_argument("--out", default=DEFAULT_OUT)
@@ -426,7 +568,12 @@ def main(argv=None) -> int:
     ap.add_argument("--length", type=float, default=15.0)
     ap.add_argument("--model", default="")
     ap.add_argument("--caption", default="")
+    ap.add_argument("--web-model", metavar="FILE", help="the .glb of the 'Turn it yourself' section (with --model)")
     a = ap.parse_args(argv)
+    if a.web_model:
+        web_model(a.web_model, a.model, a.caption)
+        print("site/media updated")
+        return 0
     if a.take:
         take(a.take, a.keep_old)
         print("site/media updated; check site/CREDITS.md lists every model")

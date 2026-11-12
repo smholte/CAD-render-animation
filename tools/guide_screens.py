@@ -561,6 +561,7 @@ if MODE == "panels":
         ("panel_5_vessel_motion", [("FRESING_PT_vessel_motion", False, True)]),   # task 0085, on the vessel deck
         ("panel_5_output", [("FRESING_PT_output", False, True)]),
         ("panel_5_turntable", [("FRESING_PT_turntable", False, True)]),
+        ("panel_5_web3d", [("FRESING_PT_web3d", False, True)]),        # task 0099, after one export
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
         ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
@@ -702,6 +703,8 @@ if MODE == "panels":
                 v.enabled = True
                 mod("blender.vessel_motion").add_marks(sc, [ob("TROLLEY.ASM")], "STILL")
                 sc.frame_set(60)
+            elif name == "panel_5_web3d":               # exported once: the result line and its buttons show
+                mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"))
             elif name == "panel_5_output":              # back to the studio for the rest
                 sc.fresing.vessel.enabled = False
                 sc.frame_set(1)

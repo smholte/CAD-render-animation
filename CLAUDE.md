@@ -220,6 +220,8 @@ fresing_render/            the Blender extension (Python package)
                            the formula in plain Python the tests compare a render with; strengths per material),
                            cut_normals.py (the milled mesh's corner normals in NumPy: flat faces flat, round walls smooth,
                            needle triangles take their neighbour's, a big flat face keeps its own next to small facets),
+                           web3d.py (web 3D model, task 0099: the glTF 2.0 writer/reader + checks, box UVs in 0.2 m
+                           tiles, welding, 16-bit points/UVs, seamless tiles, the one-file viewer page),
                            toolpath.py (the app makes the toolpath, task 0029: drop-cutter for flat/ball/bull in NumPy,
                            zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
                            greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
@@ -324,6 +326,12 @@ fresing_render/            the Blender extension (Python package)
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
                            ui_tour.py (the Test tour panel, only in a tour project, on top of the Fresing tab)
+    web3d.py               web 3D model (task 0099): the visible parts -> one .glb; each Principled input that is fed
+                           by nodes is baked once per node signature as a 0.2 m tile (one bake object, one atlas; a
+                           48 px look first drops inputs that are one number), decals on their own UVs; the bake scene
+                           is a COPY of a Cycles scene (switching an engine froze the real app); ops_web3d.py (Export…,
+                           progress, Cancel), ui_web3d.py (5 Scene & Render > Web 3D model); viewer: fresing_render/web/
+                           (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html
     demo.py                demo project "Cable-lay vessel" (task 0077): Help > Make demo project; a background Blender
                            runs the model maker, imports, makes 415 joints (a "Cable travel" slide joint the cable-turned
                            rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it
@@ -800,5 +808,10 @@ the release → Delete); the next run on `main` publishes it again.
   attribute, written with ``foreach_set``).
 - A per-face attribute (FACE domain, FLOAT_VECTOR) is read in a material with an Attribute node of type GEOMETRY, in
   Cycles and EEVEE: no image, no driver. ``Mesh.clear_geometry()`` takes the attributes with it.
+- Setting a scene's render engine (``scene.render.engine = "CYCLES"``) while a material-preview render runs froze the
+  real app: Blender waits for the preview's thread, which needs the Python lock the script holds (task 0099). A
+  temporary scene for baking is a copy of a scene that already renders with Cycles (``web3d.Baker``).
+- Cycles bakes one object at a time over the whole target image: 8 bake planes into one atlas took 18 s, the same
+  quads as one object 3–5 s (task 0099).
 - GitHub's test machines cannot start EEVEE (no GL context): a test that renders with EEVEE checks something else
   there instead of being skipped – each pytest group allows one skipped test (`ci_pytest_summary.py --max-skipped 1`).

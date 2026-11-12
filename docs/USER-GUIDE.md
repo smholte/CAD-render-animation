@@ -1734,6 +1734,41 @@ animation "Turntable" are replaced.
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
 
+### Web 3D model
+
+<img class="panel" src="img/panel_5_web3d.png" alt="Web 3D model">
+
+One 3D file of the machine as it is shown now, with its colours and shine, and a page that shows it in any web
+browser: drag to turn it, scroll (or pinch) to zoom, right-drag to move it. For a customer who wants to look round
+the machine himself, or for your website.
+
+1. Show the machine the way it should look: hidden parts (2 Structure) stay out, the pose and paint scheme you see
+   are the ones that go in.
+2. **Texture size**: how sharp the looks are close up. **1024** is right for most screens; **512** gives a smaller
+   file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
+3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
+   see your part numbers. Switch it off to keep the names you see in the app.
+4. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
+   page plays it in a loop. It makes the export slower.
+5. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
+   which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
+   **Cancel** or Esc stops it, and then nothing is saved.
+6. The line under the button shows the file size, the number of triangles, the number of pictures and the time.
+   **Open page** opens it in your web browser; **Show in folder** shows the files.
+
+The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
+browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
+
+How the looks get in: every look (material, colour, shine, bumps) is baked once into small pictures that repeat over
+the parts, at the same scale as in your renders; looks that are one colour need no picture. Logos and stickers are
+baked one by one. What a web page cannot show, and is left out: edge wear and corner dirt, the stretched shine of
+brushed, ground or turned metal, the very fine orange peel of paint, tool marks on milled faces, the cutaway and
+X-ray look (parts are whole and solid), the surroundings (the page has its own light and shadow), chips, coolant,
+hoses and milling (material removal).
+
+Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB.
+See the task report for bigger machines.
+
 ### Brand kit & logo
 
 <img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
