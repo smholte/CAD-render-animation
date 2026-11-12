@@ -495,6 +495,9 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   way-cover sub-assembly, task 0034, 6 Nov 2026) – only after checking it holds nothing of a client's.
   Also the owner's own renders and his milling video on the landing page (`site/media/`, task 0047, owner's
   choice 8 Nov 2026) – only what he sends for the page.
+- **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
+  on the landing page shows only a basic interior. Never put the Fresing 400 or any part of it on the site, in a web 3D
+  model, a test model, a guide picture or a report, unless the owner releases it explicitly.
 - New behaviour gets a test. A bug fix gets a test that failed before.
 - Speed claims are measured, with the model and machine named. Before/after numbers in the
   task report.
