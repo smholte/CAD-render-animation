@@ -1,6 +1,6 @@
 # 0091 – Demo: the quadrant system moves freely, quadrant shot, Lebus close-up
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0091-demo-quadrant-free`
+**Who:** worker · **Status:** running · **Branch:** `claude/inspiring-keller-9fp79j` (the web session's branch)
 **Started by:** lead chat, 12 Nov 2026 (0077's open points)
 **Lane:** Demo models – `fresing_render/demo_model/` (the maker), `blender/demo.py`, `blender/ops_demo.py`,
 `tests/test_demo_*.py`, `tools/make_demo_cable_lay.py`; no other app code (anything wrong elsewhere: an open point)

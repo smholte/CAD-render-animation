@@ -63,7 +63,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0091 | **Demo: quadrant system moves freely** (cradles, hinge brackets, parked wire, cylinder stroke, wheel axes), shot 7 quadrant travel + tilt + tip, Lebus close-up, X-ray labels apart | worker | Opus · Medium | **open – can start** (12 Nov) | tasks/0091-demo-quadrant-free.md |
+| 0091 | **Demo: quadrant system moves freely** (cradles, hinge brackets, parked wire, cylinder stroke, wheel axes), shot 7 quadrant travel + tilt + tip, Lebus close-up, X-ray labels apart | worker | Opus · Medium | **running** (12 Nov, web session) | tasks/0091-demo-quadrant-free.md |
 | 0092 | **Clash check fast with parts that turn in place** (rollers, drums, coil checked once per stretch; the whole demo in minutes) | worker | Opus · High | **open – can start** (12 Nov) | tasks/0092-clash-turning-parts.md |
 | 0093 | **Joints in a batch fast and right** (69 s → seconds for the demo's 415; stacked axis in the same batch) + **a model moved by its root keeps its place** | worker | Opus · Medium | **open – can start** (12 Nov) | tasks/0093-joints-batch-and-moved-model.md |
 | 0094 | **Test machinery:** Windows install script race (line 195), test groups rebalanced after 0077 (no release) | worker | Sonnet · Medium | **open – can start** (12 Nov) | tasks/0094-ci-windows-race-and-times.md |
