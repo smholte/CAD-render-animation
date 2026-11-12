@@ -2160,11 +2160,11 @@ stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
 stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
      "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
      "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
-     animation=HOSES_ANIM, play=True, since="0.2.73", check=_check_hoses, auto="clip")
+     animation=HOSES_ANIM, play=True, since="0.2.76", check=_check_hoses, auto="clip")
 stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
-     since="0.2.73", check=_check_chains, auto="clip")
+     since="0.2.76", check=_check_chains, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

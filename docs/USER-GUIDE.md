@@ -2248,7 +2248,7 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 
 After an update you want to see quickly that everything still works. The **test tour** is a set of small
 projects, made from the app's own test models (a crane, a mill, a gantry, a cylinder, a scissor lift, a way
-cover…), with every function already set up: 43 numbered **stops**, from materials and painted faces through
+cover…), with every function already set up: 44 numbered **stops**, from materials and painted faces through
 joints, cylinders, hoses, drag chains and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
 
 <img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">

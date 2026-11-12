@@ -5,6 +5,43 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.76 – 13 Nov 2026 – hoses, cables and drag chains follow the motion (task 0058)
+
+New: 4 Motion > **Hoses and drag chains**
+- **Hoses and cables bend along when the machine moves.** Click the hose in the 3D view and press **Add hose** (or
+  **Add cable** for a soft one). The app reads its middle line, diameter and length from the CAD part and finds the
+  part each end touches (its fitting). From then on both ends stay on their parts, the hose keeps its length, bends
+  smoothly and hangs under its own weight. The stiff CAD part is replaced by a tube of the same diameter in the
+  part's own material. Settings: **Stiffness** (soft cable … stiff hydraulic hose), **Sag**, **Smallest bend**,
+  **Length**, **Diameter**.
+- **Drag chains roll over their bend.** Click one link and press **Add drag chain**: the app takes the whole row of
+  links, reads the link length and the bend radius from the CAD pose and works out which end is fixed. When the axis
+  moves, the CAD links are laid along the chain again – two straight runs and the bend, which moves at half the
+  speed of the moving end. A chain drawn as one solid gets links drawn by the app. **Upper run**: straight, or lying
+  on the lower run (long chains). **Swap ends** if the wrong end is the fixed one.
+- **Find hoses and chains** selects the parts that are a hose, cable or cable chain by their name; **Find and add
+  all** adds them in one go. Names such as "HYDRAULIC HOSE ARM" and "ENERGY CHAIN LINK" now sort into Hoses & tubing
+  and Cable chains (before: brackets, frames or plain chains).
+- **It works wherever the motion shows:** while you pose, in Build animation, in the render queue, in stills of saved
+  scenes, turntables, G-code programs and cylinders driven by their stroke. Build animation works out every frame's
+  shape once and keeps it with the project, so the same frame always looks the same and playing or rendering costs
+  no extra time worth naming.
+- **A hose stays on the side CAD drew it on.** A slack hose can often lie in two ways; it keeps the one of your CAD
+  model through the whole motion instead of flipping over.
+- **Warnings** in the panel and after Build: "Hose 'X' is too short at frame 120 (it needs 12 mm more)", a bend
+  tighter than the smallest bend you set, a drag chain that cannot reach.
+- **Fit to the CAD pose** puts back what the CAD file says (length, ends, link length, bend radius). An end on the
+  wrong part: click the right part, then the pipette beside that end.
+- **Model update** keeps hoses and chains with their settings. The **clash check** leaves them out (they bend with
+  the parts they join). Projects without hoses or chains are untouched.
+- Measured on the 4-core test machine (no graphics card), the PC check's big machine (3,000 parts) with 20 hoses and
+  3 chains of 40 links: 6–7 ms more per frame; Build animation about 4 s longer for 250 frames. Expected on your PC:
+  faster (not measured yet).
+- Not in yet: hoses do not push against other parts or each other; cables over sheaves and winch drums come with the
+  motion paths; hoses with three ends; cable bundles.
+- Test tour: two new stops, "Hoses and a cable follow the arm" and "Drag chains roll with the axes". PC check: a
+  new line "Hoses, a cable and drag chains follow the motion". User guide: section "Hoses and drag chains".
+
 ## 0.2.75 – 12 Nov 2026 – demo vessel: the cradle rollers turn the right way (task 0097)
 
 In the demo cable-lay vessel the 66 side rollers of the 33 roller cradles turned about a wrong, nearly upright axis and
