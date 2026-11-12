@@ -338,7 +338,9 @@ lessons) before designing the per-frame part.
 `props.py` has `FRFlex` / `scene.fresing.flex`; `blender/flex.py` is a do-nothing skeleton with the hooks in
 `animation.py` (bake, clear_keys), `states.py` (poses), `reimport.py`, `__init__.py` already calling it. Wave 1 of
 subagents (A1 hose solver, A2 chain geometry, C centreline reader + test models) was cut off once by the usage limit
-(5-hour limit, 12 Nov) and restarted; their files are not on the branch until this note says so. Still to do after
+(5-hour limit, 12 Nov) and restarted. **On the branch now:** A2 `core/flex_chain.py` (38 tests), C `core/flex_fit.py`,
+`tools/make_test_flex.py`, the three `test_flex_*.step` models (88 tests). **Not yet:** A1 `core/flex.py` (running), B
+`blender/flex.py` (running, started before A1 landed). Still to do after
 them: B `blender/flex.py`, D operators + panel, E independent tests + review, tour stops, PC-check line, guide, release.
 
 **What changed:**
