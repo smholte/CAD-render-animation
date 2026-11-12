@@ -1,6 +1,6 @@
 # 0094 – Test machinery: Windows install script race, test groups rebalanced
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0094-ci-race-times`
+**Who:** worker · **Status:** done (12 Nov) · **Branch:** `task/0094-ci-race-times`
 **Started by:** lead chat, 12 Nov 2026 (0085's and 0077's open points)
 **Lane:** Quality & delivery – `tools/ci_windows_install.ps1`, `tools/ci_times.json`, `tools/ci_*.py` only; no app code,
 no version, no release
@@ -19,17 +19,17 @@ no version, no release
 
 ## Done when
 
-- [ ] The script change reviewed; one full GitHub run green on the branch with the new grouping; merged to `main`
+- [x] The script change reviewed; one full GitHub run green on the branch with the new grouping; merged to `main`
       (fast-forward to the green commit, CLAUDE.md section 2); report filled in; `TASKS.md` updated.
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 12 Nov 2026
 
-**What changed:**
+**What changed:** `tools/ci_windows_install.ps1` (line 195): the process path is read once into `$procPath` before it is tested and used, so a process ending in between no longer gives the null error. No other place in the script reads `.Path` twice. `tools/ci_times.json`: times of the newest green full run (43145128900, the 0077 tree) recorded.
 
-**Tested and measured:**
+**Tested and measured:** a helper agent that did not write the change reviewed it (correct; CRLF kept; it suggested a name that cannot clash with the `$p` process handles – done). Windows code could not run here; GitHub's Windows job ran it green. One full run on the branch (43203347012): green, 11.6 min (before: 12.3 min, slowest job test suite 6 at 12.0 min; now the slowest is test suite 4 at 11.1 min and callouts at 10.6). Real-app groups all within 5–10.6 min, so no test was moved. Merged by fast-forward to `main` (no version, no release). One run needed, no clash.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none.
