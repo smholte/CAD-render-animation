@@ -15,8 +15,10 @@ The attributes (FACE domain, all in the milled mesh's own space, metres)
                            length; (0, 0, 0) for a move along the axis (a plunge, a drilled hole)
 ``fr_mk_a``  FLOAT_VECTOR  the tool's axis, unit length, from the tip up into the tool
 ``fr_mk_p``  FLOAT_VECTOR  (kind, radius, spacing): ``kind`` one of the numbers below as a float; ``radius`` the
-                           radius of the tool's flat bottom (m; the circle its bottom edge runs on); ``spacing`` the
-                           distance between two marks at Mark size Real (m)
+                           radius of the tool's flat bottom (m; the circle its bottom edge runs on) – on a wall
+                           (kind 2) instead **the step-down**: how much deeper this pass went than the pass above
+                           it (m, 0 = none), a line shows across the wall at every multiple of it above the tip;
+                           ``spacing`` the distance between two marks at Mark size Real (m)
 
 With q = P - o (P the shaded point), w = a x d, along = q . d, side = q . w, n the face's normal:
 
@@ -64,6 +66,12 @@ SPACING_MIN, SPACING_MAX = 0.01 * MM, 2.0 * MM
 # spacing of the marks that do not come from the feed: lines along a chamfer, rings on a drill point / plunge bottom
 SPACING_ALONG = 0.06 * MM
 SPACING_RINGS = 0.08 * MM
+# a wall's lines are drawn this much weaker than a floor's arcs (at the same strength they read as fluting)
+FLANK_TILT = 0.6
+# the line where two depths of a wall meet: its width at Mark size Real (m) and how hard it leans the normal,
+# against one tool mark
+STEP_WIDTH = 0.08 * MM
+STEP_TILT = 2.5
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +261,20 @@ def fade(spacing: float, size: float, distance, scale: float = 1.0, angle: float
     return x * x * (3.0 - 2.0 * x)
 
 
+def step_line(height, step: float, size: float = 1.0):
+    """The line where two depths of a wall meet, 0 … 1 (1 on the line): ``height`` the shaded point's height above
+    the tip of the pass that owns the wall (q . a, m), ``step`` how much deeper that pass went than the one above
+    (m; 0: no line). A line lies at every multiple of ``step`` above the tip – not at the floor itself –,
+    ``STEP_WIDTH`` x size wide."""
+    import numpy as np
+    h = np.asarray(height, float)
+    if step <= 1e-6:
+        return np.zeros_like(h)
+    g = h / step
+    near = np.abs(g + 0.5 - np.floor(g + 0.5) - 0.5) * step
+    return np.clip(1.0 - near / (0.5 * STEP_WIDTH * size), 0.0, 1.0) * (g > 0.5)
+
+
 def shade(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float = 1.0, strength: float = 1.0,
           looks: dict | None = None, roughness: float = 0.2, fade_by=1.0) -> dict:
     """What the node group gives the material where there are marks: ``normal`` (unit: the face's normal leaning
@@ -269,6 +291,11 @@ def shade(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float =
     amount = float(strength) * np.asarray(fade_by, float) * known
     lean = tilt[..., None] * e
     wave = ridge - RIDGE_MEAN
+    if kind == FLANK:                          # a wall: weaker lines, and the line where two depths meet
+        P_, o_, a_ = (np.asarray(x, float) for x in (P, o, a))
+        up = np.broadcast_to(a_, G.shape)
+        up = up - _dot(up, nn)[..., None] * nn                # the axis, in the face
+        lean = FLANK_TILT * lean + (STEP_TILT * step_line(_dot(P_ - o_, a_), float(radius), size))[..., None] * up
     if kind == ARCS:
         _u2, ridge2, tilt2, e2 = hatch(P, o, d, a, radius, spacing, n, size)
         lean = lean + lk["hatch"] * tilt2[..., None] * e2

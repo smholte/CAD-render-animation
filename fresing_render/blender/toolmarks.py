@@ -27,7 +27,7 @@ from ..core import toolmarks as core
 
 GROUP = "FR tool marks"
 #: raise when the nodes inside the group change: an older group is built again in place (materials keep their link)
-GROUP_VERSION = 1
+GROUP_VERSION = 2
 PROP_VERSION = "fr_toolmarks_version"
 #: the name of the group's node in a material
 NODE = "FR tool marks"
@@ -173,8 +173,21 @@ def _build(nt) -> None:
     e2 = v("NORMALIZE", in_face(v("NORMALIZE", grow2, x=-1050, y=-2750), -900, -2750), x=-450, y=-2750)
     t2, ridge2 = tilt_of(m("ADD", along, root, x=-1350, y=-3000), -1200, -3000)
     h = m("MULTIPLY", gi["Hatch"], k1, x=-450, y=-3000)
-    lean = v("ADD", scaled(e, t1, 300, -1900), scaled(e2, m("MULTIPLY", h, t2, x=-300, y=-3000), -150, -2850),
-             x=450, y=-1900)
+    # a wall: weaker lines (core.FLANK_TILT), and the line where two depths meet (core.step_line): on a wall the
+    # second number of fr_mk_p is the step-down, a line lies at every multiple of it above the tip
+    t1 = m("MULTIPLY", t1, m("SUBTRACT", 1.0, m("MULTIPLY", k2, 1.0 - core.FLANK_TILT, x=-600, y=-3300),
+                             x=-450, y=-3300), x=-300, y=-3300)
+    g = m("DIVIDE", qa, m("MAXIMUM", R, 1e-9, x=-1350, y=-3500), x=-1200, y=-3500)
+    near = m("MULTIPLY", m("ABSOLUTE", m("SUBTRACT", m("FRACT", m("ADD", g, 0.5, x=-1050, y=-3500), x=-900, y=-3500),
+                                         0.5, x=-750, y=-3500), x=-600, y=-3500), R, x=-450, y=-3500)
+    line = m("SUBTRACT", 1.0, m("DIVIDE", near, m("MULTIPLY", gi["Size"], 0.5 * core.STEP_WIDTH, x=-600, y=-3650),
+                                x=-300, y=-3500), x=-150, y=-3500, clamp=True)
+    stepped = m("MULTIPLY", m("MULTIPLY", k2, m("GREATER_THAN", R, 1e-6, x=-1200, y=-3700), x=-1050, y=-3700),
+                m("GREATER_THAN", g, 0.5, x=-1050, y=-3850), x=-900, y=-3700)
+    step = m("MULTIPLY", m("MULTIPLY", line, stepped, x=0, y=-3500), core.STEP_TILT, x=150, y=-3500)
+    lean = v("ADD", v("ADD", scaled(e, t1, 300, -1900),
+                      scaled(e2, m("MULTIPLY", h, t2, x=-300, y=-3000), -150, -2850), x=450, y=-1900),
+             scaled(in_face(a, 300, -3500), step, 750, -3500), x=900, y=-1900)
     wave = m("ADD", m("SUBTRACT", ridge, core.RIDGE_MEAN, x=-300, y=-1450),
              m("MULTIPLY", h, m("SUBTRACT", ridge2, core.RIDGE_MEAN, x=-450, y=-3150), x=-300, y=-3150),
              x=-150, y=-1450)

@@ -725,6 +725,8 @@ class Moves:
     owner: np.ndarray             # (n,) int32: the row whose marks this move's faces show: its own; for a move
     #                               straight back out of the cut and for standing still the move before; for a
     #                               plunge the sideways move that starts at its bottom
+    step: np.ndarray = None       # (n,) the step-down: how much deeper a level sideways move runs than the nearest
+    #                               pass of the same bit above it that it runs along (0: none); the line on a wall
     tables: dict = field(default_factory=dict, repr=False)      # what ``mark_faces`` worked out per move
 
     def __len__(self) -> int:
@@ -815,7 +817,53 @@ class Timeline:
         return Moves(bit=np.array([s.bit for s in self.segs], np.int32), o0=o0, o1=o1, d=d,
                      t0=np.array([s.t0 for s in self.segs], float), t1=np.array([s.t1 for s in self.segs], float),
                      dist=dist, per_tooth=per_tooth, per_rev=per_rev,
-                     cuts=np.array([s.cuts for s in self.segs], bool), owner=owner)
+                     cuts=np.array([s.cuts for s in self.segs], bool), owner=owner, step=self._steps(o0, o1, d))
+
+    STEP_LOOK_BACK = 2000         # moves of the same bit looked at for the pass above
+
+    def _steps(self, o0, o1, d) -> np.ndarray:
+        """``Moves.step``: for every level sideways move that cuts, how far below the nearest earlier pass of the
+        same bit (same axis) it runs, when that pass came within the tool's radius of it seen along the axis –
+        the pocket's depth before, not a cut somewhere else on the part. A wall cut in several depths along the
+        same contour is one flat face (the deeper pass's side lies on the wall above), so nothing in the mesh
+        shows where the depths meet: the marks draw that line from this number."""
+        step = np.zeros(len(self.segs))
+        for b, mine in enumerate(self.bit_segs):
+            reach = self.cutters[b].reach
+            ks = []
+            for s in mine:
+                k = s.order
+                v = o1[k] - o0[k]
+                up = float(v @ d[k])
+                side = float(np.linalg.norm(v - up * d[k]))
+                if s.cuts and side > 1e-6 and abs(up) < 2e-5:
+                    ks.append(k)
+            if len(ks) < 2:
+                continue
+            ks = np.array(ks)
+            A, B, D = o0[ks], o1[ks], d[ks]
+            for j in range(1, len(ks)):
+                lo = max(0, j - self.STEP_LOOK_BACK)
+                a, bb, ax = A[lo:j], B[lo:j], D[j]
+                same = (D[lo:j] @ ax) > math.cos(2 * ANGLE_TOL)
+                above = (a - A[j]) @ ax                               # how much higher the earlier passes ran
+                ok = same & (above > 2e-5) & (above < self.cutters[b].length)
+                if not ok.any():
+                    continue
+                a, bb, above = a[ok], bb[ok], above[ok]
+                near = np.zeros(len(a), bool)
+                ab = bb - a
+                ab -= (ab @ ax)[:, None] * ax
+                l2 = np.maximum(np.einsum("ij,ij->i", ab, ab), 1e-18)
+                for x in (A[j], 0.5 * (A[j] + B[j]), B[j]):           # start, middle, end of this move
+                    q = x - a
+                    q -= (q @ ax)[:, None] * ax
+                    t = np.clip(np.einsum("ij,ij->i", q, ab) / l2, 0.0, 1.0)
+                    off = q - t[:, None] * ab
+                    near |= np.einsum("ij,ij->i", off, off) < reach * reach
+                if near.any():
+                    step[ks[j]] = float(above[near].min())
+        return step
 
     def set_feeds(self, per_tooth, per_rev) -> None:
         """The feed per tooth and per turn of the spindle of every move (metres, one number per row of
@@ -1047,7 +1095,12 @@ def _mark_tables(moves: Moves, cutters: list) -> dict:
         rows = np.arange(n)[:, None]
         o[:3 * n] = (moves.o0[:, None, :] - dh[:, None, :] * back[rows, kind][:, :, None]).reshape(-1, 3)
         d[:3 * n] = np.repeat(dh, 3, axis=0)
-        pr[:3 * n] = np.stack([kind, np.repeat(rflat[:, None], 3, axis=1), sp[rows, kind]], axis=2).reshape(-1, 3)
+        second = np.repeat(rflat[:, None], 3, axis=1)             # the flat bottom's radius; on a wall (FLANK)
+        if moves.step is not None:                                # the step-down instead (core/toolmarks.py)
+            second[:, 1] = np.where(plunge, 0.0, moves.step)
+        else:
+            second[:, 1] = np.where(plunge, rflat, 0.0)
+        pr[:3 * n] = np.stack([kind, second, sp[rows, kind]], axis=2).reshape(-1, 3)
     a32 = np.zeros((n + 1, 3), np.float32)
     a32[:n] = a
     tb.clear()

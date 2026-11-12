@@ -402,6 +402,33 @@ def test_spacing_follows_mark_size_and_the_feed(scene, tmp_path):
     assert abs(got - expect) < 0.05 * expect, (got, expect)
 
 
+def test_step_down_line_on_a_wall(scene, tmp_path):
+    """A wall cut in two depths along the same contour is one flat face: the line where the depths meet is drawn
+    from the step-down the wall's faces carry (the second number of fr_mk_p on a wall). Nodes against the formula."""
+    step = 3 * MM
+    o = O - 0.1 * X - 0.0045 * Z                       # the tip 4.5 mm below the middle: one line, 1.5 mm below it
+    bed = Bed(kind=T.FLANK, n=Y, d=X, o=o, half=0.004, radius=step, spacing=0.3 * MM)
+    bed.camera()
+    w = 56
+    P = bed.points(w, w, sub=6)
+    s = T.shade(T.FLANK, P, bed.o, X, Z, step, bed.spacing, n=Y, size=bed.size, looks=bed.looks,
+                roughness=materials_lib.MATERIALS[ALU]["roughness"])
+    line = T.step_line((P - bed.o) @ Z, step, bed.size)
+    assert 0.05 < (line > 0.5).mean() < 0.2            # one thin line across the picture
+    # on the line the normal leans along the tool's axis, harder than a tool mark does; off it, it does not
+    up = np.abs(s["normal"] @ Z)
+    assert up[line > 0.8].min() > 1.2 * bed.looks["ridge"] and up[line == 0].max() < 1e-9
+    bed.probe("Normal")
+    got = render(tmp_path / "normal.exr", w, w, 16) * 2 - 1
+    err = np.abs(got - s["normal"].mean(axis=2) @ bed.turn.T)
+    assert err.mean() < 0.006, err.mean()
+    # no step-down known: no line
+    assert not T.step_line((P - bed.o) @ Z, 0.0, bed.size).any()
+    # not at the floor itself (height 0), only at whole steps above it
+    assert T.step_line(np.array([0.0, 1e-5]), step, 10.0).max() == 0.0
+    assert T.step_line(np.array([step, 2 * step]), step, 10.0).min() == 1.0
+
+
 CASES = {      # kind: (the face's normal, feed, start of the move)
     "arcs": (T.ARCS, Z, X, None),
     "flank": (T.FLANK, Y, X, O - 0.1 * X - 0.0123 * Z),

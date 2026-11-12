@@ -265,6 +265,29 @@ def test_a_slot_has_arcs_on_its_floor_and_lines_on_its_walls():
     assert np.all(f.kind[f.src >= 0] == TM.NONE) and np.all(f.o[f.src >= 0] == 0) and np.all(f.a[f.src >= 0] == 0)
 
 
+def test_a_wall_cut_in_two_depths_knows_its_step_down():
+    """Two depths along the same line: the wall is one flat face of the deeper pass, so nothing in the mesh shows
+    where the depths met. The deeper pass's wall faces carry the step-down (3 mm) for the line the marks draw; a
+    slot somewhere else on the block, at yet another depth, has none."""
+    pts = [(-40, 0, 50), (-40, 0, 37), (40, 0, 37), (40, 0, 50), (-40, 0, 50), (-40, 0, 34), (40, 0, 34),
+           (40, 0, 50), (-40, 30, 50), (-40, 30, 36), (40, 30, 36), (40, 30, 50)]
+    tl = timeline(FLAT10, path(pts))
+    first, deep = row_of(tl, (-40, 0, 37), (40, 0, 37)), row_of(tl, (-40, 0, 34), (40, 0, 34))
+    other = row_of(tl, (-40, 30, 36), (40, 30, 36))
+    assert tl.moves.step[deep] == pytest.approx(3 * MM, abs=1e-6)
+    assert tl.moves.step[first] == 0.0 and tl.moves.step[other] == 0.0
+    f = Faces(tl)
+    w = f.walls()
+    mine = w & (f.move == deep)
+    assert mine.any() and set(f.kind[mine]) == {TM.FLANK}
+    assert np.allclose(f.p[mine, 1], 3 * MM, atol=1e-6)
+    there = w & (f.move == other)
+    assert there.any() and np.allclose(f.p[there, 1], 0.0)
+    # the floor's arcs still carry the tool's flat radius
+    fl = f.floor(34.0)
+    assert np.allclose(f.p[fl, 1], 5 * MM)
+
+
 def test_a_plunge_has_rings():
     tl = timeline(FLAT10, path([(0, 0, 50), (0, 0, 33), (0, 0, 50)]))
     f = Faces(tl)

@@ -1690,9 +1690,9 @@ def _check_hand(scene):
 # tool marks (task 0061): the same rules as above - every cut lies in the finished part's pocket (x -50..50,
 # y -30..30, 10 deep) and the face mill stays at X-10 or more. The face mill leaves a strip 80 x 50 mm, 1 mm deep; the
 # end mill cuts a pocket 50 x 16 mm at the front of it in two depths (3 and 5 mm); the drill makes one hole behind
-# the pocket. The second depth is 0.3 mm smaller all round, like a tool that bends leaves it: that step is the line
-# round the wall. (Cut along exactly the same wall, the deeper pass goes over the whole wall again and the wall shows
-# one depth only.) At the end the head goes up and to the left, out of the picture.
+# the pocket. Both depths run along the same wall, as in an ordinary program: the wall is then one flat face, and
+# the line where the depths meet is drawn by the marks (``Moves.step``, 2 mm). At the end the head goes up and to the
+# left, out of the picture.
 # Before each tool change the head goes up to Z50: after a change the head comes back to where it was, and the end
 # mill and the drill are longer than the face mill - from Z10 the longer tool would dive into the block.
 MARKS_FEED, MARKS_SPEED = 900.0, 3000.0          # the face mill: 900 mm/min at 3000 rpm = 0.30 mm per turn
@@ -1714,11 +1714,12 @@ G1 Z-3 F400
 G1 X20 F1200
 G1 Y-11
 G1 X-20
-G1 X-19.7 Y-11.3
+G1 Y-17
 G1 Z-5 F400
-G1 X19.7 F1200
-G1 Y-16.7
-G1 X-19.7
+G1 X20 F1200
+G1 Y-11
+G1 X-20
+G1 Y-17
 G0 Z50
 M5
 T3 M6 G43 H3
@@ -1801,11 +1802,9 @@ def _check_marks(scene):
                                           f"F{MARKS_FEED:g} / S{MARKS_SPEED:g} = {want:.2f} mm")
     floor = (kind == tm.ARCS) & (np.abs(p[:, 1] - 0.005) < 0.0005)        # under the Ø10 end mill
     _check(bool(floor.any()), "the pocket's floor has no arcs of the end mill (radius 5 mm)")
-    o = np.empty(len(me.polygons) * 3, np.float32)
-    me.attributes[tm.ATTR_O].data.foreach_get("vector", o)
-    wall = (kind == tm.FLANK) & (np.abs(p[:, 1] - 0.005) < 0.0005)        # the end mill's side: the pocket's walls
-    depths = np.unique(np.round(o.reshape(-1, 3)[wall, 2], 4))            # (the tip's height during each move)
-    _check(len(depths) >= 2, "the pocket's walls show one depth only, the program cut them in two")
+    # the pocket's walls: cut in two depths 2 mm apart (on a wall the second number is the step-down)
+    wall = (kind == tm.FLANK) & (np.abs(p[:, 1] - 0.002) < 0.0001)
+    _check(bool(wall.any()), "the pocket's walls do not know where the second depth starts (2 mm above the floor)")
     n = int(me.get(machining.CUT_SLOT, -1))
     mat = stock.material_slots[n].material if 0 < n < len(stock.material_slots) else None
     _check(mat is not None and toolmarks.group_node(mat) is not None, "the cut faces' material draws no tool marks")
@@ -2065,7 +2064,7 @@ stop("hand", MACH, "tools", "Tool change by hand (BT30)",
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "
      "way it went; the pocket's floor shows the finer arcs of the Ø10 end mill; its walls show fine upright lines and "
-     "a level line where the second depth starts (cut 0.3 mm smaller); the drilled hole shows rings. Look in "
+     "a level line where the second depth starts; the drilled hole shows rings. Look in "
      "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
      "(Mark size) so they show.",
      where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", animation=MARKS_ANIM, at=1.0,

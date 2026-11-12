@@ -972,9 +972,8 @@ What you see
 
 - A **faced top** shows arcs with the tool's radius that follow the path and bulge the way the tool went. A
   **pocket floor** shows the same arcs, finer and smaller.
-- **Walls** show fine upright lines, one per tooth. Where a deeper pass leaves a small step in a wall, the
-  step shows as a line round it (in the picture the second depth is cut 0.3 mm smaller). Depths cut along
-  exactly the same wall look like one wall: the deeper pass goes over all of it again.
+- **Walls** show fine upright lines, one per tooth. A wall cut in several depths shows a level line where
+  each depth starts, as on a real part.
 - A **drilled hole** shows rings, on its wall and on its bottom. So does a spot where a tool only went
   straight down.
 - A ball end mill and a corner radius leave fine lines across each pass, a chamfer mill lines along it.
