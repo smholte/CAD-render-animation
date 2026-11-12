@@ -2045,6 +2045,78 @@ def milling_tools(ctx):
             f"{lift:.2f} mm; {per:.0f} ms per frame")
 
 
+@line("milling.marks", "Milling: tool marks on the cut faces", "0.2.73",
+      what="The test mill runs the test tour's three-tool program: a Ø50 face mill faces a strip, a Ø10 end mill "
+           "cuts a pocket in two depths, a drill makes a hole. Every cut face must know the tool that made it "
+           "(arcs on the floors, lines on the walls, rings in the hole; the face mill's arcs as far apart as the "
+           "program's feed and speed say) and the cut faces' material must draw the marks; the Tool marks tick takes "
+           "them off and puts them back. A close-up of the cut (processor, draft) and the time to rebuild the "
+           "milled block for a frame, with and without marks")
+def milling_marks(ctx):
+    import statistics
+
+    from ..blender import animation, machining, render, toolmarks, tour
+    from ..core import toolmarks as tm
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(MILL)
+    tour.build_marks(tour.Build(scene, ctx.work, "pccheck"))
+    a = scene.fresing.animations.get(tour.MARKS_ANIM)
+    _check(a is not None, "the animation with the program is missing")
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    frames = r["frames"]
+    machining.sample(scene)
+    note = tour._check_marks(scene)          # arcs, lines and rings are there; the face mill's arcs are F / S apart
+    source = machining.marks_source(scene)
+    _check("program" in source and not source.startswith("No program"),
+           f"the Milling panel does not say the marks come from the program: '{source}'")
+    m = machining.settings(scene)
+    stock = _ob(scene, "STOCK 200x200x40")
+
+    def has_marks():
+        """(the milled mesh knows the moves, the cut faces' material draws marks) as they are now."""
+        me = m.cut_mesh
+        n = int(me.get(machining.CUT_SLOT, -1))
+        _check(0 < n < len(stock.material_slots), "the milled block has no material slot for cut faces")
+        return (all(k in me.attributes for k in tm.ATTRS),
+                toolmarks.group_node(stock.material_slots[n].material) is not None)
+
+    def rebuild():
+        """Median time to write the milled block again for a frame, ms (six frames across the program, each
+        three times)."""
+        shown = sorted({max(1, round(frames * k / 8)) for k in range(3, 9)})
+        for f in shown:                                      # once without the clock: every cut is worked out
+            machining.refresh(scene, frame=f, force=True)
+        times = []
+        for f in shown * 3:
+            t1 = time.perf_counter()
+            _check(machining.refresh(scene, frame=f, force=True), machining.status(scene) or "no milled block")
+            times.append((time.perf_counter() - t1) * 1000.0)
+        return statistics.median(times)
+
+    _check(has_marks() == (True, True), "the cut faces have no tool marks although Tool marks is ticked")
+    with_marks = rebuild()
+    m.marks = False
+    _check(has_marks() == (False, False), "Tool marks is switched off, but the cut faces still carry the marks")
+    without = rebuild()
+    m.marks = True
+    _check(has_marks() == (True, True), "Tool marks switched on again did not bring the marks back")
+    ctx.metric("rebuild with marks", with_marks, "ms")
+    ctx.metric("rebuild without marks", without, "ms")
+    # the picture: the tour stop's close-up of the faced strip, the pocket and the hole at the end of the program
+    scene.frame_set(scene.frame_end)
+    machining.refresh(scene, force=True)
+    s = scene.fresing
+    s.use_gpu = False
+    s.out_resolution = "preview"
+    path = os.path.join(ctx.work, "marks.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "marks", f"Tool marks: faced strip, pocket, drilled hole; drawn x{m.marks_size:g} "
+                               "(processor, draft)", model_check=False, width=480)
+    ctx.metric("still with marks", info["seconds"], "s")
+    return f"{note}; rebuilt in {with_marks:.0f} ms per frame ({without:.0f} ms without marks)"
+
+
 @line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.55",
       what="The toolpath test model: a block and the finished part (pocket, rounded boss, dome, a cap that hangs "
            "over, a hole). The app makes the roughing (flat Ø10) and finishing (ball Ø10) program at Draft, adds its "

@@ -405,6 +405,40 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def test_quick_normals_while_the_frame_changes_exact_when_it_stands_still(scene, monkeypatch):
+    """Scrubbing must stay as fast as before (task 0061): in the window the frame handler writes the milled mesh
+    with Blender's own normals; the exact ones (no dark facets) follow when the frame stands still, and before
+    every render. Here (Blender without a window) the handler writes the exact ones at once."""
+    frames = anim(scene, SLOT)
+    set_up(scene)
+    scene.frame_set(frames)
+    me = scene.fresing.milling.cut_mesh
+    assert "custom_normal" in me.attributes and machining.runtime(scene)["shown"][3] is False
+    asked = []
+    monkeypatch.setattr(machining, "_quick_now", lambda: True)             # as in the window
+    monkeypatch.setattr(machining, "_schedule_fine", lambda: asked.append(1))
+    scene.frame_set(frames - 5)
+    assert "custom_normal" not in me.attributes and asked, "the frame handler did not take the quick way"
+    assert machining.runtime(scene)["shown"][3] is True
+    assert all(k in me.attributes for k in ("fr_mk_o", "fr_mk_d", "fr_mk_a", "fr_mk_p"))   # the marks: always
+    n = len(me.polygons)
+    machining.make_fine()                                                  # what the timer does
+    assert "custom_normal" in me.attributes and len(me.polygons) == n
+    assert machining.runtime(scene)["shown"][3] is False
+    # a still rendered right after scrubbing: exact before the frame is rendered
+    scene.frame_set(frames - 8)
+    assert "custom_normal" not in me.attributes
+    machining._on_render_pre(scene)
+    assert "custom_normal" in me.attributes
+    machining._on_render_done(scene)
+    assert not machining._STATE.get("rendering")
+    # and anything else that asks for the block (an operator, the queue) gets the exact ones
+    scene.frame_set(frames - 11)
+    assert "custom_normal" not in me.attributes
+    machining.refresh(scene)
+    assert "custom_normal" in me.attributes
+
+
 def _block_group(sc, material_id, color=""):
     g = sc.fresing.groups[ob(sc, STOCK)[build.PROP_GROUP]]
     g.material = material_id
@@ -447,9 +481,16 @@ def test_cut_faces_get_their_own_look(scene):
     # 3 Looks: the block becomes aluminium plate -> the cut faces become machined aluminium at once
     _block_group(scene, "aluminium_sawn")
     assert wp.material_slots[n].material["fr_material"] == "aluminium_machined"
-    # paint: the cut looks like the block
+    # paint: the cut looks like the block - the same paint, as a material of its own that draws the tool marks
+    # (task 0061); without the marks it is the block's own material
     _block_group(scene, "paint_satin")
+    cut_mat, own = wp.material_slots[n].material, wp.material_slots[0].material
+    assert cut_mat is not own and cut_mat["fr_material"] == own["fr_material"] == "paint_satin"
+    assert cut_mat["fr_color"] == own["fr_color"] and "(cut)" in machining.cut_look_text(scene)
+    scene.fresing.milling.marks = False
     assert wp.material_slots[n].material is wp.material_slots[0].material
+    assert machining.cut_look_text(scene) == "Cut faces look like the block"
+    scene.fresing.milling.marks = True
     # brass: the same metal, brighter (less rough), with milling marks
     _block_group(scene, "brass")
     m2 = wp.material_slots[n].material

@@ -239,3 +239,27 @@ def test_wear_slider_rebuilds_the_group_material(tmp_path):
     g.wear = 0.4
     assert "ShaderNodeBevel" in _kinds(mat) and abs(mat["fr_wear"] - 0.4) < 1e-6
     assert g.material == mat["fr_material"]
+
+
+def test_tangent_runs_across_the_marks():
+    """Task 0098: the anisotropy's tangent is the marks' direction crossed with the face normal."""
+    for key in ("stainless_brushed", "steel_ground", "steel_turned"):
+        mat = _new_mat()
+        materials.build_nodes(mat, key)
+        bsdf = next(n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
+        norm = bsdf.inputs["Tangent"].links[0].from_node
+        cross = norm.inputs[0].links[0].from_node
+        assert norm.operation == "NORMALIZE" and cross.operation == "CROSS_PRODUCT", key
+        assert any(l.from_node.bl_idname == "ShaderNodeNewGeometry" and l.from_socket.name == "Normal"
+                   for i in cross.inputs for l in i.links), key
+        bpy.data.materials.remove(mat)
+
+
+def test_highlight_is_longer_across_the_marks():
+    """Task 0098, rendered (Cycles CPU, 160 px): ground plate across the lines, turned shaft along its axis."""
+    import sys
+    sys.path.insert(0, os.path.join(HERE, "..", "tools"))
+    import measure_shine
+    r = measure_shine.main()
+    assert r[("steel_ground", 0)] < 0.85 * r[("steel_ground", 1)]        # along X (the lines) shorter than across
+    assert r[("steel_turned", 0)] > 1.5 * r[("steel_turned", 1)]         # along the axis longer than round it

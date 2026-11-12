@@ -22,6 +22,10 @@ How it works
 * States at segment boundaries are kept (checkpoints), so scrubbing backwards is quick. Every state
   is made by the same steps in the same order from the stock, so going back and forth always gives
   exactly the same mesh.
+* **Which move made a face** (tool marks, task 0061): every solid a cut takes away has its own Manifold id, and
+  Manifold keeps that id on the faces the cut leaves, through every later cut. ``Timeline.moves`` has one row per
+  straight move; ``mesh_at(T, moves=True)`` names for each triangle the row of the move that made it last, and
+  ``mark_faces`` turns that into what the cut-face material reads (``core/toolmarks.py`` is the contract).
 
 Units: metres (Blender's), angles of tips in degrees.
 """
@@ -34,6 +38,8 @@ from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 
 import numpy as np
+
+from . import toolmarks as _tm
 
 MM = 0.001
 
@@ -533,19 +539,35 @@ class Workpiece:
             if keep.is_empty():
                 keep = None
         self.first = (Tile(self.lo.copy(), self.hi.copy(), stock, keep, stock.num_tri()),)
+        # {Manifold id of a solid a cut took away: the tag given with that cut} (task 0061). A timeline keeps a
+        # dict of its own (``Timeline.cut_ids``): this one is for cuts made without one
+        self.cut_ids: dict = {}
 
     def touches(self, lo, hi) -> bool:
         return bool(np.all(hi >= self.lo) and np.all(lo <= self.hi))
 
-    def cut(self, tiles: tuple, cutter, lo, hi) -> tuple:
-        """``tiles`` minus ``cutter`` (bounding box lo..hi). Tiles it does not reach stay the same objects."""
+    def cut(self, tiles: tuple, cutter, lo, hi, tag=None, ids: dict | None = None) -> tuple:
+        """``tiles`` minus ``cutter`` (bounding box lo..hi). Tiles it does not reach stay the same objects.
+
+        ``tag`` (the move's row, a whole number): the faces this cut leaves can be found again – the solid taken
+        away gets one Manifold id of its own, written into ``ids`` (default ``self.cut_ids``) as id -> tag."""
         out = []
         changed = False
+        if tag is not None:
+            ids = self.cut_ids if ids is None else ids
+            if cutter.original_id() < 0:       # made of several pieces: one id for the whole bit
+                cutter = cutter.as_original()
         for t in tiles:
             if t.ntri == 0 or np.any(hi < t.lo) or np.any(lo > t.hi):
                 out.append(t)
                 continue
-            c = cutter if t.keep is None else cutter - t.keep
+            c = cutter
+            if t.keep is not None:
+                c = cutter - t.keep
+                if tag is not None:            # trimmed by the finished part: its faces would keep two ids
+                    c = c.as_original()
+            if tag is not None:
+                ids[c.original_id()] = tag
             s = t.solid - c
             n = s.num_tri()
             changed = True
@@ -579,41 +601,67 @@ class Workpiece:
             out.append(Tile(lo, hi, s, k, s.num_tri()))
         return out
 
-    def mesh(self, tiles: tuple, cache: dict | None = None) -> tuple:
+    def mesh(self, tiles: tuple, cache: dict | None = None, moves: bool = False, ids: dict | None = None) -> tuple:
         """(verts float32 (n, 3), tris int32 (m, 3), source int32 (m,)): source is the stock's face
-        (the number given as face id) for uncut surfaces, -1 for surfaces the bit made."""
-        vs, ts, ss = [], [], []
-        off = 0
+        (the number given as face id) for uncut surfaces, -1 for surfaces the bit made.
+
+        ``moves=True``: a fourth array, int32 (m,): the tag of the cut that made the triangle last (``cut``'s
+        ``tag``, looked up in ``ids``, default ``self.cut_ids``); -1 for the stock's own faces and for faces
+        nobody knows the maker of (where a tile was split in two)."""
+        rows = self.tile_meshes(tiles, cache, ids)
+        return self.joined(rows, moves)
+
+    def tile_meshes(self, tiles: tuple, cache: dict | None = None, ids: dict | None = None) -> list:
+        """One row per tile that has triangles: ``[solid, verts, tris, source, move, marks]`` (the tile's own
+        vertex numbers; ``marks`` is None until ``Timeline.mesh_at`` fills it in). Rows are kept in ``cache``.
+        After these six a row has the tile's corner normals (None until asked for) and its box (lo, hi)."""
+        ids = self.cut_ids if ids is None else ids
+        rows = []
         for t in tiles:
             if t.ntri == 0:
                 continue
             key = id(t.solid)
             hit = cache.get(key) if cache is not None else None
             if hit is None or hit[0] is not t.solid:
-                hit = (t.solid,) + self._tile_mesh(t.solid)
+                hit = [t.solid, *self._tile_arrays(t.solid, ids), None, None, t.lo, t.hi]
                 if cache is not None:
                     cache[key] = hit
-            _s, v, tr, src = hit
-            vs.append(v)
-            ts.append(tr + off)
-            ss.append(src)
-            off += len(v)
-        if not vs:
-            return (np.zeros((0, 3), np.float32), np.zeros((0, 3), np.int32), np.zeros(0, np.int32))
-        return np.concatenate(vs), np.concatenate(ts), np.concatenate(ss)
+            rows.append(hit)
+        return rows
+
+    @staticmethod
+    def joined(rows: list, moves: bool = False) -> tuple:
+        """The rows of ``tile_meshes`` as one mesh: (verts, tris, source) and, with ``moves``, the move."""
+        if not rows:
+            out = (np.zeros((0, 3), np.float32), np.zeros((0, 3), np.int32), np.zeros(0, np.int32))
+            return out + (np.zeros(0, np.int32),) if moves else out
+        if len(rows) == 1:
+            _s, v, tr, src, mv = rows[0][:5]
+            return (v, tr, src, mv) if moves else (v, tr, src)
+        off = np.cumsum([0] + [len(r[1]) for r in rows[:-1]])
+        out = (np.concatenate([r[1] for r in rows]), np.concatenate([r[2] + o for r, o in zip(rows, off)]),
+               np.concatenate([r[3] for r in rows]))
+        return out + (np.concatenate([r[4] for r in rows]),) if moves else out
 
     def _tile_mesh(self, solid) -> tuple:
+        return self._tile_arrays(solid, None)[:3]
+
+    def _tile_arrays(self, solid, ids: dict | None) -> tuple:
+        """(verts, tris, source, move) of one solid; ``move`` is -1 everywhere without ``ids``."""
         m = solid.to_mesh()
         v = np.array(m.vert_properties[:, :3], dtype=np.float32)
         tr = np.array(m.tri_verts, dtype=np.int32)
         src = np.full(len(tr), -1, dtype=np.int32)
+        mv = np.full(len(tr), -1, dtype=np.int32)
         ri, rid = np.asarray(m.run_index), np.asarray(m.run_original_id)
         fid = np.asarray(m.face_id)
         for k in range(len(rid)):
+            a, b = int(ri[k]) // 3, int(ri[k + 1]) // 3
             if int(rid[k]) == self.stock_id:
-                a, b = int(ri[k]) // 3, int(ri[k + 1]) // 3
                 src[a:b] = fid[a:b]
-        return v, tr, src
+            elif ids:
+                mv[a:b] = ids.get(int(rid[k]), -1)
+        return v, tr, src, mv
 
 
 # ---------------------------------------------------------------------------
@@ -660,12 +708,38 @@ class Stats:
     extra: dict = field(default_factory=dict)
 
 
+@dataclass
+class Moves:
+    """The straight moves of a timeline, one row per move (row = its place in end-time order, ``_Seg.order``):
+    what the tool marks on a cut face are worked out from (task 0061). Metres, frames."""
+    bit: np.ndarray               # (n,) int32: which bit (index into the timeline's cutters and paths)
+    o0: np.ndarray                # (n, 3) the tip at the move's start
+    o1: np.ndarray                # (n, 3) ... and at its end
+    d: np.ndarray                 # (n, 3) the tool's axis, unit, from the tip up into the tool
+    t0: np.ndarray                # (n,) frames
+    t1: np.ndarray
+    dist: np.ndarray              # (n,) how far the same bit had cut sideways (across its axis) before this move
+    per_tooth: np.ndarray         # (n,) feed per tooth: the distance between two marks of the bit's side or bottom
+    per_rev: np.ndarray           # (n,) feed per turn of the spindle
+    cuts: np.ndarray              # (n,) bool: the move comes near the workpiece
+    owner: np.ndarray             # (n,) int32: the row whose marks this move's faces show: its own; for a move
+    #                               straight back out of the cut and for standing still the move before; for a
+    #                               plunge the sideways move that starts at its bottom
+    step: np.ndarray = None       # (n,) the step-down: how much deeper a level sideways move runs than the nearest
+    #                               pass of the same bit above it that it runs along (0: none); the line on a wall
+    tables: dict = field(default_factory=dict, repr=False)      # what ``mark_faces`` worked out per move
+
+    def __len__(self) -> int:
+        return len(self.bit)
+
+
 class Timeline:
     """The workpiece at any time of the animation, for a set of bits and their paths."""
 
     KEEP_SECONDS = 0.25           # keep a state after this much boolean work (scrubbing back costs at most this)
     MEMORY_BUDGET = 256e6         # bytes for the kept states (a triangle costs about BYTES_PER_TRIANGLE)
     BYTES_PER_TRIANGLE = 250      # measured: Manifold keeps ~250 bytes per triangle
+    IDS_MAX = 300000              # ids of cuts remembered (``cut_ids``) before everything kept is made again
 
     def __init__(self, workpiece: Workpiece, cutters: list, paths: list, detail_name: str = "NORMAL"):
         self.wp = workpiece
@@ -694,8 +768,115 @@ class Timeline:
         self.states: dict[int, tuple] = {0: workpiece.first}
         self.last = (0, workpiece.first)
         self.mesh_cache: dict = {}
+        # {Manifold id of the solid a cut took away: the move's row}: which move made a face (task 0061)
+        self.cut_ids: dict = {}
+        self.moves = self._moves()
         self.stats = Stats(segments=len(segs), cutting_segments=sum(1 for s in segs if s.cuts))
         self.t_first = min((float(p.t[0]) for p in paths if len(p.t)), default=0.0)
+
+    def _moves(self) -> Moves:
+        n = len(self.segs)
+        o0, o1, d = np.zeros((n, 3)), np.zeros((n, 3)), np.zeros((n, 3))
+        dist = np.zeros(n)
+        per_tooth, per_rev = np.zeros(n), np.zeros(n)
+        owner = np.arange(n, dtype=np.int32)
+        typical = typical_feed("")[0]
+        same = math.cos(2 * ANGLE_TOL)
+        for b, mine in enumerate(self.bit_segs):         # (a bit's own moves are in time order)
+            p = self.paths[b]
+            flutes = default_flutes(self.cutters[b].tool.kind)
+            run = 0.0
+            last = down = None                           # the last move with marks of its own; a plunge just made
+            for s in mine:
+                k = s.order
+                o0[k], o1[k], d[k] = p.o[s.i0], p.o[s.i1], p.d[s.i0]
+                dist[k] = run
+                per_tooth[k], per_rev[k] = typical, typical * flutes
+                v = o1[k] - o0[k]
+                up = float(v @ d[k])
+                length, side = float(np.linalg.norm(v)), float(np.linalg.norm(v - up * d[k]))
+                if s.cuts:
+                    run += side
+                straight = side < 0.02 * length or side < 1e-6       # along the axis, or not at all
+                # Two solids of one bit that lie on each other share faces, and which of the two a shared face
+                # then belongs to is a toss-up, triangle by triangle. So such moves show one move's marks:
+                if last is not None and float(d[last] @ d[k]) > same and (length < 1e-6 or (straight and up > 0)):
+                    owner[k] = last                      # standing still, or straight back out: the move before
+                    if length >= 1e-6:
+                        down = None                      # (out again: the next move does not start at the bottom)
+                    continue
+                if down is not None and not straight and float(d[down] @ d[k]) > same:
+                    owner[down] = k                      # a plunge, then sideways from its bottom: the bit's
+                last = k                                 # heel sweeps the plunge's floor as it leaves
+                down = k if straight and up < 0 else None
+        for k in range(n):                               # (standing still after a plunge: two steps)
+            r = owner[k]
+            while owner[r] != r:
+                r = owner[r]
+            owner[k] = r
+        return Moves(bit=np.array([s.bit for s in self.segs], np.int32), o0=o0, o1=o1, d=d,
+                     t0=np.array([s.t0 for s in self.segs], float), t1=np.array([s.t1 for s in self.segs], float),
+                     dist=dist, per_tooth=per_tooth, per_rev=per_rev,
+                     cuts=np.array([s.cuts for s in self.segs], bool), owner=owner, step=self._steps(o0, o1, d))
+
+    STEP_LOOK_BACK = 2000         # moves of the same bit looked at for the pass above
+
+    def _steps(self, o0, o1, d) -> np.ndarray:
+        """``Moves.step``: for every level sideways move that cuts, how far below the nearest earlier pass of the
+        same bit (same axis) it runs, when that pass came within the tool's radius of it seen along the axis –
+        the pocket's depth before, not a cut somewhere else on the part. A wall cut in several depths along the
+        same contour is one flat face (the deeper pass's side lies on the wall above), so nothing in the mesh
+        shows where the depths meet: the marks draw that line from this number."""
+        step = np.zeros(len(self.segs))
+        for b, mine in enumerate(self.bit_segs):
+            reach = self.cutters[b].reach
+            ks = []
+            for s in mine:
+                k = s.order
+                v = o1[k] - o0[k]
+                up = float(v @ d[k])
+                side = float(np.linalg.norm(v - up * d[k]))
+                if s.cuts and side > 1e-6 and abs(up) < 2e-5:
+                    ks.append(k)
+            if len(ks) < 2:
+                continue
+            ks = np.array(ks)
+            A, B, D = o0[ks], o1[ks], d[ks]
+            for j in range(1, len(ks)):
+                lo = max(0, j - self.STEP_LOOK_BACK)
+                a, bb, ax = A[lo:j], B[lo:j], D[j]
+                same = (D[lo:j] @ ax) > math.cos(2 * ANGLE_TOL)
+                above = (a - A[j]) @ ax                               # how much higher the earlier passes ran
+                ok = same & (above > 2e-5) & (above < self.cutters[b].length)
+                if not ok.any():
+                    continue
+                a, bb, above = a[ok], bb[ok], above[ok]
+                near = np.zeros(len(a), bool)
+                ab = bb - a
+                ab -= (ab @ ax)[:, None] * ax
+                l2 = np.maximum(np.einsum("ij,ij->i", ab, ab), 1e-18)
+                for x in (A[j], 0.5 * (A[j] + B[j]), B[j]):           # start, middle, end of this move
+                    q = x - a
+                    q -= (q @ ax)[:, None] * ax
+                    t = np.clip(np.einsum("ij,ij->i", q, ab) / l2, 0.0, 1.0)
+                    off = q - t[:, None] * ab
+                    near |= np.einsum("ij,ij->i", off, off) < reach * reach
+                if near.any():
+                    step[ks[j]] = float(above[near].min())
+        return step
+
+    def set_feeds(self, per_tooth, per_rev) -> None:
+        """The feed per tooth and per turn of the spindle of every move (metres, one number per row of
+        ``moves``): the distance between two tool marks. For a face mill give its feed per turn as both (its
+        floor shows one arc per turn). The marks already worked out are forgotten."""
+        n = len(self.segs)
+        pt = np.array(per_tooth, dtype=float).reshape(-1)
+        pr = np.array(per_rev, dtype=float).reshape(-1)
+        if len(pt) != n or len(pr) != n:
+            raise ValueError(f"set_feeds wants {n} numbers each (one per move), got {len(pt)} and {len(pr)}")
+        self.moves.per_tooth, self.moves.per_rev = pt, pr
+        self.moves.tables.clear()
+        self.mesh_cache = {}
 
     def _may_cut(self, cut: Cutter, p: Path, i0: int, i1: int) -> bool:
         pts = np.concatenate([p.o[i0:i1 + 1], p.o[i0:i1 + 1] + p.d[i0:i1 + 1] * cut.length])
@@ -705,12 +886,12 @@ class Timeline:
 
     # -- applying cuts --------------------------------------------------------
 
-    def _apply(self, tiles, b: int, o0, o1, d):
+    def _apply(self, tiles, b: int, o0, o1, d, tag=None):
         cutter, (lo, hi) = self.cutters[b].sweep(o0, o1, d)
         if cutter is None or not self.wp.touches(lo, hi):
             return tiles
         t0 = time.perf_counter()
-        out = self.wp.cut(tiles, cutter, lo, hi)
+        out = self.wp.cut(tiles, cutter, lo, hi, tag=tag, ids=self.cut_ids)
         dt = time.perf_counter() - t0
         self.stats.ops += 1
         self.stats.seconds += dt
@@ -720,7 +901,7 @@ class Timeline:
         if not s.cuts:
             return tiles
         p = self.paths[s.bit]
-        return self._apply(tiles, s.bit, p.o[s.i0], p.o[s.i1], p.d[s.i0])
+        return self._apply(tiles, s.bit, p.o[s.i0], p.o[s.i1], p.d[s.i0], tag=int(self.moves.owner[s.order]))
 
     def committed(self, k: int) -> tuple:
         """The workpiece after the first ``k`` segments (in end-time order)."""
@@ -761,6 +942,8 @@ class Timeline:
     def at(self, T: float) -> tuple:
         """The workpiece at time ``T`` (frames, may be between frames)."""
         T = max(float(T), self.t_first)
+        if len(self.cut_ids) > self.IDS_MAX:
+            self._forget()
         k = bisect_right(self.ends, T + 1e-9)
         tiles = self.committed(k)
         for b, mine in enumerate(self.bit_segs):          # the part of the current segment done so far
@@ -772,8 +955,16 @@ class Timeline:
                 continue                       # not started yet (or exactly where the last one ended)
             p = self.paths[b]
             o = self._pos(p, s, T)
-            tiles = self._apply(tiles, b, p.o[s.i0], o, p.d[s.i0])
+            tiles = self._apply(tiles, b, p.o[s.i0], o, p.d[s.i0], tag=int(self.moves.owner[s.order]))
         return tiles
+
+    def _forget(self) -> None:
+        """Too many ids of cuts remembered (every state made again has new ones): drop everything kept. The next
+        state is made from the stock by the same steps, so it is the same mesh as before."""
+        self.states = {0: self.wp.first}
+        self.last = (0, self.wp.first)
+        self.mesh_cache = {}
+        self.cut_ids.clear()
 
     @staticmethod
     def _pos(p: Path, s: _Seg, T: float) -> np.ndarray:
@@ -787,17 +978,196 @@ class Timeline:
         f = 0.0 if b - a <= 1e-12 else (T - a) / (b - a)
         return p.o[s.i0 + j - 1] * (1 - f) + p.o[s.i0 + j] * f
 
-    def mesh_at(self, T: float) -> tuple:
+    def mesh_at(self, T: float, moves: bool = False, marks: bool = False, normals: bool = False) -> tuple:
+        """The workpiece's mesh at time ``T``: (verts, tris, source) as ``Workpiece.mesh``.
+
+        ``moves=True``: also int32 per triangle, the row in ``self.moves`` of the move that made it last (-1: a
+        face of the stock, or a face whose maker is not known). A move straight back out of the cut and a bit
+        standing still count as the move before, a plunge as the sideways move that starts at its bottom
+        (``moves.owner``): their solids lie on each other.
+
+        ``marks=True``: five results – the move and, fifth, the four arrays of ``mark_faces``, worked out once
+        per tile and kept with its mesh, so a frame that changes one tile works out the marks of that tile only.
+
+        ``normals=True``: one more result at the end – a unit normal per triangle corner, float32
+        (triangles * 3, 3), from ``cut_normals.corner_normals`` (flat faces flat, round walls smooth, needle
+        triangles take their neighbour's; the faces that close a tile inside the material do not count), also
+        worked out once per tile."""
         t0 = time.perf_counter()
         tiles = self.at(T)
         if len(self.mesh_cache) > 2 * len(tiles) + 8:      # forget meshes of tiles no longer shown
             alive = {id(t.solid) for t in tiles}
             self.mesh_cache = {k: v for k, v in self.mesh_cache.items() if k in alive}
-        out = self.wp.mesh(tiles, self.mesh_cache)
+        rows = self.wp.tile_meshes(tiles, self.mesh_cache, self.cut_ids)
+        out = self.wp.joined(rows, moves or marks)
+        if marks:
+            for r in rows:
+                if r[5] is None:
+                    r[5] = mark_faces(r[1], r[2], r[4], self.moves, self.cutters)
+            if len(rows) == 1:
+                out += (rows[0][5],)
+            elif rows:
+                out += (tuple(np.concatenate([r[5][k] for r in rows]) for k in range(4)),)
+            else:
+                out += (tuple(np.zeros((0, 3), np.float32) for _k in range(4)),)
+        if normals:
+            from . import cut_normals
+            for r in rows:
+                if r[6] is None:
+                    r[6] = cut_normals.corner_normals(r[1], r[2], skip=cut_normals.seam_faces(r[1], r[2], r[7], r[8]))
+            if len(rows) == 1:
+                out += (rows[0][6],)
+            elif rows:
+                out += (np.concatenate([r[6] for r in rows]),)
+            else:
+                out += (np.zeros((0, 3), np.float32),)
         self.stats.last_ms = (time.perf_counter() - t0) * 1000
         self.stats.triangles = int(len(out[1]))
         self.stats.tiles = sum(1 for t in tiles if t.ntri)
         return out
+
+
+# ---------------------------------------------------------------------------
+# tool marks: what the cut-face material is told about each face (task 0061)
+# ---------------------------------------------------------------------------
+
+_COS_FLOOR = math.cos(math.radians(4.0))     # a face this square to the tool's axis is a floor
+_SIN_WALL = math.sin(math.radians(4.0))      # a face this close to along the axis is a wall
+
+
+def default_flutes(kind: str) -> int:
+    """Cutting edges of a bit nobody gave a number for, by its shape."""
+    return {"FLAT": 3, "BALL": 2, "VEE": 2, "DRILL": 2, "BULL": 4}.get(kind, 3)
+
+
+def flat_radius(cutter: Cutter) -> float:
+    """Radius of the flat bottom of a bit (the circle its bottom edge runs on); 0 when it ends in a point or a
+    ball, or when the flat is smaller than 5 % of the bit."""
+    prof = cutter.profile
+    if not prof:
+        return 0.0
+    z0, r0 = prof[0]
+    full = cutter.tool.radius if cutter.tool.radius > 1e-9 else cutter.reach
+    if abs(z0) > 1e-7 or r0 <= 0.05 * full:
+        return 0.0
+    return float(r0)
+
+
+def _mark_tables(moves: Moves, cutters: list) -> dict:
+    """What ``mark_faces`` gives a face, worked out once per move for each of the three ways a face can lie
+    against the tool's axis (0 floor, 1 wall, 2 slanted): float32 tables with a row per (move, way), and three
+    rows of zeros at the end for faces no move made. Kept on ``moves``."""
+    key = tuple(id(c) for c in cutters)
+    tb = moves.tables
+    if tb.get("key") == key:
+        return tb
+    T = _tm
+    n = len(moves)
+    a = np.array(moves.d, dtype=float).reshape(-1, 3)
+    v = moves.o1 - moves.o0
+    length = np.linalg.norm(v, axis=1)
+    side = v - np.einsum("ij,ij->i", v, a)[:, None] * a          # the move without its part along the axis
+    ls = np.linalg.norm(side, axis=1)
+    plunge = (ls < 0.02 * length) | (ls < 1e-6)
+    dh = np.zeros((n, 3))
+    go = ~plunge
+    dh[go] = side[go] / ls[go, None]
+    rflat = np.array([flat_radius(c) for c in cutters] + [0.0])[moves.bit]
+    cls = np.array([{"VEE": 1, "DRILL": 2}.get(c.tool.kind, 0) for c in cutters] + [0], np.int8)[moves.bit]
+    sp = np.zeros((n, 7))                     # the distance between two marks, per kind
+    sp[:, T.ARCS] = sp[:, T.FLANK] = sp[:, T.ACROSS] = moves.per_tooth
+    sp[:, T.RINGS_WALL] = moves.per_rev
+    sp[:, T.ALONG] = T.SPACING_ALONG
+    sp[:, T.RINGS] = T.SPACING_RINGS
+    sp = np.clip(sp, T.SPACING_MIN, T.SPACING_MAX)
+    sp[:, T.NONE] = 0.0
+    back = np.zeros((n, 7))                   # how far back along the feed the marks start: they carry on from
+    for k in (T.ARCS, T.FLANK, T.ACROSS):     # the bit's move before
+        back[:, k] = np.mod(moves.dist, sp[:, k])
+    kind = np.empty((n, 3), dtype=np.int64)   # per move and way the face lies: floor, wall, slanted
+    kind[:, 0] = np.where(plunge, T.RINGS, np.where(rflat > 0.0, T.ARCS, T.ACROSS))
+    kind[:, 1] = np.where(plunge, T.RINGS_WALL, T.FLANK)
+    kind[:, 2] = np.where(plunge | (cls == 2), T.RINGS, np.where(cls == 1, T.ALONG, T.ACROSS))
+    o = np.zeros((3 * n + 3, 3), np.float32)
+    d = np.zeros((3 * n + 3, 3), np.float32)
+    pr = np.zeros((3 * n + 3, 3), np.float32)
+    if n:
+        rows = np.arange(n)[:, None]
+        o[:3 * n] = (moves.o0[:, None, :] - dh[:, None, :] * back[rows, kind][:, :, None]).reshape(-1, 3)
+        d[:3 * n] = np.repeat(dh, 3, axis=0)
+        second = np.repeat(rflat[:, None], 3, axis=1)             # the flat bottom's radius; on a wall (FLANK)
+        if moves.step is not None:                                # the step-down instead (core/toolmarks.py)
+            second[:, 1] = np.where(plunge, 0.0, moves.step)
+        else:
+            second[:, 1] = np.where(plunge, rflat, 0.0)
+        pr[:3 * n] = np.stack([kind, second, sp[rows, kind]], axis=2).reshape(-1, 3)
+    a32 = np.zeros((n + 1, 3), np.float32)
+    a32[:n] = a
+    tb.clear()
+    tb.update(key=key, o=o, d=d, p=pr, a=a32, plunge=plunge, sp=sp, back=back)
+    return tb
+
+
+def mark_faces(verts: np.ndarray, tris: np.ndarray, move: np.ndarray, moves: Moves, cutters: list) -> tuple:
+    """What the cut-face material reads on every triangle: ``(o, d, a, p)``, four float32 (m, 3) arrays, the
+    attributes ``fr_mk_o`` / ``fr_mk_d`` / ``fr_mk_a`` / ``fr_mk_p`` of ``core/toolmarks.py``.
+
+    ``move``: per triangle the row in ``moves`` of the move that made it (-1: none – all four rows are zeros,
+    which is kind NONE). ``cutters``: the timeline's (``moves.bit`` points into them). The kind of marks comes
+    from the face's normal against the tool's axis and from the tool's shape:
+
+    * a floor facing the tool (within 4°): arcs under a flat-bottomed tool moving sideways, fine lines across the
+      pass under a ball, V or drill point, rings where the tool went straight down;
+    * a wall (within 4° of along the axis): lines along the axis, one per tooth; rings round the axis, one per
+      turn, in a plunged or drilled hole;
+    * a slanted or curved face: lines along the path for a V-bit, rings for a drill point, lines across the pass
+      for everything else; rings after a plunge.
+
+    (A plunge followed by a sideways move from its bottom comes here as that sideways move – ``moves.owner`` –
+    so the start of a slot shows the slot's marks; a hole that is only drilled or plunged shows rings.)
+
+    The spacing is ``moves.per_tooth`` (arcs, wall lines, lines across a pass) or ``moves.per_rev`` (the rings of
+    a hole's wall), kept between ``SPACING_MIN`` and ``SPACING_MAX``. ``fr_mk_o`` is the tip at the move's start,
+    moved back along the feed by what the bit had cut before (modulo the spacing): the marks of one move carry on
+    into the next."""
+    m = len(tris)
+    move = np.asarray(move).reshape(-1)
+    n = len(moves)
+    if m == 0 or n == 0:
+        return tuple(np.zeros((m, 3), np.float32) for _k in range(4))
+    tb = _mark_tables(moves, cutters)
+    row = np.where((move >= 0) & (move < n), move, n)      # (row n: the zeros)
+    tr = np.asarray(tris)
+    vv = np.asarray(verts, dtype=np.float32)
+    p0 = vv[tr[:, 0]]
+    e1, e2 = vv[tr[:, 1]] - p0, vv[tr[:, 2]] - p0
+    a = tb["a"][row]
+    # the face's normal (out of the material: the triangle's winding) against the tool's axis
+    nx = e1[:, 1] * e2[:, 2] - e1[:, 2] * e2[:, 1]
+    ny = e1[:, 2] * e2[:, 0] - e1[:, 0] * e2[:, 2]
+    nz = e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]
+    c = (nx * a[:, 0] + ny * a[:, 1] + nz * a[:, 2]) / np.maximum(np.sqrt(nx * nx + ny * ny + nz * nz), 1e-30)
+    way = np.where(c > _COS_FLOOR, 0, np.where(np.abs(c) < _SIN_WALL, 1, 2))
+    k = row * 3 + way
+    return tb["o"][k], tb["d"][k], a, tb["p"][k]
+
+
+def typical_feed(block_id: str) -> tuple:
+    """(feed per tooth in metres, the material in words) for a block of this material id (3 Looks), when no
+    program gives a feed and a spindle speed. The words are '' for a material the table does not know."""
+    if block_id in _CUT_ALU:
+        return 0.05 * MM, "aluminium"
+    if block_id in _CUT_STEEL:
+        return 0.03 * MM, "steel"
+    if block_id in ("stainless_brushed", "stainless_polished"):
+        return 0.025 * MM, "stainless steel"
+    if block_id in ("cast_iron", "cast_iron_painted"):
+        return 0.04 * MM, "cast iron"
+    if block_id in _CUT_BRIGHT or block_id == "nickel_plated":
+        return 0.04 * MM, {"bronze": "bronze", "copper": "copper", "zinc_diecast": "zinc"}.get(block_id, "brass")
+    if block_id in _CUT_PLASTIC:
+        return 0.08 * MM, "plastic"
+    return 0.04 * MM, ""
 
 
 def volume(tiles) -> float:
@@ -834,7 +1204,8 @@ def cut_look(block_id: str) -> tuple | None:
                 "Stainless, machined")
     if block_id in ("cast_iron", "cast_iron_painted"):      # bare grey iron, a little dull
         return ("steel_machined", dict(base_color=(0.47, 0.47, 0.48), metallic=0.9, roughness=0.34,
-                                       marks=dict(_MILLED, rough=0.06)), "Cast iron, machined")
+                                       marks=dict(_MILLED, rough=0.06), marks_look="cast_iron"),
+                "Cast iron, machined")
     if block_id == "nickel_plated":                         # plated brass fittings: brass underneath
         block_id = "brass"
     if block_id in _CUT_BRIGHT:

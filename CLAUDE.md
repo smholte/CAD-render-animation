@@ -109,6 +109,8 @@ worker session stays the one in charge: it reads the brief, designs, merges, tes
 - **At most 3 at a time** (the web machine has 4 cores; real-Blender tests and renders one at a time).
 - **Model:** a subagent runs on the session's model unless told otherwise; routine pieces (tests from a clear spec,
   guide text, tooltips) may go to `sonnet` to save usage.
+- **Never `git add -A` while worktree subagents exist** without `.claude/worktrees/` in `.git/info/exclude`: their
+  folders are added as links (happened in task 0061).
 - **Say in the report** which subagents ran, what each did and which work was re-done after merging.
 
 ### Saving usage (owner's request, 5 Nov 2026)
@@ -213,6 +215,11 @@ fresing_render/            the Blender extension (Python package)
                            frames, tool zones, rows and texts),
                            vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
                            hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
+                           toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
+                           the cut-face material – four per-face attributes ``fr_mk_o/d/a/p``, six kinds of marks – and
+                           the formula in plain Python the tests compare a render with; strengths per material),
+                           cut_normals.py (the milled mesh's corner normals in NumPy: flat faces flat, round walls smooth,
+                           needle triangles take their neighbour's, a big flat face keeps its own next to small facets),
                            toolpath.py (the app makes the toolpath, task 0029: drop-cutter for flat/ball/bull in NumPy,
                            zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
                            greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
@@ -245,6 +252,14 @@ fresing_render/            the Blender extension (Python package)
                            the background copy (task 0074, ops_queue_schemes.py: 7 Render queue > Every paint scheme)
     project_lock.py        "in use by" lock for shared projects
     machining.py           milling: set-up, bits' path read per frame, frame handler (workpiece shows its cut)
+                           Task 0061: every cutter solid has a Manifold id -> ``Timeline.moves`` (one row per straight
+                           move: start, axis, feed per tooth / per turn, step-down) -> per cut triangle the move that made
+                           it last -> the attributes of core/toolmarks.py written with the mesh; ``gcode.feeds`` (F and S
+                           per frame, stored at Build); quick normals while the frame changes, exact ones when it stands
+                           still and in renders (``refresh(quick=)``, ``make_fine``)
+    toolmarks.py           the node group "FR tool marks" (shader nodes only: reads the attributes, draws the marks as a
+                           lean of the normal + the anisotropic tangent; inputs Size, Strength, Pixel angle), wired into a
+                           material by ``materials.build_nodes`` when its spec has ``toolmarks``
     idprops.py             store_array: arrays into ID properties safely (task 0038)
     waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
                            k/N of its travel (coupling ratios + limits); several covers per project in
@@ -497,6 +512,9 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   way-cover sub-assembly, task 0034, 6 Nov 2026) – only after checking it holds nothing of a client's.
   Also the owner's own renders and his milling video on the landing page (`site/media/`, task 0047, owner's
   choice 8 Nov 2026) – only what he sends for the page.
+- **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
+  on the landing page shows only a basic interior. Never put the Fresing 400 or any part of it on the site, in a web 3D
+  model, a test model, a guide picture or a report, unless the owner releases it explicitly.
 - New behaviour gets a test. A bug fix gets a test that failed before.
 - Speed claims are measured, with the model and machine named. Before/after numbers in the
   task report.
@@ -800,3 +818,17 @@ the release → Delete); the next run on `main` publishes it again.
 - A box tree built from a Z-order (Morton) sort has nodes that jump across the model (a block of the sorted list can
   straddle a big boundary: a node as long as the whole rope). Halving at the median of each node's longest side, all
   nodes of a level at once (one sort per block), gives compact nodes and is just as fast (task 0092).
+- The Principled BSDF stretches the highlight **along** its Tangent (measured in 5.2.3: 16 px along, 6 px across at
+  Anisotropic 0.8). A milled or brushed face stretches it *across* its grooves: feed the direction across them
+  (task 0061; 0046's brushed and ground looks feed the brushing direction – the wrong way round, still open).
+- Manifold gives a face that lies on two solids to either of them: a deeper pass along the same wall takes over the
+  whole wall (no line where the depths meet – the marks draw it from ``Moves.step``), and a move straight back out
+  shares its faces with the move before it (``Moves.owner``).
+- Booleans leave needle triangles (three points on one line; 239 of 2,220 on the milled test block). Their own
+  direction is rounding noise, and Blender's smooth-by-angle mixes it into the flat faces next to them: dark facets in
+  reflections. The milled mesh gets its corner normals from ``core/cut_normals.py`` (a corner-domain ``custom_normal``
+  attribute, written with ``foreach_set``).
+- A per-face attribute (FACE domain, FLOAT_VECTOR) is read in a material with an Attribute node of type GEOMETRY, in
+  Cycles and EEVEE: no image, no driver. ``Mesh.clear_geometry()`` takes the attributes with it.
+- GitHub's test machines cannot start EEVEE (no GL context): a test that renders with EEVEE checks something else
+  there instead of being skipped – each pytest group allows one skipped test (`ci_pytest_summary.py --max-skipped 1`).

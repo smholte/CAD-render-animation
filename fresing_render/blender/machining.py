@@ -33,6 +33,7 @@ from bpy.app.handlers import persistent
 from mathutils import Matrix, Vector
 
 from ..core import machining as core
+from ..core import toolmarks
 from . import build
 from .idprops import store_array
 
@@ -495,7 +496,12 @@ def cut_look(scene, wp) -> tuple | None:
     else:
         look = core.cut_look(block_id)
         if look is None:
-            return None
+            # paint and other looks stay as the block (task 0051) - with the tool marks on, as a material of their
+            # own that draws them (an imported part is painted until its group gets a material in 3 Looks)
+            spec = materials_lib.MATERIALS.get(block_id)
+            if not s.marks or spec is None or any(spec.get(k) for k in ("transmission", "emission", "grid")):
+                return None
+            look = (block_id, {}, f"{spec['label']} (cut)")
     mid, tweak, label = look
     return mid, tweak, label, (colour if materials_lib.needs_color(mid) else "")
 
@@ -507,6 +513,9 @@ def cut_material(scene, wp):
     if look is None:
         return None
     mid, tweak, label, colour = look
+    s = settings(scene)
+    if s.marks:                                    # tool marks (task 0061): strengths by what the cut is made of
+        tweak = dict(tweak, toolmarks=toolmarks.look(tweak.get("marks_look") or mid))
     key = json.dumps([mid, tweak, colour, materials.LOOK_VERSION], sort_keys=True)
     name = CUT_MAT_PREFIX + label + (f" {colour}" if colour else "")
     mat = bpy.data.materials.get(name)
@@ -518,7 +527,21 @@ def cut_material(scene, wp):
             mat.use_nodes = True
         materials.build_nodes(mat, mid, colour, 0.0, tweak)
         mat[CUT_KEY] = key
+    if s.marks:                                    # Mark size and Strength: set on the nodes, nothing is rebuilt
+        from . import toolmarks as marks_nodes
+        marks_nodes.set_inputs(mat, s.marks_size, s.marks_strength, _pixel_angle(scene))
     return mat
+
+
+def _pixel_angle(scene) -> float | None:
+    """The angle one pixel of the picture covers through the scene's camera (rad): marks finer than about two
+    pixels fade out and leave the sheen. None without a camera with a lens (the node group's own value stays)."""
+    cam = scene.camera
+    if cam is None or cam.type != "CAMERA" or cam.data.type != "PERSP":
+        return None
+    r = scene.render
+    width = max(1, int(r.resolution_x * r.resolution_percentage / 100))
+    return float(f"{toolmarks.pixel_angle(width, cam.data.lens, cam.data.sensor_width):.3g}")
 
 
 def _cut_slot(scene, wp) -> int:
@@ -552,6 +575,13 @@ def cut_look_changed(scene) -> None:
         return
     _cut_slot(scene, wp)
     wp.update_tag()
+
+
+def marks_changed(scene) -> None:
+    """'Tool marks' ticked or cleared: the cut faces' material changes and the mesh gets or loses what the marks
+    read, so write it again."""
+    cut_look_changed(scene)
+    refresh(scene, force=True)
 
 
 def cut_look_text(scene) -> str:
@@ -875,9 +905,14 @@ def _spec_of_copy(ob):
 class CutItem:
     """One thing that cuts for a while: a bit, or a tool of a G-code program while it is in the spindle."""
 
-    def __init__(self, name: str, ob, path: core.Path, tool: core.Tool, chip: str = "", spindle=None):
+    def __init__(self, name: str, ob, path: core.Path, tool: core.Tool, chip: str = "", spindle=None,
+                 flutes: int = 0, face: bool = False, program: bool = False):
         self.name, self.ob, self.path, self.tool, self.chip = name, ob, path, tool, chip
         self.spindle = spindle            # the bit in the spindle this is a piece of (a G-code tool), else None
+        # for the tool marks (task 0061): cutting edges (a face mill: inserts), "is a face mill", and whether a
+        # G-code program moves it (its feed and spindle speed then come from the program)
+        self.flutes = int(flutes) if flutes and flutes > 0 else core.default_flutes(tool.kind)
+        self.face, self.program = bool(face), bool(program)
 
     def key(self) -> tuple:
         return (self.name, self.tool.key(), len(self.path.t), round(float(self.path.t[0]), 6),
@@ -902,7 +937,7 @@ def cut_items(scene) -> list:
         if p is None:
             continue
         if not sched or ob is not spindle:
-            out.append(CutItem(ob.name, ob, p, tool_of(it)))
+            out.append(CutItem(ob.name, ob, p, tool_of(it), program=ob is spindle))
             continue
         bounds, mounted = [-math.inf], [0]
         for f, n in sched:                        # one piece per stay in the spindle
@@ -932,7 +967,9 @@ def cut_items(scene) -> list:
             sub = core.Path(path.t[sel], path.o[sel], path.d[sel])
             tool = tcore.cutting_tool(spec) if spec is not None else tool_of(it)
             chip = tcore.chip_kind(spec) if spec is not None else ""
-            out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob))
+            face = spec is not None and spec.kind == "FACE"
+            out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob, face=face, program=True,
+                               flutes=0 if spec is None else (spec.inserts if face else spec.flutes)))
     if "in_scene" in _FRAME:
         _FRAME["cut_items"] = out
     return out
@@ -1019,6 +1056,7 @@ def _timeline(scene):
     items = cut_items(scene)
     key = (s.path_sig, _stock_key(s, workpiece(scene)), tuple(c.key() for c in items))
     if rt.get("key") == key and rt.get("timeline") is not None:
+        _feeds_to(scene, rt["timeline"], items)        # (a new Build can change the feeds and nothing else)
         return rt["timeline"]
     wpc = _workpiece_solid(scene)
     cutters, paths = [], []
@@ -1036,15 +1074,116 @@ def _timeline(scene):
         paths.append(p)
     tl = core.Timeline(wpc, cutters, paths, s.detail) if paths else None
     rt["timeline"], rt["key"], rt["shown"] = tl, key, None
+    _feeds_to(scene, tl, items)
     return tl
+
+
+# ---------------------------------------------------------------------------
+# tool marks: the distance between two marks (task 0061)
+# ---------------------------------------------------------------------------
+
+def _feeds_key(scene, teeth: tuple) -> tuple:
+    """Everything the distance between two tool marks comes from: the program's feeds and speeds, each bit's
+    cutting edges (``teeth``: (cutting edges, is a face mill, moved by a program) per cut item), what the block
+    is made of."""
+    from . import gcode
+    c = gcode.settings(scene)
+    raw = np.array(c["fr_feeds"], dtype=np.float64).tobytes() if "fr_feeds" in c else b""
+    return (hash(raw), len(raw), teeth, block_look(scene, workpiece(scene))[0])
+
+
+def _feeds_to(scene, tl, items) -> None:
+    """Give the timeline every move's feed per tooth and per turn, when they changed. From the program (feed F
+    and spindle speed S at the middle of the move) for a tool the program moves; else a typical feed per tooth
+    for the block's material. A face mill shows one arc per turn."""
+    rt = runtime(scene)
+    if tl is None:
+        rt.pop("marks_teeth", None)
+        return
+    teeth = tuple((it.flutes, it.face, it.program) for it in items)
+    rt["marks_teeth"] = teeth                           # (for the panel's line: no need to read the paths again)
+    key = _feeds_key(scene, teeth)
+    if getattr(tl, "feeds_key", None) == key:
+        return
+    from . import gcode
+    rows = gcode.feeds(scene)
+    mk = tl.moves
+    typical = core.typical_feed(key[3])[0]
+    flutes = np.array([max(1, it.flutes) for it in items] + [1], dtype=float)[mk.bit]
+    face = np.array([it.face for it in items] + [False], dtype=bool)[mk.bit]
+    per_tooth = np.full(len(mk), typical)
+    per_rev = per_tooth * flutes
+    if rows and len(mk):
+        frames = np.array([r[0] for r in rows])
+        feed = np.array([r[1] for r in rows])
+        rpm = np.abs(np.array([r[2] for r in rows]))
+        k = np.searchsorted(frames, 0.5 * (mk.t0 + mk.t1), side="right") - 1      # the last row at or before it
+        prog = np.array([it.program for it in items] + [False], dtype=bool)[mk.bit]
+        kk = np.clip(k, 0, len(frames) - 1)
+        known = prog & (k >= 0) & (feed[kk] > 0) & (rpm[kk] > 0)
+        rev = feed[kk] / np.maximum(rpm[kk], 1e-9) * core.MM                      # mm/min / rpm = mm per turn
+        per_rev = np.where(known, rev, per_rev)
+        per_tooth = np.where(known, rev / flutes, per_tooth)
+    tl.set_feeds(np.where(face, per_rev, per_tooth), per_rev)
+    tl.feeds_key = key
+    rt["shown"] = None
+
+
+def _marks_text(teeth: tuple, block_id: str, rows: list, step: bool) -> str:
+    from ..core import words
+    per_tooth, material = core.typical_feed(block_id)
+    typical = f"typical feed for {material}" if material else "a typical feed"
+    typical += f" ({per_tooth * 1000:g} mm per tooth)"
+    prog = list(dict.fromkeys((n, face) for n, face, program in teeth if program))
+    cutting = [(f, abs(r)) for _fr, f, r in rows if f > 0]
+    if not prog or not cutting:
+        if prog and not rows and step:
+            # (a program step not built yet, or built by a version before the tool marks: it kept no feeds)
+            return f"Build the animation to use the program's feed. Until then: {typical}"
+        return f"No program: {typical}"
+    known = list(dict.fromkeys(fr for fr in cutting if fr[1] > 0))
+    if not known:
+        return f"The program gives no spindle speed: {typical}"
+    if len(known) > 1 or len(prog) > 1:
+        return "Marks from the program's feeds and speeds"
+    (feed, rpm), (n, face) = known[0], prog[0]
+    return f"Marks from the program: F{feed:g} S{rpm:g}, {words.plural(n, 'insert' if face else 'flute')}"
+
+
+def marks_source(scene) -> str:
+    """Where the distance between two tool marks comes from, in words (the Milling panel's line): the program's
+    feed and spindle speed ("Marks from the program: F800 S12000, 2 flutes"), or a typical feed per tooth for
+    what the block is made of ("No program: typical feed for aluminium (0.05 mm per tooth)")."""
+    wp = workpiece(scene)
+    if wp is None or not bits(scene):
+        return ""
+    from . import gcode
+    rt = runtime(scene)
+    teeth = rt.get("marks_teeth") if rt.get("timeline") is not None else None
+    if teeth is None:
+        teeth = tuple((it.flutes, it.face, it.program) for it in cut_items(scene))
+    if not teeth:                                       # the motion is not read yet: the bits as they are
+        spindle = gcode.settings(scene).tool
+        teeth = tuple((core.default_flutes(tool_of(it).kind), False, ob is spindle) for it, ob in bits(scene))
+    step = any(b.kind == "GCODE" and b.enabled and b.gcode_file
+               for a in scene.fresing.animations for b in a.blocks)
+    key = _feeds_key(scene, teeth) + (step,)
+    hit = rt.get("marks_text")
+    if hit is None or hit[0] != key:                    # (drawn at every redraw of the panel: kept)
+        hit = rt["marks_text"] = (key, _marks_text(teeth, key[3], gcode.feeds(scene), step))
+    return hit[1]
 
 
 # ---------------------------------------------------------------------------
 # showing a frame
 # ---------------------------------------------------------------------------
 
-def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray) -> None:
-    me.clear_geometry()
+def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray, marks=None, normals=None) -> None:
+    """Triangles into ``me``. ``marks``: the four (triangles, 3) float32 arrays of ``core.mark_faces`` – written
+    as the per-face attributes the cut-face material reads (``core/toolmarks.py``, task 0061). ``normals``:
+    (triangles * 3, 3) float32, one unit normal per corner, used as they are (a ``custom_normal`` attribute);
+    without them the faces are smooth with sharp edges by angle, as before."""
+    me.clear_geometry()                       # (takes the attributes of the last frame with it)
     if len(t) == 0:
         me.update()
         return
@@ -1055,6 +1194,15 @@ def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray) -> None:
     me.polygons.add(len(t))
     me.polygons.foreach_set("loop_start", np.arange(0, len(t) * 3, 3, dtype=np.int32))
     me.polygons.foreach_set("material_index", mat)
+    if marks is not None:
+        for name, arr in zip(toolmarks.ATTRS, marks):
+            a = me.attributes.get(name) or me.attributes.new(name, "FLOAT_VECTOR", "FACE")
+            a.data.foreach_set("vector", np.ascontiguousarray(arr, dtype=np.float32).reshape(-1))
+    if normals is not None:
+        a = me.attributes.get("custom_normal") or me.attributes.new("custom_normal", "FLOAT_VECTOR", "CORNER")
+        a.data.foreach_set("vector", np.ascontiguousarray(normals, dtype=np.float32).reshape(-1))
+        me.update(calc_edges=True)
+        return
     me.update(calc_edges=True)
     me.shade_smooth()
     me.set_sharp_from_angle(angle=SHARP_ANGLE)
@@ -1067,8 +1215,13 @@ def _write_stock(cut, stock) -> None:
     _write_mesh(cut, v, t, mats[p] if len(p) else np.zeros(0, np.int32))
 
 
-def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
-    """Show the workpiece as it is at ``frame`` (default: the current frame). True when shown."""
+def refresh(scene, frame: float | None = None, force: bool = False, quick: bool = False) -> bool:
+    """Show the workpiece as it is at ``frame`` (default: the current frame). True when shown.
+
+    ``quick`` (the frame handler in the window, while the frame is changed by hand or played): the mesh gets
+    Blender's own smooth-by-angle normals, which cost nothing, and the exact ones (``core/cut_normals``, 12 ms a
+    frame on a 30,000-triangle cut) follow a moment after the frame stands still (``_fine_timer``). Renders, the
+    render queue and every other caller get the exact ones at once."""
     rt = runtime(scene)
     if not core.available() or not is_set_up(scene):
         return False
@@ -1085,18 +1238,27 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
         if tl is None:
             rt["status"] = "Waiting for the motion to be read"
             return False
-        if not force and rt.get("shown") == (id(tl), T):
+        marks = None
+        want = bool(s.marks)         # tool marks on the cut faces (task 0061)
+        shown = rt.get("shown")
+        if not force and shown is not None and shown[:3] == (id(tl), T, want) and (quick or not shown[3]):
             _cut_slot(scene, wp)                       # a look changed in 3 Looks shows at once
             return True
-        v, t, src = tl.mesh_at(T)
+        out = tl.mesh_at(T, marks=want, normals=not quick)
+        v, t, src = out[:3]
+        if want:
+            marks = out[4]
+        normals = None if quick else out[-1]
         mats = rt.get("mats")
         mi = np.zeros(len(t), dtype=np.int32)
         mi[src < 0] = _cut_slot(scene, wp)             # faces the cutter made: their own look (task 0051)
         if mats is not None and len(mats):
             ok = (src >= 0) & (src < len(mats))
             mi[ok] = mats[src[ok]]
-        _write_mesh(s.cut_mesh, v, t, mi)
-        rt["shown"] = (id(tl), T)
+        _write_mesh(s.cut_mesh, v, t, mi, marks=marks, normals=normals)   # normals: no dark facets (0042)
+        rt["shown"] = (id(tl), T, want, quick)
+        if quick:
+            _schedule_fine()
         _show_chips(scene, T)
         st = tl.stats
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
@@ -1145,6 +1307,78 @@ def _check_timer():
     except Exception as exc:                         # never break the app over a preview update
         print("Fresing Render: milling update failed:", exc)
     return None
+
+
+FINE_DELAY = 0.3                      # s the frame must stand still before the exact normals are worked out
+
+
+def _quick_now() -> bool:
+    """The frame handler may write the quick normals: in the window, on the main thread, and nothing renders."""
+    if bpy.app.background or _off_main_thread() or _STATE.get("rendering"):
+        return False
+    try:
+        return not bpy.app.is_job_running("RENDER")
+    except Exception:
+        return True
+
+
+def _schedule_fine() -> None:
+    _STATE["fine_at"] = time.monotonic() + FINE_DELAY
+    if _STATE.get("fine_pending") or bpy.app.background:
+        return
+    _STATE["fine_pending"] = True
+    bpy.app.timers.register(_fine_timer, first_interval=FINE_DELAY)
+
+
+def _fine_timer():
+    """The frame stands still (and nothing plays): the milled blocks shown with quick normals get the exact ones."""
+    try:
+        left = _STATE.get("fine_at", 0.0) - time.monotonic()
+        if left > 0.01:
+            return left
+        if any(sc.is_animation_playing for sc in bpy.data.screens):
+            return FINE_DELAY
+        _STATE["fine_pending"] = False
+        make_fine()
+    except Exception as exc:                         # never break the app over a preview update
+        _STATE["fine_pending"] = False
+        print("Fresing Render: milling normals failed:", exc)
+    return None
+
+
+def make_fine(scene=None) -> None:
+    """Exact normals for every milled block that shows the quick ones (``scene``: only that one)."""
+    for sc in ([scene] if scene is not None else list(bpy.data.scenes)):
+        if not hasattr(sc, "fresing") or not is_active(sc):
+            continue
+        shown = runtime(sc).get("shown")
+        if shown is not None and len(shown) > 3 and shown[3]:
+            refresh(sc)
+
+
+@persistent
+def _on_render_init(scene, _depsgraph=None):
+    _STATE["rendering"] = True
+
+
+@persistent
+def _on_render_done(scene, _depsgraph=None):
+    _STATE["rendering"] = False
+
+
+@persistent
+def _on_render_pre(scene, _depsgraph=None):
+    """A frame is about to be rendered: never with the quick normals (a still rendered right after scrubbing).
+    Off the main thread only when the interface is locked, as the frame handler."""
+    _STATE["rendering"] = True
+    try:
+        if scene is None or not hasattr(scene, "fresing") or _STATE["guard"]:
+            return
+        if _in_window() and _off_main_thread() and not scene.render.use_lock_interface:
+            return
+        make_fine(scene)
+    except Exception as exc:
+        print("Fresing Render: milling normals before a render failed:", exc)
 
 
 def update_if_needed(scene, progress=None) -> bool:
@@ -1281,7 +1515,7 @@ def _on_frame(scene, _depsgraph=None):
             mark_stale(scene)                    # 3D view: read soon; the queue reads it before rendering
             if not bpy.app.background:
                 return
-        refresh(scene)
+        refresh(scene, quick=_quick_now())
     except Exception as exc:
         print("Fresing Render: milling frame update failed:", exc)
     finally:
@@ -1353,7 +1587,10 @@ def register():
     for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
                     (bpy.app.handlers.load_post, _on_load),
-                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo),
+                    (bpy.app.handlers.render_init, _on_render_init), (bpy.app.handlers.render_pre, _on_render_pre),
+                    (bpy.app.handlers.render_complete, _on_render_done),
+                    (bpy.app.handlers.render_cancel, _on_render_done)):
         if fn not in lst:
             lst.append(fn)
 
@@ -1364,12 +1601,17 @@ def unregister():
     for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame),
                     (bpy.app.handlers.depsgraph_update_post, _on_depsgraph),
                     (bpy.app.handlers.load_post, _on_load),
-                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo)):
+                    (bpy.app.handlers.undo_post, _on_undo), (bpy.app.handlers.redo_post, _on_undo),
+                    (bpy.app.handlers.render_init, _on_render_init), (bpy.app.handlers.render_pre, _on_render_pre),
+                    (bpy.app.handlers.render_complete, _on_render_done),
+                    (bpy.app.handlers.render_cancel, _on_render_done)):
         while fn in lst:
             lst.remove(fn)
-    if bpy.app.timers.is_registered(_check_timer):
-        bpy.app.timers.unregister(_check_timer)
+    for timer in (_check_timer, _fine_timer):
+        if bpy.app.timers.is_registered(timer):
+            bpy.app.timers.unregister(timer)
     _STATE["pending"] = False
+    _STATE["fine_pending"] = _STATE["rendering"] = False
     _RUNTIME.clear()
     from . import chips
     chips.forget()
