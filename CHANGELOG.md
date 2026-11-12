@@ -27,7 +27,8 @@ New: 4 Motion > **Hoses and drag chains**
   shape once and keeps it with the project, so the same frame always looks the same and playing or rendering costs
   no extra time worth naming.
 - **A hose stays on the side CAD drew it on.** A slack hose can often lie in two ways; it keeps the one of your CAD
-  model through the whole motion instead of flipping over.
+  model instead of flipping over. (A hose pushed together until it forms a loop, or a very soft cable, can still
+  change over once.)
 - **Warnings** in the panel and after Build: "Hose 'X' is too short at frame 120 (it needs 12 mm more)", a bend
   tighter than the smallest bend you set, a drag chain that cannot reach.
 - **Fit to the CAD pose** puts back what the CAD file says (length, ends, link length, bend radius). An end on the
