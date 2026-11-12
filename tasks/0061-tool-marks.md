@@ -32,6 +32,26 @@ Suggested split (the worker may change it; write the final plan under "Design" f
   5 %, re-cut marks, scripts off, queue); E – speed measurements (scrubbing, rebuild, render) one at a time; F – tour
   stop, PC-check line, guide section + picture.
 
+## Design (worker, 12 Nov 2026 – the subagents' brief)
+
+**The chain:** cutter solid gets a Manifold id → `Timeline.moves` (one row per straight move) → per triangle the row
+of the move that made it last → four per-face attributes on the milled mesh → a node group in the cut-face material.
+The contract (attribute names, units, the six kinds of marks and their formulas) is `fresing_render/core/toolmarks.py`
+– written by the worker first; read its docstring.
+
+Measured before the split (web machine): a hull cutter already has its own `original_id()`; `as_original()` on a
+trimmed cutter costs 22 µs (a boolean 78 µs, the sweep 181 µs); `split_by_plane` gives the caps a new id (= kind 0).
+
+| Who | Files it owns (nobody else edits them) | Delivers |
+| --- | --- | --- |
+| **A** | `core/machining.py`, `blender/machining.py`, `blender/gcode.py` (additive), new `tests/test_toolmarks_moves.py` | ids per cut (`as_original()` when a cutter is trimmed by the finished part or has several pieces; id → move in a dict, pruned), `Timeline.moves` (per move: bit, start, end, axis, path length before it), `Timeline.set_feeds(per_tooth, per_rev)` (m), `mesh_at(T, moves=True)` → also the move row per triangle (−1 = not cut / not known); `_tile_mesh` and `mesh_at(T)` keep their 3 results; `core.mark_faces(...)` → the four attribute arrays (kind from the face normal against the axis and the tool's shape); `gcode.feeds(scene)` = [(frame, feed mm/min, rpm)] stored at Build (`fr_feeds`); `_write_mesh(..., marks=None, normals=None)` writes the attributes (`foreach_set`) and a corner-domain `custom_normal`; `machining.marks_source(scene)` = the panel's line |
+| **B** | `core/toolmarks.py` (extends it), new `blender/toolmarks.py`, `blender/materials.py` (one hook in `build_nodes`: `spec["toolmarks"]`), new `tests/test_toolmarks.py` | the pure-Python mirror `pattern(kind, P, o, d, a, R, spacing, n, size)` → (u, ridge 0..1, groove direction); `look(material id)` → strengths per material; the node group "FR tool marks" (inputs Size, Strength; ridges as an analytic normal tilt + roughness, the anisotropic tangent across/along the grooves – found by a test render which way Blender stretches the highlight; ridges fade when a period gets smaller than about two pixels); a plane with hand-written attributes as its test bed; the Cycles spacing test (within 5 %) |
+| **C** | new `core/cut_normals.py`, new `tests/test_cut_normals.py`, `tasks/img/0061-facets-*.png` | finds why cut faces show dark facets (render first), `corner_normals(verts, tris, angle)` in NumPy (flat faces flat, smooth by angle, sliver triangles take their neighbours' normal, no shading across a sharp edge), fast enough for a 20,000-triangle tile; before/after picture |
+| **Worker** | `core/toolmarks.py` constants (first), `props.py`, `ui_machining.py`, `ops_machining.py`, the glue (cut material ← settings, normals per tile), tour, PC check, guide, versions | merges A, B, C; then D (independent tests from "Done when"), E (speed), F (tour stop, PC-check line, guide) |
+
+Settings (worker, `MillingSettings`): `marks` (tick, default on), `marks_size` (1 = Real … 10), `marks_strength`
+(0 … 2, default 1). They are inputs of the node group on the cut material, so changing them rewrites no mesh.
+
 ## Goal
 
 A milled face shows the marks of the tool that made it, in the direction the tool went: the swirl arcs of a face mill
