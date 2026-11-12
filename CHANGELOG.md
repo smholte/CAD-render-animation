@@ -5,6 +5,80 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.67 – 12 Nov 2026 – the face lights up for every click (task 0089)
+
+Picking
+- **Every click on the model now shows what it will hit before you click**, as the axis pickers already did: the
+  face under the mouse turns magenta, a dot marks where the click lands and a short note says what it does. For the
+  **sharp spot**, a **label's point** (add and move), a **trail point**, the **CNC work zero**, the **air** and
+  **coolant nozzle**, **tool-changer pockets** and **Add decal** ("lies flat" or "wraps round"). A spot the click would
+  refuse (the tool as a workpiece, the workpiece as a nozzle) turns red and says why. The clicks themselves do what
+  they did. The preference is now called "Highlight what is under the mouse when picking" (your setting is kept).
+
+## 0.2.66 – 12 Nov 2026 – way cover drawn at any axis position (task 0090)
+
+Motion
+- **Way covers: "Drawn at"** (4 Motion > Way covers > 3 Travel). A cover drawn in CAD with the machine at
+  mid-travel now works: type the axis position it was drawn at, or press **Drawn at: read from the axis**. There every
+  section stays on its CAD place and the sections share the movement from there. A line under it shows where the
+  sections stand at 0 mm and warns when the value is outside the axis limits. Every cover has its own value; old
+  projects keep 0 and move exactly as before.
+
+## 0.2.65 – 12 Nov 2026 – vessel motion at sea (task 0085)
+
+Scene & Render
+- **Vessel motion** (new, 5 Scene & Render > Vessel motion, on the Open sea and the Vessel deck): tick **Move with
+  the sea** and the machine, the deck and the props heave, pitch and roll gently with the waves, while the sea, the
+  sky and the camera stay put. The vessel rises when a wave crest passes under it: it moves on the same waves the sea
+  shows (with vessel motion on, the sea gets a long, low swell; off, the sea is exactly as before).
+- **Calm** is a working day of a cable-lay vessel: roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
+  heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats. **Rough** is about three times that.
+- **Waves from**: head sea, bow quarter, beam sea (rolls the most), stern quarter, following sea. **Strength**
+  0–200 %. The fold **Vessel**: length and beam (from the deck or the model, or typed in), roll period, the point it
+  turns about (Auto or a clicked point).
+- **Camera on board**: a **Ride along** camera step (6 Animation) on any part of the machine rolls with the vessel;
+  with **Keep level** the horizon stays still.
+- **Stays still**: pick a subassembly and it keeps its place in the world (**Still**: a motion-compensated gangway, a
+  hook that holds its place) or stays level and only rises and falls (**Level**). Its joints still work.
+- Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It
+  plays with scripts off, in the render queue and at any frame rate, and stays through Save, a model update and saved
+  scenes. It costs no render time; about 6 ms per frame of playback on a 3,000-part machine.
+
+Test tour and PC check
+- New tour stop **Vessel motion at sea** (the crane on the vessel deck in a calm beam sea), PC-check lines
+  **Vessel motion at sea** (a picture and the measured roll, pitch and heave) and, in Heavy, **Big machine: vessel
+  motion on the open sea** (time per frame with and without).
+
+## 0.2.64 – 12 Nov 2026 – cutaway: see inside the machine (task 0086)
+
+3 Looks
+- **New: Cutaway.** Select a subassembly (or pick a group, or the whole model), choose **Plane** or **Box** and
+  click **Add cut**: the side facing you is taken away and the cut faces show a strong red **cap colour** (your
+  choice of colour, optional **hatch lines**). **Flip** takes away the other side; a box takes away a corner or a
+  quarter. Move the cut's arrow in the view (**Select the arrow**, then G or R) or set its place by numbers.
+  Several cuts per project, each on or off; parts that are not cut (gears inside a cut housing) stay whole.
+- The parts themselves are not changed: switch a cut off and they are whole again. It shows in the rendered view,
+  in pictures and videos (Cycles and EEVEE), in the render queue and with "Auto Run Python Scripts" off. Light falls
+  in through the cut. A cut costs almost no render time (measured: 1.8 s a frame with and without on the test
+  crane; 8.1–8.6 s vs 7.9–8.3 s on a 3,000-part test machine).
+- **A cut that moves in a video:** each cut has a slide joint with its name (**Cut 1** …): a **Move joint** step in
+  6 Animation slides it in – "the housing opens up". Poses and saved scenes keep it; a model update keeps the cuts.
+- Adding the first cut sets 5 Scene & Render > **Floor gap** to 0.1 mm when it was 0 (else the floor would show
+  through the cut face of a part standing on it).
+- New stop in the test tour ("Cutaway: the pedestal opens up") and a new PC-check line (looks.cutaway).
+
+## 0.2.63 – 11 Nov 2026 – the face lights up before you click an axis (task 0088)
+
+- **Add joint, Set axis, a cylinder's pins, the double arm's hub and pot hinge:** while the app waits for your
+  click, the face under the mouse lights up in magenta – the whole hole, shaft or flat face – with the axis it would
+  give (a line through the centre of a hole or shaft, an arrow on a flat face) and a short text next to the mouse,
+  e.g. "Hole Ø40.4 mm – axis through its centre". The floor and empty space say "Not a part"; a spot the click
+  would refuse turns red with the reason. The click does exactly what it did before.
+- Only drawn in the view: never in a render or the saved project; it goes with Esc, a right-click, the click, undo
+  or opening another file. Quick on big models (about 2 ms per mouse move on the 3,000-part test machine).
+- A click on a logo or sticker now counts as a click on the part under it (it said "missed" before).
+- Switch: Edit > Preferences > Add-ons > Fresing Render > "Highlight the face under the mouse when picking an axis".
+- PC check: new line "Hover highlight when picking an axis".
 ## 0.2.62 – 11 Nov 2026 – camera rides along, flies a path, watches a part (task 0087)
 
 6 Animation

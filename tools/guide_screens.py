@@ -12,6 +12,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=update FRESING_UPDATE_URL=file:///nothing/index.json \\
           xvfb-run -a -s "-screen 0 1920x1200x24" blender -p 0 0 1920 1200 --app-template fresing_render \\
           --enable-event-simulate --python tools/guide_screens.py
+  hover    Add rotate joint with the mouse on the pedestal's bore: the bore lit up with its axis line (task 0088,
+      view_hover.png; as "window").
   render   a finished render of the crane (Cycles on the processor):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=render blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
@@ -21,6 +23,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   decals   the crane with a type plate, a warning sticker, a CE mark and text on it (decals.jpg, task 0024):
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=decals blender -b --app-template fresing_render \\
           --python tools/guide_screens.py
+
+  cutaway  the crane with a hatched cut through its pedestal and boom (cutaway.jpg, task 0086; as "decals").
 
   tour   the Test tour panel (task 0059): the tour made and opened, a few stops marked (as "panels").
 
@@ -554,6 +558,7 @@ if MODE == "panels":
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
         ("panel_5_camera", [("FRESING_PT_camera", False, True)]),
         ("panel_5_props", [("FRESING_PT_props", False, True)]),
+        ("panel_5_vessel_motion", [("FRESING_PT_vessel_motion", False, True)]),   # task 0085, on the vessel deck
         ("panel_5_output", [("FRESING_PT_output", False, True)]),
         ("panel_5_turntable", [("FRESING_PT_turntable", False, True)]),
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
@@ -569,6 +574,7 @@ if MODE == "panels":
                                                          "FRESING_PT_looks", "FRESING_PT_motion",
                                                          "FRESING_PT_scene", "FRESING_PT_animation",
                                                          "FRESING_PT_queue")]),
+        ("panel_3_cutaway", [("FRESING_PT_cutaway", False, True)]),     # last: its cut joint (task 0086)
     ]
 
     def _make_shot(name, spec):
@@ -627,6 +633,12 @@ if MODE == "panels":
                 b.kind, b.joint, b.start, b.duration, b.speed_rpm = "MOTOR", "Winch drum", 5.0, 5.0, 12.0
                 b.easing, b.ramp = "SMOOTH", 0.5
                 a.blocks_index = len(a.blocks) - 1
+            elif name == "panel_3_cutaway":             # a hatched plane cut through the pedestal and the boom
+                fade = mod("blender.fade")
+                fade.remove_look(sc, fade.xray_parts(sc))
+                mod("blender.tour").cutaway(sc)
+                sc.fresing.pick_mode = "SUBASSEMBLY"
+                select_only(ob("PEDESTAL"))
             elif name == "panel_3_xray":                # the cover in X-ray, the cover clicked
                 mod("blender.fade").apply_look(sc, [ob("COVER")])
                 sc.fresing.pick_mode = "PART"
@@ -682,7 +694,17 @@ if MODE == "panels":
                 if not sur.props(sc):
                     sur.add_prop(sc, "PERSON")
                     sur.add_prop(sc, "CONTAINER")
+            elif name == "panel_5_vessel_motion":       # on, a beam sea, the trolley kept still
+                sc.fresing.env_detail = "DETAILED"
+                sc.fresing.background = "DECK"
+                v = sc.fresing.vessel
+                v.heading = "BEAM"
+                v.enabled = True
+                mod("blender.vessel_motion").add_marks(sc, [ob("TROLLEY.ASM")], "STILL")
+                sc.frame_set(60)
             elif name == "panel_5_output":              # back to the studio for the rest
+                sc.fresing.vessel.enabled = False
+                sc.frame_set(1)
                 sc.fresing.background = "COLOR"
                 sur = mod("blender.surroundings")
                 sur.remove_props(sc)
@@ -746,6 +768,105 @@ elif MODE == "window":
 
     step(w_help_menu)
     step(w_shot_help)
+
+elif MODE == "hover":
+    # the hover highlight (task 0088): Add rotate joint, the mouse on the pedestal's bore (the boom and its pin
+    # hidden), the bore lit up with its axis line
+
+    step(_start)
+    step(_import)
+    step(_wait_import)
+
+    @step
+    def h_view():
+        sc = bpy.context.scene
+        for o in [ob("BOOM.ASM")] + list(ob("BOOM.ASM").children_recursive):
+            o.hide_set(True)
+        select_only(ob("PEDESTAL"))
+        with override():
+            bpy.ops.view3d.view_selected()
+        win, area, region, sb = areas()
+        region.data.view_distance *= 1.6
+        select_only()
+        sc.fresing.show_joints = False
+        return 1.5
+
+    _HOVER_SPOT = []
+
+    @step
+    def h_pick():
+        from bpy_extras import view3d_utils
+        win, area, region, sb = areas()
+        with override():
+            res = bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="NEW", kind="ROTATE",
+                                                  movers=ob("BOOM.ASM").name)
+        log("pick", res)
+        # a spot on the far wall of the front lug's bore (axis x 0.1, z 0.4, along Y, Ø40.4)
+        ped = ob("PEDESTAL")
+        y0 = min((ped.matrix_world @ Vector(c)).y for c in ped.bound_box)
+        view = region.data.view_rotation @ Vector((0, 0, -1))
+        r = Vector((view.x, 0, view.z)).normalized()
+        best = None
+        for dy in (0.004, 0.008, 0.012, 0.016):
+            p = Vector((0.1, y0 + dy, 0.4)) + r * 0.0195
+            co = view3d_utils.location_3d_to_region_2d(region, region.data, p)
+            if co is None:
+                continue
+            x, y = int(region.x + co.x), int(region.y + co.y)
+            o = view3d_utils.region_2d_to_origin_3d(region, region.data, (x - region.x, y - region.y))
+            d = view3d_utils.region_2d_to_vector_3d(region, region.data, (x - region.x, y - region.y))
+            h = mod("blender.hover").look(bpy.context.scene, bpy.context.evaluated_depsgraph_get(), o, d)
+            log("try", dy, h.kind, h.text)
+            if h.kind == "hole":
+                best = (x, y)
+                break
+        if best is None:
+            w = ob("WHEEL")
+            best = tuple(int(v) for v in to_window_xy(region, w.matrix_world.translation + Vector((0, 0, 0.024))))
+        _HOVER_SPOT[:] = [best]
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=best[0], y=best[1])
+        return 1.5
+
+    def to_window_xy(region, pt):
+        from bpy_extras import view3d_utils
+        co = view3d_utils.location_3d_to_region_2d(region, region.data, pt)
+        return region.x + co.x, region.y + co.y
+
+    @step
+    def h_shot():
+        win, area, region, sb = areas()
+        log("hover", mod("blender.hover").current())
+        im = grab_screen()
+        x, y = _HOVER_SPOT[0]
+        hgt, wid = im.shape[:2]
+        top = hgt - y                                   # screen rows from the top
+        y0, y1 = max(0, top - 190), min(hgt, top + 210)
+        x0, x1 = max(0, x - 330), min(wid, x + 470)
+        save_png(im[y0:y1, x0:x1], "view_hover")
+        # a flat face too (the top of the front lug): only for checking, not in the guide
+        ped = ob("PEDESTAL")
+        bb = [ped.matrix_world @ Vector(c) for c in ped.bound_box]
+        top_pt = Vector((0.1, min(c.y for c in bb) + 0.01, max(c.z for c in bb)))
+        fx, fy = (int(v) for v in to_window_xy(region, top_pt))
+        _HOVER_SPOT.append((fx, fy))
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=fx, y=fy)
+        return 1.0
+
+    @step
+    def h_shot_flat():
+        win, area, region, sb = areas()
+        log("hover flat", mod("blender.hover").current())
+        im = grab_screen()
+        x, y = _HOVER_SPOT[1]
+        top = im.shape[0] - y
+        path = os.path.join(SCRATCH, "hover_flat.png")
+        sub = im[max(0, top - 200):top + 200, max(0, x - 330):x + 470]
+        subprocess.run(["convert", "-size", f"{sub.shape[1]}x{sub.shape[0]}", "-depth", "8", "rgb:-", path],
+                       input=sub.tobytes(), check=True)
+        log("saved (not for the guide)", path)
+        win.event_simulate(type="ESC", value="PRESS", x=x, y=y)
+        win.event_simulate(type="ESC", value="RELEASE", x=x, y=y)
+        return 0.5
 
 elif MODE == "update":
 
@@ -1464,9 +1585,10 @@ def render_looks():
     log("saved looks", f"{os.path.getsize(out) // 1024} KB")
 
 
-def render_crane(with_decals: bool = False):
+def render_crane(with_decals: bool = False, with_cut: bool = False):
     """A finished render of the test crane, the way a user makes one (background mode, processor);
-    with decals on it for the picture of 3 Looks > Logos & stickers."""
+    with decals on it for the picture of 3 Looks > Logos & stickers; with a hatched cut through the pedestal and the
+    boom for 3 Looks > Cutaway (task 0086)."""
     import addon_utils
     addon_utils.enable(pkg(), default_set=True)
     assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}
@@ -1486,6 +1608,8 @@ def render_crane(with_decals: bool = False):
         add_decals()
     cams = mod("blender.cameras")
     cam = cams.add_camera(sc, "LOW", 35.0, name="Low hero")
+    if with_cut:
+        mod("blender.tour").cutaway(sc)
     sc.camera = cam
     bpy.context.view_layer.update()
     cams.fit(cam, sc)                        # the raised boom too ("Fit model")
@@ -1495,15 +1619,15 @@ def render_crane(with_decals: bool = False):
     t = time.time()
     assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
     log("render", s.last_render, f"{time.time() - t:.0f} s")
-    name = "decals" if with_decals else "render_crane"
+    name = "decals" if with_decals else "cutaway" if with_cut else "render_crane"
     path = os.path.join(OUT, name + ".jpg")
     subprocess.run(["convert", s.last_render, "-strip", "-quality", "88", path], check=True)
     log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
-if MODE in ("render", "looks", "decals"):
+if MODE in ("render", "looks", "decals", "cutaway"):
     try:
-        render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals")
+        render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals", with_cut=MODE == "cutaway")
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

@@ -229,7 +229,7 @@ twice are sorted out when they are opened: the first copy keeps everything that 
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
 2. Your work stays: materials, painted faces, logos and stickers, hidden parts, joints, cylinders,
-   mechanisms, way covers, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
+   mechanisms, way covers, cutaways, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
    cylinders and mechanisms that link this model to another one in the project (a crane on a ship's
    deck) stay too, whichever of the two you update.
 3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
@@ -461,7 +461,8 @@ sticker, moves with its part (joints, animations, exploded views) and hides with
    Unticked, every copy of the part gets it (a type plate on a bought motor).
 3. Click **Add decal…**, then click the spot on the model where its centre goes. It lands flat on
    that face, upright. On a round face (a cylinder barrel, a drum, a tank) it wraps round like a real
-   sticker. <kbd>Esc</kbd> or a right-click cancels.
+   sticker. Before you click, the face under the mouse lights up and the note says "lies flat" or "wraps round".
+  <kbd>Esc</kbd> or a right-click cancels.
 
 Click a part to see its decals. The dot opens a decal's settings, the eye switches it off (it is kept,
 but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> brings it back).
@@ -515,6 +516,48 @@ See inside or behind a part in a still picture: an X-ray part is see-through wit
 
 It shows in the rendered view, in pictures and videos (Cycles and EEVEE), and is kept with the project. For a
 housing that turns X-ray *during* a video, use a **Fade out** step with **Fade to X-ray** (6 Animation).
+
+<a id="cutaway"></a>
+### Cutaway
+
+<img class="panel" src="img/panel_3_cutaway.png" alt="3 Looks > Cutaway with a plane cut through the pedestal and the boom">
+
+Show the inside of a machine: a cut takes away part of the parts you choose, and the faces where it cuts through
+the material are filled with a **cap colour** (a strong red, as on a section drawing). The parts are not changed –
+switch the cut off and they are whole again.
+
+<img class="wide" src="img/cutaway.jpg" alt="The test crane with its pedestal and boom cut open: red hatched cut faces, the pin inside">
+
+1. Choose **Plane** (cuts the parts in two) or **Box** (takes away a corner or a quarter).
+2. Select a subassembly (or a part) and click **Add cut: the selected**; or pick a material group in the list
+   above and click **This group**; or **Whole model**. The cut goes through the middle of what it cuts and takes
+   away the side that faces you in the view (or the camera), so you see the inside at once.
+3. Under the list of cuts: **Flip** (the other side goes; for a box: everything outside it), the **Cap colour**,
+   **Hatch lines** with their spacing, and for a box its size. **Cuts … parts** lists what it cuts: **Add
+   selected** / **Add group** adds more, the × takes one out (a gearbox housing cut, the gears inside whole).
+4. Move it: **Select the arrow**, then in the view press **G** to move it or **R** to turn it. The arrow points to
+   the side a plane takes away. Or set it in **Place by numbers** (in the model's coordinates). **To the middle**
+   puts it back.
+
+Several cuts per project are fine; the tick in the list switches one on or off, and the panel header shows how
+many are on. Cuts are kept with the project, in saved scenes (which are on), in the render queue and through a
+model update (**Update to new revision…**, 1 Import).
+
+**A cut that moves in a video.** Each cut has its own slide joint with the same name (**Cut 1** …): the
+**Slide** value moves the cut along its arrow (0 = where you put it). In 6 Animation, a **Move joint** step with
+that joint slides the cut in – "the housing opens up". Poses keep the slide too.
+
+Good to know:
+
+- Cuts show in the rendered view (**Z > Rendered**), in pictures and videos, Cycles and EEVEE. The grey solid view
+  shows the parts whole.
+- Light falls in through the cut as it would through a real cut; parts inside cast their shadows.
+- The cap colour is right for closed solids (every STEP solid is). A part made of open surfaces (a sheet drawn as a
+  single surface) shows its inside face in the cap colour.
+- Glass and logos/stickers are cut, but get no cap.
+- Adding the first cut sets the **Floor gap** (5 Scene & Render) to 0.1 mm, if it was 0: a floor touching the
+  bottom of a cut part would otherwise show through its cut face.
+- A cut and a [fade](#animation) work together: a cut part that fades, fades with its cut faces.
 
 ### Find & sort parts
 
@@ -588,6 +631,20 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
 3. Click the pivot on the model: a **hole or shaft** (the axis goes through its centre) or a **flat
    face** (the axis stands at right angles to it). The line at the bottom of the window says what to
    do; you can still turn and zoom the view. <kbd>Esc</kbd> or a right-click cancels.
+
+**Before you click, the face lights up.** While the app waits for that click, the face under the mouse
+turns magenta – the whole hole, shaft or flat face, as one piece – with the axis it would give: a line
+through a hole's or shaft's centre, or an arrow standing on a flat face. Next to the mouse (and at the
+bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
+centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
+empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
+same happens for a cylinder's pins and the double arm's hub and pot hinge. Every other click on the model
+works the same way (the sharp spot, a label's point, a decal, a trail point, the CNC zero, an air or coolant
+nozzle, a tool-changer pocket): the face lights up, a dot sits where the click lands and a short note says
+what the click does. It is only drawn in the view: never in a render or in the project. Switch it off under
+Edit > Preferences > Add-ons > Fresing Render > "Highlight what is under the mouse when picking".
+
+<img class="small" src="img/view_hover.png" alt="Add rotate joint: the pedestal's bore lit up in magenta with its axis line">
 
 <img class="small" src="img/view_joints.png" alt="The boom of the test crane raised 20° by its joint">
 
@@ -796,7 +853,12 @@ and closes the covers.
    the axis limits (Min and Max). **Flip direction** makes the sections slide against the axis' direction
    (rarely needed: a cover on the other side of the table still slides *with* the carriage, so it needs no
    Flip – it closes where the first one opens).
-6. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+6. **Drawn at.** Was the cover drawn in CAD with the machine at mid-travel, not at the axis zero? Type that axis
+   position in **Drawn at** (mm; 0 = the axis zero, the default), or pose the axis where the CAD shows it and
+   press **Drawn at: read from the axis**. At that axis position every section stays exactly on its CAD place; the
+   sections' shares are counted from there. The line under it says where the sections stand at 0 mm, and warns
+   when "Drawn at" lies outside the axis limits. Every cover has its own "Drawn at".
+7. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
    With several covers, choose each one in the list and press its **Make it**.
 
 **How the travel is shared out.** Every section slides the same distance relative to its neighbour. With the
@@ -1133,7 +1195,7 @@ writes for the machine (Fusion: Manufacture > Post Process with the LinuxCNC pos
 4. Click the workpiece (the raw block) and press **Workpiece**.
 5. **Work zero**: the same point as in the CAM set-up (Fusion: Setup > WCS) – the top centre or a top
    corner of the block, its bottom centre, or **Clicked point** with **Click the zero point** (a click near
-   a corner snaps onto it). Arrows "FR work zero" show it on the block.
+   a corner snaps onto it; the face under the mouse lights up first). Arrows "FR work zero" show it on the block.
 
 The lines under it say what the app worked out, for example "Y: 'Y' moves the workpiece" for a table that
 moves. The program's **+X** always means: the tool moves towards +X *relative to the workpiece* (the CNC
@@ -1500,6 +1562,60 @@ Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Eu
 2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
 3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
 
+### Vessel motion
+
+<img class="panel" src="img/panel_5_vessel_motion.png" alt="Vessel motion">
+
+The machine really works on a moving ship: the deck, the machine and the props heave (rise and fall), pitch (bow
+and stern up and down) and roll (side to side) gently with the sea, while the sea, the sky and the camera stay put –
+as a drone sees it. It works on the **Open sea** and the **Vessel deck** (for other surroundings the panel says so).
+
+1. Tick **Move with the sea**. Press Play (Space) on the time line to see it; a picture of one frame shows the
+   vessel as it lies at that moment.
+2. **Sea**: **Calm** or **Rough** (the same setting as under Background & surroundings).
+   - **Calm** (a working day of a cable-lay vessel): roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
+     heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats.
+   - **Rough** (near the working limit): about three times that, roll up to about ±4°.
+3. **Waves from**: **Head sea** (at the bow: it pitches, hardly rolls), **Bow quarter** (the usual heading; the
+   numbers above are for this one), **Beam sea** (from the side: it rolls the most, Calm up to about ±2°),
+   **Stern quarter**, **Following sea**.
+4. **Strength**: 100% is the sea state's own motion, 0% holds it still, 200% doubles it.
+
+The line under them says what the vessel does over 2 minutes ("roll ±1.5° (every 11 s) …"); the panel's header
+shows "Calm · roll ±1.5°" or "Off".
+
+The vessel rises when a wave crest passes under it: it moves on the same waves the sea shows. With vessel motion on
+the sea gets a long, low swell (with Detail **Detailed** you see it near the machine); switched off, the sea is
+exactly as before.
+
+**Vessel** (the fold):
+
+- **Size from the model**: on the Vessel deck the deck's own hull, on the Open sea the model's size (your model is
+  the vessel). Untick it to type in **Length** and **Beam**. A long vessel ignores short waves.
+- **Roll period (s)**: the time of one roll from side to side and back (most work vessels 10–12 s).
+- **Turns about**: **Auto** (at the waterline under the middle of the vessel; on the Open sea under the middle of the
+  model) or a **Picked point**: click the pipette, then a point on the deck, the machine or the water.
+
+**Stays still** (the fold): select a subassembly (in the view or in 2 Structure), then
+
+- **Still**: it keeps its place in the world – a motion-compensated gangway, or a hook that holds its place over
+  the seabed while the vessel moves under it;
+- **Level**: roll and pitch are taken out, it still rises and falls with the vessel.
+
+Its joints still work as if the vessel lay still (a boom marked Still still turns when its joint turns). × in the
+list makes it move with the vessel again.
+
+**Camera on board:** the cameras stay in the world (a drone's view). To film from the deck, add a **Camera** step in
+6 Animation, choose **Ride along** and pick any part of the machine: the camera then rolls with the vessel. Tick
+**Keep level** and it rides along while the horizon stays still. After changing the sea or the heading, press
+**Build & play** again: a riding camera is worked out when the animation is built.
+
+Joints, cylinders, mechanisms, labels, way covers, fades and trail lines keep working on the moving vessel. It plays
+with "Auto Run Python Scripts" off, in the render queue and at any frame rate, and stays through Save, a model
+update and saved scenes (it is one setting for the whole project, not per saved scene). It costs no render time
+(measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
+about 6 ms per frame of playback on a 3,000-part machine.
+
 ### Camera
 
 <img class="panel" src="img/panel_5_camera.png" alt="Camera">
@@ -1529,7 +1645,7 @@ For the active camera:
 - **Sharp at**: the middle of the machine, until you click the eyedropper and then the spot that
   should be sharp (for example the gripper). A small ball marks it in the view; in pictures it moves
   with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
-  middle sharp again.
+  middle sharp again. The face under the mouse lights up while you choose.
 
 ### Turntable video
 
@@ -1599,7 +1715,8 @@ A label is a few words in a box with a thin line to a spot on a part: "Gripper",
 
 <img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
 
-1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
+1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.
+   The face under the mouse lights up with the part's name before you click.)
 2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
 3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
    place it.
@@ -1810,7 +1927,7 @@ A line that draws where a point of the machine goes: the hook of a crane, the ti
 1. Select the part, open 6 Animation > **Trail lines** and click **+**. A milling bit or CNC tool draws from its
    tip; other parts from their origin.
 2. **Point**: **Part's origin**, **Tool tip**, or **Clicked point** (then **Click the point…** and click the
-   spot on the part, e.g. the hook's eye).
+   spot on the part, e.g. the hook's eye; the face lights up first).
 3. **Animation**: the animation that draws it (empty: every animation). **Colour** and **Thickness**.
 4. **Draw as it goes**: the line grows behind the point as the video plays; off, the whole path shows from the
    first frame. **In pictures and videos**: off, the line shows only in the view.

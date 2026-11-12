@@ -31,6 +31,13 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "is one, the Fresing tab shows \"Update available\" with what's new and an Update now button. "
                     "Needs Blender's online access (System > Network)")
 
+    hover_highlight: BoolProperty(
+        name="Highlight what is under the mouse when picking", default=True,
+        description="While you click on the model to pick something (an axis for a joint, a cylinder's pins, the sharp "
+                    "spot, a label's point, a decal, a trail point, the CNC zero, a nozzle, a tool-changer pocket), the "
+                    "face a click would use lights up in magenta with a short note, before you click. Switch it off "
+                    "if it ever gets in the way; the clicks work the same")
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "library_path")
@@ -41,6 +48,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                                icon="FILTER")
         layout.label(text="Library layout: <library>/HDRI/*.exr|*.hdr, <library>/Templates/*.json, "
                           "<library>/Rule sets/*.json, <library>/Logos/*.png and <library>/Stickers/*.png")
+        layout.prop(self, "hover_highlight")
         draw_updates(layout, self)
 
 

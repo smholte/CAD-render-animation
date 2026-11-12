@@ -245,12 +245,55 @@ def s_view_back():
     return 0.5
 
 
+def pin_spot():
+    # a point on top of the pin's round face (Ø40 along Y), in front of the pedestal
+    return to_window(find("BOOM.PIN").matrix_world @ Vector((0, -0.085, 0.0199)))
+
+
+def move_to(x, y):
+    win = bpy.context.window_manager.windows[0]
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+
+
+_hovered = []
+
+
+@step
+def s_hover_empty():
+    # task 0088: the face under the mouse lights up before the click; empty space does not
+    win, area, region = ui()
+    move_to(region.x + 40, region.y + region.height - 60)          # top left of the view: sky
+    return 0.4
+
+
+@step
+def s_hover_pin():
+    hover = mod("blender.hover")
+    h = hover.current()
+    check("hover: empty space is not a part", h is not None and not h.part and "Not a part" in (hover._S["status"] or ""),
+          hover._S["status"])
+    move_to(*pin_spot())
+    return 0.5
+
+
+@step
+def s_hover_pin_seen():
+    hover = mod("blender.hover")
+    h = hover.current()
+    ok = h is not None and h.part == find("BOOM.PIN").name and h.kind in ("shaft", "hole") and h.face == 0 and h.tris[0] == 0
+    check("hover: the pin's round face lights up", ok, repr(h)[:160])
+    check("hover: status bar names it and its axis",
+          "Ø40 mm – axis through its centre" in (hover._S["status"] or ""), hover._S["status"])
+    check("hover: drawn in the 3D view", len(hover._S["handles"]) == 2)
+    if h is not None and h.origin is not None:
+        _hovered[:] = [h.origin.copy(), h.direction.copy()]
+    shot("03b_hover_pin")
+    return 0.2
+
+
 @step
 def s_click_pin():
-    pin = find("BOOM.PIN")
-    # a point on top of the pin's round face (Ø40 along Y), in front of the pedestal
-    x, y = to_window(pin.matrix_world @ Vector((0, -0.085, 0.0199)))
-    click(x, y)
+    click(*pin_spot())
     return 0.8
 
 
@@ -265,11 +308,47 @@ def s_joint_made():
         detail = f"axis through {tuple(round(v, 3) for v in o)} dir {tuple(round(v, 3) for v in d)}"
         ok = abs(abs(d.y) - 1) < 1e-3 and abs(o.x - 0.1) < 1e-3 and abs(o.z - 0.4) < 1e-3
     check("click on the pin hole gives the pin axis", ok, detail + " | " + s.last_message)
+    hover = mod("blender.hover")
+    check("hover: gone after the click", not hover.active() and hover.current() is None and not hover._S["handles"])
+    if ok and _hovered:
+        o, d = joints.axis_world(s.joints[0])
+        ho, hd = _hovered
+        same = abs(abs(d.dot(hd)) - 1) < 1e-6 and ((o - ho) - d * (o - ho).dot(d)).length < 1e-6
+        check("hover: the highlighted axis is the axis the click gave", same, f"{tuple(ho)} {tuple(hd)}")
     click(*first_header())                 # unfold section 1 again
     if len(s.joints):
         joints = mod("blender.joints")
         joints.set_value(s.joints[0], math.radians(-30) * (1 if joints.axis_world(s.joints[0])[1].y > 0 else -1))
     return 0.8
+
+
+@step
+def s_hover_esc_start():
+    # Set axis, mouse over the pin, then Esc: the highlight goes with the pick
+    with override():
+        res = bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="EDIT")
+    check("hover: Set axis starts", "RUNNING_MODAL" in res, res)
+    move_to(*pin_spot())
+    return 0.4
+
+
+@step
+def s_hover_esc():
+    hover = mod("blender.hover")
+    h = hover.current()
+    check("hover: lights up during Set axis", h is not None and h.part == find("BOOM.PIN").name, repr(h)[:120])
+    win = bpy.context.window_manager.windows[0]
+    x, y = pin_spot()
+    win.event_simulate(type="ESC", value="PRESS", x=x, y=y)
+    win.event_simulate(type="ESC", value="RELEASE", x=x, y=y)
+    return 0.4
+
+
+@step
+def s_hover_esc_done():
+    hover = mod("blender.hover")
+    check("hover: gone after Esc", not hover.active() and not hover._S["handles"])
+    return 0.2
 
 
 @step

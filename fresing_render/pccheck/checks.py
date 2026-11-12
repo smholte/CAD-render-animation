@@ -268,6 +268,46 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
+@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
+      what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
+           "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
+           "same frame without the cut")
+def looks_cutaway(ctx):
+    import numpy as np
+    from mathutils import Vector
+
+    from ..blender import animation, cameras, render, tour
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    ped = _ob(scene, "PEDESTAL")
+    centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
+    pts = np.array([tuple(centre + Vector((0.1 + dx, dy, 0.05 + dz)) * 1.0) for dx in (-0.27, 0.27)
+                    for dy in (-0.27, 0.27) for dz in (-0.27, 0.27)])
+    scene.camera = cameras.add_camera(scene, "ISO", 50.0, "Cut view", points=pts)
+    a = s.animations.add()
+    a.name, a.tail, a.fps = tour.CUT_ANIM, 0.0, "25"
+    t0 = time.time()
+    cut = tour.cutaway(scene, a)
+    ctx.metric("add cut", time.time() - t0, "s")
+    info = animation.bake(scene, a)
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_cutaway(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_end)
+    times = {}
+    for key, on in (("warm", True), ("plain", False), ("cut", True)):     # the first render loads the scene
+        cut.enabled = on
+        path = os.path.join(ctx.work, f"cutaway_{key}.png")
+        t1 = time.time()
+        render.render_still(scene, s, "draft", filepath=path)
+        times[key] = time.time() - t1
+    ctx.picture(path, "cutaway", "The pedestal and boom cut open, red hatched cut faces (processor, draft)")
+    ctx.metric("render with cut", times["cut"], "s")
+    ratio = times["cut"] / max(times["plain"], 1e-3)
+    return f"{note}; frame {times['cut']:.1f} s with the cut vs {times['plain']:.1f} s without ({ratio:.2f}x)"
+
+
 @line("rules.switch", "Rule sets: switch and back", "0.2.13",
       what="Another rule set sorts the parts its way; hand picks stay; back to Standard")
 def rules_switch(ctx):
@@ -811,7 +851,8 @@ def _ob_v(scene, name):
 
 
 @line("machining.waycover", "Way covers follow a machine axis", "0.2.28", modes=(F,),
-      what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm; the 5-section "
+      what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm (drawn at 200 mm: on their "
+           "CAD place there, 60 ... 300 mm at 500 mm); the 5-section "
            "way-cover model with its housing counting: 105 mm steps")
 def machining_waycover(ctx):
     from mathutils import Vector
@@ -842,6 +883,19 @@ def machining_waycover(ctx):
     for k, mm in enumerate(got, start=1):
         _check(abs(mm - 100.0 * k) < 0.05, f"section {k} moved {mm:.2f} mm, not {100 * k} mm")
     _check(joints.couplings_simple(scene), "the cover couplings need Python scripts (they must not)")
+    # "Drawn at" (task 0090): drawn with the axis at 200 mm, the sections stand on their CAD place there
+    c.drawn_at = 0.2
+    joints.set_value(joints.find(scene, "X axis"), 0.2)
+    _update()
+    _update()
+    off = max(abs(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest))
+    _check(off < 0.05, f"drawn at 200 mm, a section is {off:.2f} mm off its CAD place at 200 mm")
+    joints.set_value(joints.find(scene, "X axis"), 0.5)
+    _update()
+    _update()
+    got_d = [(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest)]
+    for k, mm in enumerate(got_d, start=1):
+        _check(abs(mm - 60.0 * k) < 0.05, f"drawn at 200 mm, section {k} moved {mm:.2f} mm at 500 mm, not {60 * k}")
     # the 5-section way-cover model: the housing counts as the first section, 420 mm in 4 steps of 105 mm
     scene = ctx.fresh(WAYCOVER_OWNER)
     plate = _ob_v(scene, "Mounting plate")
@@ -1219,6 +1273,70 @@ def motion_fade(ctx):
     return f"{note}; fading frame {times['fade']:.1f} s vs {times['plain']:.1f} s without ({ratio:.2f}x)"
 
 
+@line("motion.hover", "Hover highlight when picking", "0.2.63",
+      what="20 spots on the test crane (holes, shafts, flat faces) worked out as the mouse would: the face that lights "
+           "up is the CAD face the click then uses, with the same axis; the time per mouse move")
+def motion_hover(ctx):
+    import statistics
+
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import build, faces, hover, joints
+    scene = ctx.fresh(CRANE_A)
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    parts = sorted((o for o in scene.objects if o.get(build.PROP_KIND) == "part"), key=lambda o: o.name)
+    spots, times, kinds = 0, [], set()
+    for ob in parts * 3:
+        if spots >= 20:
+            break
+        me = ob.data
+        starts = faces.face_starts(me)
+        face = (spots * 7 + len(ob.name)) % (len(starts) - 1)
+        poly = me.polygons[int(starts[face])]
+        mw = ob.matrix_world
+        at = mw @ poly.center
+        n = (mw.to_3x3().inverted().transposed() @ poly.normal).normalized()
+        origin, direction = at + n * 0.0005, -n
+        part, index, loc, normal = hover.cast(scene, dg, origin, direction)
+        if part is not ob or index != poly.index:
+            continue                               # another part lies in front of this spot
+        t0 = time.perf_counter()
+        h = hover.look(scene, dg, origin, direction)
+        times.append((time.perf_counter() - t0) * 1000.0)
+        o, d, _desc = joints.axis_from_hit(part, index, loc, normal)
+        _check(h.part == ob.name and h.face == face,
+               f"{ob.name}: the highlight shows face {h.face} of '{h.part}', the click uses face {face}")
+        _check((h.origin - o).length < 1e-9 and (h.direction - d).length < 1e-9,
+               f"{ob.name}: the highlighted axis is not the axis the click gives")
+        kinds.add(h.kind)
+        spots += 1
+    _check(spots >= 20, f"only {spots} spots on the crane could be reached")
+    _check("flat" in kinds and kinds & {"hole", "shaft"}, f"not every kind of face was tried: {sorted(kinds)}")
+    h = hover.look(scene, dg, Vector((0, 0, 50)), Vector((0, 0, 1)))
+    _check(not h.part, "empty space lit up as a part")
+    # the point pickers (task 0089): same part and face as the click, a dot where it lands
+    pts = 0
+    for ob in parts[:12]:
+        starts = faces.face_starts(ob.data)
+        poly = ob.data.polygons[int(starts[0])]
+        n = (ob.matrix_world.to_3x3().inverted().transposed() @ poly.normal).normalized()
+        origin, direction = ob.matrix_world @ poly.center + n * 0.0005, -n
+        part, index, loc, _nrm = hover.cast(scene, dg, origin, direction)
+        if part is not ob or index != poly.index:
+            continue
+        hp = hover.look_point(scene, dg, origin, direction, lambda o, name, *_a: f"Spot on {name}")
+        _check(hp.part == ob.name and hp.face == faces.face_of_polygon(ob.data, index) and hp.point is not None
+               and (hp.point - loc).length < 1e-9 and hp.text.startswith("Spot on "),
+               f"{ob.name}: the point highlight is not where the click lands")
+        pts += 1
+    _check(pts >= 3, f"only {pts} point spots could be reached")
+    ctx.metric("time per mouse move (median)", round(statistics.median(times), 2), "ms")
+    ctx.metric("time per mouse move (slowest)", round(max(times), 2), "ms")
+    return f"{spots} spots right ({', '.join(sorted(kinds))}); {statistics.median(times):.2f} ms per mouse move"
+
+
 @line("scene.sea", "Surroundings: open sea", "0.2.12", what="The crane on the open sea (Simple), rendered small")
 def scene_sea(ctx):
     from ..blender import surroundings
@@ -1230,6 +1348,56 @@ def scene_sea(ctx):
     _small_output(s)
     info = _cpu_still(ctx, scene, "sea", "Open sea (processor, draft)", model_check=False)
     return f"rendered in {info['seconds']} s"
+
+
+@line("scene.vessel_motion", "Vessel motion at sea", "0.2.65",
+      what="The crane on the Vessel deck in a calm beam sea: the deck and the crane heave, pitch and roll, the sea "
+           "and the camera stay. Amplitudes measured over 2 minutes; a frame rendered small (processor, draft)")
+def scene_vessel_motion(ctx):
+    import math
+
+    import bpy
+
+    from ..blender import surroundings, vessel_motion
+    from ..core import vessel_motion as vcore
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.env_detail = "SIMPLE"
+    s.background = "DECK"
+    s.sea_state = "CALM"
+    s.vessel.heading = "BEAM"
+    s.vessel.enabled = True
+    _check(surroundings.root_object() is not None, "the vessel deck was not built")
+    piv = vessel_motion.rig("pivot")
+    _check(piv is not None, "vessel motion did not set itself up")
+    p = vessel_motion.pivot(scene)
+    sea = next((o for o in scene.objects if o.get(surroundings.TAG) == "sea"), None)
+    _check(sea is not None and not sea.constraints, "the sea moves with the vessel")
+    roll, pitch, heave = [], [], []
+    t0 = time.time()
+    n = 0
+    for f in range(0, int(120 * scene.render.fps), 4):         # 2 minutes, every 4th frame
+        scene.frame_set(f)
+        mw = piv.matrix_world
+        e = mw.to_3x3().to_euler("XYZ")
+        roll.append(e.x)
+        pitch.append(e.y)
+        heave.append((mw @ p).z - p.z)
+        n += 1
+    ctx.metric("frame change with vessel motion", (time.time() - t0) / max(n, 1) * 1000, "ms")
+    dt = 4 / scene.render.fps
+    r, q, h = math.degrees(vcore.peak(roll)), math.degrees(vcore.peak(pitch)), vcore.peak(heave)
+    rs = vcore.mean_period(roll, dt)
+    ctx.metric("roll", r, "deg")
+    ctx.metric("pitch", q, "deg")
+    ctx.metric("heave", h, "m")
+    _check(1.0 <= r <= 2.0 and 9.0 <= rs <= 13.0, f"roll ±{r:.2f}° every {rs:.1f} s is not a calm beam sea")
+    _check(q < r and 0.05 <= h <= 0.5, f"pitch ±{q:.2f}°, heave ±{h:.2f} m: not a calm sea")
+    scene.frame_set(int(5.5 * scene.render.fps))                 # the vessel well over to one side
+    bpy.context.view_layer.update()
+    _small_output(s)
+    info = _cpu_still(ctx, scene, "vessel", "Vessel deck, rolling (processor, draft)", model_check=False)
+    return (f"roll ±{r:.1f}° every {rs:.0f} s, pitch ±{q:.2f}°, heave ±{h:.2f} m; rendered in {info['seconds']} s")
 
 
 @line("scene.hall", "Surroundings: CNC hall", "0.2.12", what="The crane in the CNC hall (Simple), rendered small")

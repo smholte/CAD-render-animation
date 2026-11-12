@@ -57,11 +57,11 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 23, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
+MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 34, "pccheck2": 2, "pccheckheavy": 12, "update": 29, "tour": 40, "tourui": 15,
-              "doublearm": 19, "clash": 21}
-MIN_CHECKS_QUICK = {"ui1": 18, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
+              "paths": 8, "pccheck": 37, "pccheck2": 2, "pccheckheavy": 13, "update": 29, "tour": 42, "tourui": 15,
+              "doublearm": 19, "clash": 21, "vessel": 15}
+MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
 # takes more than about 8 minutes). Seconds of the tests on a runner (run 42815485418, 10 Nov 2026): pccheck (Full, first
@@ -79,7 +79,7 @@ GROUPS = {
     "paths-heavy": ["paths", "pccheckheavy"],
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
     "ui": ["ui1"],
-    "scenes": ["surroundings"],
+    "scenes": ["surroundings", "vessel"],
     "motion": ["video", "studio", "update"],
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash"],
 }
@@ -123,6 +123,8 @@ TESTS = {
                "(ui_test_tour.py)", "ui_test_tour.py", True),
     "clash": ("Real app: clash check – Build, Check for clashes, click the row (frame, red, zoom), Cancel, queue note, "
               "Build again clears it (ui_test_clash.py)", "ui_test_clash.py", True),
+    "vessel": ("Real app: vessel motion – tick it, the crane and deck move, sea and camera stay, still parts, scripts "
+               "off (blender -Y) (ui_test_vessel.py)", "ui_test_vessel.py", True),
     "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                "ci_update_test.py", None),
 }

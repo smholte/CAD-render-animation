@@ -84,11 +84,19 @@ def _settings_key(s, kind: str) -> dict:
         key["detail"] = s.env_detail
     if kind in S.SEA_KINDS:
         key.update(sea=s.sea_state, foam=bool(s.sea_foam), moving=bool(s.sea_moving))
+        swell = _vessel().swell_key(s)        # vessel motion (task 0085): its swell; nothing when it is off
+        if swell:
+            key["swell"] = swell
     if kind == "SEA":
         key["water"] = round(s.water_level, 3)
     if kind == "PHOTO":
         key.update(photo=_photo_path(s), height=round(s.photo_height, 3))
     return key
+
+
+def _vessel():
+    from . import vessel_motion
+    return vessel_motion
 
 
 def _models_key(scene) -> list:
@@ -131,6 +139,7 @@ def ensure(scene, s, replace: bool = False) -> None:
     if not kind:
         if root is not None and root.get("fr_kind"):
             clear(scene)
+        _vessel().after_surroundings(scene)          # task 0085: no sea, no vessel motion
         return
     key = json.dumps(_settings_key(s, kind), sort_keys=True)
     models = json.dumps(_models_key(scene))
@@ -143,6 +152,7 @@ def ensure(scene, s, replace: bool = False) -> None:
         _build(scene, s, kind, key, models)
         root = root_object()
     _update_live(scene, s, root)
+    _vessel().after_surroundings(scene)              # task 0085: the deck (maybe new) moves with the vessel
 
 
 def _only_added(root, key: str, models: str, replace: bool, scene) -> bool:
@@ -160,7 +170,8 @@ def _only_added(root, key: str, models: str, replace: bool, scene) -> bool:
 def _note_misfit(scene, root, models: str) -> None:
     """Remember the new models and whether they stick out of the area the surroundings were laid for."""
     root["fr_models"] = models
-    mn, mx = _model_box(scene)
+    with _vessel().at_rest(scene):
+        mn, mx = _model_box(scene)
     p0, p1 = np.array(root.get("fr_min", mn), float), np.array(root.get("fr_max", mx), float)
     pad = 0.1 * np.maximum(p1 - p0, 0.05)
     out = bool(np.any(mn < p0 - pad) or np.any(mx > p1 + pad))
@@ -235,7 +246,8 @@ def _model_box(scene) -> tuple[np.ndarray, np.ndarray]:
 
 def _build(scene, s, kind: str, key: str, models: str) -> None:
     clear(scene)
-    mn, mx = _model_box(scene)
+    with _vessel().at_rest(scene):                  # task 0085: measured where it stands on a still sea
+        mn, mx = _model_box(scene)
     size = np.maximum(mx - mn, 0.05)
     root = _root(scene)
     root["fr_min"] = [float(v) for v in mn]
@@ -798,8 +810,9 @@ SEA = {
 }
 
 
-def _waves(state: str) -> list[tuple[float, float, float, float, float]]:
-    """(amplitude, direction x, direction y, wave number, phase) of each swell component."""
+def _waves(state: str, swell=()) -> list[tuple[float, float, float, float, float]]:
+    """(amplitude, direction x, direction y, wave number, phase) of each swell component. ``swell``: the long waves
+    vessel motion adds (task 0085), after the sea's own."""
     p = SEA[state]
     rng = random.Random(42)
     total = sum(1.0 / i for i in range(1, len(p["lengths"]) + 1))
@@ -807,7 +820,7 @@ def _waves(state: str) -> list[tuple[float, float, float, float, float]]:
     for i, length in enumerate(p["lengths"], 1):
         ang = math.radians(25.0 + rng.uniform(-35.0, 35.0))
         out.append((p["amp"] / i / total, math.cos(ang), math.sin(ang), 2 * math.pi / length, rng.uniform(0, 6.28)))
-    return out
+    return out + [tuple(float(v) for v in w) for w in swell]
 
 
 def _sea_rings(detailed: bool, near: float) -> tuple[int, list[float]]:
@@ -862,9 +875,12 @@ def _time_driver(owner, path: str, scene, speed: float, index: int = -1) -> None
     d.expression = f"frame / max(fps, 1) * {speed:.5f}"
 
 
-def _waves_group(state: str, moving: bool, near: float) -> bpy.types.NodeTree:
-    """Geometry nodes: swell (a sum of travelling sine waves) near the machine, flat far away."""
+def _waves_group(state: str, moving: bool, near: float, swell=()) -> bpy.types.NodeTree:
+    """Geometry nodes: swell (a sum of travelling sine waves) near the machine, flat far away. ``swell``: the long
+    waves of vessel motion (task 0085); they lift the sea but make no foam."""
     name = f"{WAVES_GROUP} {state.lower()}{' moving' if moving else ''} {near:.0f}"
+    if swell:
+        name += f" swell {abs(hash(tuple(round(v, 6) for w in swell for v in w))) % 100000:05d}"
     ng = bpy.data.node_groups.get(name)
     if ng is not None:
         return ng
@@ -900,11 +916,16 @@ def _waves_group(state: str, moving: bool, near: float) -> bpy.types.NodeTree:
 
     total = None
     amp_sum = 0.0
-    for a, dx, dy, k, ph in _waves(state):
+    long_waves = None
+    n_own = len(_waves(state))
+    for i, (a, dx, dy, k, ph) in enumerate(_waves(state, swell)):
         omega = math.sqrt(9.81 * k)
         along = math_node("MULTIPLY_ADD", sep.outputs["X"], dx * k, math_node("MULTIPLY", sep.outputs["Y"], dy * k))
         phase = math_node("MULTIPLY_ADD", t, -omega, math_node("ADD", along, ph))
         h = math_node("MULTIPLY", math_node("SINE", phase), a)
+        if i >= n_own:                           # vessel motion's swell: height only, no foam
+            long_waves = h if long_waves is None else math_node("ADD", long_waves, h)
+            continue
         total = h if total is None else math_node("ADD", total, h)
         amp_sum += a
     # fade out between 'near' and 1.6 x near: far away the material's ripples take over
@@ -918,8 +939,10 @@ def _waves_group(state: str, moving: bool, near: float) -> bpy.types.NodeTree:
     fade.inputs["To Min"].default_value = 1.0
     fade.inputs["To Max"].default_value = 0.0
     height = math_node("MULTIPLY", total, fade.outputs["Result"])
+    lifted = height if long_waves is None else math_node("MULTIPLY", math_node("ADD", total, long_waves),
+                                                         fade.outputs["Result"])
     off = nodes.new("ShaderNodeCombineXYZ")
-    links.new(height, off.inputs["Z"])
+    links.new(lifted, off.inputs["Z"])
     setp = nodes.new("GeometryNodeSetPosition")
     links.new(gin.outputs[0], setp.inputs["Geometry"])
     links.new(off.outputs[0], setp.inputs["Offset"])
@@ -1006,7 +1029,7 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
         ob.location.y = 0.0
     if detailed:
         mod = ob.modifiers.new("Waves", "NODES")
-        mod.node_group = _waves_group(s.sea_state, bool(s.sea_moving), near)
+        mod.node_group = _waves_group(s.sea_state, bool(s.sea_moving), near, _vessel().swell_rows(s))
     return ob
 
 

@@ -144,6 +144,7 @@ class FRESING_OT_trail_pick_point(_PickPart, bpy.types.Operator):
     bl_idname = "fresing.trail_pick_point"
     bl_label = "Click the point"
     bl_options = {"REGISTER", "UNDO"}
+    _NOTE = "Trail point on {name}"
 
     point: FloatVectorProperty(size=3, subtype="XYZ", options={"SKIP_SAVE", "HIDDEN"})
     part: StringProperty(options={"SKIP_SAVE", "HIDDEN"})

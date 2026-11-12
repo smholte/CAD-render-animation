@@ -12,6 +12,7 @@ from ..core import materials_lib, presets
 from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
+from ..core import vessel_motion as vessel_core
 
 # Blender keeps only references to enum item strings: the list lives in a module global
 BACKGROUND_ITEMS = env.enum_items()
@@ -703,6 +704,7 @@ class FRShot(bpy.types.PropertyGroup):
     own_visibility: PointerProperty(type=FRVisSet)
     world: StringProperty()
     output: StringProperty()
+    cuts: StringProperty()         # which cuts are on (task 0086); '' = saved before cuts
 
 
 EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop (a motor speeds up and slows down: Ramp)"),
@@ -1929,6 +1931,11 @@ class FRWayCover(bpy.types.PropertyGroup):
         name="Total length of movement", unit="LENGTH", default=0.5, min=0.0, soft_max=5.0, update=_waycover_changed,
         description="How far the axis moves in all, in mm. The sections share it out. 'Read from the axis' "
                     "takes it from the axis limits")
+    drawn_at: FloatProperty(
+        name="Drawn at", unit="LENGTH", default=0.0, soft_min=-5.0, soft_max=5.0, update=_waycover_changed,
+        description="The axis position the covers were drawn at in the CAD file, in mm (0 = the axis zero). At this "
+                    "position every section stays exactly where CAD put it. 'Read from the axis' takes the "
+                    "axis' current value")
     flip: BoolProperty(
         name="Flip", default=False, update=_waycover_changed,
         description="The covers open the other way round: use this when they slide against the axis' direction")
@@ -1986,6 +1993,84 @@ class FRClash(bpy.types.PropertyGroup):
     signature: StringProperty()          # fingerprint of its built keys (clash.build_signature)
     seconds: FloatProperty()             # how long the check took
     moments: IntProperty()               # frames and moments between frames looked at
+
+
+def _vessel_changed(self, context):
+    """5 Scene & Render > Vessel motion (task 0085): the rig follows (cheap when nothing changed)."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_motion
+    try:
+        vessel_motion.changed(context.scene)
+    except Exception as exc:                 # never break the UI over a preview update
+        print("Fresing Render: vessel motion update failed:", exc)
+
+
+def _vessel_sea_changed(self, context):
+    """On/off and the heading change the swell: the sea is built again (then the rig follows)."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_motion
+    try:
+        vessel_motion.changed(context.scene, sea=True)
+    except Exception as exc:
+        print("Fresing Render: vessel motion update failed:", exc)
+
+
+class FRVesselStill(bpy.types.PropertyGroup):
+    """A subassembly that keeps its place while the vessel moves (task 0085)."""
+    uid: StringProperty()                # part ID (stays right through a model update)
+    label: StringProperty()              # its name, as the tree shows it
+    mode: EnumProperty(
+        name="Keeps", default="STILL", update=_vessel_changed,
+        description="How this subassembly keeps its place while the vessel moves",
+        items=[("STILL", "Still", "Stays where it is in the world: no heave, pitch or roll (a motion-compensated "
+                                  "gangway, or a hook that holds its place)"),
+               ("LEVEL", "Level", "Stays level: roll and pitch are taken out, it still rises and falls with the "
+                                  "vessel")])
+
+
+class FRVessel(bpy.types.PropertyGroup):
+    """5 Scene & Render > Vessel motion (task 0085): the model and the deck move with the sea."""
+    enabled: BoolProperty(
+        name="Vessel motion", default=False, update=_vessel_sea_changed,
+        description="The machine, the vessel deck and the props heave, pitch and roll gently with the sea, while "
+                    "the sea, the sky and the camera stay put. Play the time line to see it. Works with the Open sea "
+                    "and the Vessel deck")
+    strength: FloatProperty(
+        name="Strength", default=100.0, min=0.0, max=200.0, subtype="PERCENTAGE", precision=0,
+        update=_vessel_changed,
+        description="How much the vessel moves: 100% is the sea state's own motion, 0% holds it still, 200% "
+                    "doubles it")
+    heading: EnumProperty(
+        name="Heading", default="BOW", update=_vessel_sea_changed,
+        description="Where the waves come from, seen from the vessel. Beam seas roll it the most, head and "
+                    "following seas make it pitch",
+        items=[(k, v[0], v[2]) for k, v in vessel_core.HEADINGS.items()])
+    auto_size: BoolProperty(
+        name="Size from the model", default=True, update=_vessel_changed,
+        description="On: the vessel's length and beam come from the Vessel deck (or, on the Open sea, from the "
+                    "model's size). Off: type them in. A long vessel ignores short waves")
+    length: FloatProperty(
+        name="Length", default=124.0, min=5.0, soft_max=300.0, unit="LENGTH", precision=0, update=_vessel_changed,
+        description="Length of the vessel, bow to stern. Used when 'Size from the model' is off")
+    beam: FloatProperty(
+        name="Beam", default=28.0, min=2.0, soft_max=60.0, unit="LENGTH", precision=0, update=_vessel_changed,
+        description="Width of the vessel. Used when 'Size from the model' is off")
+    roll_period: FloatProperty(
+        name="Roll period", default=11.0, min=5.0, max=25.0, precision=1, update=_vessel_changed,
+        description="Seconds the vessel takes to roll from one side to the other and back. Most work vessels: "
+                    "10 to 12 s. A longer period rolls slower")
+    pivot_mode: EnumProperty(
+        name="Turns about", default="AUTO", update=_vessel_changed,
+        description="The point the vessel turns about",
+        items=[("AUTO", "Auto", "At the waterline under the middle of the vessel (on the Open sea: under the "
+                                "middle of the model)"),
+               ("PICK", "Picked point", "A point you clicked with 'Pick'")])
+    pivot: FloatVectorProperty(name="Pivot", size=3, unit="LENGTH", default=(0.0, 0.0, 0.0), update=_vessel_changed,
+                               description="The point the vessel turns about (picked in the view)")
+    still: CollectionProperty(type=FRVesselStill)
+    still_index: IntProperty(default=0, description="Subassemblies that keep their place while the vessel moves")
 
 
 _TP_TOOL_ITEMS = []                      # kept: Blender needs the strings of dynamic items to stay alive
@@ -2079,6 +2164,102 @@ class FRToolpath(bpy.types.PropertyGroup):
     # the last result (shown in the panel)
     result: StringProperty()             # JSON: moves, lengths, times, undercut …
     program_sig: StringProperty()        # fingerprint of the program as written: an edit by hand is noticed
+
+
+# ---- cutaway / section view (task 0086) ----
+
+def _cut_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import section
+    section.changed(context.scene, self)
+
+
+def _cut_renamed(self, context):
+    """The cut's slide joint takes the same name (steps and poses follow the joint's own rename)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import section
+    j = section.joint_of(context.scene, self)
+    if j is not None and self.name and j.name != self.name and context.scene.fresing.joints.get(self.name) is None:
+        j.name = self.name
+    if j is not None:
+        self["joint"] = j.name
+
+
+def _cut_place_get(self):
+    from . import section
+    return section.get_place(self)[0]
+
+
+def _cut_place_set(self, value):
+    from . import section
+    section.set_place(bpy.context.scene, self, location=tuple(value))
+
+
+def _cut_turn_get(self):
+    from . import section
+    return section.get_place(self)[1]
+
+
+def _cut_turn_set(self, value):
+    from . import section
+    section.set_place(bpy.context.scene, self, rotation=tuple(value))
+
+
+class FRCutTarget(bpy.types.PropertyGroup):
+    """What a cut cuts: the whole model, a subassembly or part, or a material group (task 0086)."""
+    kind: EnumProperty(items=[("MODEL", "Whole model", ""), ("PART", "Subassembly or part", ""),
+                              ("GROUP", "Group", "")], default="PART")
+    name: StringProperty()
+    obj: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+
+
+class FRCut(bpy.types.PropertyGroup):
+    """A cutaway: a plane or box that takes part of the chosen parts away; the cut faces show a cap colour."""
+    name: StringProperty(name="Name", update=_cut_renamed,
+                         description="The cut's name. Its slide joint (to move it in a Move joint step) has the same "
+                                     "name")
+    key: StringProperty()
+    enabled: BoolProperty(name="On", default=True, update=_cut_changed,
+                          description="Switches this cut on or off. Off: the parts look whole again (in the view, "
+                                      "pictures and videos)")
+    shape_kind: EnumProperty(name="Shape", default="PLANE", update=_cut_changed,
+                             description="A plane takes away one side of the parts; a box takes away what is inside "
+                                         "it (a corner or a quarter)",
+                             items=[("PLANE", "Plane", "Takes away the side the arrow points to (Flip: the other side)",
+                                     "MESH_PLANE", 0),
+                                    ("BOX", "Box", "Takes away what is inside the box (Flip: everything outside it)",
+                                     "MESH_CUBE", 1)])
+    flip: BoolProperty(name="Flip", default=False, update=_cut_changed,
+                       description="Takes away the other side: for a plane the side behind the arrow, for a box "
+                                   "everything outside it")
+    color: FloatVectorProperty(name="Cap colour", subtype="COLOR", size=3, min=0.0, max=1.0,
+                               default=(0.62, 0.012, 0.012), update=_cut_changed,
+                               description="The colour of the cut faces (where the material was cut through)")
+    hatch: BoolProperty(name="Hatch lines", default=False, update=_cut_changed,
+                        description="Draws diagonal lines on the cut faces, as on a section drawing")
+    hatch_spacing: FloatProperty(name="Line spacing", unit="LENGTH", default=0.01, min=0.0005, soft_max=0.1,
+                                 update=_cut_changed, description="The distance between the hatch lines, in mm")
+    size: FloatVectorProperty(name="Box size", subtype="XYZ", unit="LENGTH", size=3, min=0.001,
+                              default=(1.0, 1.0, 1.0), update=_cut_changed,
+                              description="Length, width and height of the box, in mm (along its own X, Y and Z)")
+    plane_size: FloatProperty(name="Plane size", unit="LENGTH", default=1.0, min=0.001, update=_cut_changed,
+                              description="How big the plane is drawn in the view (it always cuts through "
+                                          "everything)")
+    place: FloatVectorProperty(name="Position", subtype="TRANSLATION", unit="LENGTH", size=3,
+                               get=_cut_place_get, set=_cut_place_set,
+                               description="Where the cut's handle (the arrow) is, in the model's coordinates (mm). "
+                                           "You can also move the arrow in the view (G)")
+    turn: FloatVectorProperty(name="Turn", subtype="EULER", unit="ROTATION", size=3,
+                              get=_cut_turn_get, set=_cut_turn_set,
+                              description="How the cut is turned about the model's X, Y and Z axes (degrees). You "
+                                          "can also turn the arrow in the view (R)")
+    targets: CollectionProperty(type=FRCutTarget)
+    shape: PointerProperty(type=bpy.types.Object)
+    joint: StringProperty()
+    root_uid: StringProperty()
 
 
 class FRSceneSettings(bpy.types.PropertyGroup):
@@ -2410,6 +2591,15 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                                              "drawn edges and a coloured haze")
     trails: CollectionProperty(type=FRTrail)
     trails_index: IntProperty(default=0)
+    # ---- cutaway / section view (task 0086) ----
+    cuts: CollectionProperty(type=FRCut)
+    cuts_index: IntProperty(default=0)
+    cut_new_shape: EnumProperty(name="Shape", default="PLANE",
+                                description="The shape of the next cut you add",
+                                items=[("PLANE", "Plane", "Cuts the parts in two and takes away the half facing "
+                                        "you", "MESH_PLANE", 0),
+                                       ("BOX", "Box", "Takes away the quarter of the parts that faces you",
+                                        "MESH_CUBE", 1)])
     callouts_on: BoolProperty(name="Labels in renders", default=True,
                               description="Draws the labels (with their lines) in stills and in MP4 videos. Off: "
                                           "none of them is drawn")
@@ -2458,6 +2648,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     clash: PointerProperty(type=FRClash)
     # ---- the app makes the toolpath (task 0029) ----
     toolpath: PointerProperty(type=FRToolpath)
+    # ---- vessel motion at sea (task 0085) ----
+    vessel: PointerProperty(type=FRVessel)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2471,8 +2663,8 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath,
-           FRSceneSettings)
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel,
+           FRCutTarget, FRCut, FRSceneSettings)
 
 
 def register():

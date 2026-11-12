@@ -6,7 +6,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
 from ..core.words import plural
-from . import animation, build, gcode
+from . import animation, build, gcode, hover
 from .ops_machining import clicked_part
 
 
@@ -99,26 +99,31 @@ class FRESING_OT_cnc_zero_click(_CncOp, bpy.types.Operator):
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set("Click the program's zero on the workpiece (a corner snaps).  "
-                                          "Esc / right-click: cancel.  Middle mouse / scroll: move the view")
+        c = gcode.settings(context.scene)
+        hover.start(context, self, "Click the program's zero on the workpiece (a corner snaps).  "
+                                   "Esc / right-click: cancel.  Middle mouse / scroll: move the view", point=True,
+                    note=lambda ob, name, *_a: f"Work zero here (a corner snaps) – {name}",
+                    refuse=lambda ob, *_a: "that is the tool, not the workpiece" if ob is c.tool else "")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         c = gcode.settings(context.scene)
         if res is None or res[0].get(build.PROP_KIND) != "part" or res[0] is c.tool:
-            context.workspace.status_text_set("Missed the workpiece: click on it. Esc: cancel")
+            hover.prompt(context, "Missed the workpiece: click on it. Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         self._end(context)
@@ -614,27 +619,32 @@ class FRESING_OT_cnc_air_click(_CncOp, bpy.types.Operator):
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set("Click the spot where the air comes out.  Esc / right-click: cancel.  "
-                                          "Middle mouse / scroll: move the view")
+        c = gcode.settings(context.scene)
+        hover.start(context, self, "Click the spot where the air comes out.  Esc / right-click: cancel.  "
+                                   "Middle mouse / scroll: move the view", point=True,
+                    note=lambda ob, name, *_a: f"Air nozzle here – {name}",
+                    refuse=lambda ob, *_a: "that is the workpiece, not the nozzle" if ob is c.workpiece else "")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
         from . import air
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         c = gcode.settings(context.scene)
         if res is None or res[0].get(build.PROP_KIND) != "part" or res[0] is c.workpiece:
-            context.workspace.status_text_set("Missed: click on the nozzle (not the workpiece). Esc: cancel")
+            hover.prompt(context, "Missed: click on the nozzle (not the workpiece). Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         self._end(context)
@@ -711,33 +721,37 @@ class FRESING_OT_cnc_pocket_click(_CncOp, bpy.types.Operator):
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set("Click a pocket of the tool changer.  Esc / right-click: done.  "
-                                          "Middle mouse / scroll: move the view")
+        hover.start(context, self, "Click a pocket of the tool changer.  Esc / right-click: done.  "
+                                   "Middle mouse / scroll: move the view", point=True,
+                    note=lambda ob, name, *_a: "Pocket {} here – {}".format(
+                        max((x.number for x in gcode.settings(context.scene).pockets), default=0) + 1, name))
         context.window_manager.modal_handler_add(self)
         self.added = 0
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
         from . import toolchange
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"FINISHED"} if self.added else {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         if res is None or res[0].get(build.PROP_KIND) != "part":
-            context.workspace.status_text_set("Missed: click on the tool changer. Esc: done")
+            hover.prompt(context, "Missed: click on the tool changer. Esc: done")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         p = toolchange.add_pocket(context.scene, ob, loc)
         self.added += 1
-        context.workspace.status_text_set(f"Pocket {p.number} on '{gcode.label(ob)}'. Click the next pocket, "
-                                          "or Esc / right-click: done")
+        hover.prompt(context, f"Pocket {p.number} on '{gcode.label(ob)}'. Click the next pocket, "
+                              "or Esc / right-click: done")
         return {"RUNNING_MODAL"}
 
 

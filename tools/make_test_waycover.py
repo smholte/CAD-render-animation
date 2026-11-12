@@ -25,7 +25,10 @@ Both covers' section k moves k/N of the axis (500 mm: 100, 200 … 500 mm), the 
 closing; at 500 mm the right cover is nested against FRAME.RIGHT's side of the carriage. The sections next to the
 carriage (COVER.L.N, COVER.R.N) may be made the carriage section (bolted to it).
 
-usage: python make_test_waycover.py out.step [--sections N] [--both-sides]
+``--drawn-at MM`` (task 0090): the single-cover model drawn with the axis at MM (like a cover drawn at mid-travel):
+the carriage stands MM further along and section k MM k / N further than in the closed drawing.
+
+usage: python make_test_waycover.py out.step [--sections N] [--both-sides] [--drawn-at MM]
 """
 
 import sys
@@ -44,7 +47,7 @@ from OCP.XCAFApp import XCAFApp_Application
 from OCP.XCAFDoc import XCAFDoc_ColorType, XCAFDoc_DocumentTool
 
 
-def build(path: str, sections: int = 5, both_sides: bool = False) -> None:
+def build(path: str, sections: int = 5, both_sides: bool = False, drawn_at: float = 0.0) -> None:
     app = XCAFApp_Application.GetApplication_s()
     doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
     app.InitDocument(doc)
@@ -85,9 +88,9 @@ def build(path: str, sections: int = 5, both_sides: bool = False) -> None:
     else:
         TDataStd_Name.Set_s(root, TCollection_ExtendedString("TEST.WAYCOVER"))
         place(root, part(box(0, 0, 0, 1000, 300, 60), "BASE", grey))
-        place(root, part(box(60, 50, 60, 100, 200, 120), "CARRIAGE", yellow))
+        place(root, part(box(60 + drawn_at, 50, 60, 100, 200, 120), "CARRIAGE", yellow))
         for k in range(1, n + 1):
-            x = (k - 1) * 20.0
+            x = (k - 1) * 20.0 + drawn_at * k / n
             if k in (1, 3):
                 place(root, part(box(x, 20, 60, 20, 260, 100), f"COVER.{k}.PLATE", steel))
                 place(root, part(box(x, 20, 160, 20, 260, 10), f"COVER.{k}.FLANGE", steel))
@@ -108,5 +111,11 @@ if __name__ == "__main__":
     if "--sections" in sys.argv:
         count = int(sys.argv[sys.argv.index("--sections") + 1])
         args = [a for a in args if a != str(count)]
-    build(args[0] if args else "test_waycover.step", sections=count, both_sides="--both-sides" in sys.argv)
+    drawn = 0.0
+    if "--drawn-at" in sys.argv:
+        raw = sys.argv[sys.argv.index("--drawn-at") + 1]
+        drawn = float(raw)
+        args = [a for a in args if a != raw]
+    build(args[0] if args else "test_waycover.step", sections=count, both_sides="--both-sides" in sys.argv,
+          drawn_at=drawn)
     print("written")
