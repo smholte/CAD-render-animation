@@ -70,7 +70,8 @@ def test_turn_it_yourself(built, tmp_path):
     w = media["web_model"]
     assert w["model"] in media["models"]
     assert 'id="turn"' in page and 'href="model/"' in page and 'href="#turn"' in page
-    assert "<script" not in page.lower() and ".glb" not in page             # the model loads only when opened
+    assert "<script" not in page.lower()                                   # the model loads only when opened
+    assert not re.search(r'(src|href)="[^"]*\.glb"', page)
     viewer = open(os.path.join(out, "model", "index.html"), encoding="utf-8").read()
     assert f'src="../vendor/{build_site.web3d.MV_FILE}"' in viewer and f'src="../media/{w["file"]}"' in viewer
     assert not re.search(r'src="https?://', viewer)

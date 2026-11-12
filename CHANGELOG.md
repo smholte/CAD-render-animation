@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.77 – 12 Nov 2026 – web 3D model: turn the machine in a web browser (task 0099)
+
+New: **5 Scene & Render > Web 3D model**
+- **Export…** saves the machine as it is shown now as **one 3D file** (`.glb`) and **a page** (`.html`) that shows
+  it in any web browser: drag to turn it, scroll or pinch to zoom. The page is one file: e-mail it to a customer or
+  put it on your website; it also opens without internet, on a PC or a phone.
+- The looks are **baked into small pictures** that repeat over the parts at the scale of your renders: colours,
+  gloss, metal, cast and blasted surfaces, glass, lights, wire mesh with holes, and your logos and stickers. Looks
+  that are one colour need no picture, so the file stays small. Not in the web model: edge wear, the stretched shine
+  of brushed or turned metal, the very fine orange peel of paint, tool marks, the cutaway, the surroundings.
+- **Texture size** 512 / 1024 / 2048 (sharper close up, bigger file), **Hide part names** (on: the file calls them
+  Part 1, Part 2 …, so customers do not see your part numbers) and **Include animation** (after Build animation:
+  the page plays it in a loop). Hidden parts stay out; the pose and paint scheme you see go in.
+- The line under the button shows the size, triangles, pictures and time, with **Open page** and **Show in folder**.
+  A big model shows how far it is; **Cancel** (or Esc) stops it and saves nothing.
+- Measured on the 4-core test machine: the test mill in 2–3 s (0.3 MB); a 3,000-part machine in 4–10 s (35 MB).
+
+Also: the landing page has a **Turn it yourself** section with a model to turn (an invented test mill with a tool
+changer); the test tour has a stop "Web 3D model"; the PC check has the lines web3d.export and heavy.web3d.
+
 ## 0.2.76 – 12 Nov 2026 – milling fixes: no dive after a tool change, chips on a moving 4th-axis table (task 0096)
 
 Tool changes (4 Motion > CNC machine)
