@@ -27,8 +27,10 @@ page he can send to a customer. The landing page shows such a model that visitor
   be **stored in the site** (`site/vendor/…`, with its licence and a line in `site/CREDITS.md`), not loaded from a CDN.
 - The repository is public (CLAUDE.md "Repository is public"): the landing page may only show an **openly licensed
   model** (the render kit's EVO / FarmBot / CEB press / Thor / OpenArm – check that the licence allows publishing the 3D
-  model itself, not only pictures) or an **invented** one. The owner's own Fresing 400 goes on the site **only when he
-  sends its GLB and says so** (like `--take` for his renders); never his employer's work.
+  model itself, not only pictures) or an **invented** one. **The Fresing 400 is not ready to be shown to the public in
+  full (owner, 12 Nov): never put it, or any part of it, on the site or in a test, picture or report.** The milling
+  video on the landing page only shows a basic interior. Never the employer's work either. The `--web-model` option
+  exists for a model the owner sends later and explicitly releases for the site.
 
 ## Design the worker decides (write it in this file under "Design" before building)
 
@@ -60,7 +62,7 @@ page he can send to a customer. The landing page shows such a model that visitor
 - [ ] Scripts off, the queue not needed (export runs in the window; a big model shows progress and can be cancelled).
 - [ ] Website: `tools/build_site.py` puts a "Turn it yourself" section with one openly licensed (or invented) model on
       the landing page; `--check` passes (vendored viewer, credits); `--web-model <file.glb> --model <id>` swaps in a
-      model the owner sends (like `--take`). The page still loads fast (model loads only when scrolled to / clicked).
+      model the owner sends later and releases for the site (like `--take`; not the Fresing 400 – see Background). The page still loads fast (model loads only when scrolled to / clicked).
 - [ ] Tour stop "Web 3D model", PC-check line `web3d.export`, guide section with a picture.
 - [ ] Tests added; GitHub green; report filled in; merge to main and release.
 
