@@ -29,7 +29,7 @@ updates its branch to `main`.
 
 - **Way-cover lane** (split off Machining: `waycover.py`, `ops_waycover.py`, `ui_waycover.py`, `core/waycover.py`, `tools/make_test_waycover.py`; additive: `props.py`): 0034 (done, 0.2.28) → 0035 several covers per axis + carriage section + 8 sections (done, 0.2.61) → **0090 cover drawn at any axis position (open)**
 - **Pick & hover lane** (new `blender/hover.py`; the axis pickers in `ops_motion.py`, `ops_cylinders.py`, `ops_doublearm.py`, `ops_linkages.py`): 0088 hover highlight when picking an axis (done, 0.2.63) → **the other pickers (ATC pockets, sharp spot, labels, decals, trail points, coolant nozzles) after 0061 and 0087** (lead plans it; a few lines per picker with `hover.py`)
-- **Sea lane** (new files `core/vessel_motion.py`, `blender/vessel_motion.py`, `ops_vessel_motion.py`, `ui_vessel_motion.py` = sub-panel of 5; additive: `props.py`, `reimport.py`, the sea in `surroundings.py`): **0085 vessel motion at sea (running)**
+- **Sea lane** (new files `core/vessel_motion.py`, `blender/vessel_motion.py`, `ops_vessel_motion.py`, `ui_vessel_motion.py` = sub-panel of 5; additive: `props.py`, `reimport.py`, the sea in `surroundings.py`): 0085 vessel motion at sea (done, 0.2.65); lane free
 - **Cutaway lane** (new files `section.py`, `ops_section.py`, `ui_section.py` = sub-panel of 3 Looks; the material hook next to `fade.py`; additive: `props.py`, `reimport.py`): 0086 cutaway / section view (done, 0.2.64); lane free; no new step kind (the cut moves as an app-made slide joint)
 - **Demo models lane** (new files only: `tools/make_demo_*.py`, `tests/test_demo_*.py`; the demo project in 0077: new `blender/demo.py`, `ops_demo.py`, an additive Help-menu item): 0076 invented cable-lay vessel spread (done 11 Nov) → 0084 deck re-layout as the owner works (done 12 Nov) → **0077 demo project "Cable-lay vessel" (running)**
 
@@ -49,7 +49,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 - **0084 stern turn (owner, 12 Nov):** keep it as in the demo, a few metres forward of the quadrant handler and under
   the rails – only the place differs from a real vessel, not the motion. The rails clear the cable by 10 cm: 0077's and
   0082's clash checks confirm it. The quadrant's tip joint must also ride the handler's tilt: 0082 decides.
-- **0087 follow-ups:** the vessel as a ride target goes with whichever of 0085 / 0077 merges second; per-frame cost of
+- **0087 follow-ups:** the vessel as a ride target: done in 0085 (Ride along on any part of the model rides the vessel, tested); per-frame cost of
   Ride along / Watch part on a big model is measured in 0077.
 - **0066 follow-up:** chips on a table that moves *and* carries the 4th axis land on the fixed bed (a third chip space) – Machining lane, after 0061.
 - **0066 decision (lead, 11 Nov):** Wrapped follows LinuxCNC's sign rule (A-90 goes the − way), not "shortest way" – kept, matches the machine.
@@ -60,7 +60,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0085 | **Vessel motion at sea** (study #4): heave / pitch / roll from the sea's own waves (Calm = 0083's numbers), model + deck move about a pivot, sea and camera stay; heading, strength; "stays still" parts if it fits; scripts off | worker | **Opus · High** | **running** (Claude Code on the web, 11 Nov night) | `claude/kind-lovelace-yk40cq`, tasks/0085-vessel-motion.md |
 | 0077 | **Demo project "Cable-lay vessel"** (Help > Make demo project): the model maker ships with the app, 0084's model imported with groups and looks, all 307 joints (stacks, couplings, a Cable travel joint for 0078), cylinders, Open sea + "Loading at the quay" scenes, saved cameras, a 60–80 s animation of what the app can do today (fly-in, carousel, rollers, tensioner lift/squeeze + X-ray, drum close-up, quadrant); stages that 0078–0082 extend; Heavy PC-check line | worker | Opus · Medium | **running** (Claude Code on the web, 12 Nov) | `claude/sweet-mendel-tecn1z`, tasks/0077-demo-project.md |
 | 0089 | **Hover highlight for all other click pickers** (sharp spot, labels, decals, trail points, ATC pockets, coolant nozzles, toolpath parts): face + dot + a note before the click, as 0088 | worker | Sonnet · Medium | **open – can start** (12 Nov) | tasks/0089-hover-other-pickers.md |
 | 0090 | **Way cover drawn at any axis position** ("Drawn at … mm" + Read from the axis; owner's cover drawn at mid-travel) | worker | Sonnet · Medium | **open – can start** (12 Nov) | tasks/0090-waycover-drawn-pose.md |
@@ -78,6 +77,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0085 | Vessel motion at sea (5 Scene & Render > Vessel motion): heave / pitch / roll from the sea's own waves + a long swell (only while on), Calm = 0083's numbers, Rough ~3×, heading, strength, size, roll period, pivot; model + deck + props move by a Child Of on a rig of sine-modifier drivers (scripts off, queue, any fps); Still / Level parts; camera on board via 0087's Ride along | 0.2.65 |
 | 0086 | Cutaway / section view (3 Looks > Cutaway): plane or box cut through the selected subassembly, a group or the whole model, red cap colour + hatch lines, Flip, several cuts on/off; shader way (one group in the cut parts' materials, inside the Fade group, scripts off, Cycles + EEVEE, queue); the cut moves as an app-made slide joint (Move joint step); model update and saved scenes keep cuts; a few % render time; tour stop, PC check line looks.cutaway | 0.2.64 |
 | 0088 | Pick & hover lane: hover highlight when picking an axis – the hole, shaft or flat face under the mouse lights up (magenta) with the axis it gives, before the click (Add joint / Set axis, cylinder pins, double arm); overlay only; ~2 ms per move on the full Heavy model | 0.2.63 |
 | 0084 | Demo model re-laid as the owner works: side lanes A/B with V roller highways + walkways, middle lane with rails, lower path beside/below side A; the oval through both tensioners and round the D-quadrant (rail bogies), stern turn under the rails, quadrant handler (0–100°, top pulley), handling winch in front of the carousel, tipping winches + swivel sheaves, tensioner top track lift + tilt (14-link run, 160° rubber pads on steel plates), arch that only slews, coil layers + core hole, Lebus 35° + risers, cable engine, CPS rack + ramp, horns A/B, quay file; 307 joints, 1.97 M placed triangles | – |
