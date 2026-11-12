@@ -20,6 +20,8 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
            the tip follows the program, tool change, toolpath, save and open again
     waycover tools/ui_test_waycover.py - way covers: Add way cover, axis, Add section x5, Make it, the axis drives the covers, Flip,
            Remove section, save and open again, Remove way cover
+    flex   tools/ui_test_flex.py - hoses and drag chains: a click on a hose, Add hose, the arm luffs, Add cable, Find and
+           add all, a hose too short warns; a click on one chain link, Add drag chain, X moves, undo, save and open again
     clash  tools/ui_test_clash.py - clash check: Build, Check for clashes, click the row (frame, red, zoom), Cancel,
            the queue note, Build again clears the result, save and open again
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
@@ -60,7 +62,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
               "paths": 8, "pccheck": 38, "pccheck2": 2, "pccheckheavy": 13, "update": 29, "tour": 44, "tourui": 15,
-              "doublearm": 19, "clash": 21, "vessel": 15}
+              "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -81,7 +83,7 @@ GROUPS = {
     "ui": ["ui1"],
     "scenes": ["surroundings", "vessel"],
     "motion": ["video", "studio", "update"],
-    "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash"],
+    "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex"],
 }
 
 TESTS = {
@@ -107,6 +109,8 @@ TESTS = {
                 "ui_test_linkage.py", True),
     "waycover": ("Real app: way covers – axis, five sections, Make it, the axis drives them (ui_test_waycover.py)",
                  "ui_test_waycover.py", True),
+    "flex": ("Real app: hoses and drag chains – click a hose, Add hose, the arm luffs; click one link, Add drag "
+             "chain, X moves; undo, save and open (ui_test_flex.py)", "ui_test_flex.py", True),
     "gcode": ("Real app: CNC machine and Run G-code program – clicks, tip on the path, tool change "
               "(ui_test_gcode.py)", "ui_test_gcode.py", True),
     "doublearm": ("Real app: double-arm tool changer – click the hub and the hinge, Check, hand-overs "

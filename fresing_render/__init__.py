@@ -20,6 +20,7 @@ def _classes():
     from .blender import ops_section                # task 0086: 3 Looks > Cutaway
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
+    from .blender import ops_flex, ui_flex          # task 0058: 4 Motion > Hoses and drag chains
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -35,9 +36,9 @@ def _classes():
     return (updates.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
-            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
+            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
-            + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
+            + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_demo.CLASSES)
 
 

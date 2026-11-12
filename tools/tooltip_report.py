@@ -34,7 +34,8 @@ sys.path.insert(0, ROOT)
 UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py",
             "fresing_render/blender/ui_machining.py", "fresing_render/blender/ui_decals.py",
             "fresing_render/blender/ui_gcode.py", "fresing_render/blender/ui_section.py",
-            "fresing_render/blender/ui_vessel_motion.py", "fresing_render/blender/updates.py"]
+            "fresing_render/blender/ui_vessel_motion.py", "fresing_render/blender/ui_flex.py",
+            "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 # drawing functions called from a panel in another file: {file: {function: panel}}
 OTHER_FILE_HELPERS = {"fresing_render/blender/ui_gcode.py": {"draw_step": "6 Animation"}}
@@ -50,7 +51,7 @@ LANE_OF_PANEL = {
     "Props for scale": "Scene & Render lane", "Vessel motion": "Sea lane",
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
-    "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane",
+    "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane", "Hoses and drag chains": "Flex parts lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
@@ -65,6 +66,7 @@ OWNER_TYPES = {
     "cnc": "FRCnc", "tl": "FRCncTool",                        # 4 Motion > CNC machine (ui_gcode.py)
     "cut": "FRCut",                                           # 3 Looks > Cutaway (ui_section.py)
     "v": "FRVessel",                                          # 5 Scene & Render > Vessel motion (task 0085)
+    "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -75,6 +77,7 @@ ITEM_TYPES = {
     "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
     "FRESING_UL_mechanisms": "FRMechanism", "FRESING_UL_cnc_tools": "FRCncTool",
     "FRESING_UL_cnc_pockets": "FRCncPocket", "FRESING_UL_cuts": "FRCut", "FRESING_UL_vessel_still": "FRVesselStill",
+    "FRESING_UL_flex": "FRFlex",
 }
 
 

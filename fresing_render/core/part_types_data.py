@@ -152,6 +152,38 @@ def T(id, group, level, words="", codes=(), roles=None, absorb="shape"):
                 absorb=absorb)
 
 
+def _pairs(first: str, second: str) -> str:
+    """Every keyword of ``first`` followed by every keyword of ``second``, as keywords ("A|B", "X|Y" ->
+    "A X|A Y|B X|B Y"). A longer keyword hides the shorter ones inside it, so the pair decides the type."""
+    return "|".join(f"{a} {b}" for a in first.split("|") for b in second.split("|"))
+
+
+# Hoses, cables and drag chains that follow the motion (task 0058) are found by their part type.
+#
+# A hose or cable named after the machine member it runs to is the hose, not the member: "HYDRAULIC HOSE ARM" is
+# the arm's hose, "HYDRAULIKSCHLAUCH AUSLEGER" the boom's. On its own the member word would win (it stands last).
+# Only names that can be nothing but a hose or a machine's own wiring count (a bare "HOSE ARM" may be an arm that
+# carries hoses, a "POWER CABLE GANTRY" a gantry for the cable a vessel lays), and only machine members: the
+# things that hold, end or handle a hose (CLAMP, BRACKET, HOLDER, GUIDE, FITTING, NIPPLE, VALVE, REEL, WINCH,
+# DRUM, TENSIONER ...) are not in the list, so "HYDRAULIC HOSE CLAMP" stays a clamp.
+HOSE_NAMES = ("HYDRAULIC HOSE|HYDR HOSE|HYD HOSE|HYDRAULIEKSLANG|HYDRAULIKSCHLAUCH|PNEUMATIC HOSE|AIR HOSE|"
+              "LUCHTSLANG|DRUCKLUFTSCHLAUCH|COOLANT HOSE|WATER HOSE|HIGH PRESSURE HOSE|HOGEDRUKSLANG|"
+              "HOCHDRUCKSCHLAUCH")
+WIRING_NAMES = ("MOTOR CABLE|SERVO CABLE|SENSOR CABLE|SIGNAL CABLE|ENCODER CABLE|MOTORKABEL|SENSORKABEL|"
+                "STEUERLEITUNG")
+RUNS_TO = ("ARM|BOOM|MAIN BOOM|KNUCKLE BOOM|JIB|GIEK|AUSLEGER|MAST|CYL|CYLINDER|CILINDER|ZYLINDER|LIFT CYL|"
+           "LIFT CYLINDER|LUFFING CYLINDER|TILT CYLINDER|BOOM CYLINDER|HEFCILINDER|TOPCILINDER|HUBZYLINDER|"
+           "SLIDE|SLEDE|SCHLITTEN|CARRIAGE|GANTRY|PORTAL|PORTAAL|TABLE|TAFEL|TISCH|MOTOR|PUMP|POMP|PUMPE|"
+           "GRIPPER|GRIJPER|GREIFER|SPINDLE|SPINDEL|TOWER|TOREN|COLUMN|KOLOM|SAEULE|BEAM|BALK|TRAEGER|CHASSIS|"
+           "ONDERSTEL|UNTERGESTELL|KRAAN")
+# A link of an energy chain is part of that chain, in either word order ("DRAG CHAIN LINK", "LINK ENERGY CHAIN",
+# "KABELRUPS SCHAKEL"); a bare "CHAIN LINK" stays with the roller chains.
+ENERGY_CHAINS = ("DRAG CHAIN|DRAGCHAIN|ENERGY CHAIN|ENERGYCHAIN|E CHAIN|ECHAIN|CABLE CHAIN|CABLECHAIN|"
+                 "CABLE CARRIER|CABLE TRACK|ENERGIEKETTE|ENERGIEFUEHRUNGSKETTE|ENERGIEFUHRUNGSKETTE|SCHLEPPKETTE|"
+                 "KABELSCHLEPP|KABELSLEEPKETTING|SLEEPKETTING|ENERGIEKETTING|KABELRUPS|RUPSKETTING|E KETTE|EKETTE")
+CHAIN_LINKS = "LINK|LINKS|CHAIN LINK|SCHAKEL|SCHAKELS|KETTINGSCHAKEL|KETTENGLIED|GLIED"
+
+
 # --------------------------------------------------------------------------------------------
 # Part types
 # --------------------------------------------------------------------------------------------
@@ -384,7 +416,8 @@ TYPES = [
       "PE TUBE|PA TUBE|NYLON TUBE|POLY TUBE|POLYURETHANE TUBE|PLASTIC TUBE|HYDRAULIC HOSE|HYDRAULIEKSLANG|"
       "HYDRAULIKSCHLAUCH|HOSE ASSY|HOSE ASSEMBLY|SLANGSET|FLEXIBLE|FLEXIBLE HOSE|FLEX HOSE|WATER HOSE|"
       "COOLANT HOSE|SPIRAL HOSE|SPIRAALSLANG|SPIRALSCHLAUCH|CORRUGATED TUBE|CORRUGATED HOSE|RIBBELBUIS|"
-      "WELLROHR|FLEXIBLE CONDUIT|INSTALLATIEBUIS",
+      "WELLROHR|FLEXIBLE CONDUIT|INSTALLATIEBUIS|HYDR HOSE|HYD HOSE|HIGH PRESSURE HOSE|HOGEDRUKSLANG|"
+      "HOCHDRUCKSCHLAUCH|" + _pairs(HOSE_NAMES, RUNS_TO),
       codes=[R + r"(?:TU|TUS|TUH|TUZ|TRB|TRBU|TUL|TCU|TIUB|TIA|TISA|TPH)\d{4}",              # SMC tubing
              R + r"(?:PUN|PUN-H|PAN|PLN|PEN|PFAN|PUN-V0|PUN-CM|PUN-DUO|PUN-S|PU)-\d{1,2}X\d",          # Festo
              R + r"(?:[12]SN|[12]ST|[12]SC|4SH|4SP|R1AT|R2AT)-?\d{1,2}" + E,   # hydraulic hose specs (2SN-12)
@@ -603,7 +636,8 @@ TYPES = [
       "CONNECTION CABLE|AANSLUITKABEL|ANSCHLUSSKABEL|ANSCHLUSSLEITUNG|EXTENSION CABLE|VERLENGKABEL|"
       "VERLAENGERUNGSKABEL|CHAINFLEX|OELFLEX|OLFLEX|UNITRONIC|TRAILING CABLE|SLEEPKABEL|FLEX CABLE|"
       "CABLE TIE|CABLE TIES|TIE WRAP|TIEWRAP|TYRAP|TY RAP|KABELBINDER|BINDBAND|BUNDELBANDJE|EARTH WIRE|"
-      "AARDDRAAD|ERDUNGSKABEL|GROUND STRAP|AARDINGSBAND|BUSBAR|BUS BAR|RAILS COPPER|STROMSCHIENE|KOPERRAIL",
+      "AARDDRAAD|ERDUNGSKABEL|GROUND STRAP|AARDINGSBAND|BUSBAR|BUS BAR|RAILS COPPER|STROMSCHIENE|KOPERRAIL|"
+      + _pairs(WIRING_NAMES, RUNS_TO),
       codes=[R + r"(?:CF\d{1,3}\.\d{2}\.\d{2}|CFBUS|CFROBOT\d?|CFSPECIAL)" + E,              # igus chainflex
              R + r"(?:EVC|EVF|EVT)\d{3,4}" + E, R + r"E1\d{4}" + E,                                 # ifm
              R + r"(?:YF2A|YG2A|YM2A|YF2B|YG2B)\d{2}-\d{3}", R + r"(?:DOL|DSL|STL|STE)-\d{4}",    # Sick
@@ -613,7 +647,8 @@ TYPES = [
       "CABLE CHAIN|CABLECHAIN|ENERGY CHAIN|ENERGYCHAIN|E CHAIN|ECHAIN|DRAG CHAIN|DRAGCHAIN|CABLE CARRIER|"
       "CABLE TRACK|ENERGIEKETTE|ENERGIEFUEHRUNGSKETTE|SCHLEPPKETTE|KABELSCHLEPP|KABELSLEPKETTING|"
       "SLEPKETTING|ENERGIEKETTING|KABELRUPS|RUPSKETTING|TRIFLEX|ZIPPER|READYCHAIN|E KETTE|EKETTE|TRAXLINE|"
-      "MICROFLIZZ|E SPOOL|E TUBE|ETUBE",
+      "MICROFLIZZ|E SPOOL|E TUBE|ETUBE|ENERGIEFUHRUNGSKETTE|SLEEPKETTING|KABELSLEEPKETTING|"
+      + _pairs(ENERGY_CHAINS, CHAIN_LINKS) + "|" + _pairs("LINK|CHAIN LINK|SCHAKEL|KETTENGLIED", ENERGY_CHAINS),
       codes=[R + r"E[2346]\.?\d{1,3}\.\d{2,3}(?:\.\d{2,3})?(?:\.\d)?" + E, R + r"E[2346]/\d{3}",
              R + r"(?:B|Z|TRE|TRC|TRL|E2C|E2K)\d{2,3}\.\d{2,3}(?:\.\d{2,4})?" + E,
              R + r"(?:UNIFLEX|QUANTUM|PROTUM|MICROTRAX|EASYTRAX|TKP|TKR|TKHD)\s?\d{2,4}",       # Kabelschlepp

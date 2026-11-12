@@ -396,6 +396,63 @@ def test_qualifiers_do_not_make_a_new_type():
     assert part_types.classify("T-NUT FOR PROFILE 40") != "Aluminium profiles"
 
 
+# ---- hoses, cables and drag chains (task 0058: found by their part type) ------------------------
+
+@pytest.mark.parametrize("name", [
+    "HYDRAULIC HOSE ARM", "HOSE ARM 2SN-12", "HYDRAULIEKSLANG GIEK", "HYDRAULIKSCHLAUCH AUSLEGER",
+    "HYDRAULIC HOSE CYL A", "Hydraulic hose cyl B", "HYDRAULIC HOSE LIFT CYLINDER", "HYDRAULIC_HOSE_BOOM_2",
+    "Hydraulikschlauch Hubzylinder", "HYDRAULIEKSLANG HEFCILINDER", "LUCHTSLANG GRIJPER", "AIR HOSE GRIPPER",
+    "COOLANT HOSE SPINDLE", "HYDRAULIKSCHLAUCH MOTOR", "HYD HOSE MAIN BOOM", "HOGEDRUKSLANG", "Hochdruckschlauch"])
+def test_a_hose_named_after_where_it_runs_is_a_hose(name):
+    """The machine member a hose runs to stands last in its name: it must not make the hose an arm, a boom or a
+    cylinder. (The three hoses of tests/data/test_flex_hoses_a.step are named like this.)"""
+    assert part_types.classify(name) == HOSE, name
+    assert part_types.type_of(name) == "hose"
+
+
+@pytest.mark.parametrize("name,group", [
+    # the things that hold, end or handle a hose keep their own type
+    ("HOSE CLAMP", CLAMP), ("HYDRAULIC HOSE CLAMP", CLAMP), ("SLANGKLEM", CLAMP), ("Schlauchschelle", CLAMP),
+    ("HOSE HOLDER", CLAMP), ("HOSE NIPPLE", FIT), ("HYDRAULIC HOSE FITTING", FIT), ("SCHLAUCHTUELLE", FIT),
+    ("HOSE REEL", WINCH), ("HYDRAULIC HOSE REEL", WINCH), ("SLANGHASPEL", WINCH), ("HYDRAULIC HOSE WINCH", WINCH),
+    ("HYDRAULIC HOSE BRACKET", PLATE), ("HYDRAULIC HOSE GUIDE", PLATE), ("HYDRAULIC HOSE SUPPORT", PLATE),
+    ("HYDRAULIC HOSE VALVE", VALVE), ("HYDRAULIC HOSE ARM BRACKET", PLATE), ("HYDRAULIC HOSE CYLINDER CLAMP", PLATE),
+    # a bare "hose" or "cable" before a member may be the member (an arm that carries hoses, a gantry for the
+    # cable a vessel lays)
+    ("HOSE ARM", PLATE), ("HOSE BOOM", WELD), ("SLANG GIEK", WELD), ("CABLE ARM", PLATE), ("POWER CABLE GANTRY", WELD),
+    ("CABLE TENSIONER", WINCH), ("POWER CABLE TENSIONER", WINCH), ("CABLE GLAND", GLAND), ("CABLE GLAND ARM", PLATE),
+    ("CABLE TRAY", TRAY), ("CABLE BRACKET", PLATE),
+    # a machine's own wiring, named after where it runs
+    ("MOTOR CABLE ARM", CAB), ("SENSOR CABLE GRIPPER", CAB), ("Motorkabel Schlitten", CAB),
+    ("MOTOR CABLE BRACKET", PLATE), ("SENSOR CABLE HOLDER", PLATE)])
+def test_parts_that_only_mention_a_hose_or_cable_keep_their_group(name, group):
+    assert part_types.classify(name) == group, name
+
+
+@pytest.mark.parametrize("name", [
+    "DRAG CHAIN LINK", "ENERGY CHAIN", "ENERGY CHAIN LINK", "E-CHAIN", "E-CHAIN LINK", "CABLE CHAIN", "CABLE CHAIN LINK",
+    "LINK DRAG CHAIN", "CHAIN LINK ENERGY CHAIN", "ENERGIEKETTE", "ENERGIEKETTE KETTENGLIED", "Energiekette Glied",
+    "ENERGIEFUEHRUNGSKETTE", "Energieführungskette", "ENERGIEFUHRUNGSKETTE", "KABELRUPS", "KABELRUPS SCHAKEL",
+    "SLEEPKETTING", "SLEEPKETTING SCHAKEL", "Kabelsleepketting", "KABELSCHLEPP", "KABELSCHLEPP KETTENGLIED",
+    "CABLE CARRIER LINK", "DRAGCHAIN LINK 40"])
+def test_energy_chains_and_their_links_are_cable_chains(name):
+    assert part_types.classify(name) == ECH, name
+    assert part_types.type_of(name) == "cable_chain"
+
+
+def test_a_bare_chain_link_stays_a_chain():
+    """It could be a roller chain: flex.candidates takes a row of identical "CHAIN LINK" parts by their shape."""
+    for name in ("CHAIN LINK", "CHAIN LINK 08B", "ROLLER CHAIN LINK", "KETTINGSCHAKEL", "KETTENGLIED", "ANCHOR CHAIN"):
+        assert part_types.classify(name) == CHAIN, name
+    # ... and the parts round an energy chain are not the chain
+    assert part_types.classify("DRAG CHAIN BRACKET") == PLATE
+    assert part_types.classify("ENERGY CHAIN MOUNTING BRACKET") == PLATE
+    assert part_types.classify("DRAG CHAIN GUIDE") == WEAR and part_types.classify("CHAIN GUIDE") == WEAR
+    # a link inside a drag chain's assembly is part of it, whatever it is called
+    assert part_types.classify("LINK", "M#1/DRAG CHAIN X#1/LINK#7") == ECH
+    assert part_types.classify("CHAIN LINK", "M#1/CHAIN X.ASM#1/CHAIN LINK#7") == CHAIN
+
+
 def test_step_alone_is_not_a_stair():
     assert part_types.classify("STEP") == ""
     assert part_types.classify("STAIR STEP") == "Gratings, stairs & railings"
