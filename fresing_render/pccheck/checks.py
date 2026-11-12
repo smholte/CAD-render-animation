@@ -540,6 +540,7 @@ def motion_flex(ctx):
     ctx.picture(path, "flex_hoses", "Arm up: three hoses and the cable bent along (processor, draft)")
 
     scene = ctx.fresh(FLEX_CHAINS)
+    s = scene.fresing                             # (the first project is closed: its settings are gone)
     made = flex.set_up_test_chains(scene)
     _check(len(made["items"]) == 3, f"only {len(made['items'])} of the 3 drag chains were made")
     worst_end = worst_link = 0.0
