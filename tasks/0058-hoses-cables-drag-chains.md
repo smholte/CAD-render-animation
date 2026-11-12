@@ -1,7 +1,7 @@
 # 0058 – Hoses, cables and drag chains that follow the motion
 
-**Who:** worker · **Status:** open – can start (Fable day, 12 Nov; split over subagents, see below) · **Branch:**
-`task/0058-hoses-cables-drag-chains`
+**Who:** worker · **Status:** running (12 Nov; split over subagents, see below) · **Branch:**
+`claude/sleepy-mccarthy-3zpzfu` (the web session's branch)
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 1 of the big features, 9 Nov)
 **Lane:** new **Flex parts** lane – new files `core/flex.py` (no Blender: shapes, lengths, solver),
 `blender/flex.py`, `blender/ops_flex.py`, `ui_flex.py` (sub-panel of 4 Motion in its own file); small hooks only in
