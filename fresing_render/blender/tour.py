@@ -1217,6 +1217,129 @@ def _check_waycover(scene):
     return "5 sections, the last 500 mm"
 
 
+# ---------------------------------------------------------------------------
+# hoses, a cable and drag chains (task 0058)
+# ---------------------------------------------------------------------------
+
+HOSES_ANIM = "Arm up and down"
+CHAINS_ANIM = "Program with drag chains"
+CHAINS_PROGRAM = """(T1 D=6. CR=0. - flat end mill)
+G21 G90 G94 G17
+G0 X0 Y0 Z40
+G1 X130 Y-80 Z15 F6000
+G1 X-130 Y80 Z70
+G2 X-90 Y80 I20 J0
+G0 X0 Y0 Z40
+M30
+"""
+
+
+def hoses_motion(a) -> None:
+    """The steps of the hoses stop: the arm goes up 18° and down to -8° while the slide goes out and back."""
+    _joint_step(a, "Luff", 0.0, 2.0, math.radians(18.0), label="Arm up 18°")
+    _joint_step(a, "Slide", 0.5, 2.0, 0.12, slide=True, label="Slide out 120 mm")
+    _joint_step(a, "Luff", 2.0, 2.0, math.radians(-8.0), label="Arm down to -8°")
+    _joint_step(a, "Slide", 2.5, 1.5, -0.10, slide=True, label="Slide back 220 mm")
+
+
+@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step")
+def build_hoses(b: Build):
+    from . import flex
+    sc = b.scene
+    _look("PRODUCT")
+    made = flex.set_up_test_hoses(sc)
+    _check(len(made["items"]) == 4, f"only {len(made['items'])} of the 4 hoses were made")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: hoses")
+    hoses_motion(_animation(b, HOSES_ANIM, shot.name))
+
+
+def flex_errors(scene) -> tuple[float, float, float]:
+    """How well the hoses and chains shown at this frame fit, read from what is drawn: the largest distance of an
+    end from its point on the part it sits on (m), the largest error of a hose's length (share), the largest
+    error of a chain's link length (m)."""
+    from mathutils import Vector
+
+    from ..core import flex as fcore
+    from . import flex
+    end = stretch = chord = 0.0
+    for it in scene.fresing.flex:
+        if not it.enabled:
+            continue
+        if it.kind == "HOSE":
+            pts = flex.shape_now(scene, it)
+            a = it.a_part.matrix_world @ Vector(it.a_point)
+            c = it.b_part.matrix_world @ Vector(it.b_point)
+            end = max(end, (Vector(pts[0]) - a).length, (Vector(pts[-1]) - c).length)
+            stretch = max(stretch, abs(float(fcore.polyline_length(pts)) / it.length - 1.0))
+        else:
+            pins = flex.pins_now(scene, it)
+            c = it.b_part.matrix_world @ Vector(it.b_point)
+            end = max(end, (Vector(pins[-1]) - c).length)
+            for i in range(len(pins) - 1):
+                chord = max(chord, abs((Vector(pins[i + 1]) - Vector(pins[i])).length - it.pitch))
+    return end, stretch, chord
+
+
+def _flex_over_frames(scene, kind: str):
+    """(largest end error, largest length error, largest link error, how far the shapes moved) over the animation."""
+    import numpy as np
+
+    from . import flex
+    items = [it for it in scene.fresing.flex if it.kind == kind]
+    _check(bool(items), "the hoses are missing" if kind == "HOSE" else "the drag chains are missing")
+    worst = [0.0, 0.0, 0.0]
+    first, moved = None, 0.0
+    frames = sorted({1, scene.frame_end} | {round(1 + k * (scene.frame_end - 1) / 8) for k in range(1, 8)})
+    for f in frames:
+        scene.frame_set(f)
+        _update()
+        worst = [max(w, e) for w, e in zip(worst, flex_errors(scene))]
+        now = [np.array(flex.shape_now(scene, it)) for it in items]
+        if first is None:
+            first = now
+        moved = max(moved, max(float(np.abs(n - f0).max()) for n, f0 in zip(now, first)))
+    for it in items:
+        _check(not it.problem, f"'{it.name}': {it.problem}")
+    return worst[0], worst[1], worst[2], moved
+
+
+def _check_hoses(scene):
+    end, stretch, _chord, moved = _flex_over_frames(scene, "HOSE")
+    _check(moved > 0.05, f"the hoses moved only {moved * 1000:.0f} mm: they do not follow the arm")
+    _check(end < 1e-4, f"a hose end is {end * 1000:.2f} mm off its fitting")
+    _check(stretch < 0.005, f"a hose changed its length by {stretch * 100:.2f} %")
+    return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
+
+
+@tour_set("chains", "Drag chains", "test_flex_chains_a.step")
+def build_chains(b: Build):
+    from . import flex, gcode
+    sc = b.scene
+    _look("PRODUCT")
+    made = flex.set_up_test_chains(sc)
+    _check(len(made["items"]) == 3, f"only {len(made['items'])} of the 3 drag chains were made")
+    gcode.find_axes(sc)
+    gcode.use_tool(sc, _ob(sc, "TOOL T1 FLAT D6"))
+    gcode.use_workpiece(sc, _ob(sc, "STOCK 300x200x30"))
+    _check(gcode.problem(sc) == "", f"the CNC set-up is not ready: {gcode.problem(sc)}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: drag chains")
+    a = _animation(b, CHAINS_ANIM, shot.name)
+    _gcode_step(a, _program(b, "Drag chains program.ngc", CHAINS_PROGRAM), sc)
+
+
+def _check_chains(scene):
+    end, _stretch, chord, moved = _flex_over_frames(scene, "CHAIN")
+    _check(moved > 0.05, f"the chains' links moved only {moved * 1000:.0f} mm: they do not follow the axes")
+    _check(end < 1e-5, f"a chain's moving end is {end * 1000:.3f} mm off its part")
+    _check(chord < 1e-5, f"a link is {chord * 1000:.3f} mm longer or shorter than its link length")
+    n = sum(it.count for it in scene.fresing.flex if it.kind == "CHAIN")
+    return f"3 chains, {n} links, the moving ends on their parts to {end * 1000:.3f} mm"
+
+
 @tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step")
 def build_copies(b: Build):
     from mathutils import Vector
@@ -1905,6 +2028,14 @@ stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
      "closes, every section by its own share; the plates next to the carriage ride on it. And back.",
      where="4 Motion > Way covers", animation="Carriage across and back", play=True,
      check=_check_waycover_two, auto="clip")
+stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
+     "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
+     "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
+     animation=HOSES_ANIM, play=True, since="0.2.73", check=_check_hoses, auto="clip")
+stop("chains", MOTION, "chains", "Drag chains roll with the axes",
+     "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
+     "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
+     since="0.2.73", check=_check_chains, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

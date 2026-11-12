@@ -39,6 +39,8 @@ WAYCOVER = os.path.join(DATA, "test_waycover_b.step")
 WAYCOVER_OWNER = os.path.join(DATA, "test_waycover_a.step")
 WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
+FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
+FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -483,6 +485,76 @@ G80
 G53 G0 Z0
 M30
 """
+
+
+@line("motion.flex", "Hoses, a cable and drag chains follow the motion", "0.2.73",
+      what="A luffing arm with three hydraulic hoses and a hanging cable, a gantry with a drag chain on each axis: "
+           "posed and in a built animation the hose ends stay on their fittings, the hoses keep their length, the "
+           "chains' links keep their length and the moving ends stay on their parts; the same frame always gives "
+           "the same shape")
+def motion_flex(ctx):
+    import numpy as np
+
+    from ..blender import animation, cameras, flex, joints, render, tour
+    scene = ctx.fresh(FLEX_HOSES)
+    s = scene.fresing
+    t0 = time.time()
+    made = flex.set_up_test_hoses(scene)
+    ctx.metric("add 4 hoses", time.time() - t0, "s")
+    _check(len(made["items"]) == 4, f"only {len(made['items'])} of the 4 hoses were made")
+    # posed by hand (no animation): the hoses follow at once
+    joints.set_value(joints.find(scene, "Luff"), math.radians(15.0))
+    joints.set_value(joints.find(scene, "Slide"), 0.1)
+    _update()
+    flex.refresh(scene)
+    end, stretch, _chord = tour.flex_errors(scene)
+    _check(end < 1e-4, f"posed by hand, a hose end is {end * 1000:.2f} mm off its fitting")
+    _check(stretch < 0.005, f"posed by hand, a hose changed its length by {stretch * 100:.2f} %")
+    joints.set_value(joints.find(scene, "Luff"), 0.0)
+    joints.set_value(joints.find(scene, "Slide"), 0.0)
+    _update()
+    # a built animation: every frame's shape is worked out at Build
+    scene.camera = cameras.add_camera(scene, "ISO", 50.0, "Hoses view")
+    a = s.animations.add()
+    a.name, a.tail, a.fps = tour.HOSES_ANIM, 0.0, "25"
+    tour.hoses_motion(a)
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with hoses", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_hoses(scene)
+    item = flex.find(scene, made["items"][0])
+    shapes = []
+    for before in (10, 90):                       # the same frame after another frame: the same shape
+        scene.frame_set(before)
+        scene.frame_set(50)
+        _update()
+        shapes.append(np.array(flex.shape_now(scene, item)))
+    _check(float(np.abs(shapes[0] - shapes[1]).max()) == 0.0, "frame 50 looks different after frame 10 than after "
+                                                              "frame 90")
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(50)
+    path = os.path.join(ctx.work, "flex_hoses.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "flex_hoses", "Arm up: three hoses and the cable bent along (processor, draft)")
+
+    scene = ctx.fresh(FLEX_CHAINS)
+    made = flex.set_up_test_chains(scene)
+    _check(len(made["items"]) == 3, f"only {len(made['items'])} of the 3 drag chains were made")
+    worst_end = worst_link = 0.0
+    for x, y, z in ((0.14, 0.0, 0.0), (-0.14, 0.09, 0.05), (0.0, -0.09, -0.04)):
+        for name, v in (("X", x), ("Y", y), ("Z", z)):
+            joints.set_value(joints.find(scene, name), v)
+        _update()
+        flex.refresh(scene)
+        end, _stretch, chord = tour.flex_errors(scene)
+        worst_end, worst_link = max(worst_end, end), max(worst_link, chord)
+        for it in s.flex:
+            _check(not it.problem, f"'{it.name}': {it.problem}")
+    _check(worst_end < 1e-5, f"a chain's moving end is {worst_end * 1000:.3f} mm off its part")
+    _check(worst_link < 1e-5, f"a chain link is {worst_link * 1000:.3f} mm off its link length")
+    return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
 @line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.30",
