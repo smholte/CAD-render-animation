@@ -77,7 +77,7 @@ Cable catenary into the sea (0081), the camera riding the vessel (0087), motion 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web (session branch `claude/kind-lovelace-yk40cq`), 11 Nov 2026 · version 0.2.64
+**Chat / date:** worker, Claude Code on the web (session branch `claude/kind-lovelace-yk40cq`), 11 Nov 2026 · version 0.2.65
 
 **What changed:**
 - `core/vessel_motion.py` (no Blender): each wave of the sea (a, direction, k, phase) → heave = its height averaged
@@ -134,7 +134,7 @@ Cable catenary into the sea (0081), the camera riding the vessel (0087), motion 
   joints, 8 s animation); PC-check lines `scene.vessel_motion` (Full: picture + roll/pitch/heave measured over 2 min)
   and `heavy.vessel` (Heavy: ms per frame off/on); real-app test `tools/ui_test_vessel.py` (group scenes; scripts off
   with `blender -Y` via `tools/vessel_check_noscripts.py`); tooltip check reads the new panel; guide section in
-  chapter 5 + picture; CHANGELOG 0.2.64.
+  chapter 5 + picture; CHANGELOG 0.2.65.
 
 **Tested and measured** (Claude Code web session, 4 cores, no graphics card; test crane `test_crane_a.step`):
 - `tests/test_vessel_motion.py`, 29 tests: the table for Calm and Rough at 124×28 m and 64×18.3 m (every 120 s

@@ -276,6 +276,8 @@ def _take_apart(scene, root) -> tuple:
     """Everything that hangs on the parts of the model under ``root`` comes apart (parts back in the CAD
     tree); returns the specs (cylinders, mechanisms, joints) to build it again."""
     cylinders, gcode, linkages, machining, _waycover = _set_up_hooks()
+    from . import section
+    section.before_model_update(scene, root)     # cutaways (task 0086): their slide joints come off first
     machining.before_model_update(scene)         # milling (task 0027): the workpiece gets its CAD mesh back
     gcode.before_model_update(scene)             # CNC machine (task 0026): its marker and toolpath hang on parts
     # cylinders (task 0013) first: their pins hang on parts the joints move
@@ -297,6 +299,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += waycover.after_joints_rebuilt(scene, mapping, by_uid)           # way covers (task 0034, 0035)
     from . import trails
     notes += trails.after_model_update(scene, by_uid, mapping)               # trail lines (task 0073)
+    from . import section
+    notes += section.after_model_update(scene, by_uid, mapping)              # cutaways (task 0086)
     return notes
 
 
@@ -464,6 +468,8 @@ def _carry_over(context, st) -> dict:
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
     logic.update_bounds(scene)
+    from . import section
+    section.sync(scene)                          # cutaways (task 0086): groups are known only now
     from . import world
     world.apply(scene, s)
 

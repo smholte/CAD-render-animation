@@ -229,7 +229,7 @@ twice are sorted out when they are opened: the first copy keeps everything that 
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
 2. Your work stays: materials, painted faces, logos and stickers, hidden parts, joints, cylinders,
-   mechanisms, way covers, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
+   mechanisms, way covers, cutaways, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
    cylinders and mechanisms that link this model to another one in the project (a crane on a ship's
    deck) stay too, whichever of the two you update.
 3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
@@ -515,6 +515,48 @@ See inside or behind a part in a still picture: an X-ray part is see-through wit
 
 It shows in the rendered view, in pictures and videos (Cycles and EEVEE), and is kept with the project. For a
 housing that turns X-ray *during* a video, use a **Fade out** step with **Fade to X-ray** (6 Animation).
+
+<a id="cutaway"></a>
+### Cutaway
+
+<img class="panel" src="img/panel_3_cutaway.png" alt="3 Looks > Cutaway with a plane cut through the pedestal and the boom">
+
+Show the inside of a machine: a cut takes away part of the parts you choose, and the faces where it cuts through
+the material are filled with a **cap colour** (a strong red, as on a section drawing). The parts are not changed –
+switch the cut off and they are whole again.
+
+<img class="wide" src="img/cutaway.jpg" alt="The test crane with its pedestal and boom cut open: red hatched cut faces, the pin inside">
+
+1. Choose **Plane** (cuts the parts in two) or **Box** (takes away a corner or a quarter).
+2. Select a subassembly (or a part) and click **Add cut: the selected**; or pick a material group in the list
+   above and click **This group**; or **Whole model**. The cut goes through the middle of what it cuts and takes
+   away the side that faces you in the view (or the camera), so you see the inside at once.
+3. Under the list of cuts: **Flip** (the other side goes; for a box: everything outside it), the **Cap colour**,
+   **Hatch lines** with their spacing, and for a box its size. **Cuts … parts** lists what it cuts: **Add
+   selected** / **Add group** adds more, the × takes one out (a gearbox housing cut, the gears inside whole).
+4. Move it: **Select the arrow**, then in the view press **G** to move it or **R** to turn it. The arrow points to
+   the side a plane takes away. Or set it in **Place by numbers** (in the model's coordinates). **To the middle**
+   puts it back.
+
+Several cuts per project are fine; the tick in the list switches one on or off, and the panel header shows how
+many are on. Cuts are kept with the project, in saved scenes (which are on), in the render queue and through a
+model update (**Update to new revision…**, 1 Import).
+
+**A cut that moves in a video.** Each cut has its own slide joint with the same name (**Cut 1** …): the
+**Slide** value moves the cut along its arrow (0 = where you put it). In 6 Animation, a **Move joint** step with
+that joint slides the cut in – "the housing opens up". Poses keep the slide too.
+
+Good to know:
+
+- Cuts show in the rendered view (**Z > Rendered**), in pictures and videos, Cycles and EEVEE. The grey solid view
+  shows the parts whole.
+- Light falls in through the cut as it would through a real cut; parts inside cast their shadows.
+- The cap colour is right for closed solids (every STEP solid is). A part made of open surfaces (a sheet drawn as a
+  single surface) shows its inside face in the cap colour.
+- Glass and logos/stickers are cut, but get no cap.
+- Adding the first cut sets the **Floor gap** (5 Scene & Render) to 0.1 mm, if it was 0: a floor touching the
+  bottom of a cut part would otherwise show through its cut face.
+- A cut and a [fade](#animation) work together: a cut part that fades, fades with its cut faces.
 
 ### Find & sort parts
 

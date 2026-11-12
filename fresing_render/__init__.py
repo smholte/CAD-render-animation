@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.64"
+__version__ = "0.2.65"
 
 _modules = []
 
@@ -16,7 +16,8 @@ def _classes():
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
                           ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
                           ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_machining, ui_motion, ui_tour, ui_video,
-                          ui_waycover, updates)
+                          ui_section, ui_waycover, updates)
+    from .blender import ops_section                # task 0086: 3 Looks > Cutaway
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
@@ -25,6 +26,8 @@ def _classes():
     looks[at:at] = ui_decals.PANELS
     at = looks.index(ui_decals.PANELS[-1]) + 1
     looks[at:at] = ui_fade.PANELS                # 3 Looks > X-ray look (task 0073)
+    at = looks.index(ui_fade.PANELS[-1]) + 1
+    looks[at:at] = ui_section.PANELS             # 3 Looks > Cutaway (task 0086)
     at = looks.index(ui.FRESING_PT_props) + 1
     looks[at:at] = ui_vessel_motion.CLASSES      # 5 Scene & Render > Vessel motion (task 0085), after Props
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
@@ -33,7 +36,7 @@ def _classes():
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
-            + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
+            + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES)
 
@@ -59,6 +62,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    from .blender import section
+    section.register()                       # cutaways (task 0086): new materials of cut parts get wrapped
     hover.register()
     from .blender import waycover
     waycover.register()                      # task 0035: one-cover projects open with it in the list
@@ -75,6 +80,8 @@ def unregister():
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     pccheck.unregister()
     updates.unregister()
+    from .blender import section
+    section.unregister()
     hover.unregister()
     from .blender import vessel_motion
     vessel_motion.unregister()

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.64 – 12 Nov 2026 – vessel motion at sea (task 0085)
+## 0.2.65 – 12 Nov 2026 – vessel motion at sea (task 0085)
 
 Scene & Render
 - **Vessel motion** (new, 5 Scene & Render > Vessel motion, on the Open sea and the Vessel deck): tick **Move with
@@ -29,6 +29,24 @@ Test tour and PC check
 - New tour stop **Vessel motion at sea** (the crane on the vessel deck in a calm beam sea), PC-check lines
   **Vessel motion at sea** (a picture and the measured roll, pitch and heave) and, in Heavy, **Big machine: vessel
   motion on the open sea** (time per frame with and without).
+
+## 0.2.64 – 12 Nov 2026 – cutaway: see inside the machine (task 0086)
+
+3 Looks
+- **New: Cutaway.** Select a subassembly (or pick a group, or the whole model), choose **Plane** or **Box** and
+  click **Add cut**: the side facing you is taken away and the cut faces show a strong red **cap colour** (your
+  choice of colour, optional **hatch lines**). **Flip** takes away the other side; a box takes away a corner or a
+  quarter. Move the cut's arrow in the view (**Select the arrow**, then G or R) or set its place by numbers.
+  Several cuts per project, each on or off; parts that are not cut (gears inside a cut housing) stay whole.
+- The parts themselves are not changed: switch a cut off and they are whole again. It shows in the rendered view,
+  in pictures and videos (Cycles and EEVEE), in the render queue and with "Auto Run Python Scripts" off. Light falls
+  in through the cut. A cut costs almost no render time (measured: 1.8 s a frame with and without on the test
+  crane; 8.1–8.6 s vs 7.9–8.3 s on a 3,000-part test machine).
+- **A cut that moves in a video:** each cut has a slide joint with its name (**Cut 1** …): a **Move joint** step in
+  6 Animation slides it in – "the housing opens up". Poses and saved scenes keep it; a model update keeps the cuts.
+- Adding the first cut sets 5 Scene & Render > **Floor gap** to 0.1 mm when it was 0 (else the floor would show
+  through the cut face of a part standing on it).
+- New stop in the test tour ("Cutaway: the pedestal opens up") and a new PC-check line (looks.cutaway).
 
 ## 0.2.63 – 11 Nov 2026 – the face lights up before you click an axis (task 0088)
 
