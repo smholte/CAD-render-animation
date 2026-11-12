@@ -1,6 +1,6 @@
 # 0096 – Machining follow-ups: no dive after a tool change, chips on a table that carries the 4th axis, crisp floor edges
 
-**Who:** worker · **Status:** done (0.2.75) · **Branch:** `claude/adoring-lovelace-rln7b8`
+**Who:** worker · **Status:** done (0.2.76) · **Branch:** `claude/adoring-lovelace-rln7b8`
 **Started by:** lead chat, 12 Nov 2026 (open points of 0061 and 0066)
 **Lane:** Machining – `core/toolchange.py`, `core/gcode.py` (the `Schedule` part), `blender/gcode.py`, `core/chips.py`,
 `blender/chips.py`, `core/cut_normals.py`, `core/toolmarks.py`, `blender/toolmarks.py`, `blender/machining.py`, their
@@ -125,9 +125,9 @@ no PC-check line (fixes; the G43 line is a warning text).
   toolpath, air, coolant, cut normals, core G-code and tool change: 269 passed; real app `gcode` 29/29.
 - Drill rings: 0.05 and 0.2 mm per turn give exactly that spacing.
 
-**GitHub runs:** 2 on the branch. The first failed one real-app check (`ui_test_gcode.py` compared T1's tip with
+**GitHub runs:** 3 on the branch. The first failed one real-app check (`ui_test_gcode.py` compared T1's tip with
 the program also during the tool change, where the spindle now rises 5.5 mm for the longer T2): it now skips the
-changes, as the pytest version does. Released as 0.2.75 (0.2.74 was taken by 0098 meanwhile).
+changes, as the pytest version does. Released as 0.2.76 (0.2.74 and 0.2.75 were taken by 0098 and 0097 meanwhile: one more run).
 
 **Open points / follow-up tasks:**
 - The exact normals cost +33 ms on a 28,000-triangle cut (above); could be trimmed if the owner notices.

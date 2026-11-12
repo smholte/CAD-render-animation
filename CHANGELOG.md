@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.75 – 12 Nov 2026 – milling fixes: no dive after a tool change, chips on a moving 4th-axis table (task 0096)
+## 0.2.76 – 12 Nov 2026 – milling fixes: no dive after a tool change, chips on a moving 4th-axis table (task 0096)
 
 Tool changes (4 Motion > CNC machine)
 - **No more holes where the program does not cut.** After a tool change the new tool, when it is longer, could
@@ -23,6 +23,12 @@ Milling (4 Motion > Milling)
 - **Drill rings** on the drill point and a plunge's bottom are spaced by the feed per turn (F / S), like the rest.
 - **F12 straight after scrubbing** now always renders the exact shading of the milled block ("Lock Interface" is
   kept on while milling).
+
+## 0.2.75 – 12 Nov 2026 – demo vessel: the cradle rollers turn the right way (task 0097)
+
+In the demo cable-lay vessel the 66 side rollers of the 33 roller cradles turned about a wrong, nearly upright axis and
+wobbled through the cable. Now every roller turns about its own axis. Projects made before need Help > Make demo
+project again.
 
 ## 0.2.74 – 12 Nov 2026 – brushed, ground and turned parts shine the right way (task 0098)
 
