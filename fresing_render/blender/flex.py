@@ -75,6 +75,8 @@ END_SHARE = 0.25                        # that point lies this share of the firs
 SIDES = 16                              # of the tube's cross-section
 SMOOTH = 3                              # the tube bends in this many pieces between two centreline points
 LOCAL = "fr_flex_local"                 # on a CAD link: its matrix in its own pin frame (16 numbers, row by row)
+GUIDE = "fr_flex_guide_"                # + "a" / "b", on a hose part: its CAD centreline (GUIDE_POINTS x 3) in the
+GUIDE_POINTS = 17                       # coordinates of the part each end sits on
 MADE_LINK = "FR flex link"              # + the item's name: the link the app draws along a chain that is one solid
 LENGTH_SPARE = 1.001                    # a CAD hose reads ~0.1 % short (facets): never "too short" in its own pose
 USER_CHANGE = 0.002                     # a number differs this much from the CAD one: the user set it
@@ -384,6 +386,7 @@ def _read_hose(scene, part, near: _Near | None = None) -> dict:
                                 "click the part it is fixed to, then the pipette beside that end in the panel")
         out[key + "_part"] = ob
     out["memo"] = memo
+    out["line"] = line                          # the CAD centreline, world: which way the hose lies (the guide)
     return out
 
 
@@ -404,6 +407,10 @@ def _store_hose(item, part, geo: dict, keep_user: bool = False) -> None:
             setattr(item, key + "_uid", ob.get(build.PROP_UID, ""))
             setattr(item, key + "_point", tuple(_local_point(ob, geo["memo"], p)))
             setattr(item, key + "_dir", tuple(_local_dir(ob, geo["memo"], d)))
+            if geo.get("line") is not None:     # the CAD centreline as this end's part sees it (see _guides)
+                from ..core import flex as HS
+                idprops.store_array(part, GUIDE + key, _local_point(ob, geo["memo"], HS.resample(geo["line"],
+                                                                                                GUIDE_POINTS)))
         item.cad_length = geo["length"]
         if not user_length:
             item.length = geo["length"]
@@ -680,6 +687,9 @@ def set_end_part(scene, item, end: str, ob) -> None:
             item.a_point = tuple(frame[:3, 3])
         else:
             setattr(item, key + "_point", tuple(_at(to_new, np.array(getattr(item, key + "_point")))))
+            if item.part is not None and GUIDE + key in item.part:
+                idprops.store_array(item.part, GUIDE + key,
+                                    _at(to_new, np.array(item.part[GUIDE + key], dtype=float).reshape(-1, 3)))
             d = to_new[:3, :3] @ np.array(getattr(item, key + "_dir"))
             setattr(item, key + "_dir", tuple(d / (np.linalg.norm(d) or 1.0)))
         item[key + "_user"] = True
@@ -710,7 +720,7 @@ def _strip(ob) -> None:
         mod = ob.modifiers.get(MOD)
         if mod is not None:
             ob.modifiers.remove(mod)
-        for key in (TAG, LOCAL):
+        for key in (TAG, LOCAL, GUIDE + "a", GUIDE + "b"):
             if key in ob:
                 del ob[key]
     except ReferenceError:
@@ -1306,6 +1316,26 @@ def _solve(its, mats: dict, frames: int):
         if c.short.any():
             problems[i] = ("reach", int(np.argmax(c.short)), 0.0)
     return out, problems
+
+
+def _guide(it, a: np.ndarray, b: np.ndarray):
+    """Which way the hose lies, at ``frames`` moments: its CAD centreline carried along by the two parts its ends
+    sit on – near end A it moves with A's part, near end B with B's, in between a smooth blend. In the CAD pose
+    this is the CAD centreline itself. (frames, GUIDE_POINTS, 3), world; None for a hose without one (made before
+    the app kept it: 'Fit to the CAD pose' reads it)."""
+    part = it.part
+    if part is None or GUIDE + "a" not in part or GUIDE + "b" not in part:
+        return None
+    ga = np.array(part[GUIDE + "a"], dtype=float).reshape(-1, 3)
+    gb = np.array(part[GUIDE + "b"], dtype=float).reshape(-1, 3)
+    if ga.shape != gb.shape or len(ga) < 3:
+        return None
+    wa = ga @ a[:, :3, :3].transpose(0, 2, 1) + a[:, None, :3, 3]
+    wb = gb @ b[:, :3, :3].transpose(0, 2, 1) + b[:, None, :3, 3]
+    run = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(ga, axis=0), axis=1))])
+    t = run / (run[-1] or 1.0)
+    w = (t * t * (3.0 - 2.0 * t))[None, :, None]          # smooth step along the hose
+    return (1.0 - w) * wa + w * wb
 
 
 def _with_ends(pts: np.ndarray) -> np.ndarray:
