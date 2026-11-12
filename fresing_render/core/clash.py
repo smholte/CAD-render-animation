@@ -310,33 +310,44 @@ def motion_many(m0: np.ndarray, m1: np.ndarray, lo: np.ndarray, hi: np.ndarray) 
     return np.max(np.linalg.norm(transform(m1, c) - transform(m0, c), axis=2), axis=1)
 
 
+def _ab(theta: float) -> tuple:
+    """(sin θ / θ, (1 − cos θ) / θ², (θ − sin θ) / θ³), with their series near 0."""
+    if theta < 1e-4:
+        t2 = theta * theta
+        return 1.0 - t2 / 6.0, 0.5 - t2 / 24.0, 1.0 / 6.0 - t2 / 120.0
+    return (math.sin(theta) / theta, (1.0 - math.cos(theta)) / (theta * theta),
+            (theta - math.sin(theta)) / theta ** 3)
+
+
 def screw_between(m0: np.ndarray, m1: np.ndarray, s: float) -> np.ndarray:
     """The place a part has a share ``s`` (0 … 1) of the way from ``m0`` to ``m1`` (4x4 world matrices), moving as a
-    screw: a turn about a fixed axis plus a slide along it (exact for a joint that turns or slides evenly)."""
+    screw: a turn about a fixed axis plus a slide along it (exact for a joint that turns or slides evenly). Worked out
+    with the motion's turn vector and the exponential of a screw (task 0092): before, a point on the turning axis was
+    found by least squares, which is ill-posed for a tiny turn read from float32 places; a body that slid far while
+    it hardly turned was put centimetres to kilometres off its path between two frames (task 0091's false rows)."""
     rel = m1 @ np.linalg.inv(m0)
     r, t = rel[:3, :3], rel[:3, 3]
-    cos = (np.trace(r) - 1.0) / 2.0
-    ang = math.acos(min(1.0, max(-1.0, cos)))
-    out = np.eye(4)
-    if ang < 1e-9:
-        out[:3, 3] = t * s
-        return out @ m0
+    ang = float(turn_angles(rel))
+    sk = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / 2.0     # axis × sin θ
     if math.pi - ang < 1e-6:                     # half a turn: the axis from the symmetric part
         w, v = np.linalg.eigh((r + r.T) / 2.0)
         axis = v[:, int(np.argmax(w))]
+        if axis @ sk < 0:
+            axis = -axis
+        wv = axis * ang
     else:
-        axis = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2.0 * math.sin(ang))
-    axis = axis / np.linalg.norm(axis)
-    along = float(t @ axis)
-    perp = t - along * axis
-    # a point c on the axis: (I - R) c = perp (least squares: I - R has no rank along the axis)
-    c = np.linalg.lstsq(np.eye(3) - r, perp, rcond=None)[0]
-    c = c - (c @ axis) * axis
-    a = ang * s
-    k = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
-    rs = np.eye(3) + math.sin(a) * k + (1.0 - math.cos(a)) * (k @ k)
-    out[:3, :3] = rs
-    out[:3, 3] = c - rs @ c + along * s * axis
+        sa, _a, _b = _ab(ang)
+        wv = sk / sa                             # the turn vector: axis × θ
+    k = np.array([[0, -wv[2], wv[1]], [wv[2], 0, -wv[0]], [-wv[1], wv[0], 0]])
+    kk = k @ k
+    _sa, a1, b1 = _ab(ang)
+    vel = np.linalg.solve(np.eye(3) + a1 * k + b1 * kk, t)          # the slide part of the screw
+    th = ang * s
+    sa_s, a_s, b_s = _ab(th)
+    ks, kks = k * s, kk * s * s
+    out = np.eye(4)
+    out[:3, :3] = np.eye(3) + sa_s * ks + a_s * kks
+    out[:3, 3] = (np.eye(3) + a_s * ks + b_s * kks) @ (vel * s)
     return out @ m0
 
 
@@ -377,9 +388,12 @@ def rotation_about(c: np.ndarray, u: np.ndarray, phi) -> np.ndarray:
 
 
 def turn_angles(m: np.ndarray) -> np.ndarray:
-    """How far (rad, 0 … π) the rigid motions ``m`` (…, 4, 4) turn."""
-    tr = np.trace(m[..., :3, :3], axis1=-2, axis2=-1)
-    return np.arccos(np.clip((tr - 1.0) / 2.0, -1.0, 1.0))
+    """How far (rad, 0 … π) the rigid motions ``m`` (…, 4, 4) turn: from the sine (the skew part) and the cosine (the
+    trace) together, exact near 0 too (acos alone loses ~1e-4 rad there from float32 places)."""
+    r = m[..., :3, :3]
+    tr = np.trace(r, axis1=-2, axis2=-1)
+    sk = np.stack([r[..., 2, 1] - r[..., 1, 2], r[..., 0, 2] - r[..., 2, 0], r[..., 1, 0] - r[..., 0, 1]], axis=-1)
+    return np.arctan2(np.linalg.norm(sk, axis=-1) / 2.0, (tr - 1.0) / 2.0)
 
 
 def screw_axis(m: np.ndarray) -> tuple:

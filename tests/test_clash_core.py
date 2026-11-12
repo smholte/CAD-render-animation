@@ -334,3 +334,32 @@ def test_connected_pieces():
     m = 2000
     t = np.array([(i, i + 1, i + 2) for i in range(m)])
     assert len(set(C.connected(m + 2, t))) == 1
+
+
+def test_a_slow_turn_with_a_long_move_stays_on_its_path_between_frames():
+    """Task 0091's open point: bodies up to 60 m from the origin that slide up to metres while they turn by 0 … 1 rad
+    about some axis, their places read as float32 (as Blender gives them): the place half-way is on the exact screw
+    path within a hundredth of a millimetre. The least-squares axis point before task 0092 put tiny turns metres off."""
+    rng = np.random.default_rng(3)
+
+    def turn(axis, ang, about=(0.0, 0.0, 0.0)):
+        return C.rotation_about(np.array(about, float), np.asarray(axis, float) / np.linalg.norm(axis), ang)
+    pts = np.array([[0.5, 0.2, 0.1], [-0.5, 0.0, 0.3]])
+    for th in (0.0, 1e-7, 1e-6, 1e-5, 1e-4, 0.01, 1.0):
+        for _k in range(40):
+            base = turn(rng.normal(size=3), rng.uniform(0, 3))
+            base[:3, 3] = rng.uniform(-60, 60, 3)
+            ax = rng.normal(size=3)
+            ax /= np.linalg.norm(ax)
+            c, along = rng.uniform(-5, 5, 3), rng.normal() * 2.0
+
+            def screw(f):
+                m = turn(ax, th * f, c)
+                m[:3, 3] += ax * along * f
+                return m
+            m0 = base.astype(np.float32).astype(np.float64)
+            m1 = (screw(1.0) @ base).astype(np.float32).astype(np.float64)
+            mid = C.screw_between(m0, m1, 0.5)
+            err = np.max(np.abs(C.transform(mid, pts) - C.transform(screw(0.5) @ base, pts)))
+            assert err < 0.01 * MM, (th, err)
+    assert abs(float(C.turn_angles(turn((0, 0, 1), 1e-5).astype(np.float32).astype(np.float64))) - 1e-5) < 1e-6
