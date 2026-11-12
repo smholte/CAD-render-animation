@@ -974,11 +974,12 @@ What you see
   **pocket floor** shows the same arcs, finer and smaller.
 - **Walls** show fine upright lines, one per tooth. A wall cut in several depths shows a level line where
   each depth starts, as on a real part.
-- A **drilled hole** shows rings, on its wall and on its bottom. So does a spot where a tool only went
-  straight down.
+- A **drilled hole** shows rings, on its wall and on its bottom (one ring per turn of the spindle: F / S). So
+  does a spot where a tool only went straight down.
 - A ball end mill and a corner radius leave fine lines across each pass, a chamfer mill lines along it.
 - The **sheen** follows the marks: on a faced top the bright band swirls with the arcs when the camera or the
-  light moves. Cut faces no longer show dark patches in reflections.
+  light moves. Cut faces no longer show dark patches in reflections. A floor stays flat up to the edge where it
+  meets a slope, also where the slope is only a little steeper (the strips a ball end mill leaves).
 - An area that a later tool cuts again shows the new tool's marks; everything else keeps the old ones.
 
 The settings are in 4 Motion > **Milling**, under **Cut faces**. They show whenever the cut faces have a look
@@ -1312,7 +1313,9 @@ takes F as degrees per minute. A rotary word on a drilling-cycle line is left ou
 supported.
 
 **What follows the part**: the milled shape, the toolpath, chips that landed on the workpiece, and whatever sits on
-the rotary table (chuck, vise, fixture – they hang under its joint). Chips on the table or the bed stay. Coolant and
+the rotary table (chuck, vise, fixture – they hang under its joint). Chips on the table or the bed stay. When the
+rotary table itself sits on a table that moves (X carries the 4th axis), chips that fall past the chuck land on that
+table and move with it (not turning with the axis); chips past it land on the bed. Coolant and
 air aim at the tool as before. Tool changes (by hand, carousel, double arm) keep the rotary axes where they are.
 
 **Milling on a turning part**: while an axis turns, the app reads the tool more often (each cut piece at most 0.5°
@@ -1363,11 +1366,20 @@ meets the spindle), that is the stick-out plus the holder's length.
 
 With **Tool lengths move the spindle** ticked (as a tool length offset G43 does), a tool that is longer than the
 one in the spindle moves the spindle up by the difference, so every tool's tip is where the program says; the
-spindle adjusts right after the swap. Tools in different holders work too: a face mill 40 mm out of a 45 mm BT30
+spindle adjusts at the change, so no tool ever goes lower than the program says: a longer new tool is put in with
+the spindle already up (when the head stays where it is), and on the way back from the change position the head
+comes down onto the program's point with the new tool's length. Tools in different holders work too: a face mill 40 mm out of a 45 mm BT30
 arbor (85 mm) and an end mill 38 mm out of a 60 mm BT30 chuck (98 mm) differ by 13 mm. For a tool shown by a part
 or a STEP model with its holder inside, type the **Gauge length** (tip to gauge line, as on the tool's data sheet
 or the presetter) into the row: it wins over stick-out + holder. Projects from before 0.2.38 whose tools all sit in
 one kind of holder move the spindle as before.
+
+**M6 without G43 for the new tool**: when the program has used G43 and a tool change has no `G43 H` for the new tool
+(on the M6 line or before the next move), the old tool's offset stays, as on the machine: the new tool's tip runs
+the difference below (or above) the program. The Build says so, for example "T2 (M6 on line 9) is 27.7 mm longer
+than T1 and has no G43 H2: T1's length offset stays, so its tip runs 27.7 mm below the programmed points, as on the
+machine - add G43 H2 after the M6"; the step's **Details** too, and 6 Animation > **Clash check** lists it as a
+clash between the tool and the workpiece. A program without any G43 keeps every tool's own length.
 
 Sizes that look wrong (a tool wider than 250 mm, longer than 300 mm, flutes longer than the stick-out) give a
 warning above the row – nothing is refused.
@@ -1414,9 +1426,12 @@ pause, the hand, a caption, the changer's speed) is set in the program step in 6
 <img class="panel" src="img/panel_4_toolchange_manual.png" alt="Tool changes set to Manual: the head goes Z up only, to Z 60 mm">
 
 At each M6 the head goes to the change position, pauses, and goes back to where the program left off; the tool is
-swapped half way through the pause. **Head goes**:
+swapped half way through the pause. On the way back it moves above the program's point first and comes straight
+down onto it, with the new tool's length: a longer tool never dives into the part. A change position below the
+program's point counts as that point's height. **Head goes**:
 
-- **Where it is** – the head stays (as your program left it, for example after `G53 G0 Z0`).
+- **Where it is** – the head stays (as your program left it, for example after `G53 G0 Z0`). When the new tool is
+  longer, the spindle rises by the difference before it goes in and comes down to the program's point afterwards.
 - **Z up only** – Z goes to the change position's **Z** (machine coordinates, G53), X and Y stay.
 - **Change position** – the head goes to X, Y, Z (like LinuxCNC's `TOOL_CHANGE_POSITION`), Z first.
 

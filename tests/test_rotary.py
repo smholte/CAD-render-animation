@@ -23,7 +23,7 @@ import pytest
 
 bpy = pytest.importorskip("bpy")
 import addon_utils  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Matrix, Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
 import fresing_render  # noqa: E402
@@ -396,3 +396,81 @@ def test_chips_ride_on_the_turning_bar_and_fall_on_the_bed(tmp_path):
     d = bk.at(float(sc.frame_end))
     riding, world = len(d[0]["pos"]), len(d[1]["pos"])
     assert riding > 0 and world > 0                      # on the bar (they turn with it) and on the bed
+
+
+def _table_under_a(sc):
+    """Task 0096: a table plate under the A axis that slides along X while the program runs (keys on its joint), the
+    rotary table riding on it. The plate: x -250 .. 250, y -70 .. 70, top at z = 20 (the bed's top is at 0)."""
+    plate = bpy.data.objects.new("TABLE PLATE", bpy.data.meshes.new("TABLE PLATE"))
+    me = plate.data
+    x0, x1, y0, y1, z0, z1 = -0.25, 0.25, -0.07, 0.07, 0.0, 0.02
+    v = [(x, y, z) for z in (z0, z1) for y in (y0, y1) for x in (x0, x1)]
+    f = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)]
+    me.from_pydata(v, [], f)
+    me.update()
+    asm = rotary._named(sc, "A.ASM")
+    for c in asm.users_collection:
+        c.objects.link(plate)
+    root = build.logical_parent(asm)
+    plate.parent = root                             # inside the model (its root)
+    plate.matrix_parent_inverse = root.matrix_world.inverted()
+    plate[build.PROP_KIND] = "part"
+    tj = joints.create(sc, "SLIDE", [plate], Vector((0, 0, 0.01)), Vector((1, 0, 0)), name="Table X")
+    tj.use_limits = False
+    a = sc.fresing.joints["Rotary A"]
+    bpy.context.view_layer.update()
+    world = a.frame.matrix_world.copy()
+    a.frame.parent = tj.motion                      # the rotary table rides on the plate
+    a.frame.matrix_parent_inverse = Matrix.Identity(4)
+    a.frame.matrix_basis = tj.motion.matrix_world.inverted() @ world
+    bpy.context.view_layer.update()
+    return plate, tj
+
+
+def _slide(sc, tj, travel=0.06):
+    """Keys on the table's joint after the Build (a new joint takes a built animation off)."""
+    m = tj.motion
+    m[joints.VALUE] = 0.0
+    m.keyframe_insert(f'["{joints.VALUE}"]', frame=sc.frame_start)
+    m[joints.VALUE] = travel
+    m.keyframe_insert(f'["{joints.VALUE}"]', frame=sc.frame_end)
+    sc.frame_set(sc.frame_start)
+
+
+def test_chips_on_a_table_that_carries_the_4th_axis(tmp_path):
+    """Task 0096: the A axis rides on a table sliding 60 mm along X. Chips falling past the chuck land on the table
+    and slide with it (carrier space: they do not turn with A); chips past the table land on the fixed bed. Without
+    the table (the test above) there is no carrier."""
+    from fresing_render.blender import chips
+    sc, a, b = load(tmp_path, fit=6.0)
+    plate, tj = _table_under_a(sc)
+    bake(sc, a)
+    _slide(sc, tj)
+    assert chips.carrier(sc) == tj.motion
+    machining.sample(sc)
+    s = machining.settings(sc)
+    assert len(s["fr_carrier_m"]) == len(s["fr_wp_m"])
+    s.chips = "FEW"
+    bk = chips.bake(sc, force=True)
+    assert bk is not None, chips.status(sc)
+    d = bk.at(float(sc.frame_end))
+    riding, world, table = (len(d[k]["pos"]) for k in (0, 1, 2))
+    assert riding > 0 and table > 0 and world > 0, (riding, world, table)
+    # the chips on the table lie on its top (z = 20 mm in carrier space) and are inside its outline
+    pc = d[2]["pos"]
+    resting = np.isfinite(bk.rest_t[d[2]["id"]]) & (bk.rest_t[d[2]["id"]] <= sc.frame_end)
+    assert resting.sum() > 0
+    top = pc[resting]
+    assert np.all(np.abs(top[:, 2] - 0.02) < 0.01), top[:, 2].min()
+    assert np.all(np.abs(top[:, 1]) <= 0.071)
+    # shown: they follow the table (at the end it is 60 mm further along X than at the start)
+    sc.frame_set(sc.frame_end)
+    chips.show(sc)
+    ob = bpy.data.objects[chips.OBJ_CARRIER]
+    bpy.context.view_layer.update()
+    assert len(ob.data.vertices) == table
+    assert ob.matrix_world.translation.x == pytest.approx(tj.motion.matrix_world.translation.x, abs=1e-6)
+    assert tj.motion.matrix_world.translation.x - plate.matrix_world.translation.x == pytest.approx(0.0, abs=1e-6)
+    # chips resting past the table (the fixed bed, the headstock): in world space, not on the plate
+    rw = np.isfinite(bk.rest_t[d[1]["id"]])
+    assert rw.any()

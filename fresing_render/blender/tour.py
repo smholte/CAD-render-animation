@@ -2055,11 +2055,13 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      animation="G-code", play=True, check=_check_gcode, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
-     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43.",
+     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "
+     "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
+     "new tool would get a line in the Build result and a row in the clash check.",
      where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip")
 stop("hand", MACH, "tools", "Tool change by hand (BT30)",
-     "At a tool change the head goes up, a gloved hand takes the tool out by its BT30 holder and puts the next one "
-     "in.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
+     "At a tool change a gloved hand takes the tool out by its BT30 holder and puts the next one in; for a longer "
+     "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
      at=-1.0, check=_check_hand)
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "

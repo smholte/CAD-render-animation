@@ -68,10 +68,58 @@ removed there).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 12 Nov 2026, branch `claude/adoring-lovelace-rln7b8` (no subagents).
 
 **What changed:**
+1. **No dive after M6.** Cause confirmed, slightly different from the brief's guess: with the head staying put (the
+   tour's "Three tools"), the new tool went in at the swap with the *old* tool's spindle height and the spindle then
+   rose over the rest of the pause – T2 (28 mm longer) went 17.7 mm into the block. Now (`core/toolchange.py`):
+   `Changer.lengths` (the tools' length offsets, mm) is set by `blender/toolchange.changer`; the way out and back is
+   planned for the spindle (`_way`: up first when rising, down last when falling), the lift fades on the first leg
+   out and grows on the last leg back only (`Change.lift_end/lift_start`, `lift_knots`); a manual change position
+   keeps the spindle at the longer tool's lift and is never lower than the program's point; head staying: the
+   spindle rises before a longer tool goes in (while the hand has the old tool away) and comes down after.
+   ATC: the pockets still have lift 0 (hand-overs unchanged). Double arm: same legs; an arm change without head
+   travel keeps the old rule (the arm grips at the spindle).
+2. **M6 without G43.** `core/gcode.Reader` keeps the G43 Hn in force (`Move.h`, G43 without H = tool in the
+   spindle, G43.1/G43.2/G49 = the app's rule); `Schedule._length_tools` gives every change the tool whose offset is in
+   force after it (`Change.h`). When it is not the new tool, the old offset stays (as on the machine), the Build and
+   the step's Details say "T2 (M6 on line 9) is 27.7 mm longer than T1 and has no G43 H2: …", and the clash check
+   adds a row tool × workpiece with that depth (`gcode.g43_rows`, `clash.Check._program_rows`). A program with no G43
+   at all keeps every tool's own length.
+3. **Chips on a table carrying the 4th axis.** `core/chips.py` has a third space, carrier (2): chips falling past the
+   chuck go to it, land on the table (`SimIn.carrier`, `carry_c`), past it to world. `blender/chips.carrier()` = the
+   next moving object above the workpiece's mover; `machining.sample` stores its matrix per frame
+   (`fr_carrier_m`); a third point cloud "FR Chips (on the table)" follows it. Without a carrier the bake is bit for
+   bit the same (hash compared on the 4-axis test model).
+4. **Floor meets a gentle slope.** On 0029's model the blended floor was beside the long, very narrow strips of a
+   ball pass (22.5°, ≤ 0.65 mm wide): the floor's own triangles at that edge are slivers, so the "big flat face
+   keeps its normal" rule saw two equally small planes. `core/cut_normals.py` now measures a plane's reach over its
+   whole flat region (`_regions`: coplanar triangles joined edge to edge, their box) for planes steeper than RUN_IN
+   (16°) to each other, with a ratio of 3 (`BIG_STEEP`). Round walls and ball scallops (< 16°) are judged as before.
+   Two planes about as big as each other at 20° (0061's floor + 4 mm chamfer test) still blend – the actual case
+   was not "two big planes".
+5. **Drill rings** spaced by the feed per turn (F/S), like the wall rings (`core/machining.py`); 0.08 mm only when no
+   feed is known.
+6. **F12 right after scrubbing.** The render handler writes the exact normals only with the interface locked; the
+   quick-normal path now switches "Lock Interface" on again (set only on change), so F12 / Render Animation always
+   gets the exact normals.
+Guide (Tools, Tool changes, Tool marks, 4th axis), tour stop texts "tools" and "hand" updated. No new tour stop,
+no PC-check line (fixes; the G43 line is a warning text).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web session, 4 cores, bpy module):
+- Tour "Three tools" milled: deepest cut −17.7 mm before (test fails on 0.2.73), −6.0 now (the slot), nothing below
+  Z−1 at X20 Y0 (`test_three_tools_cuts_nothing_outside_the_program`).
+- Test gantry, T3 10 mm longer: tip lowest −8.4 / −5.0 mm below the program during changes before, ≥ −0.01 now for
+  Stay (with hand), Z up, change position and ATC (first/last legs). Core: every change kind with the brief's
+  27.7 mm, change positions above and just above the program. No-G43 program: line, Details, 10.0 mm below, clash row.
+- 4-axis with a table sliding 60 mm under A: chips on the bar, on the table (on its top, inside its outline,
+  following it) and on the bed.
+- 0029's model, floor faces shaded off flat after finishing: 197 → 0 mm² of 2,229 (test tightened from 10 % to 1 %).
+  0061's facet, seam and normals tests pass. Exact normals of the 28,000-triangle cut: see below.
+- Drill rings: 0.05 and 0.2 mm per turn give exactly that spacing.
 
 **Open points / follow-up tasks:**
+- 0061's marks set still lifts to Z50 before M6 (optional in the brief; left so its pictures stay the same).
+- Two planes of about the same size at 16–30° still blend (by design of 0061); a real "two big planes" crease would
+  need a size in mm (the round-wall strips are the same shape).

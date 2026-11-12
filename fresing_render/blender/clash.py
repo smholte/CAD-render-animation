@@ -1396,6 +1396,7 @@ class Check:
                     if kind == "CLASH":
                         self._deepest(p, q, r)
                     rows.append(r)
+        rows += self._program_rows()
         self.rows = core.sort_rows(rows)
         self.stats = {"seconds": time.perf_counter() - t_start, "read_s": t_read,
                       "check_s": time.perf_counter() - t1, "moments": T, "between": subs, "parts": P,
@@ -1405,6 +1406,29 @@ class Check:
                       "far": self.far,
                       "round_tests": len(self.round_memo)}
         yield 1.0
+
+    def _program_rows(self) -> list:
+        """Task 0096: a tool put in without a G43 for it whose tip runs below the program (the Build's check line). Its
+        cutting part may go through the workpiece, so the parts alone show nothing: one row per such stretch, as deep as
+        the tool is longer, between the tool and the workpiece."""
+        from . import gcode
+        out = []
+        copies = gcode.copies(self.scene)
+        wp = next((self.scene.objects.get(n) for n in sorted(self.wps) if self.scene.objects.get(n) is not None), None)
+        for f0, f1, depth, n in gcode.g43_rows(self.scene):
+            tool = copies.get(n)
+            if tool is None:                        # the tool that was in the spindle at the start: its own part
+                row = gcode.tool_entry(self.scene, n)
+                tool = row.obj if row is not None else None
+            if tool is None or tool.name not in self.scene.objects:
+                continue
+            other = wp if wp is not None else tool
+            r = core.Row("CLASH", f"{label(tool)} (no G43 H{n})", label(other) if wp is not None else "the program",
+                         int(math.floor(f0 + 1e-6)), int(math.ceil(f1 - 1e-6)), f0, depth,
+                         [core.Hit(f0, depth, depth)])
+            r.names = (tool.name, other.name)
+            out.append(r)
+        return out
 
 
 def check(scene, store: bool = True, **kw) -> Check:

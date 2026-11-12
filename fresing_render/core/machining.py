@@ -1078,7 +1078,8 @@ def _mark_tables(moves: Moves, cutters: list) -> dict:
     sp[:, T.ARCS] = sp[:, T.FLANK] = sp[:, T.ACROSS] = moves.per_tooth
     sp[:, T.RINGS_WALL] = moves.per_rev
     sp[:, T.ALONG] = T.SPACING_ALONG
-    sp[:, T.RINGS] = T.SPACING_RINGS
+    # the rings on a drill's point or a plunge's bottom: one per turn as well (task 0096; before a fixed 0.08 mm)
+    sp[:, T.RINGS] = np.where(moves.per_rev > 0.0, moves.per_rev, T.SPACING_RINGS)
     sp = np.clip(sp, T.SPACING_MIN, T.SPACING_MAX)
     sp[:, T.NONE] = 0.0
     back = np.zeros((n, 7))                   # how far back along the feed the marks start: they carry on from
@@ -1127,7 +1128,7 @@ def mark_faces(verts: np.ndarray, tris: np.ndarray, move: np.ndarray, moves: Mov
     so the start of a slot shows the slot's marks; a hole that is only drilled or plunged shows rings.)
 
     The spacing is ``moves.per_tooth`` (arcs, wall lines, lines across a pass) or ``moves.per_rev`` (the rings of
-    a hole's wall), kept between ``SPACING_MIN`` and ``SPACING_MAX``. ``fr_mk_o`` is the tip at the move's start,
+    a hole's wall, a drill's point and a plunge's bottom), kept between ``SPACING_MIN`` and ``SPACING_MAX``. ``fr_mk_o`` is the tip at the move's start,
     moved back along the feed by what the bit had cut before (modulo the spacing): the marks of one move carry on
     into the next."""
     m = len(tris)

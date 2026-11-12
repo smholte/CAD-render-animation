@@ -517,3 +517,117 @@ def test_joint_rename_follows(scene, tmp_path):
     j = scene.fresing.joints["Carousel"]
     j.name = "Tool carousel"
     assert scene.fresing.cnc.carousel_joint == "Tool carousel"
+
+
+# ---------------------------------------------------------------------------
+# task 0096: no dive after a tool change; an M6 without G43
+# ---------------------------------------------------------------------------
+
+def _spindle_tool(sc, n):
+    """The object that shows tool n in the spindle and its tip in its own space."""
+    if n == 1:
+        o = ob(sc, T1)
+        return o, gcode._rest_tip(o)[0]
+    o = gcode.copies()[n]
+    return o, Vector(o["fr_tip"])
+
+
+def _lowest_tip_in_changes(sc, a, b, sch, spans=None):
+    """The lowest tip of the tool in the spindle in the work zero's frame, minus the program's point, over every
+    change (mm), read from the built animation frame by frame (not near a swap, where the copies are switched)."""
+    z = sc.fresing.cnc.zero_empty
+    mach = gcode.Machine(sc)
+    worst = math.inf
+    for p in sch.pieces:
+        c = p.change
+        if c is None or c.length <= 0:
+            continue
+        want = (Vector(p.move.b) - Vector(mach.g54)).z
+        for t0, t1 in (spans(c) if spans else [(c.start, c.start + c.length)]):
+            for k in range(41):
+                t = t0 + (t1 - t0) * k / 40
+                if min(abs(t - c.swap), abs(t - c.drop)) * FPS < 0.6 or c.drop < t < c.swap:
+                    continue                        # (between them the spindle is empty: the hand has the tool)
+                at(sc, frame(a, b, t))
+                o, tip = _spindle_tool(sc, c.old if t < c.swap else c.tool)
+                assert shown(o), (c.old, c.tool, t, c.start, c.drop, c.swap, c.start + c.length)
+                got = (z.matrix_world.inverted() @ (o.matrix_world @ tip)).z / MM
+                worst = min(worst, got - want)
+    return worst
+
+
+@pytest.mark.parametrize("mode", ["STAY", "Z", "XYZ"])
+def test_longer_tool_never_dives_after_a_manual_change(scene, tmp_path, mode):
+    """T3 is 10 mm longer than T2. Its tip never goes below the program's point while the tool is changed (before
+    0.2.74 the head stayed with the old tool's lift at the swap: T3 went 10 mm below Z5), and lands on it."""
+    a, b = manual(scene, tmp_path, gcode_hand=(mode == "STAY"))
+    a.fps = str(FPS)
+    c = scene.fresing.cnc
+    c.change_mode = mode
+    c.change_pos = (100 * MM, 50 * MM, -40 * MM)            # 5 mm above the program's Z5 (the zero is 50 mm lower)
+    r = animation.bake(scene, a)
+    assert not [w for w in r["warnings"] if "G43" in w], r["warnings"]
+    sch = schedule(scene, a, b)
+    assert [(ch.old, ch.tool) for ch in sch.changes if ch.length > 0] == [(1, 2), (2, 3), (3, 4), (4, 1)]
+    assert _lowest_tip_in_changes(scene, a, b, sch) >= -0.01
+
+
+def test_longer_tool_never_dives_after_an_atc_change(scene, tmp_path):
+    """ATC: on the first leg out and the last leg back (where the tool lengths fade) the tip stays at or above the
+    program's point; the hand-overs at the pockets are as before (the frame-by-frame test above)."""
+    a, b = atc(scene, tmp_path)
+    r = animation.bake(scene, a)
+    assert not r["warnings"], r["warnings"]
+    sch = schedule(scene, a, b)
+    worst = _lowest_tip_in_changes(scene, a, b, sch, lambda c: [(c.start, c.lift_end),
+                                                                (c.lift_start, c.start + c.length)])
+    assert worst >= -0.01
+
+
+NO_G43 = """(T1 D=6. CR=0. - flat end mill)
+(T2 D=4. CR=2. - ball end mill)
+(T3 D=5. CR=0. TAPER=118deg - drill)
+(T4 D=8. CR=1. - bullnose end mill)
+G21 G90
+T1 M6 G43 H1
+G0 X10 Y0 Z5
+T3 M6
+G0 X30 Y10 Z5
+G1 X40 F600
+M30
+"""
+
+
+def test_m6_without_g43_keeps_the_old_offset_warns_and_clashes(scene, tmp_path):
+    """T3 (10 mm longer than T1) put in without a G43 H3: as on the machine T1's offset stays and T3's tip runs 10 mm
+    below the program. The Build says so with the depth, the step's summary too, and the clash check shows a row."""
+    set_up(scene)
+    a, b = step(scene, program(tmp_path, NO_G43))
+    a.fps = str(FPS)
+    tools(scene)
+    r = animation.bake(scene, a)
+    lines = [w for w in r["warnings"] if "G43" in w]
+    assert len(lines) == 1 and "T3 (M6 on line 8) is 10.0 mm longer than T1 and has no G43 H3" in lines[0], lines
+    assert "10.0 mm below" in lines[0]
+    sch = schedule(scene, a, b)
+    assert any("no G43 H3" in x for x in toolchange.notes(scene, sch))
+    mach = gcode.Machine(scene)
+    z = scene.fresing.cnc.zero_empty
+    feed = next(p for p in sch.pieces if p.move.kind == "FEED")
+    at(scene, frame(a, b, feed.v0 + feed.vd / 2))
+    o, tip = _spindle_tool(scene, 3)
+    got = z.matrix_world.inverted() @ (o.matrix_world @ tip) / MM
+    want = Vector(sch.point_at(feed.v0 + feed.vd / 2)) - Vector(mach.g54)
+    assert got.z == pytest.approx(want.z - 10.0, abs=0.01)
+    rows = gcode.g43_rows(scene)
+    assert len(rows) == 1 and rows[0][2] == pytest.approx(10 * MM) and rows[0][3] == 3
+    from fresing_render.blender import clash
+    run = clash.check(scene)
+    mine = [x for x in run.rows if "no G43 H3" in x.a]
+    assert len(mine) == 1 and mine[0].kind == "CLASH" and mine[0].depth == pytest.approx(10 * MM)
+    assert scene.fresing.clash.clashes >= 1
+    # with G43 H3 after the M6: nothing to say, the tip on the program
+    b.gcode_file = program(tmp_path, NO_G43.replace("T3 M6\n", "T3 M6\nG43 H3\n"), "fixed.ngc")
+    r = animation.bake(scene, a)
+    assert not [w for w in r["warnings"] if "G43" in w]
+    assert gcode.g43_rows(scene) == []

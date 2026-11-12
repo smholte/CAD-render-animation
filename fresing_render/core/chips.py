@@ -23,7 +23,11 @@ How it works
 Coordinates: *riding* space is the world as it is at the first frame, carried along with the
 workpiece (a table that slides takes its chips along); *world* space is the world. A chip that falls
 off everything that moves with the workpiece changes to world space and lands on the machine bed or
-the floor. Units: metres, seconds for physics, frames for time.
+the floor. *Carrier* space (task 0096): when the workpiece turns on a 4th axis that itself rides on a
+moving table, the table is carried by its own motion: a chip that falls past the chuck changes to carrier
+space and lands on the table (it then slides with it, not turning with the axis); past the table it
+changes to world space. Spaces: 0 riding, 1 world, 2 carrier. Units: metres, seconds for physics, frames
+for time.
 """
 
 from __future__ import annotations
@@ -693,6 +697,8 @@ class SimIn:
     seed: int = 28
     air: object = None                # core.air.AirIn: air that blows the chips away (task 0039); None = no air
     wet: np.ndarray | None = None     # (k, 2) frames while coolant flows (task 0042): chips fly less far, stick more
+    carrier: Grid | None = None       # task 0096: what carries the turning axis (carrier space); None: nothing
+    carry_c: np.ndarray | None = None  # (f1 - f0 + 1, 4, 4): carrier space -> world at every frame
 
 
 @dataclass
@@ -706,7 +712,7 @@ class Bake:
     fade: np.ndarray              # frames it takes to fade before end_t
     rest_p: np.ndarray
     rest_q: np.ndarray
-    rest_space: np.ndarray        # 0 riding, 1 world
+    rest_space: np.ndarray        # 0 riding, 1 world, 2 carrier (task 0096)
     slot: np.ndarray              # instance index
     scale: np.ndarray
     tint: np.ndarray
@@ -724,7 +730,7 @@ class Bake:
         return int(len(self.born))
 
     def at(self, T: float) -> dict:
-        """Chips to show at frame ``T``: for space 0 (riding) and 1 (world): position, rotation, shape,
+        """Chips to show at frame ``T``: for space 0 (riding), 1 (world) and 2 (carrier): position, rotation, shape,
         scale and tint."""
         f = int(math.floor(T + 0.5))
         k = f - self.f0
@@ -747,7 +753,7 @@ class Bake:
             left = (self.end_t[ids] - f) / np.maximum(self.fade[ids], 1e-6)
             sc = np.where(fin, sc * np.clip(left, 0.0, 1.0), sc)
         out = {}
-        for sp in (0, 1):
+        for sp in (0, 1, 2):
             m = (space == sp) & (sc > 1e-6)
             out[sp] = {"pos": pos[m], "rot": rot[m], "slot": self.slot[ids[m]], "scale": sc[m],
                        "tint": self.tint[ids[m]], "id": ids[m]}
@@ -755,7 +761,7 @@ class Bake:
 
     def alive_at(self, T: float) -> int:
         a = self.at(T)
-        return int(len(a[0]["pos"]) + len(a[1]["pos"]))
+        return int(sum(len(v["pos"]) for v in a.values()))
 
 
 def _plan(inp: SimIn, rng) -> dict:
@@ -915,6 +921,12 @@ class _Sim:
         self.floor_z = float(inp.floor_z)
         self.pile_cell_r = self.ride.cell ** 2
         self.pile_cell_s = inp.static.cell ** 2 if inp.static is not None else 1.0
+        # the carrier (task 0096): a table under the turning axis; below its lowest top a chip has fallen past it
+        self.carrier = inp.carrier if inp.carrier is not None and np.isfinite(inp.carrier.h).any() else None
+        self.carry_c = inp.carry_c if self.carrier is not None else None
+        self.pile_c = np.zeros_like(self.carrier.h) if self.carrier is not None else None
+        self.pile_cell_c = self.carrier.cell ** 2 if self.carrier is not None else 1.0
+        self.level_c = float(self.carrier.h[np.isfinite(self.carrier.h)].min()) if self.carrier is not None else 0.0
         self.change_i = 0
         self.rest_order = []                         # chips in the order they came to rest (for the cap)
         self.rest_i = 0
@@ -960,14 +972,27 @@ class _Sim:
             out[ok] = np.maximum(st.h[jy, jx], self.floor_z) + self.pile_s[jy, jx]
         return out
 
-    def carry_at(self, t: float) -> np.ndarray:
-        if self.carry is None or not len(self.carry):
+    def surf_carrier(self, x, y):
+        """Height of the carrier (the table under the turning axis) and its piles under (x, y); -inf off it."""
+        out = np.full(len(x), -np.inf)
+        c = self.carrier
+        if c is None:
+            return out
+        jx, jy, ok = c.index(x, y)
+        jx, jy = jx[ok], jy[ok]
+        base = c.h[jy, jx]
+        out[ok] = base + np.where(np.isfinite(base), self.pile_c[jy, jx], 0.0)
+        return out
+
+    def carry_at(self, t: float, carry=None) -> np.ndarray:
+        carry = self.carry if carry is None else carry
+        if carry is None or not len(carry):
             return np.eye(4)
-        x = min(max(t - self.inp.f0, 0.0), len(self.carry) - 1.0)
+        x = min(max(t - self.inp.f0, 0.0), len(carry) - 1.0)
         i = int(math.floor(x))
-        j = min(i + 1, len(self.carry) - 1)
+        j = min(i + 1, len(carry) - 1)
         f = x - i
-        m = self.carry[i] * (1 - f) + self.carry[j] * f
+        m = carry[i] * (1 - f) + carry[j] * f
         u, _s, vt = np.linalg.svd(m[:3, :3])             # keep it a rotation
         m = m.copy()
         m[:3, :3] = u @ vt
@@ -1008,13 +1033,23 @@ class _Sim:
         rx, ry, ok = self.ride.index(x, y)
         self.pile_r[ry[ok], rx[ok]] = 0.0
 
+    def to_space(self, sp: int, t: float) -> np.ndarray:
+        """Riding space -> space ``sp`` (0 riding, 1 world, 2 carrier) at time t."""
+        if sp == 0:
+            return np.eye(4)
+        C = self.carry_at(t)
+        if sp == 1 or self.carry_c is None:
+            return C
+        return np.linalg.inv(self.carry_at(t, self.carry_c)) @ C
+
     def _unpile(self, ids) -> None:
         if not len(ids):
             return
         ids = ids[self.rest_pile[ids] >= 0]
         sp = self.rest_space[ids]
         amt = BULK * self.vol[ids] * self.scale[ids] ** 3
-        for val, pile, area in ((0, self.pile_r, self.pile_cell_r), (1, self.pile_s, self.pile_cell_s)):
+        for val, pile, area in ((0, self.pile_r, self.pile_cell_r), (1, self.pile_s, self.pile_cell_s),
+                                (2, self.pile_c, self.pile_cell_c)):
             m = sp == val
             if m.any() and pile is not None:
                 np.subtract.at(pile.reshape(-1), self.rest_pile[ids[m]], amt[m] / area)
@@ -1162,11 +1197,15 @@ class _Sim:
                 hit_rest = np.zeros(len(fid), bool)
                 gone = np.zeros(len(fid), bool)
                 ride = SP == 0
+                onc = SP == 2
+                wor = ~ride & ~onc
                 surf = np.empty(len(fid))
                 if ride.any():
                     surf[ride] = self.surf_ride(P_new[ride, 0], P_new[ride, 1])
-                if not ride.all():
-                    surf[~ride] = self.surf_world(P_new[~ride, 0], P_new[~ride, 1])
+                if onc.any():
+                    surf[onc] = self.surf_carrier(P_new[onc, 0], P_new[onc, 1])
+                if wor.any():
+                    surf[wor] = self.surf_world(P_new[wor, 0], P_new[wor, 1])
                 below = P_new[:, 2] < surf
                 if below.any():
                     idx = np.nonzero(below)[0]
@@ -1198,11 +1237,15 @@ class _Sim:
                         hop = blown[wl]
                         if hop.any():                       # the air lifts it out of the pocket
                             V[wl[hop], 2] = np.maximum(V[wl[hop], 2], BLOWN_HOP)
-                # off everything that moves with the workpiece: on to world space (machine bed, floor)
+                # off everything that moves with the workpiece: on to carrier space (the table under a turning
+                # axis, task 0096) or world space (machine bed, floor); off the carrier: on to world space
                 off = ride & ~below & ~np.isfinite(surf) & (P_new[:, 2] < self.level)
-                if off.any():
-                    sw = np.nonzero(off)[0]
-                    C = self.carry_at(t_new)
+                off_c = onc & ~below & ~np.isfinite(surf) & (P_new[:, 2] < self.level_c)
+                for sel, frm, to in ((off, 0, 2 if self.carrier is not None else 1), (off_c, 2, 1)):
+                    if not sel.any():
+                        continue
+                    sw = np.nonzero(sel)[0]
+                    C = self.to_space(to, t_new) @ np.linalg.inv(self.to_space(frm, t_new))
                     Rm = C[:3, :3]
                     Q[sw] = q_mul(np.broadcast_to(q_from_matrix(Rm), (len(sw), 4)),
                                   self._q_at(Q[sw], W[sw], TQ[sw], t_new))
@@ -1210,7 +1253,7 @@ class _Sim:
                     P_new[sw] = P_new[sw] @ Rm.T + C[:3, 3]
                     V[sw] = V[sw] @ Rm.T
                     W[sw] = W[sw] @ Rm.T
-                    SP[sw] = 1
+                    SP[sw] = to
                 P = P_new
                 # mist that lived its life
                 lived = self.is_mist[fid] & (t_new >= self.end_t[fid])
@@ -1267,12 +1310,15 @@ class _Sim:
         r = SP == 0
         if r.any():
             U[r] = airmod.velocity(P[r], o, d, speed, cone, air.reach, self.u_angle[ids[r]], wall)
-        if not r.all():
-            C = self.carry_at(t)
+        for sp in (1, 2):
+            m = SP == sp
+            if not m.any():
+                continue
+            C = self.to_space(sp, t)
             ow = C[:3, :3] @ o + C[:3, 3]
             dw = C[:3, :3] @ d
             ww = (C[:3, :3] @ wall[0] + C[:3, 3], wall[1]) if wall is not None else None
-            U[~r] = airmod.velocity(P[~r], ow, dw, speed, cone, air.reach, self.u_angle[ids[~r]], ww)
+            U[m] = airmod.velocity(P[m], ow, dw, speed, cone, air.reach, self.u_angle[ids[m]], ww)
         return U
 
     def wake(self, t: float, clean: bool) -> dict | None:
@@ -1363,12 +1409,14 @@ class _Sim:
             gx, gy, _gok = self.g.index(p[r, 0], p[r, 1])
             on_wp = np.isfinite(hw) & (hw >= hr - 1e-9)
             self.rest_cell[ids[r]] = np.where(on_wp, gy * self.g.nx + gx, -1)
-        s = SP == 1
-        if s.any() and self.static is not None:
-            ix, iy, ok = self.static.index(p[s, 0], p[s, 1])
-            cell = np.where(ok, iy * self.static.nx + ix, -1)
-            self.rest_pile[ids[s]] = cell
-            np.add.at(self.pile_s.reshape(-1), cell[ok], amt[s][ok] / self.pile_cell_s)
+        for val, grid, pile, area in ((1, self.static, self.pile_s, self.pile_cell_s),
+                                      (2, self.carrier, self.pile_c, self.pile_cell_c)):
+            s = SP == val
+            if s.any() and grid is not None:
+                ix, iy, ok = grid.index(p[s, 0], p[s, 1])
+                cell = np.where(ok, iy * grid.nx + ix, -1)
+                self.rest_pile[ids[s]] = cell
+                np.add.at(pile.reshape(-1), cell[ok], amt[s][ok] / area)
         self.rest_order.append(ids[np.argsort(ids)])
 
     def _retire(self, k: int, t: float) -> None:

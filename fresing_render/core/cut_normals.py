@@ -61,6 +61,8 @@ PAIRS = 1_500_000                     # pairs of triangles round a vertex worked
 EXACT = 8                             # fans up to this size are worked out with others of exactly that size
 BIG = 6.0                             # a plane reaching this many times less far from a shared edge has no say
 BIG_POWER = 8                         # (a plane's reach at a vertex: its triangles' reaches, summed with this power)
+BIG_STEEP = 3.0                       # task 0096: between planes steeper than RUN_IN to each other, measured over their
+                                      # whole flat regions: a plane reaching this many times further is the flat face
 RUN_IN = math.radians(16.0)           # a small facet takes the flat face's direction up to this angle between them
 _COS_RUN_IN = math.cos(RUN_IN)
 ROUNDS = 16                           # needles next to needles: how far a real neighbour's direction is passed on
@@ -98,6 +100,10 @@ def corner_normals(verts, tris, angle: float = SHARP_ANGLE, weld: bool = False, 
     np.nan_to_num(to_a, copy=False)
     np.nan_to_num(to_b, copy=False)
     ids = _weld(v)[t] if weld else t
+    # how far each plane reaches: over its whole flat region, not only its triangles at a vertex (task 0096)
+    gone_f = thin if hidden is None else (thin | hidden)
+    reg_c, reg_h = _regions(v, t, ids, fn, fuzz, gone_f)
+    reg_in = np.append(~gone_f, False).astype(np.float64)        # needles, hidden faces, the blank: no region
     # the corners sorted by vertex: the triangles round one vertex lie next to each other
     vid = ids.reshape(-1)
     order = np.argsort(vid)
@@ -140,8 +146,11 @@ def corner_normals(verts, tris, angle: float = SHARP_ANGLE, weld: bool = False, 
                 if len(rows[0]):                         # a needle looks round with its neighbour's direction
                     dots[rows] = np.matmul(n[rows[0]], ref_[f[rows]][:, :, None])[:, :, 0]
             corner = order.take(at)
+            here = v.take(vid.take(corner[:, :1]), axis=0)                    # the vertex (first corner: real)
+            rel = (reg_c.take(f, axis=0) - here) * reg_in.take(f)[:, :, None]
             out[corner] = _blend(dots, n, trust_.take(f), fuzz_.take(f), cos, to_a.take(corner, axis=0),
-                                 to_b.take(corner, axis=0), thin_.take(f) if any_thin else None)
+                                 to_b.take(corner, axis=0), thin_.take(f) if any_thin else None,
+                                 rel, reg_h.take(f, axis=0))
     out = out[:3 * m]
     if hidden is not None:
         flat = np.flatnonzero(hidden & ~thin)
@@ -193,7 +202,54 @@ def _huge(out, order, face, a: int, k: int, fn, ref, trust, fuzz, cos: float) ->
         out[order[a + r:a + min(k, r + rows)]] = near.astype(np.float64) @ contrib
 
 
-def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None) -> np.ndarray:
+def _regions(v, t, ids, fn, fuzz, out) -> tuple:
+    """Per triangle the box of its flat region (the triangles of its plane joined edge to edge): (centre, half size),
+    both (m + 1, 3) - the last row and ``out`` triangles (needles, hidden faces) are 0. A floor cut into long thin
+    triangles along its edge with a slope reaches as far as the whole floor, not as one sliver (task 0096: the
+    floor of 0029's test model next to the long, narrow strips of a ball pass was blended with them)."""
+    m = len(t)
+    cen = np.zeros((m + 1, 3))
+    half = np.zeros((m + 1, 3))
+    e = np.stack([ids, ids[:, (1, 2, 0)]], axis=2).reshape(-1, 2)
+    e.sort(axis=1)
+    nv = int(ids.max()) + 1
+    key = e[:, 0].astype(np.int64) * nv + e[:, 1]
+    order = np.argsort(key, kind="stable")
+    ks = key[order]
+    pair = ks[1:] == ks[:-1]
+    fa, fb = order[:-1][pair] // 3, order[1:][pair] // 3
+    lim = fuzz[fa] + fuzz[fb]
+    keep = ~out[fa] & ~out[fb] & (1.0 - np.einsum("ij,ij->i", fn[fa], fn[fb]) < lim * lim)
+    fa, fb = fa[keep], fb[keep]
+    lab = np.arange(m)
+    for _round in range(200):                            # joined: the root of each region is its smallest number
+        ra, rb = lab[fa], lab[fb]
+        diff = ra != rb
+        if not diff.any():
+            break
+        ra, rb = ra[diff], rb[diff]
+        np.minimum.at(lab, np.maximum(ra, rb), np.minimum(ra, rb))      # hook the bigger root under the smaller
+        while True:                                      # every triangle straight to its root
+            nxt = lab[lab]
+            if np.array_equal(nxt, lab):
+                break
+            lab = nxt
+    p = v.take(t, axis=0)
+    lo = np.full((m, 3), np.inf)
+    hi = np.full((m, 3), -np.inf)
+    np.minimum.at(lo, lab, p.min(axis=1))
+    np.maximum.at(hi, lab, p.max(axis=1))
+    with np.errstate(invalid="ignore"):
+        cen[:m] = (lo[lab] + hi[lab]) / 2
+        half[:m] = (hi[lab] - lo[lab]) / 2
+    cen[:m][out] = 0.0
+    half[:m][out] = 0.0
+    np.nan_to_num(cen, copy=False)
+    np.nan_to_num(half, copy=False)
+    return cen, half
+
+
+def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None, cen=None, half=None) -> np.ndarray:
     """Round each vertex (first axis): for every triangle the sum of the planes that point within the angle of it.
 
     Every plane counts once: its triangles share its vote by how well their direction is known (``w``). Two
@@ -213,6 +269,12 @@ def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None) -> np.ndarray:
     near = dots > cos
     # rise[i, j]: how far triangle j stands out of the plane of triangle i; reach[i, j]: the same for all of j's plane
     rise = np.maximum(np.abs(np.matmul(n, to_a.transpose(0, 2, 1))), np.abs(np.matmul(n, to_b.transpose(0, 2, 1))))
+    if cen is not None:                                   # how far j's whole flat region stands out (its box)
+        # (only between planes steeper than RUN_IN to each other: a round wall's strips and a ball pass's scallops
+        # are judged as before, triangle by triangle)
+        reg = np.abs(np.matmul(n, cen.transpose(0, 2, 1))) + np.matmul(np.abs(n), half.transpose(0, 2, 1))
+        steep = dots < _COS_RUN_IN
+        rise = np.where(steep, np.maximum(rise, reg), rise)
     scale = np.maximum(rise.max(axis=(1, 2), keepdims=True), 1e-300)
     reach = np.matmul((rise / scale) ** BIG_POWER, same.astype(np.float64))
     limit8 = BIG ** BIG_POWER
@@ -220,6 +282,8 @@ def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None) -> np.ndarray:
     other = near & ~same
     # over[i, j]: j is the flat face, i a small facet next to it
     over = reach > limit8 * mine
+    if cen is not None:                                   # a steep edge: a plane 3 times as big is the flat face
+        over |= steep & (reach > BIG_STEEP ** BIG_POWER * mine)
     under = over.transpose(0, 2, 1)
     # ... and the two nearly in line (the first strip of a rounding, the first facet of a ball pass): a steeper
     # small face keeps its own say and shows the crease it has

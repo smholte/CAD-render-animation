@@ -770,6 +770,9 @@ def sample(scene, progress=None) -> int:
         turns = gcode.turns(scene)                  # where a rotary axis turns the part (task 0066)
         ci = 0
         wp_m = []                                   # the workpiece in the world at every frame (chips, task 0028)
+        from . import chips as chipsmod
+        car = chipsmod.carrier(scene, wp)           # what carries a turning 4th axis (chips, task 0096)
+        car_m = []
         prev, prev_t = None, float(f0)
         total = f1 - f0 + 1
         for n, f in enumerate(range(f0, f1 + 1)):
@@ -786,6 +789,8 @@ def sample(scene, progress=None) -> int:
                 ci += 1
             cur = read(float(f))
             wp_m.append([v for row in wp.matrix_world for v in row])
+            if car is not None:
+                car_m.append([v for row in car.matrix_world for v in row])
             if nozzle:
                 o, d = air.nozzle_pose(scene)
                 air_o.append(o)
@@ -815,6 +820,10 @@ def sample(scene, progress=None) -> int:
         store_array(item, "fr_d", [x[2] for x in r])
         count += len(r)
     store_array(s, "fr_wp_m", wp_m)
+    if car_m:
+        store_array(s, "fr_carrier_m", car_m)
+    elif "fr_carrier_m" in s:
+        del s["fr_carrier_m"]
     if nozzle:
         store_array(s, "fr_air_o", air_o)
         store_array(s, "fr_air_d", air_d)
@@ -1259,6 +1268,9 @@ def refresh(scene, frame: float | None = None, force: bool = False, quick: bool 
         rt["shown"] = (id(tl), T, want, quick)
         if quick:
             _schedule_fine()
+            # a render started now (F12, Render Animation) must write the exact normals first; its handler may only
+            # do that with the interface locked (task 0096): kept on while quick normals show
+            lock_interface(scene)
         _show_chips(scene, T)
         st = tl.stats
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
