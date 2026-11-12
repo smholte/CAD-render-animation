@@ -216,6 +216,13 @@ fresing_render/            the Blender extension (Python package)
                            toolpath.py (the app makes the toolpath, task 0029: drop-cutter for flat/ball/bull in NumPy,
                            zigzag roughing by levels + a pass round the walls + ramps, raster finishing by scallop height,
                            greedy thinning measured square to the move, the LinuxCNC program text; mm, program coordinates)
+                           flex.py (hoses and cables, task 0058: an inextensible elastic rod under its own weight, Newton
+                           on the segment directions coarse to fine, exact ends / end directions / length; batched over
+                           hoses and frames; ``solve_motion`` keeps one shape along an animation),
+                           flex_chain.py (drag chains: pins exactly one link length apart on fixed run – bend circle – run
+                           to the moving end, closed forms + a 1-D solve for the bend's place; ``fit_links`` reads pitch,
+                           radius, plane and each link's place on its pins from the CAD links),
+                           flex_fit.py (a tube mesh's centreline, radius, ends and end directions)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes;
                            facets by size (task 0074, `FACETS`): big parts capped in mm, small standard parts lighter
@@ -305,6 +312,16 @@ fresing_render/            the Blender extension (Python package)
                            off!); "Still"/"Level" parts a Child Of on the inverse rig; ``at_rest`` mutes it all while the
                            surroundings or a model update measure world places; ops_vessel_motion.py, ui_vessel_motion.py
                            (5 Scene & Render > Vessel motion); the swell goes into the sea only while it is on
+    flex.py                hoses, cables and drag chains that follow the motion (task 0058): the hose part itself gets
+                           a Geometry Nodes modifier "FR flex" that draws a tube in its place, each CAD chain link one
+                           that moves its own geometry (so looks, visibility and selection stay the part's); all shapes
+                           live in one hidden mesh "FR flex shapes" (frames x points, world coordinates; the modifiers
+                           pick the frame's slice with Scene Time -> Sample Index). Live: a depsgraph handler solves when
+                           an end moved (one frame); Build animation reads the ends at every frame and solves them all at
+                           once (``bake``; nothing runs in Python while playing or rendering). Ends sit on the parts
+                           they touch in the CAD pose; flex parts are left out of the clash check (clash.HOOKS);
+                           ``set_up_test_hoses`` / ``set_up_test_chains`` (test_flex_*.step from tools/make_test_flex.py);
+                           ops_flex.py, ui_flex.py (4 Motion > Hoses and drag chains)
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -767,6 +784,19 @@ the release → Delete); the next run on `main` publishes it again.
 - With vessel motion on, everything moves: a roller turns in place against the *deck*, not the world. The clash check
   looks for a turning part's carrier among the biggest bodies its box meets too; sorted smallest first, the deck's
   body was cut off and no roller was held (task 0092).
+- Geometry Nodes in Blender 5.2 (task 0058, first seen in the 0075 study): a modifier input is
+  `mod.properties.inputs.<identifier>.value` (not `mod["Socket_1"]`), the identifier comes from
+  `node_group.interface.new_socket(...).identifier`. Geometry *made* by nodes has no material slot: it renders white
+  until an (empty) Set Material node gives it slot 0, which the object's own slot then fills. Object Info "Relative"
+  copies and transforms the whole source mesh for every user (0.37 ms per hose on a 195,000-point shapes mesh): read it
+  "Original" and bring only the sampled points into the object's space (Self Object → Object Info → Invert Matrix →
+  Transform Point: 0.055 ms). An object hidden in the view that a modifier input points at *is* evaluated.
+- A tube through a hose's solved points needs the end direction built in: a 33-point polyline swept as it is shows
+  kinks of ~11° and ends tilted ~1°; `flex.py` adds a point on the first and last piece and sweeps a spline (35 drawn
+  points, `flex.DRAWN`).
+- A slack hose between fittings that are not in one plane often has two shapes (wound left or right). A solver that
+  only sees one frame picks the lower energy and so jumps once along a motion; Build solves the whole animation at
+  once and keeps one shape (`core/flex.solve_motion`). Live posing still shows the one-frame answer.
 - A box tree built from a Z-order (Morton) sort has nodes that jump across the model (a block of the sorted list can
   straddle a big boundary: a node as long as the whole rope). Halving at the median of each node's longest side, all
   nodes of a level at once (one sort per block), gives compact nodes and is just as fast (task 0092).
