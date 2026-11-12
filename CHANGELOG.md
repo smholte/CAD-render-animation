@@ -5,6 +5,25 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.72 – 12 Nov 2026 – clash check: fast with parts that turn in place (task 0092)
+
+Clash check (6 Animation > Clash check)
+- **Parts that turn in place** – rollers, sheaves, drums, a coil, a shaft or a pin in its bore – are now found by the
+  check itself: a part that turns about an axis that stays put (against the world, or against the carriage or the
+  vessel it rides on) and is round about that axis fills the same room at every angle, so it is held where it is and
+  only moves with what carries it. You no longer need to leave such parts out.
+- A part that turns but is **not round** – a flat or a key on it, a sprocket's teeth, a cam, a wheel turning off its
+  round centre – is still checked at every moment. Only a part resting against it well away from what is not round
+  (the rope in the groove of a sheave with spokes) is checked once per turn.
+- **Big parts far apart** are passed over quickly (no point-by-point test until they have moved close), and a test
+  where no faces cross is much shorter.
+- On the demo vessel (1,378 parts, 1,824 moments) the whole animation **with** its 222 turning rollers, wheels, the
+  coil and the carousel is checked in about 12 minutes on a 4-core test machine (0 clashes); before, it had not
+  finished after 47 minutes. Expected on your PC: faster (not measured yet).
+- Two wrong results fixed: a part that slid far while hardly turning was put centimetres to kilometres off its path
+  between two frames (false clashes of 1–2 mm at sea); and a point next to a big part with tiny gaps between its
+  faces could read as deep inside it (a false clash of 577 mm between the carousel's rim fence and its drive).
+
 ## 0.2.71 – 12 Nov 2026 – demo: quadrant wires as on your vessels, cable engine and handling winches moved (task 0095)
 
 Demo project (Help > Make demo project; make it again for this version)
