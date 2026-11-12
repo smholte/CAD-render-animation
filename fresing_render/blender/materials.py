@@ -35,7 +35,7 @@ def _set(node, name, value):
 
 # Raise when the node trees change: materials built by an older version are rebuilt (also on load), keeping
 # every group's material, colour and wear. 1 = up to 0.2.38, 2 = task 0046 (marks, peel, sheen, wear).
-LOOK_VERSION = 2
+LOOK_VERSION = 3
 PROP_LOOK = "fr_look_version"
 # a part's own axes, stored on its mesh (every copy shares it): read by the shader's machining marks
 AX_LONG, AX_ROUND, AX_CENTRE, AX_COUNT = "fr_ax_long", "fr_ax_round", "fr_ax_centre", "fr_ax_n"
@@ -203,7 +203,12 @@ def _marks(b: _Nodes, m: dict):
         vt.vector_type = "VECTOR"
         vt.convert_from, vt.convert_to = "OBJECT", "WORLD"
         b.put(vt.inputs[0], tangent)
-        tangent = b.vmath("NORMALIZE", vt.outputs[0], x=-500, y=y + 200)
+        # Blender stretches the highlight ALONG the tangent; on a real brushed / ground / turned part it stretches
+        # ACROSS the marks (task 0098). The marks' own direction (world) x the face normal is the direction across
+        # them within the face: across the lines on a plate, along the axis on a shaft, radial on its end faces.
+        geo = b.node("ShaderNodeNewGeometry", -650, y + 400)
+        across = b.vmath("CROSS_PRODUCT", geo.outputs["Normal"], vt.outputs[0], x=-500, y=y + 300)
+        tangent = b.vmath("NORMALIZE", across, x=-350, y=y + 300)
     return fac, tangent
 
 
