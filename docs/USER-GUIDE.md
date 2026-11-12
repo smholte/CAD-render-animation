@@ -850,7 +850,12 @@ and closes the covers.
    the axis limits (Min and Max). **Flip direction** makes the sections slide against the axis' direction
    (rarely needed: a cover on the other side of the table still slides *with* the carriage, so it needs no
    Flip – it closes where the first one opens).
-6. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
+6. **Drawn at.** Was the cover drawn in CAD with the machine at mid-travel, not at the axis zero? Type that axis
+   position in **Drawn at** (mm; 0 = the axis zero, the default), or pose the axis where the CAD shows it and
+   press **Drawn at: read from the axis**. At that axis position every section stays exactly on its CAD place; the
+   sections' shares are counted from there. The line under it says where the sections stand at 0 mm, and warns
+   when "Drawn at" lies outside the axis limits. Every cover has its own "Drawn at".
+7. Press **Make it**. The panel says what it made, for example "5 sections · 100 mm each · follows 'Y axis'".
    With several covers, choose each one in the list and press its **Make it**.
 
 **How the travel is shared out.** Every section slides the same distance relative to its neighbour. With the

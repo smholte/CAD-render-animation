@@ -116,6 +116,11 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
         col.prop(c, "flip", text="Flip direction")
         col.prop(c, "housing_counts", text="Housing counts")
         layout.operator("fresing.waycover_read_total", icon="IMPORT")
+        col = split_props(layout)
+        col.prop(c, "drawn_at", text="Drawn at")
+        layout.operator("fresing.waycover_read_drawn", text="Drawn at: read from the axis", icon="IMPORT")
+        if c.sections:
+            wrap(layout, context, waycover.check_line(scene, c), icon="INFO")
         if c.sections:
             wrap(layout, context, core.summary(len(c.sections), c.total * 1000.0, c.housing_counts), icon="INFO")
 

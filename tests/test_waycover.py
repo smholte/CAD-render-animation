@@ -600,3 +600,86 @@ def test_panel_draws_with_several_covers(tmp_path):
     two_covers(sc, carriage=True)
     draw_all()
     assert not errors, errors
+
+
+# ---------------------------------------------------------------------------
+# task 0090: the cover drawn at any axis position
+# ---------------------------------------------------------------------------
+
+DRAWN = os.path.join(HERE, "data", "test_waycover_d.step")     # make_test_waycover.py --drawn-at 250
+MID = 0.25
+
+
+def test_drawn_at_mid_travel_builds_clean_and_fits_at_the_drawn_position(tmp_path):
+    sc = load(DRAWN, tmp_path)
+    cad = positions(sc)
+    make_axis(sc)
+    c = waycover.settings(sc)
+    c.total = 0.5
+    c.drawn_at = MID
+    add_sections(sc)
+    built, problems = waycover.make(sc)
+    assert built == 5 and not problems, problems
+    assert waycover.check_line(sc, c).startswith("At 0 mm: section 1 … 5 at -50 / -100 / -150 / -200 / -250 mm")
+    for a in (0.0, 0.1, MID, 0.4, 0.5):
+        axis_to(sc, a)
+        for k, (got, r) in enumerate(zip(positions(sc), cad), start=1):
+            assert abs((got - r) - (a - MID) * k / 5) < TOL, (a, k, got - r)
+    axis_to(sc, MID)                                       # at "Drawn at" every section is on its CAD place
+    assert all(abs(g - r) < 1e-5 for g, r in zip(positions(sc), cad))
+    res = bake_out_and_back(sc)
+    assert not res["warnings"], res["warnings"]
+    assert joints.couplings_simple(sc)
+    # the setting changes at once, and Read takes the axis' value
+    c.drawn_at = 0.0
+    update()
+    axis_to(sc, 0.5)
+    assert all(abs((g - r) - 0.1 * k) < TOL for k, (g, r) in enumerate(zip(positions(sc), cad), start=1))
+    axis_to(sc, MID)
+    assert waycover.read_drawn(sc) == "" and abs(c.drawn_at - MID) < 1e-6
+    # save + reopen + model update keep it
+    path = str(tmp_path / "drawn.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    assert abs(waycover.settings(sc).drawn_at - MID) < 1e-6
+    root = build.model_roots(sc)[0]
+    assert bpy.ops.fresing.import_step(filepath=DRAWN, quality="draft", update_root=root.name) == {"FINISHED"}
+    update()
+    assert abs(waycover.settings(sc).drawn_at - MID) < 1e-6
+    axis_to(sc, 0.5)
+    for k, (g, r) in enumerate(zip(positions(sc), cad), start=1):
+        assert abs((g - r) - (0.5 - MID) * k / 5) < TOL
+
+
+def test_drawn_at_outside_the_limits_warns(scene):
+    c = set_up(scene)
+    c.drawn_at = 0.8
+    assert "Warning" in waycover.check_line(scene, c)
+    c.drawn_at = 0.1
+    assert "Warning" not in waycover.check_line(scene, c)
+
+
+def test_covers_have_their_own_drawn_at(tmp_path):
+    sc = load(TWO, tmp_path)
+    rest_l, rest_r = cover_x(sc, "L"), cover_x(sc, "R")
+    cs = two_covers(sc)
+    cs[0].drawn_at = 0.1
+    cs[1].drawn_at = 0.0
+    update()
+    for a in (0.0, 0.3, 0.5):
+        axis_to(sc, a)
+        for k, (g, r) in enumerate(zip(cover_x(sc, "L"), rest_l), start=1):
+            assert abs((g - r) - (a - 0.1) * k / 5) < TOL
+        for k, (g, r) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1):
+            assert abs((g - r) - a * k / 5) < TOL
+
+
+def test_old_project_has_drawn_at_zero(scene, tmp_path):
+    set_up(scene)
+    path = str(tmp_path / "old.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    assert waycover.settings(sc).drawn_at == 0.0
+    assert all(abs(j.couple_offset_dist) < 1e-9 for j in sc.fresing.joints if j.follows)
