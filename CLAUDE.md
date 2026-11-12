@@ -265,7 +265,10 @@ fresing_render/            the Blender extension (Python package)
                            surface point inside the other, long faces split), between frames where a pair moves fast;
                            rows + markers + fingerprint of the built keys in scene.fresing.clash; red overlay (gpu draw
                            handler); HOOKS for later tasks (hoses); ops_clash.py, ui_clash.py (6 Animation > Clash
-                           check)
+                           check). Task 0092: parts that turn in place and are round (rollers, sheaves, drums, a coil)
+                           are held still on their carrier (`_hold_still`); a turning part that is not round (a spoked
+                           sheave) and a part resting on it outside the room its features sweep are checked once per
+                           turn (`_still_pairs`); big parts first look for a gap (box trees, `separation`)
     toolpath.py            the app makes the toolpath (task 0029): inputs from the milling set-up (block, finished part)
                            and the CNC machine (work zero), the program next to the project, its "Run G-code program"
                            step (tagged ``fr_toolpath``, replaced when made again), the result line, the test model's
@@ -731,3 +734,9 @@ the release → Delete); the next run on `main` publishes it again.
   `MESH_BUDGET` is cut coarser.
 - `joints.create` and `joints.set_follows` each update the whole scene once, even inside `joints._batch`: 0.1 s
   per call on the 1,250-part demo vessel, 75 s for its 415 joints (task 0077; Motion lane open point).
+- With vessel motion on, everything moves: a roller turns in place against the *deck*, not the world. The clash check
+  looks for a turning part's carrier among the biggest bodies its box meets too; sorted smallest first, the deck's
+  body was cut off and no roller was held (task 0092).
+- A box tree built from a Z-order (Morton) sort has nodes that jump across the model (a block of the sorted list can
+  straddle a big boundary: a node as long as the whole rope). Halving at the median of each node's longest side, all
+  nodes of a level at once (one sort per block), gives compact nodes and is just as fast (task 0092).

@@ -4,6 +4,7 @@ points on triangles, tool zones, rows and the texts."""
 import math
 
 import numpy as np
+import pytest
 
 from fresing_render.core import clash as C
 
@@ -216,3 +217,108 @@ def test_texts():
     assert C.queue_note("Lift", True, 0) == ""
     assert C.queue_note("Lift", True, 2).startswith("'Lift' has 2 clashes")
     assert C.mm(0.00612) == "6.1 mm" and C.mm(0.4) == "400 mm"
+
+
+# ---------------------------------------------------------------------------
+# parts that turn in place (task 0092)
+# ---------------------------------------------------------------------------
+
+def _turn(deg, c, u):
+    return C.rotation_about(np.array(c, float), np.array(u, float), math.radians(deg))
+
+
+def _cylinder(r=50 * MM, h=0.2, n=48, flat=None, teeth=0, depth=0.0, off=(0.0, 0.0)):
+    """A faceted cylinder along Z (caps as fans): ``flat`` cuts it at x = flat, ``teeth`` makes a gear-like rim."""
+    ang = np.linspace(0, 2 * math.pi, n, endpoint=False)
+    rr = np.where(np.cos(teeth * ang) < 0, r - depth, r) if teeth else np.full(n, r)
+    xy = np.stack([rr * np.cos(ang) + off[0], rr * np.sin(ang) + off[1]], axis=1)
+    if flat is not None:
+        xy[:, 0] = np.minimum(xy[:, 0], flat)
+    v = [(x, y, 0.0) for x, y in xy] + [(x, y, h) for x, y in xy] + [(off[0], off[1], 0.0), (off[0], off[1], h)]
+    t = []
+    for i in range(n):
+        j = (i + 1) % n
+        t += [(i, j, n + j), (i, n + j, n + i), (2 * n, j, i), (2 * n + 1, n + i, n + j)]
+    return np.array(v), np.array(t)
+
+
+def test_a_turn_about_a_fixed_axis_is_one_stretch():
+    lo, hi = np.array([0.9, 1.5, -0.1]), np.array([1.1, 2.5, 0.1])
+    e = np.stack([_turn(7 * k, (1, 2, 0), (0, 1, 0)) for k in range(50)])           # 350°: past half a turn too
+    (s, end, c, u), = C.spin_stretches(e, lo, hi)
+    assert (s, end) == (0, 50)
+    assert np.allclose(abs(u @ [0, 1, 0]), 1.0) and np.allclose(c, [1, 0, 0], atol=1e-9)
+    # still at first, then turning: one stretch
+    e2 = np.concatenate([np.repeat(np.eye(4)[None], 10, axis=0), e[:30]])
+    assert [(a, b) for a, b, _c, _u in C.spin_stretches(e2, lo, hi)] == [(0, 40)]
+
+
+def test_a_turn_then_a_slide_and_a_screw_are_not_in_place():
+    lo, hi = np.array([0.9, 1.5, -0.1]), np.array([1.1, 2.5, 0.1])
+    e = [_turn(7 * k, (1, 2, 0), (0, 1, 0)) for k in range(20)]
+    e += [move(0.01 * k, 0, 0) @ e[-1] for k in range(1, 30)]
+    assert [(a, b) for a, b, _c, _u in C.spin_stretches(np.stack(e), lo, hi)] == [(0, 20)]
+    screw = np.stack([move(0, 0.002 * k, 0) @ _turn(7 * k, (1, 2, 0), (0, 1, 0)) for k in range(30)])
+    assert C.spin_stretches(screw, lo, hi) == []
+    # a slide and a turn about a moving axis (a roller on a carriage, seen from the world): no long stretch
+    ride = np.stack([move(0, 0.0125 * k, 0) @ _turn(27 * k, (0, 0, 0), (1, 0, 0)) for k in range(40)])
+    assert C.spin_stretches(ride, np.array([-0.1, -0.05, -0.05]), np.array([0.1, 0.05, 0.05])) == []
+    # nothing turns: nothing to hold
+    assert C.spin_stretches(np.stack([move(0.01 * k, 0, 0) for k in range(10)]), lo, hi) == []
+
+
+def test_round_about_its_axis_and_not():
+    v, t = _cylinder()
+    assert C.round_about(v, t, (0, 0, 0), (0, 0, 1))
+    assert C.round_about(v, t, (0, 0, 0.3), (0, 0, -1))                             # any point on the axis, any sense
+    assert not C.round_about(v, t, (1 * MM, 0, 0), (0, 0, 1))                       # 1 mm off its centre
+    assert not C.round_about(v, t, (0, 0, 0), (0, 1, 0))                            # across it
+    assert not C.round_about(*_cylinder(flat=46 * MM), (0, 0, 0), (0, 0, 1))        # a flat 4 mm deep
+    assert not C.round_about(*_cylinder(n=240, teeth=20, depth=8 * MM), (0, 0, 0), (0, 0, 1))  # teeth
+    assert not C.round_about(*_cylinder(n=6), (0, 0, 0), (0, 0, 1))                 # a hexagon is no circle
+    # a coarse faceted cylinder turned by half a facet lies its sag off itself: still round
+    assert C.round_about(*_cylinder(n=24), (0, 0, 0), (0, 0, 1))
+    assert C._ring_sag(v - 0.0, np.array([0.0, 0.0, 1.0])) == pytest.approx(0.05 * (1 - math.cos(math.pi / 48)))
+
+
+def test_box_tree_holds_every_piece_and_bounds_the_distance():
+    # a ring of 400 triangles (24 m across) and a small block: the bound is never more than the true gap, and close
+    ang = np.linspace(0, 2 * math.pi, 401)
+    pts = np.stack([12 * np.cos(ang), 12 * np.sin(ang), np.zeros_like(ang)], axis=1)
+    v = np.concatenate([pts[:-1], pts[:-1] + [0, 0, 1.0]])
+    n = len(pts) - 1
+    t = np.array([(i, (i + 1) % n, n + i) for i in range(n)]
+                 + [((i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)])
+    plo, phi = C.piece_boxes(v, t)
+    assert len(plo) >= len(t)
+    nlo, nhi, kids = C.box_tree(plo, phi)
+    assert np.allclose(nlo[0], v.min(axis=0)) and np.allclose(nhi[0], v.max(axis=0))
+    leaves = kids[:, 0] < 0
+    assert np.all(nhi[leaves] - nlo[leaves] < 0.2)                    # small boxes along the ring
+    bv = np.array([(x, y, z) for x in (0, 0.2) for y in (0, 0.2) for z in (0.2, 0.4)], dtype=float)
+    bt = np.array([(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6),
+                   (0, 6, 4), (1, 5, 7), (1, 7, 3)])
+    tb = C.box_tree(*C.piece_boxes(bv, bt))
+    ta = (nlo, nhi, kids)
+    for x in (0.0, 11.0, 11.5, 11.9):
+        true = max(0.0, 12 * math.cos(math.pi / 400) - math.hypot(x + 0.2, 0.2))    # to the ring's nearest facet
+        sep = C.tree_separation(ta, tb, move(x, 0.0, 0.0))
+        assert sep <= true + 1e-9 and sep >= 0.8 * true - 0.03, (x, sep, true)
+    # turned: still a lower bound; ``need`` stops sooner and says at least that much
+    rel = rot_z(30) @ move(5.0, 0.0, 0.0)
+    assert C.tree_separation(ta, tb, rel) > 5.0
+    assert 1.0 <= C.tree_separation(ta, tb, rel, need=1.0) <= C.tree_separation(ta, tb, rel)
+
+
+def test_line_box_distance():
+    lo = np.array([[1.0, -0.5, -0.5], [-0.2, -0.2, 3.0], [2.0, 2.0, 0.0]])
+    hi = np.array([[2.0, 0.5, 0.5], [0.2, 0.2, 4.0], [3.0, 3.0, 1.0]])
+    d = C.line_box_distance(np.zeros(3), np.array([0.0, 0.0, 1.0]), lo, hi)
+    assert np.allclose(d, [1.0, 0.0, math.hypot(2.0, 2.0)])
+    # a long thin box passing by at a slant: dense samples of the box are never nearer
+    lo, hi = np.array([[0.4, -1.0, -0.1]]), np.array([[0.5, 1.0, 0.1]])
+    u = np.array([0.0, 0.3, 1.0]) / math.hypot(0.3, 1.0)
+    d = C.line_box_distance(np.zeros(3), u, lo, hi)[0]
+    g = np.stack(np.meshgrid(*[np.linspace(lo[0, i], hi[0, i], 21) for i in range(3)]), axis=-1).reshape(-1, 3)
+    r = np.linalg.norm(g - (g @ u)[:, None] * u, axis=1)
+    assert d <= r.min() + 1e-9 and d >= r.min() - 0.01

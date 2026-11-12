@@ -568,10 +568,11 @@ def heavy_clash(ctx):
     ctx.metric("clash check", secs, "s")
     ctx.metric("moments", st["moments"] + st["between"], "")
     ctx.metric("clashes", len(run.rows), "")
+    ctx.metric("parts held still", st.get("held", 0), "")         # round parts turning in place (task 0092)
     _check(st["moments"] > 0 and st["parts"] > 100, "the check did not go through the machine")
     _check(secs < 600.0, f"the clash check took {secs:.0f} s: far too slow")
     return (f"{st['parts']} parts, {st['bodies']} bodies, {st['moments']} frames + {st['between']} between: "
-            f"{len(run.rows)} clashes in {secs:.1f} s")
+            f"{len(run.rows)} clashes in {secs:.1f} s ({st.get('held', 0)} turning parts held still)")
 
 
 @line("heavy.vessel", "Big machine: vessel motion on the open sea", "0.2.65", (H,), requires=("heavy.import",),

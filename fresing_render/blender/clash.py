@@ -256,8 +256,29 @@ class Mesh:
         self.closed = abs(vol) > 1e-4 * box        # a sheet (no volume): no inside, only its surface counts
         self._tree = None
         self._ptree = None
+        self._leaves = None
+        self._tbox = None
         if self.closed and not oriented:
             self._orient()
+
+    @property
+    def tbox(self) -> tuple:
+        """Every triangle's box in the mesh's own space (lo, hi), (N, 3) each."""
+        if self._tbox is None:
+            tri = self.v[self.t]
+            self._tbox = (tri.min(axis=1), tri.max(axis=1))
+        return self._tbox
+
+    @property
+    def boxes(self) -> tuple:
+        """The mesh's box tree (``core.box_tree`` over its triangles cut into small pieces), in its own space: a lower
+        bound of the distance to another mesh without testing a point (task 0092)."""
+        if self._leaves is None:
+            if len(self.t):
+                self._leaves = core.box_tree(*core.piece_boxes(self.v, self.t))
+            else:
+                self._leaves = (self.lo[None], self.hi[None], np.full((1, 2), -1, dtype=np.int64))
+        return self._leaves
 
     @property
     def tree(self):
@@ -373,6 +394,12 @@ RAYS = ((0.5772, 0.5774, 0.5776), (-0.3117, 0.8436, -0.4372), (0.8018, -0.2673, 
 RAY_STEP = 2e-6                          # m past a face before looking for the next one
 FACING = 0.999                           # a point straight below a face: -side > this × its distance (else rays)
 ON_SURFACE = 1e-5                        # m: a point closer than this to a surface touches it (not inside)
+SEP_NEED = 0.25                          # m: a distance bound this big is enough (task 0092; the pair is skipped
+                                         # until the two have moved that much against each other)
+BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
+SEP_TRIS = 4000                          # two parts with more faces than this together: a gap is looked for first
+CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
+CARRIERS_NEAR = 12                       # … and the smallest ones
 POLISH = 2                               # the deepest few sampled points are moved to the deepest spot nearby
 QUICK = 96                               # corners tried first when one deep point is enough
 
@@ -389,6 +416,34 @@ def _mesh_from(me) -> Mesh:
 def _box_of(m: Mesh, rel: np.ndarray) -> tuple:
     c = core.transform(rel, core.corners(m.lo[None], m.hi[None])[0])
     return c.min(axis=0), c.max(axis=0)
+
+
+def separation(a: Mesh, b: Mesh, rel: np.ndarray, need: float = math.inf) -> float:
+    """A lower bound (m) of the distance between the surfaces of a and b (``rel`` takes b's space to a's): the
+    smallest gap between a leaf box of one's box tree and one of the other's. 0 when any two meet (then they may
+    touch or be in each other). Cheap: no point is tested. ``need``: a bound this big is enough (it stops sooner).
+    Task 0092."""
+    blo, bhi = _box_of(b, rel)
+    gap = np.maximum(0.0, np.maximum(a.lo - bhi, blo - a.hi))
+    if np.any(gap > 0):
+        return float(np.linalg.norm(gap))
+    sep = core.tree_separation(a.boxes, b.boxes, rel, need)
+    if sep > 0.0:
+        # surfaces apart, but one may lie wholly inside the other (a pin inside a solid block): one point tells
+        alo, ahi = _box_of(a, np.linalg.inv(rel))
+        if np.all(blo >= a.lo) and np.all(bhi <= a.hi) and a.depth_at(core.transform(rel, b.v[:1])[0]) > 0.0:
+            return 0.0
+        if np.all(alo >= b.lo) and np.all(ahi <= b.hi) and \
+                b.depth_at(core.transform(np.linalg.inv(rel), a.v[:1])[0]) > 0.0:
+            return 0.0
+    return sep
+
+
+def _near_box(m: Mesh, other: Mesh, to_m: np.ndarray, margin: float) -> tuple:
+    """``other``'s box (grown by ``margin``) as a box in m's own space (``to_m`` takes other's space to m's): a box
+    round every point of m that can lie in other's box."""
+    lo, hi = _box_of(other, to_m)
+    return lo - margin, hi + margin
 
 
 def _inside_box(pts: np.ndarray, lo, hi, margin: float) -> np.ndarray:
@@ -428,8 +483,13 @@ def narrow(a: Mesh, b: Mesh, rel: np.ndarray, zones_a=(), zones_b=(), near: floa
             ok &= ~core.in_zone(pts_b_space, zones_b)
         return ok
 
-    vb = core.transform(rel, b.v)                            # b's corners in a's space
-    va = core.transform(inv, a.v)                            # a's corners in b's space
+    # only the corners and triangles of each mesh near the other one are moved into the other's space (task 0092: a
+    # cable of 86,000 faces, moved whole for every part near it, cost up to a second per test); the same ones count
+    grow = 2.0 * margin
+    nb = _near_box(b, a, inv, grow)                          # round a's box, in b's space
+    na = _near_box(a, b, rel, grow)                          # round b's box, in a's space
+    vb = core.transform(rel, b.v[_inside_box(b.v, *nb, 0.0)])   # b's corners near a, in a's space
+    va = core.transform(inv, a.v[_inside_box(a.v, *na, 0.0)])   # a's corners near b, in b's space
     if math.isfinite(enough):
         # a few corners first: two parts deep in each other show it at once
         for me, other, corners_o, to_me in ((b, a, vb, inv), (a, b, va, rel)):
@@ -445,21 +505,25 @@ def narrow(a: Mesh, b: Mesh, rel: np.ndarray, zones_a=(), zones_b=(), near: floa
     # triangles that cut through the other's surface
     ta = tb = np.zeros((0, 3, 3))
     if len(a.t) and len(b.t):
-        tri = vb[b.t]                                        # b's triangles in a's space
+        tlo, thi = b.tbox
+        near_t = np.flatnonzero(np.all(thi >= nb[0], axis=1) & np.all(tlo <= nb[1], axis=1))
+        tri = core.transform(rel, b.v[b.t[near_t]].reshape(-1, 3)).reshape(-1, 3, 3)   # b's triangles, a's space
         tsel = np.all(tri.max(axis=1) >= a.lo - margin, axis=1) & np.all(tri.min(axis=1) <= a.hi + margin, axis=1)
         if np.any(tsel):
             from mathutils.bvhtree import BVHTree
-            idx = np.flatnonzero(tsel)
+            idx = near_t[np.flatnonzero(tsel)]
             used, local = np.unique(b.t[idx], return_inverse=True)
-            tree_b = BVHTree.FromPolygons((vb[used] - a.c).tolist(), local.reshape(-1, 3).tolist(),
+            vb_used = np.empty((len(b.v), 3))
+            vb_used[used] = core.transform(rel, b.v[used])  # b's corners of those triangles, a's space
+            tree_b = BVHTree.FromPolygons((vb_used[used] - a.c).tolist(), local.reshape(-1, 3).tolist(),
                                           all_triangles=True)
             pairs = a.tree.overlap(tree_b)
             if pairs:
                 pa = np.array(pairs, dtype=np.int64)
-                pa = pa[~_flat_contact(a.v[a.t[pa[:, 0]]], vb[b.t[idx[pa[:, 1]]]])]
+                pa = pa[~_flat_contact(a.v[a.t[pa[:, 0]]], vb_used[b.t[idx[pa[:, 1]]]])]
             if pairs and len(pa):
-                ta = va[a.t[np.unique(pa[:, 0])]]                          # a's triangles, b's space
-                tb = vb[b.t[idx[np.unique(pa[:, 1])]]]                     # b's triangles, a's space
+                ta = core.transform(inv, a.v[a.t[np.unique(pa[:, 0])]].reshape(-1, 3)).reshape(-1, 3, 3)
+                tb = vb_used[b.t[idx[np.unique(pa[:, 1])]]]                # b's triangles, a's space
     sides = ((b, a, vb, tb, inv, rel), (a, b, va, ta, rel, inv))
     found = {}
     for me, other, corners_o, _tris, to_me, _from in sides:
@@ -608,6 +672,14 @@ def _set_time(scene, t: float) -> None:
 # ---------------------------------------------------------------------------
 # the check
 # ---------------------------------------------------------------------------
+
+def _arc(m0: np.ndarray, m1: np.ndarray) -> np.ndarray:
+    """How much longer than straight (≥ 1) a point's path is when it moves as a screw from places ``m0`` to ``m1``
+    ((K, 4, 4) each): (θ/2) / sin(θ/2) for the turn θ between them."""
+    h = core.turn_angles(m1 @ np.linalg.inv(m0)) / 2.0
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(h > 1e-6, h / np.sin(np.maximum(h, 1e-6)), 1.0)
+
 
 class Check:
     """One run of the check. ``steps()`` yields the share done (0 … 1); ``rows`` and ``stats`` at the end."""
@@ -792,6 +864,10 @@ class Check:
         if hit is None:
             # both readings are never deeper than the truth: the start overlap is the deeper of the two
             mp, mq, t = self.mats[0, p], self.mats[0, q], self.times[0]
+            sep = self._separation(p, q, np.linalg.inv(mp) @ mq) if self._big(p, q) else 0.0
+            if sep > 0.0 and (self.near <= 0 or sep >= self.near):
+                self.base[(p, q)] = (0.0, math.inf)               # apart at the start (task 0092)
+                return self.base[(p, q)]
             d1, g1 = self._pair(p, q, mp, mq, t)
             if d1 > 0.0:                         # they overlap at the start: how much matters, look closely
                 d2, g2 = self._pair(p, q, mp, mq, t, fine=True)
@@ -819,11 +895,13 @@ class Check:
             ib = ib[np.all((lo[ib] <= ahi + margin) & (hi[ib] >= alo - margin), axis=1)]
             if not len(ib):
                 continue
-            for i, j in core.box_pairs(lo[ia], hi[ia], lo[ib], hi[ib], margin):
+            bp = core.box_pairs(lo[ia], hi[ia], lo[ib], hi[ib], margin)
+            bp = bp[self.orig[ia[bp[:, 0]]] != self.orig[ib[bp[:, 1]]]]       # one body as read (task 0092)
+            for i, j in bp:
                 p, q = int(ia[i]), int(ib[j])
                 if p > q:
                     p, q = q, p
-                if (p, q) not in self.skip:
+                if (p, q) not in self.skip and not (self.windows and self._in_window(p, q)):
                     out.append((p, q))
         return out
 
@@ -852,9 +930,10 @@ class Check:
             d_l = np.array([last[i][0] for i in hi_])
             g_l = np.array([last[i][1] for i in hi_])
             rel_l = np.stack([last[i][2] for i in hi_])
-            moved = core.motion_many(rel_l, rel[hi_], self.lo[Q[hi_]], self.hi[Q[hi_]])
+            s_l = np.array([last[i][3] for i in hi_])            # how far apart at least (task 0092)
+            moved = self._moved(P[hi_], Q[hi_], rel_l, rel[hi_])
             may_near = (self.near > 0) & (g0[hi_] >= self.near) & (np.minimum(g_l, self.near) - moved < self.near)
-            cannot = (d_l + moved <= allowed[hi_]) & ~may_near
+            cannot = (d_l + np.maximum(0.0, moved - s_l) <= allowed[hi_]) & ~may_near
             sure = (d_l - moved > allowed[hi_]) & (self.near <= 0)
             todo[hi_[cannot | sure]] = False
             self.pruned += int(np.count_nonzero(cannot | sure))
@@ -866,8 +945,14 @@ class Check:
                 self.rels[(p, q, t)] = rel[i]
         for i in np.flatnonzero(todo):
             p, q = int(P[i]), int(Q[i])
+            # look for a gap first between big parts, unless they were found touching a moment ago
+            sep = self._separation(p, q, rel[i]) if self._big(p, q) and self._gap_worth(p, q, rel[i]) else 0.0
+            if sep > 0.0 and (self.near <= 0 or sep >= self.near):
+                self.last[(p, q)] = (0.0, math.inf, rel[i], sep)       # apart: no point needs testing
+                self.apart += 1
+                continue
             d, g = self._pair(p, q, MP[i], MQ[i], t, rel[i], enough=float(allowed[i]) if self.near <= 0 else math.inf)
-            self.last[(p, q)] = (d, g, rel[i])
+            self.last[(p, q)] = (d, g, rel[i], 0.0)
             if d <= 0.0 and g == math.inf:
                 continue
             if d > allowed[i]:
@@ -875,6 +960,36 @@ class Check:
                 self.rels[(p, q, t)] = rel[i]
             elif self.near > 0 and core.is_near(g, g0[i], self.near):
                 self.near_hits.setdefault((p, q), []).append(core.Hit(t, g, 0.0))
+
+    def _moved(self, P: np.ndarray, Q: np.ndarray, rel0: np.ndarray, rel1: np.ndarray) -> np.ndarray:
+        """How far parts P and Q (part pairs) can have moved against each other from places rel0 to rel1 (q's space
+        to p's): the corners of q's box seen from p, or of p's box seen from q, whichever moves less (both bound how
+        much the gap or overlap of the two can change; a long cable seen from a turning ring moves metres at its far
+        ends, the ring seen from the cable much less, task 0092)."""
+        a = core.motion_many(rel0, rel1, self.lo[Q], self.hi[Q])
+        b = core.motion_many(np.linalg.inv(rel0), np.linalg.inv(rel1), self.lo[P], self.hi[P])
+        return np.minimum(a, b)
+
+    def _gap_worth(self, p: int, q: int, rel: np.ndarray) -> bool:
+        """Whether looking for a gap between parts p and q can pay: not when they were last found touching (or too
+        near to tell) and have hardly moved against each other since (two parts that touch have very many boxes close
+        together: looking costs, and finds none)."""
+        was = self.last.get((p, q))
+        if was is None or was[3] > 0.0:
+            return True
+        moved = self._moved(np.array([p]), np.array([q]), was[2][None], rel[None])[0]
+        return float(moved) > SEP_NEED
+
+    def _big(self, p: int, q: int) -> bool:
+        """Whether testing parts p and q point by point costs enough to look for a gap first (``SEP_TRIS``)."""
+        return len(self.meshes[self.mesh_key[p]].t) + len(self.meshes[self.mesh_key[q]].t) > SEP_TRIS
+
+    def _separation(self, p: int, q: int, rel: np.ndarray, need: float = SEP_NEED) -> float:
+        """A lower bound of the distance between parts p and q (``separation``); 0 for the milled workpiece (its tiles
+        change as it is cut)."""
+        if self.timeline is not None and (self.objs[p] is self.mill or self.objs[q] is self.mill):
+            return 0.0
+        return separation(self.meshes[self.mesh_key[p]], self.meshes[self.mesh_key[q]], rel, need)
 
     def _between(self, k: int, pairs: list, dmat: np.ndarray, groups: np.ndarray) -> int:
         """Extra moments between moment k and k+1 for the part pairs that move more than ``STEP`` against each other
@@ -886,13 +1001,28 @@ class Check:
         mk, mk1 = self.mats[k], self.mats[k + 1]
         rel0 = np.linalg.inv(mk[P]) @ mk[Q]
         rel1 = np.linalg.inv(mk1[P]) @ mk1[Q]
-        n = np.ceil(core.motion_many(rel0, rel1, self.lo[Q], self.hi[Q]) / core.STEP).astype(int) - 1
+        n = np.ceil(self._moved(P, Q, rel0, rel1) / core.STEP).astype(int) - 1
         n = np.minimum(n, core.MAX_SUB)
         tk = self.times[k]
         for i in np.flatnonzero(n > 0):                  # already in each other at moment k: nothing can slip past
             h = self.hits.get((int(P[i]), int(Q[i])))
             if h and h[-1].t == tk:
                 n[i] = 0
+        # pairs further apart at moment k than both can travel until k+1 cannot meet in between (task 0092): a point
+        # of a body moving as a screw that turns by θ travels at most (θ/2) / sin(θ/2) × as far as straight (π/2 at
+        # half a turn, 1.0003 at 5°), and no point of a body moves further straight than its box's corners
+        go = np.flatnonzero(n > 0)
+        if len(go):
+            Pg, Qg = P[go], Q[go]
+            path = (core.motion_many(mk[Pg], mk1[Pg], self.lo[Pg], self.hi[Pg]) * _arc(mk[Pg], mk1[Pg])
+                    + core.motion_many(mk[Qg], mk1[Qg], self.lo[Qg], self.hi[Qg]) * _arc(mk[Qg], mk1[Qg]))
+            for i, w in zip(go, path):
+                if not self._gap_worth(int(P[i]), int(Q[i]), rel0[i]):
+                    continue
+                sep = self._separation(int(P[i]), int(Q[i]), rel0[i], w + max(self.near, 0.0) + 1e-6)
+                if sep > w + max(self.near, 0.0):
+                    n[i] = 0
+                    self.far += 1
         added = 0
         t0, t1 = self.times[k], self.times[k + 1]
         for nn in sorted(set(int(x) for x in n if x > 0)):
@@ -915,6 +1045,186 @@ class Check:
                                   for p, q in zip(Ps, Qs)], dtype=bool)
                 Ps, Qs = Ps[~found], Qs[~found]
         return added
+
+    # -- parts that turn in place (task 0092) -----------------------------------
+    def _hold_still(self, groups: np.ndarray) -> int:
+        """Hold the parts that turn in place at their place at the start of the turn: a body whose motion against its
+        carrier (the world, or a body whose box meets its own at the start) is a turn about an axis that stays put
+        (``core.spin_stretches``), and of that body the parts whose mesh is round about the axis (``core.round_about``:
+        rollers, sheaves, drums, a coil, a shaft, a pin in its bore). Such a part fills the same room at every angle,
+        so it is moved with its carrier only (``self.mats`` changed in place): it becomes one body with the carrier and
+        is compared with the rest only when the carrier moves. A part that is not round (teeth, a flat, a key, a cam,
+        bolt heads on an end plate) keeps its real motion and is checked at every moment. Tools and workpieces always
+        keep their real motion. Returns how many parts were held."""
+        self.round_memo, self.band_memo, self.unround = {}, {}, []
+        T, P = self.mats.shape[:2]
+        if T < 2 or not P:
+            return 0
+        G = int(groups.max()) + 1
+        members = [np.flatnonzero(groups == g) for g in range(G)]
+        rep = np.array([int(m[0]) for m in members])
+        dm = self.mats[:, rep] @ np.linalg.inv(self.mats[0, rep])[None]          # (T, G, 4, 4): each body's motion
+        turns = np.max(core.turn_angles(dm), axis=0)                             # (G,)
+        keep_real = set(self.tools) | set(self.wps) | ({self.mill.name} if self.mill is not None else set())
+        movable = [i for i, n in enumerate(self.names) if n not in keep_real]
+        movable = np.array(movable, dtype=np.int64)
+        lo0, hi0 = core.world_boxes(self.mats[0], self.lo, self.hi)
+        glo = np.array([lo0[m].min(axis=0) for m in members])
+        ghi = np.array([hi0[m].max(axis=0) for m in members])
+        still = np.all(np.abs(dm - np.eye(4)) <= core.RIGID_TOL, axis=(0, 2, 3))   # (G,): bodies that never move
+        margin = 1.0 * core.MM
+        held = 0
+        for g in np.flatnonzero(turns > core.SPIN_MIN):
+            parts = np.intersect1d(members[g], movable)
+            if not len(parts):
+                continue
+            # carriers: the world, and the moving bodies whose box meets this one's at the start: the biggest ones
+            # (a vessel at sea moves its whole deck, task 0085) and the smallest (a carriage, a frame on a slide)
+            near = [h for h in np.flatnonzero(~still) if h != g
+                    and core.boxes_overlap(glo[g], ghi[g], glo[h], ghi[h], margin)]
+            big = sorted(near, key=lambda h: -len(members[h]))[:CARRIERS_BIG]
+            near.sort(key=lambda h: float(np.prod(np.maximum(ghi[h] - glo[h], 1e-6))))
+            cands = [None] + big + [h for h in near if h not in big][:CARRIERS_NEAR]
+            best, best_n = None, (0, 0)
+            for h in cands:
+                e = dm[:, g] if h is None else np.linalg.inv(dm[:, h]) @ dm[:, g]
+                if float(np.max(core.turn_angles(e))) <= core.SPIN_MIN:
+                    continue                                    # moves along with this carrier without turning
+                st = core.spin_stretches(e, glo[g], ghi[g])
+                n = (sum(b - a for a, b, _c, _u in st), -len(st))     # most moments, in the fewest stretches
+                if n[0] and n > best_n:
+                    best, best_n = (h, e, st), n
+                    if n == (T, -1):
+                        break                                   # a turn in place all the time: none better
+            if best is None:
+                continue
+            h, e, st = best
+            carry = np.broadcast_to(np.eye(4), (T, 4, 4)) if h is None else dm[:, h]
+            for p in parts:
+                done = False
+                for a, b, c, u in st:
+                    x = e[a] @ self.mats[0, p]                  # the part's place in the carrier's start frame
+                    if not self._round(p, x, c, u):
+                        # not round: kept turning; pairs with parts that stay out of the room its features sweep
+                        # are checked once for the stretch (``_still_pairs``)
+                        self.unround.append((int(p), a, b, None if h is None else int(members[h][0]), x, c, u))
+                        continue
+                    self.mats[a:b, p] = carry[a:b] @ x
+                    done = True
+                held += int(done)
+        return held
+
+    def _local_axis(self, x: np.ndarray, c: np.ndarray, u: np.ndarray) -> tuple:
+        """The line (c, u) (world) in the space of a part placed by ``x``: (point nearest its origin, direction with
+        its largest part positive)."""
+        inv = np.linalg.inv(x)
+        lc = inv[:3, :3] @ c + inv[:3, 3]
+        lu = inv[:3, :3] @ u
+        lu = lu / np.linalg.norm(lu)
+        if lu[np.argmax(np.abs(lu))] < 0:
+            lu = -lu
+        return lc - (lc @ lu) * lu, lu
+
+    def _band(self, p: int, x: np.ndarray, c: np.ndarray, u: np.ndarray):
+        """``core.unround_band`` of part p (placed by ``x``) about the line (c, u) (world), in its own space, with the
+        local axis: (band, lc, lu). Kept per mesh and axis."""
+        lc, lu = self._local_axis(x, c, u)
+        mk = self.mesh_key[p]
+        key = (mk, tuple(np.round(lc, 5)), tuple(np.round(lu, 5)))
+        hit = self.band_memo.get(key)
+        if hit is None:
+            hit = core.unround_band(self.meshes[mk].v, self.meshes[mk].t, lc, lu, self._nearest(self.meshes[mk]))
+            self.band_memo[key] = hit
+        return hit, lc, lu
+
+    def _still_pairs(self) -> int:
+        """Pairs of a part that turns in place but is not round (a spoked sheave) and a part that keeps its place
+        against the same carrier the whole stretch (the rope lying in the sheave's groove): when the second stays out
+        of the room the first one's features sweep (``core.unround_band``), the two meet the same way at every angle,
+        so the pair is checked at the start of the stretch only (``self.windows``). Returns how many pairs."""
+        self.windows = {}
+        n = 0
+        for p, a, b, rep, x, c, u in self.unround:
+            if b - a < 3:
+                continue
+            la, ha = core.world_boxes(self.mats[a], self.lo, self.hi)
+            dh = np.eye(4) if rep is None else self.mats[a, rep] @ np.linalg.inv(self.mats[0, rep])  # carrier moved
+            slo, shi = self._swept_box(p, dh @ x, dh[:3, :3] @ c + dh[:3, 3], dh[:3, :3] @ u)
+            near = np.flatnonzero(np.all((la <= shi) & (ha >= slo), axis=1))
+            near = near[(near != p) & (self.orig[near] != self.orig[p])]
+            if not len(near):
+                continue
+            # parts that keep their place against the carrier (the world, or the carrier's first part) all stretch
+            base = np.broadcast_to(np.eye(4), (b - a, 4, 4)) if rep is None else self.mats[a:b, rep]
+            rel = np.linalg.inv(base)[:, None] @ self.mats[a:b, near]            # (b-a, K, 4, 4)
+            dev = np.max(np.abs(rel - rel[:1]), axis=(0, 2, 3))
+            near = near[dev <= core.RIGID_TOL * 4]
+            if not len(near):
+                continue
+            band, lc, lu = self._band(p, x, c, u)
+            if band is None:
+                continue
+            shown = bool(np.all(self.vis[a:b, p]))           # (shown or hidden part-way: every moment as before)
+            for q in near:
+                if not (shown and np.all(self.vis[a:b, q])):
+                    continue
+                to_p = np.linalg.inv(self.mats[a, p]) @ self.mats[a, q]
+                # the gap counts too when near misses are asked for: clear by that much more
+                if core.tree_clear_of_band(band, lc, lu, self.meshes[self.mesh_key[q]].boxes, to_p,
+                                           BAND_MARGIN + max(self.near, 0.0)):
+                    key = (min(p, int(q)), max(p, int(q)))
+                    self.windows.setdefault(key, []).append((a, b))
+                    n += 1
+        return n
+
+    def _swept_box(self, p: int, x: np.ndarray, c: np.ndarray, u: np.ndarray) -> tuple:
+        """A box (world) round all the room part p (placed by ``x``) fills as it turns about the line (c, u): its box's
+        corners turned in steps of 1/32 turn, grown by what lies between two steps."""
+        cor = core.transform(x, core.corners(self.lo[p][None], self.hi[p][None])[0])
+        turns = core.rotation_about(c, u, np.linspace(0.0, 2 * math.pi, 32, endpoint=False))
+        pts = core.transform(turns, np.broadcast_to(cor, (32, 8, 3))).reshape(-1, 3)
+        r = float(np.max(np.linalg.norm((cor - c) - ((cor - c) @ u)[:, None] * u, axis=1)))
+        grow = r * (1.0 - math.cos(math.pi / 32)) + BAND_MARGIN + max(self.near, 0.0)
+        return pts.min(axis=0) - grow, pts.max(axis=0) + grow
+
+    def _in_window(self, p: int, q: int) -> bool:
+        """Whether pair p, q (p < q) is checked once for its stretch and the current moment (or the step from it to
+        the next one, between frames) lies inside it."""
+        w = self.windows.get((p, q))
+        if not w:
+            return False
+        k = self.k_now
+        if self.k_between:
+            return any(s <= k and k + 1 < e for s, e in w)
+        return any(s < k < e for s, e in w)
+
+    def _round(self, p: int, x: np.ndarray, c: np.ndarray, u: np.ndarray) -> bool:
+        """Whether part p, placed by ``x``, is round about the line (c, u) (world). Kept per mesh and axis."""
+        sc = np.linalg.norm(x[:3, :3], axis=0)
+        if np.max(np.abs(sc - 1.0)) > 1e-4:
+            return False                                         # scaled: the tolerances would not hold
+        lc, lu = self._local_axis(x, c, u)
+        mk = self.mesh_key[p]
+        key = (mk, tuple(np.round(lc, 5)), tuple(np.round(lu, 5)))
+        hit = self.round_memo.get(key)
+        if hit is None:
+            m = self.meshes[mk]
+            hit = core.round_about(m.v, m.t, lc, lu, self._nearest(m))
+            self.round_memo[key] = hit
+        return hit
+
+    @staticmethod
+    def _nearest(m: Mesh):
+        """distances(points) -> how far each point (m's own space) is from m's surface (its BVH tree)."""
+        find = m.ptree.find_nearest
+
+        def nearest(pts):
+            out = np.empty(len(pts))
+            for k, q in enumerate((pts - m.c).tolist()):
+                _loc, _n, _i, dist = find(q)
+                out[k] = math.inf if dist is None else dist
+            return out
+        return nearest
 
     def _mounted(self, groups) -> set:
         """Pairs that touch on purpose: a tool and the spindle it sits in (the parts that move with a tool that is
@@ -975,11 +1285,22 @@ class Check:
         T, P = self.mats.shape[:2]
         d = core.deltas(self.mats)
         groups = core.rigid_groups(d)
+        # parts that turn in place: held still on their carrier (task 0092); parts of one body as read are never
+        # compared, even when one of them is held still and the other is not
+        self.orig = groups
+        t0 = time.perf_counter()
+        self.held = self._hold_still(groups)
+        if self.held:
+            d = core.deltas(self.mats)
+            groups = core.rigid_groups(d)
+        self.k_now, self.k_between = 0, False
+        self.still_pairs = self._still_pairs()
+        t_held = time.perf_counter() - t0
         G = int(groups.max()) + 1 if P else 0
         self.members = [np.flatnonzero(groups == g) for g in range(G)]
         self.memo, self.base, self.hits, self.near_hits, self.last, self.rels = {}, {}, {}, {}, {}, {}
         self.wp_cache, self.tile_memo, self.wp_at, self.wp_calls = {}, {}, (None, None), 0
-        self.narrow_calls = self.pruned = 0
+        self.narrow_calls = self.pruned = self.apart = self.far = 0
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)
@@ -1001,6 +1322,7 @@ class Check:
             # group boxes now (from the start box moved by the group's motion)
             glo, ghi = core.world_boxes(dmat[k], w_lo, w_hi)
             gp = [(int(a), int(b)) for a, b in core.box_pairs(glo, ghi, glo, ghi, margin) if a < b]
+            self.k_now, self.k_between = k, False
             if gp:
                 self._moment(t, self.mats[k], self.vis[k], gp)
             # between this moment and the next: extra moments for the part pairs that move far against each other
@@ -1009,6 +1331,7 @@ class Check:
                 slo, shi = np.minimum(glo, glo1), np.maximum(ghi, ghi1)
                 swept = [(int(a), int(b)) for a, b in core.box_pairs(slo, shi, slo, shi, margin) if a < b]
                 if swept:
+                    self.k_between = True
                     lo0, hi0 = core.world_boxes(self.mats[k], self.lo, self.hi)
                     lo1, hi1 = core.world_boxes(self.mats[k + 1], self.lo, self.hi)
                     pairs = self._candidates(np.minimum(lo0, lo1), np.maximum(hi0, hi1), self.vis[k], swept)
@@ -1029,7 +1352,10 @@ class Check:
         self.stats = {"seconds": time.perf_counter() - t_start, "read_s": t_read,
                       "check_s": time.perf_counter() - t1, "moments": T, "between": subs, "parts": P,
                       "bodies": G, "pairs": len(self.base), "narrow": self.narrow_calls, "pruned": self.pruned,
-                      "workpiece": self.wp_calls}
+                      "workpiece": self.wp_calls, "held": self.held, "held_s": t_held, "apart": self.apart,
+                      "still_pairs": self.still_pairs,
+                      "far": self.far,
+                      "round_tests": len(self.round_memo)}
         yield 1.0
 
 
