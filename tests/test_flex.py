@@ -1188,3 +1188,55 @@ def test_a_chain_running_round_in_a_loop_is_no_drag_chain_candidate():
                   + [((0.04 * k, 0.16, 2.0), math.pi) for k in range(8, -1, -1)])
     assert not flex._open_row(loop)
     assert flex._open_row(u_shape)
+
+
+def test_the_queue_copy_shows_and_renders_the_same_hoses(hoses, tmp_path):
+    """The render queue's background Blender opens a copy of the project, builds the animation again and renders:
+    the copy shows the same hoses at every frame, built again too, and a render sees the bent hose (not the stiff
+    CAD part)."""
+    from fresing_render.blender import cameras
+    sc = hoses
+    built(sc, (("Luff", 0.0, 2.0, math.radians(18)), ("Slide", 0.5, 1.5, 0.1)), "Queue")
+    frames = (1, 20, 37, 51)
+
+    def shapes(scene):
+        out = []
+        for f in frames:
+            scene.frame_set(f)
+            out.append(np.array([flex.shape_now(scene, it) for it in flex.items(scene)]))
+        return np.array(out)
+
+    want = shapes(sc)
+    assert np.abs(want[0] - want[-1]).max() > 0.05                       # they do move
+    path = str(tmp_path / "queue copy.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)                              # as the queue runner: open, build, render
+    sc = bpy.context.scene
+    assert np.array_equal(shapes(sc), want)                              # the saved shapes play the same
+    r = animation.bake(sc, sc.fresing.animations["Queue"])
+    assert not r["warnings"], r["warnings"]
+    assert np.abs(shapes(sc) - want).max() < 1e-6                        # built again on the copy: the same
+
+    sc.camera = cameras.add_camera(sc, "ISO", 50.0, "Queue view")
+    sc.render.engine = "CYCLES"
+    sc.cycles.samples, sc.cycles.use_denoising = 1, False
+    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = 96, 54, 100
+    sc.render.image_settings.file_format = "PNG"
+    sc.frame_set(51)
+
+    def picture(name):
+        sc.render.filepath = str(tmp_path / name)
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(sc.render.filepath if sc.render.filepath.endswith(".png")
+                                   else sc.render.filepath + ".png")
+        px = np.array(img.pixels[:]).reshape(-1, 4)[:, :3]
+        bpy.data.images.remove(img)
+        return px
+
+    bent = picture("bent.png")
+    again = picture("bent again.png")
+    for it in flex.items(sc):
+        it.enabled = False
+    stiff = picture("stiff.png")
+    noise = float(np.abs(bent - again).mean())
+    assert float(np.abs(bent - stiff).mean()) > 5.0 * noise + 1e-4       # the render shows the hoses bent along
