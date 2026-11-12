@@ -1,6 +1,6 @@
 # 0096 – Machining follow-ups: no dive after a tool change, chips on a table that carries the 4th axis, crisp floor edges
 
-**Who:** worker · **Status:** open · **Branch:** `task/0096-machining-follow-ups`
+**Who:** worker · **Status:** running · **Branch:** `claude/adoring-lovelace-rln7b8`
 **Started by:** lead chat, 12 Nov 2026 (open points of 0061 and 0066)
 **Lane:** Machining – `core/toolchange.py`, `core/gcode.py` (the `Schedule` part), `blender/gcode.py`, `core/chips.py`,
 `blender/chips.py`, `core/cut_normals.py`, `core/toolmarks.py`, `blender/toolmarks.py`, `blender/machining.py`, their
