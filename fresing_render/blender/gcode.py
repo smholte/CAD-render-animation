@@ -1052,6 +1052,44 @@ def _record_schedule(scene, rows) -> None:
     store_array(c, "fr_tools", old)
 
 
+def feed_rows(sch, f0: float, fps: float) -> list:
+    """[(frame, feed mm/min, spindle rpm)] of a program step: from that frame on a cutting move runs at this feed
+    and spindle speed – one row each time one of them changes among the cutting moves (G1/G2/G3), and a last row
+    (frame of the program's end, 0, 0): after it nothing is known (tool marks, task 0061)."""
+    rows, last = [], None
+    for p in sch.pieces:
+        m = p.move
+        if m.kind not in ("FEED", "ARC") or m.cycle == core.CLEAN:
+            continue
+        cur = (float(m.feed), float(m.spindle))
+        if cur != last:
+            rows.append((f0 + p.v0 * fps, cur[0], cur[1]))
+            last = cur
+    if rows:
+        rows.append((f0 + sch.program_end * fps, 0.0, 0.0))
+    return rows
+
+
+def _record_feeds(scene, rows) -> None:
+    from .idprops import store_array
+    c = settings(scene)
+    old = list(c["fr_feeds"]) if "fr_feeds" in c else []
+    for f, feed, rpm in rows:
+        old += [float(f), float(feed), float(rpm)]
+    store_array(c, "fr_feeds", old)
+
+
+def feeds(scene) -> list:
+    """[(frame, feed mm/min, spindle rpm)] from the build, in the order of the frames: from that frame on the
+    program cuts at this feed and spindle speed (rpm: + clockwise, - counter-clockwise); (frame, 0, 0) where a
+    program ends. Empty without a built program."""
+    c = settings(scene)
+    if "fr_feeds" not in c:
+        return []
+    a = list(c["fr_feeds"])
+    return sorted((float(a[k]), float(a[k + 1]), float(a[k + 2])) for k in range(0, len(a) - 2, 3))
+
+
 # ---------------------------------------------------------------------------
 # the bake
 # ---------------------------------------------------------------------------
@@ -1098,8 +1136,8 @@ def prepare(scene, anim, warnings: list) -> list:
     from . import coolant
     coolant.prepare(scene)                                 # coolant frames: written again by the steps (task 0042)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners", "fr_turns"):       # which tool is in the spindle, the program's corners
-        if k in c:                                         # and turns: written by the steps
+    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds"):   # which tool is in the spindle, the program's
+        if k in c:                                         # corners, turns and feeds: written by the steps
             del c[k]
     try:
         mach = Machine(scene)
@@ -1284,6 +1322,7 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
                     + [f0 + t * fps for a, z in spans for t in (a, z)])
     if spans:
         _record_turns(scene, [(f0 + a * fps, f0 + z * fps) for a, z in spans])
+    _record_feeds(scene, feed_rows(sch, f0, fps))           # feed and spindle speed, for the tool marks (0061)
     rows = [[], [], []]
     rrows = {k: [] for k in mach.axes}
     for t, pt in samples:
@@ -1501,7 +1540,7 @@ def after_clear(scene) -> None:
     from . import machining
     machining.runtime(scene).pop("sig_ok", None)
     c = settings(scene)
-    for k in ("fr_tools", "fr_corners", "fr_turns"):
+    for k in ("fr_tools", "fr_corners", "fr_turns", "fr_feeds"):
         if k in c:
             del c[k]
     from . import air
