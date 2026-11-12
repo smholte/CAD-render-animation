@@ -1,6 +1,6 @@
 # 0090 – Way cover drawn at any axis position ("as drawn at … mm")
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0090-waycover-drawn-pose`
+**Who:** worker · **Status:** done (0.2.66) · **Branch:** `task/0090-waycover-drawn-pose`
 **Started by:** lead chat, 12 Nov 2026 (follow-up of 0035)
 **Lane:** Way-cover – `blender/waycover.py`, `ops_waycover.py`, `ui_waycover.py`, `core/waycover.py`,
 `tools/make_test_waycover.py`; additive: `blender/props.py` (one property per cover), `reimport.py` only if a model
@@ -45,10 +45,18 @@ moves the model about a pivot.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 12 Nov 2026
 
-**What changed:**
+**What changed:** per cover `drawn_at` (props.py); each section's coupling gets offset `-share * drawn_at` and limits
+`share * (axis limit - drawn_at)` (waycover.py `_apply`, `_limits_for`); `read_drawn`, `check_line`; button
+"Drawn at: read from the axis" (ops/ui_waycover.py); `make_test_waycover.py --drawn-at MM` -> tests/data/test_waycover_d.step;
+guide + panel picture; `machining.waycover` PC-check line extended (drawn at 200 mm); CHANGELOG 0.2.66.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, real Blender 5.2.3, no graphics card): tests/test_waycover.py 30 pass
+(new: mid-travel model builds with 0 warnings, 5 axis positions at k/N, CAD place at "Drawn at" within 0.02 mm, two
+covers with different values, save/reopen/model update, old project = 0 and unchanged offsets); real-app waycover 16/16;
+GitHub run 43128694980 green (full, 11.2 min). Tolerance 0.02 mm (single precision), not 0.01. The old-project test
+saves with the current code, not with a real 0.2.64 file.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none. The `fr_rest_basis` bug waits for 0085 (now merged). 1 run on the branch,
+plus a docs-only run after merging `main` (0085's report).
