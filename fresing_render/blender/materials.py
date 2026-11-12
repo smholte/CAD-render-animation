@@ -278,7 +278,9 @@ def _eevee_glass(b: _Nodes, out, spec: dict, lin) -> None:
 
 def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "", wear: float = 0.0,
                 tweak: dict | None = None) -> None:
-    """``tweak``: settings that replace the library's for this material only (milled faces, task 0051)."""
+    """``tweak``: settings that replace the library's for this material only (milled faces, task 0051). Its
+    ``toolmarks`` (a dict, may be empty: ``size``, ``strength`` and single values of ``core.toolmarks.look``) puts
+    the tool marks of task 0061 on faces that know their move (``blender/toolmarks.py``)."""
     spec = materials_lib.get(material_id)
     if tweak:
         spec = {**spec, **tweak}
@@ -331,6 +333,7 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
             color = mix.outputs["Result"]
 
     marks = spec.get("marks")
+    plain_rough, tangent = rough, None
     if marks:
         fac, tangent = _marks(b, marks)
         amt = float(marks.get("rough", 0.05))
@@ -341,6 +344,13 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
             normal = _bump(b, fac, float(marks["bump"]), 0.0002, normal, -100, -500)
         if tangent is not None and spec.get("anisotropic"):
             nt.links.new(tangent, bsdf.inputs["Tangent"])
+
+    tm = spec.get("toolmarks")
+    if tm is not None:      # cut faces (task 0061): where the face knows its move, the tool's marks replace the above
+        from . import toolmarks
+        from ..core import toolmarks as tm_core
+        rough, normal = toolmarks.apply(b, bsdf, {**tm_core.look(material_id), **tm}, rough, normal, plain_rough,
+                                        tangent if spec.get("anisotropic") else None)
 
     bump = spec.get("bump")
     if bump:
