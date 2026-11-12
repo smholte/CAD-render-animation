@@ -332,7 +332,14 @@ lessons) before designing the per-frame part.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 12 Nov 2026, branch `claude/sleepy-mccarthy-3zpzfu`.
+
+**State (for a session that has to continue this task; delete when done):** design committed (section "Design");
+`props.py` has `FRFlex` / `scene.fresing.flex`; `blender/flex.py` is a do-nothing skeleton with the hooks in
+`animation.py` (bake, clear_keys), `states.py` (poses), `reimport.py`, `__init__.py` already calling it. Wave 1 of
+subagents (A1 hose solver, A2 chain geometry, C centreline reader + test models) was cut off once by the usage limit
+(5-hour limit, 12 Nov) and restarted; their files are not on the branch until this note says so. Still to do after
+them: B `blender/flex.py`, D operators + panel, E independent tests + review, tour stops, PC-check line, guide, release.
 
 **What changed:**
 
