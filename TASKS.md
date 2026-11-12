@@ -31,7 +31,7 @@ updates its branch to `main`.
 - **Pick & hover lane** (new `blender/hover.py`; the axis pickers in `ops_motion.py`, `ops_cylinders.py`, `ops_doublearm.py`, `ops_linkages.py`): 0088 hover highlight when picking an axis (done, 0.2.63) → 0089 the other pickers (done, 0.2.67); lane free
 - **Sea lane** (new files `core/vessel_motion.py`, `blender/vessel_motion.py`, `ops_vessel_motion.py`, `ui_vessel_motion.py` = sub-panel of 5; additive: `props.py`, `reimport.py`, the sea in `surroundings.py`): 0085 vessel motion at sea (done, 0.2.65); lane free
 - **Cutaway lane** (new files `section.py`, `ops_section.py`, `ui_section.py` = sub-panel of 3 Looks; the material hook next to `fade.py`; additive: `props.py`, `reimport.py`): 0086 cutaway / section view (done, 0.2.64); lane free; no new step kind (the cut moves as an app-made slide joint)
-- **Demo models lane** (new files only: `tools/make_demo_*.py`, `tests/test_demo_*.py`; the demo project in 0077: new `blender/demo.py`, `ops_demo.py`, an additive Help-menu item): 0076 invented cable-lay vessel spread (done 11 Nov) → 0084 deck re-layout as the owner works (done 12 Nov) → 0077 demo project "Cable-lay vessel" (done, 0.2.68; the maker now lives in `fresing_render/demo_model/`, the project in `blender/demo.py` as stages); lane free – 0078–0082 add their stages to `demo.py` → **0091 quadrant system moves freely, quadrant shot, Lebus close-up (open)**
+- **Demo models lane** (new files only: `tools/make_demo_*.py`, `tests/test_demo_*.py`; the demo project in 0077: new `blender/demo.py`, `ops_demo.py`, an additive Help-menu item): 0076 invented cable-lay vessel spread (done 11 Nov) → 0084 deck re-layout as the owner works (done 12 Nov) → 0077 demo project "Cable-lay vessel" (done, 0.2.68; the maker now lives in `fresing_render/demo_model/`, the project in `blender/demo.py` as stages); lane free – 0078–0082 add their stages to `demo.py` → 0091 quadrant system moves freely, quadrant shot, Lebus close-up (done, 0.2.69); lane free – 0078–0082 add their stages
 
 ## Problems found, waiting for a task
 
@@ -63,7 +63,6 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
-| 0091 | **Demo: quadrant system moves freely** (cradles, hinge brackets, parked wire, cylinder stroke, wheel axes), shot 7 quadrant travel + tilt + tip, Lebus close-up, X-ray labels apart | worker | Opus · Medium | **running** (12 Nov, web session) | tasks/0091-demo-quadrant-free.md |
 | 0092 | **Clash check fast with parts that turn in place** (rollers, drums, coil checked once per stretch; the whole demo in minutes) | worker | Opus · High | **running** (12 Nov, web session) | tasks/0092-clash-turning-parts.md |
 | 0093 | **Joints in a batch fast and right** (69 s → seconds for the demo's 415; stacked axis in the same batch) + **a model moved by its root keeps its place** | worker | Opus · Medium | **running** (12 Nov, web session, branch claude/sleepy-archimedes-jo86od) | tasks/0093-joints-batch-and-moved-model.md |
 | 0061 | **Fable day.** Machining lane: tool marks on cut faces that follow the toolpath (face-mill arcs + anisotropic sheen, end-mill floor and wall lines, step-downs, ball scallops, drill rings; each cut face knows the move that made it last); fixes the dark facets on cut faces (0042) – owner's priority 3 | worker | **Fable · High** | **open – can start Thursday 12 Nov (Fable day)**, with 0058; 0071 is merged (0.2.57) | tasks/0061-tool-marks.md |
@@ -80,6 +79,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0091 | Demo: the quadrant system moves freely – S-bend cradles in the D's lane drop, travel rides on the handler tilt (tip on travel), handling wire over a hinge sheave, pulley below the D, brackets/cylinders/rail wheels fixed; shot 7 (cradles drop, D aft × 60, tilt 100°, tip), Lebus drum close-up, X-ray labels apart; 0 clash rows | 0.2.69 |
 | 0094 | Test machinery: Windows install script race fixed, test times re-recorded (full run 12.3 → 11.6 min) | – (no release) |
 | 0077 | Demo project "Cable-lay vessel" (Help > Make demo project / Cancel / Open): the model maker in the extension, 415 joints (Cable travel leads the cable-turned ones), handler cylinders, open sea with vessel motion + "Loading at the quay", saved cameras, brand kit, "What it can do today" (74 s) as stages for 0078–0082; tour stop, Heavy line; clash check no longer runs out of memory on a hull | 0.2.68 |
 | 0089 | Hover highlight for all other click pickers (sharp spot, labels, trail points, CNC zero, air/coolant nozzles, ATC pockets, decals) | 0.2.67 |
