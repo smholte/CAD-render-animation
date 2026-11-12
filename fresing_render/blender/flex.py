@@ -1258,11 +1258,22 @@ def _solve(its, mats: dict, frames: int):
             stiff[:, k] = HS.stiff_length(it.diameter, it.stiffness)
             sag[:, k] = it.sag
             rmin[:, k] = it.min_radius
-        r = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
-                           length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS)
+        if frames > 1:
+            # the frames of a built animation, in their order: each hose keeps one shape along the motion where it
+            # can (a slack hose often has two, and solved frame by frame it would jump from one to the other once)
+            pts = np.empty((frames, h, POINTS, 3))
+            short, tight = (np.zeros((frames, h), dtype=bool) for _ in range(2))
+            need = np.empty((frames, h))
+            for k in range(h):
+                r = HS.solve_motion(p0[:, k], t0[:, k], p1[:, k], t1[:, k], length[:, k], stiff[:, k], sag[:, k],
+                                    rmin[:, k], n=POINTS)
+                pts[:, k], short[:, k], need[:, k], tight[:, k] = r.points, r.short, r.need, r.tight
+        else:
+            r = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
+                               length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS)
+            pts = r.points.reshape(frames, h, POINTS, 3)
+            short, need, tight = (x.reshape(frames, h) for x in (r.short, r.need, r.tight))
         _STATE["solves"] += frames * h
-        pts = r.points.reshape(frames, h, POINTS, 3)
-        short, need, tight = (x.reshape(frames, h) for x in (r.short, r.need, r.tight))
         zero = np.zeros((frames, DRAWN, 3))
         for k, (i, it) in enumerate(hoses):
             out[i] = (_with_ends(pts[:, k]), zero, zero)
