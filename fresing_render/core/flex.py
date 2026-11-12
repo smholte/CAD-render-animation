@@ -97,8 +97,10 @@ What that gives, and what it cannot
   of the inputs, the guide among them. In the review's 16 jumping motions, with the first frame's shape carried
   along as the guide, 11 no longer jump (all 9 across a hinge); the 5 left are a bow that turns into a loop when
   fittings in line are pushed together to 0.4 × the length (2), soft cables with two hanging shapes (2), and an
-  S between two fittings that changes over (1). A guide carried by a part that turns right round (an elbow
-  turning 360°) folds onto itself half way and makes a jump of its own.
+  S between two fittings that changes over (1). The caller carries the drawn shape along with ``carried``
+  (a share of the turn between the two end parts: the bow is kept across a hinge up to ±90° and more). An elbow
+  fitting that spins about its own axis by more than about a third of a turn still makes a jump of its own with
+  a guide (one of 28–35 % of the length in the review's cases; such hoses are calm without a guide).
 * ``solve_motion`` takes all frames of one hose at once. Where the frame-by-frame answer jumps it follows the
   hose from frame to frame for as long as the shape it is in is one a hose stays in, and lets it snap over –
   once, to the frame's own answer – where it is not. Without a guide that does not save the hose across a hinge
@@ -254,7 +256,7 @@ def bend_radius(points, hose=False):
     """The tightest bend of each polyline (..., n, 3) → (...): the smallest circle through three neighbouring
     points; np.inf for a straight line (or fewer than three points). ``hose``: the points are a hose of this
     solver, whose first and last segment lie in the fittings: the bend at the two end joints is spread over 1.5
-    segments (see the module's text), so the circle there counts 1.5 times its radius – this is what
+    segments (see the module's text), so the circle there counts 1.5 times its radius (meant for 5 points or more, as every solved hose has) – this is what
     ``Hoses.min_radius`` reports."""
     pts = np.asarray(points, dtype=float)
     if pts.shape[-2] < 3:
@@ -1006,8 +1008,8 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
     hose, (B, m, 3) for a batch (the same m for all; resample them); a row of NaN is a hose without a guide. Only
     its shape counts – which way it bows beside the line between the ends – not its length or where exactly it is.
     The hose starts from the guide's shape and keeps its belly in the plane of the guide's (see the module's
-    text); ``start`` is ignored for it and ``Hoses.start`` is 3. A guide that is no line (one point, not finite)
-    is no guide. What the caller gives: the hose's centreline in the pose it was drawn in, each point carried
+    text); ``start`` is ignored for it and ``Hoses.start`` is 3. A guide that is no line (all its points in one
+    place, or not finite) is no guide; fewer than 2 points are refused (ValueError). What the caller gives: the hose's centreline in the pose it was drawn in, each point carried
     along by the part of end 0 and by the part of end 1 and the two blended along the hose (all of end 0's at
     the start, all of end 1's at the end, a smooth step between).
 
@@ -1267,3 +1269,72 @@ def _jumps(points, pr) -> int:
     drive = _norm(pr.p0[1:] - pr.p0[:-1]) + _norm(pr.p1[1:] - pr.p1[:-1]) + np.abs(reach[1:] - reach[:-1]) \
         + (_norm(pr.t0[1:] - pr.t0[:-1]) + _norm(pr.t1[1:] - pr.t1[:-1])) * reach[1:]
     return int((moved > JUMP * drive + 1e-9 * reach[1:]).sum())
+
+
+# ---------------------------------------------------------------------------
+# the guide of a hose between two parts that move against each other
+# ---------------------------------------------------------------------------
+
+def carried(points_a, points_b) -> np.ndarray:
+    """The guide of a hose whose ends sit on two parts: the hose's drawn shape carried along by both.
+
+    ``points_a`` and ``points_b`` (F, m, 3) or (m, 3): the same m points of the drawn centreline (end 0 … end 1) as
+    the part at end 0 has carried them, and as the part at end 1 has – two rigid copies of one line. The result
+    goes over from the first copy to the second along the hose: point k is moved by the share w_k (a smooth step
+    of its place along the line) of the *screw* that takes copy A onto copy B – a turn about one axis and a slide
+    along it. Across a hinge that is a turn of w_k × the hinge angle about the hinge's own axis, so the line keeps
+    its bow however far the parts turn (blending the two copies point by point makes the middle collapse onto the
+    axis from about a quarter turn on). Copies that are not rigid copies of each other, or lie on one straight
+    line, are blended point by point."""
+    a = np.asarray(points_a, dtype=float)
+    b = np.asarray(points_b, dtype=float)
+    one = a.ndim == 2
+    if one:
+        a, b = a[None], b[None]
+    run = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(a[0], axis=0), axis=1))])
+    t = run / (run[-1] or 1.0)
+    w = t * t * (3.0 - 2.0 * t)                           # (m,)
+    plain = (1.0 - w)[None, :, None] * a + w[None, :, None] * b
+    out = plain.copy()
+    with np.errstate(all="ignore"):
+        ca, cb = a.mean(axis=1), b.mean(axis=1)
+        pa, pb = a - ca[:, None], b - cb[:, None]
+        h = np.einsum("fki,fkj->fij", pa, pb)             # Kabsch: the turn that takes copy A onto copy B
+        fine = np.isfinite(h).all(axis=(1, 2))
+        h = np.where(fine[:, None, None], h, np.eye(3))
+        u, s, vt = np.linalg.svd(h)
+        d = np.sign(np.linalg.det(np.einsum("fij,fjk->fik", u, vt)))
+        d = np.where(d == 0.0, 1.0, d)
+        flip = np.broadcast_to(np.eye(3), h.shape).copy()
+        flip[:, 2, 2] = d
+        rot = np.einsum("fji,fjk,flk->fil", vt, flip, u)  # R = V D Uᵀ, b - cb = R (a - ca)
+        fit = np.linalg.norm(np.einsum("fij,fkj->fki", rot, pa) - pb, axis=2).max(axis=1)
+        size = np.linalg.norm(pa, axis=2).max(axis=1)
+        rigid = fine & (fit <= 1e-6 * np.maximum(size, 1e-12)) & (s[:, 1] > 1e-9 * np.maximum(s[:, 0], 1e-300))
+        cos = np.clip((np.trace(rot, axis1=1, axis2=2) - 1.0) * 0.5, -1.0, 1.0)
+        angle = np.arccos(cos)
+        axis = np.stack([rot[:, 2, 1] - rot[:, 1, 2], rot[:, 0, 2] - rot[:, 2, 0], rot[:, 1, 0] - rot[:, 0, 1]], axis=1)
+        norm = np.linalg.norm(axis, axis=1)
+        near_pi = norm < 1e-6
+        if (near_pi & (angle > 1.0)).any():               # half a turn: the axis from the symmetric part
+            _vals, vecs = np.linalg.eigh(0.5 * (rot + rot.transpose(0, 2, 1)))
+            axis = np.where((near_pi & (angle > 1.0))[:, None], vecs[:, :, 2], axis)
+            norm = np.linalg.norm(axis, axis=1)
+        turn = rigid & (angle > 1e-9) & (norm > 0.0)
+        n = axis / np.where(norm > 0.0, norm, 1.0)[:, None]
+        move = cb - np.einsum("fij,fj->fi", rot, ca)      # b = R a + move
+        along = np.einsum("fi,fi->f", n, move)
+        # a point on the screw's axis: (I - R) p = move - along n, solved in the plane square to the axis
+        rest = move - along[:, None] * n
+        half = 0.5 * angle
+        cot = np.where(np.abs(np.sin(half)) > 1e-12, np.cos(half) / np.where(np.sin(half) == 0.0, 1.0, np.sin(half)), 0.0)
+        p0 = 0.5 * (rest + cot[:, None] * np.cross(n, rest))
+        ang = w[None, :] * angle[:, None]                 # (F, m)
+        x = a - p0[:, None]
+        nx = np.cross(np.broadcast_to(n[:, None], x.shape), x)
+        nd = np.einsum("fi,fki->fk", n, x)[..., None] * n[:, None]
+        spun = (x * np.cos(ang)[..., None] + nx * np.sin(ang)[..., None] + nd * (1.0 - np.cos(ang))[..., None]
+                + p0[:, None] + (w[None, :] * along[:, None])[..., None] * n[:, None])
+        good = turn & np.isfinite(spun).all(axis=(1, 2))
+        out[good] = spun[good]
+    return out[0] if one else out

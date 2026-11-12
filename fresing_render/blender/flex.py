@@ -1325,22 +1325,21 @@ def _solve(its, mats: dict, frames: int):
 
 def _guide(it, a: np.ndarray, b: np.ndarray):
     """Which way the hose lies, at ``frames`` moments: its CAD centreline carried along by the two parts its ends
-    sit on – near end A it moves with A's part, near end B with B's, in between a smooth blend. In the CAD pose
-    this is the CAD centreline itself. (frames, GUIDE_POINTS, 3), world; None for a hose without one (made before
-    the app kept it: 'Fit to the CAD pose' reads it)."""
+    sit on – at end A it moves with A's part, at end B with B's, in between it goes over from the one to the other
+    (``core/flex.carried``: a share of the turn-and-slide between the two parts, so the line keeps its bow across a
+    hinge). In the CAD pose this is the CAD centreline itself. (frames, GUIDE_POINTS, 3), world; None for a hose
+    without one."""
     part = it.part
     if part is None or GUIDE + "a" not in part or GUIDE + "b" not in part:
         return None
     ga = np.array(part[GUIDE + "a"], dtype=float).reshape(-1, 3)
     gb = np.array(part[GUIDE + "b"], dtype=float).reshape(-1, 3)
-    if ga.shape != gb.shape or len(ga) < 3:
+    if ga.shape != gb.shape or len(ga) != GUIDE_POINTS:
         return None
+    from ..core import flex as HS
     wa = ga @ a[:, :3, :3].transpose(0, 2, 1) + a[:, None, :3, 3]
     wb = gb @ b[:, :3, :3].transpose(0, 2, 1) + b[:, None, :3, 3]
-    run = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(ga, axis=0), axis=1))])
-    t = run / (run[-1] or 1.0)
-    w = (t * t * (3.0 - 2.0 * t))[None, :, None]          # smooth step along the hose
-    return (1.0 - w) * wa + w * wb
+    return HS.carried(wa, wb)
 
 
 def _with_ends(pts: np.ndarray) -> np.ndarray:

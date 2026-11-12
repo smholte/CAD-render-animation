@@ -1017,3 +1017,45 @@ def test_polyline_length_and_resample():
     assert np.abs(again - h.points[0]).max() <= 2e-3
     assert F.resample(square[:1], 4).shape == (4, 3) and F.resample(square, 1).shape == (1, 3)
     assert np.allclose(F.resample(np.array([(1.0, 2, 3)] * 5), 3), (1, 2, 3))
+
+
+# ---------------------------------------------------------------------------
+# the guide carried by two parts (after the independent review: blended point by point its middle fell onto a
+# hinge's axis from about a quarter turn on)
+# ---------------------------------------------------------------------------
+
+def _turn(axis, angle):
+    axis = np.asarray(axis, dtype=float) / np.linalg.norm(axis)
+    k = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+    return np.eye(3) + math.sin(angle) * k + (1 - math.cos(angle)) * k @ k
+
+
+def test_carried_guide_goes_over_from_one_part_to_the_other_by_a_share_of_the_turn():
+    s = np.linspace(0.0, 1.0, 17)
+    line = np.stack([0.3 + s, 0.1 + 0.2 * np.sin(s * math.pi), 0.05 * s * s], axis=1)
+    rng = np.random.default_rng(5)
+    for _ in range(200):                                  # any two rigid copies: the ends are the copies' ends
+        a = line @ _turn(rng.normal(size=3), rng.uniform(-3, 3)).T + rng.normal(size=3)
+        b = line @ _turn(rng.normal(size=3), rng.uniform(-3, 3)).T + rng.normal(size=3)
+        g = F.carried(a, b)
+        assert np.isfinite(g).all()
+        assert np.abs(g[0] - a[0]).max() < 1e-9 and np.abs(g[-1] - b[-1]).max() < 1e-9
+    # a hinge about Z through the origin, the second part turned 120 degrees: every point keeps its distance from
+    # the hinge's axis (blended point by point the middle would be at half of it)
+    b = line @ _turn((0, 0, 1), math.radians(120)).T
+    g = F.carried(line, b)
+    assert np.abs(np.linalg.norm(g[:, :2], axis=1) - np.linalg.norm(line[:, :2], axis=1)).max() < 1e-9
+    assert np.abs(g[:, 2] - line[:, 2]).max() < 1e-9
+    plain = 0.5 * (line[8] + b[8])
+    assert np.linalg.norm(plain[:2]) < 0.55 * np.linalg.norm(line[8, :2])
+    # the same copy twice is that copy; a pure slide is a share of the slide; a batch works row by row
+    assert np.abs(F.carried(line, line) - line).max() < 1e-12
+    slid = F.carried(line, line + np.array([0.2, 0.0, 0.1]))
+    assert np.abs(np.cross(slid - line, np.array([0.2, 0.0, 0.1]))).max() < 1e-9
+    both = F.carried(np.stack([line, line]), np.stack([b, line]))
+    assert np.abs(both[0] - g).max() < 1e-12 and np.abs(both[1] - line).max() < 1e-12
+    # a straight line (no turn can be read from it) and half a turn give a finite line with the right ends
+    straight = np.stack([s, 0 * s, 0 * s], axis=1)
+    for a, b in ((straight, straight @ _turn((0, 0, 1), 1.0).T), (line, line @ _turn((0, 0, 1), math.pi).T)):
+        g = F.carried(a, b)
+        assert np.isfinite(g).all() and np.abs(g[0] - a[0]).max() < 1e-9 and np.abs(g[-1] - b[-1]).max() < 1e-9
