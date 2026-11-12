@@ -1897,6 +1897,100 @@ def _show_joints_changed(self, context):
 
 
 # ---------------------------------------------------------------------------
+# hoses, cables and drag chains (task 0058): parts that bend along with the motion
+# ---------------------------------------------------------------------------
+
+def _flex_changed(self, context):
+    """A setting of a hose or drag chain changed: its shape is worked out again (also along a built animation)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import flex
+    flex.changed(context.scene, self)
+
+
+class FRFlex(bpy.types.PropertyGroup):
+    """A hose, a cable or a drag chain that follows the motion (task 0058). See blender/flex.py."""
+    name: StringProperty(name="Name", description="Name of this hose, cable or drag chain. Double-click to rename it")
+    kind: EnumProperty(name="Kind", default="HOSE",
+                       items=[("HOSE", "Hose or cable", "One bendable part between two ends"),
+                              ("CHAIN", "Drag chain", "An energy chain: two straight runs and a bend that rolls")])
+    enabled: BoolProperty(
+        name="On", default=True, update=_flex_changed,
+        description="On: the part bends along with the motion. Off: it shows stiff, exactly as in the CAD file")
+    part: PointerProperty(type=bpy.types.Object)           # the hose part; a chain drawn as one solid: that solid
+    part_uid: StringProperty()
+    links: CollectionProperty(type=FRObjectRef)            # a chain's CAD link parts, fixed end first
+    link_uids: StringProperty()                            # their part IDs, one per line (model update)
+    made_links: BoolProperty(default=False)                # the app draws the links (the CAD chain is one solid)
+    # the two ends: the part each end sits on, and where on it (in that part's own coordinates). Hose: the point the
+    # centreline ends at and the direction the hose runs there (from end A towards end B). Chain: A = the fixed end,
+    # B = the moving end (its last pin).
+    a_part: PointerProperty(type=bpy.types.Object)
+    a_uid: StringProperty()
+    a_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    a_dir: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))
+    b_part: PointerProperty(type=bpy.types.Object)
+    b_uid: StringProperty()
+    b_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    b_dir: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))
+    # chain: its own frame in a_part's coordinates (4 x 4, row by row): origin = the fixed end's pin, x = along the
+    # fixed run towards the bend, y = from the fixed run to the moving run, z = across the chain
+    frame: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+    # ---- hose / cable ----
+    length: FloatProperty(
+        name="Length", unit="LENGTH", default=0.5, min=0.001, soft_max=20.0, precision=4, update=_flex_changed,
+        description="How long the hose is, in mm, measured along its middle. It stays this long while the machine "
+                    "moves. 'Fit to the CAD pose' puts back the length drawn in the CAD file")
+    cad_length: FloatProperty(default=0.0)
+    diameter: FloatProperty(
+        name="Diameter", unit="LENGTH", default=0.02, min=0.0005, soft_max=0.5, precision=4, update=_flex_changed,
+        description="The outside diameter of the hose, in mm. It is read from the CAD part; change it to draw a "
+                    "thicker or thinner hose")
+    stiffness: FloatProperty(
+        name="Stiffness", default=0.6, min=0.0, max=1.0, subtype="FACTOR", update=_flex_changed,
+        description="How stiff the hose is. 0 = a soft cable that hangs down, 1 = a stiff hydraulic hose that "
+                    "keeps wide bends. Move it until the hose looks like the real one")
+    sag: FloatProperty(
+        name="Sag", default=0.5, min=0.0, max=1.0, subtype="FACTOR", update=_flex_changed,
+        description="How much the hose hangs down under its own weight. 0 = no weight at all (it only bends), "
+                    "1 = a heavy hose. A stiff hose sags less")
+    min_radius: FloatProperty(
+        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=2.0, precision=4, update=_flex_changed,
+        description="The tightest bend the hose may make, as a radius in mm (from the hose maker's data sheet). "
+                    "The hose keeps to it where it can; you get a warning when the motion forces a tighter bend. "
+                    "0 = no limit")
+    # ---- drag chain ----
+    pitch: FloatProperty(
+        name="Link length", unit="LENGTH", default=0.04, min=0.001, soft_max=0.5, precision=4, update=_flex_changed,
+        description="The length of one chain link from pin to pin, in mm. It is read from the CAD links")
+    radius: FloatProperty(
+        name="Bend radius", unit="LENGTH", default=0.08, min=0.001, soft_max=2.0, precision=4, update=_flex_changed,
+        description="The radius of the chain's bend, in mm, measured to the links' pins. It is read from the CAD "
+                    "pose; the bend keeps exactly this radius while it rolls")
+    count: IntProperty(
+        name="Links", default=20, min=2, soft_max=400, update=_flex_changed,
+        description="How many links the chain has. Its length is this number times the link length")
+    mode: EnumProperty(
+        name="Upper run", default="STRAIGHT", update=_flex_changed,
+        description="How the run between the bend and the moving end is drawn",
+        items=[("STRAIGHT", "Straight", "The run goes straight from the bend to the moving end: a chain that "
+                                         "carries itself, hangs, stands or lies on its side"),
+               ("GLIDE", "Lies on the lower run", "A long chain: after the bend the run comes down and slides on "
+                                                  "the run below it")])
+    width: FloatProperty(
+        name="Width", unit="LENGTH", default=0.06, min=0.001, soft_max=1.0, precision=4, update=_flex_changed,
+        description="The width of the links the app draws, in mm (across the chain)")
+    height: FloatProperty(
+        name="Height", unit="LENGTH", default=0.025, min=0.001, soft_max=0.5, precision=4, update=_flex_changed,
+        description="The height of the links the app draws, in mm (the thickness of one run)")
+    # ---- state (written by blender/flex.py) ----
+    problem: StringProperty(default="")                    # '' or the warning shown in the panel
+    problem_frame: IntProperty(default=0)                  # the first frame it happens at (0 = in the pose shown)
+    offset: IntProperty(default=0)                         # its first point in a frame of the shapes mesh
+    points: IntProperty(default=0)                         # how many points it has there
+
+
+# ---------------------------------------------------------------------------
 # way covers (task 0034): telescopic covers follow one slide axis
 # ---------------------------------------------------------------------------
 
@@ -2650,6 +2744,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     toolpath: PointerProperty(type=FRToolpath)
     # ---- vessel motion at sea (task 0085) ----
     vessel: PointerProperty(type=FRVessel)
+    # ---- hoses, cables and drag chains (task 0058) ----
+    flex: CollectionProperty(type=FRFlex)
+    flex_index: IntProperty(default=0)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2664,7 +2761,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel,
-           FRCutTarget, FRCut, FRSceneSettings)
+           FRCutTarget, FRCut, FRFlex, FRSceneSettings)
 
 
 def register():
