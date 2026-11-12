@@ -446,7 +446,7 @@ def box(dx, dy, dz, cuts=1):
                 for j in range(cuts):
                     a = base + i * (cuts + 1) + j
                     b, c, d = a + 1, a + cuts + 1, a + cuts + 2
-                    tris += [(a, c, b), (b, c, d)] if side else [(a, b, c), (b, d, c)]
+                    tris += [(a, c, b), (b, c, d)] if bool(side) != (axis == 1) else [(a, b, c), (b, d, c)]
     return np.array(verts), np.array(tris)
 
 
@@ -516,12 +516,191 @@ def test_not_a_hose(name):
     assert tube.points.shape == (0, 3) and tube.length == 0.0 and tube.radius == 0.0
     if "ring" in name:
         assert "ring" in tube.problem
-    if name in ("box", "box of 12 triangles", "ball", "short tube", "washer"):
+    if name in ("box", "box of 12 triangles", "plate", "ball", "short tube", "washer"):
         assert "long and thin" in tube.problem
     if name in ("cone", "stepped shaft"):
         assert "thickness" in tube.problem
     if name in ("square beam", "flat bar"):
         assert "round" in tube.problem
+
+
+# ---- the independent review's findings (round 2) ----
+
+def prism(profile, length, steps=40):
+    """A bar with the cross-section ``profile`` (corners, counter-clockwise seen from +x) along x."""
+    prof = np.asarray(profile, dtype=float)
+    k = len(prof)
+    verts = np.concatenate([np.c_[np.full(k, x), prof] for x in np.linspace(0.0, length, steps + 1)])
+    tris = []
+    for i in range(steps):
+        for j in range(k):
+            a, b = i * k + j, i * k + (j + 1) % k
+            tris += [(a, b, a + k), (b, b + k, a + k)]
+    tris += [(0, j + 1, j) for j in range(1, k - 1)]
+    tris += [(steps * k, steps * k + j, steps * k + j + 1) for j in range(1, k - 1)]
+    return verts, np.array(tris)
+
+
+def any_way(tris, seed=3):
+    """The same triangles, about half of them turned over (a mesh whose faces look any way)."""
+    out = np.array(tris)
+    turn = np.random.default_rng(seed).random(len(out)) < 0.5
+    out[turn] = out[turn, ::-1]
+    return out
+
+
+def turned(verts, seed):
+    """The mesh turned in space (and moved)."""
+    q, _ = np.linalg.qr(np.random.default_rng(seed).normal(size=(3, 3)))
+    if np.linalg.det(q) < 0:
+        q[:, 0] = -q[:, 0]
+    return verts @ q.T + np.array([35.0, -120.0, 7.0])
+
+
+@pytest.mark.parametrize("ratio", [1.0, 1.1, 1.25, 1.6, 2.0, 5.0])
+@pytest.mark.parametrize("cuts", [1, 6])
+def test_a_bar_is_not_a_hose(ratio, cuts):
+    """A bar 1000 long with sides ratio : 1, as a CAD file has it (12 triangles) and meshed finely. The review
+    found that 1.6 : 1 … 5 : 1 passed as a hose with half the diagonal as its radius."""
+    verts, tris = box(1000.0, 40.0 * ratio, 40.0, cuts=cuts)
+    for v, t in ((verts, tris), (turned(verts, 4), tris), (verts, any_way(tris))):
+        tube = tube_centreline(v, t)
+        assert not tube.ok, (ratio, cuts, tube.radius, tube.length)
+        assert tube.problem == "The part is not round like a hose."
+
+
+PROFILES = {
+    "L profile": [(0, 0), (60, 0), (60, 8), (8, 8), (8, 60), (0, 60)],
+    "I beam": [(0, 0), (60, 0), (60, 8), (34, 8), (34, 52), (60, 52), (60, 60), (0, 60), (0, 52), (26, 52), (26, 8),
+               (0, 8)],
+    "channel": [(0, 0), (60, 0), (60, 30), (52, 30), (52, 8), (8, 8), (8, 30), (0, 30)],
+    "hollow box section": None,
+}
+
+
+@pytest.mark.parametrize("name", sorted(PROFILES))
+def test_a_profile_is_not_a_hose(name):
+    if PROFILES[name] is None:
+        verts, tris = make_tube(straight_path(600.0), 40.0, 4, bore=34.0)
+    else:
+        verts, tris = prism(PROFILES[name], 600.0)
+    tube = tube_centreline(verts, tris)
+    assert not tube.ok and tube.problem == "The part is not round like a hose.", (tube.problem, tube.radius)
+
+
+def test_which_many_sided_bars_pass():
+    """3 and 4 sides are bars; a hexagon passes (a hose's hex ferrule must), so a hexagon bar does too."""
+    for sides, ok in ((3, False), (4, False), (6, True), (8, True), (12, True)):
+        tube = tube_centreline(*make_tube(s_curve(), R, sides))
+        assert tube.ok == ok, (sides, tube.problem)
+    oval = lathe(np.linspace(0.0, 300.0, 31), np.full(31, 10.0))
+    for wide, ok in ((1.1, True), (1.6, False)):                      # a hose pressed a little flat still reads
+        tube = tube_centreline(oval[0] * np.array([wide, 1.0, 1.0]), oval[1])
+        assert tube.ok == ok, (wide, tube.problem)
+
+
+def test_a_cone_is_refused_a_ferrule_is_not():
+    """Thicker at one end by more than about a third: "its thickness changes too much" (the review: 2 : 1 passed
+    with the middle radius). Ferrules and a flange at the ends are fine."""
+    zs = np.linspace(0.0, 300.0, 61)
+    for big, ok in ((1.15, True), (1.3, True), (1.5, False), (2.0, False), (3.0, False)):
+        tube = tube_centreline(*lathe(zs, np.linspace(6.0, 6.0 * big, 61)))
+        assert tube.ok == ok, (big, tube.problem)
+        if not ok:
+            assert tube.problem == "The part's thickness changes too much along its length for a hose."
+    ferrules = tube_centreline(*lathe([0.0, 30.0, 30.0, 270.0, 270.0, 300.0], [13.0, 13.0, 10.0, 10.0, 13.0, 13.0]))
+    assert ferrules.ok and abs(ferrules.radius - 10.0) < 0.2 and abs(ferrules.length - 300.0) < 0.5
+    flange = tube_centreline(*lathe([0.0, 12.0, 12.0, 300.0], [22.0, 22.0, 10.0, 10.0]))
+    assert flange.ok and abs(flange.radius - 10.0) < 0.2 and abs(flange.length - 300.0) < 0.5
+
+
+def _close_to_itself(name, gap, sides=16):
+    """A hose that passes ``gap`` radii from itself: a hairpin, or a coil of 1.5 turns. Returns its exact path."""
+    if name == "hairpin":
+        return Path((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)).straight(150.0).arc(R + 0.5 * gap * R, 180.0,
+                                                                         (0.0, 1.0, 0.0)).straight(150.0).points
+    return helix(50.0, (2.0 + gap) * R, 1.5)
+
+
+@pytest.mark.parametrize("name,gap", [("hairpin", 1.0), ("hairpin", 0.5), ("coil", 1.5), ("coil", 1.0),
+                                      ("coil", 0.3)])
+def test_hose_with_a_bore_close_to_itself(name, gap):
+    """The review's finding: a hairpin with a bore, legs one radius apart, was read as HALF as long; a coil was
+    read or refused depending on how it lay in space. The bore's wall is taken out before the ends are looked
+    for, so it is now read like the solid one – however it is turned, and inside out as well. (A hairpin tighter
+    than legs half a radius apart bends on 1.25 radii: no hose does; its length then reads 1–2 % short.)"""
+    pts = _close_to_itself(name, gap)
+    exact = path_length(pts)
+    verts, tris = make_tube(pts, R, 16, bore=6.0, step=3.0)
+    solid = tube_centreline(*make_tube(pts, R, 16, step=3.0))
+    assert solid.ok and abs(solid.length - exact) < 0.005 * exact
+    for v, t in ((verts, tris), (turned(verts, 1), tris), (turned(verts, 2), tris), (verts, tris[:, ::-1])):
+        tube = tube_centreline(v, t)
+        assert tube.ok, tube.problem
+        assert abs(tube.length - exact) < 0.005 * exact and abs(tube.radius - R) < 0.02 * R
+    # faces any way: the bore cannot be told then. Read right or refused – never a wrong hose
+    for seed in (1, 2, 3):
+        tube = tube_centreline(turned(verts, seed), any_way(tris, seed))
+        assert not tube.ok or abs(tube.length - exact) < 0.005 * exact, (tube.length, exact)
+
+
+def test_the_bore_is_told_from_the_outside():
+    pts = s_curve()
+    verts, tris = make_tube(pts, R, 12, bore=6.0, ferrule=(25.0, 14.0))
+    p, t, _size = flex_fit._weld(verts, tris)
+    bore = flex_fit._bore(p, t)
+    far = np.linalg.norm(p[t].mean(axis=1)[:, None, :] - pts[None, ::8, :], axis=2).min(axis=1)   # from the centreline
+    assert bore.sum() > 1000 and far[bore].max() < 6.01 and far[~bore].min() > 5.0
+    wall = bore & True
+    assert np.array_equal(flex_fit._bore(p, t[:, ::-1]), wall)                 # every face inside out: the same
+    assert flex_fit._bore(p, any_way(t)) is None                               # faces any way: cannot be told
+    for v2, t2 in (make_tube(pts, R, 12), torus(), make_tube(pts, R, 12, ferrule=(25.0, 14.0))):
+        p2, t2, _size = flex_fit._weld(v2, t2)
+        assert not flex_fit._bore(p2, t2).any()                                # solid, a ring: nothing hollow
+
+
+def test_half_a_hose_is_never_returned(monkeypatch):
+    """The old way to find a bored hose's ends (vertices lumped in boxes; still used when the faces look any way)
+    takes the two legs of a hairpin for one thick hose half as long. Forced here: the result is refused, because
+    its cuts are not round (two rings side by side) and, with the legs apart, the skin is too small for it."""
+    pts = _close_to_itself("hairpin", 1.0)
+    verts, tris = make_tube(pts, R, 16, bore=6.0, step=3.0)
+    monkeypatch.setattr(flex_fit, "_bore", lambda p, t: None)
+    tube = tube_centreline(verts, tris)
+    assert not tube.ok and tube.problem.startswith("The part")
+    monkeypatch.setattr(flex_fit, "ROUND_EVEN", 0.0)                           # without the roundness tests …
+    monkeypatch.setattr(flex_fit, "ROUND_SHARE", 0.0)
+    solid = make_tube(pts, R, 16, step=3.0)
+    monkeypatch.setattr(flex_fit, "_whole", _two_legs_as_one(flex_fit._whole))
+    tube = tube_centreline(*solid)
+    assert not tube.ok or abs(tube.length - path_length(pts)) < 0.005 * path_length(pts)
+
+
+def _two_legs_as_one(whole):
+    """Spoils the first distances so that the "ends" found are the bend and one end (what the boxes did)."""
+    def spoiled(p, t):
+        out = whole(p, t)
+        if out is None:
+            return out
+        p2, t2, edges, graph, closed, d = out
+        d = np.where(np.isfinite(d), -np.linalg.norm(p2 - p2[np.argmax(p2[:, 0])], axis=1), d)   # start: the bend
+        return p2, t2, edges, graph, closed, d
+    return spoiled
+
+
+def test_too_big_a_mesh_says_so_and_memory_errors_are_not_hidden(monkeypatch):
+    verts, tris = make_tube(s_curve(), R, 12)
+    monkeypatch.setattr(flex_fit, "MAX_POINTS", 500)
+    tube = tube_centreline(verts, tris)
+    assert not tube.ok and "too big" in tube.problem and tube.problem.startswith("The part")
+    monkeypatch.undo()
+
+    def no_memory(*_args):
+        raise MemoryError
+
+    monkeypatch.setattr(flex_fit, "_fit", no_memory)
+    with pytest.raises(MemoryError):
+        tube_centreline(verts, tris)
 
 
 def test_two_hoses_in_one_mesh_are_refused_and_crumbs_are_ignored():

@@ -10,27 +10,39 @@ How it works:
 1. **Weld.** The importer repeats the vertices along the seams of the CAD faces; vertices closer together than a
    millionth of the part's size become one, in an order that depends on their places only (so a shuffled mesh gives
    the same answer).
-2. **Which way the tube runs.** Distances along the surface (over the triangles' edges) from any vertex find one
+2. **A bore.** Along the surface the wall of a bore is a whole tube length away from the outside wall (round an
+   end face), so on a hollow tube "furthest away" is not an end. The mesh is parted into faces at its sharp folds
+   and the faces whose gentle folds go inwards – the bore's wall – are taken out; the outside skin is read alone.
+   This needs the triangles to face one way (out of the material, as the importer's do, or all inwards). Where
+   they face any way, the ends are looked for with the vertices lumped together in boxes – which goes wrong for a
+   hollow hose that lies against itself; the checks of step 7 then refuse it.
+3. **Which way the tube runs.** Distances along the surface (over the triangles' edges) from any vertex find one
    end, from that end the other (a "double sweep"). Their difference rises steadily from one end to the other
-   whatever way the tube bends. (A tube with a bore: its inside wall is a tube length away from its outside wall
-   along the surface, so the ends are looked for with the vertices lumped together in boxes first.)
-3. **Slices.** The triangles are cut along levels of that number: every level gives a closed line round the tube,
+   whatever way the tube bends.
+4. **Slices.** The triangles are cut along levels of that number: every level gives a closed line round the tube,
    its middle is a point of the centreline. Cutting triangles (not sorting vertices) matters: a straight piece of
    a CAD tube has vertices at its two ends only.
-4. **Square slices.** Four more times the tube is cut, now by how far along the centreline found so far each
+5. **Square slices.** Four more times the tube is cut, now by how far along the centreline found so far each
    vertex lies (so the cuts are square to the tube), the last time 8 cuts per diameter. A circle is fitted to each
    cut line – to the line, not its corners, so a tube of 8 flat sides gives its exact middle. Cuts that run through
-   an end face or a shoulder are not used; the bore's wall is left out where the triangles' facing tells it apart.
-5. **Ends.** A line (a parabola when the end is bent) through the last diameter of centres gives the end's
+   an end face or a shoulder are not used.
+6. **Ends.** A line (a parabola when the end is bent) through the last diameter of centres gives the end's
    direction; the end point is where it meets the end face (the furthest vertex along it).
-6. **Checks.** At least 3 diameters long, about the same thickness all along, round: else ``ok`` is False and
-   ``problem`` says why in plain words. Nothing here raises on a bad mesh.
+7. **Checks**, else ``ok`` is False and ``problem`` says why in plain words (nothing here raises on a bad mesh):
+   at least 3 diameters long; round – a cut's outline is as wide one way as the other (its two second moments;
+   a bar 1.25 : 1 or flatter, an L or I profile, two legs of a hose taken for one are not) and a quarter of it
+   lies on the outside (a square or a triangle does not; a hexagon does, so a hex ferrule and a hexagon bar pass);
+   about the same thickness all along (within 10 % on 70 % of its length: ferrules and a flange pass, a cone
+   thicker at one end by more than about a third does not); and the skin's area, seen from the side, is length ×
+   circumference within 15 %.
 
-End 0 is the end with the smaller x (then y, then z). Measured (tests/test_flex_fit.py; a web session, 4 cores):
-tubes of 8 to 32 sides along straight, arc, S and helix paths, solid or with a bore, with a hex ferrule: centreline
-within 1 % of the radius, length within 0.02 %, ends within 0.1 mm on a Ø20 hose, end directions within 0.5°; the
-hoses of the test model as the importer meshes them at Draft: length 0.1 % short (the facets cut the bends'
-corners), ends and diameter exact. 20,000 triangles take 0.1 s.
+End 0 is the end with the smaller x (then y, then z). Measured (tests/test_flex_fit.py and the independent
+tests/test_flex_independent.py; a web session, 4 cores): tubes of 8 to 32 sides, solid or with a bore, with ferrules,
+a flange or a hex nut, along straight pieces and bends (elbow, U, two planes, hairpin): centreline within 1 % of the
+radius, length within 0.03 %, ends exact where the hose ends straight; a coil (a helix, bent right up to its end
+faces, turns down to 0.3 radii apart): centreline and ends within 2 % of the radius, length within 0.06 %, end
+directions within 0.5°. The hoses of the test model as the importer meshes them at Draft: length 0.1 % short (the
+facets cut the bends' corners), ends and diameter exact. 20,000 triangles take 0.12 – 0.15 s.
 """
 
 from __future__ import annotations
@@ -41,12 +53,18 @@ import numpy as np
 
 WELD = 1e-6            # vertices closer than this share of the part's size are one
 SLENDER = 3.0          # a hose is at least this many diameters long
-THICKNESS = 0.25       # a slice counts as "another thickness" when its radius is this far from the usual one
-THICK_SHARE = 0.30     # at most this share of the length may have another thickness (ferrules, a nut)
+THICKNESS = 0.10       # a slice counts as "another thickness" when its radius is this far from the usual one …
+THICK_SHARE = 0.30     # … and at most this share of the length may have another thickness (ferrules, a nut, a
+#                        flange). A cone thicker at one end by a third or more is refused, 1.3 : 1 still passes.
+ROUND_EVEN = 0.75      # a slice's outline must be as wide one way as the other: its smaller second moment at
+#                        least this share of its larger (any regular polygon: 1; a bar 1.25 : 1: 0.72; 2 : 1: 0.36)
 ROUND_BAND = 0.90      # a slice's outline counts as "on the outside" beyond this share of its biggest radius …
 ROUND_SHARE = 0.26     # … and at least this share of it must be (a square bar: 0.21, a hex with a bore: 0.3)
 ROUND_GAP = 0.35       # a slice is used when its cut line goes (nearly) all the way round: about 260° or more
 FACING = 0.7           # a triangle whose normal lies this much along the tube is an end face or a shoulder
+SHARP = 1.22           # radians (70°): a fold sharper than this parts two faces (a hexagon's 60° does not)
+SKIN = (0.85, 1.15)    # the skin's area seen from the side ÷ (length × circumference) of what was read
+MAX_POINTS = 2_000_000
 PER_DIAMETER = 8.0     # slices of the last pass: this many per diameter …
 LEVELS = (64, 1024)    # … within these limits
 PASSES = 4             # square cuts: three coarser ones that steer, the last at the final fineness
@@ -57,6 +75,8 @@ _NOT_ROUND = "The part is not round like a hose."
 _RING = "The part is a closed ring: it has no two ends."
 _PIECES = "The part is made of separate pieces: pick one hose."
 _NO_MESH = "The part has no shape to read."
+_TOO_BIG = "The part's mesh is too big to read as a hose (over 2 million points)."
+_NOT_ONE = "The part's shape does not fit one hose from end to end."
 _UNREADABLE = "The part's shape could not be read as a hose."
 
 
@@ -84,6 +104,8 @@ def tube_centreline(verts, tris, n: int = 65) -> Tube:
             return _fail(_NO_MESH)
         t = t.astype(np.int64)
         return _fit(v, t, max(int(n), 2))
+    except MemoryError:                                 # not the mesh's fault: let the caller see it
+        raise
     except Exception:                                   # never raise on a bad mesh (the caller shows `problem`)
         return _fail(_UNREADABLE)
 
@@ -93,7 +115,8 @@ def tube_centreline(verts, tris, n: int = 65) -> Tube:
 # ---------------------------------------------------------------------------------------------------------
 
 def _weld(v: np.ndarray, tris: np.ndarray):
-    """Vertices at the same place become one; returns (points, triangles, size) in an order set by place alone."""
+    """Vertices at the same place become one; returns (points, triangles, size) in an order set by place alone
+    (None: no mesh; a text: why not)."""
     good = np.isfinite(v).all(axis=1)
     tris = tris[((tris >= 0) & (tris < len(v))).all(axis=1)]
     tris = tris[good[tris].all(axis=1)]
@@ -136,9 +159,9 @@ def _weld(v: np.ndarray, tris: np.ndarray):
     first = np.argmin(t, axis=1)                        # the smallest corner first, the turning sense kept
     t = np.take_along_axis(t, (first[:, None] + np.arange(3)) % 3, axis=1)
     m = int(lab.max()) + 1
-    t = np.unique(t[:, 0] * m * m + t[:, 1] * m + t[:, 2]) if m < 2_000_000 else None
-    if t is None:
-        return None
+    if m > MAX_POINTS:                                  # (three indices are packed into one 64-bit number below)
+        return _TOO_BIG
+    t = np.unique(t[:, 0] * m * m + t[:, 1] * m + t[:, 2])
     t = np.stack([t // (m * m), (t // m) % m, t % m], axis=1)
     cnt = np.bincount(lab, minlength=m).astype(np.float64)
     p = np.stack([np.bincount(lab, weights=np.where(good, v[:, k], 0.0), minlength=m) for k in range(3)], axis=1)
@@ -172,10 +195,10 @@ def _edges(p: np.ndarray, t: np.ndarray):
 
 
 def _far_ends(p: np.ndarray, edges, size: float):
-    """A vertex near each end of a tube with a bore. Along the surface the bore's wall is a tube length away from
-    the outside wall (round an end face), so the vertex "furthest away" is not at an end; here the vertices are
-    first lumped together in boxes of ``size`` (both walls in one box) and the two ends looked for among the
-    boxes."""
+    """A vertex near each end of a tube with a bore whose wall could not be taken out (``_bore``: the triangles
+    face any way). The vertices are lumped together in boxes of ``size`` (both walls in one box) and the two ends
+    looked for among the boxes. Two walls of a hose that lies against itself fall into one box too: the result is
+    then wrong and the checks at the end of ``_fit`` refuse it."""
     a, b = edges
     q = np.floor((p - p.min(axis=0)) / size).astype(np.int64)
     _, cell, members = np.unique((q[:, 0] << 42) | (q[:, 1] << 21) | q[:, 2], return_inverse=True,
@@ -199,7 +222,6 @@ def _far_ends(p: np.ndarray, edges, size: float):
 def _distances(graph, source: int, m: int) -> np.ndarray:
     """Shortest way along the edges from one vertex to every other (the wave front worked on as whole arrays)."""
     start, nbr, w = graph
-    keep = m
     d = np.full(m, np.inf)
     d[source] = 0.0
     front = np.array([source], dtype=np.int64)
@@ -221,7 +243,62 @@ def _distances(graph, source: int, m: int) -> np.ndarray:
         seen = np.zeros(m, dtype=bool)
         seen[to] = True
         front = np.flatnonzero(seen)
-    return d[:keep]
+    return d
+
+
+def _groups(count: int, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Things 0 … count-1 joined in pairs a–b: for each the smallest number in its group."""
+    lab = np.arange(count)
+    for _ in range(200):
+        low = np.minimum(lab[a], lab[b])
+        new = lab.copy()
+        np.minimum.at(new, lab[a], low)                 # the groups' heads take the smaller head …
+        np.minimum.at(new, lab[b], low)
+        while True:                                     # … and everything follows its head's head
+            nxt = new[new]
+            if np.array_equal(nxt, new):
+                break
+            new = nxt
+        if np.array_equal(new, lab):
+            break
+        lab = new
+    return lab
+
+
+def _bore(p: np.ndarray, t: np.ndarray):
+    """Which triangles are the wall of a bore (True per triangle); None when the triangles do not all face the
+    same way (then it cannot be told).
+
+    The mesh is parted into faces at its sharp folds (end faces, shoulders); a face that is hollow – its gentle
+    folds go inwards, seen from the side its triangles face – is a bore's wall, whatever way the tube bends and
+    however near it comes to itself."""
+    m, count = len(p), len(t)
+    a, b = t.ravel(), t[:, [1, 2, 0]].ravel()
+    tri = np.repeat(np.arange(count), 3)
+    key = np.minimum(a, b) * m + np.maximum(a, b)
+    order = np.argsort(key, kind="stable")
+    same = key[order][1:] == key[order][:-1]
+    pair = np.flatnonzero(same & ~np.r_[False, same[:-1]] & ~np.r_[same[1:], False])     # edges of two triangles
+    if not len(pair):
+        return None
+    h1, h2 = order[pair], order[pair + 1]
+    facing = a[h1] == b[h2]                             # they run along the edge in opposite senses: they face alike
+    if facing.mean() < 0.99:
+        return None
+    normal = np.cross(p[t[:, 1]] - p[t[:, 0]], p[t[:, 2]] - p[t[:, 0]])
+    normal /= np.maximum(np.sqrt(_dot(normal, normal)), 1e-300)[:, None]
+    edge = p[b[h1]] - p[a[h1]]
+    long = np.sqrt(_dot(edge, edge))
+    n1, n2 = normal[tri[h1]], normal[tri[h2]]
+    fold = np.arctan2(_dot(np.cross(n1, n2), edge) / np.maximum(long, 1e-300), _dot(n1, n2))   # > 0: a ridge
+    gentle = facing & (np.abs(fold) < SHARP)
+    face = _groups(count, tri[h1][gentle], tri[h2][gentle])
+    of = face[tri[h1][gentle]]
+    bend = np.bincount(of, weights=fold[gentle] * long[gentle], minlength=count)
+    total = np.bincount(of, weights=np.abs(fold[gentle]) * long[gentle], minlength=count)
+    inside_out = float(_dot(p[t[:, 0]], np.cross(p[t[:, 1]], p[t[:, 2]])).sum()) < 0.0      # all face inwards
+    hollow = (bend > 0.2 * total) if inside_out else (bend < -0.2 * total)
+    return hollow[face]
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -326,7 +403,8 @@ def _dot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def _circles(lev, one, two, normal, base, tan, k: int, scale: float):
     """A circle through each level's cut line (the pieces on end faces and shoulders left out: their triangles
     face along the tube). Returns centres (k, 3), the radius of the outside (k,), the share of the outline that
-    lies on the outside (k,), usable (k,): a whole outline and a believable circle.
+    lies on the outside (k,), how even the outline is (k,: 1 = as wide one way as the other), usable (k,): a whole
+    outline and a believable circle, and whole (k,): an outline all the way round, round or not.
 
     The fit is over the cut *line* (each piece's two ends and its middle, weighted 1 : 1 : 4 – exact for the sums
     used), not over its corners: where the cut crosses a diagonal inside a flat facet must not matter, or a tube
@@ -335,25 +413,13 @@ def _circles(lev, one, two, normal, base, tan, k: int, scale: float):
     tl = tan[lev]
     wall = np.abs(_dot(normal, tl)) < FACING
     clean = np.bincount(lev[~wall], minlength=k) == 0       # a cut through an end face is not a whole outline
-    lev, one, two, normal, tl = lev[wall], one[wall], two[wall], normal[wall], tl[wall]
+    lev, one, two, tl = lev[wall], one[wall], two[wall], tl[wall]
     ul, wl, bl = u[lev], w[lev], base[lev]
     d1, d2 = (one - bl) / scale, (two - bl) / scale
     x1, y1, x2, y2 = _dot(d1, ul), _dot(d1, wl), _dot(d2, ul), _dot(d2, wl)
     zm = 0.5 * (_dot(d1, tl) + _dot(d2, tl))
     xm, ym = 0.5 * (x1 + x2), 0.5 * (y1 + y2)
     length = np.sqrt(_dot(d2 - d1, d2 - d1))
-    # a bore: when the triangles all face out of the material (the importer's do), the pieces that face the
-    # centreline are the bore's and are left out; told by the pieces furthest out, which are on the outside
-    far = xm * xm + ym * ym
-    most = np.zeros(k)
-    np.maximum.at(most, lev, far)
-    facing = xm * _dot(normal, ul) + ym * _dot(normal, wl) > 0
-    vote = length * (far > 0.9 * most[lev])
-    share_out = float((vote * facing).sum()) / max(float(vote.sum()), 1e-300)
-    if share_out > 0.95 or share_out < 0.05:
-        keep = facing == (share_out > 0.5)
-        lev, length, zm = lev[keep], length[keep], zm[keep]
-        x1, y1, x2, y2, xm, ym = x1[keep], y1[keep], x2[keep], y2[keep], xm[keep], ym[keep]
     r1, r2, rm = x1 * x1 + y1 * y1, x2 * x2 + y2 * y2, xm * xm + ym * ym
     sixth = length / 6.0
 
@@ -366,7 +432,12 @@ def _circles(lev, one, two, normal, base, tan, k: int, scale: float):
     sxx, sxy, syy = add(x1 * x1, x2 * x2, xm * xm), add(x1 * y1, x2 * y2, xm * ym), add(y1 * y1, y2 * y2, ym * ym)
     sxr, syr, sr = add(x1 * r1, x2 * r2, xm * rm), add(y1 * r1, y2 * r2, ym * rm), add(r1, r2, rm)
     ok = clean & (np.bincount(lev, minlength=k) >= 6) & (s1 > 0)
+    whole = ok.copy()
     safe = np.where(ok, s1, 1.0)
+    # how wide the outline is one way against the other: its two second moments about its own middle
+    cxx, cyy, cxy = sxx / safe - (sx / safe) ** 2, syy / safe - (sy / safe) ** 2, sxy / safe - sx * sy / safe ** 2
+    half, root = 0.5 * (cxx + cyy), np.sqrt((0.5 * (cxx - cyy)) ** 2 + cxy * cxy)
+    even = np.where(ok, (half - root) / np.maximum(half + root, 1e-300), 0.0)
     mat = np.zeros((k, 3, 3))
     mat[:, 0, 0], mat[:, 0, 1], mat[:, 0, 2] = sxx, sxy, sx
     mat[:, 1, 0], mat[:, 1, 1], mat[:, 1, 2] = sxy, syy, sy
@@ -393,7 +464,7 @@ def _circles(lev, one, two, normal, base, tan, k: int, scale: float):
     np.maximum.at(outer, lev, np.maximum(dist1, dist2))
     band = ROUND_BAND * outer[lev]
     on = add((dist1 > band).astype(float), (dist2 > band).astype(float), (distm > band).astype(float))
-    return centre, outer * scale, on / safe, ok
+    return centre, outer * scale, on / safe, even, ok, whole
 
 
 def _end(c: np.ndarray, s: np.ndarray, span: float, radius: float) -> np.ndarray:
@@ -438,36 +509,66 @@ def _end_face(co: np.ndarray, near: np.ndarray):
 # the fit
 # ---------------------------------------------------------------------------------------------------------
 
+def _whole(p: np.ndarray, t: np.ndarray):
+    """The mesh as one piece: (points, triangles, edges, neighbour table, closed, distances from point 0), crumbs
+    beside the hose (under 2 % of its area) left out; None when it is several pieces."""
+    edges, graph, closed = _edges(p, t)
+    d = _distances(graph, 0, len(p))
+    reached = np.isfinite(d)
+    if not reached.all():
+        normal = np.cross(p[t[:, 1]] - p[t[:, 0]], p[t[:, 2]] - p[t[:, 0]])
+        area_t = np.sqrt(_dot(normal, normal))
+        keep = reached[t[:, 0]]
+        if area_t[keep].sum() < 0.98 * area_t.sum():
+            return None
+        new = np.cumsum(reached) - 1
+        p, t = p[reached], new[t[keep]]
+        edges, graph, closed = _edges(p, t)
+        d = _distances(graph, 0, len(p))
+    return p, t, edges, graph, closed, d
+
+
 def _fit(verts: np.ndarray, tris: np.ndarray, n: int) -> Tube:
     welded = _weld(verts, tris)
-    if welded is None:
-        return _fail(_NO_MESH)
+    if welded is None or isinstance(welded, str):
+        return _fail(welded or _NO_MESH)
     p, t, size = welded
-    m = len(p)
-    if m < 4 or len(t) < 4:
+    if len(p) < 4 or len(t) < 4:
         return _fail(_NO_MESH)
     origin = p.mean(axis=0)
     p = p - origin
-    edges, graph, closed = _edges(p, t)
+    one_piece = _whole(p, t)
+    if one_piece is None:
+        return _fail(_PIECES)
+    p, t, edges, graph, closed, d = one_piece
+    euler = len(p) - len(edges[0]) + len(t)
+    genus_one = closed and euler == 0                   # a ring – or a pipe with a bore
+    lumped = bore_in = False
+    if euler != 2:
+        # 2. not a plain closed skin: a bore (or a ring, or a tube with open ends). Along the surface the bore's wall
+        # is a tube length away from the outside wall (round an end face), so "furthest away" is not an end:
+        # take the bore's wall out and read the outside skin alone
+        bore = _bore(p, t)
+        if bore is None:                                # the triangles face any way: the bore cannot be told
+            lumped = bore_in = True
+        elif bore.any():
+            keep = np.zeros(len(p), dtype=bool)
+            keep[t[~bore].ravel()] = True
+            skin = _whole(p[keep], (np.cumsum(keep) - 1)[t[~bore]]) if (~bore).sum() >= 4 else None
+            if skin is not None:
+                p, t, edges, graph, closed, d = skin
+                genus_one = False
+            else:
+                lumped = bore_in = True
+    m = len(p)
     normal = np.cross(p[t[:, 1]] - p[t[:, 0]], p[t[:, 2]] - p[t[:, 0]])
     area_t = 0.5 * np.linalg.norm(normal, axis=1)
     area = float(area_t.sum())
     if not area > 0.0:
         return _fail(_NO_MESH)
-
-    # 2. the two ends: furthest from any vertex, then furthest from that one
-    d = _distances(graph, 0, m)
-    if not np.isfinite(d).all():
-        reached = np.isfinite(d)
-        keep = reached[t[:, 0]]
-        if area_t[keep].sum() < 0.98 * area:
-            return _fail(_PIECES)
-        new = np.cumsum(reached) - 1                    # crumbs beside the hose: leave them out
-        p, t, area_t, normal = p[reached], new[t[keep]], area_t[keep], normal[keep]
-        m, area = len(p), float(area_t.sum())
-        edges, graph, closed = _edges(p, t)
-        d = _distances(graph, 0, m)
     normal = normal / np.maximum(2.0 * area_t, 1e-300)[:, None]
+
+    # 3. the two ends: furthest from any vertex, then furthest from that one
     end_a = int(np.argmax(d))
     da = _distances(graph, end_a, m)
     end_b = int(np.argmax(da))
@@ -476,40 +577,38 @@ def _fit(verts: np.ndarray, tris: np.ndarray, n: int) -> Tube:
     if not reach > 0.0:
         return _fail(_NO_MESH)
     thick = area / (2.0 * np.pi * reach)                # a first idea of the radius (a bore counts double)
-    euler = m - len(edges[0]) + len(t)
-    genus_one = closed and euler == 0                   # a ring – or a pipe with a bore
-    if euler != 2:                                      # not a plain closed skin: a bore
+    if lumped:
         end_a, end_b = _far_ends(p, edges, thick)
         da = _distances(graph, end_a, m)
         db = _distances(graph, end_b, m)
         reach = float(da[end_b])
         if not reach > 0.0:
             return _fail(_NO_MESH)
-    # what to say when the slices below make no sense: a block or a plate is "not long and thin"
-    vague = _NOT_SLENDER if reach < 4.0 * SLENDER * thick else _UNREADABLE
 
-    # 3. slices along the tube, by the difference of the two distances (not the last 3 radii: the two "ends"
+    # 4. slices along the tube, by the difference of the two distances (not the last 3 radii: the two "ends"
     #    found are corners on the rims, the slices next to them lie askew)
     f = 0.5 * (da - db + reach)                         # 0 at end A … reach at end B
     k0 = int(np.clip(round(reach / thick), 8, 96))
     margin = min(3.0 * thick, 0.25 * reach)
     dc = (reach - 2.0 * margin) / k0
-    lev, _tri, one, two = _cut(p, t, f, margin + 0.5 * dc, dc, k0)
+    lev, _, one, two = _cut(p, t, f, margin + 0.5 * dc, dc, k0)
     centre, pieces = _middles(lev, one, two, k0)
     ok = pieces >= 3
     if ok.sum() < 4:
-        return _fail(vague)
+        return _fail(_NOT_SLENDER if reach < 4.0 * SLENDER * thick else _UNREADABLE)
     wide = np.zeros(k0)
     np.maximum.at(wide, lev, np.linalg.norm(0.5 * (one + two) - centre[lev], axis=1))
     wide = wide[ok]
     centre, par = centre[ok], (margin + (np.arange(k0) + 0.5) * dc)[ok]
     radius = float(np.median(wide))
+    # what to say when the cuts below make no sense: a block or a plate is "not long and thin"
+    vague = _NOT_SLENDER if reach < 1.5 * SLENDER * 2.0 * radius or reach < 4.0 * SLENDER * thick else _UNREADABLE
     if not radius > 0.0:
         return _fail(vague)
 
-    # 4. cut again square to the centreline found so far, four times; the last time at the final fineness
+    # 5. cut again square to the centreline found so far, four times; the last time at the final fineness
     param, lo, hi, pad = f, 0.0, reach, 3.0 * thick
-    outer = share = None
+    outer = share = even = levels = tan = None
     for step in range(PASSES):
         s_c = _along(centre)
         p0, d0 = _on(_end(centre, s_c, 2.0 * radius, radius), 0.0)
@@ -533,16 +632,17 @@ def _fit(verts: np.ndarray, tris: np.ndarray, n: int) -> Tube:
         tan = _at(q, sq, levels + 0.5 * dc) - _at(q, sq, levels - 0.5 * dc)
         tan /= np.maximum(np.linalg.norm(tan, axis=1), 1e-300)[:, None]
         lev, tri, one, two = _cut(p, t, s, levels[0], dc, k)
-        centre, outer, share, good = _circles(lev, one, two, normal[tri], base, tan, k, radius)
+        centre, outer, share, even, good, whole = _circles(lev, one, two, normal[tri], base, tan, k, radius)
         if good.sum() < max(4, k // 2):
-            return _fail(vague)
-        centre, par, outer, share = centre[good], levels[good], outer[good], share[good]
+            # outlines all the way round, but no circle fits them: a profile, not a hose
+            return _fail(_NOT_ROUND if vague is _UNREADABLE and whole.sum() >= max(4, k // 2) else vague)
+        centre, par, outer, share, even = centre[good], levels[good], outer[good], share[good], even[good]
         radius = float(np.median(outer))
         param, pad = s, 2.0 * radius
         if step == 0 and length < 0.5 * SLENDER * 2.0 * radius:
             break                                       # far from slender: no need to look closer
 
-    # 5. the ends: the direction from the last diameter of centres, the point on the end face
+    # 6. the ends: the direction from the last diameter of centres, the point on the end face
     s_c = _along(centre)
     e0, d0 = _end_face(_end(centre, s_c, 2.0 * radius, radius), p[param <= lo + 3.0 * dc])
     e1, d1 = _end_face(_end(centre[::-1], s_c[-1] - s_c[::-1], 2.0 * radius, radius), p[param >= hi - 3.0 * dc])
@@ -550,14 +650,22 @@ def _fit(verts: np.ndarray, tris: np.ndarray, n: int) -> Tube:
     s_line = _along(line)
     length = float(s_line[-1])
 
-    # 6. is it a hose?
+    # 7. is it a hose?
     ring = genus_one and float(np.median(wide[len(wide) // 4: len(wide) // 4 + max(len(wide) // 2, 1)])) > 3 * thick
     if length < SLENDER * 2.0 * radius:
         return _fail(_RING if ring else _NOT_SLENDER)
+    if float(np.median(even)) < ROUND_EVEN or float(np.median(share)) < ROUND_SHARE:
+        return _fail(_RING if ring else _NOT_ROUND)
     if (np.abs(outer / radius - 1.0) > THICKNESS).mean() > THICK_SHARE:
         return _fail(_RING if ring else _NOT_EVEN)
-    if float(np.median(share)) < ROUND_SHARE:
-        return _fail(_NOT_ROUND)
+    # the skin must be the skin of this one tube: its area, seen from the side, is length x circumference. (A
+    # hose that lies against itself and was read as half as long with both legs in every cut fails here.)
+    along = np.stack([np.interp(param[t].mean(axis=1), levels, tan[:, i]) for i in range(3)], axis=1)
+    along /= np.maximum(np.sqrt(_dot(along, along)), 1e-300)[:, None]
+    side = float((area_t * np.sqrt(np.maximum(1.0 - _dot(normal, along) ** 2, 0.0))).sum())
+    fits = side / (2.0 * np.pi * radius * length)
+    if not SKIN[0] < fits < (2.1 if bore_in else SKIN[1]):
+        return _fail(_RING if ring else _NOT_ONE)
 
     points = _at(line, s_line, np.linspace(0.0, length, n))
     points[0], points[-1] = e0, e1
