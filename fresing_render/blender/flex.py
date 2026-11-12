@@ -1258,6 +1258,7 @@ def _solve(its, mats: dict, frames: int):
         h = len(hoses)
         p0, t0, p1, t1 = (np.empty((frames, h, 3)) for _ in range(4))
         length, stiff, sag, rmin = (np.empty((frames, h)) for _ in range(4))
+        guide = np.full((frames, h, GUIDE_POINTS, 3), np.nan)       # (a row of NaN: no guide for that hose)
         for k, (_i, it) in enumerate(hoses):
             a, b = mats[it.a_part.name], mats[it.b_part.name]
             p0[:, k] = np.array(it.a_point) @ a[:, :3, :3].transpose(0, 2, 1) + a[:, :3, 3]
@@ -1268,6 +1269,9 @@ def _solve(its, mats: dict, frames: int):
             stiff[:, k] = HS.stiff_length(it.diameter, it.stiffness)
             sag[:, k] = it.sag
             rmin[:, k] = it.min_radius
+            g = _guide(it, a, b)                # which way the hose lies: it stays on the side CAD drew it on
+            if g is not None:
+                guide[:, k] = g
         if frames > 1:
             # the frames of a built animation, in their order: each hose keeps one shape along the motion where it
             # can (a slack hose often has two, and solved frame by frame it would jump from one to the other once)
@@ -1276,11 +1280,12 @@ def _solve(its, mats: dict, frames: int):
             need = np.empty((frames, h))
             for k in range(h):
                 r = HS.solve_motion(p0[:, k], t0[:, k], p1[:, k], t1[:, k], length[:, k], stiff[:, k], sag[:, k],
-                                    rmin[:, k], n=POINTS)
+                                    rmin[:, k], n=POINTS, guide=guide[:, k])
                 pts[:, k], short[:, k], need[:, k], tight[:, k] = r.points, r.short, r.need, r.tight
         else:
             r = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
-                               length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS)
+                               length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS,
+                               guide=guide.reshape(-1, GUIDE_POINTS, 3))
             pts = r.points.reshape(frames, h, POINTS, 3)
             short, need, tight = (x.reshape(frames, h) for x in (r.short, r.need, r.tight))
         _STATE["solves"] += frames * h

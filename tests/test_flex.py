@@ -30,6 +30,7 @@ PIN_TOL = 1e-6                 # a chain's pins (metres)
 
 import fresing_render  # noqa: E402
 import make_test_flex as maker  # noqa: E402
+from fresing_render.core import flex as HS  # noqa: E402
 from fresing_render.blender import (animation, build, clash, cylinders, flex, joints, states,  # noqa: E402
                                     turntable)
 
@@ -1240,3 +1241,41 @@ def test_the_queue_copy_shows_and_renders_the_same_hoses(hoses, tmp_path):
     stiff = picture("stiff.png")
     noise = float(np.abs(bent - again).mean())
     assert float(np.abs(bent - stiff).mean()) > 5.0 * noise + 1e-4       # the render shows the hoses bent along
+
+
+def test_the_guide_is_the_cad_centreline_carried_by_both_end_parts(hoses):
+    """Which way a hose lies comes from its CAD shape (task 0058, after the independent review: a hose solved
+    without it flipped to the other side where its fittings come in line). In the CAD pose the guide is the CAD
+    centreline; with the parts moved its ends stay on the fittings; over the whole swing no hose jumps."""
+    sc = hoses
+    for it in flex.items(sc):
+        a, b = (np.array(o.matrix_world, dtype=float)[None] for o in (it.a_part, it.b_part))
+        g = flex._guide(it, a, b)[0]
+        assert g.shape == (flex.GUIDE_POINTS, 3)
+        pa = np.array(it.a_part.matrix_world @ Vector(it.a_point))
+        pb = np.array(it.b_part.matrix_world @ Vector(it.b_point))
+        assert np.abs(g[0] - pa).max() < 1e-4 and np.abs(g[-1] - pb).max() < 1e-4, it.name
+        # the hose drawn in the CAD pose lies near the shape CAD drew (it relaxes a little, it does not flip)
+        now = HS.resample(np.array(flex.shape_now(sc, it)), flex.GUIDE_POINTS)
+        assert np.abs(now - g).max() < 0.12 * it.length, (it.name, np.abs(now - g).max())
+    set_joint(sc, "Luff", math.radians(15))
+    set_joint(sc, "Slide", 0.1)
+    update()
+    for it in flex.items(sc):
+        a, b = (np.array(o.matrix_world, dtype=float)[None] for o in (it.a_part, it.b_part))
+        g = flex._guide(it, a, b)[0]
+        pa = np.array(it.a_part.matrix_world @ Vector(it.a_point))
+        pb = np.array(it.b_part.matrix_world @ Vector(it.b_point))
+        assert np.abs(g[0] - pa).max() < 1e-4 and np.abs(g[-1] - pb).max() < 1e-4, it.name
+    prev, worst = None, 0.0
+    for i, deg in enumerate(np.linspace(-20.0, 20.0, 81)):
+        set_joint(sc, "Luff", math.radians(float(deg)))
+        set_joint(sc, "Slide", 0.15 * math.sin(i / 80.0 * math.tau))
+        update()
+        flex.refresh(sc, force=True)
+        cur = [np.array(flex.shape_now(sc, it)) for it in flex.items(sc)]
+        if prev is not None:
+            worst = max(worst, max(float(np.linalg.norm(c - p, axis=1).max()) for c, p in zip(cur, prev)))
+        prev = cur
+    assert worst < 0.03, worst                    # 13 mm measured per half-degree step; a flip is hundreds of mm
+    assert end_errors(sc) < END_TOL
