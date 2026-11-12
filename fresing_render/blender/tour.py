@@ -886,6 +886,7 @@ def _check_decals(scene):
 
 
 MILL_SLOT = (("Z", 0.0, 0.8, -25.0), ("X", 0.8, 1.6, 60.0))
+MARKS_ANIM = "Tool marks"
 
 
 def _mill_set(b: Build, chips: str = "", raw: str = ""):
@@ -1686,6 +1687,135 @@ def _check_hand(scene):
     return "the gloved hand holds the tool"
 
 
+# tool marks (task 0061): the same rules as above - every cut lies in the finished part's pocket (x -50..50,
+# y -30..30, 10 deep) and the face mill stays at X-10 or more. The face mill leaves a strip 80 x 50 mm, 1 mm deep; the
+# end mill cuts a pocket 50 x 16 mm at the front of it in two depths (3 and 5 mm); the drill makes one hole behind
+# the pocket. The second depth is 0.3 mm smaller all round, like a tool that bends leaves it: that step is the line
+# round the wall. (Cut along exactly the same wall, the deeper pass goes over the whole wall again and the wall shows
+# one depth only.) At the end the head goes up and to the left, out of the picture.
+# Before each tool change the head goes up to Z50: after a change the head comes back to where it was, and the end
+# mill and the drill are longer than the face mill - from Z10 the longer tool would dive into the block.
+MARKS_FEED, MARKS_SPEED = 900.0, 3000.0          # the face mill: 900 mm/min at 3000 rpm = 0.30 mm per turn
+MARKS_SIZE = 7.0                                 # Mark size of the set: the arcs show in a close-up
+MARKS_CAMERA = 0.125                             # m from the camera to the middle of the faced strip
+MARKS_TOUR = f"""(TOOL MARKS: FACE MILL, END MILL, DRILL - BT30)
+G21 G90 G94 G17 G54
+T1 M6 G43 H1
+S{MARKS_SPEED:g} M3
+G0 X-10 Y0 Z5
+G1 Z-1 F{MARKS_FEED:g}
+G1 X20
+G0 Z50
+M5
+T2 M6 G43 H2
+S4000 M3
+G0 X-20 Y-17 Z5
+G1 Z-3 F400
+G1 X20 F1200
+G1 Y-11
+G1 X-20
+G1 X-19.7 Y-11.3
+G1 Z-5 F400
+G1 X19.7 F1200
+G1 Y-16.7
+G1 X-19.7
+G0 Z50
+M5
+T3 M6 G43 H3
+S2400 M3
+G0 X25 Y8 Z5
+G81 Z-7 R2 F300
+G80
+G0 Z60
+G0 X-90 Y0
+M5
+M30
+"""
+
+
+@tour_set("marks", "Tool marks", "test_mill.step")
+def build_marks(b: Build):
+    from mathutils import Vector
+
+    from . import gcode, machining, tools
+    sc = b.scene
+    _look("PRODUCT")
+    _xyz(sc)
+    gcode.find_axes(sc)
+    tool, stock = _ob(sc, "END MILL D10"), _ob(sc, "STOCK 200x200x40")
+    gcode.use_tool(sc, tool)
+    gcode.use_workpiece(sc, stock)
+    _check(gcode.problem(sc) == "", f"the CNC set-up is not ready: {gcode.problem(sc)}")
+    _pick("bit", tool)
+    _pick("workpiece", stock)
+    g = sc.fresing.groups.get(stock.get("fr_group", ""))
+    _check(g is not None, "the block has no material group in 3 Looks")
+    g.material = "aluminium_sawn"                  # a sawn aluminium plate: its cut faces are bright machined metal
+    m = machining.settings(sc)
+    m.marks, m.marks_size, m.marks_strength = True, MARKS_SIZE, 1.0
+    face = tools.add_row(sc, "FACE", 1)
+    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.lead_angle = 1.5707963
+    end = tools.add_row(sc, "FLAT", 2)
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
+    drill = tools.add_row(sc, "DRILL", 3)
+    drill.diameter, drill.length, drill.holder, drill.holder_length = 0.0085, 0.09, "BT30", 0.06
+    a = _animation(b, MARKS_ANIM)
+    _gcode_step(a, _program(b, "Tour tool marks.ngc", MARKS_TOUR), sc, gcode_speed="FIT", gcode_fit=10.0,
+                gcode_tc_time=0.6, gcode_path=False)
+    # close and low over the faced strip, so the sheen of the arcs shows
+    _update()                                      # (the work zero is new: its place is known after an update)
+    zero = gcode.settings(sc).zero_empty.matrix_world.translation
+    centre = zero + Vector((0.005, 0.0, -0.002))
+    cam = _close_camera(b, centre, 0.05, "Tour tool marks", view="ISO")
+    _update()
+    away = cam.matrix_world.translation - centre   # nearer than the fit goes: the strip fills the picture
+    cam.location = centre + away.normalized() * MARKS_CAMERA
+    cam.data.clip_start = 0.01
+    a.start_shot = _shot(b, "Tour: tool marks").name
+
+
+def _check_marks(scene):
+    import numpy as np
+
+    from ..core import toolmarks as tm
+    from . import machining, toolmarks
+    scene.frame_set(scene.frame_end)
+    me = _milled(scene)
+    stock = _ob(scene, "STOCK 200x200x40")
+    _check(me is not None and stock.data is me, "the block does not show its cut")
+    _check(machining.settings(scene).marks, "Tool marks is switched off in 4 Motion > Milling")
+    _check(all(k in me.attributes for k in tm.ATTRS), "the milled block does not know which move made its cut faces")
+    p = np.empty(len(me.polygons) * 3, np.float32)
+    me.attributes[tm.ATTR_P].data.foreach_get("vector", p)
+    p = p.reshape(-1, 3)
+    kind = np.rint(p[:, 0]).astype(int)
+    count = {k: int((kind == k).sum()) for k in (tm.ARCS, tm.FLANK, tm.RINGS, tm.RINGS_WALL)}
+    _check(count[tm.ARCS] > 0, "no cut face has the arcs of a tool's flat bottom")
+    _check(count[tm.FLANK] > 0, "no wall has the lines of a tool's side")
+    _check(count[tm.RINGS] + count[tm.RINGS_WALL] > 0 and count[tm.RINGS] > 0, "the drilled hole has no rings")
+    faced = (kind == tm.ARCS) & (np.abs(p[:, 1] - 0.025) < 0.0005)        # under the Ø50 face mill
+    _check(bool(faced.any()), "no face of the faced strip has the face mill's arcs (radius 25 mm)")
+    gap, want = float(np.median(p[faced, 2])) * 1000.0, MARKS_FEED / MARKS_SPEED
+    _check(abs(gap - want) < 0.01 * want, f"the face mill's arcs are {gap:.3f} mm apart, the program gives "
+                                          f"F{MARKS_FEED:g} / S{MARKS_SPEED:g} = {want:.2f} mm")
+    floor = (kind == tm.ARCS) & (np.abs(p[:, 1] - 0.005) < 0.0005)        # under the Ø10 end mill
+    _check(bool(floor.any()), "the pocket's floor has no arcs of the end mill (radius 5 mm)")
+    o = np.empty(len(me.polygons) * 3, np.float32)
+    me.attributes[tm.ATTR_O].data.foreach_get("vector", o)
+    wall = (kind == tm.FLANK) & (np.abs(p[:, 1] - 0.005) < 0.0005)        # the end mill's side: the pocket's walls
+    depths = np.unique(np.round(o.reshape(-1, 3)[wall, 2], 4))            # (the tip's height during each move)
+    _check(len(depths) >= 2, "the pocket's walls show one depth only, the program cut them in two")
+    n = int(me.get(machining.CUT_SLOT, -1))
+    mat = stock.material_slots[n].material if 0 < n < len(stock.material_slots) else None
+    _check(mat is not None and toolmarks.group_node(mat) is not None, "the cut faces' material draws no tool marks")
+    size = toolmarks.group_node(mat).inputs["Size"].default_value
+    _check(abs(size - MARKS_SIZE) < 1e-6, f"Mark size is {size:g} in the material, not {MARKS_SIZE:g}")
+    return (f"arcs {gap:.2f} mm apart on the faced strip (F{MARKS_FEED:g} S{MARKS_SPEED:g}), finer arcs on the "
+            f"pocket floor, lines on the walls, rings in the hole; {count[tm.ARCS]} / {count[tm.FLANK]} / "
+            f"{count[tm.RINGS] + count[tm.RINGS_WALL]} cut faces with arcs / lines / rings, drawn x{MARKS_SIZE:g}")
+
+
 AIR_TOUR = """(T1 D=10. CR=0. - flat end mill)
 G21 G90 G94 G17
 S9000 M3
@@ -1932,6 +2062,14 @@ stop("hand", MACH, "tools", "Tool change by hand (BT30)",
      "At a tool change the head goes up, a gloved hand takes the tool out by its BT30 holder and puts the next one "
      "in.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
      at=-1.0, check=_check_hand)
+stop("marks", MACH, "marks", "Tool marks on cut faces",
+     "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "
+     "way it went; the pocket's floor shows the finer arcs of the Ø10 end mill; its walls show fine upright lines and "
+     "a level line where the second depth starts (cut 0.3 mm smaller); the drilled hole shows rings. Look in "
+     "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
+     "(Mark size) so they show.",
+     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", animation=MARKS_ANIM, at=1.0,
+     check=_check_marks)
 stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
      "The tools stand in their pockets from the first frame; at each change the carousel turns the shortest way, "
      "the right pocket comes to the spindle and the old tool goes back to its own pocket.",
