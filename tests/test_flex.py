@@ -1160,3 +1160,31 @@ def test_model_update_keeps_the_chains(chains):
     check_chain(sc, flex.find(sc, "CHAIN X.ASM"), "updated")
     for o in flex.parts_of(sc, flex.find(sc, "CHAIN X.ASM")):
         assert o.modifiers.get(flex.MOD) is not None and flex.LOCAL in o
+
+
+def test_a_chain_running_round_in_a_loop_is_no_drag_chain_candidate():
+    """Found by the panel's review: a tensioner's track or a roller chain (links in a closed loop) was offered by
+    'Find hoses and chains'. A drag chain's links lie in an open row with two ends."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    me = bpy.data.meshes.new("link")
+    me.from_pydata([(-0.01, -0.01, -0.01), (0.01, -0.01, -0.01), (0.01, 0.01, 0.01), (-0.01, 0.01, 0.01)], [],
+                   [(0, 1, 2, 3)])
+
+    def row(places):
+        obs = []
+        for p, turn in places:
+            o = bpy.data.objects.new("link", me)
+            o.matrix_world = Matrix.Translation(p) @ Matrix.Rotation(turn, 4, "Z")
+            bpy.context.scene.collection.objects.link(o)
+            obs.append(o)
+        bpy.context.view_layer.update()
+        return obs
+
+    loop = row([((math.cos(a), math.sin(a), 0.0), a) for a in (k * math.tau / 24 for k in range(24))])
+    # a drag chain: 9 links on each run 0.16 apart, 5 round the bend between them
+    u_shape = row([((0.04 * k, 0.0, 2.0), 0.0) for k in range(9)]
+                  + [((0.32 + 0.08 * math.sin(a), 0.08 - 0.08 * math.cos(a), 2.0), a)
+                     for a in (math.pi * k / 6 for k in range(1, 6))]
+                  + [((0.04 * k, 0.16, 2.0), math.pi) for k in range(8, -1, -1)])
+    assert not flex._open_row(loop)
+    assert flex._open_row(u_shape)

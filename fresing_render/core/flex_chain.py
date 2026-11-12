@@ -500,6 +500,17 @@ def _order(centres, rot, use_turn: bool):
     return np.array(order)
 
 
+def open_row(matrices, centres=None) -> bool:
+    """Do these links (one kind) lie in one open row with two ends, as a drag chain's do? A chain that runs round in
+    a loop (a roller chain on its sprockets, a track) has no end and is not one. ``matrices`` (K, 4, 4), ``centres``
+    (K, 3) (default: the matrices' places)."""
+    m = np.asarray(matrices, dtype=float)
+    if m.ndim != 3 or m.shape[0] < 3:
+        return False
+    c = m[:, :3, 3] if centres is None else np.asarray(centres, dtype=float)
+    return _order(c, m[:, :3, :3], True) is not None
+
+
 def _order_kinds(centres, rot, kind):
     """All links in order when there are several kinds (inner and outer links, end pieces).
 

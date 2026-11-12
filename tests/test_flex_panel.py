@@ -277,7 +277,7 @@ def test_add_drag_chain_from_one_link_all_links_or_one_solid(chains):
 
     pick(sc, [T.ob(sc, "BED")])                                      # a block: refused, in plain words
     assert bpy.ops.fresing.flex_add_chain() == {"CANCELLED"}
-    assert "'BED' cannot be read as a drag chain" in said(sc) and len(names(sc)) == 4
+    assert "'BED': No bend found" in said(sc) and len(names(sc)) == 4
 
     for axis, value in (("X", 0.12), ("Y", -0.08), ("Z", 0.05)):     # the axes move: every moving end stays on
         T.set_joint(sc, axis, value)

@@ -610,3 +610,25 @@ def test_fit_solid_does_not_guess():
     flat = np.array(flat)
     ell = np.vstack([np.column_stack([flat, np.full(len(flat), z)]) for z in (-0.03, 0.03)])
     assert not fc.fit_solid(ell).ok
+
+
+def test_open_row_tells_a_drag_chain_from_a_loop():
+    """A drag chain's links lie in one open row; a chain running round in a loop is not one (found by the panel's
+    review: a tensioner's track was offered as a drag chain)."""
+    def at(x, y, a):
+        m = np.eye(4)
+        m[:2, :2] = [[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]]
+        m[:2, 3] = x, y
+        return m
+    loop = np.array([at(np.cos(a), np.sin(a), a) for a in np.arange(24) * 2 * np.pi / 24])
+    chain = np.array([at(0.04 * k, 0.0, 0.0) for k in range(9)]
+                     + [at(0.32 + 0.08 * np.sin(a), 0.08 - 0.08 * np.cos(a), a) for a in np.pi * np.arange(1, 6) / 6]
+                     + [at(0.04 * k, 0.16, np.pi) for k in range(8, -1, -1)])
+    assert not flex_chain_module().open_row(loop)
+    assert flex_chain_module().open_row(chain)
+    assert not flex_chain_module().open_row(chain[:2])
+
+
+def flex_chain_module():
+    from fresing_render.core import flex_chain
+    return flex_chain

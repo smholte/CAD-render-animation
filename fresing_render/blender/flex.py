@@ -381,7 +381,7 @@ def _read_hose(scene, part, near: _Near | None = None) -> dict:
         if ob is None:
             ob = _stay_part(part)
             out["notes"].append(f"End {letter} of '{name}' touches no part: it stays with '{_part_name(ob)}'; "
-                                "use 'Set end part' to pick the part it is fixed to")
+                                "click the part it is fixed to, then the pipette beside that end in the panel")
         out[key + "_part"] = ob
     out["memo"] = memo
     return out
@@ -506,7 +506,7 @@ def _read_chain(scene, links: list, swapped: bool = False) -> dict:
         if found is None:
             found = _stay_part(ob)
             notes.append(f"The {letter} end of the chain touches no part: it stays with '{_part_name(found)}'; "
-                         "use 'Set end part' to pick the part it is fixed to")
+                         "click the part it is fixed to, then the pipette beside that end in the panel")
         return found
 
     a_ob, b_ob = end_part(0, "fixed"), end_part(-1, "moving")
@@ -526,7 +526,7 @@ def _read_solid(scene, part, swapped: bool = False) -> dict:
     pts = _at(_cad_world(part, memo), verts)
     fit = CH.fit_solid(pts)
     if not fit.ok:
-        raise FlexError(f"'{name}' cannot be read as a drag chain: {fit.problem}")
+        raise FlexError(f"'{name}': {fit.problem}")
     notes = []
     reach = max(0.5 * fit.pitch, fit.height, 0.005)
 
@@ -537,7 +537,7 @@ def _read_solid(scene, part, swapped: bool = False) -> dict:
         if found is None:
             found = _stay_part(part)
             notes.append(f"The {letter} end of the chain touches no part: it stays with '{_part_name(found)}'; "
-                         "use 'Set end part' to pick the part it is fixed to")
+                         "click the part it is fixed to, then the pipette beside that end in the panel")
         return found
 
     a_ob, b_ob = end_part(fit.pins[0], "fixed"), end_part(fit.pins[-1], "moving")
@@ -1649,7 +1649,7 @@ def status(scene, item) -> tuple[str, str]:
 
 _WORDS = {"HOSE": ("HOSE", "HOSES", "SLANG", "SLANGEN", "SCHLAUCH", "CABLE", "CABLES", "KABEL", "KABELS"),
           "CHAIN": ("DRAG CHAIN", "DRAGCHAIN", "ENERGY CHAIN", "CABLE CHAIN", "ENERGIEKETTE", "SCHLEPPKETTE",
-                    "KABELRUPS", "SLEPKETTING")}
+                    "KABELRUPS", "SLEEPKETTING")}
 # … but not the things that hold or end one
 _NOT_WORDS = ("GLAND", "FITTING", "CLAMP", "CLIP", "TRAY", "REEL", "DRUM", "DUCT", "TIE", "CONNECTOR", "PLUG",
               "SOCKET", "NIPPLE", "COUPLING", "BRACKET", "HOLDER", "GUIDE", "SUPPORT", "LUG", "KLEM", "SCHELLE",
@@ -1697,9 +1697,18 @@ def candidates(scene) -> list:
         elif kind:
             out.append((ob, kind))
     for row in rows.values():
-        if len(row) >= 4:
+        if len(row) >= 4 and _open_row(row):
             out += [(ob, "CHAIN") for ob in row]
     return out
+
+
+def _open_row(row) -> bool:
+    """Do these links lie in one open row with two ends? A drag chain does; a chain that runs round in a loop (a
+    roller chain on its sprockets, a tensioner's track) has no end and is no drag chain."""
+    mats = np.array([_np(ob.matrix_world) for ob in row])
+    centres = np.array([tuple(ob.matrix_world @ (sum((Vector(v) for v in ob.bound_box), Vector()) / 8.0))
+                        for ob in row])
+    return CH.open_row(mats, centres)
 
 
 def siblings(scene, ob) -> list:
