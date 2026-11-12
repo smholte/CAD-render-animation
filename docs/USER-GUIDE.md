@@ -955,7 +955,9 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
   long. Make **Length** longer, or check the parts the ends sit on.
 - **"bends tighter than 80 mm"**: the motion forces a tighter bend than **Smallest bend** allows. Make the hose
   longer or the motion smaller.
-- A chain that **"cannot reach"** its moving end is too short for the travel: more **Links**, or less travel.
+- A chain that **"cannot reach"**: its moving end goes further than the chain can follow – beyond its length, so far
+  that the bend is pulled almost flat, or to the wrong side of the fixed run. Give it more **Links** or less travel;
+  if the chain rolls the wrong way round, press **Swap ends**.
 
 **Good to know**
 

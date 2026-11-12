@@ -25,7 +25,7 @@ def short_status(scene, item) -> tuple[str, bool]:
     if level == "ERROR":
         return "part missing", True
     if level == "WARN":
-        for start, word in (("too short", "too short"), ("bends tighter", "tight bend"), ("cannot reach", "too short")):
+        for start, word in (("too short", "too short"), ("bends tighter", "tight bend"), ("cannot reach", "out of reach")):
             if text.startswith(start):
                 return word, True
         return "check", True

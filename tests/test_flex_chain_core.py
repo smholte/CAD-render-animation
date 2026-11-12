@@ -170,29 +170,48 @@ def test_a_tiny_move_of_the_end_is_a_tiny_move_of_every_pin():
 
 
 def test_glide_comes_down_and_lies_on_the_lower_run():
+    """The bend a little further than half a turn, a straight slope at the glide angle, a gentle turn back (an arc
+    of 3 x the bend's radius, so no pin turns back by more than a third of what a link turns in the bend), then
+    the run lying at the moving end's height."""
     moving = np.array([0.3, REST, 0.0])
     chain = fc.chain_pins(LONG, moving)
     pins, c = chain.pins[0], float(chain.bend_u[0])
     assert not chain.short[0] and np.array_equal(pins[-1], moving)
     assert np.abs(chords(pins) - P).max() < 1e-12
-    a = LONG.glide_angle
+    a, back = LONG.glide_angle, fc.GLIDE_BACK * R
     u, v = pins[:, 0], pins[:, 1]
     leave = np.array([c - R * math.sin(a), R * (1 + math.cos(a))])       # where the slope leaves the circle
-    foot_u = leave[0] - (leave[1] - REST) / math.tan(a)
+    slope_len = (leave[1] - REST - back * (1 - math.cos(a))) / math.sin(a)
+    turn_u = leave[0] - slope_len * math.cos(a)                          # where the turn back starts ...
+    foot_u = turn_u - back * math.sin(a)                                 # ... and where it is level again
     assert foot_u - 0.3 > 20 * P                        # a long flat run in this pose
     number = np.arange(len(pins))
     after = number > number[np.argmax(u)]               # past the bend's far side
-    flat = after & (u < foot_u)
+    flat = after & (u <= foot_u)
     assert flat.sum() >= 20 and np.abs(v[flat] - REST).max() < 1e-12
-    slope = after & (u > foot_u) & (u < leave[0])
+    slope = after & (u >= turn_u) & (u < leave[0])
     assert slope.sum() >= 10
     line = (v[slope] - leave[1]) * math.cos(a) - (u[slope] - leave[0]) * math.sin(a)
     assert np.abs(line).max() < 1e-12                   # on the line that comes down at 12 degrees
-    bend = ~flat & ~slope & (number > math.floor(c / P))
+    arc = after & (u > foot_u) & (u < turn_u)
+    assert arc.sum() >= 1
+    assert np.abs(np.hypot(u[arc] - foot_u, v[arc] - REST - back) - back).max() < 1e-12
+    bend = ~flat & ~slope & ~arc & (number > math.floor(c / P))
     assert np.abs(np.hypot(u[bend] - c, v[bend] - R) - R).max() < 1e-12
     assert v[bend].max() > 2 * R - 0.01 and np.all(v[:math.floor(c / P) + 1] == 0.0)
     # with the upper run 30 mm above the lower one the two never cross
     assert np.all(v[after] >= REST - 1e-12)
+    # no kink at the foot of the slope: every turn back is under a third of a link's turn in the bend, whatever
+    # the radius (it was the whole glide angle at one pin: more than a link can turn once radius / pitch > 4.8)
+    for ratio in (1.5, 3.0, 4.8, 6.0, 10.0):
+        spec = fc.ChainSpec(0.05, 160, ratio * 0.05, "GLIDE")
+        travel = fc.chain_pins(spec, stroke(-1.5, 1.0, 400, 0.4 * spec.radius))
+        assert not travel.short.any()
+        way = np.diff(travel.pins[:, :, :2], axis=1)
+        heading = np.arctan2(way[:, :, 1], way[:, :, 0])
+        turn = (np.diff(heading, axis=1) + math.pi) % (2 * math.pi) - math.pi
+        own = 2 * math.asin(0.05 / (2 * spec.radius))
+        assert turn.max() < own + 1e-9 and turn.min() > -0.34 * own      # measured: 0.24 - 0.33
 
 
 def test_glide_without_room_is_the_straight_tangent():
@@ -202,16 +221,23 @@ def test_glide_without_room_is_the_straight_tangent():
     straight = fc.chain_pins(fc.ChainSpec(P, 37, R), moving)
     assert not glide.short.any()
     assert np.abs(glide.pins - straight.pins).max() < 1e-12
-    # a rest height at or under the moving end's changes nothing; a higher one is where the run comes down to
+    # a rest height at or under the moving end's changes nothing
     low = fc.chain_pins(fc.ChainSpec(P, 120, R, "GLIDE", rest_v=0.01), (0.3, REST, 0.0))
-    assert np.abs(low.pins - fc.chain_pins(LONG, (0.3, REST, 0.0)).pins).max() == 0.0
+    assert np.abs(low.pins - fc.chain_pins(LONG, (0.3, REST, 0.0)).pins).max() < 1e-12
+    # a higher one: the run comes down to it, lies there and goes down to the moving end at the glide angle
     high = fc.chain_pins(fc.ChainSpec(P, 120, R, "GLIDE", rest_v=0.06), (0.3, REST, 0.0))
     assert not high.short[0] and np.abs(chords(high.pins) - P).max() < 1e-12
     assert np.array_equal(high.pins[0, -1], [0.3, REST, 0.0])
     after = high.pins[0, int(np.argmax(high.pins[0, :, 0])):, 1]         # from the bend's far side on
-    assert after.min() >= REST - 1e-12 and np.all(np.diff(after[8:]) < 0)   # down the slope, then straight to the end
-    foot = int(np.argmax(np.abs(np.diff(after[8:], 2)))) + 9             # the pin where the slope ends
-    assert abs(after[foot] - 0.06) < 0.005
+    assert after.min() >= REST - 1e-12 and np.all(np.diff(after[8:]) < 1e-12)
+    assert (np.abs(after - 0.06) < 1e-12).sum() >= 20
+    last = np.diff(high.pins[0, -3:, :2], axis=0)
+    assert np.allclose(np.degrees(np.arctan2(-last[:, 1], -last[:, 0])), 12.0, atol=1e-6)
+    # a rest height near the top of the bend: no room for the whole S, a smaller one that fits; at the top: none
+    for rest in (1.9 * R, 1.99 * R, 2 * R, 2.5 * R):    # (above the top counts as the top)
+        top = fc.chain_pins(fc.ChainSpec(P, 120, R, "GLIDE", rest_v=rest), stroke(-1.0, 1.5, 200, min(rest, 2 * R)))
+        assert not top.short.any() and np.abs(chords(top.pins) - P).max() < 1e-12
+        assert top.pins[:, :, 1].max() < 2 * R + 1e-12
 
 
 def test_out_of_reach_is_said_and_never_nan():
@@ -229,22 +255,47 @@ def test_out_of_reach_is_said_and_never_nan():
     assert chain.short[0] and chain.bend_u[0] == 0.0 and np.isfinite(chain.pins).all()
     assert np.abs(chords(chain.pins) - P).max() < 1e-12
     assert np.abs(chain.pins[0, -1, 1] - 2 * R) < 1e-9 and chain.pins[0, -1, 0] < -1.0
-    # the limits themselves: a chain without thickness reaches from -(length - half a circle) to almost its length
-    limits = stroke(-(length - math.pi * R) + 0.01, math.hypot(length, 0.0) - 0.02, 400)
+    # the limits themselves. Back: until the fixed run is used up (length - half a circle). Ahead: until only a
+    # quarter turn is left of the bend (length - a quarter circle for a chain without thickness) - the links
+    # could go 120 mm further, but from there the bend runs backwards and the chain whips straight
+    limits = stroke(-(length - math.pi * R) + 0.01, length - 0.5 * math.pi * R - 0.01, 400)
     assert not fc.chain_pins(SPEC, limits).short.any()
-    beyond = np.vstack([stroke(-length - 1.0, -(length - math.pi * R) - 0.01, 50), stroke(length + 0.01, 9.0, 50)])
+    beyond = np.vstack([stroke(-length - 1.0, -(length - math.pi * R) - 0.01, 50),
+                        stroke(length - 0.5 * math.pi * R + 0.01, 9.0, 300)])
     assert fc.chain_pins(SPEC, beyond).short.all()
-    # where no path leads: under the bend, below the fixed run, not a number
+    # where no path leads: under the bend, on or below the fixed run, not a number
     odd = np.array([[1.0, 0.02, 0.0], [1.05, 0.05, 0.0], [2.0, -0.05, 0.0], [math.nan, 0.16, 0.0],
-                    [0.3, math.inf, 0.0], [0.0, 0.0, 0.0], [1.2, R, 0.0]])
+                    [0.3, math.inf, 0.0], [0.0, 0.0, 0.0], [1.2, R, 0.0], [0.5, -0.3, 0.0], [0.3, 0.0, 0.0]])
     chain = fc.chain_pins(SPEC, odd)
     assert np.isfinite(chain.pins).all() and np.isfinite(chain.bend_u).all()
     assert np.abs(chords(chain.pins) - P).max() < 1e-9
-    assert chain.short[[3, 4]].all()
+    assert chain.short[[2, 3, 4, 5, 7, 8]].all()         # v <= 0: the run would lie in or under the fixed run
     for i in np.nonzero(~chain.short)[0]:
         assert np.array_equal(chain.pins[i, -1], odd[i])
+    glide = fc.chain_pins(fc.ChainSpec(P, N, R, "GLIDE"), odd)
+    assert np.isfinite(glide.pins).all() and glide.short[[2, 3, 4, 5, 7, 8]].all()
+
+
+def test_pulled_out_ahead_stays_calm_until_it_is_out_of_reach():
+    """Past the classic travel the upper run is used up and the bend unwinds. Down to a quarter turn the chain
+    stays calm (no pin faster than the end, the bend still going forward); from there on it is out of reach."""
+    for spec, v in ((SPEC, 2 * R), (fc.ChainSpec(P, 40, R), 2 * R), (fc.ChainSpec(0.05, 50, 0.3), 0.63),
+                    (fc.ChainSpec(P, N, R), 2 * R - 0.02), (fc.ChainSpec(P, N, R, "GLIDE"), REST)):
+        length = spec.links * spec.pitch
+        moving = stroke(0.5 * length, length + 0.05, 3001, v)
+        chain = fc.chain_pins(spec, moving)
+        ok = ~chain.short
+        assert ok[0] and not ok[-1]
+        if v != 2 * R - 0.02:                           # in reach, then out, once (an end lower than the bend's
+            assert (np.diff(ok.astype(int)) <= 0).all()     # top is also out while it is inside the bend's circle)
+        both = ok[1:] & ok[:-1]
+        step = np.linalg.norm(np.diff(chain.pins, axis=0), axis=2).max(axis=1) / np.diff(moving[:, 0])
+        assert step[both].max() < 1.1                   # measured 1.00 - 1.02 (it was 26 just before the end)
+        rate = np.diff(chain.bend_u) / np.diff(moving[:, 0])
+        assert rate[both].min() > -0.02                 # the bend does not run backwards (it was -180)
+        assert step.max() < 200                         # out of reach the shape still has no jump (steps of 0.4 mm)
     # rows in reach are not disturbed by rows out of reach
-    mixed = np.vstack([ahead, [0.5, 2 * R, 0.0], back])
+    mixed = np.array([[N * P + 0.3, 2 * R, 0.0], [0.5, 2 * R, 0.0], [-N * P, 2 * R, 0.0]])
     assert np.abs(fc.chain_pins(SPEC, mixed).pins[1] - fc.chain_pins(SPEC, (0.5, 2 * R, 0.0)).pins[0]).max() < 1e-12
 
 
@@ -277,6 +328,11 @@ def test_bad_chain_is_refused_and_a_too_small_radius_is_widened():
         fc.chain_pins(SPEC, np.zeros((2, 2)))
     tight = fc.chain_pins(fc.ChainSpec(P, 30, 0.001), (0.3, 2 * fc.MIN_RADIUS * P, 0.0))
     assert not tight.short[0] and np.abs(chords(tight.pins) - P).max() < 1e-12
+    assert tight.radius == fc.MIN_RADIUS * P and fc.chain_pins(SPEC, (0.3, 2 * R, 0.0)).radius == R    # what was used
+    # a glide angle outside 1 … 60 degrees counts as the nearer of the two
+    steep = fc.chain_pins(fc.ChainSpec(P, 120, R, "GLIDE", glide_angle=2.0), (0.3, REST, 0.0))
+    sixty = fc.chain_pins(fc.ChainSpec(P, 120, R, "GLIDE", glide_angle=math.radians(60.0)), (0.3, REST, 0.0))
+    assert np.array_equal(steep.pins, sixty.pins) and not steep.short[0]
 
 
 def test_speed():
@@ -501,6 +557,89 @@ def test_fit_links_bend_of_three_links_and_rounded_numbers():
     fit = fc.fit_links(rough)
     assert fit.ok and fit.problem == "" and abs(fit.pitch - P) < 1e-5 and abs(fit.radius - R) < 0.002 * R
     assert fit.residual < 1e-4 and fit.pose_error < 1e-4            # measured 2e-5, 3e-5
+
+
+def cad_chain(spec, moving, kinds, seed):
+    """A chain as a CAD file has it: every kind of link with its own origin and its own mesh centre, anywhere."""
+    rng = np.random.default_rng(seed)
+    world = rigid(rng, 2.0)
+    own = np.stack([rigid(rng, 0.01) for _ in range(kinds)])
+    centre = np.stack([np.append(rng.normal(size=3) * 0.004 + [0.5 * spec.pitch, 0.0, 0.0], 1.0) for _ in range(kinds)])
+    kind = np.arange(spec.links) % kinds
+    frames = world @ fc.pin_matrices(fc.chain_pins(spec, moving).pins[0])
+    return frames @ own[kind], np.einsum("iab,ib->ia", frames, centre[kind])[:, :3], kind
+
+
+@pytest.mark.parametrize("kinds", [1, 2])
+def test_fit_links_reads_the_radius_from_rounded_and_noisy_numbers(kinds):
+    """The review's finding: two kinds of link, the moving end a whole number of pitches from the fixed end, the
+    numbers rounded to 1e-8 m - 5 of 40 chains came back with radius 132 mm instead of 80, mode GLIDE and no
+    note (the two pins where the chain goes onto and off the bend agreed with each other better than the bend's
+    own pins did). Counts of chains more than 1 % off, before: rounded 1e-8 … 1e-5 m: 5, 2, 3, 1 (one kind: 0, 0,
+    0, 3); noise 1 um, 0.01 mm, 0.1 mm: 5, 1, 26 (one kind: 2, 1, 2). Now: none; the worst is 0.5 %."""
+    spec = fc.ChainSpec(P, 36, R)
+    for what, size, limit in (("round", 8, 1e-5), ("round", 7, 1e-4), ("round", 6, 1e-4), ("round", 5, 1e-3),
+                              ("noise", 1e-6, 1e-3), ("noise", 1e-5, 2e-3), ("noise", 1e-4, 0.01)):
+        worst = 0.0
+        for seed in range(40):
+            mats, centres, kind = cad_chain(spec, (0.40, 2 * R, 0.0), kinds, seed)
+            if what == "round":
+                mats, centres = np.round(mats, size), np.round(centres, size)
+            else:
+                rng = np.random.default_rng(1000 + seed)
+                mats[:, :3, 3] += rng.normal(size=(36, 3)) * size
+                centres = centres + rng.normal(size=(36, 3)) * size
+            fit = fc.fit_links(mats, centres, kind)
+            assert fit.ok and fit.problem == "" and fit.mode == "STRAIGHT" and fit.links == 36, (what, size, seed)
+            assert abs(fit.pitch / P - 1) < 3e-3 and fit.pose_error < 0.05 * P, (what, size, seed)
+            worst = max(worst, abs(fit.radius / R - 1))
+        assert worst < limit, (what, size, worst)       # measured: 1e-9 … 2e-4 rounded; 5e-5, 5e-4, 5e-3 noise
+
+
+def test_bend_turn_is_the_bend_pins_not_the_two_at_its_ends():
+    turns = np.array([0.0, 0.304, 0.5058, 0.50494, 0.50575, 0.50496, 0.50577, 0.304, 0.0])
+    angle, exact = fc._bend_turn(turns)
+    assert 0.5049 < angle < 0.5058 and not exact
+    angle, exact = fc._bend_turn(np.array([0.0, 0.21, 0.5, 0.5, 0.5, 0.49999, 0.21, 0.0]))
+    assert angle == 0.5 and exact
+
+
+def test_fit_links_says_when_the_app_draws_the_chain_differently():
+    """A chain drawn gliding with a 30 degree slope: the app comes down at 12. Pitch and radius are still read
+    from the links; the note says how far the app's shape is from the drawing."""
+    rng = np.random.default_rng(19)
+    world, own = rigid(rng), rigid(rng, 0.02)[None]
+    drawn = fc.ChainSpec(P, 120, R, "GLIDE", glide_angle=math.radians(30.0))
+    mats = cad_links(drawn, (0.3, REST, 0.0), world, own, np.zeros(120, dtype=int))
+    fit = fc.fit_links(mats)
+    assert fit.ok and fit.mode == "GLIDE" and abs(fit.pitch - P) < 1e-9 and abs(fit.radius - R) < 1e-6
+    assert fit.pose_error > fc.POSE_TOL * P and "link lengths away" in fit.problem
+    assert "%.1f" % (fit.pose_error / P) in fit.problem
+    # the links are still exactly where the CAD file has them, on their own pins
+    assert np.abs(fc.link_matrices(fit.pins_chain(), fit.local, fit.frame) - mats[fit.order]).max() < 1e-9
+    again = fit.reversed().reversed()
+    assert again.problem == fit.problem and again.pose_error == pytest.approx(fit.pose_error)
+    # drawn the app's way: no note
+    mats = cad_links(fc.ChainSpec(P, 120, R, "GLIDE"), (0.3, REST, 0.0), world, own, np.zeros(120, dtype=int))
+    fit = fc.fit_links(mats)
+    assert fit.ok and fit.problem == "" and fit.mode == "GLIDE" and fit.pose_error < 1e-9
+
+
+def test_fit_links_with_too_few_links_off_the_bend():
+    """A few links that all lie on the bend came back as a chain with pitch 38 mm and radius 152 or 75 mm."""
+    rng = np.random.default_rng(20)
+    world, own = rigid(rng), rigid(rng, 0.02)[None]
+    spec = fc.ChainSpec(P, 36, R)
+    moving = (0.4, 2 * R, 0.0)
+    mats, centres = cad_links(spec, moving, world, own, np.zeros(36, dtype=int)), centres_of(spec, moving, world)
+    first = int(fc.chain_pins(spec, moving).bend_u[0] // P) + 1          # the first link wholly on the bend
+    for start, count in ((first, 4), (first, 5), (first - 1, 5), (first - 1, 6)):
+        fit = fc.fit_links(mats[start:start + count], centres[start:start + count])
+        assert not fit.ok and "Too few links lie off the bend" in fit.problem and fit.links == count
+        assert fit.radius == 0.0 and abs(fit.pitch - P) < 0.2 * P         # (the pitch only roughly)
+    # with two links of the run at one end it is a chain, read exactly
+    fit = fc.fit_links(mats[first - 3:first + 6], centres[first - 3:first + 6])
+    assert fit.ok and fit.problem == "" and abs(fit.pitch - P) < 1e-9 and abs(fit.radius - R) < 1e-6
 
 
 def test_fit_links_that_do_not_hinge_are_placed_by_their_centres():
