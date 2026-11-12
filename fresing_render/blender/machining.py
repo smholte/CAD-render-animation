@@ -33,6 +33,7 @@ from bpy.app.handlers import persistent
 from mathutils import Matrix, Vector
 
 from ..core import machining as core
+from ..core import toolmarks
 from . import build
 from .idprops import store_array
 
@@ -875,9 +876,14 @@ def _spec_of_copy(ob):
 class CutItem:
     """One thing that cuts for a while: a bit, or a tool of a G-code program while it is in the spindle."""
 
-    def __init__(self, name: str, ob, path: core.Path, tool: core.Tool, chip: str = "", spindle=None):
+    def __init__(self, name: str, ob, path: core.Path, tool: core.Tool, chip: str = "", spindle=None,
+                 flutes: int = 0, face: bool = False, program: bool = False):
         self.name, self.ob, self.path, self.tool, self.chip = name, ob, path, tool, chip
         self.spindle = spindle            # the bit in the spindle this is a piece of (a G-code tool), else None
+        # for the tool marks (task 0061): cutting edges (a face mill: inserts), "is a face mill", and whether a
+        # G-code program moves it (its feed and spindle speed then come from the program)
+        self.flutes = int(flutes) if flutes and flutes > 0 else core.default_flutes(tool.kind)
+        self.face, self.program = bool(face), bool(program)
 
     def key(self) -> tuple:
         return (self.name, self.tool.key(), len(self.path.t), round(float(self.path.t[0]), 6),
@@ -902,7 +908,7 @@ def cut_items(scene) -> list:
         if p is None:
             continue
         if not sched or ob is not spindle:
-            out.append(CutItem(ob.name, ob, p, tool_of(it)))
+            out.append(CutItem(ob.name, ob, p, tool_of(it), program=ob is spindle))
             continue
         bounds, mounted = [-math.inf], [0]
         for f, n in sched:                        # one piece per stay in the spindle
@@ -932,7 +938,9 @@ def cut_items(scene) -> list:
             sub = core.Path(path.t[sel], path.o[sel], path.d[sel])
             tool = tcore.cutting_tool(spec) if spec is not None else tool_of(it)
             chip = tcore.chip_kind(spec) if spec is not None else ""
-            out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob))
+            face = spec is not None and spec.kind == "FACE"
+            out.append(CutItem(f"{src.name}@{k}", src, sub, tool, chip, spindle=ob, face=face, program=True,
+                               flutes=0 if spec is None else (spec.inserts if face else spec.flutes)))
     if "in_scene" in _FRAME:
         _FRAME["cut_items"] = out
     return out
@@ -1019,6 +1027,7 @@ def _timeline(scene):
     items = cut_items(scene)
     key = (s.path_sig, _stock_key(s, workpiece(scene)), tuple(c.key() for c in items))
     if rt.get("key") == key and rt.get("timeline") is not None:
+        _feeds_to(scene, rt["timeline"], items)        # (a new Build can change the feeds and nothing else)
         return rt["timeline"]
     wpc = _workpiece_solid(scene)
     cutters, paths = [], []
@@ -1036,15 +1045,116 @@ def _timeline(scene):
         paths.append(p)
     tl = core.Timeline(wpc, cutters, paths, s.detail) if paths else None
     rt["timeline"], rt["key"], rt["shown"] = tl, key, None
+    _feeds_to(scene, tl, items)
     return tl
+
+
+# ---------------------------------------------------------------------------
+# tool marks: the distance between two marks (task 0061)
+# ---------------------------------------------------------------------------
+
+def _feeds_key(scene, teeth: tuple) -> tuple:
+    """Everything the distance between two tool marks comes from: the program's feeds and speeds, each bit's
+    cutting edges (``teeth``: (cutting edges, is a face mill, moved by a program) per cut item), what the block
+    is made of."""
+    from . import gcode
+    c = gcode.settings(scene)
+    raw = np.array(c["fr_feeds"], dtype=np.float64).tobytes() if "fr_feeds" in c else b""
+    return (hash(raw), len(raw), teeth, block_look(scene, workpiece(scene))[0])
+
+
+def _feeds_to(scene, tl, items) -> None:
+    """Give the timeline every move's feed per tooth and per turn, when they changed. From the program (feed F
+    and spindle speed S at the middle of the move) for a tool the program moves; else a typical feed per tooth
+    for the block's material. A face mill shows one arc per turn."""
+    rt = runtime(scene)
+    if tl is None:
+        rt.pop("marks_teeth", None)
+        return
+    teeth = tuple((it.flutes, it.face, it.program) for it in items)
+    rt["marks_teeth"] = teeth                           # (for the panel's line: no need to read the paths again)
+    key = _feeds_key(scene, teeth)
+    if getattr(tl, "feeds_key", None) == key:
+        return
+    from . import gcode
+    rows = gcode.feeds(scene)
+    mk = tl.moves
+    typical = core.typical_feed(key[3])[0]
+    flutes = np.array([max(1, it.flutes) for it in items] + [1], dtype=float)[mk.bit]
+    face = np.array([it.face for it in items] + [False], dtype=bool)[mk.bit]
+    per_tooth = np.full(len(mk), typical)
+    per_rev = per_tooth * flutes
+    if rows and len(mk):
+        frames = np.array([r[0] for r in rows])
+        feed = np.array([r[1] for r in rows])
+        rpm = np.abs(np.array([r[2] for r in rows]))
+        k = np.searchsorted(frames, 0.5 * (mk.t0 + mk.t1), side="right") - 1      # the last row at or before it
+        prog = np.array([it.program for it in items] + [False], dtype=bool)[mk.bit]
+        kk = np.clip(k, 0, len(frames) - 1)
+        known = prog & (k >= 0) & (feed[kk] > 0) & (rpm[kk] > 0)
+        rev = feed[kk] / np.maximum(rpm[kk], 1e-9) * core.MM                      # mm/min / rpm = mm per turn
+        per_rev = np.where(known, rev, per_rev)
+        per_tooth = np.where(known, rev / flutes, per_tooth)
+    tl.set_feeds(np.where(face, per_rev, per_tooth), per_rev)
+    tl.feeds_key = key
+    rt["shown"] = None
+
+
+def _marks_text(teeth: tuple, block_id: str, rows: list, step: bool) -> str:
+    from ..core import words
+    per_tooth, material = core.typical_feed(block_id)
+    typical = f"typical feed for {material}" if material else "a typical feed"
+    typical += f" ({per_tooth * 1000:g} mm per tooth)"
+    prog = list(dict.fromkeys((n, face) for n, face, program in teeth if program))
+    cutting = [(f, abs(r)) for _fr, f, r in rows if f > 0]
+    if not prog or not cutting:
+        if prog and not rows and step:
+            # (a program step not built yet, or built by a version before the tool marks: it kept no feeds)
+            return f"Build the animation to use the program's feed. Until then: {typical}"
+        return f"No program: {typical}"
+    known = list(dict.fromkeys(fr for fr in cutting if fr[1] > 0))
+    if not known:
+        return f"The program gives no spindle speed: {typical}"
+    if len(known) > 1 or len(prog) > 1:
+        return "Marks from the program's feeds and speeds"
+    (feed, rpm), (n, face) = known[0], prog[0]
+    return f"Marks from the program: F{feed:g} S{rpm:g}, {words.plural(n, 'insert' if face else 'flute')}"
+
+
+def marks_source(scene) -> str:
+    """Where the distance between two tool marks comes from, in words (the Milling panel's line): the program's
+    feed and spindle speed ("Marks from the program: F800 S12000, 2 flutes"), or a typical feed per tooth for
+    what the block is made of ("No program: typical feed for aluminium (0.05 mm per tooth)")."""
+    wp = workpiece(scene)
+    if wp is None or not bits(scene):
+        return ""
+    from . import gcode
+    rt = runtime(scene)
+    teeth = rt.get("marks_teeth") if rt.get("timeline") is not None else None
+    if teeth is None:
+        teeth = tuple((it.flutes, it.face, it.program) for it in cut_items(scene))
+    if not teeth:                                       # the motion is not read yet: the bits as they are
+        spindle = gcode.settings(scene).tool
+        teeth = tuple((core.default_flutes(tool_of(it).kind), False, ob is spindle) for it, ob in bits(scene))
+    step = any(b.kind == "GCODE" and b.enabled and b.gcode_file
+               for a in scene.fresing.animations for b in a.blocks)
+    key = _feeds_key(scene, teeth) + (step,)
+    hit = rt.get("marks_text")
+    if hit is None or hit[0] != key:                    # (drawn at every redraw of the panel: kept)
+        hit = rt["marks_text"] = (key, _marks_text(teeth, key[3], gcode.feeds(scene), step))
+    return hit[1]
 
 
 # ---------------------------------------------------------------------------
 # showing a frame
 # ---------------------------------------------------------------------------
 
-def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray) -> None:
-    me.clear_geometry()
+def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray, marks=None, normals=None) -> None:
+    """Triangles into ``me``. ``marks``: the four (triangles, 3) float32 arrays of ``core.mark_faces`` – written
+    as the per-face attributes the cut-face material reads (``core/toolmarks.py``, task 0061). ``normals``:
+    (triangles * 3, 3) float32, one unit normal per corner, used as they are (a ``custom_normal`` attribute);
+    without them the faces are smooth with sharp edges by angle, as before."""
+    me.clear_geometry()                       # (takes the attributes of the last frame with it)
     if len(t) == 0:
         me.update()
         return
@@ -1055,6 +1165,15 @@ def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray) -> None:
     me.polygons.add(len(t))
     me.polygons.foreach_set("loop_start", np.arange(0, len(t) * 3, 3, dtype=np.int32))
     me.polygons.foreach_set("material_index", mat)
+    if marks is not None:
+        for name, arr in zip(toolmarks.ATTRS, marks):
+            a = me.attributes.get(name) or me.attributes.new(name, "FLOAT_VECTOR", "FACE")
+            a.data.foreach_set("vector", np.ascontiguousarray(arr, dtype=np.float32).reshape(-1))
+    if normals is not None:
+        a = me.attributes.get("custom_normal") or me.attributes.new("custom_normal", "FLOAT_VECTOR", "CORNER")
+        a.data.foreach_set("vector", np.ascontiguousarray(normals, dtype=np.float32).reshape(-1))
+        me.update(calc_edges=True)
+        return
     me.update(calc_edges=True)
     me.shade_smooth()
     me.set_sharp_from_angle(angle=SHARP_ANGLE)
@@ -1085,18 +1204,23 @@ def refresh(scene, frame: float | None = None, force: bool = False) -> bool:
         if tl is None:
             rt["status"] = "Waiting for the motion to be read"
             return False
-        if not force and rt.get("shown") == (id(tl), T):
+        marks = None
+        want = bool(getattr(s, "marks", True))         # tool marks on the cut faces (task 0061)
+        if not force and rt.get("shown") == (id(tl), T, want):
             _cut_slot(scene, wp)                       # a look changed in 3 Looks shows at once
             return True
-        v, t, src = tl.mesh_at(T)
+        if want:
+            v, t, src, _move, marks = tl.mesh_at(T, marks=True)
+        else:
+            v, t, src = tl.mesh_at(T)
         mats = rt.get("mats")
         mi = np.zeros(len(t), dtype=np.int32)
         mi[src < 0] = _cut_slot(scene, wp)             # faces the cutter made: their own look (task 0051)
         if mats is not None and len(mats):
             ok = (src >= 0) & (src < len(mats))
             mi[ok] = mats[src[ok]]
-        _write_mesh(s.cut_mesh, v, t, mi)
-        rt["shown"] = (id(tl), T)
+        _write_mesh(s.cut_mesh, v, t, mi, marks=marks)
+        rt["shown"] = (id(tl), T, want)
         _show_chips(scene, T)
         st = tl.stats
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
