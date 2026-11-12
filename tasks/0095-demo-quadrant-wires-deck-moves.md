@@ -1,6 +1,6 @@
 # 0095 – Demo: quadrant wires as the owner works, cable engine and handling winches moved
 
-**Who:** worker · **Status:** open · **Branch:** `task/0095-demo-quadrant-wires` (or the web session's branch)
+**Who:** worker · **Status:** running · **Branch:** `task/0095-demo-quadrant-wires` (or the web session's branch)
 **Started by:** lead chat, 12 Nov 2026 (the owner's comments on the 0.2.69 demo, with his pictures)
 **Lane:** Demo models – `fresing_render/demo_model/` (the maker), `blender/demo.py`, `blender/ops_demo.py`,
 `tests/test_demo_*.py`, `tools/make_demo_cable_lay.py`; no other app code (anything needed elsewhere: an open point)
