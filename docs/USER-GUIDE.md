@@ -890,6 +890,90 @@ couplings, above), so the covers move in animations, in saved scenes and in the 
 does not allow scripts in project files. They stay through a model update (1 Import) and in saved projects.
 To move the covers in a video, use the animation step **Move joint** on the axis – nothing else is needed.
 
+### Hoses and drag chains
+
+In a CAD file a hydraulic hose, a cable or a drag chain is stiff: it stays in the pose you drew it in. When
+the machine moves, it would stretch, float or run through parts. Here they **bend along**: both ends stay on
+their fittings, a hose keeps its length, and a drag chain rolls over its bend, link by link.
+
+<img class="panel" src="img/panel_4_flex_empty.png" alt="Hoses and drag chains before anything is added: the steps and the buttons"> <img class="panel" src="img/panel_4_flex.png" alt="Hoses and drag chains: three hoses and a cable in the list, one hose chosen with its settings">
+
+<img class="wide" src="img/view_flex_before_after.jpg" alt="The test arm up 15 degrees with the slide out. Left, the items switched off: the stiff CAD hoses no longer meet their fittings. Right, on: the three hoses and the cable are bent along">
+
+**A hose or a cable**
+
+1. Click the hose in the 3D view. (Not sure which part it is? **Find hoses and chains** selects the parts that
+   are named like a hose, a cable or a drag chain, so you see what was found.)
+2. In 4 Motion > **Hoses and drag chains**, press **Add hose**. For a soft cable that hangs down, press **Add
+   cable** instead. Several hoses: click them one by one, or select them all, then press the button.
+3. The hose gets a line in the list. Move a joint (or a cylinder, or play an animation): the hose follows.
+   A tick in its row means it works; the row says "too short" or "tight bend" when it does not.
+
+The app reads everything from the CAD part: the middle line of the hose, its diameter, its length, and for
+each end the part it touches (the fitting). **Find and add all** (shown while the list is empty) does all of
+this for every hose, cable and drag chain it finds in one go.
+
+**The settings of a hose** (under the list)
+
+| Setting | What it does |
+| --- | --- |
+| **Stiffness** | 0 = a soft cable that hangs down, 1 = a stiff hydraulic hose that keeps wide bends. Move it until the hose looks like the real one. |
+| **Sag** | How much the hose hangs down under its own weight. 0 = it only bends, 1 = a heavy hose. A stiff hose sags less. |
+| **Smallest bend** | The tightest bend the hose may make, as a radius in mm (from the maker's data sheet). 0 = no limit. You get a warning when the motion forces a tighter bend. |
+| **Length** | How long the hose is along its middle, in mm. It stays this long. Read from the CAD part; make it longer when the machine needs more. |
+| **Diameter** (in the fold **More**) | The outside diameter in mm, read from the CAD part. Change it to draw a thicker or thinner hose. |
+
+**End A** and **End B** say which part each end sits on. When the app picked the wrong part (or says "no part"):
+click the right fitting in the 3D view, then press the **pipette** button next to that end. The end stays where
+it is now and from then on moves with that part. **Fit to the CAD pose** reads the hose from the CAD file
+again (length, diameter, ends); stiffness, sag and the smallest bend stay as you set them.
+
+**A drag chain**
+
+<img class="panel" src="img/panel_4_flex_chain.png" alt="Hoses and drag chains: a drag chain chosen, with Upper run, Bend radius, Links and its two ends"> <img class="wide" src="img/view_flex_chains.jpg" alt="The test gantry with X, Y and Z moved: the three drag chains have rolled">
+
+1. Click **one link** of the chain in the 3D view and press **Add drag chain**. The app takes the whole row
+   of links by itself.
+2. It reads the link length, the bend radius, and which end is bolted to the part that stands still (the
+   **Fixed end**) and which rides with the axis (the **Moving end**).
+3. Move the axis: the chain rolls over its bend and the moving end stays on its bracket.
+
+A chain that is drawn as **one solid** works too: select that part and press **Add drag chain**. The app then
+draws links along it, and in the fold **More** you set the **Width** and **Height** of a link.
+
+| Setting | What it does |
+| --- | --- |
+| **Upper run** | **Straight**: the run from the bend to the moving end goes straight (a chain that carries itself, hangs, stands or lies on its side). **Lies on the lower run**: a long chain whose upper run slides on the lower one. |
+| **Bend radius** | The radius of the bend in mm, to the links' pins. The bend keeps exactly this radius while it rolls. |
+| **Links** | How many links there are (only for a chain the app draws). |
+| **Link length** (in **More**) | One link from pin to pin, in mm. Read from the CAD. |
+| **Fixed end / Moving end** | The part each end sits on, with the pipette button as for a hose. **Swap ends** makes the other end the fixed one: use it when the chain rolls the wrong way. |
+
+**Warnings.** A problem shows in the list row, in the panel header ("1 of 4") and under the list, in red:
+
+- **"too short at frame 120 (needs 35 mm more)"**: at that frame the ends are further apart than the hose is
+  long. Make **Length** longer, or check the parts the ends sit on.
+- **"bends tighter than 80 mm"**: the motion forces a tighter bend than **Smallest bend** allows. Make the hose
+  longer or the motion smaller.
+- A chain that **"cannot reach"** its moving end is too short for the travel: more **Links**, or less travel.
+
+**Good to know**
+
+- It works while you move joints and cylinders, in **Build animation**, in the render queue (also in the
+  background), in saved scenes, with G-code programs, in turntables. The same frame always looks the same,
+  whichever frame came before.
+- After **Build animation**, changing a slider (stiffness, length …) is applied to the whole animation at once;
+  you do not build again.
+- A hose with some slack can lie in two ways, for example in a loop up or down. **Build animation** keeps one
+  of them through the whole animation; a still of a single pose may show the other.
+- The tick in the list switches an item off: the stiff CAD part shows again, exactly as imported. **−** takes it
+  off the list; nothing is deleted from the model. **Select** (the arrow button) shows which part it is.
+- The hose or chain takes the material of its CAD part, so paint schemes, hiding and fades work as before.
+- A model update (1 Import) keeps your hoses and chains, and the settings you changed.
+- The clash check (6 Animation) leaves hoses and chains out.
+- Not in yet: hoses that push against other parts or each other, cables over sheaves and winch drums, hoses
+  with three ends, and bundles of cables.
+
 ### Poses & exploded views
 
 <img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">

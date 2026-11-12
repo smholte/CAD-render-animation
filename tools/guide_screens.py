@@ -43,6 +43,12 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   rotary / rotary_view   the rotary axes (task 0066): the Rotary axes panel on the trunnion (test_5axis.step, as
       "panels") and the 4th axis turning the bar with its wrapped slot cut (test_4axis.step, as "window").
 
+  flex   the hoses (task 0058): the "on" half of view_flex_before_after.jpg (arm up 15 degrees, slide out), view_flex_off.jpg (the same with the
+      items switched off = stiff CAD hoses), view_flex_before_after.jpg (those two side by side) and view_flex_chains.jpg
+      (the gantry with X, Y, Z moved); Cycles on the processor, as "render".
+  flex_panels   the panels of 4 Motion > Hoses and drag chains (panel_4_flex_empty / panel_4_flex / panel_4_flex_chain; as
+      "panels", on the hoses model, then the chains model).
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -921,7 +927,7 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE in ("waycover", "air", "labels", "coolant"):
+elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -930,7 +936,9 @@ elif MODE in ("waycover", "air", "labels", "coolant"):
     # Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=waycover / air / labels.
     MILL = os.path.join(DATA, "test_gantry.step")
     WCOVER = os.path.join(DATA, "test_waycover_c.step")
-    mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL}[MODE]
+    mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL,
+                "flex_panels": os.path.join(DATA, "test_flex_hoses_a.step"),
+                "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -980,6 +988,29 @@ elif MODE in ("waycover", "air", "labels", "coolant"):
             save_png(im[int(h * 0.463):int(h * 0.545), int(w * 0.2):int(w * 0.8)], "view_waycover")   # the model
             return 0.5
         step(_view_shot)
+
+    elif MODE in ("flex_panels", "flex_chains_panel"):
+        # task 0058: 4 Motion > Hoses and drag chains: empty, with the four hoses (the first one chosen), a chain chosen
+        def _flex_empty():
+            select_only()
+            return 1.0
+        def _flex_setup():
+            sc = bpy.context.scene
+            fx = mod("blender.flex")
+            with override():
+                if MODE == "flex_panels":
+                    fx.set_up_test_hoses(sc)
+                else:
+                    fx.set_up_test_chains(sc)
+            sc.fresing.flex_index = 0
+            select_only()
+            mod("blender.ui")._OPEN_FOLDS = True
+            return 1.0
+        if MODE == "flex_panels":
+            step(_flex_empty)
+            _grab("panel_4_flex_empty", [("FRESING_PT_flex", False, True)])
+        step(_flex_setup)
+        _grab("panel_4_flex" if MODE == "flex_panels" else "panel_4_flex_chain", [("FRESING_PT_flex", False, True)])
 
     elif MODE == "coolant":
         def _cool_setup():
@@ -1625,7 +1656,65 @@ def render_crane(with_decals: bool = False, with_cut: bool = False):
     log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
-if MODE in ("render", "looks", "decals", "cutaway"):
+def render_flex():
+    """Task 0058: renders of the hoses model and the drag-chain gantry, and the before/after pair."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    joints, cams, flex = mod("blender.joints"), mod("blender.cameras"), mod("blender.flex")
+
+    def one(step_file, setup, moves, name, items_on=True, view="ISO"):
+        bpy.ops.wm.read_factory_settings(use_empty=False)
+        addon_utils.enable(pkg(), default_set=True)
+        assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, step_file), quality="normal") == {"FINISHED"}
+        sc = bpy.context.scene
+        s = sc.fresing
+        setup(sc)
+        bpy.context.view_layer.update()
+        for jn, val in moves:
+            joints.set_value(s.joints.get(jn), val)
+        bpy.context.view_layer.update()
+        if not items_on:
+            for it in s.flex:
+                it.enabled = False
+        bpy.context.view_layer.update()
+        flex.refresh(sc, force=True)
+        s.background = "SKY"
+        s.floor = "VISIBLE"
+        s.floor_use_own_color = True
+        s.floor_color = (0.42, 0.42, 0.4)
+        cam = cams.add_camera(sc, view, 50.0, name="Guide view")
+        sc.camera = cam
+        bpy.context.view_layer.update()
+        cams.fit(cam, sc)
+        s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 900, 600, False, SCRATCH
+        mod("blender.render").apply_output(sc, s)
+        t = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", name, f"{time.time() - t:.0f} s")
+        path = os.path.join(OUT, name + ".jpg")
+        subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+        return path
+
+    hose_moves = [("Luff", math.radians(15)), ("Slide", 0.12)]
+    on = one("test_flex_hoses_a.step", flex.set_up_test_hoses, hose_moves, "view_flex_hoses")
+    off = one("test_flex_hoses_a.step", flex.set_up_test_hoses, hose_moves, "view_flex_off", items_on=False)
+    pair = os.path.join(OUT, "view_flex_before_after.jpg")
+    subprocess.run(["montage", "-label", "Off: the stiff CAD hoses", off, "-label", "On: the hoses follow", on,
+                    "-tile", "2x1", "-geometry", "+6+6", "-pointsize", "20", "-background", "white", pair], check=True)
+    subprocess.run(["convert", pair, "-strip", "-quality", "86", pair], check=True)
+    os.remove(off)
+    os.remove(on)                               # only the pair is shown in the guide
+    one("test_flex_chains_a.step", flex.set_up_test_chains, [("X", 0.2), ("Y", 0.15), ("Z", -0.06)],
+        "view_flex_chains")
+
+
+if MODE == "flex":
+    try:
+        render_flex()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE in ("render", "looks", "decals", "cutaway"):
     try:
         render_looks() if MODE == "looks" else render_crane(with_decals=MODE == "decals", with_cut=MODE == "cutaway")
     except Exception:
