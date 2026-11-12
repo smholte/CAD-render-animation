@@ -14,7 +14,7 @@ _modules = []
 def _classes():
     from .blender import (ops_callouts, ops_clash, ops_coolant, ops_cylinders, ops_decals, ops_doublearm, ops_fade, ops_gcode,
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
-                          ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
+                          ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
                           ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_waycover, updates)
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
@@ -32,7 +32,7 @@ def _classes():
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_toolpath.CLASSES + tuple(looks) + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES)
+            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_demo.CLASSES)
 
 
 def register():

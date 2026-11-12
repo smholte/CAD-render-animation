@@ -119,6 +119,30 @@ def test_split_long_faces_keeps_the_surface():
     assert np.all(n[:, 2] > 0)                                             # faces keep their side
 
 
+def test_split_long_stays_small_on_a_vessel_sized_mesh():
+    """Task 0077: a 60 m sliver became 3^10 pieces when halved at its longest edge, a vessel's deck and hull billions
+    (the check ran out of memory). Cut into a strip: about 2 x length / 25 mm pieces, the same surface and sides; a
+    wide face stays whole; a mesh past the budget is cut coarser."""
+    v = np.array([[0, 0, 0], [60.0, 0, 0], [20.0, 0.004, 0]])            # 60 m long, 4 mm wide
+    t = np.array([[0, 1, 2]])
+    sv, st = C.split_long(v, t, longest=0.025)
+    tri = sv[st]
+    assert len(st) <= 2 * 60 / 0.025 + 2
+    assert np.max(np.linalg.norm(tri - np.roll(tri, 1, axis=1), axis=2)) <= 0.025 * 1.1
+    area = 0.5 * np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+    assert np.isclose(area.sum(), 0.5 * 60.0 * 0.004)
+    assert np.all(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])[:, 2] > 0)
+    wide = np.array([[0, 0, 0], [120.0, 0, 0], [60.0, 40.0, 0]])         # a deck plate: not thin
+    assert len(C.split_long(wide, t)[1]) == 1
+    many = np.concatenate([v + [0, 0, k * 0.01] for k in range(200)])     # 200 slivers: past the budget
+    mt = np.arange(len(many)).reshape(-1, 3)
+    sv, st = C.split_long(many, mt)
+    assert len(st) <= 1.05 * C.MESH_BUDGET
+    tri = sv[st]
+    area = 0.5 * np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+    assert np.isclose(area.sum(), 200 * 0.5 * 60.0 * 0.004)
+
+
 def test_closest_points_on_triangles_match_a_dense_search():
     rng = np.random.default_rng(5)
     tri = rng.uniform(-1, 1, (40, 3, 3))

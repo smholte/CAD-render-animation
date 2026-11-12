@@ -258,6 +258,11 @@ def _draw_pc_check_help(self, context):
         ops_tour.draw_help(self.layout)
     except Exception as exc:  # noqa: BLE001 - never break the Help menu
         print("Fresing Render: test tour menu:", exc)
+    try:
+        from ..blender import ops_demo                 # the demo project (task 0077)
+        ops_demo.draw_help(self.layout)
+    except Exception as exc:  # noqa: BLE001 - never break the Help menu
+        print("Fresing Render: demo project menu:", exc)
 
 
 def _add_help_entry() -> None:

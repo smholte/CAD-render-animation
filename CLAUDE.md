@@ -274,6 +274,15 @@ fresing_render/            the Blender extension (Python package)
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
                            ui_tour.py (the Test tour panel, only in a tour project, on top of the Fresing tab)
+    demo.py                demo project "Cable-lay vessel" (task 0077): Help > Make demo project; a background Blender
+                           runs the model maker, imports, makes 415 joints (a "Cable travel" slide joint the cable-turned
+                           rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it
+                           can do today" as a list of named **stages** (``@stage``; tasks 0078–0082 add or replace one);
+                           ops_demo.py (Make, Cancel = kill the build's program tree + delete the folder, Open)
+  demo_model/              the model maker of the demo (tasks 0076, 0084; moved here from tools/ in task 0077), no Blender:
+                           params.py one parameter set, route.py the route maths + positions, geom.py shapes + scene tree +
+                           STEP writer, machines.py, deck.py (the deck machines), layout.py (files, sheets: demo_cable_route.json,
+                           demo_joints.json), make.py = the command line, run as its own program with Blender's Python
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
   update_helper.py         installs a downloaded update while Blender is closed, starts the app again
   queue_runner.py          runs queued renders inside a background Blender
@@ -298,12 +307,8 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
-                           make_demo_cable_lay.py + demo_cable_lay/ (tasks 0076, 0084: the invented cable-lay vessel
-                           spread laid out as the owner works – side lanes, the cable's oval through both tensioners and
-                           round the D-quadrant, quadrant handler, arch, CPS store, quay file; STEP files +
-                           demo_cable_route.json + demo_joints.json written at run time, too big to commit; params.py one
-                           parameter set, route.py the route maths + positions, geom.py shapes + scene tree + writer,
-                           machines.py, deck.py (the deck machines), layout.py, pictures.py renders it with the app)
+                           make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
+                           fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
@@ -699,6 +704,14 @@ the release → Delete); the next run on `main` publishes it again.
 - A STEP part whose shape is several solids (a compound of boxes) comes back from the importer **without its colour**
   (OpenCascade's writer puts the colour on each solid, the reader on sub-shapes): its frames rendered in the group's
   default colour (task 0076). Test models make every part one solid (`fuse`, a pipe swept along a route);
-  `tools/demo_cable_lay/geom.write_step` refuses anything else.
+  `fresing_render/demo_model/geom.write_step` refuses anything else.
 - A ruled loft between hull stations meshes light (0.3 M triangles at Normal); a smooth loft of the same stations gave
   1.4 M, because Normal caps the facet gap at 0.5 mm on big parts (task 0074).
+- `cameras.add_camera` sets the camera's rotation mode to quaternions: setting `rotation_euler` afterwards does nothing
+  (the demo's saved cameras looked away from the vessel). Place a camera with `matrix_world` (task 0077).
+- `clash.split_long` cut every face longer than 25 mm by halving it at its longest edge: a sliver 60 m long became
+  3^10 pieces, a vessel's deck and hull billions, and the clash check ran out of memory. Since task 0077 a long thin
+  face is cut into a strip (about 2 x length / 25 mm pieces), a wide face stays whole, and a mesh past
+  `MESH_BUDGET` is cut coarser.
+- `joints.create` and `joints.set_follows` each update the whole scene once, even inside `joints._batch`: 0.1 s
+  per call on the 1,250-part demo vessel, 75 s for its 415 joints (task 0077; Motion lane open point).

@@ -308,28 +308,58 @@ def closest_on_triangles(p: np.ndarray, tri: np.ndarray) -> np.ndarray:
     return out
 
 
+THIN = 4.0              # a face is cut until its pieces are no longer than THIN x its own width (task 0077)
+MESH_BUDGET = 600_000   # about this many pieces per mesh at most: a bigger one is cut coarser (task 0077)
+
+
 def split_long(verts: np.ndarray, tris: np.ndarray, longest: float = 25 * MM, rounds: int = 16) -> tuple:
-    """The mesh with every triangle whose longest edge is longer than ``longest`` cut in two at that edge's middle,
-    again and again (the vertices are not shared: fine for a search tree). Blender's 32-bit nearest-point search is
-    millimetres off on the long thin faces CAD meshes have (a face 1 m long and 2.5 mm wide)."""
+    """The mesh with every long thin triangle cut into a strip of short ones, the pieces no longer than ``longest``
+    or ``THIN`` x the face's own width, whichever is more (the vertices are not shared: fine for a search tree; the
+    surface and each face's side stay exactly the same). Blender's 32-bit nearest-point search is millimetres off on
+    the long thin faces CAD meshes have (a face 1 m long and 2.5 mm wide: cut to 25 mm); a wide face has no trouble.
+    A mesh that would still become more than about ``MESH_BUDGET`` pieces is cut coarser: a vessel's 120 m deck and
+    hull have faces 60 m long and millimetres wide, and cut to 25 mm by halving (as before task 0077) they became
+    billions of pieces and the check ran out of memory. ``rounds`` is kept for old callers (unused)."""
     tri = verts[tris]                                                    # (N, 3, 3)
-    for _r in range(rounds):
-        e = np.linalg.norm(tri - np.roll(tri, -1, axis=1), axis=2)      # edge k: corner k -> corner k+1
-        k = np.argmax(e, axis=1)
-        long_ = e[np.arange(len(tri)), k] > longest
-        if not np.any(long_):
+    if not len(tri):
+        return tri.reshape(-1, 3), np.zeros((0, 3), dtype=np.int64)
+    e = np.linalg.norm(tri - np.roll(tri, -1, axis=1), axis=2)          # edge k: corner k -> corner k+1
+    k = np.argmax(e, axis=1)
+    length = e[np.arange(len(tri)), k]
+    area2 = np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+    width = THIN * area2 / np.maximum(length, 1e-12)
+    target = np.maximum(longest, width)
+    for _k in range(12):                                                 # a huge mesh: coarser, within the budget
+        pieces = float(np.sum(2.0 * np.ceil(length / target)))
+        if pieces <= MESH_BUDGET:
             break
-        t = tri[long_]
-        kk = k[long_]
-        i0 = kk
-        i1 = (kk + 1) % 3
-        i2 = (kk + 2) % 3
-        r = np.arange(len(t))
-        p0, p1, p2 = t[r, i0], t[r, i1], t[r, i2]
-        m = (p0 + p1) / 2.0
-        first = np.stack([p0, m, p2], axis=1)                            # same turning sense as (p0, p1, p2)
-        second = np.stack([m, p1, p2], axis=1)
-        tri = np.concatenate([tri[~long_], first, second])
+        longest *= min(4.0, pieces / MESH_BUDGET)
+        target = np.maximum(longest, width)
+    n = np.ceil(length / target - 1e-9).astype(np.int64)
+    cut = n > 1
+    out = [tri[~cut]]
+    for nn in np.unique(n[cut]):
+        sel = np.flatnonzero(cut & (n == nn))
+        r = np.arange(len(sel))
+        kk = k[sel]
+        p0, p1, p2 = tri[sel, kk], tri[sel, (kk + 1) % 3], tri[sel, (kk + 2) % 3]   # p0 -> p1 the longest edge
+        u = np.arange(nn + 1) / nn
+        a = p0[:, None] + (p1 - p0)[:, None] * u[None, :, None]          # (S, n+1, 3) along the longest edge
+        l1 = np.linalg.norm(p2 - p0, axis=1)
+        l2 = np.linalg.norm(p1 - p2, axis=1)
+        n1 = np.clip(np.rint(nn * l1 / np.maximum(l1 + l2, 1e-12)), 1, nn - 1).astype(np.int64)
+        i = np.arange(nn + 1)[None, :]
+        f1 = np.minimum(i / n1[:, None], 1.0)                            # along p0 -> p2, then p2 -> p1
+        f2 = np.clip((i - n1[:, None]) / (nn - n1)[:, None], 0.0, 1.0)
+        b = np.where((i <= n1[:, None])[..., None], p0[:, None] + (p2 - p0)[:, None] * f1[..., None],
+                     p2[:, None] + (p1 - p2)[:, None] * f2[..., None])
+        t1 = np.stack([a[:, :-1], a[:, 1:], b[:, :-1]], axis=2)          # same turning sense as (p0, p1, p2)
+        t2 = np.stack([a[:, 1:], b[:, 1:], b[:, :-1]], axis=2)
+        out += [t1.reshape(-1, 3, 3), t2.reshape(-1, 3, 3)]
+        del r
+    tri = np.concatenate(out)
+    area = np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+    tri = tri[area > 0.0]                                                # the strip's two end pieces are points
     v = tri.reshape(-1, 3)
     return v, np.arange(len(v)).reshape(-1, 3)
 

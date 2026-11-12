@@ -1,4 +1,4 @@
-"""Tasks 0076 + 0084: the invented cable-lay vessel spread (tools/make_demo_cable_lay.py, tools/demo_cable_lay/).
+"""Tasks 0076 + 0084: the invented cable-lay vessel spread (tools/make_demo_cable_lay.py, fresing_render/demo_model/).
 
 Task 0084 re-laid the deck the way the owner works: side lanes A (starboard) and B (port) with V roller highways, the
 quadrant's middle lane with rails, a lower path beside and below side A; the cable's oval runs through both
@@ -17,10 +17,10 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-sys.path.insert(0, os.path.join(ROOT, "tools"))
+sys.path.insert(0, ROOT)
 
-from demo_cable_lay import route as rt  # noqa: E402
-from demo_cable_lay.params import Params  # noqa: E402
+from fresing_render.demo_model import route as rt  # noqa: E402
+from fresing_render.demo_model.params import Params  # noqa: E402
 
 TRIANGLE_BUDGET = 3_000_000           # placed triangles of the whole assembly at Normal detail
 SIZES = [50.0, 120.0, 200.0, 350.0, 500.0]
@@ -49,7 +49,7 @@ def test_oval_route_respects_mbr_and_is_smooth(d):
     # from the carousel to under the water behind the stern
     assert r.segments[0].start[0] > pos["tower_x"] and r.end[2] < 0 and r.end[0] < 0
     # the other routes too: the quay's loading route, the CPS slide, the cable's end at the core
-    others = [rt.quay_route(p, pos, __import__("demo_cable_lay.layout", fromlist=["x"]).quay_positions(p, pos)),
+    others = [rt.quay_route(p, pos, __import__("fresing_render.demo_model.layout", fromlist=["x"]).quay_positions(p, pos)),
               rt.cps_slide_route(p, pos), rt.core_end_route(p, pos["coil_in"], p.turntable_t + p.cable_r)]
     for o in others:
         _smooth(o)
@@ -182,7 +182,7 @@ def test_lebus_crossover_and_pads_from_the_parameters():
 @pytest.fixture(scope="module")
 def made(tmp_path_factory):
     pytest.importorskip("OCP")
-    from demo_cable_lay import layout
+    from fresing_render.demo_model import layout
     from fresing_render.importer import step_reader
     out = str(tmp_path_factory.mktemp("demo"))
     S = layout.write(out, Params(), log=lambda *_: None)
@@ -217,7 +217,7 @@ def _world(info, i):
 
 
 def _shapes(S):
-    from demo_cable_lay import geom as g
+    from fresing_render.demo_model import geom as g
     by_name = {}
     for key in ("assembly", "quay_loading"):
         for node, *_ in g.walk(S.files[key]):
@@ -362,7 +362,7 @@ def test_rollers_about_1500_apart_on_the_straights(made):
     S = made["S"]
     pos = S.pos
     main = S.routes["main"]
-    from demo_cable_lay.layout import _samples, _where
+    from fresing_render.demo_model.layout import _samples, _where
     pts, ss = _samples(main, 100.0)
     quay_pts, _ = _samples(S.routes["quay_loading"], 100.0)
     machines = [(pos["tensioners"][0], rt.TENSIONER_HALF + 300.0), (pos["engine_x"], rt.ENGINE_HALF + 300.0)]
@@ -412,8 +412,8 @@ def test_tensioner_pads_rubber_v_on_steel_plates(made):
     from OCP.TopAbs import TopAbs_FACE, TopAbs_REVERSED
     from OCP.TopExp import TopExp_Explorer
     from OCP.TopoDS import TopoDS
-    from demo_cable_lay import geom as g
-    from demo_cable_lay import machines as mm
+    from fresing_render.demo_model import geom as g
+    from fresing_render.demo_model import machines as mm
     p = Params()
     tens = made["route"]["tensioners"]
     for t in tens:

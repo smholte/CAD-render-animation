@@ -1,6 +1,6 @@
 """Pictures of the demo cable-lay spread (tasks 0076, 0084) with the app's own importer, surroundings and Cycles.
 
-    ~/venv/bin/python tools/demo_cable_lay/pictures.py <demo_cable_lay.step> <out folder> [--width 960] [--quality draft]
+    ~/venv/bin/python tools/demo_cable_lay_pictures.py <demo_cable_lay.step> <out folder> [--width 960] [--quality draft]
                       [--only overview,stern,tensioners,arch,cps,quadrant,quay] [--also demo_quay_loading.step]
                       [--prefix 0084]
 
@@ -18,7 +18,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(os.path.dirname(HERE))
+REPO = os.path.dirname(HERE)
 
 # camera (m) -> target (m), lens (mm): model coordinates (x to the bow, transom at 0, y to port, z up)
 VIEWS = {

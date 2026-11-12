@@ -704,12 +704,16 @@ def joint_sheet(S: Scene) -> dict:
     }
 
 
-def write(out_dir: str, p: Params | None = None, log=print) -> Scene:
+def write(out_dir: str, p: Params | None = None, log=print, only: tuple = (), progress=None) -> Scene:
+    """Write the files (``only``: these keys of FILES, else all) and the two sheets. ``progress(done, total)`` is
+    called before each file (the app's demo project shows "Writing the model 2/3")."""
     os.makedirs(out_dir, exist_ok=True)
-    S = build(p)
-    for key, fname in FILES.items():
-        if key not in S.files:
-            continue
+    S = build(p, with_lebus=not only or "drum_lebus" in only)
+    keys = [k for k in FILES if k in S.files and (not only or k in only)]
+    for i, key in enumerate(keys):
+        fname = FILES[key]
+        if progress:
+            progress(i, len(keys))
         t = time.time()
         g.write_step(S.files[key], os.path.join(out_dir, fname))
         S.timings["write " + fname] = time.time() - t

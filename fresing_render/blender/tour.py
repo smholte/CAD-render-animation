@@ -1888,6 +1888,33 @@ stop("shapes", OUT, HUB_SET, "Upright 9:16 and square 1:1",
      where="5 Scene & Render > Image size & render (Shape)", check=_check_shapes)
 
 
+
+def _check_demo(scene):
+    """The demo project (task 0077): never made inside the tour (it takes minutes); read its summary if it is there."""
+    from .. import __version__
+    from . import demo
+    folder = demo.default_folder()
+    if not demo.exists(folder, __version__):
+        return "No demo project for this version yet: Help > Make demo project first"
+    info = demo.read_summary(folder, __version__)
+    _check(info.get("joints", 0) >= demo.MIN_JOINTS,
+           f"the demo project has {info.get('joints', 0)} joints, not {demo.MIN_JOINTS}")
+    _check(60.0 <= info.get("seconds", 0) <= 80.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
+    with open(demo.project_path(folder, __version__), "rb") as fh:
+        head = fh.read(7)
+    _check(head == b"BLENDER" or head[:4] == b"\x28\xb5\x2f\xfd", "the demo project file is not a Blender file")
+    return (f"demo project {__version__}: {info['joints']} joints, '{demo.ANIM}' {info['seconds']:.0f} s "
+            f"({info['frames']} frames)")
+
+
+stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
+     "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
+     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 415 joints "
+     "(307 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay', and 6 Animation "
+     "> 'What it can do today' plays a 78 s video (Build & play). This stop only checks that the demo is there.",
+     where="Help menu (Make demo project…, Open demo project)", since="0.2.63", shot="Tour view", check=_check_demo,
+     auto=lambda ctx, scene, st: "")
+
 # ---------------------------------------------------------------------------
 # building the tour
 # ---------------------------------------------------------------------------

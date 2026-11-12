@@ -523,5 +523,11 @@ def run_from_argv(argv: list | None = None) -> core.Run:
         if code:
             raise SystemExit(code)
         return None
+    if extra and extra[0].strip().lower() == "demobuild":       # Help > Make demo project (task 0077)
+        from ..blender import demo
+        code = demo.build_main(extra[1] if len(extra) > 1 else "", small="small" in extra[2:])
+        if code:
+            raise SystemExit(code)
+        return None
     args = core.parse_args(extra)
     return run(args["mode"], args["desktop"], args["model"])

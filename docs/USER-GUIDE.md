@@ -2018,6 +2018,45 @@ and bigger pictures.
 
 **More**: **Show the tour folder**, **Make the tour again…**.
 
+<a id="demo"></a>
+## Demo project – an invented cable-lay vessel
+
+The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
+vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
+engine, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,250 parts). It is
+**not** a real vessel or anyone's design: the app draws it itself, from general sizes.
+
+<img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
+
+**Make it (once per version)**
+1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
+   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/307", "Animation"). You can keep
+   working.
+2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
+3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
+   your own project first: changes that are not saved are lost when another project opens.
+
+It goes to **Documents\Fresing Render\Demo\<version>**: the project "Demo cable-lay vessel <version>.blend" and a
+folder "model" with the STEP files the app drew. Making it again replaces the demo of this version.
+
+**What is in it** – set up the way you would, with the app's own buttons:
+- **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
+- **4 Motion:** 307 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+  follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
+  support rollers follow the carousel, the quadrant's rail wheels its travel; the tensioners' top tracks lift and
+  tilt (a stack); the quadrant handler's two **cylinders** follow its tilt.
+- **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
+  each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
+  brand kit "Demo".
+- **6 Animation > What it can do today** (about 80 s with the title and end card): a flight round the vessel, the
+  deck from above, the carousel and the arch (× 10 time-lapse), the rollers turning with the cable, a tensioner
+  opening and squeezing, then X-ray with labels, a winch drum close-up with a blurred background, and the quadrant
+  travelling aft, the handler tilting over the stern and the quadrant tipping. The captions say where it runs
+  faster than real. Click **Build & play**, or put it in the render queue.
+
+The moving cable, the tensioner tracks running, the cable spooling and the cable going into the sea come in later
+updates: they are added to this same demo.
+
 <a id="tips"></a>
 ## Tips
 

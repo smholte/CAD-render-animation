@@ -1,6 +1,6 @@
 """Write the invented cable-lay vessel spread (tasks 0076, 0084) as STEP files + two JSON sheets into a folder.
 
-    python tools/make_demo_cable_lay.py <out folder> [--cable-d 200]
+    python tools/make_demo_cable_lay.py <out folder> [--cable-d 200] [--only assembly,quay_loading]
 
 Files (AP214, part names and colours, mm, waterline z = 0, transom at x = 0, x to the bow, y to port):
   demo_cable_lay.step          everything placed, the owner's deck layout (task 0084): vessel, carousel (flat coil
@@ -25,30 +25,21 @@ Files (AP214, part names and colours, mm, waterline z = 0, transom at x = 0, x t
                                route), what they lie on, sheaves, tracks, ropes, quadrant, arch, CPS store, quay
   demo_joints.json             every joint a set-up should make (task 0077 makes them by script)
 
-Nothing of it is a real vessel or a company's design. The files are big (tens of MB): they are made at run time,
+The model maker ships with the app (task 0077): ``fresing_render/demo_model/`` (``make.py`` is the same command;
+``--only assembly,quay_loading`` writes only those files). Nothing of it is a real vessel or a company's design. The files are big (tens of MB): they are made at run time,
 not kept in the repository. Needs OpenCascade (OCP), as the other tools/make_test_*.py.
 """
 
-import argparse
 import os
 import sys
-import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from demo_cable_lay import layout  # noqa: E402
-from demo_cable_lay.params import Params  # noqa: E402
+from fresing_render.demo_model import make  # noqa: E402
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("out", help="folder to write into (made if missing)")
-    ap.add_argument("--cable-d", type=float, default=200.0, help="cable Ø in mm (50 … 500)")
-    a = ap.parse_args(argv)
-    t = time.time()
-    S = layout.write(a.out, Params(cable_d=a.cable_d))
-    print(f"done in {time.time() - t:.0f} s: " + ", ".join(f"{k} {v:.1f} s" for k, v in S.timings.items()))
-    return 0
+    return make.main(argv)
 
 
 if __name__ == "__main__":

@@ -633,3 +633,56 @@ def own_heavy_video(ctx):
     ctx.metric("per frame", total / max(1, len(frames)), "s/frame")
     _memory(ctx)
     return None
+
+
+# ---------------------------------------------------------------------------
+# the demo project (task 0077)
+# ---------------------------------------------------------------------------
+
+@line("heavy.demo", "Demo project: cable-lay vessel", "0.2.63", (H,), expected=300,
+      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 415 "
+           "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
+           "animation",
+      shows="How long the demo takes to make on this PC, the Build time of its animation, the time per frame while "
+            "you scrub it (1,250 parts, 300 joints turning), and the memory it needs",
+      not_shown="The demo's video rendered in full (render it from the queue: 7 Render queue)")
+def heavy_demo(ctx):
+    import bpy
+
+    from ..blender import animation, demo, render, states
+    z = sizes()
+    folder = os.path.join(ctx.work, "demo")
+    t0 = time.time()
+    out = demo.build_project(folder, "pccheck", small=small())
+    ctx.loaded = ("", "")                                   # the PC check's project was replaced
+    make = time.time() - t0
+    ctx.metric("make", make, "s")
+    for k in ("write", "import", "joints", "build"):
+        if k in out["timings"]:
+            ctx.metric(k, out["timings"][k], "s")
+    bpy.ops.wm.open_mainfile(filepath=out["path"])
+    scene = bpy.context.scene
+    s = scene.fresing
+    _check(len(s.joints) >= demo.MIN_JOINTS, f"the demo has {len(s.joints)} joints, not {demo.MIN_JOINTS}")
+    a = s.animations.get(demo.ANIM)
+    _check(a is not None, f"the demo has no animation '{demo.ANIM}'")
+    t0 = time.time()
+    animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    frames = list(range(scene.frame_start, scene.frame_end + 1, max(1, (scene.frame_end - scene.frame_start) // 40)))
+    t0 = time.time()
+    for f in frames:
+        scene.frame_set(f)
+    per = (time.time() - t0) / max(1, len(frames))
+    ctx.metric("per frame", per, "s/frame")
+    states.apply_shot(scene, demo.SEA_SHOT)
+    scene.frame_set(scene.frame_start)
+    _output(s, z["w"], z["h"])
+    s.use_gpu = ctx.has_gpu
+    path = os.path.join(ctx.work, "demo_overview.png")
+    info = render.render_still(scene, s, z["still_quality"][0], filepath=path)
+    ctx.metric("render", info["seconds"], "s")
+    ctx.picture(path, "demo_overview", "Demo project: the vessel on the open sea")
+    _memory(ctx)
+    _check(per < 5.0, f"a frame of the demo animation takes {per:.1f} s: far too slow")
+    return f"{len(s.joints)} joints, '{demo.ANIM}' {scene.frame_end} frames, {per * 1000:.0f} ms per frame"
