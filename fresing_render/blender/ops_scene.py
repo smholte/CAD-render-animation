@@ -8,7 +8,7 @@ from bpy.props import EnumProperty
 
 from ..core import studio
 from ..core import surroundings as env
-from . import build, cameras, turntable, world
+from . import build, cameras, hover, turntable, world
 
 
 def _redraw(context) -> None:
@@ -69,26 +69,28 @@ class FRESING_OT_focus_pick(bpy.types.Operator):
             self.report({"WARNING"}, "This is the animation's own camera: pick one of your cameras above first")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set(
-            "Click the spot on the machine that should be sharp.  Esc / right-click: cancel.  "
-            "Middle mouse / scroll: move the view")
+        hover.start(context, self, "Click the spot on the machine that should be sharp.  Esc / right-click: cancel.  "
+                                   "Middle mouse / scroll: move the view", point=True,
+                    note=lambda ob, name, *_a: f"Sharp spot here – {name}")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         if res is None or res[0].get(build.PROP_KIND) != "part":
-            context.workspace.status_text_set("Missed the machine: click a part. Esc: cancel")
+            hover.prompt(context, "Missed the machine: click a part. Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         self._end(context)

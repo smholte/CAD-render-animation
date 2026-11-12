@@ -1259,7 +1259,7 @@ def motion_fade(ctx):
     return f"{note}; fading frame {times['fade']:.1f} s vs {times['plain']:.1f} s without ({ratio:.2f}x)"
 
 
-@line("motion.hover", "Hover highlight when picking an axis", "0.2.63",
+@line("motion.hover", "Hover highlight when picking", "0.2.63",
       what="20 spots on the test crane (holes, shafts, flat faces) worked out as the mouse would: the face that lights "
            "up is the CAD face the click then uses, with the same axis; the time per mouse move")
 def motion_hover(ctx):
@@ -1302,6 +1302,22 @@ def motion_hover(ctx):
     _check("flat" in kinds and kinds & {"hole", "shaft"}, f"not every kind of face was tried: {sorted(kinds)}")
     h = hover.look(scene, dg, Vector((0, 0, 50)), Vector((0, 0, 1)))
     _check(not h.part, "empty space lit up as a part")
+    # the point pickers (task 0089): same part and face as the click, a dot where it lands
+    pts = 0
+    for ob in parts[:12]:
+        starts = faces.face_starts(ob.data)
+        poly = ob.data.polygons[int(starts[0])]
+        n = (ob.matrix_world.to_3x3().inverted().transposed() @ poly.normal).normalized()
+        origin, direction = ob.matrix_world @ poly.center + n * 0.0005, -n
+        part, index, loc, _nrm = hover.cast(scene, dg, origin, direction)
+        if part is not ob or index != poly.index:
+            continue
+        hp = hover.look_point(scene, dg, origin, direction, lambda o, name, *_a: f"Spot on {name}")
+        _check(hp.part == ob.name and hp.face == faces.face_of_polygon(ob.data, index) and hp.point is not None
+               and (hp.point - loc).length < 1e-9 and hp.text.startswith("Spot on "),
+               f"{ob.name}: the point highlight is not where the click lands")
+        pts += 1
+    _check(pts >= 3, f"only {pts} point spots could be reached")
     ctx.metric("time per mouse move (median)", round(statistics.median(times), 2), "ms")
     ctx.metric("time per mouse move (slowest)", round(max(times), 2), "ms")
     return f"{spots} spots right ({', '.join(sorted(kinds))}); {statistics.median(times):.2f} ms per mouse move"

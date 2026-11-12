@@ -461,7 +461,8 @@ sticker, moves with its part (joints, animations, exploded views) and hides with
    Unticked, every copy of the part gets it (a type plate on a bought motor).
 3. Click **Add decal…**, then click the spot on the model where its centre goes. It lands flat on
    that face, upright. On a round face (a cylinder barrel, a drum, a tank) it wraps round like a real
-   sticker. <kbd>Esc</kbd> or a right-click cancels.
+   sticker. Before you click, the face under the mouse lights up and the note says "lies flat" or "wraps round".
+  <kbd>Esc</kbd> or a right-click cancels.
 
 Click a part to see its decals. The dot opens a decal's settings, the eye switches it off (it is kept,
 but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> brings it back).
@@ -637,9 +638,11 @@ through a hole's or shaft's centre, or an arrow standing on a flat face. Next to
 bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
 centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
 empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
-same happens for a cylinder's pins and the double arm's hub and pot hinge. It is only drawn in the view:
-never in a render or in the project. Switch it off under Edit > Preferences > Add-ons > Fresing Render >
-"Highlight the face under the mouse when picking an axis".
+same happens for a cylinder's pins and the double arm's hub and pot hinge. Every other click on the model
+works the same way (the sharp spot, a label's point, a decal, a trail point, the CNC zero, an air or coolant
+nozzle, a tool-changer pocket): the face lights up, a dot sits where the click lands and a short note says
+what the click does. It is only drawn in the view: never in a render or in the project. Switch it off under
+Edit > Preferences > Add-ons > Fresing Render > "Highlight what is under the mouse when picking".
 
 <img class="small" src="img/view_hover.png" alt="Add rotate joint: the pedestal's bore lit up in magenta with its axis line">
 
@@ -1187,7 +1190,7 @@ writes for the machine (Fusion: Manufacture > Post Process with the LinuxCNC pos
 4. Click the workpiece (the raw block) and press **Workpiece**.
 5. **Work zero**: the same point as in the CAM set-up (Fusion: Setup > WCS) – the top centre or a top
    corner of the block, its bottom centre, or **Clicked point** with **Click the zero point** (a click near
-   a corner snaps onto it). Arrows "FR work zero" show it on the block.
+   a corner snaps onto it; the face under the mouse lights up first). Arrows "FR work zero" show it on the block.
 
 The lines under it say what the app worked out, for example "Y: 'Y' moves the workpiece" for a table that
 moves. The program's **+X** always means: the tool moves towards +X *relative to the workpiece* (the CNC
@@ -1637,7 +1640,7 @@ For the active camera:
 - **Sharp at**: the middle of the machine, until you click the eyedropper and then the spot that
   should be sharp (for example the gripper). A small ball marks it in the view; in pictures it moves
   with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
-  middle sharp again.
+  middle sharp again. The face under the mouse lights up while you choose.
 
 ### Turntable video
 
@@ -1707,7 +1710,8 @@ A label is a few words in a box with a thin line to a spot on a part: "Gripper",
 
 <img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
 
-1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.)
+1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.
+   The face under the mouse lights up with the part's name before you click.)
 2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
 3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
    place it.
@@ -1918,7 +1922,7 @@ A line that draws where a point of the machine goes: the hook of a crane, the ti
 1. Select the part, open 6 Animation > **Trail lines** and click **+**. A milling bit or CNC tool draws from its
    tip; other parts from their origin.
 2. **Point**: **Part's origin**, **Tool tip**, or **Clicked point** (then **Click the point…** and click the
-   spot on the part, e.g. the hook's eye).
+   spot on the part, e.g. the hook's eye; the face lights up first).
 3. **Animation**: the animation that draws it (empty: every animation). **Colour** and **Thickness**.
 4. **Draw as it goes**: the line grows behind the point as the video plays; off, the whole path shows from the
    first frame. **In pictures and videos**: off, the line shows only in the view.

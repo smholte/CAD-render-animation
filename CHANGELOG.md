@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.66 – 12 Nov 2026 – the face lights up for every click (task 0089)
+
+Picking
+- **Every click on the model now shows what it will hit before you click**, as the axis pickers already did: the
+  face under the mouse turns magenta, a dot marks where the click lands and a short note says what it does. For the
+  **sharp spot**, a **label's point** (add and move), a **trail point**, the **CNC work zero**, the **air** and
+  **coolant nozzle**, **tool-changer pockets** and **Add decal** ("lies flat" or "wraps round"). A spot the click would
+  refuse (the tool as a workpiece, the workpiece as a nozzle) turns red and says why. The clicks themselves do what
+  they did. The preference is now called "Highlight what is under the mouse when picking" (your setting is kept).
+
 ## 0.2.65 – 12 Nov 2026 – vessel motion at sea (task 0085)
 
 Scene & Render

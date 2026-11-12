@@ -204,6 +204,118 @@ def test_overlay_leaves_the_project_alone(scene, tmp_path):
     assert hover.current() is None and not hover._S["handles"]
 
 
+# ---------------------------------------------------------------------------
+# task 0089: the point pickers
+# ---------------------------------------------------------------------------
+
+def look_point(sc, origin, direction, note=None, refuse=None):
+    return hover.look_point(sc, bpy.context.evaluated_depsgraph_get(), origin, direction, note, refuse)
+
+
+def spot(scene):
+    pin = ob(scene, "BOOM.PIN")
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    return pin, origin, direction
+
+
+def test_point_hover_shows_face_dot_and_note_of_the_click(scene):
+    pin, origin, direction = spot(scene)
+    h = look_point(scene, origin, direction, note=lambda part, name, face, loc, n: f"Sharp spot here – {name}")
+    part, index, loc, _normal = hover.cast(scene, bpy.context.evaluated_depsgraph_get(), origin, direction)
+    assert h.part == part.name == pin.name and h.kind == "point" and not h.ends
+    assert h.face == faces.face_of_polygon(part.data, index) and h.tris[0] <= index < h.tris[1]
+    assert (h.point - loc).length < 1e-9                    # the dot sits where the click lands
+    assert h.text == f"Sharp spot here – {pin.get(build.PROP_NAME)}"
+
+
+def test_point_hover_empty_space_and_refusal(scene):
+    h = look_point(scene, Vector((0, 0, 50)), Vector((0, 0, 1)))
+    assert not h.part and h.text.startswith("Not a part") and h.point is None
+    _pin, origin, direction = spot(scene)
+    h = look_point(scene, origin, direction, refuse=lambda part, loc, n: "that is the tool")
+    assert h.refused == "that is the tool" and h.text.endswith(": that is the tool")
+
+
+def test_a_failing_note_never_breaks_the_pick(scene):
+    _pin, origin, direction = spot(scene)
+
+    def boom(*_a):
+        raise RuntimeError("x")
+    h = look_point(scene, origin, direction, note=boom, refuse=boom)
+    assert h.part and h.refused == "x"
+
+
+def test_decal_note_says_flat_or_wraps_round(scene):
+    from fresing_render.blender import decals, ops_decals
+    pin = ob(scene, "BOOM.PIN")
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    h = look_point(scene, origin, direction, note=ops_decals._decal_note)
+    assert h.text.startswith("Decal on ") and h.text.endswith("wraps round")
+    assert decals.wraps_round(pin, h.face)
+    flat = None
+    for p in scene.objects:
+        if p.get(build.PROP_KIND) != "part" or p.type != "MESH":
+            continue
+        starts = faces.face_starts(p.data)
+        for f in range(len(starts) - 1):
+            if not decals.wraps_round(p, f):
+                flat = (p, f)
+                break
+        if flat:
+            break
+    assert flat is not None
+    p, f = flat
+    n = ops_decals._decal_note(p, "X", f, Vector(), Vector())
+    assert n == "Decal on X – lies flat"
+
+
+@pytest.mark.parametrize("module,cls", [
+    ("ops_scene", "FRESING_OT_focus_pick"), ("ops_callouts", "_PickPart"), ("ops_gcode", "FRESING_OT_cnc_zero_click"),
+    ("ops_gcode", "FRESING_OT_cnc_air_click"), ("ops_gcode", "FRESING_OT_cnc_pocket_click"),
+    ("ops_coolant", "FRESING_OT_cnc_coolant_click"), ("ops_decals", "FRESING_OT_decal_add")])
+def test_every_click_picker_uses_the_hover_helper(module, cls):
+    """Start in invoke, the mouse moves first in modal, the click through hover.pick, end on every way out."""
+    import importlib
+    import inspect
+    mod = importlib.import_module(f"fresing_render.blender.{module}")
+    klass = getattr(mod, cls)
+    src = inspect.getsource(klass)
+    for needed in ("hover.on_event(self, context", "hover.end(self, context"):
+        assert needed in src, (cls, needed)
+    assert "hover.start(" in src or "hover.start(" in inspect.getsource(mod)
+    if cls != "FRESING_OT_decal_add":
+        assert "hover.pick(context, event)" in src and "_raycast(" not in src, cls
+
+
+def test_no_picker_still_raycasts_by_itself():
+    import fresing_render.blender as pkg
+    for name in ("ops_scene", "ops_callouts", "ops_gcode", "ops_coolant", "ops_fade"):
+        src = open(os.path.join(os.path.dirname(pkg.__file__), name + ".py"), encoding="utf-8").read()
+        assert "_raycast(context" not in src, name
+
+
+def test_point_pick_starts_and_ends_without_a_draw_handler(scene):
+    op = object()
+    hover.start(bpy.context, op, "Click a spot", point=True, note=lambda *a: "x")
+    assert hover.active() and hover._S["point"]
+    pin, origin, direction = spot(scene)
+    hover._S["hover"] = look_point(scene, origin, direction)
+    hover.end(op)
+    assert not hover.active() and hover.current() is None and not hover._S["handles"]
+    assert hover._S["point"] is False and hover._S["note"] is None
+
+
+def test_point_time_per_move_on_the_crane(scene):
+    _pin, origin, direction = spot(scene)
+    look_point(scene, origin, direction)
+    t0 = time.perf_counter()
+    for _ in range(50):
+        look_point(scene, origin, direction, note=lambda part, name, *a: name)
+    ms = (time.perf_counter() - t0) * 1000 / 50
+    print(f"point hover on the test crane: {ms:.2f} ms per move")
+    assert ms < 15
+
+
 def test_highlight_gone_after_end_undo_and_file_load(scene, tmp_path):
     op = object()
     hover.start(bpy.context, op, "Click a hole")

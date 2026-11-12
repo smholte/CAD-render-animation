@@ -407,6 +407,21 @@ def face_triangles(me, face: int) -> tuple[np.ndarray, np.ndarray]:
     return pos[lo:hi], nrm[lo:hi]
 
 
+_WRAPS: dict = {}
+
+
+def wraps_round(part, face: int) -> bool:
+    """True when a decal on this CAD face wraps round it (the face is a cylinder); cached per mesh face."""
+    me = cad_mesh(part)
+    key = (me.name, len(me.polygons), face)
+    if key not in _WRAPS:
+        pos, nrm = face_triangles(me, face)
+        if len(_WRAPS) > 2000:
+            _WRAPS.clear()
+        _WRAPS[key] = bool(len(pos)) and G.fit_cylinder(pos.reshape(-1, 3), nrm.reshape(-1, 3)) is not None
+    return _WRAPS[key]
+
+
 def frame_of(item, pos: np.ndarray, nrm: np.ndarray) -> dict:
     cyl = G.fit_cylinder(pos.reshape(-1, 3), nrm.reshape(-1, 3)) if len(pos) else None
     return G.frame(tuple(item.anchor), tuple(item.normal), tuple(item.up), cyl)

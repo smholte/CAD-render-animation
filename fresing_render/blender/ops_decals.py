@@ -10,7 +10,7 @@ import bpy
 from bpy.props import EnumProperty, StringProperty
 from mathutils import Vector
 
-from . import build, decals, files
+from . import build, decals, files, hover
 from .ops_panels import _region_under_mouse
 
 
@@ -80,6 +80,12 @@ def settings_problem(d) -> str:
     return ""
 
 
+def _decal_note(part, name, face, _loc, _normal) -> str:
+    """The hover note of Add decal: which part, and whether the decal lies flat or wraps round the face."""
+    how = "wraps round" if face >= 0 and decals.wraps_round(part, face) else "lies flat"
+    return f"Decal on {name} – {how}"
+
+
 class FRESING_OT_decal_add(bpy.types.Operator):
     """Puts the picture, text or sticker chosen above on the model: after pressing, click the spot on a part
     where its centre should be. It lands flat on that face, upright. Esc or right-click cancels"""
@@ -105,13 +111,14 @@ class FRESING_OT_decal_add(bpy.types.Operator):
             return {"CANCELLED"}
         d.placing = True
         context.window_manager.modal_handler_add(self)
-        _status(context, self._HINT)
+        hover.start(context, self, self._HINT, point=True, note=_decal_note)
         context.window.cursor_modal_set("CROSSHAIR")
         _redraw(context)
         return {"RUNNING_MODAL"}
 
     def _end(self, context, result):
         context.scene.fresing_decal.placing = False
+        hover.end(self, context)
         _status(context, None)
         context.window.cursor_modal_restore()
         _redraw(context)
@@ -119,6 +126,7 @@ class FRESING_OT_decal_add(bpy.types.Operator):
 
     def modal(self, context, event):
         d = context.scene.fresing_decal
+        hover.on_event(self, context, event)
         if not d.placing:
             return self._end(context, {"CANCELLED"})
         if event.value == "PRESS" and event.type in {"ESC", "RIGHTMOUSE"}:

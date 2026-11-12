@@ -1,9 +1,13 @@
-"""Hover highlight while picking an axis (task 0088).
+"""Hover highlight while picking (task 0088 axes, task 0089 every other click picker).
 
 While a click picker waits for its click (Add joint, Set axis, a cylinder's pins, the double arm's hub and pot hinge),
 the CAD face the click would use lights up under the mouse: the whole hole, shaft or flat face as a see-through magenta
 fill with an outline, the axis the click would give (a line through a hole's or shaft's centre, past the part on both
 ends, or an arrow square to a flat face) and a short text next to the mouse and in the status bar.
+
+The point pickers (sharp spot, label point, decal, trail point, work zero, nozzles, tool-changer pockets) use the same
+helper with ``point=True``: the face under the mouse lights up, a dot sits where the click lands and the note says what
+the click does (``note(part, name, face, location, normal)``); no axis is drawn.
 
 Only an overlay: two draw handlers of the 3D view, nothing in ``bpy.data``, never in a render or the saved file. Gone
 after Esc, right-click, a finished or refused pick, an error, undo or opening another file.
@@ -11,6 +15,7 @@ after Esc, right-click, a finished or refused pick, an error, undo or opening an
 One helper for every picker::
 
     hover.start(context, self, "Click a hole or shaft …", refuse=None)        # in invoke
+    hover.start(context, self, "Click …", point=True, note=fn, refuse=fn)     # a point picker
     hover.on_event(self, context, event)                                      # first thing in modal (mouse moves)
     hover.prompt(context, "2 of 2: …")                                        # new words for the next click
     res = hover.pick(context, event)        # the click: the same ray, the same part, face and axis as the highlight
@@ -67,6 +72,7 @@ class Hover:
     refused: str = ""               # why this picker does not take this spot
     ms: float = 0.0                 # time it took
     ends: tuple = field(default_factory=tuple)   # the axis line / arrow to draw: world points in pairs
+    point: Vector | None = None     # point pickers: where the click lands (world)
 
 
 def cast(scene, depsgraph, origin, direction):
@@ -196,6 +202,45 @@ def look(scene, depsgraph, origin, direction, refuse=None) -> Hover:
     return h
 
 
+def look_point(scene, depsgraph, origin, direction, note=None, refuse=None) -> Hover:
+    """What a click of a point picker would hit along this ray: the part, its CAD face and the spot.
+    ``note(part, name, face, location, normal)`` gives the words ("Sharp spot here"); ``refuse(part, location,
+    normal)`` returns why this picker would not take the spot ('' = fine)."""
+    t0 = time.perf_counter()
+    ob, index, loc, normal = cast(scene, depsgraph, origin, direction)
+    if index < 0:
+        what = "empty space" if ob is None else "the floor, the surroundings or a helper"
+        h = Hover(text=f"Not a part ({what})")
+        h.ms = (time.perf_counter() - t0) * 1000.0
+        return h
+    name = ob.get(build.PROP_NAME, ob.name)
+    face, tris = -1, (index, index + 1)
+    if ob.type == "MESH" and ob.data is not None:
+        n, starts, _t, _c = _mesh(ob.data)
+        if 0 <= index < n:
+            face = int(np.searchsorted(starts, index, side="right") - 1)
+            tris = (int(starts[face]), int(starts[face + 1]))
+    text = name
+    if note is not None:
+        try:
+            text = note(ob, name, face, Vector(loc), Vector(normal)) or name
+        except Exception:  # noqa: BLE001 - words must never break the pick
+            text = name
+    h = Hover(part=ob.name, face=face, tris=tris, kind="point", point=Vector(loc), text=text)
+    if refuse is not None:
+        try:
+            why = refuse(ob, Vector(loc), Vector(normal)) or ""
+        except Exception as exc:  # noqa: BLE001
+            why = str(exc)
+        if why:
+            h.refused = why
+            h.text = f"{name}: {why}"
+    if face >= 0:
+        face_shape(ob.data, face)
+    h.ms = (time.perf_counter() - t0) * 1000.0
+    return h
+
+
 # ---------------------------------------------------------------------------
 # a running pick
 # ---------------------------------------------------------------------------
@@ -232,11 +277,13 @@ def pick(context, event):
     return ob, index, loc, normal
 
 
-def start(context, op, prompt: str, refuse=None) -> None:
+def start(context, op, prompt: str, refuse=None, point: bool = False, note=None) -> None:
     """A pick starts (in its ``invoke``). ``refuse(part, origin, direction)``: '' or why this picker will not take
-    that spot (drawn in red with the reason)."""
+    that spot (drawn in red with the reason). ``point=True``: a point picker (see ``look_point``; ``refuse`` then gets
+    ``(part, location, normal)``)."""
     end(None, context)                                       # one pick at a time
-    _S.update(op=op, prompt=prompt, hover=None, mouse=None, area=0, batches={}, status=None, refuse=refuse)
+    _S.update(op=op, prompt=prompt, hover=None, mouse=None, area=0, batches={}, status=None, refuse=refuse,
+              point=point, note=note)
     _add_handlers()
     _status(context)
 
@@ -280,7 +327,11 @@ def move(context, event) -> Hover | None:
     if ray is None:
         h = None
     else:
-        h = look(context.scene, context.evaluated_depsgraph_get(), ray[1], ray[2], _S.get("refuse"))
+        if _S.get("point"):
+            h = look_point(context.scene, context.evaluated_depsgraph_get(), ray[1], ray[2], _S.get("note"),
+                           _S.get("refuse"))
+        else:
+            h = look(context.scene, context.evaluated_depsgraph_get(), ray[1], ray[2], _S.get("refuse"))
         _S["area"] = context.area.as_pointer()
     _S["hover"] = h
     _status(context)
@@ -303,7 +354,7 @@ def end(op, context=None) -> None:
     if op is not None and _S.get("op") is not op:
         return
     had = _S.get("op") is not None or _S.get("hover") is not None
-    _S.update(op=None, hover=None, mouse=None, area=0, batches={}, status=None, refuse=None)
+    _S.update(op=None, hover=None, mouse=None, area=0, batches={}, status=None, refuse=None, point=False, note=None)
     _remove_handlers()
     if had:
         _redraw()
@@ -413,6 +464,13 @@ def _draw_view() -> None:
                 _lines(line, hit[1], DARK, 4.0)
                 _lines(line, hit[1], (*col, 1.0), 2.0)
             gpu.matrix.pop()
+        if h.point is not None:                              # the spot the click lands on: a dot with a dark ring
+            flat = gpu.shader.from_builtin("UNIFORM_COLOR")
+            dot = [tuple(h.point)]
+            for size, c in ((14.0, DARK), (9.0, (*col, 1.0))):
+                gpu.state.point_size_set(size)
+                flat.uniform_float("color", c)
+                batch_for_shader(flat, "POINTS", {"pos": dot}).draw(flat)
         if h.ends:
             pts = [tuple(p) for p in h.ends]
             line = gpu.shader.from_builtin("POLYLINE_UNIFORM_COLOR")

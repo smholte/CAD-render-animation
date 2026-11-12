@@ -8,7 +8,7 @@ import bpy
 from bpy.props import FloatVectorProperty, StringProperty
 
 from ..core import callouts as C
-from . import animation, build, callouts
+from . import animation, build, callouts, hover
 
 
 def _redraw(context) -> None:
@@ -20,7 +20,10 @@ def _redraw(context) -> None:
 class _PickPart:
     """Shared by the two operators that ask for a click on a part."""
 
+    _NOTE = "Point here"            # what the click does, for the hover note; "{name}" is the part's name
+
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
@@ -29,20 +32,21 @@ class _PickPart:
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set(text)
+        hover.start(context, self, text, point=True, note=lambda ob, name, *_a: self._NOTE.format(name=name))
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         if res is None or res[0].get(build.PROP_KIND) != "part":
-            context.workspace.status_text_set("Missed the machine: click a part. Esc: cancel")
+            hover.prompt(context, "Missed the machine: click a part. Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         self._end(context)
@@ -56,6 +60,7 @@ class FRESING_OT_callout_add(_PickPart, bpy.types.Operator):
     bl_idname = "fresing.callout_add"
     bl_label = "Add a label"
     bl_options = {"REGISTER", "UNDO"}
+    _NOTE = "Label points at {name}"
 
     part: StringProperty(name="Part", options={"SKIP_SAVE", "HIDDEN"})
     point: FloatVectorProperty(size=3, subtype="XYZ", options={"SKIP_SAVE", "HIDDEN"})
@@ -88,6 +93,7 @@ class FRESING_OT_callout_move(_PickPart, bpy.types.Operator):
     bl_idname = "fresing.callout_move"
     bl_label = "Move the point"
     bl_options = {"REGISTER", "UNDO"}
+    _NOTE = "Label point moves to {name}"
 
     @classmethod
     def poll(cls, context):

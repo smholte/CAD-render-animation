@@ -32,10 +32,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "Needs Blender's online access (System > Network)")
 
     hover_highlight: BoolProperty(
-        name="Highlight the face under the mouse when picking an axis", default=True,
-        description="While you pick an axis (Add joint, Set axis, a cylinder's pins, the double arm), the hole, shaft "
-                    "or face a click would use lights up in magenta with the axis it gives, before you click. Switch "
-                    "it off if it ever gets in the way; the clicks work the same")
+        name="Highlight what is under the mouse when picking", default=True,
+        description="While you click on the model to pick something (an axis for a joint, a cylinder's pins, the sharp "
+                    "spot, a label's point, a decal, a trail point, the CNC zero, a nozzle, a tool-changer pocket), the "
+                    "face a click would use lights up in magenta with a short note, before you click. Switch it off "
+                    "if it ever gets in the way; the clicks work the same")
 
     def draw(self, context):
         layout = self.layout

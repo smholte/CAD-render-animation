@@ -5,7 +5,7 @@ from __future__ import annotations
 import bpy
 from bpy.props import BoolProperty
 
-from . import build, coolant, gcode
+from . import build, coolant, gcode, hover
 from .ops_gcode import _CncOp
 from .ops_machining import clicked_part
 
@@ -50,27 +50,32 @@ class FRESING_OT_cnc_coolant_click(_CncOp, bpy.types.Operator):
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         context.window.cursor_modal_set("EYEDROPPER")
-        context.workspace.status_text_set("Click the spot where the coolant comes out.  Esc / right-click: cancel.  "
-                                          "Middle mouse / scroll: move the view")
+        c = gcode.settings(context.scene)
+        hover.start(context, self, "Click the spot where the coolant comes out.  Esc / right-click: cancel.  "
+                                   "Middle mouse / scroll: move the view", point=True,
+                    note=lambda ob, name, *_a: f"Coolant nozzle here – {name}",
+                    refuse=lambda ob, *_a: "that is the workpiece or the tool, not a nozzle"
+                    if ob in (c.workpiece, c.tool) else "")
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
     def _end(self, context):
+        hover.end(self, context)
         context.window.cursor_modal_restore()
         context.workspace.status_text_set(None)
 
     def modal(self, context, event):
-        from .ops_motion import _raycast, over_panel
+        from .ops_motion import over_panel
+        hover.on_event(self, context, event)
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._end(context)
             return {"CANCELLED"}
         if event.type != "LEFTMOUSE" or event.value != "PRESS" or over_panel(context, event):
             return {"PASS_THROUGH"}
-        res = _raycast(context, event)
+        res = hover.pick(context, event)
         c = gcode.settings(context.scene)
         if res is None or res[0].get(build.PROP_KIND) != "part" or res[0] in (c.workpiece, c.tool):
-            context.workspace.status_text_set("Missed: click on the nozzle (not the workpiece or the tool). Esc: "
-                                              "cancel")
+            hover.prompt(context, "Missed: click on the nozzle (not the workpiece or the tool). Esc: cancel")
             return {"RUNNING_MODAL"}
         ob, _index, loc, _normal = res
         self._end(context)
