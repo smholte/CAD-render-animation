@@ -949,7 +949,7 @@ Good to know
   as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
   any ready-made material (one that takes a colour uses the block group's colour). The line under it says
   what the cut faces show. A face of the block that is only partly cut keeps the block's look. Renders in
-  the queue show the same.
+  the queue show the same. Cut faces also show the marks of the tool: see **Tool marks** below.
 - A logo or text on the block (3 Looks > Logos & stickers) stays where it is while milling, and can be
   changed as usual.
 - After a change to the animation the cut is read again by itself (in the render queue too, before
@@ -959,6 +959,59 @@ Good to know
 - Straight moves are cheap; curved moves (arcs) cost more. Measured on the 2-core test machine with a
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
   ball Ø10, about 11 ms for a round pocket made of short pieces.
+
+#### Tool marks
+
+<img class="wide" src="img/milling_marks.jpg" alt="Close-up of the milled test block: the wide arcs of a face mill on a faced strip, a pocket with finer arcs on its floor and lines on its walls, a drilled hole with rings">
+
+A cut face shows the marks of the tool that made it, in the direction the tool went – like a real part off
+the machine. The picture is the test mill after a Ø50 face mill, a Ø10 end mill and a drill, with the marks
+drawn 7 times further apart than real.
+
+What you see
+
+- A **faced top** shows arcs with the tool's radius that follow the path and bulge the way the tool went. A
+  **pocket floor** shows the same arcs, finer and smaller.
+- **Walls** show fine upright lines, one per tooth. Where a deeper pass leaves a small step in a wall, the
+  step shows as a line round it (in the picture the second depth is cut 0.3 mm smaller). Depths cut along
+  exactly the same wall look like one wall: the deeper pass goes over all of it again.
+- A **drilled hole** shows rings, on its wall and on its bottom. So does a spot where a tool only went
+  straight down.
+- A ball end mill and a corner radius leave fine lines across each pass, a chamfer mill lines along it.
+- The **sheen** follows the marks: on a faced top the bright band swirls with the arcs when the camera or the
+  light moves. Cut faces no longer show dark patches in reflections.
+- An area that a later tool cuts again shows the new tool's marks; everything else keeps the old ones.
+
+The settings are in 4 Motion > **Milling**, under **Cut faces**. They show whenever the cut faces have a look
+of their own (not with **Same as the block**):
+
+- **Tool marks**: on by itself, also in projects from an older version. Untick it for the plain machined look
+  on every cut face.
+- **Mark size**: **1** is real. Real marks are often only 0.05 to 0.3 mm apart, so in a picture of the whole
+  machine you see the sheen and not the single marks – as on a real part from that distance. For a close-up,
+  raise it (up to **10**) until the arcs show.
+- **Strength**: how deep the marks look. **1** is a normal fresh cut; lower for a fine finishing cut, higher
+  for a rough one. The material counts too: crisp on aluminium, finer on steel, dull on cast iron, faint on
+  plastic.
+
+Changing Mark size or Strength shows at once; nothing is worked out again.
+
+Where the distance between the marks comes from
+
+- With a **Run G-code program** step: from the program's feed (F) and spindle speed (S) and the tool's number
+  of teeth. F900 at S3000 with a face mill gives one arc every 0.3 mm; an end mill with 3 flutes at the same
+  feed and speed gives a mark every 0.1 mm.
+- Without a program (the bit is moved by joint steps): a typical feed for what the block is made of, for
+  example 0.05 mm per tooth in aluminium, 0.03 mm in steel.
+- The line under the settings says which one is used: "Marks from the program: F900 S3000, 5 inserts" or "No
+  program: typical feed for aluminium (0.05 mm per tooth)".
+
+Good to know
+
+- The marks need no **Auto Run Python Scripts** and show everywhere the cut shows: in the view (rendered
+  view), while you scrub or play, in pictures, turntables and renders in the queue.
+- A save, a reopen and a model update keep them.
+- Look at them in rendered view: the grey solid view shows no materials.
 
 #### Chips
 
