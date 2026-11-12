@@ -585,12 +585,13 @@ def set_follows(scene, j, name: str, ratio: float | None = None, offset_value: f
     if reason:
         raise RuntimeError(reason)
     from . import animation
-    if animation.has_keys(scene):
+    if not in_batch(scene) and animation.has_keys(scene):      # (a batch's CAD pose took them off)
         animation.clear_keys(scene)
     if not name:
         if j.follows:
             _free(scene, j)
-        _update(scene)
+        if not in_batch(scene):              # a batch updates once at its end (task 0093)
+            _update(scene)
         return
     old = leader(scene, j)
     lead = find(scene, name)
@@ -604,7 +605,8 @@ def set_follows(scene, j, name: str, ratio: float | None = None, offset_value: f
     _set_raw(j, follows=name)
     write_coupling(scene, j)
     apply_limits(j, _model_size(scene))
-    _update(scene)
+    if not in_batch(scene):
+        _update(scene)
 
 
 def refresh_couplings(scene) -> list[str]:
@@ -701,9 +703,14 @@ def _same(a: Matrix, b: Matrix) -> bool:
 
 
 def free_moves(scene) -> dict:
-    """{object name: delta} for every object moved away from its rest position."""
+    """{object name: delta} for every object moved away from its rest position.
+
+    A model's root is never a free move (task 0093): moved or turned by hand (a second copy of the same STEP
+    placed beside the first), it keeps that place through Build, poses, saved scenes and model updates."""
     out = {}
     for ob in model_objects(scene):
+        if ob.get(build.PROP_ROOT):
+            continue
         rest = build.rest_basis(ob)
         basis = ob.matrix_basis
         if _same(basis, rest):              # cheap test first: almost nothing is moved
@@ -719,6 +726,8 @@ def free_moves(scene) -> dict:
 
 def apply_free_moves(scene, deltas: dict, reset_others: bool = True) -> None:
     for ob in model_objects(scene):
+        if ob.get(build.PROP_ROOT):              # the root keeps where the user put it (also an old saved delta)
+            continue
         d = deltas.get(ob.name)
         if d is not None:
             ob.matrix_basis = build.rest_basis(ob) @ d
@@ -761,19 +770,36 @@ def cad_pose(scene):
         _update(scene)
 
 
-_BATCH: set = set()          # scenes building several joints inside one CAD pose (model updates)
+_BATCH: dict = {}          # scene name -> names of the joint empties made in its batch (model updates, the demo)
 
 
 @contextlib.contextmanager
 def _batch(scene):
-    """Build several joints in one CAD pose: ``create`` then skips its own (two full scene updates each,
-    0.2-0.4 s on 3,000 parts; task 0052). Inside, read a new joint's matrices only after ``_update``."""
+    """Build several joints in one CAD pose with no scene update in between (task 0093: one update per joint cost
+    0.1 s on the demo's 1,250 parts, 69 s for its 415 joints; task 0052: two each before that). The CAD pose is
+    evaluated once on the way in; a joint empty made inside has no world matrix until the update on the way out, so
+    ``create`` reads every place through ``world_of`` (works out the new empties' places from their parents)."""
     with cad_pose(scene):
-        _BATCH.add(scene.name)
+        _BATCH[scene.name] = set()
         try:
             yield
         finally:
-            _BATCH.discard(scene.name)
+            _BATCH.pop(scene.name, None)
+
+
+def in_batch(scene) -> bool:
+    return scene.name in _BATCH
+
+
+def world_of(scene, ob) -> Matrix:
+    """``ob``'s world matrix, also for a joint empty made a moment ago in the same batch (Blender fills its
+    ``matrix_world`` only at the next update). Everything else in a batch is in the CAD pose, evaluated on entry,
+    and keeps its world place when a joint takes it over or lets it go."""
+    new = _BATCH.get(scene.name)
+    if not new or ob.name not in new:
+        return ob.matrix_world.copy()
+    parent = world_of(scene, ob.parent) if ob.parent is not None else Matrix.Identity(4)
+    return parent @ ob.matrix_parent_inverse @ ob.matrix_basis
 
 
 # ---------------------------------------------------------------------------
@@ -1011,26 +1037,28 @@ def create(scene, kind: str, objs, origin, direction, name: str = "", base=None,
     collection = (base.users_collection[0] if base is not None and base.users_collection
                   else objs[0].users_collection[0])
     ref = ref if ref is not None else base
+    batch = in_batch(scene)
+    ref_world = world_of(scene, ref) if ref is not None else None      # current pose (the axis was picked in it)
     if frame_world is not None:
-        local = ref.matrix_world.inverted() @ frame_world if ref is not None else frame_world.copy()
+        local = ref_world.inverted() @ frame_world if ref is not None else frame_world.copy()
     else:
-        local = _local_axis(ref, origin, direction)
-    batch = scene.name in _BATCH
+        local = _local_axis(ref_world, origin, direction)
     with contextlib.nullcontext() if batch else cad_pose(scene):
-        if batch and base is not None and base.get(build.PROP_KIND) in build.JOINT_KINDS:
-            _update(scene)                      # a joint made earlier in the batch: its matrices
         for ob in objs:                         # an object is moved directly by one joint only
             other = joint_of_object(scene, ob)
             if other is not None:
                 _remove_member(other, ob)
-                _detach(ob)
-        _update(scene)
+                _detach(ob)                     # (in the CAD pose its world place does not change)
+        if not batch:
+            _update(scene)
         frame = _new_empty(f"Joint {name}", "joint_frame", collection, size, "SINGLE_ARROW")
         motion = _new_empty(f"Joint {name} (motion)", "joint", collection, size * 0.4, "PLAIN_AXES")
+        if batch:
+            _BATCH[scene.name].update((frame.name, motion.name))
         frame.parent = base
         frame.matrix_parent_inverse = Matrix.Identity(4)
-        world = _world_axis(ref, local)
-        base_world = base.matrix_world.copy() if base is not None else Matrix.Identity(4)
+        world = _world_axis(world_of(scene, ref) if ref is not None else None, local)
+        base_world = world_of(scene, base) if base is not None else Matrix.Identity(4)
         frame.matrix_basis = base_world.inverted() @ world
         motion.parent = frame
         motion.matrix_parent_inverse = Matrix.Identity(4)
@@ -1060,13 +1088,20 @@ def create(scene, kind: str, objs, origin, direction, name: str = "", base=None,
     return j
 
 
+def _ref_world(ref) -> Matrix | None:
+    """``ref`` is an Object, its world matrix (``world_of`` inside a batch) or None."""
+    return ref if ref is None or isinstance(ref, Matrix) else ref.matrix_world
+
+
 def _local_axis(ref, origin, direction) -> Matrix:
     m = axis_matrix(origin, direction)
-    return ref.matrix_world.inverted() @ m if ref is not None else m
+    rw = _ref_world(ref)
+    return rw.inverted() @ m if rw is not None else m
 
 
 def _world_axis(ref, local: Matrix) -> Matrix:
-    m = ref.matrix_world @ local if ref is not None else local.copy()
+    rw = _ref_world(ref)
+    m = rw @ local if rw is not None else local.copy()
     # keep it a clean rigid frame (no scale/shear from the reference)
     loc, rot, _scale = m.decompose()
     return Matrix.Translation(loc) @ rot.to_matrix().to_4x4()
@@ -1584,8 +1619,7 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             base = by_uid.get(sp["base"]) if sp.get("base") else None
             if below is not None:
                 base = below.motion
-                _update(scene)                          # built in this batch: its matrix is not there yet
-                world = base.matrix_world @ build.list_to_mat(sp["base_local"])
+                world = world_of(scene, base) @ build.list_to_mat(sp["base_local"])   # built in this batch
             else:
                 if sp.get("base_joint"):
                     warnings.append(f"Joint '{sp['name']}': the joint it rode on ('{sp['base_joint']}') is gone; "

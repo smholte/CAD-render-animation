@@ -97,10 +97,16 @@ def test_oval_goes_through_both_tensioners_and_round_the_quadrant(d):
         assert 1000.0 <= p.line_z - p.low_z <= 1500.0
     # the stern turn crosses the middle lane under the quadrant's rails
     assert p.low_z + p.cable_r + 55.0 < p.rail_z - 400.0           # radius controller's top < girder's underside
-    # order from the stern: handler, stern turn, cable engine, tensioners, quadrant, its winch, the carousel's well
-    assert pos["pulley_x"] < pos["stern_turn_x"] - pos["stern_turn_r"]
-    assert pos["stern_turn_x"] < pos["engine_x"] - rt.ENGINE_HALF
-    assert pos["engine_x"] + rt.ENGINE_HALF < pos["tensioners"][0] - rt.TENSIONER_HALF
+    # order from the stern: handler (its top pulley clear of the stern turn's web), stern turn, tensioners, quadrant,
+    # its winch, the carousel's well
+    assert pos["handler_reach_x"] + 450.0 + 500.0 < pos["stern_turn_x"] - pos["stern_turn_r"]
+    assert pos["stern_turn_x"] + 400.0 + 2 * p.bend_r * math.sin(math.radians(pos["rise_deg"])) + 1000.0 \
+        < pos["tensioners"][0] - rt.TENSIONER_HALF
+    # the cable engine (task 0095) on the lower path, forward of tensioner 2, on its straight (aft of the tower's foot)
+    assert pos["engine_y"] == pos["lower_y"]
+    assert pos["tensioners"][0] + rt.TENSIONER_HALF < pos["engine_x"] - rt.ENGINE_FRAME
+    assert pos["engine_x"] + rt.ENGINE_FRAME + 500.0 < pos["tower_x"] - p.bend_r
+    assert r.distance([[pos["engine_x"] + dx, pos["lower_y"], p.low_z] for dx in (-1700.0, 0.0, 1700.0)]).max() < 1e-6
     assert pos["tensioners"][0] + rt.TENSIONER_HALF < pos["cps_join_x"] < pos["s_bend_x"] < pos["quadrant_x"]
     assert pos["quadrant_apex_x"] < pos["qh_winch_x"] - rt.WINCH_HALF
     assert pos["qh_winch_x"] + rt.WINCH_HALF < pos["carousel_x"] - pos["well_r"]
@@ -253,6 +259,8 @@ def test_part_counts(made):
     assert count("CABLE ENGINE WHEEL") == 8
     assert count("QUADRANT GUTTER") == 1 and count("RAIL BOGIE") == 4 and count("QUADRANT RAIL") >= 4
     assert count("HANDLER FRAME") == 1 and count("CHUTE") == 2                     # horns A and B
+    assert count("HINGE SHEAVE") == 0 and count("SHEAVE CHEEK") == 0 and count("CRADLE LIFT FRAME") >= 4
+    assert count("A&R PAD EYE") == 1 and count("PAD EYE") == 2 and count("FOOT SHEAVE") == 2
     assert count("PULL HEAD") == 5 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
     assert count("CABLE") == 1 and count("CABLE END") == 1 and count("CABLE COIL") == 1
     assert count("CABLE END CLAMP") == 1 and count("ARCH FRAME") == 1 and count("GUIDE FRAME") == 1
@@ -289,7 +297,7 @@ def test_sheave_grooves_are_tori_on_the_rope_centre(made):
     from OCP.TopoDS import TopoDS
     by_name = _shapes(made["S"])
     sheet = made["route"]["sheaves"]
-    assert len(sheet) == 5
+    assert len(sheet) == 7          # 2 fairleads, the handler's top pulley, 2 swivel heads, 2 swivel feet
     uids = {n["uid"] for n in made["trees"]["assembly"][0]["nodes"]}
     for sh in sheet:
         assert sh["uid"] in uids, sh["uid"]
@@ -365,7 +373,7 @@ def test_rollers_about_1500_apart_on_the_straights(made):
     from fresing_render.demo_model.layout import _samples, _where
     pts, ss = _samples(main, 100.0)
     quay_pts, _ = _samples(S.routes["quay_loading"], 100.0)
-    machines = [(pos["tensioners"][0], rt.TENSIONER_HALF + 300.0), (pos["engine_x"], rt.ENGINE_HALF + 300.0)]
+    machines = [(pos["tensioners"][0], rt.TENSIONER_HALF + 300.0), (pos["engine_x"], rt.ENGINE_FRAME + 500.0)]
     total = 0
     for kind, stations in S.stations.items():
         st = sorted(stations)
@@ -502,6 +510,8 @@ def test_joint_sheet_names_parts_that_exist(made):
             "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt", "QUADRANT SYSTEM: QUADRANT HANDLER: Top pulley turn",
             "QUADRANT SYSTEM: Swivel sheave port swivel", "QUADRANT SYSTEM: Swivel sheave stb turn",
             "QUADRANT SYSTEM: TIPPING WINCH STB: Drum turn", "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn",
+            "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt",
+            "QUADRANT SYSTEM: Swivel sheave port foot sheave turn",
             "QUADRANT SYSTEM: QUADRANT: Quadrant gutter roller 1 turn", "QUADRANT SYSTEM: QUADRANT: Rail wheel 1 turn",
             "HANDLING WINCH 1: Drum turn", "HANDLING WINCH 2: Fairlead sheave turn", "HORN A: Chute roller 1 turn",
             "CABLE ENGINE: Bottom wheel 1 turn", "CABLE ENGINE: Cable engine squeeze",
@@ -583,6 +593,204 @@ def test_lebus_drum_crossovers_and_risers(made):
     assert max(spans) == pytest.approx(180.0 - 35.0, abs=0.5)
     risers = [c.node for c in lebus.children if c.node.name == "LEBUS RISER"]
     assert len(risers) == 2
+
+
+def test_handling_winches_have_the_lebus_drum(made):
+    """Task 0091: the deck's handling winches carry the Lebus drum (the demo's drum close-up shows it)."""
+    hw = made["S"].files["handling_winch"]
+    unit = [c.node for c in hw.children if c.node.name == "WINCH DRUM UNIT"][0]
+    assert len([c for c in unit.children if c.node.name == "LEBUS RISER"]) == 2
+    info = made["trees"]["assembly"][0]
+    assert sum(1 for n in _parts(info) if n["name"] == "LEBUS RISER") == 4
+
+
+def test_quadrant_system_can_move(made):
+    """Task 0091: the D-quadrant's way aft is free. The S-bend's cradles in its lane drop out of the way (one joint, the
+    others follow it), every other cradle stands outside the lane; the travel rides on the handler's tilt (the tip on
+    the travel); the handling wire runs low under the D to a sheave on the hinge axis and along the handler's frame
+    (that part tilts with it); nothing of the handler's forward end stands in the D's way."""
+    from fresing_render.demo_model import deck as dk
+    from fresing_render.demo_model import geom as g
+    S, layout = made["S"], made["layout"]
+    p = S.p
+    lane = layout.d_lane(p)
+    joints = made["joints"]["joints"]
+    by = {j["name"]: j for j in joints}
+    drops = [j for j in joints if j["name"].endswith(" drop")]
+    assert len(drops) == len(S.stations["lifting"]) >= 4
+    lead = [j for j in drops if j["drive"]["by"] == "operator"]
+    assert len(lead) == 1
+    for j in drops:
+        assert j["type"] == "slide" and j["axis"]["direction"] == [0.0, 0.0, -1.0]
+        assert j is lead[0] or (j["drive"]["follows"] == lead[0]["name"] and j["drive"]["ratio"] == 1.0)
+        # dropped, the cradle's top is below the D's underside
+        assert j["axis"]["point"][2] + dk.LIFT_TOP - j["limits"][1] < lane["low_z"] - 50.0
+        assert abs(j["axis"]["point"][1]) < lane["half_width"] + 700.0
+    # the other highway cradles stand clear of the lane
+    for node, _uid, W, label, _path in g.walk(S.root):
+        if label.startswith("CRADLE ") and node.name == "ROLLER CRADLE":
+            corners = np.array([[x, y, z, 1.0] for x in (-310.0, 310.0) for y in (-640.0, 640.0)
+                                for z in (-460.0, dk.LIFT_TOP)]) @ W.T
+            assert np.abs(corners[:, 1]).min() >= lane["half_width"], label
+    assert by["QUADRANT SYSTEM: Quadrant travel"]["rides_on"] == "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
+    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
+    # nothing of the handler's forward end stands in the D's way: the top pulley and its brackets stay under the D's
+    # underside (and its A&R eye) while it rolls on
+    hd = S.quadrant_info["handler_asm"]
+    hinge_z = p.rail_z - rt.HANDLER_RAIL_TOP
+    pc = np.array(hd.info["pulley_centre"])
+    assert pc[2] + hd.info["pulley_r"] + 1.25 * p.quadrant_rope_d / 2 < lane["low_z"] - hinge_z - 50.0
+    assert pc[0] - hd.info["pulley_r"] > S.pos["handler_len"]
+
+
+def test_ar_wire_hinge_sheave_gone_and_top_pulley(made):
+    """Task 0095: the A&R wire is always on the D's eye at the top of its curve – the middle of the curve's outer edge,
+    just outside the gutter's lip, under the gutter and above the D's underside. No sheave at the hinge, no slot in the
+    stern turn. At the end of the tilt the wire comes from forward over the top pulley and hangs straight down from it
+    to the eye (the D vertical, curve up); flat, the wire runs over the pulley without touching it."""
+    from fresing_render.demo_model import deck as dk
+    from fresing_render.demo_model import geom as g
+    S, layout = made["S"], made["layout"]
+    p = S.p
+    names = {n.name for n, *_ in g.walk(S.root)}
+    assert not names & {"HINGE SHEAVE", "SHEAVE CHEEK", "HANG-OFF PAD EYE"}
+    quad = S.quadrant_info["quad_asm"]
+    eye = np.array(quad.info["hang_off"])
+    lip = p.quadrant_r + p.cable_r + 160.0
+    assert eye[1] == 0.0 and lip < eye[0] < lip + 150.0                      # outside the lip, on the middle line
+    assert dk.BOGIE_H + 100.0 < eye[2] < p.line_z - p.rail_z - p.cable_r - 10.0 - 40.0
+    sheet = made["route"]
+    W = sheet["wires"]["ar"]
+    assert np.allclose(sheet["quadrant"]["hang_off"], W["eye"])
+    # the tip turns about that point
+    tip = next(j for j in made["joints"]["joints"] if j["name"] == "QUADRANT SYSTEM: Quadrant tip")
+    assert np.linalg.norm(np.cross(np.array(tip["axis"]["point"]) - W["eye"], tip["axis"]["direction"])) < 1e-3
+    # at the end of the tilt: straight down from the pulley's aft side to the eye
+    th = math.radians(rt.TILT_END)
+    tp = rt.top_pulley(p)
+    z_h = p.rail_z - rt.HANDLER_RAIL_TOP
+    P = layout._hinge_world(S.pos, z_h, tp["centre"], rt.TILT_END)
+    E = layout._hinge_world(S.pos, z_h, tp["eye"], rt.TILT_END)
+    X = layout._hinge_world(S.pos, z_h, tp["exit"], rt.TILT_END)
+    assert np.linalg.norm(X - (P + [-tp["r"], 0.0, 0.0])) < 1e-6
+    assert abs(E[0] - X[0]) < 1e-6 and E[2] < X[2] - 500.0
+    # ... the D stands vertical there (its curve's axis along the handler's: up), the eye just below the pulley
+    assert math.cos(th) < 0 and P[2] - E[2] < 2500.0
+    # flat (D at the end of its travel) the line from the eye forward clears the pulley; it bears on it once tilted
+    _L, on0 = layout.ar_wire_length(p, S.pos, np.array(W["drum_centre"])[[0, 2]], W["drum_r"], 0.0)
+    _L, on20 = layout.ar_wire_length(p, S.pos, np.array(W["drum_centre"])[[0, 2]], W["drum_r"], 20.0)
+    assert not on0 and on20
+    # the stern turn has no slot in its web any more (a solid sector of revolution)
+    st = S.handles["stern_turn"][-1].node
+    rc = [c.node for c in st.children if c.node.name == "RADIUS CONTROLLER"][0]
+    assert g.solids(rc.shape) == 1
+
+
+def test_ar_drum_pays_out_with_the_travel_and_the_tilt(made):
+    """Task 0095: the A&R drum's 'Drum turn' follows the D's travel (mm of wire per mm of travel) and rides on 'Drum turn
+    on tilt', which the demo turns with one SMOOTH step over the tilt: the step follows the wire's real payout within
+    2 % of the payout over the tilt (a coupling to the tilt angle would be 16 % off: the wire bears on the pulley only
+    from ~10°)."""
+    S, layout = made["S"], made["layout"]
+    p = S.p
+    by = {j["name"]: j for j in made["joints"]["joints"]}
+    drum = by["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"]
+    on_tilt = by["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt"]
+    W = made["route"]["wires"]["ar"]
+    assert drum["drive"]["follows"] == "QUADRANT SYSTEM: Quadrant travel"
+    assert drum["drive"]["ratio"] == pytest.approx(360.0 / (2 * math.pi * W["drum_r"]), rel=1e-6)
+    assert drum["rides_on"] == on_tilt["name"] and on_tilt["drive"]["by"] == "winch"
+    assert np.allclose(drum["axis"]["direction"], on_tilt["axis"]["direction"])
+    # travel: the wire's length (from the drum's top) grows about mm for mm (the eye moves aft level)
+    D = np.array(W["drum_centre"])[[0, 2]]
+
+    def length(e):
+        q = rt.tangent_to_point(D, W["drum_r"], +1, e)
+        return W["drum_r"] * (math.atan2(q[1] - D[1], q[0] - D[0]) - math.pi / 2) + np.linalg.norm(e - q)
+    paid = length(np.array(W["eye_end"])[[0, 2]]) - length(np.array(W["eye"])[[0, 2]])
+    assert paid == pytest.approx(W["travel"], rel=0.01)
+    # tilt: the step against the real payout
+    L = lambda t: layout.ar_wire_length(p, S.pos, D, W["drum_r"], t)[0]  # noqa: E731
+    total = L(rt.TILT_END) - L(0.0)
+    assert on_tilt["drive"]["payout_mm"] == pytest.approx(total, abs=1.0)
+    k = on_tilt["drive"]["step_from"]
+    ss = np.linspace(0.0, 1.0, 41)
+    smooth = lambda q: (1 - np.cos(np.pi * q)) / 2  # noqa: E731
+    for s in ss:
+        th = rt.TILT_END * smooth(s)
+        step = total * smooth(min(1.0, max(0.0, (s - k) / (1 - k))))
+        assert abs(step - (L(th) - L(0.0))) < 0.02 * total, (s, th)
+
+
+def test_tipping_wires_up_the_swivel_posts_to_the_bar_ends(made):
+    """Task 0095: each tipping wire comes from its winch under a foot sheave and up the swivel post's axis (fixed part),
+    so the head can swivel to any side; the head points at the D's tipping eye when the D comes onto the handler and
+    follows the tilt. The tipping eyes sit at the ends of the straight bar: the D's bottom corners when it stands
+    vertical at the end of the tilt."""
+    S = made["S"]
+    p = S.p
+    quad = S.quadrant_info["quad_asm"]
+    bar_y = quad.info["bar_y"]
+    sheet = made["route"]["wires"]
+    by = {j["name"]: j for j in made["joints"]["joints"]}
+    for key, sy in (("port", 1.0), ("stb", -1.0)):
+        e = np.array(quad.info["eyes"][f"tipping_{key}"])
+        assert sy * e[1] > 0 and bar_y - 200.0 < abs(e[1]) < bar_y and -600.0 < e[0] < 0.0        # the bar's end
+        w = sheet[f"tipping_{key}"]
+        # vertical at the end of the tilt: the eye is the lowest corner of the D (the bar's end), aft of the transom
+        assert w["eye_tilted"][0] < 0.0 and w["eye_tilted"][2] < p.deck_z + 1500.0
+        # the fixed wire ends on the post's axis, inside the swivel bearing; the head sheave's wire meets the axis
+        axis = np.array(w["post_axis"])
+        assert np.allclose(np.array(w["lead_start"])[:2], axis[:2])
+        hc = np.array(w["head_centre"])
+        assert np.linalg.norm((hc - w["head_r"] * np.array(w["head_x"]))[:2] - axis[:2]) < 0.05
+        # the head points at the eye when the D comes on, and at the end of the tilt (the swivel follows the tilt)
+        sw = by[f"QUADRANT SYSTEM: Swivel sheave {key} swivel"]
+        assert sw["drive"]["follows"] == "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
+        az = lambda v: math.degrees(math.atan2(v[1], v[0]))  # noqa: E731
+        assert az(w["head_x"]) == pytest.approx(az(np.array(w["eye_on_handler"]) - axis), abs=0.02)
+        turned = az(w["head_x"]) + sw["drive"]["ratio"] * rt.TILT_END
+        assert turned == pytest.approx(az(np.array(w["eye_tilted"]) - axis), abs=0.02)
+    # the fixed part: one WIRE ROPE per side under the quadrant system (the moving parts are the demo's)
+    qs = S.handles["quadrant_system"][-1].node
+    assert len([c for c in qs.children if c.node.name == "WIRE ROPE"]) == 2
+    for key in ("port", "stb"):
+        r = S.quadrant_info["ropes"][f"tipping wire {key}"]
+        names = [i.get("name") for i in r.info if i.get("support") == "sheave"]
+        assert names == ["foot sheave"]
+        assert r.segments[-1].end_tangent[2] == pytest.approx(1.0)                  # up the post's axis
+
+
+def test_engine_on_the_lower_path_and_handling_winches_on_the_tensioner_lines(made):
+    """Task 0095: the cable engine on the lower path just forward of tensioner 2, its wheels on the cable (rollers fill
+    its old place on side B); the two handling winches forward, one each side of the A&R winch, each drum's middle on
+    a tensioner's line, the wire leading aft along that lane at the cable's height, 80 % of the old drum."""
+    from fresing_render.demo_model import geom as g
+    S = made["S"]
+    p, pos = S.p, S.pos
+    W = g.path_matrix(np.eye(4), S.handles["cable_engine"])
+    assert np.allclose(W[:3, 3], [pos["engine_x"], pos["lower_y"], p.low_z])
+    ce = S.handles["cable_engine"][-1].node
+    assert ce.info["wheel_r"] + p.cable_r + 180.0 <= p.low_z - p.deck_z + 1e-6
+    # side B's highway has cradles where the engine stood (between the rise and tensioner 1)
+    main = S.routes["main"]
+    from fresing_render.demo_model.layout import _where
+    xs = [_where(main, s)[1] for s in S.stations["highway"]]
+    x_rise = pos["rise_x"] + 2 * p.bend_r * math.sin(math.radians(pos["rise_deg"]))
+    on_b = [q for q in xs if abs(q[1] - p.lane_y) < 1 and x_rise < q[0] < pos["tensioners"][0] - rt.TENSIONER_HALF]
+    assert len(on_b) >= 2
+    for k, sy in ((1, -1.0), (2, 1.0)):
+        Wk = g.path_matrix(np.eye(4), S.handles[f"handling_winch_{k}"])
+        hw = S.handles[f"handling_winch_{k}"][-1].node
+        mid = Wk @ np.r_[hw.info["drum_centre"], 1.0]
+        assert mid[1] == pytest.approx(sy * p.lane_y)                             # on the tensioner's line
+        assert abs(mid[0] - pos["qh_winch_x"]) < 600.0                            # beside the A&R winch
+        assert hw.info["first_layer_rc"] == pytest.approx(480.0) and hw.info["groove"] == "lebus"
+        fl = Wk @ np.r_[hw.info["fairlead"]["centre"], 1.0]
+        assert fl[0] < mid[0] - 1000.0 and fl[1] == pytest.approx(mid[1])         # the wire leads aft
+        top = Wk @ np.r_[hw.info["rope_top"], 1.0]
+        assert top[2] == pytest.approx(p.line_z)                                  # at the cable's height
+        assert pos["quadrant_apex_x"] < Wk[0, 3] - 2500.0 < Wk[0, 3] + 1500.0 < pos["carousel_x"] - pos["well_r"]
 
 
 def test_carousel_coil_layers_and_cable_end_through_the_core(made):

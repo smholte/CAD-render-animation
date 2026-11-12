@@ -220,6 +220,47 @@ GUIDE_IN = 500.0                # the arch's guide reaches this close to the cor
 GUIDE_RIM = 700.0               # its hanging frame stays this far inside the rim
 WINCH_HALF = 1450.0             # quadrant handling winch: half its length along x
 CPS_OUT = 2000.0                # the CPS ramp runs this much outboard of side B (clear of tensioner 1)
+ENGINE_FRAME = 2050.0           # half the cable engine's frame along the cable (its cross beams)
+ENGINE_WIDTH = 1050.0           # half its width
+HW_SCALE = 0.8                  # the two handling winches: 80 % of the old drum (task 0095)
+
+# The quadrant system's A&R wire (task 0095): the D-quadrant's A&R pad eye at the top of its curve, the handler's top
+# pulley placed so the wire bears on it once the handler tilts and, at the end of the tilt, hangs straight down from
+# the pulley to the eye.
+D_END_X = 700.0                 # the D's origin on the handler at the end of its travel (handler mm from the hinge)
+HANDLER_RAIL_TOP = 400.0        # the handler's rail top above its hinge axis
+AR_EYE_OUT = 90.0               # the A&R eye's hole: this far beyond the D's outer lip
+AR_EYE_Z = 480.0                # ... and this high above the rail top (under the gutter, above the D's underside)
+PULLEY_Z = 200.0                # the top pulley's centre above the hinge axis: it stays under the passing D
+TILT_END = 100.0                # the handler's tilt at the end of shot 7 (deg)
+
+
+def ar_eye_local(p) -> np.ndarray:
+    """The A&R pad eye's hole centre in the D's coordinates (origin on the bar's line at the curve's centre, rail top):
+    the middle of the curve's outer edge, just outside the gutter's lip."""
+    return np.array([p.quadrant_r + p.cable_r + 160.0 + AR_EYE_OUT, 0.0, AR_EYE_Z])
+
+
+def top_pulley(p) -> dict:
+    """The handler's top pulley (handler coordinates: hinge axis at the origin, the frame along +x, z up when flat):
+    its rope radius ``r``, its centre ``centre`` (x, z), the eye of the D at the end of travel ``eye`` (x, z), the hang
+    ``h`` from the pulley to the eye at the end of the tilt, the exit tangent ``exit`` (x, z) towards the eye.
+
+    At the end of the tilt the wire comes from forward over the pulley and leaves it on its aft side straight down to the
+    eye: eye = centre + r * aft + h * down, with aft = (-cos θ, sin θ) and down = (-sin θ, -cos θ) in the handler's
+    frame."""
+    r = max(8 * p.quadrant_rope_d, 300.0)
+    e = ar_eye_local(p)
+    E = np.array([D_END_X + e[0], HANDLER_RAIL_TOP + e[2]])
+    th = math.radians(TILT_END)
+    aft = np.array([-math.cos(th), math.sin(th)])
+    down = np.array([-math.sin(th), -math.cos(th)])
+    pz = PULLEY_Z
+    h = (pz + r * aft[1] - E[1]) / -down[1]
+    px = E[0] - r * aft[0] - h * down[0]
+    C = np.array([px, pz])
+    T = C + r * aft
+    return {"r": r, "centre": C, "eye": E, "h": h, "exit": T, "flange_r": r + 1.25 * p.quadrant_rope_d / 2}
 
 
 def turn(r: Route, side: int, radius: float, deg: float, **info):
@@ -288,21 +329,28 @@ def positions(p) -> dict:
     pos["hinge_x"] = p.hinge_x
     pos["handler_len"] = handler_len
     pos["pulley_x"] = p.hinge_x + handler_len
+    tp = top_pulley(p)
+    # the top pulley (task 0095) stands beyond the frame's end; its brackets reach 300 further
+    pos["handler_reach_x"] = p.hinge_x + tp["centre"][0] + tp["flange_r"] + 300.0
     # stern turn: 180° from the lower path (side A, outboard) across to side B, forward of the handler
     r_turn = 0.5 * (yB - y_low)
     pos["stern_turn_r"] = r_turn
     pos["stern_turn_y"] = 0.5 * (yB + y_low)
-    x_st = pos["pulley_x"] + 1500.0 + r_turn
+    x_st0 = pos["pulley_x"] + 1500.0 + r_turn
+    x_st = max(x_st0, pos["handler_reach_x"] + 450.0 + 600.0 + r_turn)   # its outer web 450 out, 600 clear
     pos["stern_turn_x"] = x_st                       # the turn's centre; it starts and ends at this x
-    # side B: rise from the lower level to the highway, cable engine, tensioner 1
+    # side B: rise from the lower level to the highway, tensioner 1 (rollers where the cable engine stood until 0095)
     rise = p.line_z - p.low_z
     pos["rise_deg"] = s_bend_angle(rise, R)
     x = x_st + 400.0
     pos["rise_x"] = x
     x += 2.0 * R * math.sin(math.radians(pos["rise_deg"]))
-    pos["engine_x"] = x + 600.0 + ENGINE_HALF
-    t_x = pos["engine_x"] + ENGINE_HALF + 800.0 + TENSIONER_HALF
+    # the tensioners stay where the 0084 layout put them (the stern turn's move forward is taken from the engine's room)
+    t_x = max(x + 600.0 + 2.0 * ENGINE_HALF + 800.0 + TENSIONER_HALF - (x_st - x_st0), x + 1500.0 + TENSIONER_HALF)
     pos["tensioners"] = [t_x, t_x]                   # tensioner 1 on side B, tensioner 2 on side A, side by side
+    # the linear cable engine on the lower path (task 0095), just forward of tensioner 2
+    pos["engine_x"] = t_x + TENSIONER_HALF + 600.0 + ENGINE_FRAME
+    pos["engine_y"] = y_low
     # the CPS slide runs outboard of tensioner 1 and joins side B forward of it with an S-curve
     pos["cps_level_y"] = p.lane_y + CPS_OUT
     pos["cps_s_deg"] = s_bend_angle(CPS_OUT, R)
@@ -315,6 +363,9 @@ def positions(p) -> dict:
     pos["quadrant_travel"] = x_q - (p.hinge_x + 700.0)   # rails: from the stationary position onto the handler
     # quadrant handling winch in front of the carousel, on the centre line
     pos["qh_winch_x"] = x_q + Rq + cr + 250.0 + 1500.0 + WINCH_HALF
+    # the two handling winches (task 0095): one each side of the A&R winch, each drum's middle on a tensioner's line
+    # (400 mm aft of the A&R winch's middle: side A's stays clear of the loading tower's foot frame)
+    pos["handling_winches"] = [[pos["qh_winch_x"] - 400.0, yA], [pos["qh_winch_x"] - 400.0, yB]]
     well_r = p.carousel_d / 2.0 + 900.0
     pos["well_r"] = well_r
     xc = max(p.carousel_x, pos["qh_winch_x"] + WINCH_HALF + 1500.0 + well_r)

@@ -681,9 +681,9 @@ def tensioner(p, kit: Kit, hinge_end: int = -1) -> Asm:
 
 
 def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layers: int, wound: float,
-          fairlead: bool, groove: str = "spiral") -> Asm:
+          fairlead: bool, groove: str = "spiral", drive_side: int = 1) -> Asm:
     """Winch: grooved drum (axis local y, centre at x = 0, z = zc) on a base frame, gearbox + hydraulic motor on
-    the +y end, spooled wire as a simplified solid. ``fairlead``: a sheave at +x the rope runs over, then down to a
+    the +y end (``drive_side`` -1: on the -y end), spooled wire as a simplified solid. ``fairlead``: a sheave at +x the rope runs over, then down to a
     shackle. ``rc``: rope centre radius on the first layer. Returns the asm with info["rope_top"]."""
     rr = rope_d / 2
     pitch = round(rope_d * 1.06, 2)
@@ -692,9 +692,16 @@ def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layer
     a = Asm(name)
     drum = Asm("WINCH DRUM UNIT")
     key = ("barrel", rope_d, rc, length, groove)
+    cz = {"crossover_deg": p.lebus_crossover_deg} if groove == "lebus" else {}
     barrel = kit.get(key, lambda: Part("WINCH DRUM", g.xform(
-        g.grooved_barrel(rc, rr, -length / 2, length / 2, pitch, groove)[0], Rot((1, 0, 0), -90)), YELLOW))
+        g.grooved_barrel(rc, rr, -length / 2, length / 2, pitch, groove, **cz)[0], Rot((1, 0, 0), -90)), YELLOW))
     drum.add(barrel)
+    if groove == "lebus":                       # riser / filler wedges at both flanges (as ``lebus_drum``)
+        ro = rc - rr + 0.7 * rr
+        for side, z_fl in ((-1, -length / 2), (1, length / 2)):
+            w = kit.get(("riser", rope_d, rc, length, side), lambda: Part("LEBUS RISER", g.xform(
+                g.riser_wedge(ro, rope_d * 0.85, 0.5 * pitch, 120.0, z_fl, side), Rot((1, 0, 0), -90)), YELLOW))
+            drum.add(w)
     flange = kit.get(("flange", flange_r), lambda: Part("DRUM FLANGE", g.cyl(flange_r, 60.0, (0, -30, 0), (0, 1, 0)),
                                                          YELLOW))
     drum.add(flange, T(0, -length / 2 - 30, 0))
@@ -720,8 +727,9 @@ def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layer
     pb = kit.pillow_block(rc * 0.25 + 2, 400.0)
     a.add(pb, T(0, -yb, zc))
     a.add(pb, T(0, yb, zc))
-    a.add(kit.gearbox(rc * 0.55, 500.0), T(0, yb + 220, zc))
-    a.add(kit.motor(rc * 0.32, 420.0), T(0, yb + 720, zc))
+    turn = Rot((0, 0, 1), 0.0 if drive_side > 0 else 180.0)
+    a.add(kit.gearbox(rc * 0.55, 500.0), T(0, drive_side * (yb + 220), zc) @ turn)
+    a.add(kit.motor(rc * 0.32, 420.0), T(0, drive_side * (yb + 720), zc) @ turn)
     a.joint("Drum turn", "rotate", [cd], (0, 0, zc), (0, -1, 0), None,
             {"by": "winch", "rope_centre_radius": round(rope_rc, 3),
              "deg_per_mm": round(360.0 / (2 * math.pi * rope_rc), 9),

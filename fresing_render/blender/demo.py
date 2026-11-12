@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 10                            # time-lapse factor of the carousel shot
-MIN_JOINTS = 308                      # the joint sheet's 307 + Cable travel (the quay's come on top)
+MIN_JOINTS = 315                      # the joint sheet's 314 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -398,12 +398,13 @@ LOOKS = [
       "HYDRAULIC MOTOR", "PLANETARY GEARBOX", "DRIVE BRACKET", "WINCH PEDESTAL"), ()),
     ("Demo: orange", "paint_marine", "RAL 2004",
      ("RIM FENCE", "TURNTABLE", "BARREL", "TOP TRACK LIFT FRAME", "CPS RAMP", "CPS SLIDE", "INNER CORE",
-      "WINCH DRUM", "DRUM FLANGE"), ()),
+      "WINCH DRUM", "DRUM FLANGE", "LEBUS RISER"), ()),
     ("Demo: yellow structure", "paint_marine", "RAL 1003",
      ("ROLLER CRADLE", "ROLLER STAND", "ROLLER TRESTLE", "TOWER COLUMN", "ARCH", "ARCH FRAME", "GUIDE CAGE",
       "GUIDE FRAME", "SLEW HOUSING", "RADIUS CONTROLLER", "CHUTE", "CHUTE SUPPORT", "RAMP SUPPORT", "CPS RACK",
       "QUADRANT FRAME", "QUADRANT GUTTER", "HANDLER FRAME", "RAIL TRESTLE", "RAIL BOGIE", "SHEAVE POST",
-      "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME"), ()),
+      "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME",
+      "CRADLE LIFT FRAME", "A&R PAD EYE", "PAD EYE", "HANDLER TOP PULLEY", "TIPPING SHEAVE", "FOOT SHEAVE"), ()),
     ("Demo: deck grey", "paint_marine", "RAL 7037", ("MAIN DECK", "CAROUSEL WELL"), ()),
     ("Demo: walkways", "paint_marine", "RAL 6011", ("GRATING WALKWAY",), ()),
     ("Demo: rubber pads", "rubber_black", "", ("TRACK PAD", "CABLE ENGINE WHEEL"), ()),
@@ -488,10 +489,7 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
             base = None
             if j.get("rides_on"):
                 below = joints.find(sc, prefix + j["rides_on"])
-                base = below.motion if below is not None else None
-                # inside the batch, create() reads the base's place before its own update: a joint made a moment
-                # ago has none yet (the tilt's hinge landed metres off). Update first (Motion lane open point)
-                joints._update(sc)
+                base = below.motion if below is not None else None     # (made in this batch: fine, task 0093)
             jt = joints.create(sc, "ROTATE" if j["type"] == "rotate" else "SLIDE", objs, origin, direction,
                                name=prefix + j["name"], base=base)
             if jt.name != prefix + j["name"]:
@@ -503,17 +501,15 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
                 else:
                     jt.slide_min, jt.slide_max = lim[0] / 1000.0, lim[1] / 1000.0
                 jt.use_limits = True
-    by = {jt.name: jt for jt in sc.fresing.joints}
-    for j in order:                                     # couplings once every joint is there
-        drive = j["drive"]
-        jt = sc.fresing.joints.get(prefix + j["name"])
-        if drive.get("by") == "follows":
-            joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
-        elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
-            if not waits_for_tracks(j["name"]):
-                joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
-        joints.apply_limits(jt, joints._model_size(sc))
-    del by
+        for j in order:                                 # couplings once every joint is there
+            drive = j["drive"]
+            jt = sc.fresing.joints.get(prefix + j["name"])
+            if drive.get("by") == "follows":
+                joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
+            elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
+                if not waits_for_tracks(j["name"]):
+                    joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
+            joints.apply_limits(jt, joints._model_size(sc))
     return total
 
 
@@ -527,14 +523,16 @@ def turning_in_place(scene) -> list:
     """The parts that only turn about their own round axis (rollers, sheaves, wheels, drums, the carousel with its coil)
     and the static cable: what the test's clash check leaves out (``tests/test_demo_project.py``). Such a part sweeps
     only its own room, so it cannot run into anything it does not touch at the start; checked frame by frame, the
-    300 rollers made the check take hours on this model (task 0077, open point for the clash lane)."""
+    300 rollers made the check take hours on this model (task 0077, open point for the clash lane). The D-quadrant's
+    rail wheels too (task 0091): in the time-lapse they turn ~170° a frame, and the check's step between two frames
+    (one screw motion) then carries a rolling wheel's centre off its straight path into the rail."""
     from . import build, joints
     out = []
     for j in scene.fresing.joints:
         if j.kind != "ROTATE":
             continue
         top = joints.driver_of(scene, j)
-        if top is None or not (top.name == CABLE or top.name.endswith("Drum turn")):
+        if top is None or not (top.name in (CABLE, TRAVEL) or top.name.endswith("Drum turn")):
             continue
         for m in joints.members(j):
             out.append(m)
@@ -611,6 +609,326 @@ def make_cylinders(d: Demo):
                                        name=f"Handler cylinder {'port' if c['barrel_pin'][1] > 0 else 'stb'}")
         made += 1
     d.notes.append(f"cylinders: {made} (quadrant handler, follow the handler tilt)")
+
+
+# ---------------------------------------------------------------------------
+# wires that move with their ends (task 0095): the A&R wire and the two tipping wires
+# ---------------------------------------------------------------------------
+#
+# Demo parts, not an app function (the moving cable of task 0078 may replace them). Everything is Blender's own:
+# empties ride on the parts with a Child Of constraint (inverse = identity), a straight piece is a 1 m cylinder kept on
+# its start by Copy Location and stretched to its end by Stretch To, the turn over a sheave is a curve along the
+# groove whose visible part (bevel start/end) a simple-expression driver of the joint values sets. So they work with
+# scripts off, in the render queue and at any frame rate. A sheave's tangent point is an empty at the sheave's centre
+# that turns about the axle towards the wire's far end (Locked Track) with a child one rope radius out, square to that
+# direction: with the far end metres away it lies within a few mm of the true tangent (the wire cuts ~1 mm into the
+# groove at most). None of these objects is a part: the clash check, the model tree and Build leave them alone.
+
+WIRES = "FR demo wires"               # the collection
+WIRE_TAG = "fr_demo_wire"             # on every object of the wires: which wire
+DRUM_TILT = "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt"
+
+
+def _wire_coll(d: Demo):
+    import bpy
+    c = bpy.data.collections.get(WIRES)
+    if c is None:
+        c = bpy.data.collections.new(WIRES)
+        d.scene.collection.children.link(c)
+    return c
+
+
+def _frame(origin, x=None, y=None):
+    """A world matrix at ``origin`` whose y axis is ``y`` (and x as near ``x`` as square to it)."""
+    from mathutils import Matrix, Vector
+    y = Vector(y).normalized() if y is not None else Vector((0, 1, 0))
+    x = Vector(x) if x is not None else Vector((1, 0, 0))
+    x = (x - y * x.dot(y))
+    x = x.normalized() if x.length > 1e-9 else y.orthogonal().normalized()
+    z = x.cross(y)
+    m = Matrix((x, y, z)).transposed().to_4x4()
+    m.translation = origin
+    return m
+
+
+def _rider(d: Demo, name: str, wire: str, carrier, M):
+    """An empty that rides on ``carrier`` (a part) at the world matrix ``M`` (as the scene stands now)."""
+    import bpy
+    from mathutils import Matrix
+    ob = bpy.data.objects.new(name, None)
+    _wire_coll(d).objects.link(ob)
+    ob.empty_display_size = 0.05
+    ob[WIRE_TAG] = wire
+    ob.hide_select = True
+    ob.matrix_basis = carrier.matrix_world.inverted() @ M
+    con = ob.constraints.new("CHILD_OF")
+    con.target = carrier
+    con.set_inverse_pending = False
+    con.inverse_matrix = Matrix.Identity(4)
+    return ob
+
+
+def _tangent(d: Demo, name: str, wire: str, carrier, centre, axle, x, r: float, towards, side: float):
+    """The tangent point on a sheave (centre, axle, rope radius r) for a wire running on to ``towards`` (an object):
+    an aim empty turning about the axle towards it, and the point r out square to that direction (``side`` +-1)."""
+    import bpy
+    from mathutils import Matrix
+    aim = _rider(d, name + " aim", wire, carrier, _frame(centre, x, axle))
+    lt = aim.constraints.new("LOCKED_TRACK")
+    lt.target = towards
+    lt.lock_axis, lt.track_axis = "LOCK_Y", "TRACK_X"
+    t = bpy.data.objects.new(name, None)
+    _wire_coll(d).objects.link(t)
+    t.empty_display_size = 0.05
+    t[WIRE_TAG] = wire
+    t.hide_select = True
+    t.parent = aim
+    t.matrix_parent_inverse = Matrix.Identity(4)
+    t.location = (0.0, 0.0, side * r)
+    return t
+
+
+def _material(d: Demo):
+    """The wire ropes' look (the group "Demo: wire rope")."""
+    from . import build
+    for ob in build.iter_parts(d.scene):
+        if ob.get(build.PROP_NAME) == "WIRE ROPE" and ob.active_material is not None:
+            return ob.active_material
+    return None
+
+
+def _straight(d: Demo, name: str, wire: str, start, end, radius: float):
+    """A straight wire piece from ``start`` to ``end`` (objects): a 1 m cylinder along y, Copy Location + Stretch To."""
+    import bpy
+    me = bpy.data.meshes.get("FR wire piece %.4f" % radius)
+    if me is None:
+        import bmesh
+        me = bpy.data.meshes.new("FR wire piece %.4f" % radius)
+        bm = bmesh.new()
+        n = 12
+        ring0 = [bm.verts.new((radius * math.cos(2 * math.pi * k / n), 0.0, radius * math.sin(2 * math.pi * k / n)))
+                 for k in range(n)]
+        ring1 = [bm.verts.new((v.co.x, 1.0, v.co.z)) for v in ring0]
+        for k in range(n):
+            bm.faces.new((ring0[k], ring0[(k + 1) % n], ring1[(k + 1) % n], ring1[k]))
+        bm.faces.new(ring0[::-1])
+        bm.faces.new(ring1)
+        bm.to_mesh(me)
+        bm.free()
+        for poly in me.polygons:
+            poly.use_smooth = True
+        mat = _material(d)
+        if mat is not None:
+            me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    _wire_coll(d).objects.link(ob)
+    ob[WIRE_TAG] = wire
+    ob.hide_select = True
+    cl = ob.constraints.new("COPY_LOCATION")
+    cl.target = start
+    st = ob.constraints.new("STRETCH_TO")
+    st.target = end
+    st.rest_length = 1.0
+    st.volume = "NO_VOLUME"
+    st.keep_axis = "PLANE_Z"
+    return ob
+
+
+def _arc(d: Demo, name: str, wire: str, carrier, M, pts, radius: float):
+    """A wire along ``pts`` (in the frame ``M``, world as the scene stands now) riding on ``carrier``: a poly curve
+    with a round bevel whose start / end factors (along its length) drivers set."""
+    import bpy
+    from mathutils import Matrix
+    cu = bpy.data.curves.new(name, "CURVE")
+    cu.dimensions = "3D"
+    cu.bevel_depth = radius
+    cu.bevel_resolution = 3
+    cu.use_fill_caps = True
+    cu.bevel_factor_mapping_start = cu.bevel_factor_mapping_end = "SPLINE"
+    sp = cu.splines.new("POLY")
+    sp.points.add(len(pts) - 1)
+    for p_, q in zip(sp.points, pts):
+        p_.co = (q[0], q[1], q[2], 1.0)
+    mat = _material(d)
+    if mat is not None:
+        cu.materials.append(mat)
+    ob = bpy.data.objects.new(name, cu)
+    _wire_coll(d).objects.link(ob)
+    ob[WIRE_TAG] = wire
+    ob.hide_select = True
+    ob.matrix_basis = carrier.matrix_world.inverted() @ M
+    con = ob.constraints.new("CHILD_OF")
+    con.target = carrier
+    con.set_inverse_pending = False
+    con.inverse_matrix = Matrix.Identity(4)
+    return ob
+
+
+def _drive(ob, path: str, expr: str, variables: dict, index: int = -1):
+    """A simple-expression driver: ``variables`` name -> (object, data path)."""
+    fc = ob.driver_add(path, index) if index >= 0 else ob.driver_add(path)
+    drv = fc.driver
+    drv.type = "SCRIPTED"
+    for n, (target, dp) in variables.items():
+        v = drv.variables.new()
+        v.name = n
+        v.targets[0].id = target
+        v.targets[0].data_path = dp
+    drv.expression = expr
+    if not drv.is_simple_expression:
+        raise RuntimeError(f"the wire's driver '{expr}' is not a simple expression")
+    return fc
+
+
+def _poly(xs, ys, deg: int = 4) -> str:
+    """A polynomial through the samples as a simple expression in ``t`` (Horner)."""
+    import numpy as np
+    c = np.polyfit(np.asarray(xs, float), np.asarray(ys, float), deg)
+    out = f"{c[0]:.9g}"
+    for a in c[1:]:
+        out = f"({out}) * t + {a:.9g}"
+    return out
+
+
+def _angle_in(M, ob) -> float:
+    """The angle (rad, from x towards z) of an object's world place in the frame M."""
+    p_ = M.inverted() @ ob.matrix_world.translation
+    return math.atan2(p_.z, p_.x)
+
+
+@stage("wires", "Wires that move: A&R wire, tipping wires", after="cylinders")
+def make_wires(d: Demo):
+    """The A&R wire from its drum to the D's eye at the top of the curve (over the handler's top pulley once the handler
+    tilts) and the tipping wires from the swivel posts over their sheaves to a parked end, or to the D's bottom corners
+    once it is on the handler (task 0095). Sampled at 51 tilts to set the drivers of the turns over the sheaves."""
+    import numpy as np
+    from mathutils import Vector
+
+    from . import joints
+    sc = d.scene
+    W = d.sheet("route")["wires"]
+    tilt, trav = sc.fresing.joints[TILT], sc.fresing.joints[TRAVEL]
+    tmax = trav.slide_max
+    t_var = {"t": (tilt.motion, f'["{joints.VALUE}"]')}
+    v_var = {"v": (trav.motion, f'["{joints.VALUE}"]')}
+    on = f"(v > {tmax - 0.001:.6f})"                         # the D is at the end of its travel, on the handler
+    R = d.root().matrix_world.to_3x3()
+    vec = lambda v: (R @ Vector(v)).normalized()  # noqa: E731
+    _update()
+    # ---- the A&R wire
+    a = W["ar"]
+    rd, rp = a["drum_r"] / 1000.0, a["pulley_r"] / 1000.0
+    rr = a["rope_d"] / 2000.0
+    drum_car, eye_car, pul_car = d.uid(a["drum_carrier"]), d.uid(a["eye_carrier"]), d.uid(a["pulley_carrier"])
+    X = vec((1.0, 0.0, 0.0))
+    dc = _rider(d, "A&R drum centre", "ar", drum_car, _frame(d.mm(a["drum_centre"]), X, vec(a["drum_axis"])))
+    eye = _rider(d, "A&R eye", "ar", eye_car, _frame(d.mm(a["eye"]), X, vec(a["pulley_axis"])))
+    t2 = _tangent(d, "A&R on pulley", "ar", pul_car, d.mm(a["pulley_centre"]), vec(a["pulley_axis"]), X, rp, dc, +1)
+    end = _rider(d, "A&R wire end", "ar", eye_car, _frame(d.mm(a["eye"])))
+    end.constraints.clear()
+    c1 = end.constraints.new("COPY_LOCATION")
+    c1.target = eye
+    c2 = end.constraints.new("COPY_LOCATION")
+    c2.target = t2
+    d1 = _tangent(d, "A&R off drum", "ar", drum_car, d.mm(a["drum_centre"]), vec(a["drum_axis"]), X, rd, end, +1)
+    t3 = _rider(d, "A&R off pulley", "ar", pul_car, _frame(d.mm(a["pulley_exit"])))
+    _straight(d, "A&R wire (deck)", "ar", d1, end, rr)
+    w2 = _straight(d, "A&R wire (pulley to eye)", "ar", t3, eye, rr)
+    # the side of the tangent points: the one nearer the expected place (the drum's top, the pulley's top)
+    _update()
+    for t_, want in ((d1, d.mm(np.array(a["drum_centre"]) + [0, 0, a["drum_r"]])),
+                     (t2, d.mm(np.array(a["pulley_centre"]) + [0, 0, a["pulley_r"]]))):
+        if (t_.matrix_world.translation - want).length > rd:
+            t_.location = -t_.location
+    # the turn over the pulley: in the pulley's frame (x along the handler, z square to it), angles from x to z
+    PM = _frame(d.mm(a["pulley_centre"]), X, vec(a["pulley_axis"]))
+    a3 = _angle_in(PM, t3)
+    thetas = np.linspace(0.0, math.radians(a["tilt_end"]), 51)
+    a2 = []
+    PMc = pul_car.matrix_world.inverted() @ PM               # the pulley's frame on the handler frame
+    joints.set_value(trav, tmax)
+    for th in thetas:
+        joints.set_value(tilt, float(th))
+        _update()
+        _update()
+        a2.append(_angle_in(pul_car.matrix_world @ PMc, t2))  # in the tilting pulley's frame
+    joints.set_value(tilt, 0.0)
+    joints.set_value(trav, 0.0)
+    _update()
+    _update()                                                # (the riders below read the parts' places at rest)
+    a2 = np.unwrap(np.array(a2))
+    a3 = float(a3)
+    k = np.nonzero(a2 <= a3)[0]
+    if not len(k) or k[0] == 0:
+        raise RuntimeError("the A&R wire never bears on the top pulley")
+    i = int(k[0])
+    th0 = float(thetas[i - 1] + (thetas[i] - thetas[i - 1]) * (a2[i - 1] - a3) / (a2[i - 1] - a2[i]))
+    lo = float(a2[-1])
+    pts = [(rp * math.cos(x), 0.0, rp * math.sin(x)) for x in np.linspace(lo, a3, 48)]
+    arc = _arc(d, "A&R wire (over the pulley)", "ar", pul_car, PM, pts, rr)
+    sel = thetas >= th0 - 0.05
+    f = (a2[sel] - lo) / (a3 - lo)
+    expr = f"clamp({_poly(thetas[sel], f)}, 0.0, 1.0) if t > {th0:.6f} else 1.0"
+    _drive(arc.data, "bevel_factor_start", expr, dict(t_var))
+    show = f"1.0 if (t > {th0:.6f}) * {on} else 0.0"
+    _drive(c2, "influence", show, dict(t_var, **v_var))
+    for ax in (0, 2):
+        _drive(w2, "scale", show, dict(t_var, **v_var), ax)
+    d.wires = {"ar_contact_deg": round(math.degrees(th0), 2)}
+    # ---- the tipping wires
+    for key in ("port", "stb"):
+        w = W[f"tipping_{key}"]
+        r = w["head_r"] / 1000.0
+        rt_ = w["rope_d"] / 2000.0
+        head = d.uid(w["head_carrier"])
+        eyep = d.uid(w["eye_carrier"])
+        hx, hax = vec(w["head_x"]), vec(w["head_axis"])
+        C = d.mm(w["head_centre"])
+        HM = _frame(C, hx, hax)
+        park = _rider(d, f"Tipping {key} park", key, head, _frame(d.mm(w["park"])))
+        e = _rider(d, f"Tipping {key} eye", key, eyep, _frame(d.mm(w["eye"])))
+        tend = _rider(d, f"Tipping {key} wire end", key, head, _frame(d.mm(w["park"])))
+        tend.constraints.clear()
+        k1 = tend.constraints.new("COPY_LOCATION")
+        k1.target = park
+        k2 = tend.constraints.new("COPY_LOCATION")
+        k2.target = e
+        _drive(k2, "influence", f"1.0 if {on} else 0.0", dict(v_var))
+        tt = _tangent(d, f"Tipping {key} off sheave", key, head, C, hax, hx, r, tend, +1)
+        _straight(d, f"Tipping wire {key}", key, tt, tend, rt_)
+        _update()
+        want = C + hx * r
+        if (tt.matrix_world.translation - want).length > r:
+            tt.location = -tt.location
+        # the lead up the post's axis and the turn over the head sheave (in the head's frame)
+        lead_z = (HM.inverted() @ d.mm(w["lead_start"])).z
+        pts = [(-r, 0.0, lead_z), (-r, 0.0, 0.0)] + [(r * math.cos(x), 0.0, r * math.sin(x))
+                                                       for x in np.linspace(math.pi, 0.0, 61)[1:]]
+        lead = -lead_z
+        total = lead + r * math.pi
+        arc_t = _arc(d, f"Tipping wire {key} (over the sheave)", key, head, HM, pts, rt_)
+        _update()
+        HMh = head.matrix_world.inverted() @ HM                 # the head's frame on its carrier
+
+        def end_factor():
+            ang = _angle_in(head.matrix_world @ HMh, tt)
+            return (lead + r * (math.pi - max(0.0, min(math.pi, ang)))) / total
+        f_park = end_factor()
+        joints.set_value(trav, tmax)
+        fs = []
+        for th in thetas:
+            joints.set_value(tilt, float(th))
+            _update()
+            _update()
+            fs.append(end_factor())
+        joints.set_value(tilt, 0.0)
+        joints.set_value(trav, 0.0)
+        _update()
+        _update()
+        _drive(arc_t.data, "bevel_factor_end", f"clamp({_poly(thetas, fs)}, 0.0, 1.0) if {on} else {f_park:.6f}",
+               dict(t_var, **v_var))
+    _update()
+    d.notes.append(f"wires: A&R (bears on the top pulley from {d.wires['ar_contact_deg']}° of tilt), 2 tipping wires")
 
 
 # ---------------------------------------------------------------------------
@@ -719,8 +1037,8 @@ def shot_fly(d: Demo):
 def shot_deck(d: Demo):
     cam = d.scene.objects.get("Deck from above")
     d.camera_step("MOVE", d.t, 2.0, "The deck: carousel, highways, tensioners, quadrant", camera=cam)
-    d.camera_step("ORBIT", d.t + 2.0, 6.0, "", orbit_angle=math.radians(30.0), easing="LINEAR")
-    d.t += 8.0
+    d.camera_step("ORBIT", d.t + 2.0, 4.0, "", orbit_angle=math.radians(20.0), easing="LINEAR")
+    d.t += 6.0
 
 
 @stage("shot_carousel", "Shot 3: carousel and arch")
@@ -738,7 +1056,7 @@ def shot_carousel(d: Demo):
 
 @stage("shot_rollers", "Shot 4: roller highways")
 def shot_rollers(d: Demo):
-    secs = 8.0
+    secs = 7.0
     start = getattr(d, "cable_end", 0.0)
     metres = start + SPEED / 60.0 * secs * 3              # x 3
     cam = d.scene.objects.get("Roller highway")
@@ -811,27 +1129,63 @@ def shot_drum(d: Demo):
     d.scene.camera = keep
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
     d.joint("HANDLING WINCH 1: Drum turn", d.t, 7.0, 360.0, easing="SMOOTH",
-            label="Handling winch: wire on the spiral-groove drum")
+            label="Handling winch: Lebus drum, 35° crossovers and risers at the flanges")
     d.t += 7.0
 
 
-@stage("shot_quadrant", "Shot 7: the quadrant system at the stern")
+QUADRANT_SPEED = 6.0                  # m/min: the D-quadrant's travel aft (an invented, plausible speed)
+QUADRANT_LAPSE = 60                   # its time-lapse factor in shot 7
+TRAVEL = "QUADRANT SYSTEM: Quadrant travel"
+TILT = "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
+TIP = "QUADRANT SYSTEM: Quadrant tip"
+TILT_TO = 100.0                       # degrees at the end of shot 7 (the tilt's whole range)
+TILT_SECONDS = 4.0
+
+
+def cradle_drop(d: Demo) -> tuple[str, float]:
+    """The S-bend's cradles in the D's lane (task 0091): the joint the others follow and how far it drops (m)."""
+    for j in d.sheet("joints")["joints"]:
+        if j["name"].endswith(" drop") and j["drive"].get("by") == "operator":
+            return j["name"], j["limits"][1] / 1000.0
+    raise RuntimeError("the demo model has no cradle that drops")
+
+
+@stage("shot_quadrant", "Shot 7: the D-quadrant travels aft, the tipping wires are connected, the handler tilts")
 def shot_quadrant(d: Demo):
-    """A flight from the D-quadrant on its rails to the handler at the stern. Nothing moves yet: the clash check found
-    the model's quadrant system not ready to (task 0077): the S-bend's roller cradles stand in the D's way aft, the
-    handler's frame cuts its hinge brackets past about 30° and the parked handling wire stays behind. Task 0082
-    (quadrant operations) moves them, here or in a stage of its own."""
+    """The quadrant system's whole move (tasks 0091, 0095): the S-bend's cradles in the middle lane drop, the D travels
+    aft on its rails onto the handler (time-lapse) with the A&R wire paying out from its winch, the tipping wires are
+    connected to the D's bottom corners, and the handler tilts over the stern carrying it: the D ends vertical, curve up,
+    hanging from the A&R wire over the top pulley (the owner's pictures). It is not tipped: task 0082 lowers it into the
+    sea vertical and tips it near the sea bottom. 0 clash rows over the shot (``tests/test_demo_project.py``)."""
     from . import build
+    t = d.t
     cam = d.scene.objects.get("Quadrant")
-    handler = d.part("HANDLER FRAME", root=d.root())
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    fly = d.camera_step("PATH", d.t, 9.0, "The D-quadrant on its rails, the quadrant handler at the stern",
-                        easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(handler),
-                        aim_name=handler.get(build.PROP_NAME, "HANDLER FRAME"))
-    for p in ((18000.0, 17000.0, 11000.0), (2000.0, 16000.0, 9000.0), (-14000.0, 9000.0, 8000.0)):
+    quad = d.part("QUADRANT FRAME", root=d.root())
+    lead, drop = cradle_drop(d)
+    travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
+    secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
+    d.camera_step("CUT", t, 0.0, "", camera=cam)
+    d.joint(lead, t, 1.5, drop, slide=True, label="The S-bend's cradles drop out of the D-quadrant's way")
+    t += 1.5
+    d.joint(TRAVEL, t, secs, travel, slide=True, easing="SMOOTH",
+            label=f"The D-quadrant travels aft onto the handler on its A&R wire (x {QUADRANT_LAPSE})")
+    fly = d.camera_step("PATH", t, secs, "", easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(quad),
+                        aim_name=quad.get(build.PROP_NAME, "QUADRANT FRAME"))
+    for p in ((22000.0, 15500.0, 9500.0), (-3000.0, 15000.0, 9000.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
-    d.t += 9.0
+    t += secs
+    d.camera_step("MOVE", t, 1.5, "The tipping wires are connected to the D's bottom corners",
+                  camera=d.scene.objects.get("Stern"))
+    t += 1.0
+    d.joint(TILT, t, TILT_SECONDS, TILT_TO,
+            label="The handler tilts over the stern: the D hangs vertical from the A&R wire over the top pulley")
+    drum = next(j for j in d.sheet("joints")["joints"] if j["name"] == DRUM_TILT)["drive"]
+    k = drum["step_from"]
+    d.joint(DRUM_TILT, t + k * TILT_SECONDS, (1.0 - k) * TILT_SECONDS, drum["payout_mm"] * drum["deg_per_mm"])
+    t += TILT_SECONDS
+    d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
+    d.t = t + 3.0
 
 
 @stage("finish", "Animation")

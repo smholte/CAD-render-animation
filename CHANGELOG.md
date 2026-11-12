@@ -5,6 +5,50 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.71 – 12 Nov 2026 – demo: quadrant wires as on your vessels, cable engine and handling winches moved (task 0095)
+
+Demo project (Help > Make demo project; make it again for this version)
+- The **A&R wire** is always on the D-quadrant's new eye at the top of its curve: straight along the deck from its
+  winch while the D travels aft (the winch's drum turns as the wire pays out), over the handler's top pulley once the
+  handler tilts. The sheave at the handler's hinge is gone; the top pulley sits beyond the handler's end, under the D
+  as it rolls on.
+- The two **tipping wires** come up their swivel posts, over the swivel sheaves and down to the D's bottom corners
+  (the ends of its straight bar) once it is on the handler; the sheave heads turn with the tilt.
+- The wires follow the joints by themselves, also in the render queue and at any frame rate.
+- **Shot 7** ends with the handler at 100°: the D stands vertical, curve up, hanging from the A&R wire over the top
+  pulley, both tipping wires on. It no longer tips on the handler (that comes with lowering it into the sea).
+  "Quadrant tip" now turns the D about its A&R eye.
+- The **cable engine** stands on the lower path, just forward of tensioner 2; rollers took its place on side B.
+- The two **handling winches** stand forward, one each side of the A&R winch, each in line with a tensioner, their
+  wire leading aft at the cable's height; 80 % of the old size, still with the Lebus drum (shot 6 shows it).
+
+## 0.2.70 – 12 Nov 2026 – joints made fast in one go; a moved model keeps its place (task 0093)
+
+Motion
+- A model moved or turned by its top row (for example the second copy of the same STEP file, placed beside the
+  first) now stays where you put it: through **Build animation**, poses, saved scenes, the start scene,
+  **Everything back to CAD position** and model updates. Before, it jumped back at the next Build. A part moved by
+  hand *inside* a model still goes back, as before.
+- Many joints made at once (the demo project, model updates) take seconds instead of a minute: the demo's 415
+  joints 67 s → 2 s on the 4-core test machine, the whole small demo 160 s → 90 s. A joint stacked on another one
+  made in the same go now lands on its right axis.
+
+## 0.2.69 – 12 Nov 2026 – demo: the quadrant system moves, Lebus drum close-up (task 0091)
+
+Demo project (make it again: Help > Make demo project…)
+- **The quadrant system moves all the way now**, and the animation shows it at the end: the roller cradles of the
+  S-bends that stood in the D-quadrant's way **drop** out of it, the D travels aft on its rails onto the handler
+  (× 60 time-lapse), the handler **tilts over the stern carrying it**, and the quadrant **tips**. The clash check
+  finds nothing running into anything over this part.
+- What was changed in the invented model for it: four cradles drop (one joint, the other three follow), the D's travel
+  rides on the handler's tilt and its tip on the travel, the quadrant handling wire runs low under the D to a sheave on
+  the handler's hinge and along the handler (that part tilts with it), the handler's top pulley sits lower (the D rolls
+  over it), the handler's frame swings clear of its hinge brackets, the tilt cylinders sit nearer the hinge, the rail
+  wheels' flanges run beside the rail head. 419 joints in all (311 on the vessel).
+- The winch drum close-up shows a **Lebus drum** (35° crossovers, risers at the flanges) on the handling winches.
+- The X-ray labels of the tensioner shot stay apart and inside the picture.
+- The animation lasts about 78 s with title and end card.
+
 ## 0.2.68 – 12 Nov 2026 – demo project: an invented cable-lay vessel (task 0077)
 
 Demo project

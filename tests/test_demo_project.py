@@ -77,7 +77,7 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 307
+    assert len(sheet) == 314
     by = {j.name: j for j in sc.fresing.joints}
     assert len(by) == len(sheet) + 1 and demo.CABLE in by          # + Cable travel (no quay in the small form)
     cable_turned = 0
@@ -233,7 +233,7 @@ def test_no_clash_in_the_animation(made, monkeypatch):
     here too."""
     from mathutils import Vector
 
-    from fresing_render.blender import animation, build, clash, joints
+    from fresing_render.blender import animation, build, clash, joints, vessel_motion
     from fresing_render.core import clash as core
     sc = _scene()
     animation.bake(sc, sc.fresing.animations[demo.ANIM])
@@ -241,7 +241,7 @@ def test_no_clash_in_the_animation(made, monkeypatch):
     assert 250 < len(leave) < 600
     for j in sc.fresing.joints:                                    # round about their own axis
         top = joints.driver_of(sc, j)
-        if j.kind != "ROTATE" or top is None or top.name != demo.CABLE:
+        if j.kind != "ROTATE" or top is None or top.name not in (demo.CABLE, demo.TRAVEL):
             continue
         o, dvec = joints.axis_world(j)
         for m in joints.members(j):
@@ -252,9 +252,198 @@ def test_no_clash_in_the_animation(made, monkeypatch):
             off -= dvec * off.dot(dvec)
             assert off.length < 0.01, (j.name, off.length)
     monkeypatch.setattr(clash, "HOOKS", clash.HOOKS + [lambda scene: ((), leave)])
-    run = clash.check(sc, store=False)
+    # the sea at rest (task 0091): the vessel's sway moves the whole model as one, so it changes nothing between two
+    # parts; but where the sway turns very slowly while a part slides (a lift, the cylinder rods) the check's step
+    # between two frames came out up to centimetres off (screw_between reads a tiny turn from float32 matrices), and
+    # the rows it gave (1.2 mm, 0.8 mm) moved with the sea's phase. Open point for the clash lane (task 0092).
+    with vessel_motion.at_rest(sc):
+        run = clash.check(sc, store=False)
     assert run.stats["parts"] > 700
     assert not run.rows, [core.row_text(r) for r in run.rows[:5]]
+
+
+def test_shot_7_moves_the_whole_quadrant_system(made):
+    """Tasks 0091, 0095: shot 7 drops the S-bend's cradles in the D's lane, runs the D-quadrant's whole travel onto the
+    handler, tilts the handler its whole range carrying the D (the travel rides on the tilt), and ends there: the D
+    vertical, curve up, hanging from the A&R wire over the top pulley – not tipped (task 0082 tips it near the sea
+    bottom). The A&R drum pays out with the travel (a coupling) and over the tilt (a step). The clash check over the
+    whole animation (above) covers this shot too."""
+    from mathutils import Vector
+
+    from fresing_render.blender import animation, build, joints
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    s = sc.fresing
+    lead, drop = demo.cradle_drop(demo.Demo(sc, made["folder"], VERSION, small=True))
+    followers = [j for j in s.joints if j.follows == lead]
+    assert len(followers) >= 3
+    blocks = {b.joint: b for b in a.blocks if b.kind == "JOINT"}
+    travel = made["sheet"]["joints"]
+    t_max = next(j for j in travel if j["name"] == demo.TRAVEL)["limits"][1] / 1000.0
+    assert blocks[demo.TRAVEL].to_dist == pytest.approx(t_max)
+    assert any("x 60" in b.name for b in a.blocks)
+    assert demo.TIP not in blocks                                  # not tipped any more
+
+    def part(name):
+        return next(o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == name)
+    hf, qf = part("HANDLER FRAME"), part("QUADRANT FRAME")
+    fps = int(a.fps)
+
+    def at(seconds):
+        sc.frame_set(int(round(seconds * fps)) + 1)
+        return hf.matrix_world.inverted() @ qf.matrix_world
+    tilt, drum = blocks[demo.TILT], blocks[demo.DRUM_TILT]
+    on_handler = at(tilt.start)
+    assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(0.0, abs=1e-3)
+    assert joints.get_value(s.joints[demo.TRAVEL]) == pytest.approx(t_max, abs=1e-4)
+    assert joints.get_value(s.joints[lead]) == pytest.approx(drop, abs=1e-4)
+    assert all(joints.get_value(j) == pytest.approx(drop, abs=1e-4) for j in followers)
+    last = max(b.start + b.duration for b in a.blocks)
+    assert last >= tilt.start + tilt.duration + 2.0                 # a hold on the end picture
+    tilted = at(last)
+    assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(100.0, abs=1e-3)
+    assert math.degrees(joints.get_value(s.joints[demo.TIP])) == pytest.approx(0.0, abs=1e-6)
+    assert np.allclose(np.array(tilted), np.array(on_handler), atol=1e-4)      # the D tilts with the handler
+    # vertical, curve up: the D's curve points along its local +x (model mm); in the vessel's frame that is up
+    root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
+    up = root.matrix_world.to_3x3().inverted() @ (qf.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0)))
+    assert up.normalized().z > 0.98
+    # the drum's step lies inside the tilt and ends with it; its turn is the payout over the tilt
+    assert tilt.start < drum.start and drum.start + drum.duration == pytest.approx(tilt.start + tilt.duration)
+    row = next(j for j in made["sheet"]["joints"] if j["name"] == demo.DRUM_TILT)
+    assert math.degrees(drum.to_angle) == pytest.approx(row["drive"]["payout_mm"] * row["drive"]["deg_per_mm"], rel=1e-5)
+    # the D sits on the handler's rails: its bar where the sheet's travel puts it (handler mm: hinge at 0)
+    assert on_handler.translation.z * 1000 == pytest.approx(400.0, abs=0.5)
+    sc.frame_set(1)
+
+
+def _ends(ob):
+    """Start and end (world) of a straight wire piece (a 1 m cylinder along y, stretched) and its thickness scale."""
+    from mathutils import Vector
+    M = ob.matrix_world
+    return M @ Vector((0, 0, 0)), M @ Vector((0, 1, 0)), M.to_3x3().col[0].length
+
+
+def test_wires_follow_their_ends(made):
+    """Task 0095: the A&R wire is on the D's eye at the top of its curve at the start, at the end of the travel and all
+    through the tilt (over the top pulley from ~10°), its other end on the drum; the tipping wires hang parked until the
+    D is on the handler and then end on the bar's ends. Checked against the eyes' places worked out from the D's own
+    part (not the wires' empties), within 3 mm, also after a Build at another frame rate; every driver of the wires is
+    a simple expression (scripts off); a wire's straight piece never runs through steel."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+
+    from fresing_render.blender import animation, build, joints
+    sc = _scene()
+    s = sc.fresing
+    a = s.animations[demo.ANIM]
+    d = demo.Demo(sc, made["folder"], VERSION, small=True)
+    W = d.sheet("route")["wires"]
+    animation.clear_keys(sc)
+    sc.frame_set(1)
+    bpy.context.view_layer.update()
+    eye_car = d.uid(W["ar"]["eye_carrier"])
+    eye_l = eye_car.matrix_world.inverted() @ d.mm(W["ar"]["eye"])
+    drum_car = d.uid(W["ar"]["drum_carrier"])
+    drum_l = drum_car.matrix_world.inverted() @ d.mm(W["ar"]["drum_centre"])
+    tips = {}
+    for k in ("port", "stb"):
+        c = d.uid(W[f"tipping_{k}"]["eye_carrier"])
+        h = d.uid(W[f"tipping_{k}"]["head_carrier"])
+        tips[k] = (c, c.matrix_world.inverted() @ d.mm(W[f"tipping_{k}"]["eye"]),
+                   h, h.matrix_world.inverted() @ d.mm(W[f"tipping_{k}"]["park"]))
+    O = {o.name: o for o in sc.objects if o.get(demo.WIRE_TAG)}
+    assert len(O) >= 20 and all(o.users_collection[0].name == demo.WIRES for o in O.values())
+    assert not any(o.get(build.PROP_KIND) for o in O.values())               # no part: the clash check leaves them
+    for o in O.values():                                                     # scripts off
+        for ad in (o.animation_data, getattr(o.data, "animation_data", None)):
+            for fc in (ad.drivers if ad else []):
+                assert fc.driver.is_simple_expression, (o.name, fc.driver.expression)
+    deck, w2 = O["A&R wire (deck)"], O["A&R wire (pulley to eye)"]
+    steel = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) not in ("WIRE ROPE", "CABLE")]
+    near = []
+
+    def through_steel(ob, r):
+        p0, p1, sx = _ends(ob)
+        L = (p1 - p0).length
+        pts = [p0 + (p1 - p0) * (i / 200) for i in range(201) if 0.3 < L * i / 200 < L - 0.3]
+        lo = Vector([min(q[i] for q in pts) for i in range(3)]) - Vector((0.1,) * 3)
+        hi = Vector([max(q[i] for q in pts) for i in range(3)]) + Vector((0.1,) * 3)
+        dg = bpy.context.evaluated_depsgraph_get()
+        for o in steel:
+            bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
+            if any(max(c[i] for c in bb) < lo[i] or min(c[i] for c in bb) > hi[i] for i in range(3)):
+                continue
+            tree, Mi = BVHTree.FromObject(o, dg), o.matrix_world.inverted()
+            for q in pts:
+                hit = tree.find_nearest(Mi @ q)
+                if hit[0] is not None and (o.matrix_world @ hit[0] - q).length < r - 0.002:
+                    near.append((ob.name, o.get(build.PROP_NAME), sc.frame_current))
+                    break
+
+    def check(fps_note):
+        tmax = s.joints[demo.TRAVEL].slide_max
+        conn = joints.get_value(s.joints[demo.TRAVEL]) > tmax - 0.001
+        E = eye_car.matrix_world @ eye_l
+        s0, s1, _ = _ends(deck)
+        a0, a1, ax = _ends(w2)
+        assert ((a1 if ax > 0.5 else s1) - E).length < 0.003, (fps_note, sc.frame_current)
+        if ax > 0.5:                                                    # over the pulley: the deck piece ends on it
+            assert math.degrees(joints.get_value(s.joints[demo.TILT])) > 5.0
+        assert abs((s0 - drum_car.matrix_world @ drum_l).length - W["ar"]["drum_r"] / 1000.0) < 0.003
+        through_steel(deck, W["ar"]["rope_d"] / 2000.0)
+        if ax > 0.5:
+            through_steel(w2, W["ar"]["rope_d"] / 2000.0)
+        for k, (c, el, h, pl) in tips.items():
+            t0, t1, _ = _ends(O[f"Tipping wire {k}"])
+            want = c.matrix_world @ el if conn else h.matrix_world @ pl
+            assert (t1 - want).length < 0.003, (fps_note, k, sc.frame_current, conn)
+            through_steel(O[f"Tipping wire {k}"], W[f"tipping_{k}"]["rope_d"] / 2000.0)
+    try:
+        for fps in ("25", "50"):
+            a.fps = fps
+            animation.bake(sc, a)
+            f = int(a.fps)
+            blocks = {b.joint: b for b in a.blocks if b.kind == "JOINT"}
+            tr, ti = blocks[demo.TRAVEL], blocks[demo.TILT]
+            seen_contact = False
+            for sec in [tr.start, tr.start + tr.duration * 0.5, ti.start] + \
+                    [ti.start + ti.duration * q for q in (0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0)]:
+                sc.frame_set(int(round(sec * f)) + 1)
+                check(fps)
+                seen_contact = seen_contact or _ends(w2)[2] > 0.5
+            assert seen_contact
+    finally:
+        a.fps = "25"
+        animation.bake(sc, a)
+    assert not near, near[:5]
+    sc.frame_set(1)
+
+
+def test_xray_labels_apart_and_inside_the_picture(made):
+    """Task 0091: in shot 5's X-ray step no two label boxes overlap and every box lies inside the picture (with the
+    placer's margin), on every frame of the step, at the video's size (HD) and smaller."""
+    from fresing_render.blender import animation, callouts
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    fps = int(a.fps)
+    w = callouts.window_for(a, sc.fresing.callouts[0])
+    boxes = callouts.PartBoxes(sc)
+    for size in ((1920, 1080), (960, 540)):
+        margin = 0.02 * min(size)
+        seen = 0
+        for f in range(int(w[0] * fps), int(w[1] * fps) + 1, 3):
+            sc.frame_set(f + 1)
+            d = callouts.draws_at(sc, size, f / fps, a, "", boxes)
+            seen = max(seen, len(d))
+            for i, x in enumerate(d):
+                assert x.box.inside(size[0], size[1], margin - 1.0), (size, f, x.text)
+                for y in d[i + 1:]:
+                    assert not x.box.overlaps(y.box), (size, f, x.text, y.text)
+        assert seen == len(demo.LABELS), size
+    sc.frame_set(1)
 
 
 def test_cancel_leaves_nothing(made, tmp_path, monkeypatch):
