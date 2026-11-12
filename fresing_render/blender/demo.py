@@ -489,6 +489,9 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
             if j.get("rides_on"):
                 below = joints.find(sc, prefix + j["rides_on"])
                 base = below.motion if below is not None else None
+                # inside the batch, create() reads the base's place before its own update: a joint made a moment
+                # ago has none yet (the tilt's hinge landed metres off). Update first (Motion lane open point)
+                joints._update(sc)
             jt = joints.create(sc, "ROTATE" if j["type"] == "rotate" else "SLIDE", objs, origin, direction,
                                name=prefix + j["name"], base=base)
             if jt.name != prefix + j["name"]:
@@ -642,6 +645,10 @@ def surroundings(d: Demo):
     s.background = "SEA"
     s.sea_state = "CALM"
     s.water_level = _water_level(d)
+    if hasattr(s, "vessel"):                  # vessel motion (task 0085): the vessel heaves, pitches, rolls (Calm)
+        s.vessel.heading = "BOW"
+        s.vessel.enabled = True
+        _update()
     d.camera(SEA_SHOT, (-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), lens=30.0)
     del states
 
@@ -697,12 +704,14 @@ def shot_fly(d: Demo):
     a.fin_title_seconds = a.fin_end_seconds = 3.0
     a.fin_logo = "BR"
     carousel = d.part("TURNTABLE", root=d.root())
-    fly = d.camera_step("PATH", d.t, 9.0, "On a calm sea", easing="LINEAR", cam_blend=0.0, path_look="PART",
+    fly = d.camera_step("PATH", d.t, 6.0, "On a calm sea", easing="LINEAR", cam_blend=0.0, path_look="PART",
                         aim_uid=_uid(carousel), aim_name=carousel.get(build.PROP_NAME, "TURNTABLE"))
-    for p in ((95000.0, -70000.0, 30000.0), (40000.0, -85000.0, 26000.0), (-15000.0, -60000.0, 24000.0),
-              (-40000.0, -10000.0, 26000.0)):
+    for p in ((95000.0, -70000.0, 30000.0), (40000.0, -85000.0, 26000.0), (-15000.0, -60000.0, 24000.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
+    hull = d.part("HULL", root=d.root())
+    d.camera_step("RIDE", d.t + 6.0, 3.0, "", target_uid=_uid(hull), target_name="HULL", cam_blend=0.5,
+                  ride_level=True)                       # then the camera rides with the vessel on the swell
     d.t += 9.0
 
 
@@ -806,24 +815,23 @@ def shot_drum(d: Demo):
     d.t += 7.0
 
 
-@stage("shot_quadrant", "Shot 7: quadrant travels aft, the handler tilts, the quadrant tips")
+@stage("shot_quadrant", "Shot 7: the quadrant system at the stern")
 def shot_quadrant(d: Demo):
+    """A flight from the D-quadrant on its rails to the handler at the stern. Nothing moves yet: the clash check found
+    the model's quadrant system not ready to (task 0077): the S-bend's roller cradles stand in the D's way aft, the
+    handler's frame cuts its hinge brackets past about 30° and the parked handling wire stays behind. Task 0082
+    (quadrant operations) moves them, here or in a stage of its own."""
     from . import build
     cam = d.scene.objects.get("Quadrant")
-    t = d.t
-    quadrant = d.part("QUADRANT FRAME", root=d.root())
-    d.camera_step("CUT", t, 0.0, "", camera=cam)
-    d.camera_step("RIDE", t, 6.0, "", target_uid=_uid(quadrant), target_name=quadrant.get(build.PROP_NAME, ""),
-                  cam_blend=0.0)
-    d.joint("QUADRANT SYSTEM: Quadrant travel", t, 6.0, 20.0, slide=True,
-            label="The quadrant travels aft on its rails (x 20)")
-    stern = d.scene.objects.get("Stern")
-    d.camera_step("MOVE", t + 6.0, 2.0, "", camera=stern)
-    d.joint("QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt", t + 7.0, 5.0, 70.0,
-            label="The handler tilts over the stern (x 20)")
-    d.joint("QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt", t + 12.0, 2.0, 0.0)
-    d.joint("QUADRANT SYSTEM: Quadrant tip", t + 11.5, 2.5, 30.0, label="The quadrant tips (x 20)")
-    d.t = t + 14.0
+    handler = d.part("HANDLER FRAME", root=d.root())
+    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
+    fly = d.camera_step("PATH", d.t, 9.0, "The D-quadrant on its rails, the quadrant handler at the stern",
+                        easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(handler),
+                        aim_name=handler.get(build.PROP_NAME, "HANDLER FRAME"))
+    for p in ((18000.0, 17000.0, 11000.0), (2000.0, 16000.0, 9000.0), (-14000.0, 9000.0, 8000.0)):
+        fly.path_points.add().co = d.mm(p)
+    fly.path_from_here = True
+    d.t += 9.0
 
 
 @stage("finish", "Animation")
@@ -846,13 +854,9 @@ def finish(d: Demo):
 # ---------------------------------------------------------------------------
 
 def _fresh(folder: str, version: str):
+    """A new empty project (the user's default template is not applied: the demo makes its own looks)."""
     import bpy
-
-    from . import prefs as fr_prefs
     bpy.ops.wm.read_homefile(use_empty=True)
-    p = fr_prefs.get()
-    if p:
-        p.default_template = ""
     scene = bpy.context.scene
     scene.fresing.out_folder = os.path.join(project_dir(folder, version), "Renders")
     return scene
@@ -881,6 +885,11 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
     _write_json(progress_path(folder, version), {"stage": "", "pid": os.getpid(), "version": version})
     out = {"path": project_path(folder, version), "seconds": {}}
     d = None
+    from . import prefs as fr_prefs
+    p = fr_prefs.get()
+    saved_template = p.default_template if p else ""
+    if p:
+        p.default_template = ""
     try:
         scene = _fresh(folder, version)
         d = Demo(scene, folder, version, small, report)
@@ -909,6 +918,9 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
             pass
         remove(folder, version)
         raise
+    finally:
+        if p:
+            p.default_template = saved_template
     for f in (progress_path(folder, version), cancel_path(folder, version)):
         try:
             os.remove(f)

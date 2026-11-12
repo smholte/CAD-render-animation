@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.68 – 12 Nov 2026 – demo project: an invented cable-lay vessel (task 0077)
+
+Demo project
+- **Help > Make demo project…** makes a ready project to show what the app can do on a big machine: an invented
+  cable-lay vessel (about 120 m, 1,250 parts – not a real vessel or anyone's design: the app draws it itself). It is
+  made in the background in a few minutes; the bottom line of the window shows how far, **Help > Cancel demo
+  project** stops it and leaves nothing behind. Then **Help > Open demo project**. One per version, in
+  Documents\Fresing Render\Demo.
+- Set up the way you would, with the app's own buttons: paint (machinery blue, accents orange, structure yellow,
+  rubber pads, a black cable), **415 joints** (every roller, sprocket and wheel the cable runs over follows one
+  joint, **Cable travel**), the tensioners' top tracks lift and tilt, the quadrant handler's two cylinders, the open
+  sea with **vessel motion**, saved cameras, a second scene **Loading at the quay** and a brand kit "Demo".
+- The animation **What it can do today** (about 75 s with title and end card): a flight round the vessel riding the
+  swell, the deck from above, the carousel and the arch (× 10), the rollers turning, a tensioner opening and
+  squeezing, X-ray with labels, a winch drum close-up with a blurred background, the quadrant system. Later updates
+  add the moving cable, the tracks, the spooling and the cable going into the sea to this same demo.
+- New stop in the test tour and a new line in the PC check (Heavy): how long the demo takes to make on your PC, the
+  time per frame of its animation and the memory it needs.
+
+Clash check
+- The clash check no longer runs out of memory on very big parts (a vessel's hull and deck): long thin faces are
+  cut into a strip of short pieces instead of being halved again and again.
+
 ## 0.2.67 – 12 Nov 2026 – the face lights up for every click (task 0089)
 
 Picking

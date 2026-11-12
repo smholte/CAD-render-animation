@@ -676,7 +676,7 @@ def own_heavy_video(ctx):
 # the demo project (task 0077)
 # ---------------------------------------------------------------------------
 
-@line("heavy.demo", "Demo project: cable-lay vessel", "0.2.63", (H,), expected=300,
+@line("heavy.demo", "Demo project: cable-lay vessel", "0.2.68", (H,), expected=300,
       what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 415 "
            "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
            "animation",
