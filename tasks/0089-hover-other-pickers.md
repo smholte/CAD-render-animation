@@ -1,16 +1,17 @@
-# 0089 – Hover highlight for the other click pickers (sharp spot, labels, decals, trail points)
+# 0089 – Hover highlight for all other click pickers
 
 **Who:** worker · **Status:** open – can start · **Branch:** `task/0089-hover-other-pickers`
 **Started by:** lead chat, 12 Nov 2026 (follow-up of 0088, the owner's wish)
 **Lane:** Pick & hover – `blender/hover.py` (only additions it needs, e.g. a "point" mode without an axis), and the
 click pickers in `ops_scene.py` (sharp spot), `ops_callouts.py` (label point on a part), `ops_decals.py` (where a decal
-goes), `ops_fade.py` (trail points); tests, guide sentences. **Not** the Machining-lane pickers (ATC pockets in
-`ops_gcode.py`, coolant nozzles in `ops_coolant.py`, toolpath parts in `ops_toolpath.py`): they wait for 0061.
+goes), `ops_fade.py` (trail points), `ops_gcode.py` (ATC pockets and other picks), `ops_coolant.py` (nozzles),
+`ops_toolpath.py` (block / finished part); tests, guide sentences. The owner starts 0061 (Machining lane) only after this
+task is merged.
 **Model:** Sonnet · effort Medium (along 0088's pattern; stuck: Opus) · **Place:** Claude Code on the web, environment
 "CAD-render-animation"
 
-Runs at the same time as 0077 (demo project), 0085 (vessel motion), 0090 (way-cover pose) and the Fable tasks 0058 and
-0061. None of them touches the files above.
+Runs at the same time as 0077 (demo project), 0085 (vessel motion) and 0090 (way-cover pose); none of them touches the
+files above.
 
 ## Goal
 
@@ -26,7 +27,7 @@ here", "Decal on this face", "Trail point on Boom"). The click itself does exact
 
 ## What to build
 
-- Find every click picker in the four files (read each operator's modal). For pickers that pick a **point** (not an
+- Find every click picker in these files (read each operator's modal). For pickers that pick a **point** (not an
   axis), show the face and a small dot where the click lands, no axis line; add that mode to `hover.py` if it is
   missing (no change to how axis pickers look).
 - Decals: the highlight shows the face the decal will lie on (flat or round – say "wraps round" for a cylinder face if
@@ -37,7 +38,7 @@ here", "Decal on this face", "Trail point on Boom"). The click itself does exact
 
 ## Done when
 
-- [ ] Each picker in the four files uses hover; a test per picker (start, a move over a part, the click gives the same
+- [ ] Each click picker in these files uses hover; a test per picker (start, a move over a part, the click gives the same
       result as before, end leaves no draw handler) in the style of 0088's tests.
 - [ ] Time per mouse move measured on the test crane and on the PC check's Heavy machine (scaled down is fine).
 - [ ] Guide: one sentence per chapter where those pickers are described; tooltip check 0 missing.
@@ -45,7 +46,7 @@ here", "Decal on this face", "Trail point on Boom"). The click itself does exact
 
 ## Not in this task
 
-The Machining-lane pickers (after 0061), the axis pickers' look, any picker's result.
+The axis pickers' look, any picker's result.
 
 ---
 
