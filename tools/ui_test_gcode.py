@@ -170,7 +170,8 @@ def open_panel():
 
 
 def worst_error(sc, step_frames=3):
-    """Worst distance (mm) between T1's tip and the program over the animation (frames where T1 shows)."""
+    """Worst distance (mm) between T1's tip and the program over the animation (frames where T1 shows, outside the
+    tool changes)."""
     gcode = mod("blender.gcode")
     core = mod("core.gcode")
     animation = mod("blender.animation")
@@ -183,7 +184,12 @@ def worst_error(sc, step_frames=3):
     tip = gcode._rest_tip(tool)[0]
     zero = sc.fresing.cnc.zero_empty
     worst = 0.0
+    fps = animation.fps_of(a)
+    # (during a tool change the spindle rises for a longer new tool before the swap: task 0096)
+    spans = [(c.start, c.start + c.length) for c in sch.changes if c.length > 0]
     for f in range(1, sc.frame_end + 1, step_frames):
+        if any(s0 - 1e-6 <= (f - 1) / fps <= s1 + 1e-6 for s0, s1 in spans):
+            continue
         sc.frame_set(f)
         if tool.hide_render:
             continue

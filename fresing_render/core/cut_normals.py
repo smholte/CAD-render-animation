@@ -272,9 +272,12 @@ def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None, cen=None, half=N
     if cen is not None:                                   # how far j's whole flat region stands out (its box)
         # (only between planes steeper than RUN_IN to each other: a round wall's strips and a ball pass's scallops
         # are judged as before, triangle by triangle)
-        reg = np.abs(np.matmul(n, cen.transpose(0, 2, 1))) + np.matmul(np.abs(n), half.transpose(0, 2, 1))
-        steep = dots < _COS_RUN_IN
-        rise = np.where(steep, np.maximum(rise, reg), rise)
+        steep = (dots < _COS_RUN_IN) & (dots > cos)            # (only pairs that could blend)
+        if steep.any():
+            reg = np.abs(np.matmul(n, cen.transpose(0, 2, 1)))
+            reg += np.matmul(np.abs(n), half.transpose(0, 2, 1))
+            reg *= steep
+            np.maximum(rise, reg, out=rise)
     scale = np.maximum(rise.max(axis=(1, 2), keepdims=True), 1e-300)
     reach = np.matmul((rise / scale) ** BIG_POWER, same.astype(np.float64))
     limit8 = BIG ** BIG_POWER
@@ -282,7 +285,7 @@ def _blend(dots, n, w, fuzz, cos: float, to_a, to_b, thin=None, cen=None, half=N
     other = near & ~same
     # over[i, j]: j is the flat face, i a small facet next to it
     over = reach > limit8 * mine
-    if cen is not None:                                   # a steep edge: a plane 3 times as big is the flat face
+    if cen is not None and steep.any():                   # a steep edge: a plane 3 times as big is the flat face
         over |= steep & (reach > BIG_STEEP ** BIG_POWER * mine)
     under = over.transpose(0, 2, 1)
     # ... and the two nearly in line (the first strip of a rounding, the first facet of a ball pass): a steeper
