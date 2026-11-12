@@ -110,9 +110,9 @@ Not reaching, and tight bends
 
 Speed
 -----
-n = 33, measured in tests/test_flex_core.py (Claude Code web session, 4 cores, 12 Nov 2026): one hose 5 ms; a
-batch of 20: 11 ms (20 poses of a U-loop) … 19 ms (20 unrelated hoses, a quarter of them with fittings pointing
-sideways or backwards); 5,000 in one call 3.0 s (0.6 ms each). Small batches are slow per hose because every
+n = 33, measured in tests/test_flex_core.py (Claude Code web session, 4 cores, 12 Nov 2026): one hose 4.5 ms; a
+batch of 20: 10 ms (20 poses of a U-loop) … 17 ms (20 unrelated hoses, a quarter of them with fittings pointing
+sideways or backwards); 5,000 in one call 2.7 s (0.54 ms each). Small batches are slow per hose because every
 NumPy call has a fixed cost: solve all hoses of a frame, or all frames of a hose, in one call. From n = 65 on
 the linear systems are large enough for the BLAS library to start its threads (1.3 ms per hose in a batch).
 
@@ -146,7 +146,7 @@ _TWIST = 0.5               # the wound starts on the coarsest level: the fold wo
 _CLEARLY = 1e-4            # … a wound start wins when its energy is lower by this share of the energy's size
 # the steps
 _TOL = 1e-4                # Newton step (radians) at which the fine level is done (the error is its square)
-_TOL_COARSE = 1e-2         # … and the coarse levels (they only give the start)
+_TOL_COARSE = 0.05         # … and the coarse levels (they only give the start)
 _MAX_IT = 60               # steps per level at most
 _CAP = 0.6                 # largest turn of one segment in one damped step, radians
 _TRIES = 4                 # damped tries of one step before the eigenvalues are worked out anew

@@ -604,8 +604,8 @@ def _best(fn, repeats):
 
 
 def test_speed():
-    """Measured where the tests run and printed (web session, 4 cores, 12 Nov 2026: one hose 5 ms, 20 generic
-    hoses 18 ms, 20 poses of a U-loop 11 ms, 5,000 hoses 2.9 s); the limits leave room for a slow test runner.
+    """Measured where the tests run and printed (web session, 4 cores, 12 Nov 2026: one hose 4.5 ms, 20 generic
+    hoses 17 ms, 20 poses of a U-loop 10 ms, 5,000 hoses 2.7 s); the limits leave room for a slow test runner.
     Best of 15 for the short ones, so another program on the machine does not count."""
     print()
     a = generic(20, seed=101)
