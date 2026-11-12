@@ -1,7 +1,7 @@
 """Demo project buttons (task 0077): Help > Make demo project…, Cancel, Open demo project. The build is ``demo.py``.
 
 Make starts a background Blender (``pccheck/launcher.py -- demobuild <folder>``) so the app stays usable; the status
-bar shows its stage ("Writing the model 2/2", "Importing", "Joints 120/419", "Animation"). Cancel asks the build to
+bar shows its stage ("Writing the model 2/2", "Importing", "Joints 120/422", "Animation"). Cancel asks the build to
 stop and, if it does not within a few seconds (it is inside the import or the model maker), stops it and every
 program it started; either way the half-made demo folder is deleted.
 """

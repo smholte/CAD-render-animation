@@ -2029,8 +2029,8 @@ def _check_demo(scene):
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
-     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 419 joints "
-     "(311 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay', and 6 Animation "
+     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 422 joints "
+     "(314 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay', and 6 Animation "
      "> 'What it can do today' plays a video of about 75 s (Build & play). This stop only checks that the demo is "
      "there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,

@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.71 – 12 Nov 2026 – demo: quadrant wires as on your vessels, cable engine and handling winches moved (task 0095)
+
+Demo project (Help > Make demo project; make it again for this version)
+- The **A&R wire** is always on the D-quadrant's new eye at the top of its curve: straight along the deck from its
+  winch while the D travels aft (the winch's drum turns as the wire pays out), over the handler's top pulley once the
+  handler tilts. The sheave at the handler's hinge is gone; the top pulley sits beyond the handler's end, under the D
+  as it rolls on.
+- The two **tipping wires** come up their swivel posts, over the swivel sheaves and down to the D's bottom corners
+  (the ends of its straight bar) once it is on the handler; the sheave heads turn with the tilt.
+- The wires follow the joints by themselves, also in the render queue and at any frame rate.
+- **Shot 7** ends with the handler at 100°: the D stands vertical, curve up, hanging from the A&R wire over the top
+  pulley, both tipping wires on. It no longer tips on the handler (that comes with lowering it into the sea).
+  "Quadrant tip" now turns the D about its A&R eye.
+- The **cable engine** stands on the lower path, just forward of tensioner 2; rollers took its place on side B.
+- The two **handling winches** stand forward, one each side of the A&R winch, each in line with a tensioner, their
+  wire leading aft at the cable's height; 80 % of the old size, still with the Lebus drum (shot 6 shows it).
+
 ## 0.2.70 – 12 Nov 2026 – joints made fast in one go; a moved model keeps its place (task 0093)
 
 Motion

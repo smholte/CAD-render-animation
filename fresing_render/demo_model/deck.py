@@ -16,6 +16,7 @@ from . import geom as g
 from .geom import Asm, Part, Rot, T
 from .machines import (CHROME, DARK, MOTOR, RUBBER, STEEL, YELLOW, Kit, _arc_rollers, cable_drive,
                        turn_axis)
+from .route import ar_eye_local, top_pulley
 
 GREY = (0.55, 0.56, 0.57)
 CPS_YELLOW = (0.98, 0.78, 0.05)
@@ -320,19 +321,21 @@ def loading_tower(p, kit: Kit, name: str, span: float, z_arch: float, z_foot: fl
 # Linear cable engine
 # ---------------------------------------------------------------------------------------------------------
 
-def cable_engine(p, kit: Kit) -> Asm:
+def cable_engine(p, kit: Kit, h: float | None = None) -> Asm:
     """Linear cable engine: four pairs of rubber-tyred wheels (bottom fixed, top on a carriage pressed down by two
     cylinders), each with a hydraulic motor. Local: the cable along x through the origin, travelling towards -x;
-    the deck at z = -line_h."""
+    the deck at z = -h (the cable's height above the deck: the highway's ``line_h`` or, since task 0095, the lower
+    path's). A low cable gets smaller wheels so the frame still stands on the deck."""
     cr = p.cable_r
-    rw, ww = 300.0, 260.0
-    zdeck = -p.line_h
+    h = p.line_h if h is None else h
+    rw, ww = min(300.0, (h - cr - 180.0) / 2.0), 260.0
+    zdeck = -h
     A = Asm("CABLE ENGINE")
-    wheel = kit.get(("ce_wheel",), lambda: Part("CABLE ENGINE WHEEL", g.fuse(
+    wheel = kit.get(("ce_wheel", rw), lambda: Part("CABLE ENGINE WHEEL", g.fuse(
         g.revolve([(60, -ww / 2), (rw - 60, -ww / 2), (rw, -ww / 2 + 50), (rw, ww / 2 - 50), (rw - 60, ww / 2),
                    (60, ww / 2)], (0, 0, 0), (0, 1, 0))), RUBBER))
-    hub = kit.get(("ce_hub",), lambda: Part("WHEEL HUB", g.cyl(rw - 70, ww + 40, (0, -ww / 2 - 20, 0), (0, 1, 0)),
-                                             STEEL))
+    hub = kit.get(("ce_hub", rw), lambda: Part("WHEEL HUB", g.cyl(rw - 70, ww + 40, (0, -ww / 2 - 20, 0), (0, 1, 0)),
+                                                STEEL))
     mo = kit.motor(110.0, 280.0)
     xs = (-1350.0, -450.0, 450.0, 1350.0)
     zb = -(cr + rw)
@@ -374,14 +377,13 @@ def cable_engine(p, kit: Kit) -> Asm:
 RAIL_Y = 2000.0                         # the quadrant's rails at y = +-RAIL_Y
 BOGIE_H = 350.0                         # rail top -> the D's underside
 WHEEL_R = 120.0                         # rail wheel tread radius (its flange 30 more)
-HINGE_SHEAVE_R = 448.0                  # the handling wire's sheave on the handler's hinge axis (rope centre)
 
 
 def quadrant_d(p, kit: Kit) -> Asm:
     """The D-shaped quadrant. Local: origin on the straight bar's line at the curve's centre, at rail-top height;
     the curve (cable centre radius Rq) in front (+x), the bar along y at x = 0, the cable round the gutter at local
-    z = line_z - rail_z, travelling from +y round the front to -y. Rail bogies at the rails, a hang-off pad eye at
-    the bar's middle (the handling wire), tipping pad eyes at the bar's ends."""
+    z = line_z - rail_z, travelling from +y round the front to -y. Rail bogies at the rails, the A&R pad eye at the
+    top of the curve (task 0095: the A&R wire hangs the D from it), tipping pad eyes at the bar's ends."""
     Rq, cr = p.quadrant_r, p.cable_r
     zc = p.line_z - p.rail_z
     A = Asm("QUADRANT")
@@ -406,16 +408,22 @@ def quadrant_d(p, kit: Kit) -> Asm:
     fr.append(sector([(web_in - 250, zb0), (web_in + 120, zb0), (web_in + 120, zb1 + 1), (web_in - 250, zb1 + 1)],
                      -90.0, 90.0))
     A.add(Part("QUADRANT FRAME", g.fuse(*fr), YELLOW))
-    # pad eyes: hang-off (handling wire) on the bar's aft face, tipping eyes raised at the bar's ends
-    hang = np.array([-700.0, 0.0, (zb0 + zb1) / 2])
-    eyes = {"handling": hang}
-    A.add(Part("HANG-OFF PAD EYE", g.cut(g.fuse(g.box(-720, -40, zb0 + 40, 140, 80, zb1 - zb0 - 80),
-                                                g.cyl(220.0, 80.0, hang + [0, -40, 0], (0, 1, 0))),
-                                         g.cyl(80.0, 200.0, hang + [0, -100, 0], (0, 1, 0))), YELLOW))
+    # pad eyes (task 0095): the A&R eye at the top of the curve – the middle of its outer edge, just outside the
+    # gutter's lip, under the gutter and above the D's underside; a bracket from the frame's ring carries a plate
+    # square to x whose hole the A&R wire ends in (the wire stays in the plane y = 0, so it never runs through the
+    # plate). The tipping eyes at the bar's ends: the D's bottom corners when it stands vertical on the handler.
+    eye = ar_eye_local(p)
+    ar = eye[0]
+    eyes = {"handling": eye}
+    plate = g.cut(g.box(ar - 30.0, -180.0, zb0 + 10.0, 60.0, 360.0, zb1 - zb0 + 10.0),
+                  g.cyl(75.0, 200.0, eye + [-100.0, 0, 0], (1, 0, 0)))
+    A.add(Part("A&R PAD EYE", g.fuse(plate, g.box(web_in + 80.0, -50.0, zb0 + 30.0, ar - 30.0 - web_in - 80.0 + 1.0,
+                                                  100.0, 170.0)), YELLOW))      # under the gutter's rollers
     for key, sy in (("tipping_port", 1.0), ("tipping_stb", -1.0)):
         c = np.array([-300.0, sy * (bar_y - 150.0), zb1 + 350.0])
-        lug = g.cut(g.fuse(g.box(-450, sy * (bar_y - 150.0) - 30, zb1 - 1, 300, 60, 351 + 170),
-                           g.cyl(170.0, 60.0, c + [0, -30, 0], (0, 1, 0))), g.cyl(60.0, 200.0, c + [0, -100, 0], (0, 1, 0)))
+        # a thin lug with a big hole: the tipping wire comes in at up to ~60° to the hole's axis
+        lug = g.cut(g.fuse(g.box(-450, sy * (bar_y - 150.0) - 20, zb1 - 1, 300, 40, 351 + 190),
+                           g.cyl(190.0, 40.0, c + [0, -20, 0], (0, 1, 0))), g.cyl(90.0, 200.0, c + [0, -100, 0], (0, 1, 0)))
         A.add(Part("PAD EYE", lug, YELLOW))
         eyes[key] = c
     # rail bogies: two on each rail, each with two wheels (they turn with the travel)
@@ -439,7 +447,7 @@ def quadrant_d(p, kit: Kit) -> Asm:
                         {"by": "follows", "follows": "../Quadrant travel", "ratio": round(360.0 / (2 * math.pi * wr), 9),
                          "note": "rolls on the rail (degrees per mm of travel; travel is aft, -x)"})
     A.info.update({"eyes": {k2: v.tolist() for k2, v in eyes.items()}, "radius": Rq, "cable_z": zc,
-                   "hang_off": hang.tolist(), "bar_y": bar_y, "front_x": lip + 40.0, "back_x": -720.0})
+                   "hang_off": eye.tolist(), "bar_y": bar_y, "front_x": lip + 40.0, "back_x": -600.0})
     return A
 
 
@@ -452,9 +460,11 @@ def rail_girder(x0: float, x1: float) -> Part:
 
 def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) -> Asm:
     """The quadrant handler: a frame lying flat in the middle lane, hinged at the transom, tilted 0 -> ~100° over
-    the stern by two cylinders; rails on top (the quadrant rolls on), the handling wire's pulley at its top centre.
-    The handling wire reaches the frame over a sheave on the hinge axis (as on an A-frame): the run from the deck to
-    that sheave stays put while the handler tilts, the run along the frame tilts with it (task 0091).
+    the stern by two cylinders; rails on top (the quadrant rolls on), the A&R wire's top pulley beyond its far end.
+
+    Task 0095: no sheave at the hinge any more. The A&R wire runs from its winch straight to the D's eye at the top of
+    the curve; the top pulley (``route.top_pulley``) stays under the D while it rolls on, and the wire bears on it once
+    the handler tilts: at 100° it comes from forward over the pulley and hangs straight down to the eye.
 
     Local: the hinge axis along y through the origin (model z = z_hinge); the frame lies along +x."""
     A = Asm("QUADRANT HANDLER")
@@ -465,19 +475,16 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
     for sy in (-1, 1):
         fr.append(g.box(0, sy * RAIL_Y - 250, -350, length, 500, rail_top - 100 + 350))
         fr.append(g.cyl(300.0, 580.0, (0, sy * RAIL_Y - 290, 0), (0, 1, 0)))      # 10 mm from the brackets' cheeks
-    # cross beams: the first one far enough from the hinge to swing over the brackets and round the hinge sheave
+    # cross beams: the first one far enough from the hinge to swing over the brackets
     for x in np.linspace(1100.0, length - 1000.0, 4):
         fr.append(g.box(x - 200, -RAIL_Y, -250, 400, 2 * RAIL_Y, 400))
-    # the top pulley's head at the forward (top) end
-    rp = max(8 * p.quadrant_rope_d, 300.0)
-    # the wire along the frame: level from the hinge sheave's top (6 mm clear of its groove) over the top pulley's top;
-    # the pulley stays below the D's underside: the D travels over the handler's forward end onto it (task 0091)
-    run_z = HINGE_SHEAVE_R + 6.0
-    pc = np.array([length + 150.0, 0.0, run_z - rp])
-    fr.append(g.cut(g.box(length - 400, -RAIL_Y, -250, 400, 2 * RAIL_Y, rail_top - 100 + 250),
-                    g.box(length - 450, -60, -300, 500, 120, rail_top + 400)))          # a slot for the pulley
+    # the top pulley beyond the forward (top) end, on two brackets from the end beam
+    tp = top_pulley(p)
+    rp = tp["r"]
+    pc = np.array([tp["centre"][0], 0.0, tp["centre"][1]])
+    fr.append(g.box(length - 400, -RAIL_Y, -250, 400, 2 * RAIL_Y, rail_top - 100 + 250))
     for sy in (-1, 1):
-        fr.append(g.box(length - 350, sy * 260 - 40, -250, 700 + rp * 0.6, 80, pc[2] + 250 + 150))
+        fr.append(g.box(length - 350, sy * 260 - 40, -250, pc[0] + 300.0 - (length - 350), 80, pc[2] + 250 + 150))
     frame.add(Part("HANDLER FRAME", g.fuse(*fr), YELLOW))
     for sy in (-1, 1):
         frame.add(Part("QUADRANT RAIL", g.fuse(
@@ -490,16 +497,7 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
     A.joint("Handler tilt", "rotate", [cf], (0, 0, 0), (0, -1, 0), [0.0, 100.0],
             {"by": "operator", "note": "tilts the handler up and over the stern (positive); the quadrant rides on it"})
     A.joint("Top pulley turn", "rotate", [[cf, cp]], pc, (0, -1, 0), None,
-            cable_drive(rp, note="turned by the quadrant handling wire (positive = paying out)"))
-    # the hinge sheave on the hinge pin (fixed), with cheek plates
-    hub = 200.0
-    A.add(Part("HINGE SHEAVE", g.sheave(HINGE_SHEAVE_R, p.quadrant_rope_d / 2, hub_r=hub, bore_r=125.0, holes=5),
-               YELLOW), Rot((1, 0, 0), 90))
-    cheek_r = HINGE_SHEAVE_R + 1.25 * p.quadrant_rope_d / 2 + 60.0
-    for sy in (-1, 1):
-        y0 = sy * (1.3 * p.quadrant_rope_d / 2 + 25.0)
-        A.add(Part("SHEAVE CHEEK", g.tube(cheek_r, 125.0, 20.0, (0, y0 if sy > 0 else y0 - 20.0, 0), (0, 1, 0)),
-                   YELLOW))
+            cable_drive(rp, note="turned by the A&R wire once the handler tilts (positive = paying out)"))
     # hinge brackets on the transom (fixed)
     for sy in (-1, 1):
         br = [g.box(-500, sy * RAIL_Y + o, zd, 800, 120, -zd + 450) for o in (-420.0, 300.0)]
@@ -535,8 +533,8 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
         y0, y1 = sorted((sy * (RAIL_Y + 200.0), sy * (yc + 150.0)))
         frame.add(Part("CYLINDER LUG", g.box(rodpin[0] - 200, y0, -350, 400, y1 - y0, 400), YELLOW))
     A.info.update({"pulley_centre": pc.tolist(), "pulley_r": rp, "frame_path": [cf], "pulley_path": [cf, cp],
-                   "cylinders": cyls, "rail_top": rail_top, "frame": frame, "run_z": run_z,
-                   "hinge_sheave_r": HINGE_SHEAVE_R})
+                   "cylinders": cyls, "rail_top": rail_top, "frame": frame, "frame_part_path": [cf, frame.children[0]],
+                   "pulley_exit": [tp["exit"][0], 0.0, tp["exit"][1]], "eye_end": [tp["eye"][0], 0.0, tp["eye"][1]]})
     return A
 
 
@@ -544,22 +542,43 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
 # Swivel sheave (tipping wires)
 # ---------------------------------------------------------------------------------------------------------
 
-def swivel_sheave(p, kit: Kit, rope_d: float, rp: float, height: float) -> Asm:
-    """A post from the deck with a sheave head that swivels. Local: the post's foot at the origin, the sheave's
-    centre at (0, 0, height) with its axis along y; the head turns about the post's axis (z) – task 0082 turns it
-    to follow the wire to the quadrant."""
+def swivel_sheave(p, kit: Kit, rope_d: float, rp: float, height: float, rope_z: float, head_deg: float = 0.0) -> Asm:
+    """A hollow post from the deck with a sheave head that swivels about the post's axis (task 0095: the tipping wire
+    comes in along that axis, so the head can turn to any side and the wire still meets its sheave). Local: the post's
+    foot at the origin; the wire comes from its winch along -x at height ``rope_z``, goes under the foot sheave (its
+    centre at (-rf, 0, rope_z + rf), fixed, in a window of the post) and up the post's axis to the head; the head
+    sheave's centre is ``rp`` out from the axis along the head's x at ``height`` (the wire meets it on the axis), the
+    head turned ``head_deg`` about z. The wire over the head sheave and on to the D is made by the demo project (it
+    moves); the parts it meets: ``info``."""
     A = Asm("SWIVEL SHEAVE")
-    A.add(Part("SHEAVE POST", g.fuse(g.cyl(260.0, height - rp - 700.0, (0, 0, 0)),
-                                     g.box(-500, -500, 0, 1000, 1000, 40)), YELLOW))
+    rr = rope_d / 2
+    rf = rp
+    zb = height - rp - 700.0                  # the swivel bearing's foot
+    zf = rope_z + rf                          # the foot sheave's centre
+    post = g.tube(260.0, 120.0, zb, (0, 0, 0))
+    post = g.cut(post, g.box(-400.0, -70.0, rope_z - 2 * rr - 60.0, 400.0, 140.0, 2 * rf + 4 * rr + 120.0))  # window
+    A.add(Part("SHEAVE POST", g.fuse(post, g.cut(g.cyl(480.0, 40.0, (0, 0, 0)), g.cyl(120.0, 100.0, (0, 0, -10))),
+                                     *[g.box(-2 * rf - 120.0, sy * 70.0 + (0 if sy > 0 else -40.0), zf - rf - 160.0,
+                                             2 * rf + 240.0, 40.0, 2 * rf + 320.0) for sy in (-1, 1)]), YELLOW))
+    cf = A.add(Part("FOOT SHEAVE", g.sheave(rf, rr, holes=5), YELLOW), T(-rf, 0, zf) @ Rot((1, 0, 0), 90))
+    A.add(Part("SHEAVE PIN", g.cyl(50.0, 220.0, (-rf, -110.0, zf), (0, 1, 0)), STEEL))
     head = Asm("SWIVEL HEAD")
-    head.add(Part("SWIVEL BEARING", g.cyl(330.0, 250.0, (0, 0, height - rp - 700.0)), MOTOR))
-    fork = [g.box(-rp * 0.6, sy * 120 - 25, height - rp - 450, rp * 1.2, 50, rp + 450 + 150) for sy in (-1, 1)]
-    fork.append(g.box(-rp * 0.6, -145, height - rp - 450, rp * 1.2, 290, 60))
-    head.add(Part("SHEAVE HEAD", g.fuse(*fork), YELLOW))
-    cs = head.add(Part("TIPPING SHEAVE", g.sheave(rp, rope_d / 2, holes=5), YELLOW), T(0, 0, height) @ Rot((1, 0, 0), 90))
-    head.add(Part("SHEAVE PIN", g.cyl(50.0, 340.0, (0, -170, height), (0, 1, 0)), STEEL))
-    ch = A.add(head)
-    A.info.update({"head": ch, "sheave": cs})
+    # the turning bearing is a sleeve round the post's top, 15 mm clear of it all round and 20 mm above its top face:
+    # they never touch while the head swivels (with the sea moving, the clash check's step between frames is a few mm
+    # off for a slowly turning part, task 0091)
+    head.add(Part("SWIVEL BEARING", g.fuse(g.tube(340.0, 275.0, 470.0, (0, 0, zb - 220.0)),
+                                           g.tube(340.0, 80.0, 30.0, (0, 0, zb + 220.0))), MOTOR))
+    zp = zb + 250.0                           # the head's base plate (a hole for the wire on the axis)
+    xs0, xs1 = -330.0, 2.0 * rp - rr - 40.0      # the parked wire hangs from the sheave's far side, past the plates
+    base = g.cut(g.box(xs0, -170, zp, xs1 - xs0, 340, 60), g.cyl(80.0, 200.0, (0, 0, zp - 50)))
+    fork = [g.box(xs0 + 280.0, sy * 120 + (0 if sy > 0 else -50), zp, xs1 - xs0 - 280.0, 50, height + 150.0 - zp)
+            for sy in (-1, 1)]
+    head.add(Part("SHEAVE HEAD", g.fuse(base, *fork), YELLOW))
+    cs = head.add(Part("TIPPING SHEAVE", g.sheave(rp, rr, holes=5), YELLOW), T(rp, 0, height) @ Rot((1, 0, 0), 90))
+    head.add(Part("SHEAVE PIN", g.cyl(50.0, 340.0, (rp, -170, height), (0, 1, 0)), STEEL))
+    ch = A.add(head, Rot((0, 0, 1), head_deg))
+    A.info.update({"head": ch, "sheave": cs, "foot": cf, "foot_centre": [-rf, 0.0, zf], "foot_r": rf,
+                   "head_centre": [rp, 0.0, height], "bearing_z": zb})
     return A
 
 

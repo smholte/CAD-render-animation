@@ -2146,14 +2146,14 @@ and bigger pictures.
 
 The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
 vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
-engine, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,250 parts). It is
+engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,250 parts). It is
 **not** a real vessel or anyone's design: the app draws it itself, from general sizes.
 
 <img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
 
 **Make it (once per version)**
 1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/311", "Animation"). You can keep
+   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/314", "Animation"). You can keep
    working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
@@ -2164,13 +2164,20 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 311 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 314 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
   support rollers follow the carousel, the quadrant's rail wheels its travel; the tensioners' top tracks lift and
   tilt (a stack); the quadrant handler's two **cylinders** follow its tilt. The quadrant system is a stack too: the
-  D-quadrant's **travel** rides on the **Handler tilt** and its **tip** on the travel, so once the D is on the
-  handler it tilts with it. The four roller cradles of the S-bends that stand in the D's way **drop** out of it
-  (move "Cradle … drop": the others follow).
+  D-quadrant's **travel** rides on the **Handler tilt** and its **tip** (about the A&R wire's eye at the top of its
+  curve) on the travel, so once the D is on the handler it tilts with it. The four roller cradles of the S-bends that
+  stand in the D's way **drop** out of it (move "Cradle … drop": the others follow). The A&R winch's drum follows the
+  D's travel as its wire pays out.
+- **Wires that move:** the **A&R wire** runs from its winch in front of the carousel to the eye at the top of the D's
+  curve – straight along the deck while the D travels, over the handler's top pulley once the handler tilts. The two
+  **tipping wires** come up the swivel posts at the stern, over their sheaves, and hang parked until the D is on the
+  handler; then they run to the D's bottom corners (the ends of its straight bar) and the sheave heads turn with the
+  tilt. They follow the joints by themselves (move "Quadrant travel" or "Handler tilt" and they go along), also in
+  the render queue. They are part of the demo, not a function of the app yet.
 - **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
@@ -2179,12 +2186,13 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening and squeezing, then X-ray with labels, a close-up of a winch's
   **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: the
-  cradles drop, the D-quadrant travels aft onto the handler (× 60 time-lapse), the handler tilts over the stern
-  carrying it and the quadrant tips. The captions say where it runs faster than real. Click **Build & play**, or put
+  cradles drop, the D-quadrant travels aft onto the handler on its A&R wire (× 60 time-lapse), the tipping wires are
+  connected, and the handler tilts over the stern carrying it: it ends with the D standing vertical, curve up,
+  hanging from the A&R wire over the top pulley. The captions say where it runs faster than real. Click **Build & play**, or put
   it in the render queue.
 
-The moving cable, the tensioner tracks running, the cable spooling, the cable going into the sea and the quadrant
-operations with its wires (the cable stays where it is while the D moves) come in later updates: they are added to this same demo. The labels of the X-ray step also show in
+The moving cable, the tensioner tracks running, the cable spooling, the cable going into the sea and lowering the
+D-quadrant into the sea (the cable stays where it is while the D moves) come in later updates: they are added to this same demo. The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 
