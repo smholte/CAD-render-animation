@@ -1,6 +1,6 @@
 # 0061 – Tool marks on cut faces that follow the toolpath
 
-**Who:** worker · **Status:** open – **Fable day, Thursday 12 Nov** (owner), at the same time as 0058 · **Branch:**
+**Who:** worker · **Status:** open – can start (Fable day, 12 Nov; split over subagents, see below) · **Branch:**
 `task/0061-tool-marks`
 **Started by:** lead chat, 10 Nov 2026 (owner's priority 3 of the big features, 9 Nov: "milled faces own look now,
 toolpath marks later")
@@ -14,6 +14,23 @@ in `core/machining.py` `cut_look` / `core/materials_lib.py` (additive: a marks p
 Runs at the same time as **0058** (Flex parts lane: `flex*.py`, hooks in `handlers.py`, `animation.py`,
 `reimport.py`). Do not touch those, nor coolant, chips, air or toolchange files. Two releasing tasks at once: take the
 version number last (CLAUDE.md section 2); whoever finishes second merges `main` once and renumbers.
+
+
+## Split with subagents (owner, 12 Nov 2026 – CLAUDE.md "Subagents in a worker session")
+
+Suggested split (the worker may change it; write the final plan under "Design" first):
+- **Worker:** the design and the interfaces (the move table and the per-face attributes: names, units, one row per
+  cutter id), `props.py`, `ui_machining.py`, integration, tests on GitHub, release.
+- **A – which move made each face** (`core/machining.py`: an id per cutter, the table, kept through split/cache;
+  `blender/machining.py`: the attributes on the milled mesh via `foreach_set`) + tests (two passes across each other).
+- **B – the marks** (`core/materials_lib.py` / `cut_look`: the node group for bottom arcs + anisotropic tangent,
+  flank lines, scallop arcs, chamfer lines, drill rings; strength per material) + a pure-Python mirror of the formula
+  and its test.
+- **C – dark facets** (0042 point): the cut faces' normals (flat faces flat, smooth by angle, no shading across
+  sharp edges) + a before/after picture.
+- **Then:** D – **independent tests** from the "Done when" list by an agent that wrote none of A–C (spacing within
+  5 %, re-cut marks, scripts off, queue); E – speed measurements (scrubbing, rebuild, render) one at a time; F – tour
+  stop, PC-check line, guide section + picture.
 
 ## Goal
 

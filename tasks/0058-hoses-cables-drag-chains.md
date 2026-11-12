@@ -1,6 +1,6 @@
 # 0058 – Hoses, cables and drag chains that follow the motion
 
-**Who:** worker · **Status:** open – **Fable day, Thursday 12 Nov** (owner); after 0050 (both touch the queue/animation area) · **Branch:**
+**Who:** worker · **Status:** open – can start (Fable day, 12 Nov; split over subagents, see below) · **Branch:**
 `task/0058-hoses-cables-drag-chains`
 **Started by:** lead chat, 9 Nov 2026 (owner's priority 1 of the big features, 9 Nov)
 **Lane:** new **Flex parts** lane – new files `core/flex.py` (no Blender: shapes, lengths, solver),
@@ -14,6 +14,23 @@ additive); tests; guide chapter "Hoses and drag chains"; PC-check line
 Runs at the same time as 0061 tool marks (Machining lane, Fable day): do not touch machining, coolant, chips, air, G-code, toolchange
 files. If it needs a change in `gcode.py` (drag chains following the axes during a G-code run), keep it to a hook
 and say so in the report.
+
+
+## Split with subagents (owner, 12 Nov 2026 – CLAUDE.md "Subagents in a worker session")
+
+Suggested split (the worker may change it; write the final plan under "Design" first):
+- **Worker:** the design and the interfaces (`core/flex.py` ↔ `blender/flex.py`: centreline points, frame
+  attribute, bake format), the hooks in `handlers.py`, `animation.py`, `reimport.py`, `props.py`, integration, tests
+  on GitHub, release.
+- **A – solver** (`core/flex.py` + `tests/test_flex_core.py`, no Blender): hose shape (fixed length, bend stiffness,
+  sag, minimum radius, exact ends) and drag-chain shape (runs + bend, links re-laid by pitch).
+- **B – Blender side** (`blender/flex.py`): centreline + diameter read from a tube mesh, tube builder, the one bake mesh
+  per animation + Geometry Nodes slice (0075's decision), live-posing path.
+- **C – test models** (`tools/make_test_flex*.py`, `tests/data/`): gantry with a link-part chain per axis, arm with a
+  hose across a joint, cylinder with two hoses, soft cable between two moving parts.
+- **Then:** D – panel/operators/tooltips/part-type rule (`ui_flex.py`, `ops_flex.py`); E – **independent tests and
+  review of the solver** by an agent that wrote none of it (the brief's accuracy list); F – tour stops, PC-check
+  line, guide chapter + pictures (worker or a `sonnet` subagent).
 
 ## Goal
 

@@ -92,6 +92,25 @@ Rules:
 Task files: `tasks/NNNN-short-name.md`, made from `tasks/TEMPLATE.md`. `TASKS.md` is the
 overview (number, title, status, who, branch).
 
+### Subagents in a worker session (owner's request, 12 Nov 2026)
+
+Big tasks (above all the Fable tasks) may split their work over **subagents** (Claude Code's Agent tool). The
+worker session stays the one in charge: it reads the brief, designs, merges, tests, pushes and releases.
+- **Interfaces first.** Before spawning writers, the worker fixes the split: which files each subagent owns, the
+  functions and data between them (names, arguments, units). Write that plan in the task file under "Design" and
+  commit it on the branch – it is the subagents' brief and the record if the session has to be continued.
+- **One owner per file.** Two subagents never edit the same file. Parallel writers run with `isolation: "worktree"`;
+  the worker merges their work. Shared files (`props.py`, `ui.py`, `reimport.py`, `animation.py`, `handlers.py`, the
+  tour, the PC check, the guide, `TASKS.md`, version files, CHANGELOG) stay with the worker.
+- **Good jobs for a subagent:** reading and mapping code (Explore, read-only); a self-contained module with its own
+  tests (a pure-Python solver in `core/`); test-model makers; **independent tests written from the brief by an
+  agent that did not write the code**; the independent review (section 6); guide pictures and texts at the end.
+- **Subagents never push, merge, bump the version or touch `TASKS.md`**; only the worker runs the GitHub cycle.
+- **At most 3 at a time** (the web machine has 4 cores; real-Blender tests and renders one at a time).
+- **Model:** a subagent runs on the session's model unless told otherwise; routine pieces (tests from a clear spec,
+  guide text, tooltips) may go to `sonnet` to save usage.
+- **Say in the report** which subagents ran, what each did and which work was re-done after merging.
+
 ### Saving usage (owner's request, 5 Nov 2026)
 
 The owner's AI usage is limited; every chat works economically:
