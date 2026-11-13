@@ -1125,7 +1125,11 @@ class Check:
                         self.far += 1
                         continue
                     # that search stopped at the bound it was asked for: a wider one may find them far enough apart
-                    again = self.sep_need.get((p, q), math.inf) <= was[3] and since < was[3]
+                    # (small parts only once testing them has cost as much as a search, as in ``_look_for_gap``)
+                    again = (self.sep_need.get((p, q), math.inf) <= was[3] and since < was[3]
+                             and (self._big(p, q) or self.spent.get((p, q), 0) >= SEP_AFTER))
+                    if again and not self._big(p, q):
+                        self.spent[(p, q)] = 0
                 if not again and not self._gap_worth(p, q, rel0[i]):
                     continue
                 sep = self._separation(p, q, rel0[i], need + 1e-6)
