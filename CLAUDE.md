@@ -958,9 +958,10 @@ the release → Delete); the next run on `main` publishes it again.
   missed (found by `tests/test_clash_turning.py`, task 0110). A turned point must land within a share (2 %) of how far
   the turn moved it (`core/clash.repeats(rel=)`), and the symmetry is read from the sharp corners only
   (`symmetry_order`): round faces fit any small turn.
-- Looking for a gap between two small parts a few mm apart (the box trees of two touching frames) costs far more than
-  testing their points, and the gap lets them wait only a step: a gap under 10 mm between small parts is not looked
-  for again until they moved 0.25 m (`SEP_USEFUL`, task 0110: the demo's check was slower than before without it).
+- Looking for a gap (`separation`) costs 5–25 ms; testing two small parts point by point 0.2–2 ms. A search for every
+  pair made the PC check's Heavy machine (3,000 tiny parts) 7 x slower, and the demo's drop cradles (frames a few mm
+  apart) slower too. Small parts look for a gap only once their tests have cost `SEP_AFTER` faces since the last
+  search (counted in faces, not seconds: the same scene must give the same rows), task 0110.
 - A grid seen along an axis (`unround_band`, 64 cells, points 1/60 of the part's size apart) is far too coarse for a
   part 24 m across: every drive part beside the demo's rim fence looked close to its posts. Look only at the part's
   surface where the other part can come, a few mm apart (`local_points`, task 0110).

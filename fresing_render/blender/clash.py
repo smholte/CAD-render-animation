@@ -417,7 +417,6 @@ ON_SURFACE = 1e-5                        # m: a point closer than this to a surf
 SEP_NEED = 0.25                          # m: a distance bound this big is enough (task 0092; the pair is skipped
                                          # until the two have moved that much against each other)
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
-SEP_USEFUL = 10.0 * core.MM            # a gap smaller than this between two small parts: test them, not look again
 SEP_AFTER = 30_000                       # faces of two small parts tested point by point before a gap is looked for
                                          # (task 0110; a search costs about as much as 20-40 ms of tests)
 SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
@@ -993,7 +992,10 @@ class Check:
             # look for a gap first, unless they were found touching a moment ago (task 0110: every pair, not only big
             # ones – a small part spinning metres from a big frame whose box holds it was tested at every moment and
             # up to 48 times between two frames; with a gap found it waits until it has moved that far)
-            sep = self._separation(p, q, rel[i]) if self._look_for_gap(p, q, rel[i]) else 0.0
+            sep = 0.0
+            if self._look_for_gap(p, q, rel[i]):
+                sep = self._separation(p, q, rel[i])
+                self.sep_need[(p, q)] = SEP_NEED
             if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                 self.last[(p, q)] = (0.0, math.inf, rel[i], sep)       # apart: no point needs testing
                 self.apart += 1
@@ -1037,15 +1039,13 @@ class Check:
 
     def _look_for_gap(self, p: int, q: int, rel: np.ndarray) -> bool:
         """Whether to look for a gap before testing parts p and q at this moment. Big parts: when ``_gap_worth``
-        (task 0092). Small ones (task 0110): when a gap was found last time that let them wait, or once testing them
+        (task 0092). Small ones (task 0110): once testing them
         point by point has cost about as much as a few searches since the last one (a small part spinning far from a
         big frame whose box holds it is tested at every step, up to 48 times between two frames; tiny parts that are
-        cheap to test are left as they were). The cost is counted in faces tested (``SEP_AFTER``)."""
+        cheap to test are hardly ever searched: a search costs as much as 50 of their tests). The cost is counted in
+        faces tested (``SEP_AFTER``)."""
         if self._big(p, q):
             return self._gap_worth(p, q, rel)
-        was = self.last.get((p, q))
-        if was is not None and was[3] >= SEP_USEFUL:
-            return True
         if self.spent.get((p, q), 0) < SEP_AFTER:
             return False
         self.spent[(p, q)] = 0
@@ -1058,12 +1058,12 @@ class Check:
         was = self.last.get((p, q))
         if was is None:
             return not self._was_in(p, q)
-        if was[3] > 0.0 and (was[3] >= SEP_USEFUL or self._big(p, q)):
+        if was[3] > 0.0 and self._big(p, q):
             return True
         moved = self._moved(np.array([p]), np.array([q]), was[2][None], rel[None])[0]
         if was[3] > 0.0:
-            # a gap of a few mm lets the pair wait only a step or two, and finding it costs much more than testing the
-            # points of two small parts that close (task 0110: the drop cradles' trestles on their lift frames)
+            # small parts: the gap found last time is reused (``_between``); a new search costs much more than testing
+            # their points (task 0110: the drop cradles' trestles on their lift frames, the Heavy machine)
             return float(moved) > SEP_NEED
         return float(moved) > SEP_NEED + max(0.0, float(was[0]))       # in each other by d: apart only past d
 
@@ -1115,6 +1115,7 @@ class Check:
                 p, q = int(P[i]), int(Q[i])
                 need = w + max(self.near, 0.0)
                 was = self.last.get((p, q))
+                again = False
                 if was is not None and was[3] > 0.0:
                     # the gap found last time, less what they moved against each other since, is still a bound
                     # (task 0110: no new search)
@@ -1123,9 +1124,12 @@ class Check:
                         n[i] = 0
                         self.far += 1
                         continue
-                if not self._gap_worth(p, q, rel0[i]):
+                    # that search stopped at the bound it was asked for: a wider one may find them far enough apart
+                    again = self.sep_need.get((p, q), math.inf) <= was[3] and since < was[3]
+                if not again and not self._gap_worth(p, q, rel0[i]):
                     continue
                 sep = self._separation(p, q, rel0[i], need + 1e-6)
+                self.sep_need[(p, q)] = need + 1e-6
                 if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                     self.last[(p, q)] = (0.0, math.inf, rel0[i], sep)    # kept for the next moments too
                 if sep > need:
@@ -1547,7 +1551,7 @@ class Check:
         self.narrow_calls = self.pruned = self.apart = self.far = self.pair_windows = 0
         self.pair_tests, self.pair_spins, self.pair_tried, self.pair_open = {}, {}, set(), {}
         self.pair_period, self.pair_hit_k, self.order_memo, self.period_windows = {}, {}, {}, 0
-        self.spent, self.body_spins = {}, {}
+        self.spent, self.body_spins, self.sep_need = {}, {}, {}
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)

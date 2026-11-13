@@ -75,7 +75,9 @@ def test_a_small_part_far_inside_a_frames_box_is_left_alone(sc, monkeypatch):
 
 def test_the_gap_shortcut_still_finds_the_arm_reaching_the_fence(sc, monkeypatch):
     """The arm slides 0.7 m while it spins: its tip reaches the fence (0.95 m) near the end and goes 50 mm in. The
-    frames left alone while it was far must not hide that: the same rows as the thorough check, far fewer tests."""
+    frames left alone while it was far must not hide that: the same rows as the thorough check, far fewer tests
+    (``SEP_AFTER`` 0: as costly as the demo's parts)."""
+    monkeypatch.setattr(clash, "SEP_AFTER", 0)
     r = run(_spinning_arm(sc, 0.7))
     rows = [x for x in r.rows if x.kind == "CLASH"]
     assert rows and all({x.a, x.b} == {"ARM", "FENCE"} for x in rows), [core.row_text(x) for x in r.rows]
