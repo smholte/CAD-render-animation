@@ -128,9 +128,9 @@ def source_parts(leaves, T: S.TFrame, variant: str, door_cut=None) -> tuple[list
     for k, extra in enumerate(parts[1:]):
         out.append(("HUB CENTRE MARK" + (f" {k + 1}" if k else ""), f"hub extra {k}", extra, place(hub), ROTOR))
     for i, (skin, disc) in enumerate(S.blades(leaves), start=1):
-        out.append((f"BLADE {i}", "blade skin", _mirrored(skin.shape), place(skin), pitch_body(i)))
+        out.append((f"BLADE {i}", "blade skin", _mirrored(skin.shape), place(skin), pitch_body(i), "BLADE"))
         out.append((f"BLADE {i} ROOT DISC", "blade disc", occ.one_solid(disc.shape, "disc"), place(disc),
-                    pitch_body(i)))
+                    pitch_body(i), "BLADE ROOT DISC"))
     return out, notes
 
 
