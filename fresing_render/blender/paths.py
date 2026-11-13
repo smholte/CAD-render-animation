@@ -1601,8 +1601,7 @@ def _draw(scene, item, rel: np.ndarray, first, was=None) -> list[str]:
     """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had). ``was``:
     the wraps the cable had a moment ago (posing): a wrap that jumps from them means it lifted off that wheel."""
     res = _solve_item(scene, item, rel)
-    if was is not None and len(rel) == 1 and res["ok"][0] and len(was) == res["wrap"].shape[1] and len(was) and \
-            not item.problem:
+    if was is not None and len(rel) == 1 and res["ok"][0] and len(was) == res["wrap"].shape[1] and len(was):
         jump = np.abs(res["wrap"][0] - np.asarray(was))
         if float(jump.max()) > WRAP_JUMP:
             bad = int(np.argmax(jump))

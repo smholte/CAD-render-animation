@@ -831,6 +831,36 @@ def test_a_built_animation_has_a_shape_for_every_frame(rope):
     assert worst < 0.01 * MM
 
 
+def test_the_whole_model_moved_costs_no_solve(rope):
+    """A vessel at sea, a model put somewhere else: the path is kept in the cable part's own coordinates."""
+    from mathutils import Matrix
+    sc = rope
+    it = cable(sc)
+    update()
+    before = rings(it.part)[0]
+    solves = paths._STATE["solves"]
+    root = next(r for r in build.model_roots(sc))
+    move = Matrix.Translation((3.0, -2.0, 0.7)) @ Matrix.Rotation(math.radians(25.0), 4, "Z") @ \
+        Matrix.Rotation(math.radians(4.0), 4, "X")
+    root.matrix_basis = move @ root.matrix_basis
+    update()
+    m = np.array(move, dtype=float)
+    assert np.abs(rings(cable(sc).part)[0] - (before @ m[:3, :3].T + m[:3, 3])).max() < 2e-6
+    assert paths._STATE["solves"] == solves                 # nothing moved against anything
+    joints.set_value(joints.find(sc, "Luff"), math.radians(8.0))
+    update()
+    assert paths._STATE["solves"] == solves + 1
+    inv = np.linalg.inv(m)
+    back = rings(cable(sc).part)[0] @ inv[:3, :3].T + inv[:3, 3]
+    assert float(to_line(back, exact(8.0)).max()) < 0.5 * MM
+    # reading the cable again with the model there gives the same contacts
+    paths.read_cad(sc, cable(sc), cable(sc).part)
+    assert [c.name for c in cable(sc).contacts] == ORDER
+    update()
+    back = rings(cable(sc).part)[0] @ inv[:3, :3].T + inv[:3, 3]
+    assert float(to_line(back, exact(8.0)).max()) < 0.5 * MM
+
+
 def test_a_cable_whose_wheels_stand_still_costs_nothing_per_frame(rope):
     sc = rope
     it = cable(sc)
