@@ -11,8 +11,10 @@ what was saved with the project.
 
 Halls are seen from inside: walls and the roof are see-through from outside (a camera outside the
 hall looks in), do not block the light and cast no shadows, so a hall renders about as fast as
-the studio. The sea has moving waves (geometry near the machine in "Detailed", ripples in the
-material everywhere).
+the studio. The sea (task 0109, ``core/sea.py``) is a sum of waves from a wind-wave spectrum: geometry near the
+machine in "Detailed", the same waves' slopes in the material to the horizon, white caps where the foam field of
+``core/sea.py`` is high (as many as Monahan's relation gives for the wind), foam round the hull and a wake, spray
+in strong wind.
 
 Props for scale (person, container, pallet, barrier) are ordinary objects in "FR Props": they can
 be moved and are hidden or shown in one click.
@@ -29,7 +31,9 @@ import bpy
 import numpy as np
 
 from ..core import ral
+from ..core import sea as sea_core
 from ..core import surroundings as S
+from ..core import weather as weather_core
 
 COLLECTION = "FR Surroundings"
 ROOT = "FR Surroundings"
@@ -37,7 +41,7 @@ PROPS_COLLECTION = "FR Props"
 MAT_PREFIX = "FR_env "
 TAG = "fr_env"                     # on every object made here (value: its role)
 PROP_TAG = "fr_prop"               # on props (value: prop kind)
-MAT_VERSION = 3
+MAT_VERSION = 4                    # 4: the new sea (task 0109)
 TRANSPARENT_STEPS = 128
 CUT_ROLES = ("structure", "high", "lights", "contents")   # halls: what may stand in the camera's way
 # materials of floors and walls: never between the camera and the machine (both are inside the hall,
@@ -84,6 +88,16 @@ def _settings_key(s, kind: str) -> dict:
         key["detail"] = s.env_detail
     if kind in S.SEA_KINDS:
         key.update(sea=s.sea_state, foam=bool(s.sea_foam), moving=bool(s.sea_moving))
+        if s.sea_state == "WIND":                # task 0109: the sea follows the wind of Weather & time
+            bft, toward = sea_wind(s)
+            key["wind"] = [round(bft, 2), round(toward, 1)]
+        if _weather_on(s):                       # the white caps read the weather's foam channel; wake, spray
+            key["wx"] = 1
+            if _speed(s) > 0:
+                key["speed"] = round(_speed(s), 2)
+            sw = _spray_wind(s)
+            if sw is not None:
+                key["spray"] = [round(sw[0], 2), round(sw[1][0], 3), round(sw[1][1], 3)]
         swell = _vessel().swell_key(s)        # vessel motion (task 0085): its swell; nothing when it is off
         if swell:
             key["swell"] = swell
@@ -800,27 +814,77 @@ def material(key: str) -> bpy.types.Material:
 
 
 # =============================================================================
-# the sea
+# the sea (task 0109: built from core/sea.py – a wind-wave spectrum, white caps from the wind)
 # =============================================================================
 
-SEA = {
-    # swell amplitude (m, sum of the waves), wavelengths (m), ripple bump strength, foam threshold
-    "CALM": dict(amp=0.25, lengths=(55.0, 38.0, 27.0, 19.0, 13.0), bump=0.12, chop=0.6, foam=0.82),
-    "ROUGH": dict(amp=1.6, lengths=(70.0, 48.0, 33.0, 22.0, 15.0, 9.0), bump=0.35, chop=1.6, foam=0.55),
-}
+
+def _sea_numbers(state: str) -> dict:
+    """Today's two quick choices in numbers (``SEA``; the Web 3D page reads them): Beaufort, the significant wave
+    height, the waves' amplitude sum and longest wavelengths, the white-cap threshold of ``core/sea.py``."""
+    bft = sea_core.STATES[state]
+    comps = sea_core.components(bft)
+    lengths = sorted((2 * math.pi / c[3] for c in comps), reverse=True)[:6]
+    return dict(bft=bft, hs=round(sea_core.hs(comps), 3), amp=round(sum(c[0] for c in comps), 3),
+                lengths=tuple(round(v, 2) for v in lengths), foam=round(sea_core.foam_threshold(bft), 4),
+                coverage=round(sea_core.whitecap_coverage(sea_core.bft_to_ms(bft)), 5))
 
 
-def _waves(state: str, swell=()) -> list[tuple[float, float, float, float, float]]:
-    """(amplitude, direction x, direction y, wave number, phase) of each swell component. ``swell``: the long waves
-    vessel motion adds (task 0085), after the sea's own."""
-    p = SEA[state]
-    rng = random.Random(42)
-    total = sum(1.0 / i for i in range(1, len(p["lengths"]) + 1))
-    out = []
-    for i, length in enumerate(p["lengths"], 1):
-        ang = math.radians(25.0 + rng.uniform(-35.0, 35.0))
-        out.append((p["amp"] / i / total, math.cos(ang), math.sin(ang), 2 * math.pi / length, rng.uniform(0, 6.28)))
-    return out + [tuple(float(v) for v in w) for w in swell]
+SEA = {state: _sea_numbers(state) for state in sea_core.STATES}
+SPRAY_FROM = 5.5                   # Beaufort: spray starts (full at 9)
+HULL_FOAM_LIFT = 0.04              # m: the hull foam lies this much above the water (no flicker)
+RIPPLE = 0.18                      # bump strength of the small ripples near the camera
+
+
+def sea_wind(s) -> tuple[float, float]:
+    """(Beaufort, degrees from +x the waves run towards) of the sea: Calm / Rough fixed, From the wind = the wind
+    of Weather & time (its strength and direction)."""
+    if s.sea_state == "WIND":
+        st = _weather_state(s)
+        if st is not None:
+            wx, wy = weather_core.wind_vector(st)
+            return float(st.wind), math.degrees(math.atan2(wy, wx))
+    return sea_core.STATES.get(s.sea_state, sea_core.STATES["CALM"]), sea_core.DEFAULT_TOWARD
+
+
+def _weather_state(s):
+    try:
+        from . import weather
+        return weather.state(s.id_data)
+    except Exception:              # (an older project being read, or no weather settings)
+        return None
+
+
+def _weather_on(s) -> bool:
+    w = getattr(s, "weather", None)
+    return bool(w is not None and w.enabled)
+
+
+def _spray_wind(s):
+    """(Beaufort, unit wind x, y) when spray is wanted (Weather & time on, Spray ticked, Beaufort >= 5.5)."""
+    if not _weather_on(s) or not s.weather.spray:
+        return None
+    st = _weather_state(s)
+    if st is None or st.wind < SPRAY_FROM:
+        return None
+    return float(st.wind), weather_core.wind_vector(st)
+
+
+def _speed(s) -> float:
+    return float(s.weather.vessel_speed) if _weather_on(s) else 0.0
+
+
+def _waves(state: str, swell=(), wind=None) -> list[tuple[float, float, float, float, float]]:
+    """(amplitude, direction x, direction y, wave number, phase) of each wave of the sea (``core/sea.py``): Calm =
+    Beaufort 3, Rough = Beaufort 6; WIND: ``wind`` = (Beaufort, degrees towards), or the current scene's wind.
+    ``swell``: the long waves vessel motion adds (task 0085), after the sea's own."""
+    if state == "WIND":
+        if wind is None:
+            scene = bpy.context.scene
+            wind = sea_wind(scene.fresing) if scene is not None else (sea_core.STATES["CALM"], sea_core.DEFAULT_TOWARD)
+        own = sea_core.components(*wind)
+    else:
+        own = sea_core.of_state(state)
+    return list(own) + [tuple(float(v) for v in w) for w in swell]
 
 
 def _sea_rings(detailed: bool, near: float) -> tuple[int, list[float]]:
@@ -861,26 +925,133 @@ def _sea_mesh(name: str, detailed: bool, near: float) -> bpy.types.Mesh:
 
 
 def _time_driver(owner, path: str, scene, speed: float, index: int = -1) -> None:
+    """``owner.path`` = the scene's time in seconds x ``speed`` (a simple expression: scripts off, any frame rate)."""
     fc = owner.driver_add(path, index) if index >= 0 else owner.driver_add(path)
     d = fc.driver
     d.type = "SCRIPTED"
     while d.variables:
         d.variables.remove(d.variables[0])
-    v = d.variables.new()
-    v.name = "fps"
-    v.type = "SINGLE_PROP"
-    v.targets[0].id_type = "SCENE"
-    v.targets[0].id = scene
-    v.targets[0].data_path = "render.fps"
-    d.expression = f"frame / max(fps, 1) * {speed:.5f}"
+    for name, prop in (("fps", "render.fps"), ("b", "render.fps_base")):
+        v = d.variables.new()
+        v.name = name
+        v.type = "SINGLE_PROP"
+        v.targets[0].id_type = "SCENE"
+        v.targets[0].id = scene
+        v.targets[0].data_path = prop
+    d.expression = f"frame * b / max(fps, 1) * {speed:.5f}"
 
 
-def _waves_group(state: str, moving: bool, near: float, swell=()) -> bpy.types.NodeTree:
-    """Geometry nodes: swell (a sum of travelling sine waves) near the machine, flat far away. ``swell``: the long
-    waves of vessel motion (task 0085); they lift the sea but make no foam."""
-    name = f"{WAVES_GROUP} {state.lower()}{' moving' if moving else ''} {near:.0f}"
-    if swell:
-        name += f" swell {abs(hash(tuple(round(v, 6) for w in swell for v in w))) % 100000:05d}"
+def _rows_hash(*parts) -> str:
+    import hashlib
+    text = repr([[round(float(v), 6) for v in row] if isinstance(row, (tuple, list)) else row
+                 for part in parts for row in (part if isinstance(part, (list, tuple)) else [part])])
+    return hashlib.md5(text.encode()).hexdigest()[:8]
+
+
+class _NB:
+    """Writes math into a shader or a geometry node tree (the same Math / Vector Math nodes in both)."""
+
+    def __init__(self, nt):
+        self.nt = nt
+        self.i = 0
+
+    def new(self, kind, **props):
+        n = self.nt.nodes.new(kind)
+        for k, v in props.items():
+            setattr(n, k, v)
+        n.location = (-2400 + 200 * (self.i // 40), 300 - 40 * (self.i % 40))
+        self.i += 1
+        return n
+
+    def put(self, sock, v):
+        if isinstance(v, bpy.types.NodeSocket):
+            self.nt.links.new(v, sock)
+        elif v is not None:
+            sock.default_value = v
+
+    def math(self, op, a, b=None, c=None):
+        n = self.new("ShaderNodeMath", operation=op)
+        for i, v in enumerate((a, b, c)):
+            self.put(n.inputs[i], v)
+        return n.outputs[0]
+
+    def vec(self, op, a, b=None, c=None):
+        n = self.new("ShaderNodeVectorMath", operation=op)
+        for i, v in enumerate((a, b, c)):
+            self.put(n.inputs[i], v)
+        return n.outputs["Value"] if op in ("DOT_PRODUCT", "LENGTH", "DISTANCE") else n.outputs["Vector"]
+
+    def comb(self, x, y, z):
+        n = self.new("ShaderNodeCombineXYZ")
+        for i, v in enumerate((x, y, z)):
+            self.put(n.inputs[i], v)
+        return n.outputs[0]
+
+    def sep(self, v):
+        n = self.new("ShaderNodeSeparateXYZ")
+        self.put(n.inputs[0], v)
+        return n.outputs
+
+    def ramp(self, x, a, b, lo=0.0, hi=1.0, smooth=False):
+        """lo at x <= a … hi at x >= b (a, b, lo, hi: numbers or sockets)."""
+        n = self.new("ShaderNodeMapRange")
+        if smooth:
+            n.interpolation_type = "SMOOTHSTEP"
+        n.clamp = True
+        self.put(n.inputs["Value"], x)
+        self.put(n.inputs["From Min"], a)
+        self.put(n.inputs["From Max"], b)
+        self.put(n.inputs["To Min"], lo)
+        self.put(n.inputs["To Max"], hi)
+        return n.outputs["Result"]
+
+    def acc(self, total, v, f):
+        """total + v * f (total None: v * f)."""
+        return self.math("MULTIPLY", v, f) if total is None else self.math("MULTIPLY_ADD", v, f, total)
+
+    def phase(self, P, kx, ky, wt, ph):
+        return self.math("ADD", self.vec("DOT_PRODUCT", P, (kx, ky, wt)), ph)
+
+    def term(self, P, tm):
+        """cos of a foam-field term's angle (``core/sea.Term.angle``: with a streak's meander)."""
+        p = self.phase(P, tm.kx, tm.ky, tm.wt, tm.phase)
+        if tm.m_amp:
+            p = self.math("MULTIPLY_ADD", self.math("SINE", self.phase(P, tm.m_kx, tm.m_ky, tm.m_wt, tm.m_phase)),
+                          tm.m_amp, p)
+        return self.math("COSINE", p)
+
+
+def _height_sum(b: _NB, x, y, t, rows, near: float):
+    """Height of the sea at (x, y) and time t (sockets): every wave of 1 m or longer, each faded out where the
+    rings get too coarse for it, the whole faded out between ``near`` and 1.6 x near (the material's normals carry
+    the waves on to the horizon)."""
+    P = b.comb(x, y, t)
+    r = b.vec("LENGTH", b.comb(x, y, 0.0))
+    total = None
+    for a, dx, dy, k, ph in rows:
+        lam = 2 * math.pi / k
+        if lam < 1.0:
+            continue
+        h = b.math("SINE", b.phase(P, k * dx, k * dy, -math.sqrt(sea_core.G * k), ph))
+        if 5.0 * lam < 1.6 * near:
+            h = b.math("MULTIPLY", h, b.ramp(r, 5.0 * lam, 8.0 * lam, 1.0, 0.0))
+        total = b.acc(total, h, a)
+    if total is None:
+        return 0.0
+    return b.math("MULTIPLY", total, b.ramp(r, near, 1.6 * near, 1.0, 0.0, smooth=True))
+
+
+def _scene_seconds(b: _NB, moving: bool):
+    if moving:
+        return b.new("GeometryNodeInputSceneTime").outputs["Seconds"]
+    return 0.0
+
+
+def _waves_group(state: str, moving: bool, near: float, swell=(), wind=None) -> bpy.types.NodeTree:
+    """Geometry nodes: the waves (a sum of travelling sine waves, ``core/sea.py``) near the machine, flat far
+    away. ``swell``: the long waves of vessel motion (task 0085); they lift the sea but make no foam."""
+    rows = _waves(state, swell, wind)
+    name = f"{WAVES_GROUP} {state.lower()}{' moving' if moving else ''} {near:.0f} {_rows_hash(rows)}"
     ng = bpy.data.node_groups.get(name)
     if ng is not None:
         return ng
@@ -888,110 +1059,159 @@ def _waves_group(state: str, moving: bool, near: float, swell=()) -> bpy.types.N
     ng["fr_env"] = "waves"
     ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
     ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    nodes, links = ng.nodes, ng.links
-    gin = nodes.new("NodeGroupInput")
-    gout = nodes.new("NodeGroupOutput")
-    pos = nodes.new("GeometryNodeInputPosition")
-    sep = nodes.new("ShaderNodeSeparateXYZ")
-    links.new(pos.outputs[0], sep.inputs[0])
-    if moving:
-        tnode = nodes.new("GeometryNodeInputSceneTime")
-        t = tnode.outputs["Seconds"]
-    else:
-        tnode = nodes.new("ShaderNodeValue")
-        tnode.outputs[0].default_value = 0.0
-        t = tnode.outputs[0]
-
-    def math_node(op, a, b=None, c=None):
-        n = nodes.new("ShaderNodeMath")
-        n.operation = op
-        for i, v in enumerate((a, b, c)):
-            if v is None:
-                continue
-            if isinstance(v, (int, float)):
-                n.inputs[i].default_value = float(v)
-            else:
-                links.new(v, n.inputs[i])
-        return n.outputs[0]
-
-    total = None
-    amp_sum = 0.0
-    long_waves = None
-    n_own = len(_waves(state))
-    for i, (a, dx, dy, k, ph) in enumerate(_waves(state, swell)):
-        omega = math.sqrt(9.81 * k)
-        along = math_node("MULTIPLY_ADD", sep.outputs["X"], dx * k, math_node("MULTIPLY", sep.outputs["Y"], dy * k))
-        phase = math_node("MULTIPLY_ADD", t, -omega, math_node("ADD", along, ph))
-        h = math_node("MULTIPLY", math_node("SINE", phase), a)
-        if i >= n_own:                           # vessel motion's swell: height only, no foam
-            long_waves = h if long_waves is None else math_node("ADD", long_waves, h)
-            continue
-        total = h if total is None else math_node("ADD", total, h)
-        amp_sum += a
-    # fade out between 'near' and 1.6 x near: far away the material's ripples take over
-    r = math_node("SQRT", math_node("MULTIPLY_ADD", sep.outputs["X"], sep.outputs["X"],
-                                    math_node("MULTIPLY", sep.outputs["Y"], sep.outputs["Y"])))
-    fade = nodes.new("ShaderNodeMapRange")
-    fade.interpolation_type = "SMOOTHSTEP"
-    links.new(r, fade.inputs["Value"])
-    fade.inputs["From Min"].default_value = near
-    fade.inputs["From Max"].default_value = near * 1.6
-    fade.inputs["To Min"].default_value = 1.0
-    fade.inputs["To Max"].default_value = 0.0
-    height = math_node("MULTIPLY", total, fade.outputs["Result"])
-    lifted = height if long_waves is None else math_node("MULTIPLY", math_node("ADD", total, long_waves),
-                                                         fade.outputs["Result"])
-    off = nodes.new("ShaderNodeCombineXYZ")
-    links.new(lifted, off.inputs["Z"])
-    setp = nodes.new("GeometryNodeSetPosition")
-    links.new(gin.outputs[0], setp.inputs["Geometry"])
-    links.new(off.outputs[0], setp.inputs["Offset"])
-    store = nodes.new("GeometryNodeStoreNamedAttribute")
-    store.data_type = "FLOAT"
-    store.domain = "POINT"
-    store.inputs["Name"].default_value = "fr_crest"
-    links.new(setp.outputs[0], store.inputs["Geometry"])
-    links.new(math_node("DIVIDE", height, max(amp_sum, 1e-3)), store.inputs["Value"])
-    links.new(store.outputs[0], gout.inputs[0])
+    b = _NB(ng)
+    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+    xyz = b.sep(b.new("GeometryNodeInputPosition").outputs[0])
+    h = _height_sum(b, xyz["X"], xyz["Y"], _scene_seconds(b, moving), rows, near)
+    setp = b.new("GeometryNodeSetPosition")
+    b.put(setp.inputs["Geometry"], gin.outputs[0])
+    b.put(setp.inputs["Offset"], b.comb(0.0, 0.0, h))
+    b.put(gout.inputs[0], setp.outputs[0])
     return ng
 
 
+# ---- the water's material ----------------------------------------------------
+
+
+def _foam_threshold_socket(b: _NB, bft: float, weather: bool):
+    """The white caps' threshold: the weather's ``foam`` channel (a View Layer attribute, so a Weather & time step
+    can key it) when Weather & time is on, else the sea state's own (``core/sea.foam_threshold``)."""
+    const = sea_core.foam_threshold(bft)
+    if not weather:
+        return const
+    at = b.new("ShaderNodeAttribute", attribute_type="VIEW_LAYER", attribute_name=weather_core.prop("foam"))
+    v = at.outputs["Fac"]
+    missing = b.math("COMPARE", v, 0.0, 1e-7)           # no channel (yet): the sea state's own threshold
+    return b.math("MULTIPLY_ADD", missing, const, v)
+
+
+def _wake_shader(b: _NB, x, y, t):
+    """Foam of the wake behind the stern (``core/sea.wake``): its place and the speed from the sea object."""
+    w = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake").outputs["Vector"]
+    v = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake_v").outputs["Fac"]
+    ws = b.sep(w)
+    stern, mid, hb = ws["X"], ws["Y"], ws["Z"]
+    xb = b.math("SUBTRACT", x, stern)
+    xp = b.math("MAXIMUM", xb, 0.0)
+    ay = b.math("ABSOLUTE", b.math("SUBTRACT", y, mid))
+    length = b.math("MULTIPLY_ADD", v, 12.0, 20.0)
+    width = b.math("MULTIPLY", hb, b.math("MULTIPLY_ADD", b.math("SQRT", xp), 0.09, 0.85))
+    fade = b.math("EXPONENT", b.math("DIVIDE", b.math("MULTIPLY", xp, -1.0), length))
+    band = b.math("MULTIPLY", b.ramp(ay, b.math("MULTIPLY", width, 0.55), width, 1.0, 0.0, smooth=True), fade)
+    arm_d = b.math("ABSOLUTE", b.math("SUBTRACT", ay, b.math("MULTIPLY_ADD", xp, math.tan(sea_core.KELVIN), hb)))
+    arm_w = b.math("MULTIPLY_ADD", xp, 0.03, 1.5)
+    arm_fade = b.math("EXPONENT", b.math("DIVIDE", b.math("MULTIPLY", xp, -1.0), b.math("MULTIPLY", length, 0.7)))
+    arms = b.math("MULTIPLY", b.math("MULTIPLY", b.ramp(arm_d, 0.0, arm_w, 1.0, 0.0, smooth=True), arm_fade),
+                  sea_core.ARMS)
+    on = b.math("MULTIPLY", b.math("GREATER_THAN", xb, 0.0), b.ramp(v, 0.0, 2.0, 0.0, 1.0, smooth=True))
+    wake = b.math("MULTIPLY", b.math("MAXIMUM", band, arms), on)
+    # the foam flows away from the stern with the water (the vessel's speed)
+    flow = b.comb(b.math("MULTIPLY_ADD", b.math("MULTIPLY", v, sea_core.KNOT), b.math("MULTIPLY", t, -1.0), x), y, 0.0)
+    n = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
+    n.inputs["Scale"].default_value = 0.22
+    n.inputs["Detail"].default_value = 6.0
+    n.inputs["Roughness"].default_value = 0.65
+    b.put(n.inputs["Vector"], flow)
+    b.put(n.inputs["W"], b.math("MULTIPLY", t, 0.12))
+    lace = b.ramp(n.outputs["Fac"], 0.36, 0.64, 0.0, 1.0)
+    return b.math("MULTIPLY", b.ramp(wake, 0.0, 0.6, 0.0, 1.0), lace)
+
+
 def _water_shader(t: _NT, mat):
-    p = SEA.get(mat.get("fr_sea_state", "CALM"), SEA["CALM"])
-    tc = t.node("ShaderNodeTexCoord")
-    co = tc.outputs["Object"]
-    ripple = t.node("ShaderNodeTexNoise", _noise_dimensions="4D", Scale=0.35, Detail=6.0, Roughness=0.62,
-                    Vector=co)
-    ripple.name = "fr_ripple"
-    swell = t.node("ShaderNodeTexNoise", _noise_dimensions="4D", Scale=0.03, Detail=2.0, Roughness=0.5, Vector=co)
-    swell.name = "fr_swell"
-    h = t.node("ShaderNodeMath", _operation="MULTIPLY_ADD", Value=swell.outputs["Fac"])
-    h.inputs[1].default_value = p["chop"] * 2.0
-    t.link(ripple.outputs["Fac"], h.inputs[2])
-    normal = _bump(t, h.outputs[0], p["bump"], 0.5)
-    base = (0.006, 0.03, 0.035)
+    """Deep-water colour, Fresnel reflection of the sky (IOR 1.333), the waves' normals worked out from their
+    slopes (no repeat, faded with distance where a wave is smaller than a pixel), small ripples near the camera,
+    light through the crests, white caps from ``core/sea.py`` and the wake."""
+    b = _NB(t.nt)
+    rows = [tuple(r) for r in json.loads(mat.get("fr_waves", "[]"))]
+    n_own = int(mat.get("fr_n_own", len(rows)))
+    own, swell = rows[:n_own], rows[n_own:]
+    bft = float(mat.get("fr_bft", 3.0))
+    toward = float(mat.get("fr_toward", sea_core.DEFAULT_TOWARD))
+    foam_on, weather, wake = bool(mat.get("fr_foam")), bool(mat.get("fr_weather")), bool(mat.get("fr_wake"))
+    co = b.new("ShaderNodeTexCoord").outputs["Object"]
+    xyz = b.sep(co)
+    x, y = xyz["X"], xyz["Y"]
+    tv = b.new("ShaderNodeValue")
+    tv.name = "fr_time"
+    tv.outputs[0].default_value = 0.0
+    time = tv.outputs[0]
+    P = b.comb(x, y, time)
+    dist = b.new("ShaderNodeCameraData").outputs["View Distance"]
+    fades = {}
+
+    def fade(lam):                    # a wave smaller than about a pixel: its slope fades out (no sparkle, no moiré)
+        band = round(math.log2(max(lam, 0.05)) * 2) / 2
+        if band not in fades:
+            lb = 2.0 ** band
+            fades[band] = b.ramp(dist, 150.0 * lb, 400.0 * lb, 1.0, 0.0)
+        return fades[band]
+
+    field = sea_core.foam_field(own, bft, toward) if (foam_on and own) else None
+    grad, height, F = None, None, None
+    for i, (a, dx, dy, k, ph) in enumerate(own + swell):
+        p = b.phase(P, k * dx, k * dy, -math.sqrt(sea_core.G * k), ph)
+        c = b.math("COSINE", p)
+        g = b.vec("MULTIPLY", (a * k * dx, a * k * dy, 0.0), b.math("MULTIPLY", c, fade(2 * math.pi / k)))
+        grad = g if grad is None else b.vec("ADD", grad, g)
+        if i < n_own:
+            s = b.math("SINE", p)
+            height = b.acc(height, s, a)
+            if field is not None:
+                F = b.acc(F, s, field.terms[i].c_sin)
+    if field is not None:
+        for tm in field.terms[n_own:]:
+            F = b.acc(F, b.term(P, tm), tm.c_cos)
+    normal = b.vec("NORMALIZE", b.vec("SUBTRACT", (0.0, 0.0, 1.0), grad)) if grad is not None else None
+    # small ripples near the camera (shorter than the waves above; Blender noise: only the look, never the foam)
+    rip = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
+    rip.inputs["Scale"].default_value = 1.3
+    rip.inputs["Detail"].default_value = 4.0
+    rip.inputs["Roughness"].default_value = 0.6
+    b.put(rip.inputs["Vector"], co)
+    b.put(rip.inputs["W"], b.math("MULTIPLY", time, 0.45))
+    bump = b.new("ShaderNodeBump")
+    bump.inputs["Distance"].default_value = 0.06
+    b.put(bump.inputs["Strength"], b.ramp(dist, 25.0, 250.0, RIPPLE, 0.0))
+    b.put(bump.inputs["Height"], rip.outputs["Fac"])
+    if normal is not None:
+        b.put(bump.inputs["Normal"], normal)
+    normal = bump.outputs["Normal"]
+    # light through the thin top of a crest
+    sig = math.sqrt(sum(r[0] ** 2 for r in own) / 2.0) if own else 1.0
+    crest = b.ramp(height, 1.0 * sig, 3.0 * sig, 0.0, 0.55, smooth=True) if height is not None else 0.0
+    deep = sea_core.DEEP
+    lit = tuple(d + s for d, s in zip(deep, sea_core.SCATTER))
+    col = _mix_color(t, crest, deep, lit)
     foam = None
-    if mat.get("fr_foam"):
-        crest = t.node("ShaderNodeAttribute", _attribute_name="fr_crest")
-        f_noise = t.node("ShaderNodeTexNoise", _noise_dimensions="4D", Scale=0.25, Detail=8.0, Roughness=0.7,
-                         Vector=co)
-        f_noise.name = "fr_foam"
-        mix = t.node("ShaderNodeMath", _operation="MULTIPLY_ADD", Value=crest.outputs["Fac"])
-        mix.inputs[1].default_value = 0.35
-        t.link(f_noise.outputs["Fac"], mix.inputs[2])
-        foam_r = t.node("ShaderNodeMapRange", Value=mix.outputs[0],
-                        **{"From Min": p["foam"], "From Max": p["foam"] + 0.12, "To Min": 0.0, "To Max": 1.0})
-        foam = foam_r.outputs["Result"]
+    if F is not None:
+        th = _foam_threshold_socket(b, bft, weather)
+        caps = b.ramp(F, th, b.math("ADD", th, sea_core.EDGE), 0.0, 1.0, smooth=True)
+        n = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
+        n.inputs["Scale"].default_value = 0.45
+        n.inputs["Detail"].default_value = 6.0
+        n.inputs["Roughness"].default_value = 0.65
+        b.put(n.inputs["Vector"], co)
+        b.put(n.inputs["W"], b.math("MULTIPLY", time, 0.25))
+        foam = b.math("MULTIPLY", caps, b.ramp(n.outputs["Fac"], 0.32, 0.68, 0.45, 1.0))
+    if wake and foam_on:
+        w = _wake_shader(b, x, y, time)
+        foam = w if foam is None else b.math("MAXIMUM", foam, w)
+    rough = b.ramp(dist, 20.0, 3000.0, *sea_core.ROUGHNESS)
     if foam is not None:
-        col = _mix_color(t, foam, base, (0.75, 0.78, 0.8))
-        rough = t.node("ShaderNodeMapRange", Value=foam, **{"To Min": 0.03, "To Max": 0.6}).outputs["Result"]
-    else:
-        col, rough = base, 0.03
-    return _principled(t, col, rough, normal=normal, IOR=1.333)
+        col = _mix_color(t, foam, col, sea_core.FOAM)
+        rough = b.ramp(foam, 0.0, 1.0, rough, 0.6)
+    p = _principled(t, col, rough, normal=normal, IOR=1.333)
+    return p
 
 
-def _water_material(scene, state: str, foam: bool, moving: bool) -> bpy.types.Material:
-    name = f"{MAT_PREFIX}water {state.lower()}{' foam' if foam else ''}{' moving' if moving else ''}"
+def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swell=(), weather: bool = False,
+                    wake: bool = False) -> bpy.types.Material:
+    bft, toward = wind if wind is not None else (sea_core.STATES.get(state, 3.0), sea_core.DEFAULT_TOWARD)
+    own = _waves(state, (), (bft, toward))
+    rows = own + [tuple(float(v) for v in w) for w in swell]
+    name = (f"{MAT_PREFIX}water {state.lower()}{f' b{bft:.1f} d{toward:.0f}' if state == 'WIND' else ''}"
+            f"{' foam' if foam else ''}{' moving' if moving else ''}{' weather' if weather else ''}"
+            f"{' wake' if wake else ''}{' swell ' + _rows_hash(swell) if swell else ''}")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -999,6 +1219,12 @@ def _water_material(scene, state: str, foam: bool, moving: bool) -> bpy.types.Ma
         mat = bpy.data.materials.new(name)
     mat["fr_sea_state"] = state
     mat["fr_foam"] = foam
+    mat["fr_bft"] = float(bft)
+    mat["fr_toward"] = float(toward)
+    mat["fr_weather"] = bool(weather)
+    mat["fr_wake"] = bool(wake)
+    mat["fr_waves"] = json.dumps([[round(float(v), 7) for v in r] for r in rows])
+    mat["fr_n_own"] = len(own)
     try:
         mat.use_nodes = True
     except Exception:
@@ -1006,30 +1232,471 @@ def _water_material(scene, state: str, foam: bool, moving: bool) -> bpy.types.Ma
     _make("water", mat)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "water"
-    nodes = mat.node_tree.nodes
-    for node_name, speed in (("fr_ripple", 0.35), ("fr_swell", 0.08), ("fr_foam", 0.3)):
-        node = nodes.get(node_name)
-        if node is None:
-            continue
+    node = mat.node_tree.nodes.get("fr_time")
+    if node is not None:
         if moving:
-            _time_driver(node.inputs["W"], "default_value", scene, speed)
+            _time_driver(node.outputs[0], "default_value", scene, 1.0)
         else:
-            node.inputs["W"].default_value = 0.0
+            node.outputs[0].default_value = 0.0
     return mat
 
 
+# ---- hull foam ---------------------------------------------------------------
+
+
+def _convex_hull(pts: np.ndarray) -> np.ndarray:
+    """Corners of the convex hull of 2D points, anticlockwise (Andrew's monotone chain)."""
+    pts = np.unique(np.round(pts, 2), axis=0)
+    if len(pts) < 3:
+        return pts
+    order = np.lexsort((pts[:, 1], pts[:, 0]))
+    p = pts[order]
+
+    def half(seq):
+        out = []
+        for q in seq:
+            while len(out) >= 2 and ((out[-1][0] - out[-2][0]) * (q[1] - out[-2][1])
+                                     - (out[-1][1] - out[-2][1]) * (q[0] - out[-2][0])) <= 0:
+                out.pop()
+            out.append(tuple(q))
+        return out
+    lower, upper = half(p), half(p[::-1])
+    return np.array(lower[:-1] + upper[:-1], float)
+
+
+def _resample(poly: np.ndarray, step: float = 1.0) -> np.ndarray:
+    """A closed polygon with points about ``step`` apart."""
+    closed = np.vstack([poly, poly[:1]])
+    seg = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+    total = float(seg.sum())
+    if total <= 1e-6:
+        return poly
+    n = max(16, int(total / step))
+    s = np.concatenate([[0.0], np.cumsum(seg)])
+    u = np.linspace(0.0, total, n, endpoint=False)
+    return np.stack([np.interp(u, s, closed[:, 0]), np.interp(u, s, closed[:, 1])], axis=1)
+
+
+def _waterline(scene, s, kind: str, root, level: float):
+    """The outline (x, y in the surroundings' frame, anticlockwise) where the hull meets the water: the Vessel
+    deck's hull, or on the open sea the convex hull of the model's points within 0.6 m of the water (measured on
+    a still sea). None: nothing touches the water."""
+    if kind == "DECK":
+        mn, mx = np.array(root["fr_min"]), np.array(root["fr_max"])
+        lay = S.build("DECK", tuple(float(v) for v in np.maximum(mx - mn, 0.05)), s.env_detail, s.water_level)
+        box = next((bx for bx in lay.parts.get("structure", []) if isinstance(bx, S.Box) and bx.mat == "hull"), None)
+        if box is None:
+            return None
+        hx, hy = box.sx / 2, box.sy / 2
+        return np.array([(box.x - hx, -hy), (box.x + hx, -hy), (box.x + hx, hy), (box.x - hx, hy)], float)
+    if kind != "SEA":
+        return None
+    from . import build
+    with _vessel().at_rest(scene):
+        try:
+            bpy.context.view_layer.update()
+        except Exception:
+            pass
+        water = float(root.location.z) + level
+        z0, z1 = water - 0.6, water + 0.6
+        found, cache = [], {}
+        for ob in build.iter_parts(scene):
+            if ob.get(build.PROP_EXCLUDED) or ob.hide_render or ob.data is None:
+                continue
+            mw = np.array(ob.matrix_world)
+            bb = np.array([list(c) + [1.0] for c in ob.bound_box]) @ mw.T
+            if bb[:, 2].max() < z0 or bb[:, 2].min() > z1:
+                continue
+            got = cache.get(ob.data.name)
+            if got is None:
+                me = ob.data
+                co = np.empty(len(me.vertices) * 3, np.float32)
+                me.vertices.foreach_get("co", co)
+                ed = np.empty(len(me.edges) * 2, np.int32)
+                me.edges.foreach_get("vertices", ed)
+                got = cache[me.name] = (co.reshape(-1, 3).astype(float), ed.reshape(-1, 2))
+            co, ed = got
+            w = co @ mw[:3, :3].T + mw[:3, 3]
+            near = w[(w[:, 2] >= z0) & (w[:, 2] <= z1)]
+            if len(near):
+                found.append(near[:, :2])
+            # where edges cross the water (a hull side drawn as one tall face has no point near it)
+            za, zb = w[ed[:, 0], 2], w[ed[:, 1], 2]
+            cross = (za - water) * (zb - water) < 0.0
+            if np.any(cross):
+                a, b = w[ed[cross, 0]], w[ed[cross, 1]]
+                f = ((water - a[:, 2]) / (b[:, 2] - a[:, 2]))[:, None]
+                found.append((a + (b - a) * f)[:, :2])
+    if not found:
+        return None
+    pts = np.concatenate(found) - np.array(root.location)[:2]
+    hull = _convex_hull(pts)
+    if len(hull) < 3 or np.ptp(hull[:, 0]) < 0.3 or np.ptp(hull[:, 1]) < 0.3:
+        return None
+    return hull
+
+
+def _hull_foam_mesh(name: str, outline: np.ndarray, width: float) -> bpy.types.Mesh:
+    """A strip round the waterline from 0.8 m inside the hull out to 1.8 x the foam's reach, with the point
+    attribute ``fr_d`` = distance from the hull / the reach there (wider at the bow and the stern)."""
+    ring = _resample(outline, 1.0)
+    n = len(ring)
+    nxt, prv = np.roll(ring, -1, axis=0), np.roll(ring, 1, axis=0)
+    tang = nxt - prv
+    out = np.stack([tang[:, 1], -tang[:, 0]], axis=1)              # anticlockwise: the right of the way is out
+    out /= np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+    cx = (ring[:, 0].min() + ring[:, 0].max()) / 2
+    half = max((ring[:, 0].max() - ring[:, 0].min()) / 2, 1.0)
+    end = np.abs(ring[:, 0] - cx) / half
+    reach = width * (0.75 + 0.7 * end ** 6)
+    rows = np.array([-0.8, -0.3, 0.0, 0.15, 0.32, 0.5, 0.7, 0.95, 1.25, 1.55, 1.8])
+    verts, dvals = [], []
+    for r in rows:
+        off = np.where(r < 0, r, r * reach)
+        verts.append(np.column_stack([ring + out * off[:, None], np.zeros(n)]))
+        dvals.append(np.where(r < 0, r, r) * np.ones(n))
+    verts = np.concatenate(verts)
+    faces = []
+    for j in range(len(rows) - 1):
+        a, b = j * n, (j + 1) * n
+        faces += [(a + i, a + (i + 1) % n, b + (i + 1) % n, b + i) for i in range(n)]
+    m = _Mesh()
+    m._add(verts, faces, 0, smooth=True)
+    me = m.to_mesh(name)
+    at = me.attributes.new("fr_d", "FLOAT", "POINT")
+    at.data.foreach_set("value", np.concatenate(dvals).astype(np.float32))
+    return me
+
+
+def _hull_foam_material() -> bpy.types.Material:
+    """White foam where ``fr_d`` is small, broken up and moving; see-through elsewhere."""
+    name = MAT_PREFIX + "hull foam"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    b = _NB(t.nt)
+    tv = b.new("ShaderNodeValue")
+    tv.name = "fr_time"
+    co = b.new("ShaderNodeTexCoord").outputs["Object"]
+    d = b.new("ShaderNodeAttribute", attribute_type="GEOMETRY", attribute_name="fr_d").outputs["Fac"]
+    edge = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
+    edge.inputs["Scale"].default_value = 0.28
+    edge.inputs["Detail"].default_value = 3.0
+    b.put(edge.inputs["Vector"], co)
+    b.put(edge.inputs["W"], b.math("MULTIPLY", tv.outputs[0], 0.35))
+    reach = b.math("MULTIPLY_ADD", b.math("SUBTRACT", edge.outputs["Fac"], 0.5), 0.9, d)
+    band = b.ramp(reach, 0.3, 1.1, 1.0, 0.0, smooth=True)
+    lace = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
+    lace.inputs["Scale"].default_value = 1.1
+    lace.inputs["Detail"].default_value = 6.0
+    lace.inputs["Roughness"].default_value = 0.7
+    b.put(lace.inputs["Vector"], co)
+    b.put(lace.inputs["W"], b.math("MULTIPLY", tv.outputs[0], 0.6))
+    k = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_foam_k").outputs["Fac"]
+    alpha = b.math("MULTIPLY", b.math("MULTIPLY", band, b.ramp(lace.outputs["Fac"], 0.28, 0.6, 0.3, 1.0)), k)
+    foam = _principled(t, sea_core.FOAM, 0.6)
+    clear = t.node("ShaderNodeBsdfTransparent")
+    mix = t.node("ShaderNodeMixShader", Fac=alpha)
+    t.link(clear.outputs[0], mix.inputs[1])
+    t.link(foam, mix.inputs[2])
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(mix.outputs[0], out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "hull_foam"
+    return mat
+
+
+def _hull_foam_group(name: str, sea_ob, rows, moving: bool, near: float) -> bpy.types.NodeTree:
+    """Geometry nodes of the hull foam: each point of the strip goes onto the water (the sea's own waves), wherever
+    vessel motion has carried the strip; z in the sea's frame = the waves' height + HULL_FOAM_LIFT."""
+    old = bpy.data.node_groups.get(name)
+    if old is not None:
+        bpy.data.node_groups.remove(old)
+    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+    ng["fr_env"] = "hull_foam"
+    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    b = _NB(ng)
+    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+    me = b.new("GeometryNodeSelfObject")
+    own = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
+    b.put(own.inputs["Object"], me.outputs[0])
+    sea_info = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
+    sea_info.inputs["Object"].default_value = sea_ob
+    inv_sea = b.new("FunctionNodeInvertMatrix")
+    b.put(inv_sea.inputs[0], sea_info.outputs["Transform"])
+    inv_own = b.new("FunctionNodeInvertMatrix")
+    b.put(inv_own.inputs[0], own.outputs["Transform"])
+    to_sea = b.new("FunctionNodeMatrixMultiply")
+    b.put(to_sea.inputs[0], inv_sea.outputs["Matrix"])
+    b.put(to_sea.inputs[1], own.outputs["Transform"])
+    back = b.new("FunctionNodeMatrixMultiply")
+    b.put(back.inputs[0], inv_own.outputs["Matrix"])
+    b.put(back.inputs[1], sea_info.outputs["Transform"])
+    p_sea = b.new("FunctionNodeTransformPoint")
+    b.put(p_sea.inputs["Vector"], b.new("GeometryNodeInputPosition").outputs[0])
+    b.put(p_sea.inputs["Transform"], to_sea.outputs[0])
+    xyz = b.sep(p_sea.outputs[0])
+    h = _height_sum(b, xyz["X"], xyz["Y"], _scene_seconds(b, moving), rows, near)
+    on_water = b.comb(xyz["X"], xyz["Y"], b.math("ADD", h, HULL_FOAM_LIFT) if not isinstance(h, float)
+                      else HULL_FOAM_LIFT)
+    p_own = b.new("FunctionNodeTransformPoint")
+    b.put(p_own.inputs["Vector"], on_water)
+    b.put(p_own.inputs["Transform"], back.outputs[0])
+    setp = b.new("GeometryNodeSetPosition")
+    b.put(setp.inputs["Geometry"], gin.outputs[0])
+    b.put(setp.inputs["Position"], p_own.outputs[0])
+    b.put(gout.inputs[0], setp.outputs[0])
+    return ng
+
+
+def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, near: float, detailed: bool):
+    width = sea_core.hull_foam_width(bft, _speed(s))
+    me = _hull_foam_mesh("FR Sea: hull foam", outline, width)
+    mat = _hull_foam_material()
+    me.materials.append(mat)
+    ob = _new_object("FR Sea: hull foam", me, "hull_foam", col, root)
+    ob["fr_foam_k"] = sea_core.hull_foam_strength(bft, _speed(s))
+    ob.location = sea_ob.location
+    for attr in ("visible_diffuse", "visible_shadow", "visible_transmission"):
+        setattr(ob, attr, False)
+    _drive_time(mat, scene, bool(s.sea_moving))
+    mod = ob.modifiers.new("On the water", "NODES")
+    mod.node_group = _hull_foam_group(f"{WAVES_GROUP} hull foam", sea_ob, rows if detailed else [], bool(s.sea_moving),
+                                      near)
+    return ob
+
+
+def _drive_time(mat, scene, moving: bool) -> None:
+    node = mat.node_tree.nodes.get("fr_time")
+    if node is None:
+        return
+    if moving:
+        _time_driver(node.outputs[0], "default_value", scene, 1.0)
+    else:
+        try:
+            node.outputs[0].driver_remove("default_value")
+        except Exception:
+            pass
+        node.outputs[0].default_value = 0.0
+
+
+# ---- spray -------------------------------------------------------------------
+
+
+def _spray_material() -> bpy.types.Material:
+    name = MAT_PREFIX + "spray"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    shader = _principled(t, sea_core.FOAM, 0.35, Alpha=0.75)
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(shader, out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "spray"
+    return mat
+
+
+def _random(b: _NB, kind: str, lo, hi, seed, ident=None):
+    n = b.new("FunctionNodeRandomValue", data_type=kind)
+    b.put(n.inputs["Min"], lo)                     # (Blender 5.2: one Min / Max / Value of the node's type)
+    b.put(n.inputs["Max"], hi)
+    b.put(n.inputs["Seed"], seed)
+    b.put(n.inputs["ID"], ident if ident is not None else b.new("GeometryNodeInputIndex").outputs[0])
+    return n.outputs["Value"]
+
+
+def _spray_points(b: _NB, count: int, seed: int, life: tuple, t, spawn, velocity, size: float):
+    """``count`` drops, each living ``life`` seconds again and again: ``spawn(b, cycle_seed, t0)`` gives its start
+    (x, y, z sockets) and whether it flies this time (0/1), ``velocity(b, cycle_seed)`` its speed."""
+    pts = b.new("GeometryNodePoints")
+    pts.inputs["Count"].default_value = int(count)
+    L = _random(b, "FLOAT", life[0], life[1], seed)
+    o = b.math("MULTIPLY", _random(b, "FLOAT", 0.0, 1.0, seed + 1), L)
+    tt = b.math("ADD", t, o)
+    cycle = b.math("FLOOR", b.math("DIVIDE", tt, L))
+    age = b.math("SUBTRACT", tt, b.math("MULTIPLY", cycle, L))
+    t0 = b.math("SUBTRACT", t, age)
+    cyc_seed = b.new("FunctionNodeFloatToInt")
+    b.put(cyc_seed.inputs[0], b.math("MULTIPLY_ADD", cycle, 7.0, float(seed)))
+    x0, y0, z0, keep = spawn(b, cyc_seed.outputs[0], t0)
+    vx, vy, vz = velocity(b, cyc_seed.outputs[0])
+    x = b.math("MULTIPLY_ADD", vx, age, x0)
+    y = b.math("MULTIPLY_ADD", vy, age, y0)
+    z = b.math("SUBTRACT", b.math("MULTIPLY_ADD", vz, age, z0), b.math("MULTIPLY", b.math("MULTIPLY", age, age), 4.905))
+    setp = b.new("GeometryNodeSetPosition")
+    b.put(setp.inputs["Geometry"], pts.outputs[0])
+    b.put(setp.inputs["Position"], b.comb(x, y, z))
+    alive = b.math("MULTIPLY", keep, b.math("GREATER_THAN", z, b.math("SUBTRACT", z0, 0.3)))
+    rad = b.math("MULTIPLY", b.ramp(age, 0.0, b.math("MULTIPLY", L, 0.9), 1.0, 0.25), size)
+    radius = b.new("GeometryNodeSetPointRadius")
+    b.put(radius.inputs["Points"], setp.outputs[0])
+    b.put(radius.inputs["Radius"], rad)
+    drop = b.new("GeometryNodeDeleteGeometry", domain="POINT")
+    b.put(drop.inputs["Geometry"], radius.outputs[0])
+    b.put(drop.inputs["Selection"], b.math("LESS_THAN", alive, 0.5))
+    return drop.outputs[0]
+
+
+def _spray_group(name: str, own, bft_sea: float, toward: float, wind, outline, radius: float,
+                 moving: bool, detailed: bool, mat) -> bpy.types.NodeTree:
+    """Spray (task 0109): drops blown off the white caps (where the foam field is high, ``core/sea.py``) and thrown
+    up at the bow, seeded, the same at every frame of every render. From Beaufort 5.5, full at 9."""
+    old = bpy.data.node_groups.get(name)
+    if old is not None:
+        bpy.data.node_groups.remove(old)
+    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+    ng["fr_env"] = "spray"
+    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    b = _NB(ng)
+    gout = b.new("NodeGroupOutput")
+    bft, (wx, wy) = wind
+    u = sea_core.bft_to_ms(bft)
+    amount = float(sea_core.smoothstep(SPRAY_FROM, 9.0, bft))
+    t = _scene_seconds(b, moving)
+    field = sea_core.foam_field(own, bft_sea, toward)
+    th = sea_core.foam_threshold(bft) - 0.25
+
+    def height_and_foam(b, x, y, tt):
+        P = b.comb(x, y, tt)
+        h, F = None, None
+        for i, (a, dx, dy, k, ph) in enumerate(own):
+            s = b.math("SINE", b.phase(P, k * dx, k * dy, -math.sqrt(sea_core.G * k), ph))
+            h = b.acc(h, s, a)
+            F = b.acc(F, s, field.terms[i].c_sin)
+        for tm in field.terms[len(own):]:
+            F = b.acc(F, b.term(P, tm), tm.c_cos)
+        return h, F
+
+    cache = {}
+
+    def crest_spawn(b, cs, t0):
+        xyz = b.sep(_random(b, "FLOAT_VECTOR", (-radius, -radius, 0.0), (radius, radius, 1.0), cs))
+        h, F = height_and_foam(b, xyz["X"], xyz["Y"], t0)
+        z0 = b.math("ADD", h, 0.15) if detailed and h is not None else 0.15
+        return xyz["X"], xyz["Y"], z0, b.math("GREATER_THAN", F, th)
+
+    def crest_velocity(b, cs):
+        v = _random(b, "FLOAT_VECTOR", (0.25 * u, -0.6, 1.0), (0.55 * u, 0.6, 3.5), b.math("ADD", cs, 3.0))
+        xyz = b.sep(v)
+        along, side = xyz["X"], xyz["Y"]
+        vx = b.math("SUBTRACT", b.math("MULTIPLY", along, wx), b.math("MULTIPLY", side, wy))
+        vy = b.math("MULTIPLY_ADD", along, wy, b.math("MULTIPLY", side, wx))
+        return vx, vy, xyz["Z"]
+
+    parts = []
+    n_crest = int(round(40000 * amount))
+    if n_crest > 0 and own:
+        parts.append(_spray_points(b, n_crest, 11, (0.8, 1.8), t, crest_spawn, crest_velocity, 0.08))
+    if outline is not None and amount > 0:
+        bow_x = float(outline[:, 0].min())
+        at_bow = outline[outline[:, 0] < bow_x + 4.0]
+        y_lo, y_hi = float(at_bow[:, 1].min()), float(at_bow[:, 1].max())
+        tp = 2 * math.pi / math.sqrt(sea_core.G * 2 * math.pi / max(sea_core.peak_wavelength(own), 1.0))
+
+        def bow_spawn(b, cs, t0):          # the bow digs into a wave: a burst once per wave period
+            xyz = b.sep(_random(b, "FLOAT_VECTOR", (bow_x - 1.0, y_lo - 0.5, 0.0), (bow_x + 9.0, y_hi + 0.5, 1.0), cs))
+            cache["bow"] = xyz["Y"]
+            beat = b.math("SINE", b.math("MULTIPLY", t0, 2 * math.pi / max(tp * 0.85, 1.0)))
+            return xyz["X"], xyz["Y"], 0.5, b.math("GREATER_THAN", beat, 0.55)
+
+        def bow_velocity(b, cs):
+            v = _random(b, "FLOAT_VECTOR", (-1.5, 2.0, 3.0), (0.5, 6.0, 4.0 + 6.0 * amount), b.math("ADD", cs, 5.0))
+            xyz = b.sep(v)
+            side = b.math("SIGN", b.math("SUBTRACT", cache["bow"], (y_lo + y_hi) / 2))
+            vx = b.math("MULTIPLY_ADD", wx, 0.35 * u, xyz["X"])
+            vy = b.math("MULTIPLY_ADD", side, xyz["Y"], wy * 0.35 * u)
+            return vx, vy, xyz["Z"]
+
+        parts.append(_spray_points(b, int(3000 * amount) + 200, 23, (0.9, 1.6), t, bow_spawn, bow_velocity, 0.1))
+    if not parts:
+        geo = b.new("GeometryNodePoints").outputs[0]
+    elif len(parts) == 1:
+        geo = parts[0]
+    else:
+        join = b.new("GeometryNodeJoinGeometry")
+        for p in reversed(parts):
+            b.put(join.inputs[0], p)
+        geo = join.outputs[0]
+    ico = b.new("GeometryNodeMeshIcoSphere")
+    ico.inputs["Radius"].default_value = 1.0
+    ico.inputs["Subdivisions"].default_value = 1
+    inst = b.new("GeometryNodeInstanceOnPoints")
+    b.put(inst.inputs["Points"], geo)
+    b.put(inst.inputs["Instance"], ico.outputs["Mesh"])
+    b.put(inst.inputs["Scale"], b.new("GeometryNodeInputRadius").outputs[0])
+    setm = b.new("GeometryNodeSetMaterial")
+    b.put(setm.inputs["Geometry"], inst.outputs[0])
+    setm.inputs["Material"].default_value = mat
+    b.put(gout.inputs[0], setm.outputs[0])
+    return ng
+
+
+def _build_spray(s, col, root, sea_ob, own, bft_sea, toward, outline, near, detailed):
+    sw = _spray_wind(s)
+    if sw is None:
+        return None
+    mat = _spray_material()
+    me = bpy.data.meshes.new("FR Sea: spray")
+    me.materials.append(mat)
+    ob = _new_object("FR Sea: spray", me, "spray", col, root)
+    ob.location = sea_ob.location
+    ob.visible_shadow = False
+    mod = ob.modifiers.new("Spray", "NODES")
+    reach = min(max(near, 60.0), 160.0)
+    mod.node_group = _spray_group(f"{WAVES_GROUP} spray", own, bft_sea, toward, sw, outline, reach,
+                                  bool(s.sea_moving), detailed, mat)
+    return ob
+
+
+# ---- the sea itself ----------------------------------------------------------
+
+
 def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bpy.types.Object:
+    scene = s.id_data
     detailed = s.env_detail == "DETAILED"
     near = max(40.0, 5.0 * machine_size)
+    bft, toward = sea_wind(s)
+    swell = _vessel().swell_rows(s)
+    foam, moving, weather = bool(s.sea_foam), bool(s.sea_moving), _weather_on(s)
+    speed = _speed(s)
+    outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) else None
     me = _sea_mesh("FR Sea", detailed, near)
-    me.materials.append(_water_material(bpy.context.scene, s.sea_state, bool(s.sea_foam), bool(s.sea_moving)))
+    me.materials.append(_water_material(scene, s.sea_state, foam, moving, (bft, toward), swell, weather,
+                                        wake=foam and speed > 0 and outline is not None))
     ob = _new_object("FR Sea", me, "sea", col, root)
     ob.location.z = level
     if kind == "QUAY":
         ob.location.y = 0.0
     if detailed:
         mod = ob.modifiers.new("Waves", "NODES")
-        mod.node_group = _waves_group(s.sea_state, bool(s.sea_moving), near, _vessel().swell_rows(s))
+        mod.node_group = _waves_group(s.sea_state, moving, near, swell, (bft, toward))
+    own = _waves(s.sea_state, (), (bft, toward))
+    if outline is not None:
+        xs, ys = outline[:, 0], outline[:, 1]
+        stern = xs.max()
+        aft = outline[xs > stern - 3.0]
+        ob["fr_wake"] = (float(stern), float((aft[:, 1].min() + aft[:, 1].max()) / 2),
+                         float(max((ys.max() - ys.min()) / 2, 0.5)))
+        ob["fr_wake_v"] = float(speed)
+        if foam:
+            _build_hull_foam(scene, s, col, root, ob, outline, bft, own + list(swell), near, detailed)
+    _build_spray(s, col, root, ob, own, bft, toward, outline, near, detailed)
     return ob
 
 
