@@ -80,29 +80,40 @@ import fresing_render  # noqa: E402
 import fresing_render.blender  # noqa: E402
 from fresing_render.core import weather as W  # noqa: E402
 
-for _name in ("weather_look", "weather_fx"):          # the other agents' parts may not be there yet
-    _full = "fresing_render.blender." + _name
-    try:
-        __import__(_full)
-    except ImportError:
-        _m = types.ModuleType(_full)
-        _m.apply = lambda *a, **k: None
-        _m.remove = lambda *a, **k: None
-        sys.modules[_full] = _m
-        setattr(fresing_render.blender, _name, _m)
-
 from fresing_render.blender import build, weather, weather_sky as WS, world  # noqa: E402
 
 CRANE = os.path.join(os.path.dirname(__file__), "..", "fresing_render", "data", "test_crane_a.step")
 
 
+def _stubs() -> list:
+    """The other agents' parts (looks, rain and snow) while they are not there yet: do-nothing stand-ins, taken
+    away again after this file's tests."""
+    made = []
+    for name in ("weather_look", "weather_fx"):
+        full = "fresing_render.blender." + name
+        try:
+            __import__(full)
+        except ImportError:
+            m = types.ModuleType(full)
+            m.apply = lambda *a, **k: None
+            m.remove = lambda *a, **k: None
+            sys.modules[full] = m
+            setattr(fresing_render.blender, name, m)
+            made.append(name)
+    return made
+
+
 @pytest.fixture(scope="module", autouse=True)
 def addon():
+    stubs = _stubs()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
     fresing_render.register()
     yield
     fresing_render.unregister()
+    for name in stubs:
+        sys.modules.pop("fresing_render.blender." + name, None)
+        delattr(fresing_render.blender, name)
 
 
 def fresh(background="QUAY", model=True):
@@ -287,7 +298,7 @@ def test_exposure_is_added_and_restored():
     sc = fresh("SKY", model=False)
     sc.fresing.exposure = -1.0
     weather_on(sc, hour=23.0)
-    assert sc.view_settings.exposure == pytest.approx(-1.0 + 5.0, abs=1e-4)
+    assert sc.view_settings.exposure == pytest.approx(-1.0 + 2.0 + W.NIGHT_EV, abs=1e-4)
     weather_on(sc, hour=12.0)
     assert sc.view_settings.exposure == pytest.approx(-1.0 + W.derive(weather.state(sc))["exposure"], abs=1e-4)
     sc.fresing.weather.enabled = False

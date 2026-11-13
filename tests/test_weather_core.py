@@ -54,7 +54,7 @@ def test_twilight_and_night_channels():
     assert 0.0 < ch[17.5]["exposure"] < 2.5                       # the eye opens up at sunset
     assert ch[19.0]["flood"] == 1.0 and ch[19.0]["sun"] == 0.0     # dusk: floodlights on (Auto)
     assert ch[23.0]["night"] == 1.0 and ch[23.0]["stars"] == 1.0 and ch[23.0]["moon"] > 0.9
-    assert ch[23.0]["exposure"] == pytest.approx(5.0)
+    assert ch[23.0]["exposure"] == pytest.approx(2.0 + W.NIGHT_EV)
     assert ch[23.0]["moon_el"] > 20.0                             # the moon is up at night
     # the haze is dark at night and warm at a low sun
     assert sum(ch[23.0][c] for c in ("fog_r", "fog_g", "fog_b")) < 0.01
@@ -127,7 +127,7 @@ def test_fog_colour_is_the_horizon():
     assert 0.8 < hi < 1.4
     assert W.fog_level(45.0, 1.0, 0.0) < hi
     assert W.fog_level(45.0, 1.0, 1.0) < W.fog_level(45.0, 1.0, 0.0)
-    assert W.fog_level(-30.0, 0.0, 0.0, night=1.0, moon=1.0) < 0.002
+    assert W.fog_level(-30.0, 0.0, 0.0, night=1.0, moon=1.0) < 0.005
     prev = None
     for h in [x * 0.25 for x in range(97)]:
         ch = W.derive(W.State(hour=h, clouds=0.3))

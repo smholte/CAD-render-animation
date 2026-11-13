@@ -335,10 +335,11 @@ CLEAR_FOG = 3.912 / 40.0     # per km: 40 km visibility is clear air, the sky te
 CLEAR_SKY_HORIZON = 1.05     # radiance of the clear sky at the horizon at a high sun (MULTIPLE_SCATTERING x 0.08)
 OVERCAST_ZENITH = 1.34       # radiance straight up under full cloud at a high sun; with exposure_for's +0.5 EV it
 #                              matches the old Overcast light picture (core/studio.OVERCAST_ZENITH 1.9, exposure 0)
-NIGHT_SKY = 0.00025          # the dark night sky (airglow), radiance
-MOON_SKY = 0.0012             # what a full moon adds to the night sky
+NIGHT_SKY = 0.0004           # the dark night sky (airglow), radiance
+MOON_SKY = 0.002              # what a full moon adds to the night sky
 SUN_W = 13.0                 # the sky texture's sun overhead in Sun-lamp units (W/m², measured on a white plane)
-MOON_W = 0.05                # moonlight (Sun lamp, W/m²) at moon 1: with the night's +5 EV a dim blue light
+MOON_W = 0.03                # moonlight (Sun lamp, W/m²) at moon 1: with the night's +4 EV a dim blue light
+NIGHT_EV = 2.0               # EV added in the dark on top of the +2 of dusk (+4 in all)
 
 
 def sky_light(sun_el: float) -> float:
@@ -361,11 +362,12 @@ def fog_level(sun_el: float, clouds: float, low: float, night: float = 0.0, moon
 
 
 def exposure_for(sun_el: float, clouds: float) -> float:
-    """EV a camera (or the eye) adds as the light fades: 0 in daylight, about +2 at sunset, +5 at night (the
-    floodlights and the moon then look as they do to the eye)."""
+    """EV a camera (or the eye) adds as the light fades: 0 in daylight, about +2 at sunset, +4 at night (the
+    floodlights and the moon then look as they do to the eye: concrete in moonlight dark grey, floodlit parts bright,
+    tried on the quay and the open sea)."""
     dusk = 1.0 - smoothstep(-4.0, 8.0, sun_el)
     dark = darkness(sun_el)
-    return 2.0 * dusk + 3.0 * dark + 0.5 * clouds * (1.0 - dark)
+    return 2.0 * dusk + NIGHT_EV * dark + 0.5 * clouds * (1.0 - dark)
 
 
 def derive(st: State, place: str = "sky") -> dict:

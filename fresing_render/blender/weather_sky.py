@@ -13,9 +13,11 @@ animation step that keys the channels moves the sun, the clouds, the fog and the
   (sea, deck, quay), the exposure the eye adds at dusk and night (a driver ``base + exposure`` on the scene's
   exposure, the user's own value kept), and **fog**: laid over the picture by the compositor from the Z pass,
   ``T = exp(-fog · distance)`` (per km; the sky itself gets its haze in the world shader). Measured before choosing
-  (task 0109 report): a world volume costs several times the render time in Cycles and stays noisy; the compositor
-  costs nothing and is the same in Cycles, EEVEE and the queue. Only haze beyond today's clear air (visibility
-  under 40 km) is added, so a clear day looks exactly as the sky of before.
+  (task 0109, test crane on the quay, Cycles CPU Draft 960 x 540 on the 4-core web machine): the compositor's fog
+  adds nothing measurable (70.4 s with, 70.4 s without); a world volume for 400 m took 103 s (+47 %) and rendered
+  black – an endless world volume swallows the light of the sky and the sun (a bounded fog box would be needed,
+  noisy and slower still). The Z pass is one sample per pixel, so edges against the sky get no fog fringe.
+  Only haze beyond today's clear air (visibility under 40 km) is added: a clear day looks as the sky of before.
 * Work lights: a part becomes a lamp (``add_work_light``); kept through a model update (``after_model_update``),
   working with the weather off too.
 
@@ -48,10 +50,10 @@ FOG_GROUP = "FR weather fog"
 FOG_PASS_Z = "fr_weather_had_z"              # the view layer's Z pass before the fog switched it on
 SKY_SCALE = 0.08                # the physical sky's strength in the app (world._env_branch)
 GROUND = (1.0, 0.97, 0.92)      # world.GROUND_RADIANCE's colour
-FLOOD_W = 25.0                  # watts of a floodlight 15 m from the middle of the model (scaled by distance²):
-#                                 four of them, at the night's +5 EV, light the model about a tenth as bright as day
+FLOOD_W = 5.0                   # watts of a floodlight 15 m from the middle of the model (scaled by distance²):
+#                                 four of them, at the night's +4 EV, light the model about a tenth as bright as day
 FLOOD_COLOUR = (1.0, 0.88, 0.72)
-WORK_W = 150.0                  # a work light 5 m from what it lights
+WORK_W = 3.0                    # watts of a work light 5 m from what it lights (bright at night, faint by day)
 WORK_COLOUR = (1.0, 0.93, 0.82)
 FLOOD_BACKGROUNDS = ("SEA", "DECK", "QUAY")
 MASTS = ("DECK", "QUAY")        # floodlights stand on masts here (on the open sea they hang on an unseen vessel)
@@ -187,9 +189,6 @@ class _Nodes:
         n.inputs["To Min"].default_value = lo
         n.inputs["To Max"].default_value = hi
         return n.outputs["Result"]
-
-    def colour(self, rgb: tuple) -> tuple:
-        return (float(rgb[0]), float(rgb[1]), float(rgb[2]))
 
 
 def world_branch(nt, scene, s, y: float = 0.0):
@@ -385,7 +384,8 @@ def _apply(scene, place: str) -> None:
     key = _key(scene, place)
     floods = _floods_wanted(scene, place)
     have = bool(_objects("moon")) == (place == "sky") and bool(_objects("flood")) == floods
-    have = have and (bpy.data.node_groups.get(FOG_GROUP) is not None) == _fog_wanted(scene, place)
+    have = have and (_foreign_compositor(scene)
+                     or (bpy.data.node_groups.get(FOG_GROUP) is not None) == _fog_wanted(scene, place))
     if scene.get(KEY) == key and have:
         return
     _remove_objects(keep_work=True)
@@ -619,9 +619,17 @@ def _floodlights(scene) -> None:
     from . import build
     roots = sorted(build.model_roots(scene), key=lambda o: o.name)
     if roots:
-        bpy.context.view_layer.update()
+        import contextlib
+        try:
+            from . import vessel_motion
+            rest = vessel_motion.at_rest(scene)          # the root's place without the sea's motion
+        except Exception:
+            rest = contextlib.nullcontext()
+        with rest:
+            bpy.context.view_layer.update()
+            inv = roots[0].matrix_world.inverted()
         group.parent = roots[0]
-        group.matrix_parent_inverse = roots[0].matrix_world.inverted()
+        group.matrix_parent_inverse = inv
 
 
 # ---- fog (compositor) ----------------------------------------------------------------
@@ -698,10 +706,14 @@ def _fog_nodes(scene, ng) -> None:
     L.new(alpha.outputs["Image"], out.inputs[0])
 
 
+def _foreign_compositor(scene) -> bool:
+    cur = getattr(scene, "compositing_node_group", None)
+    return cur is not None and cur.name != FOG_GROUP
+
+
 def fog_on(scene) -> None:
     """Fog laid over the picture by the compositor (unless the scene has a compositor of its own)."""
-    cur = getattr(scene, "compositing_node_group", None)
-    if cur is not None and cur.name != FOG_GROUP:
+    if _foreign_compositor(scene):
         print("Fresing Render: the scene has its own compositor; the weather's fog is left out")
         return
     vl = scene.view_layers[0] if scene.view_layers else None
@@ -769,7 +781,7 @@ def add_work_light(scene, part, kind: str = "SPOT"):
     name = part.get(build.PROP_NAME, part.name)
     light = bpy.data.lights.new(f"Work light {name}", "SPOT")
     light.color = WORK_COLOUR
-    light.energy = round(min(max(WORK_W * (dist / 5.0) ** 2, 20.0), 5000.0), 1)
+    light.energy = round(min(max(WORK_W * (dist / 5.0) ** 2, 0.5), 200.0), 2)
     light.spot_size = math.radians(120.0 if kind == "FLOOD" else 60.0)
     light.spot_blend = 0.7 if kind == "FLOOD" else 0.35
     light.shadow_soft_size = 0.15 if kind == "FLOOD" else 0.05
