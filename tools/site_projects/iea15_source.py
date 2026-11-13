@@ -412,6 +412,7 @@ def fit(leaves: list[Leaf], variant: str, T: TFrame | None = None, measured: dic
     for r in m["hub_rings"]:
         r["centre"] = shift(r["centre"])
     m["tower_top_z"] += dz
+    m["hub_height_m"] += dz / 1000.0
     m["yaw_bearing_z"] = [z + dz for z in m["yaw_bearing_z"]]
     m.update(variant=variant, z_shift=dz, msl_z=0.0 + dz, tower_base_z=SPLIT_Z + dz,
              seabed_z=-1000.0 * value("water_depth_m") + dz,

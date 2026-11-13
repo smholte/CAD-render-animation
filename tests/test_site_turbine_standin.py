@@ -612,7 +612,7 @@ def test_sheet_numbers_and_notes(converted, variant):
     if variant == "offshore":
         assert sheet["scene"]["water_level_m"] == 30.0
     else:
-        assert sheet["scene"] == {"floor_offset_m": 0.0}
+        assert sheet["scene"] == {"floor_offset_m": -0.4}        # the slab reaches 0.4 m into the ground: ground z 0
     hidden = {h["part"] for h in sheet["hide"]}
     assert {"MAIN BEARING SRB", "MAIN BEARING TDO", "HUB CENTRE MARK"} | {f"BLADE {i} ROOT DISC" for i in (1, 2, 3)} \
         <= hidden

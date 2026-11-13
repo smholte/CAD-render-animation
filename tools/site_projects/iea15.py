@@ -115,7 +115,7 @@ def source_parts(leaves, T: S.TFrame, variant: str, door_cut=None) -> tuple[list
         lf = S.one(leaves, proto)
         out.append((name, proto, occ.one_solid(lf.shape, name), place(lf), body))
     for i, lf in enumerate(S.by_proto(leaves, "flange_2"), start=1):
-        out.append((f"NOSE FLANGE {i}", "flange_2", occ.one_solid(lf.shape, "flange"), place(lf), YAW))
+        out.append((f"NOSE FLANGE {i}", "flange_2", occ.one_solid(lf.shape, "flange"), place(lf), YAW, "NOSE FLANGE"))
     bp = S.one(leaves, "bedplate")
     parts = _by_size(bp.shape)
     out.append(("BEDPLATE", "bedplate", parts[0], place(bp), YAW))
@@ -280,13 +280,23 @@ def poses_and_loop(fit: dict, variant: str, extra: list[dict]) -> tuple[list, di
     return poses, loop
 
 
-def check_animation(poses: list, fit: dict) -> dict:
-    """Built only by the clash check of tools/make_site_projects.py: every other joint through its range."""
+def check_animation(poses: list, js: list[dict]) -> dict:
+    """Built only by the clash check of tools/make_site_projects.py: the poses, then every joint but the rotor
+    through its whole range (both limits) and back, the nacelle yawing ±10° last."""
     names = [p["name"] for p in poses]
     steps, t = [], 0.0
     for p in ["Feathered"] + (["Door open"] if "Door open" in names else []) + ["Running"]:
         steps.append({"kind": "POSE", "pose": p, "start": t, "seconds": 2.0, "easing": "SMOOTH"})
         t += 2.0
+    start = next(p for p in poses if p["name"] == "Running")["values"]
+    for j in js:
+        if j["name"] in ("Rotor", "Yaw") or not j.get("limits"):
+            continue
+        back = float(start.get(j["name"], 0.0))
+        for to in (j["limits"][0], j["limits"][1], back):
+            steps.append({"kind": "JOINT", "joint": j["name"], "to": float(to), "start": t, "seconds": 1.0,
+                          "easing": "SMOOTH", "label": f"{j['name']} {float(to):+.0f}"})
+            t += 1.0
     for yaw in (-10.0, 10.0, 0.0):
         steps.append({"kind": "JOINT", "joint": "Yaw", "to": yaw, "start": t, "seconds": 1.0, "easing": "SMOOTH",
                       "label": f"Yaw {yaw:+.0f}"})
@@ -315,6 +325,13 @@ def stamp(path: str, variant: str) -> None:
         raise RuntimeError(f"{path}: no FILE_DESCRIPTION in its header")
     with open(path, "w", encoding="latin-1", newline="") as fh:
         fh.write(new)
+
+
+def _lowest(parts: list, hidden: set) -> float:
+    """The lowest point (z, mm) of the parts left visible: the app puts its floor there, less the floor gap. On land
+    the slab and gravel reach below the ground (z 0), so the gap is that depth, negative: the ground at z 0."""
+    return min(float((occ.bbox(occ.moved(p[2], p[3])) if not np.allclose(p[3], np.eye(4))
+                      else occ.bbox(p[2]))[0][2]) for p in parts if p[0] not in hidden)
 
 
 def _parts_module():
@@ -356,6 +373,7 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
     if write_step:
         stamp(os.path.join(out_dir, step_name), variant)
     js = joints(fit, leaves, T, variant, extra)
+    sheet_hidden = {h["part"] for h in _hidden_notes(variant)}
     poses, loop = poses_and_loop(fit, variant, extra)
     by_body: dict = {}
     for p in parts:
@@ -386,10 +404,10 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
         "invented": sorted(p.name for p in made),
         "joints": js, "cylinders": [], "hide": _hidden_notes(variant),
         "poses": poses, "start_pose": "Running", "animation": loop,
-        "check_animation": check_animation(poses, fit),
+        "check_animation": check_animation(poses, js),
         "decals": tp.anchors(fit, variant), "cameras": tp.cameras(fit, variant),
         "scene": ({"water_level_m": round(-(fit["seabed_z"]) / 1000.0, 3)} if variant == "offshore"
-                  else {"floor_offset_m": 0.0}),
+                  else {"floor_offset_m": round(_lowest(parts, sheet_hidden) / 1000.0, 4)}),
         "notes": notes,
     }
     if counts:
