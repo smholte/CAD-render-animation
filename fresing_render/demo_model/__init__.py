@@ -9,7 +9,8 @@ real vessel, company or design: generic shapes from general engineering knowledg
   params.py    the parameter set (cable Ø, MBR, vessel, carousel, tensioner …) and what follows from it
   route.py     pure Python + NumPy: straights and arcs, the cable route, rope paths round sheaves, checks
   geom.py      OpenCascade shapes and the scene tree (parts, assemblies, joints) and the STEP writer
-  machines.py  vessel, carousel, tensioner (lift + tilt), winch, drums (spiral, Lebus), horns (chutes)
+  machines.py  vessel, carousel, tensioner (lift + tilt; pads made for the cable Ø), winch (fairlead on a level
+               wind), drums (spiral, Lebus), horns (chutes)
   deck.py      the owner's deck (0084): loading tower + arch, V roller highways, walkways, radius controllers,
                D-quadrant, quadrant handler, rails, cable engine, swivel sheaves, CPS sets / rack / ramp, quay
   layout.py    everything placed on the vessel, the routes, the joint sheet, the files (incl. the quay file)
