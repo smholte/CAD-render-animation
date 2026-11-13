@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.90 – 13 Nov 2026 – the clash check takes a quarter of the time on big moving machines (task 0110)
+
+- **6 Animation > Clash check is about 4 × faster on the demo vessel**: 3.4 minutes instead of 14 on the cloud test
+  machine, with exactly the same result (no clashes). It finds the same clashes as before everywhere: every test, every
+  test-tour animation and the PC check's big made-up machine (1,667 clashes) give the same rows.
+- How: two parts far apart are proven apart once and then left alone until they have moved that far against each
+  other – also small parts now (a sprocket spinning a metre from a big frame was tested 48 times between every two
+  frames). A sheave turning on its pin is checked once per turn even while the head carrying both tips over. And a
+  part that is not round but repeats – a carousel's rim fence of posts turning past its drive gearboxes – is checked
+  over one post step and then left alone, as long as nothing touched in that step.
+
 ## 0.2.89 – 13 Nov 2026 – web 3D model with baked light (task 0107)
 
 New in 5 Scene & Render > Web 3D model: the fold **Light**, a choice per export

@@ -2711,7 +2711,8 @@ one-line note in the status bar; the video is rendered anyway.
 How long it takes, measured on the 4-core cloud test machine: the test crane's animations 0.1–0.3 s, the CNC
 gantry's 2,983-frame tool-change program 7 s, the scissor lift and crank (49 parts that touch everywhere) 15 s,
 the PC check's made-up 3,000-part machine 10 s long 73 s (its modules run through each other on purpose: 1,668
-clashes), the demo vessel's 73 s animation with its 222 turning rollers, wheels, coil and carousel about 12 min.
+clashes), the demo vessel's 73 s animation with its turning rollers, wheels, sprockets, sheaves and carousel 3.4 min
+(Draft meshes; 14 min before version 0.2.90).
 Expected on a PC with a fast processor: about half as long (not measured yet).
 
 **Make the video**
