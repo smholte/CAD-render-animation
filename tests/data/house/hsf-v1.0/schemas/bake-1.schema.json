@@ -1,0 +1,512 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/smholte/house-scene-format/blob/v1.0/schemas/bake-1.schema.json",
+ "title": "bake.json of a .hpbake package, format version 1",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "format",
+  "version",
+  "generator",
+  "id",
+  "created",
+  "scene",
+  "light",
+  "uv1",
+  "quality",
+  "surfaces",
+  "pages",
+  "vertex_files",
+  "moments",
+  "snow",
+  "photos",
+  "videos",
+  "problems"
+ ],
+ "properties": {
+  "format": {
+   "const": "house-bake"
+  },
+  "version": {
+   "type": "string",
+   "pattern": "^[0-9]+\\.[0-9]+$"
+  },
+  "generator": {
+   "type": "object",
+   "properties": {
+    "app": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    },
+    "version": {
+     "type": "string",
+     "maxLength": 40
+    }
+   },
+   "required": [
+    "app",
+    "version"
+   ],
+   "additionalProperties": false
+  },
+  "id": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+  },
+  "created": {
+   "type": "string",
+   "format": "date-time",
+   "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d(:\\d\\d)?(\\.\\d+)?Z$"
+  },
+  "scene": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+    },
+    "scene_hash": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{32}$"
+    }
+   },
+   "required": [
+    "id",
+    "scene_hash"
+   ],
+   "additionalProperties": false
+  },
+  "light": {
+   "enum": [
+    "LIVE",
+    "SOFT",
+    "ALL"
+   ]
+  },
+  "uv1": {
+   "const": "hp-uv/1"
+  },
+  "quality": {
+   "type": "object",
+   "properties": {
+    "texels_per_m": {
+     "type": "number",
+     "minimum": 4,
+     "maximum": 400
+    },
+    "samples": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "denoised": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "texels_per_m",
+    "samples",
+    "denoised"
+   ],
+   "additionalProperties": false
+  },
+  "surfaces": {
+   "type": "object",
+   "propertyNames": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+    "maxLength": 63
+   },
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+     },
+     "box": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 6,
+      "maxItems": 6
+     },
+     "matrix": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 16,
+      "maxItems": 16
+     }
+    },
+    "required": [
+     "hash",
+     "box"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "pages": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     },
+     "size": {
+      "type": "array",
+      "items": {
+       "enum": [
+        256,
+        512,
+        1024,
+        2048
+       ]
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "ktx2": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "id",
+     "file",
+     "size"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "vertex_files": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "id",
+     "file"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "moments": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "encoding": {
+      "type": "object",
+      "properties": {
+       "curve": {
+        "const": 2.0
+       },
+       "scale": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "reference": {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "minimum": 0
+        },
+        "minItems": 3,
+        "maxItems": 3
+       },
+       "exposure": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "curve",
+       "scale",
+       "reference",
+       "exposure"
+      ],
+      "additionalProperties": false
+     },
+     "maps": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string",
+       "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+       "maxLength": 63
+      },
+      "additionalProperties": {
+       "$ref": "#/$defs/entry"
+      }
+     },
+     "open": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+        "maxLength": 63
+       },
+       "additionalProperties": {
+        "$ref": "#/$defs/entry"
+       }
+      }
+     },
+     "sun_light": {
+      "oneOf": [
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "minimum": 0
+        },
+        "minItems": 3,
+        "maxItems": 3
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "encoding",
+     "maps",
+     "open"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "snow": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "season": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "season",
+     "file"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "photos": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     },
+     "size": {
+      "type": "array",
+      "items": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 16384
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "moment": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "camera": {
+      "$ref": "#/$defs/camera"
+     }
+    },
+    "required": [
+     "id",
+     "file",
+     "size",
+     "moment",
+     "camera"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "videos": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+      "maxLength": 200
+     },
+     "size": {
+      "type": "array",
+      "items": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 16384
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "moment": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "camera": {
+      "$ref": "#/$defs/camera"
+     }
+    },
+    "required": [
+     "id",
+     "file",
+     "size",
+     "seconds",
+     "moment",
+     "camera"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "problems": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "maxLength": 500
+   }
+  }
+ },
+ "$defs": {
+  "entry": {
+   "oneOf": [
+    {
+     "type": "object",
+     "properties": {
+      "page": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+      },
+      "rect": {
+       "type": "array",
+       "items": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "minItems": 4,
+       "maxItems": 4
+      }
+     },
+     "required": [
+      "page",
+      "rect"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "vertex": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+      },
+      "offset": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "count": {
+       "type": "integer",
+       "minimum": 1
+      }
+     },
+     "required": [
+      "vertex",
+      "offset",
+      "count"
+     ],
+     "additionalProperties": false
+    }
+   ]
+  },
+  "camera": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "position",
+    "target",
+    "fov"
+   ],
+   "properties": {
+    "position": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3
+    },
+    "target": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3
+    },
+    "fov": {
+     "type": "number",
+     "exclusiveMinimum": 1,
+     "exclusiveMaximum": 170
+    }
+   }
+  }
+ }
+}

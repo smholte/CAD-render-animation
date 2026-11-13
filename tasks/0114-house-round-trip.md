@@ -148,6 +148,136 @@ copied files' SHA-256 against a list in that file (a newer tag = a new task). Ad
 On the RTX 3090: File > Import > House Planner scene, the sample from the app's data folder (or House Planner's real
 export, once it has one), Preview a moment, Bake and export – time per moment on the GPU, and the photo.
 
+## Design (worker, 13 Nov 2026 – the subagents' brief; CLAUDE.md section 2)
+
+Coordinates: **G** = glTF world (metres, +Y up) as in `house.glb`; **B** = Blender world = (x, −z, y) of G.
+Units of light: L = 0107's units (Cycles DIFFUSE without colour). Pinned format: `tests/data/house/hsf-v1.0/`
+(read `FORMAT.md` from the clone or the tag; the checker `check.py` there; samples there).
+
+**Who owns which file** (one owner per file; subagents never push, merge, bump versions or touch TASKS.md):
+
+| File | Owner |
+| --- | --- |
+| `core/house_hash.py` – `round_half_away`, `hash_primitives(prims, uv1_px)`, `scene_hash(pairs)` (done, = the checker on all 52 sample surfaces) | worker |
+| `core/house_scene.py` + `tests/test_house_scene.py` | subagent A |
+| `core/house_snow.py` + `tests/test_house_snow.py` | subagent B |
+| `blender/lightbake.py` (`sizes=` only) + `tests/test_lightbake_sizes.py`; `blender/house_import.py`, `house_bake.py`, `ops_house.py`, `ui_house.py`, props, menu, registration, tour, PC check, guide, `tests/test_house_blender.py` | worker |
+| `tests/test_house_independent.py` (written from FORMAT.md + this design, after the merge) | subagent C (independent tester) |
+
+### `core/house_scene.py` (no Blender; numpy allowed; never imports the pinned `hsf`)
+
+```python
+VERSION = (1, 0)                       # the format version this code reads and writes ("1.0")
+class FormatError(ValueError)          # a plain sentence for the owner
+def read_zip(src) -> dict[str, bytes]  # path or bytes; section 2: refuse absolute paths, "\\", "." / ".." parts,
+                                       # names listed twice, encryption (flag bit 0), methods other than stored/deflated,
+                                       # empty names; FormatError with the reason
+def check_version(doc, fmt) -> str | None   # fmt "house-scene"/"house-bake": wrong format or another major ->
+    # FormatError("This house scene was made by a newer House Planner (format 2.0). Update Fresing Render to read it.")
+    # (older major: "... an older House Planner ..."); a newer minor -> returns the note "Made by a newer House Planner
+    # (format 1.3): some extras are not used." ; same version -> None
+@dataclass Storey(id, name, level: int, elevation: float, height: float)
+@dataclass Season(id, label, date, day: int (day of the year), snow_cover, wet, foliage)   # unknown foliage -> "full"
+@dataclass Moment(id, label, season, time, utc_offset, azimuth, elevation, direction: tuple (G), clouds, low_clouds,
+                  visibility, lamps)            # lamps: "all" | "none" | tuple of ids; an unknown text -> "none"
+@dataclass Camera(id, label, position (G), target (G), fov)              # fov vertical, degrees
+@dataclass Surface(id, kind, raw_kind, storey, group, bake, hash, uv1_px, node: int, mesh: int | None,
+                   matrix: tuple (16, column-major world, G), moved: bool (matrix not identity), verts: int,
+                   box: tuple (x0,y0,z0,x1,y1,z1 world G), source, material, light: int | None (KHR light index),
+                   texels_per_m: float | None)   # unknown kind -> kind "other", raw_kind keeps the text
+@dataclass Recipe(light, preset, texels_per_m, texels_per_m_by_group: dict, samples: int (resolved: given, else
+                  16/64/256 by preset, NORMAL for an unknown preset), page_size, include_storeys, include_groups,
+                  open_storeys, seasons: list, moments: list, cameras: dict, photos: list[dict], videos: list[dict])
+                  # videos of an unknown kind are dropped (a note); fps not in 24/25/30/50/60 -> 25
+@dataclass Scene(doc, files, glb: bytes, id, title, version_id, version_name, scene_hash, place: dict
+                 (latitude, longitude, north (x, z), ground_level), storeys: list, recipe, surfaces: dict[id, Surface],
+                 notes: list[str])     # notes: newer minor, a hash that does not match its geometry, ...
+def read_scene(src) -> Scene           # path or bytes; FormatError for anything a reader must refuse
+def storey_level(scene, storey_id) -> int | None
+def glb_meshes(glb) -> (doc, binary)   # core/web3d.read_glb; primitives' arrays via web3d.accessor_array
+def mesh_arrays(doc, binary, mesh) -> list[dict(positions, normals, uv1, indices)]
+def world_triangles(scene, surface_id) -> (points (n,3) float64 G world, tris (m,3) int)   # all primitives, glb order
+# the sun (FORMAT 7.5)
+def gltf_to_blender(v) -> tuple                       # (x, -z, y)
+def sun_angles(direction_g) -> (elevation_deg, scene_az_deg)   # B axes; scene_az = degrees(atan2(y, x))
+def sun_rotation_deg(scene_az, zero_az=90.0) -> float          # 0109: zero_az - az, wrapped to (-180, 180]
+def north_scene_az(north_xz) -> float                 # north (G x, z) -> B (x, -z) -> atan2
+def sun_mismatch(moment, north_xz) -> float           # degrees between `direction` and (azimuth, elevation): compass
+                                                      # azimuth turns clockwise from north seen from above
+def weather_sun(elevation, scene_az, day, latitude) -> dict(hour, north, latitude, day, use_date=True)
+    # 0109 (core/weather.py State) works its sun out from hour, day, latitude, north: solve hour (bisection, the
+    # morning or afternoon branch whose bearing is nearer the wanted one) so sun_position(...)[0] == elevation, and
+    # north so to_scene_az(bearing, north) == scene_az; when the elevation is out of reach on that day and latitude,
+    # move the latitude (within ±70) until it is. Result checked: derive(State(**it)) gives sun_el, sun_az within 0.5°.
+# light encoding (FORMAT 8.3)
+def encode(L, scale) -> uint8 array    # clamp(round_half_away(255 * sqrt(max(L,0)/scale)), 0, 255)
+def decode(b, scale) -> float32 array
+def moment_scale(arrays) -> float      # 99.9th percentile of all channel values; positive even when all is dark
+# pages (FORMAT 8.3)
+def layout(sizes: dict[key, (W, H)], page_size, gap=2) -> (pages: list[(w, h)], rects: dict[key, (page, x, y)])
+    # rows, tallest first, `gap` texels between rects; pages square 256/512/1024/2048 <= page_size, the smallest side
+    # that holds everything in the fewest pages; a rect too big for page_size -> KeyError-free: left out + note
+def page_png(rgb_uint8_top_down) -> bytes   # 8-bit RGB, no colour chunks (core/web3d.png)
+class BakeWriter:
+    def __init__(self, scene: Scene, *, light, samples, denoised=True, app_version="", bake_id=None, created=None)
+    problems: list[str]                      # plain sentences, no line breaks
+    def add_snow(self, season_id, glb_bytes)                       # snow/<season>.glb; its layers' ids/verts known
+    def add_moment(self, moment_id, maps: dict[id, array], open: dict[storey, dict[id, array]] | None = None, *,
+                   reference, exposure, sun_light=None)
+        # array: MAP -> (H, W, 3) float, Blender rows (row 0 = bottom: PNG row r = row H-1-r); VERTEX -> (n, 3).
+        # A MAP surface's result must be (uv1_px[1], uv1_px[0], 3); a VERTEX surface's (verts, 3); snow ids count as
+        # VERTEX with their layer's vertex count. A result of the wrong kind or shape is left out with a problems line.
+        # One rect layout for every moment (all MAP surfaces + every open storey's MAP surfaces), each moment its own
+        # page files light/<moment>-p<k>.png and one vertex file light/<moment>-v.bin; scale = moment_scale of all of
+        # the moment's results (maps, open, snow); warns (problems) above 4 pages per moment.
+    def add_photo(self, photo_id, data: bytes, ext, size, moment, camera: dict)      # photos/<id>.<ext>
+    def add_video(self, video_id, data: bytes, ext, size, moment, camera: dict, seconds, fps)   # videos/<id>.<ext>
+    def bake_json(self) -> dict              # schema bake-1: surfaces = every surface with a result: hash (the
+                                             # scene's), box, matrix when moved; no NaN; created "YYYY-MM-DDTHH:MM:SSZ"
+    def write(self, path) -> None            # zip: JSON deflated, png/glb/bin/jpg/mp4 stored; temp file + os.replace
+def structure_problems(path_or_bytes, scene=None) -> list[str]   # light check without jsonschema (PC check): zip
+    # rules, version, every file named exists, PNG pages 8-bit RGB without colour chunks, rects inside pages and
+    # = uv1_px, vertex ranges inside their file and = verts, sun_light null at night
+```
+
+### `core/house_snow.py` (no Blender; numpy)
+
+```python
+def min_up(cover) -> float        # 0109's "facing up" rule (weather_look._snow: lo = 0.85 - 0.45 cover, hi = lo +
+                                  # 0.12; the middle of that ramp): 0.91 - 0.45 * cover, on the face normal's up part
+THICKNESS_PER_COVER = 0.10        # m: cover 1 ≈ 10 cm (0109)
+PIECE = 0.5                       # m: largest edge of a layer's triangles
+def open_sky(points_g, tris_points_g, distance=25.0) -> bool array   # nothing within `distance` straight above
+    # (+Y in G) each point; numpy, a grid over (x, z) so 100 k triangles x 10 k points stay fast; points lifted 1 mm
+@dataclass Layer(id ("snow:<on>"), on, storey, group, positions (n,3) float32 G world, normals (n,3) float32,
+                 indices (k,) uint32, hash)
+def build_layers(scene, season, *, sky_distance=25.0) -> list[Layer]
+    # candidates: surfaces with bake MAP or VERTEX, kind not glass/water/snow/lamp; foliage hidden when the
+    # season is "bare" (it neither gets snow nor blocks the sky); faces facing up (geometric normal of the CCW
+    # triangle, world G) >= min_up(cover); cut so no edge is longer than PIECE; a piece is kept when its centre is
+    # under the open sky (blockers: every surface of the scene that is shown in that season); top = the kept pieces
+    # lifted by THICKNESS_PER_COVER * cover along their normal, welded (one vertex per corner point, smooth light);
+    # a skirt down to the surface along the layer's outline; every vertex used; hash = hash_primitives([...], None)
+def layers_glb(layers) -> bytes   # glTF 2.0 binary: one node per layer (name = id, no transform), POSITION and
+    # NORMAL float32 (min/max on POSITION), uint32 indices, extras.hp {id, kind "snow", storey, group, bake "VERTEX",
+    # hash, on}; one scene; no extensions at all
+```
+
+### Blender side (worker)
+
+- `lightbake.bake(..., sizes={object or name: (W, H)})`: with `uv="UV1"` that object's image is exactly W x H; the UV
+  layout is checked: per triangle the texels per metre along U (W·|∇u|) and along V (H·|∇v|) must agree within 2 %
+  (area-weighted), else a `problems` line – a wrong W or H shows as a stretched map.
+- `house_import.import_scene(scene, path)`: unzip next to the project (`<project>/<name> house/`), glTF importer
+  (merge vertices off, Lighting Mode Standard = `SPEC`) into collection "FR House", a model root "House: <title>"
+  (so 5 Scene & Render shows), parts = the meshes (`fr_uid` = hp id). One house per project: importing again replaces it.
+- `house_bake.HouseBake(scene, moments=None, photos=True, videos=True, samples=None).steps()` -> 0 … 1; per moment:
+  0109's state with `weather_sun(...)` (checked against the channels within 0.5°), the moment's lamps, two
+  `lightbake.bake` calls (MAP with `uv="UV1"` + `sizes`, VERTEX), each open storey again with higher levels left out,
+  the season's snow layers baked per vertex (separate call, the house as occluders); SOFT at night is baked as ALL
+  (the same light, FORMAT 7.5; `sun_light` null). Photos and turntable videos rendered with 0109's falling weather and
+  its snow / wet material layer (`weather_look.add_objects`), then everything put back.
+
 ---
 
 ## Report (filled in by the chat that did the task)

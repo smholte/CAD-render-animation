@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 import os
 import re
+import shutil
 import time
 
 from .core import Cancelled, Line, Skipped
@@ -1828,6 +1829,42 @@ def weather_step(ctx):
     animation.clear_keys(scene)
     _check(not weather.keyed(scene), "Clear keys left weather keys")
     return f"{res['frames']} frames; daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}"
+
+
+@line("house.bake", "House from House Planner: import, bake, export", "0.2.90",
+      what="The made-up sample house (sample-house.hpscene): File > Import > House Planner scene, then Bake and export "
+           "of one moment (summer morning, 4 samples, no photo); the package's structure is checked (files, page "
+           "sizes and rows, rectangles = each surface's map size, light per vertex = each surface's vertex count)")
+def house_bake(ctx):
+    import bpy
+
+    from ..blender import house_bake as hb
+    from ..blender import house_import
+    from ..core import house_scene as hs
+    bpy.ops.wm.read_homefile(use_empty=True)
+    scene = bpy.context.scene
+    src = os.path.join(DATA, "sample-house.hpscene")
+    folder = os.path.join(ctx.work, "house")
+    os.makedirs(folder, exist_ok=True)
+    local = os.path.join(folder, "sample-house.hpscene")
+    shutil.copyfile(src, local)
+    t0 = time.time()
+    out = house_import.import_scene(scene, local)
+    t_import = time.time() - t0
+    house = out["house"]
+    _check(len(house_import.parts(scene)) == len([s for s in house.surfaces.values() if s.mesh is not None]),
+           "not every surface of the house came in")
+    _check(house_import.lights(scene), "the ceiling lamp's light did not come in")
+    path = os.path.join(folder, "sample-house.hpbake")
+    res = hb.HouseBake(scene, path, moments=[house.recipe.moments[0].id], photos=False, videos=False,
+                       samples=4).run()
+    _check(os.path.exists(path), "no bake package was written")
+    bad = hs.structure_problems(path, house)
+    _check(not bad, "the bake package is not right: " + "; ".join(bad[:3]))
+    ctx.metric("import", round(t_import, 1), "s")
+    ctx.metric("bake one moment", round(res["seconds"], 1), "s")
+    return (f"{len(house.surfaces)} surfaces; one moment baked in {res['seconds']:.0f} s, package "
+            f"{os.path.getsize(path) / 1024:.0f} KB")
 
 
 @line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",

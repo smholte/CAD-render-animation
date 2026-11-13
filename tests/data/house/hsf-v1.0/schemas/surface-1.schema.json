@@ -1,0 +1,110 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/smholte/house-scene-format/blob/v1.0/schemas/surface-1.schema.json",
+ "title": "extras.hp of a node in house.glb or a snow .glb, format version 1",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "id",
+  "kind",
+  "storey",
+  "group",
+  "bake"
+ ],
+ "properties": {
+  "id": {
+   "type": "string",
+   "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+   "maxLength": 63
+  },
+  "kind": {
+   "enum": [
+    "wall",
+    "floor",
+    "ceiling",
+    "slab-edge",
+    "roof",
+    "opening",
+    "glass",
+    "stair",
+    "furniture",
+    "install",
+    "lamp",
+    "ground",
+    "garden",
+    "plant",
+    "foliage",
+    "street",
+    "neighbour",
+    "water",
+    "park",
+    "snow",
+    "other"
+   ],
+   "x-extensible": true
+  },
+  "storey": {
+   "oneOf": [
+    {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "group": {
+   "enum": [
+    "house",
+    "garden",
+    "street",
+    "houses",
+    "park",
+    "furniture",
+    "installs",
+    "ceilItems"
+   ],
+   "x-extensible": true
+  },
+  "bake": {
+   "enum": [
+    "MAP",
+    "VERTEX",
+    "NO"
+   ]
+  },
+  "hash": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{32}$"
+  },
+  "uv1_px": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 16384
+   },
+   "minItems": 2,
+   "maxItems": 2
+  },
+  "source": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+  },
+  "material": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+  },
+  "on": {
+   "type": "string",
+   "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+   "maxLength": 63
+  },
+  "texels_per_m": {
+   "type": "number",
+   "minimum": 4,
+   "maximum": 400
+  }
+ }
+}

@@ -2493,6 +2493,61 @@ def _check_night(scene):
     return weather.header(scene)
 
 
+# ----- a house from House Planner (task 0114) -----
+
+HOUSE_MOMENT = "summer-evening"
+
+
+@tour_set("house", "House from House Planner", "sample-house.hpscene")
+def build_house(b: Build):
+    """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
+    shown in the view from the recipe's garden camera."""
+    import shutil
+
+    import bpy
+
+    from . import house_bake, house_import
+    sc = b.scene
+    src = b.file("sample-house.hpscene")
+    shutil.copyfile(os.path.join(DATA, "sample-house.hpscene"), src)
+    house = house_import.import_scene(sc, src)["house"]
+    path = b.file("sample-house.hpbake")
+    out = house_bake.HouseBake(sc, path, moments=[house.recipe.moments[0].id], photos=False, videos=False,
+                               samples=4).run()
+    h = house_import.settings(sc)
+    h.last_bake, h.last_seconds = out["path"], float(out["seconds"])
+    h.last_problems = "\n".join(out["problems"])
+    h.last_text = f"1 moment baked in {out['seconds'] / 60:.1f} min (tour: 4 samples)"
+    cam = house.recipe.cameras.get("garden-view") or next(iter(house.recipe.cameras.values()))
+    data = bpy.data.cameras.new("Tour garden")
+    data.sensor_fit = "VERTICAL"
+    data.angle_y = math.radians(float(cam.fov))
+    ob = bpy.data.objects.new("Tour garden", data)
+    sc.collection.objects.link(ob)
+    ob.matrix_world = house_bake.camera_matrix(cam.position, cam.target)
+    sc.camera = ob
+    house_import.preview(sc, HOUSE_MOMENT)
+    _update()
+    _shot(b, "@house")
+
+
+def _check_house(scene):
+    from ..core import house_scene as hs
+    from . import house_import
+    _check(house_import.has_house(scene), "no house in this project")
+    h = house_import.settings(scene)
+    house = house_import.house(scene)
+    m = next((x for x in house.recipe.moments if x.id == HOUSE_MOMENT), None)
+    _check(m is not None, f"the sample has no moment '{HOUSE_MOMENT}'")
+    el, az = hs.sun_angles(m.direction)
+    got = house_import._angle(el, az, _channel(scene, "sun_el"), _channel(scene, "sun_az"))
+    _check(got < 0.5, f"the sky's sun is {got:.1f}° from House Planner's evening sun")
+    _check(bool(h.last_bake) and os.path.exists(h.last_bake), "the bake package next to the tour is missing")
+    bad = hs.structure_problems(h.last_bake, house)
+    _check(not bad, "the bake package is not right: " + "; ".join(bad[:2]))
+    return f"evening sun {el:.1f}° high; package {os.path.getsize(h.last_bake) / 1024:.0f} KB"
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -2857,6 +2912,13 @@ stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
      "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
      "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.89", shot="Tour view",
      check=_check_web3d_light)
+stop("house", OUT, "house", "House from House Planner",
+     "The made-up sample house from House Planner on a summer evening: a low sun from the north-west, long warm "
+     "shadows across the plot, the terrace in front. 5 Scene & Render > House from House Planner lists the seasons "
+     "and moments (Preview shows each one) and the bake of the summer morning this tour made (Show in Explorer: "
+     "sample-house.hpbake next to the tour, for House Planner).",
+     where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.90",
+     check=_check_house)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
@@ -2885,6 +2947,8 @@ def _fresh(models: tuple, out_folder: str):
         scene = bpy.context.scene
         scene.fresing.out_folder = out_folder
         for m in models:
+            if not m.lower().endswith((".step", ".stp")):
+                continue                    # (a house scene: the set's build imports it itself, task 0114)
             res = bpy.ops.fresing.import_step(filepath=m, quality="draft")
             if res != {"FINISHED"}:
                 raise RuntimeError(f"the import of {os.path.basename(m)} returned {res}: "

@@ -3159,6 +3159,21 @@ class FRWeather(bpy.types.PropertyGroup):
                     "cable (walking pace or slower) or lies still")
 
 
+class FRHouse(bpy.types.PropertyGroup):
+    """A house from House Planner (task 0114): what was imported and the last bake (5 Scene & Render > House)."""
+    source: StringProperty(name="House scene", subtype="FILE_PATH",
+                           description="The House Planner export (.hpscene) this house was imported from")
+    folder: StringProperty(description="Where the house scene was unpacked (next to the project)")
+    scene_id: StringProperty(description="The export's own id (House Planner makes a new one each time)")
+    title: StringProperty(description="The house's title in House Planner")
+    version_name: StringProperty(description="Which version of the house plan this is")
+    moment: StringProperty(description="The moment of the day shown now (Preview a moment)")
+    last_bake: StringProperty(subtype="FILE_PATH", description="The bake package (.hpbake) written last")
+    last_seconds: FloatProperty(default=0.0, description="How long the last bake took, seconds")
+    last_problems: StringProperty(default="", description="What the last bake skipped or changed, one line each")
+    last_text: StringProperty(default="", description="The last bake's result in one line")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -3594,6 +3609,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- weather and time of day (task 0109) ----
     weather: PointerProperty(type=FRWeather, description="Weather and time of day: sun or night, clouds, fog, rain, "
                                                          "snow and wind (5 Scene & Render > Weather & time)")
+    # ---- a house from House Planner (task 0114) ----
+    house: PointerProperty(type=FRHouse, description="The house imported from House Planner and its last bake "
+                                                     "(5 Scene & Render > House from House Planner)")
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -3610,6 +3628,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
+           FRHouse,
            FRSceneSettings)
 
 
