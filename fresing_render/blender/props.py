@@ -716,6 +716,19 @@ EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop (a motor speeds up 
               ("EASE_IN", "Slow start", "Starts slowly, stops at full speed"),
               ("EASE_OUT", "Slow stop", "Starts at full speed, slows down to a stop")]
 
+WEATHER_PRESET_ITEMS = [("CUSTOM", "Own settings", "The settings below, as you set them", 0)] + [
+    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below", i + 1)
+    for i, k in enumerate(weather_core.PRESET_ORDER)]
+
+
+def _wx_step_preset(self, context):
+    """A Weather & time step's 'To' preset: its values follow (task 0109)."""
+    if self.wx_preset == "CUSTOM" or context is None or context.scene is None:
+        return
+    from . import weather
+    weather.step_from_preset(context.scene, self, self.wx_preset)
+
+
 BLOCK_KINDS = [
     ("JOINT", "Move joint", "Moves one joint from where it is (or a set value) to a value", "CON_PIVOT", 0),
     ("POSE", "Go to pose", "Moves every joint and moved subassembly to a saved pose (e.g. an exploded view)",
@@ -736,6 +749,8 @@ BLOCK_KINDS = [
     ("FADE_IN", "Fade in", "A subassembly fades back in over the step's duration", "MATSHADERBALL", 10),
     ("SEQUENCE", "Assembly sequence", "Takes a subassembly apart part by part (or puts it together): the parts fly "
      "out one after another, fasteners first", "MOD_EXPLODE", 11),
+    ("WEATHER", "Weather & time", "Changes the weather and the time of day over the step: day to dusk, the rain "
+     "starting, the fog lifting (5 Scene & Render > Weather & time)", "OUTLINER_DATA_LIGHTPROBE", 12),
 ]
 
 
@@ -1183,6 +1198,35 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                ("OFF", "Off", "No coolant in this step, whatever the program says")],
         description="When coolant flows in this step (task 0042). Switch coolant on first in 4 Motion > CNC machine "
                     "> Coolant")
+
+    # ---- Weather & time step (task 0109): the weather at the step's end (it starts from the weather before it) ----
+    wx_preset: EnumProperty(
+        name="To", items=WEATHER_PRESET_ITEMS, default=0, update=_wx_step_preset,
+        description="A ready-made weather to change to. Sets the values below; change any of them afterwards")
+    wx_hour: FloatProperty(name="Time", default=12.0, min=0.0, max=24.0, step=25, precision=2,
+                           description="The clock time at the end of the step (sun time). Later than the start: the "
+                                       "clock runs forward (an earlier time goes on through midnight)")
+    wx_clouds: FloatProperty(name="Clouds", default=0.1, min=0.0, max=1.0, subtype="FACTOR",
+                             description="Cloud cover at the end of the step: 0 clear, 1 overcast")
+    wx_low_clouds: FloatProperty(name="Low clouds", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                                 description="Low, dark clouds at the end of the step")
+    wx_visibility: FloatProperty(name="Visibility", default=40000.0, min=50.0, max=100000.0, soft_max=40000.0,
+                                 unit="LENGTH", precision=0,
+                                 description="How far you can see at the end of the step: 40 km clear, 2 km mist, "
+                                             "below 1 km fog")
+    wx_rain: FloatProperty(name="Rain", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                           description="Falling rain at the end of the step (0 = it stops, 1 = a downpour)")
+    wx_wet: FloatProperty(name="Wet", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                          description="How wet the machine and the deck look at the end of the step")
+    wx_snow: FloatProperty(name="Snow", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                           description="Falling snow at the end of the step")
+    wx_snow_cover: FloatProperty(name="Snow layer", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                                 description="The snow layer at the end of the step (it grows or melts over the step)")
+    wx_wind: FloatProperty(name="Wind", default=3.0, min=0.0, max=12.0, precision=1,
+                           description="Wind strength (Beaufort) at the end of the step: rain, snow, spray and the "
+                                       "white caps follow it (the waves themselves keep the wind of the start)")
+    wx_wind_from: FloatProperty(name="Wind from", default=225.0, min=-360.0, max=360.0, precision=0,
+                                description="Where the wind comes from at the end of the step (as in Weather & time)")
 
 
 class FRAnimation(bpy.types.PropertyGroup):
@@ -2825,7 +2869,7 @@ def _weather_preset_changed(self, context):
 
 
 def _weather_on_changed(self, context):
-    if context is None or context.scene is None:
+    if context is None or context.scene is None or self.get("_busy"):
         return
     from . import weather
     try:
@@ -2834,9 +2878,6 @@ def _weather_on_changed(self, context):
         print("Fresing Render: weather update failed:", exc)
 
 
-WEATHER_PRESET_ITEMS = [("CUSTOM", "Own settings", "The settings below, as you set them", 0)] + [
-    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below", i + 1)
-    for i, k in enumerate(weather_core.PRESET_ORDER)]
 
 
 class FRWeather(bpy.types.PropertyGroup):
@@ -3357,7 +3398,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
     # ---- weather and time of day (task 0109) ----
-    weather: PointerProperty(type=FRWeather)
+    weather: PointerProperty(type=FRWeather, description="Weather and time of day: sun or night, clouds, fog, rain, "
+                                                         "snow and wind (5 Scene & Render > Weather & time)")
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw

@@ -21,9 +21,9 @@ import sys
 
 ROW = re.compile(r"^(?:NEW )?\[(?P<tag> OK |FAIL|SKIP)\] (?P<id>[\w.]+) (?P<secs>[\d.]+) s(?P<rest>.*)$")
 ALLOWED_SKIP = "no graphics card"
-MIN_LINES_FULL = 65          # raise it when the check gets new lines
-MIN_LINES_HEAVY = 14         # the Heavy lines (task 0033)
-MIN_LINES_TOUR = 51          # the test tour: Make test tour project + one line per stop (task 0059)
+MIN_LINES_FULL = 71          # raise it when the check gets new lines
+MIN_LINES_HEAVY = 15         # the Heavy lines (task 0033)
+MIN_LINES_TOUR = 54          # the test tour: Make test tour project + one line per stop (task 0059)
 
 
 def judge(text: str, min_lines: int = MIN_LINES_FULL) -> tuple[list[tuple[str, str, str, str]], list[str]]:

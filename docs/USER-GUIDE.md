@@ -1891,8 +1891,14 @@ machine's lowest point stands on the floor, deck or quay, centred; the machine i
 
 Their settings appear under the choice:
 
-- **Sea**: **Calm** or **Rough**. **Waves**: **Foam** on the wave tops, **Moving** waves in videos
-  (off: the sea stands still). **Water level** (open sea only) raises or lowers the water.
+- **Sea**: **Calm** (a gentle breeze, Beaufort 3), **Rough** (a strong breeze, Beaufort 6) or **From the wind**
+  (the wind of Weather & time, below: its strength and direction). The waves are many waves of different lengths
+  and directions, as a real sea has them, so the sea never repeats – also seen from high above or towards the
+  horizon. White caps form only where waves are steep, in patches that come and go and drift with the wind, about
+  as many as measured at sea (hardly any at Beaufort 3, a few per cent at 6, much more in a gale; foam streaks
+  along the wind from Beaufort 7). Foam lies round the hull at the waterline and moves with the vessel.
+  **Waves**: **Foam** (white caps and hull foam), **Moving** waves in videos (off: the sea stands still).
+  **Water level** (open sea only) raises or lowers the water.
 - **Detail**: **Simple** (fewer things around the machine, renders fastest) or **Detailed** (more
   containers, workbenches, racks; real waves near the machine).
 - A hall never hides the machine: the walls are only seen from inside, so a camera outside the hall
@@ -1992,6 +1998,63 @@ with "Auto Run Python Scripts" off, in the render queue and at any frame rate, a
 update and saved scenes (it is one setting for the whole project, not per saved scene). It costs no render time
 (measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
 about 6 ms per frame of playback on a 3,000-part machine.
+
+### Weather & time
+
+<img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
+
+Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze and fog,
+rain, snow and wind. Tick **Weather & time**; unticked, everything looks exactly as without it (only the sea itself
+is new in 0.2.86). The panel's header shows the weather in words ("13:00 day · overcast · Bft 6 · rain · haze, 8 km").
+
+**Preset**: **Clear day**, **Grey North Sea** (overcast, Beaufort 6, drizzle, haze, the machine wet), **Storm**
+(a gale, heavy rain, low clouds, white water and spray, 2.5 km visibility), **Snow at the quay** (snow falling, a
+snow layer), **Night shift** (dark sky with stars and the moon, floodlights, a damp sheen). A preset sets all the
+controls; change any of them afterwards (the preset then shows **Own settings**).
+
+**Time**: the clock (sun time: 12:00 is when the sun stands highest – no time zone or summer time needed). It sets
+the sun's height and direction and the sky's colour: sunrise, day, golden hour, dusk, night. **North** turns the
+sun's path (and the wind) around the machine: 90 means north is behind the machine, so the noon sun comes from the
+front. Without a date the sun rises at 6:00 and sets at 18:00; open **Date and place** and tick **Real sun path** for
+the sun of one day (**Day of the year**: 172 = 21 June) at a **Latitude** (the southern North Sea about 54) – the
+line under it gives sunrise and sunset. The first time you tick Weather & time it starts from your project's own
+sky (Sun or Overcast, Sun height, Turn sun), so nothing jumps.
+
+**Sky**: **Clouds** (0 a clear blue sky, 1 overcast: soft light, no sun), **Low clouds** (a dark, low deck), and
+**Visibility**: 40 km is clear air, 10 km haze, 2 km mist, below 1 km fog that hides the far sea and the quay.
+
+**Rain and snow**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck, the
+quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
+run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain makes things
+at least as wet as it is heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on every face
+that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+
+**Wind**: strength in **Beaufort** (the line above says what it is called and how many m/s), **From** (where it comes
+from, as a compass bearing, or **From the bow** of the vessel: 0 = ahead, 90 = from starboard). Rain and snow slant
+and drift with it; **Spray** blows off the wave tops and flies up at the bow from Beaufort 6; **Flag** puts a flag on a
+pole at the stern (or the back of the machine) that flies in the wind. For the waves to follow the wind, pick
+**From the wind** as the Sea under Background & surroundings. **Vessel speed** (knots, Open sea and Vessel deck): a
+wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still.
+
+**Night lights** (the fold): **Floodlights** on masts round the deck or the quay, set up for you: **Auto** (on from
+dusk to dawn), **On**, **Off**, and their **Strength**. The picture opens up at dusk and night the way a camera (or
+your eye) does, on top of your own Exposure.
+
+**Work lights** (the fold, also with Weather & time off): click a lamp part on the machine, then **Spot** or
+**Flood**: light shines from it and moves with it. Each work light has its colour, **Power** and **Beam**; × takes
+it away. Work lights stay through a model update.
+
+**Where it works:** on the **Open sea**, the **Vessel deck**, the **Quayside** and **Sky** everything works. With a
+**360° photo** the photo keeps its own sun and sky; rain, snow, wind and the wet look work. Indoors (halls,
+studios, a plain background) nothing falls and the sky is not seen: only work lights.
+
+**In a video:** add a **Weather & time** step in 6 Animation. It starts from the weather before it (the panel's, or
+the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
+**Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
+**Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
+start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
+queue renders it, also for every paint scheme. Rain, snow, spray and the flag depend only on the frame, so a frame
+looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
 
 ### Camera
 
@@ -2216,6 +2279,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
       length follows from the program.
     - **Assembly sequence**: a subassembly comes apart part by part, fasteners first, or goes together (see
       **Take a subassembly apart** below). Its length follows from the number of parts.
+    - **Weather & time**: the weather and the time of day change over the step – day to dusk, the rain
+      starting, the fog lifting (see **Weather & time** in 5 Scene & Render).
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
