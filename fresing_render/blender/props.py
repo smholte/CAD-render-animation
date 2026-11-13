@@ -2271,7 +2271,8 @@ class FRSpoolFollower(bpy.types.PropertyGroup):
     joint: StringProperty(name="Joint", description="The joint that follows the layer")
     mode: EnumProperty(
         name="Follows", default="ACROSS", update=_spool_changed,
-        description="How the joint follows the place where the cable leaves the spool",
+        description="How this joint follows where the cable leaves the drum or carousel: along the drum (a level "
+                    "wind), an arm swinging over the coil, or a guide turning along the turn",
         items=[("ACROSS", "Across the drum", "A slide along the drum: it keeps in line with the wrap being paid out "
                                              "(a level wind), going back and forth layer by layer"),
                ("ARM", "Arm over the coil", "A turn about an axis beside the spool: the arm swings so its guide stays "
@@ -2325,16 +2326,18 @@ class FRSpool(bpy.types.PropertyGroup):
                     "flange. Carousel: off = the first layer starts at the core, on = at the rim")
     hand: IntProperty(default=1)                           # +1: the wraps turn about +axis from the anchor outwards
     zsign: IntProperty(default=1)                          # -1: the spool frame's z is the joint arrow's -z
+    leave: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))   # where the CAD cable leaves it (spool frame)
     phase: FloatProperty(default=0.0)                      # rad: the wound path's turn so it leaves where CAD drew it
     wound: FloatProperty(
-        name="Wound at the start", unit="LENGTH", default=10.0, min=0.0, soft_max=100000.0, precision=1,
+        name="Wound at the start", default=10.0, min=0.0, soft_max=100000.0, precision=1, step=100,
         update=_spool_changed,
         description="How much cable is on the drum or carousel when the cable speed's joint is at 0, in m. Read from "
                     "where the CAD cable leaves it; type another length to start with more or less")
     wound_user: BoolProperty(default=False)                # typed: a new reading keeps it
     groove: EnumProperty(
         name="Grooves", default="SPIRAL", update=_spool_changed,
-        description="How the drum is grooved: the wraps follow the grooves",
+        description="How the drum is grooved: Spiral – one helical groove, the wraps side by side; Lebus – parallel "
+                    "grooves with two crossovers per turn. The wraps follow the grooves",
         items=[("SPIRAL", "Spiral groove", "One helical groove: each wrap a little further along than the last"),
                ("LEBUS", "Lebus", "Parallel grooves with two crossovers per turn: the wraps step half a groove there")])
     crossover: FloatProperty(name="Crossover", subtype="ANGLE", default=0.6108652, min=0.05, max=1.5,

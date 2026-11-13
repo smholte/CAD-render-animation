@@ -74,6 +74,7 @@ OWNER_TYPES = {
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
+    "FRESING_UL_spools": "FRSpool",                           # 4 Motion > Drums and carousels (task 0080)
     "FRESING_UL_groups": "FRMaterialGroup", "FRESING_UL_rules": "FRRule", "FRESING_UL_schemes": "FRScheme",
     "FRESING_UL_visibility": "FRVisSet", "FRESING_UL_found": "FRFoundPart", "FRESING_UL_joints": "FRJoint",
     "FRESING_UL_poses": "FRPose", "FRESING_UL_shots": "FRShot", "FRESING_UL_anims": "FRAnimation",

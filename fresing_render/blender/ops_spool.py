@@ -138,7 +138,7 @@ class FRESING_OT_spool_add(_Op, bpy.types.Operator):
             sp = spool.add(context.scene, self.kind, ob, cable, axis=axis)
         except (spool.SpoolError, RuntimeError) as exc:
             return _refuse(context, self, exc)
-        text, _icon = spool.status(context.scene, sp)
+        text, _icon = spool.status(context.scene, sp, write=True)
         _say(context, self, f"'{spool.label(sp)}': {text}")
         return {"FINISHED"}
 
@@ -172,23 +172,28 @@ class FRESING_OT_spool_select(_NeedsItem, bpy.types.Operator):
         return {"FINISHED"}
 
 
+_ITEMS: list = []           # the joint list's strings: Blender keeps no reference to a dynamic list of its own
+
+
 def _joint_items(self, context):
     scene = context.scene
     sp = spool.active(scene) if scene is not None else None
     out = []
-    if sp is None:
-        return [("", "No joint", "")]
-    taken = {f.joint for f in sp.followers} | {sp.joint}
-    it = paths.find(scene, sp.cable)
-    if it is not None:
-        taken.add(it.joint)
-    for j in scene.fresing.joints:
-        if j.name in taken or j.motion is None:
-            continue
-        kind = "slide" if j.kind == "SLIDE" else "turn"
-        out.append((j.name, j.name, f"'{j.name}' ({kind}) follows where the cable leaves the "
-                                    f"{sp.kind.lower()}"))
-    return out or [("", "No joint", "There is no other joint: make the level wind's or arm's joint first")]
+    if sp is not None:
+        taken = {f.joint for f in sp.followers} | {sp.joint}
+        it = paths.find(scene, sp.cable)
+        if it is not None:
+            taken.add(it.joint)
+        for j in scene.fresing.joints:
+            if j.name in taken or j.motion is None:
+                continue
+            kind = "slide" if j.kind == "SLIDE" else "turn"
+            out.append((j.name, j.name, f"'{j.name}' ({kind}) follows where the cable leaves the "
+                                        f"{sp.kind.lower()}"))
+    if not out:
+        out = [("", "No joint", "There is no other joint: make the level wind's or arm's joint first")]
+    _ITEMS[:] = out
+    return _ITEMS
 
 
 class FRESING_OT_spool_follower_add(_NeedsItem, bpy.types.Operator):
@@ -208,15 +213,16 @@ class FRESING_OT_spool_follower_add(_NeedsItem, bpy.types.Operator):
 
     def execute(self, context):
         sp = _item(context)
-        if not self.joint:
+        name = str(self.joint)                      # (read once: the list may be made again meanwhile)
+        if not name:
             return {"CANCELLED"}
         try:
-            mode = spool.add_follower(context.scene, sp, self.joint)
+            mode = spool.add_follower(context.scene, sp, name)
         except (spool.SpoolError, RuntimeError) as exc:
             return _refuse(context, self, exc)
         words = {"ACROSS": "goes along the drum with the wraps", "ARM": "swings over the turn being paid out",
                  "ALONG": "turns along the turn being paid out"}
-        _say(context, self, f"'{self.joint}' {words.get(mode, 'follows the layer')}")
+        _say(context, self, f"'{name}' {words.get(mode, 'follows the layer')}")
         return {"FINISHED"}
 
 
@@ -256,7 +262,7 @@ class FRESING_OT_spool_read(_NeedsItem, bpy.types.Operator):
             spool._setup(scene, sp, read=True)
         except (spool.SpoolError, RuntimeError) as exc:
             return _refuse(context, self, exc)
-        text, _icon = spool.status(scene, spool.active(scene))
+        text, _icon = spool.status(scene, spool.active(scene), write=True)
         _say(context, self, text)
         return {"FINISHED"}
 

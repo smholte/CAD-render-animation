@@ -51,14 +51,15 @@ MOD = "FR spool"                    # the modifier that draws the rope on the sp
 HIDE = "FR spool hides"             # the modifier that hides the CAD coil
 TREE = "FR spool rope"
 HIDE_TREE = "FR spool nothing"
-VERSION = 1
-S_ATTR = "fr_s"
+VERSION = 2
+S_ATTR = "fr_L"                     # on the shapes' points: the metres from the anchor (the look's s = L - Wound)
 OFF = "fr_off"                      # on a made object: 1 hides it (the spool is off)
 SIDES = {"DRUM": 12, "CAROUSEL": 8}
 DRAWN = {"DRUM": 2, "CAROUSEL": 1}  # layers drawn as rope (the rest: one solid)
 GROOVE = 1.06                       # a spiral groove's pitch in rope diameters, when none was typed
 COIL_WORDS = ("COIL", "WIRE", "ROPE", "CABLE", "SPOOL", "WOUND")
-_INPUTS = (("Shapes", "NodeSocketObject"), ("Start", "NodeSocketFloat"), ("End", "NodeSocketFloat"),
+_INPUTS = (("Shapes", "NodeSocketObject"), ("Wound", "NodeSocketFloat"), ("Start", "NodeSocketFloat"),
+           ("End", "NodeSocketFloat"),
            ("Radius", "NodeSocketFloat"), ("Sides", "NodeSocketInt"))
 
 _STATE = {"busy": 0, "path": {}, "poly": {}, "inputs": {}}
@@ -645,7 +646,7 @@ def tables(scene, sp) -> dict:
         if f.mode == "ACROSS":
             if fj.kind != "SLIDE":
                 raise SpoolError(f"'{fj.name}' is a rotate joint: only a slide joint can follow across the drum")
-            out[fj.name] = (p, (a - a0) * float(n[2]))
+            out[fj.name] = (p, (a - float(sp.leave[2])) * float(n[2]))     # (CAD: it stands over the CAD leave)
         else:
             if fj.kind != "ROTATE" or abs(abs(float(n[2])) - 1.0) > 1e-3:
                 raise SpoolError(f"'{fj.name}' must be a rotate joint with an axis parallel to the "
@@ -659,12 +660,12 @@ def tables(scene, sp) -> dict:
     return out
 
 
-def _write_tables(scene, sp) -> list[str]:
+def _write_tables(scene, sp, tab=None) -> list[str]:
     it = _cable(scene, sp)
     _top, k, c, sign = _pay_map(scene, sp)
     if it is None or _top is None or abs(k) < 1e-300:
         raise SpoolError("The cable's speed joint is gone: check the cable in Cables and paths")
-    tab = tables(scene, sp)
+    tab = tab if tab is not None else tables(scene, sp)
     owner = f"spool:{sp.name}"
     notes = []
     for name, (p, y) in tab.items():
@@ -692,21 +693,83 @@ def _drop_tables(scene, sp, names=None) -> None:
 # drawing the rope on the spool
 # ---------------------------------------------------------------------------
 
+def _math(b, op: str, x, y=None, z=None):
+    n = b.new("ShaderNodeMath", operation=op)
+    for k, v in enumerate((x, y, z)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            n.inputs[k].default_value = float(v)
+        else:
+            b.link(v, n.inputs[k])
+    return n.outputs[0]
+
+
 def _build_tree(ng) -> None:
+    """The rope on the spool: the wound path's points (attribute ``fr_L``, metres from the anchor) from Start to End.
+    Each point is kept or dropped by its own length (Trim Curve adds the pieces' lengths up in 32-bit numbers: on a
+    rope of 60 m its cut came out 1.7 mm too far); the first point beyond End is moved back onto End along its piece,
+    so the rope ends exactly there."""
     from . import paths
     b = flex._Nodes(ng)
     gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
     info = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
     b.link(gin.outputs["Shapes"], info.inputs["Object"])
-    curve = b.new("GeometryNodeMeshToCurve")
-    b.link(flex._sock(info.outputs, "Geometry"), curve.inputs["Mesh"])
-    trim = b.new("GeometryNodeTrimCurve", mode="LENGTH")
-    b.link(curve.outputs[0], trim.inputs["Curve"])
-    b.link(gin.outputs["Start"], trim.inputs["Start_001"])
-    b.link(gin.outputs["End"], trim.inputs["End_001"])
+    geo = flex._sock(info.outputs, "Geometry")
     src = b.new("GeometryNodeInputNamedAttribute", data_type="FLOAT")
     src.inputs["Name"].default_value = S_ATTR
-    path, along = paths._capture(b, trim.outputs[0], flex._sock(src.outputs, "Attribute"))
+    L = flex._sock(src.outputs, "Attribute")
+    idx = b.new("GeometryNodeInputIndex").outputs[0]
+    prev = _math(b, "MAXIMUM", _math(b, "SUBTRACT", idx, 1.0), 0.0)
+    pos = b.new("GeometryNodeInputPosition").outputs[0]
+    sp_ = b.new("GeometryNodeSampleIndex", data_type="FLOAT_VECTOR", domain="POINT")
+    b.link(geo, sp_.inputs["Geometry"])
+    b.link(pos, flex._sock(sp_.inputs, "Value"))
+    b.link(prev, sp_.inputs["Index"])
+    p_prev = flex._sock(sp_.outputs, "Value")
+    sl = b.new("GeometryNodeSampleIndex", data_type="FLOAT", domain="POINT")
+    b.link(geo, sl.inputs["Geometry"])
+    b.link(L, flex._sock(sl.inputs, "Value"))
+    b.link(prev, sl.inputs["Index"])
+    l_prev = flex._sock(sl.outputs, "Value")
+    end = gin.outputs["End"]
+    # t = (End - L_prev) / (L - L_prev), the first point past End goes back to there
+    t = _math(b, "DIVIDE", _math(b, "SUBTRACT", end, l_prev), _math(b, "MAXIMUM", _math(b, "SUBTRACT", L, l_prev), 1e-9))
+    mix = b.new("ShaderNodeMix", data_type="VECTOR", clamp_factor=True)
+    b.link(t, mix.inputs["Factor"])
+    b.link(p_prev, mix.inputs[4])
+    b.link(pos, mix.inputs[5])
+    past = b.new("FunctionNodeCompare", data_type="FLOAT", operation="GREATER_THAN")
+    b.link(L, past.inputs[0])
+    b.link(end, past.inputs[1])
+    setp = b.new("GeometryNodeSetPosition")
+    b.link(geo, setp.inputs["Geometry"])
+    b.link(past.outputs[0], setp.inputs["Selection"])
+    b.link(mix.outputs[1], setp.inputs["Position"])
+    store_l = b.new("GeometryNodeStoreNamedAttribute", data_type="FLOAT", domain="POINT")
+    store_l.inputs["Name"].default_value = S_ATTR
+    b.link(setp.outputs[0], store_l.inputs["Geometry"])
+    b.link(past.outputs[0], store_l.inputs["Selection"])
+    b.link(end, flex._sock(store_l.inputs, "Value"))
+    # drop: before Start, and every point whose piece starts past End (only the first one past it stays)
+    gone_after = b.new("FunctionNodeCompare", data_type="FLOAT", operation="GREATER_THAN")
+    b.link(l_prev, gone_after.inputs[0])
+    b.link(end, gone_after.inputs[1])
+    gone_before = b.new("FunctionNodeCompare", data_type="FLOAT", operation="LESS_THAN")
+    b.link(L, gone_before.inputs[0])
+    b.link(gin.outputs["Start"], gone_before.inputs[1])
+    gone = b.new("FunctionNodeBooleanMath", operation="OR")
+    b.link(gone_after.outputs[0], gone.inputs[0])
+    b.link(gone_before.outputs[0], gone.inputs[1])
+    cut = b.new("GeometryNodeDeleteGeometry", domain="POINT")
+    b.link(store_l.outputs[0], cut.inputs["Geometry"])
+    b.link(gone.outputs[0], cut.inputs["Selection"])
+    curve = b.new("GeometryNodeMeshToCurve")
+    b.link(cut.outputs[0], curve.inputs["Mesh"])
+    src2 = b.new("GeometryNodeInputNamedAttribute", data_type="FLOAT")
+    src2.inputs["Name"].default_value = S_ATTR
+    s_val = _math(b, "SUBTRACT", flex._sock(src2.outputs, "Attribute"), gin.outputs["Wound"])   # the look's s
+    path, along = paths._capture(b, curve.outputs[0], s_val)
     circle = b.new("GeometryNodeCurvePrimitiveCircle")
     b.link(gin.outputs["Sides"], circle.inputs["Resolution"])
     b.link(gin.outputs["Radius"], circle.inputs["Radius"])
@@ -790,6 +853,20 @@ def _remove_made(scene, sp) -> None:
                 bpy.data.meshes.remove(me)
 
 
+COLLECTION = "FR spools"
+
+
+def _own_collection(scene):
+    """The collection the drawn ropes and solids are in: their own, so a model update (which sets aside the
+    collections that hold only the old model) is not held up by them."""
+    col = bpy.data.collections.get(COLLECTION)
+    if col is None:
+        col = bpy.data.collections.new(COLLECTION)
+    if col.name not in scene.collection.children:
+        scene.collection.children.link(col)
+    return col
+
+
 def _hide_driver(ob, part, prop: str) -> None:
     try:
         ob.driver_remove(prop)
@@ -817,8 +894,7 @@ def _new_made(scene, sp, what: str, parent, mesh=None):
         flex._collection(scene).objects.link(ob)
         ob.hide_viewport = ob.hide_render = ob.hide_select = True
         return ob
-    cols = list(parent.users_collection) or [scene.collection]
-    cols[0].objects.link(ob)
+    _own_collection(scene).objects.link(ob)    # (not the model's: a model update sets the model's aside)
     ob.parent = parent
     ob.matrix_parent_inverse = Matrix.Identity(4)
     ob.hide_select = True
@@ -962,7 +1038,7 @@ def _draw(scene, sp) -> None:
     me.edges.add(max(n - 1, 0))
     e = np.c_[np.arange(n - 1), np.arange(1, n)].astype(np.int32)
     me.edges.foreach_set("vertices", e.reshape(-1))
-    me.attributes.new(S_ATTR, "FLOAT", "POINT").data.foreach_set("value", (Ls - W0).astype(np.float32))
+    me.attributes.new(S_ATTR, "FLOAT", "POINT").data.foreach_set("value", Ls.astype(np.float32))
     me.update()
     old = sh.data
     sh.data = me
@@ -986,13 +1062,14 @@ def _draw(scene, sp) -> None:
     flex._put(mod, ins["Shapes"], sh)
     flex._put(mod, ins["Radius"], 0.5 * diameter(scene, sp) / scale)
     flex._put(mod, ins["Sides"], SIDES[sp.kind])
+    flex._put(mod, ins["Wound"], W0)
     top, k, c, sign = _pay_map(scene, sp)
     base = f'modifiers["{MOD}"].properties.inputs.'
     if top is not None and top.motion is not None:
         # End = W0 - p = W0 - sign (k x + c);  Start = the first layer still drawn as rope (steps)
         _driver(rope, base + ins["End"] + ".value", top.motion,
-                joints.expression(-sign * k / scale, (W0 - sign * c) / scale))
-        xs, ys = _steps(scene, sp, path, W0, lambda lo, _s: lo / scale)
+                joints.expression(-sign * k, W0 - sign * c))          # (metres: the points' own fr_L)
+        xs, ys = _steps(scene, sp, path, W0, lambda lo, _s: lo)
         _step_driver(rope, base + ins["Start"] + ".value", top.motion, xs, ys)
     rope[OFF] = 0 if sp.enabled else 1
     _materials(scene, sp, rope)
@@ -1298,20 +1375,28 @@ def _setup(scene, sp, read: bool = False) -> list[str]:
                 sp.q_on = geo["q_on"].name if geo["q_on"] is not None else ""
             path = path_of(scene, sp)
             L = geo["leave"]
+            with flex._quiet(sp):
+                sp.leave = tuple(float(v) for v in L)
             if not sp.wound_user:
                 W0 = float(S.wound_at(path, float(L[2]), float(math.hypot(L[0], L[1]))))
                 with flex._quiet(sp):
                     sp.wound = W0
-            phi, _a, _r, _k = S.at(path, np.array([float(sp.wound)]))
-            with flex._quiet(sp):
-                sp.phase = float(math.atan2(L[1], L[0]) - float(phi[0]))
-                sp.capacity = float(path.total)
+            sp["wound_was"] = float(sp.wound)          # (a length typed from now on is the user's)
             _attach(scene, sp)
             sp = _spool(scene, i)
-        notes = _write_tables(scene, sp)
+        # the rope's end at W0 leaves where the tangent to the first contact touches its layer (as the CAD cable
+        # does; with a length that was typed, on that length's layer)
+        path = path_of(scene, sp)
+        tab = tables(scene, sp)
+        kp, psi = tab["psi"]
+        phi, _a, _r, _k = S.at(path, np.array([float(sp.wound)]))
+        with flex._quiet(sp):
+            sp.phase = float(np.interp(0.0, kp, psi) - float(np.asarray(phi).reshape(-1)[0]))
+            sp.capacity = float(path.total)
+        notes = _write_tables(scene, sp, tab)
         sp = _spool(scene, i)
         _draw(scene, sp)
-        status(scene, sp)
+        status(scene, sp, write=True)
     finally:
         _STATE["busy"] -= 1
     it = _cable(scene, sp)
@@ -1447,17 +1532,27 @@ def fleet(scene, sp) -> tuple:
         lo, hi = S.fleet_angles(path, q)
         return float(lo), float(hi)
     d = diameter(scene, sp)
-    _phi, a0, _r, _k = S.at(path, np.array([float(sp.wound)]))
     out = []
     for a_end in (float(sp.a_lo) + 0.5 * d, float(sp.a_hi) - 0.5 * d):
         qq = q.copy()
-        qq[2] += a_end - float(a0[0])
+        qq[2] += a_end - float(sp.leave[2])         # (the level wind stands over the CAD leave place at its 0)
         out.append(float(np.asarray(S.fleet_angles(path, qq))[0 if a_end < 0.5 * (sp.a_lo + sp.a_hi) else 1]))
     return out[0], out[1]
 
 
-def status(scene, sp) -> tuple[str, str]:
-    """(text, icon) for the panel, written into the item's state too."""
+def flange_name(sp, at_lo: bool) -> str:
+    """Which flange, in the panel's words: the one the first layer starts from, or the other."""
+    starts_lo = not sp.other_side
+    return "at the flange the first layer starts from" if at_lo == starts_lo else "at the other flange"
+
+
+def fleet_text(sp, lo: float, hi: float) -> str:
+    return f"fleet angle {math.degrees(max(lo, hi)):.1f}° {flange_name(sp, lo >= hi)}"
+
+
+def status(scene, sp, write: bool = True) -> tuple[str, str]:
+    """(text, icon) for the panel, also written into the item's state when Blender lets it (not while a panel
+    draws: the panel shows the text, the state follows at the next change)."""
     if not sp.enabled:
         return "Off: the coil shows as in the CAD file", "HIDE_ON"
     it = _cable(scene, sp)
@@ -1478,21 +1573,36 @@ def status(scene, sp) -> tuple[str, str]:
     elif st == "full":
         problem = f"overfills: {_metres(on - float(path.total))} m more than it holds ({_metres(path.total)} m)"
     elif sp.kind == "DRUM" and max(lo, hi) > float(sp.fleet_limit) + 1e-9:
-        end = ("at the flange it starts from" if lo >= hi else "at the other flange")
-        problem = (f"fleet angle {math.degrees(max(lo, hi)):.1f}° {end} (more than "
+        problem = (f"{fleet_text(sp, lo, hi)} (more than "
                    f"{math.degrees(sp.fleet_limit):.1f}°): the cable may not spool well – add a level wind, or move "
                    "the sheave further away")
-    with flex._quiet(sp):
-        if sp.problem != problem:
-            sp.problem = problem
-        sp.layer = int(np.asarray(layer)[0]) + 1
-        sp.layers = int(path.layer_count)
-        sp.on_spool = float(on)
-        sp.capacity = float(path.total)
-        sp.fleet_lo, sp.fleet_hi = lo, hi
+    k, n = int(np.asarray(layer).reshape(-1)[0]) + 1, int(path.layer_count)
+    if write:
+        try:
+            with flex._quiet(sp):
+                if sp.problem != problem:
+                    sp.problem = problem
+                if sp.layer != k or sp.layers != n:
+                    sp.layer, sp.layers = k, n
+                if abs(sp.on_spool - on) > 1e-6 or abs(sp.capacity - float(path.total)) > 1e-6:
+                    sp.on_spool, sp.capacity = float(on), float(path.total)
+                if abs(sp.fleet_lo - lo) > 1e-9 or abs(sp.fleet_hi - hi) > 1e-9:
+                    sp.fleet_lo, sp.fleet_hi = lo, hi
+        except AttributeError:                  # (drawing: "Writing to ID classes in this context is not allowed")
+            pass
     if problem:
         return problem[0].upper() + problem[1:], "ERROR"
-    return (f"{_metres(on)} m on it, layer {sp.layer} of {sp.layers}; holds {_metres(path.total)} m", "CHECKMARK")
+    return (f"{_metres(on)} m on it, layer {k} of {n}; holds {_metres(path.total)} m", "CHECKMARK")
+
+
+def after_draw(scene, item) -> None:
+    """paths.py drew the cable again (a pose, a frame of a built animation): its spool's state follows."""
+    sp = of_cable(scene, item)
+    if sp is not None and not _STATE["busy"]:
+        try:
+            status(scene, sp)
+        except Exception:                           # (never in the way of drawing the cable)
+            pass
 
 
 def bake(scene, anim) -> list[str]:
@@ -1527,7 +1637,8 @@ def bake(scene, anim) -> list[str]:
                 out.append(f"Drum or carousel '{label(sp)}' overfills in this animation")
             lo, hi = fleet(scene, sp)
             if sp.kind == "DRUM" and max(lo, hi) > float(sp.fleet_limit) + 1e-9:
-                out.append(f"Drum '{label(sp)}': fleet angle {math.degrees(max(lo, hi)):.1f}° at a flange")
+                out.append(f"Drum '{label(sp)}': {fleet_text(sp, lo, hi)} (more than "
+                           f"{math.degrees(sp.fleet_limit):.1f}°)")
         except Exception as exc:                    # a Build never fails over a spool
             out.append(f"Drum or carousel '{label(sp)}' could not be checked ({exc or type(exc).__name__})")
     return out
@@ -1556,8 +1667,21 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         return []
     notes = []
     forget()
+    from . import paths
     for i in range(len(s.spools)):
         sp = s.spools[i]
+        _STATE["busy"] += 1
+        try:
+            _drop_tables(scene, sp)                 # (the cables are read as plain CAD cables; _setup writes them again)
+        finally:
+            _STATE["busy"] -= 1
+        sp = s.spools[i]
+        it = _cable(scene, sp)
+        if it is not None and it.a_kind == "SPOOL":    # read again as the plain CAD cable; after_read takes it again
+            with paths._quiet(it):
+                it.a_kind = "FIXED"
+                it.a_part = None
+                it.a_uid = ""
         _remove_made(scene, sp)                     # (they hung on the old parts)
         part = flex._new_object(scene, sp.part_uid, by_uid, mapping) if sp.part_uid else None
         coil = flex._new_object(scene, sp.coil_uid, by_uid, mapping) if sp.coil_uid else None

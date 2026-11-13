@@ -97,10 +97,13 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
         wrap(layout, context, f"Cable: '{sp.cable}'", icon="CURVE_PATH")
         wrap(layout, context, f"Turns with joint '{sp.joint}' (follows the cable by table)", icon="LINKED")
         col = split_props(layout)
-        col.prop(sp, "wound", text="On it at the start")
+        col.prop(sp, "wound", text="On it at start (m)")
         if sp.kind == "DRUM":
             col.prop(sp, "groove", text="Grooves")
             col.prop(sp, "pitch", text="Groove pitch")
+            if sp.pitch <= 0.0:
+                wrap(layout, context, f"Groove pitch 0: the usual {spool.pitch_of(scene, sp) * 1000:.1f} mm "
+                                      "(the cable's diameter x 1.06)", icon="INFO", inset=12)
             if sp.fleet_lo or sp.fleet_hi:
                 wrap(layout, context, f"Fleet angle {math.degrees(sp.fleet_lo):.1f}° / "
                                       f"{math.degrees(sp.fleet_hi):.1f}° at the two flanges", icon="DRIVER_ROTATIONAL_DIFFERENCE",
@@ -112,11 +115,13 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
         layout.separator()
         n = len(sp.followers)
         layout.label(text=f"Follow the layer ({n})" if n else "Follow the layer", icon="CON_FOLLOWPATH")
-        for k, fl in enumerate(sp.followers):
+        for k, fl in enumerate(sp.followers):            # (two rows: the joint's name and its way of following)
             row = layout.row(align=True)
             row.label(text=fl.joint, icon=MODE_ICONS.get(fl.mode, "DOT"))
-            row.prop(fl, "mode", text="")
             row.operator("fresing.spool_follower_remove", text="", icon="X").index = k
+            sub = layout.row()
+            sub.separator(factor=2.0)
+            sub.prop(fl, "mode", text="")
         layout.operator("fresing.spool_follower_add", text="This joint follows the layer", icon="ADD")
 
         # -- rarely changed

@@ -1707,6 +1707,9 @@ def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
         scale = res["scale"]
         _write_shapes(scene, item, res["points"], res["s"] * scale, 0 if first is None else first)
     _sync(scene, item)
+    if item.a_kind == "SPOOL":
+        from . import spool as _spool
+        _spool.after_draw(scene, item)          # its spool's state (on it, layer) follows (task 0080)
     return warnings
 
 

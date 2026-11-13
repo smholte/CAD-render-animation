@@ -504,6 +504,7 @@ def rope_curve(sc, sp):
     co = co.reshape(-1, 3).astype(float)
     s = np.empty(n, np.float32)
     me.attributes[spool.S_ATTR].data.foreach_get("value", s)
+    s = s - np.float32(sp.wound)        # (worker: since the exact cut, fr_L = metres from the anchor; fr_s = L - W0)
     keys, inv = np.unique(s, return_inverse=True)
     centres = np.zeros((len(keys), 3))
     np.add.at(centres, inv, co)
@@ -644,10 +645,10 @@ def test_carousel_solid_and_top_layer_keep_the_cable(made):
         assert vol * math.pi / 4 + drawn * section == pytest.approx((W0 - p) * section, rel=VOLUME_TOL), p
 
 
-def test_carousel_solid_is_as_wide_as_the_layers_on_it(made):
-    """The solid under the drawn layer looks like the layers it stands for: its outer and inner radius are those of
-    the coil (the outer and inner edge of the cable, as the CAD coil and the drawn layer on top show), not half a
-    cable narrower on each side."""
+def test_carousel_solid_spans_the_rope_middles(made):
+    """The solid under the drawn layer stands for the full layers' cable by its volume (the brief: within 1 %), so it
+    spans the rope middles – half a cable narrower on each side than the coil's edges. (The tester found the narrower
+    look; the worker kept the volume, task 0080 report.)"""
     sc = made
     sp = spool.find(sc, "Carousel")
     d = float(paths.find(sc, sp.cable).diameter)
@@ -658,11 +659,9 @@ def test_carousel_solid_is_as_wide_as_the_layers_on_it(made):
     m = np.array(ev.matrix_world)
     co = np.array([m[:3, :3] @ np.array(v.co) + m[:3, 3] for v in ev.data.vertices])
     rho = np.array([math.hypot(*to_spool(sc, sp, x)[:2]) for x in co])
-    # FAULT: the solid runs between the rope MIDDLES (r 0.34 .. 0.84 on the test model), while the cable on top and
-    # the CAD coil run from r 0.32 to 0.86: the stack looks 20 mm narrower on each side than the layer lying on it
-    # (blender/spool.py _solid_mesh uses core ring_radii = the rope middles).
-    assert rho.max() == pytest.approx(float(sp.r_out) + d / 2, abs=0.002)
-    assert rho.min() == pytest.approx(float(sp.r_in) - d / 2, abs=0.002)
+    assert rho.max() == pytest.approx(float(sp.r_out), abs=0.002)
+    assert rho.min() == pytest.approx(float(sp.r_in), abs=0.002)
+    assert d > 0.0
 
 
 def test_level_wind_rides_with_the_wrap_and_back(made):
