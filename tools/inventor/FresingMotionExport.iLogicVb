@@ -1,0 +1,669 @@
+' ====================================================================================================================
+' Fresing Render – motion export for Inventor (iLogic rule)                     draft 0.1, task 0104, 13 Nov 2026
+'
+' What it does: reads the open assembly's constraints, assembly joints and parts and writes them to a file
+'   <assembly name>.fresing.json   next to the assembly (and, if you say Yes, the STEP file <assembly name>.stp too).
+' Fresing Render reads that file at import and makes the joints (turns, slides, their limits) that the constraints
+' leave free. Nothing in the assembly is changed: the rule only reads.
+'
+' How to run it: see tools/inventor/README.md (Manage tab > iLogic Browser > External Rules > Add, then Run).
+'
+' For whoever reads this later: all numbers are written in mm and degrees, in the TOP assembly's coordinates (the
+' same coordinates the STEP file has). Inventor's API gives cm and radians, and geometry of a subassembly in that
+' subassembly's own coordinates: the rule converts both. A part of the file it could not read is listed in
+' "problems" and shown at the end; the rest is still written.
+' ====================================================================================================================
+Imports System.Text
+Imports System.Globalization
+Imports System.Collections.Generic
+
+Sub Main()
+	Dim doc As Document = ThisApplication.ActiveDocument
+	If doc Is Nothing OrElse doc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+		MessageBox.Show("Open the assembly (.iam) first, then run this rule again.", "Fresing motion export")
+		Exit Sub
+	End If
+	Dim asm As AssemblyDocument = doc
+	Dim def As AssemblyComponentDefinition = asm.ComponentDefinition
+	If asm.FullFileName = "" Then
+		MessageBox.Show("Save the assembly first: the file is written next to it.", "Fresing motion export")
+		Exit Sub
+	End If
+	Dim folder As String = System.IO.Path.GetDirectoryName(asm.FullFileName)
+	Dim stem As String = System.IO.Path.GetFileNameWithoutExtension(asm.FullFileName)
+	Dim jsonPath As String = System.IO.Path.Combine(folder, stem & ".fresing.json")
+	Dim stepPath As String = System.IO.Path.Combine(folder, stem & ".stp")
+
+	Dim answer = MessageBox.Show("Also save the STEP file now?" & vbCrLf & vbCrLf & stepPath & vbCrLf & vbCrLf &
+		"Yes = STEP + motion file (they always match)." & vbCrLf & "No = only the motion file " & stem & ".fresing.json.",
+		"Fresing motion export", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question)
+	If answer = DialogResult.Cancel Then Exit Sub
+
+	Dim occs As New List(Of String)
+	Dim cons As New List(Of String)
+	Dim jnts As New List(Of String)
+	Dim problems As New List(Of String)
+	Dim top As New List(Of String)
+
+	ReadLevel(def, top, Identity(), cons, jnts, problems)                ' the top assembly's own constraints
+	WalkOccurrences(def.Occurrences, top, Identity(), occs, cons, jnts, problems)
+
+	Dim stepName As String = ""
+	If answer = DialogResult.Yes Then
+		Try
+			SaveStep(asm, stepPath)
+			stepName = System.IO.Path.GetFileName(stepPath)
+		Catch ex As Exception
+			problems.Add("STEP file not saved: " & ex.Message)
+		End Try
+	End If
+
+	Dim sb As New StringBuilder()
+	sb.Append("{" & vbLf)
+	sb.Append(" ""format"": ""fresing-cad-motion"", ""version"": 1," & vbLf)
+	Dim ver As String = ""
+	Try
+		ver = ThisApplication.SoftwareVersion.DisplayVersion
+	Catch
+	End Try
+	sb.Append(" ""written_by"": {""app"": ""Inventor"", ""app_version"": " & Q(ver) & ", ""script"": ""FresingMotionExport 0.1"", ""time"": " &
+		Q(DateTime.Now.ToString("s", CultureInfo.InvariantCulture)) & "}," & vbLf)
+	sb.Append(" ""document"": {""name"": " & Q(System.IO.Path.GetFileName(asm.FullFileName)) & ", ""step_file"": " & Q(stepName) & "}," & vbLf)
+	sb.Append(" ""units"": {""length"": ""mm"", ""angle"": ""deg""}," & vbLf)
+	sb.Append(" ""frame"": ""top assembly (= the STEP file's coordinates)""," & vbLf)
+	sb.Append(" ""occurrences"": [" & vbLf & "  " & String.Join("," & vbLf & "  ", occs) & vbLf & " ]," & vbLf)
+	sb.Append(" ""constraints"": [" & vbLf & "  " & String.Join("," & vbLf & "  ", cons) & vbLf & " ]," & vbLf)
+	sb.Append(" ""joints"": [" & vbLf & "  " & String.Join("," & vbLf & "  ", jnts) & vbLf & " ]," & vbLf)
+	Dim probs As New List(Of String)
+	For Each p In problems
+		probs.Add(Q(p))
+	Next
+	sb.Append(" ""problems"": [" & String.Join(", ", probs) & "]" & vbLf)
+	sb.Append("}" & vbLf)
+	System.IO.File.WriteAllText(jsonPath, sb.ToString(), New UTF8Encoding(False))
+
+	Dim msg As String = "Written: " & jsonPath & vbCrLf &
+		occs.Count & " parts and subassemblies, " & cons.Count & " constraints, " & jnts.Count & " joints."
+	If stepName <> "" Then msg &= vbCrLf & "STEP file: " & stepPath
+	If problems.Count > 0 Then
+		msg &= vbCrLf & vbCrLf & problems.Count & " things could not be read (they are listed in the file too):"
+		For i As Integer = 0 To Math.Min(problems.Count, 10) - 1
+			msg &= vbCrLf & " - " & problems(i)
+		Next
+	End If
+	MessageBox.Show(msg, "Fresing motion export")
+End Sub
+
+' ---------------------------------------------------------------------------------------------- walking the tree
+
+' Every occurrence once, from the top down. "items" are the top occurrences or an occurrence's SubOccurrences (seen
+' from the top assembly). parentM: the parent's place in the top assembly (16 numbers, cm).
+Sub WalkOccurrences(items As Object, parentPath As List(Of String), parentM As Double(), occs As List(Of String),
+                    cons As List(Of String), jnts As List(Of String), problems As List(Of String))
+	For Each occ As ComponentOccurrence In items
+		Dim path As New List(Of String)(parentPath)
+		path.Add(occ.Name)
+		Dim native As ComponentOccurrence = occ
+		If TypeOf occ Is ComponentOccurrenceProxy Then native = CType(occ, ComponentOccurrenceProxy).NativeObject
+		Dim M As Double() = Mul(parentM, MatrixArray(native.Transformation))
+		Dim isAsm As Boolean = False
+		Try
+			isAsm = (occ.DefinitionDocumentType = DocumentTypeEnum.kAssemblyDocumentObject)
+		Catch
+		End Try
+		occs.Add(OccurrenceJson(occ, path, M, isAsm, problems))
+		If occ.Suppressed Then Continue For                     ' nothing inside a suppressed one can be read
+		If isAsm Then
+			Try
+				ReadLevel(CType(native.Definition, AssemblyComponentDefinition), path, M, cons, jnts, problems)
+			Catch ex As Exception
+				problems.Add(Join(path) & ": constraints not read (" & ex.Message & ")")
+			End Try
+			WalkOccurrences(occ.SubOccurrences, path, M, occs, cons, jnts, problems)
+		End If
+	Next
+End Sub
+
+Function OccurrenceJson(occ As ComponentOccurrence, path As List(Of String), M As Double(), isAsm As Boolean,
+                        problems As List(Of String)) As String
+	Dim s As New StringBuilder("{""path"": " & PathJson(path))
+	s.Append(", ""kind"": " & Q(If(isAsm, "assembly", "part")))
+	Dim file As String = ""
+	Try
+		file = System.IO.Path.GetFileName(occ.ReferencedDocumentDescriptor.FullDocumentName)
+	Catch
+	End Try
+	s.Append(", ""file"": " & Q(file))
+	Dim pn As String = ""
+	Try
+		pn = CStr(occ.Definition.Document.PropertySets.Item("Design Tracking Properties").Item("Part Number").Value)
+	Catch
+	End Try
+	s.Append(", ""part_number"": " & Q(pn))
+	s.Append(", ""suppressed"": " & B(occ.Suppressed))
+	If Not occ.Suppressed Then
+		s.Append(", ""grounded"": " & B(TryBool(occ, "Grounded")))
+		s.Append(", ""visible"": " & B(TryBool(occ, "Visible", True)))
+		s.Append(", ""excluded"": " & B(TryBool(occ, "Excluded")))
+		s.Append(", ""flexible"": " & B(isAsm AndAlso TryBool(occ, "Flexible")))
+		s.Append(", ""pattern"": " & B(TryBool(occ, "IsPatternElement")))
+		s.Append(", ""adaptive"": " & B(TryBool(occ, "Adaptive")))
+		s.Append(", ""matrix"": " & MatrixJson(M))
+		' Inventor's own count of what is left free (the others held): a check for the app. Only for parts that have
+		' constraints or joints (it takes a moment each).
+		Dim hasLinks As Boolean = False
+		Try
+			hasLinks = occ.Constraints.Count > 0 OrElse occ.Joints.Count > 0
+		Catch
+		End Try
+		If hasLinks AndAlso Not isAsm Then
+			Try
+				Dim tc As Integer, rc As Integer
+				Dim tv As ObjectsEnumerator = Nothing, rv As ObjectsEnumerator = Nothing
+				Dim centre As Point = Nothing
+				occ.GetDegreesOfFreedom(tc, tv, rc, rv, centre)
+				s.Append(", ""dof"": {""translations"": " & VectorsJson(tv, tc) & ", ""rotations"": " & VectorsJson(rv, rc))
+				If centre IsNot Nothing Then s.Append(", ""centre"": " & Vec(centre.X * 10, centre.Y * 10, centre.Z * 10))
+				s.Append("}")
+			Catch ex As Exception
+				problems.Add(Join(path) & ": degrees of freedom not read (" & ex.Message & ")")
+			End Try
+		End If
+	End If
+	s.Append("}")
+	Return s.ToString()
+End Function
+
+' -------------------------------------------------------------------------------- constraints and joints of a level
+
+' The constraints and assembly joints stored in one assembly (the top, or a subassembly seen from its own file).
+' prefix: that assembly's path in the top assembly; M: its place in the top assembly.
+Sub ReadLevel(def As AssemblyComponentDefinition, prefix As List(Of String), M As Double(), cons As List(Of String),
+              jnts As List(Of String), problems As List(Of String))
+	For Each c As AssemblyConstraint In def.Constraints
+		Try
+			cons.Add(ConstraintJson(c, prefix, M, problems))
+		Catch ex As Exception
+			problems.Add(Join(prefix) & " " & SafeName(c) & ": not read (" & ex.Message & ")")
+		End Try
+	Next
+	Try
+		For Each j As AssemblyJoint In def.Joints
+			Try
+				jnts.Add(JointJson(j, prefix, M, problems))
+			Catch ex As Exception
+				problems.Add(Join(prefix) & " " & SafeName(j) & ": not read (" & ex.Message & ")")
+			End Try
+		Next
+	Catch
+	End Try
+End Sub
+
+Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+	Dim kind As String = ConstraintKind(c)
+	Dim isAngle As Boolean = (kind = "angle")
+	Dim s As New StringBuilder("{""name"": " & Q(c.Name) & ", ""type"": " & Q(kind) & ", ""assembly"": " & PathJson(prefix))
+	s.Append(", ""suppressed"": " & B(TryBool(c, "Suppressed")))
+	Dim healthy As Boolean = True
+	Try
+		healthy = (c.HealthStatus = HealthStatusEnum.kUpToDateHealth)
+	Catch
+	End Try
+	s.Append(", ""healthy"": " & B(healthy))
+	s.Append(", ""one"": " & SideJson(c, 1, prefix, M, problems))
+	s.Append(", ""two"": " & SideJson(c, 2, prefix, M, problems))
+	' the value: offset (mm) or angle (deg)
+	Try
+		Select Case kind
+			Case "mate", "flush", "tangent"
+				s.Append(", ""value"": " & N(c.Offset.Value * 10))
+			Case "angle"
+				s.Append(", ""value"": " & N(c.Angle.Value * 180 / Math.PI))
+			Case "insert"
+				s.Append(", ""value"": " & N(c.Distance.Value * 10))
+		End Select
+	Catch
+	End Try
+	' solution, reference, insert details, motion constraints
+	Try
+		If kind = "mate" OrElse kind = "angle" Then
+			Dim sol As String = c.SolutionType.ToString().ToLower()
+			Dim word As String = sol
+			For Each w In New String() {"undirected", "directed", "reference", "opposed", "aligned"}
+				If sol.Contains(w) Then word = w : Exit For
+			Next
+			s.Append(", ""solution"": " & Q(word))
+		End If
+	Catch
+	End Try
+	If kind = "angle" Then
+		Try
+			Dim r As Object = c.ReferenceVectorEntity
+			If r IsNot Nothing Then
+				Dim g As String = GeomJson(EntityGeometry(r), M)
+				s.Append(", ""reference_geometry"": " & g)
+			End If
+		Catch
+		End Try
+	End If
+	If kind = "insert" Then
+		s.Append(", ""opposed"": " & B(TryBool(c, "AxesOpposed")))
+		s.Append(", ""lock_rotation"": " & B(TryBool(c, "LockRotation")))
+	End If
+	If kind = "rotate_rotate" Then
+		Try
+			s.Append(", ""ratio"": " & N(c.Ratio.Value))
+		Catch
+		End Try
+		s.Append(", ""forward"": " & B(TryBool(c, "ForwardDirection", True)))
+	End If
+	If kind = "rotate_translate" Then
+		Try
+			s.Append(", ""distance"": " & N(c.Distance.Value * 10))
+		Catch
+		End Try
+		s.Append(", ""forward"": " & B(TryBool(c, "ForwardDirection", True)))
+	End If
+	If kind = "symmetry" Then
+		Try
+			s.Append(", ""plane"": " & GeomJson(EntityGeometry(c.SymmetryPlane), M))
+		Catch
+		End Try
+	End If
+	' limits ("Use limits" on the constraint): the travel
+	Dim lim As String = "null"
+	Try
+		Dim L As Object = c.ConstraintLimits
+		If L IsNot Nothing AndAlso (L.MinimumEnabled OrElse L.MaximumEnabled) Then
+			Dim f As Double = If(isAngle, 180 / Math.PI, 10)
+			lim = "{""min"": " & If(L.MinimumEnabled, N(L.Minimum.Value * f), "null") &
+			      ", ""max"": " & If(L.MaximumEnabled, N(L.Maximum.Value * f), "null") & "}"
+		End If
+	Catch
+	End Try
+	s.Append(", ""limits"": " & lim)
+	s.Append("}")
+	Return s.ToString()
+End Function
+
+Function ConstraintKind(c As Object) As String
+	Select Case c.Type
+		Case ObjectTypeEnum.kMateConstraintObject : Return "mate"
+		Case ObjectTypeEnum.kFlushConstraintObject : Return "flush"
+		Case ObjectTypeEnum.kAngleConstraintObject : Return "angle"
+		Case ObjectTypeEnum.kInsertConstraintObject : Return "insert"
+		Case ObjectTypeEnum.kTangentConstraintObject : Return "tangent"
+		Case ObjectTypeEnum.kTransitionalConstraintObject : Return "transitional"
+		Case ObjectTypeEnum.kAssemblySymmetryConstraintObject : Return "symmetry"
+		Case ObjectTypeEnum.kRotateRotateConstraintObject : Return "rotate_rotate"
+		Case ObjectTypeEnum.kRotateTranslateConstraintObject : Return "rotate_translate"
+		Case ObjectTypeEnum.kTranslateTranslateConstraintObject : Return "translate_translate"
+	End Select
+	Return "other:" & TypeName(c)
+End Function
+
+' One side of a constraint: the part it holds (its full path) and the geometry it uses, in top-assembly mm.
+Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+	Dim occ As Object = Nothing, ent As Object = Nothing, geo As Object = Nothing, inferred As String = ""
+	Try
+		occ = If(which = 1, c.OccurrenceOne, c.OccurrenceTwo)
+	Catch
+	End Try
+	Try
+		ent = If(which = 1, c.EntityOne, c.EntityTwo)
+	Catch
+	End Try
+	Try
+		geo = If(which = 1, c.GeometryOne, c.GeometryTwo)
+	Catch
+	End Try
+	If geo Is Nothing AndAlso ent IsNot Nothing Then geo = EntityGeometry(ent)
+	Try
+		inferred = If(which = 1, c.EntityOneInferredType, c.EntityTwoInferredType).ToString().ToLower()
+		If inferred.Contains("line") Then
+			inferred = "line"
+		ElseIf inferred.Contains("point") Then
+			inferred = "point"
+		ElseIf inferred.Contains("plane") Then
+			inferred = "plane"
+		Else
+			inferred = ""
+		End If
+	Catch
+		inferred = ""
+	End Try
+	' the part whose face / edge it is (deeper than OccurrenceOne when the face belongs to a part in a subassembly)
+	Dim leaf As Object = Nothing
+	Try
+		leaf = ent.ContainingOccurrence
+	Catch
+	End Try
+	If leaf Is Nothing Then leaf = occ
+	Dim path As New List(Of String)(prefix)
+	If leaf IsNot Nothing Then
+		Try
+			For Each o As ComponentOccurrence In leaf.OccurrencePath
+				path.Add(o.Name)
+			Next
+		Catch
+			path.Add(leaf.Name)
+		End Try
+	End If                                                  ' (no part: the assembly's own origin planes or axes)
+	Dim s As String = "{""occurrence"": " & PathJson(path) & ", ""geometry"": " & GeomJson(geo, M)
+	If inferred <> "" Then s &= ", ""inferred"": " & Q(inferred)
+	Return s & "}"
+End Function
+
+Function JointJson(j As AssemblyJoint, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+	Dim d As AssemblyJointDefinition = j.Definition
+	Dim t As String = d.JointType.ToString().ToLower()
+	Dim kind As String = "other"
+	For Each w In New String() {"rotational", "slide", "cylindrical", "planar", "ball", "rigid"}
+		If t.Contains(w) Then kind = w : Exit For
+	Next
+	Dim s As New StringBuilder("{""name"": " & Q(j.Name) & ", ""type"": " & Q(kind) & ", ""assembly"": " & PathJson(prefix))
+	s.Append(", ""suppressed"": " & B(TryBool(j, "Suppressed")) & ", ""locked"": " & B(TryBool(j, "Locked")))
+	Dim flip As Boolean = TryBool(d, "FlipOriginDirection")
+	s.Append(", ""one"": " & JointSide(j.OccurrenceOne, d.OriginOne, d.AlignmentOne, flip, prefix, M))
+	s.Append(", ""two"": " & JointSide(j.OccurrenceTwo, d.OriginTwo, d.AlignmentTwo, False, prefix, M))
+	Try
+		s.Append(", ""angle"": " & N(d.AngularPosition.Value * 180 / Math.PI))
+	Catch
+	End Try
+	Try
+		s.Append(", ""linear"": " & N(d.LinearPosition.Value * 10))
+	Catch
+	End Try
+	Dim al As String = "null", ll As String = "null"
+	Try
+		If d.HasAngularPositionLimits Then
+			al = "{""min"": " & N(d.AngularPositionStartLimit.Value * 180 / Math.PI) & ", ""max"": " &
+			     N(d.AngularPositionEndLimit.Value * 180 / Math.PI) & "}"
+		End If
+	Catch
+	End Try
+	Try
+		If d.HasLinearPositionStartLimit OrElse d.HasLinearPositionEndLimit Then
+			ll = "{""min"": " & If(d.HasLinearPositionStartLimit, N(d.LinearPositionStartLimit.Value * 10), "null") &
+			     ", ""max"": " & If(d.HasLinearPositionEndLimit, N(d.LinearPositionEndLimit.Value * 10), "null") & "}"
+		End If
+	Catch
+	End Try
+	s.Append(", ""angle_limits"": " & al & ", ""linear_limits"": " & ll & "}")
+	Return s.ToString()
+End Function
+
+' A joint's origin: a point and its z direction (from the circle, face or axis picked), x from the alignment.
+Function JointSide(occ As Object, origin As Object, align As Object, flip As Boolean, prefix As List(Of String), M As Double()) As String
+	Dim path As New List(Of String)(prefix)
+	Try
+		For Each o As ComponentOccurrence In occ.OccurrencePath
+			path.Add(o.Name)
+		Next
+	Catch
+	End Try
+	Dim g As Object = Nothing, p As Object = Nothing
+	Try
+		g = EntityGeometry(origin.Geometry)
+	Catch
+	End Try
+	Try
+		p = origin.Point
+	Catch
+	End Try
+	Dim pt As Double() = Nothing, z As Double() = Nothing, x As Double() = Nothing
+	GeomPointDir(g, pt, z)
+	If p IsNot Nothing Then pt = New Double() {p.X, p.Y, p.Z}
+	If z IsNot Nothing AndAlso flip Then z = New Double() {-z(0), -z(1), -z(2)}
+	Try
+		Dim ag As Object = EntityGeometry(align.Geometry)
+		Dim ap As Double() = Nothing
+		GeomPointDir(ag, ap, x)
+	Catch
+	End Try
+	Dim s As String = "{""occurrence"": " & PathJson(path) & ", ""origin"": {"
+	If pt IsNot Nothing Then
+		Dim q As Double() = XPoint(M, pt)
+		s &= """point"": " & Vec(q(0) * 10, q(1) * 10, q(2) * 10)
+	Else
+		s &= """point"": null"
+	End If
+	s &= ", ""z"": " & If(z Is Nothing, "null", DirJson(M, z))
+	s &= ", ""x"": " & If(x Is Nothing, "null", DirJson(M, x))
+	Return s & "}, ""geometry"": " & GeomJson(g, M) & "}"
+End Function
+
+' ---------------------------------------------------------------------------------------------------- geometry
+
+' The plain geometry of a face, edge, vertex, work plane / axis / point (or of a proxy of one).
+Function EntityGeometry(e As Object) As Object
+	If e Is Nothing Then Return Nothing
+	Try
+		Return e.Geometry
+	Catch
+	End Try
+	Try
+		Return e.Plane
+	Catch
+	End Try
+	Try
+		Return e.Line
+	Catch
+	End Try
+	Try
+		Return e.Point
+	Catch
+	End Try
+	Return Nothing
+End Function
+
+' A point and a direction of a piece of geometry (cm, in the coordinates it was read in).
+Sub GeomPointDir(g As Object, ByRef pt As Double(), ByRef d As Double())
+	If g Is Nothing Then Exit Sub
+	Try
+		Select Case TypeName(g)
+			Case "Plane"
+				pt = P3(g.RootPoint) : d = V3(g.Normal)
+			Case "Cylinder", "Cone"
+				pt = P3(g.BasePoint) : d = V3(g.AxisVector)
+			Case "Circle", "Arc3d"
+				pt = P3(g.Center) : d = V3(g.Normal)
+			Case "Line"
+				pt = P3(g.RootPoint) : d = V3(g.Direction)
+			Case "LineSegment"
+				pt = P3(g.StartPoint)
+				Dim e As Double() = P3(g.EndPoint)
+				d = New Double() {e(0) - pt(0), e(1) - pt(1), e(2) - pt(2)}
+			Case "Point"
+				pt = P3(g)
+			Case "Sphere", "Torus"
+				pt = P3(g.CenterPoint)
+				If TypeName(g) = "Torus" Then d = V3(g.AxisVector)
+		End Select
+	Catch
+	End Try
+End Sub
+
+Function GeomJson(g As Object, M As Double()) As String
+	If g Is Nothing Then Return "null"
+	Dim tn As String = TypeName(g)
+	Dim kind As String
+	Select Case tn
+		Case "Plane" : kind = "plane"
+		Case "Cylinder" : kind = "cylinder"
+		Case "Cone" : kind = "cone"
+		Case "Circle", "Arc3d" : kind = "circle"
+		Case "Line", "LineSegment" : kind = "line"
+		Case "Point" : kind = "point"
+		Case "Sphere" : kind = "sphere"
+		Case "Torus" : kind = "torus"
+		Case Else : Return "{""type"": ""other"", ""name"": " & Q(tn) & "}"
+	End Select
+	Dim pt As Double() = Nothing, d As Double() = Nothing
+	GeomPointDir(g, pt, d)
+	Dim s As String = "{""type"": " & Q(kind)
+	If pt IsNot Nothing Then
+		Dim q As Double() = XPoint(M, pt)
+		s &= ", ""point"": " & Vec(q(0) * 10, q(1) * 10, q(2) * 10)
+	End If
+	If d IsNot Nothing Then s &= ", ""direction"": " & DirJson(M, d)
+	Try
+		s &= ", ""radius"": " & N(g.Radius * 10)
+	Catch
+	End Try
+	Return s & "}"
+End Function
+
+Function P3(p As Object) As Double()
+	Return New Double() {p.X, p.Y, p.Z}
+End Function
+
+Function V3(v As Object) As Double()
+	Return New Double() {v.X, v.Y, v.Z}
+End Function
+
+' ---------------------------------------------------------------------------------------- matrices (cm, row-major)
+
+Function Identity() As Double()
+	Return New Double() {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
+End Function
+
+Function MatrixArray(m As Matrix) As Double()
+	Dim a(15) As Double
+	For r As Integer = 1 To 4
+		For c As Integer = 1 To 4
+			a((r - 1) * 4 + (c - 1)) = m.Cell(r, c)
+		Next
+	Next
+	Return a
+End Function
+
+Function Mul(a As Double(), b As Double()) As Double()
+	Dim m(15) As Double
+	For r As Integer = 0 To 3
+		For c As Integer = 0 To 3
+			Dim v As Double = 0
+			For k As Integer = 0 To 3
+				v += a(r * 4 + k) * b(k * 4 + c)
+			Next
+			m(r * 4 + c) = v
+		Next
+	Next
+	Return m
+End Function
+
+Function XPoint(M As Double(), p As Double()) As Double()
+	Dim q(2) As Double
+	For r As Integer = 0 To 2
+		q(r) = M(r * 4) * p(0) + M(r * 4 + 1) * p(1) + M(r * 4 + 2) * p(2) + M(r * 4 + 3)
+	Next
+	Return q
+End Function
+
+Function DirJson(M As Double(), d As Double()) As String
+	Dim q(2) As Double
+	For r As Integer = 0 To 2
+		q(r) = M(r * 4) * d(0) + M(r * 4 + 1) * d(1) + M(r * 4 + 2) * d(2)
+	Next
+	Dim n As Double = Math.Sqrt(q(0) * q(0) + q(1) * q(1) + q(2) * q(2))
+	If n > 0 Then q(0) /= n : q(1) /= n : q(2) /= n
+	Return Vec(q(0), q(1), q(2))
+End Function
+
+Function MatrixJson(M As Double()) As String
+	Dim parts As New List(Of String)
+	For i As Integer = 0 To 15
+		parts.Add(N(If(i Mod 4 = 3 AndAlso i < 12, M(i) * 10, M(i))))        ' the translation in mm
+	Next
+	Return "[" & String.Join(", ", parts) & "]"
+End Function
+
+Function VectorsJson(vs As ObjectsEnumerator, count As Integer) As String
+	Dim parts As New List(Of String)
+	If vs IsNot Nothing Then
+		For i As Integer = 1 To count
+			Dim v As Object = vs.Item(i)
+			parts.Add(Vec(v.X, v.Y, v.Z))
+		Next
+	End If
+	Return "[" & String.Join(", ", parts) & "]"
+End Function
+
+' -------------------------------------------------------------------------------------------------- small helpers
+
+Sub SaveStep(asm As AssemblyDocument, path As String)
+	' Inventor's own STEP translator, with the options you last used in File > Export > CAD Format
+	Dim addin As TranslatorAddIn = ThisApplication.ApplicationAddIns.ItemById("{90AF7F40-0C01-11D5-8E83-0010B541CD80}")
+	Dim ctx As TranslationContext = ThisApplication.TransientObjects.CreateTranslationContext()
+	ctx.Type = IOMechanismEnum.kFileBrowseIOMechanism
+	Dim opts As NameValueMap = ThisApplication.TransientObjects.CreateNameValueMap()
+	addin.HasSaveCopyAsOptions(asm, ctx, opts)
+	Dim medium As DataMedium = ThisApplication.TransientObjects.CreateDataMedium()
+	medium.FileName = path
+	addin.SaveCopyAs(asm, ctx, opts, medium)
+End Sub
+
+Function TryBool(o As Object, prop As String, Optional fallback As Boolean = False) As Boolean
+	Try
+		Return CBool(CallByName(o, prop, CallType.Get))
+	Catch
+		Return fallback
+	End Try
+End Function
+
+Function SafeName(o As Object) As String
+	Try
+		Return o.Name
+	Catch
+		Return "(a constraint)"
+	End Try
+End Function
+
+Function Join(path As List(Of String)) As String
+	If path.Count = 0 Then Return "(top)"
+	Return String.Join("/", path)
+End Function
+
+Function PathJson(path As List(Of String)) As String
+	Dim parts As New List(Of String)
+	For Each p In path
+		parts.Add(Q(p))
+	Next
+	Return "[" & String.Join(", ", parts) & "]"
+End Function
+
+Function Vec(x As Double, y As Double, z As Double) As String
+	Return "[" & N(x) & ", " & N(y) & ", " & N(z) & "]"
+End Function
+
+' a number with a point as decimal sign (Windows in Dutch would write a comma, which is not JSON)
+Function N(v As Double) As String
+	If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then Return "null"
+	Return Math.Round(v, 6).ToString("0.######", CultureInfo.InvariantCulture)
+End Function
+
+Function B(v As Boolean) As String
+	Return If(v, "true", "false")
+End Function
+
+' a text in quotes, with quotes, backslashes and line breaks escaped
+Function Q(t As String) As String
+	If t Is Nothing Then t = ""
+	Dim s As New StringBuilder("""")
+	For Each ch As Char In t
+		Select Case ch
+			Case """"c : s.Append("\""")
+			Case "\"c : s.Append("\\")
+			Case vbCr : s.Append("\r")
+			Case vbLf : s.Append("\n")
+			Case vbTab : s.Append("\t")
+			Case Else
+				If AscW(ch) < 32 Then
+					s.Append("\u" & AscW(ch).ToString("x4"))
+				Else
+					s.Append(ch)
+				End If
+		End Select
+	Next
+	Return s.Append("""").ToString()
+End Function

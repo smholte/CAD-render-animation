@@ -1,0 +1,1791 @@
+{
+ "format": "fresing-cad-motion",
+ "version": 1,
+ "written_by": {
+  "app": "Inventor",
+  "app_version": "invented (task 0104 prototype)",
+  "script": "make_example.py",
+  "time": "2026-11-13T12:00:00"
+ },
+ "document": {
+  "name": "FR motion test.iam",
+  "model_state": "[Primary]",
+  "step_file": "FR motion test.step"
+ },
+ "units": {
+  "length": "mm",
+  "angle": "deg"
+ },
+ "frame": "top assembly (= the STEP file's coordinates)",
+ "occurrences": [
+  {
+   "path": [
+    "Frame:1"
+   ],
+   "kind": "part",
+   "file": "Frame.ipt",
+   "part_number": "Frame",
+   "grounded": true,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "dof": {
+    "translations": [],
+    "rotations": []
+   }
+  },
+  {
+   "path": [
+    "Door:1"
+   ],
+   "kind": "part",
+   "file": "Door.ipt",
+   "part_number": "Door",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "dof": {
+    "translations": [],
+    "rotations": []
+   }
+  },
+  {
+   "path": [
+    "Hinge pin:1"
+   ],
+   "kind": "part",
+   "file": "Hinge pin.ipt",
+   "part_number": "Hinge pin",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "dof": {
+    "translations": [],
+    "rotations": [
+     [
+      0,
+      0,
+      1
+     ]
+    ],
+    "centre": [
+     30,
+     200,
+     152.5
+    ]
+   }
+  },
+  {
+   "path": [
+    "Carriage:1"
+   ],
+   "kind": "part",
+   "file": "Carriage.ipt",
+   "part_number": "Carriage",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "dof": {
+    "translations": [],
+    "rotations": []
+   }
+  },
+  {
+   "path": [
+    "Lid:1"
+   ],
+   "kind": "part",
+   "file": "Lid.ipt",
+   "part_number": "Lid",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "dof": {
+    "translations": [],
+    "rotations": [
+     [
+      1,
+      0,
+      0
+     ]
+    ],
+    "centre": [
+     370,
+     70,
+     110
+    ]
+   }
+  },
+  {
+   "path": [
+    "Arm assembly:1"
+   ],
+   "kind": "assembly",
+   "file": "Arm assembly.iam",
+   "part_number": "Arm assembly",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    670.0,
+    0.0,
+    1.0,
+    0.0,
+    360.0,
+    0.0,
+    0.0,
+    1.0,
+    200.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Arm assembly:1",
+    "Arm:1"
+   ],
+   "kind": "part",
+   "file": "Arm.ipt",
+   "part_number": "Arm",
+   "grounded": true,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    670.0,
+    0.0,
+    1.0,
+    0.0,
+    360.0,
+    0.0,
+    0.0,
+    1.0,
+    200.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Arm assembly:1",
+    "Gripper:1"
+   ],
+   "kind": "part",
+   "file": "Gripper.ipt",
+   "part_number": "Gripper",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    670.0,
+    0.0,
+    1.0,
+    0.0,
+    360.0,
+    0.0,
+    0.0,
+    1.0,
+    200.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Cylinder:1"
+   ],
+   "kind": "assembly",
+   "file": "Cylinder.iam",
+   "part_number": "Cylinder",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": true,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Cylinder:1",
+    "Barrel:1"
+   ],
+   "kind": "part",
+   "file": "Barrel.ipt",
+   "part_number": "Barrel",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Cylinder:1",
+    "Rod:1"
+   ],
+   "kind": "part",
+   "file": "Rod.ipt",
+   "part_number": "Rod",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Wheel small:1"
+   ],
+   "kind": "part",
+   "file": "Wheel small.ipt",
+   "part_number": "Wheel small",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Wheel big:1"
+   ],
+   "kind": "part",
+   "file": "Wheel big.ipt",
+   "part_number": "Wheel big",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "ISO 4762 M8 x 20:1"
+   ],
+   "kind": "part",
+   "file": "ISO 4762 M8 x 20.ipt",
+   "part_number": "ISO 4762 M8 x 20",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    100.0,
+    0.0,
+    1.0,
+    0.0,
+    50.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "ISO 4762 M8 x 20:2"
+   ],
+   "kind": "part",
+   "file": "ISO 4762 M8 x 20.ipt",
+   "part_number": "ISO 4762 M8 x 20",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    100.0,
+    0.0,
+    1.0,
+    0.0,
+    350.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Type plate:1"
+   ],
+   "kind": "part",
+   "file": "Type plate.ipt",
+   "part_number": "Type plate",
+   "grounded": false,
+   "suppressed": false,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "path": [
+    "Spare wheel:1"
+   ],
+   "kind": "part",
+   "file": "Wheel small.ipt",
+   "part_number": "Wheel small",
+   "grounded": false,
+   "suppressed": true,
+   "visible": true,
+   "flexible": false,
+   "pattern": false,
+   "matrix": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "name": "Mate:1",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Door:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      30.0,
+      200.0,
+      45.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 6
+    },
+    "inferred": "line"
+   },
+   "two": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      30.0,
+      200.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 6
+    },
+    "inferred": "line"
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "aligned"
+  },
+  {
+   "name": "Mate:2",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      30.0,
+      200.0,
+      45.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Door:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      30.0,
+      200.0,
+      45.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "opposed"
+  },
+  {
+   "name": "Angle:1",
+   "type": "angle",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      400.0,
+      0.0,
+      10.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Door:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      194.0,
+      196.0,
+      160.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": {
+    "min": 0.0,
+    "max": 100.0
+   },
+   "solution": "reference",
+   "reference": [
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "Insert:1",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Door:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      30.0,
+      200.0,
+      280.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 6
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Hinge pin:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      30.0,
+      200.0,
+      280.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "radius": 6
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Mate:3",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      530.0,
+      40.0,
+      50.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Carriage:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      370.0,
+      40.0,
+      50.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "opposed"
+  },
+  {
+   "name": "Flush:1",
+   "type": "flush",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      400.0,
+      0.0,
+      10.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Carriage:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      370.0,
+      10.0,
+      80.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "value": -10.0,
+   "limits": null
+  },
+  {
+   "name": "Mate:4",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      300.0,
+      40.0,
+      65.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Carriage:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      320.0,
+      40.0,
+      80.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "value": 20.0,
+   "limits": {
+    "min": 0.0,
+    "max": 340.0
+   },
+   "solution": "opposed"
+  },
+  {
+   "name": "Mate:5",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      670.0,
+      350.0,
+      200.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "radius": 8
+    },
+    "inferred": "line"
+   },
+   "two": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      670.0,
+      340.0,
+      200.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "radius": 8
+    },
+    "inferred": "line"
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "aligned"
+  },
+  {
+   "name": "Mate:6",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      670.0,
+      350.0,
+      200.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      670.0,
+      350.0,
+      200.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "opposed"
+  },
+  {
+   "name": "Angle:2",
+   "type": "angle",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      400.0,
+      200.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      505.0,
+      360.0,
+      210.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": {
+    "min": -5.0,
+    "max": 60.0
+   },
+   "solution": "reference",
+   "reference": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Mate:1",
+   "type": "mate",
+   "assembly": [
+    "Arm assembly:1"
+   ],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      505.0,
+      360.0,
+      210.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Gripper:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      540.0,
+      360.0,
+      210.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "opposed"
+  },
+  {
+   "name": "Flush:1",
+   "type": "flush",
+   "assembly": [
+    "Arm assembly:1"
+   ],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      505.0,
+      350.0,
+      200.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Gripper:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      540.0,
+      345.0,
+      220.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "value": 5.0,
+   "limits": null
+  },
+  {
+   "name": "Flush:2",
+   "type": "flush",
+   "assembly": [
+    "Arm assembly:1"
+   ],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      340.0,
+      360.0,
+      200.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Gripper:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      520.0,
+      360.0,
+      220.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "value": -180.0,
+   "limits": {
+    "min": -300.0,
+    "max": -40.0
+   }
+  },
+  {
+   "name": "Mate:1",
+   "type": "mate",
+   "assembly": [
+    "Cylinder:1"
+   ],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Cylinder:1",
+     "Barrel:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      470.0,
+      340.0,
+      60.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 8
+    },
+    "inferred": "line"
+   },
+   "two": {
+    "occurrence": [
+     "Cylinder:1",
+     "Rod:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      470.0,
+      340.0,
+      90.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 8
+    },
+    "inferred": "line"
+   },
+   "value": 0.0,
+   "limits": null,
+   "solution": "aligned"
+  },
+  {
+   "name": "Insert:2",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      470.0,
+      350.0,
+      50.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "radius": 6
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Cylinder:1",
+     "Barrel:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      470.0,
+      350.0,
+      50.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "radius": 6
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Insert:3",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Arm assembly:1",
+     "Arm:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      470.0,
+      350.0,
+      178.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "radius": 5
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Cylinder:1",
+     "Rod:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      470.0,
+      350.0,
+      178.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "radius": 5
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Insert:4",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      130.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 5
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Wheel small:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      130.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "radius": 5
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Insert:5",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      220.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 5
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Wheel big:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      220.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "radius": 5
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Rotate:1",
+   "type": "rotate_rotate",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Wheel small:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      130.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 30
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Wheel big:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      220.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 60
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "ratio": 0.5,
+   "forward": false
+  },
+  {
+   "name": "Insert:6",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      100.0,
+      50.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 4
+    }
+   },
+   "two": {
+    "occurrence": [
+     "ISO 4762 M8 x 20:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      100.0,
+      50.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "radius": 4
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Insert:7",
+   "type": "insert",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      100.0,
+      350.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 4
+    }
+   },
+   "two": {
+    "occurrence": [
+     "ISO 4762 M8 x 20:2"
+    ],
+    "geometry": {
+     "type": "circle",
+     "point": [
+      100.0,
+      350.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "radius": 4
+    }
+   },
+   "value": 0.0,
+   "limits": null,
+   "opposed": true,
+   "lock_rotation": false
+  },
+  {
+   "name": "Tangent:1",
+   "type": "tangent",
+   "assembly": [],
+   "suppressed": false,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Door:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      194.0,
+      204.0,
+      160.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Wheel big:1"
+    ],
+    "geometry": {
+     "type": "cylinder",
+     "point": [
+      220.0,
+      320.0,
+      20.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "radius": 60
+    }
+   },
+   "value": 0.0,
+   "limits": null
+  },
+  {
+   "name": "Mate:9",
+   "type": "mate",
+   "assembly": [],
+   "suppressed": true,
+   "healthy": true,
+   "one": {
+    "occurrence": [
+     "Type plate:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      540.0,
+      0.0,
+      11.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Frame:1"
+    ],
+    "geometry": {
+     "type": "plane",
+     "point": [
+      400.0,
+      0.0,
+      10.0
+     ],
+     "direction": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   },
+   "value": 0.0,
+   "limits": null
+  }
+ ],
+ "joints": [
+  {
+   "name": "Rotational:1",
+   "type": "rotational",
+   "assembly": [],
+   "suppressed": false,
+   "locked": false,
+   "one": {
+    "occurrence": [
+     "Carriage:1"
+    ],
+    "origin": {
+     "point": [
+      370,
+      70,
+      110
+     ],
+     "z": [
+      1,
+      0,
+      0
+     ],
+     "x": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "two": {
+    "occurrence": [
+     "Lid:1"
+    ],
+    "origin": {
+     "point": [
+      370,
+      70,
+      110
+     ],
+     "z": [
+      1,
+      0,
+      0
+     ],
+     "x": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "angle": 0.0,
+   "angle_limits": {
+    "min": -90.0,
+    "max": 0.0
+   },
+   "linear": 0.0,
+   "linear_limits": null
+  }
+ ]
+}
