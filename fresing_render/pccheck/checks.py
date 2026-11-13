@@ -1670,6 +1670,166 @@ def scene_sea(ctx):
     return f"rendered in {info['seconds']} s"
 
 
+# ---------------------------------------------------------------------------
+# weather and time of day (task 0109)
+# ---------------------------------------------------------------------------
+
+def _weather_scene(ctx, background="QUAY", preset=None):
+    from ..blender import weather
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.env_detail = "SIMPLE"
+    s.background = background
+    s.weather.enabled = True
+    if preset:
+        weather.use_preset(scene, preset)
+    _small_output(s)
+    return scene
+
+
+def _wx(scene, name) -> float:
+    from ..core import weather as core
+    return float(scene.get(core.prop(name), -1.0))
+
+
+def _mean_light(path) -> float:
+    import bpy
+    img = bpy.data.images.load(path, check_existing=False)
+    try:
+        import numpy as np
+        px = np.empty(img.size[0] * img.size[1] * 4, dtype=np.float32)
+        img.pixels.foreach_get(px)
+        return float(px.reshape(-1, 4)[:, :3].mean())
+    finally:
+        bpy.data.images.remove(img)
+
+
+@line("weather.time", "Weather: time of day, sunrise to night", "0.2.88",
+      what="The crane on the quay at 07:00, 12:00, 18:30 and 23:00 (equinox, 55° N): the sun's height and the "
+           "daylight follow the clock, the floodlights come on at dusk; noon and midnight rendered small (processor, "
+           "draft) – noon must be brighter")
+def weather_time(ctx):
+    from ..blender import weather
+    from ..core import weather as core
+    scene = _weather_scene(ctx)
+    w = scene.fresing.weather
+    w.use_date, w.latitude = False, core.DEFAULT_LATITUDE        # the equinox at 55° N, whatever the first switch took
+    seen = {}
+    for hour in (7.0, 12.0, 18.5, 23.0):
+        w.hour = hour
+        el, _az = core.sun_of(weather.state(scene))
+        _check(abs(_wx(scene, "sun_el") - el) < 0.01, f"{core.clock(hour)}: the sun stands at "
+                                                       f"{_wx(scene, 'sun_el'):.1f}°, not {el:.1f}°")
+        seen[hour] = (_wx(scene, "day"), _wx(scene, "flood"))
+    _check(seen[12.0][0] > 0.99 and seen[23.0][0] < 0.01, f"daylight at noon / midnight: {seen[12.0][0]:.2f} / "
+                                                          f"{seen[23.0][0]:.2f}")
+    _check(seen[23.0][1] > 0.9 and seen[12.0][1] < 0.01, "the floodlights do not follow the clock (Auto)")
+    w.hour = 12.0
+    noon = _cpu_still(ctx, scene, "weather_noon", "Quay at noon (processor, draft)")
+    light_noon = _mean_light(os.path.join(ctx.work, "weather_noon.png"))
+    w.hour = 23.0
+    night = _cpu_still(ctx, scene, "weather_night", "Quay at 23:00, floodlights (processor, draft)")
+    light_night = _mean_light(os.path.join(ctx.work, "weather_night.png"))
+    _check(light_noon > light_night * 1.2, f"noon ({light_noon:.3f}) is not brighter than midnight "
+                                           f"({light_night:.3f})")
+    lamps = [o for o in scene.objects if o.type == "LIGHT" and o.get("fr_weather")]
+    _check(lamps, "no floodlights at night")
+    ctx.metric("noon", noon["seconds"], "s")
+    ctx.metric("night", night["seconds"], "s")
+    return f"sun follows the clock; {len(lamps)} night lamps; noon {noon['seconds']} s, night {night['seconds']} s"
+
+
+@line("weather.rain", "Weather: rain and the wet look", "0.2.88",
+      what="Storm on the quay: heavy rain falls, slanting with a gale; the crane's looks get the weather node "
+           "group (wet: darker, glossy). Rendered small (processor, draft), the time compared with the "
+           "same picture without weather")
+def weather_rain(ctx):
+    from ..blender import weather_look
+    scene = _weather_scene(ctx, preset="STORM")
+    _check(_wx(scene, "rain") > 0.5 and _wx(scene, "wet") > 0.9, "the Storm preset has no rain or is not wet")
+    _check(any(o.get("fr_weather") == "rain" for o in scene.objects), "no rain object")
+    mats = {sl.material for o in scene.objects if o.get("fr_uid") and o.type == "MESH" for sl in o.material_slots
+            if sl.material is not None}
+    wrapped = sum(1 for m in mats if weather_look.is_wrapped(m))
+    _check(mats and wrapped == len(mats), f"{wrapped} of {len(mats)} looks have the weather group")
+    wet = _cpu_still(ctx, scene, "weather_rain", "Storm on the quay (processor, draft)")
+    scene.fresing.weather.enabled = False
+    _check(not any(weather_look.is_wrapped(m) for m in mats), "a look kept the weather group with weather off")
+    _check(not any(o.get("fr_weather") for o in scene.objects), "weather objects stayed with weather off")
+    dry = _cpu_still(ctx, scene, "weather_off", "The same without weather (processor, draft)")
+    ctx.metric("storm", wet["seconds"], "s")
+    ctx.metric("no weather", dry["seconds"], "s")
+    return f"storm {wet['seconds']} s, no weather {dry['seconds']} s"
+
+
+@line("weather.snow", "Weather: snow layer and falling snow", "0.2.88",
+      what="Snow at the quay: flakes fall, a snow layer lies on the crane's upward faces under the open sky. Rendered "
+           "small (processor, draft)")
+def weather_snow(ctx):
+    scene = _weather_scene(ctx, preset="SNOW_QUAY")
+    _check(_wx(scene, "cover") > 0.5 and _wx(scene, "snow") > 0.3, "the preset has no snow")
+    _check(any(o.get("fr_weather") == "snow" for o in scene.objects), "no snow object")
+    info = _cpu_still(ctx, scene, "weather_snow", "Snow at the quay (processor, draft)")
+    ctx.metric("snow", info["seconds"], "s")
+    return f"rendered in {info['seconds']} s"
+
+
+@line("weather.fog", "Weather: fog and haze", "0.2.88",
+      what="The open sea with 400 m visibility: the far sea fades into the fog. Rendered small (processor, draft) "
+           "and compared with clear air")
+def weather_fog(ctx):
+    scene = _weather_scene(ctx, background="SEA", preset="CLEAR_DAY")
+    clear = _cpu_still(ctx, scene, "weather_clear", "Clear air (processor, draft)")
+    scene.fresing.weather.visibility = 400.0
+    _check(abs(_wx(scene, "fog") - 3.912 / 0.4) < 0.01, f"fog density {_wx(scene, 'fog'):.2f} per km")
+    foggy = _cpu_still(ctx, scene, "weather_fog", "Fog, 400 m (processor, draft)")
+    ctx.metric("clear", clear["seconds"], "s")
+    ctx.metric("fog", foggy["seconds"], "s")
+    return f"clear {clear['seconds']} s, fog {foggy['seconds']} s"
+
+
+@line("weather.sea", "Weather: the sea follows the wind", "0.2.88",
+      what="The open sea 'From the wind' at Beaufort 3, 6 and 9: the waves grow and the share of white caps grows "
+           "as published measurements say (Monahan & O'Muircheartaigh 1980)")
+def weather_sea(ctx):
+    from ..core import sea, weather as core
+    scene = _weather_scene(ctx, background="SEA")
+    s = scene.fresing
+    s.sea_state = "WIND"
+    rows = []
+    for bft in (3.0, 6.0, 9.0):
+        s.weather.wind = bft
+        _check(abs(_wx(scene, "foam") - sea.foam_threshold(bft)) < 1e-6, "the sea's foam does not follow the wind")
+        rows.append((bft, sea.whitecap_coverage(core.bft_to_ms(bft))))
+    _check(rows[0][1] < rows[1][1] < rows[2][1], f"white caps do not grow with the wind: {rows}")
+    return ", ".join(f"Bft {b:.0f}: {c * 100:.2g} % white caps" for b, c in rows)
+
+
+@line("weather.step", "Weather: a Weather & time step in a video", "0.2.88",
+      what="An animation with one Weather & time step (noon to dusk, rain starting): the build keys the weather, the "
+           "first and last frames differ, Clear keys puts the panel's weather back")
+def weather_step(ctx):
+    from ..blender import animation, weather
+    scene = _weather_scene(ctx, preset="CLEAR_DAY")
+    s = scene.fresing
+    a = s.animations.add()
+    a.name, a.tail, a.quality = "Weather step", 0.0, "draft"
+    b = a.blocks.add()
+    b.kind, b.start, b.duration = "WEATHER", 0.0, 2.0
+    weather.step_init(scene, a, b)
+    b.wx_hour, b.wx_rain = 18.5, 0.6
+    res = animation.bake(scene, a)
+    s.anim_baked = a.name
+    scene.frame_set(1)
+    day0, rain0 = _wx(scene, "day"), _wx(scene, "rain")
+    scene.frame_set(scene.frame_end)
+    day1, rain1 = _wx(scene, "day"), _wx(scene, "rain")
+    _check(day1 < day0 and rain1 > rain0 + 0.5, f"daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}")
+    animation.clear_keys(scene)
+    _check(not weather.keyed(scene), "Clear keys left weather keys")
+    return f"{res['frames']} frames; daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}"
+
+
 @line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",
       what="The test mill saved as a web 3D model (.glb, Texture size 1024, compressed as a big model is) and its "
            "one-file viewer page; the file is read back, checked against the glTF rules (part names hidden) and "
@@ -1703,7 +1863,7 @@ def web3d_export(ctx):
     return f"{out['text']}; read back by Blender's glTF importer"
 
 
-@line("web3d.bake", "Web 3D model with baked light", "0.2.88",
+@line("web3d.bake", "Web 3D model with baked light", "0.2.89",
       what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
            "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "
            "light; the file is checked against the glTF rules and read back by Blender")

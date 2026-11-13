@@ -309,6 +309,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += paths.after_model_update(scene, by_uid, mapping)                # cables and paths (task 0078)
     from . import tracks
     notes += tracks.after_model_update(scene, by_uid, mapping)               # tracks and belts (task 0079)
+    from . import weather_sky
+    notes += weather_sky.after_model_update(scene, mapping, by_uid)          # work lights (task 0109)
     return notes
 
 

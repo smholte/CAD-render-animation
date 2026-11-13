@@ -219,7 +219,7 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 13 Nov 2026 · branch `claude/dazzling-ramanujan-0ipkza` · 0.2.88
+**Chat / date:** worker, Claude Code on the web, 13 Nov 2026 · branch `claude/dazzling-ramanujan-0ipkza` · 0.2.89
 
 **What changed:**
 - **The bake as a function** (`fresing_render/blender/lightbake.py`, as in the Design): `bake(objects, light, *, world,
@@ -247,7 +247,7 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
   code (B): with Live sun shadows off the sun shone straight down.
 - Panel fold **Light** (choice, Bake quality, Points per metre 0 = Auto, estimate line, the question for ALL with
   motion), `props.FRWeb3D.light*`, tour stop 54 "Web 3D model with baked light", PC-check lines `web3d.bake` (Full) and
-  `heavy.web3d_bake` (Heavy, bake time), guide section "Light" + new panel picture, CHANGELOG 0.2.88.
+  `heavy.web3d_bake` (Heavy, bake time), guide section "Light" + new panel picture, CHANGELOG 0.2.89.
 
 **Tested and measured** (4-core web session, CPU, no graphics card):
 - Tests: `test_lightbake.py` (13), `test_lightmap.py` (27, A), `test_web3d_light_page.py` (9, B: headless shell +

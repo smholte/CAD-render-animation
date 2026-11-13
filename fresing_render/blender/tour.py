@@ -2427,6 +2427,72 @@ def _check_vessel(scene):
     return vessel_motion.words(scene)
 
 
+# ----- weather and time of day (task 0109) -----
+
+WEATHER_ANIM = "Weather changes"
+
+
+@tour_set("weather", "Weather and time of day", "test_crane_a.step")
+def build_weather(b: Build):
+    from . import weather
+    sc, s = b.scene, b.s
+    _look("PRODUCT")
+    s.env_detail = "SIMPLE"
+    s.background = "QUAY"
+    _update()
+    _camera(b, "ISO", "Tour quay", lens=28.0)
+    s.weather.enabled = True
+    weather.use_preset(sc, "GREY_NORTH_SEA")
+    _update()
+    _shot(b, "@weather")
+    weather.use_preset(sc, "NIGHT_SHIFT")
+    _update()
+    _shot(b, "@night")
+    weather.use_preset(sc, "CLEAR_DAY")
+    _update()
+    a = _animation(b, WEATHER_ANIM)
+    blk = a.blocks.add()
+    blk.kind, blk.start, blk.duration, blk.easing = "WEATHER", 0.5, 4.0, "LINEAR"
+    weather.step_init(sc, a, blk)
+    blk.wx_hour, blk.wx_clouds, blk.wx_low_clouds, blk.wx_rain, blk.wx_wet = 18.5, 0.9, 0.4, 0.6, 0.8
+    blk.wx_visibility, blk.wx_wind = 6000.0, 6.0
+    blk.name = "Day to dusk, rain starting"
+    a.start_shot = _shot(b, "Clear day").name
+
+
+def _channel(scene, name):
+    from ..core import weather as core
+    return float(scene.get(core.prop(name), -1.0))
+
+
+def _check_weather(scene):
+    from . import weather
+    _check(weather.enabled(scene), "Weather & time is off")
+    _check(scene.fresing.background == "QUAY", "the background is not the quayside")
+    if scene.fresing.anim_baked:
+        scene.frame_set(1)
+        rain0, day0 = _channel(scene, "rain"), _channel(scene, "day")
+        scene.frame_set(scene.frame_end)
+        rain1, day1 = _channel(scene, "rain"), _channel(scene, "day")
+        _check(rain0 < 0.01 < rain1, f"the rain does not start (rain {rain0:.2f} -> {rain1:.2f})")
+        _check(day1 < day0, f"it does not get darker (daylight {day0:.2f} -> {day1:.2f})")
+        return f"rain {rain0:.2f} -> {rain1:.2f}, daylight {day0:.2f} -> {day1:.2f}"
+    _check(_channel(scene, "wet") > 0.3, "the machine is not wet")
+    _check(_channel(scene, "rain") > 0.05, "no rain falls")
+    _check(any(o.get("fr_weather") == "rain" for o in scene.objects), "the rain object is missing")
+    return weather.header(scene)
+
+
+def _check_night(scene):
+    from . import weather
+    _check(weather.enabled(scene), "Weather & time is off")
+    _check(_channel(scene, "night") > 0.9, f"it is not dark (night {_channel(scene, 'night'):.2f})")
+    _check(_channel(scene, "flood") > 0.5, "the floodlights are off")
+    lamps = [o for o in scene.objects if o.type == "LIGHT" and o.get("fr_weather")]
+    _check(len(lamps) >= 2, f"only {len(lamps)} night lamps")
+    return weather.header(scene)
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -2462,6 +2528,18 @@ stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
      "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.65", animation=VESSEL_ANIM,
      at=0.5, play=True, check=_check_vessel, auto="clip")
+stop("weather", LOOK, "weather", "Weather: grey North Sea",
+     "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
+     "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
+     where="5 Scene & Render > Weather & time", since="0.2.88", check=_check_weather)
+stop("weather_step", LOOK, "weather", "Weather changes in a video",
+     "A Weather & time step: a clear late morning turns into a wet dusk over four seconds – the sun sinks and "
+     "turns orange, clouds come in, the rain starts and the crane gets wet.",
+     where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=1.0, play=True,
+     check=_check_weather, auto="clip")
+stop("night", LOOK, "weather", "Night shift",
+     "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
+     "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks)
@@ -2777,7 +2855,7 @@ stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
      "Press Open page in 5 Scene & Render > Web 3D model: the crane has soft shadows under the boom and the cab, "
      "darker corners and inside edges, and a little coloured light bounced from the yellow parts; turn it – the "
      "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
-     "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.88", shot="Tour view",
+     "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.89", shot="Tour view",
      check=_check_web3d_light)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",

@@ -347,15 +347,17 @@
   }
   var MAXW = 16;
   if (hasSea) {
-    var S = ST.sea, waves = [], phases = [], ampOwn = 0;
+    var S = ST.sea, waves = [], phases = [], ampOwn = 0; var fadeR = [];
     for (var i = 0; i < MAXW; i++) {
       var w = S.waves[i];
       waves.push(w ? new T.Vector4(w[0], w[1], w[2], w[3]) : new T.Vector4(0, 1, 0, 0.01));
       phases.push(w ? w[4] : 0);
+      var fd = (w && S.fade) ? S.fade[i] : null;
+      fadeR.push(fd ? new T.Vector2(fd[0], fd[1]) : new T.Vector2(0, 0));
       if (w && i < S.own) ampOwn += w[0];
     }
     seaUniforms = {
-      uTime: { value: 0 }, uWave: { value: waves }, uPhase: { value: phases },
+      uTime: { value: 0 }, uWave: { value: waves }, uPhase: { value: phases }, uFadeR: { value: fadeR },
       uCount: { value: Math.min(S.waves.length, MAXW) }, uOwn: { value: S.own }, uNear: { value: S.near },
       uAmpOwn: { value: Math.max(ampOwn, 1e-3) }, uRipple: { value: null }, uBump: { value: S.bump * 2.2 },
       uFoamAt: { value: S.foam == null ? -1 : S.foam }, uRipScale: { value: 1 / 9 },
@@ -366,7 +368,8 @@
     seaMat.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, seaUniforms);
       var pars = 'uniform float uTime, uNear, uAmpOwn, uBump, uFoamAt, uRipScale, uFoamMax; uniform vec4 uWave[' + MAXW + '];' +
-                 ' uniform float uPhase[' + MAXW + ']; uniform int uCount, uOwn; uniform sampler2D uRipple;' +
+                 ' uniform float uPhase[' + MAXW + ']; uniform vec2 uFadeR[' + MAXW + '];' +
+                 ' uniform int uCount, uOwn; uniform sampler2D uRipple;' +
                  ' varying float vCrest; varying vec2 vRip;\n';
       sh.vertexShader = pars + sh.vertexShader
         .replace('#include <beginnormal_vertex>', [
@@ -377,7 +380,8 @@
           '  if (i >= uCount) break;',
           '  vec4 w = uWave[i];',
           '  float ph = w.w * (w.y * bxy.x + w.z * bxy.y) + uPhase[i] - sqrt(9.81 * w.w) * uTime;',
-          '  float s = sin(ph), c = cos(ph);',
+          '  float wf = uFadeR[i].y > 0.0 ? clamp((uFadeR[i].y - length(bxy)) / (uFadeR[i].y - uFadeR[i].x), 0.0, 1.0) : 1.0;',
+          '  float s = sin(ph) * wf, c = cos(ph) * wf;',
           '  hW += w.x * s; hx += w.x * w.w * w.y * c; hy += w.x * w.w * w.z * c;',
           '  if (i < uOwn) cr += w.x * s;',
           '}',

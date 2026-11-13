@@ -18,12 +18,20 @@ var FRMath = (function () {
   }
 
   // height of the water above sea.level at (x, y) metres from the sea's origin, at time t (s)
+  // one wave's own fade: 1 within f[0] m of the middle, 0 beyond f[1] (a short wave the app's mesh fades out)
+  function waveFade(sea, i, x, y) {
+    var f = sea.fade ? sea.fade[i] : null;
+    if (!f || f[1] <= 0) return 1;
+    var r = Math.sqrt(x * x + y * y);
+    return Math.min(1, Math.max(0, (f[1] - r) / (f[1] - f[0])));
+  }
+
   function seaHeight(sea, x, y, t) {
     var h = 0;
     for (var i = 0; i < sea.waves.length; i++) {
       var w = sea.waves[i];               // [amp, dx, dy, k, phase]
       var omega = Math.sqrt(G * w[3]);
-      h += w[0] * Math.sin(w[3] * (w[1] * x + w[2] * y) + w[4] - omega * t);
+      h += w[0] * Math.sin(w[3] * (w[1] * x + w[2] * y) + w[4] - omega * t) * waveFade(sea, i, x, y);
     }
     return h * fade(sea, x, y);
   }
@@ -33,7 +41,7 @@ var FRMath = (function () {
     var h = 0, s = 0;
     for (var i = 0; i < sea.own; i++) {
       var w = sea.waves[i];
-      h += w[0] * Math.sin(w[3] * (w[1] * x + w[2] * y) + w[4] - Math.sqrt(G * w[3]) * t);
+      h += w[0] * Math.sin(w[3] * (w[1] * x + w[2] * y) + w[4] - Math.sqrt(G * w[3]) * t) * waveFade(sea, i, x, y);
       s += w[0];
     }
     return h * fade(sea, x, y) / Math.max(s, 1e-3);

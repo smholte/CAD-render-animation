@@ -22,22 +22,11 @@ HERE = os.path.dirname(__file__)
 CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
 CRANE_B = os.path.join(HERE, "data", "test_crane_b.step")
 
-# the sea's own waves, as blender/surroundings.py makes them (checked against it in a Blender test below)
-SEA = {"CALM": dict(amp=0.25, lengths=(55.0, 38.0, 27.0, 19.0, 13.0)),
-       "ROUGH": dict(amp=1.6, lengths=(70.0, 48.0, 33.0, 22.0, 15.0, 9.0))}
-
-
+# the sea's own waves, as blender/surroundings.py makes them (checked against it in a Blender test below): since
+# task 0109 a wind-wave spectrum (core/sea.py), Calm = Beaufort 3, Rough = Beaufort 6
 def sea_waves(state):
-    import random
-    p = SEA[state]
-    rng = random.Random(42)
-    total = sum(1.0 / i for i in range(1, len(p["lengths"]) + 1))
-    out = []
-    for i, length in enumerate(p["lengths"], 1):
-        ang = math.radians(25.0 + rng.uniform(-35.0, 35.0))
-        out.append(V.Wave(p["amp"] / i / total, math.cos(ang), math.sin(ang), 2 * math.pi / length,
-                          rng.uniform(0, 6.28)))
-    return out
+    from fresing_render.core import sea
+    return V.waves_from_tuples(sea.of_state(state))
 
 
 def motion(state="CALM", heading="BOW", size=V.REFERENCE_SIZE, **kw):
@@ -309,7 +298,9 @@ def test_other_surroundings_and_switching():
     update()
     assert VM.rig("vessel") is not None
     names = {o.name for o, _c in VM._constraints(sc)}
-    assert names == {build.model_roots(sc)[0].name}          # the open sea: only the model moves
+    foam = {o.name for o in bpy.data.objects if o.get(surroundings.TAG) == "hull_foam"}
+    assert foam                                              # task 0109: the foam where the hull meets the water
+    assert names == {build.model_roots(sc)[0].name} | foam   # the open sea: only the model (and its hull foam) moves
     assert VM.header(sc).startswith("Calm · roll ±")
 
 

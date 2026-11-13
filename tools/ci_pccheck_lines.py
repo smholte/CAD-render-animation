@@ -26,7 +26,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CHECKS = os.path.join(ROOT, "fresing_render", "pccheck", "checks.py")
 
 # Linux job `pccheck2` (plus LINUX2_NEEDS): the two longest lines (video with labels ~3 min on Windows' CPU, the queue's time test).
-LINUX2 = ("video.labels", "queue.time_test")
+LINUX2 = ("video.labels", "queue.time_test", "weather.time", "weather.rain", "weather.snow", "weather.fog")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Start-menu shortcut and the report.

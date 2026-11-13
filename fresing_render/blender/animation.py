@@ -14,6 +14,8 @@ Block kinds
     MECHANISM raise a scissor lift's platform from a height to a height
     GCODE   run a CNC program on the machine's X/Y/Z joints and spindle (task 0026, gcode.py); its
             length follows from the program; tool changes can play the tool changer's animation
+    WEATHER  change the weather and the time of day over the step (task 0109, weather.py): keys on the scene's
+             weather channels
     SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
             follows from the number of parts, the time per part and the overlap
 
@@ -103,6 +105,9 @@ def block_label(b, scene=None) -> str:
         cam = b.camera.name if b.camera else "?"
         return {"CUT": f"Cut to {cam}", "MOVE": f"Camera to {cam}",
                 "ORBIT": f"Orbit {math.degrees(b.orbit_angle):.0f}°"}.get(b.camera_mode, "Camera")
+    if b.kind == "WEATHER":
+        from . import weather
+        return weather.step_label(b)
     target = b.target_name or "?"
     if b.kind == "FADE_OUT":
         return f"Fade {target} to X-ray" if b.fade_xray else f"Fade out {target}"
@@ -303,6 +308,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     flex.after_clear(scene)                        # hoses and drag chains follow the parts live again (task 0058)
     from . import paths
     paths.after_clear(scene)                       # cables follow their sheaves live again (task 0078)
+    from . import weather
+    weather.after_clear(scene)                     # the weather of the panel again (task 0109)
     if was_baked:
         from . import linkages
         linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
@@ -710,6 +717,7 @@ def bake(scene, anim) -> dict:
                 _merge(keys, f0, False, "CONSTANT")
 
     cam_blocks = []
+    wx_blocks = []                           # Weather & time steps (task 0109): keyed after the loop
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
     last_key = 0.0
     for b in sorted(blocks + atc_blocks, key=lambda b: b.start):
@@ -763,9 +771,15 @@ def bake(scene, anim) -> dict:
                 _merge(keys, f0, hidden, "CONSTANT")
         elif b.kind in ("FADE_OUT", "FADE_IN"):
             fade_step(b, f0, f1)
+        elif b.kind == "WEATHER":
+            wx_blocks.append(b)
         elif b.kind == "SEQUENCE":
             sequence.bake_step(scene, b, f0, sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray,
                                                             seq_home, _merge, warnings, uids, tree))
+
+    if wx_blocks:
+        from . import weather
+        warnings += weather.bake(scene, anim, wx_blocks, lambda t: frame_of(anim, t), ease)
 
     if last_key > f_end + 1e-6:             # a program step ran a little longer than worked out first
         f_end = int(math.ceil(last_key - 1e-6))

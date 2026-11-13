@@ -80,22 +80,32 @@ def _sea_object():
     return None
 
 
+def _bft(s) -> float | None:
+    """The wind's Beaufort force when the sea follows the wind (sea state WIND, task 0109), else None."""
+    return _surroundings().sea_wind(s)[0] if s.sea_state == "WIND" else None
+
+
 def swell_rows(s) -> list:
     """The long swell the sea gets while vessel motion is on (``s`` = scene.fresing); [] otherwise."""
     if not (s.vessel.enabled and s.background in KINDS):
         return []
-    return [w.as_tuple() for w in core.swell(s.sea_state, s.vessel.heading)]
+    return [w.as_tuple() for w in core.swell(s.sea_state, s.vessel.heading, _bft(s))]
 
 
 def swell_key(s) -> str:
     """Part of the surroundings' settings key: the sea is built again when the swell changes ('' = none)."""
     rows = swell_rows(s)
-    return f"{s.vessel.heading}" if rows else ""
+    if not rows:
+        return ""
+    bft = _bft(s)
+    return f"{s.vessel.heading}" + (f"|{bft:.2f}" if bft is not None else "")
 
 
-def _sea_waves(state: str) -> list:
+def _sea_waves(scene) -> list:
+    """The sea's own waves (``core/sea.py`` through the surroundings), as the vessel feels them."""
     sur = _surroundings()
-    return core.waves_from_tuples(sur._waves(state))
+    s = scene.fresing
+    return core.waves_from_tuples(sur._waves(s.sea_state, (), sur.sea_wind(s)))
 
 
 def hull(scene) -> dict | None:
@@ -156,14 +166,14 @@ def core_settings(scene) -> core.Settings | None:
     length, beam = size(scene)
     centre = (h["middle"][0] - h["sea_xy"][0], h["middle"][1] - h["sea_xy"][1])
     return core.Settings(state=s.sea_state, heading=v.heading, strength=v.strength / 100.0, length=length, beam=beam,
-                         roll_period=v.roll_period, centre=centre)
+                         roll_period=v.roll_period, centre=centre, bft=_bft(s))
 
 
 def motion(scene) -> core.Motion | None:
     st = core_settings(scene)
     if st is None:
         return None
-    return core.motion(st, _sea_waves(scene.fresing.sea_state))
+    return core.motion(st, _sea_waves(scene))
 
 
 # =============================================================================
@@ -341,13 +351,15 @@ def remove(scene=None) -> None:
 
 
 def followers(scene) -> list:
-    """Every model root, the Vessel deck's objects (not the sea) and the props."""
+    """Every model root, the Vessel deck's objects (not the sea and its spray), the hull foam and the props."""
     from . import build
     sur = _surroundings()
     out = list(build.model_roots(scene))
     root = sur.root_object()
     if root is not None and root.get("fr_kind") == "DECK":
-        out += [ob for ob in sur._objects(scene) if ob.get(sur.TAG) not in ("sea", "root")]
+        out += [ob for ob in sur._objects(scene) if ob.get(sur.TAG) not in ("sea", "root", "spray")]
+    elif root is not None and root.get("fr_kind") == "SEA":       # task 0109: the foam where the hull meets the water
+        out += [ob for ob in sur._objects(scene) if ob.get(sur.TAG) == "hull_foam"]
     out += sur.props(scene)
     return out
 
@@ -475,7 +487,7 @@ def _sync(scene) -> bool:
     changed = False
     v = rig("vessel")
     if v is None or rig("pivot") is None or v.get("fr_key") != k:
-        mo = core.motion(st, _sea_waves(scene.fresing.sea_state))
+        mo = core.motion(st, _sea_waves(scene))
         _build_rig(scene, mo, p, "STILL" in owners.values(), "LEVEL" in owners.values())
         v = rig("vessel")
         v["fr_key"] = k
