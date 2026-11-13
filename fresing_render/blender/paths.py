@@ -87,7 +87,13 @@ RATIO_TOL = 0.005                       # an own coupling this far off the app's
 GAP_NOTE = 0.001                        # a cable drawn this far off a surface is reported
 HUGE = 400_000                          # triangles: a part bigger than this is not looked at as a roller or sheave
 ONE_GO = 1000.0                         # a cable up to this many radii long is read in one go (flex_fit), a longer
-#                                         one in pieces (core.paths.centreline)
+#                                         one in pieces (core.paths.centreline). A SWITCH UNTIL core.paths.centreline
+#                                         IS FIXED: it bends the line after a seam on a cable of 200+ radii that turns
+#                                         more than 90° (the test model's rope: 4.3 mm off). Then: 0.0
+OFF_PATH = (0.002, 0.25)                # a reading whose path lies further than 2 mm, or a quarter of the cable's
+#                                         radius if that is more, beside the CAD cable is refused
+WRAP_JUMP = math.pi                     # a wrap that changes by more than this from one frame to the next: the cable
+#                                         has lifted off that wheel (the path would loop round it)
 UNDER = 0.7                             # a bend lies on a part when this share of it is on that part's surface
 USER_CHANGE = 0.002                     # a diameter that differs this much from the CAD one was typed
 
@@ -530,8 +536,14 @@ def _couple(scene, item) -> None:
             continue
         want = bool(item.enabled and c.turns and lead is not None and ratio != 0.0)
         if want:
-            if j.follows != item.joint or abs(j.couple_ratio - ratio) > 1e-5 * abs(ratio) or joints.offset(j) != 0.0:
+            if j.follows != item.joint or joints.offset(j) != 0.0:
                 todo.append((c.joint, item.joint, ratio))
+            elif abs(j.couple_ratio - ratio) > 1e-5 * abs(ratio):
+                # only its ratio (a thicker cable, the other way round): the driver's number, nothing else – a
+                # built animation stays (the follower has no keys of its own)
+                joints._set_raw(j, couple_ratio=float(ratio))
+                joints.write_coupling(scene, j)
+                joints.apply_limits(j, joints._model_size(scene))
         elif j.follows == item.joint:
             todo.append((c.joint, "", None))
 
@@ -666,21 +678,27 @@ def _under(near, pts: np.ndarray, reach: float, but: set):
         verts, tris = near.meshes[ob.data.name]
         if len(tris) > HUGE:
             continue
-        w = _at(near.world[k], verts)
-        a, b, c = w[tris[:, 0]], w[tris[:, 1]], w[tris[:, 2]]
-        tlo, thi = np.minimum(np.minimum(a, b), c), np.maximum(np.maximum(a, b), c)
-        keep = ((tlo <= hi) & (thi >= lo)).all(axis=1)
-        if not keep.any():
-            continue
-        a, b, c = a[keep], b[keep], c[keep]
-        on = 0
-        for p in pts:
-            near_p = ((tlo[keep] <= p + reach) & (thi[keep] >= p - reach)).all(axis=1)
-            if near_p.any() and flex._distance(p[None], a[near_p], b[near_p], c[near_p]) <= reach:
-                on += 1
+        on = _points_on(_at(near.world[k], verts), tris, pts, reach)
         if on >= UNDER * len(pts):
             found.append((-on, float(near.size[k]), ob.name, ob))
     return min(found)[3] if found else None
+
+
+def _points_on(verts: np.ndarray, tris: np.ndarray, pts: np.ndarray, reach: float) -> int:
+    """How many of the points lie within ``reach`` of the mesh's surface."""
+    lo, hi = pts.min(axis=0) - reach, pts.max(axis=0) + reach
+    a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
+    tlo, thi = np.minimum(np.minimum(a, b), c), np.maximum(np.maximum(a, b), c)
+    keep = ((tlo <= hi) & (thi >= lo)).all(axis=1)
+    if not keep.any():
+        return 0
+    a, b, c, tlo, thi = a[keep], b[keep], c[keep], tlo[keep], thi[keep]
+    on = 0
+    for p in pts:
+        near_p = ((tlo <= p + reach) & (thi >= p - reach)).all(axis=1)
+        if near_p.any() and flex._distance(p[None], a[near_p], b[near_p], c[near_p]) <= reach:
+            on += 1
+    return on
 
 
 def _flip_rows(geo: dict) -> None:
@@ -741,7 +759,7 @@ def _read(scene, item, part) -> dict:
     verts, tris = flex._mesh_arrays(part.data)
     vw = _at(w, verts)
     skip = {ob.name for ob in flex.flex_parts(scene)} | {ob.name for ob in cable_parts(scene)} | {part.name}
-    rd, tube, obs, why = None, None, {}, ""
+    rd, tube, obs, why, good = None, None, {}, "", False
     for tube in _centrelines(vw, tris):
         if not tube.ok:
             raise PathError(f"This part is not a cable: {tube.problem}")
@@ -749,14 +767,25 @@ def _read(scene, item, part) -> dict:
         for wider in (1.0, 2.0):                # (facets of a coarse mesh: once more, less strict)
             tol = None if wider == 1.0 else wider * max(P.FIT_TOL[0], P.FIT_TOL[1] * float(tube.radius))
             rd = P.read_cable(tube.points, float(tube.radius), rounds, fit_tol=tol)
-            if rd.ok:
+            if not rd.ok:
+                why = why or _named(rd.problem, [_row_name(c, obs) for c in rd.contacts])
+                continue
+            # a reading may say "ok" with its path well beside the cable: look for ourselves
+            limit = max(OFF_PATH[0], OFF_PATH[1] * float(tube.radius))
+            if float(rd.deviation) <= limit:
+                good = True
                 break
-            why = why or _named(rd.problem, [_row_name(c, obs) for c in rd.contacts])
-        if rd.ok:
+            off = _off_path(tube.points, rd.path.points)
+            k = int(np.argmax(off))
+            run = float(np.linalg.norm(np.diff(tube.points[:k + 1], axis=0), axis=1).sum())
+            why = why or (f"{run:.1f} m from its start the cable as drawn lies {_mm(float(off[k]))} mm beside the "
+                          "straight runs and round bends the app can lay over its rollers and sheaves (is it drawn "
+                          "as a spline there, or does it sag?)")
+        if good:
             break
     if tube is None:
         raise PathError("This part is not a cable: it has no shape to read.")
-    if not rd.ok:
+    if not good:
         raise PathError(f"The path of '{name}' cannot be read: {why}")
     pts, radius = tube.points, float(tube.radius)
     for k, along in ((0, tube.t0), (-1, tube.t1)):         # the ends: the middle of the cable's end faces
@@ -800,6 +829,20 @@ def _read(scene, item, part) -> dict:
            "length": float(path.length), "deviation": float(rd.deviation), "memo": memo, "line": pts,
            "near": near, "skip": skip, "notes": []}
     return geo
+
+
+def _off_path(points: np.ndarray, line: np.ndarray) -> np.ndarray:
+    """How far every point (P, 3) is from the polyline (L, 3)."""
+    if len(line) < 2:
+        return np.full(len(points), math.inf)
+    a, seg = line[:-1], line[1:] - line[:-1]
+    ss = np.maximum(np.einsum("li,li->l", seg, seg), 1e-30)
+    out = np.empty(len(points))
+    for lo in range(0, len(points), 512):
+        p = points[lo:lo + 512, None]
+        t = np.clip(np.einsum("pli,li->pl", p - a[None], seg) / ss, 0.0, 1.0)
+        out[lo:lo + 512] = np.linalg.norm(p - (a[None] + t[..., None] * seg[None]), axis=2).min(axis=1)
+    return out
 
 
 def _row_name(c, obs: dict) -> str:
@@ -861,8 +904,11 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
             rel = point - wheels[k]["centre"]
             flat = rel - wheels[k]["axis"] * float(rel @ wheels[k]["axis"])
             item[key + "_cad_free"] = math.sqrt(max(float(flat @ flat) - wheels[k]["radius"] ** 2, 0.0))
-        elif key + "_cad_free" in item:
-            del item[key + "_cad_free"]
+            item[key + "_cad_point"] = [float(v) for v in getattr(item, key + "_point")]
+        else:
+            for extra in ("_cad_free", "_cad_point"):
+                if key + extra in item:
+                    del item[key + extra]
 
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
@@ -871,7 +917,7 @@ _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid",
 _END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
-_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "look_was")
+_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was")
 
 
 def _values(group, fields) -> dict:
@@ -885,7 +931,8 @@ def _values(group, fields) -> dict:
 def _snapshot(item) -> dict:
     """The cable's contacts and ends as plain data (to put them back when a change gives no path)."""
     return {"contacts": [_values(c, _CONTACT_FIELDS) for c in item.contacts], "item": _values(item, _ITEM_FIELDS),
-            "custom": {k: item[k] for k in _CUSTOM if k in item}}
+            "custom": {k: (list(item[k]) if hasattr(item[k], "__len__") and not isinstance(item[k], str) else item[k])
+                       for k in _CUSTOM if k in item}}
 
 
 def _restore(item, snap: dict) -> None:
@@ -1098,9 +1145,8 @@ def _notes_of_joints(scene, item, memo: dict) -> None:
                             f"gives {abs(ratio):.4f}° ({(abs(mine) / abs(ratio) - 1.0) * 100.0:+.1f} %): left as it is")
             else:
                 note = ""
-        if abs(c.gap) > GAP_NOTE and c.kind != "BEND":
-            gap = (f"the CAD cable is drawn {_mm(abs(c.gap))} mm "
-                   f"{'off' if c.gap > 0.0 else 'into'} it")
+        if abs(c.gap) > max(GAP_NOTE, 0.02 * item.cad_diameter) and c.kind != "BEND":
+            gap = f"the CAD cable is drawn {_mm(abs(c.gap))} mm {'off' if c.gap > 0.0 else 'into'} it"
             note = f"{note}; {gap}" if note else gap
         if note != c.note:
             with _quiet(c):
@@ -1127,11 +1173,17 @@ def _summary(scene, item, geo: dict) -> list[str]:
     if own:
         notes.append(f"Cable '{name}': {plural(own, 'part')} already had a joint that follows something: left as "
                      f"{'it is' if own == 1 else 'they are'}")
-    odd = [c for c in item.contacts if c.note]
+    odd = [c for c in item.contacts if c.note and not c.note.startswith("the CAD cable is drawn")]
     for c in odd[:8]:
         notes.append(f"Cable '{name}', '{c.name}': {c.note}")
     if len(odd) > 8:
         notes.append(f"Cable '{name}': {plural(len(odd) - 8, 'more contact')} with a note (see the list)")
+    gaps = [c for c in item.contacts if "the CAD cable is drawn" in c.note]
+    if gaps:
+        worst = max(gaps, key=lambda c: abs(c.gap))
+        notes.append(f"Cable '{name}': the CAD cable does not lie exactly on {plural(len(gaps), 'contact')} (at most "
+                     f"{_mm(abs(worst.gap))} mm {'off' if worst.gap > 0.0 else 'into'} '{worst.name}'); the app "
+                     "draws it where CAD drew it")
     return notes
 
 
@@ -1409,7 +1461,38 @@ def _solve_item(scene, item, rel: np.ndarray) -> dict:
     names = [c.name for c in wheels]
     res["problems"] = {f: _named(t, names) for f, t in res["problems"].items()}
     res["scale"], res["names"] = scale, names
+    _lifted(res, names)
     return res
+
+
+def _lifted(res: dict, names: list) -> None:
+    """A wheel the cable lifts off during a motion: its wrap jumps from little to a loop round the wheel (or the
+    solver says so with ``lifted``). Such frames are bad frames: they keep the shape of the last good one."""
+    ok, wrap = res["ok"], res["wrap"]
+    F = len(ok)
+    res["off"] = {}
+    flags = res.get("lifted")
+    last = -1
+    for f in range(F):
+        if not ok[f]:
+            continue
+        bad = -1
+        if flags is not None and np.asarray(flags)[f].any():
+            bad = int(np.argmax(np.asarray(flags)[f]))
+        elif last >= 0 and len(names):
+            jump = np.abs(wrap[f] - wrap[last])
+            if float(jump.max()) > WRAP_JUMP:
+                bad = int(np.argmax(jump))
+        if bad < 0:
+            last = f
+            continue
+        ok[f] = False
+        res["bad"][f] = bad
+        res["off"][f] = bad
+        res["problems"][f] = f"the cable no longer touches '{names[bad]}' (it has lifted off)"
+        if last >= 0:
+            for key in ("points", "s", "wrap", "length"):
+                res[key][f] = res[key][last]
 
 
 def _note(scene, item, res: dict, first) -> list[str]:
@@ -1425,8 +1508,11 @@ def _note(scene, item, res: dict, first) -> list[str]:
         frame = 0 if first is None else first + k
         why = res["problems"].get(k, "")
         bad = int(res["bad"][k])
-        what = f"cannot go round '{wheels[bad].name}'" if 0 <= bad < len(wheels) else "has no path"
-        text = f"{what} {when or f'at frame {frame}'}: {why}"
+        if k in res.get("off", {}):
+            text = f"no longer touches '{wheels[bad].name}' {when or f'at frame {frame}'}"
+        else:
+            what = f"cannot go round '{wheels[bad].name}'" if 0 <= bad < len(wheels) else "has no path"
+            text = f"{what} {when or f'at frame {frame}'}: {why}"
         warnings.append(f"Cable '{name}' {text}")
     if ok.any() and item.mbr > 0.0 and wheels:
         wrap = res["wrap"][ok]
@@ -1462,9 +1548,19 @@ def _usable(scene, item) -> bool:
     return bool(item.enabled) and not broken(scene, item)
 
 
-def _draw(scene, item, rel: np.ndarray, first) -> list[str]:
-    """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had)."""
+def _draw(scene, item, rel: np.ndarray, first, was=None) -> list[str]:
+    """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had). ``was``:
+    the wraps the cable had a moment ago (posing): a wrap that jumps from them means it lifted off that wheel."""
     res = _solve_item(scene, item, rel)
+    if was is not None and len(rel) == 1 and res["ok"][0] and len(was) == res["wrap"].shape[1] and len(was) and \
+            not item.problem:
+        jump = np.abs(res["wrap"][0] - np.asarray(was))
+        if float(jump.max()) > WRAP_JUMP:
+            bad = int(np.argmax(jump))
+            res["ok"][0] = False
+            res["bad"][0] = bad
+            res["off"][0] = bad
+            res["problems"][0] = f"the cable no longer touches '{res['names'][bad]}' (it has lifted off)"
     warnings = _note(scene, item, res, first)
     if res["ok"].any():
         scale = res["scale"]
@@ -1672,10 +1768,18 @@ def _free_ends(scene, item) -> None:
     wheels = _wheels(item)
     if not wheels or not _usable(scene, item):
         return
-    todo = [(key, k) for key, k in (("a", 0), ("b", -1))
-            if getattr(item, key + "_free_end") and getattr(item, key + "_kind") == "FIXED"
-            and getattr(item, key + "_part") == wheels[k].carrier
-            and (getattr(item, key + "_free") > 0.0 or item.get(key + "_cad_free", 0.0) > 0.0)]
+    todo = []
+    for key, k in (("a", 0), ("b", -1)):
+        if not getattr(item, key + "_free_end") or getattr(item, key + "_kind") != "FIXED" or \
+                getattr(item, key + "_part") != wheels[k].carrier:
+            continue
+        if getattr(item, key + "_free") > 0.0:
+            todo.append((key, k))
+        elif key + "_cad_point" in item:        # 0: where CAD drew its end
+            cad = tuple(float(v) for v in item[key + "_cad_point"])
+            if max(abs(a - b) for a, b in zip(cad, getattr(item, key + "_point"))) > 1e-7:
+                with _quiet(item):
+                    setattr(item, key + "_point", cad)
     if not todo:
         return
     memo: dict = {}
@@ -1684,7 +1788,7 @@ def _free_ends(scene, item) -> None:
         return
     pts, scale = res["points"][0], res["scale"]
     for key, k in todo:
-        want = float(getattr(item, key + "_free")) or float(item.get(key + "_cad_free", 0.0))
+        want = float(getattr(item, key + "_free"))
         if key == "a":
             end, leaves = pts[0], pts[int(res["first"][0])]
         else:
@@ -1813,11 +1917,16 @@ def add_contact(scene, item, ob, hit=None) -> int:
     else:
         rel = line - origin
         at = float((rel @ axis)[int(np.argmin(np.linalg.norm(rel - np.outer(rel @ axis, axis), axis=1)))])
-    place, seat = P.seat(vw, tris, origin, axis, at, cable_r)
-    if seat <= 0.0:
+    place, seat = P.seat(vw, tris, origin, axis, at, cable_r, search=2.0 * cable_r)
+    here = float(P.surface_radius(vw, tris, origin, axis, at, 0.5 * cable_r))
+    if seat <= 0.0 or here <= 0.0 or seat > here + cable_r - max(0.0002, 0.02 * cable_r):
+        # no groove there (a plain roller, a drum's barrel: ``seat`` may sit anywhere within its search): the cable
+        # lies where it is, on the surface
+        place, seat = at, here + cable_r
+    if here <= 0.0:
         raise PathError(f"The cable does not reach '{name}': it has no round surface where the cable would lie.")
     centre = origin + axis * float(place)
-    surface = float(P.surface_radius(vw, tris, origin, axis, float(place), 2.0 * cable_r)) or seat - cable_r
+    surface = float(P.surface_radius(vw, tris, origin, axis, float(place), 0.5 * cable_r)) or seat - cable_r
     for c in item.contacts:
         if c.part == ob and np.linalg.norm(_row_of(c, memo)["centre"] - centre) < 0.5 * seat:
             raise PathError(f"'{name}' is in the cable's list already.")
@@ -1839,6 +1948,9 @@ def add_contact(scene, item, ob, hit=None) -> int:
         row.update(kind="ROLLER", side=P._side(foot[i], centre, axis, heading), s=s_at, gap=float(dist[i]) - seat)
         index = next((n for n, c in enumerate(item.contacts) if c.s > s_at), len(item.contacts))
     else:
+        if hit_cad is None and float(dist[i]) > seat + 2.0 * cable_r:
+            raise PathError(f"The cable does not reach '{name}': it passes {_mm(float(dist[i]) - seat)} mm from "
+                            "it. Click the place on it where the cable should lie.")
         row["kind"] = "SHEAVE" if full else "CHUTE"
         hit_dir = None
         if hit_cad is not None:
@@ -1851,6 +1963,12 @@ def add_contact(scene, item, ob, hit=None) -> int:
                             "now. Click the place on it where the cable should lie, or add the parts before it "
                             "first.")
         index, row = best
+        arc = row.pop("arc")
+        if not full:                            # a chute: is its surface really round where the cable would bend?
+            take = arc[np.unique(np.linspace(0, len(arc) - 1, min(len(arc), 9)).round().astype(int))]
+            if _points_on(vw, tris, take, cable_r + tol) < UNDER * len(take):
+                raise PathError(f"The cable would not lie on '{name}': it is not round where the cable would bend "
+                                "round it. Pick a sheave, a roller or a round chute.")
 
     def change():
         it = find(scene, iname)
@@ -1886,8 +2004,9 @@ def add_contact(scene, item, ob, hit=None) -> int:
 
 def _fit_wheel(scene, item, row: dict, hit_dir, memo: dict):
     """Where in the list and on which side a new wheel goes: every place and both sides are tried in the CAD
-    pose; of those that give a path that really goes round it (and, with a clicked point, has that point on its
-    arc) the shortest wins. Returns (index among all contacts, the row) or None."""
+    pose. Of those that give a path that really goes round it, the one wins whose arc has the clicked point
+    nearest its middle; with nothing clicked, the shortest. Returns (index among all contacts, the row) or
+    None."""
     wheels = _wheels(item)
     rows = [_row_of(c, memo) for c in wheels]
     inv = np.linalg.inv(_cad(item.part, memo))
@@ -1914,15 +2033,17 @@ def _fit_wheel(scene, item, row: dict, hit_dir, memo: dict):
             if not path.ok or path.wrap[k] < math.radians(0.5):
                 continue
             first, n = int(path.first[k]), int(path.counts[k])
+            score = float(path.length)
             if hit_dir is not None:
                 mid = _unit(path.points[first + n // 2] - ws[k].centre) if n > 2 else \
                     _unit(0.5 * (path.points[first] + path.points[first + n - 1]) - ws[k].centre)
-                off = math.acos(float(np.clip(mid @ _unit(inv[:3, :3] @ hit_dir), -1.0, 1.0)))
-                if off > 0.5 * float(path.wrap[k]) + math.radians(5.0):
-                    continue
-            if best is None or path.length < best[0]:
+                score = math.acos(float(np.clip(mid @ _unit(inv[:3, :3] @ hit_dir), -1.0, 1.0)))
+                if score > 0.5 * float(path.wrap[k]) + math.radians(5.0):
+                    continue                    # the clicked point is not on this arc
+            if best is None or score < best[0]:
                 s_mid = 0.5 * float(path.s[first] + path.s[first + n - 1]) * scale
-                best = (path.length, k, dict(row, side=side, s=s_mid, wrap=float(path.wrap[k])))
+                best = (score, k, dict(row, side=side, s=s_mid, wrap=float(path.wrap[k]),
+                                       arc=_at(_cad(item.part, memo), path.points[first:first + n])))
     if best is None:
         return None
     _length, k, new = best
@@ -1954,13 +2075,14 @@ def _reseat_ends(scene, item, memo: dict) -> None:
         if want == ob and kind == getattr(item, key + "_kind"):
             continue
         p = np.array(getattr(item, key + "_point"), dtype=float)
-        if _alive(scene, ob):
-            p = _at(np.linalg.inv(_cad(want, memo)) @ _cad(ob, memo), p)
+        move = np.linalg.inv(_cad(want, memo)) @ _cad(ob, memo) if _alive(scene, ob) else np.eye(4)
         with _quiet(item):
             setattr(item, key + "_kind", kind)
             setattr(item, key + "_part", want)
             setattr(item, key + "_uid", _uid(want))
-            setattr(item, key + "_point", tuple(p))
+            setattr(item, key + "_point", tuple(_at(move, p)))
+        if key + "_cad_point" in item:
+            item[key + "_cad_point"] = [float(v) for v in _at(move, np.array(item[key + "_cad_point"], dtype=float))]
 
 
 def remove_contact(scene, item, index: int) -> None:
@@ -2048,8 +2170,12 @@ def set_end(scene, item, end: str, ob=None) -> None:
         if ob is None:
             if key + "_user" in it:
                 del it[key + "_user"]
+            it[key + "_cad_point"] = [float(v) for v in getattr(it, key + "_point")]
         else:
             it[key + "_user"] = True
+            for extra in ("_cad_free", "_cad_point"):
+                if key + extra in it:
+                    del it[key + extra]
 
     _guarded(scene, item, change, "The end cannot go there")
     item = find(scene, iname)
@@ -2119,7 +2245,7 @@ def _live(scene, force: bool = False) -> bool:
         rel = _rel_now(it, obs) if rel is None else rel
         _STATE["last"][(scene.name, it.name)] = rel
         _drop_places(scene, it)
-        _draw(scene, it, rel[None], None)
+        _draw(scene, it, rel[None], None, was=None if force else [float(c.wrap) for c in _wheels(it)])
         wrote = True
     return wrote
 
