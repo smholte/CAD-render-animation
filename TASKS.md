@@ -38,6 +38,7 @@ updates its branch to `main`.
 
 ## Problems found, waiting for a task
 
+- **Owner's picks from study 0113 (13 Nov, 22:07):** (1) **IEA 15 MW offshore wind turbine** on the site – yes: the owner opens its SolidWorks assembly (`deprecated/IEA-15-240-RWT_Solidworks.zip` of github.com/IEAWindSystems/IEA-15-240-RWT) in Inventor and exports one STEP (AP214/AP242), then attaches it to the draft release `site-kit`; a Site kit follow-up after 0112 adds it to the kit (stills + rotor spin / nacelle yaw clip, credit + Apache-2.0 text) and 0111's picker can take it later. (2) **Mesh import** (glTF/OBJ/FBX as a model with parts the app can use: looks, groups, joints, explorer) – to do; start as soon as it clashes with no running task (importer/build files – no running task touches them on 13 Nov; GitHub load: max ~4 at once). Candidates after it: Working Vessel 03, KS-4574 crane truck (CC BY 4.0, Sketchfab). (3) Branded scans (Hyundai, Hitachi, New Holland, JCB): **skip**.
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
 
 - **Bug hunt 0045 (20 rows)** became tasks on 9 Nov: rows 3, 13, 15, 16, 20c → 0051; 1, 2, 6, 20a → 0052;
