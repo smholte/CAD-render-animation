@@ -102,6 +102,8 @@ def apply_pose_data(scene, pose, joints_only: bool = False) -> None:
         joints.apply_free_moves(scene, deltas, reset_others=True)
     from . import flex
     flex.refresh(scene)                             # hoses and drag chains follow (task 0058; also with no 3D view)
+    from . import paths
+    paths.refresh(scene)                            # cables too (task 0078)
     scene.fresing.bounds_valid = False
 
 
@@ -121,6 +123,8 @@ def reset_pose(scene) -> None:
     joints.apply_free_moves(scene, {}, reset_others=True)
     from . import flex
     flex.refresh(scene)
+    from . import paths
+    paths.refresh(scene)
     scene.fresing.bounds_valid = False
 
 

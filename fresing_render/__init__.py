@@ -72,6 +72,8 @@ def register():
     vessel_motion.register()
     from .blender import flex
     flex.register()                          # hoses and drag chains (task 0058): live shapes, clash hook
+    from .blender import paths
+    paths.register()                         # cables and paths (task 0078): live shapes, clash hook
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -87,6 +89,8 @@ def unregister():
     from .blender import section
     section.unregister()
     hover.unregister()
+    from .blender import paths
+    paths.unregister()
     from .blender import flex
     flex.unregister()
     from .blender import vessel_motion

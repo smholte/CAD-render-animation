@@ -277,6 +277,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     gcode.after_clear(scene)                       # tool copies shown at tool changes (task 0026)
     from . import flex
     flex.after_clear(scene)                        # hoses and drag chains follow the parts live again (task 0058)
+    from . import paths
+    paths.after_clear(scene)                       # cables follow their sheaves live again (task 0078)
     if was_baked:
         from . import linkages
         linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
@@ -869,6 +871,8 @@ def bake(scene, anim) -> dict:
     warnings += trails.update_all(scene, anim)     # trail lines (task 0073): read along the built motion
     from . import flex
     warnings += flex.bake(scene, anim)             # hoses and drag chains (task 0058): every frame's shape
+    from . import paths
+    warnings += paths.bake(scene, anim)            # cables over sheaves that move (task 0078): every frame's shape
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
 

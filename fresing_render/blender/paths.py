@@ -16,3 +16,27 @@ def changed(scene, item) -> None:
 
 def contact_changed(scene, contact) -> None:
     pass
+
+
+def refresh(scene, force: bool = False) -> None:
+    pass
+
+
+def bake(scene, anim) -> list:
+    return []
+
+
+def after_clear(scene) -> None:
+    pass
+
+
+def after_model_update(scene, by_uid: dict, mapping: dict) -> list:
+    return []
+
+
+def register() -> None:
+    pass
+
+
+def unregister() -> None:
+    pass
