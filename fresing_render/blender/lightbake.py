@@ -16,7 +16,9 @@ surface (a probe quad far from everything): value / reference is the *light fact
 Every object gets its own result, also objects that share a mesh. Where light is stored per object:
 
 * ``MAP``: a lightmap. ``uv="AUTO"``: the app unwraps each unique mesh once (``core/lightmap.unwrap``) and gives every
-  copy its own place in shared atlases; ``uv="UV1"``: the mesh's second UV layer as it is, one image per object.
+  copy its own place in shared atlases; ``uv="UV1"``: the mesh's second UV layer as it is, one image per object – its size from the
+  object's area, or exactly the caller's ``sizes={object: (W, H)}`` (the house format's ``uv1_px``, task 0114; a size
+  that stretches the layout by more than 2 % is a ``problems`` line, never a silent rescale).
 * ``VERTEX``: light per corner (and per vertex), for small parts with many copies where that is smaller.
 
 Nothing in the project is changed: the bake runs in a copy of a Cycles scene (``web3d.Baker``) with new objects,
@@ -168,7 +170,7 @@ class Bake:
 
     def __init__(self, objects, light="SOFT", *, world=None, sky=None, occluders=(), lamps=None, ids=None,
                  uv="AUTO", quality="NORMAL", texels_per_m=None, samples=None, device="AUTO", progress=None,
-                 scene=None, denoise=True):
+                 scene=None, denoise=True, sizes=None):
         self.light = choice_id(light)
         self.objects = [ob for ob in objects if ob is not None and ob.type == "MESH" and ob.data is not None]
         self.scene = scene or (self.objects[0].users_scene[0] if self.objects and self.objects[0].users_scene
@@ -178,6 +180,7 @@ class Bake:
         self.occluders = [ob for ob in occluders if ob is not None and ob not in set(self.objects)]
         self.lamps = lamps
         self.ids = dict(ids or {})
+        self.sizes = dict(sizes or {})              # uv="UV1": {object or name: (W, H)} – that object's image exactly
         self.uv = str(uv).upper()
         if self.uv not in ("AUTO", "UV1", "VERTEX"):
             raise ValueError(f"uv must be AUTO, UV1 or VERTEX, not {uv!r}")
@@ -203,6 +206,16 @@ class Bake:
             return str(self.ids[ob.name])
         v = ob.get("fr_id")
         return str(v) if v else ob.name
+
+    def size_of(self, ob):
+        """(W, H) given for ``ob`` in ``sizes`` (by object or name), or None."""
+        v = self.sizes.get(ob, self.sizes.get(ob.name))
+        if v is None:
+            return None
+        w, h = int(v[0]), int(v[1])
+        if w < 1 or h < 1:
+            raise ValueError(f"{ob.name}: an image size must be at least 1 x 1, not {w} x {h}")
+        return w, h
 
     def plan(self) -> dict:
         if self._plan is not None:
@@ -298,6 +311,12 @@ class Bake:
             uv_area = float(np.clip(0.5 * np.abs(e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]).sum(), 1e-6, 1.0))
             r["size"] = lm.image_size(r["area"], uv_area, tpm)
             r["tpm"] = tpm
+            given = self.size_of(r["ob"])
+            if given is not None:                       # the caller's size (the house format's uv1_px), exactly
+                r["size"] = given
+                why = size_problem(md, r["uv1"], given, r["ob"].matrix_world)
+                if why:
+                    problems.append(f"{r['ob'].name}: {why}")
         texels = n_atlas * atlas_px * atlas_px if maps else 0
         texels += sum(w * h for w, h in (r["size"] for r in own))
         vertices = sum(len(r["md"].points) for r in verts)
@@ -838,6 +857,41 @@ class Bake:
             out = lm.smooth(lm.smooth(acc, mask, r), mask, r)   # denoiser (compositor) aborted Blender without a GPU
         out = np.where(mask[..., None], out, acc)
         return lm.dilate(out, mask, self.padding).astype(np.float32)
+
+
+SIZE_TOLERANCE = 0.02            # sizes=: texels per metre along U and along V may differ this much
+
+
+def size_problem(md: _MeshData, uv_name: str, size, mw) -> str | None:
+    """A plain sentence when an image of ``size`` (W, H) does not fit the UV layer ``uv_name`` of a mesh: a layout made
+    without stretching has as many texels per metre along U (W x |du/dm|) as along V (H x |dv/dm|). A wrong W or H
+    stretches the map one way; that shows here (area-weighted median over the triangles, ``SIZE_TOLERANCE``)."""
+    w, h = float(size[0]), float(size[1])
+    m3 = np.array([[mw[r][c] for c in range(3)] for r in range(3)], np.float64)
+    p = (md.points @ m3.T)[md.tris]                         # world metres
+    uv = md.uvs[uv_name].reshape(-1, 3, 2).astype(np.float64) * (w, h)
+    e1, e2 = p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]
+    d1, d2 = uv[:, 1] - uv[:, 0], uv[:, 2] - uv[:, 0]
+    # the texel coordinates' gradient in the triangle's plane: grad = [e1 e2]^+ (dt1, dt2)
+    g11, g12, g22 = (e1 * e1).sum(1), (e1 * e2).sum(1), (e2 * e2).sum(1)
+    det = g11 * g22 - g12 * g12
+    ok = (det > 1e-18) & (np.abs(d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]) > 1e-9)
+    if not ok.any():
+        return None
+    g11, g12, g22, det, e1, e2, d1, d2 = (a[ok] for a in (g11, g12, g22, det, e1, e2, d1, d2))
+    a1 = (g22[:, None] * d1 - g12[:, None] * d2) / det[:, None]     # (m, 2): weights of e1 for u and for v
+    a2 = (g11[:, None] * d2 - g12[:, None] * d1) / det[:, None]
+    gu = np.linalg.norm(a1[:, :1] * e1 + a2[:, :1] * e2, axis=1)      # texels per metre along u
+    gv = np.linalg.norm(a1[:, 1:] * e1 + a2[:, 1:] * e2, axis=1)
+    area = 0.5 * np.sqrt(det)
+    ratio = gu / np.maximum(gv, 1e-12)
+    order = np.argsort(ratio)
+    cum = np.cumsum(area[order])
+    med = float(ratio[order][np.searchsorted(cum, cum[-1] / 2.0)])
+    if abs(med - 1.0) > SIZE_TOLERANCE:
+        return (f"its image of {int(w)} x {int(h)} texels does not fit its UV set 1 (the map would be stretched "
+                f"{abs(med - 1.0) * 100:.0f} % one way) – baked at that size anyway")
+    return None
 
 
 def _clear(mat) -> bool:
