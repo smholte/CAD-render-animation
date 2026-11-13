@@ -1017,19 +1017,33 @@ def _materials(scene, sp, ob) -> None:
     ob[cable_looks.PAY] = cable_looks.PAY_BIAS
 
 
-def _draw(scene, sp) -> None:
-    """The rope object, its shapes, its drivers; the solid; the CAD coil hidden."""
-    j = _joint(scene, sp)
-    it = _cable(scene, sp)
-    if j is None or it is None or not _alive(scene, sp.part):
-        return
-    memo: dict = {}
+def _window(scene, sp, p_lo: float, p_hi: float) -> tuple:
+    """(first, last + 1): the stretch of the whole drawing polyline that payouts from p_lo to p_hi can show, with a
+    layer more at each end (the Geometry Nodes pass over every stored point at every frame: a carousel holds tens of
+    kilometres)."""
     path = path_of(scene, sp)
-    W0 = float(sp.wound)
-    M = _owner_matrix(scene, sp, memo)
-    scale = float(np.cbrt(abs(np.linalg.det(M[:3, :3])))) or 1.0
     pts, Ls = polyline_of(scene, sp)
-    # shapes: the polyline (with edges) in the part's coordinates, fr_s = L - W0 (the look stands still on it)
+    W0 = float(sp.wound)
+    L_low = float(np.min(np.atleast_1d(S.stack(path, W0, np.array([p_hi]), DRAWN[sp.kind])[0])))
+    L_top = W0 - p_lo
+    _phi, _a, _r, k = S.at(path, np.array([min(max(L_top, 0.0), float(path.total))]))
+    k = int(np.asarray(k).reshape(-1)[0])
+    margin = max(float(S.layer_end(path, k) - S.layer_start(path, k)), 1.0)
+    a, b = max(L_low - margin, 0.0), min(L_top + margin, float(path.total))
+    i0 = max(int(np.searchsorted(Ls, a, side="right")) - 1, 0)
+    i1 = min(int(np.searchsorted(Ls, b, side="left")) + 1, len(Ls))
+    return i0, max(i1, i0 + 2)
+
+
+def _write_window(scene, sp, p_lo: float, p_hi: float, M=None) -> None:
+    """The shapes mesh: the stretch of the polyline for payouts p_lo … p_hi (with edges), in the clicked part's
+    coordinates, fr_L = metres from the anchor. Exactly the whole polyline's points, so the drawn rope ends where
+    ``rope_point`` says."""
+    if M is None:
+        M = _owner_matrix(scene, sp, {})
+    pts, Ls = polyline_of(scene, sp)
+    i0, i1 = _window(scene, sp, p_lo, p_hi)
+    pts, Ls = pts[i0:i1], Ls[i0:i1]
     sh = _made(scene, sp, "shapes") or _new_made(scene, sp, "shapes", None)
     n = len(pts)
     me = bpy.data.meshes.new(sh.name)
@@ -1044,6 +1058,36 @@ def _draw(scene, sp) -> None:
     sh.data = me
     if old is not None and old.users == 0:
         bpy.data.meshes.remove(old)
+    sh["fr_window"] = [float(Ls[0]), float(Ls[-1])]
+    sh["fr_window_key"] = repr(_key(scene, sp))
+
+
+def _window_holds(scene, sp, p: float) -> bool:
+    sh = _made(scene, sp, "shapes")
+    if sh is None or "fr_window" not in sh or sh.get("fr_window_key") != repr(_key(scene, sp)):
+        return False
+    a, b = (float(v) for v in sh["fr_window"])
+    path = path_of(scene, sp)
+    W0 = float(sp.wound)
+    L_low = float(np.min(np.atleast_1d(S.stack(path, W0, np.array([p]), DRAWN[sp.kind])[0])))
+    L_on = min(max(W0 - p, 0.0), float(path.total))
+    return a <= L_low + 1e-9 and L_on <= b + 1e-9
+
+
+def _draw(scene, sp) -> None:
+    """The rope object, its shapes, its drivers; the solid; the CAD coil hidden."""
+    j = _joint(scene, sp)
+    it = _cable(scene, sp)
+    if j is None or it is None or not _alive(scene, sp.part):
+        return
+    memo: dict = {}
+    path = path_of(scene, sp)
+    W0 = float(sp.wound)
+    M = _owner_matrix(scene, sp, memo)
+    scale = float(np.cbrt(abs(np.linalg.det(M[:3, :3])))) or 1.0
+    p_now = payout(scene, sp)
+    _write_window(scene, sp, p_now, p_now, M)
+    sh = _made(scene, sp, "shapes")
     # the rope object and its modifier
     rope = _made(scene, sp, "rope") or _new_made(scene, sp, "rope", sp.part)
     if rope.parent != sp.part:
@@ -1604,6 +1648,9 @@ def after_draw(scene, item) -> None:
     if sp is not None and not _STATE["busy"]:
         try:
             status(scene, sp)
+            p = payout(scene, sp)
+            if not _window_holds(scene, sp, p):     # posed beyond what the shapes hold: the stretch round here
+                _write_window(scene, sp, p, p)
         except Exception:                           # (never in the way of drawing the cable)
             pass
 
@@ -1632,6 +1679,7 @@ def bake(scene, anim) -> list[str]:
                     fc.keyframe_points.foreach_get("co", co)
                     vals += list(co[1::2])
             p = sign * (k * np.asarray(vals, dtype=float) + c)
+            _write_window(scene, sp, float(p.min()), float(p.max()))     # what the animation shows (no Python later)
             on = float(sp.wound) - p
             if (on < -1e-6).any():
                 out.append(f"Drum or carousel '{label(sp)}' runs empty in this animation: {_metres(-on.min())} m "
