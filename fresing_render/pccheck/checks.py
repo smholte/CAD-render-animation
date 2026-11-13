@@ -649,7 +649,7 @@ def motion_spool(ctx):
     return note
 
 
-@line("motion.sea_cable", "A cable hangs into the sea and a CPS set rides down on it", "0.2.90",
+@line("motion.sea_cable", "A cable hangs into the sea and a CPS set rides down on it", "0.2.91",
       what="A cable over rollers and a stern horn hangs into 15 m of water in a catenary to the seabed and lies on it; "
            "a Run motor step pays it out at 60 m/min: the touch-down stays 20 m behind the horn, the seabed and the "
            "cable's end on it move aft, the CPS set goes over the horn and down the catenary; seen through the "

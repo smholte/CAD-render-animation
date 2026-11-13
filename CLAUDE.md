@@ -218,7 +218,8 @@ fresing_render/            the Blender extension (Python package)
                            cycles, o-words, parameters, Fusion tool comments; rotary axes A/B/C in degrees with
                            G93 and LinuxCNC's mixed feed rule, task 0066; Schedule = program time -> video),
                            clash.py (clash check, task 0065: rigid bodies from the motion, boxes, screw motion between
-                           frames, tool zones, rows and texts),
+                           frames, tool zones, rows and texts; task 0110: a turning part's surface where another part
+                           can come – `footprint`, `local_points` –, `repeats` turned, `symmetry_order`),
                            vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
                            hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
                            toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
@@ -335,7 +336,12 @@ fresing_render/            the Blender extension (Python package)
                            check). Task 0092: parts that turn in place and are round (rollers, sheaves, drums, a coil)
                            are held still on their carrier (`_hold_still`); a turning part that is not round (a spoked
                            sheave) and a part resting on it outside the room its features sweep are checked once per
-                           turn (`_still_pairs`); big parts first look for a gap (box trees, `separation`)
+                           turn (`_still_pairs`); big parts first look for a gap (box trees, `separation`). Task 0110: every
+                           pair looks for a gap first (`_gap_worth`; small parts a few mm apart are tested instead), a
+                           pair whose part turns against the other and is round where the other comes is left for the
+                           rest of the turn (`_maybe_window`, `_pair_spins`, `_near_points`), one that repeats after a
+                           step of angle (a rim fence's posts) once that step was checked with no clash (`_period_done`);
+                           a hit closes such a window (`_hit`)
     toolpath.py            the app makes the toolpath (task 0029): inputs from the milling set-up (block, finished part)
                            and the CNC machine (work zero), the program next to the project, its "Run G-code program"
                            step (tagged ``fr_toolpath``, replaced when made again), the result line, the test model's
@@ -963,6 +969,18 @@ the release → Delete); the next run on `main` publishes it again.
   on 8 teeth, so the teeth drift through the links (task 0079). With rigid links kept one pitch apart on the loop, the
   next link's pin lies a fraction of a mm off where a link straddles a run and a wheel (polygon effect; 0.4 mm on 10
   teeth of 100 mm). Joint values are 32-bit: ~1 mm at 10 km of cable, 2 mm at 28.8 km.
+- A part turned by a small angle lands near itself whatever its shape: a roller with a flat or a wheel 2 mm off its
+  centre, turned by 1/720 turn, landed within 0.25 mm and was taken for a part that repeats – their clashes were
+  missed (found by `tests/test_clash_turning.py`, task 0110). A turned point must land within a share (2 %) of how far
+  the turn moved it (`core/clash.repeats(rel=)`), and the symmetry is read from the sharp corners only
+  (`symmetry_order`): round faces fit any small turn.
+- Looking for a gap (`separation`) costs 5–25 ms; testing two small parts point by point 0.2–2 ms. A search for every
+  pair made the PC check's Heavy machine (3,000 tiny parts) 7 x slower, and the demo's drop cradles (frames a few mm
+  apart) slower too. Small parts look for a gap only once their tests have cost `SEP_AFTER` faces since the last
+  search (counted in faces, not seconds: the same scene must give the same rows), task 0110.
+- A grid seen along an axis (`unround_band`, 64 cells, points 1/60 of the part's size apart) is far too coarse for a
+  part 24 m across: every drive part beside the demo's rim fence looked close to its posts. Look only at the part's
+  surface where the other part can come, a few mm apart (`local_points`, task 0110).
 - A carousel's joint may turn about an axis that points down: "layers grow along +z" then needs the spool's frame turned
   over (``FRSpool.zsign``), else the coil is read upside down (683 m instead of 28.8 km on the demo's carousel).
 - A test that is longer than the others sets the length of every run. Task 0108 split the demo's clash check (13 min on

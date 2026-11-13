@@ -2680,7 +2680,7 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
      "still where it lies on the seabed, the seabed moves aft under the vessel, the touch-down stays 20 m behind the "
      "horn and the orange CPS set goes over the horn and down the curve on the cable.",
-     where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.90",
+     where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
      check=_check_sea_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
