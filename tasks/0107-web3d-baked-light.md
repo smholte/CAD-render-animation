@@ -154,6 +154,7 @@ on an error or Cancel. Cancel works between bake batches (each batch kept to ~30
 
 Texels per metre = √(budget / total area of the baked parts), at least 4, at most 400; shown in the panel and can be
 typed in. Denoised with Blender's own denoiser (OpenImageDenoise through the compositor) after the chart edges are
+[built: a NumPy smoothing inside each chart instead – the compositor aborted Blender on machines without a GPU]
 padded; a NumPy blur inside each chart when that is not there. Bake margin (Cycles `EXTEND`) = padding.
 
 ### Lightmap UVs and per-vertex light – `fresing_render/core/lightmap.py` (no Blender)
@@ -232,7 +233,8 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
   the whole image: 1,228 objects took > 20 min, joined 31 s); materials as matte copies (Metallic 0, so metal is not
   black); glass parts not baked but letting light through; decals cast no shadow; SOFT = sky direct (sun disc off,
   Sun lamps off) + all indirect; ALL = one pass; lamps baked in both; a probe quad above everything gives the
-  reference; OpenImageDenoise through the compositor (NumPy blur as fallback), padding by Cycles' EXTEND margin.
+  reference; smoothing inside each chart (two box passes of `padding` texels; Blender's compositor denoiser aborted
+  Blender on GitHub's machines and on Windows without a GPU – first run red), padding by Cycles' EXTEND margin.
 - Light UVs (`core/lightmap.py`, subagent A): charts by main axis + connectivity + overlap split, skyline packing with
   every copy in one atlas, small atlases for small models (256–1024 px), per-vertex light for small many-copy parts,
   encoding v = (F/scale)^(1/2).
@@ -264,7 +266,8 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
   | Demo vessel | Soft | Normal | 375 s | +4.3 MB | 9.2 MB | 13.1 MB |
   | Demo vessel | Everything | Normal | 221 s | +4.4 MB | 9.3 MB | 13.2 MB |
 
-  Of the Normal Soft bake: plan (unwrap, pack) 7.7 s, Cycles 356 s (12 calls, 4 atlases of 2048), denoise 10 s.
+  Of the Normal Soft bake: plan (unwrap, pack) 7.7 s, Cycles 356 s (12 calls, 4 atlases of 2048), denoise 10 s
+  (measured with the compositor denoiser, since replaced by the NumPy smoothing).
   **RTX 3090: an estimate, not measured** – the panel assumes 20 × these 4 cores (Normal demo ≈ 20–30 s); the owner
   measures it. Page load (headless, software GL): demo vessel 2.9–3.2 s, same as without baked light.
 - Pictures (invented models only): `tasks/img/0107_mill_render_soft_all.jpg`, `0107_vessel_render_soft_all.jpg`
@@ -288,8 +291,8 @@ Everything baked too dark in shade.
 - Cancel answers between bake calls: one 2048 atlas at Fine on a CPU is about 2 min (expected, not measured).
 - The page's live sun vs Cycles' (Soft looks darker in the sun than the render) – 0106's sun power; a calibration
   task could use `Result.sun_ratio`.
-- Denoise runs a 1-sample Cycles render with the compositor (Blender 5.2 has no bake denoiser); it leaves the user's
-  Render Result alone.
+- No OpenImageDenoise: Blender 5.2 has no bake denoiser, and running it through the compositor aborted Blender
+  without a GPU. At Draft (16 samples) the smoothing looks clean on the test mill; Fine uses more samples.
 - Owner's check (RTX 3090): export the demo vessel with each choice at Normal (Help > Make demo project, then 5 Scene &
   Render > Web 3D model > Light): note the bake time; open the pages on the PC and the phone; compare with a render.
 - GitHub: (filled in after the runs)

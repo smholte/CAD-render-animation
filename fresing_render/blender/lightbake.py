@@ -26,8 +26,6 @@ triangle-mesh copies (targets), world copies and material copies, all removed at
 from __future__ import annotations
 
 import math
-import os
-import tempfile
 import time
 from dataclasses import dataclass, field
 
@@ -43,7 +41,7 @@ NAME = "FR light bake"
 UV_NAME = "fr_light"
 # Speed for the estimate, measured on the 4-core web machine (CPU), 13 Nov 2026: Cycles DIFFUSE bake, texel x sample
 # per second per pass (demo vessel, Draft: 8.4 M texels x 16 samples x 2 passes in 31 s), plus a fixed cost per bake
-# call (scene sync, read back) and per atlas (denoise ~1.9 s at 2048 px). The RTX 3090 figure is an estimate:
+# call (scene sync, read back, smoothing). The RTX 3090 figure is an estimate:
 # GPU_FACTOR times faster than these 4 cores, labelled so in the panel.
 RATE_CPU = 8.0e6
 GPU_FACTOR = 20.0
@@ -835,90 +833,11 @@ class Bake:
         if not mask.any():
             return acc
         out = acc
-        if self.denoise:
-            try:
-                out = denoise(self._baker.scene, acc)
-            except Exception as exc:  # noqa: BLE001 - a missing denoiser must not stop the bake
-                print("Fresing Render: light denoise fallback:", exc)
-                out = lm.smooth(acc, mask, 2)
+        if self.denoise:                # twice a box of ``padding`` texels inside the charts (about a Gaussian): the
+            r = max(1, self.padding)    # gap between two charts is 2 x padding, so charts never mix. Blender's own
+            out = lm.smooth(lm.smooth(acc, mask, r), mask, r)   # denoiser (compositor) aborted Blender without a GPU
         out = np.where(mask[..., None], out, acc)
         return lm.dilate(out, mask, self.padding).astype(np.float32)
-
-
-def denoise(src_scene, pixels: np.ndarray) -> np.ndarray:
-    """Blender's own denoiser (OpenImageDenoise in the compositor) on a (h, w, 3) float picture, in a scene of its
-    own (a copy of a Cycles scene, one sample of nothing rendered under the compositor)."""
-    h, w = pixels.shape[:2]
-    had_result = "Render Result" in bpy.data.images
-    sc = src_scene.copy()
-    sc.name = NAME + " denoise"
-    made = []
-    try:
-        for c in list(sc.collection.children):
-            sc.collection.children.unlink(c)
-        for o in list(sc.collection.objects):
-            sc.collection.objects.unlink(o)
-        sc.world = None
-        sc.cycles.samples = 1
-        sc.cycles.device = "CPU"
-        sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = w, h, 100
-        sc.render.use_compositing = True
-        sc.render.film_transparent = False
-        sc.view_settings.view_transform = "Standard"
-        sc.render.image_settings.file_format = "OPEN_EXR"
-        cam = bpy.data.objects.new(NAME, bpy.data.cameras.new(NAME))
-        made += [cam, cam.data]
-        sc.collection.objects.link(cam)
-        sc.camera = cam
-        img = bpy.data.images.new(NAME + " in", w, h, alpha=True, float_buffer=True)
-        img.colorspace_settings.name = "Non-Color"
-        made.append(img)
-        rgba = np.ones((h, w, 4), np.float32)
-        rgba[..., :3] = pixels
-        img.pixels.foreach_set(rgba.ravel())
-        ng = bpy.data.node_groups.new(NAME, "CompositorNodeTree")
-        made.append(ng)
-        sc.compositing_node_group = ng
-        n_in = ng.nodes.new("CompositorNodeImage")
-        n_in.image = img
-        dn = ng.nodes.new("CompositorNodeDenoise")
-        if "HDR" in dn.inputs:
-            dn.inputs["HDR"].default_value = True
-        out = ng.nodes.new("NodeGroupOutput")
-        ng.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
-        ng.links.new(n_in.outputs["Image"], dn.inputs["Image"])
-        ng.links.new(dn.outputs["Image"], out.inputs[0])
-        bpy.ops.render.render(scene=sc.name)
-        fd, path = tempfile.mkstemp(suffix=".exr")
-        os.close(fd)
-        try:
-            bpy.data.images["Render Result"].save_render(path, scene=sc)
-            res = bpy.data.images.load(path)
-            made.append(res)
-            px = np.empty(w * h * 4, np.float32)
-            res.pixels.foreach_get(px)
-            return px.reshape(h, w, 4)[..., :3].copy()
-        finally:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-    finally:
-        for idb in reversed(made):
-            try:
-                if isinstance(idb, bpy.types.Object):
-                    bpy.data.objects.remove(idb)
-                elif isinstance(idb, bpy.types.Camera):
-                    bpy.data.cameras.remove(idb)
-                elif isinstance(idb, bpy.types.Image):
-                    bpy.data.images.remove(idb)
-                elif isinstance(idb, bpy.types.NodeTree):
-                    bpy.data.node_groups.remove(idb)
-            except ReferenceError:
-                pass
-        bpy.data.scenes.remove(sc)
-        if not had_result and "Render Result" in bpy.data.images:
-            bpy.data.images.remove(bpy.data.images["Render Result"])
 
 
 def _clear(mat) -> bool:
