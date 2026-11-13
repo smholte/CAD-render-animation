@@ -30,10 +30,10 @@ import bpy
 GROUP = "FR weather"
 NODE = "FR weather"                    # the group node's name in a wrapped material
 TAG = "fr_weather_wrap"                # on a wrapped material (materials.build_nodes wraps it again after a rebuild)
-GROUP_VERSION = 3
+GROUP_VERSION = 5
 WET, COVER = "fr_wx_wet", "fr_wx_cover"
 SKY_DISTANCE = 25.0                    # m: what lies within this far above a point keeps the snow off it
-AO_SAMPLES = 8
+AO_SAMPLES = 4
 
 # surroundings roles whose materials get the look (never the sea, lamps, the photo's dome and ground, hall shells)
 ENV_ROLES = ("floor", "structure", "contents", "high")
@@ -213,14 +213,11 @@ def _wet(b, gin, wet, up, p):
     coat = b.math("MULTIPLY", film, shine, x=450, y=200, clamp=True)
     smooth = b.math("MAXIMUM", puddle, drops, x=150, y=0)
     rough = b.math("MULTIPLY_ADD", smooth, -0.16, 0.18, x=300, y=0)
-    bump = b.node("ShaderNodeBump", 300, -150)
-    bump.inputs["Strength"].default_value = 0.5
-    bump.inputs["Distance"].default_value = 0.002
-    b.put(bump.inputs["Height"], drops)
+    # (no bump for the drops: Cycles works a bump's height out three times, and the Voronoi under it was the
+    # dearest part of the wet look; drops show by their shine)
     gloss = b.node("ShaderNodeBsdfGlossy", 450, 0, distribution="GGX")
     gloss.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
     b.put(gloss.inputs["Roughness"], rough)
-    b.put(gloss.inputs["Normal"], bump.outputs["Normal"])
     wetted = b.node("ShaderNodeMixShader", 650, 300)
     b.put(wetted.inputs[0], coat)
     b.put(wetted.inputs[1], darker.outputs[0])
@@ -236,7 +233,7 @@ def _snow(b, gin, gout, cover, seen, up, p, shader_in):
     upv = b.node("ShaderNodeCombineXYZ", -800, -600)
     upv.inputs["Z"].default_value = 1.0
     b.put(sky.inputs["Normal"], upv.outputs[0])
-    open_sky = b.ramp(sky.outputs["AO"], 0.45, 0.8, -450, -500)
+    open_sky = b.ramp(sky.outputs["AO"], 0.6, 0.92, -450, -500)   # (4 AO rays: a high bar)
     sn1 = b.noise(p, 3.0, 2.0, x=-800, y=-800)
     sn2 = b.noise(p, 1.2, 2.0, x=-800, y=-1000)
     lo = b.math("MULTIPLY_ADD", cover, -0.45, 0.85, x=-650, y=-900)   # more snow: steeper slopes hold it
@@ -250,7 +247,7 @@ def _snow(b, gin, gout, cover, seen, up, p, shader_in):
     snow_fac = b.math("MULTIPLY", b.math("MULTIPLY", b.math("MULTIPLY", lie, open_sky, x=-200, y=-700), seen,
                                          x=-100, y=-700),
                       b.math("MULTIPLY", patch, some_snow, x=-200, y=-1000), x=-50, y=-800, clamp=True)
-    sh = b.noise(p, 25.0, 3.0, x=-200, y=-450)
+    sh = b.noise(p, 25.0, 1.0, x=-200, y=-450)
     sbump = b.node("ShaderNodeBump", 0, -450)
     b.put(sbump.inputs["Strength"], b.math("MULTIPLY_ADD", cover, 0.25, 0.1, x=-200, y=-550))
     sbump.inputs["Distance"].default_value = 0.004
