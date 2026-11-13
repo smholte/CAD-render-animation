@@ -316,26 +316,17 @@ def _read(scene, item, objects, flip: bool) -> dict:
 
 def _cable_end_mark(scene, item) -> float:
     """Mark of the cable's end (metres from its start with nothing paid out)."""
-    paths = _paths()
     if item.b_kind == "SEA":
         return float(item.sea_mark)
-    from . import paths_sea
-    return float(item.length) - paths_sea.payout(scene, item)
+    return float(item.length)                   # (a fixed end: the drawn path's length, whatever is paid out)
 
 
 def _hang_mark(scene, item) -> float:
-    """Mark of the point the cable leaves its last contact now (metres along the drawn path, nothing paid out)."""
+    """Where the cable leaves its last contact now (metres along the drawn path): a front that is to pass it when
+    ``at`` metres are paid out has the mark s − at (marks do not depend on what is paid out when they are set)."""
     paths = _paths()
-    from . import paths_sea
-    if item.b_kind == "SEA":
-        got = paths_sea._STATE["sea"].get(paths._k(scene, item))
-        if got is not None:
-            arrays = paths._arrays(scene, item)
-            if arrays is not None:
-                pass
     wheels = paths._wheels(item)
-    s = float(wheels[-1].s) + 0.5 * float(wheels[-1].wrap) * paths.radius_of(item, wheels[-1]) if wheels else 0.0
-    return s - paths_sea.payout(scene, item)
+    return float(wheels[-1].s) + 0.5 * float(wheels[-1].wrap) * paths.radius_of(item, wheels[-1]) if wheels else 0.0
 
 
 def mark_of(scene, item, rider) -> float:

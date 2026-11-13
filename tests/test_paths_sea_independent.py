@@ -262,10 +262,6 @@ def test_anchor_tension_and_layback_agree_and_hang_off_finds_them_again():
     assert float(h2["laid"][0]) == pytest.approx(65.0, abs=1e-6)
 
 
-@pytest.mark.xfail(strict=True, reason="core.catenary.hang: when the hang-off is level with or aft of the cable's "
-                   "end on the seabed (xi <= 0) any length is called LIFTED and drawn as a two-point catenary; with "
-                   "slack cable that catenary sags many metres under the seabed (23.5 m in 33 m of water) instead of "
-                   "piling up")
 def test_hang_off_over_the_end_never_goes_under_the_seabed():
     for S in ((0.0, 0.0, ZB), (10.0, 0.0, ZB)):
         res = hang1((0, 0, 3), S, 80.0)
@@ -436,9 +432,6 @@ def test_reversed_cable_joint_pays_out_the_same_once_the_seabed_is_synced(sea):
     _reversed_pays_out(sea, sync_first=True)
 
 
-@pytest.mark.xfail(strict=True, reason="paths_sea: ticking 'Runs the other way' on a cable into the sea does not "
-                   "set the seabed's driver again (its sign stays): paying out then moves the seabed FORWARD, and the "
-                   "catenary collapses (layback 1.6 m instead of 20 m after 4 m) until Build or a sea setting changes")
 def test_reversed_cable_joint_pays_out_the_same(sea):
     _reversed_pays_out(sea, sync_first=False)
 
@@ -560,22 +553,17 @@ def test_too_much_cable_piles_and_is_warned(sea):
     assert line[:, 2].min() >= -15.0 - 1e-3
 
 
-@pytest.mark.xfail(strict=True, reason="paths_sea: cable piled on the seabed is drawn with only N_PILED = 64 points "
-                   "while its snake has a wave every 4 m: the drawn line is metres shorter than the cable it stands "
-                   "for (19 m short for 167 m piled over 40 m), so the stripes stretch and the tube cuts corners")
 def test_piled_cable_drawn_with_its_length(addon):
     from fresing_render.blender import paths_sea
     r = C.hang(np.array([[0.0, 0.0, 3.0]]), np.array([-40.0, 0.0, ZB]), U, ZB, np.array([200.0]))
     assert int(r["kind"][0]) == C.PILED
     s = float(r["suspended"][0])
-    lam = s + (200.0 - s) * np.arange(0, paths_sea.N_PILED + 1) / paths_sea.N_PILED
+    n = paths_sea.laid_points(200.0 - s)              # (the worker's fix: 16 points per wave of the snake)
+    lam = s + (200.0 - s) * np.arange(0, n + 1) / n
     p = C.points(r, lam[None])[0]
     assert poly_length(p) == pytest.approx(200.0 - s, rel=0.01)
 
 
-@pytest.mark.xfail(strict=True, reason="paths_sea: the seabed's motion takes Weather & time's vessel speed only "
-                   "when a sea setting changes or at Build: changing the vessel speed (the wake follows at once) "
-                   "leaves the seabed moving at the old speed in the view")
 def test_weather_vessel_speed_change_moves_the_seabed_at_the_new_speed(sea):
     sc = sea
     s = sc.fresing
@@ -591,9 +579,6 @@ def test_weather_vessel_speed_change_moves_the_seabed_at_the_new_speed(sea):
     assert adv == pytest.approx(4.0 * 0.514444 * 50 / sc.render.fps, rel=1e-3)
 
 
-@pytest.mark.xfail(strict=True, reason="paths_sea: with Weather & time switched off the seabed of a 'Vessel speed of "
-                   "Weather & time' cable keeps moving with the clock (its driver is not set back to the lay) until "
-                   "a sea setting changes or Build")
 def test_weather_off_falls_back_to_the_lay(sea):
     sc = sea
     s = sc.fresing
@@ -707,9 +692,6 @@ def test_rider_by_mark_passes_the_horn_when_paid_out(sea):
             assert abs(_horn_distance(sc, front) - R) < 0.02
 
 
-@pytest.mark.xfail(strict=True, reason="paths_riders.mark_of subtracts the payout of the moment (_hang_mark, "
-                   "_cable_end_mark): a rider edited, added or read again (model update) while cable is paid out "
-                   "gets a front mark shifted by that payout – at 3 m paid out the CPS set jumps 3 m along the cable")
 def test_rider_mark_does_not_depend_on_the_payout_when_it_is_set(sea):
     from fresing_render.blender import paths_riders
     sc = sea
@@ -810,9 +792,6 @@ def test_rider_on_a_cable_without_a_sea_end(sea):
     _check_rider_on_chords(sc, _front(sc))
 
 
-@pytest.mark.xfail(strict=True, reason="paths_riders: a rider 'at a payout mark' keeps the front mark it had when "
-                   "it was last synced; removing the sea end changes where the cable leaves the horn (the mark "
-                   "_hang_mark gives now) but the riders are not placed again: the CPS set sits 0.93 m off its place")
 def test_rider_follows_when_the_sea_end_is_removed(sea):
     _rider_without_sea_end(sea, sync=False)
 
@@ -889,10 +868,6 @@ def test_cut_box_holds_the_touch_down(sea):
         assert 0.0 < along < box["length"] and abs(across) < 0.5 * box["width"]
 
 
-@pytest.mark.xfail(strict=True, reason="paths_riders: a rider placed 'from the cable's end' is not placed again when "
-                   "the sea end is anchored again (layback, laid, depth, mode): its front mark keeps the old sea_mark, "
-                   "so the CPS set lands metres away from where it was put (7.8 m after layback 20 -> 30 m, 27.6 m – "
-                   "back on the deck – after 'already on the seabed' 40 -> 10 m)")
 @pytest.mark.parametrize("what, value", [("sea_layback", 30.0), ("sea_laid", 10.0)])
 def test_rider_from_the_end_follows_a_new_touch_down(sea, what, value):
     """A CPS set 45 m from the cable's end, then the touch-down set again: it must stay 45 m from the end."""
@@ -919,9 +894,6 @@ def test_scene_water_depth_is_the_cables_when_its_own_is_0(sea):
     assert line[-1][2] == pytest.approx(-22.0 + (0.5 - paths_sea.SINK) * it.diameter, abs=1e-3)
 
 
-@pytest.mark.xfail(strict=True, reason="paths_sea: a cable that takes its water depth from the Sea surroundings "
-                   "(its own depth 0) is not drawn again when the scene's water depth changes: its end stays on the "
-                   "old seabed (22 m -> 28 m: the cable ends 6 m above the new seabed)")
 def test_scene_water_depth_change_moves_the_cable_to_the_new_seabed(sea):
     from fresing_render.blender import paths, paths_sea
     sc = sea

@@ -135,6 +135,14 @@ def _group_renamed(self, context):
     self["_old_name"] = self.name
 
 
+def _sea_water_changed(self, context):
+    """Water depth or water level changed: the surroundings, then a cable into the sea lies on the new seabed (0081)."""
+    _world_changed(self, context)
+    if context is not None and context.scene is not None and len(context.scene.fresing.cables):
+        from . import paths_sea
+        paths_sea.water_changed(context.scene)
+
+
 def _world_changed(self, context):
     if self.live_update:
         from . import world
@@ -3141,6 +3149,9 @@ def _weather_changed(self, context):
         finally:
             del self["_busy"]
     from . import weather
+    if len(context.scene.fresing.cables):       # a cable into the sea: its seabed's speed (task 0081)
+        from . import paths_sea
+        paths_sea.weather_changed(context.scene)
     try:
         weather.changed(context.scene)
     except Exception as exc:                 # never break the UI over a preview update
@@ -3161,6 +3172,9 @@ def _weather_on_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
         return
     from . import weather
+    if len(context.scene.fresing.cables):       # a cable into the sea at the weather's vessel speed (task 0081)
+        from . import paths_sea
+        paths_sea.weather_changed(context.scene)
     try:
         weather.switched(context.scene)
     except Exception as exc:
@@ -3435,7 +3449,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                              description="The waves move in animations. Off: the sea stands still (the same "
                                          "in every frame)")
     sea_depth: FloatProperty(
-        name="Water depth", default=30.0, min=1.0, soft_max=500.0, unit="LENGTH", precision=1, update=_world_changed,
+        name="Water depth", default=30.0, min=1.0, soft_max=500.0, unit="LENGTH", precision=1,
+        update=_sea_water_changed,
         description="From the water's surface down to the seabed. The seabed shows through the cut-away; a cable "
                     "into the sea (4 Motion > Cables and paths) lies on it")
     sea_clarity: FloatProperty(
@@ -3465,7 +3480,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         update=_world_changed,
         description="Moves the box to the side (to starboard is negative)")
     water_level: FloatProperty(name="Water level", default=0.0, unit="LENGTH", soft_min=-20.0, soft_max=20.0,
-                               update=_world_changed,
+                               update=_sea_water_changed,
                                description="Height of the water from the machine's lowest point. 0: the machine "
                                            "stands on the water; raise it to put the machine partly under water")
     photo_ground: BoolProperty(name="Stand on the photo's ground", default=True, update=_world_changed,

@@ -168,11 +168,20 @@ def hang(top, start, aft, bottom_z, length) -> dict:
     F = len(top)
     S = np.broadcast_to(np.asarray(start, dtype=float), (F, 3)).copy()
     S[:, 2] = bottom_z
-    u = _unit(_horiz(np.asarray(aft, dtype=float).reshape(3)))
+    u = np.tile(_unit(_horiz(np.asarray(aft, dtype=float).reshape(3))), (F, 1))
     L = np.broadcast_to(np.asarray(length, dtype=float), (F,)).astype(float)
     h = np.maximum(top[:, 2] - float(bottom_z), 1e-6)
     d = _horiz(top - S)                                    # flat, from S to T
-    xi = -(d @ u)                                          # T lies this far from S towards the vessel
+    xi = -(d * u).sum(1)                                   # T lies this far from S towards the vessel
+    # the hang-off level with or behind the cable's end (the vessel went back over it): the cable lies from its end
+    # towards the hang-off instead of along the lay line (it can then touch down, or pile up, as anywhere else)
+    back = xi <= 1e-9
+    if back.any():
+        n0 = np.linalg.norm(d[back], axis=1)
+        turn = n0 > 1e-9
+        idx = np.flatnonzero(back)[turn]
+        u[idx] = -d[idx] / n0[turn][:, None]
+        xi = -(d * u).sum(1)
     lat_v = d + xi[:, None] * u
     eta = np.linalg.norm(lat_v, axis=1)
     X0 = np.linalg.norm(d, axis=1)
@@ -185,7 +194,7 @@ def hang(top, start, aft, bottom_z, length) -> dict:
     most = xi_c + suspended(a_flat, h)
     kind = np.full(F, NORMAL, dtype=np.int64)
     kind = np.where(L > most + 1e-9, PILED, kind)
-    kind = np.where((L < s_full - 1e-9) | (xi <= 0.0), LIFTED, kind)
+    kind = np.where((L < s_full - 1e-9) & (xi > 1e-9), LIFTED, kind)
     kind = np.where(L <= line + 1e-9, STRETCHED, kind)
     # NORMAL: bisection on ln a between a_flat (all laid) and a_full (nothing laid); x + s falls as a grows
     lo, hi = np.log(np.minimum(a_flat, a_full)), np.log(np.maximum(a_full, a_flat))
@@ -203,7 +212,7 @@ def hang(top, start, aft, bottom_z, length) -> dict:
     s_n = suspended(a_n, h)
     # the touch-down on the lay line, the flat way from it to T
     tdp = S - x_n[:, None] * u
-    hdir = _unit(_horiz(top - tdp), fallback=-u)
+    hdir = np.where(np.linalg.norm(_horiz(top - tdp), axis=1, keepdims=True) > 1e-12, _unit(_horiz(top - tdp)), -u)
     out = {"kind": kind, "h": h, "S": S, "T": top, "u": u, "L": L}
     a_out, s_out, x_out, X_out = a_n.copy(), s_n.copy(), x_n.copy(), X_n.copy()
     excess = np.zeros(F)
@@ -215,7 +224,7 @@ def hang(top, start, aft, bottom_z, length) -> dict:
         x_out[pile] = L[pile] - s_out[pile]                 # the snake's length
         X_out[pile] = eta[pile]
         excess[pile] = L[pile] - most[pile]
-        tdp[pile] = S[pile] - xi_c[pile, None] * u
+        tdp[pile] = S[pile] - xi_c[pile, None] * u[pile]
     # LIFTED: the catenary through S and T of length L
     lift = kind == LIFTED
     xv = np.zeros(F)
@@ -230,7 +239,9 @@ def hang(top, start, aft, bottom_z, length) -> dict:
         s_out[st], x_out[st], X_out[st] = L[st], 0.0, X0[st]
         excess[st] = L[st] - line[st]
         tdp[st] = S[st]
-    hdir = np.where((lift | st)[:, None], _unit(_horiz(top - S), fallback=-u), hdir)
+    flat_ts = _horiz(top - S)
+    hdir_ts = np.where(np.linalg.norm(flat_ts, axis=1, keepdims=True) > 1e-12, _unit(flat_ts), -u)
+    hdir = np.where((lift | st)[:, None], hdir_ts, hdir)
     # the tangent at T, pointing down along the cable
     a_safe = np.maximum(a_out, 1e-300)
     up = (hdir * a_out[:, None] + np.array([0.0, 0.0, 1.0]) * s_out[:, None]) / (a_out + h)[:, None]
@@ -264,7 +275,7 @@ def points(res: dict, lam) -> np.ndarray:
     hang_pts = tdp[:, None, :] + hdir[:, None, :] * xh[..., None] + z_up * zh[..., None]
     hang_pts[..., 2] = zb[:, None] + zh
     beyond = np.clip(lam - s[:, None], 0.0, None)
-    laid_pts = tdp[:, None, :] + u * beyond[..., None]
+    laid_pts = tdp[:, None, :] + u[:, None, :] * beyond[..., None]
     laid_pts[..., 2] = zb[:, None]
     normal = np.where((lam <= s[:, None])[..., None], hang_pts, laid_pts)
     out[:] = normal
@@ -275,7 +286,7 @@ def points(res: dict, lam) -> np.ndarray:
         total = res["laid"][pile]
         bb = beyond[pile]
         pts = np.zeros(bb.shape + (3,))
-        side = np.cross(z_up, u)
+        side_all = np.cross(z_up, u[pile])
         for i, (dist, ln) in enumerate(zip(xs, total)):
             waves = max(1, int(round(max(dist, SNAKE) / SNAKE)))
             amp = _snake_amplitude(max(dist, 1e-6), ln, waves)
@@ -288,7 +299,7 @@ def points(res: dict, lam) -> np.ndarray:
             q = np.clip(bb[i], 0.0, ln)
             xi_ = np.interp(q, arc, x)
             yi_ = np.interp(q, arc, y)
-            pts[i] = tdp[pile][i] + u * xi_[:, None] + side * yi_[:, None]
+            pts[i] = tdp[pile][i] + u[pile][i] * xi_[:, None] + side_all[i] * yi_[:, None]
             pts[i, :, 2] = zb[pile][i]
         hp = hang_pts[pile]
         out[pile] = np.where((lam[pile] <= s[pile][:, None])[..., None], hp, pts)

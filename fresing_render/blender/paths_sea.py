@@ -329,6 +329,11 @@ def _wheel_parts(scene, item, rel, slots, scale):
     return paths._solve_parts(scene, item, rel, slots)
 
 
+def laid_points(piled: float) -> int:
+    """Points for a cable piled up on the seabed (it snakes in waves of ``core.catenary.SNAKE`` m): 16 per wave."""
+    return int(np.clip(math.ceil(max(piled, 0.0) / C.SNAKE) * 16, N_PILED, 4000))
+
+
 def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale) -> dict:
     """The cable's shape at F moments with its end in the sea: ``core.paths.solve_frames``' result (points in the
     cable part's coordinates) with the hang-off wheel's arc ending where the cable leaves it, the catenary and the
@@ -355,7 +360,8 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     a_min = float(h["a"][good].min()) if good.any() else 10.0
     step = math.sqrt(8.0 * SAG * max(a_min, 0.05))
     n_cat = int(np.clip(math.ceil(float(s_h.max(initial=1.0)) / step), N_MIN, N_MAX))
-    n_laid = N_PILED if (kind == C.PILED).any() else N_LAID
+    piled = kind == C.PILED
+    n_laid = laid_points(float(h["laid"][piled].max())) if piled.any() else N_LAID
     n_arc = ar.n_arc
     # arc lengths from T along the cable: the hanging part, then the part on the seabed
     jc = np.arange(1, n_cat + 1) / n_cat
@@ -517,6 +523,26 @@ def remove_sea_end(scene, item) -> None:
     _STATE["sea"].pop(paths._k(scene, item), None)
     sync_bed(scene)
     paths.changed(scene, item)
+
+
+def weather_changed(scene) -> None:
+    """Weather & time changed (its vessel speed, on or off): the seabed of a cable sailing at that speed follows."""
+    if any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" for it in scene.fresing.cables):
+        sync_bed(scene)
+        _paths().refresh(scene)
+
+
+def water_changed(scene) -> None:
+    """The sea's water depth or level changed: cables into the sea whose depth is the sea's are set again on the new
+    seabed (their layback or tension kept); the seabed's motion goes to the new waterline."""
+    try:
+        bpy.context.view_layer.update()         # (a sea just made again has no world place before an update)
+    except Exception:
+        pass
+    sync_bed(scene)
+    for i, it in enumerate(scene.fresing.cables):
+        if it.b_kind == "SEA" and it.enabled:
+            changed(scene, scene.fresing.cables[i])
 
 
 def changed(scene, item) -> None:

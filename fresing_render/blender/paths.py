@@ -1990,6 +1990,9 @@ def changed(scene, item) -> None:
     if _STATE["busy"] or index_of(scene, item) < 0:
         return
     name = index_of(scene, item)
+    from . import paths_sea as _sea
+    _sea.sync_bed(scene)                        # the seabed's motion: the payout's sign, the speed (task 0081)
+    item = _cable(scene, name)
     if _alive(scene, item.part):
         if item.get("look_was", item.look) != item.look:      # another look: its usual pitch, unless one was typed
             was = item["look_was"]
@@ -2016,6 +2019,10 @@ def changed(scene, item) -> None:
         finally:
             _STATE["busy"] -= 1
     _rebuild(scene, item)
+    item = _cable(scene, name)
+    if len(item.riders):                        # things on the cable: placed again for the new path (task 0081)
+        from . import paths_riders as _riders
+        _riders.sync(scene, item)
 
 
 def contact_changed(scene, contact) -> None:
