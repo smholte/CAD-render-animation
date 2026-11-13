@@ -1145,21 +1145,6 @@ def sea_stage(d: Demo):
     d.timings["sea"] = time.time() - t0
 
 
-@stage("shot_sea", "Shot 8: into the sea – the catenary to the touch-down, the cable on the seabed", after="shot_quadrant")
-def shot_sea(d: Demo):
-    """From above and aft of the stern quarter, through the cut-away: the cable pays out at 10 m/min for 10 s, its
-    stripes run down the catenary to the touch-down and stand still on the seabed, the seabed passes aft under the
-    vessel (it moves with the lay), vessel motion Calm."""
-    cam = d.scene.objects.get(INTO_SEA)
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, f"Into the sea: the cable hangs to the seabed {SEA_DEPTH:.0f} m "
-                  f"down and is laid at {SPEED:.0f} m/min", orbit_angle=math.radians(-10.0), easing="SMOOTH")
-    blk = d.animation.blocks.add()
-    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, SEA_SHOT_SECONDS, "LINEAR"
-    blk.speed_mmin = SPEED
-    d.t += SEA_SHOT_SECONDS
-
-
 # ---------------------------------------------------------------------------
 # saved cameras (model mm: x to the bow, transom at 0, y to port, z up)
 # ---------------------------------------------------------------------------
@@ -1410,6 +1395,21 @@ def shot_quadrant(d: Demo):
     t += TILT_SECONDS
     d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
     d.t = t + 3.0
+
+
+@stage("shot_sea", "Shot 8: into the sea – the catenary to the touch-down, the cable on the seabed")
+def shot_sea(d: Demo):
+    """From above and aft of the stern quarter, through the cut-away: the cable pays out at 10 m/min for 10 s, its
+    stripes run down the catenary to the touch-down and stand still on the seabed, the seabed passes aft under the
+    vessel (it moves with the lay), vessel motion Calm."""
+    cam = d.scene.objects.get(INTO_SEA)
+    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
+    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, f"Into the sea: the cable hangs to the seabed {SEA_DEPTH:.0f} m "
+                  f"down and is laid at {SPEED:.0f} m/min", orbit_angle=math.radians(-10.0), easing="SMOOTH")
+    blk = d.animation.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, SEA_SHOT_SECONDS, "LINEAR"
+    blk.speed_mmin = SPEED
+    d.t += SEA_SHOT_SECONDS
 
 
 @stage("finish", "Animation")
