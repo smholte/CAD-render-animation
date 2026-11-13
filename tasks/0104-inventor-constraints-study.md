@@ -1,6 +1,6 @@
 # 0104 – Joints from Inventor constraints: design study (findings only, no app code)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0104-inventor-constraints-study`
+**Who:** worker · **Status:** done · **Branch:** `task/0104-inventor-constraints-study`
 **Started by:** lead chat, 13 Nov 2026 (study 0069 #10; owner 12 Nov: his assemblies mostly use **constraints**, not
 joints)
 **Lane:** none – a study. It writes only this task file, `tasks/img/0104_*` if useful, and draft scripts under
@@ -284,4 +284,6 @@ Still unconfirmed (owner's run): that a proxy's `Transformation` is in top coord
 
 **Subagents:** two ran. A research agent (web search; read type-library dumps, Fusion headers, exporters and Inventor
 STEP files on GitHub) gave the API facts above. An independent reviewer read both scripts against those facts and the
-planner (results above). The prototype itself was written and run in this session. GitHub runs: see below.
+planner (results above). The prototype itself was written and run in this session.
+
+**GitHub runs:** 2 full runs on the branch – the first was cancelled by the push of the review's fixes, the second (run 43430060286, after merging `main` once) green in 15.1 min; `main` fast-forwarded to it. No version and no release: nothing in the app changed. Leftover branch to delete on github.com: `task/0104-inventor-constraints-study`.

@@ -419,6 +419,9 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
                            make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
                            fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
+                           inventor/ (task 0104, not part of the app): draft Inventor iLogic rule + Fusion script that
+                           write <assembly>.fresing.json (constraints, joints, places), README with the owner's steps,
+                           prototype/ = the app side worked out and tried in Blender (motion_plan.py, try_in_blender.py)
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
