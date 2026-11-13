@@ -303,7 +303,7 @@ class HouseBake:
             bpy.data.batch_remove(left)
 
     # ------------------------------------------------------------------ snow
-    def _snow_objects(self, season) -> list:
+    def _snow_objects(self, season, objects: bool = True) -> list:
         """The season's snow layer meshes (core/house_snow.py), written to the package and made as temporary
         objects to bake their light per vertex. Returns [(layer, object)]."""
         sources, blockers = house_snow.sources_from_glb(self.house.glb, season.foliage)
@@ -312,6 +312,8 @@ class HouseBake:
             return []
         self.writer.add_snow(season.id, house_snow.layers_glb(layers))
         out = []
+        if not objects:                        # LIVE: the layers go into the package, nothing is baked on them
+            return out
         for ly in layers:
             me = bpy.data.meshes.new(NAME)
             pos = np.asarray(ly.positions, np.float64)
@@ -357,12 +359,11 @@ class HouseBake:
         try:
             yield 0.0
             snow: dict = {}
-            if rec.light != "LIVE":
-                for season in rec.seasons:
-                    if season.snow_cover > 0 and any(m.season == season.id for m in moments):
-                        self.text = f"Snow layers for {season.label or season.id}"
-                        snow[season.id] = self._snow_objects(season)
-                        yield done[0] / n_work
+            for season in rec.seasons:           # (also LIVE: it bakes "only snow, photos, videos", FORMAT 7.1)
+                if season.snow_cover > 0 and any(m.season == season.id for m in moments):
+                    self.text = f"Snow layers for {season.label or season.id}"
+                    snow[season.id] = self._snow_objects(season, objects=rec.light != "LIVE")
+                    yield done[0] / n_work
             for m in moments if rec.light != "LIVE" else []:
                 t0 = time.perf_counter()
                 season = hi.season_of(self.house, m)
@@ -457,6 +458,9 @@ class HouseBake:
                 main = yield from call(shown, [], maps, f"{label}: the house", a, b)
                 for storey in rec.open_storeys:
                     lv = self._level(storey)
+                    if lv is None:                    # (the reader refuses this; never a crash here)
+                        self.problems.append(f"Open storey '{storey}' is not a storey of the house – skipped")
+                        continue
                     keep = {sid: ob for sid, ob in shown.items()
                             if surf[sid].storey is None or self._level(surf[sid].storey) is None
                             or self._level(surf[sid].storey) <= lv}
