@@ -147,4 +147,10 @@ winches' drums); the cable into the sea (0081); the quadrant's lowering and tipp
 - The cable on its path stays drawn at rest while the D moves (as before, task 0082); at the end of the travel the
   D's gutter end sits over horn A's upper bend, where the cable would have to go (0081/0082 decide the cable's way).
 - The guide's demo overview picture (`docs/img/demo_overview.jpg`) still shows the older deck.
+- **For the Machining lane (not this task's code):** main's first run of 0.2.84 (43440853982) failed once in the PC
+  check line `milling.rotary` – the 4th-axis bar came out uncut ("cut 0.08 s", radius 25 instead of 23/22). The same
+  tree passed it on the branch (cut 3.8 s) and 3 times out of 3 here; a re-run of the failed job passed and released.
+  Looks like a rare race in the cut's refresh right after the bake (added with 0103?).
+- The progress note `claude/render-app-progress.md` lives in the claude.ai project: this session cannot reach it – the
+  lead adds the entry.
 - No subagents were used (one design across tensioner, D and layout; the risk was in geometry the checks above cover).
