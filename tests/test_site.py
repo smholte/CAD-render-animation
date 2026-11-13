@@ -62,6 +62,14 @@ def test_every_picture_video_and_guide_exists(built):
         assert os.path.exists(os.path.join(out, "brand", logo))
 
 
+def test_pages_workflow_installs_what_the_build_imports():
+    """The Pages job has a bare Python: build_site.py imports fresing_render.core.web3d (numpy) since task 0099 –
+    0.2.77's landing-page job failed without it."""
+    wf = open(os.path.join(ROOT, ".github", "workflows", "pages.yml"), encoding="utf-8").read()
+    step = wf.split("name: Build the page")[1].split("- uses:")[0]
+    assert "^markdown==" in step and "^numpy==" in step and "shell: bash" in step
+
+
 def test_turn_it_yourself(built, tmp_path):
     """Task 0099: the landing page links to a viewer page with the web model; the page itself stays script-free and
     loads no model; the viewer and its licence are on the site; the model is a valid, small glTF file."""
