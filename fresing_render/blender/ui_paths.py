@@ -162,6 +162,8 @@ def end_text(item, end: str) -> tuple[str, bool]:
     part = getattr(item, key + "_part")
     wheels = [c for c in item.contacts if c.kind in paths.SHAPING]
     near = wheels[0 if key == "a" else -1].name if wheels else ""
+    if key == "b" and item.b_kind == "SEA":
+        return f"End: into the sea from {near}" if near else "End: into the sea", False
     if getattr(item, key + "_kind") == "WHEEL" and near:
         return f"{word}: lies on {near}", False
     if getattr(item, key + "_free_end"):
@@ -248,6 +250,8 @@ def _end_row(layout, context, cb, end: str) -> None:
     text, alert = end_text(cb, end)
     row = layout.row(align=True)
     wrap(row.column(), context, text, inset=64, alert=alert)
+    if end == "B" and cb.b_kind == "SEA":       # (set in the fold Into the sea)
+        return
     op = row.operator("fresing.cable_end", text="", icon="EYEDROPPER")
     op.end, op.free = end, False
     key = end.lower()
@@ -312,13 +316,15 @@ def _sea_fold(layout, context, cb) -> None:
         n = paths_sea.numbers(scene, cb)
         if n:
             box = body.box().column(align=True)
-            box.label(text=f"Layback {n['layback']:.1f} m, leaves at {n['angle']:.0f}° down", icon="MOD_OCEAN")
-            box.label(text=f"Tension {n['bottom']:.1f} kN at the seabed, {n['top']:.1f} kN at the top")
-            box.label(text=f"Hanging {n['hanging']:.1f} m, on the seabed {n['laid']:.1f} m")
+            lines = [f"Layback {n['layback']:.1f} m, leaves at {n['angle']:.0f}° down",
+                     f"Tension at the seabed {n['bottom']:.1f} kN, at the top {n['top']:.1f} kN",
+                     f"Hanging {n['hanging']:.1f} m, on the seabed {n['laid']:.1f} m"]
             if cb.sea_weight <= 0.0:
-                box.label(text=f"Weight in water {n['weight']:.0f} kg/m (from the Ø)")
+                lines.append(f"Weight in water {n['weight']:.0f} kg/m (from the Ø)")
             if cb.sea_depth <= 0.0:
-                box.label(text=f"Water depth {n['depth']:.1f} m (from the sea)")
+                lines.append(f"Water depth {n['depth']:.1f} m (from the sea)")
+            for k, line in enumerate(lines):
+                wrap(box, context, line, icon="MOD_OCEAN" if k == 0 else "BLANK1", inset=24)
             if n.get("kind", 0) in SEA_KINDS:
                 wrap(body, context, f"The cable {SEA_KINDS[n['kind']]}", icon="ERROR", alert=True)
         row = body.row(align=True)
@@ -441,7 +447,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
             col.prop(cb, "mbr", text="Min. bend (MBR)")
             if cb.a_free_end:
                 col.prop(cb, "a_free", text="Free at start")
-            if cb.b_free_end:
+            if cb.b_free_end and cb.b_kind != "SEA":
                 col.prop(cb, "b_free", text="Free at end")
             col = body.column(align=True)
             col.prop(cb, "reverse", text="Runs the other way")

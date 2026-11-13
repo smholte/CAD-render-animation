@@ -668,12 +668,9 @@ def motion_sea_cable(ctx):
     n = paths_sea.numbers(scene, item)
     _check(abs(n.get("layback", 0.0) - 20.0) < 0.01, f"the layback is {n.get('layback', 0.0):.2f} m (20 m set)")
     s.sea_cutaway = True
-    import numpy as np
-
     from ..blender import cameras
-    top, tdp = paths_sea.tdp_world(scene, item)
-    pts = np.array([(12.0, -3.0, 3.5), (12.0, 3.0, 3.5), tuple(top), tuple(tdp), tuple(tdp + np.array([-8, 0, 0]))])
-    scene.camera = cameras.add_camera(scene, "ISO", 35.0, "Sea view", points=pts)
+    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Sea view")
+    scene.camera.matrix_world = paths_sea.view_matrix(scene, item)
     a = s.animations[made["animation"]]
     t0 = time.time()
     info = animation.bake(scene, a)

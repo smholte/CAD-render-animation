@@ -406,6 +406,18 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, sea=sea,
                sea_notes=_notes(item, sea, ok))
     _STATE["sea"][_paths()._k(scene, item)] = {k: np.array(v) for k, v in sea.items()}
+    if F == 1 or not item.sea_info:             # what the panel shows before anything is solved after a load
+        info = {"layback": float(h["layback"][0]), "angle": math.degrees(float(h["angle"][0])),
+                "bottom": float(bottom[0]), "top": float(top[0]), "laid": float(h["laid"][0]),
+                "hanging": float(s_h[0]), "kind": int(kind[0]), "a": float(h["a"][0]), "height": float(h["h"][0]),
+                "depth": depth(scene, item), "weight": weight(item)}
+        text = json.dumps({key: round(v, 4) if isinstance(v, float) else v for key, v in info.items()})
+        if item.sea_info != text:
+            try:
+                with flex._quiet(item):
+                    item.sea_info = text
+            except AttributeError:              # (asked while drawing: not written then)
+                pass
     if F > 1:
         _STATE.get("moment", {}).clear()
     return out
@@ -590,11 +602,7 @@ def numbers(scene, item) -> dict:
            "bottom": float(got["bottom"][k]), "top": float(got["top"][k]), "laid": float(got["laid"][k]),
            "hanging": float(got["suspended"][k]), "kind": int(got["kind"][k]), "a": float(got["a"][k]),
            "height": float(got["h"][k]), "depth": depth(scene, item), "weight": weight(item)}
-    text = json.dumps({key: round(v, 4) if isinstance(v, float) else v for key, v in out.items()})
-    if item.sea_info != text and k == 0:
-        with flex._quiet(item):
-            item.sea_info = text
-    return out
+    return out                                  # (it is drawn by the panel: it must not write anything)
 
 
 def _moment(scene, item):
@@ -717,3 +725,24 @@ def set_up_test_model(scene, speed: float = 60.0, seconds: float = 8.0) -> dict:
     b.speed_mmin = float(speed)
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     return {"cable": name, "joint": item.joint, "rider": r.name, "animation": TEST_ANIMATION, "notes": notes}
+
+
+def view_matrix(scene, item, lens: float = 30.0):
+    """A camera place (4 x 4 world matrix) that shows the cable hanging into the sea: aft of the touch-down, to
+    the side and above the water, looking forward and down at the middle of the catenary (the test tour, the PC
+    check and the guide picture use it)."""
+    from mathutils import Matrix, Vector
+    got = tdp_world(scene, item)
+    if got is None:
+        return None
+    T, tdp = got
+    u = np.array(item.sea_dir, dtype=float)
+    u[2] = 0.0
+    u /= max(float(np.linalg.norm(u)), 1e-12)
+    side = np.cross(np.array([0.0, 0.0, 1.0]), u)
+    span = float(np.linalg.norm(T - tdp))
+    target = 0.5 * (T + tdp)
+    target[2] = 0.5 * (T[2] + tdp[2]) * 0.6
+    loc = target + u * 0.55 * span + side * 0.85 * span + np.array([0.0, 0.0, 1.0]) * (0.9 * span)
+    look = Vector(tuple(target - loc)).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    return Matrix.Translation(Vector(tuple(loc))) @ look

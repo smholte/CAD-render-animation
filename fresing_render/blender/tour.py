@@ -1450,11 +1450,8 @@ def build_sea(b: Build):
     s.sea_cut_auto = True
     s.sea_cutaway = True
     _update()
-    import numpy as np
-    top, tdp = paths_sea.tdp_world(sc, paths.find(sc, made["cable"]))
-    pts = np.array([(12.0, -3.0, 3.5), (12.0, 3.0, 3.5), (0.0, -3.0, 3.5), tuple(top), tuple(tdp),
-                    tuple(tdp + np.array([-8.0, 0.0, 0.0]))])
-    _camera(b, "ISO", "Tour view", lens=35.0, points=pts)
+    cam = _camera(b, "ISO", "Tour view", lens=30.0)
+    cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
     shot = _shot(b, "Tour: into the sea")
     a = s.animations[made["animation"]]
     a.start_shot = shot.name

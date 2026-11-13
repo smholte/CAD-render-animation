@@ -1930,9 +1930,8 @@ def render_sea():
     paths.refresh(sc)
     bpy.context.view_layer.update()
     s.sea_cutaway = True
-    top, tdp = sea.tdp_world(sc, it)
-    pts = np.array([(12.0, -3.0, 3.5), (12.0, 3.0, 3.5), tuple(top), tuple(tdp), tuple(tdp + np.array([-6.0, 0, 0]))])
-    cam = cams.add_camera(sc, os.environ.get("SEA_VIEW", "ISO"), 35.0, name="Guide sea", points=pts)
+    cam = cams.add_camera(sc, "ISO", 30.0, name="Guide sea")
+    cam.matrix_world = sea.view_matrix(sc, it)
     sc.camera = cam
     s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 1100, 620, False, SCRATCH
     mod("blender.render").apply_output(sc, s)
