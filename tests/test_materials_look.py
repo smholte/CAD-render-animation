@@ -11,7 +11,7 @@ STEP = os.path.join(HERE, "data", "test_materials.step")
 
 KNOWN_KEYS = {"label", "category", "needs_color", "base_color", "metallic", "roughness", "coat", "coat_roughness",
               "transmission", "ior", "emission", "emission_strength", "specular", "anisotropic", "sheen",
-              "sheen_roughness", "variation", "bump", "peel", "marks", "grid", "cable"}
+              "sheen_roughness", "variation", "bump", "peel", "marks", "grid", "cable", "marine"}
 
 
 # ---- library (no Blender) -------------------------------------------------------------------
