@@ -2131,6 +2131,52 @@ start; white caps, spray, rain and snow follow the wind of each moment. Saved sc
 queue renders it, also for every paint scheme. Rain, snow, spray and the flag depend only on the frame, so a frame
 looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
 
+### Houses from House Planner
+
+<img class="panel" src="img/panel_5_house.png" alt="House from House Planner">
+
+House Planner plans the house; Fresing Render bakes its light. House Planner exports the house with a list of
+**moments** to bake (for example a summer morning, a summer evening, a winter afternoon and a winter night) and the
+photos it wants. Fresing Render bakes the light of every moment with Cycles – the sun and sky of that moment, the
+lamps that are on, the snow of that season – and saves it all in one **bake package**. House Planner opens that
+package and shows the baked light at once, also on a phone, and switching between the moments is instant.
+
+The example below is the made-up sample house that comes with the app (`sample-house.hpscene` in the app's data
+folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace, four moments in summer and winter.
+
+1. In House Planner: **Export to Fresing Render**. It saves a `.hpscene` file.
+2. In Fresing Render: **File > Import > House Planner scene (.hpscene)…** and pick that file. The house comes in
+   with its rooms, furniture, lamps and plot; it is saved next to your project in a folder "<house> house". Save the
+   project first, so the files land next to it. Importing again replaces the house (a new export of the same house
+   lines up with the old one).
+3. Open **5 Scene & Render > House from House Planner**. It shows the house's title and plan version, the light
+   House Planner asked for (**Soft light baked, sun live** or **Everything baked**) and the quality – these are set in
+   House Planner's export dialog, not here.
+4. Under **Moments to bake**, each season with its moments. **Preview** shows a moment in the view: the sun stands
+   exactly where House Planner put it, the clouds and haze of that moment, the season's wet or snowy look, the lamps
+   it switches on, bare trees in winter. Switch the 3D view to **Rendered** to see the light. (It sets 5 Scene &
+   Render > Weather & time for you.)
+5. The line above the button says how long the bake will take on this PC (the graphics card is an estimate).
+6. Click **Bake and export…**. The panel shows how far it is; **Cancel** or Esc stops it, and then nothing is saved.
+   It bakes every moment, the storeys House Planner wants to see from above with the floors above them left out, a
+   snow layer on the roof and the plot for each snowy season, and renders the photos and turntable videos in the
+   list.
+7. When it is done, the panel shows how long it took and how big the file is. **Show in Explorer** shows
+   `<house>.hpbake` next to your project: open it in House Planner (**Import bake**). Notes from the bake (a
+   surface that could not be baked, for example) are listed under it; House Planner shows them too.
+
+**Good to know**
+
+- The project does not change when you bake: the weather, the camera and what is shown are put back afterwards.
+- **Night** moments have no sun: the night sky with stars and the moon, and the lamps that are on. The package says
+  how much brighter Fresing Render shows the night, so House Planner can show it the same way.
+- **Soft light baked, sun live**: the sky's light and all bounced light are baked; House Planner adds the sun and its
+  moving shadows itself. **Everything baked** bakes the sun's shadows too.
+- A changed wall in House Planner after the bake: House Planner sees it (every surface carries a fingerprint of its
+  shape) and shows live light there until you bake again.
+- A house plan from a newer House Planner that Fresing Render cannot read is refused with a message saying which
+  app to update; nothing in the project changes.
+
 ### Camera
 
 <img class="panel" src="img/panel_5_camera.png" alt="Camera">

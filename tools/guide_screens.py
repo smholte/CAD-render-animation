@@ -53,6 +53,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
+  house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
+      imported and one moment baked, task 0114).
   tracks   the tensioner of the tracks test model after 0.42 m of cable with the top track lifted 0.08 m
       (view_tracks.jpg; Cycles on the processor, as "render").
   spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
@@ -1578,6 +1580,38 @@ elif MODE == "clash":
         save_png(im[int(h * 0.455):int(h * 0.535), int(w * 0.15):int(w * 0.80)], "view_clash")
         return 0.5
     step(_clash_view_shot)
+
+elif MODE == "house_panel":
+    # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment
+    # baked (4 samples). Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=house_panel.
+    step(_start)
+
+    def _house_setup():
+        import shutil
+        import tempfile
+        sc = bpy.context.scene
+        d = tempfile.mkdtemp(prefix="guide_house_")
+        src = os.path.join(d, "sample-house.hpscene")
+        shutil.copyfile(os.path.join(DATA, "sample-house.hpscene"), src)
+        hi = mod("blender.house_import")
+        with override():
+            house = hi.import_scene(sc, src)["house"]
+            out = mod("blender.house_bake").HouseBake(sc, os.path.join(d, "Made-up sample house.hpbake"),
+                                                      moments=[house.recipe.moments[0].id], photos=False,
+                                                      videos=False, samples=4).run()
+        h = hi.settings(sc)
+        h.last_bake, h.last_seconds = out["path"], out["seconds"]
+        h.last_problems = ""
+        h.last_text = f"1 moment baked in {out['seconds'] / 60:.1f} min, " \
+                      f"{os.path.getsize(out['path']) / 2**20:.1f} MB"
+        hi.preview(sc, "summer-evening")
+        sc.fresing.last_message = ""
+        select_only()
+        show_only([("FRESING_PT_house", False, True)])
+        wiggle()
+        return 2.5
+    step(_house_setup)
+    step(lambda: (shoot_sidebar("panel_5_house"), 0.5)[1])
 
 elif MODE in ("toolpath", "toolpath_view"):
     # task 0029: 4 Motion > Milling > Make a toolpath on the toolpath test model, made (as "panels", xvfb 1500x7000);
