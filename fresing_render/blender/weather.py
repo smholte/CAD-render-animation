@@ -122,12 +122,25 @@ def _parts():
     return weather_sky, weather_look, weather_fx
 
 
+def _left_over(scene) -> bool:
+    """Anything the weather made: channels, its node group, objects, the exposure or fog it set."""
+    if any(k.startswith(core.PREFIX) for k in scene.keys()):
+        return True
+    if any(k.startswith("fr_weather") for k in scene.keys()):
+        return True
+    if bpy.data.node_groups.get("FR weather") is not None:
+        return True
+    return any(o.get("fr_weather") is not None for o in bpy.data.objects)
+
+
 def after_world(scene) -> None:
     """Called at the end of ``world.apply``: the lamps, looks and falling things follow the channels."""
     if _STATE["busy"]:
         return
     _STATE["busy"] = True
     try:
+        if not enabled(scene) and not _left_over(scene):
+            return                           # (weather off and nothing of it in the file: every world.apply)
         sky, look, fx = _parts()
         if not enabled(scene):
             sky.remove(scene)
