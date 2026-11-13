@@ -36,15 +36,24 @@ more than 350° (it passes it on the other side), numbers that are not numbers. 
 ``solve_frames`` does the same for many frames at once (arrays over the frames, no Python loop over them) with the
 same number of points on every frame; a frame that has no path keeps the shape of the last frame that had one.
 
+**A wheel the cable leaves** (a sheave that sinks away under it) is **lifted off**: the cable passes it straight,
+its wrap is 0 and its points lie where the straight passes nearest its axis, so the number of points stays.
+Geometry alone cannot tell this from a cable that goes nearly all the way round (the tangents are the same
+lines): what tells is where the wrap comes from. Along the frames a wrap never jumps by more than half a turn,
+so one that shrinks to nothing and would come back as nearly a whole turn is a lifted wheel; for one frame alone
+the wraps of the CAD pose say it (``wraps0``). The path is then solved again without the lifted wheels.
+
 **Reading a CAD cable** (``read_cable``): the centreline of a cable drawn in CAD (``centreline``) is cut into
 straights and arcs, each arc is matched with the round part it lies on (a WRAP: centre, axis and radius then
 come from the part), the others are bends in the air (BEND, the fitted circle), and round parts the cable only
-rests on or runs past are TOUCH contacts. See ``read_cable``.
+rests on or runs past are TOUCH contacts. A reading whose path does not lie on the points is refused. See
+``read_cable``.
 
 **The surface a cable rests on** (``seat``, ``surface_radius``, ``is_round``): a round part's outline (radius
 against the place along its axis) is read from the triangles' edges – on a flat triangle the point furthest from
 the axis at any place along it lies on an edge, so a plain roller with corners only at its ends is read exactly –
-and the cable's round section is let down onto it.
+and the cable's round section is let down onto it. Whether a part is round all the way (it may turn) is read
+from the triangles of its outside, so holes, keyways and flats do not make a roller a chute.
 
 **A long cable's centreline** (``centreline``): ``flex_fit.tube_centreline`` read in overlapping pieces, because
 on its own it is made for hoses and loses a cable that is hundreds of radii long.
@@ -416,7 +425,8 @@ class _Chain:
 
     def _on(self, frames, i: int, theta, h):
         c, s = np.cos(theta)[:, None], np.sin(theta)[:, None]
-        return self.C[frames, i] + h[:, None] * self.N[frames, i] + self.r[i] * (c * self.u[frames, i] + s * self.v[frames, i])
+        ring = c * self.u[frames, i] + s * self.v[frames, i]
+        return self.C[frames, i] + h[:, None] * self.N[frames, i] + self.r[i] * ring
 
     def _without(self, frames, gone, held, turns, hope) -> None:
         """Solve ``frames`` (indices) without the wheels ``gone`` (a mask) and put the result in their places."""
@@ -460,7 +470,8 @@ class _Chain:
                 d, n, w0 = after - before, self.N[fr, i], before - self.C[fr, i]
                 a, b = _dot(d, d), _dot(d, n)
                 den = a - b * b
-                f = np.where(den > 1e-12 * np.maximum(a, 1e-300), (b * _dot(n, w0) - _dot(d, w0)) / np.where(den > 0, den, 1.0), 0.5)
+                f = np.where(den > 1e-12 * np.maximum(a, 1e-300),
+                             (b * _dot(n, w0) - _dot(d, w0)) / np.where(den > 0, den, 1.0), 0.5)
                 spot = before + np.clip(f, 0.0, 1.0)[:, None] * d
             self.p_in[fr, i] = self.p_out[fr, i] = spot
             self.wrap[fr, i] = self.h_in[fr, i] = self.h_out[fr, i] = 0.0
@@ -1845,25 +1856,38 @@ def read_cable(points, radius: float, rounds: list[Round], touch_tol: float | No
     ``points`` (n, 3): the CAD centreline, about equally spaced (``centreline(...).points``: a point every cable
     radius; at least 6 on every arc). ``radius``: the cable's. ``rounds``: the round parts near it.
 
-    1. The points are cut into the fewest straights and arcs that fit them within ``fit_tol`` (default 0.5 mm or
-       1 % of the radius). A stretch that is neither (a spline, a coil with a pitch) is refused.
+    1. The points are cut into the fewest straights and arcs that fit them within the fit tolerance. A stretch
+       that is neither (a spline, a coil with a pitch) is refused.
     2. An arc that lies on a round part – its points keep one distance from the part's axis, and that distance
-       is where the cable rests on the part (``seat``) within ``touch_tol`` (default 2 mm or a quarter of the
-       radius) – is a WRAP: centre, axis and radius come from the part. Another arc is a BEND: the fitted circle.
+       is where the cable rests on the part (``seat``) within ``touch_tol`` – is a WRAP: centre, axis and radius
+       come from the part (an arc cut in two on one part is one WRAP). Another arc is a BEND: the fitted circle.
        Two straights that meet at a corner (a tight bend with less than 3 points on it) get the part both lie
-       on, else a bend that touches both.
+       on, else a bend that touches both. A turn of less than 1° is no bend: the cable is read straight there,
+       unless that leaves the path too far from the points.
     3. The bends' planes are set (``_planes``), arcs that follow each other directly are made to touch, and all
        bends are fitted together so that the whole path – solved with ``held`` True, the arcs in their planes –
        lies as near to the points as it can.
     4. A round part the centreline passes at its seat distance, crossing its axis within 20° of square, that is
-       round all the way and no WRAP there, is a TOUCH: it only turns.
+       round all the way and no WRAP there, is a TOUCH: it only turns. A part given twice is one TOUCH.
+
+    **The fit tolerance** (``fit_tol`` None): first the usual one, 0.5 mm or 1 % of the radius – what the
+    centreline of a faceted mesh is good to. When that does not read, or leaves the path further from the points
+    than twice the tolerance (a thin clean rope's short straights and bends are lost in 0.5 mm), a quarter of it,
+    and so on down to what the points' own roughness allows (``_noise``); last 2.5 times the usual one. The
+    first that reads is taken. A number given as ``fit_tol`` is used as it is.
+
+    ``touch_tol``: how far the cable may be drawn from where it rests on a part that carries it (default 2 mm, or
+    a quarter of the radius: ``TOUCH_TOL``, which has one share for air between them and one for into the part).
 
     ``start`` / ``end`` are the centreline's ends (put in the first / last arc's plane when the cable starts or
     ends on an arc), ``path`` is ``solve(start, wheels of the WRAP and BEND contacts, end, start_on_wheel,
-    end_on_wheel, held=True)``, ``deviation`` the furthest a point is from it.
+    end_on_wheel, held=True)``, ``deviation`` the furthest a point is from it. A reading with ``deviation`` above
+    ``max_deviation`` (default 2 mm or a quarter of the radius; a cable drawn off its parts may be that much
+    further) is refused: its contacts and path are still given, ``problem`` says where and by how much.
 
     Never raises on a centreline that cannot be read: ``ok`` False and ``problem`` in plain words (a stretch that
-    is neither straight nor an arc, a path that cannot be solved – its contacts numbered as in ``contacts``)."""
+    is neither straight nor an arc, a path that cannot be solved – its contacts numbered as in ``contacts`` –, a
+    path beside the cable)."""
     radius = float(radius)
     try:
         pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)

@@ -1546,3 +1546,481 @@ def test_demo_cable_rollers(demo):
           f"0.5 % off (down to {resting.min() * 100:.1f} %); the cable is drawn {into.max() * 1e3:.1f} mm into a roller at most")
     assert drawn.max() < 0.02 and resting.max() < 1e-3 and resting.min() > -0.2
     assert into.min() > -1e-3 and into.max() < 0.02                  # never drawn apart, at most 20 mm into a roller
+
+
+# ---------------------------------------------------------------------------------------------------------
+# round 2: what the independent review found (each finding has its test here)
+# ---------------------------------------------------------------------------------------------------------
+
+def test_centreline_keeps_a_cable_that_turns_back():
+    """Finding 1: where two pieces of a long cable are joined only the overlap is dropped. (Every later point
+    "behind" the seam was dropped: a cable that turned by more than 90° after a seam lost them and came out 1 m
+    short, still marked ok.)"""
+    course = (Course((3, -2, 1), (1, 0, 0.2)).straight(1.667).bend(Y, 0.208, 120).straight(1.25).bend(-Y, 0.333, 75)
+              .straight(0.833).bend(Y, 0.5, 40).straight(0.667))
+    for radius, ring in ((0.010, 0.005), (0.006, 0.004)):
+        verts, tris = tube_mesh(course.sample(ring), radius, 16)
+        tube = P.centreline(verts, tris)
+        assert tube.ok and course.length > 200 * radius                  # long: read in pieces
+        assert tube.length == pytest.approx(course.length, abs=2e-3)
+        assert course.distance(tube.points).max() < 0.05 * radius
+        assert np.abs(np.linalg.norm(np.diff(tube.points, axis=0), axis=1) - radius).max() < 0.05 * radius
+        rd = P.read_cable(tube.points, tube.radius, [])
+        assert check_reading(rd, course, [None] * 3, 2e-5, bend_tol=0.003) < 3e-4
+    # a coil of two turns, every seam followed by more than a quarter turn
+    coil = Course().straight(0.3).bend(Z, 0.4, 350).bend(Y, 3.0, 2).bend(Z, 0.4, 340).straight(0.3)
+    verts, tris = tube_mesh(coil.sample(0.004), 0.008, 16)
+    tube = P.centreline(verts, tris)
+    assert tube.ok and tube.length == pytest.approx(coil.length, abs=3e-3) and coil.distance(tube.points).max() < 5e-4
+
+
+@pytest.fixture(scope="module")
+def test_model(tmp_path_factory):
+    """The task's own test model (tests/data/test_paths_a.step) through the importer at Normal and at Draft: the
+    wire rope's mesh and every round axis of every other part, in metres."""
+    pytest.importorskip("OCP")
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import make_test_paths as maker
+    from fresing_render.importer import step_reader
+    out = {"maker": maker}
+    for quality in ("normal", "draft"):
+        folder = str(tmp_path_factory.mktemp("paths_" + quality))
+        info = step_reader.read_step(os.path.join(HERE, "data", "test_paths_a.step"), folder, quality)
+        arrays = np.load(os.path.join(folder, "meshes.npz"))
+        nodes = info["nodes"]
+        world = []
+        for n in nodes:
+            m = np.eye(4) if n["matrix"] is None else np.array(n["matrix"], dtype=float)
+            world.append(m if n["parent"] < 0 else world[n["parent"]] @ m)
+
+        def mesh(i):
+            v = arrays[f"p{nodes[i]['mesh']}"].astype(float)
+            return v @ world[i][:3, :3].T + world[i][:3, 3], arrays[f"t{nodes[i]['mesh']}"].reshape(-1, 3)
+
+        rope = [i for i, n in enumerate(nodes) if n["uid"] == maker.NUMBERS["rope"]["uid"]][0]
+        rounds = []
+        for i, n in enumerate(nodes):
+            if n["kind"] != "part" or i == rope:
+                continue
+            v, t = mesh(i)
+            for ax in info["meshes"][n["mesh"]]["axes"]:
+                rounds.append(P.Round(n["uid"], world[i][:3, :3] @ np.array(ax[:3]) + world[i][:3, 3],
+                                      world[i][:3, :3] @ np.array(ax[3:6]), v, t))
+        out[quality] = (mesh(rope), rounds)
+    return out
+
+
+@pytest.mark.parametrize("quality", ["normal", "draft"])
+def test_the_test_models_wire_rope_is_read(test_model, quality):
+    """Finding 1: the test model's WIRE ROPE (Ø 24, 7 m) as the importer meshes it, its centreline from
+    ``centreline``: on the drum from its start, round sheave 1 (192°) and sheave 2 the other way, over both V
+    rollers, through the chute – with the maker's radii, wraps and sides."""
+    maker = test_model["maker"]
+    n = maker.NUMBERS
+    (verts, tris), rounds = test_model[quality]
+    tube = P.centreline(verts, tris)
+    assert tube.ok and tube.radius == pytest.approx(0.012, abs=1e-4)
+    pts = tube.points
+    begin = np.array(n["rope"]["start"]) / 1000
+    if np.linalg.norm(pts[0] - begin) > np.linalg.norm(pts[-1] - begin):
+        pts = pts[::-1]
+    true = maker.centreline(0.0, 0.5) / 1000.0
+
+    def off(points):
+        return max(float(np.linalg.norm(true - q, axis=1).min()) for q in points)
+
+    fine = quality == "normal"
+    assert off(pts) < (5e-4 if fine else 1.5e-3)                     # Draft's facets: a tenth of the rope's radius
+    assert tube.length == pytest.approx(n["rope"]["length"] / 1000, abs=3e-3)
+    rd = P.read_cable(pts, tube.radius, rounds)
+    assert rd.ok, rd.problem
+    names = ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER 1", "V ROLLER 2", "CHUTE"]
+    want = [n["contacts"][k]["uid"] if k in n["contacts"] else maker.UID[k] for k in names]
+    assert [c.key for c in rd.contacts] == want
+    assert [c.kind for c in rd.contacts] == ["WRAP", "WRAP", "WRAP", "TOUCH", "TOUCH", "WRAP"]
+    assert rd.start_on_wheel and not rd.end_on_wheel
+    for c, name in zip(rd.contacts, names):
+        if c.kind == "WRAP":
+            m = n["contacts"][name]
+            assert c.radius == pytest.approx(m["seat_radius"] / 1000, abs=2e-4), name
+            assert c.surface == pytest.approx(m["surface_radius"] / 1000, abs=3e-4), name
+            assert math.degrees(c.wrap) == pytest.approx(m["wrap"], abs=0.1 if fine else 0.5), name
+            assert c.side * (1 if c.axis @ Y > 0 else -1) == m["side"], name
+            assert np.linalg.norm(np.cross(c.centre - np.array(m["axis_point"]) / 1000, Y)) < 2e-4, name
+            assert c.full == m["turns"], name
+        else:
+            assert c.surface == pytest.approx(0.06, abs=2e-4) and c.full and abs(c.gap) < 3e-4
+    assert off(rd.path.points) < (4e-4 if fine else 1.5e-3)
+    assert rd.deviation < (5e-4 if fine else 2e-3)
+    assert rd.path.length == pytest.approx(n["rope"]["length"] / 1000, abs=3e-3)
+    # the contacts solved again (as the app does, with the wraps it read) give the same path; luffed, the maker's
+    wheels = [P.Wheel(c.centre, c.axis, c.radius, c.side) for c in rd.contacts if c.kind == "WRAP"]
+    wraps0 = [c.wrap for c in rd.contacts if c.kind == "WRAP"]
+    again = P.solve(rd.start, wheels, rd.end, True, False, held=True, wraps0=wraps0)
+    assert again.ok and len(again.lifted) == 0 and np.abs(again.points - rd.path.points).max() < 1e-9
+    print(f"\ntest model ({quality}, {len(tris)} triangles): centreline {off(pts) * 1e3:.2f} mm off the maker's route, the "
+          f"path {off(rd.path.points) * 1e3:.2f} mm, deviation {rd.deviation * 1e3:.2f} mm; seat radii "
+          + ", ".join(f"{c.radius * 1e3:.2f}" for c in rd.contacts if c.kind == "WRAP") + " mm")
+
+
+def sinking(frames=301, lowest=-1.2):
+    """A sheave of radius 0.25 that sinks away under a cable from (-2, 0, 0) to (2, 0, 0): its top from 0.3 m
+    above the line to ``lowest`` below it."""
+    top = np.linspace(0.3, lowest, frames)
+    centres = np.zeros((frames, 1, 3))
+    centres[:, 0, 2] = top - 0.25
+    return (np.tile([-2.0, 0.0, 0.0], (frames, 1)), centres, np.tile(Y, (frames, 1, 1)), [0.25], [1],
+            np.tile([2.0, 0.0, 0.0], (frames, 1))), top
+
+
+@pytest.mark.parametrize("held", [True, None, False])
+def test_a_sheave_that_leaves_the_cable_is_lifted_off(held):
+    """Finding 2: touching -> the wrap shrinks smoothly to nothing -> lifted off: a straight cable, the wheel's
+    points where the cable passes nearest, and the result says which wheel. No frame is refused, the cable never
+    loops round the wheel, nothing jumps – with the CAD wraps given or not."""
+    args, top = sinking()
+    for wraps0 in (None, [0.3]):
+        out = P.solve_frames(*args, counts=[20], held=held, wraps0=wraps0)
+        assert out["ok"].all() and not out["problems"] and out["lifted"].shape == (301, 1)
+        lifted = out["lifted"][:, 0]
+        assert not lifted[top >= 0.0].any() and lifted[top < -1e-9].all()
+        assert (np.diff(out["wrap"][:, 0]) <= 1e-12).all() and out["wrap"][~lifted, 0].max() < math.radians(18.0)
+        assert out["wrap"][lifted, 0].max() == 0.0
+        assert np.abs(out["points"][lifted][:, :, 2]).max() < 1e-12              # a straight cable …
+        assert np.allclose(out["points"][lifted][:, 1:-1], [0.0, 0.0, 0.0], atol=1e-12)      # … its 20 points over the wheel
+        assert out["points"].shape == (301, 22, 3) and np.allclose(out["length"][lifted], 4.0, atol=1e-12)
+        moved = np.linalg.norm(np.diff(out["points"], axis=0), axis=2).max(axis=1)
+        assert moved.max() < 1.01 * 0.005                                        # no more than the sheave's own 5 mm a frame
+    # down and up again: the same shapes on the way back, the wheel takes the cable again
+    back = tuple(np.concatenate([a, a[::-1]]) if np.ndim(a) > 1 else a for a in args)
+    out = P.solve_frames(*back, counts=[20], held=held)
+    assert out["ok"].all() and np.allclose(out["points"], out["points"][::-1], atol=1e-9)
+    assert not out["lifted"][0, 0] and out["lifted"][300, 0] and not out["lifted"][-1, 0]
+
+
+def test_one_frame_alone_needs_the_known_wrap_to_tell_a_lifted_wheel():
+    """Finding 2: ``solve`` with the wraps of the CAD pose lifts a wheel off; without them one frame cannot tell
+    a wide wrap from a wheel the cable left, and draws any wrap up to 350° (as before)."""
+    start, end = np.array([-2.0, 0.0, 0.0]), np.array([2.0, 0.0, 0.0])
+    low = P.Wheel(np.array([0.0, 0.0, -0.75]), Y, 0.25, 1)                       # its top half a metre under the cable
+    alone = P.solve(start, [low], end)
+    assert alone.ok and len(alone.lifted) == 0 and alone.wrap[0] == pytest.approx(5.80, abs=0.01)   # the loop
+    known = P.solve(start, [low], end, wraps0=[0.3], counts=[7])
+    assert known.ok and list(known.lifted) == [0] and known.wrap[0] == 0.0 and known.length == pytest.approx(4.0)
+    assert len(known.points) == 9 and np.allclose(known.points[1:-1], 0.0, atol=1e-12) and list(known.counts) == [7]
+    assert np.allclose(known.s[1:-1], 2.0)
+    for held in (True, None, False):                                 # just under the line: refused alone, lifted when known
+        near = P.Wheel(np.array([0.0, 0.0, -0.2501]), Y, 0.25, 1)
+        assert not P.solve(start, [near], end, held=held).ok
+        assert list(P.solve(start, [near], end, held=held, wraps0=[0.3]).lifted) == [0]
+    # a wheel whose known wrap is above half a turn keeps it up to 350°; more is refused; a wheel that touches
+    # is never lifted, and the known wraps do not change a path that is as it was
+    w = P.Wheel(np.zeros(3), Y, 1.0, +1)
+    for deg in (200.0, 300.0, 349.0):
+        a = math.radians(deg)
+        leave = np.array([math.sin(a), 0.0, math.cos(a)])
+        far = leave + 4.0 * np.array([math.cos(a), 0.0, -math.sin(a)])
+        p = P.solve([-4.0, 0.0, 1.0], [w], far, wraps0=[math.radians(250.0)])
+        assert p.ok and len(p.lifted) == 0 and p.wrap[0] == pytest.approx(a, abs=1e-9)
+        assert np.allclose(p.points, P.solve([-4.0, 0.0, 1.0], [w], far).points, atol=1e-12)
+    a = math.radians(352.0)
+    leave = np.array([math.sin(a), 0.0, math.cos(a)])
+    far = leave + 4.0 * np.array([math.cos(a), 0.0, -math.sin(a)])
+    refused(P.solve([-4.0, 0.0, 1.0], [w], far, wraps0=[5.0]), 1)
+    assert list(P.solve([-4.0, 0.0, 1.0], [w], far, wraps0=[0.5]).lifted) == [0]
+
+
+def test_a_lifted_wheel_in_the_middle_of_a_chain():
+    """Finding 2: the cable passes a lifted wheel straight from its neighbours (their common tangent), the other
+    wheels' wraps follow, the counts stay; in free mode too; with the start on the first wheel too."""
+    frames = 120
+    drop = np.linspace(0.0, 1.5, frames)
+    centres = np.tile(np.array([[0.0, 0.0, 0.0], [2.0, 0.0, 0.6], [4.0, 0.0, 0.0]]), (frames, 1, 1))
+    centres[:, 1, 2] -= drop                                         # the middle sheave (cable over its top) sinks
+    axes = np.tile(Y, (frames, 3, 1))
+    starts, ends = np.tile([-3.0, 0.0, -1.0], (frames, 1)), np.tile([7.0, 0.0, -1.0], (frames, 1))
+    outer = [P.Wheel(centres[0, 0], Y, 0.3, 1), P.Wheel(centres[0, 2], Y, 0.3, 1)]
+    two = P.solve(starts[0], outer, ends[0], counts=[30, 30])
+    for held in (True, False):
+        for on0 in (False, True):
+            out = P.solve_frames(starts, centres, axes, [0.3, 0.3, 0.3], [1, 1, 1], ends, counts=[30, 12, 30], held=held,
+                                 start_on_wheel=on0)
+            assert out["ok"].all() and not out["lifted"][:, [0, 2]].any()
+            gone = out["lifted"][:, 1]
+            first = int(np.argmax(gone))
+            assert 20 < first < 80 and not gone[:first].any() and gone[first:].all()
+            assert out["wrap"][first - 1, 1] < 0.05 and (np.abs(np.diff(out["wrap"], axis=0)) < 0.1).all()
+            moved = np.linalg.norm(np.diff(out["points"], axis=0), axis=2).max(axis=1)
+            assert moved.max() < 1.5 * (drop[1] - drop[0])
+            if not on0:                                              # lifted: the path over the two outer wheels alone
+                keep = np.r_[0:31, 43:74]
+                assert np.allclose(out["points"][-1][keep], two.points, atol=1e-9)
+                assert out["length"][-1] == pytest.approx(two.length, abs=1e-9)
+                mid = out["points"][-1][31:43]                       # its 12 points: on the straight, nearest its axis
+                assert np.ptp(mid, axis=0).max() < 1e-12 and abs(mid[0][0] - 2.0) < 1e-9
+                assert np.all(np.diff(out["s"][-1]) >= -1e-12)
+    # two wheels lifted one after the other, and a frame that has no path with all wheels in: the last lifted ones
+    centres[:, 2, 2] -= np.clip(drop - 0.6, 0.0, None) * 2.0
+    out = P.solve_frames(starts, centres, axes, [0.3, 0.3, 0.3], [1, 1, 1], ends, counts=[30, 12, 30], held=True)
+    assert out["ok"].all() and out["lifted"][-1].tolist() == [False, True, True]
+    line = P.solve(starts[0], [P.Wheel(centres[0, 0], Y, 0.3, 1)], ends[0], counts=[30])
+    assert out["length"][-1] == pytest.approx(line.length, abs=1e-9)
+
+
+def test_wheels_in_the_wrong_order_are_a_path_all_the_same():
+    """Finding 10, as it stands: contacts given in the wrong order are a cable that can be (out over the far
+    wheel, back to the near one), and are drawn. Only a wrap more than half a turn above the known one lifts a
+    wheel; 184° against a known 9° is not that. (Whoever gives the contacts can see it: the wraps are far from
+    the ones read from the CAD cable, the length too.)"""
+    start, end = np.array([-2.0, 0.0, 0.0]), np.array([4.0, 0.0, 0.0])
+    near, far = P.Wheel(np.zeros(3), Y, 0.3, 1), P.Wheel(np.array([2.0, 0.0, 0.0]), Y, 0.3, 1)
+    right = P.solve(start, [near, far], end)
+    assert right.ok and np.degrees(right.wrap) == pytest.approx([8.63, 8.63], abs=0.01)
+    for wraps0 in (None, right.wrap[::-1]):
+        wrong = P.solve(start, [far, near], end, wraps0=wraps0)
+        assert wrong.ok and len(wrong.lifted) == 0
+        assert np.degrees(wrong.wrap) == pytest.approx([184.3, 184.3], abs=0.1) and wrong.length > right.length + 5.0
+        assert check_path(wrong, [far, near], start, end)[0] < 1e-9
+    frames = P.solve_frames(np.tile(start, (4, 1)), np.tile([far.centre, near.centre], (4, 1, 1)), np.tile(Y, (4, 2, 1)),
+                            [0.3, 0.3], [1, 1], np.tile(end, (4, 1)), wraps0=right.wrap[::-1])
+    assert frames["ok"].all() and not frames["lifted"].any() and np.allclose(frames["wrap"], wrong.wrap)
+
+
+def test_free_frames_where_two_axes_are_parallel_for_once():
+    """Finding 8: the tight string with a wheel tilting through parallel: the one frame where the two axes are
+    exactly parallel is solved like the others."""
+    count = 11
+    tilt = np.radians(np.linspace(-5.0, 5.0, count))
+
+    def about_x(a):
+        return np.array([0.0, math.cos(a), math.sin(a)])
+
+    centres = np.tile(np.array([[0.0, 0.0, 0.0], [2.0, 0.0, 0.3]]), (count, 1, 1))
+    axes = np.array([[Y, about_x(a)] for a in tilt])
+    assert np.array_equal(axes[5, 1], Y)
+    starts, ends = np.tile([-2.0, 0.0, 0.0], (count, 1)), np.tile([5.0, 0.0, -0.5], (count, 1))
+    out = P.solve_frames(starts, centres, axes, [0.3, 0.25], [1, 1], ends, held=False, counts=[10, 10])
+    assert out["ok"].all() and not out["held"].any()
+    moved = np.linalg.norm(np.diff(out["points"], axis=0), axis=2).max(axis=1)
+    assert moved.max() < 1.02 * moved.min()
+    pair = [P.Wheel(centres[5, 0], Y, 0.3, 1), P.Wheel(centres[5, 1], Y, 0.25, 1)]
+    one = P.solve(starts[5], pair, ends[5], counts=[10, 10], held=False)
+    assert np.abs(one.points - out["points"][5]).max() < 1e-9
+
+
+def test_held_wheels_a_few_mm_apart_keep_their_straight():
+    """Finding 7: two held wheels in different planes with a straight of 3 mm between them: the straight is
+    found (they are not taken for touching: that left a kink of degrees)."""
+    for gap in (0.003, 0.0005, 0.02):
+        course = Course().straight(2.0).bend(Z, 0.5, 60).straight(gap).bend(Y, 0.4, 70).straight(1.5)
+        wheels = [P.Wheel(a[0], a[1], a[2], 1) for a in course.arcs()]
+        p = P.solve(course.point(0.0), wheels, course.point(course.length), held=True)
+        kink = check_path(p, wheels, course.point(0.0), course.point(course.length), min_run=1e-4)[0]
+        assert kink < 1e-6 and course.distance(p.points).max() < 1e-9 and p.length == pytest.approx(course.length, abs=1e-9)
+
+
+def punched(mesh, keep):
+    verts, tris = mesh
+    return verts, tris[keep(verts[tris].mean(axis=1))]
+
+
+def test_is_round_by_the_outside_itself():
+    """Finding 3: with the triangles the outer surface is looked at, not the corners: a roller with a cross
+    hole, a keyway or a flat, a drum with an anchor hole are round (they turn); a sector, a square bar and a
+    roller in one piece with its bracket are not."""
+    fine = revolve([(-0.3 + 0.02 * k, 0.06) for k in range(31)], 72)
+    assert P.is_round(*fine[:1], (0, 0, 0), Z, fine[1]) and P.is_round(fine[0], (0, 0, 0), Z)
+    # a hole through the surface, a slot along it (a keyway), an anchor hole in a drum's barrel
+    hole = punched(fine, lambda m: ~((np.abs(m[:, 2]) < 0.03) & (m[:, 0] > 0.055) & (np.abs(m[:, 1]) < 0.012)))
+    slot = punched(fine, lambda m: ~((m[:, 2] > 0.1) & (m[:, 0] > 0.058) & (np.abs(m[:, 1]) < 0.008)))
+    assert len(hole[1]) < len(fine[1]) and len(slot[1]) < len(fine[1])
+    assert P.is_round(hole[0], (0, 0, 0), Z, hole[1]) and P.is_round(slot[0], (0, 0, 0), Z, slot[1])
+    drum = revolve([(-0.22, 0.04), (-0.22, 0.3), (-0.2, 0.3), (-0.2, 0.2), (-0.1, 0.2), (0.0, 0.2), (0.1, 0.2), (0.2, 0.2),
+                    (0.2, 0.3), (0.22, 0.3), (0.22, 0.04)], 72)
+    anchor = punched(drum, lambda m: ~((np.abs(m[:, 2] - 0.05) < 0.06) & (m[:, 0] > 0.19) & (np.abs(m[:, 1]) < 0.02)))
+    assert len(anchor[1]) < len(drum[1]) and P.is_round(anchor[0], (0, 0, 0), Z, anchor[1])
+    # a flat along the whole roller (5 mm deep), and one over a part of its length
+    flat = fine[0].copy()
+    flat[:, 0] = np.minimum(flat[:, 0], 0.055)
+    part = fine[0].copy()
+    part[:, 0] = np.where(np.abs(part[:, 2]) < 0.1, np.minimum(part[:, 0], 0.052), part[:, 0])
+    assert P.is_round(flat, (0, 0, 0), Z, fine[1]) and P.is_round(part, (0, 0, 0), Z, fine[1])
+    # not round: sectors (a chute, a quadrant's gutter; 300° too), flat-sided bars under six sides, a deep flat,
+    # a roller in one piece with its bracket, an axis that is not the part's
+    for sweep in (60.0, 90.0, 180.0, 290.0, 300.0):
+        v, t = revolve(plain_roller(0.06, 0.6), 72, sweep=math.radians(sweep))
+        assert not P.is_round(v, (0, 0, 0), Z, t), sweep
+    for sides, want in ((4, False), (5, False), (6, True), (8, True), (24, True)):
+        v, t = revolve([(-0.1, 0.05), (0.1, 0.05)], sides)
+        assert P.is_round(v, (0, 0, 0), Z, t) == want, sides
+    deep = fine[0].copy()
+    deep[:, 0] = np.minimum(deep[:, 0], 0.03)                        # half the roller cut away
+    assert not P.is_round(deep, (0, 0, 0), Z, fine[1])
+    box = np.array([[x, y, z] for x in (-0.1, 0.1) for y in (-0.15, -0.1) for z in (-0.3, 0.3)])
+    sides_ = np.array([[0, 1, 3], [0, 3, 2], [4, 5, 7], [4, 7, 6], [0, 1, 5], [0, 5, 4], [2, 3, 7], [2, 7, 6],
+                       [0, 2, 6], [0, 6, 4], [1, 3, 7], [1, 7, 5]])
+    assert not P.is_round(np.vstack([fine[0], box]), (0, 0, 0), Z, np.vstack([fine[1], sides_ + len(fine[0])]))
+    assert not P.is_round(fine[0], (0.005, 0, 0), [1.0, 0.0, 0.0], fine[1])
+    # the corners alone (no triangles): a few corners round a hole do not make a roller a sector
+    plain = revolve(plain_roller(0.06, 0.6), 32)[0]
+    rim = np.array([[math.sqrt(0.06 ** 2 - (0.005 * math.sin(q)) ** 2), 0.005 * math.sin(q), 0.005 * math.cos(q)]
+                    for q in np.linspace(0.0, 2 * math.pi, 12, endpoint=False)])
+    assert P.is_round(np.vstack([plain, rim]), (0, 0, 0), Z)
+    assert not P.is_round(np.vstack([plain, rim * [3.0, 1.0, 1.0]]), (0, 0, 0), Z)       # corners that stand out
+    # and a roller with a hole is a roller the cable turns: a TOUCH, as the same roller without the hole
+    course = Course((-1.0, 0.0, 0.11), (1, 0, 0)).straight(2.0)
+    roller = revolve([(-0.3 + 0.02 * k, 0.06) for k in range(31)], 72, (0, 0, 0), Y)
+    holed = punched(roller, lambda m: ~((np.abs(m[:, 1] - 0.2) < 0.03) & (m[:, 2] < -0.055) & (np.abs(m[:, 0]) < 0.012)))
+    rd = P.read_cable(course.sample(0.05), 0.05, [P.Round("holed", np.zeros(3), Y, holed[0], holed[1])])
+    assert kinds(rd) == [("TOUCH", "holed")] and rd.contacts[0].full
+
+
+def test_round_parts_of_the_test_model(test_model):
+    """Finding 3 on real OpenCascade meshes (Normal and Draft): drum, sheaves and V rollers are round, the chute
+    and the frames are not."""
+    for quality in ("normal", "draft"):
+        seen = {}
+        for r in test_model[quality][1]:
+            name = r.key.split("/")[-1].split("#")[0]
+            if name in ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "CHUTE", "BASE FRAME", "A-FRAME"):
+                big = float(np.linalg.norm(np.cross(r.verts - r.centre, r.axis), axis=1).max())
+                seen.setdefault(name, []).append((big, P.is_round(r.verts, r.centre, r.axis, r.tris)))
+        for name in ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER"):
+            assert min(seen[name])[1], (quality, name)               # about its own (the nearest) axis
+        for name in ("CHUTE", "BASE FRAME", "A-FRAME"):
+            assert not any(flag for _, flag in seen[name]), (quality, name)
+
+
+def test_clean_thin_ropes_are_read():
+    """Finding 4: clean lines and arcs of thin ropes (the usual fit tolerance of 0.5 mm is 4 % of their radius
+    and hid their short straights: "neither straight nor a round bend") are read: the tolerance is tightened
+    when the usual one does not read."""
+    def read(course, rope, rounds=()):
+        rd = P.read_cable(course.sample(rope), rope, list(rounds))
+        assert rd.ok, rd.problem
+        return rd
+
+    two = Course().straight(1.2).bend(-Y, 0.25, 90).straight(0.18).bend(Y, 0.30, 30).straight(0.36)
+    assert check_reading(read(two, 0.012), two, [None, None], bend_tol=1e-3, centre_tol=1e-4) < 1e-5
+    on = Course().straight(0.15).bend(Y, 0.4, 40).straight(0.1)                  # Ø 20 on a sheave, short straights
+    assert check_reading(read(on, 0.010, [sheave_for(on.arcs()[0], 0.010, "S")]), on, ["S"]) < 1e-4
+    assert check_reading(read(on, 0.010), on, [None], bend_tol=1e-3, centre_tol=1e-4) < 1e-5
+    big = Course().straight(2.5).bend(-Y, 0.5, 90).straight(0.375).bend(Y, 1.0, 20).straight(0.75)      # Ø 50
+    assert check_reading(read(big, 0.025), big, [None, None], bend_tol=1e-3, centre_tol=1e-4) < 1e-5
+    for first in (0.06, 0.12, 0.18, 0.36):
+        for last in (0.06, 0.12, 0.18, 0.36):
+            course = Course().straight(1.2).bend(-Y, 0.25, 90).straight(first).bend(Y, 0.30, 30).straight(last)
+            rd = read(course, 0.012)
+            assert check_reading(rd, course, [None, None], bend_tol=0.01, centre_tol=3e-3) < 2e-4, (first, last)
+    # and with 0.1 mm of noise the same route still reads (the noise sets how tight the fit may be)
+    rd = P.read_cable(two.sample(0.012, noise=NOISE, seed=5), 0.012, [])
+    assert check_reading(rd, two, [None, None], NOISE, bend_tol=0.05, centre_tol=0.02) < 6e-4
+    assert P._noise(two.sample(0.012, noise=NOISE, seed=5)) == pytest.approx(NOISE, rel=0.2)
+    assert P._noise(two.sample(0.012)) < 1e-5
+
+
+def test_a_reading_far_from_the_cable_is_refused_or_read_right():
+    """Finding 5: a short bend at the cable's end over a roller is that roller's WRAP (it was lost: a TOUCH and a
+    path 14 mm beside the cable, marked ok); a turn of 0.2° over a roller is no bend (it was a BEND of radius
+    307 m): the roller is a TOUCH; and a path that cannot be read near the cable is refused in plain words."""
+    rope = 0.012
+    end = Course().straight(1.2).bend(-Y, 0.25, 90).straight(0.36).bend(Y, 0.072, 10).straight(0.12)
+    arc = end.arcs()[1]
+    roller = P.Round("roller", arc[0], Y, *revolve(plain_roller(0.06, 0.4), 24, arc[0], Y)[::1])
+    rd = P.read_cable(end.sample(rope), rope, [roller])
+    assert rd.ok and kinds(rd) == [("BEND", None), ("WRAP", "roller")]
+    assert rd.contacts[1].wrap == pytest.approx(math.radians(10.0), abs=math.radians(0.2)) and rd.deviation < 1e-4
+    assert end.distance(rd.path.points).max() < 1e-4
+    air = P.read_cable(end.sample(rope), rope, [])
+    assert air.ok and kinds(air) == [("BEND", None), ("BEND", None)] and air.deviation < 1e-4
+    slight = Course().straight(1.5).bend(Y, 0.072, 0.2).straight(1.5)
+    arc = slight.arcs()[0]
+    roller = P.Round("roller", arc[0], Y, *revolve(plain_roller(0.06, 0.4), 24, arc[0], Y))
+    rd = P.read_cable(slight.sample(rope), rope, [roller])
+    assert rd.ok and kinds(rd) == [("TOUCH", "roller")] and not rd.start_on_wheel and not rd.end_on_wheel
+    assert len(rd.path.points) == 2 and rd.deviation == pytest.approx(1.5 * math.sin(math.radians(0.1)), rel=0.05)
+    assert P.read_cable(slight.sample(rope), rope, []).contacts == []
+    # … unless reading it straight leaves the path too far from the cable: then the turn is kept
+    long = Course().straight(6.0).bend(Y, 0.072, 0.5).straight(6.0)
+    arc = long.arcs()[0]
+    roller = P.Round("roller", arc[0], Y, *revolve(plain_roller(0.06, 0.4), 24, arc[0], Y))
+    rd = P.read_cable(long.sample(rope), rope, [roller])
+    assert rd.ok and kinds(rd) == [("WRAP", "roller")] and rd.deviation < 1e-4
+    # a reading that stays far from the points is refused: where, and by how much
+    kinked = Course().straight(1.5).bend(Y, 0.3, 4).straight(1.5).sample(rope)      # read far too loosely: a line
+    lost = P.read_cable(kinked, rope, [], fit_tol=0.1)
+    assert not lost.ok and lost.deviation == pytest.approx(1.5 * math.sin(math.radians(2.0)), rel=0.01) and lost.path.ok
+    assert lost.problem.startswith("The path that can be read lies 52.5 mm beside the cable as it is drawn, 1.51 m from "
+                                   "its start") and lost.problem.endswith(".")
+    assert P.read_cable(kinked, rope, [], fit_tol=0.1, max_deviation=0.06).ok
+    assert P.read_cable(kinked, rope, []).deviation < 1e-5           # the usual tolerances read its bend
+    assert P.MAX_DEVIATION == (2e-3, 0.25)                           # 2 mm, or a quarter of the cable's radius
+    assert not P.read_cable(kinked, rope, [], fit_tol=0.1, max_deviation=0.052).ok
+
+
+def test_seat_on_a_roller_with_32_bit_corners_stays_where_the_cable_is():
+    """Finding 9: on a plain roller the seat is at ``at``; corners rounded to 32-bit numbers 150 m from the origin
+    make dips of a few micrometres, which are no groove."""
+    rope = 0.05
+    centre, axis = np.array([150.0, -80.0, 30.0]), unit([0.0, math.cos(0.5), math.sin(0.5)])
+    verts, tris = revolve(plain_roller(0.1, 0.6), 48, centre, axis, phase=0.3)
+    rough = verts.astype(np.float32).astype(np.float64)
+    assert 0.0 < np.abs(rough - verts).max() < 2e-5
+    for at in (0.0, 0.03, -0.21, 0.1234):
+        place, radius = P.seat(rough, tris, centre, axis, at, rope)
+        assert place == at and radius == pytest.approx(0.15, abs=3e-5)
+    # a real groove is still found from beside it
+    groove = revolve(round_groove_sheave(0.012), 96, centre, axis)
+    assert abs(P.seat(groove[0].astype(np.float32).astype(np.float64), groove[1], centre, axis, 0.004, 0.012)[0]) < 3e-4
+
+
+def test_small_things_do_not_raise():
+    """Finding 11: what cannot be asked for is refused or 0, never an error."""
+    w = P.Wheel(np.zeros(3), Y, 1.0, +1)
+    start, end = np.array([-3.0, 0.0, 1.0]), np.array([1.0, 0.0, -3.0])
+    for kw in ({"step": 0.0}, {"step": float("nan")}, {"step": -1.0}, {"counts": [3, 4]}, {"counts": []},
+               {"wraps0": [0.1, 0.2]}, {"wraps0": [float("nan")]}, {"step": "x"}):
+        p = P.solve(start, [w], end, **kw)
+        assert not p.ok and p.problem.endswith(".") and len(p.points) == 0 and p.bad == -1, kw
+        out = P.solve_frames(start[None], w.centre[None, None], Y[None, None], [1.0], [1], end[None], **kw)
+        assert not out["ok"].any() and out["problems"][0] == p.problem and np.isfinite(out["points"]).all()
+        assert out["lifted"].shape == (1, 1) and out["wrap"].shape == (1, 1)
+    assert P.solve(start, [w], end, counts=[5.0]).ok                 # a whole number given as 5.0 is fine
+    for radius in (0.0, -1.0, float("nan"), float("inf")):
+        assert P.wheel_ratio(radius, 1, Y, Y) == 0.0
+    assert P.stripe_angle(0.2, 0.0, 3) == pytest.approx(math.pi / 2) == P.stripe_angle(0.2, float("nan"), 3)
+    assert P.stripes(float("nan"), 0.5, 0.3) == 0 == P.stripes(0.2, float("nan"), 0.3) == P.stripes(0.2, 0.5, float("nan"))
+    assert P.stripes(0.2, 0.5, 0.0) == 64 and P.stripes(0.2, 0.5, 1e-7) == 64 and P.stripes(0.2, 0.5, -1e-7) == -64
+    assert P.stripes(5.0, 0.01, 0.3) == 64                           # more than the look can draw: 64
+    # the same round part given twice is one roller
+    course = Course((-1.0, 0.0, 0.11), (1, 0, 0)).straight(2.0)
+    roller = revolve(plain_roller(0.06, 0.4), 24, (0, 0, 0), Y)
+    twice = [P.Round("a", np.zeros(3), Y, *roller), P.Round("a", np.array([0.0, 0.1, 0.0]), -Y, *roller)]
+    rd = P.read_cable(course.sample(0.05), 0.05, twice)
+    assert kinds(rd) == [("TOUCH", "a")]
+    other = P.Round("b", np.array([0.5, 0.0, 0.0]), Y, roller[0] + [0.5, 0.0, 0.0], roller[1])
+    assert kinds(P.read_cable(course.sample(0.05), 0.05, twice + [other])) == [("TOUCH", "a"), ("TOUCH", "b")]
+
+
+def test_touch_tolerance_into_the_part_and_away_from_it():
+    """Finding 11: how far the cable may be drawn from where it rests on a part is two numbers – air between
+    them, and into the part. By default both are a quarter of the cable's radius (the demo's cable is drawn up
+    to 15.2 mm into its rollers: 0.152 of its radius); ``touch_tol`` sets both."""
+    assert P.TOUCH_TOL == (2e-3, 0.25, 0.25)
+    course = Course((0.0, 0.0, 1.0), (1, 0, 0)).straight(9.0)
+    pts = course.sample(0.1)
+
+    def rollers(gaps):
+        return [P.Round(g, np.array([1.0 + k, 0.0, 1.0 - (0.15 + 0.1 + g)]), Y,
+                        *revolve(plain_roller(0.15, 0.8), 24, (1.0 + k, 0.0, 1.0 - (0.15 + 0.1 + g)), Y))
+                for k, g in enumerate(gaps)]
+
+    gaps = (0.0, 0.009, 0.011, 0.024, 0.026, -0.011, -0.024, -0.026)
+    assert [c.key for c in P.read_cable(pts, 0.1, rollers(gaps)).contacts] == [0.0, 0.009, 0.011, 0.024, -0.011, -0.024]
+    assert [c.key for c in P.read_cable(pts, 0.1, rollers(gaps), touch_tol=0.01).contacts] == [0.0, 0.009]
+    was = P.TOUCH_TOL
+    try:                                                             # air 0.1, into the part 0.25 of the radius
+        P.TOUCH_TOL = (2e-3, 0.1, 0.25)
+        assert [c.key for c in P.read_cable(pts, 0.1, rollers(gaps)).contacts] == [0.0, 0.009, -0.011, -0.024]
+    finally:
+        P.TOUCH_TOL = was
