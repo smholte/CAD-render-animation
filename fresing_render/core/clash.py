@@ -13,9 +13,14 @@ How a check works (``blender/clash.py`` drives it):
    every angle: it is held at its place and rides with its carrier only (``spin_stretches``, ``round_about``), so it
    joins the carrier's body. Parts of one body as read are never compared, held or not.
 3. **Broad phase.** For every pair of bodies that moves against each other: their boxes in the world at each moment,
-   then the boxes of their parts (``box_pairs``). Between two big parts a lower bound of their distance is looked
-   for first (``box_tree`` of each mesh, ``tree_separation``, task 0092): parts proven apart need no point tested,
-   and are not tested again until they have moved that much against each other.
+   then the boxes of their parts (``box_pairs``). A lower bound of two parts' distance is looked for first
+   (``box_tree`` of each mesh, ``tree_separation``; task 0092 for big parts, task 0110 for every pair): parts proven
+   apart need no point tested, and are not tested again until they have moved that much against each other.
+   **Once per turn, pair by pair** (task 0110): when one part of a pair turns against the other about an axis that
+   stays put and is round wherever the other can come (``local_points``, ``repeats``), the two meet the same way at
+   every angle: tested once, then left for the rest of that turn. When it is not round there but repeats after a
+   step of angle (a rim fence's posts, ``symmetry_order``), the pair is left once it has been tested over one such
+   step with no clash.
 4. **Between frames.** Where two bodies come near each other and together move more than ``STEP`` between two
    frames, extra moments are put in between; each body's motion between the two frames is followed as a screw
    motion (``screw_between``: exact for a turn about a fixed axis and for a straight move), so a fast part cannot
@@ -668,6 +673,7 @@ def tree_clear_of_band(band, c, u, tree: tuple, m: np.ndarray, margin: float = 0
 # once the pair has been checked over one such step of angle, every later angle repeats one already checked.
 
 PERIOD_TOL = 0.25 * MM        # turned points land this close to the surface: the same room (the check steps 4 mm)
+PERIOD_REL = 0.02             # … and within this share of how far the turn moved them (``repeats``)
 PERIOD_SPACING = 4.0 * MM     # points on the faces this far apart
 PERIOD_POINTS = 300_000       # points looked at most (more: it cannot tell, the pair is checked as before)
 PERIOD_MOST = 720             # symmetry orders tried: 1/2 … 1/720 turn
@@ -727,23 +733,30 @@ def local_points(verts: np.ndarray, tris: np.ndarray, c, u, rects: tuple, spacin
     return None if len(pts) > most else pts
 
 
-def repeats(pts: np.ndarray, c, u, angles, nearest, tol: float = PERIOD_TOL) -> bool:
+def repeats(pts: np.ndarray, c, u, angles, nearest, tol: float = PERIOD_TOL, rel: float = 0.0) -> bool:
     """Whether points of a part's surface (its own space), turned about the line (c, u) by each of ``angles``, land
-    within ``tol`` of its surface (``nearest(points) -> distances``)."""
+    within ``tol`` of its surface (``nearest(points) -> distances``). ``rel``: and within that share of how far the
+    turn moved each point – turned by a small angle every part lands near itself (a roller with a flat, a wheel off its
+    centre turned by 1/720 turn); a part that really repeats lands on itself however far the turn moves it."""
     if not len(pts):
         return True
+    c = np.asarray(c, dtype=np.float64)
+    u, _e1, _e2 = axial(c, u)
+    rad = np.linalg.norm((pts - c) - ((pts - c) @ u)[:, None] * u, axis=1)
     for phi in angles:
-        turned = transform(rotation_about(np.asarray(c, dtype=np.float64), u, float(phi)), pts[None])[0]
-        if float(np.max(nearest(turned))) > tol:
+        turned = transform(rotation_about(c, u, float(phi)), pts[None])[0]
+        lim = tol if rel <= 0.0 else np.minimum(tol, rel * 2.0 * rad * abs(math.sin(float(phi) / 2.0)))
+        if np.any(nearest(turned) > lim):
             return False
     return True
 
 
 def symmetry_order(verts: np.ndarray, c, u, nearest, tol: float = PERIOD_TOL, most: int = PERIOD_MOST,
-                   share: float = 0.9) -> int:
+                   share: float = 0.98) -> int:
     """The largest n (2 … ``most``) for which the part, turned by 1/n turn about the line (c, u), lands on itself for
-    most of its corners that are not round (``share``; a rim fence's 47 posts: n = 47, its round rails left out: they
-    fit any turn); 1 when none. Only a hint: the points that matter are checked with ``repeats``."""
+    nearly all of its sharp corners (``share``; a rim fence's 47 posts: n = 47; a 12-tooth wheel: 12); 1 when none.
+    Turned points must land within 2 % of how far the turn moved them (``repeats``). Only a hint: the points that
+    matter are checked with ``repeats``."""
     verts = np.asarray(verts, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
     u, _e1, _e2 = axial(c, u)
@@ -752,17 +765,25 @@ def symmetry_order(verts: np.ndarray, c, u, nearest, tol: float = PERIOD_TOL, mo
     off = verts[r > 1e-3]
     if len(off) > 20000:
         off = off[np.random.default_rng(1).choice(len(off), 20000, replace=False)]
-    off = off[nearest(transform(rotation_about(c, u, ROUND_TURNS[0]), off[None])[0]) > tol]
+    small = 2 * math.pi / most
+
+    def misses(pts, phi):
+        rad = np.linalg.norm((pts - c) - ((pts - c) @ u)[:, None] * u, axis=1)
+        lim = np.minimum(tol, PERIOD_REL * 2.0 * rad * abs(math.sin(phi / 2.0)))
+        return nearest(transform(rotation_about(c, u, phi), pts[None])[0]) > lim
+    # the sharp corners only: those that leave the surface even turned by the smallest step (a post's corners, a
+    # tooth's flanks). Corners on round faces (a rail, a tooth's top) land on themselves turned by a little and would
+    # make any step look like a period
+    off = off[misses(off, small) | misses(off, -small)]
     if len(off) < 8:
         return 1
     rng = np.random.default_rng(len(off))
     few = off[rng.choice(len(off), min(24, len(off)), replace=False)]
     more = off[rng.choice(len(off), min(512, len(off)), replace=False)]
-    for n in range(most, 1, -1):
-        rot = rotation_about(c, u, 2 * math.pi / n)
-        if np.mean(nearest(transform(rot, few[None])[0]) <= tol) < share:
-            continue
-        if np.mean(nearest(transform(rot, more[None])[0]) <= tol) >= share:
+    def lands(pts, n):
+        return np.mean(~misses(pts, 2 * math.pi / n))
+    for n in range(most - 1, 1, -1):
+        if lands(few, n) >= share and lands(more, n) >= share:
             return n
     return 1
 

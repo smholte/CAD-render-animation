@@ -1304,13 +1304,13 @@ class Check:
             if pts is None:
                 continue
             m = self.meshes[self.mesh_key[turning]]
-            if core.repeats(pts, lc, lu, core.ROUND_TURNS, self._nearest(m)):
+            if core.repeats(pts, lc, lu, core.ROUND_TURNS, self._nearest(m), self._round_tol(turning, lc, lu)):
                 self._open(key, s, b)                       # round there
                 return
             # it repeats after a step of angle (a rim fence's posts): the rest of the stretch once that step is done
             order = self._order(turning, lc, lu)
             if order > 1 and core.repeats(pts, lc, lu, (2 * math.pi / order, -2 * math.pi / order),
-                                          self._nearest(m)):
+                                          self._nearest(m), rel=core.PERIOD_REL):
                 xs = np.linalg.inv(self.mats[a:b, other]) @ self.mats[a:b, turning]
                 phi = np.unwrap(core.signed_angles(xs @ np.linalg.inv(xs[0]), u))
                 self.pair_period[key] = (a, b, 2 * math.pi / order, phi)
@@ -1352,6 +1352,13 @@ class Check:
         rects = core.footprint(lc, lu, lo, hi, BAND_MARGIN + max(self.near, 0.0))
         m = self.meshes[self.mesh_key[turning]]
         return core.local_points(m.v, m.t, lc, lu, rects)
+
+    def _round_tol(self, p: int, lc: np.ndarray, lu: np.ndarray) -> float:
+        """How close turned points of part p must land on its surface to count as round there: as ``core.round_about``
+        (0.05 mm + the facets' sag), never more than ``core.PERIOD_TOL``."""
+        m = self.meshes[self.mesh_key[p]]
+        sag = core._ring_sag(m.v - lc, lu) if len(m.t) else -1.0
+        return min(core.PERIOD_TOL, core.ROUND_TOL + max(sag, 0.0))
 
     def _order(self, p: int, lc: np.ndarray, lu: np.ndarray) -> int:
         """``core.symmetry_order`` of part p about the local line (lc, lu); kept per mesh and axis."""

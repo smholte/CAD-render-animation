@@ -363,3 +363,58 @@ def test_a_slow_turn_with_a_long_move_stays_on_its_path_between_frames():
             err = np.max(np.abs(C.transform(mid, pts) - C.transform(screw(0.5) @ base, pts)))
             assert err < 0.01 * MM, (th, err)
     assert abs(float(C.turn_angles(turn((0, 0, 1), 1e-5).astype(np.float32).astype(np.float64))) - 1e-5) < 1e-6
+
+
+# ---------------------------------------------------------------------------
+# task 0110: is a turning part the same where another part comes, turned, or after a step of angle?
+# ---------------------------------------------------------------------------
+
+def _star(teeth=0, r=0.05, depth=0.008, n=240, off=0.0, h=0.02):
+    """A closed prism about Z: round (``teeth`` 0) or with flat-topped teeth; ``off`` moves its outline along X (a
+    wheel off its centre)."""
+    out = []
+    for k in range(n):
+        a = 2 * math.pi * (k + 0.5) / n
+        rr = r - depth if teeth and math.cos(teeth * a) > 0 else r
+        out.append((rr * math.cos(a) + off, rr * math.sin(a)))
+    v = [(x, y, 0.0) for x, y in out] + [(x, y, h) for x, y in out] + [(off, 0.0, 0.0), (off, 0.0, h)]
+    t = []
+    for i in range(n):
+        j = (i + 1) % n
+        t += [(i, j, n + j), (i, n + j, n + i), (2 * n, j, i), (2 * n + 1, n + i, n + j)]
+    return np.array(v), np.array(t)
+
+
+AXIS = (np.zeros(3), np.array([0.0, 0.0, 1.0]))
+
+
+def test_the_symmetry_of_a_turning_part():
+    """A 12-tooth wheel repeats after 1/12 turn. A round wheel has nothing
+    that is not round (1). A round wheel 2 mm off its centre repeats after no step: turned by a small angle it lands
+    near itself, but not within 2 % of how far the turn moved it."""
+    v, t = _star(teeth=12)
+    assert C.symmetry_order(v, *AXIS, C._nearest_brute(v, t), most=60) == 12
+    v, t = _star()
+    assert C.symmetry_order(v, *AXIS, C._nearest_brute(v, t), most=60) == 1
+    v, t = _star(off=0.002)
+    near = C._nearest_brute(v, t)
+    assert C.symmetry_order(v, *AXIS, near, most=60) == 1
+    tiny = 2 * math.pi / 720
+    assert C.repeats(v, *AXIS, (tiny,), near)                       # lands within 0.25 mm: proves nothing
+    assert not C.repeats(v, *AXIS, (tiny,), near, rel=C.PERIOD_REL)
+
+
+def test_the_points_where_another_part_comes():
+    """Only the turning part's surface in the room (along the axis, distance from it) another part's boxes can reach:
+    a block reaching into the teeth gets points of the teeth only; a block far along the axis none."""
+    v, t = _star(teeth=12)
+    near = C._nearest_brute(v, t)
+    beside = C.footprint(*AXIS, np.array([[0.046, -0.01, 0.0]]), np.array([[0.07, 0.01, 0.02]]), 1e-3)
+    pts = C.local_points(v, t, *AXIS, beside)
+    assert len(pts) > 20
+    r = np.linalg.norm(pts[:, :2], axis=1)
+    assert r.min() >= 0.045 - 1e-9 and r.max() <= 0.05 + 1e-9                  # (the box is 1 mm grown)
+    assert not C.repeats(pts, *AXIS, C.ROUND_TURNS, near)            # the teeth are not round
+    assert C.repeats(pts, *AXIS, (2 * math.pi / 12, -2 * math.pi / 12), near, rel=C.PERIOD_REL)
+    far = C.footprint(*AXIS, np.array([[-0.1, -0.1, 0.5]]), np.array([[0.1, 0.1, 0.6]]), 1e-3)
+    assert len(C.local_points(v, t, *AXIS, far)) == 0
