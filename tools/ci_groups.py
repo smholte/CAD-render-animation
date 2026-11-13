@@ -20,7 +20,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TIMES = os.path.join(ROOT, "tools", "ci_times.json")
-PYTEST_GROUPS = 8                                  # task 0063: 4 groups took 8-14 min; task 0108: 7 groups took 7-14 min, 8 plan ~11 (slowest of 3 runs)
+PYTEST_GROUPS = 9                                  # task 0063: 4 groups took 8-14 min; task 0108: 7 groups 7-14 min, 9 plan ~10 (slowest of 3 runs)
 NEW_FILE_SECS = 30.0
 SELFTEST = "packaged self-test"
 

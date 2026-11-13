@@ -67,7 +67,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 41, "pccheck2": 4, "pccheckheavy": 14, "update": 29, "tour": 51, "tourui": 15,
+              "paths": 8, "pccheck": 41, "pccheck2": 4, "pccheckheavy": 14, "update": 29, "tour": 51, "tour2": 2, "tourui": 15,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
@@ -86,7 +86,8 @@ GROUPS = {
     "pccheck-b": ["pccheck2"],          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts"],
     "paths-heavy": ["pccheckheavy"],     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
-    "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
+    "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min);
+    "tour-b": ["tour2"],                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals"],
     "motion": ["video", "studio", "update", "ui2", "faces"],
@@ -136,8 +137,10 @@ TESTS = {
                  "EEVEE queue lines)", "",
                  "pccheck"),
     "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),
-    "tour": ("Test tour, the automatic run (PC check mode Tour) from the installed launcher: every stop", "",
-             "pccheck"),
+    "tour": ("Test tour, the automatic run (PC check mode Tour) from the installed launcher: every other stop "
+             "(the rest in tour2, task 0108)", "", "pccheck"),
+    "tour2": ("Test tour, the automatic run: the other half of the stops (tools/ci_pccheck_lines.py tour2)", "",
+              "pccheck"),
     "tourui": ("Real app: test tour – make, open, Go here and in another project, OK / Problem, Copy results "
                "(ui_test_tour.py)", "ui_test_tour.py", True),
     "clash": ("Real app: clash check – Build, Check for clashes, click the row (frame, red, zoom), Cancel, queue note, "
@@ -208,6 +211,9 @@ def judge(key: str, code, text: str, timeout_min: float, quick: bool = False):
     # do not show up as a failed check: count them separately.
     stray = [i for i, ln in enumerate(lines) if "Traceback (most recent call last)" in ln and "ERROR in" not in ln]
     minimum = (MIN_CHECKS_QUICK if quick else {}).get(key, MIN_CHECKS[key])
+    if key in ("tour", "tour2"):                  # each job runs its half of the stops (task 0108): all of that half
+        import ci_pccheck_lines
+        minimum = len(ci_pccheck_lines.ids_for("tour1" if key == "tour" else "tour2"))
     if code is None:
         verdict, detail = False, f"did not finish within {timeout_min:.0f} minutes"
     elif m is None:
@@ -263,11 +269,14 @@ def main(argv=None) -> int:
             launcher = os.path.join(user_res, "extensions", "user_default", "fresing_render", "pccheck", "launcher.py")
             env.update(FRESING_PCCHECK_DIR=os.path.join(folder, "history"), FRESING_PCCHECK_NO_OPEN="1")
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--background", "--online-mode", "--python-exit-code", "1",
-                   "--python", launcher, "--", folder, {"pccheckheavy": "heavy", "tour": "tour"}.get(key, "full")]
+                   "--python", launcher, "--", folder, {"pccheckheavy": "heavy", "tour": "tour", "tour2": "tour"}.get(key, "full")]
             if key in ("pccheck", "pccheck2"):         # Full is split over two jobs (task 0063, tools/ci_pccheck_lines.py)
                 import ci_pccheck_lines
                 part = "linux1" if key == "pccheck" else "linux2"
                 env["FRESING_PCCHECK_ONLY"] = ",".join(ci_pccheck_lines.ids_for(part))
+            if key in ("tour", "tour2"):               # the tour in two jobs (task 0108)
+                import ci_pccheck_lines
+                env["FRESING_PCCHECK_ONLY"] = ",".join(ci_pccheck_lines.ids_for("tour1" if key == "tour" else "tour2"))
             if key == "pccheckheavy":
                 env["FRESING_PCCHECK_HEAVY_SMALL"] = "1"
         elif gui is None:                            # a driver of its own (own settings folder and screen)
@@ -306,7 +315,8 @@ def main(argv=None) -> int:
             import ci_pccheck_lines
             _rows, problems = ci_check_pccheck.judge(
                 text_block, {"pccheckheavy": ci_check_pccheck.MIN_LINES_HEAVY,
-                             "tour": ci_check_pccheck.MIN_LINES_TOUR,
+                             "tour": len(ci_pccheck_lines.ids_for("tour1")),
+                             "tour2": len(ci_pccheck_lines.ids_for("tour2")),
                              "pccheck": len(ci_pccheck_lines.ids_for("linux1")),
                              "pccheck2": len(ci_pccheck_lines.ids_for("linux2"))}.get(key, ci_check_pccheck.MIN_LINES_FULL))
             if problems:
