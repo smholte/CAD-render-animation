@@ -737,7 +737,7 @@ def _falling(scene, col, role: str, snow: bool):
     if snow:
         mat = _material("snow", (0.9, 0.9, 0.92), 1.0, 0.9, 0.3)
     else:
-        mat = _material("rain", (0.55, 0.58, 0.6), 1.0, 0.2)
+        mat = _material("rain", (0.75, 0.78, 0.8), 1.0, 0.2)
     _set_input(mod, ng, "Material", mat)
     ob.data.materials.append(mat)
     _drive(ob, mod, _ident(ng, "Amount"), "a", {"a": "snow" if snow else "rain"}, scene)

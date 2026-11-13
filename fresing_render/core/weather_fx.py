@@ -37,7 +37,7 @@ VIEWPORT = 0.25                    # share of drops / flakes drawn in the 3D vie
 SNOW_FALL = 1.0                    # m/s: a snowflake's fall speed (0.5 … 1.5 m/s, Locatelli & Hobbs 1974)
 SNOW_WOBBLE = 0.35                 # m: flakes sway this far round their path
 SNOW_OMEGA = 1.3                   # rad/s
-FLAKE_MM = 5.0                     # a flake's size (diameter), mm
+FLAKE_MM = 9.0                     # a flake's size (diameter), mm: wet flakes clump to 5 … 15 mm
 
 
 def fall_speed(drop_mm: float) -> float:
