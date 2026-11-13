@@ -703,6 +703,10 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
     if m["weather"]:
         set_weather(pkg, scene, m["weather"])
         log(f"  weather: {WEATHER[m['weather']]}")
+    try:                                         # the marine growth look follows the sea just set (task 0116)
+        importlib.import_module(pkg.__name__ + ".blender.marine_looks").sync(scene)
+    except ImportError:
+        pass
     if m["project"]:
         refresh_start_shot(pkg, scene, m)
     s = scene.fresing

@@ -275,6 +275,31 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
+@line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.91",
+      what="A yellow pile 1.2 m across and 8 m tall standing 4 m deep in water (marine paint with growth), a grey wall "
+           "with run-down streaks and a concrete block, rendered small (processor, draft): judge the dark "
+           "green-brown growth with its ragged top just below the waterline, the greenish splash zone with rust "
+           "streaks above it, clean yellow higher up")
+def looks_marine(ctx):
+    from ..blender import marine_looks, render, tour
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    water = tour.MARINE_WATER
+    made = tour.marine_demo(scene, water)
+    _check(marine_looks.nodes_of(made["paint_marine_growth"]), "the growth look has no marine nodes")
+    lo, hi = marine_looks.growth_band()
+    _check(marine_looks.growth(lo - 0.01) == 1.0 and marine_looks.growth(hi + 0.01) == 0.0,
+           "the growth band is not below the waterline")
+    _check(marine_looks.waterline(scene) == water, "the material does not read the scene's waterline")
+    tour.marine_camera(scene, water)
+    _small_output(s)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "marine_looks.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "marine_looks", "Marine looks (processor, draft)", model_check=False)
+    return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
+
+
 @line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
