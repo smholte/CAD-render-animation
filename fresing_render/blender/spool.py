@@ -924,10 +924,16 @@ def _materials(scene, sp, ob) -> None:
     part = it.part if it is not None else None
     mats = [s.material for s in part.material_slots] if _alive(scene, part) else []
     me = ob.data
-    if [m for m in me.materials] != mats:
-        me.materials.clear()
-        for m in mats:
-            me.materials.append(m)
+    # on the object, as the cable part has it: a shape made by nodes brings an empty slot of its own (flex._slot)
+    # that only an object's material fills
+    while len(me.materials) < max(len(mats), 1):
+        me.materials.append(None)
+    for k, slot in enumerate(ob.material_slots):
+        if slot.link != "OBJECT":
+            slot.link = "OBJECT"
+        m = mats[k] if k < len(mats) else None
+        if slot.material != m:
+            slot.material = m
     if _alive(scene, part) and cable_looks.LOOK in part:
         idprops.store_array(ob, cable_looks.LOOK, np.asarray(part[cable_looks.LOOK], dtype=float))
     elif cable_looks.LOOK in ob:

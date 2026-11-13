@@ -24,18 +24,19 @@ def counts(scene) -> tuple[str, bool]:
 
 class FRESING_UL_spools(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        sp = item
         row = layout.row(align=True)
-        row.prop(item, "enabled", text="")
-        row.prop(item, "name", text="", emboss=False, icon="MESH_CIRCLE" if item.kind == "CAROUSEL" else ICON)
+        row.prop(sp, "enabled", text="")
+        row.prop(sp, "name", text="", emboss=False, icon="MESH_CIRCLE" if sp.kind == "CAROUSEL" else ICON)
         sub = row.row(align=True)
         sub.alignment = "RIGHT"
-        if not item.enabled:
+        if not sp.enabled:
             sub.label(text="off")
-        elif item.problem:
+        elif sp.problem:
             sub.alert = True
             sub.label(text="check", icon="ERROR")
         else:
-            sub.label(text=f"layer {item.layer}" if item.layer else "", icon="CHECKMARK")
+            sub.label(text=f"layer {sp.layer}" if sp.layer else "", icon="CHECKMARK")
 
 
 def _add_buttons(layout, first: bool) -> None:
@@ -111,10 +112,10 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
         layout.separator()
         n = len(sp.followers)
         layout.label(text=f"Follow the layer ({n})" if n else "Follow the layer", icon="CON_FOLLOWPATH")
-        for k, f in enumerate(sp.followers):
+        for k, fl in enumerate(sp.followers):
             row = layout.row(align=True)
-            row.label(text=f.joint, icon=MODE_ICONS.get(f.mode, "DOT"))
-            row.prop(f, "mode", text="")
+            row.label(text=fl.joint, icon=MODE_ICONS.get(fl.mode, "DOT"))
+            row.prop(fl, "mode", text="")
             row.operator("fresing.spool_follower_remove", text="", icon="X").index = k
         layout.operator("fresing.spool_follower_add", text="This joint follows the layer", icon="ADD")
 

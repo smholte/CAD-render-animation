@@ -244,6 +244,11 @@ fresing_render/            the Blender extension (Python package)
                            once (`solve_frames`, fixed point counts), reading a CAD cable (`centreline` for long tubes,
                            `read_cable`: arcs → WRAP on a round part / BEND, rollers it rests on → TOUCH), the seat of a
                            cable in a groove from the mesh, `is_round`, the ratio of a wheel turned by the cable)
+                           spool.py (drums and carousels, task 0080: the wound path from the anchor – drum layers as
+                           helices (spiral groove) or parallel runs with crossovers (Lebus), climbs at the flange;
+                           carousel layers as Archimedean spirals –, true length per piece, the polyline whose chords
+                           equal L, the spool's turn and the leave angle as tables of the payout, arm angle, fleet angles,
+                           the stack of full layers drawn as one solid)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -369,6 +374,15 @@ fresing_render/            the Blender extension (Python package)
                            = (cos φ, sin φ, length along the cable) and the object's ``fr_cable_pay`` (metres paid out
                            + 2.0, a simple-expression driver on the cable joint) and ``fr_cable_look``; ``pattern`` =
                            the same formula in plain Python for the tests
+    spool.py               drums and carousels (task 0080): a cable of paths.py starts on a spool (``a_kind`` SPOOL); the
+                           spool's joint and its layer followers (level wind ACROSS, loading arm ARM, guide swivel ALONG)
+                           follow the cable joint "by table" (``joints.set_table``); the rope on it is an object of its
+                           own ("FR spool <name>", child of the clicked part) whose Geometry Nodes trim the wound path by
+                           driven lengths, the full layers below one solid scaled by a step table; ``starts`` gives
+                           paths.py the leave point per moment (live slots: the spool's motion empty, the cable joint's
+                           arrow and motion); the CAD coil hidden by an empty modifier; ``set_up_test_model``
+                           (test_spool.step from tools/make_test_spool.py); ops_spool.py, ui_spool.py (4 Motion > Drums
+                           and carousels)
     sequence.py            Assembly sequence step (task 0100): the parts of a subassembly (hoses, chain links left
                            out; parts a joint puts on another part ride along), their places at the step's start
                            (``_WorldAt`` sets the earlier steps' joints and moves for a moment), keys as Go to pose writes
@@ -897,3 +911,11 @@ the release → Delete); the next run on `main` publishes it again.
   `joints.rebuild_from_specs` keeps a joint whose spec has no members and no riders (task 0078).
 - GitHub's test machines cannot start EEVEE (no GL context): a test that renders with EEVEE checks something else
   there instead of being skipped – each pytest group allows one skipped test (`ci_pytest_summary.py --max-skipped 1`).
+- Blender merges the keys of a **driver's** F-curve that lie closer than 0.01 too (not only animation keys): a drum's
+  climb pieces 7.7 mm of payout apart lost 60 of 250 keys and the drum came out 2° off (task 0080). A table coupling reads
+  its leader x 1000 when keys lie closer than 0.02 (``joints.table_keys``).
+- Geometry made by nodes brings its own empty material slot: a material on the object's own *mesh* (slot link DATA) is
+  then lost and the shape renders white. Link the slot to the OBJECT and put the material there (``spool._materials``),
+  as the CAD parts have it.
+- A carousel's joint may turn about an axis that points down: "layers grow along +z" then needs the spool's frame turned
+  over (``FRSpool.zsign``), else the coil is read upside down (683 m instead of 28.8 km on the demo's carousel).

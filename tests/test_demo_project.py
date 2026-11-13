@@ -79,8 +79,9 @@ def test_every_joint_of_the_sheet(made):
     sheet = made["sheet"]["joints"]
     assert len(sheet) == 314
     by = {j.name: j for j in sc.fresing.joints}
-    assert len(by) == len(sheet) + 1 and demo.CABLE in by          # + Cable travel (no quay in the small form)
-    cable_turned = 0
+    # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
+    assert len(by) == len(sheet) + 2 and demo.CABLE in by and demo.WINCH_TRAVEL in by
+    cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
         assert j is not None, row["name"]
@@ -99,7 +100,12 @@ def test_every_joint_of_the_sheet(made):
         below = joints.rides_on(sc, j)
         assert (below.name if below else None) == row.get("rides_on"), row["name"]
         drive = row["drive"]
-        if drive.get("by") == "follows":
+        if j.couple_table:                                          # follows its spool's layer by table (task 0080)
+            assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}"), row["name"]
+            spooled += 1
+        elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
+            assert "Fairlead" in row["name"], row["name"]
+        elif drive.get("by") == "follows":
             assert j.follows == drive["follows"] and math.isclose(j.couple_ratio, drive["ratio"], rel_tol=1e-5)
         elif demo.waits_for_tracks(row["name"]):
             assert not j.follows, row["name"]                      # until task 0079 runs the tracks
@@ -114,7 +120,8 @@ def test_every_joint_of_the_sheet(made):
         dv = np.array((M.to_3x3() @ Vector(row["axis"]["direction"])).normalized())
         assert np.linalg.norm(np.cross(np.array(o) - p, dv)) < 1e-4, row["name"]
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
-    assert cable_turned >= 230                          # 244 + the carousel, less the 8 track sprockets
+    assert cable_turned >= 229                          # 244, less the 8 track sprockets (the carousel: by table)
+    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum
 
 
 def test_a_coupling_turns_at_its_ratio(made):

@@ -1561,6 +1561,17 @@ def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> d
     if item.a_kind == "SPOOL":                  # where it leaves the spool at each moment (task 0080)
         from . import spool as _spool
         starts = _spool.starts(scene, item, rel, _slots, scale)
+        if W:       # no free span (a guide right at the coil): a start a hair inside the first wheel sits on it
+            c0, n0 = centres[:, 0], axes[:, 0]
+            v = starts - c0
+            h = np.einsum("fi,fi->f", v, n0)
+            flat = v - h[:, None] * n0
+            rho = np.linalg.norm(flat, axis=1)
+            want = radii[0] + 2.0 * P.TOUCH / scale
+            near = (rho < want) & (rho > radii[0] - max(0.5 * float(item.diameter), 0.005) / scale) & (rho > 0.0)
+            if near.any():
+                starts = np.where(near[:, None], c0 + h[:, None] * n0 + flat * (want / np.maximum(rho, 1e-12))[:, None],
+                                  starts)
     else:
         starts = point(a_slot, item.a_point)
     ends = point(b_slot, item.b_point)
