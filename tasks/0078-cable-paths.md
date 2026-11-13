@@ -1,6 +1,6 @@
 # 0078 – Cable paths: one cable speed, the cable over rollers, sheaves and chutes, with a look that moves
 
-**Who:** worker · **Status:** open · **Branch:** `task/0078-cable-paths`
+**Who:** worker · **Status:** running (13 Nov 2026) · **Branch:** `ccr-6b47eb16-zabyzg` (the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's main goal: the cable-lay line; design in `tasks/0075-motion-paths-design.md`,
 owner's answers at its end)
 **Lane:** Flex parts (after 0058) – new files `core/paths.py` (no Blender), `blender/paths.py`, `blender/ops_paths.py`,
