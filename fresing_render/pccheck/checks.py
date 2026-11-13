@@ -1713,10 +1713,11 @@ def weather_time(ctx):
     from ..core import weather as core
     scene = _weather_scene(ctx)
     w = scene.fresing.weather
+    w.use_date, w.latitude = False, core.DEFAULT_LATITUDE        # the equinox at 55° N, whatever the first switch took
     seen = {}
     for hour in (7.0, 12.0, 18.5, 23.0):
         w.hour = hour
-        el, _az = core.sun_position(hour)
+        el, _az = core.sun_of(weather.state(scene))
         _check(abs(_wx(scene, "sun_el") - el) < 0.01, f"{core.clock(hour)}: the sun stands at "
                                                        f"{_wx(scene, 'sun_el'):.1f}°, not {el:.1f}°")
         seen[hour] = (_wx(scene, "day"), _wx(scene, "flood"))

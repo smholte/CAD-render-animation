@@ -297,7 +297,14 @@ def test_eevee_zero_is_unchanged_wet_is_darker_snow_lies(tmp_path):
     p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=600)
     line = next((x for x in p.stdout.splitlines() if x.startswith("GAINS ")), None)
     if line is None and p.returncode < 0 or p.returncode in (134, -6):
-        pytest.skip("EEVEE cannot start here (no GL context)")
+        # no GL context (GitHub's runners): check what EEVEE will read instead of skipping (CLAUDE.md section 8) –
+        # the group's wet and snow parts read the channels as View Layer attributes, and the snow asks the AO node
+        ng = weather_look.node_group(wet_on=True, snow_on=True)
+        attrs = {n.attribute_name for n in ng.nodes if n.bl_idname == "ShaderNodeAttribute"
+                 and n.attribute_type == "VIEW_LAYER"}
+        assert {"fr_wx_wet", "fr_wx_cover"} <= attrs, attrs
+        assert any(n.bl_idname == "ShaderNodeAmbientOcclusion" for n in ng.nodes)
+        return
     assert line is not None, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
 
 
