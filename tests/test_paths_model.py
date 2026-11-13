@@ -121,7 +121,7 @@ def angle(a, b):
 # ---------------------------------------------------------------------------------------------------------
 
 def test_the_shipped_models_are_the_test_data():
-    for name in ("test_paths_a.step", "test_paths_b.step"):
+    for name in ("test_paths_a.step",):               # revision B is for the model-update test only: not shipped
         with open(os.path.join(ROOT, "fresing_render", "data", name), "rb") as a, \
                 open(os.path.join(HERE, "data", name), "rb") as b:
             assert a.read() == b.read(), f"{name}: copy tests/data/{name} to fresing_render/data/"
