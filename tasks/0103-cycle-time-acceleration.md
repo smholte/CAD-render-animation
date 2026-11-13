@@ -1,6 +1,6 @@
 # 0103 – Cycle time with acceleration: G-code moves timed as the real machine runs them
 
-**Who:** worker · **Status:** open · **Branch:** `task/0103-cycle-time-acceleration`
+**Who:** worker · **Status:** running · **Branch:** `task/0103-cycle-time-acceleration`
 **Started by:** lead chat, 13 Nov 2026 (study 0069 #16; owner: "all three" of the free-lane tasks)
 **Lane:** Machining (G-code files): `core/gcode.py` (the timing in `Schedule`), `blender/gcode.py` (the keys of the Run
 G-code program step), `ui_gcode.py` (4 Motion > CNC machine). Additive: `props.py` (new settings next to `rapid_x …`),
