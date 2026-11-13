@@ -315,3 +315,54 @@ def test_remove_puts_things_back(sea):
     assert it.b_kind == "FIXED"
     line = paths.shape_now(sc, it)
     assert line[:, 2].min() > -1.1                     # as drawn in CAD: down to 1 m under the water
+
+
+def test_the_queue_copy_builds_and_renders_the_same(sea, tmp_path):
+    """The render queue's background Blender opens a copy of the project, builds the animation again and renders:
+    the copy draws the same catenary at every frame, and a render sees the cable hanging (not the CAD cable)."""
+    from fresing_render.blender import cameras
+    sc = sea
+    a = sc.fresing.animations[paths_sea.TEST_ANIMATION]
+    animation.bake(sc, a)
+    frames = (1, 77, 201)
+
+    def shapes(scene):
+        out = []
+        for f in frames:
+            scene.frame_set(f)
+            out.append(paths.shape_now(scene, cable(scene)))
+        return np.array(out)
+
+    want = shapes(sc)
+    path = str(tmp_path / "queue copy.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    paths.forget()
+    sc = bpy.context.scene
+    assert np.abs(shapes(sc) - want).max() < 1e-6
+    r = animation.bake(sc, sc.fresing.animations[paths_sea.TEST_ANIMATION])
+    assert not r["warnings"], r["warnings"]
+    assert np.abs(shapes(sc) - want).max() < 1e-5
+    top, tdp = paths_sea.tdp_world(sc, cable(sc))
+    pts = np.array([(12.0, -3.0, 3.5), tuple(top), tuple(tdp)])
+    sc.camera = cameras.add_camera(sc, "ISO", 35.0, "Queue view", points=pts)
+    sc.render.engine = "CYCLES"
+    sc.cycles.samples, sc.cycles.use_denoising = 1, False
+    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = 96, 54, 100
+    sc.render.image_settings.file_format = "PNG"
+    sc.frame_set(201)
+
+    def picture(name):
+        sc.render.filepath = str(tmp_path / name)
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(sc.render.filepath)
+        px = np.array(img.pixels[:]).reshape(-1, 4)[:, :3]
+        bpy.data.images.remove(img)
+        return px
+
+    hanging = picture("hanging.png")
+    again = picture("again.png")
+    cable(sc).enabled = False
+    stiff = picture("stiff.png")
+    noise = float(np.abs(hanging - again).mean())
+    assert float(np.abs(hanging - stiff).mean()) > 5.0 * noise + 1e-4

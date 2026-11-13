@@ -334,12 +334,12 @@ def _sea_fold(layout, context, cb) -> None:
         row.column(align=True).operator("fresing.cable_rider_remove", text="", icon="REMOVE")
     body.operator("fresing.cable_rider_add", text="Put selected on the cable", icon="ADD")
     if 0 <= cb.riders_index < n:
-        r = cb.riders[cb.riders_index]
+        rd = cb.riders[cb.riders_index]
         col = split_props(body)
-        col.prop(r, "where", text="Place")
-        col.prop(r, "at", text="Metres")
-        body.prop(r, "flip", text="Turned round")
-        wrap(body, context, paths_riders.describe(scene, cb, r), icon="INFO")
+        col.prop(rd, "where", text="Place")
+        col.prop(rd, "at", text="Metres")
+        body.prop(rd, "flip", text="Turned round")
+        wrap(body, context, paths_riders.describe(scene, cb, rd), icon="INFO")
 
 
 class FRESING_PT_cables(_Panel, bpy.types.Panel):
