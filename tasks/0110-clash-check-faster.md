@@ -111,7 +111,8 @@ not round. Three kinds of pair cost it all (each up to 13,000+ tests, 48 between
   24 %**, both 0 rows. After: 118,214 point tests (431k), 15,705 between (39,365), 54 pair windows, 8 period windows
   (the fence's gearboxes and brackets), reading the frames 46 s, 15 s holding parts. The CI test
   `test_demo_project.py::test_no_clash_in_the_animation` (bake + check): 235 s (5.6 min with its 97 s set-up).
-- **Demo, full size** (Normal meshes, as Help > Make demo project; 983 parts checked): after **261 s**, 0 rows; before: see below.
+- **Demo, full size** (Normal meshes, as Help > Make demo project; 983 parts checked): **before 1,248 s (20.8 min), after 261 s (4.4 min) = 21 %**, both 0 rows (1,853 moments; 39,378 →
+  16,029 between; 430,927 → 117,270 point tests).
 - **PC check Heavy `heavy.clash`** (full size: 2,992 parts, 251 frames + 2,016 between): before 51.8 s, after 54.3 s,
   **the same 1,667 rows** (row texts compared); scaled down: 5 frames, 0.7 s both. `expected` (60 s) left as it is.
 - **Test models** (`tests/test_clash.py`, 20 tests: every tour animation, the test crane, CNC gantry, scissor lift …):
@@ -128,7 +129,10 @@ not round. Three kinds of pair cost it all (each up to 13,000+ tests, 48 between
   20.4 min because of `test_render_kit.py`, 548 s, new on `main` from task 0112, not this task). The split demo clash
   test of task 0108 (`tests/test_demo_clash.py`, four processes over windows of frames) took 267 + 103 s set-up there;
   recorded before: 464–533 s. Test times not recorded again (`tools/ci_times.json` would start another full run; the
-  groups stay balanced enough). `main` fast-forwarded to the branch: see below.
+  groups stay balanced enough). `main` fast-forwarded to the branch (code commit deb1115 + the task files): run
+  43513068535 – all tests green, **v0.2.90 published**, the Windows update-from-the-release check passed, offered to
+  the apps; only the landing page's deploy step failed ("no artifacts named github-pages", a GitHub hiccup): run again
+  by hand (Actions → Landing page), green. Leftover branch: `claude/charming-gates-tvqfs2`.
 
 **Open points / follow-up tasks:**
 - Reading the frames (`frame_set` per frame, ~25 ms each on the demo) is now 23 % of the demo's check (46 of 203 s);
