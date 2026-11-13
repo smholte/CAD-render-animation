@@ -200,14 +200,16 @@ def sunrise_sunset(day: int = EQUINOX_DAY, latitude: float = DEFAULT_LATITUDE) -
 def from_old(sun_elevation: float, light_rotation: float, overcast: bool, sun_rotation_zero_az: float = 90.0) -> State:
     """The weather that looks like an older project's sky (Sun / Overcast, sun height, light rotation): solar noon
     at the equinox on the latitude where the noon sun stands that high, north turned so the sun stands where it
-    did. ``sun_rotation_zero_az``: the scene azimuth of the sun at 'Rotate light' 0 (the sky texture's own zero)."""
+    did. ``sun_rotation_zero_az``: the scene azimuth of the sun at 'Rotate light' 0 (the sky texture's own zero,
+    ``weather_sky.SUN_ROTATION_ZERO_AZ``); turning the light by +r puts the sun at ``zero - r`` (measured, as in
+    ``core/studio.main_light``). Sun: a clear sky without cloud patches; Overcast: full cover without a low cloud
+    deck – the soft grey sky of before."""
     lat = min(max(90.0 - float(sun_elevation) + declination(EQUINOX_DAY), 0.0), 89.0)
     el, bearing = sun_position(12.0, EQUINOX_DAY, lat)          # bearing 180 (south)
-    want_az = sun_rotation_zero_az + float(light_rotation)
+    want_az = sun_rotation_zero_az - float(light_rotation)
     north = (want_az + bearing) % 360.0
     north = (north + 180.0) % 360.0 - 180.0
-    return State(hour=12.0, latitude=lat, north=north, clouds=1.0 if overcast else 0.1,
-                 low_clouds=0.3 if overcast else 0.0)
+    return State(hour=12.0, latitude=lat, north=north, clouds=1.0 if overcast else 0.0, low_clouds=0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +253,10 @@ def mix(a: State, b: State, f: float) -> State:
     through midnight); visibility changes evenly in log scale (the fog closes in evenly); the wind direction turns
     the short way; choices switch half way."""
     f = min(max(float(f), 0.0), 1.0)
+    if f <= 0.0:
+        return a
+    if f >= 1.0:
+        return b
     h1 = b.hour if b.hour >= a.hour else b.hour + 24.0
     d_dir = ((b.wind_from - a.wind_from + 180.0) % 360.0) - 180.0
     pick = (lambda x, y: y if f >= 0.5 else x)
@@ -286,9 +292,9 @@ CHANNELS = {
     "clouds": (0.0, 1.0, "cloud cover"),
     "low": (0.0, 1.0, "low clouds / ceiling"),
     "fog": (0.0, 40.0, "fog density, per km (Koschmieder: 3.912 / visibility in km)"),
-    "fog_r": (0.0, 2.0, "fog colour, linear red (already darkened at night)"),
-    "fog_g": (0.0, 2.0, "fog colour, linear green"),
-    "fog_b": (0.0, 2.0, "fog colour, linear blue"),
+    "fog_r": (0.0, 2.0, "fog colour: radiance, linear red (core.weather.fog_level; dark at night)"),
+    "fog_g": (0.0, 2.0, "fog colour: radiance, linear green"),
+    "fog_b": (0.0, 2.0, "fog colour: radiance, linear blue"),
     "stars": (0.0, 1.0, "how much the stars show"),
     "moon": (0.0, 1.0, "moonlight"),
     "exposure": (-2.0, 8.0, "EV added to the user's exposure (a camera opens up at dusk and night)"),
@@ -319,8 +325,39 @@ def _foam_threshold(bft: float) -> float:
         return 1.0 - 0.1 * min(max(bft, 0.0), 10.0)
 
 
-FOG_DAY = (0.62, 0.68, 0.74)          # the colour of haze in daylight (linear)
-FOG_DUSK = (0.75, 0.5, 0.35)          # low sun
+# The haze's colour (normalised to brightness about 1) by day, at a low sun and at night. The channels fog_r/g/b
+# are *radiance* (scene-linear, at light strength 1): the colour times :func:`fog_level` – so the sky's haze
+# (``weather_sky.world_branch``) and the fog laid over the picture (the compositor) are one grey at the horizon.
+FOG_DAY = (0.88, 0.98, 1.12)
+FOG_DUSK = (1.30, 0.86, 0.62)
+FOG_NIGHT = (0.70, 0.90, 1.50)
+CLEAR_FOG = 3.912 / 40.0     # per km: 40 km visibility is clear air, the sky texture's own; only more haze is added
+CLEAR_SKY_HORIZON = 1.05     # radiance of the clear sky at the horizon at a high sun (MULTIPLE_SCATTERING x 0.08)
+OVERCAST_ZENITH = 1.34       # radiance straight up under full cloud at a high sun; with exposure_for's +0.5 EV it
+#                              matches the old Overcast light picture (core/studio.OVERCAST_ZENITH 1.9, exposure 0)
+NIGHT_SKY = 0.00025          # the dark night sky (airglow), radiance
+MOON_SKY = 0.0012             # what a full moon adds to the night sky
+SUN_W = 13.0                 # the sky texture's sun overhead in Sun-lamp units (W/m², measured on a white plane)
+MOON_W = 0.05                # moonlight (Sun lamp, W/m²) at moon 1: with the night's +5 EV a dim blue light
+
+
+def sky_light(sun_el: float) -> float:
+    """How bright the sky is for a sun height, 0 … 1 (1 from 30° up). The world shader uses the same curve,
+    ``pow(smoothstep(-9, 30, sun_el), 1.5)``; the clear sky texture follows it within a factor 2 down to 0°."""
+    return smoothstep(-9.0, 30.0, sun_el) ** 1.5
+
+
+def warmth(sun_el: float, clouds: float) -> float:
+    """0 … 1: how golden the light and the haze are (a low sun in a clear sky)."""
+    return (1.0 - smoothstep(1.0, 18.0, sun_el)) * smoothstep(-6.0, 0.0, sun_el) * (1.0 - 0.7 * clouds)
+
+
+def fog_level(sun_el: float, clouds: float, low: float, night: float = 0.0, moon: float = 0.0) -> float:
+    """Brightness (radiance) of haze and fog: the clear sky's horizon, or the cloud's, plus the night sky."""
+    lvl = sky_light(sun_el)
+    clear = CLEAR_SKY_HORIZON * lvl
+    grey = OVERCAST_ZENITH * 0.6 * (1.0 - 0.55 * low) * lvl
+    return clear + (grey - clear) * clouds + NIGHT_SKY * night + MOON_SKY * moon
 
 
 def exposure_for(sun_el: float, clouds: float) -> float:
@@ -344,8 +381,11 @@ def derive(st: State, place: str = "sky") -> dict:
     low = min(max(st.low_clouds, 0.0), 1.0)
     sun = (1.0 - smoothstep(0.55, 0.95, clouds)) * (1.0 - low) * smoothstep(-1.0, 2.0, el)
     km = max(st.visibility, 50.0) / 1000.0
-    warm = smoothstep(25.0, 2.0, el) * day * (1.0 - clouds)
-    fog_col = tuple((FOG_DAY[i] + (FOG_DUSK[i] - FOG_DAY[i]) * warm) * (0.03 + 0.97 * day) for i in range(3))
+    moon = night * (1.0 - 0.8 * clouds)
+    warm = warmth(el, clouds)
+    lit = fog_level(el, clouds, low)
+    dark = NIGHT_SKY * night + MOON_SKY * moon
+    fog_col = tuple((FOG_DAY[i] + (FOG_DUSK[i] - FOG_DAY[i]) * warm) * lit + FOG_NIGHT[i] * dark for i in range(3))
     flood = {"ON": 1.0, "OFF": 0.0}.get(st.floodlights, 1.0 - smoothstep(-2.0, 6.0, el))
     wx, wy = wind_vector(st)
     ch = {
@@ -353,7 +393,7 @@ def derive(st: State, place: str = "sky") -> dict:
         "day": day, "night": night, "sun": sun, "clouds": clouds, "low": low,
         "fog": 3.912 / km, "fog_r": fog_col[0], "fog_g": fog_col[1], "fog_b": fog_col[2],
         "stars": night * (1.0 - smoothstep(0.3, 0.9, clouds)) * (1.0 - low),
-        "moon": night * (1.0 - 0.8 * clouds),
+        "moon": moon,
         "exposure": exposure_for(el, clouds),
         "flood": flood * min(max(st.flood_strength, 0.0), 4.0),
         "rain": min(max(st.rain, 0.0), 1.0), "drop": min(max(st.drop_size, 0.2), 8.0),
