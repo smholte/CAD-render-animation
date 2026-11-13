@@ -1,6 +1,6 @@
 # 0102 – Demo: the D-quadrant as wide as the cable path; the tensioners lift and tilt out of its way
 
-**Who:** worker · **Status:** running · **Branch:** `task/0102-demo-quadrant-full-width`
+**Who:** worker · **Status:** done (0.2.84) · **Branch:** `task/0102-demo-quadrant-full-width`
 **Started by:** lead chat, 13 Nov 2026 (owner's corrections of the demo deck, with his marked-up picture: described in
 words below, not committed) · runs side by side with 0080 and 0101; **0079 waits for this task** (it runs the tracks
 in the tensioner made here)
@@ -137,7 +137,9 @@ winches' drums); the cable into the sea (0081); the quadrant's lowering and tipp
 - The clear band: between the two cable lines nothing of an open tensioner at any height from the cable's up; the D's
   own room is 8.62 m wide, from 30 mm under the cable's centre to 1.79 m over its rail top (tipping eyes), 0.30 m
   over the cable at its edges.
-- GitHub runs: see below.
+- GitHub: 3 full runs on the branch. The first was red only in `tests/test_paths.py` (it counts the demo cable's
+  rollers and bends too: 218 → 195, 14 → 10, 188.06 → 170.50 m); 0105 and 0103 took 0.2.82 and 0.2.83 while it ran, so
+  the next two runs were merges of main + renumbering (both green: runs 43435919960, 43438261138, ~15 min each).
 
 **Open points / follow-up tasks:**
 - For small cables (under ~Ø 120) the bottom pads' V edges stand higher than the cable's centre; the D's hanging guide
