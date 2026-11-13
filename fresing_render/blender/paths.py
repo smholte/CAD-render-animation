@@ -92,7 +92,7 @@ MOVE_TOL = 5e-6                         # a carrier moved against the cable part
 RATIO_TOL = 0.005                       # an own coupling this far off the app's ratio is reported
 GAP_NOTE = 0.001                        # a cable drawn this far off a surface is reported
 HUGE = 400_000                          # triangles: a part bigger than this is not looked at as a roller or sheave
-ONE_GO = 1000.0                         # a cable up to this many radii long is read in one go (flex_fit), a longer
+ONE_GO = 0.0                            # a cable up to this many radii long is read in one go (flex_fit), a longer
 #                                         one in pieces (core.paths.centreline). A SWITCH UNTIL core.paths.centreline
 #                                         IS FIXED: it bends the line after a seam on a cable of 200+ radii that turns
 #                                         more than 90° (the test model's rope: 4.3 mm off). Then: 0.0
