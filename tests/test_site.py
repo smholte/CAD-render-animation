@@ -205,7 +205,8 @@ def test_kit_renders_a_test_model(tmp_path):
     assert (out / "send" / "gantry_iso.jpg").stat().st_size > 1000
     assert (out / "full" / "gantry.blend").exists()
     assert re.search(r"colours: \* \d+", (out / "log.txt").read_text(encoding="utf-8"))
-    assert (out / "contact_sheet.html").exists() and (out / "Fresing site pictures.zip").exists()
+    assert (out / "contact_sheet.html").exists()
+    assert [f for f in os.listdir(out) if f.startswith("site_pictures_") and f.endswith(".zip")]   # task 0112
 
 
 def test_pages_workflow():

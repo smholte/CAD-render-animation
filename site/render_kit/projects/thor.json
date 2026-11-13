@@ -1,0 +1,661 @@
+{
+ "model": "thor",
+ "title": "Thor robot arm",
+ "step": "thor.step",
+ "units": "mm",
+ "up_axis": "Z",
+ "source": "AngelLM/Thor freecad-src (Assembly4), CC BY-SA 4.0",
+ "parts": 522,
+ "bodies": {
+  "ART1": 82,
+  "ART1 PINION": 3,
+  "ART2": 96,
+  "ART2 PINION A": 3,
+  "ART2 PINION B": 3,
+  "ART3": 58,
+  "ART4": 105,
+  "ART4 PINION": 3,
+  "ART5": 8,
+  "ART6": 30,
+  "BASE": 99,
+  "FINGER A": 5,
+  "FINGER B": 5,
+  "GRIPPER LINK A": 1,
+  "GRIPPER LINK B": 1,
+  "GRIPPER PASSIVE ARM": 1,
+  "GRIPPER SERVO ARM": 5,
+  "WRIST GEAR A": 7,
+  "WRIST GEAR B": 7
+ },
+ "joints": [
+  {
+   "name": "Art1",
+   "kind": "ROTATE",
+   "parts": [
+    "ART1"
+   ],
+   "point": [
+    0.0,
+    0.0,
+    79.0
+   ],
+   "direction": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "rides_on": null,
+   "source": "Assembly: AssemblyArt1's attachment frame, Z axis",
+   "round_faces": [
+    17,
+    29
+   ],
+   "round_radius": 75.0,
+   "limits": [
+    -170.0,
+    170.0
+   ]
+  },
+  {
+   "name": "Art2",
+   "kind": "ROTATE",
+   "parts": [
+    "ART2"
+   ],
+   "point": [
+    0.0,
+    0.0,
+    202.0
+   ],
+   "direction": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "rides_on": "Art1",
+   "source": "Assembly: AssemblyArt2's attachment frame, Z axis",
+   "round_faces": [
+    60,
+    57
+   ],
+   "round_radius": 75.0,
+   "limits": [
+    -95.0,
+    95.0
+   ]
+  },
+  {
+   "name": "Art3",
+   "kind": "ROTATE",
+   "parts": [
+    "ART3"
+   ],
+   "point": [
+    -0.0,
+    0.0,
+    362.0
+   ],
+   "direction": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "rides_on": "Art2",
+   "source": "Assembly: AssemblyArt3's attachment frame, Y axis",
+   "round_faces": [
+    36,
+    40
+   ],
+   "round_radius": 40.0,
+   "limits": [
+    -110.0,
+    110.0
+   ]
+  },
+  {
+   "name": "Art4",
+   "kind": "ROTATE",
+   "parts": [
+    "ART4"
+   ],
+   "point": [
+    -0.0,
+    0.0,
+    444.5
+   ],
+   "direction": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "rides_on": "Art3",
+   "source": "Assembly: AssemblyArt4's attachment frame, Z axis",
+   "round_faces": [
+    27,
+    13
+   ],
+   "round_radius": 55.2,
+   "limits": [
+    -170.0,
+    170.0
+   ]
+  },
+  {
+   "name": "Art5",
+   "kind": "ROTATE",
+   "parts": [
+    "ART5"
+   ],
+   "point": [
+    -0.0,
+    -27.0,
+    556.0
+   ],
+   "direction": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "rides_on": "Art4",
+   "source": "AssemblyArt56: Art56SmallGear_Art56SmallGear's attachment frame, Z axis",
+   "round_faces": [
+    13,
+    21
+   ],
+   "round_radius": 47.0,
+   "limits": [
+    -100.0,
+    100.0
+   ]
+  },
+  {
+   "name": "Art6",
+   "kind": "ROTATE",
+   "parts": [
+    "ART6"
+   ],
+   "point": [
+    -0.0,
+    -0.0,
+    575.5
+   ],
+   "direction": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "rides_on": "Art5",
+   "source": "AssemblyArt56: Art56GearPlate_Art56GearPlate's attachment frame, Z axis",
+   "round_faces": [
+    13,
+    13
+   ],
+   "round_radius": 15.5,
+   "limits": [
+    -170.0,
+    170.0
+   ]
+  },
+  {
+   "name": "Gripper",
+   "kind": "ROTATE",
+   "parts": [
+    "GRIPPER SERVO ARM"
+   ],
+   "point": [
+    2.410494,
+    14.521613,
+    645.0
+   ],
+   "direction": [
+    0.999996298,
+    0.002721133,
+    -0.0
+   ],
+   "rides_on": "Art6",
+   "source": "AssemblyArt56: ServomotorWheelHorn001's attachment frame, Z axis",
+   "round_faces": [
+    7,
+    40
+   ],
+   "round_radius": 10.75,
+   "limits": [
+    0.0,
+    85.0
+   ]
+  },
+  {
+   "name": "Gripper passive arm",
+   "kind": "ROTATE",
+   "parts": [
+    "GRIPPER PASSIVE ARM"
+   ],
+   "point": [
+    2.689447,
+    -14.492735,
+    645.0
+   ],
+   "direction": [
+    -0.999996298,
+    -0.002721133,
+    -0.0
+   ],
+   "rides_on": "Art6",
+   "source": "AssemblyArt56: Unnamed3_GripperPassiveArm's attachment frame, Z axis",
+   "round_faces": [
+    1,
+    4
+   ],
+   "round_radius": 1.5,
+   "follows": "Gripper",
+   "ratio": 1.0,
+   "why": "equal gears: turns the other way"
+  },
+  {
+   "name": "Gripper link A",
+   "kind": "ROTATE",
+   "parts": [
+    "GRIPPER LINK A"
+   ],
+   "point": [
+    2.633663,
+    6.007189,
+    663.5
+   ],
+   "direction": [
+    -0.999996298,
+    -0.002721133,
+    0.0
+   ],
+   "rides_on": "Art6",
+   "source": "AssemblyArt56: Unnamed2_GripperArm001's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    3
+   ],
+   "round_radius": 3.5,
+   "follows": "Gripper",
+   "ratio": -1.0,
+   "why": "parallelogram with the servo arm"
+  },
+  {
+   "name": "Gripper link B",
+   "kind": "ROTATE",
+   "parts": [
+    "GRIPPER LINK B"
+   ],
+   "point": [
+    2.666317,
+    -5.992767,
+    663.5
+   ],
+   "direction": [
+    -0.999996298,
+    -0.002721133,
+    0.0
+   ],
+   "rides_on": "Art6",
+   "source": "AssemblyArt56: Unnamed2_GripperArm's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    3
+   ],
+   "round_radius": 3.5,
+   "follows": "Gripper",
+   "ratio": 1.0,
+   "why": "parallelogram with the passive arm"
+  },
+  {
+   "name": "Finger A",
+   "kind": "ROTATE",
+   "parts": [
+    "FINGER A"
+   ],
+   "point": [
+    2.538424,
+    41.007059,
+    663.5
+   ],
+   "direction": [
+    -0.999996298,
+    -0.002721133,
+    0.0
+   ],
+   "rides_on": "Gripper link A",
+   "source": "AssemblyArt56: Unnamed1_GripperFinger's attachment frame, Z axis",
+   "round_faces": [
+    3,
+    2
+   ],
+   "round_radius": 2.95,
+   "follows": "Gripper",
+   "ratio": 1.0,
+   "why": "turns back on link A: stays upright"
+  },
+  {
+   "name": "Finger B",
+   "kind": "ROTATE",
+   "parts": [
+    "FINGER B"
+   ],
+   "point": [
+    2.761557,
+    -40.992637,
+    663.5
+   ],
+   "direction": [
+    0.999996298,
+    0.002721133,
+    -0.0
+   ],
+   "rides_on": "Gripper link B",
+   "source": "AssemblyArt56: GripperFinger_sym001's attachment frame, Z axis",
+   "round_faces": [
+    3,
+    2
+   ],
+   "round_radius": 2.95,
+   "follows": "Gripper",
+   "ratio": 1.0,
+   "why": "turns back on link B: stays upright"
+  },
+  {
+   "name": "Art1 pinion",
+   "kind": "ROTATE",
+   "parts": [
+    "ART1 PINION"
+   ],
+   "point": [
+    40.0,
+    0.0,
+    49.0
+   ],
+   "direction": [
+    -0.0,
+    -0.0,
+    -1.0
+   ],
+   "rides_on": null,
+   "source": "AssemblyBase: Art1GearMotor_Art1GearMotor's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    12
+   ],
+   "round_radius": 12.0,
+   "follows": "Art1",
+   "ratio": -5.0,
+   "why": "10:50 teeth, inside a ring gear, centres 40.0 mm apart"
+  },
+  {
+   "name": "Art2 pinion A",
+   "kind": "ROTATE",
+   "parts": [
+    "ART2 PINION A"
+   ],
+   "point": [
+    -21.500342,
+    -37.249701,
+    158.7
+   ],
+   "direction": [
+    -4.07e-07,
+    1.0,
+    -0.0
+   ],
+   "rides_on": "Art1",
+   "source": "AssemblyArt1: Art2MotorGear_Art2MotorGear's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    13
+   ],
+   "round_radius": 12.0,
+   "follows": "Art2",
+   "ratio": 6.0,
+   "why": "10:60 teeth, inside a ring gear, centres 48.3 mm apart"
+  },
+  {
+   "name": "Art2 pinion B",
+   "kind": "ROTATE",
+   "parts": [
+    "ART2 PINION B"
+   ],
+   "point": [
+    21.499658,
+    -37.249684,
+    158.7
+   ],
+   "direction": [
+    -4.07e-07,
+    1.0,
+    -0.0
+   ],
+   "rides_on": "Art1",
+   "source": "AssemblyArt1: Art2MotorGear_Art2MotorGear001's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    13
+   ],
+   "round_radius": 12.0,
+   "follows": "Art2",
+   "ratio": 6.0,
+   "why": "10:60 teeth, inside a ring gear, centres 48.3 mm apart"
+  },
+  {
+   "name": "Art4 pinion",
+   "kind": "ROTATE",
+   "parts": [
+    "ART4 PINION"
+   ],
+   "point": [
+    -27.85,
+    0.0,
+    366.9
+   ],
+   "direction": [
+    -0.0,
+    -0.0,
+    -1.0
+   ],
+   "rides_on": "Art3",
+   "source": "AssemblyArt3: Art4MotorGear_Art4MotorGear's attachment frame, Z axis",
+   "round_faces": [
+    2,
+    13
+   ],
+   "round_radius": 12.0,
+   "follows": "Art4",
+   "ratio": 2.0,
+   "why": "10:20 teeth, outside, centres 27.8 mm apart"
+  },
+  {
+   "name": "Wrist gear A",
+   "kind": "ROTATE",
+   "parts": [
+    "WRIST GEAR A"
+   ],
+   "point": [
+    -0.0,
+    -27.0,
+    556.0
+   ],
+   "direction": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "rides_on": "Art5",
+   "source": "AssemblyArt56: Art56SmallGear_Art56SmallGear's attachment frame, Z axis",
+   "round_faces": [
+    49,
+    13
+   ],
+   "round_radius": 14.0,
+   "follows": "Art6",
+   "ratio": -2.0,
+   "why": "15:30 bevel teeth (differential)"
+  },
+  {
+   "name": "Wrist gear B",
+   "kind": "ROTATE",
+   "parts": [
+    "WRIST GEAR B"
+   ],
+   "point": [
+    -0.0,
+    27.0,
+    556.0
+   ],
+   "direction": [
+    0.0,
+    -1.0,
+    -0.0
+   ],
+   "rides_on": "Art5",
+   "source": "AssemblyArt56: Art56SmallGear_Art56SmallGear001's attachment frame, Z axis",
+   "round_faces": [
+    49,
+    13
+   ],
+   "round_radius": 14.0,
+   "follows": "Art6",
+   "ratio": -2.0,
+   "why": "15:30 bevel teeth (differential)"
+  }
+ ],
+ "cylinders": [],
+ "hide": [
+  {
+   "part": "ART3 BELT",
+   "why": "the elbow's toothed belt runs inside the upper arm; a one-piece belt cannot run round its pulleys, so the turning elbow pulley would cut through it"
+  },
+  {
+   "part": "ART1 PINION GRUB SCREW",
+   "why": "the Art1 motor pinion's grub screw sticks 0.7 mm into the Art1 ring gear when the pinion turns (in the source model); inside the base"
+  }
+ ],
+ "poses": [
+  {
+   "name": "Home",
+   "values": {
+    "Art1": 0,
+    "Art2": 0,
+    "Art3": 0,
+    "Art4": 0,
+    "Art5": 0,
+    "Art6": 0,
+    "Gripper": 0
+   }
+  },
+  {
+   "name": "Reach down",
+   "values": {
+    "Art1": -45,
+    "Art2": 55,
+    "Art3": 65,
+    "Art4": 0,
+    "Art5": 60,
+    "Art6": 0,
+    "Gripper": 0
+   }
+  },
+  {
+   "name": "Grip",
+   "values": {
+    "Art1": -45,
+    "Art2": 55,
+    "Art3": 65,
+    "Art4": 0,
+    "Art5": 60,
+    "Art6": 0,
+    "Gripper": 55
+   }
+  },
+  {
+   "name": "Lift and turn",
+   "values": {
+    "Art1": 0,
+    "Art2": 20,
+    "Art3": 50,
+    "Art4": 0,
+    "Art5": 75,
+    "Art6": 90,
+    "Gripper": 55
+   }
+  },
+  {
+   "name": "Put down",
+   "values": {
+    "Art1": 45,
+    "Art2": 55,
+    "Art3": 65,
+    "Art4": 0,
+    "Art5": 60,
+    "Art6": 90,
+    "Gripper": 55
+   }
+  },
+  {
+   "name": "Release",
+   "values": {
+    "Art1": 45,
+    "Art2": 55,
+    "Art3": 65,
+    "Art4": 0,
+    "Art5": 60,
+    "Art6": 90,
+    "Gripper": 0
+   }
+  }
+ ],
+ "start_pose": "Home",
+ "animation": {
+  "name": "Thor at work",
+  "seconds": 10.0,
+  "loop": true,
+  "steps": [
+   {
+    "kind": "POSE",
+    "pose": "Reach down",
+    "start": 0.0,
+    "seconds": 2.2,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Grip",
+    "start": 2.2,
+    "seconds": 0.8,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Lift and turn",
+    "start": 3.0,
+    "seconds": 2.0,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Put down",
+    "start": 5.0,
+    "seconds": 2.0,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Release",
+    "start": 7.0,
+    "seconds": 0.8,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Home",
+    "start": 7.8,
+    "seconds": 2.2,
+    "easing": "SMOOTH"
+   }
+  ]
+ },
+ "unique_parts": 467
+}

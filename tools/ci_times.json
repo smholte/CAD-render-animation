@@ -104,7 +104,10 @@
   "tests/test_spool.py": 10.7,
   "tests/test_joint_table.py": 6.9,
   "tests/test_spool_independent.py": 54.4,
-  "tests/test_gcode_accel.py": 2.2
+  "tests/test_gcode_accel.py": 2.2,
+  "tests/test_site_projects.py": 300.0,
+  "tests/test_render_kit.py": 240.0,
+  "tests/test_site_take.py": 3.0
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.2,

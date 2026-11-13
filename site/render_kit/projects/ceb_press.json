@@ -1,0 +1,230 @@
+{
+ "model": "ceb_press",
+ "title": "CEB brick press",
+ "step": "ceb_press.step",
+ "units": "mm",
+ "up_axis": "Z",
+ "source": "goscommons/CEB-Press 01_Hardware/CAD/CEB CAD Assembly.fcstd, CC BY-SA 4.0",
+ "parts": 248,
+ "notes": [
+  "main cylinder moved +10.81 mm along y onto the compression chamber's middle",
+  "main cylinder split into barrel and rod (rod \u00d869.85 mm), a bore of 220 mm in the barrel for the rod's stroke",
+  "drawer cylinder split into barrel and rod (rod \u00d828.6 mm); the rod goes on 110 mm inside the barrel, in a bore",
+  "the drawer's way cleared: 7 frame parts trimmed by at most 3.5 mm where they reach into the drawer's path (the source's drawer does not quite fit its way)"
+ ],
+ "joints": [
+  {
+   "name": "Press plate",
+   "kind": "SLIDE",
+   "parts": [
+    "PRESS PLATE"
+   ],
+   "point": [
+    512.2904,
+    -242.4155,
+    656.2891
+   ],
+   "direction": [
+    0.0,
+    -0.0,
+    1.0
+   ],
+   "base": "FRAME SUBASSEMBLY",
+   "limits": [
+    -200.0,
+    0.0
+   ],
+   "source": "along the main cylinder's rod (its axis from the rod's round face)"
+  },
+  {
+   "name": "Drawer",
+   "kind": "SLIDE",
+   "parts": [
+    "DRAWER"
+   ],
+   "point": [
+    514.9717,
+    -109.6926,
+    768.9483
+   ],
+   "direction": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "base": "FRAME SUBASSEMBLY",
+   "limits": [
+    -140.0,
+    100.0
+   ],
+   "source": "along the drawer's rails (its longest parts), the way its cylinder's rod goes out; the cylinder itself is 1\u00b0 off level and pivots on its pins"
+  }
+ ],
+ "cylinders": [
+  {
+   "name": "Main cylinder",
+   "barrel": [
+    "MAIN CYLINDER BARREL"
+   ],
+   "rod": [
+    "MAIN CYLINDER ROD"
+   ],
+   "barrel_pin": {
+    "point": [
+     512.288,
+     -242.4155,
+     -10.4615
+    ],
+    "axis": [
+     -0.0,
+     1.0,
+     0.0
+    ],
+    "carrier": "MAIN CYLINDER MOUNT"
+   },
+   "rod_pin": {
+    "point": [
+     512.2903,
+     -242.4154,
+     630.8887
+    ],
+    "axis": [
+     -0.0,
+     1.0,
+     0.0
+    ],
+    "carrier": "PRESS PLATE"
+   }
+  },
+  {
+   "name": "Drawer cylinder",
+   "barrel": [
+    "DRAWER CYLINDER BARREL"
+   ],
+   "rod": [
+    "DRAWER CYLINDER ROD"
+   ],
+   "barrel_pin": {
+    "point": [
+     514.9717,
+     875.4242,
+     751.7549
+    ],
+    "axis": [
+     -1.0,
+     -0.0,
+     0.0
+    ],
+    "carrier": "DRAWER CYLINDER MOUNT"
+   },
+   "rod_pin": {
+    "point": [
+     514.9717,
+     -83.2798,
+     768.4874
+    ],
+    "axis": [
+     -1.0,
+     -0.0,
+     0.0
+    ],
+    "carrier": "DRAWER"
+   }
+  }
+ ],
+ "hide": [],
+ "poses": [
+  {
+   "name": "Fill",
+   "values": {
+    "Press plate": -200.0,
+    "Drawer": 32.0
+   }
+  },
+  {
+   "name": "Closed",
+   "values": {
+    "Press plate": -200.0,
+    "Drawer": -132.0
+   }
+  },
+  {
+   "name": "Pressed",
+   "values": {
+    "Press plate": -120.0,
+    "Drawer": -132.0
+   }
+  },
+  {
+   "name": "Opened",
+   "values": {
+    "Press plate": -120.0,
+    "Drawer": 32.0
+   }
+  },
+  {
+   "name": "Brick up",
+   "values": {
+    "Press plate": 0.0,
+    "Drawer": 32.0
+   }
+  },
+  {
+   "name": "Brick out",
+   "values": {
+    "Press plate": 0.0,
+    "Drawer": -125.0
+   }
+  }
+ ],
+ "start_pose": "Fill",
+ "animation": {
+  "name": "Press cycle",
+  "seconds": 9.5,
+  "loop": true,
+  "steps": [
+   {
+    "kind": "POSE",
+    "pose": "Closed",
+    "start": 0.0,
+    "seconds": 1.3,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Pressed",
+    "start": 1.3,
+    "seconds": 1.6,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Opened",
+    "start": 2.9,
+    "seconds": 1.1,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Brick up",
+    "start": 4.0,
+    "seconds": 1.4,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Brick out",
+    "start": 5.4,
+    "seconds": 1.6,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Fill",
+    "start": 7.0,
+    "seconds": 2.5,
+    "easing": "SMOOTH"
+   }
+  ]
+ }
+}

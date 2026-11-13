@@ -44,6 +44,7 @@ REPO_URL = f"https://github.com/{REPO}"
 ALLOWED_HOSTS = ("github.com", "fresing.nl", "www.fresing.nl", "www.blender.org")
 JPG_MAX = 400_000
 VIDEO_MAX = 8_000_000
+CLIP_MAX = 5_000_000                        # a gallery clip (task 0112): the page stays light
 GLB_MAX = 15_000_000                       # the web model: a phone on a slow line must still get it
 FORBIDDEN_MODELS = ("fresing_400", "fresing400", "f400")   # not public (owner, 12 Nov 2026)
 COPY_DIRS = ("brand", "fonts")
@@ -434,14 +435,17 @@ def web_jpg(src: str, dst: str, width: int = 1920) -> int:
     return os.path.getsize(dst)
 
 
-def web_mp4(src: str, dst: str, start: float = 0.0, length: float = 0.0, height: int = 1080) -> int:
-    """H.264 MP4 without sound, at most ``height`` high and VIDEO_MAX bytes (ffmpeg). Returns its size."""
+def web_mp4(src: str, dst: str, start: float = 0.0, length: float = 0.0, height: int = 1080,
+            max_bytes: int = VIDEO_MAX) -> int:
+    """H.264 MP4 without sound, at most ``height`` high and ``max_bytes`` (ffmpeg; 720 high when 1080 does not fit).
+    Returns its size."""
     cut = (["-ss", str(start)] if start else []) + (["-t", str(length)] if length else [])
-    for crf in (24, 27, 30, 33):
-        _run(["ffmpeg", "-y", *cut, "-i", src, "-an", "-vf", f"scale=-2:'min({height},ih)'", "-c:v", "libx264",
-              "-preset", "slow", "-crf", str(crf), "-pix_fmt", "yuv420p", "-movflags", "+faststart", dst])
-        if os.path.getsize(dst) <= VIDEO_MAX:
-            break
+    for h in (height, 720) if height > 720 else (height,):
+        for crf in (24, 27, 30, 33):
+            _run(["ffmpeg", "-y", *cut, "-i", src, "-an", "-vf", f"scale=-2:'min({h},ih)'", "-c:v", "libx264",
+                  "-preset", "slow", "-crf", str(crf), "-pix_fmt", "yuv420p", "-movflags", "+faststart", dst])
+            if os.path.getsize(dst) <= max_bytes:
+                return os.path.getsize(dst)
     return os.path.getsize(dst)
 
 
@@ -457,22 +461,44 @@ def save_media(media: dict) -> None:
 
 
 def take(folder: str, keep_old: bool = False) -> dict:
-    """The owner's renders (site_pictures.json from the render kit) into site/media: pictures and the video
-    compressed, media.json updated (the old pictures go unless ``keep_old``)."""
+    """The owner's renders (site_pictures.json from the render kit, a folder or the kit's site_pictures_<date>.zip)
+    into site/media: pictures and videos compressed (a gallery clip at most CLIP_MAX), the kit's posters used,
+    media.json updated (the old pictures go unless ``keep_old``)."""
+    if folder.lower().endswith(".zip"):
+        import tempfile
+        import zipfile
+        tmp = tempfile.mkdtemp(prefix="site_take_")
+        with zipfile.ZipFile(folder) as z:
+            z.extractall(tmp)
+        hits = [d for d, _s, fs in os.walk(tmp) if "site_pictures.json" in fs]
+        if not hits:
+            raise SystemExit(f"{folder} has no site_pictures.json")
+        folder = hits[0]
     info = json.load(open(os.path.join(folder, "site_pictures.json"), encoding="utf-8"))
+    for it in info["items"]:
+        if any(f in (it.get("model", "") + it["file"]).lower() for f in FORBIDDEN_MODELS):
+            raise SystemExit(f"{it['file']} may not go on the site: the Fresing 400 is not public")
     media = load_media()
     pictures = media.get("pictures", []) if keep_old else []
+    if keep_old:
+        new = {it["file"] for it in info["items"]}
+        pictures = [p for p in pictures if p["file"] not in new]
     for it in info["items"]:
         src = os.path.join(folder, it["file"])
         if it["kind"] == "picture":
             web_jpg(src, os.path.join(MEDIA, it["file"]))
             pictures.append({"file": it["file"], "caption": it["caption"], "model": it["model"]})
         elif it["kind"] == "video":
-            web_mp4(src, os.path.join(MEDIA, it["file"]))
+            gallery = bool((media.get("hero") or {}).get("keep"))      # the owner's own video stays at the top
+            web_mp4(src, os.path.join(MEDIA, it["file"]), max_bytes=CLIP_MAX if gallery else VIDEO_MAX)
             poster = it["file"].rsplit(".", 1)[0] + "_poster.jpg"
-            poster_of(os.path.join(MEDIA, it["file"]), os.path.join(MEDIA, poster))
+            kit_poster = os.path.join(folder, it.get("poster", "")) if it.get("poster") else ""
+            if kit_poster and os.path.isfile(kit_poster):
+                web_jpg(kit_poster, os.path.join(MEDIA, poster))
+            else:
+                poster_of(os.path.join(MEDIA, it["file"]), os.path.join(MEDIA, poster))
             item = {"file": it["file"], "poster": poster, "caption": it["caption"], "model": it["model"]}
-            if (media.get("hero") or {}).get("keep"):      # the owner's own video stays at the top
+            if gallery:
                 pictures.append(item)
             else:
                 media["hero"] = item
@@ -561,7 +587,8 @@ def main(argv=None) -> int:
     ap.add_argument("--size", type=int, default=0, help="size of the installer zip in bytes (shown on the button)")
     ap.add_argument("--no-guide", action="store_true")
     ap.add_argument("--check", metavar="DIR", help="only check a built page")
-    ap.add_argument("--take", metavar="FOLDER", help="take the render kit's pictures into site/media")
+    ap.add_argument("--take", metavar="FOLDER_OR_ZIP",
+                    help="take the render kit's pictures and videos into site/media (its folder or its zip)")
     ap.add_argument("--keep-old", action="store_true", help="with --take: keep the pictures already there")
     ap.add_argument("--hero-video", metavar="FILE", help="cut and compress the video at the top of the page")
     ap.add_argument("--start", type=float, default=0.0)

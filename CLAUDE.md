@@ -437,8 +437,14 @@ app_template/fresing_render/   app template: layout, units, switches the extensi
 site/                      the landing page https://smholte.github.io/CAD-render-animation/ (task 0047): index.html +
                            style.css (Fresing palette A, IBM Plex Sans in fonts/), brand/ (Fresing logos), media/ (pictures,
                            video, media.json: captions + credits), CREDITS.md; render_kit/ (the owner's Windows kit: "Make site
-                           pictures.bat" + make_site_pictures.py + models.ini). tools/build_site.py builds it into dist/site;
-                           .github/workflows/pages.yml publishes it (after each release, on site-only pushes to main, by hand)
+                           pictures.bat" + make_site_pictures.py + models.ini; task 0112: projects.py makes a model that moves
+                           from its sheet projects/<model>.json – joints, cylinders, poses, the loop – with the app's own
+                           functions; video = turntable | product | animation, weather per model, the expected time, start
+                           later, one result zip site_pictures_<date>.zip). tools/build_site.py builds it into dist/site
+                           (--take <zip or folder>: the kit's result in); .github/workflows/pages.yml publishes it (after
+                           each release, on site-only pushes to main, by hand). The kit itself: .github/workflows/
+                           site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
+                           "site-kit" (on main when the kit or its makers change; by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
@@ -446,6 +452,12 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
                            make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
                            fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
+                           make_site_projects.py + site_projects/ (task 0112): the site's moving models from their own
+                           sources (cloned at pinned commits): thor.py reads Thor's FreeCAD Assembly4 files (a4.py) – the
+                           joints from the attachment frames, checked by round faces on both sides of each hinge, the
+                           gears coupled by their tooth counts; ceb.py splits the brick press's fused cylinders into
+                           barrel and rod and fixes the source's faults; stepout.py writes the STEP with the moving bodies
+                           as nested sub-assemblies; each model's sheet goes to site/render_kit/projects/
                            inventor/ (task 0104, not part of the app): draft Inventor iLogic rule + Fusion script that
                            write <assembly>.fresing.json (constraints, joints, places), README with the owner's steps,
                            prototype/ = the app side worked out and tried in Blender (motion_plan.py, try_in_blender.py)
@@ -547,6 +559,7 @@ task 0059; its own group since task 0060); the other groups' tests: `GROUPS` in 
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
 | Delete the rehearsal pre-release | only after a `[release rehearsal]` branch push (docs/UPDATES.md) | < 1 min |
 | Landing page (GitHub Pages) | after "Offer the release": `.github/workflows/pages.yml` builds `site/` with `tools/build_site.py` (newest release, its What's new, the guide) and publishes it; the same workflow runs on a push to `main` that changes `site/` or `tools/build_site.py`, and by hand (Actions → Landing page → Run workflow) | ~1 min |
+| Site kit (`.github/workflows/site-kit.yml`, task 0112) | on a push to `main` that changes `site/render_kit/`, `tools/site_projects/` or `tools/make_site_projects.py`, and by hand: clones Thor and the CEB press, writes their STEP files, checks the shipped joint sheets still match the sources, packs the render kit and puts it on the **draft** release `site-kit` (replacing only the kit zip; the owner's uploads stay). Drafts are invisible to the apps and the version checks | ~2 min |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
@@ -958,5 +971,17 @@ the release → Delete); the next run on `main` publishes it again.
   pairs are checked once per turn. A window that decided these alone from its own frames was still right but three
   times slower (it tested a spoked sheave against its rope at every moment). GitHub's 4-vCPU runner gives about 2x for
   4 busy processes, not 4x: share the set-up (read once, hand it over in a file) rather than repeat it per process.
+- Open-source CAD was not drawn to move (task 0112). Thor's Assembly4 frames say where two sub-assemblies meet, but
+  which of a frame's axes is the hinge differs between its sub-assemblies (the elbow's is Y, the others Z): a joint
+  axis read from CAD is checked by round faces on **both** sides of the hinge (the forearm's own round body made the
+  wrong vertical elbow axis look right from one side). The CEB press's drawer is 1.6 mm wider than its way, the
+  plates above reach 3.4 mm into it, its cylinder sits 1° off level and the main cylinder 11 mm off the chamber: run
+  the clash check on a converted model before trusting it, and slide a part along its rails, never along a tilted
+  cylinder that pushes it (it sank 2.3 mm into the frame). A one-piece toothed belt cannot run round a turning
+  pulley: a belt inside the machine is hidden for good (the app's "excluded"), and said so.
+- An animation's start scene (its saved shot) stores the light look, surroundings and weather; Build puts them back.
+  Set the look first, then save the shot (the render kit saves it again after setting the weather, task 0112).
+- The product video re-times an Assembly sequence step from its parts (``sequence.prepare``): to shorten one, scale
+  ``seq_part_time`` too, not only start and duration.
 - A queued render in a test costs the app's work per frame (milling, chips, air: 12–17 s per frame for a 270 px draft
   whose picture alone takes 4 s), and the same test takes 290–630 s on different runs: a smaller picture saves little.
