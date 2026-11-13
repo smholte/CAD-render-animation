@@ -74,7 +74,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         from . import lightbake
         head, body = layout.panel("fr_web3d_light", default_closed=not ui._OPEN_FOLDS)
         head.label(text="Light")
-        head.label(text=lightbake.label(w.light))
+        head.label(text={"LIVE": "live", "SOFT": "soft light baked", "ALL": "all baked"}[w.light])
         if body is None:
             return
         body.prop(w, "light", text="")
