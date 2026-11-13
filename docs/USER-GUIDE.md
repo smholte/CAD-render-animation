@@ -1225,8 +1225,8 @@ A track carried by joints – the top track of a tensioner sits on a lift and a 
 keep running.
 
 The panel shows the number of links and their pitch, the length of the loop and of the chain, and under **Wheels**
-each wheel with its diameter at the chain's pins and how far the chain wraps it (in degrees, or "touches" for a
-support roller that only rests on the chain).
+each wheel with its diameter at the chain's pins and how far the chain wraps it (in degrees, or "–" for a support
+roller the chain only runs over).
 
 **Warnings**
 
@@ -1241,7 +1241,8 @@ A track that cannot be made says why in red and nothing changes:
 - a wheel **moves against the others** (a tension idler on a joint of its own): not done yet.
 
 A **note** in the panel is not a refusal: the loop is longer or shorter than the chain (links × pitch) by more than
-2 % of a link, or a wheel's own coupling is switched off, so "its teeth will drift through the links".
+2 % of a link, or a wheel already follows the speed joint by a coupling of your own at another ratio – it is kept,
+and the note says "its teeth will drift through the links".
 
 **Good to know**
 

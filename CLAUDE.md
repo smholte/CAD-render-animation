@@ -249,6 +249,10 @@ fresing_render/            the Blender extension (Python package)
                            carousel layers as Archimedean spirals –, true length per piece, the polyline whose chords
                            equal L, the spool's turn and the leave angle as tables of the payout, arm angle, fleet angles,
                            the stack of full layers drawn as one solid)
+                           tracks.py (tracks and belts, task 0079: a closed chain of rigid links read from the links'
+                           hinge points – one cycle, one pitch –, the loop round the wheels from the pins (tangents with
+                           signed radii + arcs), the chain parameter c that counts p per tooth on a wheel, a link's
+                           second hinge one pitch ahead on the loop (chord), wheels one tooth per link)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -383,6 +387,15 @@ fresing_render/            the Blender extension (Python package)
                            arrow and motion); the CAD coil hidden by an empty modifier; ``set_up_test_model``
                            (test_spool.step from tools/make_test_spool.py); ops_spool.py, ui_spool.py (4 Motion > Drums
                            and carousels)
+    tracks.py              tracks and belts (task 0079): wheels clicked, one link (its copies by name), pads/plates
+                           riding on the nearest link; per track a hidden table "FR track loop <name>" (the loop every
+                           2 mm, carrier coordinates = the first wheel's joint arrow) and a run object "FR track run
+                           <name>" (one point per part: phase ``fr_c0``, local matrix ``fr_local``; its Geometry Nodes
+                           work out every part's world matrix ``fr_m`` at once from ONE simple-expression driver on the
+                           speed joint); each part a modifier "FR track" (10 nodes) that moves its own geometry to its
+                           ``fr_m``; wheels' joints coupled one tooth per link; default speed = the nearest cable;
+                           ``set_up_test_model`` (test_tracks.step from tools/make_test_tracks.py); ops_tracks.py
+                           (Add track: wheels, Enter, a link, pads, Enter), ui_tracks.py (4 Motion > Tracks and belts)
     sequence.py            Assembly sequence step (task 0100): the parts of a subassembly (hoses, chain links left
                            out; parts a joint puts on another part ride along), their places at the step's start
                            (``_WorldAt`` sets the earlier steps' joints and moves for a moment), keys as Go to pose writes
@@ -920,5 +933,16 @@ the release → Delete); the next run on `main` publishes it again.
 - Geometry made by nodes brings its own empty material slot: a material on the object's own *mesh* (slot link DATA) is
   then lost and the shape renders white. Link the slot to the OBJECT and put the material there (``spool._materials``),
   as the CAD parts have it.
+- A Geometry Nodes modifier costs per object even when it does next to nothing (task 0079, 4-core web machine): a
+  pass-through modifier ~0.007 ms per object per frame, moving the object's own geometry (positions, custom normals,
+  bounds) about as much again. 146 track parts: +2.3 ms; the demo's 432: +7 ms. A per-part tree of 45 nodes cost
+  hardly more than one of 10: work out what all parts of a track share once, on one object (fields over one point
+  per part), and let each part only pick up its matrix (``Sample Index`` of a FLOAT4X4 attribute).
+- A FLOAT4X4 attribute is written column by column (``attributes.new(n, "FLOAT4X4", "POINT")``, ``foreach_set`` of
+  ``M.T``). FloatProperty is 32 bits: a loop length of 2.2 m reads back 2.1999998 (compare with 1e-6).
+- A sprocket turns one tooth per link of chain, θt / p radians per metre (θt = 2·asin(p / 2R)), not 1 / R: 2.6 % apart
+  on 8 teeth, so the teeth drift through the links (task 0079). With rigid links kept one pitch apart on the loop, the
+  next link's pin lies a fraction of a mm off where a link straddles a run and a wheel (polygon effect; 0.4 mm on 10
+  teeth of 100 mm). Joint values are 32-bit: ~1 mm at 10 km of cable, 2 mm at 28.8 km.
 - A carousel's joint may turn about an axis that points down: "layers grow along +z" then needs the spool's frame turned
   over (``FRSpool.zsign``), else the coil is read upside down (683 m instead of 28.8 km on the demo's carousel).
