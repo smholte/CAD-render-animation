@@ -640,3 +640,148 @@ def test_night_and_all_have_no_sun_light(scene):
                  reference=[0.01] * 3, exposure=4.0, sun_light=[1, 1, 1])
     assert w.bake_json()["moments"][0]["sun_light"] is None
     assert w.bake_json()["created"].endswith("Z") and hs.ID_RE.match(w.bake_id)
+
+
+# ---------------------------------------------------------------------------
+# what the format's checker calls an ERROR is refused with a plain sentence (the independent tester's findings)
+# ---------------------------------------------------------------------------
+
+def _node_of(g, sid):
+    return next(n for n in g["nodes"] if ((n.get("extras") or {}).get("hp") or {}).get("id") == sid)
+
+
+@pytest.mark.parametrize("change,words", [
+    (lambda d: d.update(hash="hp-hash/2"), "hp-hash/1"),
+    (lambda d: d.update(uv1="hp-uv/2"), "hp-uv/1"),
+    (lambda d: d.update(title="two\nlines"), "control character"),
+    (lambda d: d.update(version="١.٠"), "version"),
+    (lambda d: d["recipe"].update(open_storeys=["st_attic"]), "not an included storey"),
+    (lambda d: d["recipe"].update(open_storeys="st_ground"), "not a list"),
+    (lambda d: d["recipe"]["moments"][1].update(id="summer-morning"), "listed twice"),
+    (lambda d: d["recipe"]["seasons"].append(dict(d["recipe"]["seasons"][0])), "listed twice"),
+    (lambda d: d["recipe"]["moments"][0].update(id="a/../b"), "not an id"),
+    (lambda d: d["recipe"]["photos"][0].update(camera="nowhere"), "camera"),
+    (lambda d: d["recipe"]["photos"][0].update(moment="nowhen"), "moment"),
+    (lambda d: d["recipe"]["photos"][0].update(falling={"rain": "nan"}), "falling.rain"),
+], ids=["hash", "uv1", "control", "digits", "open-unknown", "open-text", "moment-twice", "season-twice", "moment-id",
+        "photo-camera", "photo-moment", "falling"])
+def test_scene_errors_refused(change, words):
+    with pytest.raises(hs.FormatError) as e:
+        hs.read_scene(_scene_with(change))
+    assert words in str(e.value) and "\n" not in str(e.value), str(e.value)
+
+
+def _sparse(g):
+    a = g["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    g["accessors"][a]["sparse"] = {"count": 1}
+
+
+@pytest.mark.parametrize("glb_change,words", [
+    (lambda g: g.update(extensionsRequired=["EXT_meshopt_compression"]), "extensions"),
+    (lambda g: _node_of(g, "floor:r_living").update(scale=[-1.0, 1.0, 1.0]), "scaled or mirrored"),
+    (lambda g: _node_of(g, "floor:r_living")["extras"]["hp"].update(storey=None), "no storey"),
+    (lambda g: _node_of(g, "floor:r_living")["extras"]["hp"].update(storey="st_attic"), "not an included"),
+    (lambda g: _node_of(g, "garden:ga_terrace")["extras"]["hp"].update(storey="st_ground"), "no storey"),
+    (lambda g: _node_of(g, "garden:ga_terrace")["extras"]["hp"].update(id="garden:" + "t" * 60), "63 bytes"),
+    (lambda g: _node_of(g, "garden:ga_terrace")["extras"]["hp"].update(id="Garden terrace"), "<kind>:<name>"),
+    (lambda g: _node_of(g, "garden:ga_terrace")["extras"]["hp"].update(source="a\tb"), "control character"),
+    (_sparse, "sparse"),
+], ids=["required", "mirrored-map", "storey-null", "storey-unknown", "site-with-storey", "id-long", "id-form",
+        "extras-control", "sparse"])
+def test_house_errors_refused(glb_change, words):
+    with pytest.raises(hs.FormatError) as e:
+        hs.read_scene(_scene_with(glb_change=glb_change))
+    assert words in str(e.value), str(e.value)
+
+
+def test_broken_indices_refused():
+    files = _files(SCENE)
+    g = hglb.Glb.parse(files["house.glb"])
+    k = g.json["meshes"][0]["primitives"][0]["indices"]
+    acc = g.json["accessors"][k]
+    size = {5121: 1, 5123: 2, 5125: 4}[acc["componentType"]]
+    at = g.json["bufferViews"][acc["bufferView"]].get("byteOffset", 0) + acc.get("byteOffset", 0)
+
+    def fewer(n):
+        return lambda j, b: j["accessors"][k].update(count=acc["count"] - n)
+
+    def past(j, b):
+        b[at:at + size] = b"\xff" * size
+    for change, words in ((fewer(3), "not used"), (fewer(1), "whole number of triangles"), (past, "past")):
+        j, b = json.loads(json.dumps(g.json)), bytearray(g.bin)
+        change(j, b)
+        f = dict(files)
+        f["house.glb"] = hglb.pack(j, bytes(b))
+        with pytest.raises(hs.FormatError) as e:
+            hs.read_scene(_zip(f))
+        assert words in str(e.value), str(e.value)
+
+
+def test_zip_name_not_utf8_refused():
+    files = _files(SCENE)
+    files["pictures/QQ.png"] = b"x"
+    data = _zip(files).replace(b"pictures/QQ.png", b"pictures/\xe9Q.png")      # Latin-1, no UTF-8 flag
+    with pytest.raises(hs.FormatError) as e:
+        hs.read_scene(data)
+    assert "UTF-8" in str(e.value)
+    files = _files(SCENE)
+    files["pictures/café.png"] = b"x"                                      # zipfile sets the UTF-8 flag
+    assert len(hs.read_scene(_zip(files)).surfaces) == 52
+
+
+def test_writer_second_snow_file_drops_the_old_light(scene, tmp_path):
+    from fresing_render.core import house_snow
+    w = hs.BakeWriter(scene, light="SOFT", samples=4, created="2026-11-13T12:00:00Z")
+    w.add_snow("winter", _files(BAKE)["snow/winter.glb"])
+    m = scene.moment("winter-noon")
+    maps, open_ = _results(scene, m, np.random.default_rng(6), 1.0)
+    w.add_moment(m.id, maps, open_, reference=[1, 1, 1], exposure=0.0)
+    vertex_before = {k for k, v in w.bake_json()["moments"][0]["maps"].items() if "vertex" in v}
+    season = scene.season("winter")
+    src, blockers = house_snow.sources_from_glb(scene.glb, season.foliage)
+    layers = house_snow.build_layers(src, season.snow_cover, blockers)
+    w.add_snow("winter", house_snow.layers_glb(layers), sources=src)
+    entry = w.bake_json()["moments"][0]
+    assert not set(SNOW) & set(entry["maps"])                       # the old layers' light is gone …
+    assert vertex_before - set(SNOW) <= set(entry["maps"])          # … the rest stays, packed again
+    assert any("made again" in p and "winter-noon" in p for p in w.problems)
+    path = str(tmp_path / "again.hpbake")
+    w.write(path)
+    rep = hcheck.check(path, scene=SCENE)
+    assert rep.errors == [], rep.errors
+    assert hs.structure_problems(path, scene) == []
+
+
+def test_writer_snow_id_too_long_is_named(scene):
+    w = hs.BakeWriter(scene, light="SOFT", samples=4)
+    long_id = "ground:" + "p" * 56                                  # 63 bytes; "snow:" + it is 68
+    assert hs.snow_id_too_long(long_id) and not hs.snow_id_too_long("ground:ok")
+    w.add_snow("winter", _files(BAKE)["snow/winter.glb"], sources=[{"id": long_id}, {"id": "ground:ok"}])
+    assert any("1 surface(s) get no snow" in p and long_id in p for p in w.problems)
+
+
+def test_writer_cleans_its_own_texts_and_bad_pictures(scene):
+    w = hs.BakeWriter(scene, light="SOFT", samples=4, app_version="0.2.90\nbeta", created="2026-11-13\n")
+    doc = w.bake_json()
+    assert doc["generator"]["version"] == "0.2.90 beta"
+    assert hs.CREATED_RE.fullmatch(doc["created"])
+    assert hs.BakeWriter(scene, light="SOFT", samples=4, created="2026-11-13T12:00Z").created == "2026-11-13T12:00Z"
+    assert hs.BakeWriter(scene, light="SOFT", samples=4, created="2026-13-40T12:00:00Z").created != \
+        "2026-13-40T12:00:00Z"
+    for data in (b"\x89PNG\r\n\x1a\n" + b"\0" * 4, b"\xff\xd8\xff\xc0\0", b"", None):
+        w.add_photo("photo-1", data, "png")
+    w.add_video("turn", b"\0" * 10, "mp4", size=None)
+    assert w.bake_json()["photos"] == [] and w.bake_json()["videos"] == []
+    assert hs.picture_info(web3d.png(np.zeros((3, 5, 3), np.uint8))) == ("png", 5, 3)
+
+
+def test_writer_infinite_light_is_the_brightest(scene):
+    w = hs.BakeWriter(scene, light="SOFT", samples=4)
+    sid = "furniture:f_table:0"
+    a = np.full((scene.surfaces[sid].verts, 3), 0.5, np.float32)
+    a[0] = [np.inf, np.nan, -np.inf]
+    w.add_moment("summer-morning", {sid: a}, reference=[1, 1, 1], exposure=0.0)
+    assert w.bake_json()["moments"][0]["encoding"]["scale"] == pytest.approx(0.5)   # inf does not set the scale
+    raw = w.files()[w.bake_json()["vertex_files"][0]["file"]]
+    assert list(raw[:3]) == [255, 0, 0] and raw[3] == 255
+    assert any("+inf as 255" in p for p in w.problems)
