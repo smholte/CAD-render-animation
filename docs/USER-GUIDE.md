@@ -1000,7 +1000,8 @@ The app reads the middle line of the cable and its diameter, finds where the cab
 round, the rollers it rests on (a pair of V rollers too) and the chutes it slides over. It makes a joint
 "Cable <name>" whose value is the metres of cable paid out, and lets every roller and sheave follow it. A roller or
 sheave that already has a joint of your own keeps it. **From CAD cable again** reads everything again, for when
-you changed the part in the CAD file.
+you changed the part in the CAD file (contacts you added by hand are kept; a start you made a free end is read
+from the CAD cable again).
 
 **Make it run**
 

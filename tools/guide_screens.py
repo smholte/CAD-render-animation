@@ -49,6 +49,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   flex_panels   the panels of 4 Motion > Hoses and drag chains (panel_4_flex_empty / panel_4_flex / panel_4_flex_chain; as
       "panels", on the hoses model, then the chains model).
 
+  cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -942,7 +944,7 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel"):
+elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -953,7 +955,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
     WCOVER = os.path.join(DATA, "test_waycover_c.step")
     mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL,
                 "flex_panels": os.path.join(DATA, "test_flex_hoses_a.step"),
-                "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step")}[MODE]
+                "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
+                "cables_panel": os.path.join(DATA, "test_paths_a.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1026,6 +1029,19 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             _grab("panel_4_flex_empty", [("FRESING_PT_flex", False, True)])
         step(_flex_setup)
         _grab("panel_4_flex" if MODE == "flex_panels" else "panel_4_flex_chain", [("FRESING_PT_flex", False, True)])
+
+    elif MODE == "cables_panel":
+        # task 0078: 4 Motion > Cables and paths with the test model's wire rope, sheave 2 chosen in "What it touches"
+        def _cables_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.paths").set_up_test_model(sc)
+            sc.fresing.cables_index = 0
+            sc.fresing.cables[0].contacts_index = 2
+            select_only()
+            return 1.0
+        step(_cables_setup)
+        _grab("panel_cables", [("FRESING_PT_cables", False, True)])
 
     elif MODE == "coolant":
         def _cool_setup():

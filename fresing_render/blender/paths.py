@@ -836,7 +836,8 @@ def _read(scene, item, part) -> dict:
     skip = {ob.name for ob in flex.flex_parts(scene)} | {ob.name for ob in cable_parts(scene)} | {part.name}
     tube = P.centreline(vw, tris)
     if not tube.ok:
-        raise PathError(f"This part is not a cable: {tube.problem}")
+        why = tube.problem.replace("a hose is", "a cable is").replace("A hose is", "A cable is")
+        raise PathError(f"This part is not a cable: {why}")
     rounds, obs = _rounds(scene, part, tube.points, float(tube.radius), memo, skip)
     rd, why = None, ""
     for wider in (1.0, 2.0):                    # (facets of a coarse mesh: once more, less strict)
@@ -2008,7 +2009,8 @@ def add_contact(scene, item, ob, hit=None) -> int:
     is laid on that side of it. Returns its place in the list. Raises PathError in plain words."""
     name = _part_name(ob) or "Nothing"
     if not _usable(scene, item):
-        raise PathError("This cable has no path yet: use 'From CAD cable' first.")
+        raise PathError("This cable is switched off: tick it in the list first." if (item.part is not None
+                        and not item.enabled) else "This cable has no path yet: use 'From CAD cable' first.")
     if ob is None or ob.type != "MESH" or ob.get(build.PROP_KIND) != "part" or ob == item.part:
         raise PathError(f"'{name}' is not a part the cable can run over.")
     found = _axis_of(ob, hit)
@@ -2260,7 +2262,8 @@ def set_end(scene, item, end: str, ob=None) -> None:
     if key not in ("a", "b"):
         raise PathError("Pick end A or end B.")
     if not _usable(scene, item):
-        raise PathError("This cable has no path yet: use 'From CAD cable' first.")
+        raise PathError("This cable is switched off: tick it in the list first." if (item.part is not None
+                        and not item.enabled) else "This cable has no path yet: use 'From CAD cable' first.")
     wheels = _wheels(item)
     if ob is not None and (ob.get(build.PROP_KIND) not in build.MODEL_KINDS or ob == item.part):
         raise PathError(f"'{_part_name(ob)}' is not a part of the model the end can sit on.")
