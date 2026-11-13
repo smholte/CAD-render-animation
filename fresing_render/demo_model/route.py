@@ -213,13 +213,15 @@ class Route:
 # Where things go (task 0084: the owner's deck layout)
 # ---------------------------------------------------------------------------------------------------------
 
-TENSIONER_HALF = 3100.0         # half the tensioner's length along the cable (frame + tilt hinge)
-TENSIONER_WIDTH = 1380.0        # half its width (frame + side cylinders)
+TENSIONER_HALF = 3350.0         # half the tensioner's length along the cable (frame + the lift frame's guide columns)
+TENSIONER_WIDTH = 1400.0        # how far its base (frame, columns, lift cylinders) reaches outboard of the cable line
+TENSIONER_INBOARD = 450.0       # ... and inboard of it above the D-quadrant's underside: only the bottom track (0102)
+QUADRANT_LEAD = 2100.0          # the D's bar line this far forward of the CPS join: its bar (600) and a cradle
 ENGINE_HALF = 1700.0            # half the linear cable engine's length
 GUIDE_IN = 500.0                # the arch's guide reaches this close to the core
 GUIDE_RIM = 700.0               # its hanging frame stays this far inside the rim
 WINCH_HALF = 1450.0             # quadrant handling winch: half its length along x
-CPS_OUT = 2000.0                # the CPS ramp runs this much outboard of side B (clear of tensioner 1)
+CPS_OUT = 2800.0                # the CPS ramp runs this much outboard of side B (clear of tensioner 1 open, 0102)
 ENGINE_FRAME = 2050.0           # half the cable engine's frame along the cable (its cross beams)
 ENGINE_WIDTH = 1050.0           # half its width
 HW_SCALE = 0.8                  # the two handling winches: 80 % of the old drum (task 0095)
@@ -353,11 +355,14 @@ def positions(p) -> dict:
     pos["engine_y"] = y_low
     # the CPS slide runs outboard of tensioner 1 and joins side B forward of it with an S-curve
     pos["cps_level_y"] = p.lane_y + CPS_OUT
-    pos["cps_s_deg"] = s_bend_angle(CPS_OUT, R)
-    pos["cps_join_x"] = t_x + TENSIONER_HALF + 300.0 + 2.0 * R * math.sin(math.radians(pos["cps_s_deg"]))
-    pos["s_bend_x"] = pos["cps_join_x"] + 1500.0
-    pos["s_bend_deg"] = s_bend_angle(p.lane_y - Rq, R)
-    x_q = pos["s_bend_x"] + 2.0 * R * math.sin(math.radians(pos["s_bend_deg"]))
+    # (an S of two arcs up to 60° each; a small cable's tight bends get a straight between them, task 0102)
+    a_cps = min(s_bend_angle(min(CPS_OUT, 2.0 * R), R), 60.0)
+    pos["cps_s_deg"] = a_cps
+    pos["cps_s_straight"] = (CPS_OUT - 2.0 * R * (1.0 - math.cos(math.radians(a_cps)))) / math.sin(math.radians(a_cps))
+    pos["cps_join_x"] = t_x + TENSIONER_HALF + 300.0 + 2.0 * R * math.sin(math.radians(a_cps)) + \
+        pos["cps_s_straight"] * math.cos(math.radians(a_cps))
+    # task 0102: the lanes lie on the D's curve – no S-bends; the D's bar stands QUADRANT_LEAD forward of the CPS join
+    x_q = pos["cps_join_x"] + QUADRANT_LEAD
     pos["quadrant_x"] = x_q                          # the D's straight bar (its curve's centre line)
     pos["quadrant_apex_x"] = x_q + Rq
     pos["quadrant_travel"] = x_q - (p.hinge_x + 700.0)   # rails: from the stationary position onto the handler
@@ -438,8 +443,8 @@ def coil_to_tower(r: Route, p, centre, rest_r: float, guide_xy, z0: float, tower
 
 def main_route(p, pos: dict) -> Route:
     """The owner's oval: carousel coil -> arch -> tower -> lower path aft (side A, outboard) -> stern turn (180°) ->
-    side B forward (rise, cable engine, tensioner 1) -> round the quadrant (180°) -> side A aft (tensioner 2) ->
-    horn A -> into the sea."""
+    side B forward (rise, tensioner 1) -> round the quadrant (180°) -> side A aft (tensioner 2) -> horn A -> into the
+    sea. The side lanes lie on the D's curve (task 0102): one smooth U from lane to lane round the D's gutter."""
     R, Rq = p.bend_r, p.quadrant_r
     xc = pos["carousel_x"]
     r = Route("main", p.cable_d)
@@ -454,14 +459,11 @@ def main_route(p, pos: dict) -> Route:
     r.line_to([pos["rise_x"], p.lane_y, p.low_z], support="rollers", rollers="side B")
     pitch(r, +1, R, pos["rise_deg"], support="rollers", rollers="side B rise")
     pitch(r, -1, R, pos["rise_deg"], support="rollers", rollers="side B rise")
-    r.line_to([pos["s_bend_x"], p.lane_y, p.line_z], support="rollers", rollers="side B",
-              note="side B forward: cable engine, tensioner 1 (its tracks grip the cable), V roller cradles")
-    turn(r, -1, R, pos["s_bend_deg"], support="rollers", rollers="side B bend")
-    turn(r, +1, R, pos["s_bend_deg"], support="rollers", rollers="side B bend")
+    r.line_to([pos["quadrant_x"], p.lane_y, p.line_z], support="rollers", rollers="side B",
+              note="side B forward: tensioner 1 (its tracks grip the cable), V roller cradles, straight into the D's "
+                   "gutter (task 0102: the lane lies on the D's curve)")
     turn(r, -1, Rq, 180.0, support="rollers", rollers="quadrant gutter",
          note="round the D-quadrant at its stationary position")
-    turn(r, +1, R, pos["s_bend_deg"], support="rollers", rollers="side A bend")
-    turn(r, -1, R, pos["s_bend_deg"], support="rollers", rollers="side A bend")
     r.line_to([pos["horn_x"], -p.lane_y, p.line_z], support="rollers", rollers="side A",
               note="side A aft: tensioner 2 (its tracks grip the cable), V roller cradles")
     pitch(r, -1, R, pos["chute_deg"], support="rollers", rollers="horn A")
@@ -479,6 +481,8 @@ def cps_slide_route(p, pos: dict) -> Route:
     back = Route("cps back", 400.0)
     back.add(Line(J + [1.0, 0, 0], J))
     turn(back, -1, R, pos["cps_s_deg"])
+    if pos["cps_s_straight"] > 1.0:
+        back.line_to(back.end + pos["cps_s_straight"] * back.end_tangent)
     turn(back, +1, R, pos["cps_s_deg"])
     pitch(back, +1, R, 8.0)
     t = back.end_tangent
@@ -490,7 +494,8 @@ def cps_slide_route(p, pos: dict) -> Route:
     for i, seg in enumerate(segs):
         if seg.kind == "line":
             s2 = Line(seg.end, seg.start)
-            info = {"support": "ramp", "note": "the orange twisted ramp from the rack's top shelf"}
+            info = ({"support": "ramp", "note": "the orange twisted ramp from the rack's top shelf"} if i == 0 else
+                    {"support": "slide", "note": "the curved slide onto side B's highway"})
         else:
             s2 = Arc(seg.centre, -seg.normal, seg.end, seg.angle)
             info = {"support": "slide", "note": "the curved slide onto side B's highway"}

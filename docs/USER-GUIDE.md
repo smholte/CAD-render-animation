@@ -2512,13 +2512,16 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 314 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 308 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
-  support rollers follow the carousel, the quadrant's rail wheels its travel; the tensioners' top tracks lift and
-  tilt (a stack); the quadrant handler's two **cylinders** follow its tilt. The quadrant system is a stack too: the
+  support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
+  **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
+  port, tensioner 2 to starboard); its two tilt **cylinders** follow, as do the quadrant handler's two. The quadrant system is a stack too: the
   D-quadrant's **travel** rides on the **Handler tilt** and its **tip** (about the A&R wire's eye at the top of its
-  curve) on the travel, so once the D is on the handler it tilts with it. The four roller cradles of the S-bends that
-  stand in the D's way **drop** out of it (move "Cradle … drop": the others follow). The A&R winch's drum follows the
+  curve) on the travel, so once the D is on the handler it tilts with it. The side lanes run
+  straight into the D's gutter (no S-bends): the D-quadrant is exactly as wide as the cable's path, so on its way aft
+  it passes through both tensioners' lines. Every roller cradle in its way **drops** out of it: one "Cradle … drop"
+  joint per lane, the others of that lane follow. The A&R winch's drum follows the
   D's travel as its wire pays out.
 - **Wires that move:** the **A&R wire** runs from its winch in front of the carousel to the eye at the top of the D's
   curve – straight along the deck while the D travels, over the handler's top pulley once the handler tilts. The two
@@ -2532,9 +2535,11 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
 - **6 Animation > What it can do today** (about 78 s with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
-  turning with the cable, a tensioner opening and squeezing, then X-ray with labels, a close-up of a winch's
-  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: the
-  cradles drop, the D-quadrant travels aft onto the handler on its A&R wire (× 60 time-lapse), the tipping wires are
+  turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
+  squeezing, then X-ray with labels, a close-up of a winch's
+  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: both
+  tensioners open, the lanes' cradles drop, the D-quadrant travels aft between the tensioners onto the handler on its
+  A&R wire (× 60 time-lapse), the tipping wires are
   connected, and the handler tilts over the stern carrying it: it ends with the D standing vertical, curve up,
   hanging from the A&R wire over the top pulley. The captions say where it runs faster than real. Click **Build & play**, or put
   it in the render queue.

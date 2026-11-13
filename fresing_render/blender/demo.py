@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 10                            # time-lapse factor of the carousel shot
-MIN_JOINTS = 315                      # the joint sheet's 314 + Cable travel (the quay's come on top)
+MIN_JOINTS = 309                      # the joint sheet's 308 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -570,8 +570,8 @@ def make_all_joints(d: Demo):
 
 
 # ---------------------------------------------------------------------------
-# cylinders: the quadrant handler's two (pin points in the route sheet); the tensioners' four lift cylinders have no
-# pin points in the sheet: their rods ride on the lift joint as the sheet says
+# cylinders: the quadrant handler's two and the tensioners' tilt cylinders (task 0102), pin points in the route sheet;
+# the tensioners' lift cylinders stand straight under the lift frame: their rods ride on the lift joint
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
@@ -638,7 +638,18 @@ def make_cylinders(d: Demo):
                                        barrel_carrier=_nearest(d, "CYLINDER BRACKET", bp), rod_carrier=frame,
                                        name=f"Handler cylinder {'port' if c['barrel_pin'][1] > 0 else 'stb'}")
         made += 1
-    d.notes.append(f"cylinders: {made} (quadrant handler, follow the handler tilt)")
+    # the tensioners' tilt cylinders (task 0102): barrel pinned on the lift frame, rod on the tilting carriage
+    for t in d.sheet("route")["tensioners"]:
+        for k, c in enumerate(t.get("tilt_cylinders", [])):
+            barrel, rod = d.uid(c["barrel"]), d.uid(c["rod"])
+            ax = (d.root().matrix_world.to_3x3() @ Vector(c["axis"])).normalized()
+            bp, rp = d.mm(c["barrel_pin"]), d.mm(c["rod_pin"])
+            cylinders.create(d.scene, [barrel], [rod], (bp, ax, barrel), (rp, ax, rod),
+                             barrel_carrier=_nearest(d, c["barrel_on"], bp), rod_carrier=_nearest(d, c["rod_on"], rp),
+                             name=f"{t['name'].title()} tilt cylinder {k + 1}")
+            made += 1
+    d.notes.append(f"cylinders: {made} (quadrant handler: follow the handler tilt; tensioners: follow the top "
+                   "track's tilt)")
 
 
 # ---------------------------------------------------------------------------
@@ -1009,8 +1020,8 @@ VIEWS = {
     "Overview": ((-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), 30.0),
     "Deck from above": ((50000.0, -45000.0, 135000.0), (52000.0, 0.0, 3000.0), 30.0),
     "Carousel": ((42000.0, -20000.0, 16000.0), (60000.0, 0.0, 4000.0), 26.0),
-    "Roller highway": ((14000.0, -10500.0, 6200.0), (24000.0, -5850.0, 5000.0), 24.0),
-    "Tensioner": ((21500.0, -14500.0, 8500.0), (27300.0, -5850.0, 5600.0), 30.0),
+    "Roller highway": ((12000.0, -8700.0, 6200.0), (22000.0, -4050.0, 5000.0), 24.0),
+    "Tensioner": ((19000.0, -14500.0, 9500.0), (26000.0, -5000.0, 6000.0), 30.0),
     "Handling winch": ((-2600.0, -3200.0, 1300.0), "WINCH DRUM", 45.0),
     "Stern": ((-13000.0, -21000.0, 13000.0), (6000.0, 0.0, 4000.0), 28.0),
     "Quadrant": ((-7000.0, 15000.0, 9000.0), "QUADRANT FRAME", 26.0),
@@ -1094,7 +1105,7 @@ def shot_rollers(d: Demo):
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
     fly = d.camera_step("PATH", d.t, secs, f"The cable runs at {SPEED:.0f} m/min: every roller turns with it",
                         easing="LINEAR", cam_blend=0.0, path_look="AHEAD")
-    for p in ((22000.0, -9800.0, 6000.0), (34000.0, -9200.0, 6200.0)):
+    for p in ((20000.0, -8000.0, 6000.0), (32000.0, -7400.0, 6200.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
     blk = d.animation.blocks.add()
@@ -1108,17 +1119,28 @@ TENSIONER = "TENSIONER 2"
 LABELS = (("TRACK PAD", "Track pads (rubber)"), ("DRIVE SPROCKET", "Drive sprocket"),
           ("PISTON ROD", "Lift cylinder"), ("TOP TRACK LIFT FRAME", "Lift frame"))
 XRAY_STEP = "X-ray: the tensioner's frames"
+TENSIONERS = ("TENSIONER 1", "TENSIONER 2")
+
+
+def tensioner_open(d: Demo, name: str) -> tuple[float, float]:
+    """How far a tensioner's top track lifts (m) and tilts out (deg) to open (task 0102): its lift's top limit and the
+    tilt's whole range – nothing of it then stands between the two cable lines."""
+    js = {j["name"]: j for j in d.sheet("joints")["joints"]}
+    return js[f"{name}: Top track lift"]["limits"][1] / 1000.0, js[f"{name}: Top track tilt"]["limits"][1]
 
 
 @stage("shot_tensioner", "Shot 5: tensioner opens and squeezes, X-ray with labels")
 def shot_tensioner(d: Demo):
+    """Task 0102, as the owner works: the top track lifts, then tilts out to the vessel's side (starboard for tensioner
+    2, about its hinge along the cable on the outboard side), back, and closes on the cable."""
     from . import build, callouts
     cam = d.scene.objects.get("Tensioner")
     t = d.t
     d.camera_step("CUT", t, 0.0, "", camera=cam)
     lift, tilt = f"{TENSIONER}: Top track lift", f"{TENSIONER}: Top track tilt"
-    d.joint(lift, t, 3.0, 0.6, slide=True, label="The top track lifts (real speed)")
-    d.joint(tilt, t + 3.0, 3.0, 20.0, label="… and tilts out of the line")
+    up, out = tensioner_open(d, TENSIONER)
+    d.joint(lift, t, 3.0, up, slide=True, label="The top track lifts (real speed)")
+    d.joint(tilt, t + 3.0, 3.0, out, label="… then tilts out to the vessel's side, clear of the cable's line")
     d.joint(tilt, t + 6.5, 2.5, 0.0)
     d.joint(lift, t + 9.0, 3.0, -0.02, slide=True, label="It closes and squeezes the cable")
     t += 12.0
@@ -1175,33 +1197,45 @@ TILT_TO = 100.0                       # degrees at the end of shot 7 (the tilt's
 TILT_SECONDS = 4.0
 
 
-def cradle_drop(d: Demo) -> tuple[str, float]:
-    """The S-bend's cradles in the D's lane (task 0091): the joint the others follow and how far it drops (m)."""
-    for j in d.sheet("joints")["joints"]:
-        if j["name"].endswith(" drop") and j["drive"].get("by") == "operator":
-            return j["name"], j["limits"][1] / 1000.0
-    raise RuntimeError("the demo model has no cradle that drops")
+def cradle_drops(d: Demo) -> list[tuple[str, float]]:
+    """The lanes' cradles in the D's way (task 0102: one lead joint per lane, the others of the lane follow it): each
+    lead joint and how far it drops (m)."""
+    out = [(j["name"], j["limits"][1] / 1000.0) for j in d.sheet("joints")["joints"]
+           if j["name"].endswith(" drop") and j["drive"].get("by") == "operator"]
+    if not out:
+        raise RuntimeError("the demo model has no cradle that drops")
+    return out
 
 
 @stage("shot_quadrant", "Shot 7: the D-quadrant travels aft, the tipping wires are connected, the handler tilts")
 def shot_quadrant(d: Demo):
-    """The quadrant system's whole move (tasks 0091, 0095): the S-bend's cradles in the middle lane drop, the D travels
-    aft on its rails onto the handler (time-lapse) with the A&R wire paying out from its winch, the tipping wires are
-    connected to the D's bottom corners, and the handler tilts over the stern carrying it: the D ends vertical, curve up,
-    hanging from the A&R wire over the top pulley (the owner's pictures). It is not tipped: task 0082 lowers it into the
-    sea vertical and tips it near the sea bottom. 0 clash rows over the shot (``tests/test_demo_project.py``)."""
+    """The quadrant system's whole move (tasks 0091, 0095, 0102): both tensioners open – the top track lifts, then
+    tilts out to its own side – and the lanes' cradles drop, the D travels aft on its rails between the tensioners
+    (its sides, as wide as the cable's path, pass through their lines) onto the handler (time-lapse) with the A&R wire
+    paying out from its winch, the tipping wires are connected to the D's bottom corners, and the handler tilts over
+    the stern carrying it: the D ends vertical, curve up, hanging from the A&R wire over the top pulley (the owner's
+    pictures). It is not tipped: task 0082 lowers it into the sea vertical and tips it near the sea bottom. 0 clash
+    rows over the shot (``tests/test_demo_project.py``)."""
     from . import build
     t = d.t
     cam = d.scene.objects.get("Quadrant")
     quad = d.part("QUADRANT FRAME", root=d.root())
-    lead, drop = cradle_drop(d)
     travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
     secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
     d.camera_step("CUT", t, 0.0, "", camera=cam)
-    d.joint(lead, t, 1.5, drop, slide=True, label="The S-bend's cradles drop out of the D-quadrant's way")
-    t += 1.5
+    for k, name in enumerate(TENSIONERS):
+        up, out = tensioner_open(d, name)
+        d.joint(f"{name}: Top track lift", t, 1.5, up, slide=True,
+                label="Both tensioners open: the top track lifts …" if k == 0 else "")
+        d.joint(f"{name}: Top track tilt", t + 1.5, 2.0, out,
+                label="… and tilts out to its own side, the lanes' cradles drop: the D's way is clear"
+                if k == 0 else "")
+    for lead, drop in cradle_drops(d):                 # the lanes' cradles drop while the tensioners tilt out
+        d.joint(lead, t + 1.5, 1.5, drop, slide=True)
+    t += 3.5
     d.joint(TRAVEL, t, secs, travel, slide=True, easing="SMOOTH",
-            label=f"The D-quadrant travels aft onto the handler on its A&R wire (x {QUADRANT_LAPSE})")
+            label=f"The D-quadrant travels aft between the tensioners onto the handler on its A&R wire "
+                  f"(x {QUADRANT_LAPSE})")
     fly = d.camera_step("PATH", t, secs, "", easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(quad),
                         aim_name=quad.get(build.PROP_NAME, "QUADRANT FRAME"))
     for p in ((22000.0, 15500.0, 9500.0), (-3000.0, 15000.0, 9000.0)):

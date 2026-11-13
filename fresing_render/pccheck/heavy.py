@@ -700,7 +700,7 @@ def own_heavy_video(ctx):
 # ---------------------------------------------------------------------------
 
 @line("heavy.demo", "Demo project: cable-lay vessel", "0.2.68", (H,), expected=300,
-      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 422 "
+      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 416 "
            "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
            "animation",
       shows="How long the demo takes to make on this PC, the Build time of its animation, the time per frame while "
@@ -724,6 +724,11 @@ def heavy_demo(ctx):
     scene = bpy.context.scene
     s = scene.fresing
     _check(len(s.joints) >= demo.MIN_JOINTS, f"the demo has {len(s.joints)} joints, not {demo.MIN_JOINTS}")
+    for name in demo.TENSIONERS:                            # task 0102: lift, then tilt 70° out to its own side
+        tilt = s.joints.get(f"{name}: Top track tilt")
+        _check(tilt is not None and tilt.use_limits and abs(math.degrees(tilt.rot_max) - 70.0) < 0.01,
+               f"{name}'s top track does not tilt out 70°")
+        _check(s.joints.get(f"{name}: Top track lift") is not None, f"{name}'s top track does not lift")
     a = s.animations.get(demo.ANIM)
     _check(a is not None, f"the demo has no animation '{demo.ANIM}'")
     t0 = time.time()

@@ -8,6 +8,10 @@ with walkways, the quadrant's middle lane with rails, a lower path beside and be
 arch -> down the loading tower -> lower path aft -> stern turn -> side B forward (rise, cable engine, tensioner 1) ->
 round the D-quadrant -> side A aft (tensioner 2) -> horn A -> sea. The quay file (vessel moored starboard side to)
 holds the quay, the storage carousel with its own tower and arch, and the cable from it onto side A's highway.
+
+Task 0102: the side lanes lie on the D-quadrant's curve (one U, no S-bends); the D travels aft between the tensioners,
+its sides through their lines: the tensioners open (lift, then tilt outboard), every lane cradle in its way drops (one
+lead joint per lane), ``d_lane`` is the room it sweeps.
 """
 
 from __future__ import annotations
@@ -204,10 +208,11 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
                          rest_r=q["rest_r"], base_frame=True)
     S.files["storage_carousel"] = storage
     S.timings["storage_carousel"] = time.time() - t
-    # ---- tensioners: 1 on side B (cable forward, hinge aft), 2 on side A (cable aft, hinge aft)
+    # ---- tensioners: 1 on side B (cable forward), 2 on side A (cable aft); each one's local +y inboard, so both open
+    # (lift, then tilt) outboard (task 0102)
     t = time.time()
-    ten1 = m.tensioner(p, kit, hinge_end=+1)
-    ten2 = m.tensioner(p, kit, hinge_end=-1)
+    ten1 = m.tensioner(p, kit)
+    ten2 = m.tensioner(p, kit)
     S.files["tensioner"] = ten2
     S.handles["tensioner1"] = [root.add(ten1, T(xT, yB, p.line_z) @ Rot((0, 0, 1), 180.0), "TENSIONER 1")]
     S.handles["tensioner2"] = [root.add(ten2, T(xT, yA, p.line_z), "TENSIONER 2")]
@@ -267,7 +272,8 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
             ("B", yB + 650.0, yB + 1200.0, [(pos["stern_turn_x"] + 600.0, T_out[0])]),
             ("A", yA - 650.0, yA - 1350.0, [(pos["stern_turn_x"] + 600.0, T_out[0]),
                                              (T_out[1], pos["engine_x"] - rt.ENGINE_FRAME - 300.0),
-                                             (pos["engine_x"] + rt.ENGINE_FRAME + 300.0, pos["s_bend_x"])])):
+                                             (pos["engine_x"] + rt.ENGINE_FRAME + 300.0,
+                                              pos["quadrant_x"] - 1200.0)])):
         for k, (x0, x1) in enumerate(ranges):
             if x1 - x0 > 1500.0:
                 root.add(dk.walkway(x0, x1, y_in, y_out, wz), T(0, 0, 0), f"WALKWAY {name}{k + 1}")
@@ -309,14 +315,17 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
     boxes.append((pos["tower_x"] - 1700, pos["tower_x"] + 1700, pos["lower_y"] - 1700, pos["lower_y"] + 1700, -1e9, 1e9))
     for sy in (-1, 1):                                      # the rails' girders (stations must not stand on them)
         boxes.append((pos["pulley_x"], pos["quadrant_apex_x"], sy * dk.RAIL_Y - 300, sy * dk.RAIL_Y + 300, -1e9, 1e9))
+    # the D-quadrant at rest: its upper bar crosses the lanes' ends (task 0102)
+    ry = p.quadrant_r + 1000.0
+    boxes.append((pos["quadrant_x"] - 600.0 - 350.0, pos["quadrant_apex_x"] + 500.0, -ry, ry, -1e9, 1e9))
     clear = Clearance(p, [main, S.routes["quay_loading"]], boxes)
     cradle = dk.cradle(p, kit)
     lower_roller = kit.roller(125.0, 700.0)
     rr = 125.0
     S.stations = {"highway": [], "lower path": []}
     n_hw, n_lp = 0, 0
-    lead = None
-    hw_keys = {"side A", "side B", "side B rise", "side B bend", "side A bend"}
+    leads = {}
+    hw_keys = {"side A", "side B", "side B rise"}
     for s, i in _stations(main, hw_keys | {"lower path"}, p.roller_step):
         _i, q, t = _where(main, s)
         info = main.info[i]
@@ -346,15 +355,21 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
         base = _pt(M, [0, 0, -dk.CRADLE_BASE - 40.0])
         h = base[2] - p.deck_z
         drop = lift_drop(p, M)
-        if drop:                                # in the D-quadrant's lane: a cradle that drops out of its way
-            st = dk.lifting_cradle(p, kit, h, drop)
+        if drop and abs(t[2]) > 1e-3:           # a sloping station (side B's rise) in the D's way: no cradle there
+            n_hw -= 1
+            continue
+        if drop:                                # in the D-quadrant's way: a cradle that drops out of it (task 0102: the
+            st = dk.lifting_cradle(p, kit, h, drop)            # whole of both lanes the D passes over)
             c = root.add(st, M, f"CRADLE {n_hw}")
-            if lead is None:
-                lead = f"Cradle {n_hw} drop"
-                drive = {"by": "operator", "note": "lowers the S-bend's cradles in the middle lane (the others follow) "
-                                                   "so the D-quadrant can travel aft over them; 0 = holding the cable"}
+            lane_key = "A" if q[1] < 0 else "B"
+            if lane_key not in leads:
+                leads[lane_key] = f"Cradle {n_hw} drop"
+                drive = {"by": "operator", "lane": lane_key,
+                         "note": f"lowers side {lane_key}'s cradles in the D-quadrant's way (the others of the lane "
+                                 "follow) so it can travel aft over them; 0 = holding the cable"}
             else:
-                drive = {"by": "follows", "follows": lead, "ratio": 1.0, "note": "drops with the first one"}
+                drive = {"by": "follows", "follows": leads[lane_key], "ratio": 1.0,
+                         "note": f"drops with the first one of side {lane_key}"}
             root.joint(f"Cradle {n_hw} drop", "slide", [[c, st.info["lift"]]], q, (0.0, 0.0, -1.0), [0.0, drop], drive)
             S.stations.setdefault("lifting", []).append(n_hw)
         else:
@@ -364,9 +379,14 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
 
 
 def d_lane(p) -> dict:
-    """The room the D-quadrant sweeps on its way aft (model mm): everything of it lies within |y| <= half_width, and
-    away from its bogies (|y| > RAIL_Y + 300) nothing of it is lower than low_z."""
-    return {"half_width": p.quadrant_r + 300.0 + 60.0, "low_z": p.rail_z + dk.BOGIE_H}
+    """The room the D-quadrant sweeps on its way aft (model mm, 60 mm margin on its width): everything of it lies within
+    |y| <= half_width; away from its bogies (|y| > RAIL_Y + 300) nothing of it is lower than low_z, and outside |y| <=
+    inner (task 0102: its gutter's ends, which pass over the tensioners' bottom tracks) nothing lower than band_z; its
+    top is top_z (the tipping eyes, within |y| <= eyes_y), outside eyes_y edge_top_z (the gutter's top plate)."""
+    ds = dk.d_shape(p)
+    return {"half_width": ds["half_width"] + 60.0, "low_z": p.rail_z + dk.BOGIE_H, "inner": ds["inner"],
+            "band_z": p.rail_z + ds["band_z"], "top_z": p.rail_z + ds["top_z"], "eyes_y": ds["eye_y"] + 20.0,
+            "edge_top_z": p.rail_z + ds["edge_top_z"]}
 
 
 def lift_drop(p, M) -> float:
@@ -374,10 +394,11 @@ def lift_drop(p, M) -> float:
     lane = d_lane(p)
     corners = np.array([[x, y, z, 1.0] for x in (-310.0, 310.0) for y in (-640.0, 640.0)
                         for z in (-dk.CRADLE_BASE - 40.0, dk.LIFT_TOP)]) @ M.T
-    if np.abs(corners[:, 1]).min() >= lane["half_width"]:
+    ay = np.abs(corners[:, 1])
+    if ay.min() >= lane["half_width"]:
         return 0.0
     top = corners[:, 2].max()
-    clear = lane["low_z"] - 60.0
+    clear = (lane["low_z"] if ay.min() < lane["inner"] + 60.0 else lane["band_z"]) - 60.0
     return float(math.ceil(max(0.0, top - clear) / 50.0) * 50.0)
 
 
@@ -766,6 +787,13 @@ def route_sheet(S: Scene) -> dict:
                      "pads_per_track": p.pads_per_track, "gripping_run_links": p.links_per_run,
                      "pad_v_deg": p.pad_v_deg, "squeeze_h": round(ten.info["squeeze_h"], 4),
                      "lift_limits": _r(ten.info["lift_limits"], 3), "tilt_hinge": _r(_pt(Wt, ten.info["hinge"])),
+                     "tilt_axis": _r(Wt[:3, :3] @ np.array(ten.info["hinge_axis"]), 6), "tilt_open": ten.info["tilt_open"],
+                     "inboard": _r(Wt[:3, :3] @ np.array([0.0, 1.0, 0.0]), 6),
+                     "tilt_cylinders": [{"barrel": uid(path + c["barrel"]), "rod": uid(path + c["rod"]),
+                                         "barrel_pin": _r(_pt(Wt, c["barrel_pin"])), "rod_pin": _r(_pt(Wt, c["rod_pin"])),
+                                         "axis": _r(Wt[:3, :3] @ np.array(c["axis"]), 6),
+                                         "barrel_on": c["barrel_on"], "rod_on": c["rod_on"]}
+                                        for c in ten.info["tilt_cylinders"]],
                      "grip_line": grips[k - 1], "tracks": tracks})
     car = S.handles["carousel"][-1].node
     xc = pos["carousel_x"]
