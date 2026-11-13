@@ -142,8 +142,13 @@ def _mirrored(skin_shape):
     for shape, mirrored in _MIRRORED:
         if shape.IsSame(skin_shape):
             return mirrored
-    _MIRRORED[:] = [(skin_shape, mirrored_blade(skin_shape))] + _MIRRORED[:3]
+    light, dev = light_blade(skin_shape, mirror=True)
+    LIGHT_DEVIATION[0] = dev
+    _MIRRORED[:] = [(skin_shape, light)] + _MIRRORED[:3]
     return _MIRRORED[0][1]
+
+
+LIGHT_DEVIATION = [0.0]
 
 
 def bodies(variant: str, top: str) -> dict:
@@ -179,6 +184,65 @@ def leading_edge_side(skin_shape) -> np.ndarray:
     near_lo, near_hi = t < lo + 0.08 * (hi - lo), t > hi - 0.08 * (hi - lo)
     side = -chord if np.ptp(n[near_lo]) > np.ptp(n[near_hi]) else chord
     return np.array([side[0], side[1], 0.0])
+
+
+LIGHT_GRID = (121, 161)          # points round the airfoil x along the span sampled from the source blade
+LIGHT_TOL = 3.0                 # mm: the light blade's surface stays this close to the sampled points
+
+
+def _spans(n: int) -> np.ndarray:
+    """Span parameters 0 … 1: even, with more near the tip where the chord narrows fast."""
+    return np.unique(np.round(np.concatenate([np.linspace(0.0, 1.0, n - 24), np.linspace(0.94, 1.0, 25)]), 9))
+
+
+def light_blade(skin_shape, mirror: bool = True):
+    """The blade's skin as a light surface: the source's one B-spline has 4,343 x 203 control points, which
+    OpenCascade meshes in minutes into a few dozen triangles (the blades were all but invisible in the app). A grid
+    of points (``LIGHT_GRID``) sampled from it – mirrored in the blade's x-z plane (``mirror``, see
+    ``mirrored_blade``) – is approximated by a B-spline within ``LIGHT_TOL``; the face keeps the source's outward
+    side. Returns (shell, deviation in mm measured at points between the grid's)."""
+    from OCP.BRep import BRep_Builder
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+    from OCP.GeomAbs import GeomAbs_C2
+    from OCP.GeomAPI import GeomAPI_PointsToBSplineSurface, GeomAPI_ProjectPointOnSurf
+    from OCP.gp import gp_Pnt
+    from OCP.collections import Array2_gp_Pnt as TColgp_Array2OfPnt
+    from OCP.TopoDS import TopoDS_Shell
+
+    big = max(occ.faces(skin_shape), key=lambda f: occ.surface(f)["area"])
+    src = BRepAdaptor_Surface(big)
+    u0, u1, v0, v1 = src.FirstUParameter(), src.LastUParameter(), src.FirstVParameter(), src.LastVParameter()
+    nu, _nv = LIGHT_GRID
+    us = np.linspace(u0, u1, nu)
+    vs = v0 + (v1 - v0) * _spans(LIGHT_GRID[1])
+    sign = -1.0 if mirror else 1.0
+    if mirror:
+        us = us[::-1]                                   # mirrored, walked the other way round: the same outer side
+    arr = TColgp_Array2OfPnt(1, len(us), 1, len(vs))
+    for i, u in enumerate(us):
+        for j, v in enumerate(vs):
+            p = src.Value(float(u), float(v))
+            arr.SetValue(i + 1, j + 1, gp_Pnt(p.X(), sign * p.Y(), p.Z()))
+    fit = GeomAPI_PointsToBSplineSurface(arr, 3, 8, GeomAbs_C2, LIGHT_TOL)
+    if not fit.IsDone():
+        raise RuntimeError("the light blade surface could not be fitted")
+    surf = fit.Surface()
+    face = BRepBuilderAPI_MakeFace(surf, 1e-3).Face()
+    # deviation at points half way between the grid's
+    worst = 0.0
+    for u in (us[:-1] + us[1:])[::6] / 2:
+        for v in (vs[:-1] + vs[1:])[::8] / 2:
+            p = src.Value(float(u), float(v))
+            q = gp_Pnt(p.X(), sign * p.Y(), p.Z())
+            proj = GeomAPI_ProjectPointOnSurf(q, surf)
+            if proj.NbPoints():
+                worst = max(worst, float(proj.LowerDistance()))
+    shell = TopoDS_Shell()
+    b = BRep_Builder()
+    b.MakeShell(shell)
+    b.Add(shell, face)
+    return shell, worst
 
 
 def mirrored_blade(skin_shape):
