@@ -218,10 +218,78 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 13 Nov 2026 · branch `claude/dazzling-ramanujan-0ipkza` · 0.2.88
 
 **What changed:**
+- **The bake as a function** (`fresing_render/blender/lightbake.py`, as in the Design): `bake(objects, light, *, world,
+  sky, occluders, lamps, ids, uv="AUTO"|"UV1"|"VERTEX", quality, texels_per_m, samples, device, progress)` →
+  `Result.items[id]` (MAP: linear light picture + UVs, or the object's own UV1 image; VERTEX: per vertex and per
+  corner), `reference`, `reference_sky`, `sun_ratio`, `problems`, `timing`. `Bake(...)` for a panel (steps, estimate,
+  cancel). Added to the Design while building: `scene=`, `denoise=`; `Result.sun_ratio` (Cycles' sun ÷ sky on an
+  up-facing surface) and `Result.reference_sky`. House lane: unchanged signatures otherwise.
+- How it bakes: Cycles `DIFFUSE` without colour on copies in a bake scene of its own (copy of a Cycles scene, 0099
+  rule); **one bake object per atlas** (all copies joined in world coordinates – Cycles bakes object by object over
+  the whole image: 1,228 objects took > 20 min, joined 31 s); materials as matte copies (Metallic 0, so metal is not
+  black); glass parts not baked but letting light through; decals cast no shadow; SOFT = sky direct (sun disc off,
+  Sun lamps off) + all indirect; ALL = one pass; lamps baked in both; a probe quad above everything gives the
+  reference; OpenImageDenoise through the compositor (NumPy blur as fallback), padding by Cycles' EXTEND margin.
+- Light UVs (`core/lightmap.py`, subagent A): charts by main axis + connectivity + overlap split, skyline packing with
+  every copy in one atlas, small atlases for small models (256–1024 px), per-vertex light for small many-copy parts,
+  encoding v = (F/scale)^(1/2).
+- The .glb: per copy a mesh entry on the shared accessors + its own `TEXCOORD_1` (u16) and a material with
+  `occlusionTexture {texCoord 1}`, or `_FR_LIGHT` (u8 per vertex); `core.web3d`: `weld(extra_uv)`, `mesh_variant`,
+  `vertex_attribute`, `problems` checks TEXCOORD_n of occlusion maps and `_` names.
+- The page (`fr_page.js`, subagent B): baked matte light = F × the page's own sky light on an up-facing surface ×
+  (1 + sun share for ALL), replacing the environment's matte light; reflections dimmed in corners; ALL: the live sun's
+  matte light off on baked parts (highlight kept); glass not patched; plain form for Surroundings None. Fixed in 0106's
+  code (B): with Live sun shadows off the sun shone straight down.
+- Panel fold **Light** (choice, Bake quality, Points per metre 0 = Auto, estimate line, the question for ALL with
+  motion), `props.FRWeb3D.light*`, tour stop 54 "Web 3D model with baked light", PC-check lines `web3d.bake` (Full) and
+  `heavy.web3d_bake` (Heavy, bake time), guide section "Light" + new panel picture, CHANGELOG 0.2.88.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, CPU, no graphics card):
+- Tests: `test_lightbake.py` (13), `test_lightmap.py` (27, A), `test_web3d_light_page.py` (9, B: headless shell +
+  SwiftShader; on GitHub's Linux runner the browser cases fall back to `node --check` instead of skipping),
+  `test_lightbake_break.py` (18, C – the independent tester's), plus test_web3d, test_tour, test_web3d_env, test_pccheck
+  locally green; PC-check line `web3d.bake` OK in 9 s (bpy module).
+- Bake time / file (sky at 40°, Texture size 512 Draft / 1024 Normal):
+
+  | Model | Choice | Quality | Bake | Light adds | .glb | page |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Test mill (9 parts) | Soft | Draft | 18 s | +0.06 MB | 0.14 MB | 1.0 MB |
+  | Test mill | Everything | Draft | 7 s | +0.05 MB | 0.14 MB | 1.0 MB |
+  | Demo vessel (1,228 parts, 756k tri) | Live only | – | – | – | 3.7 MB | 6.0 MB |
+  | Demo vessel | Soft | Draft | 43 s | +2.7 MB | 7.0 MB | 10.2 MB |
+  | Demo vessel | Everything | Draft | 29 s | +2.7 MB | 7.0 MB | 10.2 MB |
+  | Demo vessel | Soft | Normal | 375 s | +4.3 MB | 9.2 MB | 13.1 MB |
+  | Demo vessel | Everything | Normal | 221 s | +4.4 MB | 9.3 MB | 13.2 MB |
+
+  Of the Normal Soft bake: plan (unwrap, pack) 7.7 s, Cycles 356 s (12 calls, 4 atlases of 2048), denoise 10 s.
+  **RTX 3090: an estimate, not measured** – the panel assumes 20 × these 4 cores (Normal demo ≈ 20–30 s); the owner
+  measures it. Page load (headless, software GL): demo vessel 2.9–3.2 s, same as without baked light.
+- Pictures (invented models only): `tasks/img/0107_mill_render_soft_all.jpg`, `0107_vessel_render_soft_all.jpg`
+  (Cycles render from the page's first view | Soft | Everything) and `0107_vessel_close_soft_all.jpg` (coil close-up,
+  Soft | Everything). Everything baked is close to the render's balance; Soft is darker on the deck in the sun
+  because the page's live sun is weaker than Cycles' (0106's calibration).
+- Other viewers: Blender's glTF importer reads the lit file (second UV set present, test); others not checked here.
+
+**Subagents:** A (`core/lightmap.py` + tests), B (page shader + plain form + page tests), C (independent tester: did not
+write the code). C found 12 faults, all fixed by me after it finished and pinned by its tests: mirrored copies baked
+black, more than 8 UV layers crashed, a grating with 10,000 bars stopped the bake (now per vertex), object-linked glass
+cast a black shadow, glass faces of mixed parts black, colliding ids silently lost (now "#2" + problem), the probe
+under a big ground (now above everything, invisible to rays), a Sun lamp baked in Soft (now counted as the sun), the
+project's own bake settings (Selected to Active) stopped it, a part without material got no light picture. Re-done
+after merging: B's sun term (uFrSunUp) replaced by the sun share after the first comparison picture showed
+Everything baked too dark in shade.
 
 **Open points / follow-up tasks:**
+- Atlas fill: many small charts with 4 px padding at Normal fill 4 atlases for a 4 M texel budget on the demo vessel;
+  smaller padding or merged charts would halve bake time and file (Web 3D lane, later).
+- Cancel answers between bake calls: one 2048 atlas at Fine on a CPU is about 2 min (expected, not measured).
+- The page's live sun vs Cycles' (Soft looks darker in the sun than the render) – 0106's sun power; a calibration
+  task could use `Result.sun_ratio`.
+- Denoise runs a 1-sample Cycles render with the compositor (Blender 5.2 has no bake denoiser); it leaves the user's
+  Render Result alone.
+- Owner's check (RTX 3090): export the demo vessel with each choice at Normal (Help > Make demo project, then 5 Scene &
+  Render > Web 3D model > Light): note the bake time; open the pages on the PC and the phone; compare with a render.
+- GitHub: (filled in after the runs)
