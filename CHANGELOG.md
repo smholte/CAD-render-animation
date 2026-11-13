@@ -5,6 +5,80 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.88 – 13 Nov 2026 – weather and time of day, and a new sea (task 0109)
+
+New: 5 Scene & Render > **Weather & time**
+- **One place for the weather.** Presets **Clear day**, **Grey North Sea**, **Storm**, **Snow at the quay** and
+  **Night shift**, or set it yourself. Off: everything looks exactly as before (except the sea, below).
+- **Time of day.** A clock from sunrise to night sets the sun's height, its direction and the sky's colour (sunrise,
+  day, golden hour, dusk). Optional: a date and a latitude for the real sun path of that day. At night: a dark sky
+  with stars and the moon, **floodlights** on masts round the deck or the quay (set up for you, Auto from dusk), and
+  the picture opens up as a camera does. **Work lights**: click a lamp part, press Spot or Flood – it shines, moves
+  with the part and stays through a model update (also with Weather & time off).
+- **Clouds, haze and fog.** Cloud cover from clear to overcast, a low cloud deck, and a visibility in metres: haze
+  towards the horizon, fog that hides the far sea and the quay. The fog costs no render time you can measure.
+- **Rain.** Falling rain (amount, drop size) slanting with the wind, splashes on the deck, the quay and the sea, and a
+  **Wet** look on the machine and the ground: darker, glossier, run-off streaks on slopes, puddles on flat parts –
+  also after the rain, without rain falling.
+- **Snow.** Falling flakes drifting with the wind, and a **snow layer** on everything that faces up under the open
+  sky; parts under a roof or a cover stay clear. It also works on any imported mesh (a function other parts of the
+  app can call).
+- **Wind.** Beaufort strength and direction (compass, or from the vessel's bow): rain, snow, spray and an optional
+  **flag** follow it; the sea can follow it too.
+- **In a video:** a new step **Weather & time** in 6 Animation fades from the weather before it to a new one – day to
+  dusk, the rain starting, the fog lifting. Works with scripts off, in the render queue and for every paint scheme;
+  saved scenes keep their weather.
+
+New sea (Open sea, Vessel deck, Quayside) – **old projects open with it**:
+- The broad white stripes are gone. The sea is now many waves of different lengths and directions from a measured
+  wave spectrum (JONSWAP / Pierson–Moskowitz), so it never repeats, also seen from high above or towards the horizon.
+- White caps only where waves are steep, in patches that come and go and drift; as many as measured at sea (Monahan
+  & O'Muircheartaigh 1980: hardly any at Beaufort 3, about 2 % at 6, about 16 % at 9), foam streaks from Beaufort 7.
+- Foam round the hull at the waterline that rides with the vessel, a wake when a vessel speed is set, spray at the bow
+  and off the wave tops in strong wind, a deeper water colour with the sky reflected.
+- Sea: **Calm** (Beaufort 3), **Rough** (Beaufort 6) or new **From the wind**. Vessel motion keeps its numbers.
+
+Test tour stops "Weather: grey North Sea", "Weather changes in a video", "Night shift"; PC-check lines `weather.time`,
+`weather.rain`, `weather.snow`, `weather.fog`, `weather.sea`, `weather.step`, Heavy `heavy.weather`; guide chapter
+"Weather & time".
+
+## 0.2.87 – 13 Nov 2026 – tensioner tracks and belts run with the cable (task 0079)
+
+New: 4 Motion > **Tracks and belts**
+- **The pads of a tensioner run with the cable.** Press **Add track**, click the track's wheels round the loop
+  (sprockets, idlers, support rollers) and press Enter, click one link of the chain, then a pad or back plate if the
+  links carry them, and press Enter. The app finds all the links, pads and plates, lays the chain round the wheels
+  and runs it: the pads that hold the cable move exactly as fast as the cable, and the sprockets turn one tooth per
+  link. Your own parts move – their colours, paint schemes, fades and hiding keep working.
+- **Its speed** is the cable that runs through it (4 Motion > Cables and paths), found by itself. Pick another
+  joint under **Speed** (any slide joint, or the joint of one of its own wheels); **Runs the other way** turns it
+  round. Without a cable the track gets a joint of its own: give it a **Run motor** step in 6 Animation.
+- A track on a lift or tilt (a tensioner's top track) lifts and tilts as one; its pads keep running.
+- The same works for **belts and chains of separate links** round wheels of any size, and crawler tracks.
+- It costs no time in Python while playing or rendering, works in the render queue and with scripts switched off,
+  survives a model update and is left out of the clash check.
+
+Also
+- **Cables and paths: Speed from.** Pick an existing slide joint above Add cable and the new cable runs on it (for
+  example a joint that already turns rollers). Empty: the app makes a joint as before.
+- **Demo project:** the four tracks of the two tensioners run on the cable; in shot 5 the cable runs again while the
+  top track squeezes it, and the pads run with it. The demo's sprocket joints turn one tooth per link of chain.
+## 0.2.86 – 13 Nov 2026 – web 3D model with its surroundings: sea, sky, weather and a live sun (task 0106)
+
+New in 5 Scene & Render > Web 3D model: the fold **Surroundings on the page**
+- **None** keeps the page as before. **As in the project** puts the machine's surroundings on the page, picked
+  per export (the project itself does not change): an endless **moving sea** with the app's own waves (white caps
+  when Rough), **vessel motion** – the machine and the deck heave, pitch and roll in step with the waves, Still and
+  Level parts as in the app, together with an exported animation –, the **sky** (the project's sky and sun, or a
+  sky at a time of day with clouds; a 360° photo or a studio look becomes the page's light, so shiny metal mirrors
+  what the app shows), **haze**, **rain** with a wet look and spray at the bow on a rough sea, and **live sun
+  shadows** that move with the parts.
+- **Page quality** Phone / Balanced / Best, and **Auto quality**: the page lowers its quality by itself on a slow
+  phone or laptop and says so in its corner.
+- Still one file that opens without internet. The line under Export says what the surroundings add to the file.
+- Test tour stop "Web 3D model with surroundings", PC-check line `web3d.surroundings`, guide section
+  "Surroundings on the page".
+
 ## 0.2.85 – 13 Nov 2026 – drums and carousels: the cable comes off layer by layer (task 0080)
 
 New: 4 Motion > **Drums and carousels**

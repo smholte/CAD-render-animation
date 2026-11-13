@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import time
 
 from .core import Cancelled, Line, Skipped
@@ -43,6 +44,7 @@ FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
+TRACKS = os.path.join(DATA, "test_tracks.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
@@ -643,6 +645,42 @@ def motion_spool(ctx):
     path = os.path.join(ctx.work, "spool.png")
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "spool", "The drum with its layers and level wind, the carousel with its arm (processor, draft)")
+    return note
+
+
+@line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
+      what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
+def motion_tracks(ctx):
+    from ..blender import animation, cameras, render, tour, tracks
+    scene = ctx.fresh(TRACKS)
+    s = scene.fresing
+    t0 = time.time()
+    made = tracks.set_up_test_model(scene)
+    ctx.metric("set up three tracks", time.time() - t0, "s")
+    for it in tracks.items(scene):
+        text, level = tracks.status(scene, it)
+        _check(level == "OK", f"'{it.name}': {text}")
+    scene.camera = cameras.add_camera(scene, "ISO", 35.0, "Tracks view")
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with three tracks", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    t0 = time.time()
+    frames = list(range(scene.frame_start, scene.frame_end + 1, 4))
+    for f in frames:
+        scene.frame_set(f)
+    ctx.metric("frame change with 146 track parts running", (time.time() - t0) / len(frames) * 1000.0, "ms")
+    note = tour._check_tracks(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(100)
+    path = os.path.join(ctx.work, "tracks.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "tracks", "The tensioner with its pads running and the top track lifted, the belt behind "
+                                "(processor, draft)")
     return note
 
 
@@ -1666,7 +1704,7 @@ def _mean_light(path) -> float:
         bpy.data.images.remove(img)
 
 
-@line("weather.time", "Weather: time of day, sunrise to night", "0.2.86",
+@line("weather.time", "Weather: time of day, sunrise to night", "0.2.88",
       what="The crane on the quay at 07:00, 12:00, 18:30 and 23:00 (equinox, 55° N): the sun's height and the "
            "daylight follow the clock, the floodlights come on at dusk; noon and midnight rendered small (processor, "
            "draft) – noon must be brighter")
@@ -1700,7 +1738,7 @@ def weather_time(ctx):
     return f"sun follows the clock; {len(lamps)} night lamps; noon {noon['seconds']} s, night {night['seconds']} s"
 
 
-@line("weather.rain", "Weather: rain and the wet look", "0.2.86",
+@line("weather.rain", "Weather: rain and the wet look", "0.2.88",
       what="Storm on the quay: heavy rain falls, slanting with a gale; the crane's looks get the weather node "
            "group (wet: darker, glossy). Rendered small (processor, draft), the time compared with the "
            "same picture without weather")
@@ -1723,7 +1761,7 @@ def weather_rain(ctx):
     return f"storm {wet['seconds']} s, no weather {dry['seconds']} s"
 
 
-@line("weather.snow", "Weather: snow layer and falling snow", "0.2.86",
+@line("weather.snow", "Weather: snow layer and falling snow", "0.2.88",
       what="Snow at the quay: flakes fall, a snow layer lies on the crane's upward faces under the open sky. Rendered "
            "small (processor, draft)")
 def weather_snow(ctx):
@@ -1735,7 +1773,7 @@ def weather_snow(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("weather.fog", "Weather: fog and haze", "0.2.86",
+@line("weather.fog", "Weather: fog and haze", "0.2.88",
       what="The open sea with 400 m visibility: the far sea fades into the fog. Rendered small (processor, draft) "
            "and compared with clear air")
 def weather_fog(ctx):
@@ -1749,7 +1787,7 @@ def weather_fog(ctx):
     return f"clear {clear['seconds']} s, fog {foggy['seconds']} s"
 
 
-@line("weather.sea", "Weather: the sea follows the wind", "0.2.86",
+@line("weather.sea", "Weather: the sea follows the wind", "0.2.88",
       what="The open sea 'From the wind' at Beaufort 3, 6 and 9: the waves grow and the share of white caps grows "
            "as published measurements say (Monahan & O'Muircheartaigh 1980)")
 def weather_sea(ctx):
@@ -1766,7 +1804,7 @@ def weather_sea(ctx):
     return ", ".join(f"Bft {b:.0f}: {c * 100:.2g} % white caps" for b, c in rows)
 
 
-@line("weather.step", "Weather: a Weather & time step in a video", "0.2.86",
+@line("weather.step", "Weather: a Weather & time step in a video", "0.2.88",
       what="An animation with one Weather & time step (noon to dusk, rain starting): the build keys the weather, the "
            "first and last frames differ, Clear keys puts the panel's weather back")
 def weather_step(ctx):
@@ -1848,6 +1886,61 @@ def _gltf_triangles(path: str) -> int:
             if me.users == 0:
                 bpy.data.meshes.remove(me)
         bpy.data.scenes.remove(sc)
+
+
+@line("web3d.surroundings", "Web 3D model with its surroundings", "0.2.86",
+      what="The crane on the Vessel deck in a rough sea with vessel motion, exported with every surroundings item "
+           "on (sea, vessel motion, sky with clouds, haze, rain and spray, sun shadows); the page's settings read "
+           "back and checked against the project, then the page opened without a window in Edge or Chrome when the "
+           "PC has one (software drawing): it must report no error")
+def web3d_surroundings(ctx):
+    from ..blender import web3d, web3d_env, world
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.background = "DECK"
+    s.sea_state = "ROUGH"
+    s.vessel.enabled = True
+    world.apply(scene, s)
+    w = s.web3d
+    w.env_mode = "PROJECT"
+    web3d_env.fill_from_project(scene)
+    w.env_clouds = "SOME"
+    w.env_haze = w.env_rain = w.env_shadows = True
+    ch = web3d_env.choice(scene)
+    _check(ch["sea"] and ch["vessel"], "the fold did not take the sea and vessel motion from the project")
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Crane at sea web 3D.glb"), size=512, surroundings=ch)
+    with open(out["path"], "rb") as fh:
+        bad = core.problems(fh.read())
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    with open(out["html"], encoding="utf-8") as fh:
+        page = fh.read()
+    st = env.page_settings(page)
+    _check(st["sea"] and st["sea"]["state"] == "ROUGH" and st["vessel"], "the page has no rough sea or no vessel motion")
+    _check(st["haze"] and st["rain"] and st["rain"]["spray"] and st["shadows"], "haze, rain, spray or shadows are off")
+    _check(st["sky"]["clouds"] == "SOME", "the page's sky has no clouds")
+    _check("FRTHREE" in page and "FRMath" in page and "https://" not in page.split('id="fr-env"')[0],
+           "the page's code is not inside it (it would need the internet)")
+    ctx.metric("export", out["seconds"], "s")
+    ctx.metric("page", os.path.getsize(out["html"]) / 1e6, "MB")
+    note = "no Edge or Chrome on this PC: the page itself was not opened"
+    browser = env.find_browser()
+    if browser:
+        t0 = time.perf_counter()
+        try:
+            state = env.open_headless(out["html"], browser, seconds=45)
+        except RuntimeError as exc:
+            state = f"no answer ({exc})"
+        if state.startswith("error") and re.search(r"webgl|context|swiftshader", state, re.I):
+            state = f"no WebGL in the browser without a window ({state[:80]})"      # the browser's, not the page's
+        _check(not state.startswith("error"), f"the page reports an error in {os.path.basename(browser)}: {state}")
+        if state.startswith("ready"):
+            ctx.metric("browser", time.perf_counter() - t0, "s")
+            note = f"opened without a window in {os.path.basename(browser)}: {state}"
+        else:
+            note = f"{os.path.basename(browser)} gave no answer in time ({state}); not counted"
+    return f"{out['text']}; on the page: {out.get('env_items', '')}; {note}"
 
 
 @line("scene.vessel_motion", "Vessel motion at sea", "0.2.65",

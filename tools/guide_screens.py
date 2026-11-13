@@ -52,6 +52,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
+  tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
+  tracks   the tensioner of the tracks test model after 0.42 m of cable with the top track lifted 0.08 m
+      (view_tracks.jpg; Cycles on the processor, as "render").
   spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
       carousel with its arm, side by side (view_spools.jpg; Cycles on the processor, as "render").
 
@@ -738,7 +741,16 @@ if MODE == "panels":
                 sc.fresing.weather.enabled = True
                 mod("blender.weather").use_preset(sc, "GREY_NORTH_SEA")
             elif name == "panel_5_web3d":               # exported once: the result line and its buttons show
-                mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"))
+                # task 0106: with Surroundings on the page open, as in the project (a sea) with haze and rain
+                mod("blender.ui")._OPEN_FOLDS = True
+                w = sc.fresing.web3d
+                w.env_mode = "PROJECT"
+                mod("blender.web3d_env").fill_from_project(sc)
+                w.env_sea, w.env_haze, w.env_rain, w.env_clouds = True, True, True, "SOME"
+                mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"),
+                                            surroundings=mod("blender.web3d_env").choice(sc))
+            elif name == "panel_5_shots":               # folds closed again after the web 3D picture
+                mod("blender.ui")._OPEN_FOLDS = False
             elif name == "panel_5_output":              # back to the studio for the rest
                 sc.fresing.weather.enabled = False
                 sc.fresing.vessel.enabled = False
@@ -960,7 +972,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel"):
+              "spools_panel", "tracks_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -973,7 +985,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "flex_panels": os.path.join(DATA, "test_flex_hoses_a.step"),
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
-                "spools_panel": os.path.join(DATA, "test_spool.step")}[MODE]
+                "spools_panel": os.path.join(DATA, "test_spool.step"),
+                "tracks_panel": os.path.join(DATA, "test_tracks.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1073,6 +1086,19 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_spools_setup)
         _grab("panel_spools", [("FRESING_PT_spools", False, True)])
+
+    elif MODE == "tracks_panel":
+        # task 0079: 4 Motion > Tracks and belts on the tracks test model, "Bottom track" chosen
+        def _tracks_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.tracks").set_up_test_model(sc)
+            sc.fresing.tracks_index = 0
+            sc.fresing.last_message = ""
+            select_only()
+            return 1.0
+        step(_tracks_setup)
+        _grab("panel_tracks", [("FRESING_PT_tracks", False, True)])
 
     elif MODE == "coolant":
         def _cool_setup():
@@ -1824,7 +1850,53 @@ def render_spools():
     log("saved view_spools", f"{os.path.getsize(out) // 1024} KB")
 
 
-if MODE == "spools":
+def render_tracks():
+    """Task 0079: the tensioner of the tracks test model after 0.42 m of cable, the top track lifted 0.08 m."""
+    import addon_utils
+    import numpy as np
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_tracks.step"), quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints, cams, paths, tracks = mod("blender.joints"), mod("blender.cameras"), mod("blender.paths"), \
+        mod("blender.tracks")
+    tracks.set_up_test_model(sc)
+    joints.set_value(joints.find(sc, paths.find(sc, tracks.TEST_CABLE).joint), 0.42)
+    joints.set_value(joints.find(sc, tracks.TEST_LIFT), 0.08)
+    bpy.context.view_layer.update()
+    paths.refresh(sc)
+    bpy.context.view_layer.update()
+    s.background = "SKY"
+    s.floor = "VISIBLE"
+    s.floor_use_own_color = True
+    s.floor_color = (0.42, 0.42, 0.4)
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 1100, 620, False, SCRATCH
+    pts = []
+    for o in sc.objects:
+        if o.type == "MESH" and o.visible_get() and o.get(mod("blender.build").PROP_UID) \
+                and "BELT" not in o.get(mod("blender.build").PROP_UID):
+            mw = np.array(o.matrix_world)
+            bb = np.array([list(c) + [1.0] for c in o.bound_box])
+            pts.append((mw @ bb.T).T[:, :3])
+    cam = cams.add_camera(sc, os.environ.get("TRACKS_VIEW", "ISO"), 50.0, name="Guide tracks",
+                          points=np.concatenate(pts))
+    sc.camera = cam
+    mod("blender.render").apply_output(sc, s)
+    t = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", f"{time.time() - t:.0f} s")
+    out = os.path.join(OUT, "view_tracks.jpg")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", out], check=True)
+    log("saved view_tracks", f"{os.path.getsize(out) // 1024} KB")
+
+
+if MODE == "tracks":
+    try:
+        render_tracks()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "spools":
     try:
         render_spools()
     except Exception:

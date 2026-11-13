@@ -73,6 +73,13 @@ def result_line(size: int, triangles: int, textures: int, seconds: float, compre
     return f"{mb(size)}{' compressed' if compressed else ''} · {tri} · {plural(textures, 'texture')} · {seconds:.1f} s"
 
 
+def surroundings_line(extra: int) -> str:
+    """What the surroundings (task 0106) add to the page: 'surroundings +0.4 MB' (three.js is smaller than
+    model-viewer, so a page without pictures can come out smaller: 'surroundings −0.2 MB')."""
+    tenths = round(extra / 1e5)
+    return f"surroundings {'+' if tenths >= 0 else '−'}{abs(tenths) / 10:.1f} MB"
+
+
 def header(size: int) -> str:
     """The panel header's state: the last file's size, '' before the first export."""
     return mb(size) if size else ""

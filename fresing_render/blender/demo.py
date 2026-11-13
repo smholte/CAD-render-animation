@@ -507,16 +507,9 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
             if drive.get("by") == "follows":
                 joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
             elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
-                if not waits_for_tracks(j["name"]):
-                    joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
+                joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
             joints.apply_limits(jt, joints._model_size(sc))
     return total
-
-
-def waits_for_tracks(name: str) -> bool:
-    """The tensioners' track sprockets: turned alone (the track chain stands still until task 0079 runs it) their
-    teeth would go through the chain's links. They get their joint, but follow the cable only once the tracks run."""
-    return name.startswith("TENSIONER") and "sprocket" in name.lower()
 
 
 def turning_in_place(scene) -> list:
@@ -602,6 +595,39 @@ def cable_on_its_path(d: Demo):
     d.notes.append("cable: " + (notes[0] if notes else "read"))
     for n in notes[1:4]:
         d.notes.append("cable: " + n)
+
+
+# ---------------------------------------------------------------------------
+# the tensioners' tracks run with the cable (task 0079)
+# ---------------------------------------------------------------------------
+
+TRACK_SIDES = (("bottom", "Bottom"), ("top", "Top"))
+
+
+@stage("tracks", "Tensioner tracks: the pads run with the cable", after="cable")
+def tracks_stage(d: Demo):
+    """Each tensioner's two tracks become tracks of 4 Motion > Tracks and belts (as "Add track" does): the two
+    sprockets, one chain link, one pad and one back plate are clicked; the app finds the other 35 of each, lays the
+    loop and runs the chain on "Cable travel" (the cable passes between the tracks, so its joint is the default), the
+    pads on the gripping runs moving with the cable. The sprockets' own joints already follow the cable at one tooth
+    per link (the joint sheet's ratio): they are kept as they are."""
+    from . import joints, tracks
+    sc = d.scene
+    t0 = time.time()
+    n = 0
+    for ten in d.sheet("route")["tensioners"]:
+        for key, word in TRACK_SIDES:
+            tr = next(x for x in ten["tracks"] if x["name"] == key)
+            d.progress(f"{ten['name']}: {key} track", n, 4)
+            wheels = [joints.members(joints.find(sc, f"{ten['name']}: {word} track {which} sprocket turn"))[0]
+                      for which in ("drive", "idler")]
+            it = tracks.add(sc, wheels, d.uid(tr["links"][0]), [d.uid(tr["pads"][0]), d.uid(tr["back_plates"][0])],
+                            name=f"{ten['name'].title()} {key} track")
+            if it.joint != CABLE:
+                raise RuntimeError(f"track '{it.name}' runs on '{it.joint}', not on {CABLE}")
+            n += 1
+            d.notes.append("tracks: " + tracks.summary(sc, it))
+    d.timings["tracks"] = time.time() - t0
 
 
 # ---------------------------------------------------------------------------
@@ -1198,7 +1224,8 @@ def tensioner_open(d: Demo, name: str) -> tuple[float, float]:
 @stage("shot_tensioner", "Shot 5: tensioner opens and squeezes, X-ray with labels")
 def shot_tensioner(d: Demo):
     """Task 0102, as the owner works: the top track lifts, then tilts out to the vessel's side (starboard for tensioner
-    2, about its hinge along the cable on the outboard side), back, and closes on the cable."""
+    2, about its hinge along the cable on the outboard side), back, and closes on the cable. Task 0079: from the
+    squeeze on the cable runs at 10 m/min and the tracks' pads run with it (also through the X-ray and its labels)."""
     from . import build, callouts
     cam = d.scene.objects.get("Tensioner")
     t = d.t
@@ -1209,6 +1236,12 @@ def shot_tensioner(d: Demo):
     d.joint(tilt, t + 3.0, 3.0, out, label="… then tilts out to the vessel's side, clear of the cable's line")
     d.joint(tilt, t + 6.5, 2.5, 0.0)
     d.joint(lift, t + 9.0, 3.0, -0.02, slide=True, label="It closes and squeezes the cable")
+    # task 0079: from the squeeze on the cable runs again (real speed) and the pads run with it, through the X-ray
+    run = 8.0
+    blk = d.animation.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, t + 9.0, run, "LINEAR"
+    blk.speed_mmin = SPEED
+    d.cable_end = getattr(d, "cable_end", 0.0) + SPEED / 60.0 * run
     t += 12.0
     ten = next(o for o in d.root().children_recursive if o.get(build.PROP_UID, "").endswith("/TENSIONER#2"))
     frames = [o for o in ten.children_recursive if o.get(build.PROP_NAME) in ("TENSIONER BASE FRAME",

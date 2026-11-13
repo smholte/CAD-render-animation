@@ -833,9 +833,13 @@ def _sea_numbers(state: str) -> dict:
     lengths = sorted((2 * math.pi / c[3] for c in comps), reverse=True)[:6]
     return dict(bft=bft, hs=round(sea_core.hs(comps), 3), amp=round(sum(c[0] for c in comps), 3),
                 lengths=tuple(round(v, 2) for v in lengths), foam=round(sea_core.foam_threshold(bft), 4),
-                coverage=round(sea_core.whitecap_coverage(sea_core.bft_to_ms(bft)), 5))
+                coverage=round(sea_core.whitecap_coverage(sea_core.bft_to_ms(bft)), 5),
+                bump=OLD_BUMP[state], chop=OLD_CHOP[state], page_foam=OLD_FOAM[state])
 
 
+OLD_BUMP = {"CALM": 0.12, "ROUGH": 0.35}     # the ripple strength the Web 3D page (task 0106) still draws its sea with
+OLD_CHOP = {"CALM": 0.6, "ROUGH": 1.6}
+OLD_FOAM = {"CALM": 0.82, "ROUGH": 0.55}    # (the page's white caps still follow the crest rule of before)
 SEA = {state: _sea_numbers(state) for state in sea_core.STATES}
 SPRAY_FROM = 5.5                   # Beaufort: spray starts (full at 9)
 HULL_FOAM_LIFT = 0.04              # m: the hull foam lies this much above the water (no flicker)

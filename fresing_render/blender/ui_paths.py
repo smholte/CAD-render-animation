@@ -228,6 +228,12 @@ def _add_buttons(layout, scene, first: bool) -> None:
         layout.operator("fresing.cable_add_all", text=f"Add all {n} found by name", icon="VIEWZOOM")
 
 
+def _speed_from(layout, scene) -> None:
+    """The choice Add cable acts on (task 0079): an existing slide joint as the new cable's speed. Drawn right above
+    the buttons (the real-app test marks the place of Add cable at the start of ``_add_buttons``)."""
+    split_props(layout).prop_search(scene.fresing, "cable_speed", scene.fresing, "joints", text="Speed from")
+
+
 def _end_row(layout, context, cb, end: str) -> None:
     """'End on: <part>' with the pipette that fixes the end to a clicked part and, for an end on a part, the
     small button that makes it a free end again."""
@@ -294,6 +300,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                                     "Press 'Add cable': the app reads what it runs over and makes all of that "
                                     "turn with it",
                                     "Give it a speed: in 6 Animation add the step 'Run motor', speed in m/min"])
+            _speed_from(layout, scene)
             _add_buttons(layout, scene, first=True)
             return
 
@@ -303,6 +310,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.cable_remove", text="", icon="REMOVE")
         col.operator("fresing.cable_select", text="", icon="RESTRICT_SELECT_OFF")
+        _speed_from(layout, scene)
         _add_buttons(layout, scene, first=False)
 
         # -- the chosen one

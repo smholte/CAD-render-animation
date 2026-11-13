@@ -726,6 +726,7 @@ def tensioner(p, kit: Kit) -> Asm:
                                        f"at {TILT_OPEN:.0f}° nothing of it stands between the cable lines and the "
                                        "D-quadrant passes through the cable's line"},
             rides_on="Top track lift")
+    nt_ = p.sprocket_teeth
     for label, chain, ci_ in (("Bottom", [cb], bi), ("Top", [cl, cc, ct], ti)):
         for which, key, x in (("drive", "drive", -a), ("idler", "idler", a)):
             if label == "Bottom":
@@ -736,7 +737,8 @@ def tensioner(p, kit: Kit) -> Asm:
                 contact, vel = ctr - [0, 0, Rs], [-1.0, 0, 0]
             A.joint(f"{label} track {which} sprocket turn", "rotate", [chain + [ci_[key]]], ctr,
                     turn_axis(ctr, contact, vel), None,
-                    cable_drive(Rs, note="the chain's pitch line runs at the cable speed"))
+                    cable_drive(p.pad_pitch / (2.0 * math.pi / nt_), note="one tooth per link of chain: the chain "
+                                "runs at the cable speed (task 0079; not 1 / pitch radius: the chain is a polygon)"))
     A.info["tracks"] = []
     for label, chain, ci_, flip in (("bottom", [cb], bi, 1.0), ("top", [cl, cc, ct], ti, -1.0)):
         A.info["tracks"].append({

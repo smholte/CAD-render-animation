@@ -1,6 +1,6 @@
 # 0079 – Tensioner tracks: the chain of CAD pads runs round its sprockets at cable speed and grips the cable
 
-**Who:** worker · **Status:** running · **Branch:** `claude/epic-davinci-mpptxj` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.87) · **Branch:** `claude/epic-davinci-mpptxj` (the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (cable-lay line; design in `tasks/0075-motion-paths-design.md` part C, owner's
 answers at its end) · runs **side by side with 0080** (carousel and drum spooling) – see "Files" for who owns what
 **Lane:** Flex parts. New files `core/tracks.py` (no Blender), `blender/tracks.py`, `blender/ops_tracks.py`,
@@ -107,14 +107,126 @@ Carousel, drum and reel spooling, the level wind, fleet angle (0080 – runs at 
 `blender/paths.py`, `core/paths.py`, `joints.py`'s coupling kinds); the cable into the sea (0081); quadrant operations
 and handling winches pulling with the tensioners (0082); pad wear / slip; dynamics.
 
+## Design (worker, 13 Nov 2026 – the split and the interfaces; subagents' brief)
+
+**The model of a track.** A track = a closed chain of rigid **links** (each hinges on two pins one pitch p apart) round
+two or more **wheels** (axes parallel). Parts that ride on a link (pads, back plates, cleats) move rigidly with the link
+they are nearest to. Everything lives in the coordinates of a **carrier** (the first wheel's joint arrow: it moves with
+the lift / tilt but does not turn), so a track carried by joints costs nothing extra.
+
+* **Pins from the CAD.** Each link's two hinge axes are its two farthest-apart round axes (mesh ``fr_axes``) parallel to
+  the wheel axes; pins of neighbour links coincide (< 1 mm). The pins must form **one closed cycle** of N pins and N
+  links of one pitch (0.5 %); else refused in words (a missing link, two pitches, an open chain).
+* **The loop** (``core/tracks.py``): in the plane square to the wheel axes. Each wheel: centre c (from its axis), side
+  (+1 = the chain goes round it anticlockwise about the loop normal n, i.e. the wheel is inside the loop) and pitch-line
+  radius R, both read from the pins (R = the pins' distance where the chain wraps it; the distance to the run through
+  its nearest pins where it only touches – a support roller). The loop = tangents between neighbour wheels (signed
+  radii, closed form) + arcs. Every CAD pin must lie on it (≤ 1 mm, else refused: "a wheel missing?").
+* **Chain parameter c** (metres of chain): on a run c = arc length; on a wheel one tooth step θt = 2·asin(p / 2R) counts
+  p, so pins one pitch apart in c are exactly one pitch apart in space on runs **and** on wheels (the polygon effect).
+  Loop length Lc = runs + Σ wrap·p/θt; vs. N·p reported when off by more than 2 % of p.
+* **A link at c:** hinge A = point(c); hinge B = the point ahead on the loop exactly p away (chord, solved); frame
+  X = (B − A)/p, Y = n, Z = X × Y (outward). A part's local matrix = F(c₀)⁻¹ · its CAD matrix (c₀ = its link's hinge A).
+* **Wheels turn** at θt/p rad per metre of chain (one tooth per pitch: the teeth stay with the pins; a sprocket's 1/R
+  would drift 2.6 % on the demo's 8 teeth), a wheel the chain only touches (wrap < half a tooth) at 1/r with r its
+  radius to the chain's surface. Sign: anticlockwise about n for side +1. Each wheel's joint: its own when it has one
+  on that axis (kept; coupled if it moves by itself; a coupling of its own that is > 0.5 % off is a note), else an
+  app-made rotate joint (tag ``fr_track``).
+* **Speed:** the track follows a joint ``joint`` (slide: metres; rotate: a joint of one of its wheels, metres = angle ×
+  p/θt of that wheel). Default: the cable (4 Motion > Cables and paths) passing nearest the loop's run; the direction
+  makes the pads on that run move with the cable. ``reverse`` flips it.
+* **No Python per frame.** Hidden mesh "FR track loop <name>" (in the carrier's coordinates): M points (2 mm apart in
+  c) with position A(c_j) and point attributes ``fr_x``, ``fr_z``. Each link / pad / plate gets a Geometry Nodes
+  modifier "FR track" (tree "FR track part", shared) with inputs Loop, Carrier (objects), Length (Lc), Count (M),
+  Travel (driven), Phase (c₀), Offset, Turn (the local matrix as translation + Euler). Driver on Travel (simple
+  expression on the speed joint's top joint, 0080/0078 way): ``u - Lc * floor(u / Lc) + 2.0`` with u = a·k + C. In the
+  tree: c = floored_mod(Travel − 2 + Phase, Lc), linear interpolation between samples i, i+1 → frame F; geometry moved
+  by inverse(own world) · carrier world · F · Local. Exact at any fps, scripts off, queue, Cycles, EEVEE.
+
+**Files and owners.** Worker: ``core/tracks.py``, ``blender/tracks.py``, ``ops_tracks.py``, ``ui_tracks.py``,
+``props.py`` (``FRTrack``, ``FRTrackWheel``, ``scene.fresing.tracks``), ``ops_paths.py`` / ``ui_paths.py`` (Speed from
+joint), ``__init__.py``, ``clash`` hook, ``reimport.py``, demo stage ``tracks``, tour, PC check, guide, version files.
+Subagent **model** (worktree): ``tools/make_test_tracks.py``, ``tests/data/test_tracks.step`` + copy in
+``fresing_render/data/``. Subagent **tester** (after the code): ``tests/test_tracks_independent.py``.
+
+**Blender API (blender/tracks.py)** for tests, the tour, the PC check and the demo:
+``add(scene, wheels, chain, riders=(), joint="", name="") -> FRTrack`` (``wheels``: parts, or (part, hit point world));
+``remove(scene, index)``; ``find(scene, name)``; ``hinge_world(scene, item, k) -> (A, B)`` (link k's two hinge points
+now, as drawn); ``set_up_test_model(scene) -> dict``; ``summary(scene, item) -> str``; ``TrackError``.
+
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (4 cores), 13 Nov 2026 – branch `claude/epic-davinci-mpptxj`, released as 0.2.87 (0.2.86 went to task 0106 meanwhile).
 
 **What changed:**
+- `core/tracks.py` (new, no Blender): the chain from the links' hinge points (one closed cycle of one pitch, else a plain
+  refusal: open chain, two pitches, a pin with three links, more than one loop; `loop_of` picks the clicked track when
+  two have the same part names), the loop round the wheels (centres from the clicked axes; radius and side read from
+  the pins: wrapped wheels at the pins' distance, support rollers at the distance to the run; tangents with signed
+  radii + arcs; every CAD pin must lie on it ≤ 1 mm), the chain parameter c (one pitch per tooth on a wheel), a link's
+  second hinge one pitch ahead on the loop (chord, bisection), wheel rates one tooth per link (θt/p, not 1/R – 2.6 %
+  apart on the demo's 8 teeth), the Travel driver expression (`u - L * floor(u / L) + 2`, a simple expression).
+- `blender/tracks.py` (new): Add track's work (wheels' axes from `fr_axes`, the link's two hinge axes, copies by name in
+  the subassembly or by mesh, pads/plates on the nearest link), wheels' joints (own joint kept and coupled; app-made
+  ones tagged `fr_track`, kept through model updates via `joints.SPEC_TAGS`), the default speed = the cable that runs
+  nearest a run (direction so the pads on that run move with it), else an app-made slide joint "Track <name>".
+  **No Python per frame:** per track a hidden table "FR track loop <name>" (the loop every 2 mm, in the first wheel's
+  joint arrow's coordinates) and a run object "FR track run <name>" (one point per part) whose Geometry Nodes work out
+  every part's world matrix from ONE simple-expression driver; each link/pad/plate a modifier "FR track" (10 nodes)
+  moving its own geometry there. Off/on, remove (parts back as in CAD, app-made joints gone), rename (fixed key),
+  model update (`after_model_update`), clash hook (track parts left out), `set_up_test_model`.
+- `ops_tracks.py`, `ui_tracks.py` (new): 4 Motion > Tracks and belts – Add track (click wheels, Enter, a link, pads,
+  Enter; Esc cancels), list, Speed (prop search over joints), Runs the other way, Add a Run motor step, wheels list.
+- 0078 follow-up: Cables and paths has **Speed from** above Add cable (`scene.fresing.cable_speed`, `ops_paths`
+  `joint=`): an existing slide joint becomes the new cable's speed.
+- Demo: stage `tracks` (after `cable`) makes the four tensioner tracks (they find "Cable travel" themselves);
+  `waits_for_tracks` is gone; the sheet's sprocket ratio is now one tooth per link (`machines.py`); shot 5 runs the cable
+  at 10 m/min for 8 s from the squeeze on (pads running through the X-ray).
+- Test model `tools/make_test_tracks.py` → `test_tracks.step` (subagent; 171 parts: tensioner with two tracks of 22
+  links + 22 pads, 10-tooth sprockets, support rollers, top carriage on a lift, a cable on two rollers; a belt of 58
+  links round three pulleys of Ø 240/160/100 at the pins, closed by a chord walk to 3e-11 mm).
+- Tour stop "Tensioner tracks and a belt" (set `tracks`), PC-check line `motion.tracks` (picture + 3 metrics), guide
+  section "Tracks and belts" with `panel_tracks.png` and `view_tracks.jpg` (subagent), CLAUDE.md layout + lessons.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web session, 4 cores, Blender 5.2.3 as a module unless said):
+- `tests/test_tracks_core.py` 9, `tests/test_tracks.py` 15, `tests/test_tracks_independent.py` 45 – all pass (16 s).
+- Hinges from the evaluated meshes on the loop: worst 0.0104 mm (all live and built cases, 3 tracks, also at 24 / 60
+  fps and frames 1, 250, 1,000 of a 50 s Build); hinge distance = pitch to 0.0001 mm; pad speed on the gripping run =
+  cable speed to 2.8e-6 (100 m Run motor step); sprocket notches on the pins to 0.37 mm after up to 1 km (notch 16 mm,
+  pin 8 mm); drawn = CAD at travel 0 to 0.0023 mm. Direction: 30 mm of cable moves the gripping pads 30.000 mm with it.
+- Demo (`tests/test_demo_project.py`, small build): 4 tracks of 36 links + 72 pads/plates each on "Cable travel", sprockets
+  kept at the sheet's ratio, **0 clash rows** over the whole animation (with the other 4 demo tests: 5 passed).
+  **Per frame (shot 5's frames): 19.9 ms with the 4 tracks running, 11.8 ms off: +8.1 ms** (432 moving parts). Make demo:
+  stage `tracks` 1.5 s of 96 s. Test model: +2.3 ms for 146 parts. PC-check line: 6 s, frame change 5.8 ms (171 parts).
+- Real app: guide pictures (panel at the default width, labels fitted after the subagent's report) and the Cycles
+  still of the demo's tensioner `tasks/img/0079_tensioner_tracks.jpg`; the other real-app tests on GitHub.
+- Subagents: (1) test model maker (worktree, Opus) – made `make_test_tracks.py` + the STEP; (2) independent tester
+  (worktree, Opus, did not read the bodies of tracks.py) – 46 tests, 7 failed at first: a raw StopIteration when the
+  clicked link is a track already (fixed: refused in words), neighbour links 0.2–0.38 mm apart where a link straddles a
+  run and a sprocket and 0.06–0.13 mm slip on the belt's pulleys (the chord rule: kept, bounds 0.5 / 0.2 mm in its tests,
+  open point below), 2 mm of notch drift at 28.8 km (32-bit joint values: test kept at 1 km); its driver count test
+  changed to one driver per track after the speed-up; (3) guide section + pictures (worktree, Sonnet) – found three
+  cut-off labels in the panel (fixed) and "Runs the other way" showing ticked on a track that ran right (fixed: the
+  found direction is a hidden `flip`, the box only turns it round). Re-done after merging: the panel picture.
+- GitHub runs: 2 on the branch. Run 43456458187 red: the new "Speed from" row sat inside the cables panel's
+  `_add_buttons`, where the real-app test marks the place of Add cable, so its mouse click hit the Speed field (fixed:
+  drawn just above). Run 43462232702 green (24.3 min), after merging main (0106 took 0.2.86: renumbered to 0.2.87,
+  PC-check / tour counts +1 each).
 
 **Open points / follow-up tasks:**
+- **Cost per frame above the aim:** +8 ms on the demo (≤ +2 ms asked). Measured: a Geometry Nodes modifier costs
+  ~0.007 ms per object even when it passes its mesh through, moving the mesh as much again; a 45-node tree per part cost
+  about the same as the 10-node one now. With 432 CAD parts each moving its own geometry the aim is out of reach here
+  (likely less on the owner's 24 cores). Options for the lead: instancing per track (one object draws all pads: ~+1 ms,
+  but the pads lose their own visibility/paint scheme), or keys at Build for parts' transforms (needs a handler for
+  live posing). Owner: say whether the demo plays smoothly enough on the RTX 3090.
+- Where a link straddles a run and a sprocket its neighbour's pin lies up to ~0.4 mm (test model: 10 teeth, 100 mm) –
+  about 1.8 mm on the demo's 8 teeth of 300 mm – off its own second hinge (each link is kept rigid, one pitch, on the
+  loop). Invisible in renders; an exact rigid-chain motion (the chain's slack) is not modelled.
+- Joint values are 32-bit: ~1 mm at 10 km of cable, 2 mm at 28.8 km (all joints, not only tracks).
+- Not done: a tension idler on its own joint (refused in words), rubber pads squashing on the cable, "Add all found by
+  name" (optional in the brief).
+
+

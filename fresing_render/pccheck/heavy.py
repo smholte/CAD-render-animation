@@ -612,7 +612,7 @@ def heavy_vessel(ctx):
             f"(+{times[True] - times[False]:.1f} ms)")
 
 
-@line("heavy.weather", "Big machine: weather and time of day", "0.2.86", (H,), requires=("heavy.import",),
+@line("heavy.weather", "Big machine: weather and time of day", "0.2.88", (H,), requires=("heavy.import",),
       expected=150,
       what="The 3,000-part machine on the quayside with Weather & time: Cycles Preview at HD on the graphics card in "
            "clear noon light, a storm (rain, wet look, low clouds), snow (falling + a snow layer), fog and at night "

@@ -1429,6 +1429,67 @@ def build_spool(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
+TRACKS_ANIM = "Tracks"
+
+
+@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step")
+def build_tracks(b: Build):
+    from . import tracks
+    sc = b.scene
+    _look("PRODUCT")
+    made = tracks.set_up_test_model(sc)
+    _check(made["animation"] == TRACKS_ANIM, f"the animation is called '{made['animation']}'")
+    for it in tracks.items(sc):
+        text, level = tracks.status(sc, it)
+        _check(level == "OK", f"'{it.name}': {text}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: tracks")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_tracks(scene):
+    """Along the built animation: every link's two hinges on its loop one pitch apart, the tensioner's gripping pads
+    ran as far as the cable, the sprockets turned one tooth per link, the top track lifted and came back."""
+    import numpy as np
+
+    from . import joints, paths, tracks
+    its = [tracks.find(scene, n) for n in tracks.TEST_TRACKS]
+    _check(all(it is not None for it in its), "a track is missing")
+    cab = joints.find(scene, paths.find(scene, tracks.TEST_CABLE).joint)
+    lift = joints.find(scene, tracks.TEST_LIFT)
+    off = chord = 0.0
+    lifts = []
+    for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        lifts.append(joints.get_value(lift))
+        for it in its:
+            for ob in [o for o in tracks.parts_of(scene, it) if o.get(tracks.ROLE) == "link"][::5]:
+                a, b = tracks.hinge_world(scene, it, ob)
+                chord = max(chord, abs(float(np.linalg.norm(b - a)) - it.pitch))
+                off = max(off, float(tracks.off_loop(scene, it, [a, b]).max()))
+    ran = joints.get_value(cab)
+    bot = its[0]
+    run = tracks.travel_now(scene, bot)
+    run = min(run, bot.length - run)
+    want = ran % bot.length
+    want = min(want, bot.length - want)
+    spr = joints.find(scene, bot.wheels[0].joint)
+    turn = abs(joints.get_value(spr))
+    _check(ran > 1.9, f"only {ran:.2f} m of cable ran")
+    _check(abs(run - want) < 1e-4, f"the pads ran {run:.4f} m, the cable {want:.4f} m (round the loop)")
+    _check(abs(turn - abs(bot.wheels[0].rate) * ran) < 1e-4, "a sprocket does not turn one tooth per link")
+    _check(off < 1e-4, f"a link's hinge is {off * 1000:.2f} mm off its loop")
+    _check(chord < 5e-5, f"a link's hinges are {chord * 1000:.3f} mm from one pitch apart")
+    _check(max(lifts) > 0.14 and abs(lifts[-1] + 0.002) < 1e-4, "the top track did not lift and squeeze")
+    return (f"{ran:.2f} m of cable, the pads with it to {abs(run - want) * 1000:.2f} mm, sprocket "
+            f"{math.degrees(turn):.0f}°; hinges on their loops to {off * 1000:.3f} mm, one "
+            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm")
+
+
 def _check_spool(scene):
     """Along the built animation: the drum turned and the level wind went along with the wrap being paid out, the
     carousel turned and its arm swung out; each cable leaves its spool on the circle of its layer."""
@@ -2335,6 +2396,17 @@ def build_vessel(b: Build):
     a = _animation(b, VESSEL_ANIM)
     _joint_step(a, "Boom", 1.0, 6.0, math.radians(20), label="Boom up at sea")
     a.start_shot = _shot(b, "@vessel").name
+    # task 0106: the web page with its surroundings (stop "web3d_env"): the project's sea and motion, rain and haze
+    from . import web3d_env
+    w = s.web3d
+    w.texture_size = "512"
+    w.env_mode = "PROJECT"
+    web3d_env.fill_from_project(sc)
+    w.env_haze = True
+    w.env_haze_strength = 30.0
+    w.env_rain = True
+    w.env_clouds = "SOME"
+    _shot(b, "@web3d_env")
 
 
 def _check_vessel(scene):
@@ -2459,15 +2531,15 @@ stop("vessel", LOOK, "vessel", "Vessel motion at sea",
 stop("weather", LOOK, "weather", "Weather: grey North Sea",
      "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
      "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
-     where="5 Scene & Render > Weather & time", since="0.2.86", check=_check_weather)
+     where="5 Scene & Render > Weather & time", since="0.2.88", check=_check_weather)
 stop("weather_step", LOOK, "weather", "Weather changes in a video",
      "A Weather & time step: a clear late morning turns into a wet dusk over four seconds – the sun sinks and "
      "turns orange, clouds come in, the rain starts and the crane gets wet.",
-     where="6 Animation > Weather & time step", since="0.2.86", animation=WEATHER_ANIM, at=1.0, play=True,
+     where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=1.0, play=True,
      check=_check_weather, auto="clip")
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
-     "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.86", check=_check_night)
+     "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks)
@@ -2530,6 +2602,13 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
      "towards the rim) and the arm swings out so its guide stays over the turn being paid out.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
+     auto="clip")
+stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
+     "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
+     "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
+     "keep running) and comes back down to squeeze the cable 2 mm. Behind, a belt of separate links runs round three "
+     "pulleys of different size; all wheels turn with the chain.",
+     where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
@@ -2686,6 +2765,31 @@ def _check_web3d(scene):
     return f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel)"
 
 
+def _check_web3d_env(scene):
+    """Web 3D model with surroundings (task 0106): export the crane on the deck with the sea, vessel motion, sky,
+    haze and rain next to the tour and read the page's settings back."""
+    import tempfile
+
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from . import web3d, web3d_env
+    folder, version = tour_of_file(scene)
+    out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_env_")
+    os.makedirs(out_dir, exist_ok=True)
+    ch = web3d_env.choice(scene)
+    _check(ch is not None and ch["sea"] and ch["vessel"], "Surroundings on the page is not 'As in the project' "
+                                                          "with the sea and vessel motion")
+    out = web3d.export(scene, os.path.join(out_dir, "Crane at sea web 3D.glb"), size=512, surroundings=ch)
+    with open(out["path"], "rb") as fh:
+        bad = core.problems(fh.read())
+    _check(not bad, f"the file is not valid glTF: {bad[:1]}")
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    _check(st["sea"] and st["vessel"] and st["haze"] and st["rain"], "the page lacks the sea, the motion, haze or rain")
+    _check(st["sea"]["state"] == scene.fresing.sea_state, "the page's sea is not the project's")
+    return f"{out['text']}; on the page: {out.get('env_items', '')} (Open page in the panel)"
+
+
 def _check_demo(scene):
     """The demo project (task 0077): never made inside the tour (it takes minutes); read its summary if it is there."""
     from .. import __version__
@@ -2708,6 +2812,14 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
      "scroll to zoom. The page is one file and also works without internet.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d)
+
+stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
+     "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
+     "Open page in 5 Scene & Render > Web 3D model: your browser shows the crane on the deck on a moving calm sea "
+     "under a sky with some clouds; the deck rolls gently with the waves, it rains lightly and the horizon is hazy; "
+     "the sun's shadows move with the boom. Drag to turn, scroll to zoom. The fold Surroundings on the page shows "
+     "what was picked.", where="5 Scene & Render > Web 3D model > Surroundings on the page", since="0.2.86",
+     check=_check_web3d_env)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "

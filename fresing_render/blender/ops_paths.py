@@ -70,13 +70,14 @@ def rope_named(ob) -> bool:
     return any(w in ROPE_WORDS for w in words)
 
 
-def add_from(scene, part) -> tuple:
-    """A new cable read from ``part``: (its name, the notes of the reading). Raises paths.PathError with a plain
-    reason and leaves nothing behind then: no line in the list, no joint."""
+def add_from(scene, part, joint: str = "") -> tuple:
+    """A new cable read from ``part``: (its name, the notes of the reading). ``joint``: an existing slide joint as
+    its speed ('' = a new joint, task 0079: "Speed from joint"). Raises paths.PathError with a plain reason and
+    leaves nothing behind then: no line in the list, no joint."""
     s = scene.fresing
     was, count = s.cables_index, len(s.cables)
     try:
-        item = paths.add_cable(scene, _name(part) if part is not None else "")
+        item = paths.add_cable(scene, _name(part) if part is not None else "", joint=joint)
         notes = paths.read_cad(scene, item, part)
     except Exception as exc:                      # noqa: BLE001 - nothing half made stays, whatever went wrong
         while len(s.cables) > count:
@@ -232,6 +233,9 @@ class FRESING_OT_cable_add(_Pick, _Op, bpy.types.Operator):
     part: StringProperty(name="Part", options={"SKIP_SAVE", "HIDDEN"},
                          description="The cable's part (the name of its object). Empty: the selected part, or a "
                                      "click in the 3D view")
+    joint: StringProperty(name="Speed from joint", options={"SKIP_SAVE", "HIDDEN"},
+                          description="An existing slide joint as the cable's speed (metres paid out). Empty: the "
+                                      "joint chosen under Speed from joint in the panel, else a new one")
 
     def note(self, context, ob, name):
         return f"Cable: {name}"
@@ -259,10 +263,14 @@ class FRESING_OT_cable_add(_Pick, _Op, bpy.types.Operator):
         return self.picked(context, ob, None)
 
     def picked(self, context, ob, _point):
+        scene = context.scene
+        joint = self.joint or scene.fresing.cable_speed
         try:
-            _name_, notes = add_from(context.scene, ob)
+            _name_, notes = add_from(scene, ob, joint=joint)
         except paths.PathError as exc:
             return _refuse(context, self, exc)
+        if joint and joint == scene.fresing.cable_speed:
+            scene.fresing.cable_speed = ""           # (one cable per speed joint: the next one starts empty)
         _tell(context, self, notes)
         return {"FINISHED"}
 

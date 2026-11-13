@@ -7,7 +7,7 @@ import os
 import bpy
 
 from ..core import web3d as core
-from . import animation, web3d
+from . import animation, ui, vessel_motion, web3d, web3d_env
 from .ui import MEDIUM, _has_model, _Panel, big_row, header_status, primary, split_props, wrap
 
 
@@ -45,6 +45,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub = col.row()
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")
+        self.draw_surroundings(context, layout, w)
 
         layout.separator()
         if rt.get("running"):
@@ -64,7 +65,54 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             op = row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER")
             op.path = w.last_path
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
-                              "the cutaway, the surroundings.", icon="INFO")
+                              "the cutaway" + (", the halls and the quay." if w.env_mode == "PROJECT" else
+                                               ", the surroundings (see Surroundings on the page)."), icon="INFO")
+
+    def draw_surroundings(self, context, layout, w):
+        """The fold "Surroundings on the page" (task 0106): folded, its state in the header."""
+        scene = context.scene
+        head, body = layout.panel("fr_web3d_env", default_closed=not ui._OPEN_FOLDS)
+        head.label(text="Surroundings on the page")
+        if body is None:
+            return
+        body.row().prop(w, "env_mode", expand=True)
+        if w.env_mode != "PROJECT":
+            wrap(body, context, "The machine alone on a light background, as before.", inset=12)
+            return
+        col = split_props(body)
+        col.prop(w, "env_sea", text="Sea")
+        sub = col.row(align=True)
+        sub.enabled = w.env_sea
+        sub.prop(w, "env_sea_state", expand=True)
+        sub = col.row()
+        sub.enabled = w.env_sea and vessel_motion.effective(scene)
+        sub.prop(w, "env_vessel", text="Vessel motion")
+        col.prop(w, "env_sky", text="Sky")
+        if w.env_sky:
+            col.prop(w, "env_sky_source", text="Sky from")
+            photo = web3d_env.light_kind(scene.fresing) not in ("SKY", "OVERCAST")
+            if w.env_sky_source == "TIME" or not photo:
+                sub = col.column(align=True)
+                sub.enabled = w.env_sky_source == "TIME"
+                sub.prop(w, "env_sun_height", text="Sun height")
+                sub.prop(w, "env_sun_direction", text="Sun direction")
+                col.prop(w, "env_clouds", text="Clouds")
+        row = col.row(align=True)
+        row.prop(w, "env_haze", text="Haze")
+        sub = row.row(align=True)
+        sub.enabled = w.env_haze
+        sub.prop(w, "env_haze_strength", text="")
+        row = col.row(align=True)
+        row.prop(w, "env_rain", text="Rain")
+        sub = row.row(align=True)
+        sub.enabled = w.env_rain
+        sub.prop(w, "env_rain_strength", text="")
+        col.prop(w, "env_shadows", text="Live sun shadows")
+        body.label(text="Page quality")
+        body.row(align=True).prop(w, "env_quality", expand=True)
+        col = split_props(body)
+        col.prop(w, "env_auto", text="Auto quality")
+        body.operator("fresing.web3d_env_from_project", text="Take from the project", icon="FILE_REFRESH")
 
 
 PANELS = (FRESING_PT_web3d,)
