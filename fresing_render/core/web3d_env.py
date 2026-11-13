@@ -141,7 +141,8 @@ PLAIN_BG = "#F1F3F5"                 # the plain form's background: the model-vi
 
 
 def light_block(light: dict | None) -> dict | None:
-    """The page's ``light`` entry: {light: SOFT | ALL, scale, curve} (task 0107), None for no baked light."""
+    """The page's ``light`` entry: {light: SOFT | ALL, scale, curve, sun} (task 0107), None for no baked light.
+    ``sun``: Cycles' sun / sky light on an open up-facing surface (ALL; 0 when the light has no separate sun)."""
     if not light or light.get("light", "LIVE") == "LIVE":
         return None
     kind = light["light"]
@@ -150,7 +151,10 @@ def light_block(light: dict | None) -> dict | None:
     scale, curve = float(light.get("scale", 1.0)), float(light.get("curve", 2.0))
     if not (math.isfinite(scale) and scale > 0 and math.isfinite(curve) and curve > 0):
         raise ValueError(f"baked light: scale and curve must be above 0 (scale {scale}, curve {curve})")
-    return {"light": kind, "scale": scale, "curve": curve}
+    sun = float(light.get("sun", 0.0))
+    if not (math.isfinite(sun) and sun >= 0):
+        raise ValueError(f"baked light: sun must be 0 or more ({sun})")
+    return {"light": kind, "scale": scale, "curve": curve, "sun": sun}
 
 
 def settings(choice: dict, model_min, model_max, sea: dict | None = None, vessel: dict | None = None,

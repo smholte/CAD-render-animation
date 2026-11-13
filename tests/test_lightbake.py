@@ -298,3 +298,21 @@ def test_live_only_export_is_unchanged(tmp_path):
     assert "<model-viewer" in open(b["html"], encoding="utf-8").read()
     assert "light" not in b
     del a
+
+
+def test_the_lit_page_opens_and_uses_the_baked_light(mill_lit):
+    """The real export's page in a browser without a window: no error, every lit mesh patched (skipped without a
+    browser or WebGL, as the 0106 tests)."""
+    browser = env.find_browser()
+    if not browser:
+        pytest.skip("no browser on this machine")
+    try:
+        got = env.read_page(mill_lit["out"]["html"], browser, query="auto=0&frames=3", seconds=90)
+    except RuntimeError as exc:
+        pytest.skip(f"the browser did not run here: {exc}")
+    state = got["state"]
+    if state.startswith(("no-webgl", "loading")) or "webgl" in state.lower():
+        pytest.skip(f"no WebGL here: {state}")
+    assert state.startswith("ready"), state
+    light = got["light"]
+    assert light and light["light"] == "SOFT" and light["plain"] is True and light["meshes"] >= 1

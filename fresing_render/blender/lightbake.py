@@ -91,6 +91,9 @@ class Result:
     problems: list = field(default_factory=list)
     atlases: list = field(default_factory=list)     # (h, w, 3) float32 each, row 0 at the bottom
     sun_separate: bool = True                        # SOFT: False when the world has no sky sun (photo, studio)
+    reference_sky: tuple = (1.0, 1.0, 1.0)           # the sky's light alone (no sun disc) on the open probe
+    sun_ratio: float = 0.0                           # ALL: (reference - reference_sky) / reference_sky (luminance)
+    atlas_size: int = 0                              # px of the (square) atlases
     texels: int = 0
     vertices: int = 0
 
@@ -206,6 +209,10 @@ class Bake:
         meshes: dict = {}
         rows = []
         problems = []
+        clear = [ob for ob in self.objects if see_through(ob)]
+        if clear:                                   # glass keeps live light on the page; it lets light through here
+            self.occluders += [ob for ob in clear if ob not in self.occluders]
+            self.objects = [ob for ob in self.objects if ob not in set(clear)]
         for ob in self.objects:
             key = ob.data.name_full
             if key not in meshes:
@@ -252,7 +259,18 @@ class Bake:
                 problems.append(f"{r['ob'].name}: too big for one light picture – its light is coarse")
             r["px"] = px
             sizes.append(px)
+        atlas_px = lm.ATLAS
         places = lm.pack(sizes, lm.ATLAS) if sizes else []
+        if places and max(int(pl[:, 0].max()) for pl in places) == 0:      # one atlas: as small as it can be
+            for side in (256, 512, 1024):
+                if all(lm.fits(px, side) for px in sizes):
+                    try:
+                        small = lm.pack(sizes, side)
+                    except ValueError:
+                        continue
+                    if max(int(pl[:, 0].max()) for pl in small) == 0:
+                        places, atlas_px = small, side
+                        break
         n_atlas = 0
         for r, pl in zip(maps, places):
             r["places"] = pl
@@ -264,12 +282,12 @@ class Bake:
             uv_area = float(np.clip(0.5 * np.abs(e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]).sum(), 1e-6, 1.0))
             r["size"] = lm.image_size(r["area"], uv_area, tpm)
             r["tpm"] = tpm
-        texels = n_atlas * lm.ATLAS * lm.ATLAS if maps else 0
+        texels = n_atlas * atlas_px * atlas_px if maps else 0
         texels += sum(w * h for w, h in (r["size"] for r in own))
         vertices = sum(len(r["md"].points) for r in verts)
         passes = 2 if self.light == "SOFT" and self._has_sky_sun() else 1
         self._plan = {"rows": rows, "maps": maps, "verts": verts, "own": own, "atlases": n_atlas, "tpm": tpm,
-                      "texels": texels, "vertices": vertices, "passes": passes, "problems": problems,
+                      "texels": texels, "vertices": vertices, "passes": passes, "problems": problems, "atlas_px": atlas_px,
                       "area": total}
         return self._plan
 
@@ -329,10 +347,7 @@ class Bake:
         key = (mat.name_full if mat is not None else "", img.name)
         if key in cache:
             return cache[key]
-        if mat is None:
-            m = bpy.data.materials.new(NAME)
-        else:
-            m = mat.copy()
+        m = self._matte(mat, cache).copy()
         m.name = NAME
         self._baker.ids.append(m)
         nt = m.node_tree
@@ -349,6 +364,25 @@ class Bake:
             n.select = False
         node.select = True
         nt.nodes.active = node
+        cache[key] = m
+        return m
+
+    def _matte(self, mat, cache: dict):
+        """A copy of ``mat`` whose surface takes matte light: Metallic 0 (a metal has no matte light, so its baked
+        light – and its reflections' shading on the page – would be black)."""
+        key = ("matte", mat.name_full if mat is not None else "")
+        if key in cache:
+            return cache[key]
+        m = bpy.data.materials.new(NAME) if mat is None else mat.copy()
+        m.name = NAME
+        self._baker.ids.append(m)
+        if m.node_tree is not None:
+            for n in m.node_tree.nodes:
+                if n.type == "BSDF_PRINCIPLED" and "Metallic" in n.inputs:
+                    sock = n.inputs["Metallic"]
+                    for link in list(sock.links):
+                        m.node_tree.links.remove(link)
+                    sock.default_value = 0.0
         cache[key] = m
         return m
 
@@ -438,8 +472,10 @@ class Bake:
             yield self._tick(0.02, "Setting up the light bake")
             # images
             atlases = []
+            A = p["atlas_px"]
+            res.atlas_size = A
             for _ in range(p["atlases"]):
-                img = bpy.data.images.new(NAME, lm.ATLAS, lm.ATLAS, alpha=True, float_buffer=True)
+                img = bpy.data.images.new(NAME, A, A, alpha=True, float_buffer=True)
                 img.colorspace_settings.name = "Non-Color"
                 self._baker.ids.append(img)
                 atlases.append(img)
@@ -449,7 +485,7 @@ class Bake:
             vert_objs = []                                 # (row, object)
             for r in p["maps"]:
                 md = r["md"]
-                uv, which = lm.place_uv(md.unwrap, r["tpm"] * r["scale"], r["places"], self.padding, lm.ATLAS)
+                uv, which = lm.place_uv(md.unwrap, r["tpm"] * r["scale"], r["places"], self.padding, A)
                 r["uv"] = uv
                 r["which"] = which
                 atl = int(which[0]) if len(which) else 0
@@ -472,6 +508,8 @@ class Bake:
                 own_objs.append((r, o, img))
             for r in p["verts"]:
                 me = self._target_mesh(r["ob"], r["md"], None, True)
+                for k, m in enumerate(me.materials):
+                    me.materials[k] = self._matte(m, mat_cache)
                 vert_objs.append((r, self._object(me, r["ob"].matrix_world, r["ob"])))
             for ob in self.occluders:
                 me = ob.data if ob.type == "MESH" else None
@@ -497,8 +535,8 @@ class Bake:
                 if self.light == "SOFT":
                     res.problems.append("The light has no separate sun (a 360° photo or studio light): all of it "
                                         "is baked")
-            acc = [np.zeros((lm.ATLAS, lm.ATLAS, 3), np.float32) for _ in atlases]
-            mask = [np.zeros((lm.ATLAS, lm.ATLAS), bool) for _ in atlases]
+            acc = [np.zeros((A, A, 3), np.float32) for _ in atlases]
+            mask = [np.zeros((A, A), bool) for _ in atlases]
             own_acc = [np.zeros((img.size[1], img.size[0], 3), np.float32) for _r, _o, img in own_objs]
             own_mask = [np.zeros((img.size[1], img.size[0]), bool) for _r, _o, img in own_objs]
             vert_acc = [np.zeros((len(r["md"].tris) * 3, 3), np.float32) for r, _o in vert_objs]
@@ -545,6 +583,16 @@ class Bake:
                         msk |= px[..., 3] > 0.5
                     done += 1
             res.reference = tuple(float(v) for v in ref)
+            res.reference_sky = res.reference
+            if self._has_sky_sun():                    # the sky alone on the probe: the page's balance of sun and sky
+                sc.world = self._world_copy(False)
+                bk.use_pass_direct = bk.use_pass_indirect = True
+                self._bake_call(sc, [probe], "IMAGE_TEXTURES", {"DIRECT", "INDIRECT"})
+                sky = self._pixels(probe_img)[2:6, 2:6, :3].reshape(-1, 3).mean(axis=0)
+                res.reference_sky = tuple(float(v) for v in sky)
+                lum = np.array([0.2126, 0.7152, 0.0722])
+                if self.light == "ALL":
+                    res.sun_ratio = max(0.0, float(ref @ lum) / max(float(sky @ lum), 1e-9) - 1.0)
             yield self._tick(0.86, "Cleaning up the baked light")
             for k, (a, m) in enumerate(list(zip(acc, mask)) + list(zip(own_acc, own_mask))):
                 a[...] = self._clean(a, m)
@@ -732,6 +780,27 @@ def denoise(src_scene, pixels: np.ndarray) -> np.ndarray:
         bpy.data.scenes.remove(sc)
         if not had_result and "Render Result" in bpy.data.images:
             bpy.data.images.remove(bpy.data.images["Render Result"])
+
+
+def see_through(ob) -> bool:
+    """Every material of ``ob`` lets light through (glass, a clear cover): such a part is not baked – the page keeps
+    its live light – but it still lets the light through to the parts behind it."""
+    mats = [s.material for s in ob.material_slots if s.material is not None]
+    if not mats:
+        return False
+    for mat in mats:
+        nt = mat.node_tree
+        pr = [n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"] if nt is not None else []
+        if not pr:
+            return False
+        n = pr[0]
+        tw = n.inputs.get("Transmission Weight")
+        al = n.inputs.get("Alpha")
+        clear = (tw is not None and not tw.is_linked and tw.default_value > 0.5) or \
+                (al is not None and not al.is_linked and al.default_value < 0.5)
+        if not clear:
+            return False
+    return True
 
 
 def quick_estimate(objects, light, quality="NORMAL", texels_per_m=None, device="CPU") -> dict:

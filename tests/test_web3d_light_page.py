@@ -163,13 +163,13 @@ def test_settings_light_and_plain():
     st = env.settings(dict(env.default_choice(), haze=True, rain=True, clouds="OVERCAST"), [0, 0, 0], [3, 2, 1],
                       sea={"waves": [[0.1, 1, 0, 0.1, 0]], "near": 40}, light={"light": "ALL", "scale": 1.7},
                       plain=True)
-    assert st["light"] == {"light": "ALL", "scale": 1.7, "curve": 2.0}
+    assert st["light"] == {"light": "ALL", "scale": 1.7, "curve": 2.0, "sun": 0.0}
     assert st["plain"] is True
     assert st["sea"] is None and st["vessel"] is None and st["haze"] is None and st["rain"] is None
     assert st["sky"]["clouds"] == "NONE"
     assert env.items_text(st) == "sky, sun shadows, baked light (everything)"
     soft = env.settings(env.default_choice(), [0, 0, 0], [1, 1, 1], light=dict(SOFT, scale=2, curve=2))
-    assert soft["light"] == {"light": "SOFT", "scale": 2.0, "curve": 2.0} and "plain" not in soft
+    assert soft["light"] == {"light": "SOFT", "scale": 2.0, "curve": 2.0, "sun": 0.0} and "plain" not in soft
     assert env.items_text(soft).endswith("baked light (soft)")
     for bad in ({"light": "HALF"}, {"light": "SOFT", "scale": 0}, {"light": "ALL", "curve": float("nan")}):
         with pytest.raises(ValueError):
@@ -248,18 +248,25 @@ def _sun_scene(path, light):
 
 def test_all_has_no_double_sun_and_soft_keeps_the_live_sun(tmp_path):
     soft = _sun_scene(tmp_path / "soft.html", SOFT)
-    full = _sun_scene(tmp_path / "all.html", ALL)
+    dark = _sun_scene(tmp_path / "all0.html", dict(ALL, sun=0.0))
+    sunny = _sun_scene(tmp_path / "all3.html", dict(ALL, sun=3.0))
     assert soft["light"]["meshes"] == 3 and soft["light"]["materials"] == 3      # 2 maps + the vertex look copy
     s = [lum(p) for p in soft["probe"]]
-    a = [lum(p) for p in full["probe"]]
-    # F = 1 in the open: baked looks like unbaked, in both choices (no double sun in ALL, the sun kept in SOFT);
-    # measured 13 Nov 2026 (headless shell, SwiftShader): equal to the last digit
-    for vals in (s, a):
-        assert abs(vals[1] - vals[0]) <= 2 and abs(vals[2] - vals[0]) <= 2, (s, a)
-    assert abs(a[0] - s[0]) <= 2                                                 # unbaked: the same page light
+    a0 = [lum(p) for p in dark["probe"]]
+    a3 = [lum(p) for p in sunny["probe"]]
+    # SOFT, F = 1 in the open: baked looks like unbaked (the live sun kept); measured 13 Nov 2026 (headless shell,
+    # SwiftShader): equal to the last digit
+    assert abs(s[1] - s[0]) <= 2 and abs(s[2] - s[0]) <= 2, s
+    for a in (a0, a3):
+        assert abs(a[0] - s[0]) <= 2                                             # unbaked: the same page light
+        assert abs(a[1] - a[2]) <= 2, a                                          # map and vertex alike
+    # ALL: the live sun gives no matte light on baked parts (no double sun): with Cycles' sun share 0 an F = 1 part
+    # gets the sky alone; with a share of 3 it gets 4 x the sky, the render's balance
+    assert a0[1] < s[1] - 15, (s, a0)
+    assert a3[1] > a0[1] + 15, (a0, a3)
     # F = 0.25: SOFT keeps the full live sun on top, ALL dims sky and sun alike
-    assert a[3] < s[3] - 15, (s, a)
-    assert s[3] < s[0] - 5 and a[3] < a[0] - 30, (s, a)
+    assert a0[3] < s[3] - 15 and a3[3] < a3[1] - 15, (s, a0, a3)
+    assert s[3] < s[0] - 5, s
 
 
 def test_unbaked_parts_look_the_same_with_and_without_baked_light(tmp_path):

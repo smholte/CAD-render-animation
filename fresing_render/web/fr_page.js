@@ -508,17 +508,19 @@
 
   // ---------------------------------------------------------------- baked light (task 0107)
   // Light factor F = scale * texel ^ curve (texel: the occlusion map read through UV channel 1, or the mesh's
-  // _FR_LIGHT attribute, linear 0 … 1): the light a white matte surface gets there, 1 = open sky above. The page
-  // multiplies it by its OWN light on an up-facing surface (sky: getIBLIrradiance(up) x environment intensity, in
-  // place of the environment's own matte light iblIrradiance; with ALL also the sun on an up-facing surface, added to
-  // the matte light ``irradiance`` that RE_IndirectDiffuse turns into Lambert light, as the live sun's). Reflections
-  // stay, dimmed by min(1, luminance F) in corners. ALL: the sun gives no matte light on baked surfaces (it is in
-  // the bake), only its highlight. A 360° photo or studio light has no sun of its own: both choices bake all of it,
-  // so they work as ALL. three's own occlusion map (which multiplies) is not used on these materials.
+  // _FR_LIGHT attribute, linear 0 … 1): the light a white matte surface gets there, divided by the light on an open
+  // up-facing surface. The page multiplies it by its OWN sky light on an up-facing surface (getIBLIrradiance(up) x
+  // environment intensity, in place of the environment's own matte light iblIrradiance). With ALL that reference
+  // also held Cycles' sun: ST.light.sun = Cycles' sun / sky on an up-facing surface, so the page uses
+  // (1 + sun) x its sky – the baked parts keep the render's balance of sun and sky light, and a shaded wall gets
+  // the same light as with SOFT. Reflections stay, dimmed by min(1, luminance F / (1 + sun)) in corners. ALL: the
+  // live sun gives no matte light on baked surfaces (it is in the bake), only its highlight. A 360° photo or studio
+  // light has no sun of its own: both choices bake all of it (sun 0), so they work as ALL. three's own occlusion
+  // map (which multiplies) is not used on these materials.
   var BAKED_GLOBAL = [
     'uniform float uFrScale;',
     'uniform float uFrCurve;',
-    'uniform vec3 uFrSunUp;'].join('\n');
+    'uniform float uFrSun;'].join('\n');
   var BAKED_NO_SUN = [                    // the sun's matte light off, its highlight kept
     'void RE_Direct_FrBaked( const in IncidentLight directLight, const in vec3 geometryPosition,',
     '    const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal,',
@@ -535,8 +537,8 @@
   function bakedLight(list) {
     var all = ST.light.light === 'ALL' || photo;
     var uniforms = { uFrScale: { value: +ST.light.scale || 1 }, uFrCurve: { value: +ST.light.curve || 2 },
-                     uFrSunUp: { value: new T.Vector3() } };
-    var patches = {}, sunAt = new T.Vector3();
+                     uFrSun: { value: all && !photo ? Math.max(0, +ST.light.sun || 0) : 0 } };
+    var patches = {};
     function patch(kind) {                 // one function per kind: three shares the programs of a kind
       if (patches[kind]) return patches[kind];
       var maps = T.ShaderChunk.lights_fragment_maps;
@@ -548,12 +550,10 @@
       var lights = [
         'vec3 frF = uFrScale * pow( max( ' + texel + ', vec3( 0.0 ) ), vec3( uFrCurve ) );',
         maps.replace(IBL_DIFFUSE,
-          'iblIrradiance += frF * getIBLIrradiance( normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz ) );'),
-        '#if defined( RE_IndirectDiffuse )',      // the sun as plain Lambert light, as RE_Direct_Physical gives it
-        '  irradiance += frF * uFrSunUp;',
-        '#endif',
+          'iblIrradiance += frF * ( 1.0 + uFrSun ) * ' +
+          'getIBLIrradiance( normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz ) );'),
         '#if defined( RE_IndirectSpecular )',
-        '  float frOcc = min( 1.0, dot( frF, vec3( 0.2126, 0.7152, 0.0722 ) ) );',
+        '  float frOcc = min( 1.0, dot( frF, vec3( 0.2126, 0.7152, 0.0722 ) ) * ( 1.0 + uFrSun ) );',
         '  radiance *= frOcc;',
         '  clearcoatRadiance *= frOcc;',
         '#endif'].join('\n');
@@ -625,15 +625,8 @@
     page.light.materials = made.size;
     page.light.meshes = count;
     page.light.sunMatte = !all;
-    return {
-      sunUp: function () {                 // the sun on an up-facing surface (three's units: colour x intensity)
-        var v = uniforms.uFrSunUp.value;
-        if (!all) { v.set(0, 0, 0); return; }
-        var d = sunAt.subVectors(sun.position, sun.target.position).normalize();    // as three lights with it
-        var k = sun.intensity * Math.max(d.y, 0);
-        v.set(sun.color.r * k, sun.color.g * k, sun.color.b * k);
-      }
-    };
+    page.light.sun = uniforms.uFrSun.value;
+    return {};
   }
 
   // ?probe=: the colours of a few pixels of the frame just drawn (tests)
@@ -673,7 +666,7 @@
       var vm = o.userData && o.userData.fr_vm;
       if (vm === 'STILL' || vm === 'LEVEL') moves.push([o, vm]);
     });
-    if (ST.light) { baked = bakedLight(meshes); baked.sunUp(); }
+    if (ST.light) { baked = bakedLight(meshes); }
     moves.forEach(function (pair) {   // parts that keep their place in the world (or stay level)
       var g = pair[1] === 'STILL' ? stillGroup : levelGroup;
       var holder = g.getObjectByName('fr-holder');
@@ -806,7 +799,7 @@
     domeUniforms.uTime.value = t;
     if (skyMesh) skyMesh.position.copy(camera.position);
     dome.position.copy(camera.position);
-    if (baked) baked.sunUp();
+
     if (rain) {
       rainUniforms.uTime.value = t;
       var bx = T.MathUtils.clamp(dist * 1.6, 6, 140);

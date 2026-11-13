@@ -1073,7 +1073,8 @@ class Job:
                 ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
                 st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
                 if self._lit is not None:
-                    st["light"] = {"light": self.light, "scale": float(self._light_info["scale"]), "curve": 2.0}
+                    st["light"] = env.light_block({"light": self.light, "scale": float(self._light_info["scale"]),
+                                                   "curve": 2.0, "sun": float(self._lit.sun_ratio)})
                     if self.surroundings is None:
                         st["plain"] = True
                 text = env.page_html(title, data, st, pictures, note="Made with Fresing Render",
