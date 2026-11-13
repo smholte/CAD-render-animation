@@ -310,7 +310,7 @@ class _Links(HTMLParser):
             self._credits = 1
         elif tag == "ul" and self._credits:
             self._credits += 1
-        for key in ("href", "src", "poster"):
+        for key in ("href", "src", "data-src", "poster"):
             if a.get(key):
                 self.refs.append((tag, a[key], self._credits > 0))
 

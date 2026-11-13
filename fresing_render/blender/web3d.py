@@ -455,6 +455,17 @@ def finish_tile(tile: np.ndarray, kind: str, decal: bool = False):
     return t[..., 0] if kind == "value" else t
 
 
+def pack_tile(t: np.ndarray, kind: str) -> np.ndarray:
+    """A finished tile as the 8-bit pixels its picture gets (task 0105: a 2048 px colour tile is 12 MB so, 50 MB as
+    floats; all tiles wait in memory until the looks are written). ``color``: sRGB (h, w, 3); ``value``: (h, w);
+    ``normal``: n * 0.5 + 0.5 (h, w, 3)."""
+    if kind == "color":
+        return core.to_bytes(core.linear_to_srgb(t))
+    if kind == "normal":
+        return core.to_bytes(t * 0.5 + 0.5)
+    return core.to_bytes(t)
+
+
 def flat_value(tile: np.ndarray, kind: str):
     if kind == "color":
         return tuple(float(v) for v in tile[..., :3].reshape(-1, 3).mean(0))
@@ -540,6 +551,34 @@ def mesh_arrays(me, own_uv: bool = False, uv: bool = True):
 # the export
 # ---------------------------------------------------------------------------
 
+def meshopt_paths() -> list:
+    """Where Blender keeps its meshopt library (task 0105): the glTF add-on's bridge (Windows: next to the add-on;
+    Linux: Blender's ``lib`` folder), or ``libmeshoptimizer`` next to Blender as a Python module (the tests)."""
+    out = []
+    try:
+        import io_scene_gltf2  # noqa: F401  (dll_path looks the add-on up in sys.modules)
+        from io_scene_gltf2.io.com.library import dll_path
+        p = dll_path("bf_intern_meshopt_bridge", "MeshOptimizer")
+        if p is not None:
+            out.append(str(p))
+    except Exception:  # noqa: BLE001 - another Blender: look in the usual places below
+        pass
+    names = {"win32": ("meshoptimizer.dll",), "darwin": ("libmeshoptimizer.dylib",)}.get(
+        __import__("sys").platform, ("libmeshoptimizer.so",))
+    local = bpy.utils.resource_path("LOCAL") or ""
+    for base in (os.path.join(os.path.dirname(local), "lib") if local else "",
+                 os.path.dirname(bpy.app.binary_path or "")):
+        for n in names if base else ():
+            out.append(os.path.join(base, n))
+    return out
+
+
+def meshopt_native():
+    """Blender's meshopt library, loaded once (None: the NumPy codec packs the triangle lists, a little bigger)."""
+    from ..core import meshopt
+    return meshopt.native() or meshopt.use_native(meshopt_paths())
+
+
 def _matrix_list(m) -> list:
     return [float(m[r][c]) for c in range(4) for r in range(4)]
 
@@ -553,7 +592,7 @@ class Job:
     ``run()`` does it all at once (scripts, tests, PC check)."""
 
     def __init__(self, scene, path: str, size: int = core.DEFAULT_SIZE, hide_names: bool = True,
-                 animation: bool = False, page: bool = True):
+                 animation: bool = False, page: bool = True, compress: bool | None = None):
         self.scene = scene
         self.path = os.path.abspath(bpy.path.abspath(path))
         if not self.path.lower().endswith(".glb"):
@@ -562,6 +601,7 @@ class Job:
         self.hide_names = bool(hide_names)
         self.animation = bool(animation)
         self.page = bool(page)
+        self.compress = compress               # None: from core.COMPRESS_FROM triangles on (the panel's tick)
         self.text = "Starting"
         self.t0 = time.perf_counter()
         self.gltf = core.Gltf()
@@ -636,11 +676,13 @@ class Job:
             yield 0.05 + 0.45 * done / max(n_bakes, 1)
             baked = self._baker.tiles(batch, self.size)
             for key, mat, sock, kind in batch:
-                t = finish_tile(baked[key], kind)
+                tile = baked.pop(key)
+                t = finish_tile(tile, kind)
                 if t is None:
-                    flat[key] = flat_value(baked[key], kind)
+                    flat[key] = flat_value(tile, kind)
                 else:
-                    tiles[key] = t
+                    tiles[key] = pack_tile(t, kind)
+            del baked
             done += 1
         decal_tiles: dict = {}
         for k, ob in enumerate(marks):
@@ -657,7 +699,7 @@ class Job:
                 if t is None:
                     flat[key] = flat_value(arr[..., None] if kind == "value" else arr, kind)
                 else:
-                    tiles[key] = t
+                    tiles[key] = pack_tile(t, kind)
             done += 1
         if self._baker is not None:
             self._baker.close()
@@ -681,6 +723,15 @@ class Job:
             mat_index[name] = cache[same] = self.gltf.material(mat)
 
         # -- meshes and parts
+        unique = {}
+        for ob in parts + marks:
+            unique.setdefault(ob.data.name_full, ob.data)
+        tri_total = sum(len(me.loop_triangles) for me in unique.values())
+        packed = tri_total >= core.COMPRESS_FROM if self.compress is None else bool(self.compress)
+        self.gltf.compress = packed
+        if packed:
+            meshopt_native()
+        self.result["compressed"] = packed
         root = self.gltf.node({"name": "Model", "rotation": list(core.Z_UP_TO_Y_UP)})
         self._decal_meshes = {ob.parent.data.name_full for ob in marks
                               if ob.parent is not None and ob.parent.type == "MESH" and ob.parent.data is not None}
@@ -750,11 +801,11 @@ class Job:
             key = ("color", lk.src.get("color"), lk.src.get("alpha"), None if c_tex else color,
                    None if a_tex else alpha)
             if key not in cache:
-                h, w = (color if c_tex else alpha).shape[:2]
-                rgb = core.to_bytes(core.linear_to_srgb(color)) if c_tex else np.full((h, w, 3), 255, np.uint8)
+                h, w = (color if c_tex else alpha).shape[:2]          # tiles are 8-bit already (pack_tile)
+                rgb = color if c_tex else np.full((h, w, 3), 255, np.uint8)
                 px = rgb
                 if a_tex:
-                    px = np.concatenate([rgb, core.to_bytes(alpha)[..., None]], axis=2)
+                    px = np.concatenate([rgb, alpha[..., None]], axis=2)
                 cache[key] = self.gltf.texture(encode(px, "color"), wrap=wrap)
             pbr["baseColorTexture"] = tex_info(cache[key])
             fac = [1.0, 1.0, 1.0] if c_tex else [float(x) for x in color]
@@ -774,8 +825,8 @@ class Job:
                 h, w = (rough if r_tex else metal).shape[:2]
                 px = np.zeros((h, w, 3), np.uint8)
                 px[..., 0] = 255
-                px[..., 1] = core.to_bytes(rough) if r_tex else 255
-                px[..., 2] = core.to_bytes(metal) if m_tex else 255
+                px[..., 1] = rough if r_tex else 255
+                px[..., 2] = metal if m_tex else 255
                 cache[key] = self.gltf.texture(encode(px, "orm"), wrap=wrap)
             pbr["metallicRoughnessTexture"] = tex_info(cache[key])
         pbr["roughnessFactor"] = 1.0 if r_tex else float(np.clip(rough, 0.0, 1.0))
@@ -784,7 +835,7 @@ class Job:
         def normal_texture(arr, src_key):
             key = ("normal", src_key)
             if key not in cache:
-                cache[key] = self.gltf.texture(encode(core.to_bytes(arr * 0.5 + 0.5), "normal"), wrap=wrap)
+                cache[key] = self.gltf.texture(encode(arr, "normal"), wrap=wrap)
             return tex_info(cache[key])
 
         if isinstance(normal, np.ndarray):
@@ -880,7 +931,8 @@ class Job:
         textures = len(self.gltf.doc["images"])
         self.result.update(path=self.path, html=page if self.page else "", size=len(data), textures=textures,
                            texture_bytes=self.gltf.image_bytes, seconds=seconds,
-                           text=core.result_line(len(data), self.result.get("triangles", 0), textures, seconds))
+                           text=core.result_line(len(data), self.result.get("triangles", 0), textures, seconds,
+                                                 compressed=self.gltf.compress))
         return self.result
 
     def run(self) -> dict:
