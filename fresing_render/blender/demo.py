@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
-MIN_JOINTS = 309                      # the joint sheet's 308 + Cable travel (the quay's come on top)
+MIN_JOINTS = 311                      # the joint sheet's 310 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -691,6 +691,8 @@ def spool_stage(d: Demo):
     spool.add(sc, "DRUM", drum, WINCH_WIRE, coil=on_drum, name=WINCH_SPOOL)
     sp = spool.find(sc, WINCH_SPOOL)
     sp.groove = "LEBUS"
+    # its level wind follows the layer (task 0081): the fairlead sheave stays in line with the wrap, no fleet angle
+    spool.add_follower(sc, spool.find(sc, WINCH_SPOOL), "HANDLING WINCH 1: Level wind", "ACROSS")
     d.notes.append("spool: " + spool.summary(sc, spool.find(sc, WINCH_SPOOL)))
     d.timings["spool winch"] = time.time() - t1
 

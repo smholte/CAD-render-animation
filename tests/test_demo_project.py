@@ -77,7 +77,7 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 308                           # task 0102: no S-bend cradles; the cradles that drop
+    assert len(sheet) == 310                           # task 0102: no S-bend cradles; the cradles that drop
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
     assert len(by) == len(sheet) + 2 and demo.CABLE in by and demo.WINCH_TRAVEL in by
@@ -120,7 +120,7 @@ def test_every_joint_of_the_sheet(made):
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
     assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
     #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum (task 0080)
+    assert spooled == 5                                 # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081)
 
 
 def test_a_coupling_turns_at_its_ratio(made):
