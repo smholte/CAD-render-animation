@@ -756,6 +756,7 @@ def _default_speed(scene, loop) -> tuple:
             continue
         if len(pts) < 2:
             continue
+        pts = _dense(np.asarray(pts, dtype=float), 0.02)
         for a, b, c_start in runs:
             seg = b - a
             L2 = float(seg @ seg)
@@ -777,6 +778,16 @@ def _default_speed(scene, loop) -> tuple:
     _d, it, sign = best
     return it.joint, sign, f"Its speed: cable '{paths.label(it)}' (joint '{it.joint}'), the pads on the run it " \
         "passes move with it"
+
+
+def _dense(pts: np.ndarray, step: float) -> np.ndarray:
+    """A polyline with extra points so that no piece is longer than ``step`` (same shape, same order)."""
+    out = [pts[:1]]
+    for a, b in zip(pts[:-1], pts[1:]):
+        n = max(1, int(math.ceil(float(np.linalg.norm(b - a)) / step)))
+        t = (np.arange(1, n + 1) / n)[:, None]
+        out.append(a + t * (b - a))
+    return np.concatenate(out)
 
 
 def speed_map(scene, item):
@@ -1155,3 +1166,66 @@ def unregister() -> None:
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
     forget()
+
+
+# ---------------------------------------------------------------------------
+# the test model (tests, the test tour, the PC check)
+# ---------------------------------------------------------------------------
+
+TEST_ANIMATION = "Tracks"
+TEST_TRACKS = ("Bottom track", "Top track", "Belt")
+TEST_CABLE = "Cable"
+TEST_LIFT = "Top track lift"
+
+
+def set_up_test_model(scene) -> dict:
+    """The set-up of the tracks test model (test_tracks.step, tools/make_test_tracks.py), already imported: the
+    joint "Top track lift" (+Z, the top carriage), the cable "Cable" read from the CAD (its joint is the tracks'
+    speed), the tracks "Bottom track" and "Top track" (two sprockets, two support rollers, the links, the pads) and
+    "Belt" (three pulleys, its links; its own speed joint); the animation "Tracks" (8 s: 2 m of cable, 1 m of belt,
+    the top track lifts 150 mm and comes back to squeeze the cable 2 mm). Not built. Returns the names."""
+    from mathutils import Vector
+
+    from . import paths
+
+    def uid(u):
+        for ob in scene.objects:
+            if ob.get(build.PROP_UID) == u:
+                return ob
+        raise TrackError(f"The model has no part '{u}'.")
+
+    base = "TEST.TRACKS#1/"
+    carriage = uid(base + "TOP CARRIAGE.ASM#1")
+    root = uid("TEST.TRACKS#1")
+    m = root.matrix_world
+    with joints._batch(scene):
+        joints.create(scene, "SLIDE", [carriage], m @ Vector((0.0, 0.0, 1.2)),
+                      (m.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized(), name=TEST_LIFT)
+    lift = joints.find(scene, TEST_LIFT)
+    lift.slide_min, lift.slide_max, lift.use_limits = -0.005, 0.3, True
+    bpy.context.view_layer.update()
+    out = {"joints": [TEST_LIFT], "notes": []}
+    cab = paths.add_cable(scene, TEST_CABLE)
+    out["notes"] += paths.read_cad(scene, cab, uid(base + "CABLE#1"))
+    cable_joint = paths.find(scene, TEST_CABLE).joint
+    out["joints"].append(cable_joint)
+    for name, asm in (("Bottom track", "BOTTOM TRACK.ASM#1/"), ("Top track", "TOP CARRIAGE.ASM#1/TOP TRACK.ASM#1/")):
+        p = base + asm
+        wheels = [uid(p + "DRIVE SPROCKET#1"), uid(p + "SUPPORT ROLLER#1"), uid(p + "SUPPORT ROLLER#2"),
+                  uid(p + "IDLER SPROCKET#1")]
+        it = add(scene, wheels, uid(p + "TRACK CHAIN LINK#2"), [uid(p + "TRACK PAD#2")], name=name)
+        out["notes"] += [n for n in it.notes.split("\n") if n]
+    p = base + "BELT DRIVE.ASM#1/"
+    belt = add(scene, [uid(p + f"BELT PULLEY {k}#1") for k in "ABC"], uid(p + "BELT LINK#1"), name="Belt")
+    out["joints"].append(belt.joint)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
+    for jn, start, secs, to in ((cable_joint, 0.0, 8.0, 2.0), (belt.joint, 0.0, 8.0, 1.0), (TEST_LIFT, 1.0, 2.0, 0.15),
+                                (TEST_LIFT, 4.0, 2.0, -0.002)):
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", jn, start, secs, "LINEAR"
+        b.use_from = jn != TEST_LIFT
+        b.to_dist = to
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    out.update(tracks=list(TEST_TRACKS), cable=TEST_CABLE, animation=TEST_ANIMATION)
+    return out
