@@ -5,7 +5,8 @@ checked once for a stretch: every pair whose boxes meet is worked out again when
 
 - **A gap for every pair** (``Check._check_pairs``, ``Check._between``): a small part spinning far from the surface of a
   big frame whose box holds it is worked out once, then left alone until it has moved as far as the gap. Before task
-  0110 only parts with more than 20,000 faces together looked for a gap.
+  0110 only parts with more than 20,000 faces together looked for a gap; small ones now do once testing them has cost
+  ``SEP_AFTER`` faces.
 - **Once per turn, pair by pair** (``Check._maybe_window``): a sheave turning on its pin while the head carrying both
   tips over meets the pin and the head the same way at every angle, whatever carries them.
 
@@ -61,9 +62,12 @@ def _spinning_arm(scene, slide):
 
 def test_a_small_part_far_inside_a_frames_box_is_left_alone(sc, monkeypatch):
     """The arm spins 0.65 m from the fence: one gap search, then nothing (it never moves that far against it). The
-    thorough check works the pair out at every frame and many times between frames."""
+    thorough check works the pair out at every frame and many times between frames. (These two parts are tiny and
+    cheap to test: the check would test them a while before it looks for a gap; ``SEP_AFTER`` 0 makes them as costly
+    as the demo's sprockets beside a frame.)"""
+    monkeypatch.setattr(clash, "SEP_AFTER", 0)
     r = run(_spinning_arm(sc, 0.0))
-    assert not r.rows and r.stats["narrow"] == 0 and r.stats["between"] == 0
+    assert not r.rows and r.stats["narrow"] <= 1 and r.stats["between"] == 0         # (the first frame)
     thorough(monkeypatch)
     slow = run(sc)
     assert not slow.rows and slow.stats["narrow"] > 100

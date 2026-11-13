@@ -418,6 +418,8 @@ SEP_NEED = 0.25                          # m: a distance bound this big is enoug
                                          # until the two have moved that much against each other)
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
 SEP_USEFUL = 10.0 * core.MM            # a gap smaller than this between two small parts: test them, not look again
+SEP_AFTER = 30_000                       # faces of two small parts tested point by point before a gap is looked for
+                                         # (task 0110; a search costs about as much as 20-40 ms of tests)
 SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
 CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
 CARRIERS_NEAR = 12                       # … and the smallest ones
@@ -897,6 +899,8 @@ class Check:
             return hit
         za, zb = self._zones(p, q)
         hit = self._narrow(p, q, t, rel, za, zb, fine, enough)
+        # what the test cost, counted in faces (not in seconds: the same scene must give the same rows every time)
+        self.spent[(p, q)] = self.spent.get((p, q), 0) + self._faces(p, q)
         self.memo[key] = hit
         self.narrow_calls += 1
         return hit
@@ -906,7 +910,7 @@ class Check:
         if hit is None:
             # both readings are never deeper than the truth: the start overlap is the deeper of the two
             mp, mq, t = self.mats[0, p], self.mats[0, q], self.times[0]
-            sep = self._separation(p, q, np.linalg.inv(mp) @ mq)        # (every pair, task 0110)
+            sep = self._separation(p, q, np.linalg.inv(mp) @ mq) if self._big(p, q) else 0.0
             if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                 self.base[(p, q)] = (0.0, math.inf)               # apart at the start (task 0092)
                 return self.base[(p, q)]
@@ -989,7 +993,7 @@ class Check:
             # look for a gap first, unless they were found touching a moment ago (task 0110: every pair, not only big
             # ones – a small part spinning metres from a big frame whose box holds it was tested at every moment and
             # up to 48 times between two frames; with a gap found it waits until it has moved that far)
-            sep = self._separation(p, q, rel[i]) if self._gap_worth(p, q, rel[i]) else 0.0
+            sep = self._separation(p, q, rel[i]) if self._look_for_gap(p, q, rel[i]) else 0.0
             if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                 self.last[(p, q)] = (0.0, math.inf, rel[i], sep)       # apart: no point needs testing
                 self.apart += 1
@@ -1031,6 +1035,22 @@ class Check:
         b = core.motion_many(np.linalg.inv(rel0), np.linalg.inv(rel1), self.lo[P], self.hi[P])
         return np.minimum(a, b)
 
+    def _look_for_gap(self, p: int, q: int, rel: np.ndarray) -> bool:
+        """Whether to look for a gap before testing parts p and q at this moment. Big parts: when ``_gap_worth``
+        (task 0092). Small ones (task 0110): when a gap was found last time that let them wait, or once testing them
+        point by point has cost about as much as a few searches since the last one (a small part spinning far from a
+        big frame whose box holds it is tested at every step, up to 48 times between two frames; tiny parts that are
+        cheap to test are left as they were). The cost is counted in faces tested (``SEP_AFTER``)."""
+        if self._big(p, q):
+            return self._gap_worth(p, q, rel)
+        was = self.last.get((p, q))
+        if was is not None and was[3] >= SEP_USEFUL:
+            return True
+        if self.spent.get((p, q), 0) < SEP_AFTER:
+            return False
+        self.spent[(p, q)] = 0
+        return not self._was_in(p, q)
+
     def _gap_worth(self, p: int, q: int, rel: np.ndarray) -> bool:
         """Whether looking for a gap between parts p and q can pay: not when they were last found touching (or too
         near to tell) and have hardly moved against each other since (two parts that touch have very many boxes close
@@ -1051,6 +1071,9 @@ class Check:
         """Whether parts p and q were in each other at the start (then a gap is not looked for before they moved)."""
         hit = self.base.get((p, q))
         return hit is not None and hit[0] > 0.0
+
+    def _faces(self, p: int, q: int) -> int:
+        return len(self.meshes[self.mesh_key[p]].t) + len(self.meshes[self.mesh_key[q]].t)
 
     def _big(self, p: int, q: int) -> bool:
         """Whether testing parts p and q point by point costs enough to look for a gap first (``SEP_TRIS``)."""
@@ -1372,16 +1395,31 @@ class Check:
 
     def _pair_spins(self, p: int, q: int) -> list:
         """The stretches in which p turns in q's space (or q in p's) about an axis that stays put there:
-        [(start, end, turning part, other part, c, u)], the axis (c, u) in the other part's space."""
+        [(start, end, turning part, other part, c, u)], the axis (c, u) in the other part's space. Worked out once per
+        pair of bodies (``_body_spins``): every part of a body moves alike."""
         out = []
         for turning, other in ((p, q), (q, p)):
-            x = np.linalg.inv(self.mats[:, other]) @ self.mats[:, turning]          # (T, 4, 4)
-            e = x @ np.linalg.inv(x[0])
-            if float(np.max(core.turn_angles(e))) <= core.SPIN_MIN:
+            st = self._body_spins(int(self.groups[turning]), int(self.groups[other]))
+            if st is None:
                 return []                                   # they never turn against each other
-            lo, hi = core.world_boxes(x[:1], self.lo[turning][None], self.hi[turning][None])
-            out += [(a, b, turning, other, c, u) for a, b, c, u in core.spin_stretches(e, lo[0], hi[0])]
+            inv0 = np.linalg.inv(self.mats[0, other])
+            out += [(a, b, turning, other, inv0[:3, :3] @ c + inv0[:3, 3], inv0[:3, :3] @ u) for a, b, c, u in st]
         return out
+
+    def _body_spins(self, gt: int, go: int):
+        """``core.spin_stretches`` of body gt's motion against body go (the world at the start, as go sees it: a part
+        q of go sees the same turn with the axis moved by its start place), judged at the corners of gt's whole box at
+        the start. None when the two never turn against each other."""
+        key = (gt, go)
+        if key not in self.body_spins:
+            e = np.linalg.inv(self.dmat[:, go]) @ self.dmat[:, gt]
+            if float(np.max(core.turn_angles(e))) <= core.SPIN_MIN:
+                self.body_spins[key] = None
+            else:
+                m = self.members[gt]
+                lo, hi = core.world_boxes(self.mats[0, m], self.lo[m], self.hi[m])
+                self.body_spins[key] = core.spin_stretches(e, lo.min(axis=0), hi.max(axis=0))
+        return self.body_spins[key]
 
     def _swept_box(self, p: int, x: np.ndarray, c: np.ndarray, u: np.ndarray) -> tuple:
         """A box (world) round all the room part p (placed by ``x``) fills as it turns about the line (c, u): its box's
@@ -1509,6 +1547,7 @@ class Check:
         self.narrow_calls = self.pruned = self.apart = self.far = self.pair_windows = 0
         self.pair_tests, self.pair_spins, self.pair_tried, self.pair_open = {}, {}, set(), {}
         self.pair_period, self.pair_hit_k, self.order_memo, self.period_windows = {}, {}, {}, 0
+        self.spent, self.body_spins = {}, {}
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)
@@ -1523,6 +1562,7 @@ class Check:
         margin = max(self.near, 1e-6)
         m0inv = np.linalg.inv(self.mats[0])
         dmat = np.einsum("tpij,pjk->tpik", self.mats[:, rep], m0inv[rep]) if G else np.zeros((T, 0, 4, 4))
+        self.dmat = dmat
         subs = 0
         t1 = time.perf_counter()
         for k in range(T):
