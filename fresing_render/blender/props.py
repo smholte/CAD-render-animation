@@ -2249,6 +2249,59 @@ class FRCableContact(bpy.types.PropertyGroup):
     note: StringProperty(default="")                       # '' or what the user should know (its own joint, a gap)
 
 
+def _sea_end_changed(self, context):
+    """A setting of a cable's sea end changed: the touch-down is set again and the cable drawn (task 0081)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import paths_sea
+    paths_sea.changed(context.scene, self)
+
+
+def _rider_changed(self, context):
+    """A setting of a thing fitted on the cable changed: it is placed again (task 0081)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import paths_sea
+    paths_sea.rider_changed(context.scene, self)
+
+
+class FRCableRiderPart(bpy.types.PropertyGroup):
+    """One part of a thing on the cable: a segment, or the tube."""
+    part: PointerProperty(type=bpy.types.Object)
+    part_uid: StringProperty()
+    at: FloatProperty(default=0.0)                         # m along the thing's own axis from its front end
+    length: FloatProperty(default=0.0)                     # m: its length along that axis (its chord on the cable)
+
+
+class FRCableRider(bpy.types.PropertyGroup):
+    """A thing fitted on a cable that rides along with it (a CPS set, a bend restrictor, a pull head; task 0081)."""
+    name: StringProperty(name="Name", description="Name of this thing on the cable. Double-click to rename it")
+    enabled: BoolProperty(
+        name="On", default=True, update=_rider_changed,
+        description="On: the parts ride along the cable. Off: they stay where the CAD file has them")
+    where: EnumProperty(
+        name="Place", default="END", update=_rider_changed,
+        description="How its place on the cable is given",
+        items=[("END", "From the cable's end", "Metres from the cable's end (its end on the seabed for a cable "
+                                               "into the sea), with nothing paid out"),
+               ("MARK", "At a payout mark", "It passes the cable's last contact (horn, chute) when this much cable "
+                                            "has been paid out")])
+    at: FloatProperty(
+        name="Metres", unit="LENGTH", default=5.0, soft_min=-1000.0, soft_max=10000.0, precision=2,
+        update=_rider_changed,
+        description="From the cable's end: how far its front end is from the cable's end (m). At a payout mark: "
+                    "how much cable is paid out when its front end passes the last contact (m)")
+    flip: BoolProperty(
+        name="Turned round", default=False, update=_rider_changed,
+        description="Turn it end for end on the cable")
+    parts: CollectionProperty(type=FRCableRiderPart)
+    length: FloatProperty(default=0.0)                     # m: the whole thing along its axis
+    origin: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))     # its front end in the CAD pose (cable part coords)
+    axis: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))       # its axis there, front to back (unit)
+    mark: FloatProperty(default=0.0)                       # m along the cable (from its start, nothing paid out)
+    note: StringProperty(default="")
+
+
 class FRCable(bpy.types.PropertyGroup):
     """A cable or wire rope on its path (task 0078). See blender/paths.py."""
     name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it")
@@ -2311,7 +2364,8 @@ class FRCable(bpy.types.PropertyGroup):
         update=_cable_changed,
         description="How far the cable runs straight on before its first contact, in mm. 0 = as drawn in the CAD "
                     "file")
-    b_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its last contact", "")])
+    b_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its last contact", ""),
+                                                 ("SEA", "Hangs into the sea", "")])               # (task 0081)
     b_part: PointerProperty(type=bpy.types.Object)
     b_uid: StringProperty()
     b_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
@@ -2329,6 +2383,54 @@ class FRCable(bpy.types.PropertyGroup):
     length: FloatProperty(default=0.0)                     # of the drawn path, m
     moving: BoolProperty(default=False)                    # its contacts move against each other: a shape per frame
     shapes: PointerProperty(type=bpy.types.Object)         # the hidden mesh holding its points (frames x points)
+    # ---- the sea end (task 0081, blender/paths_sea.py): the cable hangs from its last contact into the sea ----
+    sea_mode: EnumProperty(
+        name="Touch-down", default="LAYBACK", update=_sea_end_changed,
+        description="How the app finds where the cable touches the seabed",
+        items=[("LAYBACK", "Layback", "You type how far behind the last contact (horn, chute, sheave) the cable "
+                                      "touches the seabed; the app works out the tension"),
+               ("TENSION", "Bottom tension", "You type the cable's pull along the seabed and its weight in water; "
+                                             "the app works out where it touches down")])
+    sea_layback: FloatProperty(
+        name="Layback", unit="LENGTH", default=30.0, min=0.5, soft_max=500.0, precision=2, update=_sea_end_changed,
+        description="How far behind the last contact the cable touches the seabed, measured flat (m). 26 to 39 m "
+                    "is usual in 20 to 50 m of water")
+    sea_tension: FloatProperty(
+        name="Bottom tension", default=10.0, min=0.01, soft_max=500.0, precision=2, update=_sea_end_changed,
+        description="The cable's pull where it lies on the seabed, in kN. More tension: a flatter curve and the "
+                    "touch-down further behind the vessel")
+    sea_weight: FloatProperty(
+        name="Weight in water", default=0.0, min=0.0, soft_max=1000.0, precision=1, update=_sea_end_changed,
+        description="What one metre of cable weighs in water, in kg/m. 0 = worked out from the diameter (about "
+                    "51 kg/m for a 200 mm power cable)")
+    sea_depth: FloatProperty(
+        name="Water depth", unit="LENGTH", default=0.0, min=0.0, soft_max=500.0, precision=2,
+        update=_sea_end_changed,
+        description="From the water's surface down to the seabed (m). 0 = the water depth of the sea in 5 Scene & "
+                    "Render > Surroundings")
+    sea_laid: FloatProperty(
+        name="Already on the seabed", unit="LENGTH", default=60.0, min=0.0, soft_max=2000.0, precision=1,
+        update=_sea_end_changed,
+        description="How much cable already lies on the seabed behind the touch-down, in the pose where you set "
+                    "the touch-down (m). Its end lies still on the seabed while more is paid out")
+    sea_speed: EnumProperty(
+        name="Vessel speed", default="LAY", update=_sea_end_changed,
+        description="How fast the vessel sails while it lays the cable. The seabed and the cable on it move aft "
+                    "under the vessel at this speed",
+        items=[("LAY", "With the lay", "The vessel moves as fast as the cable is paid out: the touch-down stays in "
+                                       "the same place behind the vessel"),
+               ("WEATHER", "Vessel speed of Weather & time", "The vessel speed set in 5 Scene & Render > Weather & "
+                                                              "time (the one the wake shows): the touch-down moves "
+                                                              "further back or nearer when it differs from the lay "
+                                                              "speed")])
+    sea_was: StringProperty(default="")                    # b_kind before the sea end (put back when it is removed)
+    sea_mark: FloatProperty(default=0.0)                   # metres along the cable (from its start, nothing paid out)
+    #                                                        of the cable's end lying on the seabed
+    sea_start: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))   # that end, in the seabed's coordinates (m)
+    sea_dir: FloatVectorProperty(size=3, default=(-1.0, 0.0, 0.0))    # the way the cable is laid (seabed coords)
+    sea_info: StringProperty(default="")                   # JSON: layback, angle, tensions … of the pose shown
+    riders: CollectionProperty(type=FRCableRider)          # things fitted on the cable (CPS sets, bend restrictors)
+    riders_index: IntProperty(default=0)
 
 
 # ---------------------------------------------------------------------------
@@ -3307,6 +3409,36 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     sea_moving: BoolProperty(name="Moving waves", default=True, update=_world_changed,
                              description="The waves move in animations. Off: the sea stands still (the same "
                                          "in every frame)")
+    sea_depth: FloatProperty(
+        name="Water depth", default=30.0, min=1.0, soft_max=500.0, unit="LENGTH", precision=1, update=_world_changed,
+        description="From the water's surface down to the seabed. The seabed shows through the cut-away; a cable "
+                    "into the sea (4 Motion > Cables and paths) lies on it")
+    sea_clarity: FloatProperty(
+        name="Water clarity", default=10.0, min=2.0, max=40.0, unit="LENGTH", precision=1, update=_world_changed,
+        description="How far you can see through the water (m): 5 to 10 m is a usual North Sea, 30 to 40 m very "
+                    "clear water. Things further away behind the water fade into the water's colour")
+    sea_cutaway: BoolProperty(
+        name="Cut-away behind the stern", default=False, update=_world_changed,
+        description="Takes a box of water away behind the stern so you see the cable hang down to the seabed. "
+                    "Its walls show the water's colour and clarity")
+    sea_cut_auto: BoolProperty(
+        name="Place it by the cable", default=True, update=_world_changed,
+        description="On: the box reaches from the stern to past the touch-down of the cable into the sea. Off: "
+                    "type its size and place")
+    sea_cut_length: FloatProperty(
+        name="Length", default=60.0, min=1.0, soft_max=1000.0, unit="LENGTH", precision=1, update=_world_changed,
+        description="How long the cut-away box is, from the stern backwards")
+    sea_cut_width: FloatProperty(
+        name="Width", default=24.0, min=1.0, soft_max=500.0, unit="LENGTH", precision=1, update=_world_changed,
+        description="How wide the cut-away box is")
+    sea_cut_start: FloatProperty(
+        name="From the stern", default=0.0, soft_min=-50.0, soft_max=200.0, unit="LENGTH", precision=1,
+        update=_world_changed,
+        description="Where the box starts, measured backwards from the stern (negative: under the vessel)")
+    sea_cut_side: FloatProperty(
+        name="Sideways", default=0.0, soft_min=-200.0, soft_max=200.0, unit="LENGTH", precision=1,
+        update=_world_changed,
+        description="Moves the box to the side (to starboard is negative)")
     water_level: FloatProperty(name="Water level", default=0.0, unit="LENGTH", soft_min=-20.0, soft_max=20.0,
                                update=_world_changed,
                                description="Height of the water from the machine's lowest point. 0: the machine "
@@ -3583,7 +3715,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
-           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
+           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
            FRSceneSettings)
 
