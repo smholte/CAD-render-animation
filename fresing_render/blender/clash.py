@@ -419,6 +419,7 @@ SEP_NEED = 0.25                          # m: a distance bound this big is enoug
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
 SEP_AFTER = 30_000                       # faces of two small parts tested point by point before a gap is looked for
                                          # (task 0110; a search costs about as much as 20-40 ms of tests)
+SEP_PAID = 8                             # tests a search must spare, or the pair waits 4 x longer for the next
 SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
 CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
 CARRIERS_NEAR = 12                       # … and the smallest ones
@@ -982,6 +983,11 @@ class Check:
             sure = (d_l - moved > allowed[hi_]) & (self.near <= 0)
             todo[hi_[cannot | sure]] = False
             self.pruned += int(np.count_nonzero(cannot | sure))
+            if self.saved:
+                for k in np.flatnonzero(cannot):
+                    key = (int(P[hi_[k]]), int(Q[hi_[k]]))
+                    if key in self.saved:
+                        self.saved[key] += 1
             for k in np.flatnonzero(sure):
                 i = int(hi_[k])
                 p, q = int(P[i]), int(Q[i])
@@ -1046,9 +1052,18 @@ class Check:
         faces tested (``SEP_AFTER``)."""
         if self._big(p, q):
             return self._gap_worth(p, q, rel)
-        if self.spent.get((p, q), 0) < SEP_AFTER:
+        key = (p, q)
+        after = self.sep_after.get(key, SEP_AFTER)
+        if self.spent.get(key, 0) < after:
             return False
-        self.spent[(p, q)] = 0
+        # did the last search pay? It spares the tests skipped since (the gap let them wait). One that spared fewer
+        # than ``SEP_PAID`` makes the pair wait 4 x longer for the next (two tiny parts closing fast: a search costs
+        # 50 of their tests, task 0110, the Heavy machine)
+        if key in self.saved:
+            after = SEP_AFTER if self.saved[key] >= SEP_PAID else min(after * 4, SEP_AFTER * 256)
+            self.sep_after[key] = after
+        self.saved[key] = 0
+        self.spent[key] = 0
         return not self._was_in(p, q)
 
     def _gap_worth(self, p: int, q: int, rel: np.ndarray) -> bool:
@@ -1121,6 +1136,8 @@ class Check:
                     # (task 0110: no new search)
                     since = float(self._moved(np.array([p]), np.array([q]), was[2][None], rel0[i][None])[0])
                     if was[3] - since > need:
+                        if (p, q) in self.saved:
+                            self.saved[(p, q)] += int(n[i])            # the moments between frames it spared
                         n[i] = 0
                         self.far += 1
                         continue
@@ -1556,7 +1573,7 @@ class Check:
         self.narrow_calls = self.pruned = self.apart = self.far = self.pair_windows = 0
         self.pair_tests, self.pair_spins, self.pair_tried, self.pair_open = {}, {}, set(), {}
         self.pair_period, self.pair_hit_k, self.order_memo, self.period_windows = {}, {}, {}, 0
-        self.spent, self.body_spins, self.sep_need = {}, {}, {}
+        self.spent, self.body_spins, self.sep_need, self.sep_after, self.saved = {}, {}, {}, {}, {}
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)
