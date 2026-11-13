@@ -310,8 +310,11 @@ class Mesh:
         d, gap = self.depths(pts, near)
         return (float(d.max()) if len(d) else 0.0), gap
 
+    looked = 0                            # points looked up so far, all meshes (what a test costs, task 0110)
+
     def depths(self, pts: np.ndarray, near: float = 0.0) -> tuple:
         """(how deep each point is inside (0: outside or on the surface), smallest gap outside up to ``near``)."""
+        Mesh.looked += len(pts)
         out = np.zeros(len(pts))
         if not len(pts) or not len(self.t):
             return out, math.inf
@@ -417,8 +420,9 @@ ON_SURFACE = 1e-5                        # m: a point closer than this to a surf
 SEP_NEED = 0.25                          # m: a distance bound this big is enough (task 0092; the pair is skipped
                                          # until the two have moved that much against each other)
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
-SEP_AFTER = 30_000                       # faces of two small parts tested point by point before a gap is looked for
-                                         # (task 0110; a search costs about as much as 20-40 ms of tests)
+SEP_AFTER = 20_000                       # points of two small parts looked up (+ SEP_CALL per test) before a gap is
+                                         # looked for (task 0110; a search costs 5-30 ms, a point ~2 µs)
+SEP_CALL = 100                           # what a test costs besides its points, counted as points (~0.2 ms)
 SEP_PAID = 8                             # tests a search must spare, or the pair waits 4 x longer for the next
 SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
 CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
@@ -898,9 +902,11 @@ class Check:
         if hit is not None:
             return hit
         za, zb = self._zones(p, q)
+        before = Mesh.looked
         hit = self._narrow(p, q, t, rel, za, zb, fine, enough)
-        # what the test cost, counted in faces (not in seconds: the same scene must give the same rows every time)
-        self.spent[(p, q)] = self.spent.get((p, q), 0) + self._faces(p, q)
+        # what the test cost, counted in points looked up and a share per test (not in seconds: the same scene must
+        # give the same rows every time)
+        self.spent[(p, q)] = self.spent.get((p, q), 0) + Mesh.looked - before + SEP_CALL
         self.memo[key] = hit
         self.narrow_calls += 1
         return hit
@@ -1049,7 +1055,7 @@ class Check:
         point by point has cost about as much as a few searches since the last one (a small part spinning far from a
         big frame whose box holds it is tested at every step, up to 48 times between two frames; tiny parts that are
         cheap to test are hardly ever searched: a search costs as much as 50 of their tests). The cost is counted in
-        faces tested (``SEP_AFTER``)."""
+        points looked up (``SEP_AFTER``)."""
         if self._big(p, q):
             return self._gap_worth(p, q, rel)
         key = (p, q)
@@ -1086,9 +1092,6 @@ class Check:
         """Whether parts p and q were in each other at the start (then a gap is not looked for before they moved)."""
         hit = self.base.get((p, q))
         return hit is not None and hit[0] > 0.0
-
-    def _faces(self, p: int, q: int) -> int:
-        return len(self.meshes[self.mesh_key[p]].t) + len(self.meshes[self.mesh_key[q]].t)
 
     def _big(self, p: int, q: int) -> bool:
         """Whether testing parts p and q point by point costs enough to look for a gap first (``SEP_TRIS``)."""
