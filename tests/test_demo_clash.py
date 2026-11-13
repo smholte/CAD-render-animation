@@ -87,22 +87,36 @@ def test_no_clash_in_the_animation(made, tmp_path):
 
     from fresing_render.blender import animation, build, clash, joints
     sc = bpy.context.scene
-    # the workers first (each opens the saved project and builds its animation), then the same build here
+    # the workers first (each opens the saved, built project and waits for the reading below), then the build here
     f0, f1 = int(sc.frame_start), int(sc.frame_end)
     win = windows(f0, f1, WINDOWS)
     procs = []
     claims = tmp_path / "claims"
     claims.mkdir()
+    whole_file = tmp_path / "whole.pickle"
     for w in range(WORKERS):
         out = str(tmp_path / f"worker{w}.json")
         cmd = [sys.executable, os.path.join(HERE, "demo_clash_child.py"), made["out"]["path"], out, str(claims),
-               *[f"{a}-{b}" for a, b in win]]
+               str(whole_file), *[f"{a}-{b}" for a, b in win]]
         log = open(tmp_path / f"worker{w}.log", "w", encoding="utf-8")
         procs.append((subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=ROOT), out, log, w))
     try:
+        saved = clash.build_signature(sc)
         animation.bake(sc, sc.fresing.animations[demo.ANIM])
         assert (int(sc.frame_start), int(sc.frame_end)) == (f0, f1)
+        assert clash.build_signature(sc) == saved, "built again, the keys differ from the saved project's"
         whole = clash.sample_times(sc)
+        # the whole animation read once, and which parts turn in place decided as the whole check does: for the workers
+        import pickle
+
+        import demo_clash_child as child
+        from fresing_render.blender import vessel_motion
+        with vessel_motion.at_rest(sc):
+            w_all = child.hold_whole(clash, child.make_class(clash), sc)
+        with open(str(whole_file) + ".part", "wb") as fh:
+            pickle.dump(w_all, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(str(whole_file) + ".part", whole_file)
+        del w_all
         leave = demo.turning_in_place(sc)
         assert 250 < len(leave) < 600
         for j in sc.fresing.joints:                                    # round about their own axis
@@ -131,7 +145,8 @@ def test_no_clash_in_the_animation(made, tmp_path):
             with open(out, encoding="utf-8") as fh:
                 results.append(json.load(fh))
         done = [x for r in results for x in r["windows"]]
-        assert all(r["whole"] == whole for r in results)          # each worker built the same animation as here
+        assert all(r["whole"] == whole for r in results)          # each worker checks the animation built here
+        assert all(r["signature"] == saved for r in results)
         assert sorted(tuple(x["window"]) for x in done) == win
         # every moment of the whole check, and every step between two of them, is checked in a window
         seen = sorted({t for x in done for t in x["times"]})

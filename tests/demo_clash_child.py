@@ -1,9 +1,10 @@
 """Task 0108: one worker of the demo project's clash check (``tests/test_demo_clash.py``), run as its own process.
 
-    python demo_clash_child.py <project.blend> <out.json> <claim folder> <first-last> [<first-last> ...]
+    python demo_clash_child.py <project.blend> <out.json> <claim folder> <whole.pickle> <first-last> [<first-last> ...]
 
-Opens the saved demo project, builds its animation (as the test did before), and runs the app's clash check
-(``blender/clash.py``) on each window of frames given, with the sea at rest. Each window is checked exactly as the
+Opens the saved demo project (it is saved built; the test builds it again and compares the fingerprint of the keys),
+waits for ``whole.pickle`` (``hold_whole``, which the test works out once for all workers) and runs the app's clash
+check (``blender/clash.py``) on each window of frames given, with the sea at rest. Each window is checked exactly as the
 whole animation is, with one difference made on purpose so that it is **as strict as the whole check**: how deep two
 parts may be in each other is measured at the *animation's* first frame, not at the window's (``GlobalStart``). Writes
 per window: the moments it checked, its rows and its stats. Several of these processes get the same windows and take
@@ -121,8 +122,10 @@ def hold_whole(clash, cls, scene) -> dict:
 
 
 def main(argv: list[str]) -> int:
-    blend, out, claims = argv[0], argv[1], argv[2]
-    windows = [tuple(int(x) for x in w.split("-")) for w in argv[3:]]
+    blend, out, claims, whole_file = argv[0], argv[1], argv[2], argv[3]
+    windows = [tuple(int(x) for x in w.split("-")) for w in argv[4:]]
+    import pickle
+
     import bpy  # noqa: I001 - bpy first: it makes addon_utils importable
     import addon_utils
 
@@ -130,23 +133,29 @@ def main(argv: list[str]) -> int:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
     fresing_render.register()
-    from fresing_render.blender import animation, clash, demo, vessel_motion
+    from fresing_render.blender import clash, vessel_motion
     from fresing_render.core import clash as core
     bpy.ops.wm.open_mainfile(filepath=blend)
     sc = bpy.context.scene
-    animation.bake(sc, sc.fresing.animations[demo.ANIM])
+    # the saved project is built (the test builds it again and compares this fingerprint of the built keys)
+    assert clash.is_built(sc), "the saved demo project is not built"
     whole = clash.sample_times(sc)
     GlobalStart = make_class(clash)
-    result = {"whole": whole, "windows": []}
+    result = {"whole": whole, "windows": [], "signature": clash.build_signature(sc)}
     real_times = clash.sample_times
+    t0 = time.perf_counter()
+    while not os.path.isfile(whole_file):                  # the test reads the whole animation once for all workers
+        if time.perf_counter() - t0 > 1800:
+            raise SystemExit("the whole animation's reading never came")
+        time.sleep(0.5)
+    with open(whole_file, "rb") as fh:
+        GlobalStart.whole = pickle.load(fh)
+    result["wait_s"] = time.perf_counter() - t0
+    names = GlobalStart.whole["names"]
+    assert GlobalStart.whole["times"] == whole, "the whole animation's moments differ from this project's"
+    GlobalStart.start = (GlobalStart.whole["mats"][0].copy(), GlobalStart.whole["times"][0])
+    print(f"whole animation: {GlobalStart.whole['held']} parts held still; waited {result['wait_s']:.0f} s", flush=True)
     with vessel_motion.at_rest(sc):
-        t0 = time.perf_counter()
-        GlobalStart.whole = hold_whole(clash, GlobalStart, sc)
-        names = GlobalStart.whole["names"]
-        GlobalStart.start = (GlobalStart.whole["mats"][0].copy(), GlobalStart.whole["times"][0])
-        result["hold_s"] = time.perf_counter() - t0
-        print(f"whole animation read, {GlobalStart.whole['held']} parts held still, in {result['hold_s']:.0f} s",
-              flush=True)
         for a, b in windows:
             try:
                 os.close(os.open(os.path.join(claims, f"{a}-{b}"), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
