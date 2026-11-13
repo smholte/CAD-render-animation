@@ -2533,7 +2533,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 78 s with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 80 s with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
