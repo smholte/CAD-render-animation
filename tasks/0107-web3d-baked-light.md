@@ -1,6 +1,6 @@
 # 0107 – Web 3D model with baked light: a choice per export
 
-**Who:** worker · **Status:** running (13 Nov) · **Branch:** `claude/dazzling-ramanujan-0ipkza`
+**Who:** worker · **Status:** done (0.2.89, 13 Nov) · **Branch:** `claude/dazzling-ramanujan-0ipkza`
 **Started by:** lead chat, 13 Nov 2026 (owner's wish: "have it really bake in the light properly")
 **Lane:** Web 3D (same files as 0106: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`,
 `fresing_render/web/`, their tests). Read only: `world.py`, `surroundings.py`, the Looks lane's materials. Additive:
@@ -295,4 +295,10 @@ Everything baked too dark in shade.
   without a GPU. At Draft (16 samples) the smoothing looks clean on the test mill; Fine uses more samples.
 - Owner's check (RTX 3090): export the demo vessel with each choice at Normal (Help > Make demo project, then 5 Scene &
   Render > Web 3D model > Light): note the bake time; open the pages on the PC and the phone; compare with a render.
-- GitHub: (filled in after the runs)
+- GitHub: 4 full runs on the branch + 1 re-run. (1) 43479908979 red: the compositor denoiser aborted Blender without a
+  GPU (3 pytest groups, both Windows PC-check bake lines) → NumPy smoothing. (2) 43484945143 red only in a verdict: all
+  tests passed, but two always-skipping tests of other tasks (EEVEE, real Blender) had landed in one group → times
+  recorded from that run. (3) after merging main (0.2.88 from 0109, 0108's 9 groups): 43488885387 red in
+  `test_joint_table.py::test_table_moves_the_follower` (task 0080, not touched here; 3/3 green locally – the driver
+  race of CLAUDE.md 8) → failed jobs re-run: green. Version clashes: 0.2.87 (0079), then 0.2.88 (0109) → 0.2.89.
+  `main` fast-forwarded to the green commit plus task-list commits (docs mode).
