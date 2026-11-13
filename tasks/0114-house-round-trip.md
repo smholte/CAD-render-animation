@@ -1,6 +1,6 @@
 # 0114 – House round trip: import a House Planner scene, bake, export the bake package
 
-**Who:** worker · **Status:** open · **Branch:** `task/0114-house-round-trip`
+**Who:** worker · **Status:** running · **Branch:** `claude/keen-hypatia-mtjwps` (the web session's branch)
 **Started by:** lead, 13 Nov 2026 · **Area:** House lane – new files `core/house_scene.py`, `core/house_snow.py`,
 `blender/house_import.py`, `blender/house_bake.py`, `blender/ops_house.py`, `blender/ui_house.py`, their tests,
 `tests/data/house/`; additive: `blender/lightbake.py` (one argument), `props.py`, the File > Import menu, tour, PC
