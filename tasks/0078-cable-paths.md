@@ -68,7 +68,10 @@ in metres. The cable part has two custom properties:
   `starts` (signed whole number) = how many stripes (strands) go round the cable; the sign is the hand.
 A material reads them with Attribute nodes (GEOMETRY `fr_cable`, OBJECT `fr_cable_pay`, `fr_cable_look`):
 `phase = (s − (pay − 2.0)) / pitch + starts · φ / 2π`; power cable: yellow where `fract(phase) < width`.
-A mark at s₀ when nothing is paid out is at s₀ + paid-out later. A part without `fr_cable` (length of (x, y) < 0.5)
+**Wire rope** (as L made it): its pitch is the lay length (one full turn of a strand), so
+`phase = |starts| · (s − paid) / pitch + starts · φ / 2π`; `starts > 0` lets φ get smaller along a strand as s grows –
+B checks which sign gives the usual right-hand lay with its φ and uses that (`look_values("ROPE", …)`: −6 for a
+negative angle). A mark at s₀ when nothing is paid out is at s₀ + paid-out later. A part without `fr_cable` (length of (x, y) < 0.5)
 shows the plain base (black / plain steel): the look may be given to a whole group.
 The two looks are materials-library entries `cable_power` and `wire_rope` (spec key `cable`), built by a hook in
 `materials.build_nodes` → `cable_looks.apply`. The cable's Look setting puts the cable *part* into the manual group
