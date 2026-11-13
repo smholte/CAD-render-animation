@@ -1,7 +1,8 @@
 @echo off
-rem Fresing Render - pictures and a video for the web page (task 0047).
-rem Double-click. Needs Fresing Render installed (Install.bat). Reads models.ini and the STEP files in the
-rem "models" folder next to this file; writes everything to the "output" folder next to this file.
+rem Fresing Render - pictures and videos for the web page (tasks 0047, 0112).
+rem Double-click. Needs Fresing Render installed (Install.bat). Reads models.ini, the STEP files in the
+rem "models" folder next to this file (or in the first kit's, next to this folder) and the projects folder;
+rem writes everything to the "output" folder next to this file. Shows the expected time, then asks when to start.
 setlocal EnableExtensions
 title Fresing site pictures
 set "KIT=%~dp0"
@@ -42,11 +43,24 @@ if not exist "%MODELS%\" (
 )
 
 echo.
-echo Making the pictures and the video for the web page.
-echo This takes a while ^(about 5 to 15 minutes per model on an RTX 3090^).
+echo Making the pictures and the videos for the web page.
+"%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" --estimate-only
+if not "%ERRORLEVEL%"=="0" (
+    echo.
+    echo models.ini has a problem: see the line above. Fix it in Notepad and double-click this file again.
+    echo.
+    pause
+    exit /b 2
+)
+echo.
+set "START="
+set /p "START=Start now: press Enter. Start later: type a time like 23:30 and press Enter: "
+rem a typed quote would break the quoting below; the time itself goes in quotes (spaces, & or | stay text)
+if defined START set "START=%START:"=%"
+echo.
 echo You can keep working; close this window to stop.
 echo.
-"%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini"
+"%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--start-at=%START%"
 set "CODE=%ERRORLEVEL%"
 echo.
 set "KNOWN="
@@ -55,11 +69,11 @@ if "%CODE%"=="1" set "KNOWN=1"
 if "%CODE%"=="2" set "KNOWN=1"
 if "%CODE%"=="3" set "KNOWN=1"
 if "%CODE%"=="0" (
-    echo Done. The output folder opens now: send "Fresing site pictures.zip" in the chat.
+    echo Done. The output folder opens now: upload site_pictures_^<date^>.zip ^(README.txt, step 6^).
 ) else if defined KNOWN (
-    echo Finished with problems ^(code %CODE%^): see log.txt in the output folder.
+    echo Finished with problems ^(code %CODE%^): see log.txt in the output folder. The zip holds what was made.
 ) else (
-    echo Blender stopped unexpectedly ^(code %CODE%^). Send output\log.txt in the chat,
+    echo Blender stopped unexpectedly ^(code %CODE%^). Upload output\log.txt ^(README.txt, step 6^),
     echo and blender.crash.txt from the folder "%TEMP%" if it is there.
 )
 if exist "%OUT%\" start "" explorer "%OUT%"

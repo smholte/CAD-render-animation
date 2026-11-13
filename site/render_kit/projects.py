@@ -216,7 +216,7 @@ def make_animation(pkg, scene, m: Model):
     return a
 
 
-def frame_all_poses(pkg, scene, m: Model, name: str, view: str = "ISO", margin: float = 1.08):
+def frame_all_poses(pkg, scene, m: Model, name: str, view: str = "ISO", margin: float = 1.15):
     """A camera that sees the model in every pose of the sheet (the moving clip must not leave the picture)."""
     import numpy as np
     build, cameras, states = (_mod(pkg, f"blender.{x}") for x in ("build", "cameras", "states"))
@@ -244,6 +244,36 @@ def build_animation(pkg, scene, m: Model) -> dict:
     return r
 
 
+def axis_errors(pkg, scene, m: Model) -> tuple[float, float]:
+    """(largest angle in degrees, largest offset in mm) between the built joints' axes and the sheet's (CAD pose)."""
+    from mathutils import Vector
+    joints = _mod(pkg, "blender.joints")
+    worst_a = worst_d = 0.0
+    for j in m.sheet.get("joints", []):
+        jt = joints.find(scene, j["name"])
+        if jt is None or jt.frame is None:
+            raise RuntimeError(f"joint '{j['name']}' was not made")
+        w = joints.world_of(scene, jt.frame)
+        z, o = (w.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized(), w.translation
+        u, c = m.direction(j["direction"]), m.point(j["point"])
+        worst_a = max(worst_a, math.degrees(math.acos(min(1.0, abs(z.dot(u))))))
+        off = (o - c) - (o - c).dot(u) * u
+        worst_d = max(worst_d, off.length * 1000.0)
+    return worst_a, worst_d
+
+
+def loop_gap(pkg, scene) -> float:
+    """The largest difference of a joint's value between the first and the last frame (a loop closes: 0)."""
+    joints = _mod(pkg, "blender.joints")
+    first, last = {}, {}
+    for f, store in ((scene.frame_start, first), (scene.frame_end, last)):
+        scene.frame_set(f)
+        for j in scene.fresing.joints:
+            store[j.name] = joints.get_value(j)
+    scene.frame_set(scene.frame_start)
+    return max((abs(first[k] - last[k]) for k in first), default=0.0)
+
+
 def clash_rows(pkg, scene) -> tuple[int, list]:
     clash = _mod(pkg, "blender.clash")
     run = clash.check(scene)
@@ -258,6 +288,7 @@ def make(pkg, scene, sheet: dict, check: bool = True, log=print) -> dict:
     out = {"model": sheet["model"]}
     out["hidden"] = hide_parts(pkg, scene, m)
     out["joints"] = make_joints(pkg, scene, m)
+    out["axis_error_deg"], out["axis_error_mm"] = (round(x, 4) for x in axis_errors(pkg, scene, m))
     out["cylinders"] = make_cylinders(pkg, scene, m)
     out["poses"] = make_poses(pkg, scene, m)
     log(f"  motion: {out['joints']} joints, {out['cylinders']} cylinders, {out['poses']} poses "
@@ -267,6 +298,8 @@ def make(pkg, scene, sheet: dict, check: bool = True, log=print) -> dict:
         t1 = time.time()
         r = build_animation(pkg, scene, m)
         out.update(animation=a.name, frames=int(r.get("frames", 0)), seconds=float(r.get("seconds", 0.0)))
+        if (m.sheet.get("animation") or {}).get("loop"):
+            out["loop_gap"] = round(loop_gap(pkg, scene), 6)
         log(f"  animation '{a.name}': {out['frames']} frames, built in {time.time() - t1:.0f} s")
         if check:
             t1 = time.time()
