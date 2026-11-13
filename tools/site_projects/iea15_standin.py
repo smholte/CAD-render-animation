@@ -61,8 +61,8 @@ FLANGES = [(800.0, 1200.0, 6554.0, 6654.0), (800.0, 1200.0, 6654.0, 6754.0)]
 SRB = (1100.0, 1400.0, 5619.0, 6089.0)
 TDO = (1100.0, 1400.0, 4504.0, 4804.0)
 # generator: (s, r) outlines revolved about the shaft (a cup turning round the stator, the rotor's back at y -4430)
-GEN_ROTOR = [(3988.0, 1502.0), (3988.0, 5263.5), (6264.0, 5263.5), (6264.0, 5136.2), (4088.0, 5136.2),
-             (4088.0, 1502.0)]          # its bore 2 mm clear of the shaft (r 1500; the owner's touch it)
+GEN_ROTOR = [(3988.0, 1500.0), (3988.0, 5263.5), (6264.0, 5263.5), (6264.0, 5136.2), (4088.0, 5136.2),
+             (4088.0, 1500.0)]          # its bore on the shaft (r 1500), as the owner's
 STATOR = [(4200.0, 4564.5), (4200.0, 4658.0), (6343.0, 4658.0), (6343.0, 1100.0), (6143.0, 1100.0),
           (6143.0, 4564.5)]
 BEDPLATE = ((-2500.0, -3000.0, TOWER_TOP + 380.0), (2500.0, 3000.0, 148500.0))
@@ -180,8 +180,9 @@ def prebend_x(z: float) -> float:
 
 
 def section_points(z, chord, tc, share, twist_deg, le_sign=LE_SIGN, flatback=0.0) -> np.ndarray:
-    """N points of a section (blade coordinates), starting at the trailing edge: a not quite round circle (r ROOT_R) blended with a
-    NACA-00xx airfoil whose chord lies along y (leading edge at le_sign * 0.3 chord) and thickness along x."""
+    """N points of a section (blade coordinates), starting at the trailing edge: a not quite round circle (r ROOT_R)
+    blended with a NACA-00xx airfoil whose chord lies along y (leading edge at le_sign * 0.3 chord) and thickness
+    along x."""
     th = np.linspace(0.0, 2 * math.pi, N_SECTION, endpoint=False)
     rr = ROOT_R + ROOT_WOBBLE * np.cos(2 * th)
     circ = np.c_[rr * np.sin(th) + ROOT_OFF[0], -rr * np.cos(th) + ROOT_OFF[1]]

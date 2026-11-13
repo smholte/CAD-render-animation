@@ -519,7 +519,7 @@ def test_written_step_nests_the_bodies(converted, trees, variant):
     yaw = fixed + (iea15.YAW,)
     rotor = yaw + (iea15.ROTOR,)
     want = {"TOWER": fixed, "YAW BEARING": fixed, "BEDPLATE": yaw, "NOSE": yaw, "STATOR": yaw, "NACELLE DRUM": yaw,
-            "NOSE FLANGE 1": yaw, "NOSE FLANGE 2": yaw, "HUB": rotor, "SHAFT": rotor, "GENERATOR ROTOR": rotor,
+            "HUB": rotor, "SHAFT": rotor, "GENERATOR ROTOR": rotor,
             "HUB CENTRE MARK": rotor}
     for i in (1, 2, 3):
         want[f"BLADE {i}"] = rotor + (iea15.pitch_body(i),)
@@ -529,6 +529,8 @@ def test_written_step_nests_the_bodies(converted, trees, variant):
         want["MONOPILE BELOW SEABED"] = fixed
     for nm, path in want.items():
         assert by.get(nm) == [path], f"{nm}: {by.get(nm)}"
+    flanges = [p for nm, ps in by.items() if nm.startswith("NOSE FLANGE") for p in ps]
+    assert flanges == [yaw, yaw]
     # every invented part sits in the body its maker gave it
     door = [p for p in by.items() if p[1][0][-1] == iea15.DOOR]
     assert door, "no part in DOOR SWING"
@@ -537,6 +539,17 @@ def test_written_step_nests_the_bodies(converted, trees, variant):
         assert any(p[1] == [fixed + (iea15.DAVIT,)] for p in by.items())
     assert sorted(sheet["invented"]) == sorted(n for n in by if n in sheet["invented"])
     assert len(leaves) == sheet["parts"]
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_every_part_has_its_own_name(trees, variant):
+    """Every part of the written STEP has a name of its own, as the app shows it (2 Structure, clash rows).
+    FAULT found: the two nose flanges share one shape (key "flange_2" in iea15.source_parts) and stepout names a
+    shared shape after its first part, with no occurrence name: the import has "NOSE FLANGE 1" twice and no
+    "NOSE FLANGE 2" (the fix the blades got - a sixth item, the shape's own name - is missing for the flanges)."""
+    leaves, _asms = trees[variant]
+    names = [_leaf_name(own, inst) for _p, own, inst, _s in leaves]
+    assert sorted(n for n in set(names) if names.count(n) > 1) == []
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
@@ -611,9 +624,12 @@ def test_sheet_numbers_and_notes(converted, variant):
 
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_scene_level_puts_the_sea_and_ground_at_their_heights(converted, trees, variant):
-    """The app puts the floor at the lowest visible point and the sea ``water_level`` above it (the hidden parts do
-    not count): offshore the lowest visible point must be the seabed cut (-30 m), so the sea lands at MSL; onshore
-    (floor gap 0) it must be the ground (z 0)."""
+    """The app puts the floor at the lowest visible point (less the floor gap) and the sea ``water_level`` above it
+    (hidden parts do not count): offshore the lowest visible point must be the seabed cut (-30 m), so the sea lands
+    at MSL; onshore the ground (z 0) must be the lowest visible point less the sheet's floor gap. FAULT found
+    (onshore, with the real turbine_parts): the buried CONCRETE SLAB reaches 400 mm below the ground and the sheet's
+    ``floor_offset_m`` is 0, so the app's ground lies 0.4 m too low - the slab and the stair's foot stand 0.4 m out
+    of the ground (iea15.convert: ``"scene": {"floor_offset_m": 0.0}``)."""
     sheet, _step = converted[variant]
     leaves, _asms = trees[variant]
     hidden = {h["part"] for h in sheet["hide"]}
