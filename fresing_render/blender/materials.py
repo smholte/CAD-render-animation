@@ -370,6 +370,10 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
             nt.links.new(pn, bsdf.inputs["Coat Normal"])
         normal = pn if normal is None else normal
 
+    if spec.get("cable"):   # a cable look whose pattern moves along the cable (task 0078), where the mesh knows it
+        from . import cable_looks
+        color, metallic, rough, normal = cable_looks.apply(b, bsdf, spec["cable"], color, metallic, rough, normal)
+
     if wear > 0.0 and not spec.get("transmission") and not spec.get("emission"):
         color, metallic, rough = _wear(b, float(wear), spec, color, metallic, rough)
 

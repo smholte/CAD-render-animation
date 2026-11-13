@@ -23,6 +23,10 @@ CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", 
 #       milled = faint face-milling arcs. ``scale``: marks per metre across them (4000 = 0.25 mm);
 #       ``along``: how much the lines vary along their length (per metre); ``rough``: how much the
 #       roughness changes over the marks; ``bump``: their relief. ``anisotropic`` then follows the marks.
+#   cable: {kind, pitch, starts, width, …}   a cable look whose pattern moves along the cable (task 0078):
+#       kind "POWER" (black sheath, yellow stripes at an angle) or "ROPE" (steel wire rope: strands with their
+#       lay). Drawn where the mesh has the ``fr_cable`` attribute, the plain material elsewhere; pitch (m), starts
+#       and width are the look of a cable that gives none. ``blender/cable_looks.py`` has the nodes and every key.
 # Every look is clean by default (marketing stills); wear is a separate per-group slider.
 MATERIALS: dict[str, dict] = {
     # ---- paints --------------------------------------------------------------
@@ -160,6 +164,15 @@ MATERIALS: dict[str, dict] = {
                            marks=dict(kind="brushed", scale=1800.0, along=3.0, rough=0.04, bump=0.004)),
     "pom_black": dict(label="POM, black", category="Plastic & rubber", base_color=(0.03, 0.03, 0.032),
                       roughness=0.36, specular=0.5),
+
+    # ---- task 0078: cables whose pattern moves along them (blender/cable_looks.py) ---------------------------
+    # the sheath as "cable_black"; the stripes RAL 1023 traffic yellow, 0.5 m apart, a quarter of the sheath
+    "cable_power": dict(label="Power cable, black with yellow stripes", category="Plastic & rubber",
+                        base_color=(0.035, 0.035, 0.037), roughness=0.5, sheen=0.2, sheen_roughness=0.4,
+                        cable=dict(kind="POWER", pitch=0.5, starts=1, width=0.25)),
+    # bright galvanised wires, 6 strands; pitch = the lay length (one full turn of a strand)
+    "wire_rope": dict(label="Steel wire rope", category="Metal", base_color=(0.62, 0.63, 0.64), metallic=1.0,
+                      roughness=0.4, cable=dict(kind="ROPE", pitch=0.16, starts=6, width=0.0)),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -213,6 +226,8 @@ UIDS: dict[str, int] = {
     "chrome_rod": 46,
     "aluminium_sawn": 47,
     "pom_black": 48,
+    "cable_power": 49,
+    "wire_rope": 50,
 }
 
 DEFAULT_COLOR = "RAL 7035"
