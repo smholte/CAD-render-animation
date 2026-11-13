@@ -640,3 +640,59 @@ def test_shot_3_pays_out_the_carousel_and_the_arch_follows(made):
     assert abs(seen[-1][1] - seen[0][1]) > math.radians(0.5)          # the arch slewed with the layer
     assert abs(seen[-1][2] - seen[0][2]) > 2.0 * math.pi * 2.5        # the carousel turned some 3 times
     sc.frame_set(1)
+
+
+def test_tensioner_tracks_run_with_the_cable(made):
+    """Task 0079: the four tracks of the two tensioners run on "Cable travel": the pads on the gripping runs move with
+    the cable (shot 5 runs it while the top track squeezes), every link's two hinges on its loop one pitch apart, the
+    sprockets one tooth per link; it costs little per frame."""
+    import time
+
+    import numpy as np
+
+    from fresing_render.blender import animation, joints, tracks
+    sc = _scene()
+    its = list(tracks.items(sc))
+    assert len(its) == 4 and all(it.joint == demo.CABLE for it in its)
+    assert all((it.links, it.parts) == (36, 108) and tracks.status(sc, it)[1] == "OK" for it in its), \
+        [tracks.status(sc, it) for it in its]
+    assert all(it.length == pytest.approx(36 * 0.3, abs=1e-5) for it in its)
+    for it in its:                                    # the sprockets follow the cable at one tooth per link, as made
+        for w in it.wheels:
+            j = joints.find(sc, w.joint)
+            assert j.follows == demo.CABLE and not w.made_joint and not w.note, (it.name, w.name, w.note)
+            assert abs(j.couple_ratio) == pytest.approx(math.degrees((2 * math.pi / 8) / 0.3) / 1000.0, rel=1e-6)
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    shot = next(b for b in a.blocks if b.kind == "MOTOR" and b.joint == demo.CABLE and b.start > 30.0)
+    f0 = animation.frame_of(a, shot.start + 1.0)
+    cab = joints.find(sc, demo.CABLE)
+    for it in its:
+        sc.frame_set(f0)
+        v0, t0 = joints.get_value(cab), tracks.travel_now(sc, it)
+        sc.frame_set(f0 + 25)
+        v1, t1 = joints.get_value(cab), tracks.travel_now(sc, it)
+        assert v1 - v0 == pytest.approx(10.0 / 60.0, rel=1e-3)
+        assert abs((t1 - t0) % it.length) == pytest.approx(v1 - v0, rel=1e-3) or \
+            abs((t0 - t1) % it.length) == pytest.approx(v1 - v0, rel=1e-3)
+        for ob in [o for o in tracks.parts_of(sc, it) if o.get(tracks.ROLE) == "link"][::6]:
+            a_, b_ = tracks.hinge_world(sc, it, ob)
+            assert abs(np.linalg.norm(b_ - a_) - 0.3) < 5e-5
+    # per frame: the shot's frames with the tracks on and off
+    frames = list(range(f0, f0 + 40))
+
+    def per_frame():
+        t = time.perf_counter()
+        for f in frames:
+            sc.frame_set(f)
+        return (time.perf_counter() - t) / len(frames) * 1000.0
+    per_frame()
+    on = per_frame()
+    for it in its:
+        it.enabled = False
+    off = per_frame()
+    for it in tracks.items(sc):
+        it.enabled = True
+    print(f"\nper frame with the 4 tracks running: {on:.1f} ms, off: {off:.1f} ms")
+    animation.clear_keys(sc)
+    sc.frame_set(1)

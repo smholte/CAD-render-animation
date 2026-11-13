@@ -834,7 +834,11 @@ def couple(scene, item) -> list[str]:
     todo = []
     for w in item.wheels:
         j = joints.find(scene, w.joint) if w.joint else None
-        if j is None or (lead is not None and j.name == lead.name):
+        if j is None:
+            continue
+        if lead is not None and j.name == lead.name:      # this wheel drives the track now: it moves by itself
+            if j.follows and (w.coupled or w.made_joint):
+                todo.append((j.name, "", None))
             continue
         ratio = wheel_ratio(scene, item, w)
         with flex._quiet(w):
@@ -1229,3 +1233,18 @@ def set_up_test_model(scene) -> dict:
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     out.update(tracks=list(TEST_TRACKS), cable=TEST_CABLE, animation=TEST_ANIMATION)
     return out
+
+
+def off_loop(scene, item, points) -> np.ndarray:
+    """How far each world point is from the track's loop as drawn now (the table's polyline, carried by the
+    carrier): for tests, the tour and the PC check."""
+    A, _X, _Z = table_of(scene, item)
+    C = _np(item.carrier.matrix_world)
+    a = A @ C[:3, :3].T + C[:3, 3]
+    seg = np.roll(a, -1, axis=0) - a
+    g = np.maximum((seg * seg).sum(axis=1), 1e-18)
+    out = []
+    for p in np.atleast_2d(np.asarray(points, dtype=float)):
+        t = np.clip(((p - a) * seg).sum(axis=1) / g, 0.0, 1.0)
+        out.append(float(np.linalg.norm(a + seg * t[:, None] - p, axis=1).min()))
+    return np.array(out)
