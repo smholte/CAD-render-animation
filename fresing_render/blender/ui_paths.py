@@ -218,9 +218,7 @@ class FRESING_UL_cable_contacts(bpy.types.UIList):
 # ---------------------------------------------------------------------------
 
 def _add_buttons(layout, scene, first: bool) -> None:
-    """Add cable (the main button while the list is empty) and, when parts are named like a cable, Add all. Above
-    them the choice they act on (task 0079): an existing slide joint as the new cable's speed."""
-    split_props(layout).prop_search(scene.fresing, "cable_speed", scene.fresing, "joints", text="Speed from")
+    """Add cable (the main button while the list is empty) and, when parts are named like a cable, Add all."""
     if first:
         primary(layout, "fresing.cable_add", "Add cable", "ADD")
     else:
@@ -228,6 +226,12 @@ def _add_buttons(layout, scene, first: bool) -> None:
     n = found_count(scene)
     if n:
         layout.operator("fresing.cable_add_all", text=f"Add all {n} found by name", icon="VIEWZOOM")
+
+
+def _speed_from(layout, scene) -> None:
+    """The choice Add cable acts on (task 0079): an existing slide joint as the new cable's speed. Drawn right above
+    the buttons (the real-app test marks the place of Add cable at the start of ``_add_buttons``)."""
+    split_props(layout).prop_search(scene.fresing, "cable_speed", scene.fresing, "joints", text="Speed from")
 
 
 def _end_row(layout, context, cb, end: str) -> None:
@@ -296,6 +300,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                                     "Press 'Add cable': the app reads what it runs over and makes all of that "
                                     "turn with it",
                                     "Give it a speed: in 6 Animation add the step 'Run motor', speed in m/min"])
+            _speed_from(layout, scene)
             _add_buttons(layout, scene, first=True)
             return
 
@@ -305,6 +310,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.cable_remove", text="", icon="REMOVE")
         col.operator("fresing.cable_select", text="", icon="RESTRICT_SELECT_OFF")
+        _speed_from(layout, scene)
         _add_buttons(layout, scene, first=False)
 
         # -- the chosen one
