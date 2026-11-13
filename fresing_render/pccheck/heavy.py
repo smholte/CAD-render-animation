@@ -613,8 +613,8 @@ def heavy_vessel(ctx):
 
 
 @line("heavy.web3d", "Big machine: web 3D model", "0.2.77", (H,), requires=("heavy.import",), expected=60,
-      what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden) and its viewer "
-           "page; the file is read back",
+      what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden, compressed: "
+           "the panel's default for a big model) and its viewer page; the file is read back",
       shows="How long 5 Scene & Render > Web 3D model > Export takes on a big model and how big the file gets",
       not_shown="How fast a browser shows it (try the page on a phone), the animation (not included)")
 def heavy_web3d(ctx):
@@ -630,7 +630,9 @@ def heavy_web3d(ctx):
     ctx.metric("file", len(data) / 1e6, "MB")
     ctx.metric("peak memory", peak_memory_mb(), "MB")
     if not small():
-        _check(len(data) < 40_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 40 MB for 3,000 parts)")
+        _check(out.get("compressed"), "the big model was not compressed (Smaller file is on by default)")
+        _check(len(data) < 20_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 20 MB for 3,000 parts; "
+                                       "35 MB before compression)")
     return out["text"]
 
 

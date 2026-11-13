@@ -1963,12 +1963,16 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
-4. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
+4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
+   (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
+   they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
+   Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
+5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
    page plays it in a loop. It makes the export slower.
-5. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
+6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.
-6. The line under the button shows the file size, the number of triangles, the number of pictures and the time.
+7. The line under the button shows the file size ("compressed" when it was packed), the number of triangles, the number of pictures and the time.
    **Open page** opens it in your web browser; **Show in folder** shows the files.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
@@ -1981,8 +1985,10 @@ brushed, ground or turned metal, the very fine orange peel of paint, tool marks 
 X-ray look (parts are whole and solid), the surroundings (the page has its own light and shadow), chips, coolant,
 hoses and milling (material removal).
 
-Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB.
-See the task report for bigger machines.
+Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a
+made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
+needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
+report.
 
 ### Brand kit & logo
 

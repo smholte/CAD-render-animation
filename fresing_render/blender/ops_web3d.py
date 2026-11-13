@@ -73,7 +73,7 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
         w = web3d.settings(scene)
         path = self.filepath or web3d.default_path(scene)
         self._job = web3d.Job(scene, path, size=int(w.texture_size), hide_names=w.hide_names,
-                              animation=w.animation)
+                              animation=w.animation, compress=None if w.compress else False)
         if not self.modal_run or context.window is None:
             try:
                 out = self._job.run()

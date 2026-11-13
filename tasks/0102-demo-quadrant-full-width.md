@@ -79,7 +79,7 @@ winches' drums); the cable into the sea (0081); the quadrant's lowering and tipp
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker, Opus), 13 Nov 2026 · branch `task/0102-demo-quadrant-full-width` · 0.2.82
+**Chat / date:** Claude Code on the web (worker, Opus), 13 Nov 2026 · branch `task/0102-demo-quadrant-full-width` · 0.2.83
 
 **What changed:**
 - **Lanes on the D's width** (`params.py`, `route.py`): `lane_clear` is gone, `lane_y = quadrant_r` (4.05 m at Ø 200);

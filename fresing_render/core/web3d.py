@@ -19,19 +19,26 @@ import zlib
 
 import numpy as np
 
+from . import meshopt
+
 TILE_M = 0.2                       # one texture tile covers this square of a part (metres)
 SIZES = (512, 1024, 2048)          # Texture size choices (pixels per tile side)
 DEFAULT_SIZE = 1024
-ATLAS_MAX = 4096                   # largest bake image (pixels per side): 16 tiles of 1024
+ATLAS_MAX = 2048                   # largest bake image (pixels per side): 4 tiles of 1024, 1 of 2048 (task 0105: 4096
+                                   # needed 5.5 GB on the demo vessel at 2048 px)
 FLAT = 1.5 / 255                   # a tile whose values spread less than this is one number (a glTF factor)
 POS_STEP = 0.00005                 # m: 16-bit points in steps of at most 0.05 mm (a decal floats 0.2 mm above its face)
 POS_STEP_BIG = 0.001               # m: ... and of at most 1 mm on a big part that carries no decal (a 65 m hull)
+POS_STEP_PACKED = POS_STEP           # m: compressed files: points in steps of at least 0.05 mm, not 1/65000 of the part
+                                   # (finer steps are bigger numbers to pack; Heavy 17.9 MB at 0.02 mm, 17.2 at 0.05)
 UV_Q = 128                         # 16-bit UVs: steps of 1/128 tile (1.6 mm); the looks scale them back
 UV_TRANSFORM = {"KHR_texture_transform": {"scale": [1.0 / UV_Q, 1.0 / UV_Q]}}
 JPG_QUALITY = {"color": 86, "orm": 86, "normal": 92}
 MV_VERSION = "4.4.0"               # model-viewer, vendored in fresing_render/web/
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 MV_FILE = "model-viewer-umd.min.js"
+MESHOPT = "EXT_meshopt_compression"
+COMPRESS_FROM = 200_000            # triangles: "Smaller file" is ticked by itself from this many (task 0105)
 
 # Blender (Z up) -> glTF (Y up): a turn of -90° about X, as a quaternion (x, y, z, w)
 Z_UP_TO_Y_UP = (-math.sqrt(0.5), 0.0, 0.0, math.sqrt(0.5))
@@ -60,10 +67,10 @@ def mb(n: int) -> str:
     return f"{n / 1e6:.0f} MB"
 
 
-def result_line(size: int, triangles: int, textures: int, seconds: float) -> str:
+def result_line(size: int, triangles: int, textures: int, seconds: float, compressed: bool = False) -> str:
     from .words import plural
     tri = f"{triangles:,} triangle" + ("" if triangles == 1 else "s")
-    return f"{mb(size)} · {tri} · {plural(textures, 'texture')} · {seconds:.1f} s"
+    return f"{mb(size)}{' compressed' if compressed else ''} · {tri} · {plural(textures, 'texture')} · {seconds:.1f} s"
 
 
 def header(size: int) -> str:
@@ -253,9 +260,15 @@ def quat_to_matrix(q) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 class Gltf:
-    """Collects a glTF 2.0 scene and writes it as one binary ``.glb``."""
+    """Collects a glTF 2.0 scene and writes it as one binary ``.glb``.
 
-    def __init__(self, generator: str = "Fresing Render"):
+    ``compress``: points, normals, UVs and triangle lists go in meshopt-compressed (``EXT_meshopt_compression``,
+    ``core/meshopt.py``): about half the file on a big model. Every view then also names its place in a second
+    buffer without data (the "fallback" the extension asks for), so the file stays valid glTF."""
+
+    def __init__(self, generator: str = "Fresing Render", compress: bool = False):
+        self.compress = bool(compress)
+        self._fallback = 0                     # bytes of the data-less second buffer (compressed views' raw size)
         self.doc: dict = {"asset": {"version": "2.0", "generator": generator}, "scene": 0, "scenes": [{"nodes": []}],
                           "nodes": [], "meshes": [], "materials": [], "accessors": [], "bufferViews": [],
                           "buffers": [], "images": [], "textures": [], "samplers": []}
@@ -279,6 +292,29 @@ class Gltf:
         self.doc["bufferViews"].append(view)
         return len(self.doc["bufferViews"]) - 1
 
+    def _packed_view(self, data: np.ndarray, target: int, stride: int | None) -> int:
+        """A meshopt-compressed view of ``data`` (count, element bytes)."""
+        count, elem = data.shape
+        if target == ELEMENT_ARRAY_BUFFER:
+            enc, mode = meshopt.encode_triangles(data.view({2: np.uint16, 4: np.uint32}[elem]).ravel())
+        else:
+            enc = meshopt.encode_vertex_buffer(data)
+            mode = "ATTRIBUTES"
+        while len(self._bin) % 4:
+            self._bin.append(0)
+        ext = {"buffer": 0, "byteOffset": len(self._bin), "byteLength": len(enc), "byteStride": elem,
+               "count": int(count), "mode": mode}
+        self._bin.extend(enc)
+        self._fallback = (self._fallback + 3) // 4 * 4
+        view = {"buffer": 1, "byteOffset": self._fallback, "byteLength": count * elem, "target": target,
+                "extensions": {MESHOPT: ext}}
+        if stride:
+            view["byteStride"] = stride
+        self._fallback += count * elem
+        self.use(MESHOPT, required=True)
+        self.doc["bufferViews"].append(view)
+        return len(self.doc["bufferViews"]) - 1
+
     def accessor(self, values: np.ndarray, kind: str, ctype: int = FLOAT, normalized: bool = False,
                  target: int | None = None, minmax: bool = False) -> int:
         a = np.ascontiguousarray(np.asarray(values).astype(_NP[ctype], copy=False))
@@ -292,7 +328,12 @@ class Gltf:
             pad = (4 - elem % 4) // _SIZES[ctype]
             data = np.concatenate([a2, np.zeros((count, pad), a2.dtype)], axis=1)
             stride = data.shape[1] * _SIZES[ctype]
-        acc = {"bufferView": self._view(np.ascontiguousarray(data).tobytes(), target, stride),
+        if self.compress and target in (ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER) and count:
+            raw = np.ascontiguousarray(data).view(np.uint8).reshape(count, -1)
+            view = self._packed_view(raw, target, stride)
+        else:
+            view = self._view(np.ascontiguousarray(data).tobytes(), target, stride)
+        acc = {"bufferView": view,
                "componentType": ctype, "count": int(count), "type": kind}
         if normalized:
             acc["normalized"] = True
@@ -345,10 +386,12 @@ class Gltf:
         that step keeps 32-bit points. ``tiled_uv``: UVs in tiles of a repeating look, stored as 16-bit numbers of
         1/``UV_Q`` tile; its materials scale them back (``UV_TRANSFORM`` on their pictures)."""
         pos = np.asarray(pos, np.float64)
+        if self.compress and len(pos):         # points in the order the triangles first use them: small steps
+            pos, nrm_i8, uv, groups = first_use_order(pos, nrm_i8, uv, groups)
         dq = None
         if quantize and len(pos):
             lo, hi = pos.min(0), pos.max(0)
-            step = max(float((hi - lo).max()) / 65000.0, 1e-9)
+            step = max(float((hi - lo).max()) / 65000.0, POS_STEP_PACKED if self.compress else 1e-9)
             if step <= max_step:
                 centre = (lo + hi) / 2
                 q = np.round((pos - centre) / step).astype(np.int16)
@@ -429,6 +472,8 @@ class Gltf:
         while len(self._bin) % 4:
             self._bin.append(0)
         doc["buffers"] = [{"byteLength": len(self._bin)}]
+        if self._fallback:
+            doc["buffers"].append({"byteLength": self._fallback, "extensions": {MESHOPT: {"fallback": True}}})
         for key in ("images", "textures", "samplers", "materials", "meshes"):
             if not doc[key]:
                 del doc[key]
@@ -441,6 +486,24 @@ class Gltf:
         total = 12 + 8 + len(js) + 8 + len(self._bin)
         return (struct.pack("<III", 0x46546C67, 2, total) + struct.pack("<II", len(js), 0x4E4F534A) + js
                 + struct.pack("<II", len(self._bin), 0x004E4942) + bytes(self._bin))
+
+
+def first_use_order(pos, nrm, uv, groups):
+    """The same mesh with its vertices numbered in the order the triangles (all groups, one after the other) first
+    use them; vertices no triangle uses are left out. Neighbouring vertices then sit next to each other in the
+    file, which is what meshopt packs well."""
+    allidx = np.concatenate([np.asarray(i).ravel() for _m, i in groups]) if groups else np.zeros(0, np.int64)
+    n = len(pos)
+    if not len(allidx):
+        return pos, nrm, uv, groups
+    _u, first = np.unique(allidx, return_index=True)
+    order = _u[np.argsort(first)]                              # old index of each new vertex
+    new = np.full(n, -1, np.int64)
+    new[order] = np.arange(len(order))
+    pos = np.asarray(pos)[order]
+    nrm = np.asarray(nrm)[order]
+    uv = None if uv is None else np.asarray(uv)[order]
+    return pos, nrm, uv, [(m, new[np.asarray(i)]) for m, i in groups]
 
 
 def read_glb(data: bytes) -> tuple[dict, bytes]:
@@ -461,6 +524,29 @@ def read_glb(data: bytes) -> tuple[dict, bytes]:
     return doc, b""
 
 
+def view_bytes(doc: dict, binary: bytes, k: int) -> bytes:
+    """The bytes of buffer view ``k``; a meshopt-compressed view is decoded (and kept in ``doc`` for the next)."""
+    view = doc["bufferViews"][k]
+    ext = (view.get("extensions") or {}).get(MESHOPT)
+    if ext is None:
+        start = view.get("byteOffset", 0)
+        return binary[start:start + view["byteLength"]]
+    cache = doc.setdefault("_decoded", {})
+    if k not in cache:
+        src = binary[ext.get("byteOffset", 0):ext.get("byteOffset", 0) + ext["byteLength"]]
+        if ext.get("filter", "NONE") != "NONE":
+            raise ValueError(f"meshopt filter {ext['filter']} is not read here")
+        if ext["mode"] == "ATTRIBUTES":
+            out = meshopt.decode_vertex_buffer(src, ext["count"], ext["byteStride"]).tobytes()
+        elif ext["mode"] in ("INDICES", "TRIANGLES"):
+            fn = meshopt.decode_index_sequence if ext["mode"] == "INDICES" else meshopt.decode_index_buffer
+            out = fn(src, ext["count"]).astype({2: np.uint16, 4: np.uint32}[ext["byteStride"]]).tobytes()
+        else:
+            raise ValueError(f"meshopt mode {ext['mode']} is not read here")
+        cache[k] = out
+    return cache[k]
+
+
 def accessor_array(doc: dict, binary: bytes, k: int) -> np.ndarray:
     """The numbers of accessor ``k`` as an array (count, components)."""
     acc = doc["accessors"][k]
@@ -468,8 +554,9 @@ def accessor_array(doc: dict, binary: bytes, k: int) -> np.ndarray:
     n = _COMPONENTS[acc["type"]]
     dt = np.dtype(_NP[acc["componentType"]])
     stride = view.get("byteStride") or n * dt.itemsize
-    start = view.get("byteOffset", 0) + acc.get("byteOffset", 0)
-    raw = np.frombuffer(binary, np.uint8, count=stride * acc["count"], offset=start)
+    start = acc.get("byteOffset", 0)
+    raw = np.frombuffer(view_bytes(doc, binary, acc["bufferView"]), np.uint8, count=stride * acc["count"],
+                        offset=start)
     a = raw.reshape(acc["count"], stride)[:, :n * dt.itemsize].copy().view(dt).reshape(acc["count"], n)
     if acc.get("normalized"):
         a = a.astype(np.float32) / float(np.iinfo(dt).max)
@@ -484,9 +571,26 @@ def problems(data: bytes) -> list[str]:
     except Exception as exc:  # noqa: BLE001
         return [str(exc)]
     views = doc.get("bufferViews", [])
+    buffers = doc.get("buffers", [])
+    used = set(doc.get("extensionsUsed", []))
+    for b, buf in enumerate(buffers[1:], 1):
+        if "uri" not in buf and not ((buf.get("extensions") or {}).get(MESHOPT) or {}).get("fallback"):
+            out.append(f"buffer {b} has no data")
     for k, v in enumerate(views):
-        if v.get("byteOffset", 0) + v["byteLength"] > len(binary):
+        b = v.get("buffer", 0)
+        size = len(binary) if b == 0 else (buffers[b]["byteLength"] if b < len(buffers) else -1)
+        if v.get("byteOffset", 0) + v["byteLength"] > size:
             out.append(f"buffer view {k} runs past the end")
+        ext = (v.get("extensions") or {}).get(MESHOPT)
+        if ext is not None:
+            if MESHOPT not in used:
+                out.append(f"buffer view {k}: {MESHOPT} not in extensionsUsed")
+            if ext.get("buffer", 0) != 0 or ext.get("byteOffset", 0) + ext["byteLength"] > len(binary):
+                out.append(f"buffer view {k}: its compressed data runs past the end")
+            if ext["count"] * ext["byteStride"] != v["byteLength"]:
+                out.append(f"buffer view {k}: compressed count x stride is not its length")
+            if ext["mode"] == "ATTRIBUTES" and (ext["byteStride"] % 4 or ext["byteStride"] > 256):
+                out.append(f"buffer view {k}: compressed stride {ext['byteStride']}")
         if v.get("byteOffset", 0) % 4:
             out.append(f"buffer view {k} does not start on 4 bytes")
         if v.get("byteStride") and (v["byteStride"] % 4 or not 4 <= v["byteStride"] <= 252):
@@ -508,7 +612,11 @@ def problems(data: bytes) -> list[str]:
                 if doc["accessors"][a]["count"] != n:
                     out.append(f"mesh {m}: {name} has another count")
             if "indices" in p:
-                idx = accessor_array(doc, binary, p["indices"])
+                try:
+                    idx = accessor_array(doc, binary, p["indices"])
+                except ValueError as exc:
+                    out.append(f"mesh {m}: indices cannot be read ({exc})")
+                    continue
                 if idx.size and int(idx.max()) >= n:
                     out.append(f"mesh {m}: an index points past the last vertex")
                 if idx.size % 3:
@@ -521,7 +629,6 @@ def problems(data: bytes) -> list[str]:
         for c in node.get("children", []):
             if c >= len(doc["nodes"]):
                 out.append(f"node {k}: no such child")
-    used = set(doc.get("extensionsUsed", []))
     for ext in doc.get("extensionsRequired", []):
         if ext not in used:
             out.append(f"{ext} is required but not used")
@@ -547,7 +654,7 @@ def summary(data: bytes) -> dict:
             "meshes": len(doc.get("meshes", [])), "parts": parts,
             "textures": len(doc.get("images", [])), "materials": len(doc.get("materials", [])),
             "animations": len(doc.get("animations", [])), "names": [n["name"] for n in nodes if n.get("name")],
-            "extensions": doc.get("extensionsUsed", [])}
+            "extensions": doc.get("extensionsUsed", []), "compressed": MESHOPT in doc.get("extensionsUsed", [])}
 
 
 # ---------------------------------------------------------------------------
@@ -595,6 +702,14 @@ _PAGE = """<!doctype html>
 """
 
 
+# meshopt (task 0105): model-viewer carries the decoder itself and switches it on once a "decoder location" script has
+# loaded; an empty inline script loads at once, also offline: nothing is fetched from the internet. It goes right
+# after the viewer script and before the model is named (the model's ``src`` is set by a script after it, never as
+# an attribute: a viewer that starts loading first throws "setMeshoptDecoder must be called before …").
+MESHOPT_SETUP = ("\n<script>\ncustomElements.get('model-viewer').meshoptDecoderLocation = 'data:text/javascript,';\n"
+                 "</script>")
+
+
 def viewer_html(title: str, glb: bytes | None = None, src: str = "", script_src: str = "", note: str = "",
                 animated: bool = False, script_text: str | None = None) -> str:
     """The viewer page. With ``glb`` the model is inside the page (base64): one file that opens offline, also from
@@ -606,19 +721,21 @@ def viewer_html(title: str, glb: bytes | None = None, src: str = "", script_src:
     else:
         text = viewer_script() if script_text is None else script_text
         script = "<script>\n" + text.replace("</script", "<\\/script") + "\n</script>"
+    script += MESHOPT_SETUP
     model = ""
     src_attr = ""
     if glb is not None:
         b64 = base64.b64encode(glb).decode("ascii")
-        model = ("<script type=\"application/octet-stream\" id=\"glb\">" + b64 + "</script>\n<script>\n"
-                 "(function () {\n"
-                 "  var s = document.getElementById('glb').textContent.trim(), b = atob(s), a = new Uint8Array(b.length);\n"
-                 "  for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);\n"
-                 "  var url = URL.createObjectURL(new Blob([a], {type: 'model/gltf-binary'}));\n"
-                 "  document.getElementById('model').src = url;\n"
-                 "})();\n</script>")
-    elif src:
-        src_attr = f' src="{html.escape(src, quote=True)}"'
+        model += ("<script type=\"application/octet-stream\" id=\"glb\">" + b64 + "</script>\n<script>\n"
+                  "(function () {\n"
+                  "  var s = document.getElementById('glb').textContent.trim(), b = atob(s), a = new Uint8Array(b.length);\n"
+                  "  for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);\n"
+                  "  var url = URL.createObjectURL(new Blob([a], {type: 'model/gltf-binary'}));\n"
+                  "  document.getElementById('model').src = url;\n"
+                  "})();\n</script>")
+    elif src:                            # the website: the viewer is named first, then given its file
+        src_attr = f' data-src="{html.escape(src, quote=True)}"'
+        model += "<script>\nvar m = document.getElementById('model');\nm.src = m.dataset.src;\n</script>"
     model += ("\n<script>\n(function () {\n  var c = document.createElement('canvas');\n"
               "  if (!(c.getContext('webgl2') || c.getContext('webgl'))) document.getElementById('fail').style.display = 'flex';\n"
               "})();\n</script>")

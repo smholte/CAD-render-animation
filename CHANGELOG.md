@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.82 – 13 Nov 2026 – demo: the D-quadrant as wide as the cable's path, tensioners open sideways (task 0102)
+## 0.2.83 – 13 Nov 2026 – demo: the D-quadrant as wide as the cable's path, tensioners open sideways (task 0102)
 
 Changed in the demo project (Help > Make demo project), as you work on deck:
 - **No S-bends any more.** The side lanes lie exactly on the D-quadrant's curve: the cable runs straight from the
@@ -21,6 +21,16 @@ Changed in the demo project (Help > Make demo project), as you work on deck:
 - **Shot 5** shows the new opening (lift, tilt out, back, squeeze); **shot 7** opens both tensioners and drops the
   cradles before the D travels aft between them. The clash check over the whole animation: 0.
 
+## 0.2.82 – 13 Nov 2026 – web 3D model: half the file for big machines, half the memory at 2048 (task 0105)
+
+5 Scene & Render > **Web 3D model**
+- **Smaller file** (compressed), on by default: a big model (200,000 triangles or more) is packed with meshopt –
+  about **half the file** (the 3,000-part test machine 35 → 17 MB, the cable-lay demo vessel 25 → 12 MB). The page
+  still opens offline from its one file, also on a phone: the viewer already carries the unpacker. Some older 3D
+  programs cannot open a packed .glb on its own (Blender 5.2, Chrome, Edge, Firefox and Safari can); switch it off
+  for a customer whose program refuses it. The line under Export says "compressed" when it was packed.
+- **Texture size 2048 needs half the memory**: the looks are baked in smaller pieces (the demo vessel 5.2 → 2.5 GB,
+  and a little faster: 58 → 46 s on the 4-core test machine).
 ## 0.2.81 – 13 Nov 2026 – one-click product video (task 0101)
 
 New: 6 Animation > **Make a product video**
