@@ -8,7 +8,7 @@ import time
 import bpy
 from bpy.props import BoolProperty, StringProperty
 
-from . import web3d
+from . import web3d, web3d_env
 
 TICK = 0.1                     # s of work between two redraws of the panel
 
@@ -73,7 +73,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
         w = web3d.settings(scene)
         path = self.filepath or web3d.default_path(scene)
         self._job = web3d.Job(scene, path, size=int(w.texture_size), hide_names=w.hide_names,
-                              animation=w.animation, compress=None if w.compress else False)
+                              animation=w.animation, compress=None if w.compress else False,
+                              surroundings=web3d_env.choice(scene))
         if not self.modal_run or context.window is None:
             try:
                 out = self._job.run()
@@ -143,4 +144,17 @@ class FRESING_OT_web3d_cancel(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_web3d_export, FRESING_OT_web3d_cancel)
+class FRESING_OT_web3d_env_from_project(bpy.types.Operator):
+    """Sets the ticks of Surroundings on the page back to what the project has now: its sea, vessel motion, sky
+    and sun. Only this export's settings change, not the project"""
+
+    bl_idname = "fresing.web3d_env_from_project"
+    bl_label = "Take from the project"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        web3d_env.fill_from_project(context.scene)
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_web3d_export, FRESING_OT_web3d_cancel, FRESING_OT_web3d_env_from_project)

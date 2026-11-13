@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.86 – 13 Nov 2026 – web 3D model with its surroundings: sea, sky, weather and a live sun (task 0106)
+
+New in 5 Scene & Render > Web 3D model: the fold **Surroundings on the page**
+- **None** keeps the page as before. **As in the project** puts the machine's surroundings on the page, picked
+  per export (the project itself does not change): an endless **moving sea** with the app's own waves (white caps
+  when Rough), **vessel motion** – the machine and the deck heave, pitch and roll in step with the waves, Still and
+  Level parts as in the app, together with an exported animation –, the **sky** (the project's sky and sun, or a
+  sky at a time of day with clouds; a 360° photo or a studio look becomes the page's light, so shiny metal mirrors
+  what the app shows), **haze**, **rain** with a wet look and spray at the bow on a rough sea, and **live sun
+  shadows** that move with the parts.
+- **Page quality** Phone / Balanced / Best, and **Auto quality**: the page lowers its quality by itself on a slow
+  phone or laptop and says so in its corner.
+- Still one file that opens without internet. The line under Export says what the surroundings add to the file.
+- Test tour stop "Web 3D model with surroundings", PC-check line `web3d.surroundings`, guide section
+  "Surroundings on the page".
+
 ## 0.2.85 – 13 Nov 2026 – drums and carousels: the cable comes off layer by layer (task 0080)
 
 New: 4 Motion > **Drums and carousels**

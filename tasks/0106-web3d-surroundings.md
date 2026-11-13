@@ -99,6 +99,41 @@ Baked light (0107). Putting the demo vessel or any new model on the website (own
 AR on phones, VR. The looks 0099 lists as lost in the web model. Flexible parts (hoses, cables) on the page. Changing
 the app's own sea, sky or vessel motion (read only).
 
+## Design (worker, 13 Nov)
+
+**Viewer decision.** Surroundings **None** keeps today's model-viewer page byte for byte (website, tour, PC check
+unchanged). Surroundings **As in the project** writes a new page on plain **three.js r180** (MIT): model-viewer has no
+custom water shader, no fog, no particles, no sun shadow map and no access to its scene. The three.js parts are one
+committed bundle `fresing_render/web/three-viewer.min.js` (global `FRTHREE`: three + OrbitControls, GLTFLoader, Sky,
+HDRLoader, meshopt decoder; built by `tools/build_web_viewer.py` with esbuild, 0.80 MB, smaller than model-viewer's
+1.07 MB). Our own page code is readable: `fresing_render/web/fr_math.js` (sea height, vessel channels and matrix –
+pure functions, also run by node in the tests) and `fresing_render/web/fr_page.js` (scene, sea shader, sky, clouds,
+haze, rain, spray, sun, quality, Auto). Still one HTML file: bundle + page code + settings JSON + base64 model and
+pictures inline.
+
+**Files and owners.** `core/web3d_env.py` (new, no Blender): quality table, the page's settings block, sun direction,
+picture resampling to three's equirect, Radiance .hdr writer, `sea_height` / `vessel_matrix` reference in Python,
+`page_html`. `blender/web3d.py`: `Job(surroundings=dict)` reads the project at rest (`vessel_motion.at_rest`), marks
+Still/Level parts (`extras.fr_vm`), adds the Vessel deck's objects as parts when the project's surroundings are the
+deck, builds the settings block (`env_settings`) and writes the three.js page. `props.FRWeb3D`: `env_*` settings,
+filled from the project when Surroundings is switched on. `ui_web3d.py`: fold "Surroundings on the page".
+
+**Settings block** (`<script type="application/json" id="fr-env">`, Blender world metres, z up; the page turns
+(x, y, z) into three's (x, z, -y)): `quality`, `auto`, `levels` (per level: `seg` sea grid segments, `ripple` px,
+`rain` streaks, `shadow` px, `pixel_ratio`), `model` {min, max}, `sea` {state, level, origin, near, waves [[a, dx, dy,
+k, phase]], own (count of the sea's own waves; the rest is vessel swell), bump, foam (threshold or null), moving,
+radius, rim}, `vessel` {pivot, heave/roll/pitch: [base, [[amp, omega, phase]]], bow [x, y, z], hull [length, beam]},
+`sky` {kind SKY|PHOTO, sun [x, y, z] towards the sun, elevation, azimuth, clouds NONE|SOME|OVERCAST, strength,
+exposure, photo/light = ids of embedded pictures}, `haze` {strength} | null, `rain` {strength, spray} | null,
+`shadows`, `time` {start (s of the first frame), moving}.
+
+**Formulas (same as the app).** Sea: h = fade(r) · Σ a sin(k (dx x + dy y) + phase − √(g k) t), fade = smoothstep
+from 1 at `near` to 0 at 1.6 `near`, (x, y) from the sea's origin, t = scene seconds (0 when the waves stand still).
+Vessel: V(t) = T(p + heave ẑ) · Ry(pitch) · Rx(roll) · T(−p), channel = base + Σ amp sin(phase − ω t). Sun of the
+app's sky: (sin r cos h, cos r cos h, sin h) for Rotate light r and Sun height h (measured with Cycles).
+
+**Subagents:** an independent tester (did not write the page) breaks the page at the end; findings fixed or listed.
+
 ---
 
 ## Report (filled in by the chat that did the task)

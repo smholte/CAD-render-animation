@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import time
 
 from .core import Cancelled, Line, Skipped
@@ -1689,6 +1690,61 @@ def _gltf_triangles(path: str) -> int:
             if me.users == 0:
                 bpy.data.meshes.remove(me)
         bpy.data.scenes.remove(sc)
+
+
+@line("web3d.surroundings", "Web 3D model with its surroundings", "0.2.86",
+      what="The crane on the Vessel deck in a rough sea with vessel motion, exported with every surroundings item "
+           "on (sea, vessel motion, sky with clouds, haze, rain and spray, sun shadows); the page's settings read "
+           "back and checked against the project, then the page opened without a window in Edge or Chrome when the "
+           "PC has one (software drawing): it must report no error")
+def web3d_surroundings(ctx):
+    from ..blender import web3d, web3d_env, world
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.background = "DECK"
+    s.sea_state = "ROUGH"
+    s.vessel.enabled = True
+    world.apply(scene, s)
+    w = s.web3d
+    w.env_mode = "PROJECT"
+    web3d_env.fill_from_project(scene)
+    w.env_clouds = "SOME"
+    w.env_haze = w.env_rain = w.env_shadows = True
+    ch = web3d_env.choice(scene)
+    _check(ch["sea"] and ch["vessel"], "the fold did not take the sea and vessel motion from the project")
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Crane at sea web 3D.glb"), size=512, surroundings=ch)
+    with open(out["path"], "rb") as fh:
+        bad = core.problems(fh.read())
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    with open(out["html"], encoding="utf-8") as fh:
+        page = fh.read()
+    st = env.page_settings(page)
+    _check(st["sea"] and st["sea"]["state"] == "ROUGH" and st["vessel"], "the page has no rough sea or no vessel motion")
+    _check(st["haze"] and st["rain"] and st["rain"]["spray"] and st["shadows"], "haze, rain, spray or shadows are off")
+    _check(st["sky"]["clouds"] == "SOME", "the page's sky has no clouds")
+    _check("FRTHREE" in page and "FRMath" in page and "https://" not in page.split('id="fr-env"')[0],
+           "the page's code is not inside it (it would need the internet)")
+    ctx.metric("export", out["seconds"], "s")
+    ctx.metric("page", os.path.getsize(out["html"]) / 1e6, "MB")
+    note = "no Edge or Chrome on this PC: the page itself was not opened"
+    browser = env.find_browser()
+    if browser:
+        t0 = time.perf_counter()
+        try:
+            state = env.open_headless(out["html"], browser, seconds=45)
+        except RuntimeError as exc:
+            state = f"no answer ({exc})"
+        if state.startswith("error") and re.search(r"webgl|context|swiftshader", state, re.I):
+            state = f"no WebGL in the browser without a window ({state[:80]})"      # the browser's, not the page's
+        _check(not state.startswith("error"), f"the page reports an error in {os.path.basename(browser)}: {state}")
+        if state.startswith("ready"):
+            ctx.metric("browser", time.perf_counter() - t0, "s")
+            note = f"opened without a window in {os.path.basename(browser)}: {state}"
+        else:
+            note = f"{os.path.basename(browser)} gave no answer in time ({state}); not counted"
+    return f"{out['text']}; on the page: {out.get('env_items', '')}; {note}"
 
 
 @line("scene.vessel_motion", "Vessel motion at sea", "0.2.65",

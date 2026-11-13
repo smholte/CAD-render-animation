@@ -592,8 +592,10 @@ class Job:
     ``run()`` does it all at once (scripts, tests, PC check)."""
 
     def __init__(self, scene, path: str, size: int = core.DEFAULT_SIZE, hide_names: bool = True,
-                 animation: bool = False, page: bool = True, compress: bool | None = None):
+                 animation: bool = False, page: bool = True, compress: bool | None = None,
+                 surroundings: dict | None = None):
         self.scene = scene
+        self.surroundings = surroundings       # task 0106: the fold's choice (web3d_env.choice); None = today's page
         self.path = os.path.abspath(bpy.path.abspath(path))
         if not self.path.lower().endswith(".glb"):
             self.path += ".glb"
@@ -615,12 +617,20 @@ class Job:
         return str(ob.get(build.PROP_NAME) or ob.name)
 
     def steps(self):
+        rest = None
         try:
+            if self.surroundings is not None:  # task 0106: the parts where they stand on a still sea; the page moves them
+                from . import vessel_motion
+                if vessel_motion.effective(self.scene):
+                    rest = vessel_motion.at_rest(self.scene)
+                    rest.__enter__()
             yield from self._steps()
         finally:
             if self._baker is not None:
                 self._baker.close()
                 self._baker = None
+            if rest is not None:
+                rest.__exit__(None, None, None)
 
     def _steps(self):
         scene = self.scene
@@ -628,6 +638,14 @@ class Job:
         parts, marks = objects(scene)
         if not parts:
             raise RuntimeError("No part is shown: nothing to export")
+        self._modes = {}
+        if self.surroundings is not None:
+            from . import surroundings, web3d_env
+            self._floor = surroundings.floor_height(scene)
+            self._modes = web3d_env.vessel_modes(scene) if self.surroundings.get("vessel") else {}
+            parts = parts + web3d_env.deck_objects(scene, self.surroundings)
+            mn, mx = build.world_bounds(parts)            # the deck too: the page frames the whole vessel
+            self._bounds = ([float(v) for v in mn], [float(v) for v in mx])
         yield 0.02
 
         # -- looks
@@ -756,6 +774,9 @@ class Job:
             node = {"name": self._name(ob, k + 1, "Decal" if is_decal else "Part")}
             if not _is_identity(mw):
                 node["matrix"] = _matrix_list(mw)
+            mode = self._modes.get(ob.name)
+            if mode:                           # task 0106: stays still / level while the vessel moves
+                node["extras"] = {"fr_vm": mode}
             self._nodes.append((ob, self.gltf.place_mesh(node, mesh, root)))
             if k % 20 == 0:
                 self.text = f"Writing part {k + 1} of {len(everything)}"
@@ -920,10 +941,21 @@ class Job:
             fh.write(data)
         os.replace(tmp, self.path)
         page = os.path.splitext(self.path)[0] + ".html"
+        extra = 0
         if self.page:
             title = os.path.splitext(os.path.basename(self.path))[0]
             text = core.viewer_html(title, glb=data, animated=bool(self.result.get("animated")),
                                     note="Made with Fresing Render")
+            if self.surroundings is not None:  # task 0106: the three.js page with the surroundings
+                from ..core import web3d_env as env
+                from . import web3d_env
+                plain = len(text.encode("utf-8"))
+                st, pictures = web3d_env.block(self.scene, self.surroundings, *self._bounds, self._floor)
+                text = env.page_html(title, data, st, pictures, note="Made with Fresing Render",
+                                     animated=bool(self.result.get("animated")))
+                extra = len(text.encode("utf-8")) - plain
+                self.result.update(env_items=env.items_text(st), env_bytes=extra,
+                                   env_pictures=sum(len(b) for _m, b in pictures.values()))
             with open(page + ".part", "w", encoding="utf-8") as fh:
                 fh.write(text)
             os.replace(page + ".part", page)
@@ -933,6 +965,8 @@ class Job:
                            texture_bytes=self.gltf.image_bytes, seconds=seconds,
                            text=core.result_line(len(data), self.result.get("triangles", 0), textures, seconds,
                                                  compressed=self.gltf.compress))
+        if self.surroundings is not None and self.page:
+            self.result["text"] += " · " + core.surroundings_line(extra)
         return self.result
 
     def run(self) -> dict:

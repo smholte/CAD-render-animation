@@ -2335,6 +2335,17 @@ def build_vessel(b: Build):
     a = _animation(b, VESSEL_ANIM)
     _joint_step(a, "Boom", 1.0, 6.0, math.radians(20), label="Boom up at sea")
     a.start_shot = _shot(b, "@vessel").name
+    # task 0106: the web page with its surroundings (stop "web3d_env"): the project's sea and motion, rain and haze
+    from . import web3d_env
+    w = s.web3d
+    w.texture_size = "512"
+    w.env_mode = "PROJECT"
+    web3d_env.fill_from_project(sc)
+    w.env_haze = True
+    w.env_haze_strength = 30.0
+    w.env_rain = True
+    w.env_clouds = "SOME"
+    _shot(b, "@web3d_env")
 
 
 def _check_vessel(scene):
@@ -2608,6 +2619,31 @@ def _check_web3d(scene):
     return f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel)"
 
 
+def _check_web3d_env(scene):
+    """Web 3D model with surroundings (task 0106): export the crane on the deck with the sea, vessel motion, sky,
+    haze and rain next to the tour and read the page's settings back."""
+    import tempfile
+
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from . import web3d, web3d_env
+    folder, version = tour_of_file(scene)
+    out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_env_")
+    os.makedirs(out_dir, exist_ok=True)
+    ch = web3d_env.choice(scene)
+    _check(ch is not None and ch["sea"] and ch["vessel"], "Surroundings on the page is not 'As in the project' "
+                                                          "with the sea and vessel motion")
+    out = web3d.export(scene, os.path.join(out_dir, "Crane at sea web 3D.glb"), size=512, surroundings=ch)
+    with open(out["path"], "rb") as fh:
+        bad = core.problems(fh.read())
+    _check(not bad, f"the file is not valid glTF: {bad[:1]}")
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    _check(st["sea"] and st["vessel"] and st["haze"] and st["rain"], "the page lacks the sea, the motion, haze or rain")
+    _check(st["sea"]["state"] == scene.fresing.sea_state, "the page's sea is not the project's")
+    return f"{out['text']}; on the page: {out.get('env_items', '')} (Open page in the panel)"
+
+
 def _check_demo(scene):
     """The demo project (task 0077): never made inside the tour (it takes minutes); read its summary if it is there."""
     from .. import __version__
@@ -2630,6 +2666,14 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
      "scroll to zoom. The page is one file and also works without internet.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d)
+
+stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
+     "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
+     "Open page in 5 Scene & Render > Web 3D model: your browser shows the crane on the deck on a moving calm sea "
+     "under a sky with some clouds; the deck rolls gently with the waves, it rains lightly and the horizon is hazy; "
+     "the sun's shadows move with the boom. Drag to turn, scroll to zoom. The fold Surroundings on the page shows "
+     "what was picked.", where="5 Scene & Render > Web 3D model > Surroundings on the page", since="0.2.86",
+     check=_check_web3d_env)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "

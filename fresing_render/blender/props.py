@@ -2762,6 +2762,13 @@ class FRCut(bpy.types.PropertyGroup):
     root_uid: StringProperty()
 
 
+def _web3d_env_mode(self, context):
+    """Surroundings switched on: the ticks start from the project (task 0106)."""
+    if self.env_mode == "PROJECT" and context is not None and context.scene is not None:
+        from . import web3d_env
+        web3d_env.fill_from_project(context.scene)
+
+
 class FRWeb3D(bpy.types.PropertyGroup):
     """Web 3D model (task 0099): settings of 5 Scene & Render > Web 3D model and the last export."""
 
@@ -2785,6 +2792,80 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
                     "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
                     "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
+    # ---- surroundings on the page (task 0106): set for one export, the project itself never changes
+    env_mode: EnumProperty(
+        name="Surroundings", default="NONE", update=_web3d_env_mode,
+        description="What the page shows around the machine. None: the machine alone on a light background (as "
+                    "before). As in the project: the sea, the sky, the light and the weather; the ticks below start "
+                    "from the project and change only this export",
+        items=[("NONE", "None", "The machine alone, as before: the smallest page"),
+               ("PROJECT", "As in the project", "The surroundings the ticks below pick, starting from the project's")])
+    env_sea: BoolProperty(
+        name="Sea", default=False,
+        description="An endless moving sea to the horizon with the app's own waves, the water at the project's "
+                    "level. Without a sea in the project it goes under the model at its water level")
+    env_sea_state: EnumProperty(
+        name="Sea state", default="CALM",
+        description="How rough the sea on the page is. Starts as the project's",
+        items=[("CALM", "Calm", "A gentle swell and small ripples"),
+               ("ROUGH", "Rough", "Higher waves, more ripples and white caps")])
+    env_vessel: BoolProperty(
+        name="Vessel motion", default=False,
+        description="The model (and the vessel deck) heave, pitch and roll on the page with the app's numbers, in "
+                    "step with the waves; Still and Level parts stay as in the app. Only when the project has "
+                    "vessel motion on and the page has a sea")
+    env_sky: BoolProperty(
+        name="Sky", default=True,
+        description="The page's background and light from the project's sky, 360° photo or studio look, so metal "
+                    "mirrors what the app shows. Off: a plain light background with the app's soft studio light")
+    env_sky_source: EnumProperty(
+        name="Sky from", default="PROJECT",
+        description="Where the sky on the page comes from",
+        items=[("PROJECT", "The project", "The project's sky and sun, or its 360° photo or studio look"),
+               ("TIME", "Time of day", "A sky with the sun at the height and direction set below")])
+    env_sun_height: FloatProperty(
+        name="Sun height", default=45.0, min=0.0, max=90.0,
+        description="Height of the sun above the horizon on the page (degrees): low gives long shadows and warm "
+                    "light at sunrise or sunset, 90 is noon in the tropics")
+    env_sun_direction: FloatProperty(
+        name="Sun direction", default=0.0, min=0.0, max=360.0,
+        description="Where the sun stands round the machine (degrees, as Rotate light in 5 Scene & Render): turn it "
+                    "to move the shadows")
+    env_clouds: EnumProperty(
+        name="Clouds", default="NONE",
+        description="Clouds in the page's sky. They drift slowly",
+        items=[("NONE", "None", "A clear sky"),
+               ("SOME", "Some", "Scattered clouds; the sun still shines"),
+               ("OVERCAST", "Overcast", "A grey sky: soft light, faint shadows")])
+    env_haze: BoolProperty(
+        name="Haze", default=False,
+        description="The distance fades into a colour that matches the sky, as on a hazy or misty day")
+    env_haze_strength: FloatProperty(
+        name="Haze strength", default=30.0, min=0.0, max=100.0, subtype="PERCENTAGE", precision=0,
+        description="How thick the haze is: low only softens the horizon, 100 % hides what is a few model sizes away")
+    env_rain: BoolProperty(
+        name="Rain and spray", default=False,
+        description="Falling rain and a wet look of the machine; on a rough sea also spray at the bow when it dips "
+                    "into a wave. The drops move on the graphics card, so they cost little")
+    env_rain_strength: FloatProperty(
+        name="Rain strength", default=50.0, min=0.0, max=100.0, subtype="PERCENTAGE", precision=0,
+        description="How hard it rains: more drops and a wetter look")
+    env_shadows: BoolProperty(
+        name="Live sun shadows", default=True,
+        description="The sun casts sharp shadows on the model, the deck and the sea that move with the parts and the "
+                    "rolling vessel. Off: a little faster on old phones")
+    env_quality: EnumProperty(
+        name="Page quality", default="BALANCED",
+        description="How much the page draws: the wave grid, ripple detail, rain drops, the sharpness of the shadows, "
+                    "the size of the sky picture and the screen resolution",
+        items=[("PHONE", "Phone", "Light: smooth on phones and old laptops; the smallest sky picture"),
+               ("BALANCED", "Balanced", "Good on most laptops and PCs (the default)"),
+               ("BEST", "Best", "The finest waves, shadows and sky for a big screen with a good graphics card; the "
+                                "biggest sky picture")])
+    env_auto: BoolProperty(
+        name="Auto", default=True,
+        description="The page lowers its quality by itself when it cannot draw about 30 pictures a second, and says "
+                    "so in a small note in its corner: one page works on a phone and on a PC")
     last_path: StringProperty(default="")
     last_html: StringProperty(default="")
     last_text: StringProperty(default="")
