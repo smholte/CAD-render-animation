@@ -1,6 +1,6 @@
 # 0079 – Tensioner tracks: the chain of CAD pads runs round its sprockets at cable speed and grips the cable
 
-**Who:** worker · **Status:** waiting (for 0102) · **Branch:** `task/0079-tensioner-tracks`
+**Who:** worker · **Status:** running · **Branch:** `claude/epic-davinci-mpptxj` (the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (cable-lay line; design in `tasks/0075-motion-paths-design.md` part C, owner's
 answers at its end) · runs **side by side with 0080** (carousel and drum spooling) – see "Files" for who owns what
 **Lane:** Flex parts. New files `core/tracks.py` (no Blender), `blender/tracks.py`, `blender/ops_tracks.py`,
