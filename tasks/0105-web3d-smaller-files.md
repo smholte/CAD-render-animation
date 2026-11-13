@@ -1,6 +1,6 @@
 # 0105 – Web 3D model: half-size files for big models and less memory when baking
 
-**Who:** worker · **Status:** running · **Branch:** `claude/great-davinci-atwmky`
+**Who:** worker · **Status:** done (0.2.82) · **Branch:** `claude/great-davinci-atwmky`
 **Started by:** lead chat, 13 Nov 2026 (0099's open points; owner: "all three" of the free-lane tasks)
 **Lane:** Web 3D: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`, `fresing_render/web/` (the
 viewer page), their tests. If a bundled encoder is needed: the extension's wheels (`blender_manifest.toml` wheel list,
@@ -104,6 +104,10 @@ web model, animation beyond rigid parts.
   `test_user_guide.py`, the tour's web3d stop, PC-check `web3d.export` in real Blender.
   Subagents: none (no Windows-only code: the library is found through the glTF add-on's own `dll_path`; the Windows
   run proves it).
+
+**GitHub runs:** 43429896966 green at the first try (16.3 min, Windows install + PC check included: `web3d.export`
+found Blender's meshopt library and Blender's importer read the packed file back on Windows). `main` had moved (0104
+study, no version) → merged, one more full run on the merge commit, then `main` fast-forwarded to it (reuse). 2 runs.
 
 **Open points / follow-up tasks:**
 - Normals could be packed with meshopt's octahedral filter (2.97 MB of the Heavy 17 MB) – small gain, not done.
