@@ -1099,7 +1099,7 @@ def test_read_rollers_the_cable_rests_on():
     s = bend0 + 3.0 * math.radians(30.0)
     rounds.append(roller_at(course, s, rope, "outside", toward=course.point(s) - course.arcs()[0][0]))
     s = bend0 + 3.0 * math.radians(90.0) + 2.5                      # the V cradle on the last straight
-    for name, tilt in (("V port", math.radians(50.0)), ("V stb", math.radians(-50.0))):
+    for name, tilt in (("V port", math.radians(40.0)), ("V stb", math.radians(-40.0))):
         rounds.append(roller_at(course, s, rope, name, tilt=tilt, slide=0.12))
     # near but not touching: 10 mm of air (the tolerance for this cable: 12.5 mm … so 20 mm), one beside the cable,
     # one the cable runs along (not across)
