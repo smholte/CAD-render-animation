@@ -245,3 +245,19 @@ def tri_count(shape, linear: float, angular_deg: float) -> int:
         if tri is not None:
             n += tri.NbTriangles()
     return n
+
+
+def surface_points(face, n: int = 200) -> np.ndarray:
+    """An n x n grid of points on a face's surface (its parameter range), as (n*n, 3)."""
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    s = BRepAdaptor_Surface(face)
+    u0, u1, v0, v1 = s.FirstUParameter(), s.LastUParameter(), s.FirstVParameter(), s.LastVParameter()
+    out = np.empty((n * n, 3))
+    k = 0
+    for i in range(n):
+        u = u0 + (u1 - u0) * i / (n - 1)
+        for j in range(n):
+            p = s.Value(u, v0 + (v1 - v0) * j / (n - 1))
+            out[k] = (p.X(), p.Y(), p.Z())
+            k += 1
+    return out

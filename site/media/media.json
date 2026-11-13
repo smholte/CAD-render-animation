@@ -76,6 +76,20 @@
    "credit": "Test mill with a double-arm tool changer: an invented machine made by Fresing Render's own test-model maker (tools/make_test_atc.py)",
    "link": "https://github.com/smholte/CAD-render-animation",
    "licence": "GPL-3.0-or-later (as Fresing Render)"
+  },
+  "iea15_offshore": {
+   "title": "IEA 15 MW offshore wind turbine",
+   "credit": "IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing",
+   "link": "https://github.com/IEAWindSystems/IEA-15-240-RWT",
+   "licence": "Apache-2.0",
+   "licence_link": "https://www.apache.org/licenses/LICENSE-2.0"
+  },
+  "iea15_onshore": {
+   "title": "IEA 15 MW wind turbine on land",
+   "credit": "IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing",
+   "link": "https://github.com/IEAWindSystems/IEA-15-240-RWT",
+   "licence": "Apache-2.0",
+   "licence_link": "https://www.apache.org/licenses/LICENSE-2.0"
   }
  },
  "feature": {

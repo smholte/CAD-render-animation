@@ -1,12 +1,14 @@
-"""The landing page's moving models and the render kit (task 0112).
+"""The landing page's moving models and the render kit (tasks 0112, 0116).
 
     ~/venv/bin/python tools/make_site_projects.py thor ceb_press --out <folder>
         clone the sources (pinned commits, only the folders needed) and write <model>.step + <model>.json there
+        (iea15_offshore, iea15_onshore: the IEA 15 MW turbine from the owner's STEP on the draft release site-kit,
+        see site_projects/fetch.py; FRESING_IEA15_STEP=<file> to use a copy)
     ~/venv/bin/python tools/make_site_projects.py thor --out <folder> --project [--quality draft] [--no-check]
         ... and the Fresing Render project <model>.blend (Blender as a Python module): imported, coloured as
         models.ini says, joints, cylinders, poses, the animation built and clash-checked; prints a summary
     ~/venv/bin/python tools/make_site_projects.py --kit <zip>
-        the render kit for the owner: site/render_kit (scripts, models.ini, README, projects/*.json) + the two
+        the render kit for the owner: site/render_kit (scripts, models.ini, README, projects/*.json) + the moving
         models' STEP files in models/ (the sheets in the kit are written fresh from the sources)
     ~/venv/bin/python tools/make_site_projects.py --publish-kit <zip>
         (in the workflow site-kit.yml, with GITHUB_TOKEN) put the zip on the draft release "site-kit", replacing it
@@ -32,7 +34,27 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 from site_projects import ceb, fetch, thor  # noqa: E402
 
-MODELS = {"thor": thor, "ceb_press": ceb}
+
+class _Turbine:
+    """The IEA 15 MW turbine in one of its versions (site_projects/iea15.py); the source is the owner's STEP."""
+
+    _leaves: dict = {}                       # the STEP read once per run (32 s), shared by both versions
+
+    def __init__(self, variant: str):
+        self.variant = variant
+
+    def convert(self, src: str, out: str, write_step: bool = True) -> dict:
+        from site_projects import iea15, iea15_source
+        key = os.path.realpath(src)
+        if key not in self._leaves:
+            self._leaves.clear()
+            self._leaves[key] = iea15_source.read(src)
+        return iea15.convert(src, out, write_step, self.variant, leaves=self._leaves[key])
+
+
+MODELS = {"thor": thor, "ceb_press": ceb, "iea15_offshore": _Turbine("offshore"),
+          "iea15_onshore": _Turbine("onshore")}
+GIT_MODELS = ("thor", "ceb_press")           # sources anyone can clone; the turbine needs the owner's STEP
 REPO = "smholte/CAD-render-animation"
 KIT_TAG = "site-kit"
 KIT_ASSET = "fresing_site_kit.zip"
@@ -72,11 +94,11 @@ def same_sheet(a: dict, b: dict) -> list[str]:
     return out
 
 
-def check_sheets(cache: str = "") -> list[str]:
+def check_sheets(cache: str = "", models=GIT_MODELS) -> list[str]:
     import tempfile
     problems = []
     with tempfile.TemporaryDirectory() as tmp:
-        for model in MODELS:
+        for model in models:
             fresh = convert(model, tmp, cache, step=False)
             with open(os.path.join(SHEETS, f"{model}.json"), encoding="utf-8") as fh:
                 kept = json.load(fh)
@@ -129,7 +151,7 @@ def build_project(model: str, out: str, quality: str = "draft", check: bool = Tr
     log(f"imported {os.path.basename(step)} in {time.time() - t0:.0f} s")
     if m and m["colours"]:
         kit.paint(pkg, scene, m["colours"])
-    res = projects.make(pkg, scene, sheet, check=check, log=log)
+    res = projects.make(pkg, scene, sheet, check=check, log=log, check_extra_animation=check)
     path = os.path.join(out, f"{model}.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path, check_existing=False)
     res["path"] = path
@@ -145,7 +167,7 @@ KIT_FILES = ("Make site pictures.bat", "make_site_pictures.py", "projects.py", "
 
 def make_kit(path: str, cache: str = "", work: str = "") -> str:
     """The kit zip: one folder "Fresing site kit" with the scripts, models.ini, README.txt, projects/*.json and
-    models/thor.step + models/ceb_press.step, written fresh from the sources (their sheets must match the kit's)."""
+    models/<model>.step of every moving model, written fresh from the sources (their sheets must match the kit's)."""
     import tempfile
     work = work or tempfile.mkdtemp(prefix="site_kit_")
     for model in MODELS:
@@ -166,8 +188,9 @@ def make_kit(path: str, cache: str = "", work: str = "") -> str:
             z.write(os.path.join(SHEETS, f"{model}.json"), f"{KIT_FOLDER}/projects/{model}.json")
             z.write(os.path.join(work, f"{model}.step"), f"{KIT_FOLDER}/models/{model}.step")
         z.writestr(f"{KIT_FOLDER}/models/README.txt",
-                   "thor.step and ceb_press.step come with this kit. evo.step, openarm.step and farmbot.step are\r\n"
-                   "taken from the models folder of your first kit when it is next to this folder (or put them here).\r\n")
+                   ", ".join(f"{m}.step" for m in MODELS) + " come with this kit.\r\n"
+                   "evo.step, openarm.step and farmbot.step are taken from the models folder of your first kit when\r\n"
+                   "it is next to this folder (or put them here).\r\n")
     return path
 
 

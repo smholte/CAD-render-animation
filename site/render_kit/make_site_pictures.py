@@ -263,6 +263,17 @@ def weather_id(text: str, where: str) -> str:
     raise ValueError(f"[{where}] weather = {t}: use none or one of {', '.join(WEATHER.values())}")
 
 
+def sheet_cameras(project: str) -> dict:
+    """{NAME IN CAPITALS: name} of the cameras a project's sheet brings (task 0116: e.g. "Work boat")."""
+    if not project:
+        return {}
+    try:
+        with open(os.path.join(KIT_SHEETS, project + ".json"), encoding="utf-8") as fh:
+            return {c["name"].upper(): c["name"] for c in json.load(fh).get("cameras", [])}
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
 def read_settings(path: str) -> tuple[dict, list[dict]]:
     """The [settings] section and one dict per model section, checked. Raises ValueError with a plain
     reason when something is wrong (shown in the window and the log)."""
@@ -291,9 +302,11 @@ def read_settings(path: str) -> tuple[dict, list[dict]]:
         if not m.get("file"):
             raise ValueError(f"[{sec}] has no 'file = …' line")
         m["views"] = _words(m.get("views", "LOW, ISO_LEFT")) or ["LOW"]
-        bad = [v for v in m["views"] if v not in VIEW_NAMES]
+        own = sheet_cameras(m.get("project", "").strip())
+        bad = [v for v in m["views"] if v not in VIEW_NAMES and v.upper() not in own]
         if bad:
-            raise ValueError(f"[{sec}] views: {', '.join(bad)} unknown; use {', '.join(VIEW_NAMES)}")
+            raise ValueError(f"[{sec}] views: {', '.join(bad)} unknown; use {', '.join(VIEW_NAMES)}"
+                             + (f" or a camera of the project: {', '.join(own.values())}" if own else ""))
         m["look"] = m.get("look", "PRODUCT").upper()
         if m["look"] not in LOOKS:
             raise ValueError(f"[{sec}] look = {m['look']}: use one of {', '.join(LOOKS)}")
@@ -702,17 +715,23 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
         bpy.context.view_layer.update()
     made = []
     captions = [c.strip() for c in m.get("captions", "").split("|")]
+    own = sheet_cameras(m["project"])
     for i, view in enumerate(m["views"]):
-        cam = cameras.add_camera(scene, view, lens=float(m.get("lens", 50)), name=f"Site {view}",
-                                 margin=cameras.SPACE.get(m.get("space", "NORMAL").upper(), 1.06))
+        if view not in VIEW_NAMES and view.upper() in own:       # a camera the project brings (its sheet)
+            projects = _projects()
+            sheet = projects.load(os.path.join(KIT_SHEETS, m["project"] + ".json"))
+            cam = projects.sheet_camera(pkg, scene, projects.Model(pkg, scene, sheet), own[view.upper()])
+        else:
+            cam = cameras.add_camera(scene, view, lens=float(m.get("lens", 50)), name=f"Site {view}",
+                                     margin=cameras.SPACE.get(m.get("space", "NORMAL").upper(), 1.06))
         scene.camera = cam
-        png = os.path.join(full, f"{m['id']}_{view.lower()}.png")
+        png = os.path.join(full, f"{m['id']}_{view.lower().replace(' ', '_')}.png")
         t1 = time.time()
         info = render.render_still(scene, s, quality, filepath=png)
         took = time.time() - t1
         if clock is not None and quality in SAMPLES and SAMPLES[quality]:
             clock.setdefault("rates", []).append(took / (info["size"][0] * info["size"][1] / 1e6 * SAMPLES[quality]))
-        jpg = os.path.join(send, f"{m['id']}_{view.lower()}.jpg")
+        jpg = os.path.join(send, f"{m['id']}_{view.lower().replace(' ', '_')}.jpg")
         jpg_copy(png, jpg, width)
         caption = captions[i] if i < len(captions) and captions[i] else m.get("title", m["id"])
         made.append({"file": os.path.basename(jpg), "model": m["id"], "caption": caption, "kind": "picture"})

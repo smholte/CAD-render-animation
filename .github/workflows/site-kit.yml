@@ -1,7 +1,8 @@
 name: Site kit
 
 # The render kit for the landing page's pictures and videos (task 0112): tools/make_site_projects.py clones the Thor
-# arm and the CEB press from their repositories (pinned commits), writes their STEP files, checks that the joint sheets
+# arm and the CEB press from their repositories (pinned commits), takes the owner's STEP of the IEA 15 MW wind turbine
+# (15MW.step) from the draft release "site-kit" (task 0116), writes their STEP files, checks that the joint sheets
 # in site/render_kit/projects still match the sources, packs the kit (scripts, models.ini, README.txt, sheets, STEP
 # files) and puts it on the DRAFT release "site-kit", replacing the kit zip there (the owner's uploads stay).
 # A draft is not a release of the app: only people with access to the repository see it, "latest" never points at it,
@@ -27,7 +28,7 @@ jobs:
   kit:
     name: Build the site kit and put it on the draft release
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
 
@@ -41,6 +42,8 @@ jobs:
           python -m pip install "$(grep -E '^cadquery-ocp==' tools/requirements-dev.txt)" "$(grep -E '^numpy==' tools/requirements-dev.txt)"
 
       - name: Build the kit (tools/make_site_projects.py --kit)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}   # the owner's turbine STEP lies on the draft release (task 0116)
         shell: bash
         run: |
           python tools/make_site_projects.py --kit dist/fresing_site_kit.zip --cache "$RUNNER_TEMP/sources"
