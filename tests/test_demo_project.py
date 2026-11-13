@@ -107,8 +107,6 @@ def test_every_joint_of_the_sheet(made):
             assert "Fairlead" in row["name"], row["name"]
         elif drive.get("by") == "follows":
             assert j.follows == drive["follows"] and math.isclose(j.couple_ratio, drive["ratio"], rel_tol=1e-5)
-        elif demo.waits_for_tracks(row["name"]):
-            assert not j.follows, row["name"]                      # until task 0079 runs the tracks
         elif drive.get("by") in ("cable", "carousel"):
             assert j.follows == demo.CABLE and math.isclose(j.couple_ratio, drive["deg_per_mm"], rel_tol=1e-5)
             cable_turned += 1

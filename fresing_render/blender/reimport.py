@@ -307,6 +307,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += spool.after_model_update(scene, by_uid, mapping)                # drums and carousels (task 0080)
     from . import paths
     notes += paths.after_model_update(scene, by_uid, mapping)                # cables and paths (task 0078)
+    from . import tracks
+    notes += tracks.after_model_update(scene, by_uid, mapping)               # tracks and belts (task 0079)
     return notes
 
 
