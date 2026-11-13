@@ -1,6 +1,6 @@
 # 0100 – Assembly sequence step: take a subassembly apart (or put it together) part by part (study 0069 #9)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0100-assembly-sequence`
+**Who:** worker · **Status:** running · **Branch:** `ccr-b270b448-9405yw` (the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's pick from study 0069: #9)
 **Lane:** Motion – a new step kind in `props.py` (step list, additive) and `animation.py` (its bake), a new
 `core/sequence.py` (no Blender: order, directions, distances, timing) and `blender/sequence.py`, its settings in
