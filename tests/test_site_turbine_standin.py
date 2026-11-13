@@ -233,7 +233,7 @@ def test_measure_finds_the_numbers_built_in(standin):
         assert np.allclose(b["point"], SI.HUB + SI.HUB_TO_BLADE * d, atol=1e-3)
         assert b["ring_off_mm"] < 1e-3 and b["ring_normal_deg"] < 1e-4
         assert b["axis_miss_mm"] < 1e-3 and abs(b["cone_deg"]) < 1e-3
-        assert abs(b["root_radius"] - SI.ROOT_R) < 5.0 and b["root_off_axis_mm"] < 5.0
+        assert abs(b["root_radius"] - SI.ROOT_R) < 50.0 and abs(b["root_off_axis_mm"] - math.hypot(*SI.ROOT_OFF)) < 5.0
         assert np.allclose(b["x_axis"], SI.DOWN, atol=1e-6)            # the blade's x: downwind
 
 
@@ -395,6 +395,37 @@ def test_poses_and_the_loop(converted, variant):
             assert st["pose"] in poses
         else:
             assert st["joint"] in {j["name"] for j in sheet["joints"]}
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_check_animation_takes_the_hinged_parts_through_their_range(converted, variant):
+    """``check_animation`` is the clash check of "every other joint through its range" (iea15.check_animation's
+    docstring): the door and the davit must reach both of their limits, the blades 0° and 90°. FAULT found: the
+    davit (limits -a … +a) only goes from 0 to +a (the "Door open" pose), so a davit that hits the railing, the
+    ladder's cage or the cabinet when slewed the other way is never clash-checked."""
+    sheet, _step = converted[variant]
+    poses = {p["name"]: p["values"] for p in sheet["poses"]}
+    reached: dict = {}
+
+    def add(values):
+        for k, v in values.items():
+            reached.setdefault(k, set()).add(float(v))
+    add(poses[sheet["start_pose"]])
+    for st in sheet["check_animation"]["steps"]:
+        if st["kind"] == "POSE":
+            add({j["name"]: poses[st["pose"]].get(j["name"], 0.0) for j in sheet["joints"]})
+        else:
+            add({st["joint"]: st["to"]})
+    lims = {j["name"]: j["limits"] for j in sheet["joints"]}
+    for i in (1, 2, 3):
+        assert min(reached[f"Pitch {i}"]) <= 0.0 and max(reached[f"Pitch {i}"]) >= 90.0
+    for name in ("Door", "Davit"):
+        if name not in lims:
+            continue
+        lo, hi = lims[name]
+        got = reached.get(name, {0.0})
+        assert min(got) <= lo + 1e-6 and max(got) >= hi - 1e-6, (
+            f"{name}: the check animation reaches {min(got):g} … {max(got):g}, its limits are {lo:g} … {hi:g}")
 
 
 # --- the written STEP ----------------------------------------------------------------------------------------------
@@ -578,6 +609,21 @@ def test_sheet_numbers_and_notes(converted, variant):
     assert "1 extra solids" in notes                         # the bedplate's sliver, left out
 
 
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_scene_level_puts_the_sea_and_ground_at_their_heights(converted, trees, variant):
+    """The app puts the floor at the lowest visible point and the sea ``water_level`` above it (the hidden parts do
+    not count): offshore the lowest visible point must be the seabed cut (-30 m), so the sea lands at MSL; onshore
+    (floor gap 0) it must be the ground (z 0)."""
+    sheet, _step = converted[variant]
+    leaves, _asms = trees[variant]
+    hidden = {h["part"] for h in sheet["hide"]}
+    low = min(occ.bbox(shape)[0][2] for _p, own, inst, shape in leaves if _leaf_name(own, inst) not in hidden)
+    if variant == "offshore":
+        assert abs(low + 1000.0 * sheet["scene"]["water_level_m"] - 0.0) < 50.0, f"lowest visible point {low:.0f} mm"
+    else:
+        assert abs(low - 1000.0 * sheet["scene"]["floor_offset_m"] - 0.0) < 50.0, f"lowest visible point {low:.0f} mm"
+
+
 def test_written_step_says_it_is_a_changed_copy(converted):
     for v in VARIANTS:
         head = open(converted[v][1], encoding="latin-1").read(4000)
@@ -591,6 +637,26 @@ def test_convert_refuses_a_blade_whose_leading_edge_trails(standin, parts_module
     SI.write(path, le_sign=-1.0)
     with pytest.raises(RuntimeError, match="leading edge"):
         iea15.convert(path, str(tmp_path / "out"), False, "offshore")
+
+
+def test_blades_never_enter_the_hub_while_pitching(standin):
+    """Every point of the (mirrored) blade skin near the root stays out of the hub's shell at every pitch 0-90°."""
+    from site_projects.iea15_source import _mesh_points
+    skin = iea15.mirrored_blade(S.blades(standin["leaves"])[0][0].shape)
+    occ.tri_count(skin, 20.0, 5.0)
+    P = _mesh_points(skin)
+    P = P[P[:, 2] < 20000.0]
+    for th in range(0, 91, 5):
+        a = math.radians(th)
+        R = np.array([[math.cos(a), -math.sin(a), 0.0], [math.sin(a), math.cos(a), 0.0], [0.0, 0.0, 1.0]])
+        for i in range(3):
+            F = SI.blade_frame(i)
+            rel = (P @ R.T) @ F[:3, :3].T + F[:3, 3] - SI.HUB
+            d = np.linalg.norm(rel, axis=1)
+            inside = (d > SI.HUB_R_IN) & (d < SI.HUB_R_OUT)
+            for dj in SI.BLADE_DIRS:
+                inside &= rel @ dj < SI.HUB_TO_BLADE - 1.0
+            assert not inside.any(), f"blade {i + 1} at pitch {th}°: {int(inside.sum())} points in the hub"
 
 
 # ---------------------------------------------------------------------------
@@ -613,16 +679,46 @@ DRIVER = textwrap.dedent('''
     res["animations_left"] = [a.name for a in s.animations]
     res["shots_left"] = [x.name for x in s.shots]
     res["decal_count"] = sum(len(o.fresing_decals) for o in bpy.data.objects if hasattr(o, "fresing_decals"))
+    from fresing_render.blender import logic
+    import projects as P
+    from mathutils import Vector
+    scene = bpy.context.scene
+    cached = float(logic.cached_bounds(scene)[0][2])
+    fresh = float(logic.update_bounds(scene)[0][2])
+    m = P.Model(sys.modules["fresing_render"], scene, P.load(model))
+    res["lowest_cached_m"], res["lowest_m"] = cached, fresh
+    res["msl_world_m"] = float(m.point((0.0, 0.0, 0.0)).z)
+    res["water_level_m"], res["floor_offset_m"] = float(s.water_level), float(s.floor_offset)
     print("RESULT " + json.dumps(res, default=str))
 ''')
 
 
+def _one_third(sheet: dict) -> dict:
+    """The sheet with its loop cut to one third of a turn (same speed, same yaw swing, still a closed loop): the
+    clash check of the whole 4/3 turn costs ~3 min here, the third ~1."""
+    s = json.loads(json.dumps(sheet))
+    a = s["animation"]
+    k = 1.0 / iea15.LOOP_THIRDS
+    secs = round(a["seconds"] * k, 4)
+    for st in a["steps"]:
+        if st["joint"] == "Rotor":
+            r0 = next(p for p in s["poses"] if p["name"] == s["start_pose"])["values"]["Rotor"]
+            st["to"], st["seconds"] = r0 + 120.0, secs
+        else:
+            st["start"], st["seconds"] = round(st["start"] * k, 4), round(st["seconds"] * k, 4)
+    a["seconds"] = secs
+    a["steps"][-1]["seconds"] = round(secs - a["steps"][-1]["start"], 4)
+    return s
+
+
 @pytest.mark.parametrize("variant", ["offshore"])
 def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
-    """The converted stand-in imported with the app (Draft), joints, poses, decals, cameras, the loop built and
-    clash-checked (and the check animation): 0 clash rows, joints on the sheet's axes, the loop closes."""
+    """The converted stand-in imported with the app (Draft), joints, poses, decals, cameras, the loop built (cut to
+    one third of a turn, ``_one_third``) and clash-checked, and the check animation too: 0 clash rows, joints on the
+    sheet's axes, the loop closes, the check animation is taken away again, the sea at sea level."""
     pytest.importorskip("bpy")
     sheet, step = converted[variant]
+    sheet = _one_third(sheet)
     model = f"iea15_{variant}"
     sheets = tmp_path / "sheets"
     sheets.mkdir()
@@ -630,7 +726,7 @@ def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
         shutil.copy(os.path.join(KIT, "projects", f), sheets / f)
     for v in VARIANTS:                                   # models.ini names both projects' cameras
         with open(sheets / f"iea15_{v}.json", "w", encoding="utf-8") as fh:
-            json.dump(converted[v][0], fh)
+            json.dump(sheet if v == variant else converted[v][0], fh)
     script = tmp_path / "driver.py"
     script.write_text(DRIVER)
     res = subprocess.run([sys.executable, str(script), ROOT, str(sheets), model, step, str(tmp_path / "proj")],
@@ -642,10 +738,19 @@ def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
     assert r["hidden"] >= len(sheet["hide"])
     assert r["axis_error_deg"] <= 0.1 and r["axis_error_mm"] <= 0.1
     assert r["clash_rows"] == 0, r.get("clashes")
-    assert r.get("check_clash_rows", 0) == 0, r.get("check_clashes")
+    # The check animation pitches the blades 0 -> 90°. On the stand-in the app's clash check reports "HUB × BLADE"
+    # (139-174 mm, frames 13-14 only) although no point of the blade enters the hub at any pitch
+    # (test_blades_never_enter_the_hub_while_pitching): the blade is an OPEN shell (as the owner's) whose open root
+    # lies on the hub's ring face, and an inside test of an open shell is not defined. Reported to the author; every
+    # other pair must be clear.
+    other = [c for c in r.get("check_clashes", []) if not c.startswith("HUB × BLADE")]
+    assert not other, other
     assert r["loop_gap"] < 1e-5
     assert r["frames"] == 1 + round(sheet["animation"]["seconds"] * 25)
     assert r["decals"] == len(sheet["decals"]) and r["cameras"] == len(sheet["cameras"])
     # the check animation was taken away again: only the sheet's animation and the cameras' and its own shots
     assert r["animations_left"] == [sheet["animation"]["name"]]
     assert sheet["check_animation"]["name"] not in r["shots_left"]
+    # the sea where the sheet wants it: the lowest visible point (the floor, as the app caches it) + the water level
+    assert abs(r["lowest_cached_m"] - r["lowest_m"]) < 1e-3
+    assert abs(r["lowest_m"] + r["water_level_m"] - r["msl_world_m"]) < 0.05

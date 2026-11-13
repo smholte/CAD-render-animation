@@ -45,7 +45,8 @@ HUB_TO_BLADE = 3000.0
 HUB_R_OUT, HUB_R_IN, HUB_BALL_R, HUB_BACK_R = 3970.0, 3880.0, 100.0, 1625.0
 BLADE_LENGTH = 117000.0
 PREBEND = 4000.0
-ROOT_R = 2600.0
+ROOT_R = 2543.0                   # the root is not quite round (the owner's: r 2543, centre 62 mm off the axis)
+ROOT_WOBBLE, ROOT_OFF = 40.0, (30.0, 50.0)
 TOWER_TOP = 144582.0
 TOWER_WALL = 55.0
 TOWER_PROFILE = [(-75000.0, 5000.0), (28000.0, 5000.0), (41000.0, 4963.0), (54000.0, 4721.5), (67000.0, 4416.5),
@@ -60,8 +61,8 @@ FLANGES = [(800.0, 1200.0, 6554.0, 6654.0), (800.0, 1200.0, 6654.0, 6754.0)]
 SRB = (1100.0, 1400.0, 5619.0, 6089.0)
 TDO = (1100.0, 1400.0, 4504.0, 4804.0)
 # generator: (s, r) outlines revolved about the shaft (a cup turning round the stator, the rotor's back at y -4430)
-GEN_ROTOR = [(3988.0, 1500.0), (3988.0, 5263.5), (6264.0, 5263.5), (6264.0, 5136.2), (4088.0, 5136.2),
-             (4088.0, 1500.0)]
+GEN_ROTOR = [(3988.0, 1502.0), (3988.0, 5263.5), (6264.0, 5263.5), (6264.0, 5136.2), (4088.0, 5136.2),
+             (4088.0, 1502.0)]          # its bore 2 mm clear of the shaft (r 1500; the owner's touch it)
 STATOR = [(4200.0, 4564.5), (4200.0, 4658.0), (6343.0, 4658.0), (6343.0, 1100.0), (6143.0, 1100.0),
           (6143.0, 4564.5)]
 BEDPLATE = ((-2500.0, -3000.0, TOWER_TOP + 380.0), (2500.0, 3000.0, 148500.0))
@@ -179,10 +180,11 @@ def prebend_x(z: float) -> float:
 
 
 def section_points(z, chord, tc, share, twist_deg, le_sign=LE_SIGN, flatback=0.0) -> np.ndarray:
-    """N points of a section (blade coordinates), starting at the trailing edge: a circle r ROOT_R blended with a
+    """N points of a section (blade coordinates), starting at the trailing edge: a not quite round circle (r ROOT_R) blended with a
     NACA-00xx airfoil whose chord lies along y (leading edge at le_sign * 0.3 chord) and thickness along x."""
     th = np.linspace(0.0, 2 * math.pi, N_SECTION, endpoint=False)
-    circ = np.c_[ROOT_R * np.sin(th), -ROOT_R * np.cos(th)]
+    rr = ROOT_R + ROOT_WOBBLE * np.cos(2 * th)
+    circ = np.c_[rr * np.sin(th) + ROOT_OFF[0], -rr * np.cos(th) + ROOT_OFF[1]]
     xi = (1.0 + np.cos(th)) / 2.0                         # 1 at the trailing edge (th 0), 0 at the leading edge
     half = 5.0 * tc * chord * (0.2969 * np.sqrt(xi) - 0.126 * xi - 0.3516 * xi ** 2 + 0.2843 * xi ** 3
                                - 0.1036 * xi ** 4)
