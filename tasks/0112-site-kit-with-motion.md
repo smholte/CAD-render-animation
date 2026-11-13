@@ -1,6 +1,6 @@
 # 0112 – Render kit with motion: Thor and the brick press as app projects, gallery refresh
 
-**Who:** worker → owner (renders on his PC) → a short take-in session · **Status:** open – can start ·
+**Who:** worker → owner (renders on his PC) → a short take-in session · **Status:** running (13 Nov) ·
 **Branch:** `task/0112-site-kit-with-motion` (or the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's choices 13 Nov, 20:00)
 **Area (Site kit lane, new):** `site/render_kit/` (kit script, `models.ini`, README, the .bat), new
