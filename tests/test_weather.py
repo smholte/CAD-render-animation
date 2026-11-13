@@ -174,7 +174,7 @@ def test_step_keys_the_channels_and_clear_puts_them_back():
     assert chan(sc, "rain") == pytest.approx(0.0, abs=1e-6)
     sc.frame_set(res["frames"])
     assert chan(sc, "rain") == pytest.approx(0.6)
-    el, _ = core.sun_of(core.State(hour=18.5))
+    el, _ = core.sun_of(weather.step_state(weather.state(sc), b))
     assert chan(sc, "sun_el") == pytest.approx(el, abs=0.01)
     half = core.derive(core.mix(weather.state(sc), weather.step_state(weather.state(sc), b), 0.5))
     sc.frame_set(f0 + (animation.frame_of(a, 2.5) - f0) // 2)
@@ -244,3 +244,29 @@ def test_tooltips():
     for p in blk.bl_rna.properties:
         if p.identifier.startswith("wx_"):
             assert len(p.description) > 20, p.identifier
+
+
+def test_work_light_survives_a_real_model_update():
+    """The update button (crane A -> crane B): the lamp hangs on the new copy of its part, in the same place on it."""
+    from fresing_render.blender import build, weather_sky
+    sc = fresh("COLOR")
+    part = next(o for o in sc.objects if o.get(build.PROP_NAME) == "BOOM" and o.type == "MESH") \
+        if any(o.get(build.PROP_NAME) == "BOOM" for o in sc.objects) else \
+        next(o for o in sc.objects if o.type == "MESH" and o.get(build.PROP_UID))
+    uid = part[build.PROP_UID]
+    lamp = weather_sky.add_work_light(sc, part, kind="FLOOD")
+    bpy.context.view_layer.update()
+    local = part.matrix_world.inverted() @ lamp.matrix_world
+    name = lamp.name
+    root = next(r for r in build.model_roots(sc))
+    res = bpy.ops.fresing.import_step(filepath=os.path.join(HERE, "data", "test_crane_b.step"), quality="draft",
+                                      update_root=root.name)
+    assert res == {"FINISHED"}
+    bpy.context.view_layer.update()
+    lamp = bpy.data.objects.get(name)
+    assert lamp is not None and lamp in weather_sky.work_lights(sc)
+    new = lamp.parent
+    assert new is not None and new.get(build.PROP_UID) and new.name in sc.objects
+    got = new.matrix_world.inverted() @ lamp.matrix_world
+    assert max(abs(got[r][c] - local[r][c]) for r in range(4) for c in range(4)) < 1e-4
+    assert lamp[weather_sky.WORK_TAG] == new[build.PROP_UID] or uid
