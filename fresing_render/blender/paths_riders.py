@@ -443,6 +443,7 @@ def sync(scene, item) -> None:
         part = r["ob"]
         names.add(part.name)
         part[TAG] = paths.label(item)
+        part[build.BOUNDS_CAD] = True           # the model's size: where CAD has it, not where it rides
         m = part.modifiers.get(MOD)
         if m is None or m.type != "NODES":
             m = part.modifiers.new(MOD, "NODES")
@@ -487,8 +488,9 @@ def _strip(part) -> None:
         m = part.modifiers.get(MOD)
         if m is not None:
             part.modifiers.remove(m)
-        if TAG in part:
-            del part[TAG]
+        for key in (TAG, build.BOUNDS_CAD):
+            if key in part:
+                del part[key]
         part.update_tag()
     except ReferenceError:
         pass

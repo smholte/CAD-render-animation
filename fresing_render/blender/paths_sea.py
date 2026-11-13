@@ -510,6 +510,9 @@ def add_sea_end(scene, item) -> list[str]:
         item.sea_dir = tuple(float(v) for v in lay_direction(scene, item))
         item.sea_info = ""
     notes = anchor(scene, item)
+    if paths._alive(scene, item.part):
+        from . import build
+        item.part[build.BOUNDS_CAD] = True      # the model's size: its CAD shape, not the cable down to the seabed
     paths.changed(scene, item)
     return notes
 
@@ -521,6 +524,9 @@ def remove_sea_end(scene, item) -> None:
         item.sea_was = ""
         item.sea_info = ""
     _STATE["sea"].pop(paths._k(scene, item), None)
+    from . import build
+    if paths._alive(scene, item.part) and build.BOUNDS_CAD in item.part:
+        del item.part[build.BOUNDS_CAD]
     sync_bed(scene)
     paths.changed(scene, item)
 

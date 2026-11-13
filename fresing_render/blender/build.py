@@ -384,6 +384,9 @@ def _uid_strings_again(scene) -> None:
                 del owner["_busy"]
 
 
+BOUNDS_CAD = "fr_bounds_cad"           # on a part: the model's size counts its CAD shape, not what is drawn (0081)
+
+
 def world_bounds(objs) -> tuple:
     """(min, max) world-space corners of the given mesh objects (fast, uses bound boxes)."""
     mins = np.array([np.inf] * 3)
@@ -392,7 +395,16 @@ def world_bounds(objs) -> tuple:
         if ob.type != "MESH" or ob.data is None:
             continue
         mw = np.array(ob.matrix_world)
-        bb = np.array([list(c) + [1.0] for c in ob.bound_box])
+        if ob.get(BOUNDS_CAD) and len(ob.data.vertices):
+            # drawn somewhere else than its CAD shape and changing per frame (a cable into the sea, a CPS set riding
+            # on it, task 0081): the model's size is measured by the CAD shape
+            co = np.empty(len(ob.data.vertices) * 3)
+            ob.data.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            lo, hi = co.min(axis=0), co.max(axis=0)
+            bb = np.array([[x, y, z, 1.0] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+        else:
+            bb = np.array([list(c) + [1.0] for c in ob.bound_box])
         w = (mw @ bb.T).T[:, :3]
         mins = np.minimum(mins, w.min(axis=0))
         maxs = np.maximum(maxs, w.max(axis=0))
