@@ -108,6 +108,96 @@ the render queue too, on Cycles and EEVEE.
 - [ ] GitHub green incl. Windows; report filled in (subagents, runs, render-time numbers); merge to main and release
       when green, then check that main really contains your commit.
 
+## Design (worker, 13 Nov – the subagents' brief)
+
+**The contract: channels.** `core/weather.py` (written first, by the worker) holds the settings (`State`, mirrored by
+`props.FRWeather` = `scene.fresing.weather`), the presets, the sun's path (local solar time; equinox without a date),
+Beaufort ↔ m/s, `mix()` (the step) and `derive(state, place) -> {channel: float}`. The coordinator
+`blender/weather.py` writes the channels as plain scene custom properties **`scene["fr_wx_<name>"]`**
+(`core.weather.CHANNELS`: sun_el, sun_az, moon_el, moon_az, day, night, sun, clouds, low, fog (per km), fog_r/g/b,
+stars, moon, exposure, flood, rain, drop, wet, snow, cover, wind (m/s), wind_x, wind_y, foam). **Everything that shows
+weather reads only channels:** in shaders an Attribute node of type **VIEW_LAYER** named `fr_wx_<name>` (reads the
+scene's property; Cycles + EEVEE); elsewhere (world node inputs, lamp energy, modifier inputs, compositor) a driver
+of type SCRIPTED with a **simple expression** whose variable is SINGLE_PROP, id_type SCENE, data_path
+`'["fr_wx_<name>"]'`. No Python per frame. The Weather & time step keys the channels (plain props: scripts off, queue).
+`place` = `core.weather.where(background)`: "sky" (SKY, SEA, DECK, QUAY: the app draws the sky), "photo" (360°
+photo: rain/snow/wet/wind but its own light), "indoor" (halls, studios, colour: only work lights).
+
+**Order of a rebuild:** a control changes → `weather.changed` writes the channels → `world.apply(scene, s)` (world
+tree, surroundings incl. the sea) → at its end `weather.after_world(scene)` → `weather_sky.apply(scene, st, place)`,
+`weather_look.apply(scene, True)`, `weather_fx.apply(scene, st, place)`; Off → `weather_sky.remove`,
+`weather_look.apply(scene, False)`, `weather_fx.remove`, channels deleted. Each must be cheap when nothing changed and
+must never raise into the UI.
+
+**Owners (one owner per file):**
+
+| Who | Files | Delivers |
+| --- | --- | --- |
+| worker | `core/weather.py` (until handed to Sky, see below), `blender/weather.py`, `props.py`, `ui.py`, new `ui_weather.py`, `ops_weather.py`, `animation.py`, `ops_motion.py`, `ui_motion.py`, `states.py`, `reimport.py`, tour, PC check, guide, CHANGELOG, TASKS.md, version files | settings, panel, presets, the step, saved scenes, model update, tour/PC check/guide |
+| **Sea** agent | new `core/sea.py` + `tests/test_sea.py`; the sea part of `blender/surroundings.py` (and `core/surroundings.py` if the Simple sea mesh needs rings near the hull); `core/vessel_motion.py` / `blender/vessel_motion.py` only for compatibility | scope 0 + spray (6) |
+| **Sky** agent | `blender/weather_sky.py` (new), `blender/world.py`; owns `core/weather.py` from its start (the worker no longer edits it; tests `tests/test_weather_core.py`, `tests/test_weather_sky.py`) | scope 2, 3 (+ the sky part of 1) |
+| **Look** agent | `blender/weather_look.py`, `blender/weather_fx.py`, `core/weather_fx.py` (all new), the 3-line hook in `blender/materials.py` `build_nodes`; tests `tests/test_weather_look.py`, `tests/test_weather_fx.py` | scope 4, 5, flags of 6 |
+| tester (later) | new tests only | breaks it from this brief |
+
+**Sea agent – interfaces.** `core/sea.py` (pure Python + NumPy): `components(wind_bft, toward_deg, seed=…) ->
+list[(amp, dx, dy, k, phase)]` (the same tuple as today's `surroundings._waves`; a Pierson–Moskowitz/JONSWAP
+spectrum with cos-2s spreading, ≥ 24 components, no visible repeat; deterministic); `height(x, y, t, comps)`,
+`slope(x, y, t, comps)`; `whitecap_coverage(u10)` (Monahan & O'Muircheartaigh 1980, W = 3.84e-6 U^3.41, cite it);
+`foam(x, y, t, wind_bft, comps)` – the **exact** formula the water shader evaluates (crest steepness × a patch field
+made of sines that drifts along the wind and lives a few seconds; streaks along the wind from Bft 7; no Blender noise
+in the coverage part, so Python and the shader agree); `foam_threshold(bft) -> float` (calibrated so the share of sea
+above it equals the Monahan coverage; `core/weather.derive` already calls it for the `foam` channel); `STATES =
+{"CALM": 3.0, "ROUGH": 6.0}` (Beaufort; today's two choices); water colours. `blender/surroundings.py`: `SEA` and
+`_waves(state, swell=())` stay (0106 reads them; `_waves` returns the new components for CALM/ROUGH/WIND);
+`s.sea_state` has a third item `WIND` ("From the wind": `scene["fr_wx_wind"]`… read the *settings*
+`scene.fresing.weather.wind` and `core.weather.wind_vector(weather.state(scene))` at build; the sea is rebuilt when
+they change – put them in `_settings_key`); the water shader reads the `foam` threshold from the channel when
+`scene.fresing.weather.enabled` (VIEW_LAYER attribute `fr_wx_foam`), else from `foam_threshold(STATES[state])`;
+normals from the analytic slope (no repeat far away); deep-water colour + Fresnel + crest scatter, right under Sun and
+Overcast; **hull foam** at the waterline that follows heave and roll (e.g. a footprint line of the model at the water,
+a child of the vessel rig, Geometry Proximity in the sea's GN → attribute), in Simple and Detailed; **wake** behind the
+stern when `scene.fresing.weather.vessel_speed` > 0 (knots; the stern is at +x, bow at -x); **spray** (an object of
+its own, GN, seeded, Scene Time) off white caps and at the bow from Bft 6 when `weather.spray`; bump `MAT_VERSION`;
+vessel motion keeps matching (`core/vessel_motion.scales` per state: give WIND the nearest/interpolated table).
+
+**Sky agent – interfaces.** `weather_sky.SUN_ROTATION_ZERO_AZ` (scene azimuth of the sky texture's sun at
+`sun_rotation` 0; `weather.switched` uses it so an old project's sun stays where it was); `world_branch(nt, scene, s,
+y) -> socket` used by `world.apply` instead of `_env_branch` when `weather.sky_on(scene)`: the sky from `sun_el` /
+`sun_az` / `sun` / `clouds` / `low` / `day` (sunrise, day, golden hour, dusk colours), stars and a moon disc at night,
+haze towards the horizon, keeping today's ground below the horizon; `world.apply` calls `weather.after_world(scene)` at
+its end (guarded). `apply(scene, st, place)`: moonlight (a dim Sun lamp, energy driven by `moon`), sunlight if needed,
+**floodlights** set up automatically for SEA/DECK/QUAY (spots on masts round the model's box at deck/quay height; a
+mast mesh where it stands on the quay), energy = watts × `flood`; **fog/haze**: measure world/distance fog first (e.g.
+Mist pass + compositor `scene.compositing_node_group` with exp(-fog·d) – the sky itself gets haze from the world
+shader) and a volume only where it pays off; the exposure (`exposure` channel added to the user's own: a driver
+`base + e` on `view_settings.exposure`, base kept in a scene property). **Work lights:** `add_work_light(scene, part,
+kind="SPOT"|"FLOOD") -> light object` (child of the part, tag `fr_work_light` = the part's uid, kept through a model
+update by `after_model_update(scene, mapping)`), `work_lights(scene)`, `remove_work_light(scene, ob)`; they work with
+weather off too. `remove(scene)` takes away everything weather_sky made except work lights.
+
+**Look agent – interfaces.** `weather_look.GROUP = "FR weather"`, `TAG = "fr_weather_wrap"`; `wrap(mat)` puts the
+group (shader in → shader out) **innermost**: between the look's shader and whatever follows (the fade group
+"FR fade", the section group, or the output) – fade/section keep working on the wet surface; `unwrap(mat)`,
+`is_wrapped(mat)`; `apply(scene, on)` wraps every material of the model's parts and decals and the surroundings'
+ground/deck/quay materials (`surroundings.TAG` objects; never the water, lamps, glass of lamps or the sky), unwraps all
+when off. Hook in `materials.build_nodes` before the fade/section lines: `if mat.get("fr_weather_wrap"):
+weather_look.wrap(mat)`. The group reads `wet`, `cover`, (`snow`) by VIEW_LAYER attributes: wet = mixing towards a
+darker version + a clear wet film (glossy, Fresnel), drops and run-off streaks on slopes (world-space, along gravity),
+puddles on flat up-facing faces; snow = a white, rough layer by normal·up and **only under the open sky** (Cycles: the
+AO node, not local, distance ~ tens of metres, on up-facing points; EEVEE: what its AO gives), thickness from `cover`.
+`weather_fx.apply(scene, st, place)` / `remove(scene)`: falling rain (streaks, size from `drop`, slanting with
+`wind_x/y`·`wind`), splashes on the deck and the sea (spots worked out once by rays straight down, then GN with Scene
+Time), falling snow (flakes drifting with the wind), the flag (`weather.flag`: a pole + cloth moved by a GN/shader
+wave from the wind, no simulation) – all seeded, depend only on the frame; in a box round the camera's view / the
+model; amounts driven by the channels (`rain`, `snow`), so the step can start the rain. Objects tagged `fr_weather`.
+
+**Rules for every agent:** first line `git merge claude/affectionate-turing-97hxbu` in the worktree. Never push,
+merge into main, bump the version or touch `TASKS.md`. Tests with `~/venv/bin/python -m pytest tests/<your files>`;
+real-Blender renders one at a time (4 cores). Scripts off (simple expressions only), Cycles + EEVEE, the render queue
+(a background Blender opens the saved file: nothing may depend on Python handlers). Commit in your worktree; report
+what you made, the tests, the numbers measured (render time per frame with your item on: Cycles CPU and EEVEE, Draft)
+and pictures you looked at (`tasks/img/0109_<name>.jpg`, small JPEGs, invented models only).
+
 ## Not in this task
 
 The web page (a later Web 3D task). Cables / hoses / flex parts moving in the wind. Lightning, hail. Changing the

@@ -13,6 +13,7 @@ from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
 from ..core import vessel_motion as vessel_core
+from ..core import weather as weather_core
 
 # Blender keeps only references to enum item strings: the list lives in a module global
 BACKGROUND_ITEMS = env.enum_items()
@@ -2791,6 +2792,145 @@ class FRWeb3D(bpy.types.PropertyGroup):
     last_size: IntProperty(default=0)
 
 
+
+# ---------------------------------------------------------------------------
+# 5 Scene & Render > Weather & time (task 0109)
+# ---------------------------------------------------------------------------
+
+def _weather_changed(self, context):
+    """A weather setting changed: the scene's weather channels, sky, lamps, looks and rain/snow follow."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    if self.preset != "CUSTOM" and not self.get("_preset_busy"):
+        self["_busy"] = True
+        try:
+            self.preset = "CUSTOM"              # changed by hand: no longer the preset
+        finally:
+            del self["_busy"]
+    from . import weather
+    try:
+        weather.changed(context.scene)
+    except Exception as exc:                 # never break the UI over a preview update
+        print("Fresing Render: weather update failed:", exc)
+
+
+def _weather_preset_changed(self, context):
+    if context is None or context.scene is None or self.get("_busy") or self.preset == "CUSTOM":
+        return
+    from . import weather
+    try:
+        weather.use_preset(context.scene, self.preset)
+    except Exception as exc:
+        print("Fresing Render: weather preset failed:", exc)
+
+
+def _weather_on_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import weather
+    try:
+        weather.switched(context.scene)
+    except Exception as exc:
+        print("Fresing Render: weather update failed:", exc)
+
+
+WEATHER_PRESET_ITEMS = [("CUSTOM", "Own settings", "The settings below, as you set them", 0)] + [
+    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below", i + 1)
+    for i, k in enumerate(weather_core.PRESET_ORDER)]
+
+
+class FRWeather(bpy.types.PropertyGroup):
+    """5 Scene & Render > Weather & time (task 0109). Off: the scene looks exactly as it did before."""
+    enabled: BoolProperty(
+        name="Weather & time", default=False, update=_weather_on_changed,
+        description="Sets the time of day and the weather: sun or night, clouds, fog, rain, snow and wind. Off: the "
+                    "sky, light and materials are exactly as without it")
+    preset: EnumProperty(
+        name="Preset", items=WEATHER_PRESET_ITEMS, default=0, update=_weather_preset_changed,
+        description="A ready-made weather. Picking one sets all the controls below; change any of them afterwards")
+    hour: FloatProperty(
+        name="Time", default=12.0, min=0.0, max=24.0, step=25, precision=2, update=_weather_changed,
+        description="Clock time (local sun time: 12:00 is when the sun stands highest). Sets the sun's height and "
+                    "direction and the colour of the sky: sunrise, day, golden hour, dusk, night")
+    use_date: BoolProperty(
+        name="Date and place", default=False, update=_weather_changed,
+        description="Use the real sun path of one day at one latitude. Off: the sun rises at 6:00 and sets at 18:00 "
+                    "(the equinox)")
+    day: IntProperty(
+        name="Day of the year", default=weather_core.EQUINOX_DAY, min=1, max=366, update=_weather_changed,
+        description="Day of the year (1 = 1 January, 172 = 21 June, 355 = 21 December): in summer the sun rises "
+                    "earlier and stands higher")
+    latitude: FloatProperty(
+        name="Latitude", default=weather_core.DEFAULT_LATITUDE, min=-70.0, max=70.0, precision=1,
+        update=_weather_changed,
+        description="How far north the place is (degrees; south is negative). The southern North Sea is about 54, "
+                    "Rotterdam 52, Aberdeen 57")
+    north: FloatProperty(
+        name="North", default=90.0, min=-360.0, max=360.0, precision=0, update=_weather_changed,
+        description="Which way north is in the scene (degrees around the machine: 90 = behind it, 0 = to the "
+                    "right). Turns the sun's path, and the wind with it")
+    clouds: FloatProperty(
+        name="Clouds", default=0.1, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="How much of the sky is cloud: 0 is a clear blue sky, 1 is overcast (soft light, no sun)")
+    low_clouds: FloatProperty(
+        name="Low clouds", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="A low, dark cloud deck: grey and heavy, the top of the sky hidden. Storms and winter days")
+    visibility: FloatProperty(
+        name="Visibility", default=40000.0, min=50.0, max=100000.0, soft_max=40000.0, unit="LENGTH", precision=0,
+        update=_weather_changed,
+        description="How far you can see. 40 km is clear air; 10 km haze; 2 km mist; below 1 km fog, which hides "
+                    "everything further away")
+    rain: FloatProperty(
+        name="Rain", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Falling rain: 0.1 drizzle, 0.5 steady rain, 1 a downpour. It slants with the wind and splashes "
+                    "on the deck and the sea; the machine gets wet")
+    drop_size: FloatProperty(
+        name="Drop size", default=2.0, min=0.5, max=6.0, precision=1, update=_weather_changed,
+        description="Size of the rain drops (mm): 0.5 drizzle, 2 normal rain, 4 or more a heavy shower")
+    wet: FloatProperty(
+        name="Wet", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="How wet the machine and the deck look: darker and glossier, drops and run-off streaks on "
+                    "slopes, puddles on flat parts. Works without falling rain too (after the rain)")
+    snow: FloatProperty(
+        name="Snow", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Falling snow: 0.2 a few flakes, 1 heavy snowfall. The flakes drift with the wind")
+    snow_cover: FloatProperty(
+        name="Snow layer", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="A layer of snow on everything that faces up under the open sky (1 is about 10 cm). Parts "
+                    "under a roof or a cover stay clear")
+    wind: FloatProperty(
+        name="Wind", default=3.0, min=0.0, max=12.0, precision=1, update=_weather_changed,
+        description="Wind strength on the Beaufort scale: 3 a gentle breeze, 6 a strong breeze, 8 a gale, 10 a "
+                    "storm. The sea (when it follows the wind), rain, snow, spray and flags follow it")
+    wind_from: FloatProperty(
+        name="Wind from", default=225.0, min=-360.0, max=360.0, precision=0, update=_weather_changed,
+        description="Where the wind comes from: a compass bearing (0 = north, 90 = east, 225 = south-west), or "
+                    "degrees from the bow when 'From the bow' is picked")
+    wind_ref: EnumProperty(
+        name="Measured", default="NORTH", update=_weather_changed,
+        description="How the wind direction is given",
+        items=[("NORTH", "Compass", "Degrees from north (0 = from the north, 90 = from the east)"),
+               ("BOW", "From the bow", "Degrees from the vessel's bow: 0 = straight ahead, 90 = from starboard, "
+                                       "180 = from astern")])
+    floodlights: EnumProperty(
+        name="Floodlights", default="AUTO", update=_weather_changed,
+        description="Floodlights on masts round the deck or the quay, set up for you",
+        items=[("AUTO", "Auto", "On from dusk to dawn"), ("ON", "On", "Always on"), ("OFF", "Off", "Never on")])
+    flood_strength: FloatProperty(
+        name="Floodlight strength", default=1.0, min=0.0, max=4.0, subtype="FACTOR", update=_weather_changed,
+        description="How bright the floodlights are: 1 is normal, 2 twice as bright")
+    spray: BoolProperty(
+        name="Spray", default=True, update=_weather_changed,
+        description="Spray blown off the wave tops and thrown up at the bow in strong wind (from Bft 6)")
+    flag: BoolProperty(
+        name="Flag", default=False, update=_weather_changed,
+        description="A flag on a pole at the stern (or the back of the machine) that flies in the wind")
+    vessel_speed: FloatProperty(
+        name="Vessel speed", default=0.0, min=0.0, max=20.0, precision=1, update=_weather_changed,
+        description="How fast the vessel sails (knots): a wake of foam behind the stern. 0 for a vessel that lays "
+                    "cable (walking pace or slower) or lies still")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -2955,8 +3095,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     sea_state: EnumProperty(
         name="Sea", default="CALM", update=_world_changed,
         description="How rough the sea is: calm for a quiet day in the harbour, rough for open sea in wind",
-        items=[("CALM", "Calm", "A gentle swell and small ripples"),
-               ("ROUGH", "Rough", "Higher waves, more ripples and white caps")])
+        items=[("CALM", "Calm", "A gentle breeze (Beaufort 3): a low swell, small ripples, hardly a white cap"),
+               ("ROUGH", "Rough", "A strong breeze (Beaufort 6): higher waves, white caps here and there"),
+               ("WIND", "From the wind", "The waves, ripples and white caps follow the wind of Weather & time "
+                                         "(its strength and direction)")])
     sea_foam: BoolProperty(name="Foam", default=True, update=_world_changed,
                            description="White foam on the wave tops. Most visible on a rough sea")
     sea_moving: BoolProperty(name="Moving waves", default=True, update=_world_changed,
@@ -3214,6 +3356,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     spools_index: IntProperty(default=0)
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
+    # ---- weather and time of day (task 0109) ----
+    weather: PointerProperty(type=FRWeather)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -3227,7 +3371,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
            FRSceneSettings)
 
