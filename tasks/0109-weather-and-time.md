@@ -1,4 +1,4 @@
-# 0109 – Weather and time of day in the app: rain, snow, wind, fog and clouds, day to night
+# 0109 – Weather and time of day in the app: a better ocean, rain, snow, wind, fog and clouds, day to night
 
 **Who:** worker · **Status:** open – can start · **Branch:** `task/0109-weather-and-time`
 **Started by:** lead chat, 13 Nov 2026 (owner: "improve the environment: rain, snow, time, wind")
@@ -32,9 +32,10 @@ the render queue too, on Cycles and EEVEE.
   (`WEATHER_ITEMS`), sun height, light rotation / strength, exposure (`props`, `world.py`); surroundings open sea, vessel
   deck, quayside, halls (`surroundings.py`, task 0016); the sea `SEA` Calm / Rough (swell, wavelengths, ripples,
   foam) with moving waves (geometry near the machine in Detailed); vessel motion adds a long swell (0085).
-- 0106 copies `surroundings.SEA` and `_waves` into the web page. **Calm and Rough must give exactly today's sea**
-  (same numbers, same seed) when the wind is left at "From the sea state"; wind settings add to them, they do not change
-  the old formula.
+- 0106 (running) copies today's `surroundings.SEA` and `_waves` into the web page. **The sea may change here** (owner,
+  13 Nov: it looks wrong, scope 0): put the new sea's definition – wave components, heights, crest/foam rule, colours –
+  in **one pure-Python place** (`core/sea.py`, unit-tested: height and foam at a point and a time) so the later Web 3D
+  task can copy it to the page. Do not edit 0106's files.
 - Patterns to reuse: per-part looks through one node group in the materials (Fade 0073, cutaway 0086 – scripts off,
   Cycles + EEVEE, queue); motion from simple-expression drivers or keys (vessel motion 0085), never Python per frame;
   chips / coolant drops worked out once per animation and the same every time (0028, 0042).
@@ -42,6 +43,27 @@ the render queue too, on Cycles and EEVEE.
   the panel).
 
 ## Scope
+
+0. **A better ocean first** (owner's picture, 13 Nov – described here in words, not committed): top view of the demo
+   vessel on Open sea, Rough, Detailed, Foam on, Moving, light Overcast, vessel motion Rough 150 % from the bow quarter.
+   **What is wrong:** the foam forms broad, regular, parallel white bands right across the sea, about half the surface
+   white, spaced at the main wavelength – stripes, not a sea; the pattern repeats visibly from above; the water is a flat
+   dark green-grey; no foam where the hull meets the water. **Cause in the code** (`surroundings._water_shader`): foam =
+   the crest attribute `fr_crest` + 0.35 × noise over a threshold (Rough 0.55), so every crest of the 70 m wave turns
+   white along its whole length; only 5–6 wave components (directions 25° ± 35°, `_waves`) plus vessel motion's swell;
+   base colour (0.006, 0.03, 0.035) with little sky in it. **Aim:**
+   - whitecaps only where waves are steep or breaking, patchy, short-lived and drifting; **coverage from the wind**
+     (Bft 3 ≈ hardly any, Bft 6 ≈ a few per cent, storm much more; streaks of foam along the wind from about Bft 7) –
+     take the coverage from a published relation (e.g. Monahan's whitecap coverage vs wind speed) and cite it;
+   - a sea built from a wave **spectrum** with directional spread (e.g. Pierson–Moskowitz / JONSWAP) – no visible repeat
+     from any height, also a top view of the whole 124 m vessel and towards the horizon; Calm and Rough stay the two
+     quick choices (now = a wind strength), vessel motion's swell keeps matching the vessel's motion;
+   - water colour and reflection right under sun and overcast (deep-water colour, Fresnel sky reflection, a little
+     scatter in wave crests);
+   - **foam round the hull** at the waterline that follows heave and roll; a **wake** when a vessel speed is set
+     (default 0: a cable-lay vessel lays at walking pace or slower);
+   - checked from the owner's view (top, whole vessel), the deck camera and a horizon shot, Cycles and EEVEE, Calm,
+     Rough and three wind strengths; old projects open with the new sea (say so in the changelog).
 
 1. **Panel 5 Scene & Render > Weather & time** (every control with a tooltip; folded): presets **Clear day · Grey North
    Sea · Storm · Snow at the quay · Night shift** that set the controls below; Off = today's look exactly.
@@ -75,8 +97,10 @@ the render queue too, on Cycles and EEVEE.
 
 ## Done when
 
-- [ ] Scope 1–9; Weather Off and old projects look exactly as before (picture check); Calm/Rough waves unchanged with
-      the wind "From the sea state" (unit test on the heights 0106 copies).
+- [ ] Scope 0–9; with Weather Off everything except the sea looks exactly as before (picture check); the new sea in
+      `core/sea.py` with unit tests (heights, foam coverage per wind strength within the cited relation's range).
+- [ ] A before/after contact sheet of the sea in the owner's view (top, whole demo vessel, Rough, Overcast) and a horizon
+      shot in the report.
 - [ ] Tests per part (time → sun angle, presets, seeds same every time, the material hook in Cycles + EEVEE with
       scripts off, snow only under the open sky, the animation step, model update); an agent that did not write the
       code tries to break it; Windows-only code: none expected (say so).
