@@ -51,13 +51,50 @@ def test_every_picture_video_and_guide_exists(built):
     media = build_site.load_media()
     assert media.get("hero"), "no picture or video at the top"
     assert len(media["pictures"]) >= 3
+    model_page = open(os.path.join(out, "model", "index.html"), encoding="utf-8").read() \
+        if media.get("web_model") else ""
     for f in build_site.media_files(media):
         assert os.path.getsize(os.path.join(out, "media", f)) > 1000, f
-        assert f"media/{f}" in page
+        assert f"media/{f}" in page or f"../media/{f}" in model_page, f
     assert os.path.getsize(os.path.join(out, "guide", "index.html")) > 100_000
     assert 'href="guide/"' in page
     for logo in ("fresing-logo_compact_reversed.svg", "fresing-logo_full_reversed.svg", "fresing-app-icon.svg"):
         assert os.path.exists(os.path.join(out, "brand", logo))
+
+
+def test_turn_it_yourself(built, tmp_path):
+    """Task 0099: the landing page links to a viewer page with the web model; the page itself stays script-free and
+    loads no model; the viewer and its licence are on the site; the model is a valid, small glTF file."""
+    out, _version, page = built
+    media = build_site.load_media()
+    w = media["web_model"]
+    assert w["model"] in media["models"]
+    assert 'id="turn"' in page and 'href="model/"' in page and 'href="#turn"' in page
+    assert "<script" not in page.lower()                                   # the model loads only when opened
+    assert not re.search(r'(src|href)="[^"]*\.glb"', page)
+    viewer = open(os.path.join(out, "model", "index.html"), encoding="utf-8").read()
+    assert f'src="../vendor/{build_site.web3d.MV_FILE}"' in viewer and f'src="../media/{w["file"]}"' in viewer
+    assert not re.search(r'src="https?://', viewer)
+    for f in (build_site.web3d.MV_FILE, "LICENSE-model-viewer.txt"):
+        assert os.path.getsize(os.path.join(out, "vendor", f)) > 1000
+    data = open(os.path.join(out, "media", w["file"]), "rb").read()
+    assert build_site.web3d.problems(data) == [] and len(data) <= build_site.GLB_MAX
+    info = build_site.web3d.summary(data)
+    assert info["parts"] > 5 and all(n == "Model" or n.startswith("Part ") for n in info["names"])
+    # the checks catch a model page that loads from another site, and a model that may not be published
+    bad = dict(media, web_model=dict(w, model="fresing_400"))
+    assert any("may not be published" in p for p in build_site.check_model(out, bad, "model-viewer"))
+    with open(os.path.join(out, "model", "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(viewer.replace("../vendor/", "https://cdn.example.com/"))
+    try:
+        assert any("another site" in p for p in build_site.check_model(out, media, "model-viewer"))
+    finally:
+        with open(os.path.join(out, "model", "index.html"), "w", encoding="utf-8") as fh:
+            fh.write(viewer)
+    with pytest.raises(SystemExit, match="not public"):
+        build_site.web_model(os.path.join(out, "media", w["file"]), "fresing_400", "")
+    with pytest.raises(SystemExit, match="add 'nobody'"):
+        build_site.web_model(os.path.join(out, "media", w["file"]), "nobody", "")
 
 
 def test_every_model_credited(built):

@@ -50,6 +50,43 @@ page he can send to a customer. The landing page shows such a model that visitor
 - **Motion (only if cheap):** rigid parts' motion of one saved animation as glTF animation (object keys); otherwise
   leave as a follow-up. Material removal, chips, coolant, hoses (0058) and vessel motion are not exported.
 
+## Design (worker, 12 Nov 2026)
+
+Measured first (web machine, 4 cores, bpy 5.2.3, test mill): Cycles bakes one object per pass over the *whole* target
+image, so 8 looks as 8 planes into one atlas took 18 s at 1024 px; the same as **one** object with one quad per tile
+took 3–5 s for 9–16 tiles. So: one bake object, one bake call per atlas (at most 4096 px square).
+
+- **Own GLB writer** (`core/web3d.py`, plain Python + NumPy), not Blender's exporter: the project is never changed (no
+  UV layer or material swapped on the owner's meshes), copies of a part share one glTF mesh, names are under our
+  control (Hide part names), normals as int8 (`KHR_mesh_quantization`, three.js and Blender read it), no Draco (it
+  would need a decoder from Google's CDN: the viewer page must work offline). Blender Z-up -> glTF Y-up by one root node.
+- **Bake per channel source, not per part.** For every material on a visible part, each Principled input (Base Color,
+  Alpha, Roughness, Metallic, Normal) is either a constant (-> glTF factor, no texture) or fed by nodes. Fed inputs
+  get a *signature* of the nodes upstream; equal signatures are baked once (all paint_satin colours share one orange
+  peel normal map). Each source is one tile: a 0.2 m square, `Texture size` px, wired into an Emission shader on a
+  quad of the one bake object (the normal as n*0.5+0.5). A tile that comes out flat (spread < 1/255) becomes a factor.
+  Tiles are made seamless (cross-fade with a half-shifted copy) and saved as JPG (colour PNG when it has holes).
+- **UVs:** box projection per triangle in the part's own axes (metres / 0.2 m), so the texture has the renders' scale
+  and moves with the part; right-handed U/V per side.
+- **Decals** are baked one by one (their own UVs, colour + alpha, clamped), as transparent meshes on their part.
+- **What goes in:** parts and decals visible in the view (hidden parts, Show only: left out), at the current frame
+  (pose); surroundings, tool copies, chips, coolant, hoses: not. Cutaway and X-ray look: whole, opaque parts.
+- **Lost in the web model** (said in the panel and guide): edge wear and corner dirt (they come from the part's own
+  shape), the anisotropic sheen of brushed / ground / turned metal (glTF's anisotropy needs per-part tangents),
+  tool marks on cut faces, sub-pixel machining marks. Kept: colours, gloss, metal, orange peel, cast/blasted bump,
+  coat (`KHR_materials_clearcoat`), glass (`KHR_materials_transmission`), lights (emission), grids with holes, decals.
+- **Hide part names** (default on): nodes "Part 1…", meshes "Mesh 1…", materials "Look 1…".
+- **Animation** (tick, only when an animation is built): the world place of every moving part sampled per frame
+  (translation + rotation, linear), one glTF animation.
+- **Viewer page:** `<name>.html` = one file: model-viewer 4.4.0 (Apache-2.0, `fresing_render/web/`, the UMD build with
+  three.js and lit inside) inlined, the GLB inlined as base64 and handed over as a Blob URL (fetch of file:// fails).
+- **Work in the window:** a modal operator steps a generator (collect, bake batches, meshes, animation, write) with
+  progress and Cancel/Esc; files are written to a temporary name and renamed at the end.
+- **Website:** the landing page stays script-free (its `--check` rule): a "Turn it yourself" section with a poster
+  picture links to `model/index.html`, a small viewer page that loads `vendor/model-viewer-umd.min.js` and
+  `media/<model>.glb` only when opened. `build_site.py --web-model <glb> --model <id>` swaps the model.
+  Site model: an invented one (the app's own test/demo models) – never the Fresing 400.
+
 ## Done when
 
 - [ ] 5 Scene & Render > **Web 3D model**: Texture size, Hide part names, (Include animation if built), **Export…** →

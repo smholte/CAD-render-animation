@@ -2379,6 +2379,30 @@ class FRCut(bpy.types.PropertyGroup):
     root_uid: StringProperty()
 
 
+class FRWeb3D(bpy.types.PropertyGroup):
+    """Web 3D model (task 0099): settings of 5 Scene & Render > Web 3D model and the last export."""
+
+    texture_size: EnumProperty(
+        name="Texture size", default="1024",
+        description="Sharpness of the baked looks: pixels per 20 cm tile of each look. Bigger is sharper close up "
+                    "but makes the file bigger and the export slower",
+        items=[("512", "512", "Small file, for phones and e-mail"),
+               ("1024", "1024", "Sharp enough for most screens (the default)"),
+               ("2048", "2048", "Sharpest close up; bigger file and slower export")])
+    hide_names: BoolProperty(
+        name="Hide part names", default=True,
+        description="On: the parts are called Part 1, Part 2 … in the file, so a customer does not see your part "
+                    "numbers. Off: the parts keep the names they have in the app")
+    animation: BoolProperty(
+        name="Include animation", default=False,
+        description="Puts the motion of the built animation into the file: the page plays it in a loop. Only "
+                    "parts that move as a whole (no milling, chips, coolant or hoses). Makes the export slower")
+    last_path: StringProperty(default="")
+    last_html: StringProperty(default="")
+    last_text: StringProperty(default="")
+    last_size: IntProperty(default=0)
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -2770,6 +2794,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- hoses, cables and drag chains (task 0058) ----
     flex: CollectionProperty(type=FRFlex)
     flex_index: IntProperty(default=0)
+    # ---- web 3D model (task 0099) ----
+    web3d: PointerProperty(type=FRWeb3D)
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw
@@ -2783,7 +2809,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
            FRCutTarget, FRCut, FRFlex, FRSceneSettings)
 
 

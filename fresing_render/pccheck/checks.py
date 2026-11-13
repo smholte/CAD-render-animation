@@ -487,7 +487,7 @@ M30
 """
 
 
-@line("motion.flex", "Hoses, a cable and drag chains follow the motion", "0.2.77",
+@line("motion.flex", "Hoses, a cable and drag chains follow the motion", "0.2.78",
       what="A luffing arm with three hydraulic hoses and a hanging cable, a gantry with a drag chain on each axis: "
            "posed and in a built animation the hose ends stay on their fittings, the hoses keep their length, the "
            "chains' links keep their length and the moving ends stay on their parts; the same frame always gives "
@@ -1421,6 +1421,32 @@ def scene_sea(ctx):
     _small_output(s)
     info = _cpu_still(ctx, scene, "sea", "Open sea (processor, draft)", model_check=False)
     return f"rendered in {info['seconds']} s"
+
+
+@line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",
+      what="The test mill saved as a web 3D model (.glb, Texture size 1024) and its one-file viewer page; the file is "
+           "read back and checked against the glTF rules, part names hidden")
+def web3d_export(ctx):
+    from ..blender import build, web3d
+    from ..core import web3d as core
+    scene = ctx.fresh(MILL)
+    shown = len([p for p in build.iter_parts(scene) if p.visible_get()])
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Test mill web 3D.glb"), size=1024)
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    info = core.summary(data)
+    _check(info["parts"] == shown, f"{info['parts']} parts in the file, {shown} shown")
+    _check(info["textures"] >= 1, "no look was baked into a picture")
+    _check(len(data) < 5_000_000, f"the file is {len(data) / 1e6:.1f} MB (at most 5 MB for the test mill)")
+    _check(all(n.startswith(("Model", "Part ")) for n in info["names"]), "a part name is in the file")
+    with open(out["html"], encoding="utf-8") as fh:
+        page = fh.read()
+    _check("<model-viewer" in page and 'id="glb"' in page, "the viewer page has no viewer or no model inside")
+    ctx.metric("export", out["seconds"], "s")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    return out["text"]
 
 
 @line("scene.vessel_motion", "Vessel motion at sea", "0.2.65",

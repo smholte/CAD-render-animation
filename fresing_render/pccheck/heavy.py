@@ -612,6 +612,28 @@ def heavy_vessel(ctx):
             f"(+{times[True] - times[False]:.1f} ms)")
 
 
+@line("heavy.web3d", "Big machine: web 3D model", "0.2.77", (H,), requires=("heavy.import",), expected=60,
+      what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden) and its viewer "
+           "page; the file is read back",
+      shows="How long 5 Scene & Render > Web 3D model > Export takes on a big model and how big the file gets",
+      not_shown="How fast a browser shows it (try the page on a phone), the animation (not included)")
+def heavy_web3d(ctx):
+    from ..blender import web3d
+    from ..core import web3d as core
+    scene = ctx.scene_of("heavy.import")
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Big machine web 3D.glb"), size=1024)
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    ctx.metric("export", out["seconds"], "s")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    ctx.metric("peak memory", peak_memory_mb(), "MB")
+    if not small():
+        _check(len(data) < 40_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 40 MB for 3,000 parts)")
+    return out["text"]
+
+
 # ---------------------------------------------------------------------------
 # Heavy with the owner's own model: numbers only
 # ---------------------------------------------------------------------------

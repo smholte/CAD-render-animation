@@ -69,6 +69,12 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .points b { color: var(--charcoal); display: block; }
 
 /* built on Blender */
+.turn { padding: 56px 0; background: var(--mist); }
+.turn-in { display: grid; grid-template-columns: 1fr 1.2fr; gap: 48px; align-items: center; }
+.turn p { max-width: 58ch; }
+.turn-poster { margin: 0; }
+.turn-poster img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 4px; background: #E8ECEF; }
+.turn-poster figcaption { font-size: .85rem; color: var(--slate); margin-top: 8px; }
 .blender { background: var(--deep); color: var(--white); padding: 56px 0; }
 .blender-in { display: grid; grid-template-columns: 1fr 340px; gap: 48px; align-items: center; }
 .blender p { color: var(--line); max-width: 62ch; }
@@ -110,7 +116,7 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .credits { padding-left: 1.2em; }
 
 @media (max-width: 860px) {
-  .hero-in, .two, .fresing-in, .blender-in { grid-template-columns: 1fr; gap: 28px; }
+  .hero-in, .two, .fresing-in, .blender-in, .turn-in { grid-template-columns: 1fr; gap: 28px; }
   .feature { max-width: 340px; }
   .hero { padding-top: 32px; }
   .bar nav a:not(:last-child) { display: none; }
