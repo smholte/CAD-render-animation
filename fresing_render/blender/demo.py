@@ -636,8 +636,8 @@ def spool_stage(d: Demo):
     table = d.part("TURNTABLE", root=d.root())
     coil = d.part("CABLE COIL", root=d.root())
     spool.add(sc, "CAROUSEL", table, CABLE_ITEM, coil=coil, name=SPOOL_ITEM)
-    for suffix in ("Arch slew", "Guide cage swivel"):
-        spool.add_follower(sc, spool.find(sc, SPOOL_ITEM), _joint_ending(d, suffix))
+    for suffix, mode in (("Arch slew", "ARM"), ("Guide cage swivel", "ALONG")):
+        spool.add_follower(sc, spool.find(sc, SPOOL_ITEM), _joint_ending(d, suffix), mode)
     sp = spool.find(sc, SPOOL_ITEM)
     d.notes.append("spool: " + spool.summary(sc, sp))
     d.timings["spool carousel"] = time.time() - t0

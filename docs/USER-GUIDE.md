@@ -1124,8 +1124,8 @@ The line under the list says how much is on it now, on which layer the cable lea
 
 **The settings**
 
-- **On it at the start**: how much cable is on the drum or carousel when the cable's joint is at 0. The app reads
-  it from the CAD cable; type another length to start with a fuller or emptier drum.
+- **On it at start (m)**: how much cable is on the drum or carousel, in metres, when the cable's joint is at 0. The
+  app reads it from the CAD cable; type another length to start with a fuller or emptier drum.
 - **Grooves** (drum): **Spiral groove** – one groove that winds along the drum, each wrap a little further than the
   last – or **Lebus** – parallel grooves where each wrap steps half a groove sideways twice per turn (the
   crossovers; how much of a turn one crossover takes is **Crossover** in **More**, usually 30° to 40°).
@@ -1163,7 +1163,7 @@ A problem shows in red under the list, as "check" in the list line and in the pa
   shows the angle at both flanges. Add a level wind (**This joint follows the layer**), or move the sheave further
   away. 1.5° is a usual limit for grooved drums; change it with **Fleet warning** in **More**.
 - **"Runs empty: 3.20 m more is paid out than it held"**: the cable's joint pays out more than is on the drum or
-  carousel. Type a bigger **On it at the start**, or pay out less.
+  carousel. Type a bigger **On it at start (m)**, or pay out less.
 - **"Overfills: … m more than it holds"**: hauling in winds more onto it than fits between the flanges or in the
   carousel.
 - **Build animation** says it too when the drum runs empty or overfills somewhere in the animation, or when a

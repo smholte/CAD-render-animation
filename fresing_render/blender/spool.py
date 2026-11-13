@@ -1478,9 +1478,12 @@ def add_follower(scene, sp, joint_name: str, mode: str = "") -> str:
         if j.kind == "SLIDE":
             mode = "ACROSS"
         else:
+            # a swivel rides on an arm that follows already, or stands right at the cable's guide: along the turn
+            arms = [_follower_joint(scene, f) for f in sp.followers if f.mode == "ARM"]
+            on_arm = any(a is not None and _rides_on(j.frame, a.motion) for a in arms)
             q = np.array(sp.q, dtype=float)
-            mode = "ALONG" if float(np.hypot(*(c[:2] - q[:2]))) < 0.5 * max(float(np.hypot(*q[:2])), 1e-6) * 0.5 \
-                else "ARM"
+            near = float(np.hypot(*(c[:2] - q[:2]))) < 0.25 * max(float(np.hypot(*q[:2])), 1e-6)
+            mode = "ALONG" if on_arm or near else "ARM"
     if mode == "ACROSS" and j.kind != "SLIDE":
         raise SpoolError(f"'{j.name}' is a rotate joint: only a slide joint can follow across the drum")
     if mode in ("ARM", "ALONG") and (j.kind != "ROTATE" or abs(abs(float(n[2])) - 1.0) > 1e-3):

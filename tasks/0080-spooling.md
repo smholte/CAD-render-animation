@@ -232,10 +232,69 @@ code), D panel + real-app test, F guide. Worker: everything else.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus, effort High; 4 cores, no graphics card), 13 Nov 2026, branch
+`claude/epic-cori-m7bsix` (the web session's branch). Released as **0.2.83**.
 
 **What changed:**
+- **4 Motion > Drums and carousels** (`ui_spool.py`, `ops_spool.py`): Add drum / Add carousel (click picker with the
+  hover highlight; the turning joint is taken, or made from the round face clicked), the list (on/off, layer, check),
+  the status line ("49.6 m on it, layer 3 of 8; holds 201.5 m", or the warning), On it at start (m), Grooves (Spiral /
+  Lebus), Groove pitch, First layer from the other flange / from the rim, the fleet angle at both flanges, **This joint
+  follows the layer** (search list) with each follower's way (Across the drum / Arm over the coil / Along the turn),
+  More: first layer, inner/outer radius, crossover, fleet warning limit, Read it again. Tooltips: 689, 0 missing.
+- **The maths** (`core/spool.py`, no Blender, subagent A): the wound path from the anchor – drum layers as helices
+  (spiral groove) or parallel runs with two crossovers per turn (Lebus), climbs at the flange cut into short pieces;
+  carousel layers as Archimedean spirals, alternating in/out –, true length per piece, the drawing polyline whose
+  chords equal the length, the leave tangent, the spool's turn and the followers as functions of the payout, arm
+  angle, fleet angles, the stack of full layers.
+- **"Follows by table"** (`joints.py`): a new coupling kind next to the ratio – `set_table`, `chain_map` (a ratio on
+  top of a table works: the carousel's support rollers and drive wheels follow "Carousel turn", which follows the
+  cable by table), drivers read the top joint, the keys on the driver curve, simple expressions (scripts off), model
+  update keeps it (specs), the joint details say "Follows … by a table". Old projects unchanged.
+- **The Blender side** (`blender/spool.py`): a cable of 0078 starts on the spool (`a_kind` SPOOL); the leave point is
+  worked out per moment from the turned spool and the payout (live slots of the cable, also for a cable that stays as
+  drawn), so the free span always starts where the drawn rope ends; the spool's turn and its followers by table; the
+  rope on the spool drawn by Geometry Nodes on an object of its own (cut exactly at W0 − p by each point's own length),
+  the full layers below as one solid scaled by a step table; the CAD coil hidden by an empty modifier; bends of the
+  cable lying on a following arm swing with it; empty / overfull / fleet-angle warnings (panel and Build); clash HOOK
+  (the CAD coil left out); model update (part IDs; the cables re-read and taken again); `set_up_test_model`.
+- **Demo:** stage `spool` (after `cable`): the carousel's coil is the spool of "Power cable" on "Cable travel" (28.8 km
+  on it, 24 layers possible), "Carousel turn" by table, "Arch slew" (arm) and "Guide cage swivel" (along) follow the
+  layer; shot 3 pays out 150 m (time-lapse x 90, three turns of the top layer) – the hand-made 6° arch step is gone.
+  Handling winch 1 (shot 6): its fairlead rope is a cable on its own speed joint "HANDLING WINCH 1: Wire travel", its
+  Lebus drum spools it (shot 6 pays out 6 m instead of turning the drum by hand).
+- **Test model** `test_spool.step` (`tools/make_test_spool.py`, subagent C): a spiral-groove winch drum with a
+  level-wind fairlead and a wire; a carousel (3 full layers + a partial one) with a slewing arm and a guide sheave.
+  Tour stop "Drum and carousel spooling", PC-check line `motion.spool`, real-app test `ui_test_spool.py` (43 checks),
+  guide section "Drums and carousels" with two pictures, CLAUDE.md (files, three lessons). Stills:
+  `tasks/img/0080_drum_layers.jpg`, `tasks/img/0080_carousel_top_layer.jpg` (Cycles, processor, test model).
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** A the maths + 29 tests; C the test model + its test; E the independent tests (46, from the brief; it found
+6 real faults: a model update broke both spools, a typed wound length gave a 140° kink and a mis-set level wind, the
+drawn rope overshot the leave point by up to 1.7 mm (Trim Curve sums 32-bit lengths), the solid half a cable
+narrower than the coil, the fleet warning without its flange in Build's notes, the wrong flange named when the first
+layer starts at the other one); D the real-app test, the guide section and its pictures (it found: the panel wrote
+while drawing and stopped after its status line, the drawn rope rendered white, the joint list's strings went stale,
+a cut-off follower row, the wound length shown in mm). All fixed by the worker except the solid's width (kept: the
+brief asks that it keep the cable's volume within 1 %, so it spans the rope middles; E's test now checks that).
+
+**Tested and measured** (web machine, 4 cores, no graphics card, bpy module unless said):
+- Tests: `test_spool_core.py` 29, `test_spool_model.py` 10, `test_joint_table.py` 7, `test_spool.py` 11,
+  `test_spool_independent.py` 46 (E), the tour stop, the PC-check line (5.8 s), real-app `ui_test_spool.py` 43/43
+  (real Blender, xvfb), the demo's tests (incl. a new one for shot 3 and the clash check: 0 rows).
+- Accuracy (test model): drum angle within 0.01° of the exact helix over ±50 m across ≥ 3 layers (driver values as
+  Blender writes them); leave point on its layer's circle within 0.5 mm (drum and carousel, 25 payouts); rope on the
+  spool + paid out = wound within 1 mm; carousel turn per metre within 0.1 % at every radius; carousel stack volume
+  within 1 % (core); level wind on the wrap; with it the fleet angle ~0°, without it 12.5° at the far flange (warned).
+SPEED_PLACEHOLDER
 
 **Open points / follow-up tasks:**
+- The demo's handling winch drums have their fairlead 0.9 m from the flange: the app warns of a fleet angle of 20.9°
+  for handling winch 1 (real geometry of the demo; Demo models lane: a level wind or a fairlead further away).
+- The carousel's solid spans the rope middles (keeps the volume): half a cable narrower than the coil's edges on each
+  side. Owner may prefer the look over the volume.
+- A guide that hangs straight above the coil with no free span (the test model) cannot keep its plane along the turn
+  without a swivel: the cable leaves at an angle in plan view (the demo has the swivel).
+- Lebus: `wound_at` on a parallel run is ambiguous by up to a crossover's turn (the leave point's angle on the drum).
+- Not tested: Windows beyond GitHub's install run; the render queue with spools (a queue copy is: open, build, render).
+- For the owner's PC: shot 3 and shot 6 of the demo in the real view and a GPU render.
