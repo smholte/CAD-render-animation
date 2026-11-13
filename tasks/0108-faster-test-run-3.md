@@ -1,6 +1,6 @@
 # 0108 – Faster test run (round 3): shorter runs, also when several tasks push at once
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0108-faster-test-run-3`
+**Who:** worker · **Status:** running · **Branch:** `task/0108-faster-test-run-3`
 **Started by:** lead chat, 13 Nov 2026 (owner asked how to speed up the work with many tasks at once; lead: keep
 merging per task, make every run shorter)
 **Lane:** Quality & delivery: `.github/workflows/tests.yml`, `tools/ci_*.py`, `tools/ci_times.json`, `conftest.py` /
