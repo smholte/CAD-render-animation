@@ -21,6 +21,7 @@ round faces (nothing is taken from the source's names alone) and compares them w
 
 from __future__ import annotations
 
+import json
 import math
 
 import numpy as np
@@ -344,3 +345,80 @@ def _mesh_points(shape) -> np.ndarray:
             p = tri.Node(i)
             out.append((p.X(), p.Y(), p.Z()))
     return np.array(out)
+
+
+# ---------------------------------------------------------------------------
+# what the invented parts are fitted to
+# ---------------------------------------------------------------------------
+
+VARIANTS = ("offshore", "onshore")
+ONSHORE_SHIFT = -14000.0          # onshore: ground z 0, the tower base on a 1.0 m pedestal (T frame z +15 m -> +1 m)
+SPLIT_Z = 15000.0                 # tower | monopile, T frame (IEA: tower base / transition piece height 15 m)
+
+
+def tower_profile(leaves: list[Leaf], T: TFrame) -> list[tuple[float, float]]:
+    """[(z, outer radius)] of the tower in the T frame, bottom to top: the round outer faces' ends (linear between)."""
+    tower = one(leaves, "tower")
+    W = T.M @ tower.M
+    pts = {}
+    for f in occ.faces(tower.shape):
+        s = occ.surface(f)
+        if s["kind"] not in ("cylinder", "cone") or not _faces_out(f):
+            continue
+        for e in occ.edges(f):
+            p = occ.edge_points(e, 8) @ W[:3, :3].T + W[:3, 3]
+            r = np.hypot(p[:, 0], p[:, 1])
+            if np.ptp(p[:, 2]) < 1.0 and np.ptp(r) < 1.0:          # a ring edge
+                z = round(float(p[0, 2]), 1)
+                pts[z] = max(pts.get(z, 0.0), round(float(r.mean()), 1))
+    out = sorted(pts.items())
+    lo, _hi = occ.bbox(occ.moved(tower.shape, W))
+    if out and lo[2] < out[0][0] - 1.0:                  # the straight 10 m tube runs on down to the pile tip
+        out.insert(0, (round(float(lo[2]), 1), out[0][1]))
+    return out
+
+
+def _faces_out(face) -> bool:
+    """A round face of the tower whose material normal points away from the axis (the outer skin, not the wall's
+    inside)."""
+    from OCP.BRepGProp import BRepGProp_Face
+    from OCP.gp import gp_Pnt, gp_Vec
+    g = BRepGProp_Face(face)
+    u0, u1, v0, v1 = g.Bounds()
+    p, n = gp_Pnt(), gp_Vec()
+    g.Normal((u0 + u1) / 2, (v0 + v1) / 2, p, n)
+    return p.X() * n.X() + p.Y() * n.Y() > 0.0
+
+
+def radius_at(profile: list[tuple[float, float]], z: float) -> float:
+    zs = [p[0] for p in profile]
+    return float(np.interp(z, zs, [p[1] for p in profile]))
+
+
+def fit(leaves: list[Leaf], variant: str, T: TFrame | None = None, measured: dict | None = None) -> dict:
+    """The numbers the invented parts are fitted to, in the variant's frame (mm)."""
+    if variant not in VARIANTS:
+        raise ValueError(variant)
+    T = T or TFrame(leaves)
+    m = json.loads(json.dumps(measured or measure(leaves, T), default=float))
+    dz = ONSHORE_SHIFT if variant == "onshore" else 0.0
+
+    def shift(p):
+        return [p[0], p[1], p[2] + dz]
+    m["rotor"]["point"] = shift(m["rotor"]["point"])
+    for b in m["blades"]:
+        for k in ("point", "root_centre", "apex"):
+            b[k] = shift(b[k])
+    for r in m["hub_rings"]:
+        r["centre"] = shift(r["centre"])
+    m["tower_top_z"] += dz
+    m["yaw_bearing_z"] = [z + dz for z in m["yaw_bearing_z"]]
+    m.update(variant=variant, z_shift=dz, msl_z=0.0 + dz, tower_base_z=SPLIT_Z + dz,
+             seabed_z=-1000.0 * value("water_depth_m") + dz,
+             tower_profile=[(z + dz, r) for z, r in tower_profile(leaves, T)])
+    if variant == "onshore":
+        zb = m["tower_base_z"]
+        m["tower_profile"] = [(zb, radius_at(m["tower_profile"], zb))] + [
+            p for p in m["tower_profile"] if p[0] > zb + 1e-6]
+        m["ground_z"] = 0.0
+    return m
