@@ -49,6 +49,8 @@ NEAR = 5.0 * MM               # "Warn about near misses (closer than …)"
 STEP = 4.0 * MM               # at most this much motion of a pair between two moments that are checked
 MAX_SUB = 48                  # at most this many extra moments between two frames for one pair
 RIGID_TOL = 2e-5              # parts whose motion differs less than this (m, and per matrix entry) move as one
+RIGID_ULPS = 4.0              # ... or than this many float32 steps of the largest move (task 0116: a turbine's rotor
+                              # 136 m up: its parts' matrices, read as float32, differ by 3e-5 m though they move as one)
 MAX_ROWS = 200                # rows kept with the project
 
 
@@ -64,12 +66,16 @@ def deltas(mats: np.ndarray) -> np.ndarray:
     return d[:, :, :3, :].reshape(d.shape[0], d.shape[1], 12)
 
 
-def rigid_groups(d: np.ndarray, tol: float = RIGID_TOL) -> np.ndarray:
-    """Group parts that move as one. ``d`` (P, T, 12) from ``deltas``. Returns a group number per part; group 0
-    holds the parts that never move (when there are any)."""
+def rigid_groups(d: np.ndarray, tol: float = RIGID_TOL, reach: float = 0.0) -> np.ndarray:
+    """Group parts that move as one. ``d`` (P, T, 12) from ``deltas``; ``reach`` = how far (m) the parts are from the
+    origin (the largest coordinate of their matrices). Returns a group number per part; group 0 holds the parts that
+    never move (when there are any)."""
     p = d.shape[0]
     if p == 0:
         return np.zeros(0, dtype=np.int64)
+    if d.size:                   # Blender's matrices are float32: far from the origin they round by more than tol
+        far = max(float(reach), float(np.abs(d[:, :, (3, 7, 11)]).max()))
+        tol = max(tol, RIGID_ULPS * float(np.finfo(np.float32).eps) * far)
     flat = d.reshape(p, -1)
     ident = np.tile(np.array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], dtype=np.float64), d.shape[1])
     labels = np.full(p, -1, dtype=np.int64)

@@ -1557,7 +1557,8 @@ class Check:
         t_read = time.perf_counter() - t0
         T, P = self.mats.shape[:2]
         d = core.deltas(self.mats)
-        groups = core.rigid_groups(d)
+        reach = float(np.abs(self.mats[..., :3, 3]).max()) if self.mats.size else 0.0
+        groups = core.rigid_groups(d, reach=reach)
         # parts that turn in place: held still on their carrier (task 0092); parts of one body as read are never
         # compared, even when one of them is held still and the other is not
         self.orig = groups
@@ -1565,7 +1566,7 @@ class Check:
         self.held = self._hold_still(groups)
         if self.held:
             d = core.deltas(self.mats)
-            groups = core.rigid_groups(d)
+            groups = core.rigid_groups(d, reach=reach)
         self.k_now, self.k_between = 0, False
         self.still_pairs = self._still_pairs()
         t_held = time.perf_counter() - t0

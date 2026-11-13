@@ -48,6 +48,27 @@ def test_parts_that_move_alike_are_one_body_and_still_parts_are_group_0():
     assert len({g[0], g[3], g[6]}) == 3
 
 
+def test_parts_far_from_the_origin_that_move_alike_are_one_body():
+    """Task 0116: a wind turbine's rotor turns 136 m above the ground; read as float32 its parts' motions differed by
+    3e-5 m (two float32 steps at that height) and the shaft and the generator rotor of one body were checked against
+    each other (1.5 mm "clashes" where their faceted round faces touch). A real 1 mm difference still splits them."""
+    T = 12
+    place = [move(0.0, -11.2, 136.5), move(0.0, -12.4, 137.0)]
+    mats = np.empty((T, 2, 4, 4))
+    for k in range(T):
+        turn = rot_z(1.0 * k, about=(0.0, -11.2, 0.0))       # a slow yaw: the parts move little
+        for p in range(2):
+            mats[k, p] = (turn @ place[p]).astype(np.float32).astype(np.float64)
+    mats[5, 1, 2, 3] += 3.05e-5                         # one float32 step apart, as measured in Blender
+    reach = float(np.abs(mats[..., :3, 3]).max())
+    assert C.rigid_groups(C.deltas(mats))[0] != C.rigid_groups(C.deltas(mats))[1]     # the old tolerance split them
+    g = C.rigid_groups(C.deltas(mats), reach=reach)
+    assert g[0] == g[1]
+    mats[7:, 1, 2, 3] += 1e-3
+    g = C.rigid_groups(C.deltas(mats), reach=reach)
+    assert g[0] != g[1]
+
+
 def test_parts_that_part_ways_once_are_two_bodies():
     T = 10
     mats = np.tile(np.eye(4), (T, 2, 1, 1))
