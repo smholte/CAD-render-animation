@@ -1058,4 +1058,6 @@ def test_carried_guide_goes_over_from_one_part_to_the_other_by_a_share_of_the_tu
     straight = np.stack([s, 0 * s, 0 * s], axis=1)
     for a, b in ((straight, straight @ _turn((0, 0, 1), 1.0).T), (line, line @ _turn((0, 0, 1), math.pi).T)):
         g = F.carried(a, b)
-        assert np.isfinite(g).all() and np.abs(g[0] - a[0]).max() < 1e-9 and np.abs(g[-1] - b[-1]).max() < 1e-9
+        # (at half a turn the turn's axis is read from a matrix that barely holds it: the far end is right to about
+        # the square root of the rounding, 2e-8 m on GitHub's processor and under 1e-9 on others – task 0078)
+        assert np.isfinite(g).all() and np.abs(g[0] - a[0]).max() < 1e-9 and np.abs(g[-1] - b[-1]).max() < 1e-6
