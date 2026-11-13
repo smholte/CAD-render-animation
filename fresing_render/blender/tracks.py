@@ -105,9 +105,23 @@ def _name(ob) -> str:
     return str(ob.get(build.PROP_NAME, "") or ob.name) if ob is not None else ""
 
 
+def key_of(item) -> str:
+    """What the track's parts, loop and app-made joints are tagged with: fixed when it is made (a renamed track keeps
+    its parts)."""
+    return item.key or item.name
+
+
+def _new_key(scene) -> str:
+    keys = {key_of(x) for x in scene.fresing.tracks}
+    n = 1
+    while f"track {n}" in keys:
+        n += 1
+    return f"track {n}"
+
+
 def parts_of(scene, item) -> list:
     """The CAD parts the track moves (links, pads, plates)."""
-    return [ob for ob in scene.objects if ob.get(TAG) == item.name and ob.get(ROLE) in ("link", "rider")]
+    return [ob for ob in scene.objects if ob.get(TAG) == key_of(item) and ob.get(ROLE) in ("link", "rider")]
 
 
 def track_parts(scene) -> list:
@@ -444,7 +458,7 @@ def _set_loop(scene, item, A, X, Z):
     ob = loop_object(scene, item)
     if ob is None:
         ob = bpy.data.objects.new(name, me)
-        ob[TAG] = item.name
+        ob[TAG] = key_of(item)
         ob[ROLE] = "loop"
         ob[build.PROP_KIND] = "track"
         flex._collection(scene).objects.link(ob)
@@ -490,7 +504,7 @@ def _make_wheel_joints(scene, item, geo: dict) -> None:
         own = _own_joint(scene, w["part"], w["centre"], w["axis"], w["radius"], memo)
         if own:
             j = joints.find(scene, own)
-            mine = j is not None and j.motion is not None and j.motion.get(TAG) == item.name
+            mine = j is not None and j.motion is not None and j.motion.get(TAG) == key_of(item)
             with flex._quiet(row):
                 row.joint, row.made_joint = own, mine           # (one it made before a model update is still its own)
                 row.coupled = row.coupled or mine
@@ -501,7 +515,7 @@ def _make_wheel_joints(scene, item, geo: dict) -> None:
             with flex._quiet(row):
                 row.note = f"it cannot turn: {exc}"
             continue
-        j.motion[TAG] = item.name
+        j.motion[TAG] = key_of(item)
         with flex._quiet(row):
             row.joint, row.made_joint, row.coupled = j.name, True, True
         memo.clear()
@@ -537,7 +551,7 @@ def _check_carrier(scene, item) -> None:
                              "whose wheels move against each other (a tension idler on a joint) is not done yet.")
 
 
-def add(scene, wheels, chain, riders=(), joint: str = "", name: str = ""):
+def add(scene, wheels, chain, riders=(), joint: str = "", name: str = "", key: str = ""):
     """A new track. ``wheels``: the wheel parts round the loop (or (part, hit point) pairs), at least 2; ``chain``:
     one link; ``riders``: one pad, one plate … (their copies ride along). ``joint``: its speed ('' = the nearest
     cable's, else a new slide joint). Raises TrackError in plain words and leaves nothing behind then."""
@@ -548,8 +562,10 @@ def add(scene, wheels, chain, riders=(), joint: str = "", name: str = ""):
         if j is None:
             raise TrackError(f"There is no joint called '{joint}'.")
     geo = _read(scene, pairs, chain, riders)
+    key = key if key and key not in {key_of(x) for x in s.tracks} else _new_key(scene)
     item = s.tracks.add()
     with flex._quiet(item):
+        item.key = key
         item.name = _unique(scene, name or _default_name(chain))
         item.chain_uid = str(chain.get(build.PROP_UID, ""))
         item.rider_uids = "\n".join(str(r.get(build.PROP_UID, "")) for r in riders or () if r is not None)
@@ -679,7 +695,7 @@ def _attach(scene, item, data: dict) -> None:
         ob = bpy.data.objects.get(r["name"])
         if ob is None:
             continue
-        ob[TAG] = item.name
+        ob[TAG] = key_of(item)
         ob[ROLE] = r["kind"]
         mod = ob.modifiers.get(MOD)
         if mod is None or mod.type != "NODES":
@@ -731,7 +747,7 @@ def _new_speed_joint(scene, item):
         j = joints.create(scene, "SLIDE", [], w.translation.copy(),
                           (w.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized(), name=jname, base=base,
                           allow_empty=True)
-        j.motion[TAG] = item.name
+        j.motion[TAG] = key_of(item)
         jname = j.name
     j = joints.find(scene, jname)
     if j.use_limits:
@@ -935,8 +951,7 @@ def remove(scene, index: int) -> None:
     if not 0 <= index < len(s.tracks):
         return
     item = s.tracks[index]
-    name = item.name
-    for ob in [o for o in scene.objects if o.get(TAG) == name and o.get(ROLE) in ("link", "rider")]:
+    for ob in parts_of(scene, item):
         _strip(ob)
     _remove_loop(scene, item)
     made = [w.joint for w in item.wheels if w.made_joint and w.joint]
@@ -1091,14 +1106,14 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     notes = []
     keep = []
     for it in s.tracks:
-        keep.append({"name": it.name, "joint": it.joint, "reverse": bool(it.reverse), "enabled": bool(it.enabled),
+        keep.append({"name": it.name, "key": key_of(it), "joint": it.joint, "reverse": bool(it.reverse), "enabled": bool(it.enabled),
                      "made_joint": bool(it.made_joint),
                      "wheels": [w.part_uid for w in it.wheels], "chain": it.chain_uid,
                      "coupled": [w.part_uid for w in it.wheels if w.coupled],
                      "riders": [u for u in it.rider_uids.split("\n") if u]})
     while len(s.tracks):
         it = s.tracks[0]
-        for ob in [o for o in scene.objects if o.get(TAG) == it.name and o.get(ROLE) in ("link", "rider")]:
+        for ob in parts_of(scene, it):
             _strip(ob)
         _remove_loop(scene, it)
         s.tracks.remove(0)
@@ -1113,7 +1128,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             continue
         joint = k["joint"] if joints.find(scene, k["joint"]) is not None else ""
         try:
-            it = add(scene, wheels, chain, [r for r in riders if r is not None], joint=joint, name=k["name"])
+            it = add(scene, wheels, chain, [r for r in riders if r is not None], joint=joint, name=k["name"],
+                     key=k["key"])
         except TrackError as exc:
             notes.append(f"Track '{k['name']}': {exc}")
             continue

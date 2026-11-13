@@ -346,12 +346,22 @@ def test_model_update_keeps_the_tracks(made):
     pose(cable=0.0, belt=0.0)
 
 
+def test_a_renamed_track_keeps_its_parts(made):
+    sc = _sc()
+    it = tracks.find(sc, "Belt")
+    n = len(tracks.parts_of(sc, it))
+    it.name = "Conveyor"
+    it = tracks.find(sc, "Conveyor")
+    assert len(tracks.parts_of(sc, it)) == n and tracks.status(sc, it)[1] == "OK"
+    it.name = "Belt"
+
+
 def test_remove_puts_the_parts_back(made):
     sc = _sc()
     it = tracks.find(sc, "Belt")
     parts = tracks.parts_of(sc, it)
     made_joints = [w.joint for w in it.wheels if w.made_joint] + [it.joint]
-    assert all(joints.find(sc, n) is not None for n in made_joints)
+    assert len(made_joints) == 4 and all(joints.find(sc, n) is not None for n in made_joints)   # (also after the update)
     tracks.remove(sc, tracks.index_of(sc, it))
     assert all(tracks.MOD not in o.modifiers and tracks.TAG not in o for o in parts)
     assert all(joints.find(sc, n) is None for n in made_joints)

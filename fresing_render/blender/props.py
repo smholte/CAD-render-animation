@@ -2458,6 +2458,7 @@ class FRTrack(bpy.types.PropertyGroup):
                     "On: the other way round. Tick it when the pads run the wrong way")
     wheels: CollectionProperty(type=FRTrackWheel)
     wheels_index: IntProperty(default=0)
+    key: StringProperty()                                  # what its parts and app-made joints are tagged with
     chain_uid: StringProperty()                            # the link that was clicked
     rider_uids: StringProperty()                           # the pads / plates that were clicked, one per line
     # ---- state (written by blender/tracks.py) ----
