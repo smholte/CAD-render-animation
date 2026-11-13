@@ -52,6 +52,7 @@ def short_status(scene, item) -> tuple[str, bool]:
         return "no path", True
     if level == "WARN":
         for start, word in (("bends tighter", "tight bend"), ("no longer touches", "lifted off"),
+                            ("goes ", "check side"), ("cannot go round", "no path"), ("has no path", "no path"),
                             ("its speed joint", "no speed")):
             if text.startswith(start):
                 return word, True

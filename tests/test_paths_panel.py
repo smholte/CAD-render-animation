@@ -541,6 +541,33 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
     assert rows == ["no path"] and head == ["1 warning"] and "Cable: its part is gone" in " ".join(texts)
 
 
+def test_every_warning_has_its_word_in_the_list(added, monkeypatch):
+    """The sentences paths.status gives, and the word or two the list row shows for each."""
+    sc = added
+    it = cable(sc)
+    for text, level, word in (
+            ("7.02 m over 6 contacts", "OK", ("", False)), ("off", "OFF", ("off", False)),
+            ("its part is gone", "ERROR", ("no path", True)),
+            ("bends tighter than its smallest bend (MBR 250 mm) at 'SHEAVE 2': 180 mm", "WARN", ("tight bend", True)),
+            ("no longer touches 'SHEAVE 1' at frame 40", "WARN", ("lifted off", True)),
+            ("goes 261° round 'SHEAVE 2' (drawn: 135°): check its side and the order of the contacts", "WARN",
+             ("check side", True)),
+            ("cannot go round 'SHEAVE 1' in this pose: 'WINCH DRUM' and 'SHEAVE 1' overlap", "WARN", ("no path", True)),
+            ("its speed joint is gone: nothing moves it (remove the cable and add it again)", "WARN",
+             ("no speed", True)),
+            ("something new", "WARN", ("check", True))):
+        monkeypatch.setattr(paths, "status", lambda scene, item, got=(text, level): got)
+        assert ui_paths.short_status(sc, it) == word, text
+        texts, head, rows, _touched = draw_panel()
+        assert head == (["1 warning"] if level in ("WARN", "ERROR") else ["1 cable"]), text
+        assert rows == ([word[0]] if word[0] else []), text
+        joined = " ".join(texts)
+        if level == "WARN":                                          # the whole sentence, under the list
+            assert (f"Cable: {text}" if text.startswith("its ") else f"Cable {text}") in joined, text
+        elif level == "ERROR":
+            assert f"Cable: {text}" in joined
+
+
 # ---------------------------------------------------------------------------
 # tooltips
 # ---------------------------------------------------------------------------
