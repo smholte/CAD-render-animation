@@ -612,6 +612,52 @@ def heavy_vessel(ctx):
             f"(+{times[True] - times[False]:.1f} ms)")
 
 
+@line("heavy.weather", "Big machine: weather and time of day", "0.2.88", (H,), requires=("heavy.import",),
+      expected=150,
+      what="The 3,000-part machine on the quayside with Weather & time: Cycles Preview at HD on the graphics card in "
+           "clear noon light, a storm (rain, wet look, low clouds), snow (falling + a snow layer), fog and at night "
+           "with floodlights; then frames of the time line stepped through with the storm on",
+      shows="What each kind of weather adds to the render time of a big model, and to each frame of playback",
+      not_shown="EEVEE (the Full check renders the weather small on the processor), the Detailed sea")
+def heavy_weather(ctx):
+    from ..blender import weather
+    ctx.need_gpu()
+    z = sizes()
+    scene = ctx.scene_of("heavy.import")
+    s = _hero(ctx, scene)
+    low = z["still_quality"][0]
+    s.env_detail = "SIMPLE"
+    s.background = "QUAY"
+    s.weather.enabled = True
+    frames = max(10, int(z["seconds"] * scene.render.fps))
+    try:
+        for preset, key, title in (("CLEAR_DAY", "weather_clear", "Clear day"), ("STORM", "weather_storm", "Storm"),
+                                   ("SNOW_QUAY", "weather_snow", "Snow at the quay"),
+                                   ("NIGHT_SHIFT", "weather_night", "Night shift, floodlights")):
+            runner_check()
+            weather.use_preset(scene, preset)
+            _still(ctx, scene, key, title, z["w"], z["h"], low, True)
+        weather.use_preset(scene, "CLEAR_DAY")
+        s.weather.visibility = 500.0
+        _still(ctx, scene, "weather_fog", "Fog, 500 m", z["w"], z["h"], low, True)
+        weather.use_preset(scene, "STORM")
+        scene.frame_set(1)
+        t0 = time.time()
+        for f in range(2, frames + 2):
+            scene.frame_set(f)
+        ctx.metric("per frame, storm", (time.time() - t0) * 1000.0 / frames, "ms/frame")
+    finally:
+        s.weather.enabled = False
+        s.background = "COLOR"
+    _memory(ctx)
+    return None
+
+
+def runner_check():
+    from . import runner
+    runner.check_cancel()
+
+
 @line("heavy.web3d", "Big machine: web 3D model", "0.2.77", (H,), requires=("heavy.import",), expected=60,
       what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden, compressed: "
            "the panel's default for a big model) and its viewer page; the file is read back",
@@ -633,6 +679,28 @@ def heavy_web3d(ctx):
         _check(out.get("compressed"), "the big model was not compressed (Smaller file is on by default)")
         _check(len(data) < 20_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 20 MB for 3,000 parts; "
                                        "35 MB before compression)")
+    return out["text"]
+
+
+@line("heavy.web3d_bake", "Big machine: web 3D model with baked light", "0.2.89", (H,), requires=("heavy.import",),
+      expected=240, what="The 3,000-part machine saved as a web 3D model with Light: Soft light baked, sun live, Bake "
+                         "quality Draft (on the graphics card when the app renders with one)",
+      shows="How long baking the light of a big model takes and how much it adds to the file",
+      not_shown="Normal and Fine quality (about 4 and 16 times the samples), how the page looks (open it)")
+def heavy_web3d_bake(ctx):
+    from ..blender import web3d
+    from ..core import web3d as core
+    scene = ctx.scene_of("heavy.import")
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Big machine baked light.glb"), size=512,
+                       light="SOFT", light_quality="DRAFT")
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    ctx.metric("bake", out["light_seconds"], "s")
+    ctx.metric("light", out["light_bytes"] / 1e6, "MB")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    ctx.metric("peak memory", peak_memory_mb(), "MB")
     return out["text"]
 
 

@@ -1,0 +1,54 @@
+name: Site kit
+
+# The render kit for the landing page's pictures and videos (task 0112): tools/make_site_projects.py clones the Thor
+# arm and the CEB press from their repositories (pinned commits), writes their STEP files, checks that the joint sheets
+# in site/render_kit/projects still match the sources, packs the kit (scripts, models.ini, README.txt, sheets, STEP
+# files) and puts it on the DRAFT release "site-kit", replacing the kit zip there (the owner's uploads stay).
+# A draft is not a release of the app: only people with access to the repository see it, "latest" never points at it,
+# and the version checks only read tags that start with "v".
+#   - a push to main that changes the kit or its makers
+#   - by hand: Actions > Site kit > Run workflow
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/render_kit/**", "tools/site_projects/**", "tools/make_site_projects.py",
+            ".github/workflows/site-kit.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-kit
+  cancel-in-progress: true
+
+jobs:
+  kit:
+    name: Build the site kit and put it on the draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: OpenCascade and NumPy (the versions of tools/requirements-dev.txt)
+        shell: bash
+        run: |
+          python -m pip install "$(grep -E '^cadquery-ocp==' tools/requirements-dev.txt)" "$(grep -E '^numpy==' tools/requirements-dev.txt)"
+
+      - name: Build the kit (tools/make_site_projects.py --kit)
+        shell: bash
+        run: |
+          python tools/make_site_projects.py --kit dist/fresing_site_kit.zip --cache "$RUNNER_TEMP/sources"
+          ls -la dist | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Put it on the draft release site-kit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python tools/make_site_projects.py --publish-kit dist/fresing_site_kit.zip | tee -a "$GITHUB_STEP_SUMMARY"

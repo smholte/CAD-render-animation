@@ -1,6 +1,6 @@
 # 0108 – Faster test run (round 3): shorter runs, also when several tasks push at once
 
-**Who:** worker · **Status:** running · **Branch:** `task/0108-faster-test-run-3`
+**Who:** worker · **Status:** done · **Branch:** `task/0108-faster-test-run-3`
 **Started by:** lead chat, 13 Nov 2026 (owner asked how to speed up the work with many tasks at once; lead: keep
 merging per task, make every run shorter)
 **Lane:** Quality & delivery: `.github/workflows/tests.yml`, `tools/ci_*.py`, `tools/ci_times.json`, `conftest.py` /
@@ -73,10 +73,71 @@ App code; dropping or weakening tests; changing the merge-per-task way of workin
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 13 Nov 2026. No version change (no app code): no release.
+
+**Measured first** (GitHub, green full runs 43435919960, 43438261138, 43442195417, 43440853982): runs took 14.8–19.7 min
+alone, 156–171 job-minutes on ~25 jobs. Start-up per job is small (0.3–0.7 min: venv and Blender come from the cache);
+no queueing in those runs. The minutes are the tests themselves. Floors: the demo project's file (one group, 7–18.5 min;
+its clash check 321–801 s), the PC check job (14.3 min), the tour (8–12.4), suite groups up to 14 min. Slowest test
+functions: demo clash check 801 s, air queue render 325–627 s, phase2 queue still+video 232–288 s, video labels
+208–374 s, idprops queue MP4 135–276 s, video "every option" 166–183 s, tour automatic run 156–164 s, tour clash check
+139–147 s. Profile of the demo clash check (4-core web machine): 800 s, of which 23 s reading frames and 757 s the
+pair tests at each moment, on one core.
 
 **What changed:**
+- **Demo clash check split by frames** (`tests/test_demo_clash.py` new, `tests/demo_clash_child.py` new; the test left
+  `test_demo_project.py`, whose fixture is unchanged): the animation in 36 windows, 4 worker processes take them one at a
+  time. **As strict as before:** every moment and every step between two moments lies in a window (asserted); start
+  overlaps are measured at the animation's first frame, held parts and once-per-turn pairs are decided once over the
+  whole animation as the whole check does, and each window gets its slice. Proof test on the clash test model: the
+  windows give exactly the whole check's rows (pairs, frames, depth) and start overlaps, incl. the post caught between
+  two frames; a window measuring from its own first frame would have allowed the arms 2.9 mm more. On the demo the
+  windows make exactly the whole check's 38,835 moments between frames, 0 rows. The saved project is built: workers
+  do not build again (the test builds again and asserts the same key fingerprint); the whole animation is read once
+  and handed over in a file.
+  Seconds: locally the check 800 s on one core → 172 s per worker (file 5.8 min); GitHub: test 801 s + fixture 98 s in
+  a 18.5 min group → 412 s + 115 s (file 8.9 min, run 43474297961).
+- **PC check halves rebalanced:** `render.eevee` + `queue.eevee` (120 + 155 s) to `pccheck-b`; its small UI tests to
+  scenes/motion. pccheck 14.3 → 9.1–10.4 min, pccheck-b 5.5 → 8.4–9.4. Windows skips `milling.toolpath`, `motion.fade`
+  (51 + 33 s, pure app code, still run on Linux).
+- **Test tour in two jobs** (`tour`, `tour-b`: every other stop, both make the projects; the precheck checks they add
+  up to every stop of `blender/tour.py`): 9.8–12.9 min → 9.2 + 6.2.
+- `paths` real-app test from paths-heavy (9.4–11.7 min) to machines: paths-heavy 6.0–7.3.
+- **9 pytest groups** (was 7), balanced on recorded times; `tools/ci_times.json` re-recorded (run 43476950544).
+- `tools/ci_pytest_summary.py`: skips that mean "no GL context" / "no real Blender" no longer count against
+  `--max-skipped` (two EEVEE tests landed in one group and turned it red); any other skip still counts. Test added.
+- CLAUDE.md sections 2, 5 and 8 updated.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** GitHub runs on the branch: 43458109736 green 16.9 min (3 tasks' runs at once: 8 jobs queued
+5 min); 43469849219 red (the skip rule above; and `ui_test_spool.py` failed 8 of 43 checks once – passed 43/43 locally
+and in every other run: flaky, not touched here); 43474297961 green 14.7; **43476950544 green 12.4 min alone, no
+queueing**, 170 job-minutes on 28 jobs (before: 156–171 on ~25). Longest jobs there: suite 8 12.0 (two queue
+renders: idprops 276 s + video 183 s), Windows 11.1, pccheck 10.4. Test counts: pytest +3 (demo_project −1,
+demo_clash +3, ci_tools +1); real-app checks and PC-check lines the same (moved between jobs; the tour's
+"Make test tour project" now runs in both tour jobs). After merging main twice (0079, 0109 came in; 0109's weather lines joined pccheck-b): runs 43480381561 green 12.7 min and
+43482661794 green 15.8 min (suite 2 ran 15.4 min, flagged SLOW: the runner, not the plan). Runs needed: 6 on the branch
+(one red, above; two after merging main).
+
+**Not reached:** "≤ about 11 min" – 12.4 min alone. What is left is queue renders whose time varies 2x between runs
+(air 290–627 s alone in a group; idprops 135–276; video labels 190–374) and the Windows job (7–11 min).
 
 **Open points / follow-up tasks:**
+- **Proposal (not done), queue-render tests** – the floor now: the air test's queue render renders 21 frames at 12–17 s
+  each locally, of which the picture is ~4 s (measured: the same frame rendered in-process at the same size); the rest is
+  the app's per-frame work in the background run (milling, chips, air). Options for the lead: (a) an app task that makes
+  that per-frame work cheaper (helps users too); (b) run `test_air.py::test_queue_render_blows_the_part_clean`,
+  `test_idprops.py::test_queue_makes_the_mp4_after_the_count_changed` and `test_video_labels.py`'s queued video daily on
+  `main` instead of at every push (a scheduled workflow; a red daily run would need a line in TASKS.md "Problems found" by
+  the workflow or a check in `ci_status.py` that every session runs at its start).
+- **Task 0110 (clash check faster) is running** and changes `blender/clash.py`: `tests/demo_clash_child.py` subclasses
+  `Check` and uses `_start`, `_hold_still`, `_still_pairs`, `windows`, `unround`, `round_memo`, `band_memo`. Whoever
+  merges second keeps `test_demo_clash.py` green; better: 0110 gives `Check` a supported way to check a window of
+  moments with the whole animation's decisions, and the child uses that.
+- With 9 + 10 jobs a run uses 20 jobs at once when alone (GitHub's free limit, from its documentation): two tasks pushing
+  together still queue. Fewer machine-minutes per run needs the queue renders above to get cheaper.
+- `ui_test_spool.py` step "'level' typed into its search, Enter" failed once on GitHub (spool lane).
+- **Flaky on Windows (machining lane):** the run of this task's commit on `main` (43485378789) failed once in the
+  Windows PC check, line `milling.rotary`: "the cuts on the bar are not where the program puts them: radius 24.82,
+  24.82, 25.00, 25.00 mm (should be 23, 23, 22, 22)", the cut taking 54 s instead of ~12 s. The same tree passed it in
+  every branch run; the failed job was run again and passed (run green). A slow runner seems to leave the bar uncut:
+  worth a look by the machining lane.

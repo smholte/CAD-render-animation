@@ -89,6 +89,16 @@ def choice(scene) -> dict | None:
     return out
 
 
+def plain_choice(scene) -> dict:
+    """Surroundings None with baked light (task 0107): the three.js page in its plain form – the project's light,
+    no sea, vessel motion, haze, rain or clouds."""
+    out = from_project(scene)
+    out.update(sea=False, vessel=False, haze=False, rain=False, clouds="NONE", shadows=True)
+    w = scene.fresing.web3d
+    out["quality"], out["auto"] = w.env_quality, bool(w.env_auto)
+    return out
+
+
 def vessel_modes(scene) -> dict:
     """{object name: 'STILL' | 'LEVEL'} for every object a Still / Level mark covers (the parts it moves too)."""
     vm = _vm()
@@ -141,6 +151,11 @@ def sea_block(scene, ch: dict, model_min, model_max) -> dict | None:
         swell = [w.as_tuple() for w in core_vm.swell(state, s.vessel.heading)]
     waves = sur._waves(state, swell)
     own = len(sur._waves(state))
+    # the waves the app's sea draws (task 0109): none shorter than 1 m; a short wave fades out from 5 to 8 of its
+    # lengths from the middle where the rings get too coarse for it (surroundings._height_sum)
+    keep = [i for i, w in enumerate(waves) if 2 * math.pi / w[3] >= 1.0]
+    own = sum(1 for i in keep if i < own)
+    waves = [waves[i] for i in keep]
     root = sur.root_object()
     sea_ob = _vm()._sea_object()
     if sea_ob is not None and root is not None and root.get("fr_kind") in S.SEA_KINDS:
@@ -156,9 +171,14 @@ def sea_block(scene, ch: dict, model_min, model_max) -> dict | None:
         moving, foam = True, True
     size = np.maximum(mx - mn, 0.05)
     near = max(40.0, 5.0 * float(max(size[0], size[1])))
+    fades = []
+    for w in waves:
+        lam = 2 * math.pi / w[3]
+        fades.append([5.0 * lam, 8.0 * lam] if 5.0 * lam < 1.6 * near else [0.0, 0.0])
+    page_foam = p.get("page_foam", p["foam"])
     return {"state": state, "level": level, "origin": list(origin), "near": near,
-            "waves": [list(map(float, w)) for w in waves], "own": own, "bump": float(p["bump"]),
-            "foam": float(p["foam"]) if (foam or state == "ROUGH") else None, "moving": moving,
+            "waves": [list(map(float, w)) for w in waves], "fade": fades, "own": own, "bump": float(p["bump"]),
+            "foam": float(page_foam) if (foam or state == "ROUGH") else None, "moving": moving,
             "amp": float(p["amp"])}
 
 

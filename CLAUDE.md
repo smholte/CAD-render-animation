@@ -132,8 +132,8 @@ The owner's AI usage is limited; every chat works economically:
 
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
-GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0036
-a full run takes about 13 minutes (parallel jobs; a docs-only run about 2), but a task is often run several times. So:
+GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0108
+a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
   `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
   version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
@@ -443,8 +443,14 @@ app_template/fresing_render/   app template: layout, units, switches the extensi
 site/                      the landing page https://smholte.github.io/CAD-render-animation/ (task 0047): index.html +
                            style.css (Fresing palette A, IBM Plex Sans in fonts/), brand/ (Fresing logos), media/ (pictures,
                            video, media.json: captions + credits), CREDITS.md; render_kit/ (the owner's Windows kit: "Make site
-                           pictures.bat" + make_site_pictures.py + models.ini). tools/build_site.py builds it into dist/site;
-                           .github/workflows/pages.yml publishes it (after each release, on site-only pushes to main, by hand)
+                           pictures.bat" + make_site_pictures.py + models.ini; task 0112: projects.py makes a model that moves
+                           from its sheet projects/<model>.json – joints, cylinders, poses, the loop – with the app's own
+                           functions; video = turntable | product | animation, weather per model, the expected time, start
+                           later, one result zip site_pictures_<date>.zip). tools/build_site.py builds it into dist/site
+                           (--take <zip or folder>: the kit's result in); .github/workflows/pages.yml publishes it (after
+                           each release, on site-only pushes to main, by hand). The kit itself: .github/workflows/
+                           site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
+                           "site-kit" (on main when the kit or its makers change; by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
@@ -452,6 +458,12 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
                            make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
                            fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
+                           make_site_projects.py + site_projects/ (task 0112): the site's moving models from their own
+                           sources (cloned at pinned commits): thor.py reads Thor's FreeCAD Assembly4 files (a4.py) – the
+                           joints from the attachment frames, checked by round faces on both sides of each hinge, the
+                           gears coupled by their tooth counts; ceb.py splits the brick press's fused cylinders into
+                           barrel and rod and fixes the source's faults; stepout.py writes the STEP with the moving bodies
+                           as nested sub-assemblies; each model's sheet goes to site/render_kit/projects/
                            inventor/ (task 0104, not part of the app): draft Inventor iLogic rule + Fusion script that
                            write <assembly>.fresing.json (constraints, joints, places), README with the owner's steps,
                            prototype/ = the app side worked out and tried in Blender (motion_plan.py, try_in_blender.py)
@@ -521,9 +533,12 @@ cadquery-ocp-proxy==8.0.1.1.0 manifold3d==3.5.4 --no-deps --only-binary=:all: --
 changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_status.py` says so –, on GitHub's
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
 run; runs on `main` always finish. Since task 0036 the tests run as parallel jobs: a full run takes about
-9–12 minutes from push to verdict (task 0063, 10 Nov 2026: two full runs on the branch: 8.8 and 11.9 min; before 0063: 15.7–18; task 0036: median 12.8;
-before that 24–50). The job that sets the length is the queued-render test of `tests/test_air.py` (~10 min on a runner)
-in a pytest group of its own. The first job,
+12 minutes when it runs alone (task 0108, 13 Nov 2026: 12.4 min, run 43476950544; before it 15–20 min, the demo project's clash check alone 13 min; task 0063: 8.8–11.9;
+task 0036: median 12.8; before that 24–50). One run uses up to 18 jobs at once; GitHub's free plan runs at most 20 jobs
+at a time per account (GitHub's documented limit), so runs of several tasks at once queue behind each other: keep jobs
+short and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file, as
+`tests/test_demo_clash.py` does: its clash check runs as windows of frames in 4 processes at once, judged from the
+animation's first frame so it is as strict as one whole check). The first job,
 `precheck`, picks the **mode** of the run (`ci_status.py` prints it):
 
 - **full** – every job below.
@@ -539,17 +554,18 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | Job | What it does | Time (run 42261621440) |
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
-| Linux - test suite 1 … 4 | pytest, the `tests/test_*.py` files split in 7 groups (`PYTEST_GROUPS`; `test_air.py` fills one alone) balanced by `tools/ci_times.json` – the slowest of each file's last 3 recorded runs (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 4–8 min; the air group ~9–10 min (task 0063) |
-| Linux - real app pccheck / callouts / paths-heavy / tour / ui / scenes / motion | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck + pccheck-b = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`) in two halves – `pccheck2` runs `video.labels` and `queue.time_test` (+ `import.crane` they need), `pccheck` all other Full lines (`tools/ci_pccheck_lines.py`; the precheck fails when they stop adding up to every Full line); machines = milling, cylinder, linkage, waycover, gcode, tourui, doublearm (`ui_test_doublearm.py`, task 0064); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = `paths_test_blender.py` + the PC check Heavy (scaled down, task 0033); tour = the automatic test tour (mode Tour,
-task 0059; its own group since task 0060); ui = `ui_test_app.py`, `ui_test_app2.py`, `ui_test_faces.py`; scenes = `ui_test_surroundings.py`, `ui_test_rule_sets.py`, `ui_test_decals.py`; motion = `ui_test_video.py`, `ui_test_studio.py`, `ci_update_test.py --gui`, `ui_test_milling.py`, `ui_test_cylinder.py`, `ui_test_linkage.py`, `ui_test_waycover.py`, `ui_test_gcode.py` (CNC machine, Run G-code program), `ui_test_tour.py` (test tour); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
+| Linux - test suite 1 … 9 | pytest, the `tests/test_*.py` files split in 9 groups (`PYTEST_GROUPS`, task 0108) balanced by `tools/ci_times.json` – the slowest of each file's last 3 recorded runs (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 7–12 min; `test_air.py` alone in its group (its queued render: 5–11 min, it varies most); `test_demo_clash.py` ~9 min (task 0108) |
+| Linux - real app pccheck / pccheck-b / callouts / paths-heavy / tour / tour-b / ui / scenes / motion / machines | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck + pccheck-b = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`) in two halves – `pccheck2` runs `video.labels`, `queue.time_test`, `render.eevee` and `queue.eevee` (+ `import.crane` they need; task 0108), `pccheck` all other Full lines (`tools/ci_pccheck_lines.py`; the precheck fails when they stop adding up to every Full line); machines = milling, cylinder, linkage, waycover, gcode, tourui, doublearm (`ui_test_doublearm.py`, task 0064) … and `paths_test_blender.py` (task 0108); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = the PC check Heavy (scaled down, task 0033); tour + tour-b = the automatic test tour in two halves, every other stop each, both make the tour projects first (`tools/ci_pccheck_lines.py tour1` / `tour2`, task 0108; mode Tour,
+task 0059; its own group since task 0060); the other groups' tests: `GROUPS` in `tools/ci_real_app.py` (`python tools/ci_groups.py` prints every group; task 0108 moved ui2 + faces to motion, rulesets + decals to scenes, paths to machines); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (the Windows lines of Full, then Heavy scaled down) from their Start-menu shortcuts, then `Uninstall.bat`. **Which PC-check lines run where (task 0063):** Linux runs all Full lines (the two halves above); Windows runs all Full lines except `video.labels`, `queue.time_test`, `queue.video`, `scene.turntable`, `tour.make`, `looks.materials`, `milling.coolant` (long renders of the app's own code, `WINDOWS_SKIPS` in `tools/ci_pccheck_lines.py`) – the Windows-specific parts (install, start, import, CPU render, the queue's background Blender, update check, the launch from the shortcut, the report) stay | 5.7–6.7 min (was 14.6); starts after the build |
+| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (the Windows lines of Full, then Heavy scaled down) from their Start-menu shortcuts, then `Uninstall.bat`. **Which PC-check lines run where (task 0063):** Linux runs all Full lines (the two halves above); Windows runs all Full lines except `video.labels`, `queue.time_test`, `queue.video`, `scene.turntable`, `tour.make`, `looks.materials`, `milling.coolant`, `milling.toolpath`, `motion.fade` (task 0108) (long renders of the app's own code, `WINDOWS_SKIPS` in `tools/ci_pccheck_lines.py`) – the Windows-specific parts (install, start, import, CPU render, the queue's background Blender, update check, the launch from the shortcut, the report) stay | 5.7–6.7 min (was 14.6); starts after the build |
 | Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
 | Delete the rehearsal pre-release | only after a `[release rehearsal]` branch push (docs/UPDATES.md) | < 1 min |
 | Landing page (GitHub Pages) | after "Offer the release": `.github/workflows/pages.yml` builds `site/` with `tools/build_site.py` (newest release, its What's new, the guide) and publishes it; the same workflow runs on a push to `main` that changes `site/` or `tools/build_site.py`, and by hand (Actions → Landing page → Run workflow) | ~1 min |
+| Site kit (`.github/workflows/site-kit.yml`, task 0112) | on a push to `main` that changes `site/render_kit/`, `tools/site_projects/` or `tools/make_site_projects.py`, and by hand: clones Thor and the CEB press, writes their STEP files, checks the shipped joint sheets still match the sources, packs the render kit and puts it on the **draft** release `site-kit` (replacing only the kit zip; the owner's uploads stay). Drafts are invisible to the apps and the version checks | ~2 min |
 
 Blender is downloaded once per version (checked against its SHA-256) and kept in GitHub's
 cache; the version comes from `installer/Install-FresingRender.ps1`, so raising it there is
@@ -967,3 +983,23 @@ the release → Delete); the next run on `main` publishes it again.
   surface where the other part can come, a few mm apart (`local_points`, task 0110).
 - A carousel's joint may turn about an axis that points down: "layers grow along +z" then needs the spool's frame turned
   over (``FRSpool.zsign``), else the coil is read upside down (683 m instead of 28.8 km on the demo's carousel).
+- A test that is longer than the others sets the length of every run. Task 0108 split the demo's clash check (13 min on
+  one core) into windows of frames in 4 processes (`tests/test_demo_clash.py`). Each window must take the whole
+  check's decisions: start overlaps at the animation's first frame, which parts turn in place (held still) and which
+  pairs are checked once per turn. A window that decided these alone from its own frames was still right but three
+  times slower (it tested a spoked sheave against its rope at every moment). GitHub's 4-vCPU runner gives about 2x for
+  4 busy processes, not 4x: share the set-up (read once, hand it over in a file) rather than repeat it per process.
+- Open-source CAD was not drawn to move (task 0112). Thor's Assembly4 frames say where two sub-assemblies meet, but
+  which of a frame's axes is the hinge differs between its sub-assemblies (the elbow's is Y, the others Z): a joint
+  axis read from CAD is checked by round faces on **both** sides of the hinge (the forearm's own round body made the
+  wrong vertical elbow axis look right from one side). The CEB press's drawer is 1.6 mm wider than its way, the
+  plates above reach 3.4 mm into it, its cylinder sits 1° off level and the main cylinder 11 mm off the chamber: run
+  the clash check on a converted model before trusting it, and slide a part along its rails, never along a tilted
+  cylinder that pushes it (it sank 2.3 mm into the frame). A one-piece toothed belt cannot run round a turning
+  pulley: a belt inside the machine is hidden for good (the app's "excluded"), and said so.
+- An animation's start scene (its saved shot) stores the light look, surroundings and weather; Build puts them back.
+  Set the look first, then save the shot (the render kit saves it again after setting the weather, task 0112).
+- The product video re-times an Assembly sequence step from its parts (``sequence.prepare``): to shorten one, scale
+  ``seq_part_time`` too, not only start and duration.
+- A queued render in a test costs the app's work per frame (milling, chips, air: 12–17 s per frame for a 270 px draft
+  whose picture alone takes 4 s), and the same test takes 290–630 s on different runs: a smaller picture saves little.
