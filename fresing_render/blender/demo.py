@@ -50,7 +50,7 @@ TAG = "fr_demo"                       # on the scene of the demo project: the ve
 MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
-LAPSE = 10                            # time-lapse factor of the carousel shot
+LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
 MIN_JOINTS = 309                      # the joint sheet's 308 + Cable travel (the quay's come on top)
 
 
@@ -533,7 +533,7 @@ def turning_in_place(scene) -> list:
         if j.kind != "ROTATE":
             continue
         top = joints.driver_of(scene, j)
-        if top is None or not (top.name in (CABLE, TRAVEL) or top.name.endswith("Drum turn")):
+        if top is None or not (top.name in (CABLE, TRAVEL, WINCH_TRAVEL) or top.name.endswith("Drum turn")):
             continue
         for m in joints.members(j):
             out.append(m)
@@ -602,6 +602,71 @@ def cable_on_its_path(d: Demo):
     d.notes.append("cable: " + (notes[0] if notes else "read"))
     for n in notes[1:4]:
         d.notes.append("cable: " + n)
+
+
+# ---------------------------------------------------------------------------
+# the carousel and a handling winch spool their cable (task 0080)
+# ---------------------------------------------------------------------------
+
+SPOOL_ITEM = "Carousel"               # in 4 Motion > Drums and carousels
+WINCH_SPOOL = "Handling winch 1"
+WINCH_WIRE = "Handling wire 1"        # the handling winch's wire as a cable (its fairlead rope)
+WINCH_TRAVEL = "HANDLING WINCH 1: Wire travel"     # its speed (m of wire paid out); the drum follows it by table
+
+
+def _joint_ending(d: Demo, suffix: str) -> str:
+    for j in d.s.joints:
+        if j.name.endswith(suffix):
+            return j.name
+    raise RuntimeError(f"the demo has no joint '… {suffix}'")
+
+
+@stage("spool", "Carousel and winch drum: the cable comes off layer by layer", after="cable")
+def spool_stage(d: Demo):
+    """The carousel's coil becomes a spool of the power cable on "Cable travel" (4 Motion > Drums and carousels, as
+    "Add carousel" does): "Carousel turn" follows the cable by table, the loading arch slews with the layer and the
+    guide's roller cage swivels along the turn. Handling winch 1 (shot 6) gets its wire on its Lebus drum the same
+    way: the fairlead rope becomes a cable with its own speed joint, the drum follows it by table."""
+    from mathutils import Vector
+
+    from . import joints, paths, spool
+    sc = d.scene
+    t0 = time.time()
+    d.progress("The carousel's coil")
+    table = d.part("TURNTABLE", root=d.root())
+    coil = d.part("CABLE COIL", root=d.root())
+    spool.add(sc, "CAROUSEL", table, CABLE_ITEM, coil=coil, name=SPOOL_ITEM)
+    for suffix, mode in (("Arch slew", "ARM"), ("Guide cage swivel", "ALONG")):
+        spool.add_follower(sc, spool.find(sc, SPOOL_ITEM), _joint_ending(d, suffix), mode)
+    sp = spool.find(sc, SPOOL_ITEM)
+    d.notes.append("spool: " + spool.summary(sc, sp))
+    d.timings["spool carousel"] = time.time() - t0
+    # handling winch 1: its wire (the fairlead rope) on a speed joint of its own, the Lebus drum spools it
+    t1 = time.time()
+    d.progress("Handling winch 1's drum")
+    root = d.root()
+    from . import build, logic
+    unit = joints.members(joints.find(sc, "HANDLING WINCH 1: Drum turn"))[0]      # the drum unit (turns)
+    winch = build.logical_parent(unit)
+    turning = {o.name for o in logic.descendants(unit)}
+    parts = [o for o in logic.descendants(winch) if o.get(build.PROP_KIND) == "part"]
+    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in turning)
+    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM" and o.name in turning)
+    on_drum = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
+    deck = d.part("MAIN DECK", root=root)
+    with joints._batch(sc):
+        j = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=WINCH_TRAVEL,
+                          base=deck, allow_empty=True)
+    j.use_limits = False
+    item = paths.add_cable(sc, WINCH_WIRE, joint=WINCH_TRAVEL)
+    paths.read_cad(sc, item, rope)
+    item = paths.find(sc, WINCH_WIRE)
+    item.look = "ROPE"
+    spool.add(sc, "DRUM", drum, WINCH_WIRE, coil=on_drum, name=WINCH_SPOOL)
+    sp = spool.find(sc, WINCH_SPOOL)
+    sp.groove = "LEBUS"
+    d.notes.append("spool: " + spool.summary(sc, spool.find(sc, WINCH_SPOOL)))
+    d.timings["spool winch"] = time.time() - t1
 
 
 def _nearest(d: Demo, name: str, point):
@@ -1084,13 +1149,14 @@ def shot_deck(d: Demo):
 
 @stage("shot_carousel", "Shot 3: carousel and arch")
 def shot_carousel(d: Demo):
+    """Task 0080: the cable comes off the carousel's top layer turn by turn – the carousel turns by table, the arch
+    slews and the guide's cage swivels with the layer (no hand-made arch step any more)."""
     cam = d.scene.objects.get("Carousel")
     secs = 10.0
-    metres = SPEED / 60.0 * secs * LAPSE                 # 10 m/min real, time-lapse x 10
+    metres = SPEED / 60.0 * secs * LAPSE                 # 10 m/min real, time-lapse
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
     d.joint(CABLE, d.t, secs, metres, slide=True, easing="LINEAR",
-            label=f"Carousel turns, the arch follows (x {LAPSE})")
-    d.joint("LOADING TOWER: Arch slew", d.t, secs, 6.0, easing="SMOOTH")
+            label=f"The top layer pays out, the arch follows (x {LAPSE})")
     d.t += secs
     d.cable_end = metres
 
@@ -1183,8 +1249,8 @@ def shot_drum(d: Demo):
     states.save_shot(d.scene, cam.name)
     d.scene.camera = keep
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.joint("HANDLING WINCH 1: Drum turn", d.t, 7.0, 360.0, easing="SMOOTH",
-            label="Handling winch: Lebus drum, 35° crossovers and risers at the flanges")
+    d.joint(WINCH_TRAVEL, d.t, 7.0, 6.0, slide=True, easing="SMOOTH",
+            label="Handling winch: the wire comes off the Lebus drum, 35° crossovers")
     d.t += 7.0
 
 

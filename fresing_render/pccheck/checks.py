@@ -42,6 +42,7 @@ CLASH = os.path.join(DATA, "test_clash.step")
 FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
+SPOOL = os.path.join(DATA, "test_spool.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
@@ -612,6 +613,36 @@ def motion_paths(ctx):
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "cable_paths", "The rope over drum, sheaves, V rollers and chute, the A-frame leaning forward "
                                      "(processor, draft)")
+    return note
+
+
+@line("motion.spool", "A drum and a carousel spool their cable layer by layer", "0.2.85",
+      what="A winch drum with a level wind and a carousel with a slewing arm: each cable comes off its spool layer by "
+           "layer; the drum and the carousel turn by table with the cable speed, the level wind and the arm follow "
+           "the layer, and the cable leaves its spool on the circle of its layer")
+def motion_spool(ctx):
+    from ..blender import animation, cameras, render, spool, tour
+    scene = ctx.fresh(SPOOL)
+    s = scene.fresing
+    t0 = time.time()
+    made = spool.set_up_test_model(scene)
+    ctx.metric("set up the drum and the carousel", time.time() - t0, "s")
+    for name in made["spools"]:
+        sp = spool.find(scene, name)
+        _check(sp is not None and not sp.problem, f"'{name}': {sp.problem if sp is not None else 'missing'}")
+    scene.camera = cameras.add_camera(scene, "ISO", 35.0, "Spool view")
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with two spools", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_spool(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_end)
+    path = os.path.join(ctx.work, "spool.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "spool", "The drum with its layers and level wind, the carousel with its arm (processor, draft)")
     return note
 
 

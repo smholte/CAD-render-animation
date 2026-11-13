@@ -5,6 +5,28 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.85 – 13 Nov 2026 – drums and carousels: the cable comes off layer by layer (task 0080)
+
+New: 4 Motion > **Drums and carousels**
+- **A cable that comes off its drum or carousel.** Choose the cable in Cables and paths, press **Add drum** or **Add
+  carousel** and click the drum's barrel or the carousel's turntable. The app reads the drum (first layer, the width
+  between the flanges) or the coil (inner and outer radius) and how much cable is on it from where the CAD cable
+  leaves it. The CAD coil or wire on the drum is hidden; the app draws the cable on it, in the cable's own look.
+- **Layer by layer.** On a drum the wraps lie side by side in the spiral groove, each layer back the other way and a
+  layer higher; with **Lebus** grooves the wraps run parallel and step half a groove at two crossovers per turn. On a
+  carousel the top layer gets smaller turn by turn; the full layers under it show as one solid that gets lower layer
+  by layer. The free cable always starts exactly where it leaves the drum or coil.
+- **It turns at the right speed.** The drum or carousel follows the cable speed **by table**: faster as the layers
+  get smaller (within 0.01° of the exact wraps over 100 m). This is a new kind of coupling between joints: it works
+  with scripts off, in the render queue and at any frame rate; the joint's details say "Follows … by a table".
+- **This joint follows the layer:** a level wind goes along the drum with the wrap being paid out, a loading arm or
+  arch swings so its guide stays over the turn being paid out, a guide's swivel turns along it.
+- **Warnings in plain words:** a fleet angle above 1.5° to the first sheave (naming the flange; the limit can be
+  changed), a drum or carousel that runs empty or overfills – in the panel and when you build an animation.
+- **Demo project:** the carousel spools the power cable – in shot 3 the top layer pays out (time-lapse x 90) while the
+  arch slews and the guide's cage swivels with it; handling winch 1 (shot 6) pays out its wire from its Lebus drum.
+- Test tour stop "Drum and carousel spooling", PC-check line `motion.spool`, guide section "Drums and carousels".
+
 ## 0.2.84 – 13 Nov 2026 – demo: the D-quadrant as wide as the cable's path, tensioners open sideways (task 0102)
 
 Changed in the demo project (Help > Make demo project), as you work on deck:

@@ -79,8 +79,9 @@ def test_every_joint_of_the_sheet(made):
     sheet = made["sheet"]["joints"]
     assert len(sheet) == 308                           # task 0102: no S-bend cradles; the cradles that drop
     by = {j.name: j for j in sc.fresing.joints}
-    assert len(by) == len(sheet) + 1 and demo.CABLE in by          # + Cable travel (no quay in the small form)
-    cable_turned = 0
+    # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
+    assert len(by) == len(sheet) + 2 and demo.CABLE in by and demo.WINCH_TRAVEL in by
+    cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
         assert j is not None, row["name"]
@@ -99,7 +100,12 @@ def test_every_joint_of_the_sheet(made):
         below = joints.rides_on(sc, j)
         assert (below.name if below else None) == row.get("rides_on"), row["name"]
         drive = row["drive"]
-        if drive.get("by") == "follows":
+        if j.couple_table:                                          # follows its spool's layer by table (task 0080)
+            assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}"), row["name"]
+            spooled += 1
+        elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
+            assert "Fairlead" in row["name"], row["name"]
+        elif drive.get("by") == "follows":
             assert j.follows == drive["follows"] and math.isclose(j.couple_ratio, drive["ratio"], rel_tol=1e-5)
         elif demo.waits_for_tracks(row["name"]):
             assert not j.follows, row["name"]                      # until task 0079 runs the tracks
@@ -114,8 +120,9 @@ def test_every_joint_of_the_sheet(made):
         dv = np.array((M.to_3x3() @ Vector(row["axis"]["direction"])).normalized())
         assert np.linalg.norm(np.cross(np.array(o) - p, dv)) < 1e-4, row["name"]
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
-    assert cable_turned >= 205                          # 0102: fewer highway cradles (no S-bends; none where the
-    #                                                     D's bar stands at rest or on the rise's top)
+    assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
+    #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
+    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum (task 0080)
 
 
 def test_a_coupling_turns_at_its_ratio(made):
@@ -208,7 +215,7 @@ def test_scenes_cameras_brand_and_the_animation(made):
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
-    assert any("x 10" in b.name for b in a.blocks) and a.fin_captions        # the time-lapse factor in a caption
+    assert any(f"x {demo.LAPSE}" in b.name for b in a.blocks) and a.fin_captions   # the time-lapse in a caption
     assert len(s.callouts) >= 3 and all(c.step == demo.XRAY_STEP for c in s.callouts)
     assert s.background == "SEA"
 
@@ -299,7 +306,8 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     assert not any(c.made_joint for c in it.contacts)              # every roller had its joint from the sheet
     rollers = [c for c in it.contacts if c.kind == "ROLLER"]
     assert all(joints.find(sc, c.joint).follows == demo.CABLE for c in rollers)
-    assert 167.0 < it.length < 174.0 and abs(it.diameter - 0.2) < 0.002      # 0102: no S-bends, a shorter oval
+    # 0102: no S-bends, a shorter oval; 0080: the cable starts where it leaves the coil (the quarter turn is the spool's)
+    assert 150.0 < it.length < 165.0 and abs(it.diameter - 0.2) < 0.002
     assert it.part.get("fr_group_manual") == paths.GROUPS["POWER"]
     assert it.part.material_slots[0].material.get("fr_material") == "cable_power"
     # the drawn tube: the app's, with the attribute the look reads
@@ -595,3 +603,42 @@ def test_help_menu_buttons_have_tooltips(made):
     assert not ops_demo.running() and ops_demo.progress_text() == ""
     assert bpy.ops.fresing.demo_cancel.poll() is False                 # nothing to cancel
     assert ops_demo.kill_tree(0) is None                                # no program: nothing happens
+
+
+def test_shot_3_pays_out_the_carousel_and_the_arch_follows(made):
+    """Task 0080: the carousel's coil is a spool of the power cable on "Cable travel" – the carousel turns by table,
+    the arch slews and the guide's cage swivels with the layer in shot 3; handling winch 1 spools its wire on its
+    Lebus drum; each cable leaves its spool on the circle of its layer."""
+    import numpy as np
+
+    from fresing_render.blender import animation, joints, paths, spool
+    from fresing_render.core import spool as S
+    sc = _scene()
+    car = spool.find(sc, demo.SPOOL_ITEM)
+    assert car is not None and car.kind == "CAROUSEL" and car.enabled and not car.problem, car and car.problem
+    assert 20000.0 < car.wound < 40000.0                            # 15 full layers of 24 m and the top one
+    assert joints.find(sc, car.joint).couple_table == f"spool:{demo.SPOOL_ITEM}"
+    assert sorted(f.mode for f in car.followers) == ["ALONG", "ARM"]
+    win = spool.find(sc, demo.WINCH_SPOOL)
+    assert win is not None and win.groove == "LEBUS" and win.kind == "DRUM"
+    a = sc.fresing.animations[demo.ANIM]
+    if not animation.has_keys(sc):
+        animation.bake(sc, a)
+    step = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.CABLE and "top layer" in b.name)
+    f0, f1 = animation.frame_of(a, step.start), animation.frame_of(a, step.start + step.duration)
+    arch = joints.find(sc, next(f.joint for f in car.followers if f.mode == "ARM"))
+    seen = []
+    for f in (f0, (f0 + f1) // 2, f1):
+        sc.frame_set(f)
+        bpy.context.view_layer.update()
+        p = spool.payout(sc, car)
+        start = np.asarray(paths.shape_now(sc, paths.find(sc, car.cable))[0], dtype=float)
+        loc = np.linalg.inv(spool.frame_cad(sc, car, {})) @ np.r_[start, 1.0]
+        _phi, _a, r, _k = S.at(spool.path_of(sc, car), np.array([car.wound - p]))
+        # (the vessel moves the frame: compare in its own coordinates, Draft meshes)
+        assert math.hypot(loc[0], loc[1]) == pytest.approx(float(r[0]), abs=0.005), f
+        seen.append((p, joints.get_value(arch), joints.get_value(joints.find(sc, car.joint))))
+    assert seen[-1][0] - seen[0][0] == pytest.approx(demo.SPEED / 60.0 * 10.0 * demo.LAPSE, rel=1e-3)
+    assert abs(seen[-1][1] - seen[0][1]) > math.radians(0.5)          # the arch slewed with the layer
+    assert abs(seen[-1][2] - seen[0][2]) > 2.0 * math.pi * 2.5        # the carousel turned some 3 times
+    sc.frame_set(1)

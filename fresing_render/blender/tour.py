@@ -1408,6 +1408,63 @@ def _check_cables(scene):
             f"{turning} parts turning with it to {slip * 1000:.3f} mm")
 
 
+SPOOL_ANIM = "Spooling"
+
+
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step")
+def build_spool(b: Build):
+    from . import spool
+    sc = b.scene
+    _look("PRODUCT")
+    made = spool.set_up_test_model(sc)
+    _check(made["animation"] == SPOOL_ANIM, f"the animation is called '{made['animation']}'")
+    for name in made["spools"]:
+        sp = spool.find(sc, name)
+        _check(sp is not None and not sp.problem, f"'{name}': {sp.problem if sp is not None else 'missing'}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: spooling")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_spool(scene):
+    """Along the built animation: the drum turned and the level wind went along with the wrap being paid out, the
+    carousel turned and its arm swung out; each cable leaves its spool on the circle of its layer."""
+    import numpy as np
+
+    from ..core import spool as S
+    from . import joints, spool
+    sps = [spool.find(scene, n) for n in ("Drum", "Carousel")]
+    _check(all(sp is not None for sp in sps), "a drum or carousel is missing")
+    seen = {sp.name: [] for sp in sps}
+    off = 0.0
+    for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        for sp in sps:
+            from . import paths
+            path = spool.path_of(scene, sp)
+            p = spool.payout(scene, sp)
+            start = np.asarray(paths.shape_now(scene, paths.find(scene, sp.cable))[0], dtype=float)
+            loc = np.linalg.inv(spool.frame_cad(scene, sp, {})) @ np.r_[start, 1.0]
+            _phi, _a, r, _k = S.at(path, np.array([sp.wound - p]))
+            off = max(off, abs(math.hypot(loc[0], loc[1]) - float(r[0])))
+            seen[sp.name].append([p, joints.get_value(joints.find(scene, sp.joint))] +
+                                 [joints.get_value(joints.find(scene, fl.joint)) for fl in sp.followers])
+    drum, car = np.array(seen["Drum"]), np.array(seen["Carousel"])
+    _check(drum[-1, 0] > 5.9 and car[-1, 0] > 5.9, "the cables did not pay out 6 m")
+    _check(abs(drum[-1, 1]) > 30.0, f"the drum turned only {math.degrees(abs(drum[-1, 1])):.0f}°")
+    _check(np.ptp(drum[:, 2]) > 0.1, "the level wind did not go along the drum")
+    _check(abs(car[-1, 1]) > 6.0, f"the carousel turned only {math.degrees(abs(car[-1, 1])):.0f}°")
+    _check(np.ptp(car[:, 2]) > 0.05, "the arm did not swing out with the layer")
+    _check(off < 5e-4, f"a cable leaves its spool {off * 1000:.2f} mm off the circle of its layer")
+    return (f"drum {math.degrees(abs(drum[-1, 1])) / 360.0:.1f} turns, level wind {np.ptp(drum[:, 2]) * 1000:.0f} mm, "
+            f"carousel {math.degrees(abs(car[-1, 1])):.0f}°, arm {math.degrees(np.ptp(car[:, 2])):.1f}°; "
+            f"leave points on their layer to {off * 1000:.2f} mm")
+
+
 @tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step")
 def build_copies(b: Build):
     from mathutils import Vector
@@ -2389,6 +2446,12 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
+     auto="clip")
+stop("spool", MOTION, "spool", "Drum and carousel spooling",
+     "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
+     "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
+     "towards the rim) and the arm swings out so its guide stays over the turn being paid out.",
+     where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
      auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",

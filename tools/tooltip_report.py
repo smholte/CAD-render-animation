@@ -35,7 +35,7 @@ UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py
             "fresing_render/blender/ui_machining.py", "fresing_render/blender/ui_decals.py",
             "fresing_render/blender/ui_gcode.py", "fresing_render/blender/ui_section.py",
             "fresing_render/blender/ui_vessel_motion.py", "fresing_render/blender/ui_flex.py",
-            "fresing_render/blender/ui_paths.py",
+            "fresing_render/blender/ui_paths.py", "fresing_render/blender/ui_spool.py",
             "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 # drawing functions called from a panel in another file: {file: {function: panel}}
@@ -53,7 +53,7 @@ LANE_OF_PANEL = {
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
     "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane", "Hoses and drag chains": "Flex parts lane",
-    "Cables and paths": "Flex parts lane",
+    "Cables and paths": "Flex parts lane", "Drums and carousels": "Flex parts lane",
 }
 
 # Owners of drawn properties, by the expression in the panel code.
@@ -70,9 +70,11 @@ OWNER_TYPES = {
     "v": "FRVessel",                                          # 5 Scene & Render > Vessel motion (task 0085)
     "cb": "FRCable", "ct": "FRCableContact",                   # 4 Motion > Cables and paths (task 0078)
     "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
+    "sp": "FRSpool", "fl": "FRSpoolFollower",                 # 4 Motion > Drums and carousels (task 0080)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
+    "FRESING_UL_spools": "FRSpool",                           # 4 Motion > Drums and carousels (task 0080)
     "FRESING_UL_groups": "FRMaterialGroup", "FRESING_UL_rules": "FRRule", "FRESING_UL_schemes": "FRScheme",
     "FRESING_UL_visibility": "FRVisSet", "FRESING_UL_found": "FRFoundPart", "FRESING_UL_joints": "FRJoint",
     "FRESING_UL_poses": "FRPose", "FRESING_UL_shots": "FRShot", "FRESING_UL_anims": "FRAnimation",

@@ -483,6 +483,9 @@ class FRJoint(bpy.types.PropertyGroup):
     couple_offset_dist: FloatProperty(
         name="Offset", unit="LENGTH", default=0.0, update=_joint_coupling_changed,
         description="Position this joint is at when the joint it follows is at 0, in mm. Usually 0")
+    # follows by a table (task 0080): '' = by the ratio above; else who wrote the table ("spool:Drum"), the keys are
+    # on the motion empty (joints.TABLE)
+    couple_table: StringProperty(default="")
     is_motor: BoolProperty(
         name="Motor (turns without end)", default=False, update=_joint_motor_changed,
         description="A motor has no limits and turns as far as you like; its angle is also shown in turns. "
@@ -2252,7 +2255,8 @@ class FRCable(bpy.types.PropertyGroup):
     # the two ends. FIXED: a point on a part (``a_part``, in its coordinates). WHEEL: the cable starts on its first
     # contact (the point is in that contact's carrier's coordinates). A free end is a FIXED point on the last
     # contact's carrier, ``a_free`` metres straight on from where the cable leaves it (0 = as drawn in CAD).
-    a_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its first contact", "")])
+    a_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its first contact", ""),
+                                                 ("SPOOL", "Comes off a drum or carousel", "")])     # (task 0080)
     a_part: PointerProperty(type=bpy.types.Object)
     a_uid: StringProperty()
     a_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
@@ -2280,6 +2284,116 @@ class FRCable(bpy.types.PropertyGroup):
     length: FloatProperty(default=0.0)                     # of the drawn path, m
     moving: BoolProperty(default=False)                    # its contacts move against each other: a shape per frame
     shapes: PointerProperty(type=bpy.types.Object)         # the hidden mesh holding its points (frames x points)
+
+
+# ---------------------------------------------------------------------------
+# drums and carousels (task 0080): the cable comes off a spool layer by layer. See blender/spool.py.
+# ---------------------------------------------------------------------------
+
+def _spool_changed(self, context):
+    """A setting of a drum or carousel changed: its tables, its drawn rope and the cable's start follow."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import spool
+    spool.changed(context.scene, self)
+
+
+class FRSpoolFollower(bpy.types.PropertyGroup):
+    """A joint that follows where the cable leaves the spool (a level wind, a loading arm, a guide swivel)."""
+    joint: StringProperty(name="Joint", description="The joint that follows the layer")
+    mode: EnumProperty(
+        name="Follows", default="ACROSS", update=_spool_changed,
+        description="How this joint follows where the cable leaves the drum or carousel: along the drum (a level "
+                    "wind), an arm swinging over the coil, or a guide turning along the turn",
+        items=[("ACROSS", "Across the drum", "A slide along the drum: it keeps in line with the wrap being paid out "
+                                             "(a level wind), going back and forth layer by layer"),
+               ("ARM", "Arm over the coil", "A turn about an axis beside the spool: the arm swings so its guide stays "
+                                            "over the turn being paid out (a loading arm or arch)"),
+               ("ALONG", "Along the turn", "A turn about an upright axis at the guide: it keeps the guide lined up "
+                                           "with the turn the cable lifts off (a guide's swivel)")])
+    point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))     # ARM: the point kept over the turn (spool frame)
+    note: StringProperty(default="")
+
+
+class FRSpool(bpy.types.PropertyGroup):
+    """A drum or carousel the cable comes off (task 0080). See blender/spool.py."""
+    name: StringProperty(name="Name", description="Name of this drum or carousel. Double-click to rename it")
+    enabled: BoolProperty(
+        name="On", default=True, update=_spool_changed,
+        description="On: the cable comes off the drum or carousel layer by layer, and the drum or carousel turns "
+                    "with the cable speed. Off: the coil shows as in the CAD file and nothing turns with it")
+    kind: EnumProperty(name="Kind", default="DRUM",
+                       items=[("DRUM", "Drum", "A winch or reel drum: the wraps lie side by side along it"),
+                              ("CAROUSEL", "Carousel", "A turntable with a coil: flat layers, one on top of the other")])
+    cable: StringProperty(name="Cable", description="The cable that comes off it (4 Motion > Cables and paths)")
+    part: PointerProperty(type=bpy.types.Object)           # the part clicked (barrel / turntable)
+    part_uid: StringProperty()
+    coil: PointerProperty(type=bpy.types.Object)           # the CAD coil or wire on the drum (its shape is replaced)
+    coil_uid: StringProperty()
+    owner: PointerProperty(type=bpy.types.Object)          # what the rope is drawn on: the coil, or one the app made
+    joint: StringProperty()                                # the rotate joint that turns it
+    made_joint: BoolProperty(default=False)
+    # the spool's numbers in its joint's arrow coordinates (z = the turning axis), metres
+    r1: FloatProperty(name="First layer radius", unit="LENGTH", default=0.1, min=0.001, precision=4,
+                      update=_spool_changed,
+                      description="Drum: from the axis to the middle of the cable on the first layer, in mm. Read "
+                                  "from the barrel")
+    a_lo: FloatProperty(default=-0.2)
+    a_hi: FloatProperty(default=0.2)
+    r_max: FloatProperty(default=1.0)
+    pitch: FloatProperty(name="Groove pitch", unit="LENGTH", default=0.0, min=0.0, precision=4,
+                         update=_spool_changed,
+                         description="Drum: the distance from one wrap to the next along the drum, in mm. 0 = the cable's "
+                                     "diameter x 1.06 (a usual spiral groove)")
+    r_in: FloatProperty(name="Inner radius", unit="LENGTH", default=0.3, min=0.001, precision=4, update=_spool_changed,
+                        description="Carousel: from the axis to the middle of the innermost turn, in mm")
+    r_out: FloatProperty(name="Outer radius", unit="LENGTH", default=0.8, min=0.001, precision=4,
+                         update=_spool_changed,
+                         description="Carousel: from the axis to the middle of the outermost turn, in mm")
+    a_bot: FloatProperty(default=0.0)
+    a_top: FloatProperty(default=1.0)
+    other_side: BoolProperty(
+        name="First layer from the other side", default=False, update=_spool_changed,
+        description="Drum: off = the first layer starts at the flange the arrow points away from, on = at the other "
+                    "flange. Carousel: off = the first layer starts at the core, on = at the rim")
+    hand: IntProperty(default=1)                           # +1: the wraps turn about +axis from the anchor outwards
+    zsign: IntProperty(default=1)                          # -1: the spool frame's z is the joint arrow's -z
+    leave: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))   # where the CAD cable leaves it (spool frame)
+    phase: FloatProperty(default=0.0)                      # rad: the wound path's turn so it leaves where CAD drew it
+    wound: FloatProperty(
+        name="Wound at the start", default=10.0, min=0.0, soft_max=100000.0, precision=1, step=100,
+        update=_spool_changed,
+        description="How much cable is on the drum or carousel when the cable speed's joint is at 0, in m. Read from "
+                    "where the CAD cable leaves it; type another length to start with more or less")
+    wound_user: BoolProperty(default=False)                # typed: a new reading keeps it
+    groove: EnumProperty(
+        name="Grooves", default="SPIRAL", update=_spool_changed,
+        description="How the drum is grooved: Spiral – one helical groove, the wraps side by side; Lebus – parallel "
+                    "grooves with two crossovers per turn. The wraps follow the grooves",
+        items=[("SPIRAL", "Spiral groove", "One helical groove: each wrap a little further along than the last"),
+               ("LEBUS", "Lebus", "Parallel grooves with two crossovers per turn: the wraps step half a groove there")])
+    crossover: FloatProperty(name="Crossover", subtype="ANGLE", default=0.6108652, min=0.05, max=1.5,
+                             update=_spool_changed,
+                             description="Lebus: how much of a turn one crossover takes (usually 30° to 40°)")
+    fleet_limit: FloatProperty(
+        name="Fleet angle warning", subtype="ANGLE", default=0.02617994, min=0.0, max=0.5, update=_spool_changed,
+        description="A warning when the cable runs to its first sheave at more than this angle from square to the "
+                    "drum, at either flange (1.5° is a usual limit for grooved drums)")
+    followers: CollectionProperty(type=FRSpoolFollower)
+    followers_index: IntProperty(default=0)
+    q: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))  # where the cable runs to from the spool (spool frame,
+    #                                                        CAD pose): its first contact's far end, or its end
+    q_on: StringProperty(default="")                       # the object that carries that point
+    removed: StringProperty(default="")                    # JSON: the cable's contacts on the spool, taken off
+    group_was: StringProperty(default="")                  # the coil part's manual group before the look's
+    # ---- state (written by blender/spool.py) ----
+    problem: StringProperty(default="")
+    layer: IntProperty(default=0)                          # the layer the cable leaves from (1 = the first)
+    layers: IntProperty(default=0)                         # how many layers it holds
+    on_spool: FloatProperty(default=0.0)                   # m on it now
+    capacity: FloatProperty(default=0.0)                   # m it holds when full
+    fleet_lo: FloatProperty(default=0.0)
+    fleet_hi: FloatProperty(default=0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -3096,6 +3210,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- cables and paths (task 0078) ----
     cables: CollectionProperty(type=FRCable)
     cables_index: IntProperty(default=0)
+    spools: CollectionProperty(type=FRSpool)               # drums and carousels the cables come off (task 0080)
+    spools_index: IntProperty(default=0)
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
 
@@ -3112,7 +3228,8 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
-           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSceneSettings)
+           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
+           FRSceneSettings)
 
 
 def register():

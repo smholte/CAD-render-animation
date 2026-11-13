@@ -51,6 +51,10 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
 
+  spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
+  spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
+      carousel with its arm, side by side (view_spools.jpg; Cycles on the processor, as "render").
+
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
 <user> is a Blender user folder with the extension (Linux build, guide inside) and the app template
@@ -948,7 +952,8 @@ elif MODE == "update":
     step(w_help_menu)
     step(w_shot_help)
 
-elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel"):
+elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
+              "spools_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -960,7 +965,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
     mod_name = {"waycover": WCOVER, "air": MILL, "labels": CRANE, "coolant": MILL,
                 "flex_panels": os.path.join(DATA, "test_flex_hoses_a.step"),
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
-                "cables_panel": os.path.join(DATA, "test_paths_a.step")}[MODE]
+                "cables_panel": os.path.join(DATA, "test_paths_a.step"),
+                "spools_panel": os.path.join(DATA, "test_spool.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1046,6 +1052,20 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_cables_setup)
         _grab("panel_cables", [("FRESING_PT_cables", False, True)])
+
+    elif MODE == "spools_panel":
+        # task 0080: 4 Motion > Drums and carousels on the spooling test model, the drum chosen, More open
+        def _spools_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.spool").set_up_test_model(sc)
+            mod("blender.ui")._OPEN_FOLDS = True
+            sc.fresing.spools_index = 0
+            sc.fresing.last_message = ""
+            select_only()
+            return 1.0
+        step(_spools_setup)
+        _grab("panel_spools", [("FRESING_PT_spools", False, True)])
 
     elif MODE == "coolant":
         def _cool_setup():
@@ -1743,7 +1763,67 @@ def render_flex():
         "view_flex_chains")
 
 
-if MODE == "flex":
+def render_spools():
+    """Task 0080: the spooling test model after 5 m of wire and 8 m of cable: the drum and the carousel, each in a
+    render of its own, side by side."""
+    import addon_utils
+    import numpy as np
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_spool.step"), quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints, cams, paths, spool = mod("blender.joints"), mod("blender.cameras"), mod("blender.paths"), \
+        mod("blender.spool")
+    spool.set_up_test_model(sc)
+    for cable, metres in (("Wire", 5.0), ("Power cable", 8.0)):
+        joints.set_value(joints.find(sc, paths.find(sc, cable).joint), metres)
+    bpy.context.view_layer.update()
+    paths.refresh(sc)
+    bpy.context.view_layer.update()
+    s.background = "SKY"
+    s.floor = "VISIBLE"
+    s.floor_use_own_color = True
+    s.floor_color = (0.42, 0.42, 0.4)
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 640, 480, False, SCRATCH
+
+    def corners(*names):
+        pts = []
+        for n in names:
+            o = ob(n)
+            mw = np.array(o.matrix_world)
+            bb = np.array([list(c) + [1.0] for c in o.bound_box])
+            pts.append((mw @ bb.T).T[:, :3])
+        return np.concatenate(pts)
+
+    tiles = []
+    for name, view, parts, label in (
+            ("drum", "ISO_LEFT", ("WINCH DRUM", "FAIRLEAD SHEAVE", "LEVEL WIND CARRIAGE"),
+             "Drum: the wire comes off layer 3, the level wind follows"),
+            ("carousel", "ISO", ("TURNTABLE", "ARM", "RIM FENCE"),
+             "Carousel: the top layer gets smaller, the arm follows")):
+        cam = cams.add_camera(sc, view, 50.0, name=f"Guide {name}", points=corners(*parts))
+        sc.camera = cam
+        mod("blender.render").apply_output(sc, s)
+        t = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", name, f"{time.time() - t:.0f} s")
+        path = os.path.join(SCRATCH, f"spool_{name}.png")
+        shutil.copy(s.last_render, path)
+        tiles += ["-label", label, path]
+    out = os.path.join(OUT, "view_spools.jpg")
+    subprocess.run(["montage", *tiles, "-tile", "2x1", "-geometry", "+6+6", "-pointsize", "18",
+                    "-background", "white", out], check=True)
+    subprocess.run(["convert", out, "-strip", "-quality", "86", out], check=True)
+    log("saved view_spools", f"{os.path.getsize(out) // 1024} KB")
+
+
+if MODE == "spools":
+    try:
+        render_spools()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "flex":
     try:
         render_flex()
     except Exception:

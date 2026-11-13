@@ -1087,8 +1087,99 @@ in red.
   on its path over 218 rollers and its bends, with the yellow stripes, on the joint "Cable travel"; in the
   roller-highway shot it runs at 10 m/min and every roller turns with it. (A demo made with an older version:
   make it again.)
-- Not in yet: tensioner tracks that grip the cable, the coil on a carousel or a drum, and the cable going into
-  the sea.
+- Not in yet: tensioner tracks that grip the cable, and the cable going into the sea. The coil on a carousel or
+  a drum: **Drums and carousels**, below.
+
+### Drums and carousels
+
+A wire rope is wound on a winch drum; a power cable lies in a carousel, coiled turn by turn in flat layers. In the
+CAD file the rope or the coil is one solid that never changes. Here the cable of **Cables and paths** **comes off**
+the drum or the carousel: the drum turns as fast as the rope pays out – faster as the layers get smaller – and the
+rope comes off wrap by wrap and layer by layer in the groove. On a carousel the top layer gets smaller turn by turn
+while the carousel turns, and the loading arm swings along with the turn being paid out. The one cable speed of
+**Cables and paths** drives it all.
+
+<img class="panel" src="img/panel_spools.png" alt="Drums and carousels: a drum and a carousel in the list, the drum chosen: how much is on it, the grooves, the level wind that follows the layer, the fold More open">
+
+<img class="wide" src="img/view_spools.jpg" alt="The test model: left the drum with the wire rope coming off its third layer over the level wind's sheave, right the carousel with its top layer partly paid out under the arm's guide sheave">
+
+**Add a drum or a carousel**
+
+1. First make the cable in **Cables and paths** (above) and choose it in its list.
+2. The drum or carousel needs a **rotate** joint that turns it (4 Motion > Joints). Without one the app makes it
+   from the round face you click in step 4.
+3. In 4 Motion > **Drums and carousels**, press **Add drum** (a winch or reel drum) or **Add carousel**.
+4. Click the drum (its barrel or a flange) or the carousel's turntable in the 3D view. The part under the mouse
+   lights up and its name shows ("Drum: WINCH DRUM"). **Esc** or a right click cancels.
+5. The drum or carousel gets a line in the list. The app reads its size from the model: the radius of the first
+   layer and the width between the flanges (a drum), the inner and outer radius of the coil (a carousel). It reads
+   how much cable is on it from where the CAD cable leaves it.
+
+From now on the app draws the cable on the drum or carousel itself; the CAD solid of the rope or the coil is hidden.
+Move the cable's joint ("Cable <name>", the metres paid out) in 4 Motion, or let a **Run motor** step run it in 6
+Animation: the drum turns, the rope comes off, and the free cable always starts where the rope leaves the drum.
+
+The line under the list says how much is on it now, on which layer the cable leaves and how much it holds:
+"49.6 m on it, layer 3 of 8; holds 201.5 m".
+
+**The settings**
+
+- **On it at start (m)**: how much cable is on the drum or carousel, in metres, when the cable's joint is at 0. The
+  app reads it from the CAD cable; type another length to start with a fuller or emptier drum.
+- **Grooves** (drum): **Spiral groove** – one groove that winds along the drum, each wrap a little further than the
+  last – or **Lebus** – parallel grooves where each wrap steps half a groove sideways twice per turn (the
+  crossovers; how much of a turn one crossover takes is **Crossover** in **More**, usually 30° to 40°).
+- **Groove pitch** (drum): from one wrap to the next along the drum, in mm. 0 = the cable's diameter × 1.06, a
+  usual spiral groove.
+- **First layer from the other flange** (drum) / **First layer from the rim** (carousel): where the first layer
+  starts. Switch it on when the rope runs the wrong way along the drum.
+- In **More**: **First layer** (the radius to the middle of the cable on the first layer, read from the barrel),
+  **Inner radius** and **Outer radius** (carousel), **Fleet warning** (below), and **Read it again**: reads the
+  drum or carousel and the CAD cable again, after you changed them in the CAD file (a length you typed is kept).
+
+**This joint follows the layer**
+
+A level wind, a loading arm or a guide must follow the place where the cable leaves the drum. Make its joint first
+(4 Motion > Joints), then:
+
+1. Press **This joint follows the layer**.
+2. A list of the joints opens. Type a few letters of the name ("level") and press **Enter**, or click the joint.
+3. The joint gets a line under **Follow the layer**. How it follows is picked by itself; change it in the line:
+
+| How it follows | For | What it does |
+| --- | --- | --- |
+| **Across the drum** | a level wind (a slide joint along the drum) | goes back and forth with the wrap being paid out, one groove per turn, and turns round at the flanges |
+| **Arm over the coil** | a loading arm or arch (a rotate joint beside the carousel) | swings so its guide stays over the turn being paid out, inwards or outwards layer by layer |
+| **Along the turn** | a guide's swivel (a rotate joint at the guide) | keeps the guide lined up with the turn the cable lifts off |
+
+The **×** at the end of the line stops it: the joint moves by itself again.
+
+**Warnings**
+
+A problem shows in red under the list, as "check" in the list line and in the panel header.
+
+- **"Fleet angle 13.8° at the other flange (more than 1.5°)"**: the rope runs from the drum to its first sheave at
+  more than 1.5° from square to the drum, at one of the flanges – the rope may not spool well. The panel also
+  shows the angle at both flanges. Add a level wind (**This joint follows the layer**), or move the sheave further
+  away. 1.5° is a usual limit for grooved drums; change it with **Fleet warning** in **More**.
+- **"Runs empty: 3.20 m more is paid out than it held"**: the cable's joint pays out more than is on the drum or
+  carousel. Type a bigger **On it at start (m)**, or pay out less.
+- **"Overfills: … m more than it holds"**: hauling in winds more onto it than fits between the flanges or in the
+  carousel.
+- **Build animation** says it too when the drum runs empty or overfills somewhere in the animation, or when a
+  fleet angle is too big.
+
+**Good to know**
+
+- The tick box in the list switches a drum or carousel off: the coil shows as in the CAD file again, nothing
+  turns with the cable and the cable starts where it is drawn in the CAD file. Switch it on again and all is back.
+- **−** takes it off the list (the joint the app made for it goes too); the arrow button selects its part.
+- On a drum the top two layers are drawn as cable, on a carousel the top layer; the full layers under them are one
+  solid that gets smaller layer by layer (a whole coil drawn as cable would make the project very slow). The cable
+  on the drum has the cable's look, but its stripes or strands stand still on the drum.
+- The turn of the drum, the level wind and the arm are worked out once, as a table with one piece per layer (a few
+  per turn on a carousel): they work in the render queue and with scripts switched off, like every joint.
+- The clash check (6 Animation) leaves the CAD coil out.
 
 ### Poses & exploded views
 

@@ -267,7 +267,8 @@ def test_test_models_in_the_extension_are_the_test_data():
     for name in ("test_machine.step", "test_materials.step", "test_crane_a.step", "test_crane_b.step",
                  "test_faces_a.step", "test_mill.step", "test_decals_a.step", "test_gantry.step", "test_atc.step",
                  "test_4axis.step", "test_5axis.step", "test_clash.step", "test_waycover_c.step",
-                 "test_flex_hoses_a.step", "test_flex_chains_a.step", "test_paths_a.step", "test_sequence.step"):
+                 "test_flex_hoses_a.step", "test_flex_chains_a.step", "test_paths_a.step", "test_sequence.step",
+                 "test_spool.step"):
         a = os.path.join(ROOT, "fresing_render", "data", name)
         b = os.path.join(ROOT, "tests", "data", name)
         with open(a, "rb") as fa, open(b, "rb") as fb:

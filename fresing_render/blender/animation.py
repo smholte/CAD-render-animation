@@ -905,6 +905,8 @@ def bake(scene, anim) -> dict:
     warnings += flex.bake(scene, anim)             # hoses and drag chains (task 0058): every frame's shape
     from . import paths
     warnings += paths.bake(scene, anim)            # cables over sheaves that move (task 0078): every frame's shape
+    from . import spool
+    warnings += spool.bake(scene, anim)            # drums and carousels (task 0080): empty, full, fleet angle
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
 
