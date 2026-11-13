@@ -37,9 +37,19 @@ tube out again; *moving* picks the frame's slice of ``frames x points``.
   handler solves it again when a carrier moved against the cable part; ``bake`` (the end of every Build) reads the
   carriers' places at every frame (only when something that moves them is animated), solves all frames at once
   with the same number of points and writes them; playing and rendering then cost no Python. What was read is
-  kept, so a setting changed after Build solves again without stepping through the frames. A frame without a
-  path, or one in which the cable has lifted off a wheel, keeps the last good shape and gives a warning.
-* A cable set to **stay as drawn** (``still``) keeps the path of the CAD pose whatever moves.
+  kept, so a setting changed after Build solves again without stepping through the frames (with hoses in the
+  project too, their pass through the frames reads for the cables: ``flex.READ_HOOKS``). A sheave of such a
+  cable that is dragged out of its place by hand (a free move of its part) takes the cable along as well.
+* A cable set to **stay as drawn** (``still``) keeps the path of the CAD pose whatever moves – joints, poses
+  and free moves alike. It is never watched and never solved along an animation.
+
+A cable that is still costs nothing while nothing about it changes, so it is not watched either: something on
+its path dragged by hand is only noticed at the next change to the cable (or ``refresh(scene, force=True)``).
+
+Every solve is given each wheel's wrap in the CAD pose (``wrap_cad``). With it the solver tells a wheel the
+cable has **lifted off** (wrap 0: the cable is drawn straight past it, with a warning that names the wheel and
+the first frame) from one it goes round; a wheel it goes much further round than in the CAD pose (a wrong side,
+contacts in the wrong order) gives a warning too. A frame without any path keeps the last good shape.
 
 **The look moves by a driver, not by geometry** (``blender/cable_looks.py`` has the materials). The tube carries a
 point attribute ``fr_cable`` = (cos phi, sin phi, s): the angle round the cable and the metres along it. The part
@@ -63,7 +73,6 @@ import numpy as np
 from bpy.app.handlers import persistent
 from mathutils import Matrix, Vector
 
-from ..core import flex_fit
 from ..core import paths as P
 from ..core.words import plural
 from . import build, cable_looks, flex, idprops, joints
@@ -89,19 +98,14 @@ SAG = 0.0003                            # an arc's points lie so close that the 
 ROPE_LAY = 6.5                          # a wire rope's lay length in diameters, when none was typed
 POWER_PITCH = 2.5                       # a power cable's stripe distance in diameters, when none was typed
 MOVE_TOL = 5e-6                         # a carrier moved against the cable part when a number differs this much
-RATIO_TOL = 0.005                       # an own coupling this far off the app's ratio is reported
+RATIO_TOL = 0.005                       # a sheave's own coupling this far off the app's ratio is reported …
+RATIO_ROLLER = 0.02                     # … a roller's from here on (a roller's distance is read from two meshes'
+#                                         facets: 1 % at Draft); between the two, rollers are only counted
+LOOP = math.radians(120.0)              # a wrap this much wider than in the CAD pose: the cable loops round a wheel
 GAP_NOTE = 0.001                        # a cable drawn this far off a surface is reported
 HUGE = 400_000                          # triangles: a part bigger than this is not looked at as a roller or sheave
-ONE_GO = 0.0                            # a cable up to this many radii long is read in one go (flex_fit), a longer
-#                                         one in pieces (core.paths.centreline). A SWITCH UNTIL core.paths.centreline
-#                                         IS FIXED: it bends the line after a seam on a cable of 200+ radii that turns
-#                                         more than 90° (the test model's rope: 4.3 mm off). Then: 0.0
-OFF_PATH = (0.002, 0.25)                # a reading whose path lies further than 2 mm, or a quarter of the cable's
-#                                         radius if that is more, beside the CAD cable is refused
-WRAP_JUMP = math.pi                     # a wrap that changes by more than this from one frame to the next: the cable
-#                                         has lifted off that wheel (the path would loop round it)
 UNDER = 0.7                             # a bend lies on a part when this share of it is on that part's surface
-USER_CHANGE = 0.002                     # a diameter that differs this much from the CAD one was typed
+USER_CHANGE = 0.002                    # a diameter that differs this much from the CAD one was typed
 
 _FRAMES, _PER, _FIRST = "fr_cable_frames", "fr_cable_per", "fr_cable_first"       # on a shapes object: its layout
 _PLACES, _PLACES_OBS, _PLACES_FIRST = "fr_cable_places", "fr_cable_places_obs", "fr_cable_places_first"
@@ -110,7 +114,7 @@ _INPUTS = (("Shapes", "NodeSocketObject"), ("First", "NodeSocketInt"), ("Frames"
            ("Radius", "NodeSocketFloat"))
 
 # runtime only: nothing here outlives undo, redo or a file load, and no Blender object is kept
-_STATE = {"busy": 0, "last": {}, "arrays": {}, "inputs": {}, "solves": 0, "steps": 0}
+_STATE = {"busy": 0, "last": {}, "arrays": {}, "inputs": {}, "rest": {}, "solves": 0, "steps": 0}
 
 
 class PathError(RuntimeError):
@@ -297,29 +301,79 @@ def _ratio_radius(item, c) -> float:
     return max(float(c.radius) - 0.5 * cad, 1e-6)
 
 
+class _Slot:
+    """What a wheel or an end goes with: its carrier – and, for a sheave on its joint's arrow, the sheave's part
+    and the joint's motion empty, so that a sheave dragged out of its place by hand takes the cable along (the
+    arrow does not move then, and the joint's own turn must not count)."""
+    __slots__ = ("name", "carrier", "part", "motion")
+
+    def __init__(self, carrier, part=None, motion=None):
+        self.carrier, self.part, self.motion = carrier, part, motion
+        self.name = carrier.name + ("|" + part.name if part is not None else "")
+
+    def objects(self) -> list:
+        return [o for o in (self.carrier, self.part, self.motion) if o is not None]
+
+
 def _inputs_of(item):
-    """(wheels, carriers, slot of each wheel's carrier, slot of end A's part, of end B's): what a solve reads."""
+    """(wheels, slots, slot of each wheel, slot of end A, of end B): what a solve reads."""
     wheels = _wheels(item)
-    obs, slots = [], {}
+    slots, index = [], {}
+    scene = item.id_data
 
-    def slot(ob):
-        if ob.name not in slots:
-            slots[ob.name] = len(obs)
-            obs.append(ob)
-        return slots[ob.name]
+    def slot(carrier, c=None):
+        part = motion = None
+        if c is not None and c.kind == "SHEAVE" and c.joint and c.part is not None:
+            j = joints.find(scene, c.joint)
+            if j is not None and j.frame == carrier and j.motion is not None and _alive(scene, c.part):
+                part, motion = c.part, j.motion
+        new = _Slot(carrier, part, motion)
+        if new.name not in index:
+            index[new.name] = len(slots)
+            slots.append(new)
+        return index[new.name]
 
-    return wheels, obs, [slot(c.carrier) for c in wheels], slot(item.a_part), slot(item.b_part)
+    w_slots = [slot(c.carrier, c) for c in wheels]
+    ends = []
+    for key, k in (("a", 0), ("b", -1)):        # an end on its wheel goes with that wheel
+        ob = getattr(item, key + "_part")
+        on = getattr(item, key + "_kind") == "WHEEL" and wheels and wheels[k].carrier == ob
+        ends.append(w_slots[k] if on else slot(ob))
+    return wheels, slots, w_slots, ends[0], ends[1]
 
 
-def _rel_now(item, obs) -> np.ndarray:
-    """(K, 4, 4): where the carriers are now, as the cable part sees them (for a cable that stays as drawn: where
+def _rest_of(item, sl: _Slot) -> np.ndarray:
+    """A sheave's part in its CAD place, seen from its joint's arrow, turned inside out (kept between calls)."""
+    key = (item.id_data.name, sl.name)
+    k = _STATE["rest"].get(key)
+    if k is None:
+        memo: dict = {}
+        k = np.linalg.inv(_cad(sl.part, memo)) @ _cad(sl.carrier, memo)
+        _STATE["rest"][key] = k
+    return k
+
+
+def _place(item, sl: _Slot, world) -> np.ndarray:
+    """Where a slot is (4 x 4, world): its carrier's place – for a sheave times how far its part was moved out of
+    its CAD place on the joint (nothing, unless it was dragged there by hand). ``world``: object -> matrix."""
+    m = world(sl.carrier)
+    if sl.part is None:
+        return m
+    moved = np.linalg.inv(world(sl.motion)) @ world(sl.part) @ _rest_of(item, sl)
+    if float(np.abs(moved - np.eye(4)).max()) < 4.0 * joints.MOVE_EPS:
+        return m                                # where CAD put it: the arrow's own place, to the last digit
+    return m @ moved
+
+
+def _rel_now(item, slots) -> np.ndarray:
+    """(K, 4, 4): where the slots are now, as the cable part sees them (for a cable that stays as drawn: where
     they are in the CAD pose)."""
     if item.still:
         memo: dict = {}
         inv = np.linalg.inv(_cad(item.part, memo))
-        return np.stack([inv @ _cad(ob, memo) for ob in obs]) if obs else np.zeros((0, 4, 4))
+        return np.stack([inv @ _cad(sl.carrier, memo) for sl in slots]) if slots else np.zeros((0, 4, 4))
     inv = np.linalg.inv(_world(item.part))
-    return np.stack([inv @ _world(ob) for ob in obs]) if obs else np.zeros((0, 4, 4))
+    return np.stack([inv @ _place(item, sl, _world) for sl in slots]) if slots else np.zeros((0, 4, 4))
 
 
 def _can_move(item) -> bool:
@@ -327,8 +381,8 @@ def _can_move(item) -> bool:
     Never for a cable set to stay as drawn."""
     if item.still:
         return False
-    _wheels_, obs, _w, _a, _b = _inputs_of(item)
-    return len({flex._movers(ob) for ob in [item.part] + obs}) > 1
+    _wheels_, slots, _w, _a, _b = _inputs_of(item)
+    return len({flex._movers(ob) for ob in [item.part] + [sl.carrier for sl in slots]}) > 1
 
 
 def _fcurves(ob) -> list:
@@ -377,10 +431,11 @@ def _varies(ob, depth: int = 0) -> bool:
 
 
 def _animated(item) -> bool:
-    """Does anything that can move the cable's carriers against each other move along the time line?"""
-    _wheels_, obs, _w, _a, _b = _inputs_of(item)
+    """Does anything that can move the cable's carriers against each other move along the time line (or is a
+    sheave's part itself moved out of its place along it)?"""
+    _wheels_, slots, _w, _a, _b = _inputs_of(item)
     chains = []
-    for ob in [item.part] + obs:
+    for ob in [item.part] + [sl.carrier for sl in slots]:
         chain, p = {}, ob
         while p is not None:
             chain[p.name] = p
@@ -394,7 +449,7 @@ def _animated(item) -> bool:
         for name, ob in ch.items():
             if name not in common:
                 seen[name] = ob
-    return any(_varies(ob) for ob in seen.values())
+    return any(_varies(ob) for ob in seen.values()) or any(_keys_vary(sl.part) for sl in slots if sl.part is not None)
 
 
 # ---------------------------------------------------------------------------
@@ -750,22 +805,6 @@ def _flip_rows(geo: dict) -> None:
             d["name"] = f"Bend {bends}"
 
 
-def _centrelines(verts: np.ndarray, tris: np.ndarray):
-    """The cable's centreline, a point every radius: read in one go where that is exact (up to ``ONE_GO`` radii:
-    ``flex_fit`` cuts a tube 1024 times at most), in pieces for a longer cable; then the other way, for a cable
-    the first way's line cannot be read from."""
-    rough = flex_fit.tube_centreline(verts, tris, 65)
-    if not rough.ok:
-        yield rough
-        return
-    n = int(round(rough.length / rough.radius)) + 1
-    short = rough.length <= ONE_GO * rough.radius
-    for one_go in ((True, False) if short else (False,)):
-        tube = flex_fit.tube_centreline(verts, tris, max(n, 2)) if one_go else P.centreline(verts, tris)
-        if tube.ok:
-            yield tube
-
-
 def _end_face(verts: np.ndarray, tris: np.ndarray, point, along, radius: float):
     """The middle of the flat end face of a cable near ``point`` (the centreline's end, which is a little off
     where the cable ends in a bend): the centre of the triangles there that look along the cable. None when
@@ -795,33 +834,18 @@ def _read(scene, item, part) -> dict:
     verts, tris = flex._mesh_arrays(part.data)
     vw = _at(w, verts)
     skip = {ob.name for ob in flex.flex_parts(scene)} | {ob.name for ob in cable_parts(scene)} | {part.name}
-    rd, tube, obs, why, good = None, None, {}, "", False
-    for tube in _centrelines(vw, tris):
-        if not tube.ok:
-            raise PathError(f"This part is not a cable: {tube.problem}")
-        rounds, obs = _rounds(scene, part, tube.points, float(tube.radius), memo, skip)
-        for wider in (1.0, 2.0):                # (facets of a coarse mesh: once more, less strict)
-            tol = None if wider == 1.0 else wider * max(P.FIT_TOL[0], P.FIT_TOL[1] * float(tube.radius))
-            rd = P.read_cable(tube.points, float(tube.radius), rounds, fit_tol=tol)
-            if not rd.ok:
-                why = why or _named(rd.problem, [_row_name(c, obs) for c in rd.contacts])
-                continue
-            # a reading may say "ok" with its path well beside the cable: look for ourselves
-            limit = max(OFF_PATH[0], OFF_PATH[1] * float(tube.radius))
-            if float(rd.deviation) <= limit:
-                good = True
-                break
-            off = _off_path(tube.points, rd.path.points)
-            k = int(np.argmax(off))
-            run = float(np.linalg.norm(np.diff(tube.points[:k + 1], axis=0), axis=1).sum())
-            why = why or (f"{run:.1f} m from its start the cable as drawn lies {_mm(float(off[k]))} mm beside the "
-                          "straight runs and round bends the app can lay over its rollers and sheaves (is it drawn "
-                          "as a spline there, or does it sag?)")
-        if good:
+    tube = P.centreline(vw, tris)
+    if not tube.ok:
+        raise PathError(f"This part is not a cable: {tube.problem}")
+    rounds, obs = _rounds(scene, part, tube.points, float(tube.radius), memo, skip)
+    rd, why = None, ""
+    for wider in (1.0, 2.0):                    # (facets of a coarse mesh: once more, less strict)
+        tol = None if wider == 1.0 else wider * max(P.FIT_TOL[0], P.FIT_TOL[1] * float(tube.radius))
+        rd = P.read_cable(tube.points, float(tube.radius), rounds, fit_tol=tol)
+        if rd.ok:                               # (a path that lies beside the cable is refused by the reader)
             break
-    if tube is None:
-        raise PathError("This part is not a cable: it has no shape to read.")
-    if not good:
+        why = why or _named(rd.problem, [_row_name(c, obs) for c in rd.contacts])
+    if not rd.ok:
         raise PathError(f"The path of '{name}' cannot be read: {why}")
     pts, radius = tube.points, float(tube.radius)
     for k, along in ((0, tube.t0), (-1, tube.t1)):         # the ends: the middle of the cable's end faces
@@ -865,20 +889,6 @@ def _read(scene, item, part) -> dict:
            "length": float(path.length), "deviation": float(rd.deviation), "memo": memo, "line": pts,
            "near": near, "skip": skip, "notes": []}
     return geo
-
-
-def _off_path(points: np.ndarray, line: np.ndarray) -> np.ndarray:
-    """How far every point (P, 3) is from the polyline (L, 3)."""
-    if len(line) < 2:
-        return np.full(len(points), math.inf)
-    a, seg = line[:-1], line[1:] - line[:-1]
-    ss = np.maximum(np.einsum("li,li->l", seg, seg), 1e-30)
-    out = np.empty(len(points))
-    for lo in range(0, len(points), 512):
-        p = points[lo:lo + 512, None]
-        t = np.clip(np.einsum("pli,li->pl", p - a[None], seg) / ss, 0.0, 1.0)
-        out[lo:lo + 512] = np.linalg.norm(p - (a[None] + t[..., None] * seg[None]), axis=2).min(axis=1)
-    return out
 
 
 def _row_name(c, obs: dict) -> str:
@@ -948,8 +958,8 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
 
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
-                   "side", "wrap", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio", "user",
-                   "note")
+                   "side", "wrap", "wrap_cad", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
+                   "user", "note")
 _END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
@@ -1001,6 +1011,7 @@ def _write_contact(c, d: dict, memo: dict) -> None:
         c.axis = tuple(_unit(inv[:3, :3] @ d["axis"]))
         c.radius, c.surface, c.side = d["radius"], d["surface"], int(d["side"])
         c.wrap, c.gap, c.s, c.full = d["wrap"], d["gap"], d["s"], bool(d["full"])
+        c.wrap_cad = float(d.get("wrap_cad", -1.0))
         c.turns = bool(d.get("turns", True))
         c.joint = d.get("joint", "") or ""
         c.made_joint = bool(d.get("made", False))
@@ -1015,7 +1026,8 @@ def _row_of(c, memo: dict) -> dict:
     return {"kind": c.kind, "name": c.name, "part": c.part, "carrier": c.carrier,
             "centre": _at(m, np.array(c.centre, dtype=float)), "axis": _unit(m[:3, :3] @ np.array(c.axis, dtype=float)),
             "radius": float(c.radius), "surface": float(c.surface), "side": int(c.side), "s": float(c.s),
-            "wrap": float(c.wrap), "gap": float(c.gap), "full": bool(c.full), "turns": bool(c.turns),
+            "wrap": float(c.wrap), "wrap_cad": float(c.wrap_cad), "gap": float(c.gap), "full": bool(c.full),
+            "turns": bool(c.turns),
             "joint": c.joint, "made": bool(c.made_joint), "coupled": bool(c.coupled), "user": bool(c.user),
             "note": c.note}
 
@@ -1111,10 +1123,13 @@ def read_cad(scene, item, part) -> list[str]:
                 item.contacts_index = 0
             item["look_was"] = item.look
             _ends(scene, item, part, geo, keep_user=same)
-            _notes_of_joints(scene, item, memo)
-            res = _solve_item(scene, item, _cad_rel(item, memo))
+            geo["slightly"] = _notes_of_joints(scene, item, memo)
+            res = _solve_item(scene, item, _cad_rel(item, memo), known=False)
             if not res["ok"].all():
                 raise PathError(f"The path of '{_part_name(part)}' cannot be drawn: {res['problems'][0]}")
+            for i, c in enumerate(_wheels(item)):
+                with _quiet(c):
+                    c.wrap_cad = float(res["wrap"][0, i])
         except Exception:
             item = _cable(scene, name)
             _remove_joints(scene, [j.name for j in scene.fresing.joints if j.name not in before])
@@ -1145,14 +1160,17 @@ def _default_pitch(item) -> float:
 
 def _cad_rel(item, memo: dict) -> np.ndarray:
     """(1, K, 4, 4): the carriers as the cable part sees them in the CAD pose."""
-    _wheels_, obs, _w, _a, _b = _inputs_of(item)
+    _wheels_, slots, _w, _a, _b = _inputs_of(item)
     inv = np.linalg.inv(_cad(item.part, memo))
-    return np.stack([inv @ _cad(ob, memo) for ob in obs])[None] if obs else np.zeros((1, 0, 4, 4))
+    return np.stack([inv @ _cad(sl.carrier, memo) for sl in slots])[None] if slots else np.zeros((1, 0, 4, 4))
 
 
-def _notes_of_joints(scene, item, memo: dict) -> None:
+def _notes_of_joints(scene, item, memo: dict) -> list:
     """Each turning contact's note: what its own joint does, when the app left it alone. A joint of its own that
-    follows nothing yet is the app's to couple."""
+    follows nothing yet is the app's to couple. A sheave's own coupling is reported from 0.5 % off the app's
+    ratio, a roller's from 2 % (a roller's distance from the cable is read from the facets of two meshes: about
+    1 % at Draft). Returns how far off the rollers in between are (shares), for one line of the summary."""
+    slightly = []
     for c in item.contacts:
         if c.kind not in TURNING:
             continue
@@ -1173,21 +1191,26 @@ def _notes_of_joints(scene, item, memo: dict) -> None:
                 top = joints.driver_of(scene, j)
                 note = (f"its joint '{j.name}' follows '{top.name if top is not None else j.follows}', not this "
                         "cable: left as it is")
-            elif abs(mine - ratio) > RATIO_TOL * abs(ratio):
-                if mine * ratio < 0.0 and abs(abs(mine) - abs(ratio)) <= RATIO_TOL * abs(ratio):
+            else:
+                tol = RATIO_ROLLER if c.kind == "ROLLER" else RATIO_TOL
+                off = abs(abs(mine) - abs(ratio)) / abs(ratio)
+                if mine * ratio < 0.0 and off <= tol:
                     note = f"its joint '{j.name}' turns the other way than the cable runs over it: left as it is"
-                else:
+                elif mine * ratio < 0.0 or off > tol:
                     note = (f"its joint '{j.name}' turns {abs(mine):.4f}° per mm of cable, the cable's surface "
                             f"gives {abs(ratio):.4f}° ({(abs(mine) / abs(ratio) - 1.0) * 100.0:+.1f} %): left as "
                             "it is")
-            else:
-                note = ""
+                else:
+                    note = ""
+                    if off > RATIO_TOL:
+                        slightly.append(off)
         if abs(c.gap) > max(GAP_NOTE, 0.02 * item.cad_diameter) and c.kind != "BEND":
             gap = f"the CAD cable is drawn {_mm(abs(c.gap))} mm {'off' if c.gap > 0.0 else 'into'} it"
             note = f"{note}; {gap}" if note else gap
         if note != c.note:
             with _quiet(c):
                 c.note = note
+    return slightly
 
 
 def _summary(scene, item, geo: dict) -> list[str]:
@@ -1216,6 +1239,14 @@ def _summary(scene, item, geo: dict) -> list[str]:
     if own:
         notes.append(f"Cable '{name}': {plural(own, 'part')} already had a joint that follows something else: left "
                      f"as {'it is' if own == 1 else 'they are'}")
+    slightly = geo.get("slightly") or []
+    if slightly:
+        n = len(slightly)
+        notes.append(f"Cable '{name}': {plural(n, 'roller')} {'turns' if n == 1 else 'turn'} up to "
+                     f"{max(slightly) * 100.0:.1f} % off the cable's speed by "
+                     f"{'its own joint' if n == 1 else 'their own joints'}: left as "
+                     f"{'it is' if n == 1 else 'they are'} (as near as the facets of this import quality let a "
+                     "roller be read)")
     if item.moving:
         movers = sorted({c.name for c in _wheels(item) if flex._movers(c.carrier) != flex._movers(item.part)})
         if movers:
@@ -1480,11 +1511,17 @@ def _counts(radii, wrap) -> list:
     return out
 
 
-def _solve_item(scene, item, rel: np.ndarray) -> dict:
-    """The cable's shape at F moments. ``rel`` (F, K, 4, 4): where its carriers are, as the cable part sees them.
+def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> dict:
+    """The cable's shape at F moments. ``rel`` (F, K, 4, 4): where its slots are, as the cable part sees them.
     Returns core.paths.solve_frames' result (points in the cable part's coordinates) + "scale" (part units to
-    metres), "names" (the wheels' names) and "problems" with those names in them."""
-    wheels, obs, w_slots, a_slot, b_slot = _inputs_of(item)
+    metres), "names" (the wheels' names) and "problems" with those names in them.
+
+    ``known``: the solver is told each wheel's wrap in the CAD pose (``wrap_cad``), so it can tell a wheel the
+    cable has left (lifted: wrap 0, the cable runs straight past) from one it goes far round. Off for the solve
+    that finds those wraps. ``ref``: other wraps to measure by – while posing, the wraps of the pose solved a
+    moment ago (as one frame of an animation is measured by the frame before it: a wheel that was left stays left
+    while the cable would have to loop round it)."""
+    wheels, _slots, w_slots, a_slot, b_slot = _inputs_of(item)
     scale = _scale(_world(item.part))
     F, W = rel.shape[0], len(wheels)
     R, T = rel[:, :, :3, :3], rel[:, :, :3, 3]
@@ -1501,82 +1538,109 @@ def _solve_item(scene, item, rel: np.ndarray) -> dict:
     sides = np.array([float(c.side) for c in wheels])
     starts, ends = point(a_slot, item.a_point), point(b_slot, item.b_point)
     on0, on1 = item.a_kind == "WHEEL" and W > 0, item.b_kind == "WHEEL" and W > 0
-    res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, held=True)
+    wraps0 = None
+    if known and W and all(c.wrap_cad >= 0.0 for c in wheels):
+        wraps0 = [float(c.wrap_cad) for c in wheels] if ref is None or len(ref) != W else [float(w) for w in ref]
+    res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, held=True, wraps0=wraps0)
     _STATE["solves"] += F
     if res["ok"].any() and W:
         counts = _counts(radii * scale, res["wrap"][res["ok"]].max(axis=0))
         if list(counts) != [int(n) for n in res["counts"]]:
-            res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, counts=counts, held=True)
+            res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, counts=counts, held=True,
+                                 wraps0=wraps0)
     names = [c.name for c in wheels]
     res["problems"] = {f: _named(t, names) for f, t in res["problems"].items()}
     res["scale"], res["names"] = scale, names
-    _lifted(res, names)
+    _spread_lifted(res)
     return res
 
 
-def _lifted(res: dict, names: list) -> None:
-    """A wheel the cable lifts off during a motion: its wrap jumps from little to a loop round the wheel (or the
-    solver says so with ``lifted``). Such frames are bad frames: they keep the shape of the last good one."""
-    ok, wrap = res["ok"], res["wrap"]
-    F = len(ok)
-    res["off"] = {}
-    flags = res.get("lifted")
-    last = -1
-    for f in range(F):
-        if not ok[f]:
-            continue
-        bad = -1
-        if flags is not None and np.asarray(flags)[f].any():
-            bad = int(np.argmax(np.asarray(flags)[f]))
-        elif last >= 0 and len(names):
-            jump = np.abs(wrap[f] - wrap[last])
-            if float(jump.max()) > WRAP_JUMP:
-                bad = int(np.argmax(jump))
-        if bad < 0:
-            last = f
-            continue
-        ok[f] = False
-        res["bad"][f] = bad
-        res["off"][f] = bad
-        res["problems"][f] = f"the cable no longer touches '{names[bad]}' (it has lifted off)"
-        if last >= 0:
-            for key in ("points", "s", "wrap", "length"):
-                res[key][f] = res[key][last]
+def _spread_lifted(res: dict) -> None:
+    """A lifted wheel keeps its points (every frame has the same number), all in one place on the straight that
+    passes it. Points on top of each other make a tube with a crease: they are spread evenly along that straight."""
+    lifted = res.get("lifted")
+    if lifted is None or not np.asarray(lifted).any():
+        return
+    first, counts, pts, along = res["first"], res["counts"], res["points"], res["s"]
+    n = pts.shape[1]
+    for f in np.flatnonzero(np.asarray(lifted).any(axis=1)):
+        mask = np.zeros(n, dtype=bool)
+        for i in np.flatnonzero(lifted[f]):
+            mask[int(first[i]):int(first[i]) + int(counts[i])] = True
+        idx = np.flatnonzero(mask)
+        for run in np.split(idx, np.flatnonzero(np.diff(idx) > 1) + 1):
+            lo, hi = int(run[0]) - 1, int(run[-1]) + 1
+            if lo < 0 or hi >= n:
+                continue                        # (the cable's own end: nothing to lay them between)
+            t = np.arange(1, len(run) + 1) / (len(run) + 1.0)
+            pts[f, run] = pts[f, lo] + t[:, None] * (pts[f, hi] - pts[f, lo])
+            along[f, run] = along[f, lo] + t * (along[f, hi] - along[f, lo])
+
+
+def _set_cad_wraps(scene, item, memo: dict | None = None) -> bool:
+    """Each wheel's wrap in the CAD pose (``wrap_cad``; -1 = not known): what the solver measures a lifted wheel
+    and the app a loop against. Written when the contacts or their sides change. True when the CAD pose has a path."""
+    wheels = _wheels(item)
+    res = _solve_item(scene, item, _cad_rel(item, {} if memo is None else memo), known=False) if wheels else None
+    good = res is not None and bool(res["ok"].all())
+    for i, c in enumerate(wheels):
+        wrap = float(res["wrap"][0, i]) if good else -1.0
+        if abs(c.wrap_cad - wrap) > 1e-9:
+            with _quiet(c):
+                c.wrap_cad = wrap
+    return good or not wheels
 
 
 def _note(scene, item, res: dict, first) -> list[str]:
     """Write the cable's problem (or clear it) and what the contacts show; returns the warning sentences.
-    ``first``: the frame of moment 0, None for the pose shown."""
+    ``first``: the frame of moment 0, None for the pose shown. In this order: a frame without a path (it keeps
+    the last good shape), a wheel the cable no longer touches (drawn: the cable runs straight past it), a wheel
+    it goes much further round than in the CAD pose, a bend tighter than its smallest bend."""
     wheels = _wheels(item)
     name = label(item)
     ok = res["ok"]
-    text, frame, warnings = "", 0, []
-    when = "in this pose" if first is None else None
+    found = []                                  # (text for the list, its frame)
+
+    def when(k):
+        return "in this pose" if first is None else f"at frame {first + k}"
+
+    def frame(k):
+        return 0 if first is None else first + int(k)
+
     if not ok.all():
         k = int(np.argmax(~ok))
-        frame = 0 if first is None else first + k
-        why = res["problems"].get(k, "")
         bad = int(res["bad"][k])
-        if k in res.get("off", {}):
-            text = f"no longer touches '{wheels[bad].name}' {when or f'at frame {frame}'}"
-        else:
-            what = f"cannot go round '{wheels[bad].name}'" if 0 <= bad < len(wheels) else "has no path"
-            text = f"{what} {when or f'at frame {frame}'}: {why}"
-        warnings.append(f"Cable '{name}' {text}")
-    if ok.any() and item.mbr > 0.0 and wheels:
-        wrap = res["wrap"][ok]
-        i, radius = P.tightest([P.Wheel(None, None, radius_of(item, c), int(c.side)) for c in wheels], wrap.max(axis=0))
-        if i >= 0 and radius < float(item.mbr) - 1e-6:
-            tight = (f"bends tighter than its smallest bend (MBR {_mm(item.mbr)} mm) at '{wheels[i].name}': "
-                     f"{_mm(radius)} mm")
-            warnings.append(f"Cable '{name}' {tight}")
-            if not text:
-                text = tight
-                if first is not None:
-                    frame = first + int(np.flatnonzero(ok)[int(np.argmax(wrap[:, i] >= math.radians(1.0)))])
-    if item.problem != text or item.problem_frame != frame:
+        what = f"cannot go round '{wheels[bad].name}'" if 0 <= bad < len(wheels) else "has no path"
+        found.append((f"{what} {when(k)}: {res['problems'].get(k, '')}", frame(k)))
+    rows = np.flatnonzero(ok)
+    lifted = np.asarray(res.get("lifted", np.zeros((len(ok), len(wheels)), dtype=bool)), dtype=bool)
+    if len(rows) and wheels:
+        wrap = res["wrap"][rows]
+        off = lifted[rows]
+        for i in np.flatnonzero(off.any(axis=0)):
+            k = int(rows[int(np.argmax(off[:, i]))])
+            found.append((f"no longer touches '{wheels[i].name}' {when(k)}", frame(k)))
+        for i, c in enumerate(wheels):
+            if c.wrap_cad < 0.0:
+                continue
+            wide = (wrap[:, i] > float(c.wrap_cad) + LOOP) & ~off[:, i]
+            if wide.any():
+                k = int(rows[int(np.argmax(wide))])
+                at = "" if first is None else f" at frame {first + k}"
+                found.append((f"goes {math.degrees(float(wrap[int(np.argmax(wide)), i])):.0f}° round '{c.name}'{at} "
+                              f"(drawn: {math.degrees(float(c.wrap_cad)):.0f}°): check its side and the order of the "
+                              "contacts", frame(k)))
+        if item.mbr > 0.0:
+            i, radius = P.tightest([P.Wheel(None, None, radius_of(item, c), int(c.side)) for c in wheels],
+                                   wrap.max(axis=0))
+            if i >= 0 and radius < float(item.mbr) - 1e-6:
+                k = int(rows[int(np.argmax(wrap[:, i] >= math.radians(1.0)))])
+                found.append((f"bends tighter than its smallest bend (MBR {_mm(item.mbr)} mm) at "
+                              f"'{wheels[i].name}': {_mm(radius)} mm", frame(k) if first is not None else 0))
+    text, at_frame = found[0] if found else ("", 0)
+    if item.problem != text or item.problem_frame != at_frame:
         with _quiet(item):
-            item.problem, item.problem_frame = text, frame
+            item.problem, item.problem_frame = text, at_frame
     if ok.any():
         k = int(np.argmax(ok))
         scale = res["scale"]
@@ -1590,25 +1654,16 @@ def _note(scene, item, res: dict, first) -> list[str]:
             if abs(c.wrap - wrap) > 1e-7 or abs(c.s - mid) > 1e-6:
                 with _quiet(c):
                     c.wrap, c.s = wrap, mid
-    return warnings
+    return [f"Cable '{name}' {t}" for t, _f in found]
 
 
 def _usable(scene, item) -> bool:
     return bool(item.enabled) and not broken(scene, item)
 
 
-def _draw(scene, item, rel: np.ndarray, first, was=None) -> list[str]:
-    """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had). ``was``:
-    the wraps the cable had a moment ago (posing): a wrap that jumps from them means it lifted off that wheel."""
-    res = _solve_item(scene, item, rel)
-    if was is not None and len(rel) == 1 and res["ok"][0] and len(was) == res["wrap"].shape[1] and len(was):
-        jump = np.abs(res["wrap"][0] - np.asarray(was))
-        if float(jump.max()) > WRAP_JUMP:
-            bad = int(np.argmax(jump))
-            res["ok"][0] = False
-            res["bad"][0] = bad
-            res["off"][0] = bad
-            res["problems"][0] = f"the cable no longer touches '{res['names'][bad]}' (it has lifted off)"
+def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
+    """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had)."""
+    res = _solve_item(scene, item, rel, ref=ref)
     warnings = _note(scene, item, res, first)
     if res["ok"].any():
         scale = res["scale"]
@@ -1617,8 +1672,8 @@ def _draw(scene, item, rel: np.ndarray, first, was=None) -> list[str]:
     return warnings
 
 
-def _places_key(item, obs) -> str:
-    return json.dumps([ob.name for ob in obs])
+def _places_key(item, slots) -> str:
+    return json.dumps([sl.name for sl in slots])
 
 
 def _store_places(scene, item, rel: np.ndarray, obs, first: int) -> None:
@@ -1663,13 +1718,13 @@ def _rebuild(scene, item) -> list[str]:
                     item.problem, item.problem_frame = "", 0
             _sync(scene, item)
             return []
-        _wheels_, obs, _w, _a, _b = _inputs_of(item)
-        stored = _stored_places(scene, item, obs) if _baked(scene) else None
+        _wheels_, slots, _w, _a, _b = _inputs_of(item)
+        stored = _stored_places(scene, item, slots) if _baked(scene) else None
         if stored is not None:
             return _draw(scene, item, stored[0], stored[1])
         if not _baked(scene):
             _drop_places(scene, item)
-        rel = _rel_now(item, obs)
+        rel = _rel_now(item, slots)
         _STATE["last"][_k(scene, item)] = rel
         return _draw(scene, item, rel[None], None)
     finally:
@@ -1902,8 +1957,12 @@ def _guarded(scene, item, change, why: str) -> None:
     try:
         change()
         item = _cable(scene, name)
-        _wheels_, obs, _w, _a, _b = _inputs_of(item)
-        res = _solve_item(scene, item, _rel_now(item, obs)[None]) if _usable(scene, item) else None
+        _STATE["rest"].clear()
+        res = None
+        if _usable(scene, item):
+            _set_cad_wraps(scene, item)         # (what was asked for is what the cable is drawn like from now on)
+            _wheels_, slots, _w, _a, _b = _inputs_of(item)
+            res = _solve_item(scene, item, _rel_now(item, slots)[None])
         if res is not None and not res["ok"].all():
             _restore(item, snap)
             raise PathError(f"{why}: {res['problems'].get(0, 'the cable has no path then')}")
@@ -1923,9 +1982,9 @@ def _axis_of(ob, hit):
     axes = axes[np.linalg.norm(axes[:, 3:6], axis=1) > 1e-9]
     if not len(axes):
         return None
-    verts, _tris = flex._mesh_arrays(me)
+    verts, tris = flex._mesh_arrays(me)
     d = axes[:, 3:6] / np.linalg.norm(axes[:, 3:6], axis=1, keepdims=True)
-    full = np.array([bool(P.is_round(verts, a[:3], dk)) for a, dk in zip(axes, d)])
+    full = np.array([bool(P.is_round(verts, a[:3], dk, tris)) for a, dk in zip(axes, d)])
     pool = np.flatnonzero(full) if full.any() else np.arange(len(axes))
 
     def reach(k):                               # how far the part reaches from this axis
@@ -1960,7 +2019,7 @@ def add_contact(scene, item, ob, hit=None) -> int:
     origin, axis = _at(w, found[0]), _unit(w[:3, :3] @ found[1])
     verts, tris = flex._mesh_arrays(ob.data)
     vw = _at(w, verts)
-    full = bool(P.is_round(vw, origin, axis))
+    full = bool(P.is_round(vw, origin, axis, tris))
     cable_r = 0.5 * float(item.cad_diameter or item.diameter)
     line, s_line, _res = _cad_path(scene, item, memo)    # the path as it is, in the CAD pose (world)
     if len(line) < 2:
@@ -2279,8 +2338,8 @@ def remove(scene, index: int) -> None:
 
 def _moved(scene, item):
     """The carriers' places when they are not where the cable was solved for, else None."""
-    _wheels_, obs, _w, _a, _b = _inputs_of(item)
-    rel = _rel_now(item, obs)
+    _wheels_, slots, _w, _a, _b = _inputs_of(item)
+    rel = _rel_now(item, slots)
     last = _STATE["last"].get(_k(scene, item))
     if last is not None and last.shape == rel.shape and float(np.abs(rel - last).max(initial=0.0)) <= MOVE_TOL:
         return None
@@ -2297,11 +2356,13 @@ def _live(scene, force: bool = False) -> bool:
         rel = _moved(scene, it)
         if rel is None and not force:
             continue
-        _wheels_, obs, _w, _a, _b = _inputs_of(it)
-        rel = _rel_now(it, obs) if rel is None else rel
+        _wheels_, slots, _w, _a, _b = _inputs_of(it)
+        rel = _rel_now(it, slots) if rel is None else rel
+        # the pose before this one was solved a moment ago (posing): its wraps are what this one is measured by
+        follows = not force and _STATE["last"].get(_k(scene, it)) is not None and not it.problem.startswith("cannot")
         _STATE["last"][_k(scene, it)] = rel
         _drop_places(scene, it)
-        _draw(scene, it, rel[None], None, was=None if force else [float(c.wrap) for c in _wheels(it)])
+        _draw(scene, it, rel[None], None, ref=[float(c.wrap) for c in _wheels(it)] if follows else None)
         wrote = True
     return wrote
 
@@ -2330,11 +2391,11 @@ def refresh(scene, force: bool = False) -> None:
         _STATE["busy"] -= 1
 
 
-def _bake(scene) -> list[str]:
-    first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
-    frames = end - first + 1
+def _plan(scene) -> tuple:
+    """What a Build has to do: (notes, the cables to draw, those that can move, those whose movers are animated,
+    the objects whose places must be read) – cables by their place in the list."""
     notes, its = [], []
-    for it in scene.fresing.cables:
+    for i, it in enumerate(scene.fresing.cables):
         if not it.enabled:
             continue
         why = broken(scene, it)
@@ -2342,31 +2403,54 @@ def _bake(scene) -> list[str]:
             if it.part_uid:
                 notes.append(f"Cable '{label(it)}': {why} (see 4 Motion > Cables and paths)")
             continue
-        its.append(index_of(scene, it))
+        its.append(i)
     can = [n for n in its if _can_move(_cable(scene, n))]
     animated = [n for n in can if _animated(_cable(scene, n))]
+    obs = {}
+    for n in can:
+        it = _cable(scene, n)
+        for ob in [it.part] + [o for sl in _inputs_of(it)[1] for o in sl.objects()]:
+            obs[ob.name] = ob
+    return notes, its, can, animated, list(obs.values())
+
+
+def _read_hook(scene) -> list:
+    """For the hoses' Build (``flex.READ_HOOKS``): the objects the cables need read at every frame, so one pass
+    through the frames serves both. Nothing when no cable moves along the animation."""
+    try:
+        if not len(scene.fresing.cables):
+            return []
+        _notes, _its, _can, animated, obs = _plan(scene)
+        return obs if animated else []
+    except Exception:
+        return []
+
+
+def _bake(scene) -> list[str]:
+    first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
+    frames = end - first + 1
+    notes, its, can, animated, obs = _plan(scene)
     mats = {}
     if can:
-        obs = {}
-        for n in can:
-            it = _cable(scene, n)
-            for ob in [it.part] + _inputs_of(it)[1]:
-                obs[ob.name] = ob
-        mats = flex.read_places(scene, list(obs.values()), first, frames if animated else 1, keep_shown=False)
-        _STATE["steps"] += frames if animated else 1
+        before = flex._STATE["steps"]
+        mats = flex.read_places(scene, obs, first, frames if animated else 1, keep_shown=False)
+        _STATE["steps"] += flex._STATE["steps"] - before          # (0 when the hoses' pass had read them)
     for n in its:
         it = _cable(scene, n)
-        _wheels_, obs, _w, _a, _b = _inputs_of(it)
+        _wheels_, slots, _w, _a, _b = _inputs_of(it)
         if n in can:
             inv = np.linalg.inv(mats[it.part.name])
-            rel = np.stack([inv @ mats[ob.name] for ob in obs], axis=1) if obs else np.zeros((len(inv), 0, 4, 4))
+            rel = np.zeros((len(inv), len(slots), 4, 4))
+            for f in range(len(inv)):
+                for k, sl in enumerate(slots):
+                    rel[f, k] = inv[f] @ _place(it, sl, lambda ob, f=f: mats[ob.name][f])
             if n not in animated or float(np.abs(rel - rel[:1]).max(initial=0.0)) <= MOVE_TOL:
                 rel = rel[:1]
         else:
-            rel = _rel_now(it, obs)[None]
+            rel = _rel_now(it, slots)[None]
         moving = len(rel) > 1
         if moving:
-            _store_places(scene, it, rel, obs, first)
+            _store_places(scene, it, rel, slots, first)
         else:
             _drop_places(scene, it)
         if it.moving != moving:
@@ -2380,6 +2464,7 @@ def _bake(scene) -> list[str]:
 def bake(scene, anim) -> list[str]:
     """The last step of every Build: a moving cable gets a shape for every frame. Returns warnings."""
     if not len(scene.fresing.cables):
+        flex.drop_read()
         return []
     forget()
     _STATE["busy"] += 1
@@ -2389,6 +2474,7 @@ def bake(scene, anim) -> list[str]:
         return [f"The cables could not be worked out ({exc or type(exc).__name__}): they show as they were"]
     finally:
         _STATE["busy"] -= 1
+        flex.drop_read()                        # (what the hoses' pass through the frames had read for us)
 
 
 def after_clear(scene) -> None:
@@ -2407,8 +2493,8 @@ def after_clear(scene) -> None:
                     it.moving = can
             if can or had:
                 _drop_places(scene, it)
-                _wheels_, obs, _w, _a, _b = _inputs_of(it)
-                _draw(scene, it, _rel_now(it, obs)[None], None)
+                _wheels_, slots, _w, _a, _b = _inputs_of(it)
+                _draw(scene, it, _rel_now(it, slots)[None], None)
     finally:
         _STATE["busy"] -= 1
     forget()                                    # the parts may not be back in place yet: look again at the next update
@@ -2602,6 +2688,7 @@ def forget() -> None:
     _STATE["last"].clear()
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
+    _STATE["rest"].clear()
 
 
 def _follow(scene) -> None:
@@ -2664,6 +2751,8 @@ def register() -> None:
             lst.append(fn)
     if _clash_hook not in clash.HOOKS:
         clash.HOOKS.append(_clash_hook)
+    if _read_hook not in flex.READ_HOOKS:
+        flex.READ_HOOKS.append(_read_hook)
 
 
 def unregister() -> None:
@@ -2673,6 +2762,8 @@ def unregister() -> None:
             lst.remove(fn)
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
+    while _read_hook in flex.READ_HOOKS:
+        flex.READ_HOOKS.remove(_read_hook)
     forget()
 
 

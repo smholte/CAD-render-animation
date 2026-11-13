@@ -2066,6 +2066,8 @@ class FRCableContact(bpy.types.PropertyGroup):
     surface: FloatProperty(default=0.1)                    # from the axis to the surface the cable lies on (m)
     side: IntProperty(default=1)                           # +1: the cable goes round it turning about +axis; -1: about -axis
     wrap: FloatProperty(default=0.0)                       # rad, as drawn now (written by paths.py)
+    wrap_cad: FloatProperty(default=-1.0)                  # rad, in the CAD pose (-1: not known): a lifted wheel and
+    #                                                        a loop are measured against it
     gap: FloatProperty(default=0.0)                        # m: how far the CAD cable was drawn off the surface
     s: FloatProperty(default=0.0)                          # m along the cable from its start: where the contact is
     full: BoolProperty(default=True)                       # the part is round all the way (it may turn)

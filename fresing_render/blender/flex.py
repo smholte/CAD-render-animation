@@ -89,7 +89,9 @@ _INPUTS = (("Shapes", "NodeSocketObject"), ("First", "NodeSocketInt"), ("Frames"
            ("Radius", "NodeSocketFloat"), ("Link", "NodeSocketObject"))
 
 # runtime only: nothing here outlives undo, redo or a file load, and no Blender object is kept
-_STATE = {"busy": 0, "last": {}, "arrays": {}, "solves": 0, "steps": 0, "inputs": {}}
+_STATE = {"busy": 0, "last": {}, "arrays": {}, "solves": 0, "steps": 0, "inputs": {}, "read": None}
+READ_HOOKS: list = []                   # fn(scene) -> objects whose places Build should read in the hoses' pass
+#                                         through the frames too (cables: blender/paths.py), see ``read_places``
 
 
 class FlexError(RuntimeError):
@@ -1447,24 +1449,44 @@ def _live(scene, force: bool = False) -> bool:
 
 
 def _read_places(scene, its, first: int, frames: int) -> dict:
-    """Step through the frames and read the world matrices of these items' end parts: name -> (frames, 4, 4)."""
-    return read_places(scene, [ob for _i, it in its for ob in (it.a_part, it.b_part)], first, frames)
+    """Step through the frames and read the world matrices of these items' end parts: name -> (frames, 4, 4).
+    What ``READ_HOOKS`` ask for is read in the same pass and kept for them (``read_places`` hands it out)."""
+    also = []
+    for fn in READ_HOOKS:
+        try:
+            also += [ob for ob in (fn(scene) or ()) if ob is not None]
+        except Exception as exc:                # never break a Build over another module's wish
+            print("Fresing Render: read hook failed:", exc)
+    return read_places(scene, [ob for _i, it in its for ob in (it.a_part, it.b_part)], first, frames, also=also,
+                       keep=True)
 
 
-def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True) -> dict:
+def drop_read() -> None:
+    """Forget the places a Build's pass through the frames read (the last module that wanted them calls this)."""
+    _STATE["read"] = None
+
+
+def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, also=(), keep: bool = False) -> dict:
     """Step through ``frames`` frames from ``first`` and read where these objects are: name -> (frames, 4, 4), world.
 
     Objects that are only drawn by nodes (hoses, links, cables, the toolpath, chips) are hidden meanwhile, so they
     are not worked out at every frame. ``keep_shown`` False: also when they are among ``obs`` (a hidden object's
-    place is worked out from its parent's, see ``_world``). Cables use this too (blender/paths.py)."""
+    place is worked out from its parent's, see ``_world``). ``also``: more objects read in the same pass (never
+    kept shown), not returned. ``keep``: everything read is remembered until ``drop_read`` or ``forget`` – a later
+    call for the same frames whose objects were all read then is answered from that, without stepping (the hoses'
+    pass at Build reads for the cables too: blender/paths.py)."""
     from . import clash
     ends = {ob.name: ob for ob in obs if ob is not None}
     names = sorted(ends)
-    obs = [ends[n] for n in names]
-    out = {n: np.empty((frames, 4, 4)) for n in names}
-    if not names or frames < 1:
-        return out
-    keep = (scene.frame_current, scene.frame_subframe)
+    kept = _STATE["read"]
+    if kept is not None and kept[0] == (scene.name, int(first), int(frames)) and all(n in kept[1] for n in names):
+        return {n: kept[1][n] for n in names}
+    extra = {ob.name: ob for ob in also if ob is not None and ob.name not in ends}
+    every = {**ends, **extra}
+    out = {n: np.empty((frames, 4, 4)) for n in every}
+    if not every or frames < 1:
+        return {n: out[n] for n in names}
+    keep_at = (scene.frame_current, scene.frame_subframe)
     needed = set(names) if keep_shown else set()
     shy = [o for o in scene.objects if not o.hide_viewport and o.name not in needed
            and any(m.type == "NODES" for m in getattr(o, "modifiers", ()))]
@@ -1475,13 +1497,15 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True) ->
             for k in range(frames):
                 scene.frame_set(first + k)
                 _STATE["steps"] += 1
-                for n, ob in zip(names, obs):
+                for n, ob in every.items():
                     out[n][k] = _np(_world(ob))
     finally:
         for o in shy:
             o.hide_viewport = False
-        scene.frame_set(keep[0], subframe=keep[1])
-    return out
+        scene.frame_set(keep_at[0], subframe=keep_at[1])
+    if keep:
+        _STATE["read"] = ((scene.name, int(first), int(frames)), out)
+    return {n: out[n] for n in names}
 
 
 def _store_places(scene, mats: dict, first: int) -> None:
@@ -1860,6 +1884,7 @@ def forget() -> None:
     _STATE["last"].clear()
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
+    _STATE["read"] = None
 
 
 def _redraw_views() -> None:
