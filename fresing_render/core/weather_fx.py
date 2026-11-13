@@ -24,20 +24,20 @@ SEED_RAIN, SEED_SNOW, SEED_SPLASH = 1091, 2091, 3091
 # the box that holds the falling rain / snow: it travels with the active camera (centred a little in front of it),
 # while the drops stay put in the world (their pattern repeats with the box's size); rain further away is fog
 RAIN_BOX = (36.0, 36.0, 18.0)
-SNOW_BOX = (26.0, 26.0, 14.0)
+SNOW_BOX = (22.0, 22.0, 12.0)
 AHEAD = 0.35                       # the box's centre lies this share of its width in front of the camera
 
 # streaks / flakes per cubic metre at amount 1 (a downpour; heavy snowfall). What a camera sees of rain is a streak
 # per drop over its exposure; real drops are far denser (~1000 / m3 of all sizes) but only the big near ones show.
 RAIN_DENSITY = 3.0
-SNOW_DENSITY = 9.0
+SNOW_DENSITY = 20.0
 EXPOSURE = 1.0 / 50.0              # s: a streak is as long as a drop falls in this time (1/50 s, video)
 VIEWPORT = 0.25                    # share of drops / flakes drawn in the 3D view (renders draw all)
 
 SNOW_FALL = 1.0                    # m/s: a snowflake's fall speed (0.5 … 1.5 m/s, Locatelli & Hobbs 1974)
 SNOW_WOBBLE = 0.35                 # m: flakes sway this far round their path
 SNOW_OMEGA = 1.3                   # rad/s
-FLAKE_MM = 9.0                     # a flake's size (diameter), mm: wet flakes clump to 5 … 15 mm
+FLAKE_MM = 12.0                    # a flake's size (diameter), mm: wet flakes clump to 5 … 15 mm
 
 
 def fall_speed(drop_mm: float) -> float:
