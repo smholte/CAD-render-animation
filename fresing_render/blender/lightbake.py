@@ -41,12 +41,14 @@ CHOICES = (("LIVE", "Live only"), ("SOFT", "Soft light baked, sun live"), ("ALL"
 _BY_LABEL = {label.lower(): key for key, label in CHOICES}
 NAME = "FR light bake"
 UV_NAME = "fr_light"
-# Speed for the estimate, measured on the 4-core web machine (CPU), Cycles DIFFUSE bake (texel x sample per second
-# per pass, incl. overhead per call). The RTX 3090 figure is an estimate: GPU_FACTOR times faster.
-RATE_CPU = 2.0e6
+# Speed for the estimate, measured on the 4-core web machine (CPU), 13 Nov 2026: Cycles DIFFUSE bake, texel x sample
+# per second per pass (demo vessel, Draft: 8.4 M texels x 16 samples x 2 passes in 31 s), plus a fixed cost per bake
+# call (scene sync, read back) and per atlas (denoise ~1.9 s at 2048 px). The RTX 3090 figure is an estimate:
+# GPU_FACTOR times faster than these 4 cores, labelled so in the panel.
+RATE_CPU = 8.0e6
 GPU_FACTOR = 20.0
-CALL_SECONDS = 0.6                     # fixed cost of one bake call (scene sync) on the web machine
-BYTES_PER_TEXEL = 0.35                 # JPEG of a lightmap atlas at quality 90 (measured)
+CALL_SECONDS = 2.0
+BYTES_PER_TEXEL = 0.32                 # JPEG of the atlases at quality 90 + vertex light (demo vessel, Draft: 0.32)
 BATCH_TEXEL_SAMPLES = 6.0e7            # one bake call at most this many texel x samples (Cancel answers within ~30 s)
 
 
