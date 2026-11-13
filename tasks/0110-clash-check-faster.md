@@ -1,6 +1,6 @@
 # 0110 – Clash check faster on big moving machines
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0110-clash-check-faster`
+**Who:** worker · **Status:** running · **Branch:** `claude/charming-gates-tvqfs2` (the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (open point of 0092; the owner wants tasks to finish sooner)
 **Lane:** Clash: `core/clash.py`, `blender/clash.py`, `ops_clash.py`, `ui_clash.py`, `tests/test_clash*.py`. Not
 `tests/test_demo_project.py` (0108 may be splitting its clash test – coordinate through `main`: merge it once before you
