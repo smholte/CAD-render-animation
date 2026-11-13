@@ -1,6 +1,6 @@
 # 0114 – House round trip: import a House Planner scene, bake, export the bake package
 
-**Who:** worker · **Status:** running · **Branch:** `claude/keen-hypatia-mtjwps` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.92) · **Branch:** `claude/keen-hypatia-mtjwps` (the web session's branch)
 **Started by:** lead, 13 Nov 2026 · **Area:** House lane – new files `core/house_scene.py`, `core/house_snow.py`,
 `blender/house_import.py`, `blender/house_bake.py`, `blender/ops_house.py`, `blender/ui_house.py`, their tests,
 `tests/data/house/`; additive: `blender/lightbake.py` (one argument), `props.py`, the File > Import menu, tour, PC
@@ -282,10 +282,98 @@ def layers_glb(layers) -> bytes   # glTF 2.0 binary: one node per layer (name = 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus, effort High), branch `claude/keen-hypatia-mtjwps`, 13–14 Nov 2026.
+Released as **0.2.92**.
 
 **What changed:**
+- `blender/lightbake.py`: only `sizes={object or name: (W, H)}` for `uv="UV1"` (+ `size_problem`: texels per metre
+  along U and V must agree within 2 % – a wrong W or H is a `problems` line, never a rescale). Test
+  `tests/test_lightbake_sizes.py`. 0109's files unchanged.
+- `core/house_hash.py` (`hp-hash/1`, numpy; = the pinned checker on all 52 sample surfaces), `core/house_scene.py`
+  (reader with the zip / version / open- and closed-list rules, the sun, 0109's clock for House Planner's sun, encoding
+  half away from zero, one rect layout for every moment, `BakeWriter`, `structure_problems` without jsonschema),
+  `core/house_snow.py` (snow layer meshes by 0109's rule: up part ≥ 0.91 − 0.45·cover, nothing within 25 m above,
+  0.1 m x cover, edges ≤ 0.5 m, a skirt, float32, no extensions).
+- `blender/house_import.py` (File > Import > House Planner scene; the house is a model root "House: <title>" in
+  collection "FR House", parts = surfaces; Preview a moment), `house_bake.py` (Bake and export), `ops_house.py`,
+  `ui_house.py` (5 Scene & Render > House from House Planner), `props.FRHouse`, File > Import menu entry.
+- **0109's sun:** 0109 works its sun out from clock, day, latitude and north and cannot take given angles. So
+  `house_scene.weather_sun` sets hour (closed form for the elevation; morning or afternoon by House Planner's compass
+  azimuth), keeps day and latitude (moves the latitude only when 0109's simpler sun formula cannot reach that
+  elevation on that day), and north so the azimuth lands. Checked: all four sample moments < 0.5° (tests: the
+  channels `sun_el`/`sun_az` after Preview; 1,072 cases incl. polar day/night in the independent tests). The
+  sky texture's `sun_rotation` = 90 − azimuth by 0109's own driver.
+- **One bake object per light-map page** (house_bake): 0107 bakes each UV1 object in a call of its own – 100 calls,
+  65 s of a 95 s moment on the sample. The bake joins each page's surfaces (their UV set 1 moved into their rects)
+  and bakes the page at once (`sizes=` = the page); each surface's 2 % check is still made per surface. 95 s → 15 s
+  per moment at 4 samples; nothing in 0107 changed for it. Charts of two surfaces are ≥ 6 texels apart, more than
+  0107's smoothing reach (4 at Normal), so surfaces never mix.
+- **Lamp fittings never shadow their own light**: the sample's light sits inside its fitting, which blocked nearly all
+  of it (the living room was black at night). Fittings with a light are baked in their own small call and are no
+  occluder elsewhere; in photos they cast no shadow.
+- SOFT at night is baked as ALL (same light; 0109's moonlight is a Sun lamp). `sun_light` = (probe with the sun −
+  sky alone) / sin(elevation) from a tiny extra bake at 64 samples (0107's SOFT probe has no sun in it). Under a
+  heavy overcast (winter-noon: clouds 0.8, low 0.3) 0109's sky hides its sun disc: `sun_light` ≈ [0, 0, 0] – written
+  as such, not null.
+- Snow layers baked per vertex in their season's moments (own call, the house as occluders); LIVE writes them too.
+- Turntable videos: the camera rides on an empty at the camera's target, once round, MP4 (H.264). Not the app's
+  turntable animation (that one circles the model's middle, the format wants the camera's target). The sample has no
+  video; not exercised by a test (open point).
+- Tour stop "House from House Planner" (new set `house`, `MIN_LINES_TOUR` 59, `MIN_CHECKS["tour"]` 59); PC-check
+  line `house.bake` (Full, also on Windows; `MIN_LINES_FULL` 76). No Heavy line: the bake time grows with the number
+  of moments and texels exactly as 0107's does (0107's own lines show that); the sample is the only house.
+- Guide: "Houses from House Planner" in chapter 5, `docs/img/panel_5_house.png` (`guide_screens.py` mode
+  `house_panel`). `jsonschema==4.26.0` in `tools/requirements-dev.txt`. Pinned copy `tests/data/house/hsf-v1.0/` with
+  `PINNED.md` (SHA-256, `tests/test_house_pinned.py`). `fresing_render/data/sample-house.hpscene`.
+- **Committed real bake** `tests/data/house/sample-house.fresing.hpbake` (Draft, 16 samples, CPU, 4-core web
+  machine): **119 s** in all (summer morning 27 s, evening 26 s, winter noon 41 s with snow, night 24 s; the photo
+  rest), **1.8 MB**, `check.py --scene` OK with no ERROR and **no WARNING** (`tests/test_house_sample_bake.py`).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, the made-up sample):
+- `check.py <bake> --scene <hpscene>` on the package from Bake and export at 4 samples: OK, no ERROR, no WARNING.
+- House tests: 224 pass (house_scene 60, independent 133, snow 14, blender 11 …), 2.2 min locally; the Blender file
+  ~90 s (one full bake at 4 samples + imports). PC check line `house.bake` 23 s; the tour test 3.5 min (with the house
+  set's one-moment bake ~25 s).
+- The table's shadow on the floor under the ceiling lamp at night (test, also proves the page rows top-down via the
+  glb's own UVs); open results only for `st_ground`; snow only on roof, plot and terrace; the project as it was
+  after a bake and after Cancel.
+- GitHub runs: **3** for the code. 1st (39d77d7): everything green except the expected "PC-check line since a later
+  version" (the version is taken last). 2nd (3d9a7a4, main merged, 0.2.91 taken by 0081 meanwhile → 0.2.92): green,
+  25.8 min. 3rd (83fac59): main had moved by two commits (a test fix, 0081's report) – merged again, green, 16.1 min;
+  `main` fast-forwarded to exactly 83fac59 (reuse).
 
-**Open points / follow-up tasks:**
+**Subagents:** A wrote `core/house_scene.py` (+33 tests; lost in a container restart after committing, so its work
+was kept as committed); B wrote `core/house_snow.py` (+14 tests; added T-junction mending, TEXCOORD_0, a "snow"
+material); C, the independent tester (did not write the code), wrote `tests/test_house_independent.py`: 133 tests,
+**25 faults** – reader: closed lists `hash`/`uv1`, `extensionsRequired`, control characters, mirrored MAP nodes, storey
+rules, sparse accessors, bad ids, broken indices, recipe faults (an unknown open storey crashed the bake), non-ASCII
+digits in versions, NaN in `falling`, non-UTF-8 zip names; writer: a second snow file left stale light, a cut-off
+PNG crashed `add_photo`, control characters in `app_version`; Blender: LIVE wrote no snow. D (a fresh agent, A being
+gone) fixed the reader/writer faults (+27 tests); the worker fixed the two Blender ones and widened one independent
+test that only allowed reading a scene the checker calls an ERROR (refusing it is right).
+
+**Open points / questions for the two leads:**
+1. **Non-UTF-8 zip names:** FORMAT 2 says readers MUST refuse them; the pinned checker (`hsf/package.py`) accepts them
+   (reads cp437). Fresing Render refuses them.
+2. **Sun more than 0.5° from the moment's own angles:** the checker calls that an ERROR in the scene; the brief asked
+   for a `problems` line – Fresing Render reads such a scene and notes it.
+3. **`sun_light` under a full overcast:** written as [0, 0, 0] (0109's sky hides the sun), not null – null is reserved
+   for "no separate sun" / night. Worth one sentence in FORMAT 8.3.
+4. **`sun_light` definition:** "facing the sun" – Fresing Render divides the up-facing probe's sun part by
+   sin(elevation); at a very low sun that amplifies noise (summer evening 4.8°: × 12).
+5. The lamp of the sample in Lighting Mode Standard is 1.47 W (≈ 1,000 lm): at night with 0109's +4 EV it lights the
+   room clearly, but the brightness of real lamps in House Planner's absolute mode is for its lead to check.
+6. Turntable videos are written but not covered by a test (the sample has none); a sample video in a later format
+   sample would let both sides test it.
+7. Speed on the RTX 3090 not measured (owner's check below).
+
+**Owner's check (RTX 3090):**
+1. Start Fresing Render, save an empty project in a folder of its own, then **File > Import > House Planner scene
+   (.hpscene)…**. In the file window type `%LOCALAPPDATA%\FresingRender` in the path field, then open the Blender
+   folder > `portable` > `extensions` > `user_default` > `fresing_render` > `data` and pick `sample-house.hpscene`
+   (or House Planner's own export, once it has one). The house appears in the view.
+2. **5 Scene & Render > House from House Planner**: click the **eye** next to "Evening 21:30"; switch the 3D view to
+   Rendered: a low sun from the north-west, long shadows across the plot.
+3. Click **Bake and export…**; the panel shows the progress. When it is done: note the time it shows, click
+   **Show in Explorer** – `Made-up sample house.hpbake` is there. Send the time (and the photo inside the file, if
+   you like).
