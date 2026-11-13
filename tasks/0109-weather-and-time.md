@@ -211,10 +211,62 @@ Looks lane's materials beyond the one hook. Real weather data from the internet.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker session on Claude Code on the web, 13 Nov 2026 (branch `claude/affectionate-turing-97hxbu`).
 
 **What changed:**
+- **Channels** (`core/weather.py`): the settings become plain scene properties `fr_wx_*`; everything reads only those
+  (VIEW_LAYER attributes in shaders, simple-expression drivers elsewhere), so the new **Weather & time step** only keys
+  them (scripts off, render queue, paint schemes). Off = no channels, no group, no lamps, no objects.
+- **Sea** (`core/sea.py`, sea part of `surroundings.py`): JONSWAP / Pierson–Moskowitz spectrum, 28 components with
+  cos-2s spreading; white caps from steep crests × a drifting patch field, threshold calibrated to Monahan &
+  O'Muircheartaigh (1980); analytic normals; deep-water colour; hull foam (model's waterline outline, rides with
+  vessel motion), wake (vessel speed), spray (Bft ≥ 6); Sea **From the wind**. `MAT_VERSION` 4: old projects rebuild it.
+- **Sky** (`weather_sky.py`, `world.py`): physical sky by the clock (solar time; equinox or a date + latitude), cloud
+  patches → overcast → low deck, haze, stars + moon; moonlight; floodlights on masts (Quay/Deck/Sea, Auto from dusk);
+  exposure opens up at dusk/night; fog in the compositor (Z pass); work lights (any part, kept through a model update).
+- **Looks** (`weather_look.py`, hook in `materials.build_nodes`): the "FR weather" group innermost (before fade /
+  section): wet (darker, glossy film, streaks, puddles), snow layer (normal·up × AO under the open sky). Only the parts
+  a project uses are built. **Snow on any mesh** (brief change 13 Nov): `add_objects / remove_objects / targets`.
+- **Falling things** (`weather_fx.py`, `core/weather_fx.py`): rain streaks (Atlas fall speed, wind slant), splashes
+  (z-buffer from above), snow flakes drifting, the flag (no simulation) – GN with Scene Time, seeded.
+- **Panel** 5 Scene & Render > Weather & time (presets, time, sky, rain and snow, wind, night lights, work lights),
+  saved scenes keep the weather, render-queue fingerprint, the step in 6 Animation (overlapping steps blend).
+- Tour set "weather" (3 stops), PC-check lines `weather.time/rain/snow/fog/sea/step`, Heavy `heavy.weather`, guide chapter.
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** Sea (core/sea.py + the sea), Sky (core/weather.py from its start, weather_sky.py, world.py), Look
+(weather_look.py, weather_fx.py, core/weather_fx.py, the materials hook) in parallel worktrees from the Design above;
+then an **independent tester** (64 tests from the brief, `tests/test_weather_independent.py`) and a picture helper
+(Sonnet). The tester found 5 faults, all fixed by the worker after merging: the sky's lamps and fog deleted by the rain
+module's clean-up (shared tag + collection – also found by the worker while merging), overlapping steps jumped
+(34.8° of sun), a low old sun (< 19.5°) came back too high (latitude clamp), the compositor switch not given back, rain
+and flag inside the model tree. Merging also found: the sea material's own `fr_weather` flag made the rain clean-up
+delete it (renamed `fr_sea_weather`), a spray material left after Off.
+
+**Tested and measured** (web machine, 4 cores, no graphics card):
+- Local: `test_sea` 36, `test_weather_core` 21, `test_weather_sky` 13, `test_weather_look` + `_fx` 23, `test_weather` 15,
+  `test_weather_independent` 64, `test_vessel_motion` 30, `test_surroundings` 76 – 213 + 64 pass together; `test_tour`
+  64 pass (3 new stops: build, Go, check); tooltip check 714 / 0 missing; precheck green.
+- Sea (invented 124 m vessel, Rough, Detailed, Overcast, vessel motion, Draft 640×360): Cycles CPU top 41.4 → 47.4 s
+  (+15 %), horizon 27.0 → 36.0 s (+33 %); EEVEE (software GL) 15.9 → 11.7 s. White caps measured vs Monahan: Bft 3
+  0.055 % / 0.060 %, Bft 6 1.88 % / 2.0 %, Bft 9 16.1 % / 15.9 %, Bft 10 27.0 % / 27.0 %. Hs Calm 0.43 m, Rough 2.31 m.
+- Sky (test crane on the quay, Cycles CPU Draft 960×540): noon 70.4 s, fog 400 m 70.2 s (compositor: no measurable
+  cost; a world volume instead: +47 % and black), night with floodlights 69–82 s vs 38–45 s without.
+- Looks (spool test model on the quay, CPU seconds, machine shared): weather on but nothing wet/snowy +2 %; wet 1 +34 %;
+  snow layer 0.7 +57 %; rain 0.6 with wet +86–95 %; falling snow +31 %; flag +2 %. EEVEE (software GL) wet/snow ~0.
+- Pictures: `tasks/img/0109_sea_before_after.jpg` (the owner's view: stripes before, patchy white caps + hull foam after),
+  `0109_sea_horizon.jpg`, `0109_time_of_day.jpg`, `0109_wet_snow.jpg`, `0109_presets.jpg`.
+- Windows-only code: none.
 
 **Open points / follow-up tasks:**
+1. **Owner, on the RTX 3090:** EEVEE – the sky's sun gave no direct sunlight under software GL here, floodlights
+   weaker than in Cycles; if so on the GPU: a Sun lamp driven by `sun_el/sun_az/sun` for EEVEE (small follow-up).
+2. Fog shows in Live preview only with the viewport compositor on; stills, the queue and videos have it.
+3. EEVEE's AO only sees what is on screen: a roof keeps less snow off in EEVEE than in Cycles. Wet does not check
+   for a roof (only snow does).
+4. Falling snow is faint at Draft distance; streaks of foam along the wind at Bft 8–9 are faint (`STREAK_MAX`);
+   the white-cap patches are a little blob-shaped – owner to judge.
+5. The waves keep the wind of the video's start (a step changes white caps, spray, rain, snow – not the wave heights);
+   vessel motion holds Rough's numbers above Bft 6. Splash spots and the roof test are taken when the weather is set
+   (a part that moves later keeps its spots).
+6. Lamp powers set by eye from renders; the flag stands beside the back-right corner on Quay/Deck.
+7. Web 3D: the later task copies `core/sea.py` (note: `SEA[state]["foam"]` is now the new threshold) and the channels.
