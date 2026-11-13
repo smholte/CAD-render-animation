@@ -2635,8 +2635,8 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Only "
                     "parts that move as a whole (no milling, chips, coolant or hoses). Makes the export slower")
     compress: BoolProperty(
-        name="Smaller file (compressed)", default=True,
-        description="On: a big model (200,000 triangles or more) is packed with meshopt, about half the file; its "
+        name="Smaller file", default=True,
+        description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
                     "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
                     "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
     last_path: StringProperty(default="")

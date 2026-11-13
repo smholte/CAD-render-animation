@@ -1963,7 +1963,7 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
-4. **Smaller file (compressed)** (on by default): a big model – 200,000 triangles or more – is packed tighter
+4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.

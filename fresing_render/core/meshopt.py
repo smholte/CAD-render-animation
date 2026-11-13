@@ -147,7 +147,9 @@ def encode_index_sequence(idx: np.ndarray) -> bytes:
     if not len(i):
         return bytes([SEQUENCE_HEADER]) + bytes(SEQUENCE_TAIL)
     d = i - np.concatenate([[0], i[:-1]])
-    zz = np.where(d < 0, ((-d) << 1) - 1, d << 1).astype(np.uint64)  # zigzag (32-bit range)
+    if np.abs(d).max() >= 1 << 30:                                       # the format holds 31-bit differences
+        raise ValueError("meshopt: indices too far apart for an index sequence")
+    zz = np.where(d < 0, ((-d) << 1) - 1, d << 1).astype(np.uint64)  # zigzag
     v = zz << np.uint64(1)                                              # bit 0: baseline 0
     return bytes([SEQUENCE_HEADER]) + _leb128(v).tobytes() + bytes(SEQUENCE_TAIL)
 
@@ -311,6 +313,8 @@ def decode_index_sequence(src: bytes, count: int) -> np.ndarray:
     s = np.frombuffer(bytes(src), np.uint8)
     if not len(s) or s[0] != SEQUENCE_HEADER:
         raise ValueError("meshopt: not an index sequence")
+    if count == 0:
+        return np.zeros(0, np.int64)
     b = s[1:len(s) - SEQUENCE_TAIL]
     ends = np.nonzero(b < 0x80)[0]
     if len(ends) < count:

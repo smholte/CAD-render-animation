@@ -9,8 +9,7 @@ import pytest
 
 from fresing_render.core import meshopt as mo
 
-# A vertex buffer the meshopt library itself (0.22, meshopt_encodeVertexBuffer, version 0) wrote for these 20
-# elements of 4 bytes: the NumPy encoder must give the same bytes (same format, same choices).
+# 20 elements of 4 bytes: the library itself (meshopt_encodeVertexBuffer, version 0) must read what NumPy writes.
 REF_DATA = np.array([[i, (i * 7) % 256, 255 - i, i // 3] for i in range(20)], np.uint8)
 
 
@@ -51,22 +50,34 @@ def test_vertex_buffer_packs_neighbouring_points():
         mo.encode_vertex_buffer(np.zeros((4, 6), np.uint8))           # glTF wants a multiple of 4 bytes
 
 
-def test_vertex_buffer_is_what_the_library_writes():
+def test_vertex_buffer_is_read_by_the_library():
+    """meshopt's own decoder reads the NumPy encoder's bytes, and they are no longer than its own encoder's (the two
+    may choose differently where two packings are the same size)."""
+    import ctypes
     lib = _library()
-    enc = mo.encode_vertex_buffer(REF_DATA)
-    if lib is not None:
-        import ctypes
-        f = lib.lib.meshopt_encodeVertexBuffer if hasattr(lib.lib, "meshopt_encodeVertexBuffer") else None
-        if f is not None:
-            lib.lib.meshopt_encodeVertexVersion(0)
-            f.restype = ctypes.c_size_t
-            f.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t]
-            out = np.zeros(4096, np.uint8)
-            data = np.ascontiguousarray(REF_DATA)
-            n = f(out.ctypes.data, len(out), data.ctypes.data, len(data), 4)
-            assert enc == out[:n].tobytes()
-    # the tail: at least 32 bytes after the blocks, the first element last
-    assert enc[-4:] == REF_DATA[0].tobytes() and len(enc) >= 1 + 32
+    pos, _ = _grid()
+    for data in (REF_DATA, np.concatenate([pos, np.zeros((len(pos), 1), np.int16)], axis=1).view(np.uint8)):
+        data = np.ascontiguousarray(data)
+        enc = mo.encode_vertex_buffer(data)
+        assert enc[-data.shape[1]:] == data[0].tobytes() and len(enc) >= 1 + 32      # tail: the first element last
+        if lib is None or not hasattr(lib.lib, "meshopt_encodeVertexBuffer"):
+            continue
+        L = lib.lib
+        L.meshopt_encodeVertexVersion.argtypes = [ctypes.c_int]
+        L.meshopt_encodeVertexVersion(0)
+        L.meshopt_encodeVertexBuffer.restype = ctypes.c_size_t
+        L.meshopt_encodeVertexBuffer.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t,
+                                                 ctypes.c_size_t]
+        out = np.zeros(len(enc) * 2 + 4096, np.uint8)
+        n = L.meshopt_encodeVertexBuffer(out.ctypes.data, len(out), data.ctypes.data, len(data), data.shape[1])
+        assert len(enc) <= n
+        L.meshopt_decodeVertexBuffer.restype = ctypes.c_int
+        L.meshopt_decodeVertexBuffer.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_void_p,
+                                                 ctypes.c_size_t]
+        back = np.zeros_like(data)
+        src = np.frombuffer(enc, np.uint8).copy()
+        assert L.meshopt_decodeVertexBuffer(back.ctypes.data, len(data), data.shape[1], src.ctypes.data, len(src)) == 0
+        assert np.array_equal(back, data)
 
 
 def test_malformed_vertex_buffers_are_refused():
@@ -79,11 +90,13 @@ def test_malformed_vertex_buffers_are_refused():
 
 def test_index_sequence_round_trip():
     _, tri = _grid()
-    for idx in (tri, np.array([0, 70000, 3, 2 ** 32 - 1, 0]), np.zeros(0, np.int64)):
+    for idx in (tri, np.array([0, 70000, 3, 2 ** 30 - 1, 0]), np.zeros(0, np.int64)):
         enc = mo.encode_index_sequence(idx)
         assert enc[0] == mo.SEQUENCE_HEADER and enc[-mo.SEQUENCE_TAIL:] == bytes(mo.SEQUENCE_TAIL)
         assert np.array_equal(mo.decode_index_sequence(enc, len(idx)), idx)
-    assert len(mo.encode_index_sequence(tri)) < 2 * len(tri)              # under 2 bytes an index on a mesh
+    assert len(mo.encode_index_sequence(tri)) < 2 * len(tri)
+    with pytest.raises(ValueError):
+        mo.encode_index_sequence(np.array([0, 2 ** 31]))              # under 2 bytes an index on a mesh
 
 
 def _library():

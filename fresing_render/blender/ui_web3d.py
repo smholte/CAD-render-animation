@@ -41,7 +41,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         row = col.row(align=True)
         row.prop(w, "texture_size", text="Texture size", expand=True)
         col.prop(w, "hide_names", text="Hide part names")
-        col.prop(w, "compress", text="Smaller file (compressed)")
+        col.prop(w, "compress", text="Smaller file")
         sub = col.row()
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")

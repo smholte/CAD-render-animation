@@ -293,3 +293,26 @@ def test_bake_scene_is_a_copy_and_empty():
     finally:
         b.close()
     assert len(bpy.data.scenes) == 1
+
+
+def test_compressed_export_and_the_panels_default(mill_export, tmp_path):
+    """Task 0105: Smaller file is on by default but packs only a big model; forced on, the test mill is packed with
+    meshopt, reads back to the same parts and triangles, and its page switches the viewer's decoder on."""
+    sc = fresh()
+    assert sc.fresing.web3d.compress is True
+    assert not core.summary(mill_export["data"])["compressed"]          # 2,693 triangles: below COMPRESS_FROM
+    out = web3d.export(sc, str(tmp_path / "packed.glb"), size=512, compress=True)
+    data = open(out["path"], "rb").read()
+    assert core.problems(data) == []
+    s0, s1 = core.summary(mill_export["data"]), core.summary(data)
+    assert s1["compressed"] and out["compressed"] and " compressed · " in out["text"]
+    assert (s1["parts"], s1["triangles"], s1["textures"]) == (s0["parts"], s0["triangles"], s0["textures"])
+    doc, _ = core.read_glb(data)
+    modes = {v["extensions"][core.MESHOPT]["mode"] for v in doc["bufferViews"] if "extensions" in v}
+    from fresing_render.core import meshopt
+    assert modes == {"ATTRIBUTES", "TRIANGLES" if meshopt.native() is not None else "INDICES"}
+    assert web3d.meshopt_native() is not None                         # Blender as a module ships libmeshoptimizer
+    page = open(out["html"], encoding="utf-8").read()
+    assert "meshoptDecoderLocation" in page
+    off = web3d.export(sc, str(tmp_path / "plain.glb"), size=512, compress=False)
+    assert not off["compressed"] and off["size"] > out["size"]
