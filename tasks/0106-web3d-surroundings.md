@@ -1,6 +1,6 @@
 # 0106 – Web 3D model with its surroundings: moving sea, sky, weather, vessel motion and a live sun
 
-**Who:** worker · **Status:** open – can start (0105 done, 0.2.82) · **Branch:** `task/0106-web3d-surroundings`
+**Who:** worker · **Status:** running · **Branch:** `claude/admiring-turing-bx5rjk` (the session's own branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's wish: "also allow adding environment, like the moving sea and weather")
 **Lane:** Web 3D: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`, `fresing_render/web/` (the viewer
 page and its bundled libraries), their tests; the website's viewer page `site/model/` + `tools/build_site.py` only as far
