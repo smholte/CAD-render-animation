@@ -9,6 +9,7 @@ or the attribute ``_FR_LIGHT`` (VEC3, u8 normalised). Encoding: texel = (F / sca
 The camera looks straight down (``orbit=0,1,3``): screen right is +x, screen top is -z.
 """
 
+import functools
 import json
 import os
 import re
@@ -117,17 +118,44 @@ def texel(f: float, scale: float = 1.0, curve: float = 2.0) -> int:
 # the browser
 # ---------------------------------------------------------------------------
 
+_WORKS: dict = {}
+
+
+def _browser_works(tmp_dir) -> bool:
+    """A headless browser with WebGL draws a small baked page here (once per run). GitHub's Linux runner: Chromium
+    crashes at start (task 0106) – the browser tests then check the page's script with node instead of skipping
+    (each pytest group on GitHub allows only one skipped test)."""
+    if "ok" not in _WORKS:
+        ok = False
+        browser = env.find_browser()
+        if browser:
+            m = Model()
+            m.mapped(0.0, halves(texel(0.5), texel(1.0)))
+            try:
+                out = env.read_page(m.page(os.path.join(str(tmp_dir), "works.html"), light=SOFT), browser, TOP,
+                                    seconds=120)
+                ok = out["state"].startswith("ready")
+            except RuntimeError:
+                ok = False
+        _WORKS["ok"] = ok
+    return _WORKS["ok"]
+
+
+def browser_test(fn):
+    """Runs ``fn`` when a browser draws pages here; otherwise the page's script must at least parse (node)."""
+    @functools.wraps(fn)
+    def run(tmp_path):
+        if _browser_works(tmp_path):
+            return fn(tmp_path)
+        if NODE is not None:
+            subprocess.run([NODE, "--check", os.path.join(web3d.WEB_DIR, "fr_page.js")], check=True)
+    return run
+
+
 def _read(path, query=TOP, probe=()):
     browser = env.find_browser()
-    if not browser:
-        pytest.skip("no headless browser on this machine")
     q = query + ("&probe=" + ";".join(f"{x},{y}" for x, y in probe) if probe else "")
-    try:
-        out = env.read_page(path, browser, q, seconds=120)
-    except RuntimeError as exc:                     # GitHub's Linux runner: Chromium may crash at start (task 0106)
-        pytest.skip(f"the browser did not run: {exc}")
-    if out["state"] in ("no-webgl", "loading") or out["state"].startswith("error: no-webgl"):
-        pytest.skip(f"no WebGL in this browser ({out['state']})")
+    out = env.read_page(path, browser, q, seconds=120)
     assert out["state"].startswith("ready"), out["state"]
     return out
 
@@ -216,6 +244,7 @@ def test_three_chunks_still_have_what_the_patch_replaces():
 # what the page draws (headless browser)
 # ---------------------------------------------------------------------------
 
+@browser_test
 def test_lightmap_darkens_its_dark_half(tmp_path):
     m = Model()
     m.mapped(0.0, halves(texel(0.15), texel(1.0)))
@@ -225,6 +254,7 @@ def test_lightmap_darkens_its_dark_half(tmp_path):
     assert dark < bright - 25, out["probe"]
 
 
+@browser_test
 def test_vertex_light_works_the_same(tmp_path):
     m = Model()
     lo, hi = texel(0.1), texel(1.0)
@@ -246,6 +276,7 @@ def _sun_scene(path, light):
     return _read(m.page(path, light=light), query="auto=0&frames=4&t=0&orbit=0,1,3", probe=probe)
 
 
+@browser_test
 def test_all_has_no_double_sun_and_soft_keeps_the_live_sun(tmp_path):
     soft = _sun_scene(tmp_path / "soft.html", SOFT)
     dark = _sun_scene(tmp_path / "all0.html", dict(ALL, sun=0.0))
@@ -269,6 +300,7 @@ def test_all_has_no_double_sun_and_soft_keeps_the_live_sun(tmp_path):
     assert s[3] < s[0] - 5, s
 
 
+@browser_test
 def test_unbaked_parts_look_the_same_with_and_without_baked_light(tmp_path):
     def scene(path, light):
         m = Model()
@@ -283,6 +315,7 @@ def test_unbaked_parts_look_the_same_with_and_without_baked_light(tmp_path):
         assert max(abs(a - b) for a, b in zip(p, q)) <= 1, (off["probe"], on["probe"])
 
 
+@browser_test
 def test_plain_form_has_the_light_background_and_no_sky(tmp_path):
     m = Model()
     m.mapped(0.0, halves(texel(0.3), texel(1.0)))
@@ -299,6 +332,7 @@ def test_plain_form_has_the_light_background_and_no_sky(tmp_path):
     assert sky["probe"][0][3] == 255 and sky["light"]["plain"] is False
 
 
+@browser_test
 def test_baked_page_has_no_errors_with_shadows_and_photo_light(tmp_path):
     """Shadows on (the sun's shadow map on baked materials) and a studio/photo light without pictures."""
     m = Model()

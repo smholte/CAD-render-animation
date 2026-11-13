@@ -636,7 +636,7 @@ def heavy_web3d(ctx):
     return out["text"]
 
 
-@line("heavy.web3d_bake", "Big machine: web 3D model with baked light", "0.2.87", (H,), requires=("heavy.import",),
+@line("heavy.web3d_bake", "Big machine: web 3D model with baked light", "0.2.88", (H,), requires=("heavy.import",),
       expected=240, what="The 3,000-part machine saved as a web 3D model with Light: Soft light baked, sun live, Bake "
                          "quality Draft (on the graphics card when the app renders with one)",
       shows="How long baking the light of a big model takes and how much it adds to the file",

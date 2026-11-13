@@ -987,11 +987,11 @@ class Job:
             swap = {}
             for p in self.gltf.doc["meshes"][mesh]["primitives"]:
                 m = p.get("material")
-                if m is None:
-                    continue
                 key = (m, it.atlas)
                 if key not in light["lit"]:
-                    mat = json.loads(json.dumps(self.gltf.doc["materials"][m]))
+                    mat = (json.loads(json.dumps(self.gltf.doc["materials"][m])) if m is not None else
+                           {"name": "Look", "pbrMetallicRoughness": {"baseColorFactor": [0.8, 0.8, 0.8, 1.0],
+                                                                     "metallicFactor": 0.0, "roughnessFactor": 0.5}})
                     mat["occlusionTexture"] = {"index": light["atlas"][it.atlas], "texCoord": 1}
                     mat["name"] = f"{mat.get('name', 'Look')} · light {it.atlas + 1}"
                     light["lit"][key] = self.gltf.material(mat)

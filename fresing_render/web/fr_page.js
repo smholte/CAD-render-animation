@@ -580,6 +580,7 @@
     var kindOf = function (o, m) {
       var g = o.geometry;
       if (!m || !m.isMeshStandardMaterial) return null;
+      if (m.transmission > 0 || (m.transparent && m.opacity < 0.5)) return null;   // glass keeps its live light
       if (g.getAttribute('_fr_light')) return 'vtx';
       if (m.aoMap && m.aoMap.channel === 1 && g.getAttribute('uv1')) return 'map';
       return null;

@@ -2709,7 +2709,7 @@ stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
      "Press Open page in 5 Scene & Render > Web 3D model: the crane has soft shadows under the boom and the cab, "
      "darker corners and inside edges, and a little coloured light bounced from the yellow parts; turn it – the "
      "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
-     "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.87", shot="Tour view",
+     "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.88", shot="Tour view",
      check=_check_web3d_light)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",

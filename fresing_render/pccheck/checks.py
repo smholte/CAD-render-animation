@@ -1666,7 +1666,7 @@ def web3d_export(ctx):
     return f"{out['text']}; read back by Blender's glTF importer"
 
 
-@line("web3d.bake", "Web 3D model with baked light", "0.2.87",
+@line("web3d.bake", "Web 3D model with baked light", "0.2.88",
       what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
            "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "
            "light; the file is checked against the glTF rules and read back by Blender")

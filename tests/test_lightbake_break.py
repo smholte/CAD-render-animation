@@ -1,9 +1,6 @@
 """Baked light (task 0107), written by the independent tester (did not write the code): cases that try to break
-``blender/lightbake.py`` and the lit web 3D export. A test marked ``xfail(strict=True)`` pins a fault that is still
-there; when the fault is fixed the test passes, strict xfail turns that into a failure, and the marker goes.
-
-Note for CI: pytest's JUnit file lists an xfail as *skipped*, and each pytest group allows one skipped test
-(``ci_pytest_summary.py --max-skipped 1``): fix the faults (or move the markers) before this file runs on GitHub."""
+``blender/lightbake.py`` and the lit web 3D export. The faults it found are fixed (each test here failed
+before the fix); the rest are cases that held up."""
 
 import math
 import os
@@ -114,11 +111,9 @@ def top_faces(ob):
 
 
 # ---------------------------------------------------------------------------
-# faults still there (xfail strict)
+# faults found by the independent tester, fixed in task 0107 (each test failed before)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="mirrored copy (negative scale) is joined in world coordinates with its "
-                                       "triangles' winding flipped: Cycles bakes it black (AUTO and VERTEX)")
 @pytest.mark.parametrize("uv", ["AUTO", "VERTEX"])
 def test_a_mirrored_copy_gets_the_same_light_as_the_plain_one(uv):
     sc, floor, box, box2 = block_scene()
@@ -132,8 +127,6 @@ def test_a_mirrored_copy_gets_the_same_light_as_the_plain_one(uv):
     assert b[1] > 0.8 * a[1], (a, b)
 
 
-@pytest.mark.xfail(strict=True, reason="the UV layers of all joined objects (+ fr_light) go on one bake mesh: more "
-                                       "than Blender's 8 UV layers -> uv_layers.new returns None -> AttributeError")
 def test_many_differently_named_uv_layers_do_not_stop_the_bake():
     sc, floor, box, box2 = block_scene()
     obs = []
@@ -148,8 +141,6 @@ def test_many_differently_named_uv_layers_do_not_stop_the_bake():
     assert counts() == before
 
 
-@pytest.mark.xfail(strict=True, reason="a mesh with Blender's maximum of 8 UV layers: the bake copy needs a 9th "
-                                       "(fr_light) for uv='UV1' and app-made maps -> AttributeError")
 def test_a_mesh_with_eight_uv_layers_bakes_with_its_own_uv1():
     sc, floor, box, box2 = block_scene()
     me = box.data
@@ -159,9 +150,6 @@ def test_a_mesh_with_eight_uv_layers_bakes_with_its_own_uv1():
     assert res.items["Box A"].kind == "MAP"
 
 
-@pytest.mark.xfail(strict=True, reason="a part with tens of thousands of separate faces (a grating): its charts do "
-                                       "not fit one atlas even at the smallest size; plan() then calls pack() which "
-                                       "raises TooBig and the whole bake / export fails")
 def test_a_grating_with_many_charts_does_not_stop_the_bake():
     sc, floor, box, box2 = block_scene()
     n = 10000                                      # 10,000 bars of 10 x 100 x 30 mm on a 4 x 4 m field
@@ -182,9 +170,6 @@ def test_a_grating_with_many_charts_does_not_stop_the_bake():
     assert any(r["ob"] is gr for r in plan["maps"] + plan["verts"])
 
 
-@pytest.mark.xfail(strict=True, reason="a see-through part becomes an occluder made from ob.data: its OBJECT-linked "
-                                       "glass (how the app's CAD parts hold their material) is lost and it casts a "
-                                       "full black shadow")
 def test_object_linked_glass_lets_the_light_through():
     sc, floor, box, box2 = block_scene()
     bpy.ops.mesh.primitive_plane_add(size=2.5, location=(1.5, -1.5, 0.2))
@@ -205,8 +190,6 @@ def test_object_linked_glass_lets_the_light_through():
     assert under[1] > 0.25 * open_[1], (under, open_)     # data-linked glass gives ~0.5; object-linked gives 0.02
 
 
-@pytest.mark.xfail(strict=True, reason="two objects with the same id (ob['fr_id'] copied by a duplicate, or ids=) "
-                                       "-> one result silently replaces the other, no problem is reported")
 def test_ids_that_collide_are_not_lost_silently():
     sc, floor, box, box2 = block_scene()
     box["fr_id"] = "same"
@@ -215,9 +198,6 @@ def test_ids_that_collide_are_not_lost_silently():
     assert len(res.items) == 3 or any("same" in p for p in res.problems), (sorted(res.items), res.problems)
 
 
-@pytest.mark.xfail(strict=True, reason="the reference probe sits 1 km beside the parts at the height of their "
-                                       "lowest point: under a big ground occluder (a basement below ground level) it "
-                                       "is in the dark and the reference is 0 – every light factor is then huge")
 def test_reference_probe_is_not_under_a_big_ground():
     sc, floor, box, box2 = block_scene()
     bpy.ops.mesh.primitive_plane_add(size=4000.0, location=(0.0, 0.0, 0.0))
@@ -228,9 +208,6 @@ def test_reference_probe_is_not_under_a_big_ground():
     assert res.reference[1] > 0.5, res.reference      # 2.2 without the ground
 
 
-@pytest.mark.xfail(strict=True, reason="SOFT promises the sun's shadow only in ALL, but a Sun lamp is a lamp and is "
-                                       "baked with its hard shadow in SOFT too (the page then adds its live sun: two "
-                                       "suns); the problem text speaks of a 360° photo or studio light")
 def test_soft_does_not_bake_a_sun_lamps_shadow():
     sc, floor, box, box2 = block_scene()
     sc.world = None
@@ -241,14 +218,16 @@ def test_soft_does_not_bake_a_sun_lamps_shadow():
     so.rotation_euler = (math.radians(45), 0.0, 0.0)          # shadows fall towards +y
     bpy.context.view_layer.update()
     res = lightbake.bake([floor, box, box2], "SOFT", texels_per_m=24, samples=8, quality="DRAFT", denoise=False)
+    full = lightbake.bake([floor, box, box2], "ALL", texels_per_m=24, samples=8, quality="DRAFT", denoise=False)
     shade = floor_light(res.items["Floor"], -1.5, 1.2, floor)
     open_ = floor_light(res.items["Floor"], -1.5, -2.5, floor)
-    assert shade[1] > 0.5 * open_[1], (shade, open_)
+    lit = floor_light(full.items["Floor"], -1.5, -2.5, floor)
+    dark = floor_light(full.items["Floor"], -1.5, 1.2, floor)
+    assert dark[1] < 0.5 * lit[1], (dark, lit)                 # ALL bakes the Sun lamp's shadow ...
+    assert abs(open_[1] - shade[1]) < 0.2 * lit[1], (shade, open_, lit)   # ... SOFT does not (no world: ~0 both)
+    assert not any("360" in t for t in res.problems)
 
 
-@pytest.mark.xfail(strict=True, reason="glass faces of an object that is not all glass (a window: frame + pane) bake "
-                                       "to exactly 0: the page's frOcc = min(1, F) then takes the pane's reflections "
-                                       "away and vertex light next to the pane is pulled down")
 def test_glass_faces_of_a_mixed_part_are_not_black():
     sc, floor, box, box2 = block_scene()
     verts = [(x, y, 0.0) for y in (0, 1, 2) for x in (0, 1, 2)]
@@ -275,8 +254,6 @@ def test_glass_faces_of_a_mixed_part_are_not_black():
     assert light[mi == 1].mean(0)[1] > 0.3 * light[mi == 0].mean(0)[1], (light[mi == 1].mean(0), res.reference)
 
 
-@pytest.mark.xfail(strict=True, reason="the bake scene is a copy of the project's scene and keeps its bake settings: "
-                                       "'Selected to Active' on in the project -> 'No valid selected objects'")
 def test_the_projects_own_bake_settings_do_not_stop_the_light_bake():
     sc, floor, box, box2 = block_scene()
     sc.render.bake.use_selected_to_active = True
@@ -447,9 +424,6 @@ def test_compressed_file_keeps_every_copys_light_uvs(mill_compressed):
     assert checked > 1000
 
 
-@pytest.mark.xfail(strict=True, reason="a part without a material: mesh_variant swaps only primitives that have a "
-                                       "material, so its copy carries TEXCOORD_1 but no light picture (bytes for "
-                                       "nothing; the page keeps it live)")
 def test_a_part_without_material_gets_its_light_picture(mill_compressed):
     job, data = mill_compressed["job"], mill_compressed["data"]
     doc, _binary = core.read_glb(data)

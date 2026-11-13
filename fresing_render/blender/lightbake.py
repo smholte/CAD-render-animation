@@ -216,12 +216,23 @@ class Bake:
         if clear:                                   # glass keeps live light on the page; it lets light through here
             self.occluders += [ob for ob in clear if ob not in self.occluders]
             self.objects = [ob for ob in self.objects if ob not in set(clear)]
+        seen_ids: dict = {}
         for ob in self.objects:
+            oid = self.id_of(ob)
+            if oid in seen_ids:                         # two objects with one id: both kept, the second renamed
+                n = seen_ids[oid] = seen_ids[oid] + 1
+                new = f"{oid} #{n}"
+                problems.append(f"{ob.name}: its id '{oid}' is used twice – its result is under '{new}'")
+                self.ids[ob] = new
+                seen_ids[new] = 1
+            else:
+                seen_ids[oid] = 1
             key = ob.data.name_full
             if key not in meshes:
                 meshes[key] = _read_mesh(ob.data)
             md = meshes[key]
             if not len(md.tris):
+                problems.append(f"{ob.name}: no faces – nothing to bake")
                 continue
             rows.append({"ob": ob, "md": md, "area": _world_area(md, ob.matrix_world), "scale": _scale(ob.matrix_world)})
         total = sum(r["area"] for r in rows)
@@ -248,7 +259,7 @@ class Bake:
             (maps if r["kind"] == "MAP" else verts if r["kind"] == "VERTEX" else own).append(r)
         # app-made lightmap UVs: one unwrap per unique mesh, a place per copy
         sizes = []
-        for r in maps:
+        for r in list(maps):
             md = r["md"]
             if md.unwrap is None:
                 md.unwrap = lm.unwrap(md.points, md.tris)
@@ -258,8 +269,12 @@ class Bake:
                 if lm.fits(px, lm.ATLAS):
                     break
                 r["tpm"] *= 0.85
-            else:
-                problems.append(f"{r['ob'].name}: too big for one light picture – its light is coarse")
+            else:                                       # thousands of separate faces (a grating): light per vertex
+                problems.append(f"{r['ob'].name}: too many separate faces for a light picture – baked per vertex")
+                r["kind"] = "VERTEX"
+                maps.remove(r)
+                verts.append(r)
+                continue
             r["px"] = px
             sizes.append(px)
         atlas_px = lm.ATLAS
@@ -288,7 +303,7 @@ class Bake:
         texels = n_atlas * atlas_px * atlas_px if maps else 0
         texels += sum(w * h for w, h in (r["size"] for r in own))
         vertices = sum(len(r["md"].points) for r in verts)
-        passes = 2 if self.light == "SOFT" and self._has_sky_sun() else 1
+        passes = 2 if self.light == "SOFT" and (self._has_sky_sun() or self._sun_lamps()) else 1
         self._plan = {"rows": rows, "maps": maps, "verts": verts, "own": own, "atlases": n_atlas, "tpm": tpm,
                       "texels": texels, "vertices": vertices, "passes": passes, "problems": problems, "atlas_px": atlas_px,
                       "area": total}
@@ -319,6 +334,9 @@ class Bake:
         if world is None or world.node_tree is None:
             return []
         return [n for n in world.node_tree.nodes if n.type == "TEX_SKY"]
+
+    def _sun_lamps(self) -> list:
+        return [ob for ob in self._lamps() if ob.data is not None and ob.data.type == "SUN"]
 
     def _has_sky_sun(self) -> bool:
         return any(getattr(n, "sun_disc", False) for n in self._sky_nodes(self.world))
@@ -401,10 +419,11 @@ class Bake:
         for part, shadow in ((plain, True), (marks, False)):
             if not part:
                 continue
-            names: list = []
+            names: list = []                            # at most 6 UV layers (Blender has 8; the light's is one)
             for _k, (r, _uv) in part:
-                for n in r["md"].uvs:
-                    if n not in names:
+                md_ = r["md"]
+                for n in [md_.active_render] + list(md_.uvs):
+                    if n and n in md_.uvs and n not in names and len(names) < 6:
                         names.append(n)
             pts, tris, nrm, mi, lights = [], [], [], [], []
             uvs = {n: [] for n in names}
@@ -416,12 +435,19 @@ class Bake:
                 md, ob = r["md"], r["ob"]
                 mw = np.array(ob.matrix_world, np.float64)
                 m3 = mw[:3, :3]
+                flip = np.linalg.det(m3) < 0           # mirrored: turn each triangle round, or it faces inwards
+                order = [0, 2, 1] if flip else [0, 1, 2]
+
+                def corners(a, order=order):
+                    a = np.asarray(a)
+                    return a.reshape(-1, 3, *a.shape[1:])[:, order].reshape(a.shape)
+
                 pts.append(md.points @ m3.T + mw[:3, 3])
-                tris.append(md.tris + off)
+                tris.append(md.tris[:, order] + off)
                 nm = np.linalg.inv(m3).T if abs(np.linalg.det(m3)) > 1e-12 else m3
                 n = md.normals.astype(np.float64) @ nm.T
                 n /= np.maximum(np.linalg.norm(n, axis=1), 1e-12)[:, None]
-                nrm.append(n)
+                nrm.append(corners(n))
                 slots = [sl.material for sl in ob.material_slots] or [None]
                 local = []
                 for m in slots:
@@ -434,11 +460,11 @@ class Bake:
                 mi.append(local[np.clip(md.mat, 0, len(local) - 1)])
                 n_c = len(md.tris) * 3
                 for name in names:
-                    uvs[name].append(md.uvs.get(name, np.zeros((n_c, 2), np.float32)))
+                    uvs[name].append(corners(md.uvs.get(name, np.zeros((n_c, 2), np.float32))))
                 if uv is not None:
-                    lights.append(np.asarray(uv, np.float32))
+                    lights.append(corners(np.asarray(uv, np.float32)))
                 if colour:
-                    ranges[next(i for i, v in enumerate(verts) if v is r)] = (corner, corner + n_c)
+                    ranges[next(i for i, v in enumerate(verts) if v is r)] = (corner, corner + n_c, bool(flip))
                 off += len(md.points)
                 corner += n_c
             md0 = part[0][1][0]["md"]
@@ -457,13 +483,13 @@ class Bake:
             out.append((o, ranges))
         return out
 
-    def _target_mesh(self, ob, md: _MeshData, uv: np.ndarray | None, colour: bool):
+    def _target_mesh(self, ob, md: _MeshData, uv: np.ndarray | None, colour: bool, bake_uv: str = ""):
         """A triangle copy of ``ob``'s mesh (in its own coordinates) with its corner normals, UV layers and
         materials (+ the light UVs)."""
         mats = [slot.material for slot in ob.material_slots] or [None]
-        return self._mesh_from(md, uv, colour, mats)
+        return self._mesh_from(md, uv, colour, mats, bake_uv)
 
-    def _mesh_from(self, md: _MeshData, uv: np.ndarray | None, colour: bool, materials: list):
+    def _mesh_from(self, md: _MeshData, uv: np.ndarray | None, colour: bool, materials: list, bake_uv: str = ""):
         """A triangle copy of ``ob``'s mesh with its corner normals, UV layers and materials (+ the light UVs)."""
         me = bpy.data.meshes.new(NAME)
         self._baker.ids.append(me)
@@ -478,11 +504,15 @@ class Bake:
         me.update(calc_edges=True)
         a = me.attributes.new("custom_normal", "FLOAT_VECTOR", "CORNER")
         a.data.foreach_set("vector", md.normals.astype(np.float32).ravel())
-        for name, arr in md.uvs.items():
+        keep = [n for n in (bake_uv, md.active_render) if n and n in md.uvs]
+        keep += [n for n in md.uvs if n not in keep]
+        for name in keep[:7 if uv is not None else 8]:  # Blender has 8 UV layers; the light's needs one
             layer = me.uv_layers.new(name=name)
-            layer.data.foreach_set("uv", arr.astype(np.float32).ravel())
+            layer.data.foreach_set("uv", md.uvs[name].astype(np.float32).ravel())
         if md.active_render and md.active_render in me.uv_layers:
             me.uv_layers[md.active_render].active_render = True
+        if bake_uv and bake_uv in me.uv_layers:         # the object's own UV set 1: baked on as it is
+            me.uv_layers.active = me.uv_layers[bake_uv]
         if uv is not None:
             layer = me.uv_layers.new(name=UV_NAME)
             layer.data.foreach_set("uv", np.asarray(uv, np.float32).ravel())
@@ -547,6 +577,9 @@ class Bake:
             bk.margin_type = "EXTEND"
             bk.use_clear = True
             bk.use_pass_color = False
+            bk.use_selected_to_active = False           # the project's own bake settings do not apply here
+            bk.use_cage = False
+            bk.target = "IMAGE_TEXTURES"
             yield self._tick(0.02, "Setting up the light bake")
             # images
             atlases = []
@@ -579,7 +612,7 @@ class Bake:
                 img.colorspace_settings.name = "Non-Color"
                 self._baker.ids.append(img)
                 md = r["md"]
-                me = self._target_mesh(r["ob"], md, md.uvs[r["uv1"]], False)
+                me = self._target_mesh(r["ob"], md, None, False, bake_uv=r["uv1"])
                 o = self._object(me, r["ob"].matrix_world, r["ob"])
                 for k, m in enumerate(me.materials):
                     me.materials[k] = self._material_with_image(m, img, mat_cache)
@@ -593,30 +626,38 @@ class Bake:
                     entries = [(p["verts"][i], None) for i in chunk]
                     vert_jobs.append((list(chunk), self._joined(entries, True, lambda m: self._matte(m, mat_cache))))
                     chunk, size = [], 0
-            for ob in self.occluders:
-                me = ob.data if ob.type == "MESH" else None
-                if me is None:
+            for ob in self.occluders:                  # with the object's own material slots (glass stays glass)
+                if ob.type != "MESH" or ob.data is None:
                     continue
-                self._object(me, ob.matrix_world, None)
+                md = _read_mesh(ob.data)
+                if len(md.tris):
+                    self._object(self._target_mesh(ob, md, None, False), ob.matrix_world, ob)
+            suns = []                                   # Sun lamps count as the sun: not baked directly in SOFT
             for lamp in self._lamps():
                 o = bpy.data.objects.new(NAME, lamp.data)
                 o.matrix_world = lamp.matrix_world
                 sc.collection.objects.link(o)
                 self._baker.ids.append(o)
+                if lamp.data.type == "SUN":
+                    suns.append(o)
             # the probe: an open upward quad far from everything
             probe_img = bpy.data.images.new(NAME, 8, 8, alpha=True, float_buffer=True)
             probe_img.colorspace_settings.name = "Non-Color"
             self._baker.ids.append(probe_img)
             probe = self._probe(probe_img, mat_cache)
             # passes
-            if self.light == "SOFT" and self._has_sky_sun():
-                passes = [(self._world_copy(False), {"DIRECT"}, "sky"), (self._world_copy(True), {"INDIRECT"}, "bounce")]
+            has_sun = self._has_sky_sun() or bool(suns)
+            if self.light == "SOFT" and has_sun:      # (world, passes, what, Sun lamps on)
+                passes = [(self._world_copy(False), {"DIRECT"}, "sky", False),
+                          (self._world_copy(True), {"INDIRECT"}, "bounce", True)]
             else:
-                passes = [(self._world_copy(True), {"DIRECT", "INDIRECT"}, "light")]
+                passes = [(self._world_copy(True), {"DIRECT", "INDIRECT"}, "light", True)]
                 res.sun_separate = self.light != "SOFT"
                 if self.light == "SOFT":
-                    res.problems.append("The light has no separate sun (a 360° photo or studio light): all of it "
-                                        "is baked")
+                    res.problems.append("The light has no separate sun (no sun in the sky, no Sun lamp; a 360° photo "
+                                        "or studio light): all of it is baked")
+            if self.sky and not self._sky_nodes(self.world):
+                res.problems.append("The world has no sky: the time of day was not used")
             acc = [np.zeros((A, A, 3), np.float32) for _ in atlases]
             mask = [np.zeros((A, A), bool) for _ in atlases]
             own_acc = [np.zeros((img.size[1], img.size[0], 3), np.float32) for _r, _o, img in own_objs]
@@ -635,8 +676,10 @@ class Bake:
             res.timing["setup"] = time.perf_counter() - t
             t = time.perf_counter()
             done = 0
-            for world, pf, what in passes:
+            for world, pf, what, sun_on in passes:
                 sc.world = world
+                for o in suns:
+                    o.hide_render = not sun_on
                 bk.use_pass_direct = "DIRECT" in pf
                 bk.use_pass_indirect = "INDIRECT" in pf
                 self._bake_call(sc, [probe], "IMAGE_TEXTURES", pf)
@@ -650,8 +693,11 @@ class Bake:
                         self._bake_call(sc, objs, "VERTEX_COLORS", pf)
                         for o, rng in vert_jobs[idx][1]:
                             c = self._corner_colours(o)
-                            for i, (lo, hi) in rng.items():
-                                vert_acc[i] += c[lo:hi]
+                            for i, (lo, hi, flip) in rng.items():
+                                part = c[lo:hi]
+                                if flip:                # a mirrored copy was joined with its corners turned round
+                                    part = part.reshape(-1, 3, 3)[:, [0, 2, 1]].reshape(-1, 3)
+                                vert_acc[i] += part
                     else:
                         self._bake_call(sc, objs, "IMAGE_TEXTURES", pf)
                         img = atlases[idx] if kind == "atlas" else own_objs[idx][2]
@@ -662,8 +708,10 @@ class Bake:
                     done += 1
             res.reference = tuple(float(v) for v in ref)
             res.reference_sky = res.reference
-            if self._has_sky_sun():                    # the sky alone on the probe: the page's balance of sun and sky
+            if has_sun:                                # the sky alone on the probe: the page's balance of sun and sky
                 sc.world = self._world_copy(False)
+                for o in suns:
+                    o.hide_render = True
                 bk.use_pass_direct = bk.use_pass_indirect = True
                 self._bake_call(sc, [probe], "IMAGE_TEXTURES", {"DIRECT", "INDIRECT"})
                 sky = self._pixels(probe_img)[2:6, 2:6, :3].reshape(-1, 3).mean(axis=0)
@@ -689,6 +737,10 @@ class Bake:
                 res.items[self.id_of(r["ob"])] = Item(self.id_of(r["ob"]), r["ob"].name, "MAP",
                                                       texels_per_m=r["tpm"], pixels=a)
             for r, c in zip(p["verts"], vert_acc):
+                clear = np.array([_clear(sl.material) for sl in r["ob"].material_slots] or [False])
+                tri_clear = clear[np.clip(r["md"].mat, 0, len(clear) - 1)]
+                if tri_clear.any():                     # glass has no matte light of its own: the open sky's
+                    c.reshape(-1, 3, 3)[tri_clear] = np.asarray(res.reference, np.float32)
                 md = r["md"]
                 n = len(md.points)
                 vals = np.zeros((n, 3), np.float64)
@@ -719,7 +771,8 @@ class Bake:
     def _probe(self, img, cache):
         p = self.plan()
         from . import build
-        mn, mx = build.world_bounds([r["ob"] for r in p["rows"]])
+        mn, mx = build.world_bounds([r["ob"] for r in p["rows"]] +
+                                    [o for o in self.occluders if o.type == "MESH"])
         size = max(float(max(mx[i] - mn[i] for i in range(3))), 1.0)
         far = float(mx[0]) + 10.0 * size + 1000.0
         me = bpy.data.meshes.new(NAME)
@@ -729,7 +782,11 @@ class Bake:
         uv.data.foreach_set("uv", [0, 0, 1, 0, 1, 1, 0, 1])
         me.materials.append(self._material_with_image(None, img, cache))
         o = bpy.data.objects.new(NAME, me)
-        o.location = (far, float((mn[1] + mx[1]) / 2), float(mn[2]))
+        o.location = (far, float((mn[1] + mx[1]) / 2), float(mx[2]) + 1.0)   # above every ground, out of sight
+        for attr in ("visible_shadow", "visible_diffuse", "visible_glossy", "visible_transmission",
+                     "visible_volume_scatter"):
+            if hasattr(o, attr):
+                setattr(o, attr, False)
         self._baker.scene.collection.objects.link(o)
         self._baker.ids.append(o)
         return o
@@ -864,25 +921,24 @@ def denoise(src_scene, pixels: np.ndarray) -> np.ndarray:
             bpy.data.images.remove(bpy.data.images["Render Result"])
 
 
+def _clear(mat) -> bool:
+    """``mat`` lets light through (glass, a clear cover): its Principled BSDF's Transmission > 0.5 or Alpha < 0.5."""
+    nt = mat.node_tree if mat is not None else None
+    pr = [n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"] if nt is not None else []
+    if not pr:
+        return False
+    n = pr[0]
+    tw = n.inputs.get("Transmission Weight")
+    al = n.inputs.get("Alpha")
+    return bool((tw is not None and not tw.is_linked and tw.default_value > 0.5) or
+                (al is not None and not al.is_linked and al.default_value < 0.5))
+
+
 def see_through(ob) -> bool:
     """Every material of ``ob`` lets light through (glass, a clear cover): such a part is not baked – the page keeps
     its live light – but it still lets the light through to the parts behind it."""
     mats = [s.material for s in ob.material_slots if s.material is not None]
-    if not mats:
-        return False
-    for mat in mats:
-        nt = mat.node_tree
-        pr = [n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"] if nt is not None else []
-        if not pr:
-            return False
-        n = pr[0]
-        tw = n.inputs.get("Transmission Weight")
-        al = n.inputs.get("Alpha")
-        clear = (tw is not None and not tw.is_linked and tw.default_value > 0.5) or \
-                (al is not None and not al.is_linked and al.default_value < 0.5)
-        if not clear:
-            return False
-    return True
+    return bool(mats) and all(_clear(m) for m in mats)
 
 
 def quick_estimate(objects, light, quality="NORMAL", texels_per_m=None, device="CPU") -> dict:

@@ -470,8 +470,8 @@ class Gltf:
         for p in src["primitives"]:
             q = dict(p)
             q["attributes"] = {**p["attributes"], **attributes}
-            if materials and p.get("material") in materials:
-                q["material"] = int(materials[p["material"]])
+            if materials and p.get("material") in materials:          # (None: a primitive without a material)
+                q["material"] = int(materials[p.get("material")])
             prims.append(q)
         self.doc["meshes"].append({"name": name or src.get("name", ""), "primitives": prims})
         self.dequantize.append(self.dequantize[mesh])
