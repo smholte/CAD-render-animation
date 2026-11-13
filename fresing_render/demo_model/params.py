@@ -6,7 +6,10 @@ on it, the carousel core, the tensioner opening and the pads' squeeze follow.
 
 Deck layout (task 0084, as the owner works): two side lanes of raised roller highways – side A on starboard (y < 0),
 side B on port (y > 0) – and the quadrant's middle lane with rails between them; a lower path beside and 1–1.5 m below
-side A's highway. The cable makes an oval: coil -> arch -> down the tower -> lower path aft -> stern turn (180°) ->
+side A's highway. Task 0102: the side lanes' cable lines lie on the D-quadrant's curve (y = +- its radius): the cable runs
+straight from the two tensioners round the D's gutter, one smooth U, no S-bends; the D travels aft between the
+tensioners with its sides passing through their lines (they open: lift, then tilt outboard). The cable makes an oval:
+coil -> arch -> down the tower -> lower path aft -> stern turn (180°) ->
 forward on side B through tensioner 1 -> round the quadrant (180°) -> aft on side A through tensioner 2 -> horn A.
 """
 
@@ -46,8 +49,7 @@ class Params:
     # cable line
     low_h: float = 800.0            # lower path: cable centre above the deck (more for a thick cable)
     arch_h: float = 14000.0         # cable centre over the top of the loading arch (above the waterline)
-    lane_clear: float = 1800.0      # a side lane lies this much outside the quadrant's curve (room for the D to pass)
-    lower_off: float = 2000.0       # the lower path lies this much outboard of side A's highway
+    lower_off: float = 2500.0       # the lower path lies this much outboard of side A's highway (clear of tensioner 2)
     chute_drop_x: float = -1500.0   # where the cable leaves horn A vertically (aft of the transom)
     sea_end_z: float = -1500.0      # the route ends here, under water
 
@@ -110,8 +112,9 @@ class Params:
 
     @property
     def lane_y(self) -> float:
-        """Side lanes' cable lines at y = -lane_y (side A, starboard) and +lane_y (side B, port)."""
-        return self.quadrant_r + self.lane_clear
+        """Side lanes' cable lines at y = -lane_y (side A, starboard) and +lane_y (side B, port): on the D-quadrant's
+        curve (task 0102), so the cable runs straight from the lanes round the D's gutter."""
+        return self.quadrant_r
 
     @property
     def low_z(self) -> float:

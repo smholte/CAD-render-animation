@@ -41,7 +41,7 @@ def test_oval_route_respects_mbr_and_is_smooth(d):
     pos = rt.positions(p)
     r = rt.main_route(p, pos)
     assert p.mbr == pytest.approx(17.5 * d)
-    assert r.min_radius() >= p.mbr
+    assert r.min_radius() >= p.mbr * 1.15 - 1e-6              # every bend 1.15 x the MBR (the route sheet's bends)
     _smooth(r)
     assert all(s.length > 100.0 for s in r.segments)
     # the carousel core, the horn and the quadrant are no tighter than the MBR
@@ -78,9 +78,18 @@ def test_oval_goes_through_both_tensioners_and_round_the_quadrant(d):
     r = rt.main_route(p, pos)
     names = [i.get("rollers") or i.get("support") for i in r.info]
     order = ["coil", "guide cage", "guide frame", "arch", "tower foot", "lower path", "stern turn", "side B",
-             "side B rise", "side B", "side B bend", "quadrant gutter", "side A bend", "side A", "horn A"]
+             "side B rise", "side B", "quadrant gutter", "side A", "horn A"]
     it = iter(names)
     assert all(any(n == want for n in it) for want in order), names
+    # task 0102: the lanes lie on the D's curve – straight from side B round the gutter straight into side A (one U, no
+    # S-bends): the gutter's arc has a straight on each side, along x, at y = +-the D's radius
+    k = names.index("quadrant gutter")
+    assert names[k - 1] == "side B" and names[k + 1] == "side A"
+    for seg in (r.segments[k - 1], r.segments[k + 1]):
+        assert seg.kind == "line" and abs(seg.tangent()[0]) == pytest.approx(1.0)
+        assert abs(seg.start[1]) == pytest.approx(p.quadrant_r) and abs(seg.end[1]) == pytest.approx(p.quadrant_r)
+    assert p.lane_y == p.quadrant_r
+    assert not [a for a in _arcs(r) if a[1].get("rollers") in ("side A", "side B")]
     # both 180° turns: the stern turn (lower path -> side B) and round the quadrant (side B -> side A)
     (st, _), = [a for a in _arcs(r, angle=180.0) if a[1].get("rollers") == "stern turn"]
     (qd, _), = [a for a in _arcs(r, angle=180.0) if a[1].get("rollers") == "quadrant gutter"]
@@ -107,11 +116,14 @@ def test_oval_goes_through_both_tensioners_and_round_the_quadrant(d):
     assert pos["tensioners"][0] + rt.TENSIONER_HALF < pos["engine_x"] - rt.ENGINE_FRAME
     assert pos["engine_x"] + rt.ENGINE_FRAME + 500.0 < pos["tower_x"] - p.bend_r
     assert r.distance([[pos["engine_x"] + dx, pos["lower_y"], p.low_z] for dx in (-1700.0, 0.0, 1700.0)]).max() < 1e-6
-    assert pos["tensioners"][0] + rt.TENSIONER_HALF < pos["cps_join_x"] < pos["s_bend_x"] < pos["quadrant_x"]
+    assert pos["tensioners"][0] + rt.TENSIONER_HALF < pos["cps_join_x"] < pos["quadrant_x"] - 600.0
     assert pos["quadrant_apex_x"] < pos["qh_winch_x"] - rt.WINCH_HALF
     assert pos["qh_winch_x"] + rt.WINCH_HALF < pos["carousel_x"] - pos["well_r"]
-    # the D passes between the side lanes' tensioners on its way aft
-    assert p.quadrant_r + p.cable_r + 160.0 < p.lane_y - rt.TENSIONER_WIDTH
+    # the D passes through the side lanes' tensioners on its way aft (task 0102): its sides on their cable lines; the
+    # tensioners' bases reach only so far inboard (their bottom tracks), the D's frame lower down stays inside that
+    from fresing_render.demo_model import deck as dk
+    ds = dk.d_shape(p)
+    assert ds["half_width"] > p.lane_y and ds["inner"] <= p.lane_y - rt.TENSIONER_INBOARD
     # everything fits the beam
     assert p.carousel_d / 2 + 900 < p.beam / 2
     assert abs(pos["lower_y"]) + 1000.0 < p.beam / 2
@@ -255,11 +267,12 @@ def test_part_counts(made):
     assert count("FAIRLEAD SHEAVE") == 2 and count("TIPPING SHEAVE") == 2 and count("HANDLER TOP PULLEY") == 1
     assert count("WINCH DRUM") == 5                       # 2 handling, quadrant handling, 2 tipping
     assert count("CABLE ROLLER") >= 60 and count("SUPPORT ROLLER") >= 24 and count("GUIDE ROLLER") >= 40
-    assert count("ROLLER CRADLE") >= 25 and count("ROLLER TRESTLE") >= 25 and count("GRATING WALKWAY") >= 3
+    assert count("ROLLER CRADLE") >= 20 and count("ROLLER TRESTLE") >= 20 and count("GRATING WALKWAY") >= 3
     assert count("CABLE ENGINE WHEEL") == 8
     assert count("QUADRANT GUTTER") == 1 and count("RAIL BOGIE") == 4 and count("QUADRANT RAIL") >= 4
     assert count("HANDLER FRAME") == 1 and count("CHUTE") == 2                     # horns A and B
-    assert count("HINGE SHEAVE") == 0 and count("SHEAVE CHEEK") == 0 and count("CRADLE LIFT FRAME") >= 4
+    assert count("HINGE SHEAVE") == 0 and count("SHEAVE CHEEK") == 0 and count("CRADLE LIFT FRAME") >= 15
+    assert count("HINGE PIN") == 2 + 1 and count("PISTON ROD") == 2 * 2 + 2 * 2 + 2   # tensioners (0102), handler
     assert count("A&R PAD EYE") == 1 and count("PAD EYE") == 2 and count("FOOT SHEAVE") == 2
     assert count("PULL HEAD") == 5 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
     assert count("CABLE") == 1 and count("CABLE END") == 1 and count("CABLE COIL") == 1
@@ -390,7 +403,7 @@ def test_rollers_about_1500_apart_on_the_straights(made):
                 d = np.hypot(others[:, 0] - m[0], others[:, 1] - m[1])
                 explained = explained or bool((d < 1500.0).any())
             assert explained, (kind, a, b, qa, qb)
-    assert len(S.stations["lower path"]) >= 15 and len(S.stations["highway"]) >= 25 and total >= 45
+    assert len(S.stations["lower path"]) >= 15 and len(S.stations["highway"]) >= 20 and total >= 40
 
 
 def test_cable_solid_follows_the_route(made):
@@ -467,24 +480,157 @@ def test_tensioner_pads_rubber_v_on_steel_plates(made):
 
 
 def test_tensioner_lifts_and_tilts(made):
+    """Task 0102, as the owner works: the top track first lifts (slide up), then tilts sideways about a hinge along the
+    cable on the tensioner's outboard side – tensioner 1 (port) out to port, tensioner 2 (starboard) out to starboard:
+    a positive tilt moves the top track's middle away from the middle line (y = 0). Two lift and two tilt cylinders;
+    the tilt cylinders are pinned on the lift frame and on the carriage (the app's cylinders)."""
+    from fresing_render.demo_model import geom as g
     p = Params()
     joints = {j["name"]: j for j in made["joints"]["joints"]}
-    for k, hinge_dir in ((1, 1.0), (2, -1.0)):
+    sheet = {t["name"]: t for t in made["route"]["tensioners"]}
+    uids = {n["uid"] for n in made["trees"]["assembly"][0]["nodes"]}
+    for k in (1, 2):
         lift = joints[f"TENSIONER {k}: Top track lift"]
         tilt = joints[f"TENSIONER {k}: Top track tilt"]
+        t = sheet[f"TENSIONER {k}"]
+        side = 1.0 if k == 1 else -1.0                       # port, starboard
         assert lift["type"] == "slide" and tilt["type"] == "rotate"
         assert np.allclose(lift["axis"]["direction"], [0, 0, 1], atol=1e-6)
         lo, hi = lift["limits"]
         assert lo <= -(p.squeeze_h() - p.squeeze_h(50.0)) + 1e-6
         assert hi >= p.squeeze_h(500.0) - p.squeeze_h() + 500.0
         assert tilt["rides_on"] == f"TENSIONER {k}: Top track lift"
-        assert tilt["limits"][0] == 0.0 and tilt["limits"][1] >= 20.0
-        # the hinge lies at the tensioner's aft end (smaller x) in both lanes
-        centre = [t for t in made["route"]["tensioners"] if t["name"] == f"TENSIONER {k}"][0]["centre"]
-        assert tilt["axis"]["point"][0] < centre[0] - 1500.0
-        # a positive tilt lifts the forward end: the axis is -y (forward end x>0: x -> z)
-        assert np.allclose(tilt["axis"]["direction"], [0, -1, 0], atol=1e-6)
+        assert tilt["limits"] == [0.0, 70.0]
+        # the hinge runs along the cable (fore–aft) on the outboard side, over the cable's height
+        d = np.array(tilt["axis"]["direction"])
+        assert abs(d[0]) == pytest.approx(1.0)
+        hp = np.array(tilt["axis"]["point"])
+        assert side * hp[1] > p.lane_y + 500.0 and abs(hp[2] - p.line_z) < 100.0
+        # a positive tilt takes the top track's middle (over the cable) out to its own side
+        mid = np.array([t["centre"][0], side * p.lane_y, p.line_z + 700.0, 1.0])
+        moved = g.Rot(d, 30.0, hp) @ mid
+        assert side * moved[1] > side * mid[1] + 300.0 and moved[2] > mid[2]
         assert set(tilt["parts"]) < set(lift["parts"]) or tilt["parts"][0].startswith(lift["parts"][0])
+        # inboard is towards the middle line
+        assert np.allclose(t["inboard"], [0.0, -side, 0.0], atol=1e-6)
+        # two lift cylinders (their rods ride on the lift), two tilt cylinders pinned on both sides
+        assert sum(1 for u in lift["parts"] if u.endswith("/PISTON ROD#1")) == 2
+        assert len(t["tilt_cylinders"]) == 2
+        for c in t["tilt_cylinders"]:
+            assert c["barrel"] in uids and c["rod"] in uids
+            assert np.allclose(np.abs(c["axis"]), [1.0, 0.0, 0.0], atol=1e-6)
+            assert c["barrel_on"] == "TOP TRACK LIFT FRAME" and c["rod_on"] == "TOP TRACK FRAME"
+            assert side * c["barrel_pin"][1] > side * c["rod_pin"][1] > p.lane_y      # outboard of the cable line
+
+
+def _mesh_points(shape, cache: dict, deflection: float = 10.0) -> np.ndarray:
+    """The corners of a part's triangles (its own coordinates, mm)."""
+    from OCP.BRep import BRep_Tool
+    from OCP.BRepMesh import BRepMesh_IncrementalMesh
+    from OCP.TopAbs import TopAbs_FACE
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopLoc import TopLoc_Location
+    from OCP.TopoDS import TopoDS
+    if id(shape) in cache:
+        return cache[id(shape)]
+    BRepMesh_IncrementalMesh(shape, deflection, False, 0.5, True)
+    out = []
+    ex = TopExp_Explorer(shape, TopAbs_FACE)
+    while ex.More():
+        loc = TopLoc_Location()
+        tri = BRep_Tool.Triangulation_s(TopoDS.Face(ex.Current()), loc)
+        if tri is not None:
+            tr = loc.Transformation()
+            out += [(q.X(), q.Y(), q.Z()) for q in (tri.Node(i).Transformed(tr) for i in range(1, tri.NbNodes() + 1))]
+        ex.Next()
+    cache[id(shape)] = np.array(out) if out else np.zeros((0, 3))
+    return cache[id(shape)]
+
+
+def _tensioner_pose(info, lift: float, tilt: float, path, loc):
+    """A tensioner part's matrix (tensioner coordinates) with the top track lifted by ``lift`` mm and tilted ``tilt``°."""
+    from fresing_render.demo_model import geom as g
+    hinge = np.array(info["hinge"])
+    ML = g.T(0, 0, lift)
+    MC = ML @ g.Rot(info["hinge_axis"], tilt, hinge)
+    cl, cc = info["parts"]["carriage"]
+    if path[0] is cl:
+        return (MC if len(path) > 1 and path[1] is cc else ML) @ loc
+    if path[0].node.name == "TENSIONER CYLINDER" and path[-1].node.name == "PISTON ROD":
+        return ML @ loc
+    for t in info["tilt_cylinders"]:
+        if path[0] is t["assembly"][0]:
+            B0, P0 = np.array(t["barrel_pin"]), np.array(t["rod_pin"])
+            B, P = (ML @ np.r_[B0, 1.0])[:3], (MC @ np.r_[P0, 1.0])[:3]
+            d0, d1 = (P0 - B0) / np.linalg.norm(P0 - B0), (P - B) / np.linalg.norm(P - B)
+            ang = math.degrees(math.atan2(np.cross(d0, d1) @ info["hinge_axis"], d0 @ d1))
+            if path[-1] is t["barrel"][-1]:
+                return g.T(*(B - B0)) @ g.Rot(info["hinge_axis"], ang, B0) @ loc
+            return g.T(*(P - P0)) @ g.Rot(info["hinge_axis"], ang, P0) @ loc
+    return loc
+
+
+def _in_the_ds_way(S, open_tensioners: bool = True, drop_cradles: bool = True) -> list:
+    """Every part (model mm, triangle corners) inside the room the D-quadrant sweeps over its whole travel – its curve, its
+    gutter's upper channel, its bar – with the tensioners open (lifted, tilted out) and the lanes' cradles dropped."""
+    from fresing_render.demo_model import deck as dk
+    from fresing_render.demo_model import geom as g
+    p, pos, layout = S.p, S.pos, __import__("fresing_render.demo_model.layout", fromlist=["x"])
+    lane, ds = layout.d_lane(p), dk.d_shape(p)
+    x0 = pos["quadrant_x"] - 600.0 - pos["quadrant_travel"]
+    x1 = pos["quadrant_x"] + ds["half_width"]
+    tens = {}
+    for k in (1, 2):
+        c = S.handles[f"tensioner{k}"][0]
+        tens[id(c)] = c
+    quad = S.quadrant_info["quadrant"]
+    cache, out = {}, []
+    for node, uid, W, _label, path in g.walk(S.root):
+        if not isinstance(node, g.Part) or node.name == "CABLE" or any(c is quad for c in path):
+            continue
+        M = W
+        if path and id(path[0]) in tens:
+            info = path[0].node.info
+            lift, tilt = (info["lift_limits"][1], info["tilt_open"]) if open_tensioners else (0.0, 0.0)
+            M = path[0].M @ _tensioner_pose(info, lift, tilt, path[1:], np.linalg.inv(path[0].M) @ W)
+        lc = [c for c in path if c.node.name == "LIFTING CRADLE"]
+        if lc and drop_cradles and any(c.node.name == "CRADLE LIFT" for c in path):
+            M = g.T(0, 0, -lc[0].node.info["drop"]) @ M
+        v = _mesh_points(node.shape, cache) @ M[:3, :3].T + M[:3, 3]
+        ay, z = np.abs(v[:, 1]), v[:, 2]
+        inx = (v[:, 0] > x0) & (v[:, 0] < x1) & (z < np.where(ay < lane["eyes_y"], lane["top_z"], lane["edge_top_z"]))
+        bad = inx & (((ay < ds["inner"]) & (z > lane["low_z"])) | ((ay < ds["half_width"]) & (z > lane["band_z"])))
+        if bad.any():
+            out.append(uid)
+    return out
+
+
+def test_the_d_quadrants_way_is_clear(made):
+    """Task 0102: over its whole travel the D-quadrant – exactly as wide as the cable's path, its sides passing through
+    the tensioners' lines – sweeps a room in which nothing stands once both tensioners are open (lifted, tilted out) and
+    the lanes' cradles have dropped: its frame under the cable's height inside the bottom tracks, the gutter's ends over
+    them; tensioner bases, columns, horns, rails, the handler, the stern turn all outside or below. Closed, the
+    tensioners stand in its way (the check sees them). Open, nothing of a tensioner stands between the two cable lines
+    at any height from the cable's up (the band the owner drew)."""
+    S = made["S"]
+    p = S.p
+    assert _in_the_ds_way(S) == []
+    closed = _in_the_ds_way(S, open_tensioners=False)
+    assert any("/TOP TRACK" in u for u in closed) and not any("TENSIONER BASE FRAME" in u for u in closed)
+    assert any("/CRADLE " in u or "CRADLE LIFT" in u for u in _in_the_ds_way(S, drop_cradles=False))
+    from fresing_render.demo_model import geom as g
+    cache = {}
+    for k, side in ((1, 1.0), (2, -1.0)):
+        c = S.handles[f"tensioner{k}"][0]
+        info = c.node.info
+        for node, _uid, W, _label, path in g.walk(c.node):
+            if not isinstance(node, g.Part) or path[0] not in info["parts"]["carriage"][:1] + \
+                    [t["assembly"][0] for t in info["tilt_cylinders"]]:
+                continue
+            M = c.M @ _tensioner_pose(info, info["lift_limits"][1], info["tilt_open"], path, W)
+            v = _mesh_points(node.shape, cache) @ M[:3, :3].T + M[:3, 3]
+            up = v[:, 2] > p.line_z
+            assert (side * v[up, 1] > p.lane_y).all(), node.name           # outboard of its own cable line
 
 
 def test_joint_sheet_names_parts_that_exist(made):
@@ -605,10 +751,9 @@ def test_handling_winches_have_the_lebus_drum(made):
 
 
 def test_quadrant_system_can_move(made):
-    """Task 0091: the D-quadrant's way aft is free. The S-bend's cradles in its lane drop out of the way (one joint, the
-    others follow it), every other cradle stands outside the lane; the travel rides on the handler's tilt (the tip on
-    the travel); the handling wire runs low under the D to a sheave on the hinge axis and along the handler's frame
-    (that part tilts with it); nothing of the handler's forward end stands in the D's way."""
+    """Tasks 0091, 0102: the D-quadrant's way aft is free. The lanes' cradles in its way drop out of it (one lead joint per
+    lane, the others of that lane follow it), every other cradle stands outside its room; the travel rides on the
+    handler's tilt (the tip on the travel); nothing of the handler's forward end stands in the D's way."""
     from fresing_render.demo_model import deck as dk
     from fresing_render.demo_model import geom as g
     S, layout = made["S"], made["layout"]
@@ -617,21 +762,24 @@ def test_quadrant_system_can_move(made):
     joints = made["joints"]["joints"]
     by = {j["name"]: j for j in joints}
     drops = [j for j in joints if j["name"].endswith(" drop")]
-    assert len(drops) == len(S.stations["lifting"]) >= 4
+    assert len(drops) == len(S.stations["lifting"]) >= 15
     lead = [j for j in drops if j["drive"]["by"] == "operator"]
-    assert len(lead) == 1
+    assert sorted(j["drive"]["lane"] for j in lead) == ["A", "B"]
     for j in drops:
         assert j["type"] == "slide" and j["axis"]["direction"] == [0.0, 0.0, -1.0]
-        assert j is lead[0] or (j["drive"]["follows"] == lead[0]["name"] and j["drive"]["ratio"] == 1.0)
+        mine = [ld for ld in lead if np.sign(ld["axis"]["point"][1]) == np.sign(j["axis"]["point"][1])]
+        assert len(mine) == 1
+        assert j is mine[0] or (j["drive"]["follows"] == mine[0]["name"] and j["drive"]["ratio"] == 1.0)
         # dropped, the cradle's top is below the D's underside
         assert j["axis"]["point"][2] + dk.LIFT_TOP - j["limits"][1] < lane["low_z"] - 50.0
         assert abs(j["axis"]["point"][1]) < lane["half_width"] + 700.0
-    # the other highway cradles stand clear of the lane
+    # the other highway cradles stand clear of the D's room: outside it, or under its underside (side B's low run)
     for node, _uid, W, label, _path in g.walk(S.root):
         if label.startswith("CRADLE ") and node.name == "ROLLER CRADLE":
             corners = np.array([[x, y, z, 1.0] for x in (-310.0, 310.0) for y in (-640.0, 640.0)
                                 for z in (-460.0, dk.LIFT_TOP)]) @ W.T
-            assert np.abs(corners[:, 1]).min() >= lane["half_width"], label
+            assert np.abs(corners[:, 1]).min() >= lane["half_width"] or corners[:, 2].max() < lane["low_z"] - 50.0, \
+                label
     assert by["QUADRANT SYSTEM: Quadrant travel"]["rides_on"] == "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
     assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
     # nothing of the handler's forward end stands in the D's way: the top pulley and its brackets stay under the D's
@@ -735,7 +883,7 @@ def test_tipping_wires_up_the_swivel_posts_to_the_bar_ends(made):
     by = {j["name"]: j for j in made["joints"]["joints"]}
     for key, sy in (("port", 1.0), ("stb", -1.0)):
         e = np.array(quad.info["eyes"][f"tipping_{key}"])
-        assert sy * e[1] > 0 and bar_y - 200.0 < abs(e[1]) < bar_y and -600.0 < e[0] < 0.0        # the bar's end
+        assert sy * e[1] > 0 and bar_y < abs(e[1]) < bar_y + 500.0 and -600.0 < e[0] < 0.0       # the bar's end
         w = sheet[f"tipping_{key}"]
         # vertical at the end of the tilt: the eye is the lowest corner of the D (the bar's end), aft of the transom
         assert w["eye_tilted"][0] < 0.0 and w["eye_tilted"][2] < p.deck_z + 1500.0
@@ -852,7 +1000,7 @@ def test_big_files_are_not_in_the_repository():
 
 
 def test_every_turning_roller_turns_about_its_own_axis():
-    """Task 0097: every roller joint of the demo (the 66 side rollers of the 33 highway cradles included) turns about
+    """Task 0097: every roller joint of the demo (the two side rollers of every highway cradle included) turns about
     the roller's long direction (< 0.5°). The cradles' joints once took the cable's contact point along the axle for
     the lever arm, which tilted the axis 63° and made them wobble through the cable."""
     from fresing_render.demo_model import geom as g, layout
@@ -868,5 +1016,5 @@ def test_every_turning_roller_turns_about_its_own_axis():
         d /= np.linalg.norm(d)
         assert math.degrees(math.acos(min(1.0, abs(long_dir @ d)))) < 0.5, j["name"]
         n += 1
-    assert n >= 250 and sum(1 for j in g.resolve_joints(S.root) if j["name"].startswith("CRADLE")
-                            and "Roller" in j["name"]) == 66
+    assert n >= 230 and sum(1 for j in g.resolve_joints(S.root) if j["name"].startswith("CRADLE")
+                            and "Roller" in j["name"]) == 2 * len(S.stations["highway"]) >= 40

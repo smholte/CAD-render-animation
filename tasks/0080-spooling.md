@@ -233,7 +233,7 @@ code), D panel + real-app test, F guide. Worker: everything else.
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort High; 4 cores, no graphics card), 13 Nov 2026, branch
-`claude/epic-cori-m7bsix` (the web session's branch). Released as **0.2.83**.
+`claude/epic-cori-m7bsix` (the web session's branch). Released as **0.2.85**.
 
 **What changed:**
 - **4 Motion > Drums and carousels** (`ui_spool.py`, `ops_spool.py`): Add drum / Add carousel (click picker with the

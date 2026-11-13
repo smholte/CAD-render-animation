@@ -389,7 +389,7 @@ def carousel(p, kit: Kit, name: str = "CAROUSEL", outer_d: float | None = None, 
 
 
 def _arc_rollers(kit, asm, centre_xz, R_path, a0, a1, cable_r, step_deg, name, y=0.0, chain=None, joint_prefix="",
-                 velocity_sign=1.0, plate_name="RADIUS CONTROLLER"):
+                 velocity_sign=1.0, plate_name="RADIUS CONTROLLER", plate_out=None):
     """Rollers on the inside of a cable bend (between the cable and the bend's centre), in a vertical x-z plane.
 
     a0 -> a1: angles (deg, from +x towards +z) of the bend; the cable travels from a0 to a1. Adds a joint per roller
@@ -412,7 +412,7 @@ def _arc_rollers(kit, asm, centre_xz, R_path, a0, a1, cable_r, step_deg, name, y
         asm.joint(f"{joint_prefix}{name} {k + 1} turn", "rotate", [path], ctr, ax, None, cable_drive(rr))
         out.append(c)
     # side plates: an annular sector from just inside the rollers out to the cable's centre
-    r_in, r_out = Rr - rr - 250.0, R_path - cable_r * 0.3
+    r_in, r_out = Rr - rr - 250.0, (R_path - cable_r * 0.3 if plate_out is None else plate_out)
     lo, hi = sorted((a0, a1))
     pts = []
     for k in range(25):
@@ -506,9 +506,10 @@ def _sprocket_shape(p):
     return g.cut(g.fuse(disc, hub), *notches, g.cyl(90, 400, (0, -200, 0), (0, 1, 0)))
 
 
-def track(p, kit: Kit, name: str, zs: float) -> tuple:
+def track(p, kit: Kit, name: str, zs: float, drive_side: int = 1) -> tuple:
     """One track (local: cable centre at the origin, pads facing +z on the contact run). Returns (asm, children):
-    pads and links in loop order, the two sprockets."""
+    pads and links in loop order, the two sprockets. The drive's gearbox and motor stand on the ``drive_side`` (+1:
+    +y, -1: -y) of the drive sprocket."""
     pins = track_pins(p, zs)
     a = p.links_per_run * p.pad_pitch / 2
     inner, outer = kit.get(("links",), lambda: _link_shapes(p))
@@ -549,29 +550,46 @@ def track(p, kit: Kit, name: str, zs: float) -> tuple:
             t.add(pb, T(x, y, zs))
             for dx in (-0.55 * 240.0, 0.55 * 240.0):
                 t.add(bolt, T(x + dx, y, zs + foot_top))
-    t.add(kit.gearbox(220.0, 380.0), T(-a, 520.0, zs))
-    t.add(kit.motor(130.0, 340.0), T(-a, 900.0, zs))
+    side = T() if drive_side > 0 else Rot((0, 0, 1), 180.0)
+    t.add(kit.gearbox(220.0, 380.0), T(-a, drive_side * 520.0, zs) @ side)
+    t.add(kit.motor(130.0, 340.0), T(-a, drive_side * 900.0, zs) @ side)
     return t, {"pads": pads, "plates": plates, "links": links, "drive": cd, "idler": ci, "pins": pins,
                "frames": frames, "a": a}
 
 
-def tensioner(p, kit: Kit, hinge_end: int = -1) -> Asm:
-    """Two-track tensioner (task 0084). Local: the cable along x through the origin, travelling towards -x; the deck
-    at z = -line_h. The bottom track is fixed. The top track hangs in a carriage that tilts back about a hinge at
-    the ``hinge_end`` end (-1: -x, +1: +x) of a lift frame; four side cylinders move the lift frame: down to squeeze
-    a Ø 50 cable, up past a Ø 500 one and on to let the cable out. The top is open (nothing over the carriage)."""
+# The tensioner's opening (task 0102): local y = +1 is inboard (towards the D-quadrant's lane), -1 outboard.
+TILT_OPEN = 70.0                      # the top track's tilt when open (deg): all of it outboard of the D's sweep
+HINGE_Y = -760.0                      # the tilt hinge (along x) on the outboard side
+HINGE_BELOW = 40.0                    # ... this far under the top pads' lowest edge
+COL_Y = -1150.0                       # the lift frame's guide columns (outboard), at both ends
+LIFT_CYL = (1500.0, -1030.0)          # the two lift cylinders: x = +-1500, under the lift frame's beam
+TILT_CYL_X = 700.0                    # the two tilt cylinders: x = +-700
+TILT_BARREL = (-1100.0, -420.0)       # their barrel pins on the lift frame (y, z from the hinge)
+TILT_LEVER = (500.0, 255.0)           # their rod pins on the carriage's levers: radius from the hinge, angle (deg, from +y)
+
+
+def tensioner(p, kit: Kit) -> Asm:
+    """Two-track tensioner (tasks 0084, 0102). Local: the cable along x through the origin, travelling towards -x; the
+    deck at z = -line_h; +y inboard (towards the middle lane), -y outboard. The bottom track is fixed: everything of it
+    and of the base frame inboard of the cable line stays under the D-quadrant's underside. The top track hangs in a
+    carriage hinged along x on the outboard side of a lift frame. Opening, as the owner works: two lift cylinders lift the
+    frame (slide up, ``Top track lift``), then two tilt cylinders between the lift frame and the carriage tilt it outboard
+    (``Top track tilt``, positive opens: the inboard side rises and the track swings out over the hinge) – open, nothing
+    of it stands between the two cable lines, and the D passes through the cable's line. The tilt cylinders are pinned
+    at both ends (``info["tilt_cylinders"]``: the app's cylinders); the lift cylinders stand straight under the lift
+    frame and their rods ride on the lift."""
     h = p.squeeze_h()
     Rs = p.sprocket_r
     hh = LINK["half_h"]
     zp = -h - pad_base() - hh                             # contact run's pin line, bottom track
     zs = zp - Rs
     A = Asm("TENSIONER")
-    bottom, bi = track(p, kit, "BOTTOM TRACK", zs)
-    top, ti = track(p, kit, "TOP TRACK", zs)
+    bottom, bi = track(p, kit, "BOTTOM TRACK", zs, drive_side=-1)        # its drive outboard
+    top, ti = track(p, kit, "TOP TRACK", zs, drive_side=-1)              # turned over: its drive inboard, over the cable
     cb = A.add(bottom)
     zdeck = -p.line_h
     a = bi["a"]
-    xe = a + Rs + 450.0                                   # the frame's half length
+    xe = a + Rs + 450.0                                   # the base frame's half length
     zb_top = zs - Rs - hh - PAD["t"] - 60.0               # under the bottom run's pads
     if zb_top < zdeck + 250.0:
         raise ValueError("the cable line is too low for the tensioner's bottom track")
@@ -579,54 +597,85 @@ def tensioner(p, kit: Kit, hinge_end: int = -1) -> Asm:
     car_h = 220.0
     lo = -(h - p.squeeze_h(50.0))                         # squeeze a Ø 50 cable
     hi = p.squeeze_h(500.0) - h + 150.0 + 600.0           # past a Ø 500 cable, and 600 mm more to let it out
-    z_col = z_car + car_h + hi + 250.0
-    CX, CY = 1200.0, 1200.0                               # the four lift cylinders
-    # ---- base frame (fixed): side and cross beams, pedestals, columns that guide the lift frame, brackets
+    yh, zh = HINGE_Y, (h - PAD["v_depth"]) - HINGE_BELOW  # the hinge, closed
+    xc = xe + 150.0                                       # the guide columns' x
+    z_beam0, z_beam1 = zh - 260.0, zh - 60.0              # the lift frame's beam: under the hinge's level
+    z_col = z_beam1 + hi + 300.0
+    xa = a + 400.0                                        # the carriage's half length
+    # ---- base frame (fixed): side and cross beams, pedestals under the bottom track's bearings, the two guide columns
+    # outboard at the ends, brackets under the lift cylinders. Inboard of the cable line nothing rises above zb_top.
     frame = []
     for y in (-900.0, 900.0):
         frame.append(g.box(-xe - 150, y - 150, zdeck, 2 * xe + 300, 300, zb_top - zdeck))
-    for x in (-a, a, -xe, xe):
+    for x in (-a, a):
         frame.append(g.box(x - 150, -1050, zdeck, 300, 2100, zb_top - zdeck))
+    for x in (-xe, xe):
+        frame.append(g.box(x - 150, -1050, zdeck, 300, 2100, zb_top - zdeck))
+        x_lo, x_hi = min(x, xc * np.sign(x)) - 150.0, max(x, xc * np.sign(x)) + 150.0     # out to the column
+        frame.append(g.box(x_lo, COL_Y - 200, zdeck, x_hi - x_lo, -1050.0 - (COL_Y - 200) + 1.0, zb_top - zdeck))
     for x in (-a, a):
         for y in (-420.0, 420.0):
             frame.append(g.box(x - 150, y - 90, zb_top, 300, 180, zs - 120 - zb_top))
     for sx in (-1, 1):
-        for sy in (-1, 1):
-            frame.append(g.box(sx * xe - 150, sy * 1000 - 150, zb_top, 300, 300, z_col - zb_top))
-            y0 = 750.0 if sy > 0 else -CY - 200.0
-            frame.append(g.box(sx * CX - 200, y0, zb_top - 300, 400, CY + 200 - 750, 300))
-            frame.append(g.beam((sx * xe, sy * 1000, zb_top + 200), (sx * (xe - 1300), sy * 1000, zb_top + 200 + 1300),
-                                160.0))
+        frame.append(g.box(sx * xc - 150, COL_Y - 150, zdeck, 300, 300, z_col - zdeck))          # guide column
+        frame.append(g.box(sx * LIFT_CYL[0] - 200, LIFT_CYL[1] - 200, zb_top - 300, 400, 400, 300))  # cylinder bracket
     A.add(Part("TENSIONER BASE FRAME", g.fuse(*frame), YELLOW))
-    # ---- lift frame: two side beams, a cross beam at the hinge end, shoes on the columns, cylinder outriggers
+    # ---- lift frame: a beam along the outboard side under the hinge, shoes round the columns, the hinge pin with its
+    # knuckles, cheeks that hold the tilt cylinders' barrels
     lift = Asm("TOP TRACK LIFT FRAME")
+    yb0, yb1 = yh - 400.0, yh - 140.0
     lf = []
-    for sy in (-1, 1):
-        lf.append(g.box(-xe + 150, sy * 620 - 90, z_car, 2 * xe - 300, 180, car_h))
-        for sx in (-1, 1):
-            lf.append(g.box(sx * (xe - 150) - 150, min(sy * 710, sy * 849), z_car, 300, 139, car_h))
-            lf.append(g.box(sx * CX - 200, min(sy * 710, sy * (CY + 200)), z_car + car_h - 120, 400, CY + 200 - 710,
-                            120))
-    xh = hinge_end * (a + 250.0)
-    lf.append(g.box(hinge_end * (xe - 300) - 100, -710, z_car, 200, 1420, car_h))
-    lf.append(g.cyl(70.0, 1440.0, (xh, -720.0, z_car + car_h / 2), (0, 1, 0)))       # the hinge pin
+    gaps = sorted([sx * TILT_CYL_X for sx in (-1, 1)])
+    xs = [-(xc - 170.0)] + [v for x in gaps for v in (x - 115.0, x + 115.0)] + [xc - 170.0]     # into the shoes
+    for x0, x1 in zip(xs[::2], xs[1::2]):                 # the beam, with a gap where each carriage lever swings
+        lf.append(g.box(x0, yb0, z_beam0, x1 - x0, yb1 - yb0, z_beam1 - z_beam0))
+    for x in gaps:                                        # ... bridged outboard of the lever, over the tilt barrel
+        lf.append(g.box(x - 130.0, yb0, zh - 200.0, 260.0, yh - 200.0 - yb0, 140.0))
+    for sx in (-1, 1):
+        shoe = g.box(sx * xc - 210, COL_Y - 210, z_beam0, 420, 420, z_beam1 - z_beam0)
+        lf.append(g.cut(shoe, g.box(sx * xc - 155, COL_Y - 155, z_beam0 - 10, 310, 310, z_beam1 - z_beam0 + 20)))
+        lf.append(g.box(sx * xc - 210, COL_Y + 150, z_beam0, 420, yb1 - (COL_Y + 150), z_beam1 - z_beam0))
+    knuckles_lift = [(-(xa + 100.0), -(a + 150.0)), (-1500.0, -1100.0), (1100.0, 1500.0), (a + 150.0, xa + 100.0)]
+    for x0, x1 in knuckles_lift:
+        lf.append(g.tube(130.0, 70.0, x1 - x0, (x0, yh, zh), (1, 0, 0)))
+        lf.append(g.box(x0, yb1 - 20.0, z_beam0, x1 - x0, yh - 60.0 - (yb1 - 20.0), z_beam1 - z_beam0))
+    by, bz = yh + TILT_BARREL[0], zh + TILT_BARREL[1]     # the tilt cylinders' barrel pins
+    for sx in (-1, 1):
+        for dx in (-140.0, 140.0):                        # two cheeks each side of the barrel's eye
+            lf.append(g.box(sx * TILT_CYL_X + dx - 20.0, by - 150.0, bz - 150.0, 40.0, yb1 - (by - 150.0),
+                            z_beam1 - (bz - 150.0)))
     lift.add(Part("TOP TRACK LIFT FRAME", g.fuse(*lf), YELLOW))
+    lift.add(Part("HINGE PIN", g.cyl(70.0, 2 * (xa + 100.0), (-(xa + 100.0), yh, zh), (1, 0, 0)), STEEL))
     cl = A.add(lift)
     # ---- the tilting carriage with the top track (mirror of the bottom track about the cable's axis)
     car = Asm("TOP TRACK CARRIAGE")
     ct = car.add(top, Rot((1, 0, 0), 180.0))
-    cframe = [g.box(-a - 400, sy * 420 - 90, z_car, 2 * a + 800, 180, car_h) for sy in (-1, 1)]
-    cframe += [g.box(x - 200, -560, z_car, 400, 1120, car_h) for x in (-a + 600, a - 600)]
+    cframe = [g.box(-xa, sy * 420 - 90, z_car, 2 * xa, 180, car_h) for sy in (-1, 1)]
+    cframe += [g.box(x - 200, yh - 60.0, z_car, 400, 560 - (yh - 60.0), car_h) for x in (-a + 600, a - 600)]
     cframe += [g.box(x - 150, sy * 420 - 90, -zs + 120, 300, 180, z_car + 1 - (-zs + 120)) for x in (-a, a)
                for sy in (-1, 1)]
+    cframe.append(g.box(-xa, yh - 50.0, zh + 140.0, 2 * xa, 120.0, z_car + car_h - (zh + 140.0)))    # outboard wall
+    lever_r, lever_a = TILT_LEVER
+    u = np.array([math.cos(math.radians(lever_a)), math.sin(math.radians(lever_a))])
+    rod_pin = np.array([yh, zh]) + lever_r * u
+    knuckles_car = [(-a - 100.0, -1600.0), (-1000.0, 1000.0), (1600.0, a + 100.0)]
+    for x0, x1 in knuckles_car:
+        cframe.append(g.tube(130.0, 75.0, x1 - x0, (x0, yh, zh), (1, 0, 0)))
+        cframe.append(g.box(x0, yh - 50.0, zh + 90.0, x1 - x0, 120.0, 60.0))         # knuckle -> wall
+    for sx in (-1, 1):
+        for dx in (-90.0, 90.0):                          # two lever plates each side of the rod's eye
+            x0 = sx * TILT_CYL_X + dx
+            lever = g.beam((x0, yh, zh), (x0, rod_pin[0], rod_pin[1]), 200.0, 40.0, up=(1.0, 0.0, 0.0))
+            lever = g.fuse(lever, g.cyl(100.0, 40.0, (x0 - 20.0, rod_pin[0], rod_pin[1]), (1, 0, 0)),
+                           g.cyl(130.0, 40.0, (x0 - 20.0, yh, zh), (1, 0, 0)))
+            cframe.append(g.cut(lever, g.cyl(75.0, 60.0, (x0 - 30.0, yh, zh), (1, 0, 0))))
     car.add(Part("TOP TRACK FRAME", g.fuse(*cframe), YELLOW))
     cc = lift.add(car)
-    # ---- lift cylinders: barrel on the base bracket, rod up to the lift frame's outrigger
+    # ---- lift cylinders: barrel on the base bracket, rod up to the lift frame's beam
     bar_r, rod_r = 140.0, 80.0
-    z_out = z_car + car_h - 120.0
-    pin = z_out - zb_top
+    pin = z_beam0 - zb_top
     Lb = pin + lo - 200.0
-    rod_len = pin - 100.0
+    rod_len = pin - 150.0 + lo                            # at the lowest (squeezing a Ø 50) 75 mm above the bottom
     barrel = kit.get(("lift_barrel", round(Lb)), lambda: Part("BARREL", g.fuse(
         g.tube(bar_r, rod_r + 6, Lb, (0, 0, 0)), g.cyl(bar_r, 60.0, (0, 0, 0)),
         g.tube(bar_r + 40, rod_r + 6, 40.0, (0, 0, Lb - 40))), YELLOW))
@@ -634,21 +683,48 @@ def tensioner(p, kit: Kit, hinge_end: int = -1) -> Asm:
                                                               CHROME))
     rods, cyls = [], []
     for sx in (-1, 1):
-        for sy in (-1, 1):
-            cyl = Asm("TENSIONER CYLINDER")
-            cyl.add(barrel, T(0, 0, 0))
-            r = cyl.add(rodp, T(0, 0, pin))
-            c = A.add(cyl, T(sx * CX, sy * CY, zb_top))
-            rods.append([c, r])
-            cyls.append({"barrel_pin": [sx * CX, sy * CY, zb_top], "rod_pin": [sx * CX, sy * CY, z_out]})
+        cyl = Asm("TENSIONER CYLINDER")
+        cyl.add(barrel, T(0, 0, 0))
+        r = cyl.add(rodp, T(0, 0, pin))
+        c = A.add(cyl, T(sx * LIFT_CYL[0], LIFT_CYL[1], zb_top))
+        rods.append([c, r])
+        cyls.append({"barrel_pin": [sx * LIFT_CYL[0], LIFT_CYL[1], zb_top], "rod_pin": [sx * LIFT_CYL[0], LIFT_CYL[1],
+                                                                                       z_beam0]})
+    # ---- tilt cylinders: barrel pinned between the lift frame's cheeks, rod pinned between the carriage's levers
+    B = np.array([by, bz])
+    P = rod_pin
+    L0 = float(np.linalg.norm(P - B))
+    d2 = (P - B) / L0
+    tb_r, tr_r = 90.0, 50.0
+    t_bar = L0 - 150.0                                    # closed: the barrel reaches to 150 short of the rod's pin
+    t_rod = L0 - 130.0                                    # the rod reaches back to 130 from the barrel's pin
+    tbarrel = kit.get(("tilt_barrel", round(t_bar)), lambda: Part("BARREL", g.fuse(
+        g.tube(tb_r, tr_r + 6, t_bar - 60.0, (0, 0, 60.0)), g.cyl(tb_r, 60.0, (0, 0, 0)),
+        g.cyl(70.0, 220.0, (-110.0, 0, 0), (1, 0, 0))), YELLOW))
+    trod = kit.get(("tilt_rod", round(t_rod)), lambda: Part("PISTON ROD", g.fuse(
+        g.cyl(tr_r, t_rod - 60.0, (0, 0, 60.0)), g.cyl(65.0, 120.0, (-60.0, 0, 0), (1, 0, 0))), CHROME))
+    tilt_cyls = []
+    for sx in (-1, 1):
+        x = sx * TILT_CYL_X
+        b3, p3 = np.array([x, B[0], B[1]]), np.array([x, P[0], P[1]])
+        d3 = np.array([0.0, d2[0], d2[1]])
+        cyl = Asm("TILT HYDRAULIC CYLINDER")
+        cb_ = cyl.add(tbarrel, g.Frame(b3, (1, 0, 0), d3))
+        cr_ = cyl.add(trod, g.Frame(p3, (1, 0, 0), -d3))
+        c = A.add(cyl)
+        tilt_cyls.append({"barrel": [c, cb_], "rod": [c, cr_], "assembly": [c], "barrel_pin": b3.tolist(),
+                          "rod_pin": p3.tolist(), "axis": [1.0, 0.0, 0.0], "barrel_on": "TOP TRACK LIFT FRAME",
+                          "rod_on": "TOP TRACK FRAME", "length_closed": L0})
     # ---- joints
     A.joint("Top track lift", "slide", [cl] + rods, (0, 0, z_car), (0, 0, 1), [round(lo, 3), round(hi, 3)],
-            {"by": "operator", "note": "the four cylinders lift the top track (positive = up, open): 0 = gripping this "
-                                       "cable Ø, the minimum squeezes a Ø 50 cable, the maximum lets the cable out"})
-    hinge = np.array([xh, 0.0, z_car + car_h / 2])
-    A.joint("Top track tilt", "rotate", [[cl, cc]], hinge, (0, hinge_end, 0), [0.0, 25.0],
-            {"by": "operator", "note": "tilts the top track back about its hinge (positive lifts the far end), after "
-                                       "the lift: lets the cable, a joint or a CPS out"},
+            {"by": "operator", "note": "the two lift cylinders lift the top track (positive = up, open): 0 = gripping "
+                                       "this cable Ø, the minimum squeezes a Ø 50 cable; lift before tilting"})
+    hinge = np.array([0.0, yh, zh])
+    A.joint("Top track tilt", "rotate", [[cl, cc]], hinge, (1, 0, 0), [0.0, TILT_OPEN],
+            {"by": "operator", "note": "tilts the top track outboard about its hinge along the cable (positive opens: "
+                                       "the inboard side rises, the track swings out over the hinge), after the lift; "
+                                       f"at {TILT_OPEN:.0f}° nothing of it stands between the cable lines and the "
+                                       "D-quadrant passes through the cable's line"},
             rides_on="Top track lift")
     for label, chain, ci_ in (("Bottom", [cb], bi), ("Top", [cl, cc, ct], ti)):
         for which, key, x in (("drive", "drive", -a), ("idler", "idler", a)):
@@ -670,8 +746,11 @@ def tensioner(p, kit: Kit, hinge_end: int = -1) -> Asm:
             "pitch": p.pad_pitch, "sprocket_pitch_r": Rs,
             "contact_run": "pads 1 … %d face the cable" % p.links_per_run,
             "travel": "with the cable on the contact run (towards -x)"})
-    A.info.update({"squeeze_h": h, "half_length": xe + 150.0, "half_width": CY + bar_r + 40.0, "hinge": hinge.tolist(),
-                   "lift_limits": [lo, hi], "cylinders": cyls, "grip_run": [-a, a]})
+    A.info.update({"squeeze_h": h, "half_length": xc + 210.0, "half_width": -COL_Y + 210.0, "hinge": hinge.tolist(),
+                   "hinge_axis": [1.0, 0.0, 0.0], "tilt_open": TILT_OPEN, "lift_limits": [lo, hi],
+                   "cylinders": cyls, "tilt_cylinders": tilt_cyls, "grip_run": [-a, a],
+                   "inboard": "+y", "parts": {"base": [c for c in A.children if c.node.name == "TENSIONER BASE FRAME"],
+                                              "lift": [cl], "carriage": [cl, cc]}})
     return A
 
 
@@ -798,8 +877,9 @@ def chute(p, kit: Kit, R: float, deg: float, deck_local_z: float, transom_local_
     """Overboarding chute. Local: the bend's centre at the origin, the cable comes in at (0, 0, R) heading -x and
     bends down over ``deg``; rollers inside the bend; side plates; supports to the deck and the transom."""
     a = Asm("CHUTE")
+    # the side plates end under the cable (task 0102): the D-quadrant's gutter passes over the horns' upper ends
     rollers = _arc_rollers(kit, a, (0.0, 0.0), R, 90.0, 90.0 + deg, p.cable_r, 7.5, "Chute roller",
-                           plate_name="CHUTE")
+                           plate_name="CHUTE", plate_out=R - p.cable_r - 10.0)
     sup = []
     for y in (-350.0, 350.0):
         # posts from the deck to the chute's forward part, struts from the transom to its lower part

@@ -95,7 +95,8 @@ LIFT_TOP = 160.0                        # a cradle's highest point above the cab
 
 
 def lifting_cradle(p, kit: Kit, h: float, drop: float) -> Asm:
-    """A V roller cradle that can drop out of the D-quadrant's way (task 0091: the S-bend's cradles in the middle lane).
+    """A V roller cradle that can drop out of the D-quadrant's way (task 0091; since task 0102 every
+    lane cradle the D passes over).
     Local: as ``cradle`` (the cable's centre at the origin, travelling towards -x). The fixed part is a trestle of
     height h whose legs are guide tubes; the cradle sits on a lift frame (top beam + two posts sliding in the tubes)
     that a slide joint lowers by up to ``drop`` (the joint is made by the caller, on ``info["lift"]``)."""
@@ -379,50 +380,111 @@ BOGIE_H = 350.0                         # rail top -> the D's underside
 WHEEL_R = 120.0                         # rail wheel tread radius (its flange 30 more)
 
 
+D_INNER = 450.0                         # the D's frame under the cable's height stays this far inside its curve (0102)
+
+
+def d_shape(p) -> dict:
+    """The D-quadrant's sizes (local mm: origin on the bar's line at the curve's centre, rail top z = 0), task 0102.
+
+    The D is exactly as wide as the cable's path, so its sides pass through the tensioners' lines (over their bottom
+    tracks, the horns' upper ends and the lane cradles): nothing of it farther out than ``inner`` from the middle is lower
+    than ``band_z`` – 30 mm under the cable's centre, at least 30 mm over the bottom track's pads. Its frame lower down
+    (bar, spokes, ring, bogies) stays within |y| <= ``inner``."""
+    from .machines import PAD
+    Rq, cr = p.quadrant_r, p.cable_r
+    zc = p.line_z - p.rail_z
+    rr = 90.0
+    pad_top = PAD["v_depth"] - p.squeeze_h()             # the bottom pads' highest edge, from the cable's centre
+    z_up = zc + max(-30.0, pad_top + 30.0)
+    zt = max(z_up + 300.0, zc + cr + 60.0)               # the guide rollers' top, the gutter's top plate under it
+    lip = Rq + cr + 120.0
+    web_in = Rq - cr - 2 * rr - 70.0
+    inner = Rq - D_INNER
+    bar_end = web_in + 40.0                              # the upper bar's ends: at the gutter's inner web, well inside the
+    #                                                      cable (a part's edge close to it reads as a seat, task 0078)
+    eye_y = Rq + 150.0                                   # the tipping eyes: on brackets over the cable's line,
+    eye_z = zt + 580.0                                   # high enough that their wires clear the gutter when vertical
+    return {"zc": zc, "rr": rr, "band_z": z_up, "zt": zt, "lip": lip, "web_in": web_in, "inner": inner,
+            "half_width": lip + 40.0, "floor": zc - cr - 10.0, "bar_end": bar_end, "eye_y": eye_y, "eye_z": eye_z,
+            "top_z": max(zt + 30.0, eye_z + 190.0), "edge_top_z": zt + 30.0, "floor_deg": math.degrees(math.asin(min(1.0, inner / (lip + 40.0)))),
+            "ring_deg": math.degrees(math.asin(min(1.0, inner / (web_in + 120.0))))}
+
+
 def quadrant_d(p, kit: Kit) -> Asm:
     """The D-shaped quadrant. Local: origin on the straight bar's line at the curve's centre, at rail-top height;
     the curve (cable centre radius Rq) in front (+x), the bar along y at x = 0, the cable round the gutter at local
     z = line_z - rail_z, travelling from +y round the front to -y. Rail bogies at the rails, the A&R pad eye at the
-    top of the curve (task 0095: the A&R wire hangs the D from it), tipping pad eyes at the bar's ends."""
+    top of the curve (task 0095: the A&R wire hangs the D from it), tipping pad eyes at the bar's ends.
+
+    Task 0102: the D is exactly as wide as the cable's path (``d_shape``): its gutter's ends carry the cable in line with
+    the side lanes and pass over the tensioners' bottom tracks, so towards its ends the gutter is an upper channel only –
+    a top plate, the guide rollers hanging from it inside the cable, the outer lip down to the cable's centre – and its
+    floor, ring and bar under the cable's height stay inside the curve (``inner``); an upper bar above the cable's height
+    joins the channel's ends."""
     Rq, cr = p.quadrant_r, p.cable_r
-    zc = p.line_z - p.rail_z
+    ds = d_shape(p)
+    zc, rr, z_up, zt, lip, web_in, inner = (ds[k] for k in ("zc", "rr", "band_z", "zt", "lip", "web_in", "inner"))
     A = Asm("QUADRANT")
-    rr = 90.0
-    flat_bend_rollers(p, kit, A, Rq, zc, 90.0, -90.0, 7.5, "Quadrant gutter roller", rr)
-    web_in = Rq - cr - 2 * rr - 70.0
-    floor = zc - cr - 10.0
-    top = zc + cr + 25.0
-    lip = Rq + cr + 120.0
-    prof = [(web_in, floor - 40.0), (lip + 40.0, floor - 40.0), (lip + 40.0, zc + cr), (lip, zc + cr), (lip, floor),
-            (web_in + 40.0, floor), (web_in + 40.0, top), (Rq - cr + 15.0, top), (Rq - cr + 15.0, top + 30.0),
-            (web_in, top + 30.0)]
-    A.add(Part("QUADRANT GUTTER", sector(prof, -90.0, 90.0), YELLOW))
-    # frame: the straight bar, spokes from the bar's middle to the gutter, a ring under the gutter
+    # guide rollers inside the curve, hanging from the top plate (no stub under them: they stay above band_z)
+    H = zt - 10.0 - z_up
+    roller = kit.get(("d_guide_roller", rr, round(H)), lambda: Part("GUIDE ROLLER", g.revolve(      # about local y,
+        [(25.0, 0.0), (rr, 0.0), (rr, H - 30.0), (rr + 15.0, H - 30.0), (rr + 15.0, H), (55.0, H), (55.0, H + 9.0),
+         (25.0, H + 9.0)], (0, 0, 0), (0, 1, 0)), STEEL))                                  # as every roller of the kit
+    up = np.eye(4)
+    up[:3, :3] = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])   # local y -> model z
+    Rr = Rq - cr - rr
+    n = max(2, int(180.0 / 7.5) + 1)
+    for k in range(n):
+        ang = math.radians(90.0 - 180.0 * (k + 0.5) / n)
+        u = np.array([math.cos(ang), math.sin(ang), 0.0])
+        ctr = Rr * u + [0, 0, z_up]
+        c = A.add(roller, T(*ctr) @ up)
+        vel = -np.array([-math.sin(ang), math.cos(ang), 0.0])          # the cable runs from +y round the front to -y
+        contact = (Rq - cr) * u + [0, 0, zc]
+        A.joint(f"Quadrant gutter roller {k + 1} turn", "rotate", [c], ctr + [0, 0, zc - z_up],
+                turn_axis(ctr + [0, 0, zc - z_up], contact, vel), None, cable_drive(rr))
+    floor = ds["floor"]
+    upper = [(web_in, z_up), (web_in + 40.0, z_up), (web_in + 40.0, zt), (lip, zt), (lip, zc), (lip + 40.0, zc),
+             (lip + 40.0, zt + 30.0), (web_in, zt + 30.0)]
+    lower = [(web_in, floor - 40.0), (lip + 40.0, floor - 40.0), (lip + 40.0, zc), (lip, zc), (lip, floor),
+             (web_in + 40.0, floor), (web_in + 40.0, z_up + 1.0), (web_in, z_up + 1.0)]
+    fd = ds["floor_deg"]
+    A.add(Part("QUADRANT GUTTER", g.fuse(sector(upper, -90.0, 90.0), sector(lower, -fd, fd)), YELLOW))
+    # frame: the straight bar, spokes from the bar's middle to the gutter, a ring under the gutter – all inside |y| <=
+    # inner; the upper bar over the cable's height from end to end of the curve, posts down to the bar
     zb0, zb1 = BOGIE_H, floor - 40.0
-    bar_y = Rq + 300.0
-    fr = [g.box(-600, -bar_y, zb0, 600, 2 * bar_y, zb1 - zb0 + 1)]
+    fr = [g.box(-600, -inner, zb0, 600, 2 * inner, zb1 - zb0 + 1)]
     for ang in (-60.0, -30.0, 0.0, 30.0, 60.0):
         u = np.array([math.cos(math.radians(ang)), math.sin(math.radians(ang)), 0.0])
-        fr.append(g.beam(np.array([0, 0, (zb0 + zb1) / 2]) + 0 * u, np.array([0, 0, (zb0 + zb1) / 2]) + (web_in + 30) * u,
+        fr.append(g.beam(np.array([0, 0, (zb0 + zb1) / 2]), np.array([0, 0, (zb0 + zb1) / 2]) + (web_in + 30) * u,
                          260.0, zb1 - zb0))
+    rd = ds["ring_deg"]
     fr.append(sector([(web_in - 250, zb0), (web_in + 120, zb0), (web_in + 120, zb1 + 1), (web_in - 250, zb1 + 1)],
-                     -90.0, 90.0))
+                     -rd, rd))
+    ye = ds["bar_end"]
+    fr.append(g.box(-600, -ye, z_up, 600, 2 * ye, zt + 30.0 - z_up))
+    for sy in (-1, 1):
+        fr.append(g.box(-450, sy * (inner - 200.0) - 150.0, zb1, 300, 300, z_up - zb1 + 1.0))
     A.add(Part("QUADRANT FRAME", g.fuse(*fr), YELLOW))
     # pad eyes (task 0095): the A&R eye at the top of the curve – the middle of its outer edge, just outside the
     # gutter's lip, under the gutter and above the D's underside; a bracket from the frame's ring carries a plate
     # square to x whose hole the A&R wire ends in (the wire stays in the plane y = 0, so it never runs through the
-    # plate). The tipping eyes at the bar's ends: the D's bottom corners when it stands vertical on the handler.
+    # plate). The tipping eyes on the upper bar's ends: the D's bottom corners when it stands vertical on the handler.
     eye = ar_eye_local(p)
     ar = eye[0]
     eyes = {"handling": eye}
     plate = g.cut(g.box(ar - 30.0, -180.0, zb0 + 10.0, 60.0, 360.0, zb1 - zb0 + 10.0),
                   g.cyl(75.0, 200.0, eye + [-100.0, 0, 0], (1, 0, 0)))
     A.add(Part("A&R PAD EYE", g.fuse(plate, g.box(web_in + 80.0, -50.0, zb0 + 30.0, ar - 30.0 - web_in - 80.0 + 1.0,
-                                                  100.0, 170.0)), YELLOW))      # under the gutter's rollers
+                                                  100.0, 170.0)), YELLOW))      # under the gutter's floor
+    zb = zc + cr + 30.0                                  # over the cable's top where it leaves the gutter at rest
     for key, sy in (("tipping_port", 1.0), ("tipping_stb", -1.0)):
-        c = np.array([-300.0, sy * (bar_y - 150.0), zb1 + 350.0])
-        # a thin lug with a big hole: the tipping wire comes in at up to ~60° to the hole's axis
-        lug = g.cut(g.fuse(g.box(-450, sy * (bar_y - 150.0) - 20, zb1 - 1, 300, 40, 351 + 190),
+        c = np.array([-300.0, sy * ds["eye_y"], ds["eye_z"]])
+        # a thin lug with a big hole (the tipping wire comes in at up to ~60° to the hole's axis) on a bracket from the
+        # upper bar's end over the cable's line
+        lo, hi = sorted((sy * ye, sy * (ds["eye_y"] - 20.0)))
+        y0 = sy * ds["eye_y"] - 20.0
+        lug = g.cut(g.fuse(g.box(-450, y0, zb, 300, 40, c[2] - zb), g.box(-450, lo, zb, 300, hi - lo + 1.0, zt + 30.0 - zb),
                            g.cyl(190.0, 40.0, c + [0, -20, 0], (0, 1, 0))), g.cyl(90.0, 200.0, c + [0, -100, 0], (0, 1, 0)))
         A.add(Part("PAD EYE", lug, YELLOW))
         eyes[key] = c
@@ -447,7 +509,7 @@ def quadrant_d(p, kit: Kit) -> Asm:
                         {"by": "follows", "follows": "../Quadrant travel", "ratio": round(360.0 / (2 * math.pi * wr), 9),
                          "note": "rolls on the rail (degrees per mm of travel; travel is aft, -x)"})
     A.info.update({"eyes": {k2: v.tolist() for k2, v in eyes.items()}, "radius": Rq, "cable_z": zc,
-                   "hang_off": eye.tolist(), "bar_y": bar_y, "front_x": lip + 40.0, "back_x": -600.0})
+                   "hang_off": eye.tolist(), "bar_y": ye, "front_x": lip + 40.0, "back_x": -600.0, "shape": ds})
     return A
 
 

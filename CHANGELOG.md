@@ -5,6 +5,82 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.85 – 13 Nov 2026 – drums and carousels: the cable comes off layer by layer (task 0080)
+
+New: 4 Motion > **Drums and carousels**
+- **A cable that comes off its drum or carousel.** Choose the cable in Cables and paths, press **Add drum** or **Add
+  carousel** and click the drum's barrel or the carousel's turntable. The app reads the drum (first layer, the width
+  between the flanges) or the coil (inner and outer radius) and how much cable is on it from where the CAD cable
+  leaves it. The CAD coil or wire on the drum is hidden; the app draws the cable on it, in the cable's own look.
+- **Layer by layer.** On a drum the wraps lie side by side in the spiral groove, each layer back the other way and a
+  layer higher; with **Lebus** grooves the wraps run parallel and step half a groove at two crossovers per turn. On a
+  carousel the top layer gets smaller turn by turn; the full layers under it show as one solid that gets lower layer
+  by layer. The free cable always starts exactly where it leaves the drum or coil.
+- **It turns at the right speed.** The drum or carousel follows the cable speed **by table**: faster as the layers
+  get smaller (within 0.01° of the exact wraps over 100 m). This is a new kind of coupling between joints: it works
+  with scripts off, in the render queue and at any frame rate; the joint's details say "Follows … by a table".
+- **This joint follows the layer:** a level wind goes along the drum with the wrap being paid out, a loading arm or
+  arch swings so its guide stays over the turn being paid out, a guide's swivel turns along it.
+- **Warnings in plain words:** a fleet angle above 1.5° to the first sheave (naming the flange; the limit can be
+  changed), a drum or carousel that runs empty or overfills – in the panel and when you build an animation.
+- **Demo project:** the carousel spools the power cable – in shot 3 the top layer pays out (time-lapse x 90) while the
+  arch slews and the guide's cage swivels with it; handling winch 1 (shot 6) pays out its wire from its Lebus drum.
+- Test tour stop "Drum and carousel spooling", PC-check line `motion.spool`, guide section "Drums and carousels".
+
+## 0.2.84 – 13 Nov 2026 – demo: the D-quadrant as wide as the cable's path, tensioners open sideways (task 0102)
+
+Changed in the demo project (Help > Make demo project), as you work on deck:
+- **No S-bends any more.** The side lanes lie exactly on the D-quadrant's curve: the cable runs straight from the
+  two tensioners round the D's gutter, one smooth U. The deck behind it moved up a few metres (the oval is 170 m,
+  was 188 m).
+- **The D travels aft between the tensioners**, its sides – gutter and cable – through their lines. Its frame below
+  the cable's height stays inside the tensioners' bottom tracks; towards its ends the gutter is a channel over the
+  cable (guide rollers hanging from a top plate), so it passes over the bottom tracks, the horns and the cradles.
+- **The tensioner is remade:** the top track first **lifts** (two lift cylinders), then **tilts 70° out to its own
+  side** about a hinge along the cable on its outboard side – tensioner 1 to port, tensioner 2 to starboard – with
+  two tilt cylinders that follow (4 Motion > Cylinders). Open, nothing of it stands between the two cable lines.
+- **Every roller cradle in the D's way drops** out of it: one "Cradle … drop" joint per lane, the others follow.
+- **Shot 5** shows the new opening (lift, tilt out, back, squeeze); **shot 7** opens both tensioners and drops the
+  cradles before the D travels aft between them. The clash check over the whole animation: 0.
+## 0.2.83 – 13 Nov 2026 – G-code timed with acceleration: short moves take as long as on the machine (task 0103)
+
+New in 4 Motion > CNC machine > **Machine: speeds, zero, shift**
+- **Speed up and slow down (acceleration)**: every move of a G-code program now speeds up and slows down with each
+  axis' maximum acceleration, as on the machine. Programs with many short moves no longer play too fast: the step's
+  time matches what the machine does. On for new machines; projects made before keep their timing until you tick it.
+- **X / Y / Z accel.** (mm/s²), and for rotary axes **A / B / C accel.** (°/s²) under Rotary axes.
+- **Read from LinuxCNC INI…**: pick your machine's `.ini`; the rapid speed and acceleration of every axis are filled
+  in (the file is only read, not kept).
+- Corners as LinuxCNC takes them: **G61** stops at every corner, **G64** (the default) slows down only as much as the
+  corner needs (a line cut into many short pieces runs straight through), **G64 P** slows more for its tolerance.
+  Arcs run no faster than √(acceleration × radius). Close to LinuxCNC, not its exact planner.
+- The tool visibly speeds up and slows down in the video; milling, chips, coolant and tool marks follow it.
+- The step shows its time with and without acceleration ("1 min 12 s on the machine (58.0 s without acceleration)").
+- Test tour stop "Acceleration: slow short moves", PC check line `gcode.acceleration`.
+
+## 0.2.82 – 13 Nov 2026 – web 3D model: half the file for big machines, half the memory at 2048 (task 0105)
+
+5 Scene & Render > **Web 3D model**
+- **Smaller file** (compressed), on by default: a big model (200,000 triangles or more) is packed with meshopt –
+  about **half the file** (the 3,000-part test machine 35 → 17 MB, the cable-lay demo vessel 25 → 12 MB). The page
+  still opens offline from its one file, also on a phone: the viewer already carries the unpacker. Some older 3D
+  programs cannot open a packed .glb on its own (Blender 5.2, Chrome, Edge, Firefox and Safari can); switch it off
+  for a customer whose program refuses it. The line under Export says "compressed" when it was packed.
+- **Texture size 2048 needs half the memory**: the looks are baked in smaller pieces (the demo vessel 5.2 → 2.5 GB,
+  and a little faster: 58 → 46 s on the 4-core test machine).
+## 0.2.81 – 13 Nov 2026 – one-click product video (task 0101)
+
+New: 6 Animation > **Make a product video**
+- One button builds a first complete film from what the project already has: a title card, one turn round the
+  machine, the machine's own motions (each joint with a range goes to its far limit and back, with the camera watching
+  the moving part), the saved poses, a subassembly taken apart and put together again, a close-up from two saved
+  cameras and an end card. It is a new animation called "Product video" with ordinary steps you can change.
+- Options (folded under the button): length (about 30, 60 or 90 s), which subassembly to take apart (the biggest, the
+  selected one, or none), how many motions to show, title card, end card, title text and captions.
+- A project without joints skips the motions, one without a big subassembly skips the take-apart; the line under the
+  button says what was left out and why. Pressing it again makes the video anew and asks first if you changed its steps.
+- New test tour stop "One-click product video", new PC-check line, and a guide section "Make a product video".
+
 ## 0.2.80 – 13 Nov 2026 – cables and paths: one cable speed moves the cable and turns every roller (task 0078)
 
 New: 4 Motion > **Cables and paths**

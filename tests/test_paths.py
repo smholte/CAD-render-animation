@@ -1708,8 +1708,8 @@ def test_the_demo_vessels_power_cable(vessel):
           f"{it.length:.2f} m")
     for n in notes[:6]:
         print("   ", n)
-    assert len(rollers) == 218 and len(bends) == 14 and not kinds.get("SHEAVE")
-    assert it.diameter == pytest.approx(0.2, abs=0.002) and it.length == pytest.approx(188.06, abs=0.2)
+    assert len(rollers) == 195 and len(bends) == 10 and not kinds.get("SHEAVE")      # 0102: no S-bends any more
+    assert it.diameter == pytest.approx(0.2, abs=0.002) and it.length == pytest.approx(170.50, abs=0.2)
     # every roller keeps its own joint, which follows "Cable travel" already: no new joint, no coupling changed
     assert len(sc.fresing.joints) == n_joints
     assert {j.name: j.couple_ratio for j in sc.fresing.joints if j.follows == demo.CABLE} == followers

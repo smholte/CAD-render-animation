@@ -294,7 +294,10 @@ def test_speed_settings(scene, tmp_path):
     assert b.duration < real
     b.gcode_rapid = 1.0
     b.gcode_from, b.gcode_to = 8, 9                        # G1 Z-2, G1 X40: 7 mm at 600 + 90 mm at 1200
-    assert b.duration == pytest.approx(7 / 600 * 60 + 90 / 1200 * 60, rel=1e-6)
+    plain = 7 / 600 * 60 + 90 / 1200 * 60
+    assert b.duration > plain + 0.005                      # task 0103: speeding up and slowing down takes longer
+    scene.fresing.cnc.use_accel = False                    # … without acceleration: exactly the feeds
+    assert b.duration == pytest.approx(plain, rel=1e-6)
 
 
 def test_spindle_turns(scene, tmp_path):
@@ -688,3 +691,90 @@ def test_step_summaries_follow_their_own_program(scene, tmp_path):
     from fresing_render.blender import machining
     machining._on_load()
     assert not gcode._INFO
+
+
+# ---------------------------------------------------------------------------
+# task 0103: acceleration
+# ---------------------------------------------------------------------------
+
+def _fcurve_keys(j):
+    out = []
+    for lay in j.motion.animation_data.action.layers:
+        for st in lay.strips:
+            for cb in st.channelbags:
+                for fc in cb.fcurves:
+                    out += list(fc.keyframe_points)
+    return out
+
+
+def test_acceleration_keys_follow_the_speed_profile(scene, tmp_path):
+    """The head speeds up and slows down: its place at every frame and between frames is the profile's (0.01 mm),
+    with keys only where the speed changes (Bezier handles carry the parabola)."""
+    from fresing_render.blender import tour
+    set_up(scene)
+    assert scene.fresing.cnc.use_accel                     # on for a new machine
+    a, b = step(scene, program(tmp_path, tour.ACCEL_TOUR))
+    info = gcode.info(scene, b)
+    assert info["accel"] and info["machine_s"] > 1.2 * info["plain_s"]
+    r = animation.bake(scene, a)
+    assert not r["warnings"], r["warnings"]
+    assert check_path(scene, a, b, range(1, r["frames"] + 1), subframes=True) < 0.01, check_path.where
+    keys = _fcurve_keys(scene.fresing.joints["X"])
+    assert any(k.handle_left_type == "FREE" and k.interpolation == "BEZIER" for k in keys)
+    # keys: fewer than one per frame plus the moves' ends and speed changes
+    prog = gcode.read_program(scene, b, gcode.Machine(scene), start=gcode.start_point(gcode.Machine(scene)))[0]
+    assert len(keys) <= 4 * len([m for m in prog.moves if m.moving]) + 10
+
+
+def test_an_old_project_keeps_its_timing(scene, tmp_path):
+    """A project from before the switch with a CNC machine opens with it off: same length, same straight keys."""
+    set_up(scene)
+    a, b = step(scene, program(tmp_path))
+    c = scene.fresing.cnc
+    c.use_accel = False
+    plain_keys = None
+    r = animation.bake(scene, a)
+    plain_keys = [(k.co[0], k.co[1], k.interpolation) for k in _fcurve_keys(scene.fresing.joints["X"])]
+    plain_len = b.duration
+    animation.clear_keys(scene)
+    c.use_accel = True
+    assert b.duration > plain_len
+    del c[gcode.ACCEL_MARK]                                 # as saved by an older version
+    path = str(tmp_path / "old.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    gcode._CACHE.clear()
+    gcode._INFO.clear()
+    c = sc.fresing.cnc
+    assert not c.use_accel and gcode.ACCEL_MARK in c
+    a = sc.fresing.animations["Program"]
+    b = a.blocks[0]
+    gcode.step_changed(sc, b)
+    assert b.duration == pytest.approx(plain_len, abs=1e-6)
+    r = animation.bake(sc, a)
+    assert not r["warnings"]
+    keys = [(k.co[0], k.co[1], k.interpolation) for k in _fcurve_keys(sc.fresing.joints["X"])]
+    assert keys == plain_keys
+    # ticked, it is kept on through saving and opening again
+    c.use_accel = True
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    assert bpy.context.scene.fresing.cnc.use_accel
+
+
+def test_read_from_linuxcnc_ini(scene, tmp_path):
+    set_up(scene)
+    ini = tmp_path / "machine.ini"
+    ini.write_text("[TRAJ]\nLINEAR_UNITS = mm\n[AXIS_X]\nMAX_VELOCITY = 120\nMAX_ACCELERATION = 1500\n"
+                   "[AXIS_Z]\nMAX_ACCELERATION = 600\n")
+    a, b = step(scene, program(tmp_path))
+    before = b.duration
+    assert bpy.ops.fresing.cnc_read_ini(filepath=str(ini)) == {"FINISHED"}
+    c = scene.fresing.cnc
+    assert c.rapid_x == pytest.approx(7200.0) and c.accel_x == pytest.approx(1500.0)
+    assert c.accel_z == pytest.approx(600.0) and c.accel_y == pytest.approx(1000.0)   # not in the file: kept
+    assert b.duration != pytest.approx(before)                                        # the step follows
+    empty = tmp_path / "empty.ini"
+    empty.write_text("[EMC]\nVERSION = 1.1\n")
+    assert bpy.ops.fresing.cnc_read_ini(filepath=str(empty)) == {"CANCELLED"}

@@ -77,7 +77,7 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 314
+    assert len(sheet) == 308                           # task 0102: no S-bend cradles; the cradles that drop
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
     assert len(by) == len(sheet) + 2 and demo.CABLE in by and demo.WINCH_TRAVEL in by
@@ -120,8 +120,9 @@ def test_every_joint_of_the_sheet(made):
         dv = np.array((M.to_3x3() @ Vector(row["axis"]["direction"])).normalized())
         assert np.linalg.norm(np.cross(np.array(o) - p, dv)) < 1e-4, row["name"]
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
-    assert cable_turned >= 229                          # 244, less the 8 track sprockets (the carousel: by table)
-    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum
+    assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
+    #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
+    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum (task 0080)
 
 
 def test_a_coupling_turns_at_its_ratio(made):
@@ -151,10 +152,14 @@ def test_a_coupling_turns_at_its_ratio(made):
 
 
 def test_cylinders_follow_the_handler(made):
+    """The handler's two cylinders follow its tilt; the tensioners' four tilt cylinders (task 0102), pinned on the lift
+    frame and on the tilting carriage, follow the lift and the tilt: at 70° each is longer by about half a metre."""
+    from mathutils import Vector
+
     from fresing_render.blender import cylinders, joints
     sc = _scene()
     s = sc.fresing
-    assert len(s.cylinders) == 2
+    assert len(s.cylinders) == 2 + 4
     tilt = s.joints["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]
     c = s.cylinders[0]
     length0 = cylinders.length_now(c)
@@ -164,6 +169,23 @@ def test_cylinders_follow_the_handler(made):
     assert abs(cylinders.length_now(c) - length0) > 0.2          # the rod slides as the handler tilts
     joints.set_value(tilt, 0.0)
     bpy.context.view_layer.update()
+    for k in (1, 2):
+        lift, top = s.joints[f"TENSIONER {k}: Top track lift"], s.joints[f"TENSIONER {k}: Top track tilt"]
+        mine = [c for c in s.cylinders if c.name.startswith(f"Tensioner {k} tilt cylinder")]
+        assert len(mine) == 2
+        before = [cylinders.length_now(c) for c in mine]
+        joints.set_value(lift, 0.9)
+        joints.set_value(top, math.radians(70.0))
+        bpy.context.view_layer.update()
+        bpy.context.view_layer.update()
+        after = [cylinders.length_now(c) for c in mine]
+        assert all(0.4 < b - a < 0.7 for a, b in zip(before, after)), (before, after)
+        joints.set_value(top, 0.0)
+        joints.set_value(lift, 0.0)
+        bpy.context.view_layer.update()
+        bpy.context.view_layer.update()
+        assert [cylinders.length_now(c) for c in mine] == pytest.approx(before, abs=1e-4)
+    del Vector
 
 
 def test_drivers_work_with_scripts_off(made):
@@ -279,13 +301,13 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     assert it is not None and it.joint == demo.CABLE and not it.made_joint and it.still and it.look == "POWER"
     assert it.part.get(build.PROP_NAME) == "CABLE" and paths.status(sc, it)[1] in ("OK", "WARN"), paths.status(sc, it)
     kinds = [c.kind for c in it.contacts]
-    assert 10 <= kinds.count("BEND") + kinds.count("CHUTE") <= 16 and 200 <= kinds.count("ROLLER") <= 240, \
+    assert 8 <= kinds.count("BEND") + kinds.count("CHUTE") <= 14 and 175 <= kinds.count("ROLLER") <= 230, \
         {k: kinds.count(k) for k in set(kinds)}
     assert not any(c.made_joint for c in it.contacts)              # every roller had its joint from the sheet
     rollers = [c for c in it.contacts if c.kind == "ROLLER"]
     assert all(joints.find(sc, c.joint).follows == demo.CABLE for c in rollers)
-    # (task 0080: the cable starts where it leaves the carousel's coil – the quarter turn on the coil is the spool's)
-    assert 170.0 < it.length < 181.0 and abs(it.diameter - 0.2) < 0.002
+    # 0102: no S-bends, a shorter oval; 0080: the cable starts where it leaves the coil (the quarter turn is the spool's)
+    assert 150.0 < it.length < 165.0 and abs(it.diameter - 0.2) < 0.002
     assert it.part.get("fr_group_manual") == paths.GROUPS["POWER"]
     assert it.part.material_slots[0].material.get("fr_material") == "cable_power"
     # the drawn tube: the app's, with the attribute the look reads
@@ -329,9 +351,10 @@ def test_shot_7_moves_the_whole_quadrant_system(made):
     a = sc.fresing.animations[demo.ANIM]
     animation.bake(sc, a)
     s = sc.fresing
-    lead, drop = demo.cradle_drop(demo.Demo(sc, made["folder"], VERSION, small=True))
-    followers = [j for j in s.joints if j.follows == lead]
-    assert len(followers) >= 3
+    leads = demo.cradle_drops(demo.Demo(sc, made["folder"], VERSION, small=True))
+    assert len(leads) == 2                                         # one per lane (task 0102)
+    followers = {lead: [j for j in s.joints if j.follows == lead] for lead, _drop in leads}
+    assert all(len(f) >= 3 for f in followers.values())
     blocks = {b.joint: b for b in a.blocks if b.kind == "JOINT"}
     travel = made["sheet"]["joints"]
     t_max = next(j for j in travel if j["name"] == demo.TRAVEL)["limits"][1] / 1000.0
@@ -351,8 +374,17 @@ def test_shot_7_moves_the_whole_quadrant_system(made):
     on_handler = at(tilt.start)
     assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(0.0, abs=1e-3)
     assert joints.get_value(s.joints[demo.TRAVEL]) == pytest.approx(t_max, abs=1e-4)
-    assert joints.get_value(s.joints[lead]) == pytest.approx(drop, abs=1e-4)
-    assert all(joints.get_value(j) == pytest.approx(drop, abs=1e-4) for j in followers)
+    for lead, drop in leads:
+        assert joints.get_value(s.joints[lead]) == pytest.approx(drop, abs=1e-4)
+        assert all(joints.get_value(j) == pytest.approx(drop, abs=1e-4) for j in followers[lead])
+        assert blocks[lead].start + blocks[lead].duration <= blocks[demo.TRAVEL].start + 1e-6
+    # both tensioners open – lifted, tilted out to their own side – before the D travels, and stay open
+    for name in demo.TENSIONERS:
+        for jn, want in ((f"{name}: Top track lift", None), (f"{name}: Top track tilt", 70.0)):
+            b = [x for x in a.blocks if x.kind == "JOINT" and x.joint == jn and x.start >= blocks[demo.TRAVEL].start - 6.0]
+            assert b and b[-1].start + b[-1].duration <= blocks[demo.TRAVEL].start + 1e-6, jn
+        assert math.degrees(joints.get_value(s.joints[f"{name}: Top track tilt"])) == pytest.approx(70.0, abs=1e-3)
+        assert joints.get_value(s.joints[f"{name}: Top track lift"]) > 0.85
     last = max(b.start + b.duration for b in a.blocks)
     assert last >= tilt.start + tilt.duration + 2.0                 # a hold on the end picture
     tilted = at(last)

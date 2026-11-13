@@ -1,6 +1,6 @@
 # 0102 – Demo: the D-quadrant as wide as the cable path; the tensioners lift and tilt out of its way
 
-**Who:** worker · **Status:** running · **Branch:** `task/0102-demo-quadrant-full-width`
+**Who:** worker · **Status:** done (0.2.84) · **Branch:** `task/0102-demo-quadrant-full-width`
 **Started by:** lead chat, 13 Nov 2026 (owner's corrections of the demo deck, with his marked-up picture: described in
 words below, not committed) · runs side by side with 0080 and 0101; **0079 waits for this task** (it runs the tracks
 in the tensioner made here)
@@ -79,10 +79,72 @@ winches' drums); the cable into the sea (0081); the quadrant's lowering and tipp
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker, Opus), 13 Nov 2026 · branch `task/0102-demo-quadrant-full-width` · 0.2.84
 
 **What changed:**
+- **Lanes on the D's width** (`params.py`, `route.py`): `lane_clear` is gone, `lane_y = quadrant_r` (4.05 m at Ø 200);
+  the four S-bend arcs are gone – side B runs straight into the gutter, the gutter straight into side A (one U). The
+  route's bends are all ≥ 1.15 × MBR (now tested for Ø 50–500). What moved (Ø 200): stern turn radius 6.85 → 5.30 m
+  (its lanes are closer), lower path 2.5 m outboard of side A (`lower_off` 2.0 → 2.5: clear of tensioner 2's base),
+  tensioners 1.3 m aft (25.98 m), CPS ramp 2.8 m outboard of side B (`CPS_OUT` 2.0 → 2.8: clear of tensioner 1's open
+  lift frame; a small cable's S gets a straight between its arcs), the D's rest 4.7 m aft (`quadrant_x` 37.85 m:
+  2.1 m forward of the CPS join), A&R winch, handling winches, carousel (61.05 m) and tower move with it. The oval:
+  170.5 m (was 188.1). Hull length and beam unchanged.
+- **The D** (`deck.quadrant_d`, `d_shape`): exactly as wide as the cable's path (its lip 4.31 m from the middle). Below
+  the cable's height its frame (bar, spokes, ring, gutter floor) stays within |y| ≤ R − 450 mm (3.60 m: inside the
+  bottom tracks' pads, the horns' rollers and plates); outside that nothing of it is lower than 30 mm under the cable's
+  centre (31 mm over the bottom track's pads). Towards its ends (beyond 57° from the front) the gutter is an upper
+  channel only: a top plate, guide rollers hanging from it (no stub under them), the outer lip down to the cable's
+  centre. An upper bar over the cable's height joins the channel's ends; the tipping eyes sit on brackets over the
+  cable's line at y = ±4.20 m, 0.58 m over the channel (their wires clear the gutter by ~140 mm all through the tilt;
+  lower down they ran through it). The upper bar ends at the gutter's inner web: closer to the cable it read as a seat
+  (a WRAP) in the cable reading of task 0078.
+- **The tensioner** (`machines.tensioner`): base frame and bottom track fixed; inboard of the cable line nothing rises
+  higher than 586 mm under the cable (its drive moved outboard). Lift frame on two guide columns at the outboard ends,
+  **2 lift cylinders** (rods ride on "Top track lift", 0 … 902 mm); the carriage hangs on a **hinge along the cable on
+  the outboard side** (760 mm out, at the top pads' level) and **"Top track tilt"** turns it 0 … **70°** out to its own
+  side (positive: the inboard side rises, the track swings out over the hinge; tensioner 1 to port, 2 to starboard).
+  **2 tilt cylinders** pinned on the lift frame's cheeks and the carriage's levers (pushing, 973 → 1,515 mm), made as
+  app cylinders by the demo's `cylinders` stage (pins in the route sheet: `tensioners[].tilt_cylinders`). Open:
+  every moving part is outboard of its own cable line; within the D's height (−60 … +450 mm about the cable) 900 mm
+  outboard of it. `A.info["tracks"]` unchanged in form (0079 reads it).
+- **Cradles:** every highway cradle the D sweeps over is a lifting cradle (21: 6 on side B, 15 on side A), one lead
+  joint per lane ("Cradle 3 drop", "Cradle 9 drop" in the sheet's numbering; `drive.lane` = A/B), the others follow;
+  none at the top of side B's rise (they would have to drop along a slope) or under the D's bar at rest. Horns: their
+  side plates end 10 mm under the cable.
+- **Demo project** (`blender/demo.py`): shot 5 = lift, tilt out 70°, back, squeeze (12 s as before); shot 7 = both
+  tensioners lift and tilt out, both lanes' cradles drop (3.5 s), then the D travels aft between them; `cradle_drops`
+  (one per lane), `tensioner_open`, `TENSIONERS`; cameras "Tensioner" and "Roller highway" on the new lane. Joints:
+  308 in the sheet (was 314), `MIN_JOINTS` 309; 6 cylinders (was 2). Animation 79.6 s with the cards (was 78.4).
+- Guide (demo section), CHANGELOG, the Heavy PC-check line's text and a check that both tensioners lift and tilt 70°.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (Claude Code web machine, 4 cores, no graphics card; invented demo model only):
+- New `tests/test_demo_cable_lay.py::test_the_d_quadrants_way_is_clear`: every part's triangles against the room the D
+  sweeps over its whole travel (36.6 m) with the tensioners open and the cradles dropped: **0 parts in it**; closed,
+  the top tracks are in it (the check sees them), base frames never; un-dropped cradles in it. Open, every moving part
+  of a tensioner from the cable's height up is outboard of its own cable line. `test_tensioner_lifts_and_tilts`
+  rewritten: tilt about ±x on the outboard side, +30° takes the top track's middle > 300 mm outward and up.
+- Tensioner on its own (scratch check, OpenCascade booleans between moving groups): 0 overlaps at lift −76/0/451/902
+  mm and tilt 0/15/35/55/70°.
+- `tests/test_demo_project.py` (whole demo, small form): **0 clash rows over the whole animation** (shots 5 and 7
+  included; sea at rest as before), tilt cylinders follow lift + tilt (+0.54 m at 70°), shot 7 opens both tensioners
+  and drops both lanes before the travel; the cable reads with 0 problems (197 rollers, 2 chutes, 8 bends, 170.50 m,
+  0.5 mm off the CAD cable). 17 passed. `test_demo_cable_lay.py` 43 passed; `test_paths_core.py` demo tests updated
+  (10 arcs, 195 rollers) and pass.
+- **Make demo project** (full form, this machine): **74 s, was 77 s** (main before this task, same machine).
+- Pictures (Cycles CPU, 24 samples, 1280×720 stored 960×540): `tasks/img/0102-d-between-open-tensioners.png` (from aft,
+  both tensioners open, the D between them), `tasks/img/0102-u-from-above.png` (the U from above, at rest).
+- The clear band: between the two cable lines nothing of an open tensioner at any height from the cable's up; the D's
+  own room is 8.62 m wide, from 30 mm under the cable's centre to 1.79 m over its rail top (tipping eyes), 0.30 m
+  over the cable at its edges.
+- GitHub: 3 full runs on the branch. The first was red only in `tests/test_paths.py` (it counts the demo cable's
+  rollers and bends too: 218 → 195, 14 → 10, 188.06 → 170.50 m); 0105 and 0103 took 0.2.82 and 0.2.83 while it ran, so
+  the next two runs were merges of main + renumbering (both green: runs 43435919960, 43438261138, ~15 min each).
 
 **Open points / follow-up tasks:**
+- For small cables (under ~Ø 120) the bottom pads' V edges stand higher than the cable's centre; the D's hanging guide
+  rollers then cannot reach down to the cable without touching the pads when passing (only Ø 200 is built in tests).
+- The cable on its path stays drawn at rest while the D moves (as before, task 0082); at the end of the travel the
+  D's gutter end sits over horn A's upper bend, where the cable would have to go (0081/0082 decide the cable's way).
+- The guide's demo overview picture (`docs/img/demo_overview.jpg`) still shows the older deck.
+- No subagents were used (one design across tensioner, D and layout; the risk was in geometry the checks above cover).

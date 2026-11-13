@@ -1757,6 +1757,38 @@ class FRCnc(bpy.types.PropertyGroup):
     rapid_z: FloatProperty(name="Z rapid (mm/min)", default=3000.0, min=1.0, soft_max=60000.0, precision=0,
                            step=10000, update=_cnc_changed,
                            description="The machine's rapid speed on Z in mm per minute")
+    # ---- acceleration (task 0103) ----
+    use_accel: BoolProperty(
+        name="Speed up and slow down (acceleration)", default=True, update=_cnc_changed,
+        description="Times every G-code move as the machine runs it: each axis speeds up and slows down with its "
+                    "maximum acceleration, slows at corners (G64) or stops at them (G61), so short moves take "
+                    "longer, as on the machine. Off: every move runs at full speed from start to end (projects "
+                    "made before this setting came keep it off until you tick it)")
+    accel_x: FloatProperty(
+        name="X accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The X axis' maximum acceleration in mm per second² (MAX_ACCELERATION of the axis in "
+                    "LinuxCNC's .ini). Bigger: short moves are quicker. Read from LinuxCNC INI fills it in")
+    accel_y: FloatProperty(
+        name="Y accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The Y axis' maximum acceleration in mm per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_z: FloatProperty(
+        name="Z accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The Z axis' maximum acceleration in mm per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_a: FloatProperty(
+        name="A accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The A axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_b: FloatProperty(
+        name="B accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The B axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_c: FloatProperty(
+        name="C accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The C axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
     spindle_joint: StringProperty(name="Spindle", update=_cnc_changed,
                                   description="The rotate joint of the spindle. Picking it ticks Motor on it, so it turns "
                                               "without end, as the program's S and M3 / M4 / M5 say. Empty: the "
@@ -2748,6 +2780,11 @@ class FRWeb3D(bpy.types.PropertyGroup):
         name="Include animation", default=False,
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Only "
                     "parts that move as a whole (no milling, chips, coolant or hoses). Makes the export slower")
+    compress: BoolProperty(
+        name="Smaller file", default=True,
+        description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
+                    "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
+                    "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
     last_path: StringProperty(default="")
     last_html: StringProperty(default="")
     last_text: StringProperty(default="")
@@ -2983,6 +3020,31 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         items=[("eevee", "Fast preview (EEVEE)", "Real-time engine: a quick look at the turn, in minutes"),
                ("draft", "Draft", "Real light, grainy, quick"), ("preview", "Preview", "Real light, a bit grainy"),
                ("final", "Final", "Real light, clean"), ("best", "Best", "Real light, very clean (slow)")])
+
+    # ---- one-click product video (task 0101) ----
+    pv_seconds: EnumProperty(
+        name="Length", default="60",
+        items=[("30", "About 30 s", "A short video: one turn, a few motions, a quick take-apart"),
+               ("60", "About 60 s", "A full first video"), ("90", "About 90 s", "A long video with time for each piece")],
+        description="About how long the video is, cards included. The steps share the time between them")
+    pv_sub: EnumProperty(
+        name="Take apart", default="AUTO",
+        items=[("AUTO", "The biggest subassembly", "The subassembly with the most parts (at least 5) that is not "
+                                                   "the whole model"),
+               ("SELECTED", "The selected one", "The subassembly selected in the structure list (3 Structure)"),
+               ("NONE", "None", "No take-apart in the video")],
+        description="Which subassembly flies apart and together again in the video")
+    pv_motions: IntProperty(
+        name="Motions", default=3, min=0, max=8,
+        description="How many of the machine's motions to show: the joints with the longest travel first (each goes "
+                    "to its far limit and back), then the saved poses. 0 = none")
+    pv_title_on: BoolProperty(name="Title card", default=True,
+                              description="Starts the video with a title card in the brand kit's colours (3 s)")
+    pv_end_on: BoolProperty(name="End card", default=True,
+                            description="Ends the video with the brand kit's end card (3 s)")
+    pv_title: StringProperty(name="Title", description="The big text on the title card. Empty: the project's name")
+    pv_captions: BoolProperty(name="Captions", default=False,
+                              description="Shows the name of each step as a caption while it plays")
 
     # ---- output ----
     out_format: EnumProperty(name="Format", items=FORMAT_ITEMS, default="presentation", update=_output_changed,

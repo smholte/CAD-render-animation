@@ -18,9 +18,9 @@ def _cube():
     return pos, tri
 
 
-def _glb(n_nodes=2, uv=True):
+def _glb(n_nodes=2, uv=True, compress=False):
     pos, tri = _cube()
-    g = core.Gltf()
+    g = core.Gltf(compress=compress)
     vert = tri.ravel()
     p = pos[tri]
     fn = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0])
@@ -225,6 +225,7 @@ def test_words():
     assert core.mb(23_400_000) == "23 MB"
     assert core.result_line(312_492, 2693, 3, 5.51) == "0.3 MB · 2,693 triangles · 3 textures · 5.5 s"
     assert core.result_line(1, 1, 1, 0.0).count("1 triangle ") == 1
+    assert core.result_line(312_492, 2693, 3, 5.51, compressed=True).startswith("0.3 MB compressed · ")
     assert core.header(0) == ""
     assert core.safe_name('Mill: "A"/B') == "Mill_ _A__B"
     assert core.safe_name("  ") == "Model"
@@ -245,7 +246,108 @@ def test_viewer_page_with_the_real_viewer():
     js = core.viewer_script()
     assert len(js) > 400_000 and "model-viewer" in js
     page = core.viewer_html("Site", src="../media/x.glb", script_src="../vendor/" + core.MV_FILE)
-    assert 'src="../media/x.glb"' in page and f'<script src="../vendor/{core.MV_FILE}">' in page
+    assert 'data-src="../media/x.glb"' in page and f'<script src="../vendor/{core.MV_FILE}">' in page
     assert len(page) < 10_000                          # the script is not inlined here
     import os
     assert os.path.isfile(os.path.join(core.WEB_DIR, "LICENSE-model-viewer.txt"))
+
+
+def _shapes(doc, binary):
+    """Per mesh: its points in metres per triangle corner (sorted triangles), for comparing two files."""
+    out = []
+    for m, mesh in enumerate(doc["meshes"]):
+        node = next(n for n in doc["nodes"] if n.get("mesh") == m)
+        for p in mesh["primitives"]:
+            pos = core.accessor_array(doc, binary, p["attributes"]["POSITION"]).astype(np.float64)
+            pos = pos * node.get("scale", [1.0])[0] + node.get("translation", [0.0, 0.0, 0.0])
+            idx = core.accessor_array(doc, binary, p["indices"]).ravel()
+            tri = pos[idx].reshape(-1, 3, 3)
+            r = np.lexsort(tri.reshape(-1, 9).T[::-1])
+            out.append(np.sort(tri.reshape(-1, 9)[r].round(4), axis=0))
+    return out
+
+
+def test_compressed_file_round_trip():
+    """Task 0105: the same model with meshopt compression: valid, read back to the same shape, required extension,
+    the data-less fallback buffer the extension asks for."""
+    plain, packed = _glb().glb(), _glb(compress=True).glb()
+    assert core.problems(packed) == []
+    doc, binary = core.read_glb(packed)
+    assert core.MESHOPT in doc["extensionsUsed"] and core.MESHOPT in doc["extensionsRequired"]
+    assert core.summary(packed)["compressed"] and not core.summary(plain)["compressed"]
+    assert len(doc["buffers"]) == 2 and "uri" not in doc["buffers"][1]
+    assert doc["buffers"][1]["extensions"][core.MESHOPT] == {"fallback": True}
+    packed_views = [v for v in doc["bufferViews"] if "extensions" in v]
+    assert {v["extensions"][core.MESHOPT]["mode"] for v in packed_views} <= {"ATTRIBUTES", "TRIANGLES", "INDICES"}
+    assert all(v["buffer"] == 1 and v["extensions"][core.MESHOPT]["buffer"] == 0 for v in packed_views)
+    assert all(v["byteOffset"] % 4 == 0 for v in doc["bufferViews"])
+    # pictures and the animation stay as they are
+    for img in doc["images"]:
+        assert "extensions" not in doc["bufferViews"][img["bufferView"]]
+    d0, b0 = core.read_glb(plain)
+    for a, b in zip(_shapes(d0, b0), _shapes(doc, binary)):
+        assert np.allclose(a, b, atol=core.POS_STEP)
+    s0, s1 = core.summary(plain), core.summary(packed)
+    assert (s0["triangles"], s0["parts"], s0["textures"]) == (s1["triangles"], s1["parts"], s1["textures"])
+
+
+def test_compressed_points_use_coarser_steps_and_first_use_order():
+    pos = np.random.default_rng(5).random((300, 3)) * 0.1          # a 10 cm part
+    tri = np.random.default_rng(6).integers(0, 300, (200, 3))
+    g = core.Gltf(compress=True)
+    m = g.mesh("M", pos, np.zeros((300, 3), np.int8), None, [(-1, tri)])
+    assert g.dequantize[m][1] == pytest.approx(core.POS_STEP_PACKED)  # not 0.1 m / 65000
+    g0 = core.Gltf()
+    m0 = g0.mesh("M", pos, np.zeros((300, 3), np.int8), None, [(-1, tri)])
+    assert g0.dequantize[m0][1] == pytest.approx(0.1 / 65000, rel=0.01)
+    doc, binary = core.read_glb(g.glb())
+    idx = core.accessor_array(doc, binary, doc["meshes"][0]["primitives"][0]["indices"]).ravel()
+    first = idx[np.sort(np.unique(idx, return_index=True)[1])]
+    assert np.array_equal(first, np.arange(len(first)))           # vertices numbered as the triangles meet them
+    assert doc["accessors"][doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]["count"] == len(first)
+
+
+def test_problems_finds_broken_compressed_files():
+    data = _glb(compress=True).glb()
+    doc, binary = core.read_glb(data)
+
+    def again(d):
+        return core.problems(_rewrite(data, d))
+
+    import copy
+    d = copy.deepcopy(doc)
+    v = next(v for v in d["bufferViews"] if "extensions" in v)
+    v["extensions"][core.MESHOPT]["byteLength"] += 10 ** 6
+    assert any("compressed data runs past" in p for p in again(d))
+    d = copy.deepcopy(doc)
+    v = next(v for v in d["bufferViews"] if "extensions" in v)
+    v["extensions"][core.MESHOPT]["count"] += 1
+    assert any("count x stride" in p for p in again(d))
+    d = copy.deepcopy(doc)
+    del d["buffers"][1]["extensions"]
+    assert any("buffer 1 has no data" in p for p in again(d))
+
+
+def _rewrite(data, doc):
+    """``data`` with its JSON part replaced by ``doc``."""
+    _, binary = core.read_glb(data)
+    js = json.dumps(doc).encode()
+    js += b" " * ((4 - len(js) % 4) % 4)
+    import struct
+    total = 12 + 8 + len(js) + 8 + len(binary)
+    return (struct.pack("<III", 0x46546C67, 2, total) + struct.pack("<II", len(js), 0x4E4F534A) + js
+            + struct.pack("<II", len(binary), 0x004E4942) + binary)
+
+
+def test_viewer_page_switches_the_built_in_decoder_on_before_the_model():
+    """model-viewer has the meshopt decoder inside; the page names a decoder location (an empty inline script, no
+    internet) after the viewer script and before the model is set, or the viewer refuses a compressed file."""
+    page = core.viewer_html("T", glb=_glb(compress=True).glb(), script_text="/* viewer */")
+    viewer, setup, model = page.index("/* viewer */"), page.index("meshoptDecoderLocation"), page.index('id="glb"')
+    assert viewer < setup < model
+    assert "'data:text/javascript,'" in page and not re.search(r'(src|href)="https?://', page)
+    site = core.viewer_html("Site", src="../media/x.glb", script_src="../vendor/" + core.MV_FILE)
+    assert site.index("meshoptDecoderLocation") < site.index("m.src = m.dataset.src")
+    assert ' src="../media' not in site                     # never an attribute: the viewer would start too early
+    js = core.viewer_script()
+    assert "meshopt_decodeVertexBuffer" in js and "setMeshoptDecoderLocation" in js     # the decoder is in there

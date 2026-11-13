@@ -1528,7 +1528,7 @@ an overhanging cap; flat Ø10 roughing, ball Ø10 finishing; reading the path be
 
 ### CNC machine (G-code)
 
-<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">
+<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, acceleration, Read from LinuxCNC INI, air blast">
 <img class="panel" src="img/panel_4_air.png" alt="CNC machine with the Air blast fold open: air codes, through the spindle, strength, cone, reach">
 
 Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
@@ -1560,6 +1560,14 @@ next to its field (**Reverse**).
 
 - **X / Y / Z rapid** (mm per minute): how fast the machine moves on G0 (LinuxCNC's `MAX_VELOCITY` × 60). They set
   how long rapid moves take; feed moves take the program's F.
+- **Speed up and slow down (acceleration)** (on for a new machine): every move speeds up and slows down as on the
+  machine, so short moves take longer and the video lasts as long as the real program. **X / Y / Z accel.** is each
+  axis' maximum acceleration in mm per second² (LinuxCNC's `MAX_ACCELERATION`; the rotary axes' in °/s² are under
+  Rotary axes). Projects made before this setting came keep it off, so their timing stays as it was, until you
+  tick it.
+- **Read from LinuxCNC INI…**: pick your machine's `.ini` file; the app fills in the rapid speed and the acceleration
+  of every axis it finds (`[AXIS_X]` …, or `[JOINT_n]` with `COORDINATES`; inch is turned into mm). The file is
+  only read, not kept in the project.
 - **Shift zero**: moves the work zero along X, Y and Z, for a zero that is not on a corner or the centre.
 - **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
   you moved the joints to the machine's home position (usually Z right up). It keeps the rotary axes' A0 B0 C0
@@ -1579,7 +1587,8 @@ turning part, and the toolpath is drawn on the part and turns with it.
    Any of the three can stay empty.
 3. Next to each: **Reverse** (the arrows) when your program turns the other way, **Wrapped** (the loop) for an axis
    that counts 0 … 360° and keeps turning (LinuxCNC `WRAPPED_ROTARY`: `A90` turns the + way to 90°, `A-90` the − way
-   to 90°). Below: the **rapid** speed of each axis in degrees per minute.
+   to 90°). Below: the **rapid** speed of each axis in degrees per minute and, with Speed up and slow down on,
+   its **acceleration** in degrees per second².
 4. **Kinematics**:
    - **Plain** (most 4th-axis set-ups, LinuxCNC `trivkins`): A, B, C are just the joints' angles; your CAM post
      already worked out X, Y and Z for the turned part. The post needs the rotary axis' centre: **Check** says where
@@ -2054,12 +2063,16 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
-4. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
+4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
+   (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
+   they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
+   Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
+5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
    page plays it in a loop. It makes the export slower.
-5. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
+6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.
-6. The line under the button shows the file size, the number of triangles, the number of pictures and the time.
+7. The line under the button shows the file size ("compressed" when it was packed), the number of triangles, the number of pictures and the time.
    **Open page** opens it in your web browser; **Show in folder** shows the files.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
@@ -2072,8 +2085,10 @@ brushed, ground or turned metal, the very fine orange peel of paint, tool marks 
 X-ray look (parts are whole and solid), the surroundings (the page has its own light and shadow), chips, coolant,
 hoses and milling (material removal).
 
-Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB.
-See the task report for bigger machines.
+Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a
+made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
+needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
+report.
 
 ### Brand kit & logo
 
@@ -2220,13 +2235,14 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
 **Run a CNC program**
 
-<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 20.8 s on the machine, one tool change">
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 21.1 s on the machine (20.8 s without acceleration), one tool change">
 
 <img class="panel" src="img/panel_6_gcode_air.png" alt="A Run G-code program step with Blow the part clean at the end ticked">
 
 1. Set the machine up in 4 Motion > **CNC machine** (above).
 2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
-   says how many lines and moves it has and how long it takes on the machine. A copy is kept in the
+   says how many lines and moves it has and how long it takes on the machine – with acceleration on also how
+   long it would take without ("2 min 14 s on the machine (1 min 51 s without acceleration)"). A copy is kept in the
    project, so the render queue and another PC have it too. Tip: keep the program (and the tool table)
    in the project's folder or a folder below it, after saving the project: it is then stored next to the
    project, and found there when the folder moves to another PC.
@@ -2261,7 +2277,17 @@ G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, M7 M8 M9 
 expressions in `[ ]`, and O-word subroutines, loops and if/else (also a subroutine file `<name>.ngc` next
 to the program). **Details** lists everything the app does not show, with its line numbers: cutter
 compensation G41/G42 (the tool follows the programmed line), rotary axes A/B/C, threading, probing and
-user M-codes. Moves are timed without acceleration: on the real machine short moves take a little longer.
+user M-codes.
+
+How the moves are timed (with **Speed up and slow down** on, 4 Motion > CNC machine > Machine): each move runs at
+most at its feed (rapids: its slowest axis at its rapid speed) and speeds up and slows down as fast as the slowest
+axis that moves allows (its **accel.**); on an arc it goes no faster than √(acceleration × radius). Where moves meet:
+**G61** / **G61.1** stops at every corner; **G64** (the default) slows down at a corner only as much as its angle
+needs – a line cut into many short pieces runs straight through, a sharp corner is taken slowly, turning back
+stops – and **G64 P** (a tolerance) slows down more at corners, as on the machine. Before and after a dwell, a tool
+change or a pause the machine stops. The head visibly speeds up and slows down in the video, and the milling, chips,
+coolant and tool marks follow it. This is close to LinuxCNC but not its exact planner (no jerk limit, corners not
+rounded off in the picture): time one program on your machine and compare with the step's time.
 
 Measured on the 4-core cloud test machine (test gantry): a program of 20,000 lines (short moves and arcs,
 about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, toolpath included; reading
@@ -2482,6 +2508,27 @@ Expected on a PC with a fast processor: about half as long (not measured yet).
    how long the whole video will take. The test frame is kept, so you can check the look.
 4. **Render animation** puts the video in 7 Render queue and starts the queue.
 
+### Make a product video
+
+<img class="panel" src="img/panel_6_product_video.png" alt="6 Animation: Make a product video, options open">
+
+One button makes a first complete film from what your project already has. Open **Make a product video** at the top of
+6 Animation, set the options and press the blue button.
+
+- **Length**: about 30, 60 or 90 seconds, title and end card included. The steps share the time.
+- **Take apart**: the biggest subassembly (at least 5 parts, not the whole model), the one selected in 2 Structure, or none.
+- **Motions to show**: how many joints (longest travel first; each goes to its far limit and back, with the camera
+  watching the moving part) and then saved poses. A saved pose stays where it ends. 0 shows none.
+- **Title card**, **End card** and **Captions** use the brand kit (5 Scene & Render). **Title** empty: the project's name.
+
+The video is a new animation called **Product video**: a turn round the machine, the motions, the subassembly taken
+apart and put together again (an Assembly sequence), a close-up from each of your first two saved cameras. A part the
+project has nothing for is left out (no joints: no motions; no subassembly: no take-apart); the line under the button says what.
+
+Every step is an ordinary step: change it, add one, switch one off. Press **Make a product video** again to make it
+anew; the app asks first if you changed its steps. Then **Build & play**, or **Add to queue** in 7 Render queue as for
+any animation. Other animations are never touched.
+
 <a id="queue"></a>
 ## 7 Render queue – render in the background
 
@@ -2603,13 +2650,16 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 314 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 308 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
-  support rollers follow the carousel, the quadrant's rail wheels its travel; the tensioners' top tracks lift and
-  tilt (a stack); the quadrant handler's two **cylinders** follow its tilt. The quadrant system is a stack too: the
+  support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
+  **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
+  port, tensioner 2 to starboard); its two tilt **cylinders** follow, as do the quadrant handler's two. The quadrant system is a stack too: the
   D-quadrant's **travel** rides on the **Handler tilt** and its **tip** (about the A&R wire's eye at the top of its
-  curve) on the travel, so once the D is on the handler it tilts with it. The four roller cradles of the S-bends that
-  stand in the D's way **drop** out of it (move "Cradle … drop": the others follow). The A&R winch's drum follows the
+  curve) on the travel, so once the D is on the handler it tilts with it. The side lanes run
+  straight into the D's gutter (no S-bends): the D-quadrant is exactly as wide as the cable's path, so on its way aft
+  it passes through both tensioners' lines. Every roller cradle in its way **drops** out of it: one "Cradle … drop"
+  joint per lane, the others of that lane follow. The A&R winch's drum follows the
   D's travel as its wire pays out.
 - **Wires that move:** the **A&R wire** runs from its winch in front of the carousel to the eye at the top of the D's
   curve – straight along the deck while the D travels, over the handler's top pulley once the handler tilts. The two
@@ -2621,11 +2671,13 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 78 s with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 80 s with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
-  turning with the cable, a tensioner opening and squeezing, then X-ray with labels, a close-up of a winch's
-  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: the
-  cradles drop, the D-quadrant travels aft onto the handler on its A&R wire (× 60 time-lapse), the tipping wires are
+  turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
+  squeezing, then X-ray with labels, a close-up of a winch's
+  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: both
+  tensioners open, the lanes' cradles drop, the D-quadrant travels aft between the tensioners onto the handler on its
+  A&R wire (× 60 time-lapse), the tipping wires are
   connected, and the handler tilts over the stern carrying it: it ends with the D standing vertical, curve up,
   hanging from the A&R wire over the top pulley. The captions say where it runs faster than real. Click **Build & play**, or put
   it in the render queue.

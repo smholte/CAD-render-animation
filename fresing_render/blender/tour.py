@@ -1528,6 +1528,32 @@ def _check_update(scene):
     return "joint, pose and hidden cover kept; new: BOOM.LAMP"
 
 
+ACCEL_ANIM = "Acceleration"
+
+
+def _accel_program() -> str:
+    """Task 0103: 2 mm zigzag steps above the block (G64), the same back with exact stops (G61), then one long line."""
+    out = ["(T1 D=6. CR=0. - flat end mill)", "G21 G90 G94 G17 G64", "G0 X-30 Y-10 Z3", "G1 F3000"]
+    x = -30
+    for k in range(24):
+        if k % 2 == 0:
+            x += 2
+            out.append(f"X{x}")
+        else:
+            out.append(f"Y{-8 if (k // 2) % 2 == 0 else -10}")
+    out.append("G61")
+    for k in range(24):
+        if k % 2 == 0:
+            x -= 2
+            out.append(f"X{x}")
+        else:
+            out.append(f"Y{-8 if (k // 2) % 2 == 0 else -10}")
+    out += ["G64", "G1 X30 Y10", "G0 Z10", "M30"]
+    return "\n".join(out) + "\n"
+
+
+ACCEL_TOUR = _accel_program()
+
 GCODE_TOUR = """(T1 D=6. CR=0. - flat end mill)
 (T2 D=4. CR=2. - ball end mill)
 G21 G90 G94 G17
@@ -1666,6 +1692,42 @@ def build_sequence(b: Build):
     sequence_steps(sc, a)
 
 
+PRODUCT_ANIM = "Product video"
+
+
+def check_product_video(scene) -> str:
+    """The one-click product video (task 0101): its steps are in order (turn round, a joint there and back, the
+    take-apart and put-together) and Build gives no warning."""
+    from . import animation, product_video
+    a = product_video.find_animation(scene)
+    _check(a is not None, "no 'Product video' animation")
+    if scene.fresing.anim_baked != a.name:
+        res = animation.bake(scene, a)
+        _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    kinds = [b.kind for b in a.blocks]
+    _check(kinds[0] == "CAMERA" and a.blocks[0].camera_mode == "ORBIT", "it does not start with the turn round")
+    _check(kinds.count("JOINT") == 2 and kinds.count("SEQUENCE") == 2, f"steps are {kinds}")
+    _check(kinds.index("JOINT") < kinds.index("SEQUENCE"), "the take-apart comes before the motion")
+    return f"{len(a.blocks)} steps, {animation.length_seconds(a):.0f} s without the cards"
+
+
+@tour_set("productvideo", "Product video", "test_sequence.step")
+def build_productvideo(b: Build):
+    from mathutils import Vector
+
+    from . import build as bld, joints, product_video
+    sc = b.scene
+    _look("PRODUCT")
+    u = _ob(sc, SEQUENCE_UNIT)
+    j = joints.create(sc, "ROTATE", [u], Vector((0.3, 0.0, 0.0)), Vector((0, 0, 1)), name="Turn unit")
+    j.use_limits, j.rot_min, j.rot_max = True, -0.6, 0.6
+    del bld
+    sc.fresing.pv_seconds = "30"
+    info = product_video.make(sc)
+    a = info["animation"]
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
 def _tall_view_points(scene):
     """The unit and the column of parts above it when it is taken apart (about 0.9 m high)."""
     import numpy as np
@@ -1697,6 +1759,23 @@ def build_gantry(b: Build):
     blk = _gcode_step(a, _program(b, "Tour program.ngc", GCODE_TOUR), sc)
     gcode.tools_from_program(sc, blk)
     tools.use_part(sc, tools.row_of(sc, 1), tool)
+    # task 0103: many short moves above the block, timed with acceleration
+    _check(sc.fresing.cnc.use_accel, "Speed up and slow down is off for a new machine")
+    acc = _animation(b, ACCEL_ANIM, shot.name)
+    _gcode_step(acc, _program(b, "Acceleration.ngc", ACCEL_TOUR), sc)
+
+
+def _check_accel(scene):
+    from . import gcode
+    a = scene.fresing.animations.get(ACCEL_ANIM)
+    _check(a is not None and len(a.blocks) == 1, f"no animation '{ACCEL_ANIM}'")
+    blk = a.blocks[0]
+    info = gcode.info(scene, blk)
+    _check(info.get("accel"), "the program is not timed with acceleration (4 Motion > CNC machine > Machine)")
+    with_s, without = info["machine_s"], info["plain_s"]
+    _check(with_s > 1.2 * without, f"with acceleration {with_s:.2f} s is not clearly longer than {without:.2f} s")
+    _check(blk.duration > without, f"the step lasts {blk.duration:.2f} s, not longer than {without:.2f} s")
+    return f"{gcode.fmt_time(with_s)} – {gcode.fmt_time(without)} without acceleration"
 
 
 def _check_gcode(scene):
@@ -2372,7 +2451,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
      "towards the rim) and the arm swings out so its guide stays over the turn being paid out.",
-     where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.81", check=_check_spool,
+     where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
      auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
@@ -2396,10 +2475,23 @@ stop("sequence", MOTION, "sequence", "Assembly sequence",
      "ends exactly where it was.", where="6 Animation (Add step > Assembly sequence)", since="0.2.79",
      animation=SEQUENCE_ANIM, at=0.5, play=True, check=lambda scene: check_sequence(scene), auto="clip")
 
+stop("productvideo", MOTION, "productvideo", "One-click product video",
+     "6 Animation > Make a product video made a whole film from the project: one turn round the machine, the "
+     "spindle unit's joint swinging out and back with the camera watching it, then the unit taken apart part by part "
+     "and put together again. Title and end card come at render time.", where="6 Animation > Make a product video",
+     since="0.2.81", animation=PRODUCT_ANIM, at=0.5, play=True, check=lambda scene: check_product_video(scene),
+     auto="clip")
+
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "
      "thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
      animation="G-code", play=True, check=_check_gcode, auto="clip")
+stop("accel", MACH, "gantry", "Acceleration: slow short moves",
+     "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
+     "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
+     "up, runs and slows down. 6 Animation shows the step's time with and without acceleration (with is clearly "
+     "longer).", where="4 Motion > CNC machine > Machine (Speed up and slow down); 6 Animation (Run G-code program)",
+     animation=ACCEL_ANIM, play=True, since="0.2.83", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
      "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "

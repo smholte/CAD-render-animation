@@ -613,8 +613,8 @@ def heavy_vessel(ctx):
 
 
 @line("heavy.web3d", "Big machine: web 3D model", "0.2.77", (H,), requires=("heavy.import",), expected=60,
-      what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden) and its viewer "
-           "page; the file is read back",
+      what="The 3,000-part machine saved as a web 3D model (.glb, Texture size 1024, part names hidden, compressed: "
+           "the panel's default for a big model) and its viewer page; the file is read back",
       shows="How long 5 Scene & Render > Web 3D model > Export takes on a big model and how big the file gets",
       not_shown="How fast a browser shows it (try the page on a phone), the animation (not included)")
 def heavy_web3d(ctx):
@@ -630,7 +630,9 @@ def heavy_web3d(ctx):
     ctx.metric("file", len(data) / 1e6, "MB")
     ctx.metric("peak memory", peak_memory_mb(), "MB")
     if not small():
-        _check(len(data) < 40_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 40 MB for 3,000 parts)")
+        _check(out.get("compressed"), "the big model was not compressed (Smaller file is on by default)")
+        _check(len(data) < 20_000_000, f"the file is {len(data) / 1e6:.0f} MB (at most 20 MB for 3,000 parts; "
+                                       "35 MB before compression)")
     return out["text"]
 
 
@@ -700,7 +702,7 @@ def own_heavy_video(ctx):
 # ---------------------------------------------------------------------------
 
 @line("heavy.demo", "Demo project: cable-lay vessel", "0.2.68", (H,), expected=300,
-      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 422 "
+      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 416 "
            "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
            "animation",
       shows="How long the demo takes to make on this PC, the Build time of its animation, the time per frame while "
@@ -724,6 +726,11 @@ def heavy_demo(ctx):
     scene = bpy.context.scene
     s = scene.fresing
     _check(len(s.joints) >= demo.MIN_JOINTS, f"the demo has {len(s.joints)} joints, not {demo.MIN_JOINTS}")
+    for name in demo.TENSIONERS:                            # task 0102: lift, then tilt 70° out to its own side
+        tilt = s.joints.get(f"{name}: Top track tilt")
+        _check(tilt is not None and tilt.use_limits and abs(math.degrees(tilt.rot_max) - 70.0) < 0.01,
+               f"{name}'s top track does not tilt out 70°")
+        _check(s.joints.get(f"{name}: Top track lift") is not None, f"{name}'s top track does not lift")
     a = s.animations.get(demo.ANIM)
     _check(a is not None, f"the demo has no animation '{demo.ANIM}'")
     t0 = time.time()

@@ -1460,7 +1460,8 @@ def test_demo_cable_every_arc_and_straight(demo):
     assert rd.ok, rd.problem
     arcs = [(s, i) for s, i in zip(route.segments, route.info) if s.kind == "arc"]
     shaping = [c for c in rd.contacts if c.kind != "TOUCH"]
-    assert len(arcs) == 14 and [c.kind for c in shaping] == ["BEND"] * 14       # no part carries a bend: rollers do
+    n_arcs = len(arcs)                              # 10 since task 0102 (the four S-bend arcs are gone)
+    assert n_arcs == 10 and [c.kind for c in shaping] == ["BEND"] * n_arcs     # no part carries a bend: rollers do
     assert rd.start_on_wheel and not rd.end_on_wheel                            # it starts on the coil, ends in the sea
     rows = []
     for c, (seg, inf) in zip(shaping, arcs):
@@ -1482,9 +1483,9 @@ def test_demo_cable_every_arc_and_straight(demo):
         if seg.kind == "arc":
             at += 1
         else:
-            lines[at] = seg.length / 1000          # the straight before arc number ``at`` (14: the last, to the end)
-    for i in range(15):
-        k = int(path.first[i]) if i < 14 else len(path.points) - 1
+            lines[at] = seg.length / 1000          # the straight before arc number ``at`` (n_arcs: the last, to the end)
+    for i in range(n_arcs + 1):
+        k = int(path.first[i]) if i < n_arcs else len(path.points) - 1
         run = float(np.linalg.norm(path.points[k] - path.points[k - 1])) if k else 0.0
         assert run == pytest.approx(lines.get(i, 0.0), abs=0.02), (i, run, lines.get(i, 0.0))
     off = route.distance(path.points * 1000.0)
@@ -1525,7 +1526,7 @@ def test_demo_cable_rollers(demo):
     other = [n for n in missed if not (n.startswith("HORN B") or "sprocket" in n or "sheave" in n.lower() or "pulley" in n)]
     assert not other and not extra, (other, extra)
     assert len([n for n in missed if n.startswith("HORN B")]) == 13 and len([n for n in missed if "sprocket" in n]) == 8
-    assert len(touch) == 218 and kinds == {"CABLE ROLLER": 156, "GUIDE ROLLER": 54, "CABLE ENGINE WHEEL": 8}
+    assert len(touch) == 195 and kinds == {"CABLE ROLLER": 133, "GUIDE ROLLER": 54, "CABLE ENGINE WHEEL": 8}   # 0102
     assert [c.s for c in rd.contacts] == sorted(c.s for c in rd.contacts)
     # each roller: round, the cable square across it, turning the way the sheet says, at the sheet's speed when
     # the speed is taken where the cable is drawn (the sheet's way); the maker draws the cable up to 16 mm into

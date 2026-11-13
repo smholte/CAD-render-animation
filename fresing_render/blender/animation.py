@@ -207,6 +207,11 @@ def _shared_visibility(objs, rows, n: int, fade_rows=None) -> None:
         ob[TAG] = True
 
 
+_INTERP = {e.identifier: e.value for e in bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items}
+_FREE = bpy.types.Keyframe.bl_rna.properties["handle_left_type"].enum_items["FREE"].value
+_AUTO_CLAMPED = bpy.types.Keyframe.bl_rna.properties["handle_left_type"].enum_items["AUTO_CLAMPED"].value
+
+
 def _write(cb, path: str, index: int, keys) -> None:
     """keys: list of (frame, value, interpolation, easing)."""
     fc = cb.fcurves.find(path, index=index)
@@ -215,27 +220,41 @@ def _write(cb, path: str, index: int, keys) -> None:
     fc = cb.fcurves.new(path, index=index)
     pts = fc.keyframe_points
     pts.add(len(keys))
-    pts.foreach_set("co", [c for k in keys for c in (float(k[0]), float(k[1]))])
-    for kp, k in zip(pts, keys):
-        kp.interpolation = k[2]
+    co = [c for k in keys for c in (float(k[0]), float(k[1]))]
+    pts.foreach_set("co", co)
+    # task 0103: everything in one go (a long G-code program has hundreds of thousands of keys); free handles where
+    # they are given (a G-code move speeding up / slowing down), else automatic (worked out by handles_recalc)
+    pts.foreach_set("interpolation", [_INTERP.get(k[2], 1) for k in keys])
+    types = [_FREE if len(k) > 4 and k[4] else _AUTO_CLAMPED for k in keys]
+    pts.foreach_set("handle_left_type", types)
+    pts.foreach_set("handle_right_type", types)
+    if _FREE in types:
+        hl, hr = list(co), list(co)
+        for n, k in enumerate(keys):
+            if len(k) > 4 and k[4]:
+                (hl[2 * n], hl[2 * n + 1]), (hr[2 * n], hr[2 * n + 1]) = k[4]
+        pts.foreach_set("handle_left", hl)
+        pts.foreach_set("handle_right", hr)
+    for n, k in enumerate(keys):
         if k[2] not in ("CONSTANT", "LINEAR", "BEZIER"):
-            kp.easing = k[3]
-        kp.handle_left_type = kp.handle_right_type = "AUTO_CLAMPED"
+            pts[n].easing = k[3]
     # not fc.update(): it merges keys less than 0.01 frame apart, and a G-code program played fast has moves that
     # short - a lift, a move over and the way down became one straight cut through the part (task 0029)
     pts.sort()
     pts.handles_recalc()
 
 
-def _merge(keys: list, frame: int, value, interp: str, easing: str = "AUTO") -> None:
-    """Add a key; a key on the same frame is replaced."""
+def _merge(keys: list, frame: int, value, interp: str, easing: str = "AUTO", handles=None) -> None:
+    """Add a key; a key on the same frame is replaced. ``handles``: ((frame, value), (frame, value)) of its left and
+    right Bezier handles (free handles, task 0103), else automatic."""
+    k = (frame, value, interp, easing, handles) if handles else (frame, value, interp, easing)
     if keys and keys[-1][0] == frame:
-        keys[-1] = (frame, value, interp, easing)
+        keys[-1] = k
     elif keys and keys[-1][0] > frame:
-        keys[:] = [k for k in keys if k[0] < frame]
-        keys.append((frame, value, interp, easing))
+        keys[:] = [x for x in keys if x[0] < frame]
+        keys.append(k)
     else:
-        keys.append((frame, value, interp, easing))
+        keys.append(k)
 
 
 def has_keys(scene) -> bool:
