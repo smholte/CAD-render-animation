@@ -590,7 +590,7 @@ def test_stripes():
     assert P.stripes(d, pitch, math.radians(-45.0)) == -1
     assert P.stripes(d, pitch, math.radians(89.9)) == 0
     assert P.stripes(d, 0.0, math.radians(45.0)) == 0
-    assert P.stripes(d, pitch, 0.0) > 1000                                           # along the cable: no end of them
+    assert P.stripes(d, pitch, 0.0) == 64 == -P.stripes(d, pitch, -1e-12)             # along the cable: as many as it draws
 
 
 # ---------------------------------------------------------------------------------------------------------
