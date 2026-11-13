@@ -1,6 +1,6 @@
 # 0107 – Web 3D model with baked light: a choice per export
 
-**Who:** worker · **Status:** waiting for 0106 · **Branch:** `task/0107-web3d-baked-light`
+**Who:** worker · **Status:** running (13 Nov) · **Branch:** `claude/dazzling-ramanujan-0ipkza`
 **Started by:** lead chat, 13 Nov 2026 (owner's wish: "have it really bake in the light properly")
 **Lane:** Web 3D (same files as 0106: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`,
 `fresing_render/web/`, their tests). Read only: `world.py`, `surroundings.py`, the Looks lane's materials. Additive:
@@ -76,6 +76,143 @@ tests use only the made-up sample packages of `smholte/house-scene-format`.
 
 Changing the app's renders or looks; the website's model (owner decides; never the Fresing 400); light maps for
 flexible parts (hoses, cables).
+
+## Design (worker, 13 Nov) – read this first, House lane
+
+### The three choices (names fixed – the house format uses them)
+
+| Id (code, format) | Label in the panel | What is baked | What the page keeps live |
+| --- | --- | --- | --- |
+| `LIVE` | **Live only** | nothing (as 0106) | everything |
+| `SOFT` | **Soft light baked, sun live** | the sky's light without its sun (direct + bounce) **plus the bounce of the sun** (indirect only), all lamps of the scene | the sun's direct light and its moving shadows, all shine (reflections) |
+| `ALL` | **Everything baked** | sky + sun + lamps, direct + bounce | shine (reflections, the sun's highlight); the sun adds no matte light on baked surfaces |
+
+How the split is made in Cycles (the app's sun is the sun disc of the sky texture, `world.py`): `SOFT` = pass A *direct*
+light with a copy of the world whose sky has `sun_disc` off + pass B *indirect* light with the world as it is (sum =
+sky direct + all bounce, no sun direct). `ALL` = one pass, direct + indirect, world as it is. Lamps (0109's floodlights,
+a house's own lamps) are in every pass, so they are baked in both choices. With a 360° photo or studio light there is
+no separate sun: both baked choices bake all of its light; the page's key light then gives shine only.
+Bake type: Cycles `DIFFUSE` without colour (the light a white matte surface receives), on copies with the parts' own
+materials (glass and see-through parts let light through), the sea left out, the vessel deck in, parts read at rest
+(`vessel_motion.at_rest`), decals baked but casting no shadow. Animated parts are baked in the export frame's pose.
+Flexible parts (hoses, cables) cast shadows but get no baked light (not in this task): they stay live.
+
+### The bake as a function another lane calls – `fresing_render/blender/lightbake.py`
+
+```python
+from fresing_render.blender import lightbake
+
+CHOICES = (("LIVE", "Live only"), ("SOFT", "Soft light baked, sun live"), ("ALL", "Everything baked"))
+
+result = lightbake.bake(
+    objects,                  # placed mesh objects to get light (read only; any scene)
+    light="SOFT",             # "SOFT" | "ALL" (also the labels above); "LIVE" returns an empty result
+    *,
+    world=None,               # bpy World that lights them; None = the objects' scene's world
+    sky=None,                 # None = the world as it is; or {"sun_height": deg, "sun_direction": deg} to move the
+                              # sky texture's sun on a copy (time of day: morning / afternoon / evening / night)
+    occluders=(),             # objects that cast shadows and bounce light but get no result (ground, neighbours)
+    lamps=None,               # None = every lamp of the scene shown in renders; or a list of lamp objects
+    ids=None,                 # {object: "id"}; default ob["fr_id"] if set, else the object's name
+    uv="AUTO",                # "AUTO": the app makes lightmap UVs, or per-vertex light where that is smaller
+                              # "UV1":  the mesh's 2nd UV layer as it is – never unwrapped, never changed (house)
+                              # "VERTEX": per-vertex light only
+    quality="NORMAL",         # "DRAFT" | "NORMAL" | "FINE" (samples and texel budget, see below)
+    texels_per_m=None,        # None = from quality and the objects' area; else this many texels per metre
+    samples=None,             # None = from quality
+    device="AUTO",            # "AUTO" = the GPU the app renders with (OptiX on the owner's PC), else CPU
+    progress=None,            # callable(fraction 0..1, text) -> False to cancel (raises core.web3d.Cancelled)
+) -> lightbake.Result
+```
+
+`lightbake.Bake(...)` takes the same arguments for a panel: `for f in job.steps(): ...` (text in `job.text`),
+`job.result` at the end, `job.estimate()` before it starts → `{"seconds_cpu", "seconds_gpu" (labelled an estimate),
+"bytes", "texels", "vertices"}`.
+
+`Result`: `items: dict[id, Item]`, `light` ("SOFT" | "ALL"), `reference` (r, g, b), `samples`, `texels_per_m`,
+`seconds`, `problems: list[str]` (plain words, e.g. "Roof 12: no 2nd UV layer – baked per vertex").
+`Item`: `kind` "MAP" | "VERTEX"; for MAP `pixels` float32 (h, w, 3), row 0 at the bottom, in the object's own UV space
+(its UV1 for `uv="UV1"`, else `uv` float32 (corners, 2) = the app-made layout in Blender corner order); for VERTEX
+`values` float32 (vertices, 3) in the mesh's vertex order; `texels_per_m`.
+
+**Units:** linear, scene-referred RGB (Rec.709, the render's colour space before exposure and view transform): the
+colour a white matte surface shows in the Cycles render. Multiply by a surface's colour to get its matte look.
+`reference` = the same light on an open, upward-facing surface with nothing round it (baked on a probe quad alone, the
+same passes): `value / reference` is the **light factor** the web page uses (1 = open sky above; corners < 1; a wall
+facing a low sun > 1). With a night sky and lamps the reference can be ~0: use the absolute values then.
+**Every object gets its own result**, also objects that share a mesh (light differs per copy). Nothing in the
+project is changed: copies in a bake scene of its own (a copy of a Cycles scene, 0099 rule), removed at the end, also
+on an error or Cancel. Cancel works between bake batches (each batch kept to ~30 s on the CPU).
+
+### Quality
+
+| Quality | Samples | Texel budget (`texels_per_m` = None) |
+| --- | --- | --- |
+| Draft | 16 | ~1 M texels |
+| Normal | 64 | ~4 M texels (one 2048 px atlas) |
+| Fine | 256 | ~16 M texels |
+
+Texels per metre = √(budget / total area of the baked parts), at least 4, at most 400; shown in the panel and can be
+typed in. Denoised with Blender's own denoiser (OpenImageDenoise through the compositor) after the chart edges are
+padded; a NumPy blur inside each chart when that is not there. Bake margin (Cycles `EXTEND`) = padding.
+
+### Lightmap UVs and per-vertex light – `fresing_render/core/lightmap.py` (no Blender)
+
+- **Charts** per unique mesh: triangles grouped by their main axis and its sign (as `box_uv`), split into connected
+  pieces, split again where a piece overlaps itself in projection (rasterised check) → no overlaps by construction;
+  UVs in metres per chart. One layout per mesh; **each placed copy gets its own place in an atlas** (copies differ).
+- **Pack:** charts of all copies into atlases of 2048 px (skyline packing, largest first, 2 px padding at Draft,
+  4 px otherwise), deterministic; a copy whose chart does not fit is scaled down.
+- **Vertex or map:** per copy, per-vertex light when `vertices × 3 < texels / 2` (many small repeated parts: bolts,
+  rollers, pads), else a map. `uv="UV1"` objects always get a map (their own image, size from their area).
+- **Encoding for the file:** 8-bit `v = (F / scale) ^ (1 / 2)`, F = light factor, `scale` = the 99.9th percentile of
+  all F of the export (≥ 1), stored once. `encode` / `decode` are in `core/lightmap.py` for the house package too.
+- **Estimate:** seconds = texels × samples × passes / rate (rate measured on the web machine's CPU; the RTX 3090 figure
+  is an estimate, labelled so); bytes = texels × JPEG bytes per texel (measured) + vertices × 3 per copy.
+
+### In the .glb (glTF 2.0, other viewers keep working)
+
+- Root `extras.fr_light = {"light": "SOFT"|"ALL", "scale": s, "curve": 2.0, "reference": "up"}`.
+- A copy with a map: its own mesh entry that **shares** the part's POSITION / NORMAL / TEXCOORD_0 / indices accessors and
+  adds its own `TEXCOORD_1` (16-bit normalised); its material is the look's material plus `occlusionTexture
+  {index: atlas, texCoord: 1}` (JPEG RGB, the encoding above): one material per look and atlas. Other viewers (three.js
+  editor, Blender, Windows 3D Viewer, model-viewer) read it as soft shadowing – which of them were checked goes in the
+  report.
+- A copy with per-vertex light: its own mesh entry on the shared accessors with the attribute `_FR_LIGHT` (VEC3, u8
+  normalised, same encoding). Other viewers ignore it.
+- The baked share and choice also go in the page's settings block (`light`, `scale`, `curve`).
+
+### The page
+
+- A baked choice always writes the **three.js page** of 0106. With Surroundings **None** it runs in a plain form: no
+  sea, vessel motion, haze or rain; today's plain background; the project's light (sky or studio/photo picture).
+  Live only + None stays the model-viewer page, byte for byte.
+- Shader (`onBeforeCompile` on the model's materials that have an occlusion map with `texCoord 1` or `_fr_light`):
+  F = decode(texel); baked light = F × (the page's own sky light on an up-facing surface, `getIBLIrradiance(up)`
+  × environment intensity) [+ the page's sun on an up-facing surface for `ALL`]. It **replaces** the environment's matte
+  light on that surface; reflections stay and are dimmed by min(1, luminance F) in corners. `SOFT`: the live sun with
+  its shadow map as in 0106. `ALL`: the sun's matte light is off on baked surfaces (no double sun); its highlight stays.
+  Because the page multiplies by its *own* sky and sun, baked and live surfaces agree even where the page's sky
+  differs a little from Cycles'.
+
+### Panel (5 Scene & Render > Web 3D model)
+
+`FRWeb3D.light` (LIVE / SOFT / ALL, labels as above), `light_quality` (Draft / Normal / Fine), `light_texels` (0 =
+auto), estimate line before Export ("Bake about 3 min on this PC's GPU, +4.1 MB"), and with `ALL` plus an animation or
+vessel motion in the export a question once: "Baked shadows will not move with the parts. Bake them anyway?".
+
+### Files and who writes them (subagents, CLAUDE.md section 2)
+
+| Owner | Files |
+| --- | --- |
+| subagent A (worktree) | `core/lightmap.py` (charts, pack, UVs, vertex-or-map, encode/decode, estimate, overlap check) + `tests/test_lightmap.py` |
+| subagent B (worktree) | `fresing_render/web/fr_page.js` baked-light shader + the plain form, `core/web3d_env.py` page settings `light`; `tests/test_web3d_light_page.py` (node + headless browser) |
+| worker | `blender/lightbake.py`, `blender/web3d.py`, `core/web3d.py` (shared accessors, extras), props / ui / ops, tour stop, PC-check lines `web3d.bake` + Heavy bake time, guide, CHANGELOG, `tests/test_lightbake.py` |
+| subagent C (did not write the code) | tries to break it at the end; findings go back to their authors |
+
+House lane: call `lightbake.bake(..., uv="UV1")` on the imported objects with each time of day's `sky` (and snow from
+0109 built first); write `Item.pixels` / `values` per object id into the bake package (with `core/lightmap.encode` or
+as floats – the format decides). Ask the Web 3D lane (a task) for any change to these signatures.
 
 ---
 
