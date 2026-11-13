@@ -25,6 +25,9 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     cables tools/ui_test_paths.py - cables and paths: a click on the rope, a mouse click on Add cable, a click on a row of
            What it touches, Remove and Add (+) with the click picker (Esc, hover highlight), Flip side, undo and redo;
            Build animation: the rope follows the luffing frame and the sheaves turn, save and open again, Remove
+    spool  tools/ui_test_spool.py - drums and carousels: Add drum and a click on the drum (hover highlight), the fleet
+           angle warns, "This joint follows the layer" + "level" typed in its search; Add carousel and a click on the
+           turntable, undo and redo, the arm follows, its tick box off and on; Build animation, save and open again
     clash  tools/ui_test_clash.py - clash check: Build, Check for clashes, click the row (frame, red, zoom), Cancel,
            the queue note, Build again clears the result, save and open again
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
@@ -65,7 +68,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
               "paths": 8, "pccheck": 41, "pccheck2": 2, "pccheckheavy": 14, "update": 29, "tour": 49, "tourui": 15,
-              "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36}
+              "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
+              "spool": 43}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -83,7 +87,7 @@ GROUPS = {
     "callouts": ["callouts"],
     "paths-heavy": ["paths", "pccheckheavy"],
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
-    "ui": ["ui1"],
+    "ui": ["ui1", "spool"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel"],
     "motion": ["video", "studio", "update"],
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
@@ -118,6 +122,9 @@ TESTS = {
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
+    "spool": ("Real app: drums and carousels – Add drum / Add carousel with a click in the view, a joint follows the "
+              "layer (search), undo and redo, off and on; Build, save and open (ui_test_spool.py)", "ui_test_spool.py",
+              True),
     "gcode": ("Real app: CNC machine and Run G-code program – clicks, tip on the path, tool change "
               "(ui_test_gcode.py)", "ui_test_gcode.py", True),
     "doublearm": ("Real app: double-arm tool changer – click the hub and the hinge, Check, hand-overs "
