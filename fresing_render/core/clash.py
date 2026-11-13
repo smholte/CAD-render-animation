@@ -675,7 +675,7 @@ def tree_clear_of_band(band, c, u, tree: tuple, m: np.ndarray, margin: float = 0
 PERIOD_TOL = 0.25 * MM        # turned points land this close to the surface: the same room (the check steps 4 mm)
 PERIOD_REL = 0.02             # … and within this share of how far the turn moved them (``repeats``)
 PERIOD_SPACING = 4.0 * MM     # points on the faces this far apart
-PERIOD_POINTS = 300_000       # points looked at most (more: it cannot tell, the pair is checked as before)
+PERIOD_POINTS = 50_000        # points looked at most: the corners (more: it cannot tell), then points on the faces thinned
 PERIOD_MOST = 720             # symmetry orders tried: 1/2 … 1/720 turn
 
 
@@ -691,18 +691,34 @@ def footprint(c, u, lo: np.ndarray, hi: np.ndarray, margin: float = 0.0) -> tupl
     return a.min(axis=1) - margin, a.max(axis=1) + margin, r_lo, r_hi
 
 
-def _in_rects(a: np.ndarray, r_lo: np.ndarray, r_hi: np.ndarray, rects: tuple, chunk: int = 4_000_000) -> np.ndarray:
-    """Which items (along span a (N, 2), radius span r_lo … r_hi (N,)) meet any of the rectangles ``rects``."""
+def _in_rects(a: np.ndarray, r_lo: np.ndarray, r_hi: np.ndarray, rects: tuple, bins: int = 512) -> np.ndarray:
+    """Which items (along span a (N, 2), radius span r_lo … r_hi (N,)) meet any of the rectangles ``rects`` – or come
+    within a cell of a fine grid of one (never fewer than meet them: an item kept too many is only looked at too)."""
     qa0, qa1, qr0, qr1 = rects
-    out = np.zeros(len(a), dtype=bool)
     if not len(a) or not len(qa0):
-        return out
-    step = max(1, chunk // len(qa0))
-    for s in range(0, len(a), step):
-        e = min(len(a), s + step)
-        hit = ((a[s:e, 1, None] >= qa0[None]) & (a[s:e, 0, None] <= qa1[None])
-               & (r_hi[s:e, None] >= qr0[None]) & (r_lo[s:e, None] <= qr1[None]))
-        out[s:e] = hit.any(axis=1)
+        return np.zeros(len(a), dtype=bool)
+    a0, a1 = float(qa0.min()), float(qa1.max())
+    r0, r1 = float(max(qr0.min(), 0.0)), float(qr1.max())
+    da, dr = max((a1 - a0) / bins, 1e-9), max((r1 - r0) / bins, 1e-9)
+
+    def cells(lo, hi, base, step):
+        return (np.clip(np.floor((lo - base) / step).astype(np.int64), 0, bins - 1),
+                np.clip(np.floor((hi - base) / step).astype(np.int64), 0, bins - 1))
+    i0, i1 = cells(qa0, qa1, a0, da)
+    j0, j1 = cells(np.maximum(qr0, r0), qr1, r0, dr)
+    marks = np.zeros((bins + 1, bins + 1), dtype=np.int64)            # corners of each rectangle's block of cells
+    np.add.at(marks, (i0, j0), 1)
+    np.add.at(marks, (i1 + 1, j0), -1)
+    np.add.at(marks, (i0, j1 + 1), -1)
+    np.add.at(marks, (i1 + 1, j1 + 1), 1)
+    grid = np.cumsum(np.cumsum(marks, axis=0), axis=1)[:bins, :bins] > 0
+    sat = np.zeros((bins + 1, bins + 1), dtype=np.int64)
+    sat[1:, 1:] = np.cumsum(np.cumsum(grid, axis=0), axis=1)
+    out = (a[:, 1] >= a0) & (a[:, 0] <= a1) & (r_hi >= r0) & (r_lo <= r1)
+    k = np.flatnonzero(out)
+    ii0, ii1 = cells(a[k, 0], a[k, 1], a0, da)
+    jj0, jj1 = cells(r_lo[k], r_hi[k], r0, dr)
+    out[k] = (sat[ii1 + 1, jj1 + 1] - sat[ii0, jj1 + 1] - sat[ii1 + 1, jj0] + sat[ii0, jj0]) > 0
     return out
 
 
@@ -726,11 +742,16 @@ def local_points(verts: np.ndarray, tris: np.ndarray, c, u, rects: tuple, spacin
     if not len(ids):
         return np.zeros((0, 3))
     tp, _w = triangle_points(tri[ids], spacing, 64)
-    pts = np.concatenate([verts[np.unique(tris[ids])], tp])
-    pa = (pts - c) @ u
-    pr = np.linalg.norm((pts - c) - pa[:, None] * u, axis=1)
-    pts = pts[_in_rects(np.stack([pa, pa], axis=1), pr, pr, rects)]
-    return None if len(pts) > most else pts
+
+    def inside(pts):
+        pa = (pts - c) @ u
+        pr = np.linalg.norm((pts - c) - pa[:, None] * u, axis=1)
+        return pts[_in_rects(np.stack([pa, pa], axis=1), pr, pr, rects)]
+    corners_in = inside(verts[np.unique(tris[ids])])
+    if len(corners_in) > most:
+        return None
+    # every corner, and the points on the faces thinned out evenly to ``most`` at most
+    return np.concatenate([corners_in, thin_out(inside(tp[len(ids) * 3:]), most - len(corners_in))])
 
 
 def repeats(pts: np.ndarray, c, u, angles, nearest, tol: float = PERIOD_TOL, rel: float = 0.0) -> bool:
@@ -743,11 +764,15 @@ def repeats(pts: np.ndarray, c, u, angles, nearest, tol: float = PERIOD_TOL, rel
     c = np.asarray(c, dtype=np.float64)
     u, _e1, _e2 = axial(c, u)
     rad = np.linalg.norm((pts - c) - ((pts - c) @ u)[:, None] * u, axis=1)
+    order = np.random.default_rng(len(pts)).permutation(len(pts))       # spread over the part: a miss shows soon
     for phi in angles:
         turned = transform(rotation_about(c, u, float(phi)), pts[None])[0]
-        lim = tol if rel <= 0.0 else np.minimum(tol, rel * 2.0 * rad * abs(math.sin(float(phi) / 2.0)))
-        if np.any(nearest(turned) > lim):
-            return False
+        lim = np.full(len(pts), tol) if rel <= 0.0 else \
+            np.minimum(tol, rel * 2.0 * rad * abs(math.sin(float(phi) / 2.0)))
+        for s in range(0, len(pts), 4096):
+            sel = order[s:s + 4096]
+            if np.any(nearest(turned[sel]) > lim[sel]):
+                return False
     return True
 
 
