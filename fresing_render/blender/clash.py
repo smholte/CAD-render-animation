@@ -417,6 +417,7 @@ ON_SURFACE = 1e-5                        # m: a point closer than this to a surf
 SEP_NEED = 0.25                          # m: a distance bound this big is enough (task 0092; the pair is skipped
                                          # until the two have moved that much against each other)
 BAND_MARGIN = 1.0 * core.MM              # a part this far from the room a turning part's features sweep is clear of it
+SEP_USEFUL = 10.0 * core.MM            # a gap smaller than this between two small parts: test them, not look again
 SEP_TRIS = 20_000                        # two parts with more faces than this together: a gap is looked for first
 CARRIERS_BIG = 4                         # carriers tried for a turning body: the biggest bodies it meets (task 0092)
 CARRIERS_NEAR = 12                       # … and the smallest ones
@@ -1031,9 +1032,13 @@ class Check:
         was = self.last.get((p, q))
         if was is None:
             return not self._was_in(p, q)
-        if was[3] > 0.0:
+        if was[3] > 0.0 and (was[3] >= SEP_USEFUL or self._big(p, q)):
             return True
         moved = self._moved(np.array([p]), np.array([q]), was[2][None], rel[None])[0]
+        if was[3] > 0.0:
+            # a gap of a few mm lets the pair wait only a step or two, and finding it costs much more than testing the
+            # points of two small parts that close (task 0110: the drop cradles' trestles on their lift frames)
+            return float(moved) > SEP_NEED
         return float(moved) > SEP_NEED + max(0.0, float(was[0]))       # in each other by d: apart only past d
 
     def _was_in(self, p: int, q: int) -> bool:
