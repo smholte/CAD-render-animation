@@ -1125,7 +1125,9 @@ def fingerprint(scene, setup: dict) -> str:
 def _scene_settings(s):
     from . import states
     for key in states.WORLD_KEYS + ("camera_blur",):
-        if hasattr(s, key):
+        if key == "weather":                     # task 0109: the Weather & time panel
+            yield key, tuple((w, states._plain(getattr(s.weather, w))) for w in states.WEATHER_KEYS)
+        elif hasattr(s, key):
             yield key, states._plain(getattr(s, key))
     for g in s.groups:
         yield "group " + g.name, (g.material, states._plain(g.color))

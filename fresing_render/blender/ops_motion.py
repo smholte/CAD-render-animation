@@ -979,6 +979,11 @@ class FRESING_OT_block_add(bpy.types.Operator):
                 b.to_height = hi if now < (lo + hi) / 2 else lo
         elif self.kind == "POSE" and len(s.poses):
             b.pose = s.poses[min(s.poses_index, len(s.poses) - 1)].name
+        elif self.kind == "WEATHER":
+            from . import weather
+            b.duration = 5.0
+            b.easing = "LINEAR"
+            weather.step_init(context.scene, a, b)
         elif self.kind == "CAMERA":
             b.camera = context.scene.camera if context.scene.camera and not context.scene.camera.get(
                 "fr_anim_camera") else None

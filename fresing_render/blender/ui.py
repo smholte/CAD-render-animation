@@ -835,18 +835,26 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
         light = effective_lighting(s)
         sky = light == "SKY"
         overcast = sky and s.sky_weather == "OVERCAST"
-        if sky:
+        from . import weather as weather_mod
+        timed = sky and weather_mod.sky_on(context.scene)      # task 0109: the clock sets the sun and the clouds
+        if sky and not timed:
             row = col.row(align=True)
             row.prop(s, "sky_weather", text="Weather", expand=True)
             if not overcast:
                 col.prop(s, "sun_elevation", text="Sun height")
-        if not overcast:                       # an overcast sky looks the same from every side
+        if timed:
+            pass
+        elif not overcast:                     # an overcast sky looks the same from every side
             col.prop(s, "light_rotation",
                      text="Turn sun" if sky else ("Turn photo" if bg == "HDRI" else "Turn light"))
         col.prop(s, "light_strength", text="Brightness")
         col.prop(s, "exposure", text="Exposure")
-        wrap(layout, context, studio.light_words(light, s.sky_weather, s.light_rotation, s.light_strength,
-                                                 s.sun_elevation), icon="INFO")
+        if timed:
+            wrap(layout, context, "The sun, the sky and the clouds follow Weather & time (below): "
+                 + weather_mod.header(context.scene) + ".", icon="INFO")
+        else:
+            wrap(layout, context, studio.light_words(light, s.sky_weather, s.light_rotation, s.light_strength,
+                                                     s.sun_elevation), icon="INFO")
 
         # -- floor (the surroundings and the photo's ground bring their own)
         own_floor = bg in env.BUILT or (bg == "HDRI" and s.photo_ground)

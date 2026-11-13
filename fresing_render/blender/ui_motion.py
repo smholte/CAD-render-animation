@@ -679,7 +679,7 @@ def _draw_camera_step(context, box, b) -> None:
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
-              "SEQUENCE": "MOD_EXPLODE"}
+              "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -711,6 +711,29 @@ def _draw_fade(context, box, b) -> None:
         text = f"A {b.fade_stop:.0f} % ghost stays"
     hint = wrap(box, context, text + ". Shows in rendered view, pictures and videos", icon="INFO", inset=12)
     hint.active = False
+
+
+def _draw_weather(context, box, scene, a, b) -> None:
+    """The settings of a Weather & time step (task 0109): the weather at its end."""
+    from ..core import weather as wx_core
+    from . import weather
+    if not weather.enabled(scene):
+        wrap(box, context, "Weather & time is off (5 Scene & Render): Build switches it on.", icon="INFO", inset=12)
+    st = weather.state_before(scene, a, b)
+    hint = wrap(box, context, "From " + wx_core.words(st, weather.place(scene)) + ". To:", inset=12)
+    hint.active = False
+    col = split_props(box)
+    col.prop(b, "wx_preset", text="To")
+    col.prop(b, "wx_hour", text=f"Time ({wx_core.clock(b.wx_hour)})")
+    col.prop(b, "wx_clouds", text="Clouds")
+    col.prop(b, "wx_low_clouds", text="Low clouds")
+    col.prop(b, "wx_visibility", text="Visibility")
+    col.prop(b, "wx_rain", text="Rain")
+    col.prop(b, "wx_wet", text="Wet")
+    col.prop(b, "wx_snow", text="Snow")
+    col.prop(b, "wx_snow_cover", text="Snow layer")
+    col.prop(b, "wx_wind", text="Wind (Bft)")
+    col.prop(b, "wx_wind_from", text="Wind from")
 
 
 def _draw_sequence(context, box, b) -> None:
@@ -944,6 +967,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 col.prop_search(b, "pose", s, "poses", text="Pose", icon="ARMATURE_DATA")
             elif b.kind == "CAMERA":
                 _draw_camera_step(context, box, b)
+            elif b.kind == "WEATHER":
+                _draw_weather(context, box, scene, a, b)
             else:
                 row = box.row(align=True)
                 row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")
