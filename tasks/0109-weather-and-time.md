@@ -1,6 +1,6 @@
 # 0109 – Weather and time of day in the app: a better ocean, rain, snow, wind, fog and clouds, day to night
 
-**Who:** worker · **Status:** running · **Branch:** `claude/affectionate-turing-97hxbu`
+**Who:** worker · **Status:** done (0.2.88) · **Branch:** `claude/affectionate-turing-97hxbu`
 **Started by:** lead chat, 13 Nov 2026 (owner: "improve the environment: rain, snow, time, wind")
 **Lane:** Scene & Render + Sea (both free): new files `core/weather.py`, `blender/weather.py`, `ops_weather.py`,
 `ui_weather.py` (a sub-panel of 5 Scene & Render); `world.py` (sky, sun, night); the sea and the outdoor surroundings in
@@ -100,15 +100,15 @@ the render queue too, on Cycles and EEVEE.
 
 ## Done when
 
-- [ ] Scope 0–9; with Weather Off everything except the sea looks exactly as before (picture check); the new sea in
+- [x] Scope 0–9; with Weather Off everything except the sea looks exactly as before (picture check); the new sea in
       `core/sea.py` with unit tests (heights, foam coverage per wind strength within the cited relation's range).
-- [ ] A before/after contact sheet of the sea in the owner's view (top, whole demo vessel, Rough, Overcast) and a horizon
+- [x] A before/after contact sheet of the sea in the owner's view (top, whole demo vessel, Rough, Overcast) and a horizon
       shot in the report.
-- [ ] Tests per part (time → sun angle, presets, seeds same every time, the material hook in Cycles + EEVEE with
+- [x] Tests per part (time → sun angle, presets, seeds same every time, the material hook in Cycles + EEVEE with
       scripts off, snow only under the open sky, the animation step, model update); an agent that did not write the
       code tries to break it; Windows-only code: none expected (say so).
-- [ ] A contact sheet of the presets on the demo vessel and the test mill in the report (`tasks/img/0109_*.jpg`).
-- [ ] GitHub green incl. Windows; report filled in (subagents, runs, render-time numbers); merge to main and release
+- [x] A contact sheet of the presets on the demo vessel and the test mill in the report (`tasks/img/0109_*.jpg`).
+- [x] GitHub green incl. Windows; report filled in (subagents, runs, render-time numbers); merge to main and release
       when green, then check that main really contains your commit.
 
 ## Design (worker, 13 Nov – the subagents' brief)
@@ -255,6 +255,16 @@ delete it (renamed `fr_sea_weather`), a spray material left after Off.
   snow layer 0.7 +57 %; rain 0.6 with wet +86–95 %; falling snow +31 %; flag +2 %. EEVEE (software GL) wet/snow ~0.
 - Pictures: `tasks/img/0109_sea_before_after.jpg` (the owner's view: stripes before, patchy white caps + hull foam after),
   `0109_sea_horizon.jpg`, `0109_time_of_day.jpg`, `0109_wet_snow.jpg`, `0109_presets.jpg`.
+- Presets contact sheet (`0109_presets.jpg`, Cycles CPU Draft 480×270, 24 samples): demo vessel 5.2–8.3 s, test mill
+  3.2–6.4 s per tile. It showed the mill's Night shift lit like day: the mast heads' glow lit a small model's quay at
+  +4 EV – the heads now glow without lighting the scene (mill night/day screen brightness 0.20 / 0.59, 0.13 without
+  floodlights; `0109_mill_night_fixed.jpg`; the sheet's mill night tile is from before the fix). Also fixed from it: the
+  panel header (title overlapped), Visibility shown in mm, the cut-off wind button.
+- Merging main (0.2.86 web 3D surroundings, 0.2.87 tracks): the page drew the old sea's formula; it now gets the waves
+  the app draws (none < 1 m, a short wave fading out at 5–8 of its lengths) – Python formula, page formula and shader;
+  its white caps keep the crest rule of before (`SEA[state]["page_foam"]`). `test_web3d*` 37 pass.
+- GitHub: 2 full runs on the branch – the first with the guide picture still missing and the PC-check "since" ahead of
+  the version (expected), the second green (below); merged by fast-forward.
 - Windows-only code: none.
 
 **Open points / follow-up tasks:**
@@ -269,4 +279,7 @@ delete it (renamed `fr_sea_weather`), a spray material left after Off.
    vessel motion holds Rough's numbers above Bft 6. Splash spots and the roof test are taken when the weather is set
    (a part that moves later keeps its spots).
 6. Lamp powers set by eye from renders; the flag stands beside the back-right corner on Quay/Deck.
-7. Web 3D: the later task copies `core/sea.py` (note: `SEA[state]["foam"]` is now the new threshold) and the channels.
+7. Web 3D: the later task brings the weather and the new white caps onto the page (it has the new waves already;
+   `SEA[state]["foam"]` is now the new threshold, the page reads `page_foam`).
+8. Falling rain reads at Draft distance mostly as a fine dotted texture (Storm); the white caps at Bft 9 have hard
+   edges – owner to judge on his PC.
