@@ -45,7 +45,7 @@ Sub Main()
 	Dim problems As New List(Of String)
 	Dim top As New List(Of String)
 
-	ReadLevel(def, top, Identity(), cons, jnts, problems)                ' the top assembly's own constraints
+	ReadLevel(def, top, Identity(), Nothing, cons, jnts, problems)       ' the top assembly's own constraints
 	WalkOccurrences(def.Occurrences, top, Identity(), occs, cons, jnts, problems)
 
 	Dim stepName As String = ""
@@ -97,25 +97,29 @@ End Sub
 ' ---------------------------------------------------------------------------------------------- walking the tree
 
 ' Every occurrence once, from the top down. "items" are the top occurrences or an occurrence's SubOccurrences (seen
-' from the top assembly). parentM: the parent's place in the top assembly (16 numbers, cm).
+' from the top assembly). parentM: kept for reference (an occurrence seen from the top has its own top place).
 Sub WalkOccurrences(items As Object, parentPath As List(Of String), parentM As Double(), occs As List(Of String),
                     cons As List(Of String), jnts As List(Of String), problems As List(Of String))
 	For Each occ As ComponentOccurrence In items
 		Dim path As New List(Of String)(parentPath)
 		path.Add(occ.Name)
-		Dim native As ComponentOccurrence = occ
-		If TypeOf occ Is ComponentOccurrenceProxy Then native = CType(occ, ComponentOccurrenceProxy).NativeObject
-		Dim M As Double() = Mul(parentM, MatrixArray(native.Transformation))
+		' An occurrence seen from the top assembly (a proxy, below the first level) has its place in the TOP
+		' assembly's coordinates already, also inside a flexible subassembly that sits differently than in its file.
+		Dim M As Double() = MatrixArray(occ.Transformation)
 		Dim isAsm As Boolean = False
 		Try
 			isAsm = (occ.DefinitionDocumentType = DocumentTypeEnum.kAssemblyDocumentObject)
 		Catch
+			Try
+				isAsm = TypeOf occ.Definition Is AssemblyComponentDefinition
+			Catch
+			End Try
 		End Try
 		occs.Add(OccurrenceJson(occ, path, M, isAsm, problems))
 		If occ.Suppressed Then Continue For                     ' nothing inside a suppressed one can be read
 		If isAsm Then
 			Try
-				ReadLevel(CType(native.Definition, AssemblyComponentDefinition), path, M, cons, jnts, problems)
+				ReadLevel(CType(occ.Definition, AssemblyComponentDefinition), path, M, occ, cons, jnts, problems)
 			Catch ex As Exception
 				problems.Add(Join(path) & ": constraints not read (" & ex.Message & ")")
 			End Try
@@ -160,7 +164,7 @@ Function OccurrenceJson(occ As ComponentOccurrence, path As List(Of String), M A
 			Try
 				Dim tc As Integer, rc As Integer
 				Dim tv As ObjectsEnumerator = Nothing, rv As ObjectsEnumerator = Nothing
-				Dim centre As Point = Nothing
+				Dim centre As Inventor.Point = Nothing
 				occ.GetDegreesOfFreedom(tc, tv, rc, rv, centre)
 				s.Append(", ""dof"": {""translations"": " & VectorsJson(tv, tc) & ", ""rotations"": " & VectorsJson(rv, rc))
 				If centre IsNot Nothing Then s.Append(", ""centre"": " & Vec(centre.X * 10, centre.Y * 10, centre.Z * 10))
@@ -177,12 +181,15 @@ End Function
 ' -------------------------------------------------------------------------------- constraints and joints of a level
 
 ' The constraints and assembly joints stored in one assembly (the top, or a subassembly seen from its own file).
-' prefix: that assembly's path in the top assembly; M: its place in the top assembly.
-Sub ReadLevel(def As AssemblyComponentDefinition, prefix As List(Of String), M As Double(), cons As List(Of String),
-              jnts As List(Of String), problems As List(Of String))
+' prefix: that assembly's path in the top assembly; M: its place in the top assembly; ctx: its occurrence seen from
+' the top (Nothing for the top itself). Faces and edges are read through ctx.CreateGeometryProxy, so they come in the
+' top assembly's coordinates and with their full path, wherever the subassembly sits (flexible ones too); only when
+' that fails the subassembly's own geometry is moved with M.
+Sub ReadLevel(def As AssemblyComponentDefinition, prefix As List(Of String), M As Double(), ctx As Object,
+              cons As List(Of String), jnts As List(Of String), problems As List(Of String))
 	For Each c As AssemblyConstraint In def.Constraints
 		Try
-			cons.Add(ConstraintJson(c, prefix, M, problems))
+			cons.Add(ConstraintJson(c, prefix, M, ctx, problems))
 		Catch ex As Exception
 			problems.Add(Join(prefix) & " " & SafeName(c) & ": not read (" & ex.Message & ")")
 		End Try
@@ -190,7 +197,7 @@ Sub ReadLevel(def As AssemblyComponentDefinition, prefix As List(Of String), M A
 	Try
 		For Each j As AssemblyJoint In def.Joints
 			Try
-				jnts.Add(JointJson(j, prefix, M, problems))
+				jnts.Add(JointJson(j, prefix, M, ctx, problems))
 			Catch ex As Exception
 				problems.Add(Join(prefix) & " " & SafeName(j) & ": not read (" & ex.Message & ")")
 			End Try
@@ -199,7 +206,7 @@ Sub ReadLevel(def As AssemblyComponentDefinition, prefix As List(Of String), M A
 	End Try
 End Sub
 
-Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), ctx As Object, problems As List(Of String)) As String
 	Dim kind As String = ConstraintKind(c)
 	Dim isAngle As Boolean = (kind = "angle")
 	Dim s As New StringBuilder("{""name"": " & Q(c.Name) & ", ""type"": " & Q(kind) & ", ""assembly"": " & PathJson(prefix))
@@ -210,8 +217,8 @@ Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), p
 	Catch
 	End Try
 	s.Append(", ""healthy"": " & B(healthy))
-	s.Append(", ""one"": " & SideJson(c, 1, prefix, M, problems))
-	s.Append(", ""two"": " & SideJson(c, 2, prefix, M, problems))
+	s.Append(", ""one"": " & SideJson(c, 1, prefix, M, ctx, problems))
+	s.Append(", ""two"": " & SideJson(c, 2, prefix, M, ctx, problems))
 	' the value: offset (mm) or angle (deg)
 	Try
 		Select Case kind
@@ -227,7 +234,13 @@ Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), p
 	' solution, reference, insert details, motion constraints
 	Try
 		If kind = "mate" OrElse kind = "angle" Then
-			Dim sol As String = c.SolutionType.ToString().ToLower()
+			' (read through late binding an enum comes back as a bare number: cast it to get its name)
+			Dim sol As String
+			If kind = "mate" Then
+				sol = CType(c.SolutionType, MateConstraintSolutionTypeEnum).ToString().ToLower()
+			Else
+				sol = CType(c.SolutionType, AngleConstraintSolutionTypeEnum).ToString().ToLower()
+			End If
 			Dim word As String = sol
 			For Each w In New String() {"undirected", "directed", "reference", "opposed", "aligned"}
 				If sol.Contains(w) Then word = w : Exit For
@@ -240,7 +253,7 @@ Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), p
 		Try
 			Dim r As Object = c.ReferenceVectorEntity
 			If r IsNot Nothing Then
-				Dim g As String = GeomJson(EntityGeometry(r), M)
+				Dim g As String = TopGeomJson(r, Nothing, ctx, M)
 				s.Append(", ""reference_geometry"": " & g)
 			End If
 		Catch
@@ -266,7 +279,7 @@ Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), p
 	End If
 	If kind = "symmetry" Then
 		Try
-			s.Append(", ""plane"": " & GeomJson(EntityGeometry(c.SymmetryPlane), M))
+			s.Append(", ""plane"": " & TopGeomJson(c.SymmetryPlane, Nothing, ctx, M))
 		Catch
 		End Try
 	End If
@@ -274,10 +287,10 @@ Function ConstraintJson(c As Object, prefix As List(Of String), M As Double(), p
 	Dim lim As String = "null"
 	Try
 		Dim L As Object = c.ConstraintLimits
-		If L IsNot Nothing AndAlso (L.MinimumEnabled OrElse L.MaximumEnabled) Then
+		If L IsNot Nothing AndAlso (CBool(L.MinimumEnabled) OrElse CBool(L.MaximumEnabled)) Then
 			Dim f As Double = If(isAngle, 180 / Math.PI, 10)
-			lim = "{""min"": " & If(L.MinimumEnabled, N(L.Minimum.Value * f), "null") &
-			      ", ""max"": " & If(L.MaximumEnabled, N(L.Maximum.Value * f), "null") & "}"
+			lim = "{""min"": " & If(CBool(L.MinimumEnabled), N(L.Minimum.Value * f), "null") &
+			      ", ""max"": " & If(CBool(L.MaximumEnabled), N(L.Maximum.Value * f), "null") & "}"
 		End If
 	Catch
 	End Try
@@ -303,7 +316,7 @@ Function ConstraintKind(c As Object) As String
 End Function
 
 ' One side of a constraint: the part it holds (its full path) and the geometry it uses, in top-assembly mm.
-Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As Double(), ctx As Object, problems As List(Of String)) As String
 	Dim occ As Object = Nothing, ent As Object = Nothing, geo As Object = Nothing, inferred As String = ""
 	Try
 		occ = If(which = 1, c.OccurrenceOne, c.OccurrenceTwo)
@@ -317,9 +330,8 @@ Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As
 		geo = If(which = 1, c.GeometryOne, c.GeometryTwo)
 	Catch
 	End Try
-	If geo Is Nothing AndAlso ent IsNot Nothing Then geo = EntityGeometry(ent)
 	Try
-		inferred = If(which = 1, c.EntityOneInferredType, c.EntityTwoInferredType).ToString().ToLower()
+		inferred = CType(If(which = 1, c.EntityOneInferredType, c.EntityTwoInferredType), InferredTypeEnum).ToString().ToLower()
 		If inferred.Contains("line") Then
 			inferred = "line"
 		ElseIf inferred.Contains("point") Then
@@ -333,13 +345,25 @@ Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As
 		inferred = ""
 	End Try
 	' the part whose face / edge it is (deeper than OccurrenceOne when the face belongs to a part in a subassembly)
+	Dim prox As Object = InTop(ent, ctx)
 	Dim leaf As Object = Nothing
-	Try
-		leaf = ent.ContainingOccurrence
-	Catch
-	End Try
-	If leaf Is Nothing Then leaf = occ
 	Dim path As New List(Of String)(prefix)
+	If prox IsNot Nothing Then
+		Try
+			leaf = prox.ContainingOccurrence                    ' seen from the top: its path is the full path
+			path = New List(Of String)
+		Catch
+			leaf = Nothing
+		End Try
+	End If
+	If leaf Is Nothing Then
+		path = New List(Of String)(prefix)
+		Try
+			leaf = ent.ContainingOccurrence
+		Catch
+		End Try
+	End If
+	If leaf Is Nothing Then leaf = occ
 	If leaf IsNot Nothing Then
 		Try
 			For Each o As ComponentOccurrence In leaf.OccurrencePath
@@ -349,12 +373,12 @@ Function SideJson(c As Object, which As Integer, prefix As List(Of String), M As
 			path.Add(leaf.Name)
 		End Try
 	End If                                                  ' (no part: the assembly's own origin planes or axes)
-	Dim s As String = "{""occurrence"": " & PathJson(path) & ", ""geometry"": " & GeomJson(geo, M)
+	Dim s As String = "{""occurrence"": " & PathJson(path) & ", ""geometry"": " & TopGeomJson(ent, geo, ctx, M)
 	If inferred <> "" Then s &= ", ""inferred"": " & Q(inferred)
 	Return s & "}"
 End Function
 
-Function JointJson(j As AssemblyJoint, prefix As List(Of String), M As Double(), problems As List(Of String)) As String
+Function JointJson(j As AssemblyJoint, prefix As List(Of String), M As Double(), ctx As Object, problems As List(Of String)) As String
 	Dim d As AssemblyJointDefinition = j.Definition
 	Dim t As String = d.JointType.ToString().ToLower()
 	Dim kind As String = "other"
@@ -364,8 +388,8 @@ Function JointJson(j As AssemblyJoint, prefix As List(Of String), M As Double(),
 	Dim s As New StringBuilder("{""name"": " & Q(j.Name) & ", ""type"": " & Q(kind) & ", ""assembly"": " & PathJson(prefix))
 	s.Append(", ""suppressed"": " & B(TryBool(j, "Suppressed")) & ", ""locked"": " & B(TryBool(j, "Locked")))
 	Dim flip As Boolean = TryBool(d, "FlipOriginDirection")
-	s.Append(", ""one"": " & JointSide(j.OccurrenceOne, d.OriginOne, d.AlignmentOne, flip, prefix, M))
-	s.Append(", ""two"": " & JointSide(j.OccurrenceTwo, d.OriginTwo, d.AlignmentTwo, False, prefix, M))
+	s.Append(", ""one"": " & JointSide(j.OccurrenceOne, d.OriginOne, d.AlignmentOne, flip, prefix, M, ctx, j.Name, problems))
+	s.Append(", ""two"": " & JointSide(j.OccurrenceTwo, d.OriginTwo, d.AlignmentTwo, False, prefix, M, ctx, j.Name, problems))
 	Try
 		s.Append(", ""angle"": " & N(d.AngularPosition.Value * 180 / Math.PI))
 	Catch
@@ -394,7 +418,10 @@ Function JointJson(j As AssemblyJoint, prefix As List(Of String), M As Double(),
 End Function
 
 ' A joint's origin: a point and its z direction (from the circle, face or axis picked), x from the alignment.
-Function JointSide(occ As Object, origin As Object, align As Object, flip As Boolean, prefix As List(Of String), M As Double()) As String
+' (In a subassembly the face or edge is read through a proxy, so it is in top coordinates; a picked point (point
+' intent) is moved with the subassembly's place – exact for a rigid subassembly.)
+Function JointSide(occ As Object, origin As Object, align As Object, flip As Boolean, prefix As List(Of String), M As Double(),
+                   ctx As Object, jname As String, problems As List(Of String)) As String
 	Dim path As New List(Of String)(prefix)
 	Try
 		For Each o As ComponentOccurrence In occ.OccurrencePath
@@ -403,8 +430,15 @@ Function JointSide(occ As Object, origin As Object, align As Object, flip As Boo
 	Catch
 	End Try
 	Dim g As Object = Nothing, p As Object = Nothing
+	Dim MG As Double() = M                                       ' the matrix for the geometry g
 	Try
-		g = EntityGeometry(origin.Geometry)
+		Dim prox As Object = InTop(origin.Geometry, ctx)
+		If prox IsNot Nothing Then
+			g = EntityGeometry(prox)
+			MG = Identity()
+		Else
+			g = EntityGeometry(origin.Geometry)
+		End If
 	Catch
 	End Try
 	Try
@@ -413,7 +447,14 @@ Function JointSide(occ As Object, origin As Object, align As Object, flip As Boo
 	End Try
 	Dim pt As Double() = Nothing, z As Double() = Nothing, x As Double() = Nothing
 	GeomPointDir(g, pt, z)
-	If p IsNot Nothing Then pt = New Double() {p.X, p.Y, p.Z}
+	Dim MP As Double() = MG                                      ' the matrix for the point
+	If p IsNot Nothing Then
+		pt = New Double() {p.X, p.Y, p.Z}
+		MP = M
+	ElseIf GeoKind(g) = "plane" Then
+		pt = Nothing                                            ' a plane's root point is not the joint's centre
+		problems.Add(Join(prefix) & " " & jname & ": the joint's centre could not be read")
+	End If
 	If z IsNot Nothing AndAlso flip Then z = New Double() {-z(0), -z(1), -z(2)}
 	Try
 		Dim ag As Object = EntityGeometry(align.Geometry)
@@ -423,14 +464,14 @@ Function JointSide(occ As Object, origin As Object, align As Object, flip As Boo
 	End Try
 	Dim s As String = "{""occurrence"": " & PathJson(path) & ", ""origin"": {"
 	If pt IsNot Nothing Then
-		Dim q As Double() = XPoint(M, pt)
+		Dim q As Double() = XPoint(MP, pt)
 		s &= """point"": " & Vec(q(0) * 10, q(1) * 10, q(2) * 10)
 	Else
 		s &= """point"": null"
 	End If
-	s &= ", ""z"": " & If(z Is Nothing, "null", DirJson(M, z))
+	s &= ", ""z"": " & If(z Is Nothing, "null", DirJson(MG, z))
 	s &= ", ""x"": " & If(x Is Nothing, "null", DirJson(M, x))
-	Return s & "}, ""geometry"": " & GeomJson(g, M) & "}"
+	Return s & "}, ""geometry"": " & GeomJson(g, MG) & "}"
 End Function
 
 ' ---------------------------------------------------------------------------------------------------- geometry
@@ -457,50 +498,93 @@ Function EntityGeometry(e As Object) As Object
 	Return Nothing
 End Function
 
+' What a piece of geometry is (TypeOf: certain, whatever the type library calls it).
+Function GeoKind(g As Object) As String
+	If g Is Nothing Then Return ""
+	If TypeOf g Is Inventor.Plane Then Return "plane"
+	If TypeOf g Is Inventor.Cylinder Then Return "cylinder"
+	If TypeOf g Is Inventor.Cone Then Return "cone"
+	If TypeOf g Is Inventor.Circle OrElse TypeOf g Is Inventor.Arc3d Then Return "circle"
+	If TypeOf g Is Inventor.Line Then Return "line"
+	If TypeOf g Is Inventor.LineSegment Then Return "segment"
+	If TypeOf g Is Inventor.Point Then Return "point"
+	If TypeOf g Is Inventor.Sphere Then Return "sphere"
+	If TypeOf g Is Inventor.Torus Then Return "torus"
+	Return ""
+End Function
+
 ' A point and a direction of a piece of geometry (cm, in the coordinates it was read in).
 Sub GeomPointDir(g As Object, ByRef pt As Double(), ByRef d As Double())
 	If g Is Nothing Then Exit Sub
 	Try
-		Select Case TypeName(g)
-			Case "Plane"
+		Select Case GeoKind(g)
+			Case "plane"
 				pt = P3(g.RootPoint) : d = V3(g.Normal)
-			Case "Cylinder", "Cone"
+			Case "cylinder", "cone"
 				pt = P3(g.BasePoint) : d = V3(g.AxisVector)
-			Case "Circle", "Arc3d"
+			Case "circle"
 				pt = P3(g.Center) : d = V3(g.Normal)
-			Case "Line"
+			Case "line"
 				pt = P3(g.RootPoint) : d = V3(g.Direction)
-			Case "LineSegment"
+			Case "segment"
 				pt = P3(g.StartPoint)
 				Dim e As Double() = P3(g.EndPoint)
 				d = New Double() {e(0) - pt(0), e(1) - pt(1), e(2) - pt(2)}
-			Case "Point"
+			Case "point"
 				pt = P3(g)
-			Case "Sphere", "Torus"
+			Case "sphere"
 				pt = P3(g.CenterPoint)
-				If TypeName(g) = "Torus" Then d = V3(g.AxisVector)
+			Case "torus"
+				pt = P3(g.CenterPoint) : d = V3(g.AxisVector)
 		End Select
 	Catch
 	End Try
 End Sub
 
-Function GeomJson(g As Object, M As Double()) As String
+' A face, edge or work feature seen from the top assembly (Nothing at the top level, or when it cannot be made).
+Function InTop(ent As Object, ctx As Object) As Object
+	If ent Is Nothing OrElse ctx Is Nothing Then Return Nothing
+	Try
+		Dim prox As Object = Nothing
+		ctx.CreateGeometryProxy(ent, prox)
+		Return prox
+	Catch
+		Return Nothing
+	End Try
+End Function
+
+' The geometry of one side in top-assembly mm: through the proxy when there is one (already in top coordinates),
+' else the constraint's own geometry moved with M. A planar face whose surface runs the other way round gets its
+' outward normal turned round (Inventor measures offsets along the outward normal).
+Function TopGeomJson(ent As Object, geo As Object, ctx As Object, M As Double()) As String
+	Dim prox As Object = InTop(ent, ctx)
+	Dim g As Object
+	Dim MT As Double()
+	If prox IsNot Nothing Then
+		g = EntityGeometry(prox)
+		MT = Identity()
+	Else
+		g = If(geo, EntityGeometry(ent))
+		MT = M
+	End If
+	Dim flip As Boolean = False
+	If GeoKind(g) = "plane" Then
+		Try
+			flip = CBool(ent.IsParamReversed)
+		Catch
+		End Try
+	End If
+	Return GeomJson(g, MT, flip)
+End Function
+
+Function GeomJson(g As Object, M As Double(), Optional flip As Boolean = False) As String
 	If g Is Nothing Then Return "null"
-	Dim tn As String = TypeName(g)
-	Dim kind As String
-	Select Case tn
-		Case "Plane" : kind = "plane"
-		Case "Cylinder" : kind = "cylinder"
-		Case "Cone" : kind = "cone"
-		Case "Circle", "Arc3d" : kind = "circle"
-		Case "Line", "LineSegment" : kind = "line"
-		Case "Point" : kind = "point"
-		Case "Sphere" : kind = "sphere"
-		Case "Torus" : kind = "torus"
-		Case Else : Return "{""type"": ""other"", ""name"": " & Q(tn) & "}"
-	End Select
+	Dim kind As String = GeoKind(g)
+	If kind = "" Then Return "{""type"": ""other"", ""name"": " & Q(TypeName(g)) & "}"
+	If kind = "segment" Then kind = "line"
 	Dim pt As Double() = Nothing, d As Double() = Nothing
 	GeomPointDir(g, pt, d)
+	If flip AndAlso d IsNot Nothing Then d = New Double() {-d(0), -d(1), -d(2)}
 	Dim s As String = "{""type"": " & Q(kind)
 	If pt IsNot Nothing Then
 		Dim q As Double() = XPoint(M, pt)
@@ -592,8 +676,9 @@ End Function
 ' -------------------------------------------------------------------------------------------------- small helpers
 
 Sub SaveStep(asm As AssemblyDocument, path As String)
-	' Inventor's own STEP translator, with the options you last used in File > Export > CAD Format
+	' Inventor's own STEP translator, with its standard options (as File > Export > CAD Format > STEP)
 	Dim addin As TranslatorAddIn = ThisApplication.ApplicationAddIns.ItemById("{90AF7F40-0C01-11D5-8E83-0010B541CD80}")
+	If Not addin.Activated Then addin.Activate()
 	Dim ctx As TranslationContext = ThisApplication.TransientObjects.CreateTranslationContext()
 	ctx.Type = IOMechanismEnum.kFileBrowseIOMechanism
 	Dim opts As NameValueMap = ThisApplication.TransientObjects.CreateNameValueMap()

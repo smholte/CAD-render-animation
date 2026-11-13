@@ -40,29 +40,54 @@ def _limits(lim, factor):
 
 
 def _path(occ):
-    return occ.fullPathName.split("+") if occ is not None else []
+    """The occurrence names from the root down ("Sub:1", "Part:1"), walked up through assemblyContext (a name may
+    hold a '+', so fullPathName is not split)."""
+    out = []
+    while occ is not None:
+        out.append(occ.name)
+        occ = occ.assemblyContext
+    return out[::-1]
+
+
+def _clean(x):
+    """No NaN or infinity in the file (not JSON): they become null."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: _clean(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_clean(v) for v in x]
+    return x
 
 
 def _joint(j, as_built, problems):
     m = j.jointMotion
     kind = KINDS[m.jointType] if 0 <= m.jointType < len(KINDS) else "other"
     geo = j.geometry if as_built else j.geometryOrOriginOne
-    origin = None
+    origin, z = None, None
     try:
-        origin = geo.origin if hasattr(geo, "origin") else geo.geometry.origin     # JointGeometry / JointOrigin
+        jo = adsk.fusion.JointOrigin.cast(geo)
+        if jo:                                      # a joint origin: its own place with its offsets and angle
+            t = jo.transform
+            origin = t.translation.asPoint()
+            z = adsk.core.Vector3D.create(t.getCell(0, 2), t.getCell(1, 2), t.getCell(2, 2))
+        else:
+            origin = geo.origin                     # JointGeometry
     except Exception:
         problems.append(f"{j.name}: origin not read")
-    z = None
     for attr in ("rotationAxisVector", "slideDirectionVector", "normalDirectionVector"):
-        if hasattr(m, attr):
-            try:
-                z = getattr(m, attr)
-            except Exception:
-                z = None
-            if z is not None:
-                break
-    if z is None and geo is not None and hasattr(geo, "primaryAxisVector"):
-        z = geo.primaryAxisVector
+        try:
+            v = getattr(m, attr, None)
+        except Exception:
+            v = None
+        if v is not None:
+            z = v
+            break
+    try:
+        if z is None and geo is not None:
+            z = geo.primaryAxisVector
+    except Exception:
+        z = None
     d = {"name": j.name, "type": kind, "assembly": [], "suppressed": bool(j.isSuppressed),
          "locked": bool(getattr(j, "isLocked", False)),
          "one": {"occurrence": _path(j.occurrenceOne), "origin": {"point": _pt(origin), "z": _vec(z), "x": None}},
@@ -102,16 +127,41 @@ def run(_context):
             t = occ.transform2
             m = [t.getCell(r, c) * (10.0 if c == 3 and r < 3 else 1.0) for r in range(4) for c in range(4)]
             occs.append({"path": _path(occ), "kind": "assembly" if occ.childOccurrences.count else "part",
+                         "own_bodies": bool(occ.childOccurrences.count and occ.component.bRepBodies.count),
                          "file": occ.component.name, "part_number": occ.component.partNumber,
                          "grounded": bool(occ.isGrounded), "suppressed": False,
                          "visible": bool(occ.isLightBulbOn), "flexible": True, "pattern": False,
                          "matrix": [round(x, 6) for x in m]})
-        for coll, as_built in ((root.allJoints, False), (root.allAsBuiltJoints, True)):
-            for j in coll:
-                try:
-                    joints.append(_joint(j, as_built, problems))
-                except Exception as exc:
-                    problems.append(f"{j.name}: not read ({exc})")
+        # joints in the root, then those of every component once per place it is used, seen from the root (so their
+        # occurrences carry full paths and their origins and axes are in the root's coordinates)
+        found = [(j, False) for j in root.joints] + [(j, True) for j in root.asBuiltJoints]
+        for occ in root.allOccurrences:
+            comp = occ.component
+            for coll, as_built in ((comp.joints, False), (comp.asBuiltJoints, True)):
+                for j in coll:
+                    try:
+                        found.append((j.createForAssemblyContext(occ), as_built))
+                    except Exception as exc:
+                        problems.append(f"{occ.fullPathName} {j.name}: not read ({exc})")
+        for j, as_built in found:
+            try:
+                joints.append(_joint(j, as_built, problems))
+            except Exception as exc:
+                problems.append(f"{j.name}: not read ({exc})")
+        # rigid groups: each occurrence held to the first one (written as Rigid joints)
+        try:
+            for g in root.allRigidGroups:
+                members = list(g.occurrences)
+                for other in members[1:]:
+                    joints.append({"name": g.name, "type": "rigid", "assembly": [], "suppressed": bool(g.isSuppressed),
+                                   "locked": True, "angle": None, "linear": None, "angle_limits": None,
+                                   "linear_limits": None, "as_built": False,
+                                   "one": {"occurrence": _path(members[0]),
+                                           "origin": {"point": [0.0, 0.0, 0.0], "z": [0.0, 0.0, 1.0], "x": None}},
+                                   "two": {"occurrence": _path(other),
+                                           "origin": {"point": [0.0, 0.0, 0.0], "z": [0.0, 0.0, 1.0], "x": None}}})
+        except Exception as exc:
+            problems.append(f"rigid groups not read ({exc})")
         step = ""
         if answer == adsk.core.DialogResults.DialogYes:
             try:
@@ -129,7 +179,7 @@ def run(_context):
                 "occurrences": occs, "constraints": [], "joints": joints, "problems": problems}
         out = os.path.join(folder, stem + ".fresing.json")
         with open(out, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=1)
+            json.dump(_clean(data), fh, indent=1, allow_nan=False)
         msg = f"Written: {out}\n{len(occs)} occurrences, {len(joints)} joints."
         if problems:
             msg += "\n\nNot read:\n" + "\n".join(" - " + p for p in problems[:10])

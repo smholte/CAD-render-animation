@@ -136,8 +136,9 @@ is the real test of the reading side.
   the checks below (constraints that no longer hold, places that differ).
 
 **4. Units and frames.** Inventor's API: cm and radians; a subassembly's constraints and their geometry are in that
-subassembly's own coordinates. The rule converts to mm / degrees and to the top assembly's coordinates (= the STEP's)
-by multiplying the occurrence matrices down the path itself. Numbers are written with a decimal point whatever the
+subassembly's own coordinates. The rule converts to mm / degrees and to the top assembly's coordinates (= the STEP's):
+occurrences seen from the top give their top place, a subassembly's faces and edges are read through proxies (also
+right for a flexible subassembly that sits differently than in its own file). Numbers are written with a decimal point whatever the
 Windows language (a Dutch Windows writes commas otherwise). The app then places the axes with the model root's matrix
 (as the demo's joint sheet does).
 
@@ -148,7 +149,7 @@ Windows language (a Dutch Windows writes commas otherwise). The app then places 
 - *Inventor's DOF count* per part against the count from the file.
 
 **6. Speed** (this 4-core web machine, one core): the plan for 3,001 parts (1,500 rigidly fixed plates + 1,500
-inserted bolts) takes 4.9 s, 400 parts 0.2 s. (A first version that re-collected all pairs after every merge took 2 s
+inserted bolts) takes 4.9–5.6 s (two runs), 400 parts 0.2 s. (A first version that re-collected all pairs after every merge took 2 s
 for 400 parts and grew with the square; merging all rigid pairs of a pass at once is exact, since a pair held fully
 stays held when more is added.)
 
@@ -217,8 +218,8 @@ Occurrence), public exporters (fusion2urdf, Petasos_URDF_Exporter, HiceS/Invento
 zerodamage/URDF-converter), three Inventor STEP files on GitHub, and search summaries of the Autodesk pages.
 
 **Unconfirmed, to be settled by the owner's first run** (the rule writes what it reads, and the checks show a wrong
-reading): (a) that `GeometryOne/Two` of a constraint in a subassembly document are in that subassembly's coordinates
-and `OccurrencePath` relative to it; (b) the sign conventions of Inventor's Mate/Flush offset and directed Angle (the
+reading): (a) that proxies made with `CreateGeometryProxy` from an occurrence seen from the top give top coordinates and full
+paths (the fallback assumes a subassembly's own geometry is in its own coordinates); (b) the sign conventions of Inventor's Mate/Flush offset and directed Angle (the
 app measures from geometry, so only the note "Inventor says …" would show a difference); (c) the Rotate–Rotate ratio's
 direction (turns of the second per turn of the first, assumed) and "forward"; (d) the STEP translator's id
 `{90AF7F40-…}` and that it keeps the last-used options; (e) the menu names for adding an external rule in 2027;
@@ -226,7 +227,22 @@ direction (turns of the second per turn of the first, assumed) and "forward"; (d
 
 ### Independent review of the scripts
 
-(see below – filled in after the review)
+A subagent that did not write them read both scripts against the API facts and the planner (13 points). Fixed after
+it: (1) enum values (Mate/Angle solution, inferred axis) came back as bare numbers through late binding → cast to their
+enums first; (2) **flexible subassemblies**: their parts' places and their constraints' geometry were read from the
+subassembly's own file → occurrences now give their place from the top (`occ.Transformation` of the proxy), and faces
+and edges of a subassembly's constraints and joints are read through `CreateGeometryProxy` (top coordinates, full
+path), the old way only as a fallback; (3) Fusion: joints are read per occurrence with `createForAssemblyContext`
+(root coordinates, full paths) instead of `allJoints`; (4) Fusion components that hold bodies *and* child components
+no longer lose their joints (`own_bodies`, an exact body in the planner); (5) a planar face whose surface runs the
+other way gets its outward normal (`IsParamReversed`); (6) the planner no longer stops on a limited constraint whose
+geometry was not read; (7) Fusion rigid groups are written (as rigid joints); (8) a Fusion joint origin keeps its
+offsets; (9) an Inventor joint on a plane without a picked point is listed instead of taking an arbitrary point;
+(10) the STEP add-in is activated first; (11) the subassembly test has a fallback; (12) geometry kinds by `TypeOf`,
+`CBool` on limit flags, `Inventor.Point`; (13) Fusion paths without splitting on "+", no NaN in the file. The reviewer
+found the VB syntax, the matrix order (column vectors, translation in column 4), units, JSON and field names right.
+Still unconfirmed (owner's run): that a proxy's `Transformation` is in top coordinates at depth 3 and more; Fusion's
+`createForAssemblyContext` on as-built joints.
 
 ### Proposed tasks and questions for the owner
 
@@ -246,7 +262,7 @@ direction (turns of the second per turn of the first, assumed) and "forward"; (d
    4 Motion; the update step of "Model update" above; the rule shipped with the app (Help > "Inventor motion export
    rule…" opens its folder) and a guide chapter with the README's steps; PC-check line and tour stop (the test model).
    Risks: Inventor conventions that differ from the assumptions (mitigated by measuring from geometry and the two
-   checks); large assemblies with thousands of constraints (measured 4.9 s for 3,000 parts here); owner-edited joints
+   checks); large assemblies with thousands of constraints (measured about 5 s for 3,000 parts here); owner-edited joints
    at an update (question 5).
 4. **Later, if wanted:** closed loops → the app's mechanisms (four-bar, scissor); symmetry → couplings; Inventor
    "Drive constraint" settings → an animation step (**question 6**); Fusion via the same file (the script is here).

@@ -295,8 +295,8 @@ def _round_by_constraints(model: Model, nodes: list, point, direction) -> bool:
         for s in ("one", "two"):
             if side_path(c, s) not in leaves:
                 continue
-            g = c[s].get("geometry") or c[s].get("origin") or {}
-            if "point" not in g:
+            g = (c[s].get("origin") or c[s].get("geometry") if c.get("_joint") else c[s].get("geometry")) or {}
+            if g.get("point") is None:
                 return False
             p = np.asarray(g["point"], float) * MM
             off = (p - point) - ((p - point) @ direction) * direction
@@ -317,6 +317,7 @@ class Level:
         self.assemblies = [path]
         self.bodies: list[list[tuple]] = []           # each body: its node paths
         self.own = None                                 # the body that stands for the assembly's own planes
+        self.exact: set[int] = set()                    # bodies that hold only their own path, not what is below
         self._collect(path)
         self.items = [c for c in model.items if tuple(c.get("assembly", ())) in self.assemblies]
         if any(side_path(c, s) == path for c in self.items for s in ("one", "two")):
@@ -328,6 +329,9 @@ class Level:
             o = self.model.live[ch]
             if o["kind"] == "assembly" and o.get("flexible"):
                 self.assemblies.append(ch)
+                if o.get("own_bodies"):                  # (Fusion: a component with bodies and child components)
+                    self.exact.add(len(self.bodies))
+                    self.bodies.append([ch])
                 self._collect(ch)
             else:
                 self.bodies.append([ch])
@@ -335,8 +339,11 @@ class Level:
     def body_of(self, p: tuple) -> int | None:
         if p == self.path:                              # the assembly's own origin planes / axes: held still
             return self.own
+        for i in self.exact:
+            if self.bodies[i][0] == p:
+                return i
         for i, nodes in enumerate(self.bodies):
-            if self.own is not None and i == self.own:
+            if (self.own is not None and i == self.own) or i in self.exact:
                 continue
             if any(p[:len(n)] == n for n in nodes):
                 return i
@@ -709,6 +716,10 @@ def _limits(model, j, items, nodes, out):
             lo, hi = max(lo, a), min(hi, b)
             continue
         child = "two" if side_path(c, "two") in leaves else "one"
+        if any(not ((c[x].get("geometry") or {}).get("point") and (c[x].get("geometry") or {}).get("direction"))
+               for x in ("one", "two")):
+            out["notes"].append(f"{c['name']}: its geometry was not read – limits not used")
+            continue
 
         def motion(s):
             if j["type"] == "rotate":
