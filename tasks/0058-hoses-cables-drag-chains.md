@@ -332,20 +332,102 @@ lessons) before designing the per-frame part.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 12 Nov 2026, branch `claude/sleepy-mccarthy-3zpzfu`.
-
-**State (for a session that has to continue this task; delete when done), 12 Nov late:** on the branch: the solver
-(A1, with `solve_motion`), chain geometry (A2), centreline reader + test models (C), the Blender side (B), panel +
-operators + real-app test "flex" + part names (D), guide section + pictures (F), tour stops "hoses" / "chains",
-PC-check line `motion.flex`, CLAUDE.md. **Open:** (1) on GitHub real Blender crashes (exit 139) in the PC-check line
-`motion.flex` right after its hoses render, twice in a row; not reproduced on the web machine (alone, after the 14
-lines before it, with `--debug-memory`); `tools/ci_real_app.py` now prints Blender's crash file – read it in the
-"Linux - real app pccheck" job. (2) E (independent tests + review of `core/flex*.py`) still running; its findings
-are to be judged and fixed. (3) Version (next free after `main`), CHANGELOG, `since=` of the two stops and the
-PC-check line (now "0.2.73"), report, `TASKS.md`, merge, release.
+**Chat / date:** Claude Code on the web (Fable, effort High; 4 cores, no graphics card), 12–13 Nov 2026, branch
+`claude/sleepy-mccarthy-3zpzfu`. Released as **0.2.78**.
 
 **What changed:**
+- **4 Motion > Hoses and drag chains** (`ui_flex.py`, `ops_flex.py`): Add hose / Add cable / Add drag chain, Find
+  hoses and chains, Find and add all; per item on/off, Stiffness, Sag, Smallest bend, Length, Diameter; chains: Upper
+  run, Bend radius, Links, Link length, Width/Height (app-drawn links), Swap ends; End A/B with a pipette button, Fit to
+  the CAD pose, Select, the warning line. Tooltips on everything (tooltip check: 0 missing).
+- **How it is drawn** (design above, `blender/flex.py`): the hose part itself gets a Geometry Nodes modifier that
+  draws the tube, each CAD link one that moves its own geometry; one hidden mesh holds all shapes (frames × points);
+  live = a depsgraph handler, Build = every frame solved once and stored. Nothing runs in Python while playing or
+  rendering. Hooks: `animation.bake` / `clear_keys`, `states.py` (poses), `reimport.py`, `__init__.py`, `clash.HOOKS`
+  (flex parts are left out of the clash check). `handlers.py` needed no change; `gcode.py` neither (a G-code run is a
+  Build like any other).
+- **Solvers** (`core/`, no Blender): `flex.py` – an inextensible elastic rod under its own weight, Newton on the
+  segment directions coarse to fine; exact ends, end directions and length; `guide=` keeps the hose on the side CAD
+  drew it on, `carried` carries the CAD centreline between the two end parts, `solve_motion` follows a hose through
+  an animation. `flex_chain.py` – pins exactly one link length apart, closed forms + a 1-D solve; `fit_links` reads
+  pitch, radius, plane and each link's place on its pins from the CAD links (also rounded numbers, two link kinds).
+  `flex_fit.py` – a tube mesh's centreline, radius, ends.
+- **Part names:** "HYDRAULIC HOSE ARM" and the like now sort into Hoses & tubing, energy-chain names into Cable
+  chains (`core/part_types_data.py`; no existing example changed group).
+- **Test models** (`tools/make_test_flex.py`): `test_flex_hoses_a/_b.step` (luffing arm, cylinder, slide; three
+  hydraulic hoses and a hanging cable), `test_flex_chains_a.step` (gantry with a chain of 18 / 16 / 13 separate links on
+  X / Y / Z, one lying on its side, one standing). Pictures: `docs/img/view_flex_before_after.jpg`,
+  `docs/img/view_flex_chains.jpg` (Cycles, small).
+- Tour stops "hoses" and "chains" (two new sets; the chains run a short G-code program; 0 clashes in both), PC-check
+  line `motion.flex`, guide section "Hoses and drag chains" with five pictures, CLAUDE.md (files, three lessons).
+- `tools/ci_real_app.py` prints Blender's crash file when Blender itself stops (it found the one crash of this task).
 
-**Tested and measured** (name the machine and the model):
+**Subagents** (CLAUDE.md "Subagents in a worker session"; all in their own worktree, merged by the worker):
+A1 hose solver (3 rounds), A2 chain geometry (2 rounds), C centreline reader + test models (2 rounds), B the Blender
+side, D panel + operators + real-app test + part names, E independent tests and review of the three core modules
+(2 rounds, wrote none of them), F guide section + pictures (Sonnet). The worker: design, `props.py`, hooks, tour, PC
+check, the guide carried between the parts (`carried`), merging, the fixes after D's and E's findings, release.
+Re-done after merging: `candidates` no longer offers chain loops (D's finding; `open_row`); the three core modules
+after E's review (below); the guide's blend after E's second round.
+
+**Tested and measured** (web machine, 4 cores, no graphics card, bpy module unless said):
+- Tests: `test_flex_core.py` 45, `test_flex_chain_core.py` 45, `test_flex_fit.py` 114, `test_flex_independent.py`
+  263 (E), `test_flex.py` 33 (B + worker), `test_flex_panel.py` 11, real-app `ui_test_flex.py` 31 checks (real mouse
+  clicks in the 3D view, undo/redo, save + open), tour stops and PC-check line; part types 1,415.
+- Accuracy (test models): hose ends 0.0000–0.0004 mm from their fittings (limit 0.1), end direction exact (< 1°),
+  drawn length within 0.1 % (limit 0.5 %); chains: link length to 3e-8 m, the moving end 1.4e-8 m from its part over
+  the whole travel (X ±150, Y ±100, Z ±60 mm), CAD-pose links 0.00025 mm from where CAD has them, the bend moves
+  half as far as the axis (to 0.02 mm). Deterministic: frame 50 after frame 10 and after frame 90 is bit-identical;
+  a queue copy of the project shows the same shapes, built again too, and a Cycles render sees the hoses bent.
+- Speed, the PC check's Heavy machine (2,992 parts, every module on a slide joint) + 20 hoses + 3 chains × 40 links,
+  250 frames: frame change 7.1 → 12.5 ms (**+5.4 ms**, budget +20); Build animation 0.33 → 3.98 s (+3.65 s);
+  live, all 23 moved in one update 59 ms (of that ~30 ms solve + write), nothing moved 0.09 ms; a slider moved after
+  Build (one hose, 250 frames) 100 ms, no frame stepping; adding the 23 items 3.0 s. A Cycles still (480×270, 16
+  samples, processor) showed no measurable difference with the flex parts drawn or off (B's run).
+- Solver alone: one hose 4.7 ms, 20 in a batch 17 ms (10 ms with guides), 5,000 in 2.6 s; a 250-frame motion 70–80 ms
+  (0.4–0.9 s when it has to be followed); `chain_pins` 250 frames × 60 links 1.3 ms; a tube of 20,000 triangles
+  read in 0.12 s. The brief's "≤ 0.25 ms per hose in a batch of 20" is missed (0.5–0.85 ms).
+- **Independent review (E):** round 1 found: hoses flipping to the other side where their fittings come in line (16
+  of 32 realistic motions), `solve_motion` keeping shapes a hose would not stay in, the tightest bend at a fitting
+  reported a third too tight, a batch failing on one absurd number, `fit_links` reading 132 mm instead of 80 from
+  rounded two-kind chains (5 of 40), a flat bar read as a hose, a hollow hairpin read at half its length. All fixed;
+  round 2 confirmed them and found the guide failing from a quarter turn on (fixed: `carried`). With the guide: all
+  hinge motions up to ±90°, the mirror-S flicker and the 3-D hinge + slide no longer jump.
+- GitHub runs: about a dozen pushes started a full run (most cancelled by the next push; four ran to the end).
+  Real failures: the PC-check line crashed Blender (a mistake in the line itself: it read the settings of the project
+  it had closed; found with the new crash-file print, 3 of 8 local runs, 0 of 10 after); the reviewer's xfail marks
+  (the verdict allows no skipped test); one of the reviewer's "known limit" bounds, which depends on the processor
+  (a soft U-loop changed over 10 times on GitHub, 4 times here: those bounds are held loosely now, the "no jump"
+  tests strictly); three version clashes (0.2.73 → 0.2.76 → 0.2.77 → 0.2.78: four other tasks released in the same
+  hours, the last one minutes before the fast-forward).
 
 **Open points / follow-up tasks:**
+- **For the owner's PC:** drag a joint with hoses in the real view (smooth? does a hose lag?); a GPU render of a built
+  animation; his own Inventor hoses (does each end find its fitting – else the pipette) and igus-style chains (link
+  length and bend radius read right? which end is fixed?); the project's size after a long G-code run.
+- **Known limits of the hose shapes** (asserted as bounds in `test_flex_independent.py`): a hose with in-line fittings
+  pushed together to 0.4 × its length turns from a bow into a loop with one jump; very soft cables with two hanging
+  shapes can change over; an elbow fitting spinning about its own axis by more than about a third of a turn jumps once
+  with the guide; where a hose becomes too short it snaps to the straight line (5 % of its length). A posed still is
+  solved on its own and can show another of two shapes than the same moment in a built animation. A medium-stiff hose
+  with a level guide stays near level although its weight would hang it (the switch between "weight wins" and "guide
+  wins" is abrupt).
+- **Chains:** `short` ("cannot reach") can come, go and come again near the far end of travel when the moving end
+  sits lower than twice the bend radius; a gliding chain's fit from the other end cannot be drawn (Swap ends shows a
+  note); 3 link kinds with a bend radius near one link length may not be read.
+- **Reader:** a hexagon or pentagon bar passes as a hose; corrugated conduit reports its mid radius; a hollow hose
+  touching itself with faces turned at random is refused.
+- **Not tested:** the real render queue runner with hoses (a queue copy is: open, build, render); real 0.2.30 / 0.2.45
+  project files (a project without flex parts gets nothing: tested on a fresh import + Build); EEVEE; Windows and
+  the graphics card beyond GitHub's install run; `Find` on the demo vessel (its track links are closed loops and are
+  left out by `open_row`, tested on made-up rows only); two scenes in one file; scaled or mirrored models.
+- **Cost:** live posing re-evaluates all flex parts when one moves (one shared shapes mesh, ~20 ms of the 59 ms
+  above); the shapes cost 36 bytes × points × frames in the project (the bench scene: 7.4 MB for 250 frames; a 7,500-
+  frame G-code run about 220 MB) – de-duplicating still frames and dropping the two unused axis attributes of hoses
+  would cut it. Shapes are per whole frame (motion blur, #6, needs the in-between).
+- **Ideas for later** (brief point 6): hoses pushing against parts and each other (a collision pass on the solved
+  shape), cables over sheaves and winch drums (motion paths 0078: reuse the shapes mesh, the tube tree and the Build
+  hook; a rope is a polyline with a tube like a hose), hoses with three ends, cable bundles (one guide curve, many
+  tubes), a Heavy PC-check line if a customer model shows the cost growing.
+- Not added: a Heavy PC-check line (the cost does not grow with the model: +5.4 ms on 3,000 parts, +5.2 ms on the
+  generated scene). No branch is left over besides this session's.
