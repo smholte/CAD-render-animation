@@ -83,9 +83,18 @@ def sea_height(sea: dict, x, y, t):
     """Height of the water above its level at (x, y) metres from the sea's origin, time ``t`` s (the app's waves)."""
     x, y, t = (np.asarray(v, float) for v in (x, y, t))
     h = np.zeros(np.broadcast(x, y, t).shape)
-    for a, dx, dy, k, ph in sea["waves"]:
-        h = h + a * np.sin(k * (dx * x + dy * y) + ph - math.sqrt(G * k) * t)
+    fades = sea.get("fade") or [[0.0, 0.0]] * len(sea["waves"])
+    for (a, dx, dy, k, ph), f in zip(sea["waves"], fades):
+        h = h + a * np.sin(k * (dx * x + dy * y) + ph - math.sqrt(G * k) * t) * wave_fade(f, x, y)
     return h * sea_fade(sea["near"], x, y)
+
+
+def wave_fade(f, x, y):
+    """One wave's own fade (task 0109): 1 within f[0] m of the middle, 0 beyond f[1] (linear); [0, 0]: none."""
+    if not f or f[1] <= 0.0:
+        return 1.0
+    r = np.sqrt(np.asarray(x, float) ** 2 + np.asarray(y, float) ** 2)
+    return np.clip((f[1] - r) / (f[1] - f[0]), 0.0, 1.0)
 
 
 def channel(ch, t):

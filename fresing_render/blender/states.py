@@ -267,7 +267,9 @@ WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_
               "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height",
               "props_visible",
               # weather of the sky (task 0017)
-              "sky_weather")
+              "sky_weather",
+              # weather and time of day (task 0109): the whole Weather & time panel
+              "weather")
 OUTPUT_KEYS = ("out_format", "out_resolution", "out_orientation", "out_dpi", "out_use_bleed", "out_bleed_mm",
                "out_custom_w", "out_custom_h", "out_file_type", "quality")
 CURRENT = "__current__"      # "use what the scene shows now" (stored inside the scene item)
@@ -282,8 +284,31 @@ def _plain(v):
         return str(v)
 
 
+WEATHER_KEYS = ("enabled", "preset", "hour", "use_date", "day", "latitude", "north", "clouds", "low_clouds",
+                "visibility", "rain", "drop_size", "wet", "snow", "snow_cover", "wind", "wind_from", "wind_ref",
+                "floodlights", "flood_strength", "spray", "flag", "vessel_speed")
+
+
 def settings_json(s, keys) -> str:
-    return json.dumps({k: _plain(getattr(s, k)) for k in keys})
+    return json.dumps({k: ({w: _plain(getattr(s.weather, w)) for w in WEATHER_KEYS} if k == "weather"
+                           else _plain(getattr(s, k))) for k in keys})
+
+
+def _apply_weather(w, data) -> None:
+    """A saved scene's Weather & time (task 0109), set without one rebuild per control."""
+    if not isinstance(data, dict):
+        return
+    w["_busy"] = True
+    try:
+        for k, v in data.items():
+            if k in WEATHER_KEYS:
+                try:
+                    setattr(w, k, v)
+                except (TypeError, ValueError):
+                    pass
+        w["fr_started"] = True
+    finally:
+        del w["_busy"]
 
 
 def apply_settings_json(scene, text: str) -> None:
@@ -295,10 +320,15 @@ def apply_settings_json(scene, text: str) -> None:
         return
     if "background" in data and "sky_weather" not in data:
         data["sky_weather"] = "SUN"          # saved before the weather existed (task 0017): a sunny sky
+    if "background" in data and "weather" not in data:
+        data["weather"] = {"enabled": False}  # saved before Weather & time (task 0109): no weather
     live = s.live_update
     s.live_update = False                    # one world rebuild, not one per setting
     try:
         for k, v in data.items():
+            if k == "weather":
+                _apply_weather(s.weather, v)
+                continue
             if hasattr(s, k):
                 try:
                     setattr(s, k, v)

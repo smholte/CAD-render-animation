@@ -28,8 +28,10 @@ CHECKS = os.path.join(ROOT, "fresing_render", "pccheck", "checks.py")
 TOUR = os.path.join(ROOT, "fresing_render", "blender", "tour.py")
 
 # Linux job `pccheck2` (plus LINUX2_NEEDS): the longest lines (video with labels ~3 min on Windows' CPU, the queue's time
-# test; task 0108: the two EEVEE queue lines, 120 + 155 s on a runner, so that both halves take about 9 minutes).
-LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee")
+# test; task 0108: the two EEVEE queue lines, 120 + 155 s on a runner, so that both halves take about 9 minutes; task
+# 0109: the weather renders).
+LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee", "weather.time", "weather.rain", "weather.snow",
+          "weather.fog")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Start-menu shortcut and the report.

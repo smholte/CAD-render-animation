@@ -5,6 +5,43 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.88 – 13 Nov 2026 – weather and time of day, and a new sea (task 0109)
+
+New: 5 Scene & Render > **Weather & time**
+- **One place for the weather.** Presets **Clear day**, **Grey North Sea**, **Storm**, **Snow at the quay** and
+  **Night shift**, or set it yourself. Off: everything looks exactly as before (except the sea, below).
+- **Time of day.** A clock from sunrise to night sets the sun's height, its direction and the sky's colour (sunrise,
+  day, golden hour, dusk). Optional: a date and a latitude for the real sun path of that day. At night: a dark sky
+  with stars and the moon, **floodlights** on masts round the deck or the quay (set up for you, Auto from dusk), and
+  the picture opens up as a camera does. **Work lights**: click a lamp part, press Spot or Flood – it shines, moves
+  with the part and stays through a model update (also with Weather & time off).
+- **Clouds, haze and fog.** Cloud cover from clear to overcast, a low cloud deck, and a visibility in metres: haze
+  towards the horizon, fog that hides the far sea and the quay. The fog costs no render time you can measure.
+- **Rain.** Falling rain (amount, drop size) slanting with the wind, splashes on the deck, the quay and the sea, and a
+  **Wet** look on the machine and the ground: darker, glossier, run-off streaks on slopes, puddles on flat parts –
+  also after the rain, without rain falling.
+- **Snow.** Falling flakes drifting with the wind, and a **snow layer** on everything that faces up under the open
+  sky; parts under a roof or a cover stay clear. It also works on any imported mesh (a function other parts of the
+  app can call).
+- **Wind.** Beaufort strength and direction (compass, or from the vessel's bow): rain, snow, spray and an optional
+  **flag** follow it; the sea can follow it too.
+- **In a video:** a new step **Weather & time** in 6 Animation fades from the weather before it to a new one – day to
+  dusk, the rain starting, the fog lifting. Works with scripts off, in the render queue and for every paint scheme;
+  saved scenes keep their weather.
+
+New sea (Open sea, Vessel deck, Quayside) – **old projects open with it**:
+- The broad white stripes are gone. The sea is now many waves of different lengths and directions from a measured
+  wave spectrum (JONSWAP / Pierson–Moskowitz), so it never repeats, also seen from high above or towards the horizon.
+- White caps only where waves are steep, in patches that come and go and drift; as many as measured at sea (Monahan
+  & O'Muircheartaigh 1980: hardly any at Beaufort 3, about 2 % at 6, about 16 % at 9), foam streaks from Beaufort 7.
+- Foam round the hull at the waterline that rides with the vessel, a wake when a vessel speed is set, spray at the bow
+  and off the wave tops in strong wind, a deeper water colour with the sky reflected.
+- Sea: **Calm** (Beaufort 3), **Rough** (Beaufort 6) or new **From the wind**. Vessel motion keeps its numbers.
+
+Test tour stops "Weather: grey North Sea", "Weather changes in a video", "Night shift"; PC-check lines `weather.time`,
+`weather.rain`, `weather.snow`, `weather.fog`, `weather.sea`, `weather.step`, Heavy `heavy.weather`; guide chapter
+"Weather & time".
+
 ## 0.2.87 – 13 Nov 2026 – tensioner tracks and belts run with the cable (task 0079)
 
 New: 4 Motion > **Tracks and belts**

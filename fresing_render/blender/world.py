@@ -186,6 +186,8 @@ def apply(scene, settings) -> None:
     scene.world = world
     nt = world.node_tree
     nt.nodes.clear()
+    if nt.animation_data is not None:       # the weather's drivers (task 0109) went with their nodes
+        nt.animation_data_clear()
     out = nt.nodes.new("ShaderNodeOutputWorld")
     out.location = (600, 0)
 
@@ -198,7 +200,12 @@ def apply(scene, settings) -> None:
     if light_kind == "SKY" and s.sky_weather == "OVERCAST":
         light_kind = "OVERCAST"
     light_path = s.hdri_path if bg_mode == "HDRI" else s.light_hdri_path
-    light = _env_branch(nt, light_kind, light_path, s.light_rotation, s.light_strength, s.sun_elevation, 0)
+    from . import weather
+    if weather.sky_on(scene):               # task 0109: the sky by the clock, clouds, haze, the night
+        from . import weather_sky
+        light = weather_sky.world_branch(nt, scene, s, 0)
+    else:
+        light = _env_branch(nt, light_kind, light_path, s.light_rotation, s.light_strength, s.sun_elevation, 0)
 
     scene.render.film_transparent = bg_mode == "TRANSPARENT"
 
@@ -225,6 +232,10 @@ def apply(scene, settings) -> None:
     except Exception as exc:            # a broken surrounding must never stop a render
         print("Fresing Render: surroundings not built:", exc)
     update_floor(scene, s)
+    try:                                    # task 0109: lamps, looks, rain and snow follow (or go when it is off)
+        weather.after_world(scene)
+    except Exception as exc:
+        print("Fresing Render: weather not set up:", exc)
 
 
 # --------------------------------------------------------------------------
