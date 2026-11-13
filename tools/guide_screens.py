@@ -53,6 +53,10 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
+  sea_panel   4 Motion > Cables and paths with the fold "Into the sea" open (panel_cable_sea; as "panels", on
+      test_sea.step, task 0081).
+  sea   the sea cable test model through the cut-away: the cable from the horn down to the seabed, the CPS set on it
+      (view_sea_cutaway.jpg; Cycles on the processor, as "render").
   tracks   the tensioner of the tracks test model after 0.42 m of cable with the top track lifted 0.08 m
       (view_tracks.jpg; Cycles on the processor, as "render").
   spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
@@ -973,7 +977,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel", "tracks_panel"):
+              "spools_panel", "tracks_panel", "sea_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -987,7 +991,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
                 "spools_panel": os.path.join(DATA, "test_spool.step"),
-                "tracks_panel": os.path.join(DATA, "test_tracks.step")}[MODE]
+                "tracks_panel": os.path.join(DATA, "test_tracks.step"),
+                "sea_panel": os.path.join(DATA, "test_sea.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1073,6 +1078,19 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_cables_setup)
         _grab("panel_cables", [("FRESING_PT_cables", False, True)])
+
+    elif MODE == "sea_panel":
+        # task 0081: 4 Motion > Cables and paths, the sea cable chosen, the fold "Into the sea" open, the CPS set chosen
+        def _sea_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.paths_sea").set_up_test_model(sc)
+            sc.fresing.cables_index = 0
+            select_only()
+            mod("blender.ui")._OPEN_FOLDS = True
+            return 1.0
+        step(_sea_setup)
+        _grab("panel_cable_sea", [("FRESING_PT_cables", False, True)])
 
     elif MODE == "spools_panel":
         # task 0080: 4 Motion > Drums and carousels on the spooling test model, the drum chosen, More open
@@ -1891,7 +1909,48 @@ def render_tracks():
     log("saved view_tracks", f"{os.path.getsize(out) // 1024} KB")
 
 
-if MODE == "tracks":
+def render_sea():
+    """Task 0081: the sea cable test model through the cut-away after 8 m paid out: the cable from the horn down to
+    the seabed, the CPS set on the catenary."""
+    import addon_utils
+    import numpy as np
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_sea.step"), quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints, cams, paths, sea = mod("blender.joints"), mod("blender.cameras"), mod("blender.paths"), \
+        mod("blender.paths_sea")
+    s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "DETAILED", "CALM", 2.0
+    s.sea_depth, s.sea_clarity = 15.0, 15.0
+    bpy.ops.fresing.light_look(look="SUN")
+    sea.set_up_test_model(sc)
+    it = paths.find(sc, sea.TEST_CABLE)
+    joints.set_value(joints.find(sc, it.joint), 6.0, use_limits=False)
+    bpy.context.view_layer.update()
+    paths.refresh(sc)
+    bpy.context.view_layer.update()
+    s.sea_cutaway = True
+    top, tdp = sea.tdp_world(sc, it)
+    pts = np.array([(12.0, -3.0, 3.5), (12.0, 3.0, 3.5), tuple(top), tuple(tdp), tuple(tdp + np.array([-6.0, 0, 0]))])
+    cam = cams.add_camera(sc, os.environ.get("SEA_VIEW", "ISO"), 35.0, name="Guide sea", points=pts)
+    sc.camera = cam
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 1100, 620, False, SCRATCH
+    mod("blender.render").apply_output(sc, s)
+    t = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", f"{time.time() - t:.0f} s")
+    out = os.path.join(OUT, "view_sea_cutaway.jpg")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", out], check=True)
+    log("saved view_sea_cutaway", f"{os.path.getsize(out) // 1024} KB")
+
+
+if MODE == "sea":
+    try:
+        render_sea()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "tracks":
     try:
         render_tracks()
     except Exception:
