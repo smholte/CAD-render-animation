@@ -427,17 +427,116 @@ def _materials(ob) -> list:
     return out
 
 
+MARK = "fr_weather_target"            # on an object added with add_objects (any mesh, not only CAD parts)
+MADE = "fr_weather_neutral"            # on the neutral material made for a marked object that had none
+ADDED = "fr_weather_added_mat"         # on a marked object that got that material (taken off again on remove)
+NEUTRAL = "FR weather neutral"
+
+
 def targets(scene) -> list:
-    """The materials that get the look: the model's parts and their decals, props, drums' ropes, and the outdoor
-    ground, deck and quay."""
+    """The objects marked with :func:`add_objects` (any mesh: imported, modelled, not from the STEP importer)."""
+    return [o for o in scene.objects if o.get(MARK) and o.type == "MESH"]
+
+
+def _neutral() -> bpy.types.Material:
+    mat = bpy.data.materials.get(NEUTRAL)
+    if mat is not None and mat.get(MADE):
+        return mat
+    mat = bpy.data.materials.new(NEUTRAL)
+    mat[MADE] = True
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf is not None:
+        bsdf.inputs["Base Color"].default_value = (0.45, 0.45, 0.45, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.7
+    mat.diffuse_color = (0.45, 0.45, 0.45, 1.0)
+    return mat
+
+
+def _give_material(ob) -> None:
+    """A marked object without any material gets the neutral one, so the wet look and the snow can show."""
+    if _materials(ob):
+        return
+    mat = _neutral()
+    if len(ob.material_slots) == 0:
+        ob.data.materials.append(mat)
+    else:
+        ob.material_slots[0].link = "OBJECT"
+        ob.material_slots[0].material = mat
+    ob[ADDED] = True
+
+
+def _active(scene) -> bool:
+    """The weather is on (or its channels are written): wrapped materials are wanted."""
+    w = getattr(getattr(scene, "fresing", None), "weather", None)
+    return bool(getattr(w, "enabled", False)) or any(k in scene for k in (WET, COVER))
+
+
+def add_objects(scene, objects) -> int:
+    """Let any mesh objects get wet and take a snow layer – also ones not made by the STEP importer (no part ids,
+    no CAD faces, shared or no materials). Marks them (``fr_weather_target``), gives one without a material a
+    neutral light grey one, and wraps every material they use while the weather is on (otherwise the next
+    ``apply(scene, True)`` does). The snow only reads the geometry and the world: faces that face up (world space,
+    so turned, scaled and mirrored objects work) under the open sky. Returns how many objects were taken."""
+    n = 0
+    for ob in objects:
+        if ob is None or ob.type != "MESH" or ob.data is None:
+            continue
+        ob[MARK] = 1
+        _give_material(ob)
+        n += 1
+    if n and _active(scene):
+        node_group(*needed(scene))
+        for m in {m for ob in objects if ob is not None and ob.get(MARK) for m in _materials(ob)}:
+            if wanted(m) and not is_wrapped(m):
+                wrap(m)
+    return n
+
+
+def remove_objects(scene, objects) -> int:
+    """Undo :func:`add_objects`: unmark the objects, take the group out of their materials unless another target
+    still uses the material, take the neutral material off again. Returns how many objects were unmarked."""
+    n, mats = 0, set()
+    for ob in objects:
+        if ob is None or not ob.get(MARK):
+            continue
+        del ob[MARK]
+        mats.update(_materials(ob))
+        if ob.get(ADDED):
+            del ob[ADDED]
+            for i, slot in reversed(list(enumerate(ob.material_slots))):
+                if slot.material is not None and slot.material.get(MADE):
+                    if slot.link == "OBJECT":
+                        slot.material = None
+                        slot.link = "DATA"
+                    else:
+                        ob.data.materials.pop(index=i)
+        n += 1
+    still = {m.name for m in target_materials(scene)} if _active(scene) else set()
+    for m in mats:
+        if m.name not in still and (m.get(TAG) or is_wrapped(m)):
+            unwrap(m)
+    neutral = bpy.data.materials.get(NEUTRAL)
+    if neutral is not None and neutral.get(MADE) and neutral.users == 0:
+        bpy.data.materials.remove(neutral)
+    return n
+
+
+def target_materials(scene) -> list:
+    """The materials that get the look: the model's parts and their decals, props, drums' ropes, the outdoor
+    ground, deck and quay, and every object marked with :func:`add_objects`."""
     from . import build, surroundings
     mats, seen = [], set()
     for ob in scene.objects:
-        kind = ob.get(build.PROP_KIND)
-        env = ob.get(surroundings.TAG)
         if ob.get("fr_weather") is not None:
             continue
-        if not (kind in ("part", "decal", "spool") or env in ENV_ROLES or ob.get(surroundings.PROP_TAG)):
+        kind = ob.get(build.PROP_KIND)
+        env = ob.get(surroundings.TAG)
+        if ob.get(MARK):
+            if ob.type != "MESH":
+                continue
+            _give_material(ob)
+        elif not (kind in ("part", "decal", "spool") or env in ENV_ROLES or ob.get(surroundings.PROP_TAG)):
             continue
         for m in _materials(ob):
             if m.name not in seen and wanted(m):
@@ -448,7 +547,8 @@ def targets(scene) -> list:
 
 def apply(scene, on: bool) -> int:
     """On: every target material has the group (materials that already have it are left alone: cheap when nothing
-    changed). Off: the group is taken out of every material that has it. Returns how many materials changed."""
+    changed). Off: the group is taken out of every material that has it (marked objects stay marked). Returns how
+    many materials changed."""
     n = 0
     if not on:
         for m in bpy.data.materials:
@@ -459,7 +559,7 @@ def apply(scene, on: bool) -> int:
             bpy.data.node_groups.remove(ng)
         return n
     node_group(*needed(scene))
-    for m in targets(scene):
+    for m in target_materials(scene):
         if not m.get(TAG) or not is_wrapped(m):
             n += bool(wrap(m))
     return n

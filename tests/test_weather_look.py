@@ -299,3 +299,127 @@ def test_eevee_zero_is_unchanged_wet_is_darker_snow_lies(tmp_path):
     if line is None and p.returncode < 0 or p.returncode in (134, -6):
         pytest.skip("EEVEE cannot start here (no GL context)")
     assert line is not None, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
+
+
+# ---------------------------------------------------------------------------
+# any mesh (not from the STEP importer): add_objects / remove_objects
+# ---------------------------------------------------------------------------
+
+def _house(name, x, y, mat=None):
+    """A made-up house: a 2 x 2 x 1.5 m box with a pitched roof (30°), no materials, built from scratch."""
+    import math
+    h, r = 1.5, math.tan(math.radians(30)) * 1.0
+    vs = [(-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0), (-1, -1, h), (1, -1, h), (1, 1, h), (-1, 1, h),
+          (-1, 0, h + r), (1, 0, h + r)]
+    fs = [(0, 3, 2, 1), (0, 1, 5, 4), (2, 3, 7, 6), (1, 2, 6, 9, 5), (3, 0, 4, 8, 7), (4, 5, 9, 8), (7, 8, 9, 6)]
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(vs, [], fs)
+    me.update()
+    if mat is not None:
+        me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    ob.location = (x, y, 0.0)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
+def _plain(name, x, y, z, half, mat=None, flip=False):
+    h = half
+    vs = [(x - h, y - h, z), (x + h, y - h, z), (x + h, y + h, z), (x - h, y + h, z)]
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(vs, [], [(3, 2, 1, 0) if flip else (0, 1, 2, 3)])
+    if mat is not None:
+        me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
+def _yard():
+    """No importer, no CAD data: a house without materials, a turned + scaled + mirrored copy of it, a plate in the
+    open and one under a canopy that share one plain material, the canopy, and an empty."""
+    import math
+    sc = _empty()
+    w = bpy.data.worlds.new("W")
+    w.use_nodes = True
+    w.node_tree.nodes["Background"].inputs["Color"].default_value = (0.8, 0.85, 1.0, 1.0)
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.6
+    sc.world = w
+    sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
+    sun.data.energy = 3.0
+    sun.rotation_euler = (math.radians(30), math.radians(-20), 0.0)
+    sc.collection.objects.link(sun)
+    shared = bpy.data.materials.new("Shared dark")             # a plain material, not one of the app's
+    shared.use_nodes = True
+    shared.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.05, 0.05, 0.06, 1.0)
+    house = _house("house", -3.0, 2.0)
+    copy = house.copy()
+    copy.data = house.data                                      # the same mesh
+    copy.location = (3.5, 2.0, 0.0)
+    copy.rotation_euler = (0.0, 0.0, math.radians(90))
+    copy.scale = (-1.0, 1.2, 0.8)                               # mirrored and scaled
+    sc.collection.objects.link(copy)
+    open_plate = _plain("open plate", -1.5, -1.5, 0.01, 0.8, shared)
+    covered = _plain("covered plate", 1.5, -1.5, 0.01, 0.8, shared)
+    canopy = _plain("canopy", 1.5, -1.5, 1.0, 1.3, None, flip=True)
+    empty = bpy.data.objects.new("empty", None)
+    sc.collection.objects.link(empty)
+    cam = bpy.data.objects.new("C", bpy.data.cameras.new("C"))
+    sc.collection.objects.link(cam)
+    cam.location = (0.0, -9.0, 4.0)
+    cam.rotation_euler = (math.radians(68), 0.0, 0.0)
+    cam.data.lens = 24
+    sc.camera = cam
+    r = sc.render
+    r.engine = "CYCLES"
+    r.resolution_x, r.resolution_y, r.resolution_percentage = 160, 90, 100
+    sc.cycles.samples, sc.cycles.device, sc.cycles.use_denoising, sc.cycles.seed = 32, "CPU", False, 1
+    sc.view_settings.view_transform = "Standard"                # (no tone curve: brightness ratios stay ratios)
+    sc.view_settings.exposure = -1.5
+    bpy.context.view_layer.update()
+    return sc, dict(house=house, copy=copy, open=open_plate, covered=covered, canopy=canopy, empty=empty,
+                    shared=shared)
+
+
+def test_add_objects_marks_any_mesh_and_gives_a_neutral_material():
+    sc, o = _yard()
+    obs = [o["house"], o["copy"], o["open"], o["covered"], o["canopy"], o["empty"]]
+    assert weather_look.add_objects(sc, obs) == 5                       # the empty is skipped
+    assert set(weather_look.targets(sc)) == {o["house"], o["copy"], o["open"], o["covered"], o["canopy"]}
+    neutral = o["house"].material_slots[0].material
+    assert neutral is not None and neutral.get(weather_look.MADE)
+    assert o["canopy"].material_slots[0].material == neutral
+    assert not any(weather_look.is_wrapped(m) for m in bpy.data.materials)   # the weather is off: not yet
+    sc["fr_wx_cover"] = 0.8
+    weather_look.apply(sc, True)
+    assert weather_look.is_wrapped(neutral) and weather_look.is_wrapped(o["shared"])
+    # one of the two plates sharing a material goes: the other still needs the wrap
+    assert weather_look.remove_objects(sc, [o["covered"]]) == 1
+    assert weather_look.is_wrapped(o["shared"])
+    assert weather_look.remove_objects(sc, [o["open"]]) == 1
+    assert not weather_look.is_wrapped(o["shared"])
+    weather_look.remove_objects(sc, [o["house"], o["copy"], o["canopy"]])
+    assert not weather_look.targets(sc) and bpy.data.materials.get(weather_look.NEUTRAL) is None
+    assert all(not any(s.material for s in ob.material_slots) for ob in (o["house"], o["canopy"]))
+
+
+def test_snow_on_any_mesh_up_faces_under_the_open_sky_also_mirrored(tmp_path):
+    import math
+    sc, o = _yard()
+    weather_look.add_objects(sc, [o["house"], o["copy"], o["open"], o["covered"], o["canopy"]])
+    before = _render(sc, os.path.join(str(tmp_path), "dry.png"))
+    sc["fr_wx_cover"] = 0.8
+    weather_look.apply(sc, True)
+    snow = _render(sc, os.path.join(str(tmp_path), "snow.png"))
+
+    def gain(xyz):
+        """How much brighter with snow (ratio)."""
+        return float(_spot(sc, xyz, snow).mean() / max(_spot(sc, xyz, before).mean(), 1e-4))
+    r = math.tan(math.radians(30))
+    roof = gain((-3.0, 1.5, 1.5 + r * 0.5))                             # the house's roof (front slope)
+    roof_copy = gain((3.5 + 0.6, 2.0, 0.8 * (1.5 + r * 0.5)))           # the turned, mirrored copy's roof
+    wall = gain((-3.0, 1.0, 0.7))                                       # an upright wall
+    plate_open, plate_covered = gain((-1.5, -1.5, 0.01)), gain((1.5, -1.9, 0.01))
+    assert roof > 1.15 and roof_copy > 1.15, (roof, roof_copy)               # grey 0.45 -> snow
+    assert 0.9 < wall < 1.1, wall
+    assert plate_open > 3.0 and plate_covered < 1.3, (plate_open, plate_covered)
