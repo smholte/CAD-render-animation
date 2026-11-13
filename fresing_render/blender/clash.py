@@ -1004,6 +1004,7 @@ class Check:
                 self._hit(p, q, t, d, d0[i], rel[i])
             elif self.near > 0 and core.is_near(g, g0[i], self.near):
                 self.near_hits.setdefault((p, q), []).append(core.Hit(t, g, 0.0))
+                self._seen(p, q)
             else:
                 self._maybe_window(p, q, t)
 
@@ -1012,9 +1013,14 @@ class Check:
         pair is closed (its row needs every moment)."""
         self.hits.setdefault((p, q), []).append(core.Hit(t, d, core.excess(d, d0)))
         self.rels[(p, q, t)] = rel
+        self._seen(p, q)
         w = self.pair_open.pop((p, q), None)
         if w is not None:
             self.windows[(p, q)].remove(w)
+
+    def _seen(self, p: int, q: int) -> None:
+        """Pair p, q has a clash or a near miss now: a step of angle counts for ``_period_done`` only after this."""
+        self.pair_hit_k[(p, q)] = self.k_now + 1 if self.k_between else self.k_now
 
     def _moved(self, P: np.ndarray, Q: np.ndarray, rel0: np.ndarray, rel1: np.ndarray) -> np.ndarray:
         """How far parts P and Q (part pairs) can have moved against each other from places rel0 to rel1 (q's space
@@ -1269,6 +1275,8 @@ class Check:
         self.pair_tests[key] = n
         if n < 2 or key in self.pair_open:
             return
+        if key in self.pair_period and self._period_done(key):
+            return
         # the window starts at this frame, or at the next one when this test was between two frames (a moment between
         # frames is worked out from each body's own screw and need not lie on the pair's turn); that frame itself is
         # still checked as usual (``_in_window``), and a clash found in the window closes it again (``_hit``)
@@ -1289,10 +1297,71 @@ class Check:
             band, lc, lu = self._band(turning, x, c, u)
             if band is not None and core.tree_clear_of_band(band, lc, lu, self.meshes[self.mesh_key[other]].boxes,
                                                             np.linalg.inv(x), BAND_MARGIN + max(self.near, 0.0)):
-                self.windows.setdefault(key, []).append((s, b))
-                self.pair_open[key] = (s, b)
-                self.pair_windows += 1
+                self._open(key, s, b)
                 return
+            # the coarse grid could not tell: the turning part's surface where the other one can come, finely
+            pts = self._near_points(turning, other, x, lc, lu)
+            if pts is None:
+                continue
+            m = self.meshes[self.mesh_key[turning]]
+            if core.repeats(pts, lc, lu, core.ROUND_TURNS, self._nearest(m)):
+                self._open(key, s, b)                       # round there
+                return
+            # it repeats after a step of angle (a rim fence's posts): the rest of the stretch once that step is done
+            order = self._order(turning, lc, lu)
+            if order > 1 and core.repeats(pts, lc, lu, (2 * math.pi / order, -2 * math.pi / order),
+                                          self._nearest(m)):
+                xs = np.linalg.inv(self.mats[a:b, other]) @ self.mats[a:b, turning]
+                phi = np.unwrap(core.signed_angles(xs @ np.linalg.inv(xs[0]), u))
+                self.pair_period[key] = (a, b, 2 * math.pi / order, phi)
+                self._period_done(key)
+                return
+
+    def _open(self, key: tuple, s: int, b: int) -> None:
+        self.windows.setdefault(key, []).append((s, b))
+        self.pair_open[key] = (s, b)
+        self.pair_windows += 1
+
+    def _period_done(self, key: tuple) -> bool:
+        """For a pair whose turning part repeats after a step of angle where the other one comes: once the pair has been
+        checked, with no clash (nor near miss), over a whole step of angle in its stretch, every later angle repeats one
+        already checked: the rest of the stretch needs no test. Returns whether a window was opened."""
+        a, b, step, phi = self.pair_period[key]
+        k = self.k_now
+        s = k + 1 if self.k_between else k                  # the window's first moment (``_maybe_window``)
+        s0 = max(a, self.pair_hit_k.get(key, -1) + 1)       # checked since, with no clash or near miss
+        if s + 3 > b or s0 > k:
+            return False
+        if float(np.ptp(phi[s0 - a:k - a + 1])) < step:
+            return False
+        p, q = key
+        if not (np.all(self.vis[s0:b, p]) and np.all(self.vis[s0:b, q])):
+            return False
+        del self.pair_period[key]
+        self._open(key, s, b)
+        self.period_windows += 1
+        return True
+
+    def _near_points(self, turning: int, other: int, x: np.ndarray, lc: np.ndarray, lu: np.ndarray):
+        """``core.local_points``: the turning part's surface where the other part (placed by ``inv(x)`` in the turning
+        part's space) can come as it turns about the local line (lc, lu), plus the margin of ``_still_pairs``."""
+        nlo, nhi, kids = self.meshes[self.mesh_key[other]].boxes
+        leaf = kids[:, 0] < 0
+        to_t = np.linalg.inv(x)
+        lo, hi = core.world_boxes(np.broadcast_to(to_t, (int(leaf.sum()), 4, 4)), nlo[leaf], nhi[leaf])
+        rects = core.footprint(lc, lu, lo, hi, BAND_MARGIN + max(self.near, 0.0))
+        m = self.meshes[self.mesh_key[turning]]
+        return core.local_points(m.v, m.t, lc, lu, rects)
+
+    def _order(self, p: int, lc: np.ndarray, lu: np.ndarray) -> int:
+        """``core.symmetry_order`` of part p about the local line (lc, lu); kept per mesh and axis."""
+        mk = self.mesh_key[p]
+        key = (mk, tuple(np.round(lc, 5)), tuple(np.round(lu, 5)))
+        hit = self.order_memo.get(key)
+        if hit is None:
+            m = self.meshes[mk]
+            hit = self.order_memo[key] = core.symmetry_order(m.v, lc, lu, self._nearest(m))
+        return hit
 
     def _pair_spins(self, p: int, q: int) -> list:
         """The stretches in which p turns in q's space (or q in p's) about an axis that stays put there:
@@ -1432,6 +1501,7 @@ class Check:
         self.wp_cache, self.tile_memo, self.wp_at, self.wp_calls = {}, {}, (None, None), 0
         self.narrow_calls = self.pruned = self.apart = self.far = self.pair_windows = 0
         self.pair_tests, self.pair_spins, self.pair_tried, self.pair_open = {}, {}, set(), {}
+        self.pair_period, self.pair_hit_k, self.order_memo, self.period_windows = {}, {}, {}, 0
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)
@@ -1486,6 +1556,7 @@ class Check:
                       "bodies": G, "pairs": len(self.base), "narrow": self.narrow_calls, "pruned": self.pruned,
                       "workpiece": self.wp_calls, "held": self.held, "held_s": t_held, "apart": self.apart,
                       "still_pairs": self.still_pairs, "pair_windows": self.pair_windows,
+                      "period_windows": self.period_windows,
                       "far": self.far,
                       "round_tests": len(self.round_memo)}
         yield 1.0

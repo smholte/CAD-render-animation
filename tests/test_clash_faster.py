@@ -184,3 +184,71 @@ def test_a_bolt_in_the_spokes_way_is_still_found(sc, monkeypatch):
     thorough(monkeypatch)
     same_rows(r, run(sc))
 
+
+
+# ---------------------------------------------------------------------------
+# a part that repeats after a step of angle (a carousel's rim fence of posts)
+# ---------------------------------------------------------------------------
+
+POSTS = 24
+
+
+def _fence_ring(odd=0.0):
+    """A turntable's rim fence about Z: a round rail (r 0.95 … 1.0 m, z 0 … 0.05) and 24 posts (40 mm square, outer
+    face at r 1.0, up to z 0.4). ``odd``: the first post sticks out this much further (the fence no longer repeats)."""
+    shapes = [_ring(0.95, 1.0, 0.0, 0.05, 192)]
+    for k in range(POSTS):
+        a = 2 * math.pi * k / POSTS
+        out = 1.0 + (odd if k == 0 else 0.0)
+        bv, bt = box((0.96, -0.02, 0.05), (out, 0.02, 0.4))
+        shapes.append(([(x * math.cos(a) - y * math.sin(a), x * math.sin(a) + y * math.cos(a), z) for x, y, z in bv],
+                       bt))
+    return _join(*shapes)
+
+
+def _carousel(scene, gap, odd=0.0, turns=2.5):
+    """The fence turns ``turns`` times; a bracket stands outside it, ``gap`` m from the posts' outer faces (negative:
+    into their way), between z 0.2 and 0.3 (above the rail)."""
+    fence = part(scene, "RIM FENCE", _fence_ring(odd))
+    part(scene, "BRACKET", box((1.0 + gap, -0.05, 0.2), (1.2, 0.05, 0.3)))
+    start = math.pi / POSTS                                        # the bracket half way between two posts
+    keys(fence, "rotation_euler", [(0, 0, start), (0, 0, start + turns * 2 * math.pi)])
+    return built(scene)
+
+
+def test_a_rim_fence_turning_past_a_bracket_is_checked_over_one_post_step(sc, monkeypatch):
+    """The posts pass 2 mm from the bracket 60 times. The fence is not round, and the bracket is in the room its posts
+    sweep, but turned by 1/24 turn it lands on itself: once one post step has been checked the pair is left alone. No
+    rows, as in the thorough check, with far fewer tests."""
+    r = run(_carousel(sc, 2 * MM))
+    assert not r.rows, [core.row_text(x) for x in r.rows]
+    assert r.stats["period_windows"] == 1
+    n_fast = r.stats["narrow"]
+    thorough(monkeypatch)
+    slow = run(sc)
+    assert not slow.rows
+    assert n_fast * 3 < slow.stats["narrow"], (n_fast, slow.stats["narrow"])
+
+
+def test_every_post_running_through_the_bracket_is_found(sc, monkeypatch):
+    """The bracket 3 mm into the posts' way: every post passing it is a clash (no step without one, so no shortcut);
+    the same rows as the thorough check."""
+    r = run(_carousel(sc, -3 * MM, turns=0.5))
+    rows = [x for x in r.rows if x.kind == "CLASH"]
+    assert len(rows) >= POSTS // 2 - 1 and all({x.a, x.b} == {"RIM FENCE", "BRACKET"} for x in rows)
+    assert r.stats["period_windows"] == 0
+    thorough(monkeypatch)
+    same_rows(r, run(sc))
+
+
+def test_one_odd_post_is_found_every_turn(sc, monkeypatch):
+    """One post sticks out 5 mm further and runs 3 mm into the bracket once per turn; the others pass 2 mm clear. The
+    fence does not repeat where the bracket is: no shortcut, the odd post is found on each of its two passes in 2.5 turns
+    (the thorough check finds the same)."""
+    r = run(_carousel(sc, 2 * MM, odd=5 * MM))
+    rows = [x for x in r.rows if x.kind == "CLASH"]
+    assert len(rows) == 2 and all({x.a, x.b} == {"RIM FENCE", "BRACKET"} for x in rows), \
+        [core.row_text(x) for x in r.rows]
+    assert r.stats["period_windows"] == 0
+    thorough(monkeypatch)
+    same_rows(r, run(sc))
