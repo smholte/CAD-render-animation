@@ -398,10 +398,15 @@ def _read(scene, sp, item, j, memo: dict, hit=None) -> dict:
     on = _on_spool(scene, item, j, names)
     on_start = bool(on) and on[0] == 0 or (item.a_part is not None and item.a_part.name in names)
     on_end = bool(on) and on[-1] == len(item.contacts) - 1 and not on_start
+    if not on_start and not on_end:             # an end drawn on the spool without a wrap: by where it is
+        from . import paths
+        line, _s, _res = paths._cad_path(scene, item, memo)
+        if len(line):
+            box = _turning_box(scene, turning, sp.coil, inv, memo)
+            on_start = _near_box(flex._at(inv, line[0]), box, float(item.diameter))
+            on_end = not on_start and _near_box(flex._at(inv, line[-1]), box, float(item.diameter))
     if on_end:
-        raise SpoolError(f"The cable '{item.name}' ends on this {sp.kind.lower()}, it does not start there: tick "
-                         "'Runs the other way' is not enough – the cable must be read from the spool's end. "
-                         "Read it again from its other end, or pick the cable that starts here")
+        return {"flip": True}                   # read from its other end (paths.read_cad asks wants_flip)
     if not on_start:
         raise SpoolError(f"The cable '{item.name}' does not start on this {sp.kind.lower()}: pick the cable that "
                          "comes off it, or click the drum or turntable it is wound on")
@@ -472,6 +477,36 @@ def _read(scene, sp, item, j, memo: dict, hit=None) -> dict:
     out.update(r1=float(seat), a_lo=lo, a_hi=hi, r_max=float(flange) - 0.5 * d if np.isfinite(flange) else
                float(seat) + 20.0 * d)
     return out
+
+
+def wants_flip(scene, item, line) -> bool:
+    """paths.read_cad: should this cable's reading (``line``, world, CAD pose) be turned round so that it starts on
+    the spool it comes off? (Its last point is on the spool and its first is not.)"""
+    sp = of_cable(scene, item)
+    j = _joint(scene, sp) if sp is not None else None
+    if j is None or line is None or len(line) < 2:
+        return False
+    memo: dict = {}
+    inv = np.linalg.inv(_np_cad(j.frame, memo))
+    box = _turning_box(scene, _turning_parts(scene, j), None, inv, memo)
+    d = float(item.diameter)
+    return not _near_box(flex._at(inv, line[0]), box, d) and _near_box(flex._at(inv, line[-1]), box, d)
+
+
+def _turning_box(scene, turning, coil, inv, memo) -> tuple:
+    """(largest radius, lowest and highest place along the axis) of what turns with the spool (arrow coordinates)."""
+    rmax, lo, hi = 0.0, np.inf, -np.inf
+    for o in turning:
+        v, _t = _mesh_in(o, inv, memo)
+        if len(v):
+            rmax = max(rmax, float(np.hypot(v[:, 0], v[:, 1]).max()))
+            lo, hi = min(lo, float(v[:, 2].min())), max(hi, float(v[:, 2].max()))
+    return rmax, lo, hi
+
+
+def _near_box(p, box, d: float) -> bool:
+    rmax, lo, hi = box
+    return float(math.hypot(p[0], p[1])) <= rmax + d and lo - d <= float(p[2]) <= hi + d
 
 
 def _np_cad(ob, memo: dict) -> np.ndarray:
@@ -814,7 +849,7 @@ def _solid_mesh(sp, path, scene) -> bpy.types.Mesh:
         inner = 0.0
     else:
         z0, z1 = 0.0, 1.0
-        r_lo, r_hi = float(sp.r_in) - 0.5 * d, float(sp.r_out) + 0.5 * d
+        r_lo, r_hi = S.ring_radii(core_spool(scene, sp))      # (an Archimedean spiral leaves half a band free)
         rings = [(r_hi, z0), (r_hi, z1)]
         inner = r_lo
     verts = []
@@ -1192,6 +1227,17 @@ def _setup(scene, sp, read: bool = False) -> list[str]:
                     raise SpoolError(str(exc)) from exc
                 it = _cable(scene, sp)
             geo = _read(scene, sp, it, j, memo)
+            if geo.get("flip"):                         # the cable was read from its other end: again from here
+                try:
+                    paths.read_cad(scene, it, it.part)
+                except paths.PathError as exc:
+                    raise SpoolError(str(exc)) from exc
+                it = _cable(scene, sp)
+                memo = {}
+                geo = _read(scene, _spool(scene, i), it, j, memo)
+                if geo.get("flip"):
+                    raise SpoolError(f"The cable '{it.name}' could not be read from the "
+                                     f"{_spool(scene, i).kind.lower()}'s end")
             sp = _spool(scene, i)
             with flex._quiet(sp):
                 for key in ("r1", "a_lo", "a_hi", "r_max", "r_in", "r_out", "a_bot", "a_top"):
@@ -1393,7 +1439,7 @@ def status(scene, sp) -> tuple[str, str]:
         if sp.problem != problem:
             sp.problem = problem
         sp.layer = int(np.asarray(layer)[0]) + 1
-        sp.layers = int(path.layers) if hasattr(path, "layers") else int(np.max(path.layer)) + 1
+        sp.layers = int(path.layer_count)
         sp.on_spool = float(on)
         sp.capacity = float(path.total)
         sp.fleet_lo, sp.fleet_hi = lo, hi

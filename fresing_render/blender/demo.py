@@ -645,13 +645,14 @@ def spool_stage(d: Demo):
     t1 = time.time()
     d.progress("Handling winch 1's drum")
     root = d.root()
-    winch = next(o for o in _descendants(root) if o.get("fr_name") == "HANDLING WINCH 1")
     from . import build, logic
+    unit = joints.members(joints.find(sc, "HANDLING WINCH 1: Drum turn"))[0]      # the drum unit (turns)
+    winch = build.logical_parent(unit)
+    turning = {o.name for o in logic.descendants(unit)}
     parts = [o for o in logic.descendants(winch) if o.get(build.PROP_KIND) == "part"]
-    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and
-                o.parent.get(build.PROP_NAME) != "WINCH DRUM UNIT")
-    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM")
-    on_drum = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o != rope)
+    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in turning)
+    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM" and o.name in turning)
+    on_drum = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
     deck = d.part("MAIN DECK", root=root)
     with joints._batch(sc):
         j = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=WINCH_TRAVEL,

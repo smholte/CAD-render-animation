@@ -1111,6 +1111,9 @@ def read_cad(scene, item, part) -> list[str]:
         geo = _read(scene, item, part)
         item = _cable(scene, name)
         _direction(scene, item, geo)
+        from . import spool as _spool
+        if _spool.wants_flip(scene, item, geo["line"]):     # a cable that comes off a spool starts there (0080)
+            _flip_rows(geo)
         snap = _snapshot(item)
         old_part = item.part if _alive(scene, item.part) else None
         same = old_part == part
