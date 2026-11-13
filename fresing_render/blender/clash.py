@@ -1130,8 +1130,9 @@ class Check:
                              and (self._big(p, q) or self.spent.get((p, q), 0) >= SEP_AFTER))
                     if again and not self._big(p, q):
                         self.spent[(p, q)] = 0
-                if not again and not self._gap_worth(p, q, rel0[i]):
-                    continue
+                if not again and (was is not None and was[3] > 0.0 and not self._big(p, q)
+                                  or not self._gap_worth(p, q, rel0[i])):
+                    continue                        # (small parts with a gap known: only through the cost gate)
                 sep = self._separation(p, q, rel0[i], need + 1e-6)
                 self.sep_need[(p, q)] = need + 1e-6
                 if sep > 0.0 and (self.near <= 0 or sep >= self.near):
