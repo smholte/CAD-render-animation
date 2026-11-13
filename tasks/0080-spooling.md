@@ -117,6 +117,117 @@ move the handling winches – read places from the sheets, never fixed numbers; 
 the catenary, water clarity, CPS (0081); quadrant operations, the A&R and tipping wires (0082); rope slack, rope
 stretch, dynamics; multi-fall reeving (owner: not needed).
 
+## Design (worker, 13 Nov 2026 – the subagents' brief; keep it current)
+
+Units: metres and radians everywhere in code; mm / degrees only in the panel and in sentences.
+
+### The idea in one paragraph
+
+A **spool** (drum or carousel) holds the start of an 0078 cable. The rope on it is one **wound path** from the anchor
+(L = 0, innermost) to the outer end, laid layer by layer (`core/spool.py`, no Blender). With W0 metres wound at the start
+and p metres paid out (the cable joint's value x direction), the rope on the spool is the path from 0 to `W0 - p`; its
+end there is the **leave point**. Everything else is a function of p only, written once as driver tables (no Python per
+frame): the spool's turn ("follows by table", a new coupling kind in `joints.py`), the followers (level wind, loading
+arm, guide swivel), and the trimming of the drawn rope (a Geometry Nodes tree on the owner object). The free span from
+the leave point to the cable's first contact is 0078's path with a **moving start**: the start is the leave point,
+worked out per frame from the spool's own place (the turned drum) and the payout (both read like 0078's carriers), so
+the drawn free span always starts exactly where the drawn wraps end.
+
+### Spool frame and the wound path (`core/spool.py`, subagent A)
+
+Spool frame: origin on the axis, local **z = the spool axis**; a point of the rope is `(r cos phi, r sin phi, a)`
+(a = place along the axis). The path is a list of **pieces**; in each piece phi, a and r are linear in L (from L0 to
+L1). A piece's length is the true length of that curve (Gauss-Legendre), so `L` is the rope length to within 1e-9
+relative. `hand` (+1/-1): phi grows (+1) or shrinks (-1) with L.
+
+* **DRUM** (`Spool(kind="DRUM", d, r1, a_lo, a_hi, pitch, start, hand, r_max, groove, crossover, crossover_at,
+  climb)`): layer k (0, 1, …) at rope-middle radius `r1 + k·d·cos30°`; rope middles from `a_lo + d/2` to
+  `a_hi - d/2`; one helix piece per layer with `(a_hi - a_lo - d) / pitch` turns (a real number: the layer fills edge
+  to edge); layer 0 runs from the `start` side (+1: from a_lo), the next back; between layers a **climb** piece
+  (default 90° of turn) at the flange: a constant, r from r_k to r_k+1. Layers while `r_k <= r_max`.
+  `groove="LEBUS"`: in a layer the rope runs parallel to the flanges (a constant) and shifts by pitch/2 in two
+  **crossover** zones per turn (`crossover`, default 35°, the first starting at `crossover_at` – an angle fixed on the
+  drum); pieces: parallel, crossover, parallel, crossover … (exact helix pieces each).
+* **CAROUSEL** (`Spool(kind="CAROUSEL", d, r_in, r_out, a_bot, start, hand, a_top, climb)`): flat layers; layer k's
+  rope middles at `a = a_bot + d/2 + k·d`; an Archimedean spiral from r_in to r_out (start +1, layer 0 inside out) or
+  back, the radius changing by d per turn; the climb to the next layer at constant r. Spiral pieces at most
+  `min(10°, 0.004·pi·r/d)` of turn each (so the turn per metre is right to 0.1 % everywhere).
+
+API (all vectorised over L / p where it says so; numpy only):
+
+```python
+@dataclass class Spool: ...                                    # fields above, metres / radians
+@dataclass class Path:  L0, L1, phi0, phi1, a0, a1, r0, r1, layer, kind (arrays, one row per piece), total, spool
+wind(spool) -> Path                                            # the whole spool, anchor to full
+at(path, L) -> (phi, a, r, layer)                              # vectorised; L clipped to [0, total]
+xyz(phi, a, r) -> (..., 3)
+tangent(path, L) -> (..., 3)                                   # unit, the way L grows
+layer_radius(path, k) / layer_place(path, k)                   # r of a drum layer / a of a carousel layer
+polyline(path, L_lo, L_hi, sag) -> (pts (n, 3), L (n,))        # for drawing: points so the drawn tube is within
+     # `sag` of the true path; the radius of each point is pushed out so that the straight distance between two
+     # neighbours equals their difference in L (to 1e-9 relative) – a Trim Curve by length then cuts at true L
+wound_at(path, a, r) -> L                                      # the L whose point is nearest (a, r): the CAD leave point
+tangency(rho, alpha, r, hand) -> psi                           # the angle where a rope paid out towards a point at
+     # polar (rho, alpha) leaves the circle r: psi = alpha + hand * acos(min(1, r / rho)) (vectorised)
+breaks(path, W0, p_lo, p_hi) -> p (sorted)                     # payouts where a piece starts or ends, + p_lo, p_hi
+angle_table(path, W0, psi, p) -> theta (same shape as p)       # the spool's turn about +z at payout p:
+     # theta(p) = (psi(p) - psi(0)) - (phi(W0 - p) - phi(W0));  psi: array over p (or None = 0)
+arm_angle(c_s, c_a, a0, r_target, prefer=0.0) -> angle         # plane geometry (2-vectors): the turn about c_a that
+     # brings point a0 to distance r_target from c_s; the answer nearest `prefer`; nan when it cannot
+fleet_angles(path, q) -> (at a_lo, at a_hi)                    # rad: drum only; the rope from the top layer's middle
+     # at each flange to the point q (spool frame), against the plane square to the axis
+stack(path, W0, p, drawn_layers) -> (L_low, solid)             # vectorised over p: draw [L_low, W0 - p] as rope; the
+     # full layers below it as one solid: drum = its outer radius (0: none), carousel = its height above a_bot
+stack_breaks(path, W0, p_lo, p_hi, drawn_layers) -> p          # where L_low / solid step
+capacity(path) -> total;  status(path, W0, p) -> '' | 'empty' | 'full'
+```
+
+### "Follows by table" (`joints.py`, worker)
+
+`FRJoint.couple_table` (string, '' = the ratio coupling as before): the owner of the table, e.g. `spool:Drum`. The
+table itself is a float array on the follower's motion empty (`fr_table` = x0, y0, x1, y1 …, leader's value -> this
+joint's value, internal units, linear between keys and beyond the ends), written with `idprops.store_array`.
+`joints.set_table(scene, j, leader, xs, ys, owner)`, `joints.table_of(j)`, `joints.chain_map(scene, j)` -> (top, f):
+a chain may hold ratio and table steps (the carousel's support rollers follow "Carousel turn" by ratio, it follows the
+cable by table): the drivers then read the top joint and carry the combined table as F-curve keys (simple expression
+`a + 2.0`, keys moved by the same BIAS, LINEAR extrapolation, an additive generator takes BIAS off). `get_value`,
+`driven_value` and `_write_one` use `chain_map`; `chain_affine` is unchanged for ratio chains and returns
+(None, 1, 0) when a table is in the chain. Picking another leader or ratio in the panel drops the table.
+
+### Blender side (`blender/spool.py`, worker; `ops_spool.py`, `ui_spool.py` later)
+
+* `FRSpool` in `scene.fresing.spools`: kind, cable (name), part/part_uid (clicked), coil/coil_uid (CAD coil or wire
+  solid, may be empty), joint (the spool's turn), frame (4 x 4 in the joint's arrow coordinates), the Spool numbers,
+  wound, typed flags, followers (`FRSpoolFollower`: joint, mode ACROSS / ARM / ALONG, point), fleet limit (1.5°),
+  removed contact (JSON, to put back), state (problem, layer, on spool, fleet angles).
+* The cable's start: `a_kind = "SPOOL"`, `a_part` = the spool joint's motion empty. `paths._inputs_of` adds the spool
+  slots (the spool's motion empty, the cable joint's frame and motion – the payout is the motion's place on its
+  frame) marked **live**: a cable that stays as drawn still reads them (and the slots carried by a follower) where they
+  are. `paths._solve_item` asks `spool.starts(scene, cable, rel, slots)` for the start points.
+* The drawn rope: the owner object (the CAD coil part, or "FR spool <name>" parented to the clicked part) gets the
+  Geometry Nodes modifier "FR spool": Object Info (the hidden polyline mesh "FR spool shapes <name>", owner's
+  coordinates, point attribute `fr_s` = L - W0) -> Mesh to Curve -> Trim Curve (length: Start = L_low(p) by a CONSTANT
+  table driver, End = W0 - p by a simple-expression driver on the cable joint) -> tube with `fr_cable` (the 0078 look;
+  `fr_cable_pay` stays 2.0 = nothing paid out: the rope on the spool does not move along it) + the solid (unit ring /
+  sleeve mesh scaled by a CONSTANT table driver).
+* Tables written when a spool is made or changed: the spool joint (angle_table, psi from the first contact's
+  departure point, carried by an ARM follower when it rides on one), each follower (ACROSS: a(W0-p) - a(W0) along the
+  joint's axis; ARM: arm_angle with r_target = sqrt(r(p)^2 + h^2), h the tangent length in the CAD pose; ALONG:
+  psi(p) - psi(0) minus the ARM turns it rides on).
+* Hooks: `animation.bake` (nothing new: the cable's bake reads the spool slots), `reimport.py` (part IDs), clash HOOKS
+  (the coil part), `paths` (start), `flex` (read pass: through paths' slots).
+
+### Test model (`tools/make_test_spool.py`, subagent C)
+
+`test_spool.step` (tests/data + fresing_render/data), invented, every part one solid. See the agent brief in this
+file's history (numbers in `NUMBERS` of the maker).
+
+### Subagents
+
+A: `core/spool.py` + `tests/test_spool_core.py`. C: `tools/make_test_spool.py`, `tests/data/test_spool.step`,
+`fresing_render/data/test_spool.step`, `tests/test_spool_model.py`. Later: E independent tests (did not write the
+code), D panel + real-app test, F guide. Worker: everything else.
+
 ---
 
 ## Report (filled in by the chat that did the task)
