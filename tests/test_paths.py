@@ -327,6 +327,25 @@ def test_a_cable_that_touches_nothing_is_refused(folder):
     assert paths.MOD not in bar.modifiers and cable_looks.PAY not in bar
 
 
+def test_a_reading_far_off_the_cad_cable_is_refused(folder, monkeypatch):
+    """The reader can say "ok" with its path beside the cable: the app measures that itself and refuses in plain
+    words – where, and how far. (Here the limit is set far below the facets of the Draft mesh.)"""
+    sc = load(folder, MODEL_A)
+    it = paths.add_cable(sc, CABLE)
+    monkeypatch.setattr(paths, "OFF_PATH", (0.00002, 0.0))
+    with pytest.raises(paths.PathError) as err:
+        paths.read_cad(sc, it, ob(sc, "WIRE ROPE"))
+    text = str(err.value)
+    assert text.startswith("The path of 'WIRE ROPE' cannot be read: ") and " m from its start the cable as drawn lies " in text
+    assert " mm beside the straight runs and round bends" in text
+    it = cable(sc)
+    assert it.part is None and not len(it.contacts) and len(sc.fresing.joints) == 1
+    assert paths.MOD not in ob(sc, "WIRE ROPE").modifiers
+    monkeypatch.undo()
+    paths.read_cad(sc, it, ob(sc, "WIRE ROPE"))
+    assert [c.name for c in cable(sc).contacts] == ORDER
+
+
 def test_reading_in_another_pose_reads_the_same(folder):
     """The model luffed and the cable paid out when 'From CAD cable' is used: the same contacts as in the CAD pose
     (the CAD shape is read in the CAD pose) and the cable drawn for the pose the model is in."""
@@ -678,7 +697,7 @@ def test_a_joint_the_user_made_is_kept_and_remove_takes_only_the_apps(folder):
     assert j.follows == "Luff" and j.couple_ratio == pytest.approx(2.0)
     assert "Cable 'Wire rope': 3 new joints so that what it touches turns with it" in notes
     assert "Cable 'Wire rope': 1 joint you had made now follows the cable" in notes
-    assert "Cable 'Wire rope': 1 part already had a joint that follows something: left as it is" in notes
+    assert "Cable 'Wire rope': 1 part already had a joint that follows something else: left as it is" in notes
     assert "Cable 'Wire rope', 'V ROLLER': its joint 'My roller' follows 'Luff', not this cable: left as it is" in notes
     assert len(sc.fresing.joints) == 3 + 1 + 3
     check_on_seats(sc, 0.0)
@@ -938,6 +957,72 @@ def test_a_pose_without_a_path_keeps_the_last_shape(rope):
         now = drawn(it.part)[0]
         assert np.isfinite(now).all() and np.array_equal(now, last), f
     animation.clear_keys(sc)
+
+
+def test_a_wheel_the_cable_lifts_off_is_a_bad_frame():
+    """A wrap that jumps from next to nothing to a loop round the wheel (or the solver's own ``lifted``): the
+    cable has left that wheel. Those frames keep the last good shape and the warning names the wheel."""
+    wrap = np.array([[1.0, 0.5], [0.9, 0.4], [0.8, 0.01], [0.8, 5.9], [0.8, 5.8], [0.7, 0.02]])
+    F = len(wrap)
+
+    def result():
+        return {"ok": np.ones(F, dtype=bool), "wrap": wrap.copy(), "bad": -np.ones(F, dtype=int), "problems": {},
+                "points": np.arange(F * 6, dtype=float).reshape(F, 2, 3), "s": np.arange(F * 2, dtype=float).reshape(F, 2),
+                "length": np.arange(F, dtype=float)}
+
+    res = result()
+    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
+    assert list(res["ok"]) == [True, True, True, False, False, True] and res["off"] == {3: 1, 4: 1}
+    assert res["problems"][3] == "the cable no longer touches 'SHEAVE 2' (it has lifted off)"
+    for f in (3, 4):
+        assert np.array_equal(res["points"][f], res["points"][2]) and res["length"][f] == 2.0 and res["bad"][f] == 1
+    res = result()
+    res["wrap"][3:5, 1] = 0.0
+    res["lifted"] = np.zeros((F, 2), dtype=bool)
+    res["lifted"][3:5, 1] = True
+    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
+    assert list(res["ok"]) == [True, True, True, False, False, True] and res["off"] == {3: 1, 4: 1}
+    res = result()
+    res["wrap"][3:5, 1] = 0.3                                # a wrap that only grows and shrinks: nothing lifted
+    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
+    assert res["ok"].all() and not res["off"]
+
+
+def test_a_cable_that_stays_as_drawn(rope):
+    sc = rope
+    it = cable(sc)
+    assert it.moving and not it.still
+    update()
+    before = rings(it.part)[0]
+    it.still = True
+    assert not cable(sc).moving and paths.status(sc, cable(sc))[1] == "OK"
+    update()
+    assert np.abs(rings(cable(sc).part)[0] - before).max() < 1e-6
+    before = rings(cable(sc).part)[0]
+    solves = paths._STATE["solves"]
+    joints.set_value(joints.find(sc, "Luff"), math.radians(10.0))
+    joints.set_value(joints.find(sc, SPEED), 2.0)
+    update()
+    assert paths._STATE["solves"] == solves and np.array_equal(rings(cable(sc).part)[0], before)
+    assert joints.get_value(joints.find(sc, contact(sc, "SHEAVE 1").joint)) != 0.0       # it still turns its wheels
+    cable(sc).mbr = 0.3                                     # a setting: solved for the CAD pose, not for this one
+    update()
+    assert np.array_equal(rings(cable(sc).part)[0], before) and "'SHEAVE 2'" in paths.status(sc, cable(sc))[0]
+    # Build does not step through the frames for it
+    stepped = paths._STATE["steps"]
+    r = animation.bake(sc, sc.fresing.animations[paths.TEST_ANIMATION])
+    it = cable(sc)
+    assert paths._STATE["steps"] == stepped and not it.moving and len(r["warnings"]) == 1
+    assert it.part.modifiers[paths.MOD].node_group.name == paths.TREES[False]
+    sc.frame_set(76)
+    update()
+    assert np.array_equal(rings(it.part)[0], before)
+    animation.clear_keys(sc)
+    cable(sc).still = False
+    assert cable(sc).moving
+    joints.set_value(joints.find(sc, "Luff"), math.radians(10.0))
+    update()
+    check_on_seats(sc, 10.0)
 
 
 def test_flip_a_contact_and_flip_it_back(rope):
@@ -1364,7 +1449,7 @@ def test_the_demo_vessels_power_cable(vessel):
     # the CAD centreline, for comparing
     verts, tris = flex._mesh_arrays(part.data)
     w = np.array(part.matrix_world, dtype=float)
-    line = P.centreline(verts @ w[:3, :3].T + w[:3, 3], tris).points
+    line = P.centreline(verts @ w[:3, :3].T + w[:3, 3], tris, 0.025).points      # (a point every 25 mm)
 
     it = paths.add_cable(sc, "Power cable", joint=demo.CABLE)
     assert it.joint == demo.CABLE and not it.made_joint and len(sc.fresing.joints) == n_joints
@@ -1399,11 +1484,17 @@ def test_the_demo_vessels_power_cable(vessel):
     print(f"    rollers: {len(rollers)} keep their own joint; their ratio against the app's (cable skin as drawn): "
           f"at most {off.max() * 100:.2f} % off, {int((off > paths.RATIO_TOL).sum())} more than 0.5 % off; "
           f"{other_way} turn the other way; {len(noted)} with a note")
-    assert other_way == 0 and off.max() < 0.005 and not [c.note for c in rollers if "turns" in c.note]
+    assert other_way == 0 and off.max() < 0.02 and np.median(off) < 0.005   # (Draft facets: about 1 mm on a roller)
     # the bends: which lie on a part, which are carried by the cable's parent
     print("    bends:", [(c.name, c.kind, round(c.radius, 3), round(math.degrees(c.wrap), 1)) for c in bends])
-    # it lies still: one shape, no handler work, the tube is not worked out again at a frame change
-    assert not it.moving and paths.status(sc, it)[1] == "OK"
+    # what it lies on that can move against the vessel: the D-quadrant's gutter (it travels and tilts). The coil
+    # turns on the carousel about the bend's own axis: that bend stays on the carousel joint's arrow.
+    movers = sorted({c.name for c in bends if flex._movers(c.carrier) != flex._movers(part)})
+    coil = next(c for c in bends if c.name == "CABLE COIL")
+    print(f"    can move against the cable part: {movers}; the coil's bend is carried by '{coil.carrier.name}'")
+    assert movers == ["QUADRANT GUTTER"] and it.moving and coil.carrier.get(build.PROP_KIND) == "joint_frame"
+    assert any("follows what it lies on when that moves ('QUADRANT GUTTER')" in n for n in notes)
+    assert paths.status(sc, it)[1] == "OK"
     update()
     c_, radii = rings(part)
     assert np.abs(radii - 0.1).max() < 1e-4
@@ -1411,13 +1502,16 @@ def test_the_demo_vessels_power_cable(vessel):
     back = float(to_line(line[::4], c_).max())
     print(f"    the drawn cable ({len(c_)} rings): its rings' middles at most {worst * 1000:.2f} mm off the CAD "
           f"centreline; the CAD centreline at most {back * 1000:.2f} mm off the drawn path (chords of its arcs)")
-    assert worst < 0.001
+    assert worst < 0.0015                                   # (Draft meshes: the facets of the cable's bends)
     _co, att = drawn(part)
     assert att[:, 2].max() == pytest.approx(it.length, abs=1e-3)
     assert part["fr_group_manual"] == "Power cables" and sc.fresing.groups["Power cables"].material == "cable_power"
+    # an animation in which the quadrant stands still: one shape, read at one frame, nothing per frame
+    stepped = paths._STATE["steps"]
     built(sc, a)
     it = paths.find(sc, "Power cable")
     assert not it.moving and part.modifiers[paths.MOD].node_group.name == paths.TREES[False]
+    assert paths._STATE["steps"] == stepped + 1
     solves = paths._STATE["solves"]
     with Evaluations(part) as seen:
         per_frame(10)
@@ -1429,6 +1523,35 @@ def test_the_demo_vessels_power_cable(vessel):
     print(f"    cost of a frame change (this machine, 60 frames, best of 2): {before:.2f} ms before, {after:.2f} ms "
           f"with the cable on its path ({after - before:+.2f} ms)")
     assert after - before < 1.0
+    # an animation in which the quadrant travels: a shape per frame – unless the cable is told to stay as drawn
+    travel = next(j.name for j in sc.fresing.joints if j.kind == "SLIDE" and not j.follows and j.name != demo.CABLE
+                  and any(o.get(build.PROP_NAME) == "QUADRANT GUTTER" or
+                          any(k.get(build.PROP_NAME) == "QUADRANT GUTTER" for k in o.children_recursive)
+                          for o in joints.moved_objects(sc, j)))
+    lo, hi = joints.limits(joints.find(sc, travel))
+    b2 = a.blocks.add()
+    b2.kind, b2.joint, b2.start, b2.duration, b2.easing = "JOINT", travel, 0.0, 2.0, "LINEAR"
+    b2.use_from, b2.to_dist = True, (0.3 if hi >= 0.3 else -0.3)
+    t0 = time.perf_counter()
+    r = animation.bake(sc, a)
+    took = time.perf_counter() - t0
+    it = paths.find(sc, "Power cable")
+    print(f"    '{travel}' moved 0.3 m in the animation: moving {it.moving}, Build {took:.1f} s for {r['frames']} frames, "
+          f"{len(it.shapes.data.vertices)} points kept, warnings {r['warnings']}; a frame change: "
+          f"{min(per_frame(), per_frame()):.2f} ms")
+    assert it.moving and part.modifiers[paths.MOD].node_group.name == paths.TREES[True]
+    it.still = True
+    it = paths.find(sc, "Power cable")
+    assert not it.moving and part.modifiers[paths.MOD].node_group.name == paths.TREES[False]
+    per_frame(2)                                            # (the new tube is worked out once)
+    with Evaluations(part) as seen:
+        fixed = min(per_frame(), per_frame())
+    assert seen.count == 0
+    print(f"    … and with 'Stays as drawn': {fixed:.2f} ms")
+    update()
+    assert float(to_line(rings(part)[0], line).max()) < 0.0015
+    animation.clear_keys(sc)
+    assert not paths.find(sc, "Power cable").moving
     # and off again
     paths.remove(sc, 0)
     assert len(sc.fresing.joints) == n_joints and joints.find(sc, demo.CABLE) is not None

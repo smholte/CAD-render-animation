@@ -138,6 +138,17 @@ def index_of(scene, item) -> int:
     return -1
 
 
+def _cable(scene, i: int):
+    """The cable at a place in the list (how a function finds its cable again after changing joints or contacts:
+    by its place, not its name – two cables may have been given one name)."""
+    return scene.fresing.cables[i]
+
+
+def _k(scene, item) -> tuple:
+    """The key of a cable in this module's caches."""
+    return scene.name, index_of(scene, item)
+
+
 _part_name = flex._part_name
 _quiet = flex._quiet
 _alive = flex._alive
@@ -295,13 +306,21 @@ def _inputs_of(item):
 
 
 def _rel_now(item, obs) -> np.ndarray:
-    """(K, 4, 4): where the carriers are now, as the cable part sees them."""
+    """(K, 4, 4): where the carriers are now, as the cable part sees them (for a cable that stays as drawn: where
+    they are in the CAD pose)."""
+    if item.still:
+        memo: dict = {}
+        inv = np.linalg.inv(_cad(item.part, memo))
+        return np.stack([inv @ _cad(ob, memo) for ob in obs]) if obs else np.zeros((0, 4, 4))
     inv = np.linalg.inv(_world(item.part))
     return np.stack([inv @ _world(ob) for ob in obs]) if obs else np.zeros((0, 4, 4))
 
 
 def _can_move(item) -> bool:
-    """Can the things that shape the cable move against each other or against the cable part? (Not: do they.)"""
+    """Can the things that shape the cable move against each other or against the cable part? (Not: do they.)
+    Never for a cable set to stay as drawn."""
+    if item.still:
+        return False
     _wheels_, obs, _w, _a, _b = _inputs_of(item)
     return len({flex._movers(ob) for ob in [item.part] + obs}) > 1
 
@@ -491,6 +510,13 @@ def _make_joints(scene, item, rows: list, memo: dict) -> None:
         j = joints.find(scene, d.get("joint", "")) if d.get("joint") else None
         if j is not None and j.frame is not None:
             d["carrier"] = j.frame
+        elif d["kind"] == "CHUTE" and d.get("part") is not None and "carrier" not in d:
+            # a bend on a part that turns about the bend's own axis (the coil on a carousel): the bend stays on
+            # that joint's arrow – it does not go round with the part
+            own = _own_joint(scene, d["part"], d["centre"], d["axis"], d["radius"], memo, _joint_names(scene))
+            j = joints.find(scene, own) if own else None
+            if j is not None and j.frame is not None:
+                d["carrier"] = j.frame
 
 
 def _joint_axis(c, j, memo: dict) -> tuple:
@@ -711,7 +737,11 @@ def _flip_rows(geo: dict) -> None:
     geo["start"], geo["end"] = geo["end"], geo["start"]
     geo["on0"], geo["on1"] = geo["on1"], geo["on0"]
     geo["line"] = geo["line"][::-1]
-    geo["flipped"] = not geo.get("flipped", False)
+    bends = 0
+    for d in geo["rows"]:
+        if d["kind"] == "BEND":
+            bends += 1
+            d["name"] = f"Bend {bends}"
 
 
 def _centrelines(verts: np.ndarray, tris: np.ndarray):
@@ -1040,11 +1070,11 @@ def read_cad(scene, item, part) -> list[str]:
     Returns notes for the report. Raises PathError (nothing is changed then)."""
     if index_of(scene, item) < 0:
         raise PathError("This cable is not in the list.")
-    name = item.name
+    name = index_of(scene, item)
     _STATE["busy"] += 1
     try:
         geo = _read(scene, item, part)
-        item = find(scene, name)
+        item = _cable(scene, name)
         _direction(scene, item, geo)
         snap = _snapshot(item)
         old_part = item.part if _alive(scene, item.part) else None
@@ -1054,7 +1084,7 @@ def read_cad(scene, item, part) -> list[str]:
         try:
             memo = geo["memo"]
             _make_joints(scene, item, geo["rows"], memo)
-            item = find(scene, name)
+            item = _cable(scene, name)
             for d in geo["rows"]:
                 if "carrier" not in d:
                     d["carrier"] = d["part"] if d["part"] is not None else flex._stay_part(part)
@@ -1080,15 +1110,15 @@ def read_cad(scene, item, part) -> list[str]:
             if not res["ok"].all():
                 raise PathError(f"The path of '{_part_name(part)}' cannot be drawn: {res['problems'][0]}")
         except Exception:
-            item = find(scene, name)
+            item = _cable(scene, name)
             _remove_joints(scene, [j.name for j in scene.fresing.joints if j.name not in before])
-            _restore(find(scene, name), snap)
+            _restore(_cable(scene, name), snap)
             raise
         if old_part is not None and not same:
             _strip(scene, item, old_part)
         _remove_joints(scene, [n for n in dict.fromkeys(left) if n not in {c.joint for c in item.contacts}])
-        _couple(scene, find(scene, name))
-        item = find(scene, name)
+        _couple(scene, _cable(scene, name))
+        item = _cable(scene, name)
         part[PART] = True
         _apply_look(scene, item)
         _pay_driver(scene, item)
@@ -1098,7 +1128,7 @@ def read_cad(scene, item, part) -> list[str]:
     finally:
         _STATE["busy"] -= 1
     forget()
-    notes += _rebuild(scene, find(scene, name))
+    notes += _rebuild(scene, _cable(scene, name))
     return notes
 
 
@@ -1163,16 +1193,27 @@ def _summary(scene, item, geo: dict) -> list[str]:
     notes = [f"Cable '{name}': {counts}; Ø {_mm(item.cad_diameter)} mm, {geo['length']:.2f} m; the path is at most "
              f"{_mm(geo['deviation'])} mm off the cable as drawn in CAD"]
     made = sum(1 for c in item.contacts if c.made_joint)
-    own = sum(1 for c in item.contacts if c.kind in TURNING and c.joint and not c.made_joint and not c.coupled)
     took = sum(1 for c in item.contacts if c.coupled and not c.made_joint)
+    mine = [c for c in item.contacts if c.kind in TURNING and c.joint and not c.made_joint and not c.coupled]
+    with_it = sum(1 for c in mine if _own_ratio(scene, item, joints.find(scene, c.joint)) is not None)
+    own = len(mine) - with_it
     if made:
         notes.append(f"Cable '{name}': {plural(made, 'new joint')} so that what it touches turns with it")
     if took:
         notes.append(f"Cable '{name}': {plural(took, 'joint')} you had made now {'follows' if took == 1 else 'follow'} "
                      "the cable")
+    if with_it:
+        notes.append(f"Cable '{name}': {plural(with_it, 'part')} already {'turns' if with_it == 1 else 'turn'} with "
+                     f"'{item.joint}': {'its joint is' if with_it == 1 else 'their joints are'} kept as "
+                     f"{'it is' if with_it == 1 else 'they are'}")
     if own:
-        notes.append(f"Cable '{name}': {plural(own, 'part')} already had a joint that follows something: left as "
-                     f"{'it is' if own == 1 else 'they are'}")
+        notes.append(f"Cable '{name}': {plural(own, 'part')} already had a joint that follows something else: left "
+                     f"as {'it is' if own == 1 else 'they are'}")
+    if item.moving:
+        movers = sorted({c.name for c in _wheels(item) if flex._movers(c.carrier) != flex._movers(item.part)})
+        if movers:
+            notes.append(f"Cable '{name}' follows what it lies on when that moves ({', '.join(repr(m) for m in movers[:4])}"
+                         f"{' …' if len(movers) > 4 else ''}): Build animation works out a shape for every frame")
     odd = [c for c in item.contacts if c.note and not c.note.startswith("the CAD cable is drawn")]
     for c in odd[:8]:
         notes.append(f"Cable '{name}', '{c.name}': {c.note}")
@@ -1359,7 +1400,7 @@ def _write_shapes(scene, item, pts: np.ndarray, s: np.ndarray, first: int) -> No
         sh.parent = None
     if sh.matrix_basis != Matrix.Identity(4):
         sh.matrix_basis = Matrix.Identity(4)
-    _STATE["arrays"][(scene.name, item.name)] = (co, along)
+    _STATE["arrays"][_k(scene, item)] = (co, along)
 
 
 def _arrays(scene, item):
@@ -1368,15 +1409,15 @@ def _arrays(scene, item):
     frames, per, _first = _layout_of(sh)
     if sh is None or not frames * per or len(sh.data.vertices) != frames * per or S_ATTR not in sh.data.attributes:
         return None
-    hit = _STATE["arrays"].get((scene.name, item.name))
+    hit = _STATE["arrays"].get(_k(scene, item))
     if hit is not None and hit[0].shape == (frames, per, 3):
         return hit
     co = np.empty(frames * per * 3, np.float32)
     sh.data.vertices.foreach_get("co", co)
     along = np.empty(frames * per, np.float32)
     sh.data.attributes[S_ATTR].data.foreach_get("value", along)
-    _STATE["arrays"][(scene.name, item.name)] = (co.reshape(frames, per, 3), along.reshape(frames, per))
-    return _STATE["arrays"][(scene.name, item.name)]
+    _STATE["arrays"][_k(scene, item)] = (co.reshape(frames, per, 3), along.reshape(frames, per))
+    return _STATE["arrays"][_k(scene, item)]
 
 
 def _sync(scene, item) -> None:
@@ -1622,7 +1663,7 @@ def _rebuild(scene, item) -> list[str]:
         if not _baked(scene):
             _drop_places(scene, item)
         rel = _rel_now(item, obs)
-        _STATE["last"][(scene.name, item.name)] = rel
+        _STATE["last"][_k(scene, item)] = rel
         return _draw(scene, item, rel[None], None)
     finally:
         _STATE["busy"] -= 1
@@ -1807,7 +1848,7 @@ def changed(scene, item) -> None:
     to date – along a built animation too, from the places read at Build."""
     if _STATE["busy"] or index_of(scene, item) < 0:
         return
-    name = item.name
+    name = index_of(scene, item)
     if _alive(scene, item.part):
         if item.get("look_was", item.look) != item.look:      # another look: its usual pitch, unless one was typed
             was = item["look_was"]
@@ -1819,10 +1860,18 @@ def changed(scene, item) -> None:
         _STATE["busy"] += 1
         try:
             _couple(scene, item)
-            item = find(scene, name)
+            item = _cable(scene, name)
             _apply_look(scene, item)
             _pay_driver(scene, item)
             _free_ends(scene, item)
+            if item.still or not _baked(scene):           # (with a built animation: moving is what Build found)
+                can = _can_move(item)
+                if item.moving != can:
+                    with _quiet(item):
+                        item.moving = can
+                if item.still:
+                    _drop_places(scene, item)
+                _STATE["last"].pop(_k(scene, item), None)
         finally:
             _STATE["busy"] -= 1
     _rebuild(scene, item)
@@ -1840,12 +1889,12 @@ def contact_changed(scene, contact) -> None:
 def _guarded(scene, item, change, why: str) -> None:
     """Make a change to the contacts or ends and draw the path again; when the cable then has no path, put
     everything back and raise PathError(why + the reason)."""
-    name = item.name
+    name = index_of(scene, item)
     snap = _snapshot(item)
     _STATE["busy"] += 1
     try:
         change()
-        item = find(scene, name)
+        item = _cable(scene, name)
         _wheels_, obs, _w, _a, _b = _inputs_of(item)
         res = _solve_item(scene, item, _rel_now(item, obs)[None]) if _usable(scene, item) else None
         if res is not None and not res["ok"].all():
@@ -1943,7 +1992,7 @@ def add_contact(scene, item, ob, hit=None) -> int:
     s_at = float(s_line[i] + t[i] * (s_line[i + 1] - s_line[i]))
     tol = max(P.TOUCH_TOL[0], P.TOUCH_TOL[1] * cable_r)
     passes = abs(float(dist[i]) - seat) <= tol and abs(float(heading @ axis)) < math.sin(P.SQUARE)
-    iname = item.name
+    iname = index_of(scene, item)
     if passes and full:
         row.update(kind="ROLLER", side=P._side(foot[i], centre, axis, heading), s=s_at, gap=float(dist[i]) - seat)
         index = next((n for n, c in enumerate(item.contacts) if c.s > s_at), len(item.contacts))
@@ -1971,9 +2020,9 @@ def add_contact(scene, item, ob, hit=None) -> int:
                                 "round it. Pick a sheave, a roller or a round chute.")
 
     def change():
-        it = find(scene, iname)
+        it = _cable(scene, iname)
         _make_joints(scene, it, [row], memo)
-        it = find(scene, iname)
+        it = _cable(scene, iname)
         if "carrier" not in row:
             row["carrier"] = ob
         rows = [_row_of(c, memo) for c in it.contacts]
@@ -1991,10 +2040,10 @@ def add_contact(scene, item, ob, hit=None) -> int:
     except PathError:
         _remove_joints(scene, [j.name for j in scene.fresing.joints if j.name not in before])
         raise
-    item = find(scene, iname)
+    item = _cable(scene, iname)
     _notes_of_joints(scene, item, {})
     _couple(scene, item)
-    item = find(scene, iname)
+    item = _cable(scene, iname)
     with _quiet(item):
         item.moving = _can_move(item)
     forget()
@@ -2090,13 +2139,13 @@ def remove_contact(scene, item, index: int) -> None:
     cable. Raises PathError when the cable has no path without it."""
     if not 0 <= index < len(item.contacts):
         return
-    iname = item.name
+    iname = index_of(scene, item)
     c = item.contacts[index]
     cname, joint, made, coupled = c.name, c.joint, bool(c.made_joint), bool(c.coupled)
     shared = any(o.joint == joint for k, o in enumerate(item.contacts) if k != index) if joint else False
 
     def change():
-        it = find(scene, iname)
+        it = _cable(scene, iname)
         memo: dict = {}
         with _quiet(it):
             it.contacts.remove(index)
@@ -2109,9 +2158,9 @@ def remove_contact(scene, item, index: int) -> None:
             _remove_joints(scene, [joint])
         elif coupled:
             j = joints.find(scene, joint)
-            if j is not None and j.follows == find(scene, iname).joint:
+            if j is not None and j.follows == _cable(scene, iname).joint:
                 joints.set_follows(scene, j, "")
-    item = find(scene, iname)
+    item = _cable(scene, iname)
     with _quiet(item):
         item.moving = _can_move(item)
     forget()
@@ -2123,19 +2172,19 @@ def flip_contact(scene, item, index: int) -> None:
     when it cannot."""
     if not 0 <= index < len(item.contacts):
         return
-    iname = item.name
+    iname = index_of(scene, item)
     cname = item.contacts[index].name
 
     def change():
-        c = find(scene, iname).contacts[index]
+        c = _cable(scene, iname).contacts[index]
         with _quiet(c):
             c.side = -int(c.side)
             c.user = True
 
     _guarded(scene, item, change, f"The cable cannot go round the other side of '{cname}'")
-    item = find(scene, iname)
+    item = _cable(scene, iname)
     _couple(scene, item)
-    _rebuild(scene, find(scene, iname))
+    _rebuild(scene, _cable(scene, iname))
 
 
 def set_end(scene, item, end: str, ob=None) -> None:
@@ -2149,7 +2198,7 @@ def set_end(scene, item, end: str, ob=None) -> None:
     wheels = _wheels(item)
     if ob is not None and (ob.get(build.PROP_KIND) not in build.MODEL_KINDS or ob == item.part):
         raise PathError(f"'{_part_name(ob)}' is not a part of the model the end can sit on.")
-    iname = item.name
+    iname = index_of(scene, item)
     memo: dict = {}
     line, _s, _res = _cad_path(scene, item, memo)
     if not len(line):
@@ -2157,7 +2206,7 @@ def set_end(scene, item, end: str, ob=None) -> None:
     point = line[0] if key == "a" else line[-1]          # where the end is, CAD pose (world)
 
     def change():
-        it = find(scene, iname)
+        it = _cable(scene, iname)
         target = ob
         if target is None:
             target = wheels[0 if key == "a" else -1].carrier if wheels else flex._stay_part(it.part)
@@ -2178,7 +2227,7 @@ def set_end(scene, item, end: str, ob=None) -> None:
                     del it[key + extra]
 
     _guarded(scene, item, change, "The end cannot go there")
-    item = find(scene, iname)
+    item = _cable(scene, iname)
     with _quiet(item):
         item.moving = _can_move(item)
     forget()
@@ -2192,7 +2241,7 @@ def remove(scene, index: int) -> None:
     if not 0 <= index < len(s.cables):
         return
     item = s.cables[index]
-    name = item.name
+    name = index_of(scene, item)
     _STATE["busy"] += 1
     try:
         gone = [c.joint for c in item.contacts if c.made_joint and c.joint]
@@ -2209,7 +2258,7 @@ def remove(scene, index: int) -> None:
                 with joints._batch(scene):
                     run()
         _remove_joints(scene, list(dict.fromkeys(gone)) + ([lead] if made_lead and lead else []))
-        item = find(scene, name)
+        item = _cable(scene, name)
         if _alive(scene, item.part):
             _strip(scene, item, item.part)
         _remove_shapes(scene, item)
@@ -2225,7 +2274,7 @@ def _moved(scene, item):
     """The carriers' places when they are not where the cable was solved for, else None."""
     _wheels_, obs, _w, _a, _b = _inputs_of(item)
     rel = _rel_now(item, obs)
-    last = _STATE["last"].get((scene.name, item.name))
+    last = _STATE["last"].get(_k(scene, item))
     if last is not None and last.shape == rel.shape and float(np.abs(rel - last).max(initial=0.0)) <= MOVE_TOL:
         return None
     return rel
@@ -2243,7 +2292,7 @@ def _live(scene, force: bool = False) -> bool:
             continue
         _wheels_, obs, _w, _a, _b = _inputs_of(it)
         rel = _rel_now(it, obs) if rel is None else rel
-        _STATE["last"][(scene.name, it.name)] = rel
+        _STATE["last"][_k(scene, it)] = rel
         _drop_places(scene, it)
         _draw(scene, it, rel[None], None, was=None if force else [float(c.wrap) for c in _wheels(it)])
         wrote = True
@@ -2286,20 +2335,20 @@ def _bake(scene) -> list[str]:
             if it.part_uid:
                 notes.append(f"Cable '{label(it)}': {why} (see 4 Motion > Cables and paths)")
             continue
-        its.append(it.name)
-    can = [n for n in its if _can_move(find(scene, n))]
-    animated = [n for n in can if _animated(find(scene, n))]
+        its.append(index_of(scene, it))
+    can = [n for n in its if _can_move(_cable(scene, n))]
+    animated = [n for n in can if _animated(_cable(scene, n))]
     mats = {}
     if can:
         obs = {}
         for n in can:
-            it = find(scene, n)
+            it = _cable(scene, n)
             for ob in [it.part] + _inputs_of(it)[1]:
                 obs[ob.name] = ob
         mats = flex.read_places(scene, list(obs.values()), first, frames if animated else 1, keep_shown=False)
         _STATE["steps"] += frames if animated else 1
     for n in its:
-        it = find(scene, n)
+        it = _cable(scene, n)
         _wheels_, obs, _w, _a, _b = _inputs_of(it)
         if n in can:
             inv = np.linalg.inv(mats[it.part.name])
@@ -2316,7 +2365,7 @@ def _bake(scene) -> list[str]:
         if it.moving != moving:
             with _quiet(it):
                 it.moving = moving
-        _STATE["last"].pop((scene.name, n), None)
+        _STATE["last"].pop(_k(scene, it), None)
         notes += _draw(scene, it, rel, first)
     return notes
 
@@ -2457,11 +2506,11 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         uids = [it.part_uid, it.a_uid, it.b_uid] + [u for c in it.contacts for u in (c.part_uid, c.carrier_uid)]
         return any(u and (u in mapping or u in by_uid) for u in uids)
 
-    names = [it.name for it in s.cables if concerned(it)]
+    names = [i for i, it in enumerate(s.cables) if concerned(it)]
     _STATE["busy"] += 1
     try:
         for name in names:
-            it = find(scene, name)
+            it = _cable(scene, name)
             who = f"Cable '{label(it)}'"
             with _quiet(it):
                 it.part = flex._new_object(scene, it.part_uid, by_uid, mapping)
@@ -2471,7 +2520,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                     _new_cable_joint(scene, it.name, it.joint)
                 except (PathError, RuntimeError) as exc:
                     notes.append(f"{who}: its speed joint could not be made again ({exc})")
-            it = find(scene, name)
+            it = _cable(scene, name)
             gone = []
             for k in reversed(range(len(it.contacts))):
                 c = it.contacts[k]
@@ -2509,7 +2558,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             if it.part is None:
                 notes.append(f"{who}: its part is gone in the new revision")
         for name in names:
-            it = find(scene, name)
+            it = _cable(scene, name)
             if it.part is None:
                 continue
             who = f"Cable '{label(it)}'"
@@ -2518,9 +2567,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             except PathError as exc:
                 notes.append(f"{who}: {exc}")
                 try:
-                    it = find(scene, name)
+                    it = _cable(scene, name)
                     _couple(scene, it)
-                    it = find(scene, name)
+                    it = _cable(scene, name)
                     it.part[PART] = True
                     _apply_look(scene, it)
                     _pay_driver(scene, it)

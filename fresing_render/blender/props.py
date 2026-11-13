@@ -2120,6 +2120,11 @@ class FRCable(bpy.types.PropertyGroup):
         name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_changed,
         description="The tightest bend the cable may make (its minimum bend radius, MBR), in mm, measured to the "
                     "middle of the cable. You get a warning naming the sheave or bend that is tighter. 0 = no check")
+    still: BoolProperty(
+        name="Stays as drawn", default=False, update=_cable_changed,
+        description="Off: the cable follows the sheaves and chutes it lies on when they move against each other "
+                    "(a sheave on a luffing frame, a chute on a tilting arm). On: it keeps the path it has in the "
+                    "CAD pose whatever moves – it still runs and turns its rollers, and costs no time per frame")
     reverse: BoolProperty(
         name="Runs the other way", default=False, update=_cable_changed,
         description="Off: paying out moves the cable from its start to its end. On: from its end to its start. "
