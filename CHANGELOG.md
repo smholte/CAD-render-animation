@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.90 – 13 Nov 2026 – cable into the sea, seabed and cut-away (task 0081)
+
+- **Into the sea** (4 Motion > Cables and paths, a new fold): a cable hangs from its last contact – a horn, a chute
+  or an overboarding sheave – in a curve down to the seabed and lies on the seabed behind it. Set the touch-down by
+  its **layback** (how far behind the horn) or by the **bottom tension** and the cable's weight in water; the panel
+  shows the angle it leaves the horn at and the tensions at the seabed and at the top. The cable keeps its exact
+  length while it pays out, leaves the horn without a kink, and its stripes run down the curve but stand still where
+  it lies on the seabed. Warnings when it bends over the end of the horn, lifts its end off the seabed or would pile
+  up.
+- **The seabed moves aft** under the vessel: with the lay (the touch-down stays behind the vessel) or at the vessel
+  speed of Weather & time. With vessel motion on, the horn rides the vessel and the curve follows it.
+- **Things on the cable**: select a CPS set, a bend restrictor or a pull head and press **Put selected on the
+  cable**: it rides along with the cable over the rollers, over the horn and down into the sea, each segment a stiff
+  piece on the cable. Kept through a model update.
+- **Sea: water depth, seabed, cut-away and water clarity** (5 Scene & Render > Surroundings, Open sea): a sandy
+  seabed at the water depth; **Cut-away behind the stern** takes a box of water away so you see the cable hang down
+  to the seabed; **Water clarity** (2 to 40 m) sets how far you see into the water past its walls. Without the
+  cut-away the sea looks exactly as before.
+- **Demo project**: shot 8 "Into the sea" – the power cable from horn A down to the seabed 30 m below, seen through
+  the cut-away, paying out at 10 m/min. Handling winch 1's fleet angle and the D-quadrant's guide rollers for thin
+  cables are fixed.
+- Test tour stop "Cable into the sea", PC check line `motion.sea_cable`, user guide section "Into the sea".
+
 ## 0.2.89 – 13 Nov 2026 – web 3D model with baked light (task 0107)
 
 New in 5 Scene & Render > Web 3D model: the fold **Light**, a choice per export
