@@ -107,6 +107,53 @@ Carousel, drum and reel spooling, the level wind, fleet angle (0080 – runs at 
 `blender/paths.py`, `core/paths.py`, `joints.py`'s coupling kinds); the cable into the sea (0081); quadrant operations
 and handling winches pulling with the tensioners (0082); pad wear / slip; dynamics.
 
+## Design (worker, 13 Nov 2026 – the split and the interfaces; subagents' brief)
+
+**The model of a track.** A track = a closed chain of rigid **links** (each hinges on two pins one pitch p apart) round
+two or more **wheels** (axes parallel). Parts that ride on a link (pads, back plates, cleats) move rigidly with the link
+they are nearest to. Everything lives in the coordinates of a **carrier** (the first wheel's joint arrow: it moves with
+the lift / tilt but does not turn), so a track carried by joints costs nothing extra.
+
+* **Pins from the CAD.** Each link's two hinge axes are its two farthest-apart round axes (mesh ``fr_axes``) parallel to
+  the wheel axes; pins of neighbour links coincide (< 1 mm). The pins must form **one closed cycle** of N pins and N
+  links of one pitch (0.5 %); else refused in words (a missing link, two pitches, an open chain).
+* **The loop** (``core/tracks.py``): in the plane square to the wheel axes. Each wheel: centre c (from its axis), side
+  (+1 = the chain goes round it anticlockwise about the loop normal n, i.e. the wheel is inside the loop) and pitch-line
+  radius R, both read from the pins (R = the pins' distance where the chain wraps it; the distance to the run through
+  its nearest pins where it only touches – a support roller). The loop = tangents between neighbour wheels (signed
+  radii, closed form) + arcs. Every CAD pin must lie on it (≤ 1 mm, else refused: "a wheel missing?").
+* **Chain parameter c** (metres of chain): on a run c = arc length; on a wheel one tooth step θt = 2·asin(p / 2R) counts
+  p, so pins one pitch apart in c are exactly one pitch apart in space on runs **and** on wheels (the polygon effect).
+  Loop length Lc = runs + Σ wrap·p/θt; vs. N·p reported when off by more than 2 % of p.
+* **A link at c:** hinge A = point(c); hinge B = the point ahead on the loop exactly p away (chord, solved); frame
+  X = (B − A)/p, Y = n, Z = X × Y (outward). A part's local matrix = F(c₀)⁻¹ · its CAD matrix (c₀ = its link's hinge A).
+* **Wheels turn** at θt/p rad per metre of chain (one tooth per pitch: the teeth stay with the pins; a sprocket's 1/R
+  would drift 2.6 % on the demo's 8 teeth), a wheel the chain only touches (wrap < half a tooth) at 1/r with r its
+  radius to the chain's surface. Sign: anticlockwise about n for side +1. Each wheel's joint: its own when it has one
+  on that axis (kept; coupled if it moves by itself; a coupling of its own that is > 0.5 % off is a note), else an
+  app-made rotate joint (tag ``fr_track``).
+* **Speed:** the track follows a joint ``joint`` (slide: metres; rotate: a joint of one of its wheels, metres = angle ×
+  p/θt of that wheel). Default: the cable (4 Motion > Cables and paths) passing nearest the loop's run; the direction
+  makes the pads on that run move with the cable. ``reverse`` flips it.
+* **No Python per frame.** Hidden mesh "FR track loop <name>" (in the carrier's coordinates): M points (2 mm apart in
+  c) with position A(c_j) and point attributes ``fr_x``, ``fr_z``. Each link / pad / plate gets a Geometry Nodes
+  modifier "FR track" (tree "FR track part", shared) with inputs Loop, Carrier (objects), Length (Lc), Count (M),
+  Travel (driven), Phase (c₀), Offset, Turn (the local matrix as translation + Euler). Driver on Travel (simple
+  expression on the speed joint's top joint, 0080/0078 way): ``u - Lc * floor(u / Lc) + 2.0`` with u = a·k + C. In the
+  tree: c = floored_mod(Travel − 2 + Phase, Lc), linear interpolation between samples i, i+1 → frame F; geometry moved
+  by inverse(own world) · carrier world · F · Local. Exact at any fps, scripts off, queue, Cycles, EEVEE.
+
+**Files and owners.** Worker: ``core/tracks.py``, ``blender/tracks.py``, ``ops_tracks.py``, ``ui_tracks.py``,
+``props.py`` (``FRTrack``, ``FRTrackWheel``, ``scene.fresing.tracks``), ``ops_paths.py`` / ``ui_paths.py`` (Speed from
+joint), ``__init__.py``, ``clash`` hook, ``reimport.py``, demo stage ``tracks``, tour, PC check, guide, version files.
+Subagent **model** (worktree): ``tools/make_test_tracks.py``, ``tests/data/test_tracks.step`` + copy in
+``fresing_render/data/``. Subagent **tester** (after the code): ``tests/test_tracks_independent.py``.
+
+**Blender API (blender/tracks.py)** for tests, the tour, the PC check and the demo:
+``add(scene, wheels, chain, riders=(), joint="", name="") -> FRTrack`` (``wheels``: parts, or (part, hit point world));
+``remove(scene, index)``; ``find(scene, name)``; ``hinge_world(scene, item, k) -> (A, B)`` (link k's two hinge points
+now, as drawn); ``set_up_test_model(scene) -> dict``; ``summary(scene, item) -> str``; ``TrackError``.
+
 ---
 
 ## Report (filled in by the chat that did the task)

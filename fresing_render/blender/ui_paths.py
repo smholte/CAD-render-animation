@@ -218,7 +218,9 @@ class FRESING_UL_cable_contacts(bpy.types.UIList):
 # ---------------------------------------------------------------------------
 
 def _add_buttons(layout, scene, first: bool) -> None:
-    """Add cable (the main button while the list is empty) and, when parts are named like a cable, Add all."""
+    """Add cable (the main button while the list is empty) and, when parts are named like a cable, Add all. Above
+    them the choice they act on (task 0079): an existing slide joint as the new cable's speed."""
+    split_props(layout).prop_search(scene.fresing, "cable_speed", scene.fresing, "joints", text="Speed from")
     if first:
         primary(layout, "fresing.cable_add", "Add cable", "ADD")
     else:
