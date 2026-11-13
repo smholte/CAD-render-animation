@@ -905,7 +905,7 @@ class Check:
         if hit is None:
             # both readings are never deeper than the truth: the start overlap is the deeper of the two
             mp, mq, t = self.mats[0, p], self.mats[0, q], self.times[0]
-            sep = self._separation(p, q, np.linalg.inv(mp) @ mq) if self._big(p, q) else 0.0
+            sep = self._separation(p, q, np.linalg.inv(mp) @ mq)        # (every pair, task 0110)
             if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                 self.base[(p, q)] = (0.0, math.inf)               # apart at the start (task 0092)
                 return self.base[(p, q)]
@@ -982,25 +982,38 @@ class Check:
                 i = int(hi_[k])
                 p, q = int(P[i]), int(Q[i])
                 d = float(d_l[k] - moved[k])                 # at least this deep (a lower bound)
-                self.hits.setdefault((p, q), []).append(core.Hit(t, d, core.excess(d, d0[i])))
-                self.rels[(p, q, t)] = rel[i]
+                self._hit(p, q, t, d, d0[i], rel[i])
         for i in np.flatnonzero(todo):
             p, q = int(P[i]), int(Q[i])
-            # look for a gap first between big parts, unless they were found touching a moment ago
-            sep = self._separation(p, q, rel[i]) if self._big(p, q) and self._gap_worth(p, q, rel[i]) else 0.0
+            # look for a gap first, unless they were found touching a moment ago (task 0110: every pair, not only big
+            # ones – a small part spinning metres from a big frame whose box holds it was tested at every moment and
+            # up to 48 times between two frames; with a gap found it waits until it has moved that far)
+            sep = self._separation(p, q, rel[i]) if self._gap_worth(p, q, rel[i]) else 0.0
             if sep > 0.0 and (self.near <= 0 or sep >= self.near):
                 self.last[(p, q)] = (0.0, math.inf, rel[i], sep)       # apart: no point needs testing
                 self.apart += 1
+                self._maybe_window(p, q, t)
                 continue
             d, g = self._pair(p, q, MP[i], MQ[i], t, rel[i], enough=float(allowed[i]) if self.near <= 0 else math.inf)
             self.last[(p, q)] = (d, g, rel[i], 0.0)
             if d <= 0.0 and g == math.inf:
+                self._maybe_window(p, q, t)
                 continue
             if d > allowed[i]:
-                self.hits.setdefault((p, q), []).append(core.Hit(t, d, core.excess(d, d0[i])))
-                self.rels[(p, q, t)] = rel[i]
+                self._hit(p, q, t, d, d0[i], rel[i])
             elif self.near > 0 and core.is_near(g, g0[i], self.near):
                 self.near_hits.setdefault((p, q), []).append(core.Hit(t, g, 0.0))
+            else:
+                self._maybe_window(p, q, t)
+
+    def _hit(self, p: int, q: int, t: float, d: float, d0: float, rel: np.ndarray) -> None:
+        """Parts p, q are in each other deeper than allowed at moment t: a hit; a window ``_maybe_window`` opened for the
+        pair is closed (its row needs every moment)."""
+        self.hits.setdefault((p, q), []).append(core.Hit(t, d, core.excess(d, d0)))
+        self.rels[(p, q, t)] = rel
+        w = self.pair_open.pop((p, q), None)
+        if w is not None:
+            self.windows[(p, q)].remove(w)
 
     def _moved(self, P: np.ndarray, Q: np.ndarray, rel0: np.ndarray, rel1: np.ndarray) -> np.ndarray:
         """How far parts P and Q (part pairs) can have moved against each other from places rel0 to rel1 (q's space
@@ -1065,10 +1078,23 @@ class Check:
             path = (core.motion_many(mk[Pg], mk1[Pg], self.lo[Pg], self.hi[Pg]) * _arc(mk[Pg], mk1[Pg])
                     + core.motion_many(mk[Qg], mk1[Qg], self.lo[Qg], self.hi[Qg]) * _arc(mk[Qg], mk1[Qg]))
             for i, w in zip(go, path):
-                if not self._gap_worth(int(P[i]), int(Q[i]), rel0[i]):
+                p, q = int(P[i]), int(Q[i])
+                need = w + max(self.near, 0.0)
+                was = self.last.get((p, q))
+                if was is not None and was[3] > 0.0:
+                    # the gap found last time, less what they moved against each other since, is still a bound
+                    # (task 0110: no new search)
+                    since = float(self._moved(np.array([p]), np.array([q]), was[2][None], rel0[i][None])[0])
+                    if was[3] - since > need:
+                        n[i] = 0
+                        self.far += 1
+                        continue
+                if not self._gap_worth(p, q, rel0[i]):
                     continue
-                sep = self._separation(int(P[i]), int(Q[i]), rel0[i], w + max(self.near, 0.0) + 1e-6)
-                if sep > w + max(self.near, 0.0):
+                sep = self._separation(p, q, rel0[i], need + 1e-6)
+                if sep > 0.0 and (self.near <= 0 or sep >= self.near):
+                    self.last[(p, q)] = (0.0, math.inf, rel0[i], sep)    # kept for the next moments too
+                if sep > need:
                     n[i] = 0
                     self.far += 1
         added = 0
@@ -1225,6 +1251,57 @@ class Check:
                     n += 1
         return n
 
+    def _maybe_window(self, p: int, q: int, t: float) -> None:
+        """Task 0110: parts p and q (p < q) were just worked out at moment t and are not in each other deeper than
+        allowed (nor nearer than the near-miss distance). When, from this moment on, one of them turns against the
+        other about an axis that stays put (``core.spin_stretches`` of their relative place) and is round about it
+        wherever the other one comes (``core.unround_band``; a sheave on its pin, a sprocket's hub on its shaft while
+        the frame carrying both tips over), the two meet the same way at every angle: the rest of that stretch needs no
+        test (``self.windows``). Unlike ``_still_pairs`` this follows the two parts themselves, whatever carries them.
+        Looked at from the second test of a pair on (one test is often all a pair needs), once per pair and stretch."""
+        key = (p, q)
+        n = self.pair_tests.get(key, 0) + 1
+        self.pair_tests[key] = n
+        if n < 2 or key in self.pair_open:
+            return
+        # the window starts at this frame, or at the next one when this test was between two frames (a moment between
+        # frames is worked out from each body's own screw and need not lie on the pair's turn); that frame itself is
+        # still checked as usual (``_in_window``), and a clash found in the window closes it again (``_hit``)
+        s = self.k_now + 1 if self.k_between else self.k_now
+        info = self.pair_spins.get(key)
+        if info is None:
+            info = self.pair_spins[key] = self._pair_spins(p, q)
+        for i, (a, b, turning, other, c, u) in enumerate(info):
+            if not (a <= s and s + 3 <= b):
+                continue
+            if (key, i) in self.pair_tried:
+                continue
+            self.pair_tried.add((key, i))
+            if not (np.all(self.vis[s:b, p]) and np.all(self.vis[s:b, q])):
+                continue
+            # the turning part's place in the other's space at moment s (the stretch's axis is in that space)
+            x = np.linalg.inv(self.mats[s, other]) @ self.mats[s, turning]
+            band, lc, lu = self._band(turning, x, c, u)
+            if band is not None and core.tree_clear_of_band(band, lc, lu, self.meshes[self.mesh_key[other]].boxes,
+                                                            np.linalg.inv(x), BAND_MARGIN + max(self.near, 0.0)):
+                self.windows.setdefault(key, []).append((s, b))
+                self.pair_open[key] = (s, b)
+                self.pair_windows += 1
+                return
+
+    def _pair_spins(self, p: int, q: int) -> list:
+        """The stretches in which p turns in q's space (or q in p's) about an axis that stays put there:
+        [(start, end, turning part, other part, c, u)], the axis (c, u) in the other part's space."""
+        out = []
+        for turning, other in ((p, q), (q, p)):
+            x = np.linalg.inv(self.mats[:, other]) @ self.mats[:, turning]          # (T, 4, 4)
+            e = x @ np.linalg.inv(x[0])
+            if float(np.max(core.turn_angles(e))) <= core.SPIN_MIN:
+                return []                                   # they never turn against each other
+            lo, hi = core.world_boxes(x[:1], self.lo[turning][None], self.hi[turning][None])
+            out += [(a, b, turning, other, c, u) for a, b, c, u in core.spin_stretches(e, lo[0], hi[0])]
+        return out
+
     def _swept_box(self, p: int, x: np.ndarray, c: np.ndarray, u: np.ndarray) -> tuple:
         """A box (world) round all the room part p (placed by ``x``) fills as it turns about the line (c, u): its box's
         corners turned in steps of 1/32 turn, grown by what lies between two steps."""
@@ -1348,7 +1425,8 @@ class Check:
         self.members = [np.flatnonzero(groups == g) for g in range(G)]
         self.memo, self.base, self.hits, self.near_hits, self.last, self.rels = {}, {}, {}, {}, {}, {}
         self.wp_cache, self.tile_memo, self.wp_at, self.wp_calls = {}, {}, (None, None), 0
-        self.narrow_calls = self.pruned = self.apart = self.far = 0
+        self.narrow_calls = self.pruned = self.apart = self.far = self.pair_windows = 0
+        self.pair_tests, self.pair_spins, self.pair_tried, self.pair_open = {}, {}, set(), {}
         self.skip = self._mounted(groups)
         self.groups = groups
         # each group's box at the start (world) and its motion D(t) (from its first part)
@@ -1402,7 +1480,7 @@ class Check:
                       "check_s": time.perf_counter() - t1, "moments": T, "between": subs, "parts": P,
                       "bodies": G, "pairs": len(self.base), "narrow": self.narrow_calls, "pruned": self.pruned,
                       "workpiece": self.wp_calls, "held": self.held, "held_s": t_held, "apart": self.apart,
-                      "still_pairs": self.still_pairs,
+                      "still_pairs": self.still_pairs, "pair_windows": self.pair_windows,
                       "far": self.far,
                       "round_tests": len(self.round_memo)}
         yield 1.0
