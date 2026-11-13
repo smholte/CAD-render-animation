@@ -730,7 +730,22 @@ BLOCK_KINDS = [
     ("FADE_OUT", "Fade out", "A subassembly fades away (or turns X-ray) over the step's duration, e.g. a housing that "
      "shows the mechanism inside", "MOD_OPACITY", 9),
     ("FADE_IN", "Fade in", "A subassembly fades back in over the step's duration", "MATSHADERBALL", 10),
+    ("SEQUENCE", "Assembly sequence", "Takes a subassembly apart part by part (or puts it together): the parts fly "
+     "out one after another, fasteners first", "MOD_EXPLODE", 11),
 ]
+
+
+def _seq_timing_changed(self, context):
+    """An Assembly sequence step's time per part or overlap changed: its length follows (task 0100)."""
+    from . import sequence
+    sequence.sync_duration(self)
+
+
+def _seq_preview_changed(self, context):
+    if context is None or context.scene is None:
+        return
+    from . import sequence
+    sequence.preview(context.scene, self, self.seq_preview / 100.0)
 
 
 def _gcode_step_changed(self, context):
@@ -827,6 +842,7 @@ class FRTrail(bpy.types.PropertyGroup):
                             description="Also shows the line in pictures and videos. Off: only in the 3D view")
     obj: PointerProperty(type=bpy.types.Object)
     count: IntProperty(default=0)
+    seq_owner: StringProperty()          # made by an Assembly sequence step (task 0100): its seq_id
 
 
 class FRPictureCard(bpy.types.PropertyGroup):
@@ -1080,6 +1096,76 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     fade_strength: FloatProperty(name="X-ray strength", default=0.7, min=0.0, max=1.0, subtype="FACTOR",
                                  description="How strongly the X-ray look shows: 0 = almost invisible, 1 = clearly "
                                              "drawn edges and a coloured haze")
+    # Assembly sequence (task 0100)
+    seq_id: StringProperty()
+    seq_mode: EnumProperty(
+        name="Way", default="APART",
+        items=[("APART", "Take apart", "The parts fly out one after another, to an exploded place"),
+               ("TOGETHER", "Put together", "The parts come in one after another and end exactly at their places "
+                                            "(the exact reverse of Take apart)")],
+        description="Take apart: the parts fly out of the subassembly one after another. Put together: they come in "
+                    "from the exploded places and end exactly where they belong")
+    seq_order: EnumProperty(
+        name="Order", default="OUTSIDE_IN",
+        items=[("OUTSIDE_IN", "Outside in", "Fasteners first, then the parts nearest the outside (seen along the way "
+                                            "each part leaves)"),
+               ("TREE", "Tree order", "In the order of the model tree"),
+               ("REVERSE", "Reverse", "The model tree from the bottom up")],
+        description="Which part goes first when taken apart (put together plays it backwards). Outside in: bolts, "
+                    "nuts and washers first, then the parts nearest the outside")
+    seq_direction: EnumProperty(
+        name="Direction", default="AXIS",
+        items=[("CENTRE", "Away from the centre", "Each part flies straight away from the middle of the "
+                                                  "subassembly"),
+               ("AXIS", "Along an axis", "Along one axis of the subassembly, all the same way (it turns with the "
+                                         "subassembly)"),
+               ("UP", "Up", "Straight up")],
+        description="Which way the parts fly. Along an axis or up, parts that would end in each other's way are "
+                    "stacked one beyond the other")
+    seq_axis: EnumProperty(name="Axis", default="Z",
+                           items=[("X", "+X", "Along the subassembly's own X axis"),
+                                  ("Y", "+Y", "Along the subassembly's own Y axis"),
+                                  ("Z", "+Z", "Along the subassembly's own Z axis"),
+                                  ("-X", "-X", "Against the subassembly's own X axis"),
+                                  ("-Y", "-Y", "Against the subassembly's own Y axis"),
+                                  ("-Z", "-Z", "Against the subassembly's own Z axis")],
+                           description="The axis of the subassembly the parts fly along, and which way (its own axes "
+                                       "from CAD, also when a joint has turned it)")
+    seq_by_size: BoolProperty(
+        name="By size", default=True,
+        description="On: each part flies far enough to clear the whole subassembly. Off: the distance you set")
+    seq_distance: FloatProperty(name="Distance", unit="LENGTH", default=0.2, min=0.0, soft_max=5.0,
+                                description="How far each part flies out, in mm (parts stacked beyond others go "
+                                            "further)")
+    seq_part_time: FloatProperty(name="Time per part (s)", default=1.0, min=0.05, soft_max=10.0, step=10,
+                                 precision=2, update=_seq_timing_changed,
+                                 description="How long each part takes to fly out (or in), in seconds. The step's "
+                                             "length follows from this, the overlap and the number of parts")
+    seq_overlap: FloatProperty(name="Overlap", subtype="PERCENTAGE", default=50.0, min=0.0, max=90.0, precision=0,
+                               update=_seq_timing_changed,
+                               description="How much the parts overlap in time: 0 % = one after the other, 50 % = "
+                                           "the next starts half way through the one before")
+    seq_end: EnumProperty(
+        name="At the end", default="STAY",
+        items=[("STAY", "Stay", "The parts stay where they flew to (put together: they wait out there)"),
+               ("HIDE", "Hide", "Each part disappears when it is out (put together: it appears as it starts to "
+                                "come in)"),
+               ("FADE", "Fade", "Each part fades away as it flies out (put together: fades in as it comes)")],
+        description="What happens to a part once it is out: it stays, it disappears, or it fades away while it "
+                    "flies (Put together: the same backwards)")
+    seq_trails: BoolProperty(
+        name="Trail lines", default=False,
+        description="Draws the path of every part as a line (a trail line per part, made at Build; they show in "
+                    "6 Animation > Trail lines, where you can change their look)")
+    seq_preview: FloatProperty(
+        name="Preview", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
+        update=_seq_preview_changed,
+        description="Drag to see the step in the view without building: 0 % = the start, 100 % = the end. Back to "
+                    "0 % (or Build) puts the parts back")
+    seq_count: IntProperty(default=0)
+    seq_fasteners: IntProperty(default=0)
+    seq_left_out: IntProperty(default=0)
+    seq_riders: IntProperty(default=0)
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")

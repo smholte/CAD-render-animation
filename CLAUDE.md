@@ -244,6 +244,9 @@ fresing_render/            the Blender extension (Python package)
                            once (`solve_frames`, fixed point counts), reading a CAD cable (`centreline` for long tubes,
                            `read_cable`: arcs → WRAP on a round part / BEND, rollers it rests on → TOUCH), the seat of a
                            cable in a groove from the mesh, `is_round`, the ratio of a wheel turned by the cable)
+                           sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
+                           while another blocks its way –, direction, distance, stacking so nothing flies through a part
+                           already out, staggered times; put together = the exact reverse)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes;
                            facets by size (task 0074, `FACETS`): big parts capped in mm, small standard parts lighter
@@ -366,6 +369,11 @@ fresing_render/            the Blender extension (Python package)
                            = (cos φ, sin φ, length along the cable) and the object's ``fr_cable_pay`` (metres paid out
                            + 2.0, a simple-expression driver on the cable joint) and ``fr_cable_look``; ``pattern`` =
                            the same formula in plain Python for the tests
+    sequence.py            Assembly sequence step (task 0100): the parts of a subassembly (hoses, chain links left
+                           out; parts a joint puts on another part ride along), their places at the step's start
+                           (``_WorldAt`` sets the earlier steps' joints and moves for a moment), keys as Go to pose writes
+                           them, hide/fade, a trail line per part (``FRTrail.seq_owner``), rays for a blocked way
+                           (``Rays``), the Preview slider; settings ``FRAnimBlock.seq_*``, the box in ui_motion.py
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);

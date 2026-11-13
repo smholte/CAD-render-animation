@@ -5,6 +5,61 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.80 – 13 Nov 2026 – cables and paths: one cable speed moves the cable and turns every roller (task 0078)
+
+New: 4 Motion > **Cables and paths**
+- **A cable that runs.** Select the cable you drew in CAD (one solid along its route) and press **Add cable**. The
+  app reads its middle line and diameter and finds what it touches: the sheaves it goes round, the rollers it rests on
+  (also V-roller pairs and guide rollers), chutes it slides over and the bends it was drawn with. The stiff CAD part
+  is replaced by a cable drawn by the app on exactly that path.
+- **One cable speed, in m/min.** Every cable gets a joint "Cable <name>" whose value is the metres paid out. In
+  6 Animation the step **Run motor** on that joint takes the speed as **Cable speed (m/min)** (laying a power cable:
+  about 10 m/min; negative hauls back in). Every roller and sheave the cable touches turns at exactly the speed of
+  the cable where it touches – rollers and sheaves that already had a joint keep it.
+- **Two looks that move with the cable:** **Power cable** (black with yellow stripes at an angle; stripe distance,
+  angle and width can be set) and **Steel wire rope** (twisted strands, lay length can be set). The pattern runs
+  along with the paid-out length, so you see the cable move – in the view, in Cycles and EEVEE, in the render queue.
+- **Sheaves that move.** When a sheave sits on something that moves (a luffing A-frame, a tilting arm) the cable
+  follows: at once while you pose, and Build animation works out every frame's path once. A cable whose sheaves all
+  stand still is drawn once and costs nothing per frame.
+- **What it touches** lists every contact with its diameter, wrap angle and side. Flip the side, remove a contact,
+  add one by clicking a part, switch **Turns with the cable** off for a fixed guide, put the start or end on a part
+  or leave it as a free end.
+- **Warnings in plain words:** a bend tighter than the cable's **Smallest bend (MBR)** names the sheave; a sheave
+  the cable no longer touches, or goes round the wrong way, is named with the frame. A part that is not a cable, or
+  a path that cannot be made, is refused with the reason – never a broken shape.
+- **Demo project** (Help > Make demo project): the vessel's power cable now lies on its path over 218 rollers and
+  its bends, with the yellow stripes; in the roller-highway shot it runs at 10 m/min and every roller turns with it.
+  Make the demo again to get it.
+- Test tour stop "Cable over sheaves and rollers", PC-check line "A cable runs over sheaves, rollers and a chute",
+  guide chapter "Cables and paths".
+
+Fixed
+- A joint that moves nothing by itself (the demo's "Cable travel") was removed by a model update, together with
+  every roller following it. It is kept now.
+
+Not yet (later tasks): tensioner tracks gripping the cable, the coil on a carousel or drum, the cable into the sea.
+
+For your PC: the cable in the real view (does it follow smoothly while you drag a joint?), a GPU render of the demo's
+roller-highway shot, and one of your own CAD cables (does **Add cable** find its rollers and sheaves?).
+
+## 0.2.79 – 13 Nov 2026 – take a subassembly apart part by part (task 0100)
+
+New: 6 Animation > Add step > **Assembly sequence**
+- **"How it is built" in one step.** Select a subassembly and add the step: its parts fly out one after another,
+  each starting while the one before is still on its way, to an exploded place. **Put together** is the exact
+  reverse and every part ends exactly where it belongs.
+- **Order:** Outside in (bolts, nuts and washers first, then the parts nearest the outside; a part waits while
+  another part is still in its way), Tree order or Reverse. **Direction:** along an axis of the subassembly (+X …
+  -Z, it turns with the subassembly), up, or away from the centre. **Distance** by size or set. Along an axis the
+  parts end in a neat column: the first one out goes furthest, so nothing flies through a part that is already out.
+- **Per part** and **Overlap** set the pace; the step's length follows. **At the end:** stay, hide or fade.
+  **Trail lines** draws each part's path. **Preview** shows the step in the view without building.
+- Works after a joint has moved the subassembly, keeps every joint as it is, logos ride along, hoses follow; a part
+  whose way is blocked is named at Build.
+- Test tour: new stop "Assembly sequence"; PC check: new line `animation.sequence`; user guide: "Take a subassembly
+  apart".
+
 ## 0.2.78 – 13 Nov 2026 – hoses, cables and drag chains follow the motion (task 0058)
 
 New: 4 Motion > **Hoses and drag chains**

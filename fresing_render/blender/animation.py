@@ -14,6 +14,8 @@ Block kinds
     MECHANISM raise a scissor lift's platform from a height to a height
     GCODE   run a CNC program on the machine's X/Y/Z joints and spindle (task 0026, gcode.py); its
             length follows from the program; tool changes can play the tool changer's animation
+    SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
+            follows from the number of parts, the time per part and the overlap
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -106,6 +108,9 @@ def block_label(b, scene=None) -> str:
         return f"Fade {target} to X-ray" if b.fade_xray else f"Fade out {target}"
     if b.kind == "FADE_IN":
         return f"Fade in {target}"
+    if b.kind == "SEQUENCE":
+        from . import sequence
+        return sequence.label(b)
     return f"{'Show' if b.kind == 'SHOW' else 'Hide'} {target}"
 
 
@@ -451,6 +456,8 @@ def _block_values(j, b) -> tuple[float, float]:
 def bake(scene, anim) -> dict:
     """Turn the blocks of ``anim`` into keyframes. Returns {'frames', 'seconds', 'warnings'}."""
     s = scene.fresing
+    from . import sequence
+    sequence.end_preview(scene)          # parts an Assembly sequence preview moved go back first (task 0100)
     clear_keys(scene)
     warnings: list[str] = []
 
@@ -467,6 +474,8 @@ def bake(scene, anim) -> dict:
 
     from . import gcode
     atc_blocks = gcode.prepare(scene, anim, warnings)    # G-code steps: their length from the program
+    sequence.prepare(scene, anim)                        # Assembly sequence steps: their length from the parts
+    sequence.tidy_trails(scene)
     fps = fps_of(anim)
     scene.render.fps = fps
     scene.render.fps_base = 1.0
@@ -488,6 +497,7 @@ def bake(scene, anim) -> dict:
     ident = Matrix.Identity(4)
 
     busy_until: dict[str, int] = {}
+    seq_home: dict = {}                  # Assembly sequence: a part's place before a Take apart step moved it
 
     def joint_move(j, v_from, v_to, f0, f1, easing):
         if busy_until.get(j.name, 0) > f0:
@@ -734,6 +744,9 @@ def bake(scene, anim) -> dict:
                 _merge(keys, f0, hidden, "CONSTANT")
         elif b.kind in ("FADE_OUT", "FADE_IN"):
             fade_step(b, f0, f1)
+        elif b.kind == "SEQUENCE":
+            sequence.bake_step(scene, b, f0, sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray,
+                                                            seq_home, _merge, warnings, uids, tree))
 
     if last_key > f_end + 1e-6:             # a program step ran a little longer than worked out first
         f_end = int(math.ceil(last_key - 1e-6))

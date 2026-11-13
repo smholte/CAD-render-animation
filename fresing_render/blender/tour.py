@@ -1542,6 +1542,79 @@ def _check_clash(scene):
     return f"ARM.A × ARM.B, frames {r.frame_from}–{r.frame_to}, {r.depth * 1000:.1f} mm"
 
 
+SEQUENCE_ANIM = "Take apart and put together"
+SEQUENCE_UNIT = "SPINDLE.UNIT"            # tools/make_test_sequence.py: 12 parts, 5 fasteners
+TALL = 1.0                                # m: the top of the column the parts make when taken apart
+
+
+def sequence_steps(scene, a) -> tuple:
+    """The spindle unit is taken apart along its own +Z axis (fasteners first, trail lines), then put together
+    again straight down. Returns the two steps."""
+    from . import build, sequence
+    u = _ob(scene, SEQUENCE_UNIT)
+    out = []
+    for mode in ("APART", "TOGETHER"):
+        blk = a.blocks.add()
+        blk.kind, blk.seq_mode, blk.seq_id = "SEQUENCE", mode, f"tour{mode.lower()}"
+        blk.target_uid, blk.target_name = u[build.PROP_UID], u[build.PROP_NAME]
+        blk.seq_direction, blk.seq_axis, blk.seq_order = "AXIS", "Z", "OUTSIDE_IN"
+        blk.seq_part_time, blk.seq_overlap, blk.seq_trails = 0.6, 50.0, mode == "APART"
+        sequence.count(scene, blk)
+        blk.start = out[0].start + out[0].duration + 0.5 if out else 0.0
+        out.append(blk)
+    return tuple(out)
+
+
+def check_sequence(scene, a=None) -> str:
+    """Take apart: every part out, fasteners first, the order staggered; put together: every part back within
+    0.01 mm of where it started. Leaves the frame where it was."""
+    from . import animation, build, sequence
+    a = a or next((x for x in scene.fresing.animations if x.name == SEQUENCE_ANIM), None)
+    _check(a is not None, f"no animation '{SEQUENCE_ANIM}'")
+    if scene.fresing.anim_baked != a.name:
+        animation.bake(scene, a)
+    apart, together = [b for b in a.blocks if b.kind == "SEQUENCE"][:2]
+    parts = sequence.movers(scene, _ob(scene, SEQUENCE_UNIT)).parts
+    _check(len(parts) == 12, f"{len(parts)} parts move, not 12")
+    keep = scene.frame_current
+    try:
+        def at(f):
+            scene.frame_set(f)
+            return {o.name: o.matrix_world.copy() for o in parts}
+        home = at(1)
+        out = at(animation.frame_of(a, apart.start + apart.duration))
+        end = at(scene.frame_end)
+    finally:
+        scene.frame_set(keep)
+    least = min((out[n].translation - home[n].translation).length for n in home)
+    _check(least > 0.05, f"a part moved only {least * 1000:.0f} mm when taken apart")
+    worst = max(max(abs(x) for r in (end[n] - home[n]) for x in r) for n in home)
+    _check(worst < 1e-5, f"put together, a part is {worst * 1000:.3f} mm from its place")
+    starts = sorted(parts, key=lambda o: animation._channelbag(o, "OBJECT").fcurves.find("location", index=2)
+                    .keyframe_points[1].co[0])
+    names = [o.get(build.PROP_NAME, o.name) for o in starts[:5]]
+    _check(all(sequence.fasteners.parse(n) for n in names), f"not the fasteners first: {', '.join(names)}")
+    trails = [t for t in scene.fresing.trails if t.seq_owner == apart.seq_id]
+    _check(len(trails) == 12, f"{len(trails)} trail lines, not 12")
+    return f"12 parts out (least {least * 1000:.0f} mm), 5 fasteners first, back within {worst * 1000:.4f} mm"
+
+
+@tour_set("sequence", "Assembly sequence", "test_sequence.step")
+def build_sequence(b: Build):
+    sc = b.scene
+    _look("PRODUCT")
+    _camera(b, "ISO", "Tour view", points=_tall_view_points(sc))
+    shot = _shot(b, "Tour: assembly sequence")
+    a = _animation(b, SEQUENCE_ANIM, shot.name)
+    sequence_steps(sc, a)
+
+
+def _tall_view_points(scene):
+    """The unit and the column of parts above it when it is taken apart (about 0.9 m high)."""
+    import numpy as np
+    return np.array([(x, y, z) for x in (-0.2, 0.2) for y in (-0.2, 0.2) for z in (0.0, TALL)])
+
+
 def _gantry(b: Build, tools_too: bool = False):
     from . import gcode, tools
     sc = b.scene
@@ -2236,7 +2309,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "The wire rope comes off the winch drum, goes over the two sheaves of the A-frame, through the V rollers and "
      "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
-     where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.79", check=_check_cables,
+     where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
      auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
@@ -2252,6 +2325,13 @@ stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "red in the 3D view (their own colour stays in renders).", where="6 Animation > Clash check",
      since="0.2.53", animation="Arms meet", at=1.0, select=("ARM.A", "ARM.B"), check=_check_clash,
      setup=_clash_setup)
+
+stop("sequence", MOTION, "sequence", "Assembly sequence",
+     "The spindle unit comes apart part by part straight up: first the nut and the four bolts, then the pulley, the "
+     "cover, the bearings, the spacer, the shaft and last the housing, each starting while the one before is still "
+     "on its way; a thin blue line draws each part's path. Then it all comes back down in the reverse order and "
+     "ends exactly where it was.", where="6 Animation (Add step > Assembly sequence)", since="0.2.79",
+     animation=SEQUENCE_ANIM, at=0.5, play=True, check=lambda scene: check_sequence(scene), auto="clip")
 
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "

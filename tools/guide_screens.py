@@ -573,6 +573,7 @@ if MODE == "panels":
         ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
         ("panel_6_fade", [("FRESING_PT_animation", False, True)]),      # a Fade out step to X-ray (task 0073)
         ("panel_6_camera_ride", [("FRESING_PT_animation", False, True)]),   # a Ride along camera step (task 0087)
+        ("panel_6_sequence", [("FRESING_PT_animation", False, True)]),      # an Assembly sequence step (task 0100)
         ("panel_6_camera_path", [("FRESING_PT_animation", False, True)]),   # a Fly a path camera step (task 0087)
         ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
@@ -666,6 +667,17 @@ if MODE == "panels":
                     cp.show_path(sc, b)
                     trolley = ob("TROLLEY")
                     b.aim_uid, b.aim_name = trolley["fr_uid"], "TROLLEY"
+                a.blocks_index = len(a.blocks) - 1
+            elif name == "panel_6_sequence":            # Take apart the boom, outside in, along its +Z, trail lines
+                if not sc.fresing.animations:
+                    sc.fresing.animations.add().name = "Animation"
+                a = sc.fresing.animations[0]
+                b = a.blocks.add()
+                boom = ob("BOOM.ASM")
+                b.kind, b.start, b.seq_id = "SEQUENCE", 0.0, "guide"
+                b.target_uid, b.target_name = boom["fr_uid"], "BOOM.ASM"
+                b.seq_trails = True
+                mod("blender.sequence").count(sc, b)
                 a.blocks_index = len(a.blocks) - 1
             elif name in ("panel_6_fade", "panel_6_trails"):
                 fade = mod("blender.fade")

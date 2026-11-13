@@ -674,7 +674,8 @@ def _draw_camera_step(context, box, b) -> None:
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
-              "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL"}
+              "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
+              "SEQUENCE": "MOD_EXPLODE"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -706,6 +707,42 @@ def _draw_fade(context, box, b) -> None:
         text = f"A {b.fade_stop:.0f} % ghost stays"
     hint = wrap(box, context, text + ". Shows in rendered view, pictures and videos", icon="INFO", inset=12)
     hint.active = False
+
+
+def _draw_sequence(context, box, b) -> None:
+    """The settings of an Assembly sequence step (task 0100)."""
+    row = box.row(align=True)
+    row.prop_enum(b, "seq_mode", "APART")
+    row.prop_enum(b, "seq_mode", "TOGETHER")
+    col = split_props(box)
+    col.prop(b, "seq_order", text="Order")
+    col.prop(b, "seq_direction", text="Direction")
+    if b.seq_direction == "AXIS":
+        col.row(align=True).prop(b, "seq_axis", expand=True)
+    col.prop(b, "seq_by_size", text="Distance by size")
+    if not b.seq_by_size:
+        col.prop(b, "seq_distance", text="Distance")
+    col.prop(b, "seq_part_time", text="Per part (s)")
+    col.prop(b, "seq_overlap", text="Overlap", slider=True)
+    col.prop(b, "seq_end", text="At the end")
+    box.prop(b, "seq_trails", text="Trail lines (one per part)")
+    n = b.seq_count
+    if b.target_uid:
+        text = f"{plural(n, 'part')} {'move' if n != 1 else 'moves'} · {b.duration:.1f} s"
+        if b.seq_order == "OUTSIDE_IN" and b.seq_fasteners:
+            text += f" · {plural(b.seq_fasteners, 'fastener')} first"
+        wrap(box, context, text, icon="INFO", inset=12)
+        if b.seq_left_out:
+            wrap(box, context, f"{plural(b.seq_left_out, 'hose or chain link', 'hoses or chain links')} left out: "
+                               "they follow the parts they hang on", icon="INFO", inset=12)
+        if b.seq_riders:
+            wrap(box, context, f"{plural(b.seq_riders, 'part rides', 'parts ride')} along on the part a joint "
+                               "puts them on", icon="INFO", inset=12)
+    sub = box.row(align=True)
+    sub.prop(b, "seq_preview", text="Preview", slider=True)
+    if b.seq_preview > 0.0:
+        hint = wrap(box, context, "Preview only: back to 0 % (or Build) puts the parts back", icon="INFO", inset=12)
+        hint.active = False
 
 
 class FRESING_UL_anims(bpy.types.UIList):
@@ -882,10 +919,14 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
                 if b.kind in ("FADE_OUT", "FADE_IN"):
                     _draw_fade(context, box, b)
+                elif b.kind == "SEQUENCE":
+                    _draw_sequence(context, box, b)
             col = split_props(box)
             col.prop(b, "start", text="Start (s)")
             if b.kind == "GCODE":
                 pass                                # its length follows from the program (shown above)
+            elif b.kind == "SEQUENCE":
+                col.prop(b, "easing", text="Motion")        # its length follows from the parts (shown above)
             elif b.kind not in ("SHOW", "HIDE") and not (b.kind == "CAMERA" and b.camera_mode == "CUT"):
                 col.prop(b, "duration", text="Duration (s)")
                 new_cam = b.kind == "CAMERA" and b.camera_mode in ("RIDE", "PATH", "AIM")
