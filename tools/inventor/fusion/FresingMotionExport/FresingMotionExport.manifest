@@ -1,0 +1,10 @@
+{
+	"autodeskProduct": "Fusion360",
+	"type": "script",
+	"author": "Fresing Render",
+	"description": {
+		"": "Writes the open design's joints to <design>.fresing.json for Fresing Render (draft, task 0104)."
+	},
+	"supportedOS": "windows|mac",
+	"editEnabled": true
+}

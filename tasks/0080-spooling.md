@@ -1,6 +1,6 @@
 # 0080 – Spooling: the cable comes off the carousel and the wire off the drum, layer by layer
 
-**Who:** worker · **Status:** open · **Branch:** `task/0080-spooling`
+**Who:** worker (Claude Code web) · **Status:** running · **Branch:** `claude/epic-cori-m7bsix`
 **Started by:** lead chat, 13 Nov 2026 (cable-lay line; design in `tasks/0075-motion-paths-design.md` part D, owner's
 answers at its end) · runs **side by side with 0079** (tensioner tracks) – see "Lane" for who owns what
 **Lane:** Flex parts. New files `core/spool.py` (no Blender), `blender/spool.py`, `blender/ops_spool.py`,
