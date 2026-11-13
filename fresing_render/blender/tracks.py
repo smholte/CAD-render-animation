@@ -570,10 +570,13 @@ def add(scene, wheels, chain, riders=(), joint: str = "", name: str = "", key: s
         item.chain_uid = str(chain.get(build.PROP_UID, ""))
         item.rider_uids = "\n".join(str(r.get(build.PROP_UID, "")) for r in riders or () if r is not None)
     s.tracks_index = len(s.tracks) - 1
+    seen: dict = {}
     for w in geo["wheels"]:
         row = item.wheels.add()
+        base = _name(w["part"])
+        seen[base] = seen.get(base, 0) + 1
         with flex._quiet(row):
-            row.name = _name(w["part"])
+            row.name = base if seen[base] == 1 else f"{base} {seen[base]}"       # two support rollers told apart
             row.part = w["part"]
             row.part_uid = str(w["part"].get(build.PROP_UID, ""))
     try:

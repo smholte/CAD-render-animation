@@ -23,9 +23,9 @@ def counts(scene) -> tuple[str, bool]:
 
 
 def wheel_text(w) -> str:
-    """'Ø 785, 180°' for a wheel the chain bends round, 'Ø 120, touches' for one it runs past."""
+    """'Ø 785 · 180°' for a wheel the chain bends round, 'Ø 120 · –' for one it runs past (Ø at the chain's pins)."""
     d = f"Ø {2000.0 * w.radius:.0f}"
-    return f"{d}, {math.degrees(w.wrap):.0f}°" if w.wrapped else f"{d}, touches"
+    return f"{d} · {math.degrees(w.wrap):.0f}°" if w.wrapped else f"{d} · –"
 
 
 class FRESING_UL_tracks(bpy.types.UIList):
@@ -47,7 +47,7 @@ class FRESING_UL_tracks(bpy.types.UIList):
 
 class FRESING_UL_track_wheels(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        split = layout.split(factor=0.55, align=True)
+        split = layout.split(factor=0.62, align=True)
         split.label(text=item.name, icon="MESH_CYLINDER", translate=False)
         sub = split.row(align=True)
         sub.alignment = "RIGHT"
@@ -105,8 +105,9 @@ class FRESING_PT_tracks(_Panel, bpy.types.Panel):
             wrap(layout, context, text[:1].upper() + text[1:], icon=LEVEL_ICONS[level],
                  alert=level in ("WARN", "ERROR"))
         col = layout.column(align=True)
-        col.label(text=f"{plural(it.links, 'link')} of {it.pitch * 1000.0:.0f} mm, "
-                       f"{plural(it.parts - it.links, "pad or plate", "pads and plates")} on them")
+        col.label(text=f"{plural(it.links, 'link')} of {it.pitch * 1000.0:.0f} mm")
+        if it.parts > it.links:
+            col.label(text=f"{plural(it.parts - it.links, 'pad or plate', 'pads and plates')} ride on them")
         col.label(text=f"Loop {it.length:.3f} m, chain {it.chain_length:.3f} m")
         # -- its speed
         col = split_props(layout)
@@ -124,8 +125,8 @@ class FRESING_PT_tracks(_Panel, bpy.types.Panel):
             box = layout.box()
             box.label(text=w.name, icon="MESH_CYLINDER", translate=False)
             c = box.column(align=True)
-            c.label(text="The chain bends round it: one tooth per link" if w.wrapped else
-                    "The chain runs past it: it turns with the chain's speed")
+            wrap(c, context, "The chain bends round it: it turns one tooth per link" if w.wrapped else
+                 "The chain runs past it: it turns as fast as the chain", inset=12)
             if w.joint:
                 wrap(c, context, f"Turns on '{w.joint}'" + (" (made by the app)" if w.made_joint else ""), inset=12)
             if w.ratio:
