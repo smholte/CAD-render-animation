@@ -43,8 +43,10 @@ jobs:
       - name: Build the page (tools/build_site.py)
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        shell: bash          # with pipefail: a failed build stops here, not at the upload (tee hid it)
         run: |
-          python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)"
+          # markdown for the guide; numpy for the web model's checks (fresing_render/core/web3d.py, task 0099)
+          python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)" "$(grep -E '^numpy==' tools/requirements-dev.txt)"
           python tools/build_site.py --out dist/site | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-pages-artifact@v4
