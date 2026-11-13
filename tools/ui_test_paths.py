@@ -571,8 +571,9 @@ def s_picked():
           and said() == "'SHEAVE 1' added as a sheave: number 2 of 6 along 'WIRE ROPE'",
           f"{contacts()} | {off * 1000:.4f} mm | {said()}")
     c = it.contacts[1]
-    check("… and it turns with the rope again", c.kind == "SHEAVE" and c.user and joints().find(sc, c.joint) is not None
-          and joints().find(sc, c.joint).follows == it.joint, c.joint)
+    j = joints().find(sc, c.joint)
+    check("… and it turns with the rope again", c.kind == "SHEAVE" and c.user and j is not None
+          and j.follows == it.joint, c.joint)
     it.contacts_index = 2
     r = op("fresing.cable_contact_flip") if can("fresing.cable_contact_flip") else None
     it = cable()
@@ -722,7 +723,8 @@ def s_frames():
             turned.append(abs(math.degrees(J.get_value(J.find(sc, c.joint))) - c.ratio * 1000.0))
     check("the drum, the two sheaves and the two rollers have turned as far as one metre of rope turns them",
           len(turned) == 5 and max(turned) < 0.05 and abs(it.contacts[1].ratio * 1000.0) > 200.0,
-          f"worst {max(turned) if turned else -1:.4f} degrees off, sheave 1 {it.contacts[1].ratio * 1000.0:.1f} degrees")
+          f"worst {max(turned) if turned else -1:.4f} degrees off, sheave 1 {it.contacts[1].ratio * 1000.0:.1f} "
+          "degrees")
     sc.frame_set(LUFF_FRAME)
     bpy.context.view_layer.update()
     STATE["shape1"], STATE["luffed"] = got[1][0], got[LUFF_FRAME][0]

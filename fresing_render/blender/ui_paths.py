@@ -16,7 +16,7 @@ from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_r
 ICON = "CURVE_PATH"
 KIND_ICONS = {"SHEAVE": "MESH_TORUS", "ROLLER": "MESH_CYLINDER", "CHUTE": "SPHERECURVE", "BEND": "MOD_CURVE"}
 KIND_SAYS = {"SHEAVE": "Sheave: the cable bends round it and turns it",
-             "ROLLER": "Roller: the cable runs over it and turns it",
+             "ROLLER": "Roller: the cable turns it, but does not bend round it",
              "CHUTE": "Chute: the cable bends round it and slides over it",
              "BEND": "Bend: the cable bends here as it was drawn, no part carries it"}
 PASS_ICONS = {"over": "TRIA_UP", "under": "TRIA_DOWN", "beside": "TRIA_RIGHT", "round": "FILE_REFRESH", "": "BLANK1"}
@@ -357,13 +357,13 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         # -- rarely changed
         body = fold(layout, "fr_cables_more", "More", "PREFERENCES")
         if body:
-            col = split_props(body)
+            col = split_props(body)                 # (labels of up to 15 letters fit beside their field)
             col.prop(cb, "diameter", text="Diameter")
-            col.prop(cb, "mbr", text="Smallest bend (MBR)")
+            col.prop(cb, "mbr", text="Min. bend (MBR)")
             if cb.a_free_end:
-                col.prop(cb, "a_free", text="Free length, start")
+                col.prop(cb, "a_free", text="Free at start")
             if cb.b_free_end:
-                col.prop(cb, "b_free", text="Free length, end")
+                col.prop(cb, "b_free", text="Free at end")
             col = body.column(align=True)
             col.prop(cb, "reverse", text="Runs the other way")
             col.prop(cb, "still", text="Stays as drawn")

@@ -135,6 +135,12 @@ def test_buttons_are_grey_when_they_cannot_work(folder):
     cable(sc).contacts_index = 99                                    # nothing chosen under "What it touches"
     assert not bpy.ops.fresing.cable_contact_flip.poll() and not bpy.ops.fresing.cable_contact_remove.poll()
     assert bpy.ops.fresing.cable_contact_add.poll() and bpy.ops.fresing.cable_end.poll()
+    choose(sc, "SHEAVE 1")
+    cable(sc).enabled = False                                        # switched off: its path cannot be changed
+    assert polls() == {name: name in ("cable_add", "cable_add_all", "cable_remove", "cable_read", "cable_select",
+                                      "cable_motor_step") for name in OPS}
+    cable(sc).enabled = True
+    assert all(polls().values())
 
 
 # ---------------------------------------------------------------------------
@@ -472,10 +478,11 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
     assert "7.02 m over 6 contacts" in texts and "Cable speed: joint 'Cable WIRE ROPE'" in joined
     assert "Animate it in 6 Animation with the step Run motor: speed in m/min" in joined
     for label in ("Add cable", "Add a Run motor step", "Look", "Lay length", "From CAD cable again",
-                  "What it touches (6)", "Add", "Remove", "Flip side", "More", "Diameter", "Smallest bend (MBR)", "Free length, end",
+                  "What it touches (6)", "Add", "Remove", "Flip side", "More", "Diameter", "Min. bend (MBR)",
+                  "Free at end",
                   "Runs the other way", "Stays as drawn", "Turns with the cable"):
         assert label in texts, label
-    assert not any(t in texts for t in ("Stripe distance", "Free length, start", "Add all 1 found by name"))
+    assert not any(t in texts for t in ("Stripe distance", "Free at start", "Add all 1 found by name"))
     assert "Start: lies on WINCH DRUM" in texts and "End: free, stays with CHUTE" in joined
     # the rows of "What it touches": name, Ø at the rope's middle, wrap; and where the rope lies on each
     assert touched == ["WINCH DRUM", "Ø 424", "147°", "SHEAVE 1", "Ø 500", "192°", "SHEAVE 2", "Ø 360", "135°",
@@ -526,7 +533,7 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
 
     assert bpy.ops.fresing.cable_end(end="B", part=T.ob(sc, "CHUTE STAND").name) == {"FINISHED"}
     texts = draw_panel()[0]
-    assert "End on: CHUTE STAND" in texts and "Free length, end" not in texts
+    assert "End on: CHUTE STAND" in texts and "Free at end" not in texts
 
     bpy.data.objects.remove(cable(sc).part)                          # its part gone from the model
     paths.forget()

@@ -147,7 +147,16 @@ class _NeedsItem(_Op):
         return super().poll(context) and _item(context) is not None
 
 
-class _NeedsContact(_Op):
+class _NeedsOn(_NeedsItem):
+    """A button that changes the path of the chosen cable: grey while that cable is switched off (it then shows
+    as in the CAD file, and the panel says how to switch it on)."""
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and bool(_item(context).enabled)
+
+
+class _NeedsContact(_NeedsOn):
     """A button that works on the contact chosen under "What it touches"."""
 
     @classmethod
@@ -376,7 +385,7 @@ class FRESING_OT_cable_motor_step(_NeedsItem, bpy.types.Operator):
 # what the chosen cable touches
 # ---------------------------------------------------------------------------
 
-class FRESING_OT_cable_contact_add(_Pick, _NeedsItem, bpy.types.Operator):
+class FRESING_OT_cable_contact_add(_Pick, _NeedsOn, bpy.types.Operator):
     """Adds a part to what the cable runs over. Press this, then click the roller, sheave or chute in the 3D view,
     at the place where the cable should lie on it: the app puts it at its place along the cable and makes it
     turn with the cable. Esc cancels"""
@@ -479,7 +488,7 @@ def end_word(end: str) -> str:
     return "start" if str(end).upper() == "A" else "end"
 
 
-class FRESING_OT_cable_end(_Pick, _NeedsItem, bpy.types.Operator):
+class FRESING_OT_cable_end(_Pick, _NeedsOn, bpy.types.Operator):
     """Fixes this end of the cable to a part: press this, then click the part in the 3D view. From then on the
     end moves with that part; it stays where it is now. Esc cancels"""
 
@@ -501,7 +510,7 @@ class FRESING_OT_cable_end(_Pick, _NeedsItem, bpy.types.Operator):
         word = end_word(properties.end)
         if properties.free:
             return (f"Makes the cable's {word} a free end again: it touches no part and runs straight on from the "
-                    "nearest thing the cable bends round. Set how far it runs on under More, Free length")
+                    f"nearest thing the cable bends round. Set how far it runs on under More, Free at {word}")
         return (f"Fixes the cable's {word} to a part: press this, then click the part in the 3D view. From then on "
                 f"the {word} moves with that part; it stays where it is now. Esc cancels")
 
