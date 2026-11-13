@@ -1635,6 +1635,42 @@ def build_sequence(b: Build):
     sequence_steps(sc, a)
 
 
+PRODUCT_ANIM = "Product video"
+
+
+def check_product_video(scene) -> str:
+    """The one-click product video (task 0101): its steps are in order (turn round, a joint there and back, the
+    take-apart and put-together) and Build gives no warning."""
+    from . import animation, product_video
+    a = product_video.find_animation(scene)
+    _check(a is not None, "no 'Product video' animation")
+    if scene.fresing.anim_baked != a.name:
+        res = animation.bake(scene, a)
+        _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    kinds = [b.kind for b in a.blocks]
+    _check(kinds[0] == "CAMERA" and a.blocks[0].camera_mode == "ORBIT", "it does not start with the turn round")
+    _check(kinds.count("JOINT") == 2 and kinds.count("SEQUENCE") == 2, f"steps are {kinds}")
+    _check(kinds.index("JOINT") < kinds.index("SEQUENCE"), "the take-apart comes before the motion")
+    return f"{len(a.blocks)} steps, {animation.length_seconds(a):.0f} s without the cards"
+
+
+@tour_set("productvideo", "Product video", "test_sequence.step")
+def build_productvideo(b: Build):
+    from mathutils import Vector
+
+    from . import build as bld, joints, product_video
+    sc = b.scene
+    _look("PRODUCT")
+    u = _ob(sc, SEQUENCE_UNIT)
+    j = joints.create(sc, "ROTATE", [u], Vector((0.3, 0.0, 0.0)), Vector((0, 0, 1)), name="Turn unit")
+    j.use_limits, j.rot_min, j.rot_max = True, -0.6, 0.6
+    del bld
+    sc.fresing.pv_seconds = "30"
+    info = product_video.make(sc)
+    a = info["animation"]
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
 def _tall_view_points(scene):
     """The unit and the column of parts above it when it is taken apart (about 0.9 m high)."""
     import numpy as np
@@ -2376,6 +2412,13 @@ stop("sequence", MOTION, "sequence", "Assembly sequence",
      "ends exactly where it was.", where="6 Animation (Add step > Assembly sequence)", since="0.2.79",
      animation=SEQUENCE_ANIM, at=0.5, play=True, check=lambda scene: check_sequence(scene), auto="clip")
 
+stop("productvideo", MOTION, "productvideo", "One-click product video",
+     "6 Animation > Make a product video made a whole film from the project: one turn round the machine, the "
+     "spindle unit's joint swinging out and back with the camera watching it, then the unit taken apart part by part "
+     "and put together again. Title and end card come at render time.", where="6 Animation > Make a product video",
+     since="0.2.81", animation=PRODUCT_ANIM, at=0.5, play=True, check=lambda scene: check_product_video(scene),
+     auto="clip")
+
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "
      "thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
@@ -2385,7 +2428,7 @@ stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
      "up, runs and slows down. 6 Animation shows the step's time with and without acceleration (with is clearly "
      "longer).", where="4 Motion > CNC machine > Machine (Speed up and slow down); 6 Animation (Run G-code program)",
-     animation=ACCEL_ANIM, play=True, since="0.2.81", check=_check_accel, auto="clip")
+     animation=ACCEL_ANIM, play=True, since="0.2.82", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
      "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "

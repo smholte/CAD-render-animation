@@ -1,6 +1,6 @@
 # 0104 – Joints from Inventor constraints: design study (findings only, no app code)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0104-inventor-constraints-study`
+**Who:** worker · **Status:** running · **Branch:** `task/0104-inventor-constraints-study`
 **Started by:** lead chat, 13 Nov 2026 (study 0069 #10; owner 12 Nov: his assemblies mostly use **constraints**, not
 joints)
 **Lane:** none – a study. It writes only this task file, `tasks/img/0104_*` if useful, and draft scripts under

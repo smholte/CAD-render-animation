@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.81 – 13 Nov 2026 – G-code timed with acceleration: short moves take as long as on the machine (task 0103)
+## 0.2.82 – 13 Nov 2026 – G-code timed with acceleration: short moves take as long as on the machine (task 0103)
 
 New in 4 Motion > CNC machine > **Machine: speeds, zero, shift**
 - **Speed up and slow down (acceleration)**: every move of a G-code program now speeds up and slows down with each
@@ -20,6 +20,19 @@ New in 4 Motion > CNC machine > **Machine: speeds, zero, shift**
 - The tool visibly speeds up and slows down in the video; milling, chips, coolant and tool marks follow it.
 - The step shows its time with and without acceleration ("1 min 12 s on the machine (58.0 s without acceleration)").
 - Test tour stop "Acceleration: slow short moves", PC check line `gcode.acceleration`.
+
+## 0.2.81 – 13 Nov 2026 – one-click product video (task 0101)
+
+New: 6 Animation > **Make a product video**
+- One button builds a first complete film from what the project already has: a title card, one turn round the
+  machine, the machine's own motions (each joint with a range goes to its far limit and back, with the camera watching
+  the moving part), the saved poses, a subassembly taken apart and put together again, a close-up from two saved
+  cameras and an end card. It is a new animation called "Product video" with ordinary steps you can change.
+- Options (folded under the button): length (about 30, 60 or 90 s), which subassembly to take apart (the biggest, the
+  selected one, or none), how many motions to show, title card, end card, title text and captions.
+- A project without joints skips the motions, one without a big subassembly skips the take-apart; the line under the
+  button says what was left out and why. Pressing it again makes the video anew and asks first if you changed its steps.
+- New test tour stop "One-click product video", new PC-check line, and a guide section "Make a product video".
 
 ## 0.2.80 – 13 Nov 2026 – cables and paths: one cable speed moves the cable and turns every roller (task 0078)
 

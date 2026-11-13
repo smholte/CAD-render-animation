@@ -685,7 +685,7 @@ MAX_ACCELERATION = 500
 """
 
 
-@line("gcode.acceleration", "G-code timed with acceleration (G64 / G61, LinuxCNC INI)", "0.2.81",
+@line("gcode.acceleration", "G-code timed with acceleration (G64 / G61, LinuxCNC INI)", "0.2.82",
       what="The test gantry reads an invented LinuxCNC .ini (speeds and accelerations), then runs 2 mm zigzag steps "
            "blended (G64) and with exact stops (G61) and one long line: the step lasts clearly longer than without "
            "acceleration and the tool's tip is on the speed profile's place at frames and between them")
@@ -1222,6 +1222,28 @@ def animation_sequence(ctx):
     _check(not run.rows, f"{len(run.rows)} clashes on the way: " + "; ".join(clash.core.row_text(r)
                                                                            for r in run.rows[:3]))
     return note + "; no clash"
+
+
+@line("animation.product_video", "One-click product video", "0.2.81",
+      what="6 Animation > Make a product video builds the animation 'Product video' from a project with one joint "
+           "and a subassembly: the turn round, the joint there and back, the take-apart and put-together; Build "
+           "animation gives no warning")
+def animation_product_video(ctx):
+    from mathutils import Vector
+
+    from ..blender import animation, joints, product_video, tour
+    scene = ctx.fresh(SEQUENCE)
+    u = _ob(scene, tour.SEQUENCE_UNIT)
+    j = joints.create(scene, "ROTATE", [u], Vector((0.3, 0.0, 0.0)), Vector((0, 0, 1)), name="Turn unit")
+    j.use_limits, j.rot_min, j.rot_max = True, -0.6, 0.6
+    import bpy
+    _check(bpy.ops.fresing.product_video() == {"FINISHED"}, "Make a product video did not finish")
+    t0 = time.time()
+    a = product_video.find_animation(scene)
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    return tour.check_product_video(scene)
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",
