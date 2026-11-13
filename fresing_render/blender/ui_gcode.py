@@ -118,6 +118,15 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             col.prop(cnc, "rapid_x", text="X rapid")
             col.prop(cnc, "rapid_y", text="Y rapid")
             col.prop(cnc, "rapid_z", text="Z rapid")
+            body.prop(cnc, "use_accel")
+            if cnc.use_accel:
+                wrap(body, context, "Maximum acceleration, mm per second²:", icon="DRIVER_DISTANCE", inset=12)
+                col = split_props(body)
+                col.prop(cnc, "accel_x", text="X accel.")
+                col.prop(cnc, "accel_y", text="Y accel.")
+                col.prop(cnc, "accel_z", text="Z accel.")
+            body.operator("fresing.cnc_read_ini", text="Read from LinuxCNC INI…", icon="FILEBROWSER")
+            col = split_props(body)
             col.prop(cnc, "zero_shift", text="Shift zero")
             wrap(body, context, "Machine zero (G53, G28; A0 B0 C0): " + ("set to a position of the axes" if cnc.home_set
                                                               else "the CAD position"), icon="HOME", inset=12)
@@ -179,6 +188,8 @@ class FRESING_PT_cnc_rotary(_Panel, bpy.types.Panel):
             for L, n in zip("abc", names):
                 if n:
                     col.prop(cnc, f"rapid_{L}", text=f"{L.upper()} rapid °/min")
+                    if cnc.use_accel:
+                        col.prop(cnc, f"accel_{L}", text=f"{L.upper()} accel. °/s²")
         split_props(layout).prop(cnc, "kinematics", text="Kinematics")
         if cnc.kinematics == "TCP":
             wrap(layout, context, "Tool follows the part only for axes that turn the workpiece; a turning head "
@@ -581,6 +592,8 @@ def draw_step(context, box, scene, anim, b) -> None:
         return
     text = (f"{plural(info['lines'], 'line')}, {plural(info['moves'], 'move')}: "
             f"{gcode.fmt_time(info['machine_s'])} on the machine")
+    if info.get("accel"):                                       # task 0103: with and without acceleration
+        text += f" ({gcode.fmt_time(info.get('plain_s', 0.0))} without acceleration)"
     if info["tools"]:
         text += f", {plural(len(info['tools']), 'tool')} (" + ", ".join(f"T{n}" for n in info["tools"][:6]) + ")"
     wrap(box, context, text, icon="FILE_SCRIPT", inset=12)

@@ -1437,7 +1437,7 @@ an overhanging cap; flat Ø10 roughing, ball Ø10 finishing; reading the path be
 
 ### CNC machine (G-code)
 
-<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, air blast">
+<img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, acceleration, Read from LinuxCNC INI, air blast">
 <img class="panel" src="img/panel_4_air.png" alt="CNC machine with the Air blast fold open: air codes, through the spindle, strength, cone, reach">
 
 Let the machine run a real CNC program: you tell the app which joints are the machine's X, Y and Z (and the
@@ -1469,6 +1469,14 @@ next to its field (**Reverse**).
 
 - **X / Y / Z rapid** (mm per minute): how fast the machine moves on G0 (LinuxCNC's `MAX_VELOCITY` × 60). They set
   how long rapid moves take; feed moves take the program's F.
+- **Speed up and slow down (acceleration)** (on for a new machine): every move speeds up and slows down as on the
+  machine, so short moves take longer and the video lasts as long as the real program. **X / Y / Z accel.** is each
+  axis' maximum acceleration in mm per second² (LinuxCNC's `MAX_ACCELERATION`; the rotary axes' in °/s² are under
+  Rotary axes). Projects made before this setting came keep it off, so their timing stays as it was, until you
+  tick it.
+- **Read from LinuxCNC INI…**: pick your machine's `.ini` file; the app fills in the rapid speed and the acceleration
+  of every axis it finds (`[AXIS_X]` …, or `[JOINT_n]` with `COORDINATES`; inch is turned into mm). The file is
+  only read, not kept in the project.
 - **Shift zero**: moves the work zero along X, Y and Z, for a zero that is not on a corner or the centre.
 - **Machine zero** (where `G53 X0 Y0 Z0` and `G28` go): the CAD position, or **Axes now** after
   you moved the joints to the machine's home position (usually Z right up). It keeps the rotary axes' A0 B0 C0
@@ -1488,7 +1496,8 @@ turning part, and the toolpath is drawn on the part and turns with it.
    Any of the three can stay empty.
 3. Next to each: **Reverse** (the arrows) when your program turns the other way, **Wrapped** (the loop) for an axis
    that counts 0 … 360° and keeps turning (LinuxCNC `WRAPPED_ROTARY`: `A90` turns the + way to 90°, `A-90` the − way
-   to 90°). Below: the **rapid** speed of each axis in degrees per minute.
+   to 90°). Below: the **rapid** speed of each axis in degrees per minute and, with Speed up and slow down on,
+   its **acceleration** in degrees per second².
 4. **Kinematics**:
    - **Plain** (most 4th-axis set-ups, LinuxCNC `trivkins`): A, B, C are just the joints' angles; your CAM post
      already worked out X, Y and Z for the turned part. The post needs the rotary axis' centre: **Check** says where
@@ -2129,13 +2138,14 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
 **Run a CNC program**
 
-<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 20.8 s on the machine, one tool change">
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 21.1 s on the machine (20.8 s without acceleration), one tool change">
 
 <img class="panel" src="img/panel_6_gcode_air.png" alt="A Run G-code program step with Blow the part clean at the end ticked">
 
 1. Set the machine up in 4 Motion > **CNC machine** (above).
 2. Add a step **Run G-code program** and pick the program file (`.ngc`, `.nc`, `.tap`). The line under it
-   says how many lines and moves it has and how long it takes on the machine. A copy is kept in the
+   says how many lines and moves it has and how long it takes on the machine – with acceleration on also how
+   long it would take without ("2 min 14 s on the machine (1 min 51 s without acceleration)"). A copy is kept in the
    project, so the render queue and another PC have it too. Tip: keep the program (and the tool table)
    in the project's folder or a folder below it, after saving the project: it is then stored next to the
    project, and found there when the folder moves to another PC.
@@ -2170,7 +2180,17 @@ G81 G82 G83 G73 G85 G86 G89 (G98/G99, repeats), F S T M3 M4 M5 M6 M30, M7 M8 M9 
 expressions in `[ ]`, and O-word subroutines, loops and if/else (also a subroutine file `<name>.ngc` next
 to the program). **Details** lists everything the app does not show, with its line numbers: cutter
 compensation G41/G42 (the tool follows the programmed line), rotary axes A/B/C, threading, probing and
-user M-codes. Moves are timed without acceleration: on the real machine short moves take a little longer.
+user M-codes.
+
+How the moves are timed (with **Speed up and slow down** on, 4 Motion > CNC machine > Machine): each move runs at
+most at its feed (rapids: its slowest axis at its rapid speed) and speeds up and slows down as fast as the slowest
+axis that moves allows (its **accel.**); on an arc it goes no faster than √(acceleration × radius). Where moves meet:
+**G61** / **G61.1** stops at every corner; **G64** (the default) slows down at a corner only as much as its angle
+needs – a line cut into many short pieces runs straight through, a sharp corner is taken slowly, turning back
+stops – and **G64 P** (a tolerance) slows down more at corners, as on the machine. Before and after a dwell, a tool
+change or a pause the machine stops. The head visibly speeds up and slows down in the video, and the milling, chips,
+coolant and tool marks follow it. This is close to LinuxCNC but not its exact planner (no jerk limit, corners not
+rounded off in the picture): time one program on your machine and compare with the step's time.
 
 Measured on the 4-core cloud test machine (test gantry): a program of 20,000 lines (short moves and arcs,
 about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, toolpath included; reading

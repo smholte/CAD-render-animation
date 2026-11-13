@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.81 – 13 Nov 2026 – G-code timed with acceleration: short moves take as long as on the machine (task 0103)
+
+New in 4 Motion > CNC machine > **Machine: speeds, zero, shift**
+- **Speed up and slow down (acceleration)**: every move of a G-code program now speeds up and slows down with each
+  axis' maximum acceleration, as on the machine. Programs with many short moves no longer play too fast: the step's
+  time matches what the machine does. On for new machines; projects made before keep their timing until you tick it.
+- **X / Y / Z accel.** (mm/s²), and for rotary axes **A / B / C accel.** (°/s²) under Rotary axes.
+- **Read from LinuxCNC INI…**: pick your machine's `.ini`; the rapid speed and acceleration of every axis are filled
+  in (the file is only read, not kept).
+- Corners as LinuxCNC takes them: **G61** stops at every corner, **G64** (the default) slows down only as much as the
+  corner needs (a line cut into many short pieces runs straight through), **G64 P** slows more for its tolerance.
+  Arcs run no faster than √(acceleration × radius). Close to LinuxCNC, not its exact planner.
+- The tool visibly speeds up and slows down in the video; milling, chips, coolant and tool marks follow it.
+- The step shows its time with and without acceleration ("1 min 12 s on the machine (58.0 s without acceleration)").
+- Test tour stop "Acceleration: slow short moves", PC check line `gcode.acceleration`.
+
 ## 0.2.80 – 13 Nov 2026 – cables and paths: one cable speed moves the cable and turns every roller (task 0078)
 
 New: 4 Motion > **Cables and paths**

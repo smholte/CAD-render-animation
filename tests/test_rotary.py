@@ -146,7 +146,7 @@ def test_4axis_joints_follow_the_program(tmp_path):
             assert joints.get_value(j) == pytest.approx(v, abs=2e-6)
     # the slot: A goes 0 -> 360 in G1 X-10 A360 F400 (80 mm at 400 mm/min = 12 s)
     p = next(p for p in sch.pieces if p.move.kind == "FEED" and p.move.turn > 1)
-    assert p.vd == pytest.approx(12.0) and p.move.rb[0] == pytest.approx(360.0)
+    assert p.vd == pytest.approx(12.0, abs=0.01) and p.move.rb[0] == pytest.approx(360.0)   # + its speed-up (0103)
 
 
 def test_4axis_wrapped_slot_and_flats_are_cut(tmp_path):

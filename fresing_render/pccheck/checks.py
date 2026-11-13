@@ -671,6 +671,84 @@ def motion_gcode(ctx):
     return f"tip on the path to {worst:.4f} mm, {r['frames']} frames, T1 → T2"
 
 
+ACCEL_INI = """[TRAJ]
+LINEAR_UNITS = mm
+[AXIS_X]
+MAX_VELOCITY = 100
+MAX_ACCELERATION = 800
+[AXIS_Y]
+MAX_VELOCITY = 100
+MAX_ACCELERATION = 800
+[AXIS_Z]
+MAX_VELOCITY = 50
+MAX_ACCELERATION = 500
+"""
+
+
+@line("gcode.acceleration", "G-code timed with acceleration (G64 / G61, LinuxCNC INI)", "0.2.81",
+      what="The test gantry reads an invented LinuxCNC .ini (speeds and accelerations), then runs 2 mm zigzag steps "
+           "blended (G64) and with exact stops (G61) and one long line: the step lasts clearly longer than without "
+           "acceleration and the tool's tip is on the speed profile's place at frames and between them")
+def gcode_acceleration(ctx):
+    from mathutils import Vector
+
+    from ..blender import animation, gcode, joints, tour
+    from ..core import gcode as core
+    scene = ctx.fresh(GANTRY)
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool = _ob(scene, "TOOL T1 FLAT D6")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, _ob(scene, "STOCK 300x200x30"))
+    c = scene.fresing.cnc
+    _check(c.use_accel, "Speed up and slow down is off for a new machine")
+    ini = os.path.join(ctx.work, "pccheck_machine.ini")
+    with open(ini, "w", encoding="utf-8") as fh:
+        fh.write(ACCEL_INI)
+    got = gcode.read_ini(scene, ini)
+    _check(set(got) == {"x", "y", "z"}, f"the .ini gave the axes {sorted(got)} (X, Y, Z expected)")
+    _check(abs(c.accel_x - 800) < 1e-6 and abs(c.accel_z - 500) < 1e-6 and abs(c.rapid_x - 6000) < 1e-6,
+           f"the .ini's values were not filled in (X {c.rapid_x:.0f} mm/min, {c.accel_x:.0f} mm/s²)")
+    path = os.path.join(ctx.work, "pccheck_accel.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(tour.ACCEL_TOUR)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Acceleration", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_file = path
+    gcode.step_changed(scene, b)
+    info = gcode.info(scene, b)
+    with_s, plain = info.get("machine_s", 0.0), info.get("plain_s", 0.0)
+    _check(info.get("accel") and with_s > 1.2 * plain, f"with acceleration {with_s:.2f} s, without {plain:.2f} s: "
+           "not clearly longer")
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("bake", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    mach = gcode.Machine(scene)
+    prog = gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0]
+    sch = core.Schedule(prog, gcode.timing(scene, a, b))
+    tip = gcode._rest_tip(tool)[0]
+    zero = c.zero_empty
+    worst = 0.0
+    for f in range(1, r["frames"] + 1, 2):
+        for sub in (0.0, 0.5):
+            scene.frame_set(f, subframe=sub)
+            here = zero.matrix_world.inverted() @ (tool.matrix_world @ tip) / 0.001
+            want = Vector(sch.point_at((f + sub - 1) / 25.0)) - Vector(mach.g54)
+            worst = max(worst, (here - want).length)
+    _check(worst < 0.01, f"the tool's tip is {worst:.3f} mm away from the speed profile's place")
+    c.use_accel = False
+    off = gcode.info(scene, b)
+    _check(not off.get("accel") and abs(b.duration - plain) < 1e-3, f"switched off the step lasts {b.duration:.2f} s, "
+           f"{plain:.2f} s expected")
+    return (f"{gcode.fmt_time(with_s)} – {gcode.fmt_time(plain)} without acceleration; tip on the profile to "
+            f"{worst:.4f} mm")
+
+
 TOOLCHANGE_TEST = """(T1 D=6. CR=0. - flat end mill)
 (T2 D=4. CR=2. - ball end mill)
 (T3 D=5. CR=0. TAPER=118deg - drill)
