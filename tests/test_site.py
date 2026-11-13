@@ -81,7 +81,7 @@ def test_turn_it_yourself(built, tmp_path):
     assert "<script" not in page.lower()                                   # the model loads only when opened
     assert not re.search(r'(src|href)="[^"]*\.glb"', page)
     viewer = open(os.path.join(out, "model", "index.html"), encoding="utf-8").read()
-    assert f'src="../vendor/{build_site.web3d.MV_FILE}"' in viewer and f'src="../media/{w["file"]}"' in viewer
+    assert f'src="../vendor/{build_site.web3d.MV_FILE}"' in viewer and f'data-src="../media/{w["file"]}"' in viewer
     assert not re.search(r'src="https?://', viewer)
     for f in (build_site.web3d.MV_FILE, "LICENSE-model-viewer.txt"):
         assert os.path.getsize(os.path.join(out, "vendor", f)) > 1000

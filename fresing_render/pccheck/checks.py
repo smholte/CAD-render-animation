@@ -685,7 +685,7 @@ MAX_ACCELERATION = 500
 """
 
 
-@line("gcode.acceleration", "G-code timed with acceleration (G64 / G61, LinuxCNC INI)", "0.2.82",
+@line("gcode.acceleration", "G-code timed with acceleration (G64 / G61, LinuxCNC INI)", "0.2.83",
       what="The test gantry reads an invented LinuxCNC .ini (speeds and accelerations), then runs 2 mm zigzag steps "
            "blended (G64) and with exact stops (G61) and one long line: the step lasts clearly longer than without "
            "acceleration and the tool's tip is on the speed profile's place at frames and between them")
@@ -1602,14 +1602,15 @@ def scene_sea(ctx):
 
 
 @line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",
-      what="The test mill saved as a web 3D model (.glb, Texture size 1024) and its one-file viewer page; the file is "
-           "read back and checked against the glTF rules, part names hidden")
+      what="The test mill saved as a web 3D model (.glb, Texture size 1024, compressed as a big model is) and its "
+           "one-file viewer page; the file is read back, checked against the glTF rules (part names hidden) and "
+           "opened by Blender's own glTF importer")
 def web3d_export(ctx):
     from ..blender import build, web3d
     from ..core import web3d as core
     scene = ctx.fresh(MILL)
     shown = len([p for p in build.iter_parts(scene) if p.visible_get()])
-    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Test mill web 3D.glb"), size=1024)
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Test mill web 3D.glb"), size=1024, compress=True)
     with open(out["path"], "rb") as fh:
         data = fh.read()
     bad = core.problems(data)
@@ -1622,9 +1623,41 @@ def web3d_export(ctx):
     with open(out["html"], encoding="utf-8") as fh:
         page = fh.read()
     _check("<model-viewer" in page and 'id="glb"' in page, "the viewer page has no viewer or no model inside")
+    _check(info["compressed"] and "meshoptDecoderLocation" in page, "the file was not compressed (meshopt)")
+    lib = web3d.meshopt_native()
+    _check(lib is not None, "Blender's meshopt library was not found: big files are packed less tightly "
+                            f"(looked in {web3d.meshopt_paths()[:2]})")
+    got = _gltf_triangles(out["path"])                  # Blender's glTF importer reads the compressed file
+    _check(got == info["triangles"], f"Blender read {got} triangles back, the file has {info['triangles']}")
     ctx.metric("export", out["seconds"], "s")
     ctx.metric("file", len(data) / 1e6, "MB")
-    return out["text"]
+    return f"{out['text']}; read back by Blender's glTF importer"
+
+
+def _gltf_triangles(path: str) -> int:
+    """Triangles Blender's own glTF importer reads from ``path`` (into a scene of its own, removed again)."""
+    import addon_utils
+    import bpy
+    addon_utils.enable("io_scene_gltf2", default_set=True)
+    keep = bpy.context.window.scene if bpy.context.window else None
+    sc = bpy.data.scenes.new("FR glTF read back")
+    try:
+        with bpy.context.temp_override(scene=sc):
+            if bpy.context.window:
+                bpy.context.window.scene = sc
+            bpy.ops.import_scene.gltf(filepath=path)
+        obs = [o for o in sc.objects if o.type == "MESH"]
+        return sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in obs)
+    finally:
+        if keep is not None:
+            bpy.context.window.scene = keep
+        meshes = {o.data for o in sc.objects if o.type == "MESH"}
+        for o in list(sc.objects):
+            bpy.data.objects.remove(o)
+        for me in meshes:
+            if me.users == 0:
+                bpy.data.meshes.remove(me)
+        bpy.data.scenes.remove(sc)
 
 
 @line("scene.vessel_motion", "Vessel motion at sea", "0.2.65",

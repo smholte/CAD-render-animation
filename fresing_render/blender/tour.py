@@ -2428,7 +2428,7 @@ stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
      "up, runs and slows down. 6 Animation shows the step's time with and without acceleration (with is clearly "
      "longer).", where="4 Motion > CNC machine > Machine (Speed up and slow down); 6 Animation (Run G-code program)",
-     animation=ACCEL_ANIM, play=True, since="0.2.82", check=_check_accel, auto="clip")
+     animation=ACCEL_ANIM, play=True, since="0.2.83", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
      "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "
