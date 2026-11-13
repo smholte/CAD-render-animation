@@ -1666,6 +1666,43 @@ def web3d_export(ctx):
     return f"{out['text']}; read back by Blender's glTF importer"
 
 
+@line("web3d.bake", "Web 3D model with baked light", "0.2.87",
+      what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
+           "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "
+           "light; the file is checked against the glTF rules and read back by Blender")
+def web3d_bake(ctx):
+    from ..blender import build, web3d
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    scene = ctx.fresh(MILL)
+    shown = len([p for p in build.iter_parts(scene) if p.visible_get()])
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Test mill baked light.glb"), size=512, light="SOFT",
+                       light_quality="DRAFT")
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    doc, _bin = core.read_glb(data)
+    lit = 0
+    for n in doc["nodes"]:
+        if not n.get("name", "").startswith("Part "):
+            continue
+        mesh = n.get("mesh")
+        if mesh is None:
+            mesh = next((doc["nodes"][c]["mesh"] for c in n.get("children", []) if "mesh" in doc["nodes"][c]), None)
+        attrs = doc["meshes"][mesh]["primitives"][0]["attributes"] if mesh is not None else {}
+        lit += "TEXCOORD_1" in attrs or "_FR_LIGHT" in attrs
+    _check(lit == shown, f"{lit} of {shown} parts carry baked light")
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    _check((st.get("light") or {}).get("light") == "SOFT", "the page does not use the baked light")
+    got = _gltf_triangles(out["path"])
+    _check(got == core.summary(data)["triangles"], "Blender's glTF importer did not read every triangle back")
+    ctx.metric("bake", out["light_seconds"], "s")
+    ctx.metric("light", out["light_bytes"] / 1e6, "MB")
+    return out["text"]
+
+
 def _gltf_triangles(path: str) -> int:
     """Triangles Blender's own glTF importer reads from ``path`` (into a scene of its own, removed again)."""
     import addon_utils

@@ -2792,6 +2792,31 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
                     "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
                     "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
+    # ---- baked light (task 0107): a choice per export; the names are fixed (the house format uses them)
+    light: EnumProperty(
+        name="Light", default="LIVE",
+        description="How the light gets onto the parts in the web model. Live only: the page lights them itself "
+                    "(smallest file, fastest export). Soft light baked: shadows from the sky, light in corners and "
+                    "bounce light come from a Cycles bake; the sun stays live. Everything baked: the sun's shadows "
+                    "too, closest to a render, but they do not move with the parts",
+        items=[("LIVE", "Live only", "The page lights the parts itself, as before: smallest file, fastest export"),
+               ("SOFT", "Soft light baked, sun live",
+                "Shadows from the sky, light in corners and bounce light are baked with Cycles; the sun's sharp "
+                "shadows stay live and move with the parts, the vessel and the sea. The choice for animations"),
+               ("ALL", "Everything baked",
+                "The sun's shadows are baked too: closest to the render, but right only for a machine that stands "
+                "still – baked shadows do not move with the parts")])
+    light_quality: EnumProperty(
+        name="Bake quality", default="NORMAL",
+        description="How fine and how clean the baked light is. Draft is quick for a first look; Fine takes about "
+                    "four times as long as Normal",
+        items=[("DRAFT", "Draft", "16 samples, about 1 million light points: quick, a little blotchy"),
+               ("NORMAL", "Normal", "64 samples, about 4 million light points: clean on most screens"),
+               ("FINE", "Fine", "256 samples, about 16 million light points: sharpest shadows, slow")])
+    light_texels: FloatProperty(
+        name="Light points per metre", default=0.0, min=0.0, max=400.0, soft_max=200.0, precision=0,
+        description="How many baked light points per metre of surface. 0 = Auto: worked out from the bake quality "
+                    "and the size of the model. More gives sharper shadow edges but a bigger file and a longer bake")
     # ---- surroundings on the page (task 0106): set for one export, the project itself never changes
     env_mode: EnumProperty(
         name="Surroundings", default="NONE", update=_web3d_env_mode,
