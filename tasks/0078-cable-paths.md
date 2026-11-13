@@ -356,10 +356,92 @@ blur of moving shapes (study #6), the web 3D export of cables (0099 leaves app-m
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Fable, effort High; 4 cores, no graphics card), 13 Nov 2026, branch
+`ccr-6b47eb16-zabyzg` (the web session's branch). Released as **0.2.80**.
 
 **What changed:**
+- **4 Motion > Cables and paths** (`ui_paths.py`, `ops_paths.py`): Add cable (from the selected part, or a click picker
+  with the hover highlight), Add all found by name, the list of cables, the status line, Cable speed + "Add a Run motor
+  step", Look (Power cable: stripe distance / angle / width; Steel wire rope: lay length; Plain), From CAD cable again,
+  **What it touches** (kind, Ø, wrap, side, Turns with the cable; Add by a click, Remove, Flip side), start / end on a
+  part or free, and under More: Diameter, Min. bend (MBR), free lengths, Runs the other way, Stays as drawn. Tooltips on
+  everything (668 items, 0 missing).
+- **How it works** (Design above; `blender/paths.py`): a cable = its CAD part + a slide joint whose value is the metres
+  paid out + the contacts in order (sheave / roller / chute / bend). The CAD part gets a Geometry Nodes modifier that
+  draws the cable through the points of its own hidden mesh (in the part's own coordinates, so vessel motion costs
+  nothing). Rollers and sheaves follow the cable joint with 360/(π·D) ° per mm; joints they already had are kept. A
+  cable whose contacts all stand still is drawn once; contacts that move against each other: live while posing, every
+  frame at Build (in the same pass through the frames as the hoses). Hooks: `animation.bake` / `clear_keys`, poses,
+  model update, the clash hook (a drawn cable is left out, as hoses are).
+- **A Run motor step on a cable's joint takes m/min** (`FRAnimBlock.speed_mmin`, kept as mm/s; old projects unchanged).
+- **The path maths** (`core/paths.py`, no Blender): the tight string over wheels (closed-form tangents, alternated;
+  arcs held in their wheel's plane; a wheel the cable leaves is "lifted", never a loop), the same over all frames at
+  once, reading a CAD cable (long tubes read in pieces; straights and arcs; an arc on a round part = a wrap, another
+  arc = a bend, rollers it rests on = touch), the seat of a cable in a groove from the mesh, "round all the way".
+- **Two looks that move** (`cable_looks.py`, materials `cable_power` and `wire_rope`): shader nodes reading the tube's
+  attribute (angle round the cable, length along it) and the paid-out length from a simple-expression driver on the
+  cable part – no geometry changes per frame, works with scripts off, in the queue, Cycles and EEVEE.
+- **Demo project:** stage `cable` (after `joints`): the vessel's `CABLE` on its path on "Cable travel" – 218 rollers
+  (all with their own joints from the sheet, none changed), 12 bends, 2 chutes, Ø 200, 188.06 m; shot 4 is now real
+  time: a Run motor step at 10 m/min. The clash test no longer leaves the cable out by hand. Stills:
+  `tasks/img/0078_cable_on_rollers.jpg`, `tasks/img/0078_cable_round_a_bend.jpg` (Cycles, processor).
+- **Test model** `test_paths_a.step` / `_b` (`tools/make_test_paths.py`: winch drum, luffing A-frame with two grooved
+  sheaves, V-roller cradle, chute, wire rope Ø 24; invented). Tour stop "Cable over sheaves and rollers" (set
+  `cables`), PC-check line `motion.paths`, guide chapter "Cables and paths" with four pictures, CLAUDE.md (files, five
+  lessons, two subagent rules).
+- **Fixed on the way:** a joint that moves nothing (the demo's "Cable travel") was dropped by a model update with every
+  coupling to it (`joints.rebuild_from_specs`).
 
-**Tested and measured** (name the machine and the model):
+**Subagents** (all in their own worktree, merged by the worker): **A** the path maths (2 rounds), **C** the test model,
+**L** the two looks, **B** the Blender side (2 rounds), **D** panel + operators + real-app test (continued after a
+container restart), **E** independent tests and review of the path maths (wrote none of it), **F** the guide chapter
+and its pictures (Sonnet). The worker: design, settings, hooks, `joints.py`, demo stage, tour, PC check, the panel
+picture, merging, release. Re-done after E's review (by A): the centreline of a cable that turns back over a sheave
+(the task's own test rope could not be read), lift-off instead of loops, round parts with a hole or flat, thin clean
+ropes refused, readings centimetres off accepted; then B: lift-off warnings, loop warnings, quieter ratio notes, a
+sheave dragged by hand, one pass through the frames with the hoses.
+
+**Tested and measured** (web machine, 4 cores, no graphics card, bpy module unless said):
+- Tests: `test_paths_core.py` 95, `test_paths_independent.py` 106 (E), `test_paths_model.py` 14, `test_cable_looks.py`
+  20, `test_paths.py` 37, `test_paths_panel.py` 12, real-app `ui_test_paths.py` 36 checks (real clicks, undo/redo, save
+  + open), the tour stop, the PC-check line, the demo's cable test.
+- **Accuracy, test model:** the drawn cable's middle on the seat circles to 0.15 mm (limit 0.5); direction change at
+  tangent points 0.0000° (limit 0.1°); seat radii from the meshes +0.09 mm (sheaves) / +0.15 mm (chute); wraps within
+  0.03°; length 7,022.85 mm against the maker's 7,022.21. Luffing −15…+15°, built: within 0.15 mm at every 5th frame;
+  live and built agree to 0.0000 mm; frames in any order identical.
+- **Speed of what turns:** 100 m at 10 m/min: every rim ran 100 m within 0.1 %, right sign; the look's offset = the
+  joint's value within 1 mm at frame 1,000 (render test: 0.16 mm); every driver a simple expression.
+- **The looks in a Cycles render:** stripe edges within 0.34 mm (0.17 px) of the formula at three paid-out lengths; no
+  seam; rope crowns 4.4 × brighter than its valleys; EEVEE the same picture.
+- **Cost per frame:** test model + 1,000 parts: still cable +0.01 ms, moving +0.5 ms. Demo vessel (1,261 parts):
+  3.62 ms with the cable drawn against 3.61 ms with its modifier off, 0 re-evaluations of the cable.
+- **Demo:** `read_cad` 2.6–3.4 s (Draft), 5.6 s (Normal); the drawn cable at most 1.0 mm (Draft) / 0.55 mm (Normal)
+  off the CAD centreline; roller ratios against the sheet's joints: at Normal all within 0.28 %, at Draft 81 between
+  0.5 and 1.1 % (facet noise; one summary note). Small form built in 62 s in all (model 38, import 9, joints 1.3,
+  **cable 3.4**, Build 5.1). The brief's "before" (0.2.71: 90 s) was the full form on another day; the full form was
+  not timed again. `test_no_clash_in_the_animation`: 0 rows without the cable's leave-out.
+- **Path maths alone:** 250 frames × 12 wheels 7 ms (54 ms with every axis askew); a 300 m cable (137,000 triangles)
+  read in 2.7 s + 0.8 s; the demo's cable: 14 arcs, radii within 0.11 %.
+- **Independent review (E):** 11 findings; 1–5, 7, 9 and the small ones fixed by A, 2 and 10 handled on the Blender
+  side (lift-off and loop warnings). Left as they are: `held=None` switching at 0.1° (the app always passes held),
+  free mode with centres moved along their axes, the touch tolerance (the demo's rollers need 0.155 × radius).
+- GitHub runs: see "Runs" below.
 
 **Open points / follow-up tasks:**
+- **For the owner's PC:** the cable in the real view while dragging a joint; a GPU render of the demo's shot 4; one of
+  his own CAD cables (Inventor sweep along lines, arcs – a spline stretch is refused with the reason).
+- **The demo's cable stays as drawn** (`still`): its turn round the D-quadrant's gutter would travel with the quadrant
+  in shot 7; 0082 decides. The A&R and tipping wires are still the demo's own drivers (not app cables): 0082.
+- A cable whose route has a helix or spline stretch is refused (lines and arcs only). The rope's relief is a bump (round
+  outline). A fleet angle shows as a kink of that angle where the cable meets a sheave (arcs stay in the sheave's plane).
+- While posing, a sheave jumped far beyond the cable in one step draws a loop with the "check its side" warning
+  instead of "lifted off" (dragging through, or Build, is right). A sheave with a drawn wrap over 180° that lifted off
+  and returns in one jump stays "lifted" until anything re-solves the cable.
+- Renaming a cable leaves its joint and hidden mesh under the old name (works; cosmetic). A start made free by the
+  user is read from CAD again at "From CAD cable again". The panel cannot take an existing slide joint as the cable's
+  speed yet (the demo does it by script): a small addition for 0079.
+- One of six local real-app runs printed "Python context internal state bug" lines after the second import (36/36
+  still; not reproduced). Not tested: Windows beyond GitHub's install run, the real render queue runner with a cable
+  (a queue copy is: open, build, render – the drivers and shapes are in the file), two scenes in one file.
+- No Heavy PC-check line (the cost does not grow with the model: +0.0 ms on the demo vessel).
+- Branches the owner can delete on github.com: `ccr-6b47eb16-zabyzg`.
