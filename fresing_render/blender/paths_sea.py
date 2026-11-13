@@ -57,6 +57,7 @@ _STATE = {"sea": {}}                    # runtime: per cable the last solve's nu
 
 def forget() -> None:
     _STATE["sea"].clear()
+    _STATE.get("moment", {}).clear()
 
 
 def _paths():
@@ -397,6 +398,8 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, sea=sea,
                sea_notes=_notes(item, sea, ok))
     _STATE["sea"][_paths()._k(scene, item)] = {k: np.array(v) for k, v in sea.items()}
+    if F > 1:
+        _STATE.get("moment", {}).clear()
     return out
 
 
@@ -536,6 +539,8 @@ def numbers(scene, item) -> dict:
     laid and hanging lengths, the problem kind. {} before the first solve."""
     paths = _paths()
     got = _STATE["sea"].get(paths._k(scene, item))
+    if (got is None or len(got["kind"]) == 1) and paths._baked(scene) and paths._usable(scene, item):
+        got = _moment(scene, item)             # (a reopened project: the frame shown, from the places read at Build)
     if got is None:
         try:
             return json.loads(item.sea_info) if item.sea_info else {}
@@ -552,6 +557,34 @@ def numbers(scene, item) -> dict:
         with flex._quiet(item):
             item.sea_info = text
     return out
+
+
+def _moment(scene, item):
+    """The numbers of the frame shown of a built animation, solved for that one moment (kept per frame)."""
+    paths = _paths()
+    key = (paths._k(scene, item), int(scene.frame_current))
+    hit = _STATE.setdefault("moment", {}).get(key)
+    if hit is not None:
+        return hit
+    slots = paths._inputs_of(item)[1]
+    stored = paths._stored_places(scene, item, slots)
+    if stored is None:
+        return None
+    rel, first = stored
+    k = min(max(int(scene.frame_current) - first, 0), len(rel) - 1)
+    keep = _STATE["sea"].get(paths._k(scene, item))
+    try:
+        paths._solve_item(scene, item, rel[k:k + 1])
+        hit = _STATE["sea"].get(paths._k(scene, item))
+    finally:
+        if keep is not None:
+            _STATE["sea"][paths._k(scene, item)] = keep
+        else:
+            _STATE["sea"].pop(paths._k(scene, item), None)
+    if len(_STATE["moment"]) > 64:
+        _STATE["moment"].clear()
+    _STATE["moment"][key] = hit
+    return hit
 
 
 def tdp_world(scene, item, moment: int = 0):

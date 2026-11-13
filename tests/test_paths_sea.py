@@ -366,3 +366,20 @@ def test_the_queue_copy_builds_and_renders_the_same(sea, tmp_path):
     stiff = picture("stiff.png")
     noise = float(np.abs(hanging - again).mean())
     assert float(np.abs(hanging - stiff).mean()) > 5.0 * noise + 1e-4
+
+
+def test_numbers_of_the_frame_shown_after_reopening(sea, tmp_path):
+    sc = sea
+    animation.bake(sc, sc.fresing.animations[paths_sea.TEST_ANIMATION])
+    sc.frame_set(sc.frame_end)
+    want = paths_sea.numbers(sc, cable(sc))["laid"]
+    assert want == pytest.approx(40.0 + 8.0, abs=0.05)
+    path = str(tmp_path / "again.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    paths.forget()
+    sc = bpy.context.scene
+    sc.frame_set(sc.frame_end)
+    assert paths_sea.numbers(sc, cable(sc))["laid"] == pytest.approx(want, abs=1e-4)
+    sc.frame_set(sc.frame_start)
+    assert paths_sea.numbers(sc, cable(sc))["laid"] == pytest.approx(40.0, abs=1e-4)
