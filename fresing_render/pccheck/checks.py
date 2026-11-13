@@ -679,7 +679,7 @@ def motion_sea_cable(ctx):
     info = animation.bake(scene, a)
     ctx.metric("build with the cable into the sea", time.time() - t0, "s")
     _check(not info["warnings"], "; ".join(info["warnings"][:2]))
-    note = tour._check_sea(scene)
+    note = tour._check_sea_cable(scene)
     times = []
     for f in range(scene.frame_start, scene.frame_end + 1, 4):
         t0 = time.perf_counter()

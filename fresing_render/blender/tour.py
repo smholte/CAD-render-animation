@@ -1432,7 +1432,7 @@ def build_spool(b: Build):
 SEA_ANIM = "Cable into the sea"
 
 
-@tour_set("sea", "Cable into the sea", "test_sea.step")
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step")
 def build_sea(b: Build):
     from . import paths, paths_sea
     sc = b.scene
@@ -1461,7 +1461,7 @@ def build_sea(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
-def _check_sea(scene):
+def _check_sea_cable(scene):
     """Along the built animation: the cable keeps its length from the horn to its end on the seabed, the touch-down
     stays the layback behind the horn (the vessel moves with the lay), its end lies still on the seabed (it moves
     aft with the seabed) and the CPS set goes down the catenary on the cable."""
@@ -2678,13 +2678,13 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
-stop("sea", MOTION, "sea", "Cable into the sea",
+stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
      "still where it lies on the seabed, the seabed moves aft under the vessel, the touch-down stays 20 m behind the "
      "horn and the orange CPS set goes over the horn and down the curve on the cable.",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.90",
-     check=_check_sea, auto="clip")
+     check=_check_sea_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)
