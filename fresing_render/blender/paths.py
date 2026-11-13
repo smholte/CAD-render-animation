@@ -305,11 +305,13 @@ class _Slot:
     """What a wheel or an end goes with: its carrier – and, for a sheave on its joint's arrow, the sheave's part
     and the joint's motion empty, so that a sheave dragged out of its place by hand takes the cable along (the
     arrow does not move then, and the joint's own turn must not count)."""
-    __slots__ = ("name", "carrier", "part", "motion")
+    __slots__ = ("name", "carrier", "part", "motion", "live", "role")
 
-    def __init__(self, carrier, part=None, motion=None):
+    def __init__(self, carrier, part=None, motion=None, live: bool = False, role: str = ""):
         self.carrier, self.part, self.motion = carrier, part, motion
-        self.name = carrier.name + ("|" + part.name if part is not None else "")
+        self.name = carrier.name + ("|" + part.name if part is not None else "") + ("|" + role if role else "")
+        self.live = live            # read where it is now even when the cable stays as drawn (a spool, task 0080)
+        self.role = role            # "" or, for a spool: "spool" (its turn), "pay_frame", "pay_motion" (the payout)
 
     def objects(self) -> list:
         return [o for o in (self.carrier, self.part, self.motion) if o is not None]
@@ -334,9 +336,19 @@ def _inputs_of(item):
         return index[new.name]
 
     w_slots = [slot(c.carrier, c) for c in wheels]
+    from . import spool as _spool
+    live = _spool.live_carriers(scene, item)          # carried by a joint that follows a spool's layer (task 0080)
+    if live:
+        for sl in slots:
+            sl.live = sl.carrier.name in live
     ends = []
     for key, k in (("a", 0), ("b", -1)):        # an end on its wheel goes with that wheel
         ob = getattr(item, key + "_part")
+        if key == "a" and item.a_kind == "SPOOL":
+            ends.append(len(slots))             # the start is where the cable leaves the spool (task 0080)
+            for ob_, role in _spool.slot_objects(scene, item):
+                slots.append(_Slot(ob_, live=True, role=role))
+            continue
         on = getattr(item, key + "_kind") == "WHEEL" and wheels and wheels[k].carrier == ob
         ends.append(w_slots[k] if on else slot(ob))
     return wheels, slots, w_slots, ends[0], ends[1]
@@ -371,7 +383,9 @@ def _rel_now(item, slots) -> np.ndarray:
     if item.still:
         memo: dict = {}
         inv = np.linalg.inv(_cad(item.part, memo))
-        return np.stack([inv @ _cad(sl.carrier, memo) for sl in slots]) if slots else np.zeros((0, 4, 4))
+        now = np.linalg.inv(_world(item.part)) if any(sl.live for sl in slots) else None
+        return np.stack([now @ _place(item, sl, _world) if sl.live else inv @ _cad(sl.carrier, memo)
+                         for sl in slots]) if slots else np.zeros((0, 4, 4))
     inv = np.linalg.inv(_world(item.part))
     return np.stack([inv @ _place(item, sl, _world) for sl in slots]) if slots else np.zeros((0, 4, 4))
 
@@ -379,6 +393,8 @@ def _rel_now(item, slots) -> np.ndarray:
 def _can_move(item) -> bool:
     """Can the things that shape the cable move against each other or against the cable part? (Not: do they.)
     Never for a cable set to stay as drawn."""
+    if item.a_kind == "SPOOL":
+        return True                             # the start moves with the payout (task 0080)
     if item.still:
         return False
     _wheels_, slots, _w, _a, _b = _inputs_of(item)
@@ -1150,6 +1166,8 @@ def read_cad(scene, item, part) -> list[str]:
     finally:
         _STATE["busy"] -= 1
     forget()
+    from . import spool as _spool
+    notes += _spool.after_read(scene, _cable(scene, name))     # a spool takes the start again (task 0080)
     notes += _rebuild(scene, _cable(scene, name))
     return notes
 
@@ -1537,7 +1555,12 @@ def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> d
         axes[:, k] = a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-12)
     radii = np.array([radius_of(item, c) / scale for c in wheels])
     sides = np.array([float(c.side) for c in wheels])
-    starts, ends = point(a_slot, item.a_point), point(b_slot, item.b_point)
+    if item.a_kind == "SPOOL":                  # where it leaves the spool at each moment (task 0080)
+        from . import spool as _spool
+        starts = _spool.starts(scene, item, rel, _slots, scale)
+    else:
+        starts = point(a_slot, item.a_point)
+    ends = point(b_slot, item.b_point)
     on0, on1 = item.a_kind == "WHEEL" and W > 0, item.b_kind == "WHEEL" and W > 0
     wraps0 = None
     if known and W and all(c.wrap_cad >= 0.0 for c in wheels):
@@ -2444,9 +2467,11 @@ def _bake(scene) -> list[str]:
         if n in can:
             inv = np.linalg.inv(mats[it.part.name])
             rel = np.zeros((len(inv), len(slots), 4, 4))
+            still = _cad_rel(it, {})[0] if it.still else None       # (a spool's start moves all the same)
             for f in range(len(inv)):
                 for k, sl in enumerate(slots):
-                    rel[f, k] = inv[f] @ _place(it, sl, lambda ob, f=f: mats[ob.name][f])
+                    rel[f, k] = still[k] if still is not None and not sl.live else \
+                        inv[f] @ _place(it, sl, lambda ob, f=f: mats[ob.name][f])
             if n not in animated or float(np.abs(rel - rel[:1]).max(initial=0.0)) <= MOVE_TOL:
                 rel = rel[:1]
         else:

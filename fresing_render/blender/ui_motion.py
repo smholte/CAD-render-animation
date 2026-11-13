@@ -218,7 +218,11 @@ def _draw_coupling(context, box, s, j, lead) -> None:
     if j.follows:
         col = split_props(box)
         col.prop_search(j, "follows", s, "joints", text="Joint", icon="LINKED")
-        if lead is not None:
+        if lead is not None and j.couple_table:          # follows by a table (task 0080): no ratio to type
+            owner = j.couple_table.split(":", 1)[-1]
+            wrap(box, context, f"Follows '{lead.name}' by a table: its drum or carousel '{owner}' works it out "
+                               "(4 Motion > Drums and carousels)", icon="INFO", inset=12)
+        elif lead is not None:
             # the unit is the label: "mm per turn" (of the joint picked right above)
             col.prop(j, "couple_ratio", text=joints.ratio_unit(lead.kind, j.kind))
             if j.kind == "ROTATE":

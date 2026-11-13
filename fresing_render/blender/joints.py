@@ -47,6 +47,7 @@ import contextlib
 import math
 
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector
 
 from . import build
@@ -257,9 +258,9 @@ def get_value(j) -> float:
     if j.follows:
         fc = _coupling_fcurve(j)
         if fc is not None and not fc.mute:
-            top, k, c = chain_affine(j.id_data, j)
+            top, f = chain_map(j.id_data, j)
             if top is not None and top.motion is not None:
-                return k * float(top.motion.get(VALUE, 0.0)) + c
+                return float(f(float(top.motion.get(VALUE, 0.0))))
     return float(j.motion.get(VALUE, 0.0))
 
 
@@ -461,12 +462,190 @@ def chain_affine(scene, j):
             return None, 1.0, 0.0
         seen.add(x.name)
         lead = leader(scene, x)
-        if lead is None:
-            return None, 1.0, 0.0
+        if lead is None or x.couple_table:
+            return None, 1.0, 0.0                   # (a table in the chain: no straight line, see chain_map)
         c += k * offset(x)
         k *= factor(lead.kind, x.kind, x.couple_ratio)
         x = lead
     return x, k, c
+
+
+# ---------------------------------------------------------------------------
+# "follows by table" (task 0080): a follower's value is a piecewise-straight function of its leader's, given by
+# keys (a spool's turn against the metres of cable paid out: one straight piece per layer). The keys live on the
+# follower's motion empty (``TABLE``: x0, y0, x1, y1 … in internal units, leader -> follower; straight beyond the
+# ends); ``couple_table`` names who wrote them ("spool:Drum"). The drivers read the joint at the top of the chain,
+# as ratio couplings do, and carry the whole chain's table as F-curve keys: no Python, scripts off, any fps.
+# ---------------------------------------------------------------------------
+
+TABLE = "fr_table"
+
+
+class Map:
+    """A chain of couplings as one function of the top joint's value: a straight line (``xs`` None: k, c) or a
+    piecewise-straight table (``xs``, ``ys``, straight on beyond its ends)."""
+    __slots__ = ("k", "c", "xs", "ys")
+
+    def __init__(self, k: float = 1.0, c: float = 0.0, xs=None, ys=None):
+        self.k, self.c, self.xs, self.ys = float(k), float(c), xs, ys
+
+    @property
+    def is_table(self) -> bool:
+        return self.xs is not None
+
+    def __call__(self, x):
+        if self.xs is None:
+            return self.k * np.asarray(x, dtype=float) + self.c if np.ndim(x) else self.k * float(x) + self.c
+        return interp(self.xs, self.ys, x)
+
+    def then(self, k: float, c: float) -> "Map":
+        """This map followed by y -> k * y + c."""
+        if self.xs is None:
+            return Map(k * self.k, k * self.c + c)
+        return Map(xs=self.xs, ys=k * self.ys + c)
+
+
+def interp(xs, ys, x):
+    """Piecewise-straight through (xs, ys) (xs rising), straight on beyond both ends (as an F-curve with linear
+    extrapolation)."""
+    xs, ys = np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
+    xv = np.asarray(x, dtype=float)
+    out = np.interp(xv, xs, ys)
+    if len(xs) >= 2:
+        lo, hi = xv < xs[0], xv > xs[-1]
+        if np.any(lo):
+            out = np.where(lo, ys[0] + (xv - xs[0]) * (ys[1] - ys[0]) / max(xs[1] - xs[0], 1e-300), out)
+        if np.any(hi):
+            out = np.where(hi, ys[-1] + (xv - xs[-1]) * (ys[-1] - ys[-2]) / max(xs[-1] - xs[-2], 1e-300), out)
+    return float(out) if np.ndim(out) == 0 else out
+
+
+def table_of(j):
+    """(xs, ys) of a table follower (internal units, leader -> follower), or None."""
+    if j.motion is None or not j.couple_table or TABLE not in j.motion:
+        return None
+    a = np.asarray(j.motion[TABLE], dtype=float)
+    if a.size < 4 or a.size % 2:
+        return None
+    return a[0::2].copy(), a[1::2].copy()
+
+
+def chain_map(scene, j):
+    """(top, Map): ``j``'s value as a function of the value of the joint at the top of its chain. top is None when a
+    leader is gone, the chain loops, a table is missing or a chain holds two tables."""
+    steps = []                                      # from j up: ("ratio", k, c) or ("table", xs, ys)
+    x, seen = j, set()
+    while x.follows:
+        if x.name in seen:
+            return None, Map()
+        seen.add(x.name)
+        lead = leader(scene, x)
+        if lead is None:
+            return None, Map()
+        if x.couple_table:
+            t = table_of(x)
+            if t is None:
+                return None, Map()
+            steps.append(("table",) + t)
+        else:
+            steps.append(("ratio", factor(lead.kind, x.kind, x.couple_ratio), offset(x)))
+        x = lead
+    tables = [i for i, st in enumerate(steps) if st[0] == "table"]
+    if len(tables) > 1:
+        return None, Map()
+    if not tables:
+        k, c = 1.0, 0.0
+        for st in steps:                            # (j's own step first: value = k1 * (k2 * top + c2) + c1)
+            c += k * st[2]
+            k *= st[1]
+        return x, Map(k, c)
+    t = tables[0]
+    ki, ci = 1.0, 0.0                               # the steps between the top and the table: top -> table's input
+    for st in steps[t + 1:]:
+        ci += ki * st[2]
+        ki *= st[1]
+    ko, co = 1.0, 0.0                               # the steps between the table and j: table's output -> j
+    for st in steps[:t]:
+        co += ko * st[2]
+        ko *= st[1]
+    xs, ys = steps[t][1], steps[t][2]
+    if abs(ki) < 1e-300:
+        return None, Map()
+    tx = (xs - ci) / ki                             # the table's keys seen from the top joint
+    order = np.argsort(tx, kind="stable")
+    return x, Map(xs=tx[order], ys=ko * ys[order] + co)
+
+
+def has_table(scene, j) -> bool:
+    """Is a table somewhere in ``j``'s chain of leaders?"""
+    x, seen = j, set()
+    while x is not None and x.follows and x.name not in seen:
+        if x.couple_table:
+            return True
+        seen.add(x.name)
+        x = leader(scene, x)
+    return False
+
+
+def _drop_table(j) -> None:
+    if j.couple_table:
+        _set_raw(j, couple_table="")
+    if j.motion is not None and TABLE in j.motion:
+        del j.motion[TABLE]
+
+
+def set_table(scene, j, name: str, xs, ys, owner: str) -> None:
+    """Make ``j`` follow the joint called ``name`` by a table: ``j``'s value = the piecewise-straight function
+    through (xs, ys) of the leader's value (internal units: rad / m; xs rising; straight on beyond the ends).
+    ``owner`` says who wrote it ("spool:Drum"): the panel shows it, and only that owner replaces it. Raises
+    RuntimeError with the reason when not allowed. A built animation is taken off first."""
+    reason = follow_check(scene, j, name)
+    if reason:
+        raise RuntimeError(reason)
+    xs, ys = np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
+    if xs.ndim != 1 or xs.shape != ys.shape or len(xs) < 2 or not np.all(np.isfinite(xs)) or \
+            not np.all(np.isfinite(ys)) or np.any(np.diff(xs) <= 0.0):
+        raise RuntimeError(f"The table for '{j.name}' is not usable (it needs two or more rising keys)")
+    lead = find(scene, name)
+    if has_table(scene, lead) or any(x.couple_table for x in all_followers(scene, j)):
+        raise RuntimeError(f"'{j.name}' cannot follow '{name}' by a table: a table is in that chain already")
+    from . import animation
+    if not in_batch(scene) and animation.has_keys(scene):
+        animation.clear_keys(scene)
+    from . import idprops
+    idprops.store_array(j.motion, TABLE, np.column_stack([xs, ys]).reshape(-1), dtype=np.float64)
+    _set_raw(j, follows=name, couple_table=str(owner), couple_ratio=1.0, couple_offset_angle=0.0,
+             couple_offset_dist=0.0)
+    write_coupling(scene, j)
+    apply_limits(j, _model_size(scene))
+    if not in_batch(scene):
+        _update(scene)
+
+
+def _table_driver(fc, source, m: Map, bias: float) -> None:
+    """A driver that reads ``source``'s value and maps it through the table: expression ``a + 2.0`` (never a small
+    number), the keys moved by the same 2.0 along x and by ``bias`` along y, linear between and beyond them; an
+    additive generator takes ``bias`` off again."""
+    _scripted(fc, source, expression(1.0, BIAS))
+    kp = fc.keyframe_points
+    kp.clear()                                      # (a new driver curve may come with keys of its own)
+    n = len(m.xs)
+    kp.add(n)
+    co = np.empty(2 * n, dtype=np.float32)
+    co[0::2] = m.xs + BIAS
+    co[1::2] = m.ys + bias
+    kp.foreach_set("co", co)
+    lin = bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value
+    kp.foreach_set("interpolation", np.full(n, lin, dtype=np.int32))
+    kp.foreach_set("handle_left", co)
+    kp.foreach_set("handle_right", co)
+    fc.extrapolation = "LINEAR"
+    if bias:
+        g = fc.modifiers.new("GENERATOR")
+        g.mode = "POLYNOMIAL"
+        g.poly_order = 1
+        g.use_additive = True
+        g.coefficients = (-bias, 0.0)
 
 
 def _channel(kind: str) -> tuple[str, int]:
@@ -524,7 +703,7 @@ def _write_one(scene, j) -> bool:
     if j.motion is None:
         return True
     _remove_coupling_driver(j)
-    top, k, c = chain_affine(scene, j) if j.follows else (j, 1.0, 0.0)
+    top, m = chain_map(scene, j) if j.follows else (j, Map())
     if not j.follows or top is None or top.motion is None:
         path, index = _channel(j.kind)
         ad = j.motion.animation_data
@@ -533,14 +712,19 @@ def _write_one(scene, j) -> bool:
             _add_driver(j.motion, j.kind)               # back to "the motion follows its own value"
         j.motion.update_tag()
         return not j.follows
-    expr = expression(k, c)
-    _scripted(j.motion.driver_add(COUPLING_PATH), top.motion, expr)
     path, index = _channel(j.kind)
     for p, i in (("rotation_euler", 2), ("location", 2)):
         try:
             j.motion.driver_remove(p, i)
         except TypeError:
             pass
+    if m.is_table:                                  # (task 0080)
+        _table_driver(j.motion.driver_add(COUPLING_PATH), top.motion, m, 0.0)
+        _table_driver(j.motion.driver_add(path, index), top.motion, m, BIAS)
+        j.motion.update_tag()
+        return True
+    k, c = m.k, m.c
+    _scripted(j.motion.driver_add(COUPLING_PATH), top.motion, expression(k, c))
     fc = j.motion.driver_add(path, index)
     _scripted(fc, top.motion, expression(k, c + BIAS))           # never a small number (see BIAS)
     _unbias(fc, 1.0)
@@ -569,6 +753,7 @@ def _free(scene, j) -> None:
     """``j`` stops following and stays exactly where it is (also beyond its limits)."""
     v = get_value(j)
     _set_raw(j, follows="")
+    _drop_table(j)
     write_coupling(scene, j)                     # its own drivers, and those of the joints behind it
     set_value(j, v, use_limits=False)
     apply_limits(j, _model_size(scene), clamp=False)
@@ -595,6 +780,9 @@ def set_follows(scene, j, name: str, ratio: float | None = None, offset_value: f
         return
     old = leader(scene, j)
     lead = find(scene, name)
+    if j.couple_table:                              # a ratio from now on (the table's owner writes it again)
+        _drop_table(j)
+        old = None
     if old is None or old.kind != lead.kind:
         _set_raw(j, couple_ratio=default_ratio(lead.kind, j.kind), couple_offset_angle=0.0,
                  couple_offset_dist=0.0)
@@ -633,10 +821,10 @@ def driven_value(scene, j, values: dict | None = None) -> float:
     """The value ``j`` has when the joints that move by themselves are at ``values`` (name -> value;
     a joint not in it: its current value). Works without the scene being updated."""
     values = values or {}
-    top, k, c = chain_affine(scene, j)
+    top, m = chain_map(scene, j)
     if top is None:                                 # a leader is gone: the driver is stale too
         return get_value(j)
-    return k * values.get(top.name, get_value(top)) + c
+    return float(m(values.get(top.name, get_value(top))))
 
 
 def couplings_simple(scene) -> bool:
@@ -1491,6 +1679,10 @@ def to_specs(scene, values: dict | None = None, only=None, root=None) -> list[di
             # couplings and motors (task 0012); specs without them come from older versions
             "follows": j.follows, "ratio": j.couple_ratio, "offset_angle": j.couple_offset_angle,
             "offset_dist": j.couple_offset_dist, "motor": bool(j.is_motor),
+            # follows by a table (task 0080): its owner and the keys
+            "table_owner": j.couple_table,
+            "table": [float(v) for v in j.motion[TABLE]] if j.couple_table and j.motion is not None and
+            TABLE in j.motion else None,
             "tags": {k: j.motion[k] for k in SPEC_TAGS if j.motion is not None and k in j.motion},
         })
     return out
@@ -1680,6 +1872,10 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             continue
         _set_raw(jj, follows=sp["follows"], couple_ratio=sp.get("ratio", 1.0),
                  couple_offset_angle=sp.get("offset_angle", 0.0), couple_offset_dist=sp.get("offset_dist", 0.0))
+        if sp.get("table_owner") and sp.get("table"):
+            from . import idprops
+            idprops.store_array(jj.motion, TABLE, np.asarray(sp["table"], dtype=float), dtype=np.float64)
+            _set_raw(jj, couple_table=sp["table_owner"])
     for name, v in values.items():          # values last: every joint was built in the CAD pose
         jj = _find_last(scene, name)
         if jj is not None:
