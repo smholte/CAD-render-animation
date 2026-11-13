@@ -1,6 +1,6 @@
 # 0081 – Cable into the sea: catenary, seabed, water clarity, cut-away, CPS on the cable
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0081-cable-into-the-sea` (or the web session's branch)
+**Who:** worker · **Status:** running · **Branch:** `claude/amazing-mayer-6a324q`
 **Started by:** lead chat, 13 Nov 2026 (plan: tasks/0075 section E + the owner's answers at its end; 0083 findings)
 **Lane:** Flex parts (owner of this task): new `core/catenary.py`, `blender/paths_sea.py`, `ops_paths_sea.py`, a fold
 "Into the sea" in `ui_paths.py`, `tests/test_catenary*.py`, `tests/test_paths_sea*.py`; additive in `blender/paths.py`

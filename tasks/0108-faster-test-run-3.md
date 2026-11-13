@@ -136,3 +136,8 @@ demo_clash +3, ci_tools +1); real-app checks and PC-check lines the same (moved 
 - With 9 + 10 jobs a run uses 20 jobs at once when alone (GitHub's free limit, from its documentation): two tasks pushing
   together still queue. Fewer machine-minutes per run needs the queue renders above to get cheaper.
 - `ui_test_spool.py` step "'level' typed into its search, Enter" failed once on GitHub (spool lane).
+- **Flaky on Windows (machining lane):** the run of this task's commit on `main` (43485378789) failed once in the
+  Windows PC check, line `milling.rotary`: "the cuts on the bar are not where the program puts them: radius 24.82,
+  24.82, 25.00, 25.00 mm (should be 23, 23, 22, 22)", the cut taking 54 s instead of ~12 s. The same tree passed it in
+  every branch run; the failed job was run again and passed (run green). A slow runner seems to leave the bar uncut:
+  worth a look by the machining lane.
