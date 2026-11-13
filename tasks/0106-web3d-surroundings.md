@@ -1,6 +1,6 @@
 # 0106 – Web 3D model with its surroundings: moving sea, sky, weather, vessel motion and a live sun
 
-**Who:** worker · **Status:** running · **Branch:** `claude/admiring-turing-bx5rjk` (the session's own branch)
+**Who:** worker · **Status:** done (0.2.86) · **Branch:** `claude/admiring-turing-bx5rjk` (the session's own branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's wish: "also allow adding environment, like the moving sea and weather")
 **Lane:** Web 3D: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`, `fresing_render/web/` (the viewer
 page and its bundled libraries), their tests; the website's viewer page `site/model/` + `tools/build_site.py` only as far
@@ -138,10 +138,79 @@ app's sky: (sin r cos h, cos r cos h, sin h) for Rotate light r and Sun height h
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 13 Nov 2026 · branch `claude/admiring-turing-bx5rjk` · 0.2.86
 
 **What changed:**
+- **Viewer decision.** Surroundings **None** = today's model-viewer page, unchanged (website, tour, PC check as
+  before). **As in the project** = a new page on plain **three.js r180** (MIT): model-viewer has no custom water
+  shader, no fog, no particles, no sun shadow map and no access to its scene, so it could not do Scope 2–7. The three.js
+  parts are one committed bundle `fresing_render/web/three-viewer.min.js` (0.80 MB, smaller than model-viewer's
+  1.07 MB; `tools/build_web_viewer.py`, esbuild); our code is readable: `fr_math.js` (sea, vessel) and `fr_page.js`.
+  Still one HTML file, nothing from the internet (checked: only data:/blob:/file: requests).
+- Panel fold **Surroundings on the page** (`ui_web3d.py`, `props.FRWeb3D.env_*`, `blender/web3d_env.py`): None / As in
+  the project; ticks start from the project (and **Take from the project**), changed per export only: Sea + Calm/Rough,
+  Vessel motion, Sky (from the project or a time of day: sun height/direction, clouds None/Some/Overcast), Haze +
+  strength, Rain + strength, Live sun shadows, Page quality Phone/Balanced/Best, Auto quality. Result line adds
+  "surroundings ±x MB".
+- Export (`web3d.Job(surroundings=…)`): parts read **at rest** (`vessel_motion.at_rest`), Still/Level parts marked
+  (`extras.fr_vm`), the Vessel deck's objects go along when the project's surroundings are the deck. Page settings
+  block + pictures from `core/web3d_env.py` (quality table, sun direction, equirect resampling to three's layout,
+  three's AgX in NumPy for the photo background, Radiance .hdr writer, browser finder + headless open).
+- Page: endless sea (radial grid to 20 km with the app's rim; the app's waves incl. vessel swell in the vertex shader,
+  ripple normal map + fractal foam in a MeshStandardMaterial, receives shadows), vessel motion (app's channels and
+  pivot; Still/Level groups), three's Sky shown untone-mapped at gain 0.5 + a dome with clouds, haze band and ground,
+  PMREM light from it (or from the project's 360° photo / studio look as a small HDR; a colour background stays a
+  colour), FogExp2 haze, GPU rain streaks and a wet look, spray bursts from whichever hull end dips in a rough sea,
+  sun DirectionalLight with a shadow box fitted to the view sideways and to the whole model along the sun, Auto
+  quality on real clock time with a corner note, camera kept above the water.
+- Tour stop 52 "Web 3D model with surroundings" (set "vessel"), PC-check line `web3d.surroundings` (Full; opens the
+  page headless in Edge/Chrome when there is one: only an error the page itself reports fails it; no WebGL or no
+  answer is "not counted"), guide section "Surroundings on the page" + new `panel_5_web3d.png`, CHANGELOG 0.2.86.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session, no graphics card; headless Chromium with SwiftShader = software GL,
+so fps only compare levels):
+- New tests: `tests/test_web3d_env.py` (17: settings block, Python == JavaScript for sea height, crest, channels and
+  vessel matrix via node, sun direction, picture directions incl. rotation, HDR round trip, AgX, one offline file) and
+  `tests/test_web3d_env_blender.py` (7: panel/choice, **the page's sea formula equals the app's own evaluated sea mesh
+  to < 0.2 mm** at 3 frames, Calm and Rough, swell included; **the page's vessel matrix equals the app's rig** to 1e-5
+  at 3 frames; export at rest with Still marks and the deck; headless page per level, Auto steps down, a broken model
+  reports an error). 256 tests of the touched areas pass locally.
+- Measured, file sizes (HTML page, Texture size 512): test mill 1.18 MB without → 0.95 MB with sea, sky, haze, rain,
+  shadows (−0.24 MB: three.js is smaller); with a 360° photo + light picture 1.01 (Phone) / 1.19 MB (Balanced, Best;
+  the test photo was 2,048 px wide, so Best = Balanced; pictures 49 / 180 KB – a real photo's JPG is bigger, about
+  0.5–1.5 MB at 2,048 px). Demo vessel (Draft + 512, 756k triangles): 5.82 MB without → 5.48 MB with every item; export
+  3.3–4.8 s. Sea, vessel, sky, haze, rain and shadows cost only their settings (< 2 KB); only pictures cost.
+- Load (first picture) and fps at 1280x720, Auto off: mill 0.5 / 0.6 / 0.9 s, 5.6 / 5.4 / 4.3 fps; demo vessel
+  2.0 / 1.9 / 2.2 s, 3.3 / 3.5 / 0.4 fps (Phone / Balanced / Best). Sea points 9,985 / 37,633 / 101,761, rain drops
+  975 / 2,600 / 5,850. Auto at Best in software GL steps down within ~3 s (test). Pixel ratio does not show in headless
+  (device pixel ratio 1). Real fps on the owner's RTX 3090: to be measured by him.
+- Pictures (demo vessel, same camera, invented model): `tasks/img/0106_calm.jpg`, `_clouds`, `_haze`, `_sunset`,
+  `_overcast_rain` (overcast + rain + haze on the calm waves).
+- Guide picture made with `tools/guide_screens.py`; tooltip check 0 missing; precheck passed.
+
+**Subagents:** (1) independent tester (did not write the page) – 28 settings variants, phone sizes, touch, Auto,
+setLevel ×30 (no leaks), animation + vessel, offline, formulas (2e-16 on 150 random points). Its 8 faults were fixed
+by me after it finished: Auto measured capped frame time (now real clock), camera could be panned under water, close-up
+shadow box cut casters, load errors left the page on "Loading" (now unhandledrejection + try/catch), PC-check state
+written too late, spray from the stern of the demo (now from either end), wrong "needs WebGL" text for a broken model,
+`?t=abc` NaN. (2) Windows review (sonnet) of `find_browser`/`open_headless`: paths, URL, flags fine; fixed: launch
+OSError caught, taskkill of the browser's tree on timeout, profile removal retried, no-WebGL not counted as the page's
+fault. Not reviewed on a real Windows PC: GitHub's Windows job runs the PC check line.
 
 **Open points / follow-up tasks:**
+- On this machine full Chrome with a fresh profile folder hangs with `--dump-dom`; the headless shell works. On a PC
+  where Edge does the same, the PC-check line says "gave no answer in time; not counted" (costs 45 s).
+- Doubtful, left as they are: rain at 0 % still shows 30 % of the drops; only 16 waves go to the shader (the app has
+  at most 6 + 8); a rough sea on a 1 m model swamps it (the app's formula does the same); low views at Phone show
+  speckled ripples; the vessel and sea keep running when an exported animation loops (by design: the sea never loops).
+- Calm foam shows as soft patches on the crests (the app's threshold); the owner's new task 0109 reworks the app's
+  ocean and foam – the page follows the app's numbers and may need the same change then.
+- Halls, quay and props are not on the page; 0107 (baked light) builds on this task's sky and sun.
+- GitHub: 3 runs. Branch full run 43457971451 green on the first try (17.3 min; suites 1, 2 and 5 flagged SLOW
+  against the recorded times: 16.7 / 10.8 / 10.7 min – the new Blender test file sits in suite 1; times not re-recorded,
+  Quality lane's 0108 is on that). On Windows the PC-check line opened the page in headless **Edge: "ready BALANCED
+  frames 3"**; on GitHub's Linux runner Chromium crashed at start (exit −6) → "not counted". Then a docs-mode run after
+  merging the lead's commit (1.5 min) and the reuse release on main (43461482416: published, old Windows version
+  updated itself, offered to the apps, landing page rebuilt).
+- Owner, on the RTX 3090: open the tour stop's page (Open page) and a demo-vessel export; look at Phone/Balanced/Best
+  frames per second (Auto's corner note shows when it steps down), the sky colour against the app's, foam on Calm.
