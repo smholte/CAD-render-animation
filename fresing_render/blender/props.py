@@ -872,6 +872,15 @@ class FRCamPathPoint(bpy.types.PropertyGroup):
     co: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0), subtype="XYZ", unit="LENGTH")
 
 
+def _speed_mmin_get(self):
+    """A Run motor step's slide speed in m/min (kept in mm/s)."""
+    return float(self.speed_mms) * 0.06
+
+
+def _speed_mmin_set(self, value):
+    self.speed_mms = float(value) / 0.06
+
+
 class FRAnimBlock(bpy.types.PropertyGroup):
     name: StringProperty(name="Label", description="Shown in the list and as a marker on the timeline. Empty: a "
                                                    "name made from the step")
@@ -962,6 +971,11 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     speed_mms: FloatProperty(name="Speed (mm/s)", default=100.0, soft_min=-5000.0, soft_max=5000.0, precision=1,
                              step=100,
                              description="How fast the joint slides, in mm per second. Negative: the other way")
+    # the same speed in m/min, shown for a cable's joint (task 0078): 10 m/min = 166.7 mm/s
+    speed_mmin: FloatProperty(name="Cable speed (m/min)", soft_min=-300.0, soft_max=300.0, precision=2, step=100,
+                              get=_speed_mmin_get, set=_speed_mmin_set,
+                              description="How fast the cable runs, in metres per minute (laying a power cable: "
+                                          "about 10 m/min). Negative: the cable is hauled back in")
     # Move cylinder (task 0013)
     cylinder: StringProperty(name="Cylinder", description="The cylinder this step moves (made in 4 Motion > "
                                                           "Cylinders); the arm moves with it")
@@ -2014,6 +2028,132 @@ class FRFlex(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# cables and paths (task 0078): a cable laid over rollers, sheaves and chutes, moved by one cable speed
+# ---------------------------------------------------------------------------
+
+def _cable_changed(self, context):
+    """A setting of a cable changed: its path, its look and what it turns are brought up to date."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import paths
+    paths.changed(context.scene, self)
+
+
+def _cable_contact_changed(self, context):
+    """A setting of one contact changed (turns or not): the cable it belongs to is brought up to date."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import paths
+    paths.contact_changed(context.scene, self)
+
+
+class FRCableContact(bpy.types.PropertyGroup):
+    """One thing a cable touches: a sheave, a roller, a chute or a bend. See blender/paths.py."""
+    name: StringProperty(name="Name", description="The part the cable touches here")
+    kind: EnumProperty(
+        name="Kind", default="ROLLER",
+        items=[("SHEAVE", "Sheave", "The cable bends round it and turns it"),
+               ("ROLLER", "Roller", "The cable rests on it or runs past it and turns it"),
+               ("CHUTE", "Chute", "The cable bends round it and slides over it: it does not turn"),
+               ("BEND", "Bend", "A bend the cable was drawn with where no single part carries it")])
+    part: PointerProperty(type=bpy.types.Object)           # the round part or the chute (none for a bend)
+    part_uid: StringProperty()
+    carrier: PointerProperty(type=bpy.types.Object)        # centre and axis are in this object's coordinates
+    carrier_uid: StringProperty()                          # (a part's ID; '' when the carrier is a joint's arrow)
+    centre: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))     # a point on the axis, in the cable's plane
+    axis: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0))       # unit
+    radius: FloatProperty(default=0.1)                     # from the axis to the cable's middle (m)
+    surface: FloatProperty(default=0.1)                    # from the axis to the surface the cable lies on (m)
+    side: IntProperty(default=1)                           # +1: the cable goes round it turning about +axis; -1: about -axis
+    wrap: FloatProperty(default=0.0)                       # rad, as drawn now (written by paths.py)
+    gap: FloatProperty(default=0.0)                        # m: how far the CAD cable was drawn off the surface
+    turns: BoolProperty(
+        name="Turns with the cable", default=True, update=_cable_contact_changed,
+        description="On: this roller or sheave turns as fast as the cable runs over it. Off: it stands still "
+                    "(a fixed guide, a seized roller)")
+    joint: StringProperty()                                # the rotate joint that turns it ('' = none)
+    made_joint: BoolProperty(default=False)                # the app made that joint (removed with the contact)
+    coupled: BoolProperty(default=False)                   # the app made that joint follow the cable
+    ratio: FloatProperty(default=0.0)                      # degrees per mm of cable, with its sign
+    user: BoolProperty(default=False)                      # added or changed by the user: a new reading keeps it
+    note: StringProperty(default="")                       # '' or what the user should know (its own joint, a gap)
+
+
+class FRCable(bpy.types.PropertyGroup):
+    """A cable or wire rope on its path (task 0078). See blender/paths.py."""
+    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it")
+    enabled: BoolProperty(
+        name="On", default=True, update=_cable_changed,
+        description="On: the app draws the cable on its path and it moves with the cable speed. Off: the cable "
+                    "shows exactly as in the CAD file and nothing turns with it")
+    part: PointerProperty(type=bpy.types.Object)           # the CAD cable (its shape is replaced by the drawn one)
+    part_uid: StringProperty()
+    joint: StringProperty()                                # the slide joint whose value is the metres paid out
+    made_joint: BoolProperty(default=False)                # the app made that joint (removed with the cable)
+    diameter: FloatProperty(
+        name="Diameter", unit="LENGTH", default=0.05, min=0.001, soft_max=0.6, precision=4, update=_cable_changed,
+        description="The outside diameter of the cable, in mm. It is read from the CAD cable; change it to draw a "
+                    "thicker or thinner cable (it then lies higher or lower on its rollers)")
+    cad_diameter: FloatProperty(default=0.0)
+    look: EnumProperty(
+        name="Look", default="POWER", update=_cable_changed,
+        description="How the cable looks. The pattern runs along with the cable, so you see it move",
+        items=[("POWER", "Power cable", "Black with yellow stripes at an angle"),
+               ("ROPE", "Steel wire rope", "Twisted steel strands, as on a winch"),
+               ("PLAIN", "Plain", "The look the part has in 3 Looks: nothing shows the cable moving")])
+    pitch: FloatProperty(
+        name="Stripe distance", unit="LENGTH", default=0.5, min=0.005, soft_max=5.0, precision=4,
+        update=_cable_changed,
+        description="Power cable: the distance from one yellow stripe to the next along the cable, in mm. Steel "
+                    "wire rope: the length of one full twist of a strand (about 6 to 7 times the diameter)")
+    angle: FloatProperty(
+        name="Stripe angle", subtype="ANGLE", default=math.radians(45.0), min=math.radians(5.0),
+        max=math.radians(90.0), update=_cable_changed,
+        description="The angle between a stripe and the cable. 90° gives rings straight round the cable. The app "
+                    "takes the nearest angle that closes up round the cable")
+    stripe: FloatProperty(
+        name="Stripe width", subtype="FACTOR", default=0.3, min=0.05, max=0.95, update=_cable_changed,
+        description="How much of the cable is yellow: 0.3 = stripes a bit under a third of the distance wide")
+    mbr: FloatProperty(
+        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_changed,
+        description="The tightest bend the cable may make (its minimum bend radius, MBR), in mm, measured to the "
+                    "middle of the cable. You get a warning naming the sheave or bend that is tighter. 0 = no check")
+    reverse: BoolProperty(
+        name="Runs the other way", default=False, update=_cable_changed,
+        description="Off: paying out moves the cable from its start to its end. On: from its end to its start. "
+                    "Tick it when the rollers and the stripes run the wrong way")
+    # the two ends. FIXED: a point on a part (``a_part``, in its coordinates). WHEEL: the cable starts on its first
+    # contact (the point is in that contact's carrier's coordinates). A free end is a FIXED point on the last
+    # contact's carrier, ``a_free`` metres straight on from where the cable leaves it (0 = as drawn in CAD).
+    a_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its first contact", "")])
+    a_part: PointerProperty(type=bpy.types.Object)
+    a_uid: StringProperty()
+    a_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    a_free: FloatProperty(
+        name="Free length at the start", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
+        update=_cable_changed,
+        description="How far the cable runs straight on before its first contact, in mm. 0 = as drawn in the CAD "
+                    "file")
+    b_kind: EnumProperty(default="FIXED", items=[("FIXED", "Fixed point", ""), ("WHEEL", "On its last contact", "")])
+    b_part: PointerProperty(type=bpy.types.Object)
+    b_uid: StringProperty()
+    b_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    b_free: FloatProperty(
+        name="Free length at the end", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
+        update=_cable_changed,
+        description="How far the cable runs straight on after its last contact, in mm. 0 = as drawn in the CAD "
+                    "file")
+    contacts: CollectionProperty(type=FRCableContact)      # in order along the cable, from its start
+    contacts_index: IntProperty(default=0)
+    # ---- state (written by blender/paths.py) ----
+    problem: StringProperty(default="")                    # '' or the warning shown in the panel
+    problem_frame: IntProperty(default=0)                  # the first frame it happens at (0 = in the pose shown)
+    length: FloatProperty(default=0.0)                     # of the drawn path, m
+    moving: BoolProperty(default=False)                    # its contacts move against each other: a shape per frame
+    shapes: PointerProperty(type=bpy.types.Object)         # the hidden mesh holding its points (frames x points)
+
+
+# ---------------------------------------------------------------------------
 # way covers (task 0034): telescopic covers follow one slide axis
 # ---------------------------------------------------------------------------
 
@@ -2794,6 +2934,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- hoses, cables and drag chains (task 0058) ----
     flex: CollectionProperty(type=FRFlex)
     flex_index: IntProperty(default=0)
+    # ---- cables and paths (task 0078) ----
+    cables: CollectionProperty(type=FRCable)
+    cables_index: IntProperty(default=0)
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
 
@@ -2810,7 +2953,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
-           FRCutTarget, FRCut, FRFlex, FRSceneSettings)
+           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSceneSettings)
 
 
 def register():

@@ -13,6 +13,233 @@ Additive: `props.py`, `ui.py`, `animation.py` (the bake hook), `reimport.py`, `c
 **Model:** **Fable · effort High**, split over subagents (CLAUDE.md "Subagents in a worker session") · **Place:** Claude
 Code on the web, environment "CAD-render-animation"
 
+## Design (worker, 13 Nov 2026 – the subagents' brief; keep it current)
+
+Units everywhere: **metres, radians, world coordinates, Blender's axes (Z up)**; `core/` is NumPy only (float64, no
+`bpy`, no SciPy, no Pillow). Angles shown to the user in degrees, lengths in mm, the cable speed in m/min.
+
+### What a cable path is
+
+A cable's centreline is a chain of **straight runs and circular arcs** that meet without a kink. Every arc lies on a
+**wheel**: a circle (a point on its axis, the axis, the radius to the cable's *middle*, the side the cable goes round).
+A wheel is a sheave (turns), a chute (a part, does not turn) or a **bend** (no single part carries it: the big bends of
+a power cable over many small rollers). Between two wheels the cable runs straight, tangent to both. **Rollers** the
+cable only rests on or runs past (a roller highway, V-cradle pairs, guide rollers along a bend) do not shape the path:
+they are *touch contacts* that only turn. So one list of **contacts**, in order along the cable:
+
+| Kind | Shapes the path | Turns | Its ratio |
+| --- | --- | --- | --- |
+| `SHEAVE` | arc, radius = groove bottom + cable radius | yes | 360 / (π · 2 · radius) ° per mm (the cable's middle) |
+| `ROLLER` | no (touch) | yes | 360 / (π · 2 · surface) ° per mm (the cable's skin on the roller's surface) |
+| `CHUTE` | arc on a part that is not round all the way (or the user says "does not turn") | no | – |
+| `BEND` | arc as drawn in CAD, no part | no | – |
+
+**Side** = +1 when the cable goes round the wheel turning about +axis (right hand), −1 about −axis:
+`side = sign(((p − c) × t) · axis)` with p a point of the cable on the wheel, c the centre, t the cable's direction
+(start → end). A wheel turned by the cable has angular velocity `ω = side · v / r` about +axis for the cable moving
+start → end at speed v; the joint's coupling ratio takes the sign of `side · (axis · joint axis)` and of `reverse`.
+
+**Ends.** `FIXED`: a point in a part's coordinates (the part the end touches; a free end: a point on the last
+contact's carrier, `free` metres straight on). `WHEEL`: the cable starts on its first wheel at a fixed point of that
+wheel's circle (a cable that comes off a drum: the drum is contact 0, the start does not turn with it).
+
+**Moving.** Every wheel and end has a **carrier** (the object whose coordinates hold its centre/axis/point: a turning
+part's joint arrow `joint.frame`, else the part itself, a bend: the cable part's parent). The path is solved from the
+carriers' places; the result is stored **in the cable part's own coordinates** (so vessel motion and moving the whole
+model cost nothing). Carriers that all move alike (`flex._movers`) → one shape, drawn once (`moving` off, no Scene
+Time node). Else live while posing (a depsgraph handler, the flex pattern) and **Build** solves every frame into the
+cable's shapes mesh (`frames × points`, the same number of points every frame: `core.paths.point_counts`).
+
+**The cable speed** is a slide joint (value = metres paid out, no members, `allow_empty`, no limits): made by Add
+cable ("Cable <name>") or taken (the demo's "Cable travel"). Turning contacts follow it (`joints.set_follows`, ratio in
+° per mm). An app-made rotate joint is tagged `motion["fr_cable"] = <cable name>` (add `"fr_cable"` to
+`joints.SPEC_TAGS`). A contact whose part already has a rotate joint on that axis keeps it: not yet following → the
+app couples it (`coupled`); following the cable joint already → left alone, a ratio more than 0.5 % off the app's is
+reported in `note`; following something else → left alone, `note` says so.
+
+**The look moves by a driver, not by geometry** (prototype, web machine: a 32,000-point tube, 0 ms per frame, the
+stripes in a Cycles render moved exactly by the paid-out length). The tube carries a point attribute
+`fr_cable` (FLOAT_VECTOR) = (cos φ, sin φ, s): φ the angle round the cable, s the length along the path from its start
+in metres. The cable part has two custom properties:
+- `fr_cable_pay` (float): **paid-out metres × direction + `PAY_BIAS` (2.0)**, written by a simple-expression driver
+  `a * k + 2.0` on the cable joint's `motion["fr_value"]` (k = +1, or −1 with `reverse`); never near 0 (the 5.2.3
+  small-number driver bug). The material subtracts the bias.
+- `fr_cable_look` (float array of 4): `[pitch m, starts, width share, kind]`, kind 1 = power cable, 2 = wire rope.
+  `starts` (signed whole number) = how many stripes (strands) go round the cable; the sign is the hand.
+A material reads them with Attribute nodes (GEOMETRY `fr_cable`, OBJECT `fr_cable_pay`, `fr_cable_look`):
+`phase = (s − (pay − 2.0)) / pitch + starts · φ / 2π`; power cable: yellow where `fract(phase) < width`.
+A mark at s₀ when nothing is paid out is at s₀ + paid-out later. A part without `fr_cable` (length of (x, y) < 0.5)
+shows the plain base (black / plain steel): the look may be given to a whole group.
+The two looks are materials-library entries `cable_power` and `wire_rope` (spec key `cable`), built by a hook in
+`materials.build_nodes` → `cable_looks.apply`. The cable's Look setting puts the cable *part* into the manual group
+"Power cables" / "Wire ropes" with that material (the app's own grouping: paint schemes, fades keep working); Plain
+takes it out again.
+
+### Files and owners
+
+| File | Owner | What |
+| --- | --- | --- |
+| `core/paths.py` + `tests/test_paths_core.py` | **A** | the path maths: solver, fixed point counts, reading a CAD centreline, the surface a cable rests on |
+| `tools/make_test_paths.py`, `tests/data/test_paths_a.step` / `_b.step` (+ copies in `fresing_render/data/`), `tests/test_paths_model.py` | **C** | the test model (two revisions) and the test that its numbers are what its docstring says |
+| `blender/cable_looks.py`, the two entries in `core/materials_lib.py`, the hook in `materials.build_nodes`, `tests/test_cable_looks.py` | **L** | the two looks |
+| `blender/paths.py` + `tests/test_paths.py`; the `FRCable*` classes in `props.py`; small additive changes in `blender/flex.py` (helpers made usable from outside) | **B** | everything with bpy |
+| `blender/ops_paths.py`, `blender/ui_paths.py`, `tools/ui_test_paths.py`, `tests/test_paths_panel.py` | **D** | operators, panel, tooltips, real-app test |
+| `tests/test_paths_independent.py` + a written review | **E** | independent tests from the brief (wrote none of the code) |
+| guide chapter + pictures | **F** | `docs/USER-GUIDE.md` "Cables and paths", `docs/img/` |
+| `props.py` (rest), `ui.py`, `ui_motion.py`, `__init__.py`, `animation.py`, `states.py`, `reimport.py`, `joints.py`, `demo.py`, `tour.py`, `pccheck/`, CI lists, version, CHANGELOG, `TASKS.md`, CLAUDE.md | **worker** | |
+
+### `core/paths.py` (A)
+
+```python
+@dataclass
+class Wheel:
+    centre: np.ndarray        # (3,) a point on the axis (any; the solver uses the plane through the cable)
+    axis: np.ndarray          # (3,) unit
+    radius: float             # axis -> the cable's middle
+    side: int                 # +1 / -1 (above)
+
+@dataclass
+class Path:
+    ok: bool; problem: str    # '' or a plain reason: "contact 3 lies behind contact 2", "contacts 4 and 5 overlap" …
+    bad: int                  # index of the wheel the problem is about (-1: none)
+    points: np.ndarray        # (n, 3) the polyline: start, per wheel its arc points (tangent-in … tangent-out), end
+    s: np.ndarray             # (n,) length along the path from the start (exact arc lengths, not chord sums)
+    first: np.ndarray         # (W,) index in points of each wheel's tangent-in point; its arc has counts[i] points
+    wrap: np.ndarray          # (W,) rad >= 0
+    length: float
+
+def solve(start, wheels: list[Wheel], end, start_on_wheel=False, end_on_wheel=False,
+          counts: list[int] | None = None, step: float = math.radians(4.0)) -> Path
+    # start / end: (3,) points. *_on_wheel: the point lies on the first / last wheel's circle (projected on it)
+    # and the arc starts / ends there (no straight run on that side). counts: points per arc (default: from step,
+    # at least 2). No wheels: a straight line. Tangent points by alternating over the wheels (0075 B) until they
+    # move < 1e-12 m: exact in a plane, and with a fleet angle. An arc whose in and out points are not in one plane
+    # square to the axis is drawn as a helix on the wheel (angle and axial place linear).
+    # Refuses (ok False, never a broken shape): a neighbour inside a wheel's circle, a wrap beyond 350°, a wheel
+    # that would be passed on the wrong side with a wrap going backwards (> 180° where CAD had < 90° is fine –
+    # only geometry that has no tangent), NaN.
+
+def solve_frames(starts, centres, axes, radii, sides, ends, start_on_wheel=False, end_on_wheel=False,
+                 counts=None) -> dict   # arrays over F frames: starts (F,3), centres (F,W,3), axes (F,W,3), radii (W,),
+    # sides (W,), ends (F,3) -> {"points": (F,n,3), "s": (F,n), "wrap": (F,W), "ok": (F,), "problems": {frame: text},
+    # "bad": (F,)}; vectorised over the frames (250 frames x 12 wheels well under 0.1 s)
+
+def point_counts(wrap_max, step=math.radians(4.0), least=2) -> list[int]
+
+def tightest(wheels, wrap, least_wrap=math.radians(1.0)) -> tuple[int, float]    # (index, radius) of the tightest bend
+
+# ---- reading a CAD cable ----
+@dataclass
+class Round:                  # a round face axis of a part near the cable (from the mesh's fr_axes), world
+    key: object               # whatever the caller wants back (object name, axis index)
+    centre: np.ndarray; axis: np.ndarray
+    verts: np.ndarray; tris: np.ndarray       # the part's mesh, world
+    full: bool | None = None  # round all the way (may turn)? None: work it out (is_round)
+
+@dataclass
+class Contact:
+    kind: str                 # "WRAP" | "TOUCH" | "BEND"
+    key: object               # the Round's key (None for a BEND)
+    centre: np.ndarray        # on the axis, in the plane of the cable there
+    axis: np.ndarray
+    radius: float             # WRAP: seat radius (surface + cable radius, from the mesh); BEND: fitted; TOUCH: axis -> centreline
+    surface: float            # the part's surface radius where the cable touches (BEND: 0)
+    side: int
+    s: float                  # where along the centreline (the middle of the contact)
+    wrap: float               # rad
+    gap: float                # CAD centreline distance - (surface + cable radius): + drawn apart, - drawn into the part
+    full: bool                # the part is round all the way
+
+@dataclass
+class Reading:
+    ok: bool; problem: str
+    contacts: list[Contact]   # in order along the centreline
+    start: np.ndarray; end: np.ndarray
+    start_on_wheel: bool; end_on_wheel: bool
+    path: Path                # solve() of the WRAP and BEND contacts
+    deviation: float          # the farthest the CAD centreline is from that path (m)
+
+def read_cable(points, radius, rounds: list[Round], touch_tol=None) -> Reading
+    # points: (n, 3) the CAD centreline (flex_fit.tube_centreline(...).points: equally spaced, facet noise ~0.1 mm,
+    # possibly thousands of points for a 300 m cable). Cuts it into straights and arcs (curvature; least-squares
+    # circles); an arc on a Round's axis (parallel within 2°, centres within tolerance, radius = seat ± tolerance)
+    # is a WRAP on it (exact centre, axis and seat radius come from the part, not the fit); another arc is a BEND.
+    # A Round whose axis the centreline passes at surface + cable radius (± touch_tol, default max(2 mm,
+    # 0.25 x cable radius)), square to the axis within 20°, and that is no WRAP, is a TOUCH.
+    # A stretch that is neither straight nor an arc (a spline, a helix): ok False with a plain reason.
+
+def seat(verts, tris, centre, axis, at, rope_radius, search=None) -> tuple[float, float]
+    # (place along the axis, radius axis -> cable middle) where a cable of rope_radius rests on the part near the
+    # axial place ``at`` (m from centre along axis): the smallest radius it can sink to (groove bottom + rope
+    # radius in a round groove, on both flanks in a V groove, surface + rope radius on a plain roller).
+    # search: how far along the axis it may slide to find it (default rope_radius). 0.1 mm on 0075's sheave.
+
+def surface_radius(verts, tris, centre, axis, at, width) -> float     # the part's outer radius near an axial place
+def is_round(verts, centre, axis) -> bool        # the mesh is a body of revolution about this axis (all the way round)
+def wheel_ratio(radius, side, axis, joint_axis, reverse=False) -> float   # degrees per mm of cable, signed
+def stripes(diameter, pitch, angle) -> int       # starts: round(pi * d / (pitch * tan(angle))), 90 deg -> 0 (rings)
+def stripe_angle(diameter, pitch, starts) -> float
+```
+
+### `blender/cable_looks.py` (L)
+
+```python
+PAY = "fr_cable_pay"; LOOK = "fr_cable_look"; ATTR = "fr_cable"; PAY_BIAS = 2.0
+KINDS = {"POWER": 1.0, "ROPE": 2.0}; MATERIALS = {"POWER": "cable_power", "ROPE": "wire_rope"}
+def apply(b, bsdf, spec: dict, color, metallic, rough, normal) -> tuple   # called by materials.build_nodes when the
+    # library entry has ``cable`` (dict: kind "POWER" | "ROPE", colours, defaults); returns (color, metallic, rough, normal)
+def look_values(kind, diameter, pitch, angle, width) -> list[float]       # the 4 numbers of fr_cable_look
+def pattern(kind, s, phi, paid_out, look) -> float                        # plain Python: what the nodes draw
+    # (power: 1.0 = yellow, 0.0 = black; rope: the height 0 … 1 of the strand surface) – the tests compare renders with it
+```
+Power cable: black sheath (as `cable_black`), yellow stripes (RAL 1023-like), a slight raised edge is not needed.
+Steel wire rope: 6 strands round the rope, each strand of wires laid the other way, galvanised grey, a little grease
+dark in the valleys; bump from the strand height. Both in Cycles and EEVEE (shader nodes only, no image, no script).
+
+### `blender/paths.py` (B) – what the others call
+
+```python
+TAG = "fr_cable"; MOD = "FR cable"; SHAPES = "FR cable shapes"       # + the cable's name
+class PathError(RuntimeError)                                        # plain words for the owner
+def items(scene); def active(scene); def find(scene, name); def index_of(scene, item); def label(item) -> str
+def add_cable(scene, name="", joint="") -> item                      # joint: take this slide joint; '' = make "Cable <name>"
+def read_cad(scene, item, part) -> list[str]                         # "From CAD cable": centreline, diameter, contacts, ends;
+                                                                     # turns everything, draws the cable; notes for the report
+def add_contact(scene, item, ob, hit=None) -> int                    # a clicked part joins the path (its place by the order along it)
+def remove_contact(scene, item, index) -> None
+def flip_contact(scene, item, index) -> None                         # the other side of the wheel
+def set_end(scene, item, end: str, ob=None) -> None                  # end "A" | "B" on a part (None: free end)
+def remove(scene, index) -> None                                     # the CAD shape shows again; app-made joints go, its couplings are released
+def changed(scene, item); def contact_changed(scene, contact)        # a setting changed (props.py calls them)
+def refresh(scene, force=False) -> None                              # live: solve for where the carriers are now
+def bake(scene, anim) -> list[str]                                   # at the end of Build animation, after flex.bake
+def after_clear(scene) -> None
+def shape_now(scene, item) -> np.ndarray                             # (n, 3) world, the drawn centreline at the current frame
+def wheels_now(scene, item) -> list                                  # core.paths.Wheel per shaping contact, world, now
+def status(scene, item) -> tuple[str, str]                           # (text, "OK" | "WARN" | "ERROR")
+def is_cable_joint(scene, j) -> bool
+def cable_of_joint(scene, j)                                          # the cable item or None
+def parts_of(scene, item) -> list                                    # the cable part (clash hook: left out, as flex parts)
+def candidates(scene) -> list                                        # parts that look like a cable or wire rope and are no cable yet
+def after_model_update(scene, by_uid, mapping) -> list[str]
+def register(); def unregister()
+def set_up_test_model(scene) -> dict                                 # test_paths_a.step: the cable read, the luff joint, an animation
+```
+
+### Test model (C) – `tools/make_test_paths.py out.step [A|B]`
+
+`test_paths_a.step` (invented, every part one solid, mm, Z up; small file): a `BASE FRAME`; a `WINCH DRUM` (plain
+barrel with flanges, axis along Y) on two bearing blocks; an `A-FRAME.ASM` hinged on the base about Y (the luff axis,
+named so the test can make the joint) carrying `SHEAVE 1` at its top and `SHEAVE 2` lower on a cross beam – both
+with a real round groove for the rope, each on its own pin; a `V CRADLE.ASM` (two plain `V ROLLER` solids at ±35–45°
+on a stand) on the base; a `CHUTE` (a quarter-round trough, not a full revolve) at the end of the base; and
+`WIRE ROPE` Ø 24 mm, one solid swept along lines and arcs: on the drum's barrel for a quarter turn or more → up to
+sheave 1 (wrap) → down to sheave 2 (wrap the other way, so the two sides differ) → level over the V-cradle (resting in
+the V, touching both rollers) → over the chute (arc on its trough) → straight on 0.5 m (free end). The rope touches
+each surface exactly (gap 0). Revision B: one more part and the parts in another order (model-update test).
+The maker's docstring lists every axis, radius (groove bottom, seat radius), tangent point, wrap angle and the rope's
+length – the numbers the tests need.
+
 ## Goal
 
 The owner sees his cable-lay spread work: one cable speed (m/min) moves a cable – power cable black with yellow angled

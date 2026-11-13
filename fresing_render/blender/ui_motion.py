@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import bpy
 
-from . import animation, build, cylinders, joints, linkages, queue
+from . import animation, build, cylinders, joints, linkages, paths, queue
 from ..core.words import plural
 from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props,
                  steps, use_button, wrap)
@@ -804,6 +804,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         text = f"{turns:.2f} turns in this step"
                         if not joints.is_motor(j) and abs(turns) > 0.5:
                             text += ". Tick 'Motor' on the joint in 4 Motion so it can turn without end"
+                    elif paths.is_cable_joint(scene, j):       # a cable's speed is given in m/min (task 0078)
+                        sub.prop(b, "speed_mmin", text="Cable speed (m/min)")
+                        text = f"{animation.motor_total(j, b):.2f} m of cable in this step"
                     else:
                         sub.prop(b, "speed_mms", text="Speed (mm/s)")
                         text = f"{animation.motor_total(j, b) * 1000.0:.0f} mm in this step"
