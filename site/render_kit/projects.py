@@ -61,7 +61,11 @@ class Model:
         logic = _mod(pkg, "blender.logic")
         self.by_name: dict = {}
         for ob in [self.root] + list(logic.descendants(self.root)):
-            self.by_name.setdefault(str(ob.get(build.PROP_NAME, ob.name)), []).append(ob)
+            name = str(ob.get(build.PROP_NAME, ob.name))
+            self.by_name.setdefault(name, []).append(ob)
+            inst = str(ob.get(build.PROP_INSTANCE, "") or "")
+            if inst and inst != name:            # task 0116: copies of one shape told apart by their occurrence
+                self.by_name.setdefault(inst, []).append(ob)
 
     def one(self, name: str):
         hits = self.by_name.get(name, [])

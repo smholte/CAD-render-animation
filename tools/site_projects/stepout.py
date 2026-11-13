@@ -3,6 +3,8 @@
 ``write(out, top, bodies, parts)``: ``bodies`` maps a sub-assembly name to its parent's name (``top`` for the first
 level); ``parts`` is a list of (part name, key, shape, 4x4 world matrix in mm, body name). Every sub-assembly sits at
 the identity, so a part's place is its world matrix; a shape used by several parts (the same key) is stored once.
+A part may carry a sixth item, its shape's own name (task 0116: the three blades share "BLADE"): the part name then
+goes on its occurrence (the importer keeps it as the instance name) and the shape is named by the sixth item.
 Each part must be one solid or one shell: the importer drops the colour of a part made of several solids
 (CLAUDE.md section 8).
 """
@@ -41,12 +43,16 @@ def write(out: str, top: str, bodies: dict, parts: list) -> dict:
     counts = {"parts": 0, "unique": 0, "bodies": 0}
 
     def fill(asm, body):
-        for pname, key, shape, M, _b in by_body.get(body, []):
+        for p in by_body.get(body, []):
+            pname, key, shape, M = p[:4]
+            own = p[5] if len(p) > 5 else ""
             if key not in shapes:
                 shapes[key] = st.AddShape(shape, False)
-                name(shapes[key], pname)
+                name(shapes[key], own or pname)
                 counts["unique"] += 1
-            st.AddComponent(asm, shapes[key], TopLoc_Location(trsf(M)))
+            comp = st.AddComponent(asm, shapes[key], TopLoc_Location(trsf(M)))
+            if own:
+                name(comp, pname)
             counts["parts"] += 1
         for sub in children.get(body, []):
             sa = st.NewShape()
