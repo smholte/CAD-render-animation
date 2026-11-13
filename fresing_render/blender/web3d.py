@@ -1099,7 +1099,8 @@ class Job:
             self.result.update(light=self.light, light_label=lightbake.label(self.light),
                                light_seconds=lit.seconds, light_bytes=int(self._light_bytes),
                                light_atlases=len(lit.atlases), light_texels=lit.texels,
-                               light_items=len(lit.items), light_problems=list(lit.problems))
+                               light_items=len(lit.items), light_problems=list(lit.problems),
+                               light_timing={k: round(v, 1) for k, v in lit.timing.items()})
             self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
         return self.result
 

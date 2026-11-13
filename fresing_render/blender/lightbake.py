@@ -96,6 +96,7 @@ class Result:
     atlas_size: int = 0                              # px of the (square) atlases
     texels: int = 0
     vertices: int = 0
+    timing: dict = field(default_factory=dict)      # s per stage: plan, setup, bake, clean
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +387,81 @@ class Bake:
         cache[key] = m
         return m
 
+    def _joined(self, entries, colour: bool, material_of) -> list:
+        """One bake object (world coordinates) of many placed copies; decals in a second one that casts no shadow.
+        ``entries``: [(plan row, light UVs (corners, 2) or None)]. Returns [(object, {row index in
+        p["verts"] or p["maps"] order: (first corner, end corner)})]."""
+        from . import decals
+        out = []
+        plain = [(k, e) for k, e in enumerate(entries) if not decals.is_decal(e[0]["ob"])]
+        marks = [(k, e) for k, e in enumerate(entries) if decals.is_decal(e[0]["ob"])]
+        verts = self.plan()["verts"]
+        for part, shadow in ((plain, True), (marks, False)):
+            if not part:
+                continue
+            names: list = []
+            for _k, (r, _uv) in part:
+                for n in r["md"].uvs:
+                    if n not in names:
+                        names.append(n)
+            pts, tris, nrm, mi, lights = [], [], [], [], []
+            uvs = {n: [] for n in names}
+            mats: list = []
+            mat_ix: dict = {}
+            ranges: dict = {}
+            off = corner = 0
+            for _k, (r, uv) in part:
+                md, ob = r["md"], r["ob"]
+                mw = np.array(ob.matrix_world, np.float64)
+                m3 = mw[:3, :3]
+                pts.append(md.points @ m3.T + mw[:3, 3])
+                tris.append(md.tris + off)
+                nm = np.linalg.inv(m3).T if abs(np.linalg.det(m3)) > 1e-12 else m3
+                n = md.normals.astype(np.float64) @ nm.T
+                n /= np.maximum(np.linalg.norm(n, axis=1), 1e-12)[:, None]
+                nrm.append(n)
+                slots = [sl.material for sl in ob.material_slots] or [None]
+                local = []
+                for m in slots:
+                    key = m.name_full if m is not None else ""
+                    if key not in mat_ix:
+                        mat_ix[key] = len(mats)
+                        mats.append(material_of(m))
+                    local.append(mat_ix[key])
+                local = np.asarray(local, np.int32)
+                mi.append(local[np.clip(md.mat, 0, len(local) - 1)])
+                n_c = len(md.tris) * 3
+                for name in names:
+                    uvs[name].append(md.uvs.get(name, np.zeros((n_c, 2), np.float32)))
+                if uv is not None:
+                    lights.append(np.asarray(uv, np.float32))
+                if colour:
+                    ranges[next(i for i, v in enumerate(verts) if v is r)] = (corner, corner + n_c)
+                off += len(md.points)
+                corner += n_c
+            md0 = part[0][1][0]["md"]
+            joined = _MeshData(np.concatenate(pts), np.concatenate(tris).astype(np.int32), None,
+                               np.concatenate(nrm).astype(np.float32), np.concatenate(mi).astype(np.int32),
+                               {n: np.concatenate(v) for n, v in uvs.items()}, md0.active_render, 0.0)
+            me = self._mesh_from(joined, np.concatenate(lights) if lights else None, colour, mats)
+            o = bpy.data.objects.new(NAME, me)
+            for k, v in (("fr_ax_long", (1.0, 0.0, 0.0)), ("fr_ax_round", (1.0, 0.0, 0.0)),
+                         ("fr_ax_centre", (0.0, 0.0, 0.0))):
+                o[k] = v
+            if not shadow:
+                o.visible_shadow = False
+            self._baker.scene.collection.objects.link(o)
+            self._baker.ids.append(o)
+            out.append((o, ranges))
+        return out
+
     def _target_mesh(self, ob, md: _MeshData, uv: np.ndarray | None, colour: bool):
+        """A triangle copy of ``ob``'s mesh (in its own coordinates) with its corner normals, UV layers and
+        materials (+ the light UVs)."""
+        mats = [slot.material for slot in ob.material_slots] or [None]
+        return self._mesh_from(md, uv, colour, mats)
+
+    def _mesh_from(self, md: _MeshData, uv: np.ndarray | None, colour: bool, materials: list):
         """A triangle copy of ``ob``'s mesh with its corner normals, UV layers and materials (+ the light UVs)."""
         me = bpy.data.meshes.new(NAME)
         self._baker.ids.append(me)
@@ -415,10 +490,8 @@ class Bake:
         if colour:
             ca = me.color_attributes.new(UV_NAME, "FLOAT_COLOR", "CORNER")
             me.color_attributes.active_color = ca
-        for slot in ob.material_slots:
-            me.materials.append(slot.material)
-        if not ob.material_slots:
-            me.materials.append(None)
+        for m in materials:
+            me.materials.append(m)
         return me
 
     def _object(self, me, mw, src):
@@ -451,7 +524,10 @@ class Bake:
         from . import web3d
         try:
             yield self._tick(0.0, "Planning the light bake")
+            t = time.perf_counter()
             p = self.plan()
+            self.result.timing["plan"] = time.perf_counter() - t
+            t = time.perf_counter()
             res = self.result
             res.problems += p["problems"]
             res.texels_per_m = p["tpm"]
@@ -480,21 +556,21 @@ class Bake:
                 self._baker.ids.append(img)
                 atlases.append(img)
             mat_cache: dict = {}
+            # Cycles bakes one object at a time over its whole image (CLAUDE.md, task 0099): every atlas' copies go
+            # into ONE bake object (world coordinates), decals into a second one that casts no shadow
             groups: list = [[] for _ in atlases]           # bake objects per atlas
             own_objs = []                                  # (row, object, image)
-            vert_objs = []                                 # (row, object)
+            per_atlas: list = [[] for _ in atlases]
             for r in p["maps"]:
                 md = r["md"]
                 uv, which = lm.place_uv(md.unwrap, r["tpm"] * r["scale"], r["places"], self.padding, A)
                 r["uv"] = uv
-                r["which"] = which
-                atl = int(which[0]) if len(which) else 0
-                me = self._target_mesh(r["ob"], md, uv, False)
-                o = self._object(me, r["ob"].matrix_world, r["ob"])
-                for k, m in enumerate(me.materials):
-                    me.materials[k] = self._material_with_image(m, atlases[atl], mat_cache)
-                groups[atl].append(o)
-                r["atlas"] = atl
+                r["atlas"] = int(which[0]) if len(which) else 0
+                per_atlas[r["atlas"]].append((r, uv))
+            for a, entries in enumerate(per_atlas):
+                for o, _rng in self._joined(entries, False,
+                                            lambda m, a=a: self._material_with_image(m, atlases[a], mat_cache)):
+                    groups[a].append(o)
             for r in p["own"]:
                 w, h = r["size"]
                 img = bpy.data.images.new(NAME, w, h, alpha=True, float_buffer=True)
@@ -506,11 +582,15 @@ class Bake:
                 for k, m in enumerate(me.materials):
                     me.materials[k] = self._material_with_image(m, img, mat_cache)
                 own_objs.append((r, o, img))
-            for r in p["verts"]:
-                me = self._target_mesh(r["ob"], r["md"], None, True)
-                for k, m in enumerate(me.materials):
-                    me.materials[k] = self._matte(m, mat_cache)
-                vert_objs.append((r, self._object(me, r["ob"].matrix_world, r["ob"])))
+            vert_jobs = []                                 # (rows, [(object, {row index: corner range})])
+            chunk, size = [], 0
+            for k, r in enumerate(p["verts"]):
+                chunk.append(k)
+                size += len(r["md"].tris) * 3 * self.samples
+                if size > BATCH_TEXEL_SAMPLES or k == len(p["verts"]) - 1:
+                    entries = [(p["verts"][i], None) for i in chunk]
+                    vert_jobs.append((list(chunk), self._joined(entries, True, lambda m: self._matte(m, mat_cache))))
+                    chunk, size = [], 0
             for ob in self.occluders:
                 me = ob.data if ob.type == "MESH" else None
                 if me is None:
@@ -539,25 +619,19 @@ class Bake:
             mask = [np.zeros((A, A), bool) for _ in atlases]
             own_acc = [np.zeros((img.size[1], img.size[0], 3), np.float32) for _r, _o, img in own_objs]
             own_mask = [np.zeros((img.size[1], img.size[0]), bool) for _r, _o, img in own_objs]
-            vert_acc = [np.zeros((len(r["md"].tris) * 3, 3), np.float32) for r, _o in vert_objs]
+            vert_acc = [np.zeros((len(r["md"].tris) * 3, 3), np.float32) for r in p["verts"]]
             ref = np.zeros(3, np.float64)
-            jobs = []                                   # (kind, objects, images)
+            jobs = []                                   # (kind, index, objects)
             for a, grp in enumerate(groups):
                 if grp:
                     jobs.append(("atlas", a, grp))
             for k, (_r, o, _img) in enumerate(own_objs):
                 jobs.append(("own", k, [o]))
-            if vert_objs:
-                chunk, size = [], 0
-                for k, (r, o) in enumerate(vert_objs):
-                    chunk.append(k)
-                    size += len(r["md"].tris) * 3 * self.samples
-                    if size > BATCH_TEXEL_SAMPLES:
-                        jobs.append(("vert", list(chunk), [vert_objs[i][1] for i in chunk]))
-                        chunk, size = [], 0
-                if chunk:
-                    jobs.append(("vert", list(chunk), [vert_objs[i][1] for i in chunk]))
+            for k, (_rows, parts) in enumerate(vert_jobs):
+                jobs.append(("vert", k, [o for o, _rng in parts]))
             n_calls = len(passes) * (len(jobs) + 1)
+            res.timing["setup"] = time.perf_counter() - t
+            t = time.perf_counter()
             done = 0
             for world, pf, what in passes:
                 sc.world = world
@@ -572,8 +646,10 @@ class Bake:
                                      f"Baking the {what}: {done} of {n_calls}")
                     if kind == "vert":
                         self._bake_call(sc, objs, "VERTEX_COLORS", pf)
-                        for i, o in zip(idx, objs):
-                            vert_acc[i] += self._corner_colours(o)
+                        for o, rng in vert_jobs[idx][1]:
+                            c = self._corner_colours(o)
+                            for i, (lo, hi) in rng.items():
+                                vert_acc[i] += c[lo:hi]
                     else:
                         self._bake_call(sc, objs, "IMAGE_TEXTURES", pf)
                         img = atlases[idx] if kind == "atlas" else own_objs[idx][2]
@@ -593,11 +669,15 @@ class Bake:
                 lum = np.array([0.2126, 0.7152, 0.0722])
                 if self.light == "ALL":
                     res.sun_ratio = max(0.0, float(ref @ lum) / max(float(sky @ lum), 1e-9) - 1.0)
+            res.timing["bake"] = time.perf_counter() - t
+            res.timing["calls"] = n_calls
+            t = time.perf_counter()
             yield self._tick(0.86, "Cleaning up the baked light")
             for k, (a, m) in enumerate(list(zip(acc, mask)) + list(zip(own_acc, own_mask))):
                 a[...] = self._clean(a, m)
                 yield self._tick(0.86 + 0.12 * (k + 1) / max(1, len(acc) + len(own_acc)), "Cleaning up the baked light")
             res.atlases = acc
+            res.timing["clean"] = time.perf_counter() - t
             for r in p["maps"]:
                 it = Item(self.id_of(r["ob"]), r["ob"].name, "MAP", texels_per_m=r["tpm"], pixels=acc[r["atlas"]],
                           uv=r["uv"], atlas=r["atlas"])
@@ -606,7 +686,7 @@ class Bake:
             for (r, _o, _img), a in zip(own_objs, own_acc):
                 res.items[self.id_of(r["ob"])] = Item(self.id_of(r["ob"]), r["ob"].name, "MAP",
                                                       texels_per_m=r["tpm"], pixels=a)
-            for (r, _o), c in zip(vert_objs, vert_acc):
+            for r, c in zip(p["verts"], vert_acc):
                 md = r["md"]
                 n = len(md.points)
                 vals = np.zeros((n, 3), np.float64)
