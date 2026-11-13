@@ -254,39 +254,7 @@ def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
     bpy.ops.wm.open_mainfile(filepath=made["out"]["path"])
 
 
-def test_no_clash_in_the_animation(made, monkeypatch):
-    """The clash check over the whole animation: 0 rows (a clash is a fault in the model or the set-up). The rollers,
-    wheels and drums are checked too since task 0097: they turn about their own axis, so the clash check holds them
-    still on their carrier (task 0092). That they really turn about their own axis is checked here too."""
-    from mathutils import Vector
-
-    from fresing_render.blender import animation, build, clash, joints, vessel_motion
-    from fresing_render.core import clash as core
-    sc = _scene()
-    animation.bake(sc, sc.fresing.animations[demo.ANIM])
-    leave = demo.turning_in_place(sc)
-    assert 250 < len(leave) < 600
-    for j in sc.fresing.joints:                                    # round about their own axis
-        top = joints.driver_of(sc, j)
-        if j.kind != "ROTATE" or top is None or top.name not in (demo.CABLE, demo.TRAVEL):
-            continue
-        o, dvec = joints.axis_world(j)
-        for m in joints.members(j):
-            if m.get(build.PROP_KIND) != "part":
-                continue
-            c = sum((m.matrix_world @ Vector(v) for v in m.bound_box), Vector()) / 8.0
-            off = c - o
-            off -= dvec * off.dot(dvec)
-            assert off.length < 0.01, (j.name, off.length)
-    # (the cable is on its path since task 0078: the clash check leaves a drawn cable out by itself, as it does hoses)
-    # the sea at rest (task 0091): the vessel's sway moves the whole model as one, so it changes nothing between two
-    # parts; but where the sway turns very slowly while a part slides (a lift, the cylinder rods) the check's step
-    # between two frames came out up to centimetres off (screw_between reads a tiny turn from float32 matrices), and
-    # the rows it gave (1.2 mm, 0.8 mm) moved with the sea's phase. Open point for the clash lane (task 0092).
-    with vessel_motion.at_rest(sc):
-        run = clash.check(sc, store=False)
-    assert run.stats["parts"] > 700
-    assert not run.rows, [core.row_text(r) for r in run.rows[:5]]
+# test_no_clash_in_the_animation: in tests/test_demo_clash.py since task 0108 (four processes at once)
 
 
 def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):

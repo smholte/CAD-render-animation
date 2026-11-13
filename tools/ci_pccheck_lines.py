@@ -25,14 +25,16 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CHECKS = os.path.join(ROOT, "fresing_render", "pccheck", "checks.py")
 
-# Linux job `pccheck2` (plus LINUX2_NEEDS): the two longest lines (video with labels ~3 min on Windows' CPU, the queue's time test).
-LINUX2 = ("video.labels", "queue.time_test")
+# Linux job `pccheck2` (plus LINUX2_NEEDS): the longest lines (video with labels ~3 min on Windows' CPU, the queue's time
+# test; task 0108: the two EEVEE queue lines, 120 + 155 s on a runner, so that both halves take about 9 minutes).
+LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Start-menu shortcut and the report.
 LINUX2_NEEDS = ("import.crane",)       # lines those two need first (`requires=`): run again in job `pccheck2`
 WINDOWS_SKIPS = ("video.labels", "queue.time_test", "queue.video", "scene.turntable", "tour.make",
-                 "looks.materials", "milling.coolant")
+                 "looks.materials", "milling.coolant",
+                 "milling.toolpath", "motion.fade")     # task 0108: 51 + 33 s of pure app code on the Windows runner
 
 
 def full_ids(path: str = CHECKS) -> list[str]:

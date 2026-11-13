@@ -75,7 +75,7 @@
   "tests/test_hover.py": 2.7,
   "tests/test_camera_ride.py": 14.6,
   "tests/test_vessel_motion.py": 26.2,
-  "tests/test_demo_project.py": 895.3,
+  "tests/test_demo_project.py": 312.0,
   "tests/test_flex_panel.py": 13.1,
   "tests/test_product_video.py": 3.9,
   "tests/test_web3d_core.py": 0.0,
@@ -96,7 +96,8 @@
   "tests/test_cable_looks.py": 6.5,
   "tests/test_flex.py": 28.5,
   "tests/test_paths.py": 118.5,
-  "tests/test_sequence.py": 6.0
+  "tests/test_sequence.py": 6.0,
+  "tests/test_demo_clash.py": 560.0
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.2,
@@ -488,8 +489,7 @@
    15.6
   ],
   "tests/test_demo_project.py": [
-   324.2,
-   895.3
+   312.0
   ],
   "tests/test_flex_panel.py": [
    13.1
@@ -557,6 +557,9 @@
   ],
   "tests/test_sequence.py": [
    6.0
+  ],
+  "tests/test_demo_clash.py": [
+   560.0
   ]
  }
 }

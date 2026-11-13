@@ -67,13 +67,13 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 41, "pccheck2": 2, "pccheckheavy": 14, "update": 29, "tour": 51, "tourui": 15,
+              "paths": 8, "pccheck": 41, "pccheck2": 4, "pccheckheavy": 14, "update": 29, "tour": 51, "tourui": 15,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
-# takes more than about 8 minutes). Seconds of the tests on a runner (run 42815485418, 10 Nov 2026): pccheck (Full, first
+# takes more than about 8 minutes; task 0108: pccheck had grown to 14 min, two EEVEE lines moved to pccheck-b). Seconds of the tests on a runner (run 42815485418, 10 Nov 2026): pccheck (Full, first
 # part, ~44 lines) ~250 | pccheck-b: pccheck2 (video.labels + queue.time_test) ~215 + ui2 51 + faces 14 + rulesets 32 +
 # decals 20 | callouts 442 (its queued video varies most: alone) | paths 130 + pccheckheavy ~330 | tour ~210 | ui1 377 |
 # surroundings 403 | video 219 + studio 96 + update 28 | milling 32 + cylinder 24 + linkage 27 + waycover + gcode + tourui
@@ -83,15 +83,15 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 # (tools/ci_precheck.py). The longest job sets the run's length (with the queued-render test of test_air.py, ~10 min).
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
-    "pccheck-b": ["pccheck2", "ui2", "faces", "rulesets", "decals"],
+    "pccheck-b": ["pccheck2"],          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts"],
-    "paths-heavy": ["paths", "pccheckheavy"],
+    "paths-heavy": ["pccheckheavy"],     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min)
     "ui": ["ui1", "spool"],             # spool: task 0080, about 1 minute
-    "scenes": ["surroundings", "vessel"],
-    "motion": ["video", "studio", "update"],
+    "scenes": ["surroundings", "vessel", "rulesets", "decals"],
+    "motion": ["video", "studio", "update", "ui2", "faces"],
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
-                 "cables"],
+                 "cables", "paths"],
 }
 
 TESTS = {
@@ -130,9 +130,10 @@ TESTS = {
     "doublearm": ("Real app: double-arm tool changer – click the hub and the hinge, Check, hand-overs "
                   "(ui_test_doublearm.py)", "ui_test_doublearm.py", True),
     "paths": ("Paths with spaces, accents, ' and – (paths_test_blender.py)", "paths_test_blender.py", False),
-    "pccheck": ("PC check, Full, first part (all lines but two), from the installed launcher (pccheck/launcher.py)", "",
+    "pccheck": ("PC check, Full, first part (all lines but four), from the installed launcher (pccheck/launcher.py)", "",
                 "pccheck"),
-    "pccheck2": ("PC check, Full, second part (the two longest lines: video with labels, queue time test)", "",
+    "pccheck2": ("PC check, Full, second part (the four longest lines: video with labels, queue time test, the two "
+                 "EEVEE queue lines)", "",
                  "pccheck"),
     "pccheckheavy": ("PC check, Heavy (scaled down), from the installed launcher", "", "pccheck"),
     "tour": ("Test tour, the automatic run (PC check mode Tour) from the installed launcher: every stop", "",
