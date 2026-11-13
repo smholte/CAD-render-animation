@@ -2067,6 +2067,8 @@ class FRCableContact(bpy.types.PropertyGroup):
     side: IntProperty(default=1)                           # +1: the cable goes round it turning about +axis; -1: about -axis
     wrap: FloatProperty(default=0.0)                       # rad, as drawn now (written by paths.py)
     gap: FloatProperty(default=0.0)                        # m: how far the CAD cable was drawn off the surface
+    s: FloatProperty(default=0.0)                          # m along the cable from its start: where the contact is
+    full: BoolProperty(default=True)                       # the part is round all the way (it may turn)
     turns: BoolProperty(
         name="Turns with the cable", default=True, update=_cable_contact_changed,
         description="On: this roller or sheave turns as fast as the cable runs over it. Off: it stands still "
@@ -2129,6 +2131,7 @@ class FRCable(bpy.types.PropertyGroup):
     a_part: PointerProperty(type=bpy.types.Object)
     a_uid: StringProperty()
     a_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    a_free_end: BoolProperty(default=False)                # a free end: the start touches no part
     a_free: FloatProperty(
         name="Free length at the start", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
         update=_cable_changed,
@@ -2138,6 +2141,7 @@ class FRCable(bpy.types.PropertyGroup):
     b_part: PointerProperty(type=bpy.types.Object)
     b_uid: StringProperty()
     b_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    b_free_end: BoolProperty(default=False)                # a free end: the end touches no part
     b_free: FloatProperty(
         name="Free length at the end", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
         update=_cable_changed,
