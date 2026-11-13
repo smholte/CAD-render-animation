@@ -10,3 +10,5 @@ pillow==13.0.0
 pytest==9.2.0
 # markdown: the user guide (tools/build_guide.py), built into every extension zip
 markdown==3.11.2
+# jsonschema: the house scene format's checker (tests/data/house/hsf-v1.0/check.py, task 0114; the format's own pin)
+jsonschema==4.26.0
