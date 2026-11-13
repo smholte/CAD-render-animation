@@ -84,9 +84,15 @@ def needs(scene, place: str) -> dict:
     return out
 
 
+def _mine(x) -> bool:
+    """Made here (weather_sky tags its moon, floodlights, masts and fog with the same tag: never touch those)."""
+    from .weather_sky import ROLES as SKY_ROLES
+    return x.get(TAG) is not None and x.get(TAG) not in SKY_ROLES
+
+
 def objects(scene=None) -> list:
     obs = scene.objects if scene is not None else bpy.data.objects
-    return [o for o in obs if o.get(TAG) is not None]
+    return [o for o in obs if _mine(o)]
 
 
 def find(role: str):
@@ -174,7 +180,7 @@ def remove(scene=None, keep_collection: bool = False) -> None:
     """Take away every object, mesh, node group and material made here."""
     col = bpy.data.collections.get(COLLECTION)
     meshes = set()
-    for ob in [o for o in bpy.data.objects if o.get(TAG) is not None]:
+    for ob in [o for o in bpy.data.objects if _mine(o)]:
         if ob.type == "MESH" and ob.data is not None:
             meshes.add(ob.data.name)
         bpy.data.objects.remove(ob)
@@ -182,11 +188,11 @@ def remove(scene=None, keep_collection: bool = False) -> None:
         me = bpy.data.meshes.get(name)
         if me is not None and me.users == 0:
             bpy.data.meshes.remove(me)
-    for me in [m for m in bpy.data.meshes if m.get(TAG) is not None and m.users == 0]:
+    for me in [m for m in bpy.data.meshes if _mine(m) and m.users == 0]:
         bpy.data.meshes.remove(me)
-    for ng in [g for g in bpy.data.node_groups if g.get(TAG) is not None]:
+    for ng in [g for g in bpy.data.node_groups if _mine(g)]:
         bpy.data.node_groups.remove(ng)
-    for m in [m for m in bpy.data.materials if m.get(TAG) is not None]:
+    for m in [m for m in bpy.data.materials if _mine(m)]:
         bpy.data.materials.remove(m)
     if col is not None:
         if keep_collection:

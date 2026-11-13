@@ -42,7 +42,7 @@ WORK_TAG = "fr_work_light"      # on a work light: the part's ID (build.PROP_UID
 WORK_KIND = "fr_work_light_kind"
 WORK_LOCAL = "fr_work_light_local"       # the light's place relative to its part (16 numbers), for a model update
 HELPER_KIND = "cnc"             # fr_kind of objects that are not part of the CAD tree (logic.Tree skips it)
-COLLECTION = "FR Weather"
+COLLECTION = "FR Weather lights"
 WORK_COLLECTION = "FR Work lights"
 KEY = "fr_weather_sky_key"      # scene property: what apply built last (cheap when nothing changed)
 EXPOSURE_BASE = "fr_weather_exposure_base"   # the user's own exposure while the weather adds to it
@@ -354,8 +354,11 @@ def _fog_wanted(scene, place: str) -> bool:
     return place == "sky" and _peak(scene, "fog") > core.CLEAR_FOG * 1.001
 
 
+ROLES = ("moon", "floods", "flood", "mast", "fog")     # what this module makes (weather_fx shares the tag)
+
+
 def _objects(role: str | None = None) -> list:
-    return [ob for ob in bpy.data.objects if ob.get(TAG) and (role is None or ob.get(TAG) == role)]
+    return [ob for ob in bpy.data.objects if ob.get(TAG) in ROLES and (role is None or ob.get(TAG) == role)]
 
 
 def _collection(scene, name: str = COLLECTION):
