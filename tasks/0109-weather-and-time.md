@@ -1,6 +1,6 @@
 # 0109 – Weather and time of day in the app: a better ocean, rain, snow, wind, fog and clouds, day to night
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0109-weather-and-time`
+**Who:** worker · **Status:** running · **Branch:** `claude/affectionate-turing-97hxbu`
 **Started by:** lead chat, 13 Nov 2026 (owner: "improve the environment: rain, snow, time, wind")
 **Lane:** Scene & Render + Sea (both free): new files `core/weather.py`, `blender/weather.py`, `ops_weather.py`,
 `ui_weather.py` (a sub-panel of 5 Scene & Render); `world.py` (sky, sun, night); the sea and the outdoor surroundings in
