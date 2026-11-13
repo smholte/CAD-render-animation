@@ -24,6 +24,11 @@ gets a **long, low swell** (``swell``): eight waves of 6–15 s from the heading
 (the mix was tuned so the table below holds for a 64 m and a 124 m hull). Without vessel
 motion nothing is added, so a project without it looks exactly as before.
 
+**Sea states.** CALM and ROUGH have tables; the sea state WIND (task 0109: the sea follows the wind of Weather & time)
+takes its numbers between them by its Beaufort force (``level``: Beaufort 3 = Calm, 6 = Rough, held at the ends).
+Since task 0109 the sea's own waves come from a wind-wave spectrum (``core/sea.py``); at Calm and Rough they run
+along the vessel from the bow.
+
 **Sizes.** A sea state's numbers (``TARGETS``, peak over ten minutes, at the reference heading Bow quarter) hold for
 every vessel: the raw motion of *this* vessel at the reference heading is worked out and each channel is scaled to
 the state's number (``scales``). The heading then decides how the motion is shared: a beam sea rolls more, a head sea
@@ -136,16 +141,38 @@ class Motion:
         return {"heave": self.heave.value(t), "roll": self.roll.value(t), "pitch": self.pitch.value(t)}
 
 
+def level(state: str, bft: float | None = None) -> float:
+    """0 = Calm, 1 = Rough; the sea state WIND lies between by its Beaufort force (3 -> 0, 6 -> 1, held outside)."""
+    if state == "WIND" and bft is not None:
+        return min(max((float(bft) - 3.0) / 3.0, 0.0), 1.0)
+    return 1.0 if state == "ROUGH" else 0.0
+
+
+def targets(state: str, bft: float | None = None) -> dict:
+    """The peaks the vessel moves with (``TARGETS``; WIND between Calm and Rough)."""
+    if state in TARGETS:
+        return TARGETS[state]
+    f = level(state, bft)
+    return {k: TARGETS["CALM"][k] + (TARGETS["ROUGH"][k] - TARGETS["CALM"][k]) * f for k in TARGETS["CALM"]}
+
+
+def swell_height(state: str, bft: float | None = None) -> float:
+    if state in SWELL_HEIGHT:
+        return SWELL_HEIGHT[state]
+    f = level(state, bft)
+    return SWELL_HEIGHT["CALM"] + (SWELL_HEIGHT["ROUGH"] - SWELL_HEIGHT["CALM"]) * f
+
+
 def waves_from_tuples(rows) -> list[Wave]:
     return [Wave(*map(float, r)) for r in rows]
 
 
-def swell(state: str, heading: str) -> list[Wave]:
+def swell(state: str, heading: str, bft: float | None = None) -> list[Wave]:
     """The long, low swell that moves the vessel (added to the sea only when vessel motion is on)."""
     head = math.radians(HEADINGS.get(heading, HEADINGS[REFERENCE_HEADING])[1])
     rng = random.Random(85)
     share = np.array(SWELL_SHARE, float)
-    amps = SWELL_HEIGHT.get(state, SWELL_HEIGHT["CALM"]) * share / share.sum() * 2.2
+    amps = swell_height(state, bft) * share / share.sum() * 2.2
     out = []
     for T, a, spread in zip(SWELL_PERIODS, amps, SWELL_SPREAD):
         w = 2 * math.pi / T
@@ -221,10 +248,11 @@ def measure(motion: Motion, seconds: float = 120.0, dt: float = 0.04, start: flo
             "heave_s": mean_period(s["heave"], dt)}
 
 
-def scales(state: str, sea_waves: list[Wave], length: float, beam: float, roll_period: float = 11.0) -> dict:
+def scales(state: str, sea_waves: list[Wave], length: float, beam: float, roll_period: float = 11.0,
+           bft: float | None = None) -> dict:
     """Factor per channel so that this vessel at the reference heading moves as the state's numbers say."""
-    target = TARGETS.get(state, TARGETS["CALM"])
-    ref = raw(sea_waves + swell(state, REFERENCE_HEADING), length, beam, (0.0, 0.0), roll_period)
+    target = targets(state, bft)
+    ref = raw(sea_waves + swell(state, REFERENCE_HEADING, bft), length, beam, (0.0, 0.0), roll_period)
     m = measure(ref, WINDOW, 0.05)
     return {ch: (target[ch] / m[ch] if m[ch] > 1e-9 else 0.0) for ch in ("roll", "pitch", "heave")}
 
@@ -238,13 +266,14 @@ class Settings:
     beam: float = REFERENCE_SIZE[1]
     roll_period: float = 11.0
     centre: tuple = (0.0, 0.0)   # the hull's middle in the sea's coordinates
+    bft: float | None = None     # the wind's Beaufort force (sea state WIND only)
 
 
 def motion(st: Settings, sea_waves: list[Wave]) -> Motion:
     """The vessel's motion in a sea state: the sea's own waves + the swell, scaled to the state's numbers."""
     length, beam = max(st.length, MIN_LENGTH), max(st.beam, MIN_BEAM)
-    f = scales(st.state, sea_waves, length, beam, st.roll_period)
-    m = raw(sea_waves + swell(st.state, st.heading), length, beam, st.centre, st.roll_period)
+    f = scales(st.state, sea_waves, length, beam, st.roll_period, st.bft)
+    m = raw(sea_waves + swell(st.state, st.heading, st.bft), length, beam, st.centre, st.roll_period)
     k = max(0.0, float(st.strength))
     return Motion(m.heave.scaled(f["heave"] * k).trimmed(), m.roll.scaled(f["roll"] * k).trimmed(),
                   m.pitch.scaled(f["pitch"] * k).trimmed())
@@ -252,7 +281,7 @@ def motion(st: Settings, sea_waves: list[Wave]) -> Motion:
 
 def summary(state: str, strength: float, roll_deg: float) -> str:
     """Panel header: 'Calm · roll ±1.2°'."""
-    name = {"CALM": "Calm", "ROUGH": "Rough"}.get(state, state.title())
+    name = {"CALM": "Calm", "ROUGH": "Rough", "WIND": "From the wind"}.get(state, state.title())
     if strength <= 0:
         return f"{name} · still"
     return f"{name} · roll ±{roll_deg:.1f}°"
@@ -260,5 +289,6 @@ def summary(state: str, strength: float, roll_deg: float) -> str:
 
 def key(st: Settings) -> str:
     """What the motion depends on (rebuild when it changes)."""
-    return (f"{st.state}|{st.heading}|{st.strength:.4f}|{st.length:.3f}|{st.beam:.3f}|{st.roll_period:.3f}|"
-            f"{st.centre[0]:.3f}|{st.centre[1]:.3f}")
+    k = (f"{st.state}|{st.heading}|{st.strength:.4f}|{st.length:.3f}|{st.beam:.3f}|{st.roll_period:.3f}|"
+         f"{st.centre[0]:.3f}|{st.centre[1]:.3f}")
+    return k + (f"|{st.bft:.3f}" if st.state == "WIND" and st.bft is not None else "")
