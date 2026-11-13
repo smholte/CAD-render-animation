@@ -1,7 +1,6 @@
 # 0116 – IEA 15 MW wind turbine for the site: onshore and offshore, detailed, moving
 
-**Who:** worker · **Status:** waiting – starts when the owner's STEP is on the draft release `site-kit` (and no
-take-in session of the Site kit lane is running) · **Branch:** `task/0116-wind-turbine` (or the web session's branch)
+**Who:** worker · **Status:** running (13 Nov; the STEP `15MW.step`, 81 MB, is on `site-kit`) · **Branch:** `task/0116-wind-turbine` (or the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's picks from study 0113, 22:07; owner's wishes 22:54)
 **Area (Site kit lane):** new `tools/site_projects/iea15*.py` (+ an invented-parts maker, e.g.
 `tools/site_projects/turbine_parts.py`), `tools/make_site_projects.py` (additive: a new model id),
