@@ -1754,6 +1754,38 @@ class FRCnc(bpy.types.PropertyGroup):
     rapid_z: FloatProperty(name="Z rapid (mm/min)", default=3000.0, min=1.0, soft_max=60000.0, precision=0,
                            step=10000, update=_cnc_changed,
                            description="The machine's rapid speed on Z in mm per minute")
+    # ---- acceleration (task 0103) ----
+    use_accel: BoolProperty(
+        name="Speed up and slow down (acceleration)", default=True, update=_cnc_changed,
+        description="Times every G-code move as the machine runs it: each axis speeds up and slows down with its "
+                    "maximum acceleration, slows at corners (G64) or stops at them (G61), so short moves take "
+                    "longer, as on the machine. Off: every move runs at full speed from start to end (projects "
+                    "made before this setting came keep it off until you tick it)")
+    accel_x: FloatProperty(
+        name="X accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The X axis' maximum acceleration in mm per second² (MAX_ACCELERATION of the axis in "
+                    "LinuxCNC's .ini). Bigger: short moves are quicker. Read from LinuxCNC INI fills it in")
+    accel_y: FloatProperty(
+        name="Y accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The Y axis' maximum acceleration in mm per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_z: FloatProperty(
+        name="Z accel. (mm/s²)", default=1000.0, min=1.0, soft_max=20000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The Z axis' maximum acceleration in mm per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_a: FloatProperty(
+        name="A accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The A axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_b: FloatProperty(
+        name="B accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The B axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
+    accel_c: FloatProperty(
+        name="C accel. (°/s²)", default=3600.0, min=1.0, soft_max=100000.0, precision=0, step=10000,
+        update=_cnc_changed,
+        description="The C axis' maximum acceleration in degrees per second² (MAX_ACCELERATION in LinuxCNC's .ini)")
     spindle_joint: StringProperty(name="Spindle", update=_cnc_changed,
                                   description="The rotate joint of the spindle. Picking it ticks Motor on it, so it turns "
                                               "without end, as the program's S and M3 / M4 / M5 say. Empty: the "

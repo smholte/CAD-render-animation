@@ -44,8 +44,10 @@ Not supported (reported): cutter compensation G41 / G42 (the tool follows the pr
 threading G33 / G76, splines G5, probing G38, lathe modes, user M-codes M100-M199.
 
 Times: a rapid takes as long as its slowest axis needs at that axis' rapid speed (rotary axes in degrees per
-minute); a feed move at its feed (never faster than the axes' rapid speeds). Acceleration is left out: a real
-machine is a little slower on short moves.
+minute); a feed move at its feed (never faster than the axes' rapid speeds). With ``accel`` (task 0103) every move
+then speeds up and slows down with the axes' maximum accelerations (:func:`plan_accel`: trapezoid speed profiles,
+G61 exact stop, G64 corner blending, arcs at most √(a·r)); without it every move runs at its full speed from start
+to end.
 """
 
 from __future__ import annotations
@@ -94,6 +96,83 @@ class Move:
     rb: tuple = ()              # … and at the end; they change evenly along the move (also along an arc)
     h: int = 0                  # task 0096: the tool whose length offset (G43 Hn) is in force when that is not the
                                 # tool in the spindle (an M6 without a new G43); 0: the tool in the spindle's own
+    blend: float = 0.0          # task 0103: path control at this move's end: -1 exact stop (G61 / G61.1), 0 blending
+                                # without a tolerance (G64), > 0 the tolerance of G64 P (mm)
+    dur0: float = -1.0          # task 0103: the time without acceleration (s); -1: not planned (``dur`` is that time)
+    prof: tuple = ()            # task 0103: the speed profile (vs, vp, ve, a, S, t1, t2), see :func:`plan_accel`;
+                                # () = constant speed (the place goes evenly with the time)
+
+    def u_of(self, tau: float) -> float:
+        """The share of the path (0..1) done after the share ``tau`` (0..1) of this move's time (task 0103)."""
+        if tau <= 0.0:
+            return 0.0
+        if tau >= 1.0:
+            return 1.0
+        if not self.prof:
+            return tau
+        vs, vp, ve, a, S, t1, t2 = self.prof
+        t = tau * self.dur
+        d1 = (vs + vp) * 0.5 * t1
+        if t <= t1:
+            s = vs * t + 0.5 * a * t * t
+        elif t <= t2:
+            s = d1 + vp * (t - t1)
+        else:
+            dt = t - t2
+            s = d1 + vp * (t2 - t1) + vp * dt - 0.5 * a * dt * dt
+        return min(1.0, max(0.0, s / S))
+
+    def tau_of(self, u: float) -> float:
+        """The share of this move's time after which the share ``u`` of its path is done (inverse of ``u_of``)."""
+        if u <= 0.0:
+            return 0.0
+        if u >= 1.0:
+            return 1.0
+        if not self.prof or self.dur <= 0:
+            return u
+        vs, vp, ve, a, S, t1, t2 = self.prof
+        s = u * S
+        d1 = (vs + vp) * 0.5 * t1
+        d2 = d1 + vp * (t2 - t1)
+        if s <= d1:
+            t = (-vs + math.sqrt(max(0.0, vs * vs + 2 * a * s))) / a if a > 0 else 0.0
+        elif s <= d2:
+            t = t1 + (s - d1) / vp if vp > 0 else t1
+        else:
+            ds = s - d2
+            t = t2 + ((vp - math.sqrt(max(0.0, vp * vp - 2 * a * ds))) / a if a > 0 else 0.0)
+        return min(1.0, max(0.0, t / self.dur))
+
+    def velocity(self, tau: float) -> tuple:
+        """d(point)/d(share of the move's time) at ``tau`` (mm per whole move time; task 0103): divide by the
+        piece's length in seconds for mm/s."""
+        if self.prof and self.dur > 0:
+            vs, vp, ve, a, S, t1, t2 = self.prof
+            t = min(max(tau, 0.0), 1.0) * self.dur
+            v = vs + a * t if t <= t1 else (vp if t <= t2 else vp - a * (t - t2))
+            du = max(v, 0.0) * self.dur / S                     # d(share of the path) / d(share of the time)
+        else:
+            du = 1.0
+        u = self.u_of(tau)
+        if self.kind != "ARC":
+            return tuple((self.b[n] - self.a[n]) * du for n in range(3))
+        i, j, k = PLANES[self.plane]
+        a0 = math.atan2(self.a[j] - self.centre[j], self.a[i] - self.centre[i])
+        ang = a0 + self.sweep * u
+        r = self.r0 + (self.r1 - self.r0) * u
+        dr = self.r1 - self.r0
+        out = [0.0, 0.0, 0.0]
+        out[i] = (dr * math.cos(ang) - r * math.sin(ang) * self.sweep) * du
+        out[j] = (dr * math.sin(ang) + r * math.cos(ang) * self.sweep) * du
+        out[k] = (self.b[k] - self.a[k]) * du
+        return tuple(out)
+
+    def phase_times(self) -> tuple:
+        """(t1, t2) in shares of the move's time: where speeding up ends and slowing down starts; () without a
+        profile."""
+        if not self.prof or self.dur <= 0:
+            return ()
+        return (self.prof[5] / self.dur, self.prof[6] / self.dur)
 
     def rot_at(self, u: float) -> tuple:
         """A, B, C (degrees) a fraction ``u`` (0..1) along the move."""
@@ -192,10 +271,19 @@ class Program:
     t_events: list = field(default_factory=list)
     # rotary axes the program moves (task 0066): {'a': first line, ...}
     rotary: dict = field(default_factory=dict)
+    # task 0103: True when the moves are timed with acceleration (``plan_accel``); ``plain_duration`` is then the
+    # program's time without it (s)
+    accel: bool = False
+    plain_duration: float = 0.0
 
     @property
     def duration(self) -> float:
         return (self.moves[-1].t0 + self.moves[-1].dur) if self.moves else 0.0
+
+    @property
+    def duration_without_accel(self) -> float:
+        """The program's time with every move at its full speed from start to end (task 0103)."""
+        return self.plain_duration if self.accel else self.duration
 
     def tool_numbers(self) -> list:
         return sorted({m.tool for m in self.moves if m.kind == "TOOL"})
@@ -566,9 +654,10 @@ def read_tool_table(text: str, inch: bool = False) -> dict:
 #: G-codes read but not shown, with the note they give (once). Keys: G-number x 10 (G43.1 -> 431).
 _NOTED_G = {
     400: "", 490: "", 970: "", 800: "",
-    610: "Exact stop (G61): corners are always shown sharp",
-    611: "Exact stop (G61.1): corners are always shown sharp",
-    640: "Path blending (G64): corners are shown sharp, the real machine rounds them a little",
+    610: "Exact stop (G61): corners are shown sharp; with acceleration on, the machine stops at every corner",
+    611: "Exact stop (G61.1): corners are shown sharp; with acceleration on, the machine stops at every corner",
+    640: "Path blending (G64): corners are shown sharp, the real machine rounds them a little (with acceleration "
+         "on it slows down at corners as the machine does)",
     430: "Tool length offsets (G43): the tool lengths come from the tool list (an M6 without a G43 for the new "
          "tool keeps the old tool's offset, as on the machine)",
     431: "Tool length offsets (G43.1): the app puts the tool's tip at the programmed point",
@@ -635,6 +724,7 @@ class Reader:
         self.next_tool = 0
         self.h = None                                                # G43 Hn in force (task 0096); None: G49 / none
         self.motion = 10                                             # G1 until told otherwise
+        self.blend = 0.0                                             # G64 (task 0103): -1 G61, > 0 G64 P
         self.retract_r = False                                       # G99: back to R (else G98: old Z)
         self.cycle_vals: dict = {}
         self.t = 0.0
@@ -724,6 +814,7 @@ class Reader:
     def _add(self, mv: Move) -> Move:
         if not mv.ra:                                        # a move that does not turn: the axes stay
             mv.ra = mv.rb = tuple(self.rot)
+        mv.blend = self.blend
         mv.t0 = self.t
         mv.top = self.top_line or self.line_no
         mv.spindle = self.speed * self.spin
@@ -979,6 +1070,11 @@ class Reader:
             if p > 0:
                 pt = tuple(self.pos)
                 self._add(Move("DWELL", self.line_no, pt, pt, dur=float(p)))
+        # path control (task 0103): G61 / G61.1 exact stop, G64 blending (P: its tolerance)
+        if 610 in g_set or 611 in g_set:
+            self.blend = -1.0
+        if 640 in g_set:
+            self.blend = max(0.0, words.get("p", 0.0) * self._k())
         # 5 plane, units, distance modes, coordinate systems, retract mode
         for g in (170, 180, 190):
             if g in g_set:
@@ -1329,13 +1425,14 @@ def _structure(lines: list) -> dict:
 
 def read(text: str, g54=(0.0, 0.0, 0.0), rapid=(5000.0, 5000.0, 5000.0), home=(0.0, 0.0, 0.0), tools=None,
          base_dir: str = "", start=None, rot_rapid=(3600.0, 3600.0, 3600.0), wrapped=(False, False, False),
-         start_rot=None) -> Program:
+         start_rot=None, accel=None, rot_accel=None) -> Program:
     """Run a LinuxCNC program (see the module's docstring). ``g54``: the program's zero in machine
     coordinates (mm); ``rapid``: each axis' rapid speed (mm/min); ``home``: the G28 / G30 position (machine
     coordinates; also where the machine starts unless ``start`` is given); ``tools``: {number: ToolInfo}
     from a tool table; ``base_dir``: where subroutine files (<name>.ngc) are looked for. Rotary axes A, B, C
     (task 0066): ``rot_rapid`` degrees per minute, ``wrapped`` per axis, ``start_rot`` where they are at the start
-    (degrees; else 0)."""
+    (degrees; else 0). ``accel`` (task 0103): each axis' maximum acceleration X, Y, Z in mm/s² – the moves are then
+    timed with :func:`plan_accel` (``rot_accel``: A, B, C in °/s²); None: without acceleration."""
     rd = Reader(g54=g54, rapid=rapid, home=home, tools=tools, base_dir=base_dir, start=start, rot_rapid=rot_rapid,
                 wrapped=wrapped, start_rot=start_rot)
     raw_lines = text.splitlines()
@@ -1372,6 +1469,8 @@ def read(text: str, g54=(0.0, 0.0, 0.0), rapid=(5000.0, 5000.0, 5000.0), home=(0
     for key in sorted(set(rd.params.missing)):
         rd.line_no = 0
         rd.problem(f"param {key}", f"Parameter #<{key}> is read before it is set: 0 used")
+    if accel is not None:
+        plan_accel(rd.prog, accel, rot_accel if rot_accel is not None else (3600.0, 3600.0, 3600.0))
     return rd.prog
 
 
@@ -1584,6 +1683,213 @@ def _run(rd: Reader, codes: list, base_dir: str) -> None:
             rd.problem(f"line {rd.line_no}", f"Cannot read line {rd.line_no}: {exc}")
         pc += 1
     rd.prog.steps = steps
+
+
+# ---------------------------------------------------------------------------
+# acceleration (task 0103): every move timed as the machine runs it
+# ---------------------------------------------------------------------------
+
+#: a corner sharper than this (cosine of the turn between the two moves) counts as straight on
+STRAIGHT_COS = 1.0 - 1e-9
+#: the machine's default maximum accelerations when nothing is typed: X, Y, Z mm/s², A, B, C °/s²
+DEFAULT_ACCEL = (1000.0, 1000.0, 1000.0)
+DEFAULT_ROT_ACCEL = (3600.0, 3600.0, 3600.0)
+
+
+def _shape(m: Move, acc: tuple):
+    """(S, start tangent, end tangent, a, speed cap) of a moving move in the six-axis space (X/Y/Z mm, A/B/C degrees
+    counted as mm): S its length, the tangents unit vectors, ``a`` the largest acceleration along the path every axis
+    allows, the cap the speed a circle allows (v² / r <= a of its plane's axes; inf for straight moves)."""
+    ra = m.ra or NO_TURN
+    rb = m.rb or ra
+    drot = [rb[n] - ra[n] for n in range(3)]
+    if m.kind == "ARC":
+        i, j, k = PLANES[m.plane]
+        rm = 0.5 * (m.r0 + m.r1)
+        lp = rm * abs(m.sweep)
+        dz = m.b[k] - m.a[k]
+        S = math.sqrt(lp * lp + dz * dz + sum(x * x for x in drot))
+        if S < 1e-12:
+            return None
+        sg = 1.0 if m.sweep > 0 else -1.0
+        a0 = math.atan2(m.a[j] - m.centre[j], m.a[i] - m.centre[i])
+        tans = []
+        for ang in (a0, a0 + m.sweep):
+            t = [0.0] * 6
+            t[i] = -math.sin(ang) * sg * lp / S
+            t[j] = math.cos(ang) * sg * lp / S
+            t[k] = dz / S
+            for n in range(3):
+                t[3 + n] = drot[n] / S
+            tans.append(t)
+        spans = [(acc[i], lp), (acc[j], lp), (acc[k], abs(dz))] + [(acc[3 + n], abs(drot[n])) for n in range(3)]
+        a = min((ax * S / d for ax, d in spans if d > 1e-12), default=float("inf"))
+        a_n = min(acc[i], acc[j])
+        cap = math.sqrt(a_n * rm) * S / lp if lp > 1e-12 and rm > 1e-12 else float("inf")
+        return S, tans[0], tans[1], a, cap
+    d = [m.b[n] - m.a[n] for n in range(3)] + drot
+    S = math.sqrt(sum(x * x for x in d))
+    if S < 1e-12:
+        return None
+    t = [x / S for x in d]
+    a = min((acc[n] * S / abs(d[n]) for n in range(6) if abs(d[n]) > 1e-12), default=float("inf"))
+    return S, t, t, a, float("inf")
+
+
+def corner_speed(t_end, t_start, s_prev: float, s_next: float, a: float, tol: float, cap: float) -> float:
+    """The speed (mm/s) a blended corner (G64) is taken at – LinuxCNC-like, not its exact planner: the corner is
+    rounded by a circle that touches both moves, no bigger than half of the shorter move and (``tol`` > 0, G64 P)
+    no further from the corner than ``tol``; the speed is the one that circle allows, v = √(a·R). A straight
+    junction keeps the speed (``cap``), a reversal stops."""
+    c = sum(x * y for x, y in zip(t_end, t_start))
+    if c >= STRAIGHT_COS:
+        return cap
+    if c <= -STRAIGHT_COS:
+        return 0.0
+    half = 0.5 * math.acos(max(-1.0, min(1.0, c)))
+    r = 0.5 * min(s_prev, s_next) / math.tan(half)
+    if tol > 0:
+        k = 1.0 / math.cos(half) - 1.0
+        if k > 0:
+            r = min(r, tol / k)
+    return min(cap, math.sqrt(max(0.0, a * r)))
+
+
+def profile(S: float, vs: float, ve: float, vm: float, a: float) -> tuple:
+    """Trapezoid (or triangle) speed profile of a move of length ``S`` entered at ``vs`` and left at ``ve``,
+    cruising at most at ``vm``, speeding up and slowing down at ``a``: (vs, vp, ve, a, S, t1, t2, T) – ``t1`` where
+    speeding up ends, ``t2`` where slowing down starts, ``T`` its time."""
+    vp = min(vm, math.sqrt(a * S + 0.5 * (vs * vs + ve * ve)))
+    vp = max(vp, vs, ve, 1e-12)
+    t1 = (vp - vs) / a
+    t3 = (vp - ve) / a
+    d1 = 0.5 * (vs + vp) * t1
+    d3 = 0.5 * (vp + ve) * t3
+    tc = max(0.0, S - d1 - d3) / vp
+    return vs, vp, ve, a, S, t1, t1 + tc, t1 + tc + t3
+
+
+def plan_accel(prog: Program, accel, rot_accel=DEFAULT_ROT_ACCEL) -> Program:
+    """Time every move with acceleration (task 0103). ``accel``: X, Y, Z maximum acceleration (mm/s²),
+    ``rot_accel``: A, B, C (°/s²). Each move keeps the speed it had without acceleration as its top speed (its feed,
+    or for rapids its slowest axis at its rapid speed) and gets a trapezoid speed profile: speeding up and slowing
+    down as fast as the slowest axis allows along the move's direction; arcs at most at √(a·r) (v² / r <= a). At a
+    move's end the machine stops when G61 / G61.1 is in force, before and after a dwell, a tool change or a pause,
+    and where the path turns back; with G64 (the default) it takes the corner at :func:`corner_speed`, so a line cut
+    in many short pieces runs through. Forward and backward passes make every move's start and end speeds reachable
+    (the usual look-ahead). Sets ``Move.dur`` (``dur0``: the old time), ``Move.prof``, every ``t0``, and
+    ``prog.accel`` / ``plain_duration``."""
+    acc = tuple(max(1e-6, float(x)) for x in accel) + tuple(max(1e-6, float(x)) for x in rot_accel)
+    prog.plain_duration = prog.duration
+    runs, cur = [], []
+    for m in prog.moves:
+        if m.moving:
+            sh = _shape(m, acc)
+            if sh is None or m.dur <= 0:
+                if cur:
+                    runs.append(cur)
+                    cur = []
+                continue
+            cur.append((m, sh))
+        elif m.kind != "SPINDLE":                              # a dwell, a tool change or a pause: the machine stops
+            if cur:
+                runs.append(cur)
+                cur = []
+    if cur:
+        runs.append(cur)
+    for run in runs:
+        n = len(run)
+        vm = [min(sh[0] / m.dur, sh[4]) for m, sh in run]
+        v = [0.0] * (n + 1)
+        for q in range(1, n):
+            (mp, sp), (mn, sn) = run[q - 1], run[q]
+            if mp.blend < 0:
+                continue
+            v[q] = corner_speed(sp[2], sn[1], sp[0], sn[0], min(sp[3], sn[3]), mp.blend, min(vm[q - 1], vm[q]))
+        for q in range(n - 1, -1, -1):                         # every slow-down must be reachable …
+            S, a = run[q][1][0], run[q][1][3]
+            v[q] = min(v[q], math.sqrt(v[q + 1] ** 2 + 2 * a * S))
+        for q in range(n):                                     # … and every speed-up
+            S, a = run[q][1][0], run[q][1][3]
+            v[q + 1] = min(v[q + 1], math.sqrt(v[q] ** 2 + 2 * a * S))
+        for q, (m, sh) in enumerate(run):
+            S, a = sh[0], sh[3]
+            if not math.isfinite(a):
+                continue
+            p = profile(S, v[q], v[q + 1], vm[q], a)
+            m.dur0 = m.dur
+            m.dur = p[7]
+            m.prof = p[:7]
+    t = 0.0
+    for m in prog.moves:
+        m.t0 = t
+        t += m.dur
+    prog.accel = True
+    return prog
+
+
+def read_ini(text: str) -> dict:
+    """The axes' limits from a LinuxCNC machine file (.ini, task 0103): {letter: {"velocity": per minute,
+    "accel": per s²}} for the letters x y z a b c it gives. Linear axes in mm (``[TRAJ] LINEAR_UNITS`` inch is turned
+    into mm), rotary axes in degrees. ``MAX_VELOCITY`` is per second in the file (× 60 here, as the app's rapid speeds
+    are per minute). Read from ``[AXIS_X]`` … (LinuxCNC 2.8 and newer), else from ``[JOINT_n]`` with ``[TRAJ]
+    COORDINATES`` (or ``[KINS] COORDINATES``) saying which letter each joint is, else from the old ``[AXIS_n]``
+    sections (2.7: AXIS_0 = X …). A value that is not a plain number (``#INI`` references and the like) is left out."""
+    sections: dict = {}
+    cur = None
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and "]" in line:
+            cur = sections.setdefault(line[1:line.index("]")].strip().upper(), {})
+            continue
+        if cur is None or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        cur.setdefault(key.strip().upper(), val.strip())
+
+    def num(sec, key):
+        try:
+            return float(sections.get(sec, {}).get(key, ""))
+        except ValueError:
+            return None
+
+    units = sections.get("TRAJ", {}).get("LINEAR_UNITS", "mm").strip().lower()
+    k_lin = INCH if units in ("inch", "in", "imperial") else (1.0 if units in ("mm", "metric", "") else None)
+    if k_lin is None:
+        try:
+            k_lin = float(units)                              # LINEAR_UNITS may be a number: mm per unit
+        except ValueError:
+            k_lin = 1.0
+    letters = "xyzabc"
+    found: dict = {}
+    for letter in letters:
+        sec = f"AXIS_{letter.upper()}"
+        if sec in sections:
+            found[letter] = sec
+    if not found:
+        coords = (sections.get("TRAJ", {}).get("COORDINATES") or sections.get("KINS", {}).get("COORDINATES") or "")
+        coords = [c for c in coords.lower() if c.isalpha()]
+        for n, letter in enumerate(coords):
+            if letter in letters and letter not in found and f"JOINT_{n}" in sections:
+                found[letter] = f"JOINT_{n}"
+        if not found:
+            for n, letter in enumerate(coords or letters):
+                if letter in letters and letter not in found and f"AXIS_{n}" in sections:
+                    found[letter] = f"AXIS_{n}"
+    out: dict = {}
+    for letter, sec in found.items():
+        k = k_lin if letter in "xyz" else 1.0
+        vel, acc = num(sec, "MAX_VELOCITY"), num(sec, "MAX_ACCELERATION")
+        row = {}
+        if vel is not None and vel > 0:
+            row["velocity"] = vel * k * 60.0
+        if acc is not None and acc > 0:
+            row["accel"] = acc * k
+        if row:
+            out[letter] = row
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1898,7 +2204,7 @@ class Schedule:
             return p.move.b
         if p.change is not None:
             return p.change.point_at(t, p.move.b)
-        return p.move.at((t - p.v0) / p.vd)
+        return p.move.at(p.move.u_of((t - p.v0) / p.vd))
 
     def rot_at(self, t: float) -> tuple:
         """The rotary axes A, B, C (degrees) ``t`` seconds into the step (task 0066). They stay put during a tool
@@ -1912,7 +2218,7 @@ class Schedule:
             return tuple(self.start_rot)
         if p.vd <= 0 or p.change is not None:
             return tuple(p.move.rb or NO_TURN)
-        return p.move.rot_at((t - p.v0) / p.vd)
+        return p.move.rot_at(p.move.u_of((t - p.v0) / p.vd))
 
     @property
     def turns(self) -> bool:
@@ -1928,10 +2234,44 @@ class Schedule:
         return merge_spans((p.v0, p.v0 + p.vd) for p in self.pieces
                            if p.move.moving and p.move.turn > TURN_EPS and p.vd > 0)
 
+    def velocity_at(self, t: float, side: int) -> tuple:
+        """The tool tip's velocity (mm/s) at ``t`` coming in (``side`` -1) or going on (+1) (task 0103); (0, 0, 0)
+        where nothing moves."""
+        import bisect
+        if not self.pieces:
+            return (0.0, 0.0, 0.0)
+        if side < 0:
+            k = bisect.bisect_left(self._starts, t) - 1          # the piece that started before t
+        else:
+            k = bisect.bisect_right(self._starts, t) - 1
+        while 0 <= k < len(self.pieces) and self.pieces[k].vd <= 0 and side > 0:
+            k += 1
+        if not 0 <= k < len(self.pieces):
+            return (0.0, 0.0, 0.0)
+        p = self.pieces[k]
+        if p.vd <= 0 or not p.move.moving or p.change is not None or not (p.v0 - 1e-9 <= t <= p.v0 + p.vd + 1e-9):
+            return (0.0, 0.0, 0.0)
+        return tuple(x / p.vd for x in p.move.velocity((t - p.v0) / p.vd))
+
+    def speed_changes(self) -> list:
+        """[(start, end)] seconds (sorted, joined) in which a move speeds up or slows down (task 0103)."""
+        out = []
+        for p in self.pieces:
+            m = p.move
+            if p.vd <= 0 or p.change is not None or not m.prof:
+                continue
+            ph = m.phase_times()
+            if ph[0] > 1e-12:
+                out.append((p.v0, p.v0 + ph[0] * p.vd))
+            if ph[1] < 1 - 1e-12:
+                out.append((p.v0 + ph[1] * p.vd, p.v0 + p.vd))
+        return merge_spans(out)
+
     def samples(self, fps: float, tol: float = 0.002, per_frame: bool = True, turn_step: float = 0.0):
         """Times (s from the step's start) where the path needs a key so that straight keys between them
         follow it within ``tol`` mm: every move's start and end, and along arcs every frame plus as many
-        points as the chord error needs. ``turn_step`` (degrees, task 0066): in a move that turns a rotary axis,
+        points as the chord error needs; with acceleration (task 0103) also where a move stops speeding up and
+        starts slowing down (keys that need Bezier handles from the speed between them). ``turn_step`` (degrees, task 0066): in a move that turns a rotary axis,
         a key at least every this many degrees (the tool following the turning part). Returns sorted
         [(t, (x, y, z))]."""
         out = []
@@ -1947,8 +2287,12 @@ class Schedule:
                     out.append((p.v0 + p.vd, m.b))
                 continue
             turning = turn_step > 0 and m.turn > TURN_EPS
-            if (m.kind == "ARC" or turning) and p.vd > 0:
-                us = set()
+            ph = m.phase_times() if p.vd > 0 else ()
+            if ph and ph[0] < 1e-9 and ph[1] > 1 - 1e-9:
+                ph = ()                                         # full speed all the way: the place goes with the time
+            if (m.kind == "ARC" or turning or ph) and p.vd > 0:
+                taus = set()                                    # shares of the move's time
+                us = set()                                      # shares of its path
                 if m.kind == "ARC":
                     r = max(m.r0, m.r1, 1e-6)
                     step = 2 * math.acos(max(-1.0, 1 - tol / r)) if tol < r else math.pi / 2
@@ -1957,12 +2301,17 @@ class Schedule:
                 if turning:
                     n = min(20000, max(1, int(math.ceil(m.turn / turn_step))))
                     us |= {k / n for k in range(1, n)}
-                if per_frame:
+                if ph:                                          # task 0103: where speeding up ends, slowing starts
+                    taus |= set(ph)
+                # a straight move needs keys only where its speed changes: the app gives them Bezier handles from
+                # the speed, so the parabola between them is exact (blender/gcode.bake_step)
+                if per_frame and (m.kind == "ARC" or turning):
                     f0 = math.floor(p.v0 * fps) + 1
                     f1 = math.ceil((p.v0 + p.vd) * fps)
-                    us |= {(f / fps - p.v0) / p.vd for f in range(f0, f1)}
-                for u in sorted(x for x in us if 0 < x < 1):
-                    out.append((p.v0 + u * p.vd, m.at(u)))
+                    taus |= {(f / fps - p.v0) / p.vd for f in range(f0, f1)}
+                taus |= {m.tau_of(u) for u in us}
+                for tau in sorted(x for x in taus if 0 < x < 1):
+                    out.append((p.v0 + tau * p.vd, m.at(m.u_of(tau))))
             out.append((p.v0 + p.vd, m.b))
         # drop keys that land on the same moment (the later point wins: zero-length pieces)
         clean = []
@@ -2054,5 +2403,5 @@ class Schedule:
             for k in range(1, n + 1):
                 u = k / n
                 pt = m.at(u)
-                cur[1].append((pt[0], pt[1], pt[2], p.v0 + u * p.vd))
+                cur[1].append((pt[0], pt[1], pt[2], p.v0 + m.tau_of(u) * p.vd))
         return lines

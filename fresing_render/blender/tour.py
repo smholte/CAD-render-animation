@@ -1471,6 +1471,32 @@ def _check_update(scene):
     return "joint, pose and hidden cover kept; new: BOOM.LAMP"
 
 
+ACCEL_ANIM = "Acceleration"
+
+
+def _accel_program() -> str:
+    """Task 0103: 2 mm zigzag steps above the block (G64), the same back with exact stops (G61), then one long line."""
+    out = ["(T1 D=6. CR=0. - flat end mill)", "G21 G90 G94 G17 G64", "G0 X-30 Y-10 Z3", "G1 F3000"]
+    x = -30
+    for k in range(24):
+        if k % 2 == 0:
+            x += 2
+            out.append(f"X{x}")
+        else:
+            out.append(f"Y{-8 if (k // 2) % 2 == 0 else -10}")
+    out.append("G61")
+    for k in range(24):
+        if k % 2 == 0:
+            x -= 2
+            out.append(f"X{x}")
+        else:
+            out.append(f"Y{-8 if (k // 2) % 2 == 0 else -10}")
+    out += ["G64", "G1 X30 Y10", "G0 Z10", "M30"]
+    return "\n".join(out) + "\n"
+
+
+ACCEL_TOUR = _accel_program()
+
 GCODE_TOUR = """(T1 D=6. CR=0. - flat end mill)
 (T2 D=4. CR=2. - ball end mill)
 G21 G90 G94 G17
@@ -1676,6 +1702,23 @@ def build_gantry(b: Build):
     blk = _gcode_step(a, _program(b, "Tour program.ngc", GCODE_TOUR), sc)
     gcode.tools_from_program(sc, blk)
     tools.use_part(sc, tools.row_of(sc, 1), tool)
+    # task 0103: many short moves above the block, timed with acceleration
+    _check(sc.fresing.cnc.use_accel, "Speed up and slow down is off for a new machine")
+    acc = _animation(b, ACCEL_ANIM, shot.name)
+    _gcode_step(acc, _program(b, "Acceleration.ngc", ACCEL_TOUR), sc)
+
+
+def _check_accel(scene):
+    from . import gcode
+    a = scene.fresing.animations.get(ACCEL_ANIM)
+    _check(a is not None and len(a.blocks) == 1, f"no animation '{ACCEL_ANIM}'")
+    blk = a.blocks[0]
+    info = gcode.info(scene, blk)
+    _check(info.get("accel"), "the program is not timed with acceleration (4 Motion > CNC machine > Machine)")
+    with_s, without = info["machine_s"], info["plain_s"]
+    _check(with_s > 1.2 * without, f"with acceleration {with_s:.2f} s is not clearly longer than {without:.2f} s")
+    _check(blk.duration > without, f"the step lasts {blk.duration:.2f} s, not longer than {without:.2f} s")
+    return f"{gcode.fmt_time(with_s)} – {gcode.fmt_time(without)} without acceleration"
 
 
 def _check_gcode(scene):
@@ -2380,6 +2423,12 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "
      "thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
      animation="G-code", play=True, check=_check_gcode, auto="clip")
+stop("accel", MACH, "gantry", "Acceleration: slow short moves",
+     "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
+     "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
+     "up, runs and slows down. 6 Animation shows the step's time with and without acceleration (with is clearly "
+     "longer).", where="4 Motion > CNC machine > Machine (Speed up and slow down); 6 Animation (Run G-code program)",
+     animation=ACCEL_ANIM, play=True, since="0.2.83", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
      "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "

@@ -500,8 +500,68 @@ def spindle_is_motor(scene) -> bool:
     return True
 
 
+ACCEL_MARK = "fr_accel_v"           # task 0103: the set-up knows the acceleration switch (old projects: off)
+
+
+def mark_accel(scene) -> None:
+    """The project knows "Speed up and slow down": from now on its switch is kept as it is."""
+    try:
+        c = settings(scene)
+        if ACCEL_MARK not in c:
+            c[ACCEL_MARK] = 1
+    except Exception:                       # (while drawing a panel nothing may be written)
+        pass
+
+
+def upgrade_accel(scene) -> bool:
+    """At load (task 0103): a project from before the acceleration switch that has a CNC machine keeps its timing –
+    the switch goes off (it is on for new machines). Returns True when it was switched off."""
+    c = settings(scene)
+    if ACCEL_MARK in c:
+        return False
+    had = bool(c.x_joint or c.y_joint or c.z_joint)
+    if had:
+        c["_busy"] = True
+        try:
+            c.use_accel = False
+        finally:
+            del c["_busy"]
+    c[ACCEL_MARK] = 1
+    return had
+
+
+def accel_of(scene):
+    """(accel X/Y/Z mm/s², accel A/B/C °/s²) when moves are timed with acceleration, else (None, None)."""
+    c = settings(scene)
+    if not c.use_accel:
+        return None, None
+    return (tuple(float(getattr(c, f"accel_{a}")) for a in "xyz"),
+            tuple(float(getattr(c, f"accel_{a}")) for a in "abc"))
+
+
+def read_ini(scene, path: str) -> dict:
+    """Fill in the rapid speeds and accelerations from a LinuxCNC .ini (task 0103). Returns what was read
+    ({letter: {"velocity", "accel"}}); the file is not kept."""
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        res = core.read_ini(fh.read())
+    c = settings(scene)
+    c["_busy"] = True
+    try:
+        for letter, row in res.items():
+            if "velocity" in row:
+                setattr(c, f"rapid_{letter}", max(1.0, row["velocity"]))
+            if "accel" in row:
+                setattr(c, f"accel_{letter}", max(1.0, row["accel"]))
+    finally:
+        del c["_busy"]
+    if res:
+        setup_changed(scene)
+    return res
+
+
 def setup_changed(scene) -> None:
     """Something in the set-up changed: move the zero marker, and the steps' lengths follow (rapid speeds)."""
+    mark_accel(scene)
     try:
         zero_marker(scene)
     except Exception:
@@ -631,14 +691,17 @@ def read_program(scene, b, mach: Machine | None = None, start=None, rot=None):
     if rot is None:
         rot = start_rot(mach)
     tt = tool_table(scene)
-    key = ("prog", _sig(text), tuple(round(x, 6) for x in g54), tuple(rapid),
+    accel, rot_accel = accel_of(scene)
+    mark_accel(scene)
+    key = ("prog", _sig(text), tuple(round(x, 6) for x in g54), tuple(rapid), accel, rot_accel,
            tuple(round(x, 6) for x in start) if start is not None else None,
            tuple(sorted((n, t.diameter, t.length) for n, t in tt.items())), os.path.dirname(path),
            rot_rapid, wrapped, tuple(round(x, 6) for x in rot) if rot is not None else None)
     prog = _CACHE.get(key)
     if prog is None:
         prog = core.read(text, g54=g54, rapid=rapid, home=(0.0, 0.0, 0.0), tools=tt, base_dir=os.path.dirname(path),
-                         start=start, rot_rapid=rot_rapid, wrapped=wrapped, start_rot=rot)
+                         start=start, rot_rapid=rot_rapid, wrapped=wrapped, start_rot=rot, accel=accel,
+                         rot_accel=rot_accel)
         if len(_CACHE) > 24:
             _CACHE.clear()
         _CACHE[key] = prog
@@ -735,6 +798,7 @@ def summary(prog, sch, note: str = "", scene=None, b=None) -> dict:
     except Exception:
         tc_notes = []
     return {"lines": prog.lines, "moves": len(moves), "machine_s": prog.duration, "video_s": sch.duration,
+            "accel": prog.accel, "plain_s": prog.duration_without_accel,
             "air": air_text, "coolant": cool_text, "tool_changes": tc_notes,
             "tools": prog.tool_numbers(), "problems": [p.describe() for p in probs], "notes": list(prog.notes),
             "note": note, "name": prog.name, "changes": len([c for c in sch.changes if c.length > 0]),
@@ -1333,23 +1397,94 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     _record_feeds(scene, feed_rows(sch, f0, fps))           # feed and spindle speed, for the tool marks (0061)
     rows = [[], [], []]
     rrows = {k: [] for k in mach.axes}
-    for t, pt in samples:
-        f = f0 + t * fps
+    order = sorted(mach.axes)
+
+    def values(t, pt):
+        """(X/Y/Z joint values, rotary joint values in the order of ``order``) at ``t`` s for the tip at ``pt``."""
         dz = lift(t)
+        rv = ()
         if mach.axes:
             r = sch.rot_at(t)
             if shift is not None:
                 pt = shift(t, pt, r)
-            for k, (_j, v) in zip(sorted(mach.axes), rotary.values_for(mach, r)):
-                rrows[k].append((f, v))
-        vals = mach.values_for((pt[0], pt[1], pt[2] + dz) if dz else pt)
+            rv = tuple(v for _j, v in rotary.values_for(mach, r))
+        return tuple(mach.values_for((pt[0], pt[1], pt[2] + dz) if dz else pt)), rv
+
+    for t, pt in samples:
+        f = f0 + t * fps
+        vals, rv = values(t, pt)
+        for k, v in zip(order, rv):
+            rrows[k].append((f, v))
         for i, v in enumerate(vals):
             rows[i].append((f, v))
+    # task 0103: with acceleration the place goes along a move as a parabola while the speed changes. Each key gets
+    # Bezier handles from the speed on either side of it (a third of the way to the next key): a Bezier segment is
+    # then exactly the parabola (and exactly the straight line at constant speed), at every frame and between frames
+    # The speed on each side comes from two more places a quarter and a half of the way to the next key (one-sided,
+    # exact for a parabola; mathutils works in 32-bit numbers, so a tiny step would be noise)
+    # Only the stretches between keys where the speed changes need them; elsewhere straight keys as before.
+    hand = [None] * len(samples)
+    curved = [False] * len(samples)                    # the stretch from key n to key n + 1 speeds up or slows down
+    if prog.accel and len(samples) > 1:
+        import bisect
+        spans = sch.speed_changes()
+        starts = [a_ for a_, _z in spans]
+        for n in range(len(samples) - 1):
+            mid = 0.5 * (samples[n][0] + samples[n + 1][0])
+            k = bisect.bisect_right(starts, mid) - 1
+            curved[n] = k >= 0 and mid < spans[k][1] and samples[n + 1][0] - samples[n][0] > 1e-9
+
+        def vals_at(t):
+            v, r = values(t, sch.point_at(t))
+            return tuple(v) + tuple(r)
+
+        plain = not mach.axes and shift is None             # X/Y/Z joint values follow the tip linearly
+        scale = [mach.values_for((1.0, 1.0, 1.0))[n] - mach.values_for((0.0, 0.0, 0.0))[n] for n in range(3)]
+        for n, (t, pt) in enumerate(samples):
+            if not (curved[n] or (n > 0 and curved[n - 1])):
+                continue
+            here = (rows[0][n][1], rows[1][n][1], rows[2][n][1]) + tuple(rrows[k][n][1] for k in order)
+            pair = []
+            for side, nb in ((-1, n - 1), (1, n + 1)):
+                if not 0 <= nb < len(samples) or not curved[min(n, nb)]:
+                    pair.append(None)
+                    continue
+                gap = abs(samples[nb][0] - t)
+                if gap <= 1e-9:
+                    pair.append(None)
+                    continue
+                df = gap * fps / 3.0
+                if plain:                                   # the exact speed from the profile
+                    vel = sch.velocity_at(t, side)
+                    pair.append([(f0 + t * fps + side * df, x + side * vel[q] * scale[q] * gap / 3.0)
+                                 for q, x in enumerate(here)])
+                    continue
+                h = 0.25 * gap
+                one, two = vals_at(t + side * h), vals_at(t + 2 * side * h)
+                # change of the value over a third of the gap: slope · gap / 3, slope = (-3 x + 4 y - z) / (2 h)
+                pair.append([(f0 + t * fps + side * df, x + (-3 * x + 4 * y - z) / (2 * h) * gap / 3.0)
+                             for x, y, z in zip(here, one, two)])
+            hand[n] = pair
+    
+    def hk(n, i):
+        """The handles of key ``n`` of value ``i`` (0-2 X/Y/Z, 3.. rotary), or None."""
+        pair = hand[n]
+        if pair is None:
+            return None
+        f = f0 + samples[n][0] * fps
+        v = (rows[i][n][1] if i < 3 else rrows[order[i - 3]][n][1])
+        left = pair[0][i] if pair[0] is not None else (f - 1e-3, v)
+        right = pair[1][i] if pair[1] is not None else (f + 1e-3, v)
+        return (left, right)
+
     for k, ax in mach.axes.items():
         j = ax.joint
         keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
+        col = 3 + order.index(k)
         for n, (f, v) in enumerate(rrows[k]):
-            merge(keys, f, v, "LINEAR" if n < len(rrows[k]) - 1 else "CONSTANT")
+            last = n == len(rrows[k]) - 1
+            hs = hk(n, col)
+            merge(keys, f, v, ("BEZIER" if curved[n] else "LINEAR") if not last else "CONSTANT", "AUTO", hs)
         if rrows[k]:
             jstate[j.name] = rrows[k][-1][1]
         if j.use_limits and any(joints.outside_limits(j, v) for _f, v in rrows[k]):
@@ -1360,7 +1495,9 @@ def bake_step(scene, anim, b, f0: int, jstate: dict, jkeys: dict, vkeys: dict, b
     for i, j in enumerate(mach.joints):
         keys = jkeys.setdefault(j.name, [(1, jstate[j.name], "CONSTANT", "AUTO")])
         for n, (f, v) in enumerate(rows[i]):
-            merge(keys, f, v, "LINEAR" if n < len(rows[i]) - 1 else "CONSTANT")
+            last = n == len(rows[i]) - 1
+            hs = hk(n, i)
+            merge(keys, f, v, ("BEZIER" if curved[n] else "LINEAR") if not last else "CONSTANT", "AUTO", hs)
         jstate[j.name] = rows[i][-1][1]
         if j.use_limits:                         # like the machine's soft limits: say on which line
             for p in sch.pieces:

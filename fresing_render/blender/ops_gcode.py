@@ -292,6 +292,35 @@ class FRESING_OT_cnc_tool_read(_CncOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_cnc_read_ini(_CncOp, bpy.types.Operator):
+    """Reads the machine's LinuxCNC file (.ini) and fills in the rapid speed (MAX_VELOCITY) and the acceleration
+    (MAX_ACCELERATION) of every axis it gives. The file itself is not stored or copied into the project"""
+
+    bl_idname = "fresing.cnc_read_ini"
+    bl_label = "Read from LinuxCNC INI"
+
+    filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
+    filter_glob: StringProperty(default="*.ini;*.INI", options={"HIDDEN"})
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        try:
+            res = gcode.read_ini(context.scene, self.filepath)
+        except OSError as exc:
+            self.report({"WARNING"}, f"The file could not be read: {exc}")
+            return {"CANCELLED"}
+        if not res:
+            self.report({"WARNING"}, "No axis with MAX_VELOCITY or MAX_ACCELERATION found in this file "
+                                     "(looked in [AXIS_X] …, [JOINT_n])")
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Read {', '.join(sorted(k.upper() for k in res))}: "
+                              f"{plural(sum(len(v) for v in res.values()), 'value')} filled in")
+        return {"FINISHED"}
+
+
 class FRESING_OT_cnc_tool_step(_CncOp, bpy.types.Operator):
     """Shows the selected tool with a STEP model of it (or of the tool in its holder), for example one from
     the manufacturer's website. Its axis and tip are found from its shape; its sizes are read from it as a first
@@ -876,7 +905,7 @@ class FRESING_OT_cnc_rotary_check(_CncOp, bpy.types.Operator):
 
 CLASSES = (FRESING_OT_cnc_rotary_check, FRESING_OT_cnc_air_nozzle, FRESING_OT_cnc_air_click, FRESING_OT_cnc_air_aim, FRESING_OT_cnc_find_axes, FRESING_OT_cnc_use_tool, FRESING_OT_cnc_use_workpiece, FRESING_OT_cnc_zero_click,
            FRESING_OT_cnc_home, FRESING_OT_cnc_tool_add, FRESING_OT_cnc_tool_add_missing, FRESING_OT_cnc_tool_remove,
-           FRESING_OT_cnc_tool_copy, FRESING_OT_cnc_tool_sort, FRESING_OT_cnc_tool_read, FRESING_OT_cnc_tool_step,
+           FRESING_OT_cnc_tool_copy, FRESING_OT_cnc_tool_sort, FRESING_OT_cnc_tool_read, FRESING_OT_cnc_read_ini, FRESING_OT_cnc_tool_step,
            FRESING_OT_cnc_tool_flip, FRESING_OT_cnc_tool_part,
            FRESING_OT_cnc_tools_from_program, FRESING_OT_gcode_toolpath, FRESING_OT_gcode_report,
            FRESING_OT_gcode_reload, FRESING_OT_gcode_go_line, FRESING_OT_cnc_change_here, FRESING_OT_cnc_pocket_click,
