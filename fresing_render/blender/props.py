@@ -1211,7 +1211,7 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     wx_low_clouds: FloatProperty(name="Low clouds", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
                                  description="Low, dark clouds at the end of the step")
     wx_visibility: FloatProperty(name="Visibility", default=40000.0, min=50.0, max=100000.0, soft_max=40000.0,
-                                 unit="LENGTH", precision=0,
+                                 precision=0,
                                  description="How far you can see at the end of the step: 40 km clear, 2 km mist, "
                                              "below 1 km fog")
     wx_rain: FloatProperty(name="Rain", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
@@ -2917,7 +2917,7 @@ class FRWeather(bpy.types.PropertyGroup):
         name="Low clouds", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
         description="A low, dark cloud deck: grey and heavy, the top of the sky hidden. Storms and winter days")
     visibility: FloatProperty(
-        name="Visibility", default=40000.0, min=50.0, max=100000.0, soft_max=40000.0, unit="LENGTH", precision=0,
+        name="Visibility", default=40000.0, min=50.0, max=100000.0, soft_max=40000.0, precision=0,
         update=_weather_changed,
         description="How far you can see. 40 km is clear air; 10 km haze; 2 km mist; below 1 km fog, which hides "
                     "everything further away")

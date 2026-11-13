@@ -598,7 +598,7 @@ def _floodlights(scene) -> None:
         light.spot_size = min(max(2.0 * math.atan2(radius * 1.1, dist), math.radians(25)), math.radians(100))
         light.spot_blend = 0.55
         light.shadow_soft_size = 0.25
-        drive(light, "energy", f"flood * {FLOOD_W * max(dist / 15.0, 0.3) ** 2:.2f}", scene)
+        drive(light, "energy", f"flood * {FLOOD_W * max(dist / 15.0, 0.1) ** 2:.3f}", scene)
         lob = bpy.data.objects.new(f"FR weather floodlight {i + 1}", light)
         lob[TAG] = "flood"
         lob["fr_kind"] = HELPER_KIND
@@ -615,6 +615,8 @@ def _floodlights(scene) -> None:
             mob[TAG] = "mast"
             mob["fr_kind"] = HELPER_KIND
             mob.hide_select = True
+            mob.visible_diffuse = False      # the glowing head is seen, but the spot lights the scene (a small model
+            mob.visible_volume_scatter = False   # close to the masts was lit like day by the heads)
             facing = math.atan2(aim[1] - pos[1], aim[0] - pos[0]) + math.pi / 2   # the glass (−y) to the model
             mob.matrix_world = Matrix.Translation((pos[0], pos[1], base_z)) @ Matrix.Rotation(facing, 4, "Z")
             mob.parent = group

@@ -57,7 +57,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         self.layout.label(icon="OUTLINER_DATA_LIGHTPROBE")
 
     def draw_header_preset(self, context):
-        header_status(self.layout, weather.header(context.scene), limit=22)
+        header_status(self.layout, weather.short(context.scene))
 
     def draw(self, context):
         layout = self.layout
@@ -105,7 +105,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
             col = split_props(layout)
             col.prop(w, "clouds", text="Clouds")
             col.prop(w, "low_clouds", text="Low clouds")
-            col.prop(w, "visibility", text="Visibility")
+            col.prop(w, "visibility", text="Visibility (m)")
             layout.label(text=core.visibility_words(w.visibility).capitalize(), icon="BLANK1")
         if where == "indoor":
             _work_lights(layout, context)
@@ -128,8 +128,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         col = split_props(layout)
         col.prop(w, "wind", text="Beaufort")
         col.prop(w, "wind_from", text="From")
-        row = col.row(align=True)
-        row.prop(w, "wind_ref", expand=True)
+        col.prop(w, "wind_ref", text="Measured")
         row = layout.row(align=True)
         row.prop(w, "spray", text="Spray")
         row.prop(w, "flag", text="Flag")

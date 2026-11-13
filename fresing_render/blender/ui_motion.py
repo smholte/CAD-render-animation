@@ -727,7 +727,7 @@ def _draw_weather(context, box, scene, a, b) -> None:
     col.prop(b, "wx_hour", text=f"Time ({wx_core.clock(b.wx_hour)})")
     col.prop(b, "wx_clouds", text="Clouds")
     col.prop(b, "wx_low_clouds", text="Low clouds")
-    col.prop(b, "wx_visibility", text="Visibility")
+    col.prop(b, "wx_visibility", text="Visibility (m)")
     col.prop(b, "wx_rain", text="Rain")
     col.prop(b, "wx_wet", text="Wet")
     col.prop(b, "wx_snow", text="Snow")

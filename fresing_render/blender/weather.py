@@ -194,6 +194,18 @@ def use_preset(scene, name: str) -> None:
     changed(scene)
 
 
+def short(scene) -> str:
+    """The panel header: a few characters (the title must stay readable), e.g. '13:00 rain'."""
+    if not enabled(scene):
+        return "Off"
+    st = state(scene)
+    bits = [core.clock(st.hour)] if place(scene) == "sky" else []
+    if place(scene) != "indoor":
+        bits.append("snow" if st.snow > 0.01 else "rain" if st.rain > 0.01 else "fog" if st.visibility < 1000.0
+                    else "")
+    return " ".join(b for b in bits if b) or "On"
+
+
 def header(scene) -> str:
     if not enabled(scene):
         return "Off"
