@@ -188,6 +188,7 @@ weather_look.wrap(mat)`. The group reads `wet`, `cover`, (`snow`) by VIEW_LAYER 
 darker version + a clear wet film (glossy, Fresnel), drops and run-off streaks on slopes (world-space, along gravity),
 puddles on flat up-facing faces; snow = a white, rough layer by normal·up and **only under the open sky** (Cycles: the
 AO node, not local, distance ~ tens of metres, on up-facing points; EEVEE: what its AO gives), thickness from `cover`.
+**Snow on imported geometry (brief change 13 Nov):** `weather_look.add_objects(scene, objects) -> int`, `remove_objects(scene, objects) -> int`, `targets(scene)` – any mesh object (no part ids, no CAD faces, maybe no material: it gets a made-for-it neutral one), marked `fr_weather_target`; `apply` includes them; the snow test uses only geometry and the world. Tests with made-up geometry only (never smholte/house-planner-dev).
 `weather_fx.apply(scene, st, place)` / `remove(scene)`: falling rain (streaks, size from `drop`, slanting with
 `wind_x/y`·`wind`), splashes on the deck and the sea (spots worked out once by rays straight down, then GN with Scene
 Time), falling snow (flakes drifting with the wind), the flag (`weather.flag`: a pole + cloth moved by a GN/shader
