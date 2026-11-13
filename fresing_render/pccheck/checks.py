@@ -44,6 +44,7 @@ FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
+TRACKS = os.path.join(DATA, "test_tracks.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
@@ -644,6 +645,42 @@ def motion_spool(ctx):
     path = os.path.join(ctx.work, "spool.png")
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "spool", "The drum with its layers and level wind, the carousel with its arm (processor, draft)")
+    return note
+
+
+@line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
+      what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
+def motion_tracks(ctx):
+    from ..blender import animation, cameras, render, tour, tracks
+    scene = ctx.fresh(TRACKS)
+    s = scene.fresing
+    t0 = time.time()
+    made = tracks.set_up_test_model(scene)
+    ctx.metric("set up three tracks", time.time() - t0, "s")
+    for it in tracks.items(scene):
+        text, level = tracks.status(scene, it)
+        _check(level == "OK", f"'{it.name}': {text}")
+    scene.camera = cameras.add_camera(scene, "ISO", 35.0, "Tracks view")
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with three tracks", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    t0 = time.time()
+    frames = list(range(scene.frame_start, scene.frame_end + 1, 4))
+    for f in frames:
+        scene.frame_set(f)
+    ctx.metric("frame change with 146 track parts running", (time.time() - t0) / len(frames) * 1000.0, "ms")
+    note = tour._check_tracks(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(100)
+    path = os.path.join(ctx.work, "tracks.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "tracks", "The tensioner with its pads running and the top track lifted, the belt behind "
+                                "(processor, draft)")
     return note
 
 

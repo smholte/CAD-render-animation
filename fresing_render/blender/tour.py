@@ -1429,6 +1429,67 @@ def build_spool(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
+TRACKS_ANIM = "Tracks"
+
+
+@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step")
+def build_tracks(b: Build):
+    from . import tracks
+    sc = b.scene
+    _look("PRODUCT")
+    made = tracks.set_up_test_model(sc)
+    _check(made["animation"] == TRACKS_ANIM, f"the animation is called '{made['animation']}'")
+    for it in tracks.items(sc):
+        text, level = tracks.status(sc, it)
+        _check(level == "OK", f"'{it.name}': {text}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: tracks")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_tracks(scene):
+    """Along the built animation: every link's two hinges on its loop one pitch apart, the tensioner's gripping pads
+    ran as far as the cable, the sprockets turned one tooth per link, the top track lifted and came back."""
+    import numpy as np
+
+    from . import joints, paths, tracks
+    its = [tracks.find(scene, n) for n in tracks.TEST_TRACKS]
+    _check(all(it is not None for it in its), "a track is missing")
+    cab = joints.find(scene, paths.find(scene, tracks.TEST_CABLE).joint)
+    lift = joints.find(scene, tracks.TEST_LIFT)
+    off = chord = 0.0
+    lifts = []
+    for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        lifts.append(joints.get_value(lift))
+        for it in its:
+            for ob in [o for o in tracks.parts_of(scene, it) if o.get(tracks.ROLE) == "link"][::5]:
+                a, b = tracks.hinge_world(scene, it, ob)
+                chord = max(chord, abs(float(np.linalg.norm(b - a)) - it.pitch))
+                off = max(off, float(tracks.off_loop(scene, it, [a, b]).max()))
+    ran = joints.get_value(cab)
+    bot = its[0]
+    run = tracks.travel_now(scene, bot)
+    run = min(run, bot.length - run)
+    want = ran % bot.length
+    want = min(want, bot.length - want)
+    spr = joints.find(scene, bot.wheels[0].joint)
+    turn = abs(joints.get_value(spr))
+    _check(ran > 1.9, f"only {ran:.2f} m of cable ran")
+    _check(abs(run - want) < 1e-4, f"the pads ran {run:.4f} m, the cable {want:.4f} m (round the loop)")
+    _check(abs(turn - abs(bot.wheels[0].rate) * ran) < 1e-4, "a sprocket does not turn one tooth per link")
+    _check(off < 1e-4, f"a link's hinge is {off * 1000:.2f} mm off its loop")
+    _check(chord < 5e-5, f"a link's hinges are {chord * 1000:.3f} mm from one pitch apart")
+    _check(max(lifts) > 0.14 and abs(lifts[-1] + 0.002) < 1e-4, "the top track did not lift and squeeze")
+    return (f"{ran:.2f} m of cable, the pads with it to {abs(run - want) * 1000:.2f} mm, sprocket "
+            f"{math.degrees(turn):.0f}°; hinges on their loops to {off * 1000:.3f} mm, one "
+            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm")
+
+
 def _check_spool(scene):
     """Along the built animation: the drum turned and the level wind went along with the wrap being paid out, the
     carousel turned and its arm swung out; each cable leaves its spool on the circle of its layer."""
@@ -2463,6 +2524,13 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
      "towards the rim) and the arm swings out so its guide stays over the turn being paid out.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
+     auto="clip")
+stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
+     "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
+     "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
+     "keep running) and comes back down to squeeze the cable 2 mm. Behind, a belt of separate links runs round three "
+     "pulleys of different size; all wheels turn with the chain.",
+     where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",

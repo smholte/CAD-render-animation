@@ -2397,6 +2397,87 @@ class FRSpool(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# tracks and belts (task 0079): a chain of CAD links, pads and plates runs round its wheels. See blender/tracks.py.
+# ---------------------------------------------------------------------------
+
+def _track_changed(self, context):
+    """A setting of a track changed (on/off, speed, direction): its parts and wheels follow at once."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import tracks
+    tracks.changed(context.scene, self)
+
+
+def _track_joints(self, context, edit_text):
+    """The joints a track can run on: slide joints, and the rotate joints of its own wheels."""
+    scene = context.scene if context is not None else None
+    if scene is None:
+        return []
+    own = {w.joint for w in self.wheels}
+    out = []
+    for j in scene.fresing.joints:
+        if j.kind == "SLIDE" or j.name in own:
+            if not edit_text or edit_text.lower() in j.name.lower():
+                out.append(j.name)
+    return out
+
+
+class FRTrackWheel(bpy.types.PropertyGroup):
+    """One wheel of a track: a sprocket, idler or roller. See blender/tracks.py."""
+    name: StringProperty(name="Name", description="The wheel's part")
+    part: PointerProperty(type=bpy.types.Object)
+    part_uid: StringProperty()
+    joint: StringProperty()                                # the rotate joint that turns it
+    made_joint: BoolProperty(default=False)                # the app made that joint (removed with the track)
+    coupled: BoolProperty(default=False)                   # the app made that joint follow the track's speed
+    radius: FloatProperty(default=0.0)                     # m: the chain's pitch line round it (or to the run it touches)
+    side: IntProperty(default=1)                           # +1: inside the loop
+    wrapped: BoolProperty(default=True)                    # the chain bends round it (False: it only touches)
+    wrap: FloatProperty(default=0.0)                       # rad the chain lies on it
+    rate: FloatProperty(default=0.0)                       # rad about the loop's normal per metre of chain
+    ratio: FloatProperty(default=0.0)                      # as its coupling has it: ° per mm (or turns per turn)
+    note: StringProperty(default="")
+
+
+class FRTrack(bpy.types.PropertyGroup):
+    """A track or belt: a chain of CAD links (with pads, plates) running round its wheels (task 0079)."""
+    name: StringProperty(name="Name", description="Name of this track. Double-click to rename it")
+    enabled: BoolProperty(
+        name="On", default=True, update=_track_changed,
+        description="On: the links, pads and plates run round the wheels with the speed joint and the wheels turn "
+                    "with them. Off: they show exactly as in the CAD file and stand still")
+    joint: StringProperty(
+        name="Speed", update=_track_changed, search=_track_joints,
+        description="The joint the track runs with: a cable's joint (metres of cable), any slide joint (metres of "
+                    "chain) or the joint of one of its own wheels (the chain runs as that wheel turns). Animate that "
+                    "joint, for example with a Run motor step in 6 Animation")
+    made_joint: BoolProperty(default=False)                # the app made the speed joint (removed with the track)
+    flip: FloatProperty(default=1.0)                       # +1 / -1: the way that moves the pads with the cable (found)
+    reverse: BoolProperty(
+        name="Runs the other way", default=False, update=_track_changed,
+        description="Off: the pads on the run nearest the cable move with the cable (or along the slide joint). "
+                    "On: the other way round. Tick it when the pads run the wrong way")
+    wheels: CollectionProperty(type=FRTrackWheel)
+    wheels_index: IntProperty(default=0)
+    key: StringProperty()                                  # what its parts and app-made joints are tagged with
+    chain_uid: StringProperty()                            # the link that was clicked
+    rider_uids: StringProperty()                           # the pads / plates that were clicked, one per line
+    # ---- state (written by blender/tracks.py) ----
+    carrier: PointerProperty(type=bpy.types.Object)        # the loop's coordinates: the first wheel's joint arrow
+    loop: PointerProperty(type=bpy.types.Object)           # the hidden loop table "FR track loop <name>"
+    run: PointerProperty(type=bpy.types.Object)            # "FR track run <name>": one point per part, its place now
+    normal: FloatVectorProperty(size=3, default=(0.0, 1.0, 0.0))  # the loop's normal, carrier coordinates
+    pitch: FloatProperty(default=0.0)                      # m
+    links: IntProperty(default=0)
+    parts: IntProperty(default=0)                          # links + riders that move
+    length: FloatProperty(default=0.0)                     # of the loop in metres of chain
+    chain_length: FloatProperty(default=0.0)               # links x pitch
+    data: StringProperty(default="")                       # JSON: each part's name, ID, phase c0, local matrix
+    problem: StringProperty(default="")
+    notes: StringProperty(default="")                      # what Add track had to say, one per line
+
+
+# ---------------------------------------------------------------------------
 # way covers (task 0034): telescopic covers follow one slide axis
 # ---------------------------------------------------------------------------
 
@@ -3318,6 +3399,13 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     cables_index: IntProperty(default=0)
     spools: CollectionProperty(type=FRSpool)               # drums and carousels the cables come off (task 0080)
     spools_index: IntProperty(default=0)
+    # ---- tracks and belts (task 0079) ----
+    tracks: CollectionProperty(type=FRTrack)
+    tracks_index: IntProperty(default=0)
+    cable_speed: StringProperty(
+        name="Speed from joint", default="",
+        description="Add cable gives the new cable this slide joint as its speed (its value is the metres of cable "
+                    "paid out), for example a joint that already turns rollers. Empty: the app makes a new joint")
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
 
@@ -3335,6 +3423,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
+           FRTrackWheel, FRTrack,
            FRSceneSettings)
 
 
