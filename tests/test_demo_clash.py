@@ -10,8 +10,13 @@ run. It now runs as windows of frames in four processes at once (``tests/demo_cl
   window's first frame (``GlobalStart`` in the child); ``test_windows_find_what_the_whole_check_finds`` shows on the
   clash test model that the windows find exactly the whole check's rows, and that a window measured from its own first
   frame would miss one;
+- which parts turn in place (held still) and which pairs with a turning part are checked once per stretch of its turn
+  (task 0092) is decided once over the whole animation, as the whole check decides it, and each window gets its slice;
 - parts that do not move against each other within a window are one body there and not compared: their depth is the
   same all through the window, and its first frame was the last frame of the window before (checked there).
+
+Measured on a 4-core web machine (task 0108): the whole check 800 s on one core; the windows 689 s of work in all, with
+exactly the whole check's 38,835 moments between frames, 172 s per worker.
 """
 
 import json
@@ -20,6 +25,7 @@ import os
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -188,7 +194,9 @@ def test_windows_find_what_the_whole_check_finds(tmp_path):
         whole = key(full.rows)
         assert expect <= {k[0] for k in whole}, whole
         cls = child.make_class(clash)
-        cls.start = child.global_start(sc, [ob.name for ob in clash.objects(sc)])
+        cls.whole = child.hold_whole(clash, cls, sc)
+        cls.start = (cls.whole["mats"][0].copy(), cls.whole["times"][0])
+        assert np.allclose(cls.start[0], child.global_start(sc, cls.whole["names"])[0], atol=1e-9)
         f0, f1 = int(sc.frame_start), int(sc.frame_end)
         for n in ns:
             runs = [windowed(sc, cls, lo, hi) for lo, hi in windows(f0, f1, n)]
