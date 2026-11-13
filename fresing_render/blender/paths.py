@@ -2767,6 +2767,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 notes.append(f"{who} could not be carried over ({exc or type(exc).__name__}): use 'From CAD cable'")
     finally:
         _STATE["busy"] -= 1
+    from . import paths_riders as _riders
+    notes += _riders.after_model_update(scene, by_uid)          # things on the cables (task 0081)
     return notes
 
 

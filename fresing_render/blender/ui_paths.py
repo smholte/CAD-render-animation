@@ -172,8 +172,16 @@ def end_text(item, end: str) -> tuple[str, bool]:
 
 
 # ---------------------------------------------------------------------------
-# the two lists
+# the lists
 # ---------------------------------------------------------------------------
+
+class FRESING_UL_cable_riders(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "enabled", text="")
+        row.prop(item, "name", text="", emboss=False)
+        row.label(text=f"{item.length:.1f} m")
+
 
 class FRESING_UL_cables(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -275,6 +283,65 @@ def _contact_details(layout, context, cb, index: int) -> None:
              alert=not gap)
 
 
+SEA_KINDS = {1: "lifts its end off the seabed", 2: "piles up on the seabed", 3: "is too short"}
+
+
+def _sea_fold(layout, context, cb) -> None:
+    """The fold "Into the sea": the sea end's settings and numbers, then the things fitted on the cable."""
+    from . import paths_riders, paths_sea
+    scene = context.scene
+    sea = cb.b_kind == "SEA"
+    body = fold(layout, "fr_cables_sea", "Into the sea" + (" (on)" if sea else ""), "MOD_OCEAN")
+    if not body:
+        return
+    if not sea:
+        wrap(body, context, "The cable hangs from its last contact (horn, chute or sheave) down to the seabed and "
+             "lies on the seabed behind it", icon="INFO")
+        big_row(body).operator("fresing.cable_sea_add", text="Into the sea", icon="MOD_OCEAN")
+    else:
+        col = split_props(body)
+        col.prop(cb, "sea_mode", text="Touch-down")
+        if cb.sea_mode == "TENSION":
+            col.prop(cb, "sea_tension", text="Tension (kN)")
+            col.prop(cb, "sea_weight", text="Weight (kg/m)")
+        else:
+            col.prop(cb, "sea_layback", text="Layback")
+        col.prop(cb, "sea_depth", text="Water depth")
+        col.prop(cb, "sea_laid", text="On the seabed")
+        col.prop(cb, "sea_speed", text="Vessel speed")
+        n = paths_sea.numbers(scene, cb)
+        if n:
+            box = body.box().column(align=True)
+            box.label(text=f"Layback {n['layback']:.1f} m, leaves at {n['angle']:.0f}° down", icon="MOD_OCEAN")
+            box.label(text=f"Tension {n['bottom']:.1f} kN at the seabed, {n['top']:.1f} kN at the top")
+            box.label(text=f"Hanging {n['hanging']:.1f} m, on the seabed {n['laid']:.1f} m")
+            if cb.sea_weight <= 0.0:
+                box.label(text=f"Weight in water {n['weight']:.0f} kg/m (from the Ø)")
+            if cb.sea_depth <= 0.0:
+                box.label(text=f"Water depth {n['depth']:.1f} m (from the sea)")
+            if n.get("kind", 0) in SEA_KINDS:
+                wrap(body, context, f"The cable {SEA_KINDS[n['kind']]}", icon="ERROR", alert=True)
+        row = body.row(align=True)
+        row.operator("fresing.cable_sea_reset", text="Touch-down here", icon="ANCHOR_BOTTOM")
+        row.operator("fresing.cable_sea_remove", text="", icon="X")
+    # things on the cable
+    body.separator()
+    n = len(cb.riders)
+    body.label(text=f"Things on the cable ({n})" if n else "Things on the cable", icon="LINKED")
+    if n:
+        row = body.row()
+        row.template_list("FRESING_UL_cable_riders", "", cb, "riders", cb, "riders_index", rows=list_rows(n, 2, 5))
+        row.column(align=True).operator("fresing.cable_rider_remove", text="", icon="REMOVE")
+    body.operator("fresing.cable_rider_add", text="Put selected on the cable", icon="ADD")
+    if 0 <= cb.riders_index < n:
+        r = cb.riders[cb.riders_index]
+        col = split_props(body)
+        col.prop(r, "where", text="Place")
+        col.prop(r, "at", text="Metres")
+        body.prop(r, "flip", text="Turned round")
+        wrap(body, context, paths_riders.describe(scene, cb, r), icon="INFO")
+
+
 class FRESING_PT_cables(_Panel, bpy.types.Panel):
     bl_label = "Cables and paths"
     bl_parent_id = "FRESING_PT_motion"
@@ -363,6 +430,9 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         _end_row(layout, context, cb, "A")
         _end_row(layout, context, cb, "B")
 
+        # -- into the sea, things on the cable (task 0081)
+        _sea_fold(layout, context, cb)
+
         # -- rarely changed
         body = fold(layout, "fr_cables_more", "More", "PREFERENCES")
         if body:
@@ -379,4 +449,4 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
 
 
 PANELS = (FRESING_PT_cables,)
-CLASSES = (FRESING_UL_cables, FRESING_UL_cable_contacts) + PANELS
+CLASSES = (FRESING_UL_cables, FRESING_UL_cable_contacts, FRESING_UL_cable_riders) + PANELS

@@ -597,3 +597,45 @@ def rider_changed(scene, rider) -> None:
     """A rider setting changed: it is placed again."""
     from . import paths_riders
     paths_riders.changed(scene, rider)
+
+
+# ---------------------------------------------------------------------------
+# the test model (tests, test tour, PC check)
+# ---------------------------------------------------------------------------
+
+TEST_ANIMATION = "Cable into the sea"
+TEST_CABLE = "Sea cable"
+TEST_RIDER = "CPS set"
+
+
+def set_up_test_model(scene, speed: float = 60.0, seconds: float = 8.0) -> dict:
+    """The set-up of the sea cable test model (test_sea.step, tools/make_test_sea.py), already imported: the cable
+    read from its part CABLE (power cable look) and hung into the sea from its HORN (15 m of water, layback 20 m),
+    the CPS SET on it passing the horn at 1 m paid out, and the animation "Cable into the sea": the cable pays out at
+    ``speed`` m/min for ``seconds`` s. Not built. Returns the names of what was made."""
+    from . import build, paths_riders
+    paths = _paths()
+
+    def named(name):
+        for ob in scene.objects:
+            if ob.get(build.PROP_NAME) == name:
+                return ob
+        raise paths.PathError(f"The model has no part '{name}'.")
+
+    item = paths.add_cable(scene, TEST_CABLE)
+    name = item.name
+    notes = paths.read_cad(scene, item, named("CABLE"))
+    item = paths.find(scene, name)
+    item.pitch = 0.4
+    with flex._quiet(item):
+        item.sea_depth, item.sea_layback, item.sea_laid = 15.0, 20.0, 40.0
+    notes += add_sea_end(scene, item)
+    item = paths.find(scene, name)
+    r = paths_riders.add(scene, item, [named("CPS SET")], where="MARK", at=1.0, name=TEST_RIDER)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "MOTOR", item.joint, 0.0, float(seconds), "LINEAR"
+    b.speed_mmin = float(speed)
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    return {"cable": name, "joint": item.joint, "rider": r.name, "animation": TEST_ANIMATION, "notes": notes}

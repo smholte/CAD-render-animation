@@ -243,6 +243,33 @@ def _at(m: np.ndarray, p: np.ndarray) -> np.ndarray:
     return p @ m[:3, :3].T + m[:3, 3]
 
 
+def _axis_line(mids: np.ndarray):
+    """(a point, rows whose first is the direction) of the line through the most parts' middles: a CPS tube and its
+    rings lie on one line, chocks and brackets beside it do not. Every line through two middles is tried; the one
+    that passes most middles within 1 mm (then the longest) is fitted again through those."""
+    n = len(mids)
+    extent = float(np.linalg.norm(mids.max(0) - mids.min(0)))
+    tol = max(1e-3, 1e-4 * extent)
+    best, best_key = None, (-1, -1.0)
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = mids[j] - mids[i]
+            ln = float(np.linalg.norm(d))
+            if ln < 1e-9:
+                continue
+            d = d / ln
+            rel = mids - mids[i]
+            dist = np.linalg.norm(rel - np.outer(rel @ d, d), axis=1)
+            on = dist <= tol
+            key = (int(on.sum()), float(np.ptp(rel[on] @ d)))
+            if key > best_key:
+                best, best_key = on, key
+    on = best if best is not None and best.sum() >= 2 else np.ones(n, dtype=bool)
+    cen = mids[on].mean(axis=0)
+    _u, _s, vt = np.linalg.svd(mids[on] - cen)
+    return cen, vt
+
+
 def _read(scene, item, objects, flip: bool) -> dict:
     """The thing's axis, front and its parts' places along it, in the CAD pose (cable part coordinates)."""
     paths = _paths()
@@ -258,8 +285,7 @@ def _read(scene, item, objects, flip: bool) -> dict:
         R0.append(m)
     mids = np.array(mids)
     if len(objects) >= 2 and float(np.linalg.norm(mids.max(0) - mids.min(0))) > 1e-6:
-        cen = mids.mean(axis=0)
-        _u, _s, vt = np.linalg.svd(mids - cen)
+        cen, vt = _axis_line(mids)
     else:
         allp = np.concatenate(pts)
         cen = allp.mean(axis=0)
