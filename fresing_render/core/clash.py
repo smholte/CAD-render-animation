@@ -13,9 +13,14 @@ How a check works (``blender/clash.py`` drives it):
    every angle: it is held at its place and rides with its carrier only (``spin_stretches``, ``round_about``), so it
    joins the carrier's body. Parts of one body as read are never compared, held or not.
 3. **Broad phase.** For every pair of bodies that moves against each other: their boxes in the world at each moment,
-   then the boxes of their parts (``box_pairs``). Between two big parts a lower bound of their distance is looked
-   for first (``box_tree`` of each mesh, ``tree_separation``, task 0092): parts proven apart need no point tested,
-   and are not tested again until they have moved that much against each other.
+   then the boxes of their parts (``box_pairs``). A lower bound of two parts' distance is looked for first
+   (``box_tree`` of each mesh, ``tree_separation``; task 0092 for big parts, task 0110 for every pair): parts proven
+   apart need no point tested, and are not tested again until they have moved that much against each other.
+   **Once per turn, pair by pair** (task 0110): when one part of a pair turns against the other about an axis that
+   stays put and is round wherever the other can come (``local_points``, ``repeats``), the two meet the same way at
+   every angle: tested once, then left for the rest of that turn. When it is not round there but repeats after a
+   step of angle (a rim fence's posts, ``symmetry_order``), the pair is left once it has been tested over one such
+   step with no clash.
 4. **Between frames.** Where two bodies come near each other and together move more than ``STEP`` between two
    frames, extra moments are put in between; each body's motion between the two frames is followed as a screw
    motion (``screw_between``: exact for a turn about a fixed axis and for a straight move), so a fast part cannot
@@ -652,6 +657,160 @@ def tree_clear_of_band(band, c, u, tree: tuple, m: np.ndarray, margin: float = 0
             return False
         idx = kids[bad].reshape(-1)
     return True
+
+
+# ---------------------------------------------------------------------------
+# a part that turns against another one: does it fill the same room there at other angles? (task 0110)
+# ---------------------------------------------------------------------------
+#
+# ``unround_band`` judges a whole part on a coarse grid (its points spread ~1/60 of its size apart): fine for a sheave,
+# far too coarse for a carousel's rim fence 24 m across (its grid cells 0.4 m: every drive part beside it looked
+# close). Here only the turning part's surface where the other part can come is looked at, finely: the other part's
+# box tree, seen along the axis, gives rectangles (along the axis, distance from it); the triangles of the turning part
+# whose rectangle meets one of them give points (every corner, and points a few mm apart on the faces), and only the
+# points inside one of the rectangles are kept. Those points turned by the angles asked (``repeats``) must land on the
+# turning part's surface again. A rim fence of 47 posts is not round, but turned by 1/47 turn it lands on itself:
+# once the pair has been checked over one such step of angle, every later angle repeats one already checked.
+
+PERIOD_TOL = 0.25 * MM        # turned points land this close to the surface: the same room (the check steps 4 mm)
+PERIOD_REL = 0.02             # … and within this share of how far the turn moved them (``repeats``)
+PERIOD_SPACING = 4.0 * MM     # points on the faces this far apart
+PERIOD_POINTS = 50_000        # points looked at most: the corners (more: it cannot tell), then points on the faces thinned
+PERIOD_MOST = 720             # symmetry orders tried: 1/2 … 1/720 turn
+
+
+def footprint(c, u, lo: np.ndarray, hi: np.ndarray, margin: float = 0.0) -> tuple:
+    """Boxes ``lo``/``hi`` (K, 3) seen along the line (c, u): (along lo, along hi, radius lo, radius hi), each (K,),
+    generous (every point of a box lies within them) and grown by ``margin``."""
+    c = np.asarray(c, dtype=np.float64)
+    u, _e1, _e2 = axial(c, u)
+    cor = corners(lo, hi) - c
+    a = cor @ u
+    r_hi = np.linalg.norm(cor - a[..., None] * u, axis=2).max(axis=1) + margin
+    r_lo = line_box_distance(c, u, lo, hi) - margin
+    return a.min(axis=1) - margin, a.max(axis=1) + margin, r_lo, r_hi
+
+
+def _in_rects(a: np.ndarray, r_lo: np.ndarray, r_hi: np.ndarray, rects: tuple, bins: int = 512) -> np.ndarray:
+    """Which items (along span a (N, 2), radius span r_lo … r_hi (N,)) meet any of the rectangles ``rects`` – or come
+    within a cell of a fine grid of one (never fewer than meet them: an item kept too many is only looked at too)."""
+    qa0, qa1, qr0, qr1 = rects
+    if not len(a) or not len(qa0):
+        return np.zeros(len(a), dtype=bool)
+    a0, a1 = float(qa0.min()), float(qa1.max())
+    r0, r1 = float(max(qr0.min(), 0.0)), float(qr1.max())
+    da, dr = max((a1 - a0) / bins, 1e-9), max((r1 - r0) / bins, 1e-9)
+
+    def cells(lo, hi, base, step):
+        return (np.clip(np.floor((lo - base) / step).astype(np.int64), 0, bins - 1),
+                np.clip(np.floor((hi - base) / step).astype(np.int64), 0, bins - 1))
+    i0, i1 = cells(qa0, qa1, a0, da)
+    j0, j1 = cells(np.maximum(qr0, r0), qr1, r0, dr)
+    marks = np.zeros((bins + 1, bins + 1), dtype=np.int64)            # corners of each rectangle's block of cells
+    np.add.at(marks, (i0, j0), 1)
+    np.add.at(marks, (i1 + 1, j0), -1)
+    np.add.at(marks, (i0, j1 + 1), -1)
+    np.add.at(marks, (i1 + 1, j1 + 1), 1)
+    grid = np.cumsum(np.cumsum(marks, axis=0), axis=1)[:bins, :bins] > 0
+    sat = np.zeros((bins + 1, bins + 1), dtype=np.int64)
+    sat[1:, 1:] = np.cumsum(np.cumsum(grid, axis=0), axis=1)
+    out = (a[:, 1] >= a0) & (a[:, 0] <= a1) & (r_hi >= r0) & (r_lo <= r1)
+    k = np.flatnonzero(out)
+    ii0, ii1 = cells(a[k, 0], a[k, 1], a0, da)
+    jj0, jj1 = cells(r_lo[k], r_hi[k], r0, dr)
+    out[k] = (sat[ii1 + 1, jj1 + 1] - sat[ii0, jj1 + 1] - sat[ii1 + 1, jj0] + sat[ii0, jj0]) > 0
+    return out
+
+
+def local_points(verts: np.ndarray, tris: np.ndarray, c, u, rects: tuple, spacing: float = PERIOD_SPACING,
+                 most: int = PERIOD_POINTS):
+    """Points of a part's surface (its own space) inside the rectangles ``rects`` (``footprint`` of another part, in
+    the same space, about the line (c, u)): the corners of the triangles that reach them and points ``spacing`` apart
+    on those triangles. None when there are more than ``most`` (too many to tell)."""
+    verts = np.asarray(verts, dtype=np.float64)
+    tris = np.asarray(tris, dtype=np.int64)
+    c = np.asarray(c, dtype=np.float64)
+    u, _e1, _e2 = axial(c, u)
+    if not len(tris) or not len(rects[0]):
+        return np.zeros((0, 3))
+    tri = verts[tris]
+    ta = (tri - c) @ u
+    tr = np.linalg.norm((tri - c) - ta[..., None] * u, axis=2)
+    span = np.stack([ta.min(axis=1), ta.max(axis=1)], axis=1)
+    tr_lo = line_box_distance(c, u, tri.min(axis=1), tri.max(axis=1))
+    ids = np.flatnonzero(_in_rects(span, tr_lo, tr.max(axis=1), rects))
+    if not len(ids):
+        return np.zeros((0, 3))
+    tp, _w = triangle_points(tri[ids], spacing, 64)
+
+    def inside(pts):
+        pa = (pts - c) @ u
+        pr = np.linalg.norm((pts - c) - pa[:, None] * u, axis=1)
+        return pts[_in_rects(np.stack([pa, pa], axis=1), pr, pr, rects)]
+    corners_in = inside(verts[np.unique(tris[ids])])
+    if len(corners_in) > most:
+        return None
+    # every corner, and the points on the faces thinned out evenly to ``most`` at most
+    return np.concatenate([corners_in, thin_out(inside(tp[len(ids) * 3:]), most - len(corners_in))])
+
+
+def repeats(pts: np.ndarray, c, u, angles, nearest, tol: float = PERIOD_TOL, rel: float = 0.0) -> bool:
+    """Whether points of a part's surface (its own space), turned about the line (c, u) by each of ``angles``, land
+    within ``tol`` of its surface (``nearest(points) -> distances``). ``rel``: and within that share of how far the
+    turn moved each point – turned by a small angle every part lands near itself (a roller with a flat, a wheel off its
+    centre turned by 1/720 turn); a part that really repeats lands on itself however far the turn moves it."""
+    if not len(pts):
+        return True
+    c = np.asarray(c, dtype=np.float64)
+    u, _e1, _e2 = axial(c, u)
+    rad = np.linalg.norm((pts - c) - ((pts - c) @ u)[:, None] * u, axis=1)
+    order = np.random.default_rng(len(pts)).permutation(len(pts))       # spread over the part: a miss shows soon
+    for phi in angles:
+        turned = transform(rotation_about(c, u, float(phi)), pts[None])[0]
+        lim = np.full(len(pts), tol) if rel <= 0.0 else \
+            np.minimum(tol, rel * 2.0 * rad * abs(math.sin(float(phi) / 2.0)))
+        for s in range(0, len(pts), 4096):
+            sel = order[s:s + 4096]
+            if np.any(nearest(turned[sel]) > lim[sel]):
+                return False
+    return True
+
+
+def symmetry_order(verts: np.ndarray, c, u, nearest, tol: float = PERIOD_TOL, most: int = PERIOD_MOST,
+                   share: float = 0.98) -> int:
+    """The largest n (2 … ``most``) for which the part, turned by 1/n turn about the line (c, u), lands on itself for
+    nearly all of its sharp corners (``share``; a rim fence's 47 posts: n = 47; a 12-tooth wheel: 12); 1 when none.
+    Turned points must land within 2 % of how far the turn moved them (``repeats``). Only a hint: the points that
+    matter are checked with ``repeats``."""
+    verts = np.asarray(verts, dtype=np.float64)
+    c = np.asarray(c, dtype=np.float64)
+    u, _e1, _e2 = axial(c, u)
+    rel = verts - c
+    r = np.linalg.norm(rel - (rel @ u)[:, None] * u, axis=1)
+    off = verts[r > 1e-3]
+    if len(off) > 20000:
+        off = off[np.random.default_rng(1).choice(len(off), 20000, replace=False)]
+    small = 2 * math.pi / most
+
+    def misses(pts, phi):
+        rad = np.linalg.norm((pts - c) - ((pts - c) @ u)[:, None] * u, axis=1)
+        lim = np.minimum(tol, PERIOD_REL * 2.0 * rad * abs(math.sin(phi / 2.0)))
+        return nearest(transform(rotation_about(c, u, phi), pts[None])[0]) > lim
+    # the sharp corners only: those that leave the surface even turned by the smallest step (a post's corners, a
+    # tooth's flanks). Corners on round faces (a rail, a tooth's top) land on themselves turned by a little and would
+    # make any step look like a period
+    off = off[misses(off, small) | misses(off, -small)]
+    if len(off) < 8:
+        return 1
+    rng = np.random.default_rng(len(off))
+    few = off[rng.choice(len(off), min(24, len(off)), replace=False)]
+    more = off[rng.choice(len(off), min(512, len(off)), replace=False)]
+    def lands(pts, n):
+        return np.mean(~misses(pts, 2 * math.pi / n))
+    for n in range(most - 1, 1, -1):
+        if lands(few, n) >= share and lands(more, n) >= share:
+            return n
+    return 1
 
 
 def clear_of_band(band, c, u, lo: np.ndarray, hi: np.ndarray, margin: float = 0.0, each: bool = False):

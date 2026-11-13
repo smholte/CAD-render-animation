@@ -58,7 +58,14 @@ MAX_ENTRY = 512 * 1024 * 1024          # zip limits: the checker's (hsf/package.
 MAX_TOTAL = 2 * 1024 * 1024 * 1024
 MAX_FILES = 10000
 
-ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+ID_RE = re.compile(r"[A-Za-z0-9_.-]{1,64}")           # ids in scene.json and bake.json (the schemas' pattern)
+SURFACE_ID_RE = re.compile(r"[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+")   # surface ids, "<kind>:<name>" (FORMAT 4)
+SURFACE_ID_MAX = 63                    # bytes: Blender's longest object name (FORMAT 4)
+HASH_NAME = "hp-hash/1"                # closed lists (FORMAT 13): another name is another major version
+UV1_NAME = "hp-uv/1"
+GROUPS = ("house", "garden", "street", "houses", "park", "furniture", "installs", "ceilItems")
+SITE_GROUPS = ("garden", "street", "houses", "park")       # surfaces of these groups have no storey (FORMAT 4)
+RIGID_TOL = 1e-4                       # a MAP node's world matrix may turn and move, not scale or mirror (checker's)
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 COLOUR_CHUNKS = (b"gAMA", b"iCCP", b"sRGB", b"cHRM", b"cICP", b"mDCV", b"cLLI", b"tRNS")
 
@@ -70,6 +77,36 @@ class FormatError(ValueError):
 # ---------------------------------------------------------------------------
 # packages (FORMAT 2)
 # ---------------------------------------------------------------------------
+
+def _control(text: str) -> bool:
+    """True when a text holds a control character (FORMAT 2: none in any text or key)."""
+    return any(ord(c) < 32 or ord(c) == 127 for c in text)
+
+
+def control_text(obj, at: str = "") -> str | None:
+    """Where a JSON value holds a control character in a text or a key (FORMAT 2), or None."""
+    if isinstance(obj, str):
+        return (at or "(top)") if _control(obj) else None
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            where = f"{at}/{_shown(k)[:20]}"
+            if isinstance(k, str) and _control(k):
+                return where
+            r = control_text(v, where)
+            if r:
+                return r
+    if isinstance(obj, list):
+        for i, v in enumerate(obj):
+            r = control_text(v, f"{at}/{i}")
+            if r:
+                return r
+    return None
+
+
+def _shown(text) -> str:
+    """A text from a package, safe to put in a message: control characters as spaces, at most 64 characters."""
+    return re.sub(r"[\x00-\x1f\x7f]", " ", str(text))[:64]
+
 
 def _name_problem(name: str) -> str | None:
     """Why a path inside a package is not allowed (FORMAT 2), or None."""
@@ -100,11 +137,16 @@ def read_zip(src) -> dict[str, bytes]:
     total, files = 0, {}
     for info in infos:
         name = info.filename
+        if not info.flag_bits & 0x800 and any(b >= 0x80 for b in name.encode("cp437")):
+            # no UTF-8 flag: zipfile read the name as cp437; FORMAT 2 allows UTF-8 names only
+            raise FormatError(f"The package's file '{_shown(name)}' has a name that is not UTF-8 text.")
+        if _control(name):
+            raise FormatError(f"The package's file '{_shown(name)}' has a control character in its name.")
         if name.endswith("/") and info.file_size == 0:      # a folder entry
             continue
         why = _name_problem(name)
         if why:
-            raise FormatError(f"The package's file '{name}' {why}.")
+            raise FormatError(f"The package's file '{_shown(name)}' {why}.")
         if name in files:
             raise FormatError(f"The package lists '{name}' twice.")
         if info.flag_bits & 0x1:
@@ -149,7 +191,7 @@ _FORMATS = {"house-scene": ("house scene", "House Planner", "Export it again fro
 
 def parse_version(v) -> tuple[int, int] | None:
     """(major, minor) of "M.n" – two whole numbers compared as numbers ("1.10" is newer than "1.9")."""
-    m = re.fullmatch(r"(\d+)\.(\d+)", v) if isinstance(v, str) else None
+    m = re.fullmatch(r"([0-9]+)\.([0-9]+)", v) if isinstance(v, str) else None   # ASCII digits only (not \d)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 
@@ -306,6 +348,19 @@ def _num(x, what: str) -> float:
     return float(x)
 
 
+def _unit(x, what: str) -> tuple:
+    v = _vec(x, 3, what)
+    if abs(math.sqrt(sum(c * c for c in v)) - 1.0) > 1e-3:
+        raise FormatError(f"scene.json: {what} is not a unit vector.")
+    return v
+
+
+def _whole(x, what: str) -> int:
+    if isinstance(x, bool) or not isinstance(x, int):
+        raise FormatError(f"scene.json: {what} is not a whole number.")
+    return x
+
+
 def _vec(x, n: int, what: str) -> tuple:
     if not isinstance(x, list) or len(x) != n:
         raise FormatError(f"scene.json: {what} is not {n} numbers.")
@@ -320,6 +375,31 @@ def _text(x, what: str, default=None) -> str:
     return x
 
 
+def _ident(x, what: str) -> str:
+    """An id of scene.json (storey, season, moment, camera, photo, video): letters, digits and _ . - (the schema's
+    pattern) – it also names the bake's files."""
+    if not isinstance(x, str) or not ID_RE.fullmatch(x):
+        raise FormatError(f"scene.json: {what} {_shown(x)!r} is not an id (letters, digits and _ . - only, at most "
+                          "64 characters).")
+    return x
+
+
+def _list(x, what: str) -> list:
+    if x is None:
+        return []
+    if not isinstance(x, list):
+        raise FormatError(f"scene.json: {what} is not a list.")
+    return x
+
+
+def _unique(ids, what: str) -> None:
+    seen = set()
+    for i in ids:
+        if i in seen:
+            raise FormatError(f"scene.json: the {what} '{i}' is listed twice.")
+        seen.add(i)
+
+
 def _day_of_year(text: str, what: str) -> int:
     try:
         return _date.fromisoformat(text).timetuple().tm_yday
@@ -327,14 +407,20 @@ def _day_of_year(text: str, what: str) -> int:
         raise FormatError(f"scene.json: {what} {str(text)[:20]!r} is not a date (YYYY-MM-DD).") from None
 
 
-def _falling(f) -> dict | None:
-    if not isinstance(f, dict):
+def _falling(f, what: str) -> dict | None:
+    """A photo's or video's ``falling`` (FORMAT 7.6): None, or rain, snow, wind, wind_from as finite numbers."""
+    if f is None:
         return None
-    return {k: float(f.get(k, d)) for k, d in (("rain", 0.0), ("snow", 0.0), ("wind", 0.0), ("wind_from", 0.0))}
+    if not isinstance(f, dict):
+        raise FormatError(f"scene.json: {what}: falling is not an object.")
+    return {k: _num(f.get(k, d), f"{what}: falling.{k}")
+            for k, d in (("rain", 0.0), ("snow", 0.0), ("wind", 0.0), ("wind_from", 0.0))}
 
 
-def _recipe(r: dict, notes: list) -> Recipe:
-    """The recipe, with FORMAT 13's rules for open-list values a newer minor version may bring."""
+def _recipe(r: dict, notes: list, storeys: list) -> Recipe:
+    """The recipe, with FORMAT 13's rules for open-list values a newer minor version may bring. ``storeys``: the
+    scene's storeys (the included and open storeys must be among them). What the format's checker calls an error is
+    refused (FORMAT 12): ids listed twice, an open storey that is not included, a photo of an unknown camera …"""
     if not isinstance(r, dict):
         raise FormatError("scene.json has no recipe.")
     light = r.get("light")
@@ -353,22 +439,40 @@ def _recipe(r: dict, notes: list) -> Recipe:
     by_group = {str(k): _num(v, "recipe.quality.texels_per_m_by_group")
                 for k, v in (q.get("texels_per_m_by_group") or {}).items()}
     inc = r.get("include") or {}
+    if not isinstance(inc, dict):
+        raise FormatError("scene.json: recipe.include is not an object.")
+    storey_ids = {st.id for st in storeys}
+    inc_storeys = [_ident(x, "recipe.include.storeys: storey")
+                   for x in _list(inc.get("storeys"), "recipe.include.storeys")]
+    for x in inc_storeys:
+        if x not in storey_ids:
+            raise FormatError(f"scene.json: recipe.include.storeys names '{x}', which is not a storey of the house.")
+    inc_groups = _list(inc.get("groups"), "recipe.include.groups")
+    if not all(isinstance(g, str) for g in inc_groups):
+        raise FormatError("scene.json: recipe.include.groups is not a list of names.")
+    open_storeys = [_ident(x, "recipe.open_storeys: storey")
+                    for x in _list(r.get("open_storeys"), "recipe.open_storeys")]
+    for x in open_storeys:
+        if x not in inc_storeys:
+            raise FormatError(f"scene.json: recipe.open_storeys names '{x}', which is not an included storey.")
+    _unique(open_storeys, "open storey")
     seasons = []
-    for s in r.get("seasons") or []:
+    for s in _list(r.get("seasons"), "recipe.seasons"):
         fol = s.get("foliage")
         seasons.append(Season(
-            id=_text(s.get("id"), "a season's id"), label=_text(s.get("label"), "a season's label", ""),
+            id=_ident(s.get("id"), "a season's id"), label=_text(s.get("label"), "a season's label", ""),
             date=_text(s.get("date"), "a season's date"), day=_day_of_year(s.get("date"), "a season's date"),
             snow_cover=_num(s.get("snow_cover", 0.0), "snow_cover"), wet=_num(s.get("wet", 0.0), "wet"),
             foliage=fol if fol in FOLIAGE else "full"))
     if not seasons:
         raise FormatError("scene.json: the recipe has no seasons.")
+    _unique([s.id for s in seasons], "season")
     season_ids = {s.id for s in seasons}
     moments = []
-    for m in r.get("moments") or []:
-        mid = _text(m.get("id"), "a moment's id")
+    for m in _list(r.get("moments"), "recipe.moments"):
+        mid = _ident(m.get("id"), "a moment's id")
         if m.get("season") not in season_ids:
-            raise FormatError(f"scene.json: moment '{mid}' names season {str(m.get('season'))[:64]!r}, which is "
+            raise FormatError(f"scene.json: moment '{mid}' names season {_shown(m.get('season'))!r}, which is "
                               "not in the recipe.")
         sun = m.get("sun") or {}
         sky = m.get("sky") or {}
@@ -382,38 +486,54 @@ def _recipe(r: dict, notes: list) -> Recipe:
             time=_text(m.get("time"), "a moment's time"), utc_offset=_text(m.get("utc_offset"), "utc_offset"),
             azimuth=_num(sun.get("azimuth"), f"moment '{mid}' sun.azimuth"),
             elevation=_num(sun.get("elevation"), f"moment '{mid}' sun.elevation"),
-            direction=_vec(sun.get("direction"), 3, f"moment '{mid}' sun.direction"),
+            direction=_unit(sun.get("direction"), f"moment '{mid}' sun.direction"),
             clouds=_num(sky.get("clouds", 0.0), "clouds"), low_clouds=_num(sky.get("low_clouds", 0.0), "low_clouds"),
             visibility=_num(sky.get("visibility", 40000.0), "visibility"), lamps=lamps))
     if not moments:
         raise FormatError("scene.json: the recipe has no moments.")
+    _unique([m.id for m in moments], "moment")
     moment_ids = {m.id for m in moments}
     cameras = {}
-    for c in r.get("cameras") or []:
-        cid = _text(c.get("id"), "a camera's id")
+    for c in _list(r.get("cameras"), "recipe.cameras"):
+        cid = _ident(c.get("id"), "a camera's id")
+        if cid in cameras:
+            raise FormatError(f"scene.json: the camera '{cid}' is listed twice.")
         cameras[cid] = Camera(id=cid, label=_text(c.get("label"), "a camera's label", ""),
                               position=_vec(c.get("position"), 3, f"camera '{cid}' position"),
                               target=_vec(c.get("target"), 3, f"camera '{cid}' target"),
                               fov=_num(c.get("fov"), f"camera '{cid}' fov"))
+        if math.dist(cameras[cid].position, cameras[cid].target) < 1e-3:
+            raise FormatError(f"scene.json: camera '{cid}' looks at its own position.")
 
     def shot(p, kind):
-        pid = _text(p.get("id"), f"a {kind}'s id")
-        if p.get("camera") not in cameras or p.get("moment") not in moment_ids:
-            notes.append(f"The {kind} '{pid}' names a camera or moment the recipe does not have: it is skipped.")
-            return None
+        pid = p["id"]
+        if p.get("camera") not in cameras:
+            raise FormatError(f"scene.json: the {kind} '{pid}' names camera {_shown(p.get('camera'))!r}, which is "
+                              "not in the recipe.")
+        if p.get("moment") not in moment_ids:
+            raise FormatError(f"scene.json: the {kind} '{pid}' names moment {_shown(p.get('moment'))!r}, which is "
+                              "not in the recipe.")
+        falling = _falling(p.get("falling"), f"the {kind} '{pid}'")
         size = p.get("size")
-        if not (isinstance(size, list) and len(size) == 2 and all(isinstance(v, int) and v > 0 for v in size)):
+        if not (isinstance(size, list) and len(size) == 2
+                and all(isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in size)):
             notes.append(f"The {kind} '{pid}' has no size in pixels: it is skipped.")
             return None
         return {"id": pid, "label": str(p.get("label") or pid), "camera": p["camera"], "moment": p["moment"],
-                "size": tuple(size), "falling": _falling(p.get("falling"))}
+                "size": tuple(size), "falling": falling}
 
-    photos = [x for x in (shot(p, "photo") for p in r.get("photos") or []) if x]
+    raw_photos = _list(r.get("photos"), "recipe.photos")
+    raw_videos = _list(r.get("videos"), "recipe.videos")
+    for kind, items in (("photo", raw_photos), ("video", raw_videos)):
+        if not all(isinstance(p, dict) for p in items):
+            raise FormatError(f"scene.json: a {kind} of the recipe is not an object.")
+        _unique([_ident(p.get("id"), f"a {kind}'s id") for p in items], kind)
+    photos = [x for x in (shot(p, "photo") for p in raw_photos) if x]
     videos = []
-    for v in r.get("videos") or []:
+    for v in raw_videos:
         if v.get("kind") not in VIDEO_KINDS:
-            notes.append(f"The video '{str(v.get('id'))[:64]}' is of a kind this version cannot make "
-                         f"({str(v.get('kind'))[:20]!r}): it is skipped.")
+            notes.append(f"The video '{v['id']}' is of a kind this version cannot make "
+                         f"({_shown(v.get('kind'))[:20]!r}): it is skipped.")
             continue
         x = shot(v, "video")
         if x:
@@ -423,8 +543,8 @@ def _recipe(r: dict, notes: list) -> Recipe:
             videos.append(x)
     return Recipe(light=light, preset=preset, texels_per_m=_num(q.get("texels_per_m"), "recipe.quality.texels_per_m"),
                   texels_per_m_by_group=by_group, samples=int(samples), page_size=int(page),
-                  include_storeys=list(inc.get("storeys") or []), include_groups=list(inc.get("groups") or []),
-                  open_storeys=[str(s) for s in r.get("open_storeys") or []], seasons=seasons, moments=moments,
+                  include_storeys=inc_storeys, include_groups=list(inc_groups),
+                  open_storeys=open_storeys, seasons=seasons, moments=moments,
                   cameras=cameras, photos=photos, videos=videos)
 
 
@@ -441,23 +561,71 @@ def glb_meshes(glb: bytes) -> tuple[dict, bytes]:
     return doc, binary
 
 
+_FLOAT = 5126
+_INDEX_TYPES = (5121, 5123, 5125)      # unsigned byte, short, int
+
+
 def mesh_arrays(doc: dict, binary: bytes, mesh: int) -> list[dict]:
     """The primitives of a mesh as arrays, in order: dicts with ``positions`` (n, 3) float32, ``normals`` (n, 3) or
-    None, ``uv1`` (n, 2) or None (TEXCOORD_1, glTF's v), ``indices`` (k,) uint32 or None."""
+    None, ``uv1`` (n, 2) or None (TEXCOORD_1, glTF's v), ``indices`` (k,) uint32 or None. FormatError for what FORMAT
+    4.2 does not allow (so every later use is safe): other than triangles, sparse accessors, positions / UVs that are
+    not floats, attributes of other lengths, indices that are no whole number of triangles, point past the vertices
+    or leave vertices unused."""
     out = []
-    for prim in doc["meshes"][mesh]["primitives"]:
+    accs = doc.get("accessors") or []
+    for k, prim in enumerate(doc["meshes"][mesh]["primitives"]):
+        at = f"house.glb: mesh {mesh} primitive {k}"
         if prim.get("mode", 4) != 4:
             raise FormatError(f"house.glb: mesh {mesh} holds something other than triangles.")
         attrs = prim["attributes"]
+        if "POSITION" not in attrs:
+            raise FormatError(f"{at} has no positions.")
+        used = list(attrs.values()) + ([prim["indices"]] if "indices" in prim else [])
+        for a in used:
+            if isinstance(a, bool) or not isinstance(a, int) or not (0 <= a < len(accs)) \
+                    or not isinstance(accs[a], dict):
+                raise FormatError(f"{at} points at accessor {_shown(a)}, which does not exist.")
+            if "sparse" in accs[a]:
+                raise FormatError(f"{at} has a sparse accessor (FORMAT 4.2 allows none).")
+        for name, typ in (("POSITION", "VEC3"), ("NORMAL", "VEC3"), ("TEXCOORD_1", "VEC2")):
+            if name in attrs:
+                acc = accs[attrs[name]]
+                if acc.get("componentType") != _FLOAT or acc.get("type") != typ or acc.get("normalized"):
+                    raise FormatError(f"{at}: {name} is not float {typ}.")
 
         def arr(name):
             return web3d.accessor_array(doc, binary, attrs[name]) if name in attrs else None
+        pos = np.asarray(arr("POSITION"), np.float32).reshape(-1, 3)
+        n = len(pos)
+        normals, uv1 = arr("NORMAL"), arr("TEXCOORD_1")
+        for name, a in (("NORMAL", normals), ("TEXCOORD_1", uv1)):
+            if a is not None and len(a) != n:
+                raise FormatError(f"{at}: {name} has {len(a)} values for {n} vertices.")
         idx = prim.get("indices")
-        out.append({"positions": np.asarray(arr("POSITION"), np.float32).reshape(-1, 3),
-                    "normals": arr("NORMAL"), "uv1": arr("TEXCOORD_1"),
-                    "indices": None if idx is None else
-                    web3d.accessor_array(doc, binary, idx).ravel().astype(np.uint32)})
+        if idx is None:
+            ind = None
+            if n % 3:
+                raise FormatError(f"{at}: {n} vertices without indices is not a whole number of triangles.")
+        else:
+            acc = accs[idx]
+            if acc.get("componentType") not in _INDEX_TYPES or acc.get("type") != "SCALAR" or acc.get("normalized"):
+                raise FormatError(f"{at}: its indices are not unsigned whole numbers.")
+            ind = web3d.accessor_array(doc, binary, idx).ravel().astype(np.uint32)
+            if len(ind) % 3:
+                raise FormatError(f"{at}: {len(ind)} indices is not a whole number of triangles.")
+            if len(ind) and int(ind.max()) >= n:
+                raise FormatError(f"{at}: an index points past its {n} vertices.")
+            if len(np.unique(ind)) != n:
+                raise FormatError(f"{at}: some of its {n} vertices are not used by any triangle (light per vertex "
+                                  "would no longer line up).")
+        out.append({"positions": pos, "normals": normals, "uv1": uv1, "indices": ind})
     return out
+
+
+def is_rigid(m: np.ndarray, eps: float = RIGID_TOL) -> bool:
+    """True when a 4 x 4 matrix only turns and moves (no scale, shear or mirror) – the checker's test."""
+    r = np.asarray(m, np.float64)[:3, :3]
+    return bool(np.abs(r.T @ r - np.eye(3)).max() <= eps and np.linalg.det(r) > 0)
 
 
 def _local_matrix(node: dict) -> np.ndarray:
@@ -518,6 +686,15 @@ def _surfaces(doc: dict, binary: bytes, notes: list) -> dict[str, Surface]:
         sid = hp.get("id")
         if not isinstance(sid, str) or not sid:
             raise FormatError(f"house.glb: node {i} has a label without an id.")
+        bad = control_text(node.get("extras"))
+        if bad:
+            raise FormatError(f"house.glb: the label of node {i} has a control character (a line break, a tab …) "
+                              f"at {bad}.")
+        if len(sid.encode("utf-8")) > SURFACE_ID_MAX:
+            raise FormatError(f"house.glb: the id '{_shown(sid)}…' is longer than {SURFACE_ID_MAX} bytes.")
+        if not SURFACE_ID_RE.fullmatch(sid):
+            raise FormatError(f"house.glb: the id '{_shown(sid)}' is not '<kind>:<name>' (letters, digits and "
+                              "_ . : - only).")
         if sid in out:
             raise FormatError(f"house.glb: the id '{sid}' is used by two nodes.")
         if i not in world:
@@ -528,6 +705,9 @@ def _surfaces(doc: dict, binary: bytes, notes: list) -> dict[str, Surface]:
             raise FormatError(f"house.glb: '{sid}' has bake {str(bake)[:20]!r}, not one of {', '.join(BAKES)}.")
         kind = str(hp.get("kind", "other"))
         m = world[i]
+        if bake == "MAP" and not is_rigid(m):
+            raise FormatError(f"house.glb: '{sid}' has a light map but its node is scaled or mirrored (a surface "
+                              "with a light map may only be turned and moved).")
         light = ((node.get("extensions") or {}).get("KHR_lights_punctual") or {}).get("light")
         uv1_px = hp.get("uv1_px")
         uv1_px = (int(uv1_px[0]), int(uv1_px[1])) if bake == "MAP" and isinstance(uv1_px, list) \
@@ -537,6 +717,8 @@ def _surfaces(doc: dict, binary: bytes, notes: list) -> dict[str, Surface]:
         if has_mesh:
             try:
                 prims = mesh_arrays(doc, binary, node["mesh"])
+            except FormatError as e:
+                raise FormatError(f"{e} (the geometry of '{sid}')") from None
             except (KeyError, IndexError, TypeError, ValueError) as e:
                 raise FormatError(f"house.glb: the geometry of '{sid}' cannot be read ({e}).") from None
             verts = sum(len(p["positions"]) for p in prims)
@@ -566,9 +748,33 @@ def _surfaces(doc: dict, binary: bytes, notes: list) -> dict[str, Surface]:
     return out
 
 
+def _storey_rules(surfaces: dict, recipe: Recipe) -> None:
+    """FORMAT 4 (as the checker reads it): a surface's group is included in the recipe; surfaces of the plot's groups
+    (garden, street, houses, park) have no storey, the others one of the included storeys. A group a newer minor
+    version brings has no storey rule (FORMAT 13)."""
+    inc_st, inc_gr = set(recipe.include_storeys), set(recipe.include_groups)
+    for sid, s in surfaces.items():
+        if s.group not in inc_gr:
+            raise FormatError(f"house.glb: '{sid}' is in group '{_shown(s.group)}', which the recipe does not "
+                              "include.")
+        if s.group not in GROUPS:
+            continue
+        if s.group in SITE_GROUPS:
+            if s.storey is not None:
+                raise FormatError(f"house.glb: '{sid}' (group '{s.group}') belongs to no storey, but names "
+                                  f"storey {_shown(s.storey)!r}.")
+        elif s.storey is None:
+            raise FormatError(f"house.glb: '{sid}' (group '{s.group}') has no storey.")
+        elif s.storey not in inc_st:
+            raise FormatError(f"house.glb: '{sid}' is on storey {_shown(s.storey)!r}, which is not an included "
+                              "storey.")
+
+
 def read_scene(src) -> Scene:
     """Read a ``.hpscene`` (a path or its bytes). FormatError for anything a reader must refuse (the zip rules,
-    another format or major version, no house.glb, a broken node tree, a closed-list value it does not know);
+    another format or major version, no house.glb, a broken node tree, a closed-list value it does not know – and
+    whatever else the format's checker calls an ERROR, FORMAT 12: control characters, ids, required extensions,
+    broken indices, a scaled light-map node, the storey rules, ids listed twice, a photo of an unknown camera …);
     notes for what it reads with a rule (a newer minor version, unknown open-list values, a hash that does not match
     its geometry, a sun direction away from its angles)."""
     files = read_zip(src)
@@ -579,6 +785,13 @@ def read_scene(src) -> Scene:
     note = check_version(doc, "house-scene")
     if note:
         notes.append(note)
+    bad = control_text(doc)
+    if bad:
+        raise FormatError(f"scene.json has a control character (a line break, a tab …) in a text at {bad}.")
+    for key, want in (("hash", HASH_NAME), ("uv1", UV1_NAME)):
+        if doc.get(key) != want:
+            raise FormatError(f"This house scene uses {key} {_shown(doc.get(key))!r}; Fresing Render knows only "
+                              f"'{want}'. Update Fresing Render to read it.")
     glb = files.get("house.glb")
     if glb is None:
         raise FormatError("This house scene has no house.glb.")
@@ -590,10 +803,13 @@ def read_scene(src) -> Scene:
         place = {"latitude": _num(place["latitude"], "place.latitude"),
                  "longitude": _num(place["longitude"], "place.longitude"), "north": north,
                  "ground_level": _num(place.get("ground_level", 0.0), "place.ground_level")}
-        storeys = [Storey(id=_text(s["id"], "a storey's id"), name=_text(s.get("name"), "a storey's name", ""),
-                          level=int(s["level"]), elevation=_num(s.get("elevation", 0.0), "a storey's elevation"),
-                          height=_num(s.get("height", 2.8), "a storey's height")) for s in doc["storeys"]]
-        recipe = _recipe(doc["recipe"], notes)
+        storeys = [Storey(id=_ident(s["id"], "a storey's id"), name=_text(s.get("name"), "a storey's name", ""),
+                          level=_whole(s["level"], "a storey's level"),
+                          elevation=_num(s.get("elevation", 0.0), "a storey's elevation"),
+                          height=_num(s.get("height", 2.8), "a storey's height"))
+                   for s in _list(doc["storeys"], "storeys")]
+        _unique([st.id for st in storeys], "storey")
+        recipe = _recipe(doc["recipe"], notes, storeys)
         house = doc.get("house") or {}
         head = dict(id=_text(doc["id"], "id"), title=_text(doc.get("title"), "title", ""),
                     version_id=_text(house.get("version_id"), "house.version_id", ""),
@@ -605,12 +821,16 @@ def read_scene(src) -> Scene:
         raise FormatError(f"scene.json is not a house scene Fresing Render can read ({type(e).__name__}: "
                           f"{e}).") from None
     gdoc, binary = glb_meshes(glb)
+    if gdoc.get("extensionsRequired"):
+        raise FormatError(f"house.glb needs the extensions {_shown(gdoc['extensionsRequired'])} (Draco, meshopt "
+                          "…); version 1 of the format allows none. Export it again from a current House Planner.")
     try:
         surfaces = _surfaces(gdoc, binary, notes)
     except (KeyError, IndexError, TypeError, AttributeError, ValueError) as e:
         if isinstance(e, FormatError):
             raise
         raise FormatError(f"house.glb cannot be read ({type(e).__name__}: {e}).") from None
+    _storey_rules(surfaces, recipe)
     want = house_hash.scene_hash({k: s.hash for k, s in surfaces.items() if s.hash})
     if want != head["scene_hash"]:
         notes.append(f"The scene's hash {head['scene_hash'][:32]} does not match its surfaces ({want}).")
@@ -751,7 +971,7 @@ def moment_sun(scene: Scene, moment: Moment) -> dict:
 # ---------------------------------------------------------------------------
 
 def _clean(L) -> np.ndarray:
-    """Light values as float64 with NaN -> 0, +inf -> very bright, -inf -> 0."""
+    """Light values as float64 with NaN -> 0, +inf -> very bright (encoded as 255), -inf -> 0."""
     return np.nan_to_num(np.asarray(L, np.float64), nan=0.0, posinf=1e30, neginf=0.0)
 
 
@@ -770,8 +990,9 @@ def decode(b, scale: float) -> np.ndarray:
 def moment_scale(arrays) -> float:
     """The 99.9th percentile of all channel values of a moment's results (FORMAT 8.3's recommendation); always
     positive: the brightest value when the percentile is 0, else 1.0 when everything is dark."""
-    vals = [np.maximum(_clean(a).ravel(), 0.0) for a in arrays]
+    vals = [np.asarray(a, np.float64).ravel() for a in arrays]
     vals = np.concatenate(vals) if vals else np.zeros(0)
+    vals = np.maximum(vals[np.isfinite(vals)], 0.0)            # NaN / ±inf never set the scale
     if not vals.size:
         return 1.0
     p = float(np.percentile(vals, 99.9))
@@ -863,6 +1084,38 @@ def _plain(text: str) -> str:
     return re.sub(r"[\x00-\x1f\x7f]+", " ", str(text)).strip()[:500]
 
 
+def picture_info(data: bytes) -> tuple[str, int, int] | None:
+    """(kind "png" | "jpeg", width, height) of a picture's bytes, or None when it is not a whole PNG or JPEG header –
+    read as the format's checker reads it (never raises)."""
+    if data[:8] == PNG_SIG:
+        if len(data) >= 24 and data[12:16] == b"IHDR":
+            return ("png", *struct.unpack(">II", data[16:24]))
+        return None
+    if data[:2] == b"\xff\xd8":
+        i = 2
+        while i + 4 <= len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
+                i += 2
+                continue
+            seg = struct.unpack(">H", data[i + 2:i + 4])[0]
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                if i + 9 <= len(data):
+                    h, w = struct.unpack(">HH", data[i + 5:i + 9])
+                    return ("jpeg", w, h)
+                return None
+            i += 2 + seg
+    return None
+
+
+def snow_id_too_long(surface_id) -> bool:
+    """True when the snow layer of a surface ("snow:<surface id>") would be longer than the format's 63 bytes."""
+    return isinstance(surface_id, str) and len(f"snow:{surface_id}".encode("utf-8")) > SURFACE_ID_MAX
+
+
 def _snow_layers(glb: bytes) -> dict[str, dict]:
     """The layers of a snow .glb: id -> {verts, storey, group, bake, kind}."""
     doc, binary = glb_meshes(glb)
@@ -878,12 +1131,23 @@ def _snow_layers(glb: bytes) -> dict[str, dict]:
     return out
 
 
+CREATED_RE = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?(\.\d+)?Z", re.ASCII)   # bake-1 schema
+
+
 def _created(created) -> str:
-    if created is None:
+    """bake.json's ``created``: a UTC time "YYYY-MM-DDTHH:MM:SSZ"; anything else (a text with control characters, a
+    time in another form) is replaced by now."""
+    if isinstance(created, str) and CREATED_RE.fullmatch(created):
+        try:
+            datetime.strptime(created[:16], "%Y-%m-%dT%H:%M")
+            return created
+        except ValueError:
+            pass
+    if not isinstance(created, datetime):
         created = datetime.now(timezone.utc)
-    if isinstance(created, datetime):
-        created = created.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return str(created)
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return created.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class BakeWriter:
@@ -900,10 +1164,10 @@ class BakeWriter:
         self.light = light
         self.samples = max(1, int(samples))
         self.denoised = bool(denoised)
-        self.app_version = str(app_version)[:40]
+        self.app_version = _plain(app_version)[:40]                # no control characters (FORMAT 2)
         self.created = _created(created)
         stamp = re.sub(r"[^0-9]", "", self.created)[:14]
-        self.bake_id = bake_id if bake_id and ID_RE.match(bake_id) else f"fr-{stamp or 'bake'}"
+        self.bake_id = bake_id if isinstance(bake_id, str) and ID_RE.fullmatch(bake_id) else f"fr-{stamp or 'bake'}"
         self.problems: list[str] = []
         self._moments: dict[str, dict] = {}            # id -> {entry, pages, vertex_files, files}
         self._snow: dict[str, tuple] = {}              # season -> (file, bytes)
@@ -935,12 +1199,20 @@ class BakeWriter:
                          f"({PHONE_PAGES}).")
 
     # ---- snow ----
-    def add_snow(self, season_id: str, glb_bytes: bytes) -> None:
+    def add_snow(self, season_id: str, glb_bytes: bytes, *, sources=None) -> None:
         """A season's snow layers (FORMAT 8.6) as ``snow/<season>.glb``; their light comes per vertex in that
-        season's moments (``add_moment`` with the snow ids)."""
+        season's moments (``add_moment`` with the snow ids). Given again for a season, the new file replaces the old
+        one and the light already given for the old file's layers is dropped (a problems line names the moments to
+        give again). ``sources``: the surfaces (ids or dicts with ``id``) the snow was made for – one whose snow id
+        would be longer than 63 bytes gets no snow (``house_snow.build_layers`` leaves it out) and is named here."""
         if self.scene.season(season_id) is None:
-            self.problem(f"Snow for season '{season_id}', which the recipe does not have, is left out.")
+            self.problem(f"Snow for season '{_shown(season_id)}', which the recipe does not have, is left out.")
             return
+        long_ids = [x for x in (sources or ()) if snow_id_too_long(x.get("id") if isinstance(x, dict) else x)]
+        if long_ids:
+            first = long_ids[0].get("id") if isinstance(long_ids[0], dict) else long_ids[0]
+            self.problem(f"Season '{season_id}': {len(long_ids)} surface(s) get no snow because their snow id "
+                         f"would be longer than {SURFACE_ID_MAX} bytes (e.g. '{_shown(first)}').")
         try:
             layers = _snow_layers(glb_bytes)
         except (FormatError, KeyError, IndexError, TypeError, ValueError) as e:
@@ -951,11 +1223,43 @@ class BakeWriter:
         if clash:
             self.problem(f"The snow of season '{season_id}' reuses the id '{clash[0]}'; it is left out.")
             return
-        for k in [k for k, v in self._snow_ids.items() if v["season"] == season_id]:
+        old = [k for k, v in self._snow_ids.items() if v["season"] == season_id]
+        for k in old:
             del self._snow_ids[k]
+        dropped = [mid for mid in self._moments if self._drop_results(mid, set(old))]
+        if dropped:
+            self.problem(f"The snow of season '{season_id}' was made again: its light from before is left out in "
+                         f"moment(s) {', '.join(sorted(dropped))}.")
         self._snow[season_id] = (f"snow/{season_id}.glb", bytes(glb_bytes))
         for k, v in layers.items():
             self._snow_ids[k] = dict(v, season=season_id)
+
+    def _drop_results(self, moment_id: str, ids: set) -> bool:
+        """Take the results of ``ids`` (light per vertex: snow layers) out of a written moment; its vertex file is
+        packed again so every remaining result keeps its own range. True when something was taken out."""
+        mo = self._moments[moment_id]
+        e = mo["entry"]
+        groups = [e["maps"]] + list(e["open"].values())
+        if not any(sid in g for g in groups for sid in ids):
+            return False
+        for g in groups:
+            for sid in [sid for sid in g if sid in ids]:
+                del g[sid]
+        for vf in list(mo["vertex_files"]):
+            data = mo["files"][vf["file"]]
+            keep = sorted(((r["offset"], r) for g in groups for r in g.values() if r.get("vertex") == vf["id"]),
+                          key=lambda x: x[0])
+            chunks, at = [], 0
+            for off, r in keep:
+                chunks.append(data[3 * off:3 * (off + r["count"])])
+                r["offset"] = at
+                at += r["count"]
+            if chunks:
+                mo["files"][vf["file"]] = b"".join(chunks)
+            else:
+                del mo["files"][vf["file"]]
+                mo["vertex_files"].remove(vf)
+        return True
 
     # ---- results ----
     def _accept(self, sid: str, arr, season: str, where: str):
@@ -1023,7 +1327,8 @@ class BakeWriter:
                 accepted.append((st, sid, got[0], got[1]))
         bad = sum(int(np.size(a) - np.isfinite(np.asarray(a, np.float64)).sum()) for *_, a in accepted)
         if bad:
-            self.problem(f"Moment '{moment_id}': {bad} light values were not numbers and are written as 0.")
+            self.problem(f"Moment '{moment_id}': {bad} light values were not numbers or were infinite: NaN and -inf "
+                         "are written as 0, +inf as 255 (the brightest).")
         scale = moment_scale([a for *_, a in accepted])
         index = [x.id for x in rec.moments].index(moment_id)
         # pages: one canvas per page of the layout that holds a result
@@ -1080,7 +1385,7 @@ class BakeWriter:
     def _shot(self, kind: str, sid: str, moment, camera):
         want = {p["id"]: p for p in (self.scene.recipe.photos if kind == "photo" else self.scene.recipe.videos)}
         if sid not in want:
-            self.problem(f"The {kind} '{sid}' is not in the recipe; it is left out.")
+            self.problem(f"The {kind} '{_shown(sid)}' is not in the recipe; it is left out.")
             return None
         r = want[sid]
         if moment is not None and moment != r["moment"]:
@@ -1090,8 +1395,16 @@ class BakeWriter:
         cam = self.scene.recipe.cameras[r["camera"]]
         if camera is None:
             camera = {"position": cam.position, "target": cam.target, "fov": cam.fov}
-        camera = {"position": [float(v) for v in camera["position"]], "target": [float(v) for v in camera["target"]],
-                  "fov": float(camera["fov"])}
+        try:
+            camera = {"position": [float(v) for v in camera["position"]],
+                      "target": [float(v) for v in camera["target"]], "fov": float(camera["fov"])}
+            ok = len(camera["position"]) == 3 and len(camera["target"]) == 3 and all(
+                math.isfinite(v) for v in camera["position"] + camera["target"] + [camera["fov"]])
+        except (KeyError, TypeError, ValueError):
+            ok = False
+        if not ok:
+            self.problem(f"The {kind} '{sid}' has a camera that is not numbers; it is left out.")
+            return None
         return r, camera
 
     def add_photo(self, photo_id: str, data: bytes, ext: str, size=None, moment=None, camera: dict | None = None):
@@ -1103,13 +1416,17 @@ class BakeWriter:
         r, camera = got
         ext = str(ext).lower().lstrip(".")
         kind = {"png": "png", "jpg": "jpeg", "jpeg": "jpeg"}.get(ext)
-        real = (data[:8] == PNG_SIG and "png") or (data[:2] == b"\xff\xd8" and "jpeg") or None
-        w, h = web3d.image_size(data)
-        if kind is None or real != kind or not (w and h):
-            self.problem(f"The photo '{photo_id}' is not a PNG or JPEG picture; it is left out.")
+        info = picture_info(data) if isinstance(data, (bytes, bytearray)) else None
+        if kind is None or info is None or info[0] != kind or not (info[1] and info[2]):
+            self.problem(f"The photo '{photo_id}' is not a whole PNG or JPEG picture; it is left out.")
             return
-        if size is not None and tuple(size) != (w, h):
-            self.problem(f"The photo '{photo_id}' is {w} x {h} pixels, not {size[0]} x {size[1]}.")
+        _, w, h = info
+        try:
+            want = (int(size[0]), int(size[1])) if size is not None else None
+        except (TypeError, ValueError, IndexError):
+            want = None
+        if want is not None and want != (w, h):
+            self.problem(f"The photo '{photo_id}' is {w} x {h} pixels, not {want[0]} x {want[1]}.")
         path = f"photos/{photo_id}.{ext}"
         entry = {"id": photo_id, "file": path, "size": [int(w), int(h)], "moment": r["moment"], "camera": camera}
         self._photos[photo_id] = (entry, path, bytes(data))
@@ -1123,15 +1440,22 @@ class BakeWriter:
             return
         r, camera = got
         ext = str(ext).lower().lstrip(".")
-        if ext not in ("mp4", "webm") or not data:
+        if ext not in ("mp4", "webm") or not isinstance(data, (bytes, bytearray)) or not data:
             self.problem(f"The video '{video_id}' is not an MP4 or WebM file; it is left out.")
             return
-        seconds = float(seconds or r["seconds"])
+        try:
+            seconds = float(seconds or r["seconds"])
+            size = [int(size[0]), int(size[1])]
+        except (TypeError, ValueError, IndexError):
+            seconds, size = 0.0, None
         if not (seconds > 0 and math.isfinite(seconds)):
             self.problem(f"The video '{video_id}' has no length; it is left out.")
             return
+        if size is None or min(size) < 1:
+            self.problem(f"The video '{video_id}' has no size in pixels; it is left out.")
+            return
         path = f"videos/{video_id}.{ext}"
-        entry = {"id": video_id, "file": path, "size": [int(size[0]), int(size[1])], "seconds": seconds,
+        entry = {"id": video_id, "file": path, "size": size, "seconds": seconds,
                  "moment": r["moment"], "camera": camera}
         self._videos[video_id] = (entry, path, bytes(data))
 

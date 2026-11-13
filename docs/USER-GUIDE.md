@@ -2736,9 +2736,15 @@ What counts:
   or against the carriage it rides on) and is round about that axis is held where it is and only moves with what
   carries it. A part that turns but is not round – a flat or a key on it, a sprocket's teeth, a cam, a wheel turning
   off its round centre – is checked at every moment, as before; only a part resting against it well away from what is
-  not round (the rope in the groove of a sheave with spokes) is checked once per turn. Big parts far apart are also
-  passed over quickly. Together that makes the check of a cable-lay deck with hundreds of rollers minutes instead of
-  hours.
+  not round (the rope in the groove of a sheave with spokes) is checked once per turn. The same goes pair by pair,
+  whatever carries the two: a sheave turning on its pin while the head carrying both tips over is checked against
+  the pin once per turn. A part that is not round but repeats – a rim fence of posts turning past its drive
+  gearboxes – is checked over one post step and then left alone, as long as nothing touched in that step.
+- **Parts far apart** are passed over quickly: the check first proves how far apart two parts are at least, and
+  then leaves them alone until they have moved that far against each other (a small part spinning metres from a
+  big frame is not tested again at every frame). Together that makes the check of a cable-lay deck with hundreds of
+  rollers minutes instead of hours. Every shortcut is exact for the rows it shows: a part pair is only left alone
+  when the check can prove nothing changes for it.
 - **Warn about near misses** (off at first): also list parts that come closer than the distance under it
   (5 mm) without touching, when they were further apart at the first frame.
 
@@ -2751,7 +2757,8 @@ one-line note in the status bar; the video is rendered anyway.
 How long it takes, measured on the 4-core cloud test machine: the test crane's animations 0.1–0.3 s, the CNC
 gantry's 2,983-frame tool-change program 7 s, the scissor lift and crank (49 parts that touch everywhere) 15 s,
 the PC check's made-up 3,000-part machine 10 s long 73 s (its modules run through each other on purpose: 1,668
-clashes), the demo vessel's 73 s animation with its 222 turning rollers, wheels, coil and carousel about 12 min.
+clashes), the demo vessel's 73 s animation with its turning rollers, wheels, sprockets, sheaves and carousel 3.4 min
+(Draft meshes; 14 min before version 0.2.90).
 Expected on a PC with a fast processor: about half as long (not measured yet).
 
 **Make the video**
