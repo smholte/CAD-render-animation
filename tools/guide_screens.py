@@ -749,6 +749,7 @@ if MODE == "panels":
                 w.env_sea, w.env_haze, w.env_rain, w.env_clouds = True, True, True, "SOME"
                 mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"),
                                             surroundings=mod("blender.web3d_env").choice(sc))
+                w.light, w.light_quality = "SOFT", "NORMAL"        # task 0107: the Light fold with its estimate
             elif name == "panel_5_shots":               # folds closed again after the web 3D picture
                 mod("blender.ui")._OPEN_FOLDS = False
             elif name == "panel_5_output":              # back to the studio for the rest

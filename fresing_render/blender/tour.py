@@ -2790,6 +2790,35 @@ def _check_web3d_env(scene):
     return f"{out['text']}; on the page: {out.get('env_items', '')} (Open page in the panel)"
 
 
+def _check_web3d_light(scene):
+    """Web 3D model with baked light (task 0107): the crane with Soft light baked, sun live (Draft, few samples, so
+    the tour stays quick), read back: every shown part carries its own baked light."""
+    import tempfile
+
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from . import web3d
+    folder, version = tour_of_file(scene)
+    out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_light_")
+    os.makedirs(out_dir, exist_ok=True)
+    w = scene.fresing.web3d
+    w.light, w.light_quality = "SOFT", "DRAFT"
+    out = web3d.export(scene, os.path.join(out_dir, "Crane baked light web 3D.glb"), size=512, light="SOFT",
+                       light_quality="DRAFT", light_samples=8)
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file is not valid glTF: {bad[:1]}")
+    doc, _bin = core.read_glb(data)
+    lit = sum(1 for m in doc["meshes"] for p in m["primitives"][:1]
+              if "TEXCOORD_1" in p["attributes"] or "_FR_LIGHT" in p["attributes"])
+    _check(lit >= out["parts"] > 0, f"{lit} parts carry baked light, {out['parts']} are shown")
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    _check((st.get("light") or {}).get("light") == "SOFT", "the page does not use the baked light")
+    return f"{out['text']} (Open page in the panel)"
+
+
 def _check_demo(scene):
     """The demo project (task 0077): never made inside the tour (it takes minutes); read its summary if it is there."""
     from .. import __version__
@@ -2820,6 +2849,14 @@ stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "the sun's shadows move with the boom. Drag to turn, scroll to zoom. The fold Surroundings on the page shows "
      "what was picked.", where="5 Scene & Render > Web 3D model > Surroundings on the page", since="0.2.86",
      check=_check_web3d_env)
+
+stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
+     "This stop saves the crane as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft, quick). "
+     "Press Open page in 5 Scene & Render > Web 3D model: the crane has soft shadows under the boom and the cab, "
+     "darker corners and inside edges, and a little coloured light bounced from the yellow parts; turn it – the "
+     "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
+     "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.89", shot="Tour view",
+     check=_check_web3d_light)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "

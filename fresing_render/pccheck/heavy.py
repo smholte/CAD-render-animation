@@ -682,6 +682,28 @@ def heavy_web3d(ctx):
     return out["text"]
 
 
+@line("heavy.web3d_bake", "Big machine: web 3D model with baked light", "0.2.89", (H,), requires=("heavy.import",),
+      expected=240, what="The 3,000-part machine saved as a web 3D model with Light: Soft light baked, sun live, Bake "
+                         "quality Draft (on the graphics card when the app renders with one)",
+      shows="How long baking the light of a big model takes and how much it adds to the file",
+      not_shown="Normal and Fine quality (about 4 and 16 times the samples), how the page looks (open it)")
+def heavy_web3d_bake(ctx):
+    from ..blender import web3d
+    from ..core import web3d as core
+    scene = ctx.scene_of("heavy.import")
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Big machine baked light.glb"), size=512,
+                       light="SOFT", light_quality="DRAFT")
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    ctx.metric("bake", out["light_seconds"], "s")
+    ctx.metric("light", out["light_bytes"] / 1e6, "MB")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    ctx.metric("peak memory", peak_memory_mb(), "MB")
+    return out["text"]
+
+
 # ---------------------------------------------------------------------------
 # Heavy with the owner's own model: numbers only
 # ---------------------------------------------------------------------------

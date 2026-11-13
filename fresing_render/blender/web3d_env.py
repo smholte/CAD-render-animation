@@ -89,6 +89,16 @@ def choice(scene) -> dict | None:
     return out
 
 
+def plain_choice(scene) -> dict:
+    """Surroundings None with baked light (task 0107): the three.js page in its plain form – the project's light,
+    no sea, vessel motion, haze, rain or clouds."""
+    out = from_project(scene)
+    out.update(sea=False, vessel=False, haze=False, rain=False, clouds="NONE", shadows=True)
+    w = scene.fresing.web3d
+    out["quality"], out["auto"] = w.env_quality, bool(w.env_auto)
+    return out
+
+
 def vessel_modes(scene) -> dict:
     """{object name: 'STILL' | 'LEVEL'} for every object a Still / Level mark covers (the parts it moves too)."""
     vm = _vm()

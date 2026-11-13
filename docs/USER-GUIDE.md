@@ -2266,6 +2266,39 @@ made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (
 needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.
 
+#### Light
+
+The fold **Light** (under Surroundings on the page) decides how the light gets onto the parts. A render's soft
+shadows, darker corners and light bounced from one part onto the next need a lot of computing; the page cannot do
+that live, but Cycles can **bake** it into the file once, so the page shows it from every angle.
+
+- **Live only** (the default) – the page lights the parts itself, as before: the smallest file and the fastest export.
+- **Soft light baked, sun live** – the light from the sky, the shadows under and between parts, darker inside corners
+  and the light bounced off other parts (also the sun's bounce) are baked; the sun's sharp shadows stay live, so they
+  move with the parts, the rolling vessel and the sea. **The choice for animations and vessel motion.**
+- **Everything baked** – the sun's shadows are baked too: closest to the render, but right only for a machine that
+  stands still. When the export also has an animation or vessel motion, the panel says so and Export asks once:
+  the baked shadows stay where they are while the parts move.
+
+**Bake quality**: **Draft** (quick, a little blotchy; 16 samples), **Normal** (64 samples) or **Fine** (256 samples,
+about four times as long as Normal). **Points per metre**: how fine the baked light is; **0 = Auto** works it out from
+the quality and the size of the machine (the line below says how many it uses). Under it the panel shows an
+**estimate** of the bake time on this PC and what it adds to the file, before you click Export.
+
+What it uses: the light of the project (its sky and sun, its 360° photo or studio light), or the sky picked in
+Surroundings on the page (Time of day), so baked and live light agree. Every lamp in the project is baked in both
+baked choices. The sea is not baked (it moves); the vessel deck is. With a 360° photo or a studio look there is no
+separate sun: both baked choices bake all of its light. Hoses and cables (drawn by the app) are not baked; they still
+cast shadows. Parts that move in an animation are baked in the pose of the export frame.
+
+With a baked choice the page is always the newer page of Surroundings on the page – with Surroundings **None** in
+its plain form: the light background as before, no sea or weather. Other 3D programs that open the `.glb` show the
+soft light as shadowing in corners (glTF's occlusion map) on the larger parts; small parts with many copies carry
+their light per corner point, which only the page reads.
+
+The bake runs with Cycles on your graphics card when the app renders with one (5 Scene & Render > Render settings),
+otherwise on the processor; **Cancel** stops it between two pieces of the bake. The project is never changed.
+
 ### Brand kit & logo
 
 <img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">

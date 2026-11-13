@@ -46,6 +46,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")
         self.draw_surroundings(context, layout, w)
+        self.draw_light(context, layout, w)
 
         layout.separator()
         if rt.get("running"):
@@ -67,6 +68,31 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
                               "the cutaway" + (", the halls and the quay." if w.env_mode == "PROJECT" else
                                                ", the surroundings (see Surroundings on the page)."), icon="INFO")
+
+    def draw_light(self, context, layout, w):
+        """The fold "Baked light" (task 0107): folded, its choice in the header."""
+        from . import lightbake
+        head, body = layout.panel("fr_web3d_light", default_closed=not ui._OPEN_FOLDS)
+        head.label(text="Light")
+        head.label(text={"LIVE": "live", "SOFT": "soft light baked", "ALL": "all baked"}[w.light])
+        if body is None:
+            return
+        body.prop(w, "light", text="")
+        if w.light == "LIVE":
+            wrap(body, context, "The page lights the parts itself: smallest file, fastest export.", inset=12)
+            return
+        body.label(text="Bake quality")
+        body.row(align=True).prop(w, "light_quality", expand=True)
+        col = split_props(body)
+        col.prop(w, "light_texels", text="Points per metre")
+        est = web3d.light_estimate(context.scene)
+        where = "graphics card" if est["gpu"] else "processor"
+        wrap(body, context, f"Bake {lightbake.duration(est['seconds'])} on this PC's {where} (estimate), file about "
+                            f"+{core.mb(est['bytes'])}; {est['texels_per_m']:.0f} points per metre.", inset=12,
+             icon="TIME")
+        if web3d.needs_light_question(context.scene):
+            wrap(body, context, "Everything baked: the shadows stay where they are while the parts or the vessel "
+                                "move. Soft light baked keeps the sun's shadows moving.", inset=12, icon="ERROR")
 
     def draw_surroundings(self, context, layout, w):
         """The fold "Surroundings on the page" (task 0106): folded, its state in the header."""

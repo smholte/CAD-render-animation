@@ -38,6 +38,7 @@ KIND = {"color": "color", "alpha": "value", "rough": "value", "metal": "value", 
 BAKE_SAMPLES = 4
 PROBE = 48                     # px of the quick first bake that finds the inputs that are one number
 BAKE_NAME = "FR web bake"
+LIGHT_JPG = 90                 # JPG quality of the baked-light atlases (task 0107)
 _RUN: dict = {}
 _SKIP_PROPS = {"name", "label", "location", "location_absolute", "width", "height", "dimensions", "select",
                "show_options", "show_preview", "hide", "show_texture", "color", "use_custom_color", "parent",
@@ -426,6 +427,8 @@ class Baker:
                     bpy.data.meshes.remove(idb)
                 elif isinstance(idb, bpy.types.Image):
                     bpy.data.images.remove(idb)
+                elif isinstance(idb, bpy.types.World):          # task 0107: the light bake's world copies
+                    bpy.data.worlds.remove(idb)
             except ReferenceError:
                 pass
         self.ids = []
@@ -593,8 +596,18 @@ class Job:
 
     def __init__(self, scene, path: str, size: int = core.DEFAULT_SIZE, hide_names: bool = True,
                  animation: bool = False, page: bool = True, compress: bool | None = None,
-                 surroundings: dict | None = None):
+                 surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
+                 light_texels: float = 0.0, light_samples: int = 0):
+        from . import lightbake
         self.scene = scene
+        self.light = lightbake.choice_id(light)  # task 0107: LIVE | SOFT | ALL
+        self.light_quality = light_quality
+        self.light_texels = float(light_texels or 0.0)
+        self.light_samples = int(light_samples or 0)
+        self._lit = None                       # the bake's Result
+        self._bake = None
+        self._light_bytes = 0
+        self._light_info = None
         self.surroundings = surroundings       # task 0106: the fold's choice (web3d_env.choice); None = today's page
         self.path = os.path.abspath(bpy.path.abspath(path))
         if not self.path.lower().endswith(".glb"):
@@ -624,8 +637,17 @@ class Job:
                 if vessel_motion.effective(self.scene):
                     rest = vessel_motion.at_rest(self.scene)
                     rest.__enter__()
-            yield from self._steps()
+            for f in self._steps():
+                if self.light == "LIVE":
+                    yield f
+                elif isinstance(f, tuple):     # the light bake: 30 … 80 %
+                    yield 0.3 + 0.5 * f[1]
+                else:                          # the looks before it (0 … 0.5 -> 0 … 30 %), the parts after it
+                    yield f * 0.6 if f <= 0.5 else 0.8 + (f - 0.5) * 0.4
         finally:
+            if self._bake is not None:
+                self._bake.close()
+                self._bake = None
             if self._baker is not None:
                 self._baker.close()
                 self._baker = None
@@ -639,6 +661,11 @@ class Job:
         if not parts:
             raise RuntimeError("No part is shown: nothing to export")
         self._modes = {}
+        if self.surroundings is None and self.light != "LIVE":    # task 0107: the plain page, the project's light
+            from . import surroundings
+            self._floor = surroundings.floor_height(scene)
+            mn, mx = build.world_bounds(parts)
+            self._bounds = ([float(v) for v in mn], [float(v) for v in mx])
         if self.surroundings is not None:
             from . import surroundings, web3d_env
             self._floor = surroundings.floor_height(scene)
@@ -723,6 +750,10 @@ class Job:
             self._baker.close()
             self._baker = None
 
+        # -- baked light (task 0107)
+        if self.light != "LIVE":
+            yield from self._bake_light(parts, marks)
+
         # -- materials
         self.text = "Writing the looks"
         yield 0.5
@@ -739,6 +770,8 @@ class Job:
             if self.hide_names:
                 mat["name"] = f"Look {len(self.gltf.doc['materials']) + 1}"
             mat_index[name] = cache[same] = self.gltf.material(mat)
+        light = self._light_textures() if self._lit is not None else None
+        self._light_info = light
 
         # -- meshes and parts
         unique = {}
@@ -754,6 +787,7 @@ class Job:
         self._decal_meshes = {ob.parent.data.name_full for ob in marks
                               if ob.parent is not None and ob.parent.type == "MESH" and ob.parent.data is not None}
         mesh_of: dict = {}
+        self._welded: dict = {}                # mesh -> (first corner of each vertex, vertex of each corner)
         self._nodes = []                       # (object, node index)
         triangles = 0
         everything = [(ob, False) for ob in parts] + [(ob, True) for ob in marks]
@@ -767,8 +801,11 @@ class Job:
             key = (me.name_full, mats, is_decal)
             if key not in mesh_of:
                 need_uv = is_decal or any(_textured(self.gltf.doc["materials"][m]) for m in mats if m >= 0)
-                mesh_of[key] = self._mesh(me, mats, is_decal, need_uv, len(mesh_of) + 1)
+                mesh_of[key] = self._mesh(me, mats, is_decal, need_uv, len(mesh_of) + 1,
+                                          light["first_uv"].get(me.name_full) if light else None)
             mesh, tris = mesh_of[key]
+            if light is not None:
+                mesh = self._lit_mesh(ob, mesh, light)
             triangles += tris
             mw = ob.matrix_world
             node = {"name": self._name(ob, k + 1, "Decal" if is_decal else "Part")}
@@ -879,9 +916,10 @@ class Job:
             mat["extensions"] = ext
         return mat
 
-    def _mesh(self, me, mats: tuple, is_decal: bool, need_uv: bool, number: int) -> tuple[int, int]:
+    def _mesh(self, me, mats: tuple, is_decal: bool, need_uv: bool, number: int,
+              light_uv: np.ndarray | None = None) -> tuple[int, int]:
         co, vert, nrm, uv, mi = mesh_arrays(me, own_uv=is_decal, uv=need_uv)
-        vidx, qn, uvw, inverse = core.weld(vert, nrm, uv)
+        vidx, qn, uvw, inverse, first = core.weld(vert, nrm, uv, light_uv, corners=True)
         tri = inverse.reshape(-1, 3)
         groups = []
         for slot in sorted(set(mi.tolist())):
@@ -889,7 +927,89 @@ class Job:
             groups.append((m, tri[mi == slot]))
         name = f"Mesh {number}" if self.hide_names else me.name
         step = core.POS_STEP if (is_decal or me.name_full in self._decal_meshes) else core.POS_STEP_BIG
-        return self.gltf.mesh(name, co[vidx], qn, uvw, groups, max_step=step, tiled_uv=not is_decal), len(tri)
+        k = self.gltf.mesh(name, co[vidx], qn, uvw, groups, max_step=step, tiled_uv=not is_decal)
+        self._welded[k] = (first, inverse)
+        return k, len(tri)
+
+    # -- baked light (task 0107)
+    def _bake_light(self, parts, marks):
+        from . import lightbake
+        targets = [ob for ob in parts + marks if not len(ob.modifiers)]
+        live = [ob for ob in parts if len(ob.modifiers)]       # hoses and cables drawn by modifiers stay live
+        ch = self.surroundings or {}
+        sky = None
+        if ch.get("sky_source") == "TIME":
+            sky = {"sun_height": float(ch["sun_height"]), "sun_direction": float(ch["sun_direction"])}
+        self._bake = lightbake.Bake(targets, self.light, sky=sky, occluders=live, quality=self.light_quality,
+                                    texels_per_m=self.light_texels or None, samples=self.light_samples or None,
+                                    scene=self.scene)
+        for f in self._bake.steps():
+            self.text = self._bake.text
+            yield ("light", f)
+        self._lit = self._bake.result
+        self._bake = None
+
+    def _light_textures(self) -> dict:
+        """The atlases as pictures and the scale of the light factors: {"scale", "atlas" (texture index per
+        atlas), "lit" {(material, atlas): material}, "first_uv" {mesh name: a copy's light UVs}, "ref"}."""
+        from ..core import lightmap as lm
+        res = self._lit
+        ref = np.maximum(np.asarray(res.reference, np.float64), 1e-6)
+        factors = [a / ref for a in res.atlases]
+        factors += [it.corners / ref for it in res.items.values() if it.kind == "VERTEX"]
+        scale = lm.scale_of(factors) if factors else 1.0
+        before = self.gltf.image_bytes
+        atlas = []
+        for a in res.atlases:
+            atlas.append(self.gltf.texture(jpeg(lm.encode(a / ref, scale), LIGHT_JPG), wrap=core.CLAMP))
+        first_uv = {}
+        by_name = {it.name: it for it in res.items.values()}
+        for ob in self.scene.objects:
+            it = by_name.get(ob.name)
+            if it is not None and it.kind == "MAP" and it.uv is not None and ob.data is not None:
+                first_uv.setdefault(ob.data.name_full, it.uv)
+        self._light_bytes = self.gltf.image_bytes - before
+        return {"scale": scale, "atlas": atlas, "lit": {}, "first_uv": first_uv, "ref": ref, "by_name": by_name}
+
+    def _lit_mesh(self, ob, mesh: int, light: dict) -> int:
+        """The mesh a baked copy shows: ``mesh`` plus its own light UVs or light per vertex."""
+        from ..core import lightmap as lm
+        it = light["by_name"].get(ob.name)
+        if it is None:
+            return mesh
+        first, inverse = self._welded[mesh]
+        start = len(self.gltf._bin)
+        if it.kind == "MAP" and it.uv is not None:
+            uv = np.asarray(it.uv, np.float64)[first]
+            uv[:, 1] = 1.0 - uv[:, 1]                    # glTF's V runs down the picture
+            q = np.clip(np.round(uv * 65535.0), 0, 65535).astype(np.uint16)
+            acc = self.gltf.vertex_attribute(mesh, q, "VEC2", core.USHORT)
+            swap = {}
+            for p in self.gltf.doc["meshes"][mesh]["primitives"]:
+                m = p.get("material")
+                key = (m, it.atlas)
+                if key not in light["lit"]:
+                    mat = (json.loads(json.dumps(self.gltf.doc["materials"][m])) if m is not None else
+                           {"name": "Look", "pbrMetallicRoughness": {"baseColorFactor": [0.8, 0.8, 0.8, 1.0],
+                                                                     "metallicFactor": 0.0, "roughnessFactor": 0.5}})
+                    mat["occlusionTexture"] = {"index": light["atlas"][it.atlas], "texCoord": 1}
+                    mat["name"] = f"{mat.get('name', 'Look')} · light {it.atlas + 1}"
+                    light["lit"][key] = self.gltf.material(mat)
+                swap[m] = light["lit"][key]
+            k = self.gltf.mesh_variant(mesh, {"TEXCOORD_1": acc}, swap)
+        elif it.kind == "VERTEX" and it.corners is not None:
+            n = len(first)
+            v = np.zeros((n, 3), np.float64)
+            c = np.zeros(n, np.float64)
+            np.add.at(v, inverse, it.corners)
+            np.add.at(c, inverse, 1.0)
+            f = v / np.maximum(c, 1.0)[:, None] / light["ref"]
+            acc = self.gltf.vertex_attribute(mesh, lm.encode(f, light["scale"]), "VEC3", core.UBYTE)
+            k = self.gltf.mesh_variant(mesh, {"_FR_LIGHT": acc})
+        else:
+            return mesh
+        self._light_bytes += len(self.gltf._bin) - start
+        return k
 
     def _motion(self):
         scene = self.scene
@@ -946,11 +1066,17 @@ class Job:
             title = os.path.splitext(os.path.basename(self.path))[0]
             text = core.viewer_html(title, glb=data, animated=bool(self.result.get("animated")),
                                     note="Made with Fresing Render")
-            if self.surroundings is not None:  # task 0106: the three.js page with the surroundings
+            if self.surroundings is not None or self._lit is not None:  # 0106: three.js page; 0107: baked light
                 from ..core import web3d_env as env
                 from . import web3d_env
                 plain = len(text.encode("utf-8"))
-                st, pictures = web3d_env.block(self.scene, self.surroundings, *self._bounds, self._floor)
+                ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
+                st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
+                if self._lit is not None:
+                    st["light"] = env.light_block({"light": self.light, "scale": float(self._light_info["scale"]),
+                                                   "curve": 2.0, "sun": float(self._lit.sun_ratio)})
+                    if self.surroundings is None:
+                        st["plain"] = True
                 text = env.page_html(title, data, st, pictures, note="Made with Fresing Render",
                                      animated=bool(self.result.get("animated")))
                 extra = len(text.encode("utf-8")) - plain
@@ -967,12 +1093,52 @@ class Job:
                                                  compressed=self.gltf.compress))
         if self.surroundings is not None and self.page:
             self.result["text"] += " · " + core.surroundings_line(extra)
+        if self._lit is not None:
+            from . import lightbake
+            lit = self._lit
+            self.result.update(light=self.light, light_label=lightbake.label(self.light),
+                               light_seconds=lit.seconds, light_bytes=int(self._light_bytes),
+                               light_atlases=len(lit.atlases), light_texels=lit.texels,
+                               light_items=len(lit.items), light_problems=list(lit.problems),
+                               light_timing={k: round(v, 1) for k, v in lit.timing.items()})
+            self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
         return self.result
 
     def run(self) -> dict:
         for _ in self.steps():
             pass
         return self.finish()
+
+
+def light_targets(scene) -> list:
+    """The objects whose light an export bakes (task 0107): the shown parts and decals that no modifier draws."""
+    parts, marks = objects(scene)
+    return [ob for ob in parts + marks if not len(ob.modifiers)]
+
+
+def light_estimate(scene) -> dict:
+    """The panel's estimate of the bake, kept while the shown parts and the settings stay the same."""
+    from . import lightbake
+    w = settings(scene)
+    obs = light_targets(scene)
+    key = (w.light, w.light_quality, round(float(w.light_texels), 1), len(obs),
+           sum(len(ob.data.polygons) for ob in obs[:2000]), scene.cycles.device if hasattr(scene, "cycles") else "")
+    rt = runtime(scene)
+    if rt.get("estimate_key") != key:
+        rt["estimate_key"] = key
+        rt["estimate"] = lightbake.quick_estimate(obs, w.light, w.light_quality, w.light_texels or None,
+                                                  key[-1])
+    return rt["estimate"]
+
+
+def needs_light_question(scene) -> bool:
+    """Everything baked while the export moves: an animation in the file or vessel motion on the page."""
+    w = settings(scene)
+    if w.light != "ALL":
+        return False
+    from . import animation, vessel_motion
+    moving = w.animation and animation.has_keys(scene)
+    return bool(moving or (w.env_mode == "PROJECT" and w.env_vessel and vessel_motion.effective(scene)))
 
 
 def remember(scene, out: dict) -> None:

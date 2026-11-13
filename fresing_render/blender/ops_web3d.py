@@ -39,6 +39,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
     filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
     filter_glob: StringProperty(default="*.glb", options={"HIDDEN", "SKIP_SAVE"})
     modal_run: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
+    asked: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
+    asking: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
 
     _timer = None
     _gen = None
@@ -59,12 +61,28 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
         if why:
             self.report({"WARNING"}, why)
             return {"CANCELLED"}
+        if not self.asked and web3d.needs_light_question(context.scene):     # task 0107: ask once
+            self.asking = True
+            return context.window_manager.invoke_props_dialog(self, title="Baked shadows will not move",
+                                                              confirm_text="Bake them anyway")
         self.modal_run = True
         self.filepath = web3d.settings(context.scene).last_path or web3d.default_path(context.scene)
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
+    def draw(self, context):
+        if self.asking:
+            col = self.layout.column(align=True)
+            col.label(text="Everything baked puts the sun's shadows into the file.")
+            col.label(text="The animation or the vessel motion moves the parts,")
+            col.label(text="but their baked shadows stay where they are.")
+            col.label(text="Soft light baked, sun live keeps the sun's shadows moving.")
+
     def execute(self, context):
+        if self.asking:                                  # the answer to the question: go on
+            self.asking = False
+            bpy.ops.fresing.web3d_export("INVOKE_DEFAULT", asked=True)
+            return {"FINISHED"}
         scene = context.scene
         why = web3d.can_export(scene)
         if why:
@@ -74,7 +92,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
         path = self.filepath or web3d.default_path(scene)
         self._job = web3d.Job(scene, path, size=int(w.texture_size), hide_names=w.hide_names,
                               animation=w.animation, compress=None if w.compress else False,
-                              surroundings=web3d_env.choice(scene))
+                              surroundings=web3d_env.choice(scene), light=w.light, light_quality=w.light_quality,
+                              light_texels=w.light_texels)
         if not self.modal_run or context.window is None:
             try:
                 out = self._job.run()

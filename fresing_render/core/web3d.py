@@ -80,6 +80,12 @@ def surroundings_line(extra: int) -> str:
     return f"surroundings {'+' if tenths >= 0 else '−'}{abs(tenths) / 10:.1f} MB"
 
 
+def light_line(light: str, extra: int, seconds: float) -> str:
+    """'soft light baked (+1.2 MB, 45 s)' (task 0107)."""
+    what = {"SOFT": "soft light baked", "ALL": "all light baked"}.get(light, "light baked")
+    return f"{what} (+{mb(extra)}, {seconds:.0f} s)"
+
+
 def header(size: int) -> str:
     """The panel header's state: the last file's size, '' before the first export."""
     return mb(size) if size else ""
@@ -117,20 +123,25 @@ def quantize_normals(nrm: np.ndarray) -> np.ndarray:
     return np.clip(np.round(n * 127.0), -127, 127).astype(np.int8)
 
 
-def weld(corner_vert: np.ndarray, corner_nrm: np.ndarray, corner_uv: np.ndarray | None):
+def weld(corner_vert: np.ndarray, corner_nrm: np.ndarray, corner_uv: np.ndarray | None,
+         extra_uv: np.ndarray | None = None, corners: bool = False):
     """Corners -> glTF vertices: corners with the same point, (quantized) normal and UV become one vertex.
 
     Returns (vertex index of each new vertex in the original points, int8 normals (k, 3), UVs (k, 2) or None,
-    index of every corner into the new vertices)."""
+    index of every corner into the new vertices). ``extra_uv`` (corners, 2): a second UV set that must also be the
+    same (the baked light's, task 0107); ``corners``: also return the first corner of each new vertex."""
     qn = quantize_normals(corner_nrm)
     cols = [np.asarray(corner_vert, np.int64)[:, None], qn.astype(np.int64)]
     if corner_uv is not None:
         cols.append(np.round(np.asarray(corner_uv, np.float64) * 65536.0).astype(np.int64))
+    if extra_uv is not None:
+        cols.append(np.round(np.asarray(extra_uv, np.float64) * 1048576.0).astype(np.int64))
     key = np.ascontiguousarray(np.concatenate(cols, axis=1))
     view = key.view(np.dtype((np.void, key.dtype.itemsize * key.shape[1]))).ravel()
     _, first, inverse = np.unique(view, return_index=True, return_inverse=True)
     uv = None if corner_uv is None else np.asarray(corner_uv, np.float32)[first]
-    return np.asarray(corner_vert)[first], qn[first], uv, inverse.astype(np.int64).ravel()
+    out = (np.asarray(corner_vert)[first], qn[first], uv, inverse.astype(np.int64).ravel())
+    return (*out, first) if corners else out
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +296,7 @@ class Gltf:
         self._samplers: dict = {}
         self.image_bytes = 0
         self.dequantize: list = []             # per mesh: (centre, step) of its 16-bit points, or None
+        self.order: list = []                  # per mesh: the vertices passed in, in the order written (None = as passed)
 
     # -- low level
     def _view(self, data: bytes, target: int | None = None, stride: int | None = None) -> int:
@@ -393,8 +405,9 @@ class Gltf:
         that step keeps 32-bit points. ``tiled_uv``: UVs in tiles of a repeating look, stored as 16-bit numbers of
         1/``UV_Q`` tile; its materials scale them back (``UV_TRANSFORM`` on their pictures)."""
         pos = np.asarray(pos, np.float64)
+        order = None
         if self.compress and len(pos):         # points in the order the triangles first use them: small steps
-            pos, nrm_i8, uv, groups = first_use_order(pos, nrm_i8, uv, groups)
+            pos, nrm_i8, uv, groups, order = first_use_order(pos, nrm_i8, uv, groups, with_order=True)
         dq = None
         if quantize and len(pos):
             lo, hi = pos.min(0), pos.max(0)
@@ -437,6 +450,32 @@ class Gltf:
             prims.append(p)
         self.doc["meshes"].append({"name": name, "primitives": prims})
         self.dequantize.append(dq)
+        self.order.append(order)
+        return len(self.doc["meshes"]) - 1
+
+    def vertex_attribute(self, mesh: int, values: np.ndarray, kind: str, ctype: int, normalized: bool = True) -> int:
+        """An accessor of per-vertex ``values`` given in the order the vertices were passed to ``mesh`` (it follows
+        the order they were written in)."""
+        order = self.order[mesh]
+        v = np.asarray(values)
+        if order is not None:
+            v = v[order]
+        return self.accessor(v, kind, ctype, normalized=normalized, target=ARRAY_BUFFER)
+
+    def mesh_variant(self, mesh: int, attributes: dict, materials: dict | None = None, name: str = "") -> int:
+        """A copy of ``mesh`` that shares its accessors and adds ``attributes`` {name: accessor} (a placed copy's
+        own baked light, task 0107); ``materials`` {old index: new index} swaps the primitives' materials."""
+        src = self.doc["meshes"][mesh]
+        prims = []
+        for p in src["primitives"]:
+            q = dict(p)
+            q["attributes"] = {**p["attributes"], **attributes}
+            if materials and p.get("material") in materials:          # (None: a primitive without a material)
+                q["material"] = int(materials[p.get("material")])
+            prims.append(q)
+        self.doc["meshes"].append({"name": name or src.get("name", ""), "primitives": prims})
+        self.dequantize.append(self.dequantize[mesh])
+        self.order.append(self.order[mesh])
         return len(self.doc["meshes"]) - 1
 
     def place_mesh(self, node: dict, mesh: int, parent: int | None = None) -> int:
@@ -495,14 +534,14 @@ class Gltf:
                 + struct.pack("<II", len(self._bin), 0x004E4942) + bytes(self._bin))
 
 
-def first_use_order(pos, nrm, uv, groups):
+def first_use_order(pos, nrm, uv, groups, with_order: bool = False):
     """The same mesh with its vertices numbered in the order the triangles (all groups, one after the other) first
     use them; vertices no triangle uses are left out. Neighbouring vertices then sit next to each other in the
     file, which is what meshopt packs well."""
     allidx = np.concatenate([np.asarray(i).ravel() for _m, i in groups]) if groups else np.zeros(0, np.int64)
     n = len(pos)
     if not len(allidx):
-        return pos, nrm, uv, groups
+        return (pos, nrm, uv, groups, None) if with_order else (pos, nrm, uv, groups)
     _u, first = np.unique(allidx, return_index=True)
     order = _u[np.argsort(first)]                              # old index of each new vertex
     new = np.full(n, -1, np.int64)
@@ -510,7 +549,8 @@ def first_use_order(pos, nrm, uv, groups):
     pos = np.asarray(pos)[order]
     nrm = np.asarray(nrm)[order]
     uv = None if uv is None else np.asarray(uv)[order]
-    return pos, nrm, uv, [(m, new[np.asarray(i)]) for m, i in groups]
+    out = (pos, nrm, uv, [(m, new[np.asarray(i)]) for m, i in groups])
+    return (*out, order) if with_order else out
 
 
 def read_glb(data: bytes) -> tuple[dict, bytes]:
@@ -630,6 +670,14 @@ def problems(data: bytes) -> list[str]:
                     out.append(f"mesh {m}: indices are not whole triangles")
             if "material" in p and p["material"] >= len(doc.get("materials", [])):
                 out.append(f"mesh {m}: no such material")
+            elif "material" in p:
+                occ = doc["materials"][p["material"]].get("occlusionTexture")
+                if occ and f"TEXCOORD_{occ.get('texCoord', 0)}" not in attrs:
+                    out.append(f"mesh {m}: its material reads TEXCOORD_{occ.get('texCoord', 0)}, which it has not")
+            for name in attrs:
+                if not name.startswith("_") and name.split("_")[0] not in (
+                        "POSITION", "NORMAL", "TANGENT", "TEXCOORD", "COLOR", "JOINTS", "WEIGHTS"):
+                    out.append(f"mesh {m}: attribute {name} must start with _ (an application's own)")
     for k, node in enumerate(doc.get("nodes", [])):
         if "mesh" in node and node["mesh"] >= len(doc.get("meshes", [])):
             out.append(f"node {k}: no such mesh")
