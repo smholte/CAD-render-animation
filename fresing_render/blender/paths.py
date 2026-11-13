@@ -11,10 +11,13 @@ existing Move joint and Run motor steps animate it; a Run motor step on it shows
 **Contacts** (``FRCableContact``, in order along the cable): a ``SHEAVE`` (the cable bends round it and turns it),
 a ``ROLLER`` (the cable only rests on it or runs past it: it turns, but does not shape the path), a ``CHUTE`` (a
 bend on a part that does not turn) and a ``BEND`` (a bend no single part carries). "From CAD cable" reads them:
-the CAD cable's centreline, the round parts near it, and ``core.paths.read_cable``. Each contact keeps its centre
-and axis in the coordinates of its **carrier**: the arrow of the joint that turns it (it does not turn along), the
-part itself for a chute, the cable part's parent for a bend. The two ends are a point on a part, a free end (a
-point that stays with the last contact's carrier) or the place on its first wheel where the cable starts (a drum).
+the CAD cable's centreline, the round parts near it, and ``core.paths.read_cable``; a bend that lies on one part for
+most of its length is a chute on that part; a reading whose path lies beside the CAD cable is refused. Everything is
+read in the CAD pose, whatever pose the model is in. Each contact keeps its centre and axis in the coordinates of
+its **carrier**: the arrow of the joint that turns it (it does not turn along; so too for a bend on a part that
+turns about the bend's own axis, a coil on a carousel), the part itself for another chute, the cable part's parent
+for a bend. The two ends are a point on a part, a free end (a point that stays with the last contact's carrier) or
+the place on its first wheel where the cable starts (a drum).
 
 **Everything it touches turns.** A sheave or roller that already has a rotate joint on its axis keeps it: the app
 makes it follow the cable's joint (or leaves it alone when it follows something already, and says so when its
@@ -34,7 +37,9 @@ tube out again; *moving* picks the frame's slice of ``frames x points``.
   handler solves it again when a carrier moved against the cable part; ``bake`` (the end of every Build) reads the
   carriers' places at every frame (only when something that moves them is animated), solves all frames at once
   with the same number of points and writes them; playing and rendering then cost no Python. What was read is
-  kept, so a setting changed after Build solves again without stepping through the frames.
+  kept, so a setting changed after Build solves again without stepping through the frames. A frame without a
+  path, or one in which the cable has lifted off a wheel, keeps the last good shape and gives a warning.
+* A cable set to **stay as drawn** (``still``) keeps the path of the CAD pose whatever moves.
 
 **The look moves by a driver, not by geometry** (``blender/cable_looks.py`` has the materials). The tube carries a
 point attribute ``fr_cable`` = (cos phi, sin phi, s): the angle round the cable and the metres along it. The part
@@ -72,7 +77,8 @@ VERSION = 1                             # of the node trees: an older tree is ma
 SIDES = 20                              # of the tube's cross-section
 S_ATTR = "fr_s"                         # on the shapes mesh's points: the exact length along the cable (m)
 GROUPS = {"POWER": "Power cables", "ROPE": "Wire ropes"}
-WAS = "fr_cable_group_was"              # on the part: the group it was in by hand before its look put it in one
+WAS = "group_was"                       # on the cable item: the group its part was in by hand before its look put
+#                                         it into a cable group ('' = none)
 SHAPING = ("SHEAVE", "CHUTE", "BEND")   # the kinds the cable bends round
 TURNING = ("SHEAVE", "ROLLER")          # the kinds that turn with the cable
 HAND = -1.0                             # the tube's phi turns right-handed about the way s grows (measured, see
@@ -947,7 +953,7 @@ _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid",
 _END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
-_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was")
+_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS)
 
 
 def _values(group, fields) -> dict:
@@ -1172,7 +1178,8 @@ def _notes_of_joints(scene, item, memo: dict) -> None:
                     note = f"its joint '{j.name}' turns the other way than the cable runs over it: left as it is"
                 else:
                     note = (f"its joint '{j.name}' turns {abs(mine):.4f}° per mm of cable, the cable's surface "
-                            f"gives {abs(ratio):.4f}° ({(abs(mine) / abs(ratio) - 1.0) * 100.0:+.1f} %): left as it is")
+                            f"gives {abs(ratio):.4f}° ({(abs(mine) / abs(ratio) - 1.0) * 100.0:+.1f} %): left as "
+                            "it is")
             else:
                 note = ""
         if abs(c.gap) > max(GAP_NOTE, 0.02 * item.cad_diameter) and c.kind != "BEND":
@@ -1212,8 +1219,9 @@ def _summary(scene, item, geo: dict) -> list[str]:
     if item.moving:
         movers = sorted({c.name for c in _wheels(item) if flex._movers(c.carrier) != flex._movers(item.part)})
         if movers:
-            notes.append(f"Cable '{name}' follows what it lies on when that moves ({', '.join(repr(m) for m in movers[:4])}"
-                         f"{' …' if len(movers) > 4 else ''}): Build animation works out a shape for every frame")
+            which = ", ".join(repr(m) for m in movers[:4]) + (" …" if len(movers) > 4 else "")
+            notes.append(f"Cable '{name}' follows what it lies on when that moves ({which}): Build animation works "
+                         "out a shape for every frame")
     odd = [c for c in item.contacts if c.note and not c.note.startswith("the CAD cable is drawn")]
     for c in odd[:8]:
         notes.append(f"Cable '{name}', '{c.name}': {c.note}")
@@ -1709,18 +1717,18 @@ def _group(scene, item) -> None:
     if want:
         if cur == want:
             return
-        if WAS not in part:
-            part[WAS] = cur
+        if WAS not in item:
+            item[WAS] = cur
         new = s.groups.get(want) is None
         part["fr_group_manual"] = want
         g = logic.ensure_group(s, want)
         if new:
             g.material = cable_looks.MATERIALS[item.look]
     else:
-        if WAS not in part:
+        if WAS not in item:
             return
-        was = part[WAS]
-        del part[WAS]
+        was = item[WAS]
+        del item[WAS]
         if cur not in GROUPS.values():
             return                              # the user put it somewhere else since: it stays there
         if was:
@@ -1774,10 +1782,10 @@ def _strip(scene, item, part) -> None:
         for key in (cable_looks.PAY, cable_looks.LOOK, PART):
             if key in part:
                 del part[key]
-        if WAS in part:
+        if WAS in item:
             from . import logic
-            was = part[WAS]
-            del part[WAS]
+            was = item[WAS]
+            del item[WAS]
             if (part.get("fr_group_manual", "") or "") in GROUPS.values():
                 if was:
                     part["fr_group_manual"] = was
@@ -1881,7 +1889,7 @@ def contact_changed(scene, contact) -> None:
     """A contact's "Turns with the cable" changed (props.py calls this)."""
     if _STATE["busy"]:
         return
-    item, _k = _owner(scene, contact)
+    item, _index = _owner(scene, contact)
     if item is not None:
         _couple(scene, item)
 
@@ -2449,6 +2457,8 @@ def status(scene, item) -> tuple[str, str]:
         return (item.problem or "its path cannot be drawn"), "ERROR"
     if item.problem:
         return item.problem, "WARN"
+    if not item.joint or joints.find(scene, item.joint) is None:
+        return "its speed joint is gone: nothing moves it (remove the cable and add it again)", "WARN"
     n = len(item.contacts)
     return f"{item.length:.2f} m over {plural(n, 'contact')}" + (", a shape per frame" if item.moving and _baked(scene)
                                                                 else ""), "OK"
@@ -2473,7 +2483,8 @@ def candidates(scene) -> list:
     for ob in build.iter_parts(scene):
         if ob.name in taken or ob.get(build.PROP_EXCLUDED):
             continue
-        words = " " + " ".join(_part_name(ob).upper().replace(".", " ").replace("_", " ").replace("-", " ").split()) + " "
+        words = _part_name(ob).upper().replace(".", " ").replace("_", " ").replace("-", " ")
+        words = " " + " ".join(words.split()) + " "
         if any(f" {w} " in words for w in _NOT_WORDS):
             continue
         group = str(ob.get(build.PROP_GROUP, "") or "")

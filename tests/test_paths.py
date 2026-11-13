@@ -336,7 +336,8 @@ def test_a_reading_far_off_the_cad_cable_is_refused(folder, monkeypatch):
     with pytest.raises(paths.PathError) as err:
         paths.read_cad(sc, it, ob(sc, "WIRE ROPE"))
     text = str(err.value)
-    assert text.startswith("The path of 'WIRE ROPE' cannot be read: ") and " m from its start the cable as drawn lies " in text
+    assert text.startswith("The path of 'WIRE ROPE' cannot be read: ")
+    assert " m from its start the cable as drawn lies " in text
     assert " mm beside the straight runs and round bends" in text
     it = cable(sc)
     assert it.part is None and not len(it.contacts) and len(sc.fresing.joints) == 1
@@ -385,7 +386,8 @@ def test_the_drawn_cable_lies_on_its_wheels(rope):
     print(f"\ntest rope, as drawn: {len(c)} rings; middle at most {worst / MM:.3f} mm off a wheel's seat circle, "
           f"{off_path(sc, 0.0) / MM:.3f} mm off the maker's centreline")
     # no kink where a straight run meets a wheel: its direction is the circle's tangent there
-    wheels = {w.name: paths.wheels_now(sc, it)[k] for k, w in enumerate(x for x in it.contacts if x.kind in paths.SHAPING)}
+    shaping = [x for x in it.contacts if x.kind in paths.SHAPING]
+    wheels = {w.name: paths.wheels_now(sc, it)[k] for k, w in enumerate(shaping)}
     worst = 0.0
     for name, on, _centre, _seat, _d in arcs(sc, 0.0):
         w = wheels[name]
@@ -498,7 +500,8 @@ def test_the_look_and_the_ropes_hand(rope):
     along = centre[k + 1] - centre[k]
     assert a[k + 1, 0, 2] > a[k, 0, 2]
     phi = np.arctan2(a[k, :, 1], a[k, :, 0])
-    turn = float(np.cross(r[k, 0] - centre[k], r[k, 1] - centre[k]) @ along) * float(np.sign(np.unwrap(phi)[1] - phi[0]))
+    turn = float(np.cross(r[k, 0] - centre[k], r[k, 1] - centre[k]) @ along)
+    turn *= float(np.sign(np.unwrap(phi)[1] - phi[0]))
     assert turn > 0.0                                                     # phi turns right-handed about +s
     # … and where a strand's crest is a little further on: at a larger phi, so the strands are a right-hand screw
     s0, ds = 2.0, 0.002
@@ -623,7 +626,8 @@ def test_everything_it_touches_turns_at_the_cables_speed(rope):
                 n += 1
     assert n >= 11 and joints.couplings_simple(sc)          # 5 followers x 2 + the look's
     fc = part.animation_data.drivers.find(f'["{cable_looks.PAY}"]')
-    assert fc.driver.expression == "a * 1.0 + 2.0" and fc.driver.variables[0].targets[0].id == joints.find(sc, SPEED).motion
+    assert fc.driver.expression == "a * 1.0 + 2.0"
+    assert fc.driver.variables[0].targets[0].id == joints.find(sc, SPEED).motion
 
 
 def test_turns_off_and_runs_the_other_way(rope):
@@ -714,7 +718,7 @@ def test_a_joint_the_user_made_is_kept_and_remove_takes_only_the_apps(folder):
     assert not [m for m in bpy.data.meshes if m.name.startswith(paths.SHAPES)]
     assert not [g for g in bpy.data.node_groups if g.name.startswith("FR cable")]
     assert flex.COLLECTION not in bpy.data.collections
-    for key in (cable_looks.PAY, cable_looks.LOOK, paths.PART, paths.WAS, "fr_group_manual"):
+    for key in (cable_looks.PAY, cable_looks.LOOK, paths.PART, "fr_group_manual"):
         assert key not in part, key
     assert part.animation_data is None or not len(part.animation_data.drivers)
     assert not [o for o in sc.objects if paths.TAG in o]
@@ -794,7 +798,8 @@ def test_a_built_animation_has_a_shape_for_every_frame(rope):
         if f in (11, 51, 91):
             kept[f] = (luff, tangent_points(sc, luff), drawn(it.part)[0])
     assert paths._STATE["solves"] == solves                 # nothing is solved while the frames are shown
-    print(f"\ntest rope, luffing -15° … +15° built: at most {worst / MM:.3f} mm off the maker's centreline at every 5th frame")
+    print(f"\ntest rope, luffing -15° … +15° built: at most {worst / MM:.3f} mm off the maker's centreline "
+          "at every 5th frame")
     assert kept[11][0] < -9.0 and kept[91][0] > 9.0
     # any frame in any order gives the same shape
     sc.frame_set(11)
@@ -814,7 +819,8 @@ def test_a_built_animation_has_a_shape_for_every_frame(rope):
     # live, in the same poses: the same shape
     animation.clear_keys(sc)
     it = cable(sc)
-    assert not sc.fresing.anim_baked and it.moving and it.part.modifiers[paths.MOD].node_group.name == paths.TREES[False]
+    assert not sc.fresing.anim_baked and it.moving
+    assert it.part.modifiers[paths.MOD].node_group.name == paths.TREES[False]
     worst = 0.0
     for f, (luff, points, _co) in kept.items():
         joints.set_value(joints.find(sc, "Luff"), math.radians(luff))
@@ -880,22 +886,25 @@ def test_cost_per_frame_with_a_thousand_parts(rope):
             best = min(best, (time.perf_counter() - t0) / n)
         return best * 1000.0
 
-    def without():                                          # the same frames with the cable's modifier off
-        mod = cable(sc).part.modifiers[paths.MOD]
-        mod.show_viewport = False
-        update()
-        ms = per_frame()
-        mod.show_viewport = True
-        update()
-        return ms
+    def in_turns():                                         # (ms with the cable drawn, ms with its modifier off)
+        mod, on, off = cable(sc).part.modifiers[paths.MOD], [], []
+        for _ in range(3):
+            on.append(per_frame(40, 1))
+            mod.show_viewport = False
+            per_frame(2, 1)
+            off.append(per_frame(40, 1))
+            mod.show_viewport = True
+            per_frame(2, 1)
+        return min(on), min(off)
 
     built(sc, run_step(sc, 2.0))
     assert not cable(sc).moving
-    still, off = per_frame(), without()
+    still, off = in_turns()
     built(sc, sc.fresing.animations[paths.TEST_ANIMATION])
     assert cable(sc).moving
-    moving, off2 = per_frame(), without()
-    print(f"\ncost per frame, test model + 1,000 parts (this machine): cable off {off:.2f} ms, still cable {still:.2f} ms "
+    moving, off2 = in_turns()
+    print(f"\ncost per frame, test model + 1,000 parts (this machine): cable off {off:.2f} ms, still cable "
+          f"{still:.2f} ms "
           f"({still - off:+.2f}); luffing animation: cable off {off2:.2f} ms, moving cable {moving:.2f} ms "
           f"({moving - off2:+.2f})")
     assert still - off < 1.0 and moving - off2 < 5.0
@@ -967,7 +976,8 @@ def test_a_wheel_the_cable_lifts_off_is_a_bad_frame():
 
     def result():
         return {"ok": np.ones(F, dtype=bool), "wrap": wrap.copy(), "bad": -np.ones(F, dtype=int), "problems": {},
-                "points": np.arange(F * 6, dtype=float).reshape(F, 2, 3), "s": np.arange(F * 2, dtype=float).reshape(F, 2),
+                "points": np.arange(F * 6, dtype=float).reshape(F, 2, 3),
+                "s": np.arange(F * 2, dtype=float).reshape(F, 2),
                 "length": np.arange(F, dtype=float)}
 
     res = result()
@@ -1312,6 +1322,7 @@ def test_model_update_keeps_the_cable(rope):
     assert sorted(j.name for j in sc.fresing.joints) == joints_before
     assert it.mbr == pytest.approx(0.15) and it.pitch == pytest.approx(0.2) and it.look == "ROPE" and it.joint == SPEED
     assert it.part["fr_group_manual"] == "Wire ropes" and list(it.part[cable_looks.LOOK])[1] == -6.0
+    assert it[paths.WAS] == ""                              # … and Plain still knows it was in no group by hand
     for c, ratio in zip(it.contacts, ratios):
         assert c.ratio == pytest.approx(ratio, rel=1e-6), c.name
         if c.kind in paths.TURNING:
@@ -1516,13 +1527,23 @@ def test_the_demo_vessels_power_cable(vessel):
     with Evaluations(part) as seen:
         per_frame(10)
         after = min(per_frame(), per_frame())
-    assert seen.count == 0 and paths._STATE["solves"] == solves
+    assert seen.count == 0 and paths._STATE["solves"] == solves     # the hard facts: nothing is worked out again
     sc.frame_set(51)
     pay = part.evaluated_get(bpy.context.evaluated_depsgraph_get())[cable_looks.PAY]
     assert pay - 2.0 == pytest.approx(2.0 * 10.0 / 60.0, abs=1e-3)
-    print(f"    cost of a frame change (this machine, 60 frames, best of 2): {before:.2f} ms before, {after:.2f} ms "
-          f"with the cable on its path ({after - before:+.2f} ms)")
-    assert after - before < 1.0
+    # … and the time, taken in turns with the cable's modifier off (other work on the machine moves both alike)
+    mod, on, off = part.modifiers[paths.MOD], [], []
+    for _ in range(3):
+        on.append(per_frame(30))
+        mod.show_viewport = False
+        per_frame(2)
+        off.append(per_frame(30))
+        mod.show_viewport = True
+        per_frame(2)
+    print(f"    cost of a frame change (this machine, best of the runs): {before:.2f} ms before the cable was made, "
+          f"{after:.2f} ms with it on its path; in turns: {min(on):.2f} ms with the cable drawn, {min(off):.2f} ms "
+          f"with its modifier off ({min(on) - min(off):+.2f} ms)")
+    assert min(on) - min(off) < 1.0
     # an animation in which the quadrant travels: a shape per frame – unless the cable is told to stay as drawn
     travel = next(j.name for j in sc.fresing.joints if j.kind == "SLIDE" and not j.follows and j.name != demo.CABLE
                   and any(o.get(build.PROP_NAME) == "QUADRANT GUTTER" or
@@ -1536,7 +1557,8 @@ def test_the_demo_vessels_power_cable(vessel):
     r = animation.bake(sc, a)
     took = time.perf_counter() - t0
     it = paths.find(sc, "Power cable")
-    print(f"    '{travel}' moved 0.3 m in the animation: moving {it.moving}, Build {took:.1f} s for {r['frames']} frames, "
+    print(f"    '{travel}' moved 0.3 m in the animation: moving {it.moving}, Build {took:.1f} s for {r['frames']} "
+          f"frames, "
           f"{len(it.shapes.data.vertices)} points kept, warnings {r['warnings']}; a frame change: "
           f"{min(per_frame(), per_frame()):.2f} ms")
     assert it.moving and part.modifiers[paths.MOD].node_group.name == paths.TREES[True]
