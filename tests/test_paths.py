@@ -1374,6 +1374,8 @@ def test_model_update_keeps_the_cable(rope):
     assert joints.get_value(joints.find(sc, contact(sc, "SHEAVE 2").joint)) == pytest.approx(
         math.radians(contact(sc, "SHEAVE 2").ratio) * 500.0, rel=1e-5)
     assert not [n for n in notes if n.startswith("Cable 'Wire rope'")]       # nothing to report about the cable
+    # the cable's joint moves nothing: the update keeps it (joints.rebuild_from_specs) and so every coupling
+    assert not [n for n in notes if "removed" in n or "which is gone" in n or "sat on is gone" in n], notes
 
 
 def test_a_cable_gone_in_the_new_revision(rope):
