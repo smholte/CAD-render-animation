@@ -78,7 +78,10 @@ the render queue too, on Cycles and EEVEE.
 4. **Rain:** falling rain (amount, drop size), slanting with the wind, splashes on the deck and the sea; **wet look**
    on the machine and the deck through the material hook: darker, glossier, drops and run-off streaks on sloped
    surfaces, puddles on flat deck parts; a Wet slider that also works without falling rain (after the rain).
-5. **Snow:** falling flakes (amount, wind drift), a **snow layer on upward faces** (thickness, only where snow can
+5. **Snow** (added 13 Nov, House round trip: **snow build-up has to work on imported geometry** – any mesh object, also
+   one not made by the STEP importer, without part IDs or CAD faces, e.g. a house from a `smholte/house-scene-format`
+   package; make it a function another lane can call on a list of objects. Never attach `smholte/house-planner-dev`;
+   tests only with made-up geometry or that repository's sample packages)**:** falling flakes (amount, wind drift), a **snow layer on upward faces** (thickness, only where snow can
    lie: by normal and by being under the sky – parts under a roof stay clear; a ray or shadow test, your design), snow
    on the deck and quay, frozen spray look optional.
 6. **Wind:** direction (also relative to the vessel's heading) and strength (Beaufort or m/s): with the sea "From the
