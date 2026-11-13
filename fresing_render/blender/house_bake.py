@@ -113,6 +113,7 @@ class HouseBake:
         self._saved = {
             "state": weather.state(sc), "enabled": sc.fresing.weather.enabled, "background": sc.fresing.background,
             "hide": {ob.name: (ob.hide_render, ob.hide_viewport) for ob in hi.parts(sc) + hi.lights(sc)},
+            "shadow": {ob.name: ob.visible_shadow for ob in hi.parts(sc)},
             "camera": sc.camera, "res": (r.resolution_x, r.resolution_y, r.resolution_percentage),
             "filepath": r.filepath, "format": (r.image_settings.file_format, r.image_settings.color_mode,
                                                r.image_settings.color_depth),
@@ -152,6 +153,10 @@ class HouseBake:
         if r.engine != sv["engine"]:
             r.engine = sv["engine"]
         sc.camera = sv["camera"]
+        for name, v in sv["shadow"].items():
+            ob = bpy.data.objects.get(name)
+            if ob is not None:
+                ob.visible_shadow = v
         for name, (hr, hv) in sv["hide"].items():
             ob = bpy.data.objects.get(name)
             if ob is not None:
@@ -203,6 +208,99 @@ class HouseBake:
         if ch.get("moon", 0.0) <= 0.0:
             return []
         return [ob for ob in self.scene.objects if ob.type == "LIGHT" and ob.get("fr_weather") == "moon"]
+
+    # ------------------------------------------------------------------ one object per light-map page
+    def _page_objects(self, objects, variant: str, ids: dict) -> list:
+        """The MAP surfaces ``objects`` joined into one object per page of the package's layout (``BakeWriter``'s
+        rects for ``variant``: "" = the whole house, a storey id = its open results): world coordinates, the
+        surfaces' own materials and texture UVs, and as UV set 1 each surface's UV set 1 moved into its rect on the
+        page. Returns [(object, (page width, page height), [(id, x, y, w, h)])]. A surface whose UV set 1 is
+        missing is left out (a problems line); one whose map size does not fit its UV set 1 gets 0107's line."""
+        surf = self.house.surfaces
+        rects, pages = self.writer.rects, self.writer.pages
+        by_page: dict = {}
+        for ob in objects:
+            sid = ids[ob]
+            hit = rects.get((variant, sid))
+            if hit is None:
+                continue                          # (too big for a page: the writer said so)
+            if len(ob.data.uv_layers) < 2:
+                self.problems.append(f"{sid}: no UV set 1 in the project – it has no baked light")
+                continue
+            md = lightbake._read_mesh(ob.data)
+            why = lightbake.size_problem(md, list(md.uvs)[1], surf[sid].uv1_px, ob.matrix_world)
+            if why:
+                self.problems.append(f"{sid}: {why}")
+            by_page.setdefault(hit[0], []).append((ob, md, hit[1], hit[2]))
+        out = []
+        for k, rows in sorted(by_page.items()):
+            pw, ph = pages[k]
+            pts, tris, nrm, uv0, uvp, mi, mats, cuts = [], [], [], [], [], [], [], []
+            mat_ix: dict = {}
+            off = 0
+            for ob, md, x, y in rows:
+                sid = ids[ob]
+                w, h = surf[sid].uv1_px
+                mw = np.array(ob.matrix_world, np.float64)
+                m3 = mw[:3, :3]
+                pts.append(md.points @ m3.T + mw[:3, 3])
+                tris.append(md.tris + off)
+                nm = np.linalg.inv(m3).T
+                n = md.normals.astype(np.float64) @ nm.T
+                nrm.append(n / np.maximum(np.linalg.norm(n, axis=1), 1e-12)[:, None])
+                names = list(md.uvs)
+                uv0.append(md.uvs[md.active_render or names[0]])
+                u = md.uvs[names[1]].astype(np.float64)             # Blender: v = 1 - glTF v
+                uvp.append(np.stack([(x + u[:, 0] * w) / pw, (ph - y - h + u[:, 1] * h) / ph], axis=1))
+                local = []
+                for sl in ob.material_slots or [None]:
+                    mat = sl.material if sl is not None else None
+                    key = mat.name_full if mat is not None else ""
+                    if key not in mat_ix:
+                        mat_ix[key] = len(mats)
+                        mats.append(mat)
+                    local.append(mat_ix[key])
+                local = np.asarray(local, np.int32)
+                mi.append(local[np.clip(md.mat, 0, len(local) - 1)])
+                cuts.append((sid, x, y, w, h))
+                off += len(md.points)
+            P, T = np.concatenate(pts), np.concatenate(tris).astype(np.int32)
+            me = bpy.data.meshes.new(NAME)
+            me.vertices.add(len(P))
+            me.vertices.foreach_set("co", P.astype(np.float32).ravel())
+            me.loops.add(T.size)
+            me.loops.foreach_set("vertex_index", T.ravel())
+            me.polygons.add(len(T))
+            me.polygons.foreach_set("loop_start", np.arange(0, T.size, 3, dtype=np.int32))
+            me.polygons.foreach_set("material_index", np.concatenate(mi))
+            me.update(calc_edges=True)
+            a = me.attributes.new("custom_normal", "FLOAT_VECTOR", "CORNER")
+            a.data.foreach_set("vector", np.concatenate(nrm).astype(np.float32).ravel())
+            for name, data in (("UVMap", uv0), ("fr_page", uvp)):
+                layer = me.uv_layers.new(name=name)
+                layer.data.foreach_set("uv", np.concatenate(data).astype(np.float32).ravel())
+            me.uv_layers["UVMap"].active_render = True
+            for mat in mats:
+                me.materials.append(mat)
+            po = bpy.data.objects.new(NAME, me)
+            self.scene.collection.objects.link(po)
+            po.hide_render = po.hide_viewport = True
+            self._temp.append(po)
+            out.append((po, (pw, ph), cuts))
+        return out
+
+    def _drop(self, objs) -> None:
+        """Remove temporary objects now (and their meshes)."""
+        objs = [o for o in objs if o in self._temp]
+        if not objs:
+            return
+        for o in objs:
+            self._temp.remove(o)
+        datas = [o.data for o in objs]
+        bpy.data.batch_remove(objs)
+        left = [d for d in datas if d.users == 0]
+        if left:
+            bpy.data.batch_remove(left)
 
     # ------------------------------------------------------------------ snow
     def _snow_objects(self, season) -> list:
@@ -278,10 +376,15 @@ class HouseBake:
                 shown = {sid: ob for sid, ob in objs.items() if sid not in hidden}
                 ids = {ob: sid for sid, ob in shown.items()}
                 maps, opens = {}, {}
+                # a lamp's light sits inside its fitting: the fitting must not shadow its own light (FORMAT 4.4)
+                fittings = {sid for sid, ob in shown.items() if any(c.type == "LIGHT" for c in ob.children)}
+                fit_obs = {shown[sid] for sid in fittings}
 
                 def targets(pick):
                     t, o, extra = [], [], []
                     for sid, ob in pick.items():
+                        if sid in fittings:               # baked on their own (below): they never block a lamp
+                            continue
                         b = surf[sid].bake
                         if b == "MAP":
                             t.append(ob)
@@ -310,21 +413,43 @@ class HouseBake:
                         if p not in self.problems:
                             self.problems.append(p)
 
-                def call(pick, others, into, what, f0, f1):
+                def call(pick, others, into, what, f0, f1, variant=""):
                     t, o, extra = targets(pick)
-                    occl = list(others) + o
-                    sizes = {ob: tuple(surf[ids[ob]].uv1_px) for ob in t if surf[ids[ob]].bake == "MAP"}
+                    occl = [ob for ob in others if ob not in fit_obs] + o
+                    fits = [ob for sid, ob in pick.items() if sid in fittings and surf[sid].bake == "VERTEX"]
+                    flat = [ob for ob in t if surf[ids[ob]].bake == "MAP"]
+                    vert = [ob for ob in t if surf[ids[ob]].bake != "MAP"]
+                    # every page's MAP surfaces as ONE object (0107 bakes each UV1 object in a call of its own:
+                    # 100 calls were 65 s of a 95 s moment on the sample); cut back out by their rects
+                    pages = self._page_objects(flat, variant, ids)
+                    sizes = {po: (pw, ph) for po, (pw, ph), _cuts in pages}
+                    pid = {po: f"fr-page-{k}" for k, (po, _size, _cuts) in enumerate(pages)}
                     res = None
-                    mid = f0 + (f1 - f0) * (0.85 if extra else 1.0)
-                    if t:
-                        res = yield from self._bake(t, light, uv="UV1", sizes=sizes, occluders=occl + extra,
-                                                    lamps=lamps, sky=sky, ids=ids, f0=f0, f1=mid, what=what)
-                        collect(res, into)
-                    if extra:
-                        r2 = yield from self._bake(extra, light, uv="VERTEX", occluders=occl + t, lamps=lamps,
-                                                   sky=sky, ids=ids, f0=mid, f1=f1, what=what)
-                        collect(r2, into)
-                        res = res or r2
+                    mid = f0 + (f1 - f0) * (0.85 if extra or fits else 1.0)
+                    try:
+                        if pages or vert:
+                            res = yield from self._bake([po for po, _s, _c in pages] + vert, light, uv="UV1",
+                                                        sizes=sizes, occluders=occl + extra, lamps=lamps, sky=sky,
+                                                        ids={**ids, **pid}, f0=f0, f1=mid, what=what)
+                            for po, (pw, ph), cuts in pages:
+                                it = res.items.get(pid[po])
+                                if it is None or it.pixels is None:
+                                    continue
+                                for sid, x, y, w, h in cuts:      # PNG rect (top-down) -> Blender rows (bottom-up)
+                                    into[sid] = np.array(it.pixels[ph - y - h:ph - y, x:x + w], np.float32)
+                            collect(res, into)
+                        if extra:
+                            r2 = yield from self._bake(extra, light, uv="VERTEX", occluders=occl + t, lamps=lamps,
+                                                       sky=sky, ids=ids, f0=mid, f1=f1, what=what)
+                            collect(r2, into)
+                            res = res or r2
+                        if fits:                          # a lamp's fitting: light per vertex, the rest as occluders
+                            r3 = yield from self._bake(fits, light, uv="VERTEX", occluders=occl + t + extra,
+                                                       lamps=lamps, sky=sky, ids=ids, f0=mid, f1=f1, what=what)
+                            collect(r3, into)
+                            res = res or r3
+                    finally:
+                        self._drop([po for po, _s, _c in pages])
                     return res
 
                 label = m.label or m.id
@@ -339,7 +464,7 @@ class HouseBake:
                     rest = [ob for sid, ob in keep.items() if sid not in mine]
                     opens[storey] = {}
                     a, b = span(3 / max(1, len(rec.open_storeys)))
-                    yield from call(mine, rest, opens[storey], f"{label}: {storey} open", a, b)
+                    yield from call(mine, rest, opens[storey], f"{label}: {storey} open", a, b, storey)
                 layers = snow.get(m.season, [])
                 a, b = span(1)
                 if layers:
@@ -367,7 +492,8 @@ class HouseBake:
                 a, b = span(8)
                 yield from self._video(v, a, b)
             self.text = "Writing the bake package"
-            self.writer.problems.extend(x for x in self.problems if x not in self.writer.problems)
+            for x in self.problems:
+                self.writer.problem(x)
             os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
             self.writer.write(self.path)
             self.result = {"path": self.path, "seconds": time.perf_counter() - t_all,
@@ -387,7 +513,7 @@ class HouseBake:
         ob.hide_render = ob.hide_viewport = True
         self._temp.append(ob)
         b = lightbake.Bake([ob], "ALL", sky=sky, occluders=[], lamps=[], uv="VERTEX", quality=self.quality,
-                           samples=max(4, min(self.samples, 16)), device=self.device, scene=self.scene)
+                           samples=64, device=self.device, scene=self.scene)    # (an 8 px probe: cheap)
         for f in b.steps():
             self.text = f"{label}: the sun's strength"
             yield f0 + (f1 - f0) * float(f)
@@ -416,6 +542,8 @@ class HouseBake:
         on = set(hi.lamps_of(self.scene, m))
         for ob in hi.lights(self.scene):
             ob.hide_render = ob not in on
+            if ob.parent is not None and ob.parent.type == "MESH":
+                ob.parent.visible_shadow = False         # the fitting must not shadow its own light
         hide = hi.hidden_in(self.house, hi.season_of(self.house, m))
         for sid, ob in hi.by_id(self.scene).items():
             ob.hide_render = sid in hide

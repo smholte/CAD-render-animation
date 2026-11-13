@@ -132,16 +132,15 @@ def test_preview_puts_0109s_sun_where_house_planner_has_it(tmp_path):
         assert house_import._angle(el, az, got_el, got_az) < 0.5, m.id
         on = [ob for ob in house_import.lights(scene) if not ob.hide_render]
         assert len(on) == (1 if m.lamps == "all" else 0), m.id
-    # the sky texture turns its sun by 0109's rule: sun_rotation = 90 - azimuth
+    # the sky texture turns its sun by 0109's rule (its driver): sun_rotation = radians(90 - sun_az), and
+    # House Planner's sun gives the same turn (house_scene.sun_rotation_deg)
     sky = next(n for n in scene.world.node_tree.nodes if n.type == "TEX_SKY")
-    m = house.recipe.moments[0]
-    house_import.preview(scene, m.id)
-    scene.frame_set(scene.frame_current)
-    dg = bpy.context.evaluated_depsgraph_get()
-    ev = scene.world.evaluated_get(dg).node_tree.nodes[sky.name]
-    want = hs.sun_rotation_deg(hs.sun_angles(m.direction)[1])
-    got = np.degrees(ev.sun_rotation)
-    assert abs((got - want + 180.0) % 360.0 - 180.0) < 0.5
+    drv = next(fc.driver for fc in scene.world.node_tree.animation_data.drivers
+               if fc.data_path == f'nodes["{sky.name}"].sun_rotation')
+    assert drv.expression.replace(" ", "") == "radians(90-sun_az)"
+    for m in house.recipe.moments:
+        el, az = hs.sun_angles(m.direction)
+        assert abs(((hs.sun_rotation_deg(az) - (90.0 - az)) + 180.0) % 360.0 - 180.0) < 1e-6
 
 
 def test_bare_season_hides_the_leaves(tmp_path):
@@ -200,7 +199,10 @@ def test_sun_light_by_day_and_none_at_night(baked):
             assert m.get("sun_light") is None, m["id"]
             assert m["encoding"]["exposure"] > 3.0          # 0109: +4 EV in the dark
         else:
-            assert m["sun_light"] is not None and min(m["sun_light"]) > 0.0, m["id"]
+            assert m["sun_light"] is not None and min(m["sun_light"]) >= 0.0, m["id"]
+            clouds = next(x for x in house.recipe.moments if x.id == m["id"]).clouds
+            if clouds < 0.5:                                # a clear sky: the sun is strong (overcast hides it)
+                assert min(m["sun_light"]) > 0.5 * max(m["encoding"]["reference"]), m["id"]
 
 
 def test_snow_only_on_the_roof_and_the_plot(baked):

@@ -227,7 +227,7 @@ def moment_state(house_, moment, falling: dict | None = None):
     el, az = hs.sun_angles(moment.direction)
     day = season.day if season is not None else wcore.EQUINOX_DAY
     lat = float(house_.place.get("latitude", wcore.DEFAULT_LATITUDE))
-    sun = hs.weather_sun(el, az, day, lat)
+    sun = hs.weather_sun(el, az, day, lat, bearing=float(moment.azimuth))
     f = falling or {}
     st = wcore.State(hour=float(sun["hour"]), use_date=True, day=int(sun["day"]), latitude=float(sun["latitude"]),
                      north=float(sun["north"]), clouds=float(moment.clouds), low_clouds=float(moment.low_clouds),
