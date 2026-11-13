@@ -5,7 +5,9 @@
 Writes the totals and every failing test (with the first lines of its error) to the job summary
 ($GITHUB_STEP_SUMMARY) and as error annotations. pytest's own exit code decides about failures;
 this script exits 1 only when more tests were skipped than allowed: the Blender and OpenCascade
-tests skip themselves when bpy/OCP do not import, which would otherwise look green.
+tests skip themselves when bpy/OCP do not import, which would otherwise look green. Skips whose reason is one of
+EXPECTED_SKIPS (what GitHub's machines cannot do: EEVEE needs a GL context, one test needs a real Blender) do not count:
+task 0108 made 8 groups, and two such tests landed in one group.
 
 It also prints one line `PYTEST_FILE_SECS {"tests/test_x.py": seconds, ...}`: the time of each test file,
 which `tools/ci_status.py --record` copies into tools/ci_times.json to balance the parallel groups (task 0036).
@@ -17,6 +19,9 @@ import json
 import os
 import sys
 import xml.etree.ElementTree as ET
+
+
+EXPECTED_SKIPS = ("EEVEE cannot start here (no GL context)", "no real Blender here")
 
 
 def file_seconds(path: str) -> dict[str, float]:
@@ -39,7 +44,7 @@ def summarize(path: str, title: str = "") -> tuple[str, list[tuple[str, str]], i
     suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
     total = sum(int(s.get("tests", 0)) for s in suites)
     failed: list[tuple[str, str]] = []
-    skipped = 0
+    skipped = expected = 0
     seconds = sum(float(s.get("time", 0)) for s in suites)
     for case in root.iter("testcase"):
         name = f"{case.get('classname', '')}::{case.get('name', '')}"
@@ -49,11 +54,15 @@ def summarize(path: str, title: str = "") -> tuple[str, list[tuple[str, str]], i
                 msg = (el.get("message") or el.text or "").strip().splitlines()
                 failed.append((name, " ".join(msg[:3])[:300]))
                 break
-        if case.find("skipped") is not None:
+        sk = case.find("skipped")
+        if sk is not None and not any(r in (sk.get("message") or "") for r in EXPECTED_SKIPS):
             skipped += 1
-    passed = total - len(failed) - skipped
+        elif sk is not None:
+            expected += 1
+    passed = total - len(failed) - skipped - expected
     head = (f"### Test suite (pytest){' - ' + title if title else ''}: {'passed' if not failed else 'FAILED'}\n\n"
-            f"{passed} passed, {len(failed)} failed, {skipped} skipped, {total} in all, "
+            f"{passed} passed, {len(failed)} failed, {skipped} skipped"
+            f"{f' (+ {expected} that need a GL context or a real Blender)' if expected else ''}, {total} in all, "
             f"{seconds / 60:.1f} min\n")
     if failed:
         head += "\n| Failing test | Error |\n| --- | --- |\n"

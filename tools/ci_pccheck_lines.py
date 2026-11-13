@@ -8,6 +8,7 @@ Windows job started after the build and was the longest of all.
     python tools/ci_pccheck_lines.py linux1      # comma-separated line ids of Linux job `pccheck`
     python tools/ci_pccheck_lines.py linux2      # ... of `pccheck2`
     python tools/ci_pccheck_lines.py windows     # ... of the Windows job (all Full lines minus WINDOWS_SKIPS)
+    python tools/ci_pccheck_lines.py tour1       # the test tour's first job (`tour`), tour2: the second (`tour-b`)
     python tools/ci_pccheck_lines.py count windows
     python tools/ci_pccheck_lines.py             # a table
 
@@ -24,15 +25,20 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CHECKS = os.path.join(ROOT, "fresing_render", "pccheck", "checks.py")
+TOUR = os.path.join(ROOT, "fresing_render", "blender", "tour.py")
 
-# Linux job `pccheck2` (plus LINUX2_NEEDS): the two longest lines (video with labels ~3 min on Windows' CPU, the queue's time test).
-LINUX2 = ("video.labels", "queue.time_test", "weather.time", "weather.rain", "weather.snow", "weather.fog")
+# Linux job `pccheck2` (plus LINUX2_NEEDS): the longest lines (video with labels ~3 min on Windows' CPU, the queue's time
+# test; task 0108: the two EEVEE queue lines, 120 + 155 s on a runner, so that both halves take about 9 minutes; task
+# 0109: the weather renders).
+LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee", "weather.time", "weather.rain", "weather.snow",
+          "weather.fog")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Start-menu shortcut and the report.
 LINUX2_NEEDS = ("import.crane",)       # lines those two need first (`requires=`): run again in job `pccheck2`
 WINDOWS_SKIPS = ("video.labels", "queue.time_test", "queue.video", "scene.turntable", "tour.make",
-                 "looks.materials", "milling.coolant")
+                 "looks.materials", "milling.coolant",
+                 "milling.toolpath", "motion.fade")     # task 0108: 51 + 33 s of pure app code on the Windows runner
 
 
 def full_ids(path: str = CHECKS) -> list[str]:
@@ -57,7 +63,21 @@ def full_ids(path: str = CHECKS) -> list[str]:
     return [i for _n, i in sorted(out)]
 
 
+def tour_ids(path: str = TOUR) -> list[str]:
+    """The test tour's lines (task 0059): 'tour.build' (Make test tour project) and 'tour.<stop id>' for every
+    ``stop(...)`` of ``blender/tour.py``, in order (read without importing it)."""
+    with open(path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    stops = [n.value.args[0].value for n in tree.body
+             if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) and getattr(n.value.func, "id", "") == "stop"
+             and n.value.args and isinstance(n.value.args[0], ast.Constant)]
+    return ["tour.build"] + [f"tour.{i}" for i in stops]
+
+
 def ids_for(job: str, full: list[str] | None = None) -> list[str]:
+    if job in ("tour1", "tour2"):                 # task 0108: the tour in two jobs, every other stop; both make the projects
+        t = tour_ids()
+        return [t[0]] + t[1:][0 if job == "tour1" else 1::2]
     full = full_ids() if full is None else full
     if job == "linux2":
         return [i for i in full if i in LINUX2 or i in LINUX2_NEEDS]
@@ -65,7 +85,7 @@ def ids_for(job: str, full: list[str] | None = None) -> list[str]:
         return [i for i in full if i not in LINUX2]
     if job == "windows":
         return [i for i in full if i not in WINDOWS_SKIPS]
-    raise SystemExit(f"unknown job {job!r} (linux1, linux2, windows)")
+    raise SystemExit(f"unknown job {job!r} (linux1, linux2, windows, tour1, tour2)")
 
 
 def problems(full: list[str] | None = None) -> list[str]:
@@ -79,6 +99,10 @@ def problems(full: list[str] | None = None) -> list[str]:
         out.append("the Linux PC-check jobs do not add up to every Full line")
     if not set(WINDOWS_SKIPS) <= set(LINUX2) | set(ids_for("linux1", full)):
         out.append("a line skipped on Windows does not run on Linux")
+    if os.path.isfile(TOUR):
+        t = tour_ids()
+        if len(t) < 2 or set(ids_for("tour1")) | set(ids_for("tour2")) != set(t):
+            out.append("the two test tour jobs (tour, tour-b) do not add up to every stop of blender/tour.py")
     return out
 
 
@@ -89,7 +113,7 @@ def main(argv: list[str]) -> int:
     elif len(argv) == 1:
         print(",".join(ids_for(argv[0], full)))
     else:
-        for job in ("linux1", "linux2", "windows"):
+        for job in ("linux1", "linux2", "windows", "tour1", "tour2"):
             print(f"{job}: {len(ids_for(job, full))} lines")
         print("skipped on Windows:", ", ".join(WINDOWS_SKIPS))
         for p in problems(full):

@@ -100,6 +100,33 @@ def test_pytest_summary_names_the_failing_test(tmp_path, monkeypatch, capsys):
     assert "1 tests were skipped (at most 0 allowed)" in summary.read_text(encoding="utf-8")
 
 
+def test_pytest_summary_does_not_count_skips_this_machine_cannot_help(tmp_path, monkeypatch):
+    """Task 0108: EEVEE (no GL context) and the real-Blender test skip on GitHub's machines; two of them in one of
+    the 8 groups turned it red. They no longer count against --max-skipped; any other skip still does."""
+    xml = tmp_path / "pytest.xml"
+    xml.write_text(
+        '<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" tests="4" '
+        'failures="0" errors="0" skipped="3" time="1.0">'
+        '<testcase classname="tests.test_fade" name="test_eevee" time="0.1"><skipped type="pytest.skip" '
+        'message="EEVEE cannot start here (no GL context)">x</skipped></testcase>'
+        '<testcase classname="tests.test_section" name="test_eevee" time="0.1"><skipped type="pytest.skip" '
+        'message="EEVEE cannot start here (no GL context)">x</skipped></testcase>'
+        '<testcase classname="tests.test_spool_independent" name="test_real" time="0.0"><skipped '
+        'type="pytest.skip" message="no real Blender here">x</skipped></testcase>'
+        '<testcase classname="tests.test_core" name="test_good" time="0.1"/>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    assert ci_pytest_summary.main([str(xml), "--max-skipped", "0"]) == 0
+    assert "1 passed, 0 failed, 0 skipped (+ 3 that need a GL context or a real Blender), 4 in all" in \
+        summary.read_text(encoding="utf-8")
+    xml.write_text(xml.read_text(encoding="utf-8").replace(
+        '<testcase classname="tests.test_core" name="test_good" time="0.1"/>',
+        '<testcase classname="tests.test_core" name="test_good" time="0.1"><skipped type="pytest.skip" '
+        'message="could not import \'bpy\'">x</skipped></testcase>'), encoding="utf-8")
+    assert ci_pytest_summary.main([str(xml), "--max-skipped", "0"]) == 1
+
+
 @pytest.mark.parametrize("value, expected", [("1", True), ("", False), ("0", False), (None, False)])
 def test_self_test_skips_graphics_card_only_when_asked(monkeypatch, value, expected):
     """On a user's PC (switch not set) a missing graphics card stays a problem in the report."""
