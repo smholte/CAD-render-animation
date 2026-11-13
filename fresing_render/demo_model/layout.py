@@ -229,7 +229,7 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     sc = rt.HW_SCALE
     for k, (x, y) in enumerate(pos["handling_winches"]):
         hw = m.winch(p, kit, "HANDLING WINCH", p.handling_rope_d, 600.0 * sc, 1600.0 * sc, layers=4, wound=0.45,
-                     fairlead=True, groove="lebus", drive_side=-1 if y < 0 else 1)
+                     fairlead=True, groove="lebus", drive_side=-1 if y < 0 else 1, level_wind=True)
         if k == 0:
             S.files["handling_winch"] = hw
         z0 = max(p.deck_z, p.line_z - hw.info["rope_top"][2])
@@ -241,7 +241,7 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
                                                   2 * half_y, z0 - p.deck_z), m.YELLOW), T(0, 0, 0))
         c = root.add(hw, T(x, y, z0) @ Rot((0, 0, 1), 180.0), f"HANDLING WINCH {k + 1}")
         S.handles[f"handling_winch_{k + 1}"] = [c]
-        S.sheaves.append({"name": f"Fairlead sheave (handling winch {k + 1})", "path": [c, fl["child"]],
+        S.sheaves.append({"name": f"Fairlead sheave (handling winch {k + 1})", "path": [c] + fl["path"],
                           "pitch_r": fl["pitch_r"], "groove_r": fl["groove_r"], "carries": "wire rope"})
         S.info.setdefault("handling_winches", []).append({"drum_middle": [x, y, z0 + hw.info["drum_centre"][2]],
                                                          "box": [x_aft, x + hw.info["flange_r"] + 300.0, y - half_y,
@@ -646,11 +646,13 @@ def _cps_store(p, S: Scene, root: Asm) -> None:
     ramp_len = route.segments[0].length
     ramp, _ = dk.trough_along(route, 0.0, ramp_len, R0, twist_deg=30.0)
     root.add(Part("CPS RAMP", ramp, dk.ORANGE), T(0, 0, 0), "CPS RAMP")
-    # the slide: the arcs, ending where it is clear of side B's cradles
+    # the slide: the arcs, ending where it is clear of side B's cradles – and of the D-quadrant's room (task 0081: a big
+    # cable's CPS trough is wide; at Ø 500 its end reached into the room the D sweeps on its way aft)
     s_end = route.length
+    clear = max(900.0, d_lane(p)["half_width"] - abs(pos["side_b_y"]) + R0 + 120.0 + 100.0)
     for s in np.arange(ramp_len, route.length, 100.0):
         _i, q, _t = _where(route, s)
-        if abs(q[1] - pos["side_b_y"]) < 900.0:
+        if abs(q[1] - pos["side_b_y"]) < clear:
             s_end = s
             break
     slide, pts = dk.trough_along(route, ramp_len, s_end, R0, step=300.0)
@@ -817,6 +819,25 @@ def route_sheet(S: Scene) -> dict:
                 out[k] = round(float(v), 6)
         wires[key] = out
     cps = S.info["cps"]
+    winches = []
+    for k in (1, 2):
+        path = S.handles.get(f"handling_winch_{k}")
+        if not path:
+            continue
+        Ww, hw = W(path), path[-1].node
+        fl = hw.info["fairlead"]
+        winches.append({
+            "name": f"HANDLING WINCH {k}", "uid": uid(path), "drum_centre": _r(_pt(Ww, hw.info["drum_centre"])),
+            "drum_axis": _r(Ww[:3, :3] @ np.array([0.0, 1.0, 0.0]), 6), "rope_d": hw.info["rope_d"],
+            "first_layer_rc": hw.info["first_layer_rc"], "flange_faces": [-hw.info["flange_inner"], hw.info["flange_inner"]],
+            "flange_r": round(hw.info["flange_r"], 3), "pitch": hw.info["pitch"], "groove": hw.info["groove"],
+            "fairlead_groove_top": _r(_pt(Ww, fl["groove_top"])),
+            "level_wind": ({"joint": f"HANDLING WINCH {k}: Level wind", "travel": [-fl["travel"], fl["travel"]]}
+                           if fl["level_wind"] else None),
+            "note": "task 0081: flange_faces are the flanges' inner faces along drum_axis from drum_centre; the rope "
+                    "leaves the drum's top towards the fairlead sheave, whose groove it meets at fairlead_groove_top "
+                    "(level wind at 0: over the drum's middle). Fleet angle = atan(|offset along the axis| / run), run "
+                    "= the rope's length seen along the axis from the top layer to that point."})
     return {
         "about": "Invented cable-lay spread (tasks 0076, 0084, the owner's deck layout): the cable's centreline as "
                  "straights and arcs, what each part of it lies on, sheaves, tensioner tracks, ropes, the quadrant, "
@@ -842,6 +863,7 @@ def route_sheet(S: Scene) -> dict:
                             "highway heading forward, where it meets the main route"},
         "ropes": ropes,
         "sheaves": sheaves,
+        "handling_winches": winches,
         "tensioners": tens,
         "carousel": {"uid": uid(S.handles["carousel"]), "centre": [xc, 0.0, 0.0], "axis": [0.0, 0.0, -1.0],
                      "turn_note": "turns clockwise seen from above (about -z) while paying out",

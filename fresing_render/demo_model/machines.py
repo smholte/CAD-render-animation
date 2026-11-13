@@ -461,14 +461,35 @@ LINK = {"half_h": 60.0, "pin_r": 35.0}
 RUBBER = (0.07, 0.07, 0.075)          # dark matte rubber (pads, tyres)
 
 
+PAD_EDGE_UNDER = 45.0                # task 0081: the pads' V edges at least this far under the cable's centre ...
+PAD_V_WIDE = 1.2                     # ... but the V at least this many cable radii wide on each side
+
+
 def pad_base() -> float:
-    """Height of a pad's V bottom above its underside (the chain link's top)."""
+    """Height of a pad's V bottom above its underside (the chain link's top): the same for every cable."""
     return PAD["t"] - PAD["v_depth"]
+
+
+def pad_v_depth(p) -> float:
+    """The pads' V depth for this cable (task 0081). 40 mm from Ø ~170 up, shallower for a smaller cable – a
+    tensioner's pads are made for the cable they grip: the V's edges stay ``PAD_EDGE_UNDER`` under the cable's centre,
+    so the D-quadrant's gutter rollers, which pass 30 mm over the bottom track's pads, reach down past the cable's
+    middle (Ø 80 and up) or to just above it (smaller). The V stays at least ``PAD_V_WIDE`` cable radii wide on each side (it still cradles the
+    cable). The pad is that much thinner on top: its V bottom keeps its height (``pad_base``)."""
+    wide = PAD_V_WIDE * p.cable_r / math.tan(p.pad_v_half_angle)
+    return min(PAD["v_depth"], max(wide, p.squeeze_h() - PAD_EDGE_UNDER))
+
+
+def pad_top(p) -> float:
+    """The bottom pads' highest edge (their V's edges and flat top), from the cable's centre (mm)."""
+    return pad_v_depth(p) - p.squeeze_h()
 
 
 def _pad_shapes(p):
     """A pad: the rubber block with its V (150–160°), on a steel back plate. Local: underside at z = 0."""
-    L, W, t, vd, pl = PAD["len"], PAD["width"], PAD["t"], PAD["v_depth"], PAD["plate"]
+    L, W, pl = PAD["len"], PAD["width"], PAD["plate"]
+    vd = pad_v_depth(p)
+    t = pad_base() + vd
     half_top = vd * math.tan(p.pad_v_half_angle)
     if half_top > W / 2 - 5:
         raise ValueError("the pads' V is wider than the pad")
@@ -597,7 +618,7 @@ def tensioner(p, kit: Kit) -> Asm:
     car_h = 220.0
     lo = -(h - p.squeeze_h(50.0))                         # squeeze a Ø 50 cable
     hi = p.squeeze_h(500.0) - h + 150.0 + 600.0           # past a Ø 500 cable, and 600 mm more to let it out
-    yh, zh = HINGE_Y, (h - PAD["v_depth"]) - HINGE_BELOW  # the hinge, closed
+    yh, zh = HINGE_Y, (h - pad_v_depth(p)) - HINGE_BELOW  # the hinge, closed
     xc = xe + 150.0                                       # the guide columns' x
     z_beam0, z_beam1 = zh - 260.0, zh - 60.0              # the lift frame's beam: under the hinge's level
     z_col = z_beam1 + hi + 300.0
@@ -762,10 +783,12 @@ def tensioner(p, kit: Kit) -> Asm:
 
 
 def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layers: int, wound: float,
-          fairlead: bool, groove: str = "spiral", drive_side: int = 1) -> Asm:
+          fairlead: bool, groove: str = "spiral", drive_side: int = 1, level_wind: bool = False) -> Asm:
     """Winch: grooved drum (axis local y, centre at x = 0, z = zc) on a base frame, gearbox + hydraulic motor on
     the +y end (``drive_side`` -1: on the -y end), spooled wire as a simplified solid. ``fairlead``: a sheave at +x the rope runs over, then down to a
-    shackle. ``rc``: rope centre radius on the first layer. Returns the asm with info["rope_top"]."""
+    shackle. ``level_wind`` (task 0081): the sheave and the shackle ride on a level wind carriage that slides across
+    the drum (joint "Level wind"), so the fleet angle stays ~0° at every wrap. ``rc``: rope centre radius on the first
+    layer. Returns the asm with info["rope_top"]."""
     rr = rope_d / 2
     pitch = round(rope_d * 1.06, 2)
     flange_r = rc + rr + (layers + 1.5) * rope_d * 0.9
@@ -825,24 +848,68 @@ def winch(p, kit: Kit, name: str, rope_d: float, rc: float, length: float, layer
         zt = zc + rope_rc                                   # rope leaves the drum level at the top
         ctr = np.array([xf, 0.0, zt - rp])
         sh = Part("FAIRLEAD SHEAVE", g.sheave(rp, rr, holes=5), YELLOW)
-        cs = a.add(sh, T(*ctr) @ Rot((1, 0, 0), 90))
-        a.add(Part("FAIRLEAD FRAME", g.fuse(
-            g.box(xf - 250, -260, 0, 500, 80, ctr[2] + 120), g.box(xf - 250, 180, 0, 500, 80, ctr[2] + 120),
-            g.box(xf - 350, -400, 0, 700, 800, 200), g.box(flange_r, -260, 0, xf - flange_r, 520, 200)), YELLOW))
-        a.joint("Fairlead sheave turn", "rotate", [cs], ctr, turn_axis(ctr, ctr + [0, 0, rp], [1, 0, 0]), None,
-                cable_drive(rp, note="turned by the wire rope"))
         drop = 900.0
+        sk = Part("SHACKLE", g.fuse(g.torus_piece((0, 0, -2.2 * rope_d), (0, 1, 0), (1.2 * rope_d, 0, -2.2 * rope_d),
+                                                  2 * math.pi, rr * 0.9),
+                                    g.cyl(rr * 1.2, 1.8 * rope_d, (0, -0.9 * rope_d, -0.9 * rope_d), (0, 1, 0))), STEEL)
+        if level_wind:
+            # task 0081: the fairlead sheave rides on a level wind – a carriage on a rail across the drum (along y), so
+            # the rope leaves the drum square to its axis at every wrap (fleet angle ~0°; the deck leaves no room for a
+            # sheave the ~23 m off that a fixed fairlead would need for 1.5°). The carriage carries the sheave between
+            # its cheeks and the hanging end's shackle; a diamond screw beside the rail drives it.
+            travel = length / 2.0                               # the rope's middle runs +-(length/2 - d/2)
+            Y = travel + 450.0                                  # the rail's half length: the carriage (+-350) + 100
+            zr0, zr1 = 200.0, 320.0                             # the rail's underside and top
+            xs, zs_ = xf - 300.0, 300.0                         # the diamond screw beside the rail (drum side)
+            a.add(Part("FAIRLEAD FRAME", g.fuse(
+                g.box(xf - 350, -Y - 100, 0, 700, 2 * Y + 200, 200), g.box(flange_r, -260, 0, xf - 350 - flange_r + 1,
+                                                                            520, 200),
+                g.box(xs - 70, -Y - 60, 199, 140, 120, zs_ + 60 - 199),            # the screw's bearing blocks
+                g.box(xs - 70, Y - 60, 199, 140, 120, zs_ + 60 - 199)), YELLOW))
+            a.add(Part("LEVEL WIND RAIL", g.box(xf - 120, -Y, zr0 - 1, 240, 2 * Y, zr1 - zr0 + 1), STEEL))
+            a.add(Part("LEVEL WIND SCREW", g.cyl(40.0, 2 * Y - 120.0, (xs, -Y + 60.0, zs_), (0, 1, 0)), CHROME))
+            lw = Asm("LEVEL WIND")
+            body = g.fuse(
+                g.box(xf - 250, -350, zr1 + 1, 500, 700, 120),                      # on the rail, 1 mm over it
+                g.box(xf - 250, -350, zr0 + 30, 120, 700, zr1 + 2 - zr0 - 30),      # skirts beside the rail
+                g.box(xf + 130, -350, zr0 + 30, 120, 700, zr1 + 2 - zr0 - 30),
+                g.box(xf - 250, -260, zr1 + 120, 500, 80, ctr[2] + 120 - zr1 - 120),        # the sheave's cheeks
+                g.box(xf - 250, 180, zr1 + 120, 500, 80, ctr[2] + 120 - zr1 - 120),
+                g.box(xs - 1, -120, zs_ + 60, xf - 249 - xs + 1, 240, zr1 + 120 - zs_ - 60))    # arm over the screw
+            #                                                                                     to the nut
+            lw.add(Part("LEVEL WIND CARRIAGE", body, YELLOW))
+            lw.add(Part("LEVEL WIND NUT", g.tube(85.0, 52.0, 240.0, (xs, -120.0, zs_), (0, 1, 0)), STEEL))
+            cs = lw.add(sh, T(*ctr) @ Rot((1, 0, 0), 90))
+            lw.add(sk, T(xf + rp, 0, ctr[2] - drop))
+            cl = a.add(lw)
+            lw_pt = np.array([xf, 0.0, zr1])
+            a.joint("Level wind", "slide", [cl], lw_pt, (0, 1, 0), [-round(travel, 3), round(travel, 3)],
+                    {"by": "winch", "note": "the level wind carriage with the fairlead sheave, across the drum (mm, along "
+                                            "the drum's axis); 0 = over where the rope leaves the drum as drawn. It "
+                                            "follows the wrap being paid out (task 0081: in the app, 4 Motion > Drums "
+                                            "and carousels > This joint follows the layer, ACROSS)"})
+            a.joint("Fairlead sheave turn", "rotate", [[cl, cs]], ctr, turn_axis(ctr, ctr + [0, 0, rp], [1, 0, 0]),
+                    None, cable_drive(rp, note="turned by the wire rope"), rides_on="Level wind")
+            path = [cl, cs]
+        else:
+            cs = a.add(sh, T(*ctr) @ Rot((1, 0, 0), 90))
+            a.add(Part("FAIRLEAD FRAME", g.fuse(
+                g.box(xf - 250, -260, 0, 500, 80, ctr[2] + 120), g.box(xf - 250, 180, 0, 500, 80, ctr[2] + 120),
+                g.box(xf - 350, -400, 0, 700, 800, 200), g.box(flange_r, -260, 0, xf - flange_r, 520, 200)), YELLOW))
+            a.joint("Fairlead sheave turn", "rotate", [cs], ctr, turn_axis(ctr, ctr + [0, 0, rp], [1, 0, 0]), None,
+                    cable_drive(rp, note="turned by the wire rope"))
+            a.add(sk, T(xf + rp, 0, ctr[2] - drop))
+            path = [cs]
         from .route import Route, Line
         rope = Route("fairlead rope", rope_d)
         rope.add(Line((0, 0, zt), (xf, 0, zt)))
         rope.arc((0, 0, -1), rp, 90.0)
         rope.line_to((xf + rp, 0, ctr[2] - drop))
         a.add(Part("WIRE ROPE", g.route_solid(rope, rr), ROPE_GREY))
-        sk = Part("SHACKLE", g.fuse(g.torus_piece((0, 0, -2.2 * rope_d), (0, 1, 0), (1.2 * rope_d, 0, -2.2 * rope_d),
-                                                  2 * math.pi, rr * 0.9),
-                                    g.cyl(rr * 1.2, 1.8 * rope_d, (0, -0.9 * rope_d, -0.9 * rope_d), (0, 1, 0))), STEEL)
-        a.add(sk, T(xf + rp, 0, ctr[2] - drop))
-        a.info["fairlead"] = {"centre": ctr.tolist(), "pitch_r": rp, "groove_r": rr, "child": cs}
+        a.info["fairlead"] = {"centre": ctr.tolist(), "pitch_r": rp, "groove_r": rr, "child": cs, "path": path,
+                              "groove_top": [float(xf), 0.0, float(zt)], "level_wind": bool(level_wind),
+                              "travel": float(length / 2.0) if level_wind else 0.0}
+    a.info.update({"length": float(length), "flange_inner": float(length / 2.0), "pitch": pitch})
     return a
 
 

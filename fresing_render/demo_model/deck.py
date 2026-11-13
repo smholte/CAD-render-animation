@@ -389,12 +389,16 @@ def d_shape(p) -> dict:
     The D is exactly as wide as the cable's path, so its sides pass through the tensioners' lines (over their bottom
     tracks, the horns' upper ends and the lane cradles): nothing of it farther out than ``inner`` from the middle is lower
     than ``band_z`` – 30 mm under the cable's centre, at least 30 mm over the bottom track's pads. Its frame lower down
-    (bar, spokes, ring, bogies) stays within |y| <= ``inner``."""
-    from .machines import PAD
+    (bar, spokes, ring, bogies) stays within |y| <= ``inner``. Task 0081: the pads' V follows the cable Ø
+    (``machines.pad_v_depth``), so ``band_z`` – where the gutter rollers end – lies under the cable's centre from Ø 80
+    up and just above it for smaller cables (the rollers touch, or clear the cable by ~2 mm); the outer lip ends at the
+    cable's centre or at ``band_z`` if that is higher (``lip_z``)."""
+    from .machines import pad_top as pad_top_of
     Rq, cr = p.quadrant_r, p.cable_r
     zc = p.line_z - p.rail_z
     rr = 90.0
-    pad_top = PAD["v_depth"] - p.squeeze_h()             # the bottom pads' highest edge, from the cable's centre
+    pad_top = pad_top_of(p)                              # the bottom pads' highest edge, from the cable's centre (their
+    #                                                      V follows the cable Ø, task 0081: the rollers reach the cable)
     z_up = zc + max(-30.0, pad_top + 30.0)
     zt = max(z_up + 300.0, zc + cr + 60.0)               # the guide rollers' top, the gutter's top plate under it
     lip = Rq + cr + 120.0
@@ -404,8 +408,8 @@ def d_shape(p) -> dict:
     #                                                      cable (a part's edge close to it reads as a seat, task 0078)
     eye_y = Rq + 150.0                                   # the tipping eyes: on brackets over the cable's line,
     eye_z = zt + 580.0                                   # high enough that their wires clear the gutter when vertical
-    return {"zc": zc, "rr": rr, "band_z": z_up, "zt": zt, "lip": lip, "web_in": web_in, "inner": inner,
-            "half_width": lip + 40.0, "floor": zc - cr - 10.0, "bar_end": bar_end, "eye_y": eye_y, "eye_z": eye_z,
+    return {"zc": zc, "rr": rr, "band_z": z_up, "zt": zt, "lip": lip, "lip_z": max(zc, z_up), "web_in": web_in,
+            "inner": inner, "half_width": lip + 40.0, "floor": zc - cr - 10.0, "bar_end": bar_end, "eye_y": eye_y, "eye_z": eye_z,
             "top_z": max(zt + 30.0, eye_z + 190.0), "edge_top_z": zt + 30.0, "floor_deg": math.degrees(math.asin(min(1.0, inner / (lip + 40.0)))),
             "ring_deg": math.degrees(math.asin(min(1.0, inner / (web_in + 120.0))))}
 
@@ -444,9 +448,10 @@ def quadrant_d(p, kit: Kit) -> Asm:
         A.joint(f"Quadrant gutter roller {k + 1} turn", "rotate", [c], ctr + [0, 0, zc - z_up],
                 turn_axis(ctr + [0, 0, zc - z_up], contact, vel), None, cable_drive(rr))
     floor = ds["floor"]
-    upper = [(web_in, z_up), (web_in + 40.0, z_up), (web_in + 40.0, zt), (lip, zt), (lip, zc), (lip + 40.0, zc),
-             (lip + 40.0, zt + 30.0), (web_in, zt + 30.0)]
-    lower = [(web_in, floor - 40.0), (lip + 40.0, floor - 40.0), (lip + 40.0, zc), (lip, zc), (lip, floor),
+    lz = ds["lip_z"]                                     # the outer lip down to the cable's centre (or the rollers'
+    upper = [(web_in, z_up), (web_in + 40.0, z_up), (web_in + 40.0, zt), (lip, zt), (lip, lz), (lip + 40.0, lz),
+             (lip + 40.0, zt + 30.0), (web_in, zt + 30.0)]                     # reach over the pads, if higher)
+    lower = [(web_in, floor - 40.0), (lip + 40.0, floor - 40.0), (lip + 40.0, lz), (lip, lz), (lip, floor),
              (web_in + 40.0, floor), (web_in + 40.0, z_up + 1.0), (web_in, z_up + 1.0)]
     fd = ds["floor_deg"]
     A.add(Part("QUADRANT GUTTER", g.fuse(sector(upper, -90.0, 90.0), sector(lower, -fd, fd)), YELLOW))
