@@ -407,6 +407,10 @@ fresing_render/            the Blender extension (Python package)
                            (``_WorldAt`` sets the earlier steps' joints and moves for a moment), keys as Go to pose writes
                            them, hide/fade, a trail line per part (``FRTrail.seq_owner``), rays for a blocked way
                            (``Rays``), the Preview slider; settings ``FRAnimBlock.seq_*``, the box in ui_motion.py
+    marine_looks.py        the marine looks (task 0116): ``paint_marine_growth`` (growth below the waterline, splash zone
+                           with rust streaks above it) and ``paint_marine_streaks``; the waterline is the scene property
+                           ``fr_waterline_z`` (world z, m; ``sync`` copies the surroundings' sea into it; none = 0), read
+                           by an Attribute node: no driver; ``growth``/``splash`` = the band in plain Python for the tests
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -459,7 +463,10 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
                            fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
                            make_site_projects.py + site_projects/ (task 0112): the site's moving models from their own
-                           sources (cloned at pinned commits): thor.py reads Thor's FreeCAD Assembly4 files (a4.py) – the
+                           sources (cloned at pinned commits; the IEA 15 MW turbine of task 0116 from the owner's STEP on
+                           the draft release site-kit: iea15_source.py reads + measures it in the turbine frame, iea15.py
+                           converts it – tower | monopile, mirrored blades, joints from round faces, loop, decals,
+                           cameras –, turbine_parts.py makes the invented parts, occ.py OCP helpers): thor.py reads Thor's FreeCAD Assembly4 files (a4.py) – the
                            joints from the attachment frames, checked by round faces on both sides of each hinge, the
                            gears coupled by their tooth counts; ceb.py splits the brick press's fused cylinders into
                            barrel and rod and fixes the source's faults; stepout.py writes the STEP with the moving bodies
@@ -1001,5 +1008,12 @@ the release → Delete); the next run on `main` publishes it again.
   Set the look first, then save the shot (the render kit saves it again after setting the weather, task 0112).
 - The product video re-times an Assembly sequence step from its parts (``sequence.prepare``): to shorten one, scale
   ``seq_part_time`` too, not only start and duration.
+- Blender's matrices are float32: 136 m up (a wind turbine's rotor, task 0116) two parts of one rigid body differed by
+  3e-5 m, more than the clash check's 2e-5 m rigid tolerance, and the shaft and generator of one body were checked
+  against each other (1.5 mm "clashes" where their faceted round faces touch). `core/clash.rigid_groups(reach=)` allows
+  4 float32 steps of the parts' distance from the origin.
+- The IEA 15 MW turbine's CAD blades are drawn for a rotor that turns anticlockwise seen from the front (the leading
+  edge, found as the thick end of the chord, points that way); real turbines turn clockwise: `iea15.py` mirrors them.
+  Three blades share one shape: name each occurrence (`stepout` sixth item) or the importer calls all three "BLADE 1".
 - A queued render in a test costs the app's work per frame (milling, chips, air: 12–17 s per frame for a 270 px draft
   whose picture alone takes 4 s), and the same test takes 290–630 s on different runs: a smaller picture saves little.
