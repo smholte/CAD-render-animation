@@ -164,7 +164,9 @@ def core_spool(scene, sp, hand: int | None = None) -> S.Spool:
     start = -1 if sp.other_side else 1
     h = int(sp.hand if hand is None else hand) or 1
     if sp.kind == "CAROUSEL":
-        return S.Spool(kind="CAROUSEL", d=d, r_in=float(sp.r_in), r_out=float(sp.r_out), a_bot=float(sp.a_bot),
+        # (the core's r_in / r_out are the coil's inner and outer edge: its spiral runs between the rope middles)
+        return S.Spool(kind="CAROUSEL", d=d, r_in=float(sp.r_in) - 0.5 * d, r_out=float(sp.r_out) + 0.5 * d,
+                       a_bot=float(sp.a_bot),
                        a_top=float(sp.a_top), start=start, hand=h)
     return S.Spool(kind="DRUM", d=d, r1=float(sp.r1), a_lo=float(sp.a_lo), a_hi=float(sp.a_hi),
                    pitch=pitch_of(scene, sp), start=start, hand=h, r_max=float(sp.r_max), groove=sp.groove,
@@ -215,12 +217,26 @@ def _rz(angle: float) -> np.ndarray:
     return m
 
 
+def _flip(sp) -> np.ndarray:
+    """The spool frame in its joint's arrow coordinates: the same, or turned over (z the other way) when the
+    arrow points away from the side the layers grow to (a carousel whose joint axis points down)."""
+    m = np.eye(4)
+    if int(sp.zsign) < 0:
+        m[1, 1] = m[2, 2] = -1.0
+    return m
+
+
+def frame_cad(scene, sp, memo: dict) -> np.ndarray:
+    """The spool frame (z = its axis, the layers grow along +z on a carousel), world, CAD pose."""
+    return _np_cad(_joint(scene, sp).frame, memo) @ _flip(sp)
+
+
 def rope_point(scene, sp, L) -> np.ndarray:
     """The drawn rope's point at L (the polyline's, as the Trim Curve cuts it), spool frame with its phase, (..., 3)."""
     pts, Ls = polyline_of(scene, sp)
     L = np.clip(np.asarray(L, dtype=float), Ls[0], Ls[-1])
     out = np.stack([np.interp(L, Ls, pts[:, k]) for k in range(3)], axis=-1)
-    return out @ _rz(float(sp.phase))[:3, :3].T
+    return out @ (_flip(sp) @ _rz(float(sp.phase)))[:3, :3].T
 
 
 def _pay_map(scene, sp):
@@ -360,8 +376,8 @@ def _on_spool(scene, item, j, turning: set) -> list[int]:
 
 
 def _leave_cad(scene, item, on: list[int], memo: dict):
-    """Where and which way the CAD cable leaves the spool (world, CAD pose), and the point it runs to next (the far
-    end of the first contact after the spool, else its end) with the object that carries that point."""
+    """Where and which way the CAD cable leaves the spool (world, CAD pose), and the point it runs to next (where it
+    comes onto the first contact after the spool, else its end) with the object that carries that point."""
     from . import paths
     line, _s, res = paths._cad_path(scene, item, memo)
     if not len(line):
@@ -378,13 +394,13 @@ def _leave_cad(scene, item, on: list[int], memo: dict):
     t = line[i0 + 1] - line[i0]
     t = t / max(float(np.linalg.norm(t)), 1e-12)
     after = last + 1
-    if 0 <= after < len(wheels):
-        k = int(res["first"][after]) + int(res["counts"][after]) - 1
+    if 0 <= after < len(wheels):                # where the cable comes onto it: what an arm holds over the turn
+        k = int(res["first"][after])
         q, q_on = line[min(k, len(line) - 1)], wheels[after].carrier
     else:
         q, q_on = line[-1], item.b_part
-    if float(np.linalg.norm(q - leave)) < 1e-6:            # (an end right at the spool: a point further on)
-        q = leave + t
+    if float(np.linalg.norm(q - leave)) < 1e-6:            # (no free span: a hair further on, so it has a way)
+        q = leave + 1e-4 * t
     return leave, t, q, q_on
 
 
@@ -392,6 +408,20 @@ def _read(scene, sp, item, j, memo: dict, hit=None) -> dict:
     """The spool's numbers from the meshes and the CAD cable (arrow coordinates). Returns a dict for the item."""
     from ..core import paths as P
     A = _np_cad(j.frame, memo)
+    zsign = 1
+    if sp.kind == "CAROUSEL":                   # the layers grow away from the turntable: z that way
+        inv0 = np.linalg.inv(A)
+        coil0 = sp.coil if _alive(scene, sp.coil) else next(
+            (item.contacts[i].part for i in _on_spool(scene, item, j, {o.name for o in _turning_parts(scene, j)})
+             if item.contacts[i].part is not None and item.contacts[i].part != sp.part), None)
+        v_t, _t = _mesh_in(sp.part, inv0, memo)
+        if coil0 is not None and len(v_t):
+            v_c, _t = _mesh_in(coil0, inv0, memo)
+            if len(v_c) and float(v_c[:, 2].mean()) < float(v_t[:, 2].mean()):
+                zsign = -1
+    with flex._quiet(sp):
+        sp.zsign = zsign
+    A = A @ _flip(sp)
     inv = np.linalg.inv(A)
     turning = _turning_parts(scene, j)
     names = {o.name for o in turning}
@@ -451,6 +481,16 @@ def _read(scene, sp, item, j, memo: dict, hit=None) -> dict:
     if seat <= 0.0:
         surf = P.surface_radius(v, tr, np.zeros(3), np.array([0.0, 0.0, 1.0]), a_L, 2.0 * d)
         seat = surf + 0.5 * d if surf > 0.0 else max(rho_L - 0.5 * d, 0.5 * d)
+    # a spiral or Lebus groove: the outline read all round shows its lands; the rope lies in the groove's bottom
+    land = P.surface_radius(v, tr, np.zeros(3), np.array([0.0, 0.0, 1.0]), a_L, 2.0 * d)
+    if land > 0.0:
+        near = np.abs(v[:, 2] - a_L) < 2.0 * d
+        rho = np.hypot(v[near, 0], v[near, 1])
+        outer = rho[rho > land - 0.6 * d]
+        if len(outer):
+            bottom = float(outer.min())
+            if land - bottom > 0.1 * d:
+                seat = bottom + 0.5 * d
     seat = min(seat, rho_L) if rho_L > 0.0 else seat
     lo, hi, flange = -np.inf, np.inf, np.inf
     for o in turning:
@@ -534,7 +574,7 @@ def _rides_on(ob, motion) -> bool:
 
 def _axis_in(scene, sp, j, memo) -> tuple:
     """A joint's axis in the spool's frame: (origin (3,), direction (3,))."""
-    inv = np.linalg.inv(_np_cad(_joint(scene, sp).frame, memo))
+    inv = np.linalg.inv(frame_cad(scene, sp, memo))
     m = inv @ _np_cad(j.frame, memo)
     return m[:3, 3].copy(), m[:3, 2] / max(float(np.linalg.norm(m[:3, 2])), 1e-12)
 
@@ -595,7 +635,7 @@ def tables(scene, sp) -> dict:
     k0 = int(np.argmin(np.abs(p)))
     psi = np.unwrap(psi)
     theta = np.asarray(S.angle_table(path, W0, psi, p), dtype=float)
-    out[j.name] = (p, theta)
+    out[j.name] = (p, theta * float(sp.zsign))         # (the joint turns about its arrow's z)
     out["psi"] = (p, psi)
     for f in sp.followers:
         fj = _follower_joint(scene, f)
@@ -800,7 +840,8 @@ def _driver(ob, path: str, source, expr: str, index: int = -1):
 
 def _step_driver(ob, path: str, source, xs, ys, index: int = -1) -> None:
     """A driver whose value steps: ys[i] from xs[i] on (CONSTANT keys), read from ``source``'s value + 2.0."""
-    fc = _driver(ob, path, source, joints.expression(1.0, joints.BIAS), index)
+    xs, ys, k = joints.table_keys(xs, ys)
+    fc = _driver(ob, path, source, joints.expression(k, joints.BIAS), index)
     kp = fc.keyframe_points
     kp.clear()
     n = len(xs)
@@ -834,7 +875,7 @@ def _steps(scene, sp, path, W0: float, value) -> tuple:
 def _owner_matrix(scene, sp, memo: dict) -> np.ndarray:
     """Spool frame (with its phase) -> the coordinates of the clicked part (what the rope object hangs on)."""
     j = _joint(scene, sp)
-    return np.linalg.inv(_np_cad(sp.part, memo)) @ _np_cad(j.frame, memo) @ _rz(float(sp.phase))
+    return np.linalg.inv(_np_cad(sp.part, memo)) @ frame_cad(scene, sp, memo) @ _rz(float(sp.phase))
 
 
 def _solid_mesh(sp, path, scene) -> bpy.types.Mesh:
@@ -1570,3 +1611,66 @@ def summary(scene, sp) -> str:
     """One line for a report: kind, layers, length."""
     return (f"{label(sp)}: {sp.kind.lower()}, {plural(int(sp.layers), 'layer')}, {_metres(sp.on_spool)} m on it, "
             f"holds {_metres(sp.capacity)} m")
+
+
+# ---------------------------------------------------------------------------
+# the test model (tests, the test tour, the PC check)
+# ---------------------------------------------------------------------------
+
+TEST_ANIMATION = "Spooling"
+
+
+def set_up_test_model(scene) -> dict:
+    """The set-up of the spooling test model (test_spool.step, tools/make_test_spool.py), already imported: the
+    joints "Drum turn" (about the drum's axis), "Level wind" (along it), "Carousel turn" and "Arm slew"; the cables
+    "Wire" (steel wire rope) and "Power cable" read from the CAD; the drum "Drum" with its level wind following the
+    layer, the carousel "Carousel" with its arm following; the animation "Spooling" (8 s: 6 m of wire, 6 m of cable).
+    Not built. Returns the names of what was made."""
+    from mathutils import Vector
+
+    from . import paths
+
+    def named(name):
+        for ob in scene.objects:
+            if ob.get(build.PROP_NAME) == name:
+                return ob
+        raise SpoolError(f"The model has no part '{name}'.")
+
+    root = build.model_root_of(named("DRUM.ASM")) or named("DRUM.ASM")
+    m = root.matrix_world
+    mm = 0.001
+
+    def at(x, y, z):
+        return m @ Vector((x * mm, y * mm, z * mm))
+
+    def way(x, y, z):
+        return (m.to_3x3() @ Vector((x, y, z))).normalized()
+
+    with joints._batch(scene):
+        joints.create(scene, "ROTATE", [named("DRUM.ASM")], at(0, 0, 450), way(0, 1, 0), name="Drum turn")
+        joints.create(scene, "SLIDE", [named("LEVEL WIND.ASM")], at(800, 0, 300), way(0, 1, 0), name="Level wind")
+        joints.create(scene, "ROTATE", [named("CAROUSEL.ASM")], at(3000, 0, 0), way(0, 0, 1), name="Carousel turn")
+        joints.create(scene, "ROTATE", [named("ARM.ASM")], at(4300, 0, 0), way(0, 0, 1), name="Arm slew")
+    bpy.context.view_layer.update()
+    out = {"joints": ["Drum turn", "Level wind", "Carousel turn", "Arm slew"], "notes": []}
+    for cname, part, look in (("Wire", "WIRE ROPE", "ROPE"), ("Power cable", "POWER CABLE", "POWER")):
+        item = paths.add_cable(scene, cname)
+        with paths._quiet(item):
+            item.look = look
+        item["look_was"] = look
+        out["notes"] += paths.read_cad(scene, item, named(part))
+        out["joints"].append(paths.find(scene, cname).joint)
+    drum = add(scene, "DRUM", named("WINCH DRUM"), "Wire", name="Drum", coil=named("WIRE ON DRUM"))
+    add_follower(scene, find(scene, drum.name), "Level wind")
+    car = add(scene, "CAROUSEL", named("TURNTABLE"), "Power cable", name="Carousel", coil=named("CABLE COIL"))
+    add_follower(scene, find(scene, car.name), "Arm slew")
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
+    for cname in ("Wire", "Power cable"):
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", paths.find(scene, cname).joint, 0.0, 8.0, "LINEAR"
+        b.use_from = True
+        b.to_dist = 6.0
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    out.update(spools=["Drum", "Carousel"], cables=["Wire", "Power cable"], animation=TEST_ANIMATION)
+    return out

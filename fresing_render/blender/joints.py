@@ -622,18 +622,40 @@ def set_table(scene, j, name: str, xs, ys, owner: str) -> None:
         _update(scene)
 
 
+KEY_GAP = 0.02                                      # Blender merges F-curve keys closer than 0.01 (CLAUDE.md 8)
+
+
+def table_keys(xs, ys):
+    """(keys x, keys y, k): the table as a driver curve's keys at k x the leader's value. Keys closer than
+    ``KEY_GAP`` would be merged by Blender: the leader's value is read x 1000 (a slide's metres as mm, an angle as
+    mrad) when that keeps them apart, and keys still closer than that are left out (their neighbours stay)."""
+    xs, ys = np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
+    gaps = np.diff(xs)
+    k = 1000.0 if len(gaps) and float(gaps.min()) < KEY_GAP else 1.0
+    x = xs * k
+    keep = [0]
+    for i in range(1, len(x) - 1):
+        if x[i] - x[keep[-1]] >= KEY_GAP and x[-1] - x[i] >= KEY_GAP:
+            keep.append(i)
+    if len(x) > 1:
+        keep.append(len(x) - 1)
+    keep = np.asarray(keep)
+    return x[keep], ys[keep], k
+
+
 def _table_driver(fc, source, m: Map, bias: float) -> None:
     """A driver that reads ``source``'s value and maps it through the table: expression ``a + 2.0`` (never a small
     number), the keys moved by the same 2.0 along x and by ``bias`` along y, linear between and beyond them; an
     additive generator takes ``bias`` off again."""
-    _scripted(fc, source, expression(1.0, BIAS))
+    xs, ys, k = table_keys(m.xs, m.ys)
+    _scripted(fc, source, expression(k, BIAS))
     kp = fc.keyframe_points
     kp.clear()                                      # (a new driver curve may come with keys of its own)
-    n = len(m.xs)
+    n = len(xs)
     kp.add(n)
     co = np.empty(2 * n, dtype=np.float32)
-    co[0::2] = m.xs + BIAS
-    co[1::2] = m.ys + bias
+    co[0::2] = xs + BIAS
+    co[1::2] = ys + bias
     kp.foreach_set("co", co)
     lin = bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value
     kp.foreach_set("interpolation", np.full(n, lin, dtype=np.int32))

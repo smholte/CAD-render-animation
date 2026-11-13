@@ -2324,6 +2324,7 @@ class FRSpool(bpy.types.PropertyGroup):
         description="Drum: off = the first layer starts at the flange the arrow points away from, on = at the other "
                     "flange. Carousel: off = the first layer starts at the core, on = at the rim")
     hand: IntProperty(default=1)                           # +1: the wraps turn about +axis from the anchor outwards
+    zsign: IntProperty(default=1)                          # -1: the spool frame's z is the joint arrow's -z
     phase: FloatProperty(default=0.0)                      # rad: the wound path's turn so it leaves where CAD drew it
     wound: FloatProperty(
         name="Wound at the start", unit="LENGTH", default=10.0, min=0.0, soft_max=100000.0, precision=1,
