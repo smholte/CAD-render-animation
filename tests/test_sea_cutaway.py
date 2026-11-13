@@ -432,7 +432,8 @@ def test_water_colour_follows_the_light(scene):
     s.weather.enabled = True                              # Weather & time: the day and cloud channels
     _apply(scene)
     mat = _env("sea_cut")[0].data.materials[0]
-    names = {n.attribute_name for n in mat.node_tree.nodes if n.type == "ATTRIBUTE" and n.attribute_type == "VIEW_LAYER"}
+    names = {n.attribute_name for n in mat.node_tree.nodes
+             if n.type == "ATTRIBUTE" and n.attribute_type == "VIEW_LAYER"}
     assert names == {"fr_wx_day", "fr_wx_clouds"}
     assert "fr_light" not in mat.node_tree.nodes
     ad = mat.node_tree.animation_data
@@ -544,3 +545,14 @@ def test_render_clarity_fades_what_is_behind_a_wall(scene, tmp_path):
         assert np.allclose(got[clarity], want, atol=0.01, rtol=0.03), (clarity, got[clarity], want)
     water_colour = np.array(sea.UNDERWATER)
     assert np.abs(got[5.0] - water_colour).sum() < np.abs(got[20.0] - water_colour).sum()
+    # Weather & time at night: the water's colour follows the day channel (dark), the same formula as core.sea
+    s.weather.enabled = True
+    s.weather.preset = "NIGHT_SHIFT"
+    s.sea_clarity = 5.0
+    _apply(scene)
+    light = sea.light_level(scene.get("fr_wx_day", 1.0), scene.get("fr_wx_clouds", 0.0))
+    assert light < 0.05
+    px = _render(scene, tmp_path / "wall_night.exr", size=(48, 32), samples=4)
+    night = px[12:20, 20:28].mean(axis=(0, 1))
+    want = sea.seen_through(np.ones(3), 5.0, 5.0, light)
+    assert np.allclose(night, want, atol=0.003, rtol=0.03), (night, want)
