@@ -624,8 +624,12 @@ def test_recipe_faults_refused():
 
 # FOUND: the photo's `falling` numbers are not checked: "nan" (a text) becomes float NaN and goes on to 0109's weather
 # (rain = NaN). FORMAT 2: no NaN; the schema wants numbers.
+# (worker: the checker calls text in place of a number an ERROR, so refusing the scene is right as well)
 def test_scene_numbers_are_finite():
-    s = hs.read_scene(_variant(lambda d: d["recipe"]["photos"][0].update(falling={"rain": "nan", "wind": "inf"})))
+    try:
+        s = hs.read_scene(_variant(lambda d: d["recipe"]["photos"][0].update(falling={"rain": "nan", "wind": "inf"})))
+    except hs.FormatError:
+        return
     for p in s.recipe.photos:
         assert p["falling"] is None or all(math.isfinite(v) for v in p["falling"].values()), p["falling"]
 

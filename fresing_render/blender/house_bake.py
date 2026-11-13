@@ -310,7 +310,7 @@ class HouseBake:
         layers = house_snow.build_layers(sources, float(season.snow_cover), blockers)
         if not layers:
             return []
-        self.writer.add_snow(season.id, house_snow.layers_glb(layers))
+        self.writer.add_snow(season.id, house_snow.layers_glb(layers), sources=sources)
         out = []
         if not objects:                        # LIVE: the layers go into the package, nothing is baked on them
             return out
