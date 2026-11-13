@@ -128,6 +128,83 @@ catenary. The demo gets a shot of it.
   later Web 3D task), cables swaying in wind.
 - Files of 0107, 0108, 0110 (see Lane).
 
+## Design (worker, 13 Nov 2026 – the subagents' brief)
+
+Units: metres, radians, seconds. World z up; the waterline is the Sea surroundings' water surface (world z of the
+"FR Sea" object), else world z = 0.
+
+**Split (one owner per file).**
+- *Worker:* `core/catenary.py` (+ `tests/test_catenary.py`), `blender/paths_sea.py` (sea end + riders),
+  `blender/ops_paths_sea.py`, the "Into the sea" fold in `ui_paths.py`, the hooks in `paths.py`, `props.py` (the
+  settings below are already there), `reimport.py`, `animation.py`, `blender/demo.py` (stage `sea`, shot 8),
+  tour, PC check, guide, `TASKS.md`, version, CHANGELOG.
+- *Sea subagent (worktree):* the sea part of `blender/surroundings.py` and `core/sea.py` – **additive only**, plus
+  `tests/test_sea_cutaway.py`. Nothing else.
+- *Demo subagent (worktree):* `fresing_render/demo_model/*.py` and `tests/test_demo_cable_lay.py` only (winch 1
+  fleet angle, the D's guide rollers for small cables). What `blender/demo.py` must change it writes in its report.
+- *Independent tester (later):* tries to break `core/catenary.py` and the sea end from this brief, own test file.
+
+**Scene settings (props.py, `scene.fresing`, all `update=_world_changed`):** `sea_depth` (m, 30), `sea_clarity`
+(m, 10, 2–40: the distance at which a thing behind water has faded to 5 %: absorption σ = 3 / clarity),
+`sea_cutaway` (bool), `sea_cut_auto` (bool, True), `sea_cut_length` (60), `sea_cut_width` (24), `sea_cut_start`
+(m backwards from the stern, 0), `sea_cut_side` (m sideways, 0).
+
+**The Sea subagent builds (only with Background = Sea; the quay is not touched):**
+1. *Seabed* (always with the Sea – it is hidden under the opaque water unless the cut-away is on, so a sea without
+   the cut-away renders exactly as 0.2.88): role `seabed` (+ `stones` in Detailed), world z = waterline −
+   `sea_depth`, ±1 km round the model, sand/silt material (colour noise, ripple bump; Detailed: a few cm of real
+   ripples + a few hundred low stones within ~250 m of the cut box). It **follows the empty "FR seabed motion"** when
+   that exists: a Copy Location constraint named `"FR seabed motion"`, `use_offset` True, `use_z` False – helper
+   `surroundings.follow_seabed_motion(ob)` (paths_sea calls it too; it makes the empty and drives it).
+2. *Cut-away* (only `sea_cutaway`): a box from the stern backwards. Placement: `paths_sea.cut_box(scene)` (call it in
+   a try; it returns None or `{"origin": (x, y), "dir": (ux, uy), "length": m, "width": m}` in world – origin = the
+   box's front middle, dir = unit "aft"); when it gives None or `sea_cut_auto` is off: aft = −x world, front middle =
+   (model's min x − `sea_cut_start`, model's middle y + `sea_cut_side`), `sea_cut_length` × `sea_cut_width`.
+   Inside the box the **sea surface, white caps, wake and hull foam are cut away** (their materials get a box test in
+   object coordinates read from object attributes, as `fr_wake` is; with the cut-away off the materials are exactly
+   0.2.88's – same names, same nodes). The box is **air** (a cut-away: the camera sees the catenary, the touch-down
+   and the seabed clearly); around it a **water volume** (a closed ring: outer box = cut box grown by 4 × clarity,
+   inner hole = the cut box, from below the seabed to just under the surface): surface Transparent + a thin bright
+   line along the top of the inner walls; volume = absorption + emission of the water colour (homogeneous: Cycles
+   integrates it without steps) so whatever lies behind a wall – hull below the waterline, the seabed, the cable
+   beyond the box – fades to the water's colour with its distance behind the wall (clarity). The water's colour
+   follows the light (night: dark). In Detailed the walls' top follows the waves (same waves modifier). EEVEE:
+   `volume_intersection_method = "ACCURATE"`. Cycles and EEVEE, scripts off (no Python drivers), the render queue,
+   vessel motion and every weather preset.
+3. `core/sea.py`: `absorption(clarity)`, `fade(distance, clarity)` (1 − e^(−σd)), the water colour under water –
+   numbers the tests compare renders with.
+4. **Measure** (Cycles CPU, the web machine, say so): a sea shot with and without the cut-away; ≤ +30 %.
+
+**The sea end (worker; `item.b_kind == "SEA"`, settings `sea_*` on `FRCable`).** Hang-off = the cable's last
+shaping contact (SHEAVE, CHUTE, BEND). The **seabed frame** = the empty "FR seabed motion" (one per scene, in flex's
+hidden collection): world location = advance · u (horizontal, aft) + (0, 0, waterline); advance = metres paid out
+(`sea_speed` LAY: a simple-expression driver on the cable joint) or vessel speed × time (WEATHER: `weather.
+vessel_speed` knots, the number the wake reads – one setting). It is a slot of the cable (`paths._inputs_of`), as the
+payout is (the cable joint's arrow + motion, as spool.py reads it), so the existing live handler and Build bake
+see it move. In the seabed frame: the cable's end lying on the seabed `S = sea_start` (fixed), lay direction
+`u = sea_dir`, the cable's middle on the seabed at z = −depth + radius·0.7 (it sinks a little into the silt).
+Material bookkeeping: a point at s along the path has the mark m = s − paid out (the looks' rule), so the end on
+the seabed is at s = `sea_mark` + paid out, the length from the hang-off point T down to S is
+L = `sea_mark` + paid out − s(T) and the laid part's stripes stand still by themselves.
+- *Anchor* (Add sea end, any change of mode/layback/tension/depth/laid): at the pose shown, TENSION: a = H / (w g),
+  LAYBACK: a from X = a acosh(1 + h/a); S = touch-down + `sea_laid` · u, `sea_mark` = s(T) + s_hang + laid − paid out.
+- *Every moment:* `core.catenary.hang_off` – the cable leaves the hang-off wheel where the catenary's tangent meets
+  the wheel (fixed point on the wrap ψ, between 0 and the wheel's end: a chute/bend's CAD wrap, a sheave half a
+  turn); steeper than the end: it leaves at the end, warning "bends over the end of …"; `core.catenary.hang` – laid
+  x + suspended s = L, one unknown (a) by bisection; too much cable (L > distance + h): vertical + the rest snaking on
+  the seabed, warning; so tight it lifts off S: the two-point catenary of length L, warning; shorter than the
+  straight line: straight, warning. The polyline = the path up to the hang-off wheel's arrival (solver) + that arc
+  to T + the catenary (fixed count per Build, by arc length) + the laid part (2 points, or 64 when some frame
+  snakes), all in the cable part's coordinates; `fr_s` exact.
+
+**Riders** (`item.riders`, `FRCableRider` with `FRCableRiderPart`s): the parts' own axis (a line through their
+middles; one part: its longest extent), each part's place `at` and `length` along it; mark m of its front end
+(END: `sea_mark` or the path's end − `at`; MARK: s(last contact) − `at`); per moment each part's chord on the
+drawn polyline at s = m + paid out + at … + at + length, moved by the shortest turn from its CAD axis to the chord.
+Baked as one hidden mesh of 4×4 matrices (frames × parts, FLOAT4X4 `fr_m`), each part a Geometry Nodes modifier
+"FR ride" that picks its matrix (Scene Time → Sample Index) and moves its own geometry (as tracks.py does): no
+Python per frame. 0082 calls `paths_sea.add_rider(scene, cable, parts, where, at)`.
+
 ---
 
 ## Report (filled in by the chat that did the task)

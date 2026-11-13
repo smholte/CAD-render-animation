@@ -1091,8 +1091,66 @@ in red.
   on its path over 218 rollers and its bends, with the yellow stripes, on the joint "Cable travel"; in the
   roller-highway shot it runs at 10 m/min and every roller turns with it. (A demo made with an older version:
   make it again.)
-- Not in yet: the cable going into the sea. The coil on a carousel or a drum: **Drums and carousels**, below. The
-  tensioner tracks that grip the cable: **Tracks and belts**, after it.
+- The cable going into the sea: **Into the sea**, just below. The coil on a carousel or a drum: **Drums and
+  carousels**, below. The tensioner tracks that grip the cable: **Tracks and belts**, after it.
+
+#### Into the sea
+
+The cable leaves the vessel over its last contact – a horn, a chute or an overboarding sheave – and hangs in a
+curve (a catenary) down to the seabed, where it lies behind the vessel. The app draws that curve with the cable's
+exact length: as the cable pays out, more lies on the seabed; the cable leaves the horn exactly where the curve's
+direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, choose the cable and open the fold
+**Into the sea**.
+
+<img class="panel" src="img/panel_cable_sea.png" alt="The fold Into the sea: touch-down by layback, water depth, cable on the seabed, vessel speed, the numbers of the curve and the things on the cable">
+
+1. In 5 Scene & Render > Surroundings, pick **Open sea** and set the **Water depth** (and the **Water level**, so the
+   vessel floats where it should).
+2. Choose the cable and press **Into the sea**. Its last contact must be the horn, chute or sheave it hangs from
+   (add it under "What it touches" when it is missing). The end of the cable that is under water in the CAD file
+   becomes its end on the seabed.
+3. Set where it touches the seabed: **Layback** (how far behind the horn, measured flat; 26 to 39 m is usual in 20
+   to 50 m of water) or **Bottom tension** (the pull along the seabed in kN) with the **Weight in water** (kg/m; 0
+   = worked out from the diameter, about 51 kg/m for a 200 mm power cable). The box below shows the other numbers:
+   layback, the angle at which it leaves the horn, the tension at the seabed and at the top, how much hangs and how
+   much lies on the seabed.
+4. **On the seabed**: how much cable already lies there behind the touch-down. **Water depth** 0 takes the sea's.
+5. **Vessel speed**: **With the lay** – the vessel moves as fast as the cable pays out, so the touch-down stays the
+   same distance behind it; or **Vessel speed of Weather & time** – the speed the wake shows: the touch-down then
+   comes nearer or moves further back when the speeds differ.
+
+The touch-down is set in the pose shown. **Touch-down here** sets it again (after you paid out cable by hand).
+
+**What moves.** The scene keeps the vessel where it is; the **seabed moves aft** under it, with the cable lying on
+it – its yellow stripes stand still there, while they run down the curve. With **Vessel motion** on, the horn rides
+the vessel and the curve follows it; the touch-down and the cable on the seabed stay on the seabed. Nothing of this
+costs time while the animation plays: Build animation works out every frame once.
+
+**Warnings** (in red, with the first frame it happens):
+- **"bends over the end of 'HORN' – more bottom tension or a longer chute"**: the curve is steeper than the horn's
+  end; the cable leaves at the end with a kink.
+- **"hangs too flat to touch 'HORN'"**: the cable is pulled so hard that it would leave before the horn.
+- **"is so tight that it lifts its end off the seabed"**: drawn as a curve between the horn and its end, with its
+  length; pay out more or set the touch-down again.
+- **"has … m more cable than the water is deep"**: it would pile up on the seabed under the horn (drawn lying in
+  snakes, with its length).
+- **"is … m too short to reach its end on the seabed"**: drawn straight.
+
+**Things on the cable** (a CPS set, a bend restrictor, a pull head). Select their parts or their assembly in the 3D
+view and press **Put selected on the cable**: they ride along with the cable over the rollers, over the horn and
+down the curve, each segment a stiff piece lying on the cable. **Place**: **From the cable's end** (metres from the
+end that lies on the seabed, with nothing paid out) or **At a payout mark** (its front passes the horn when this much
+cable has been paid out). **Turned round** turns it end for end; **−** takes it off the cable again (its parts are
+where the CAD file has them). A model update keeps it.
+
+**Seeing it under water.** The sea's surface hides the cable. Under 5 Scene & Render > Surroundings tick
+**Cut-away behind the stern**: a box of water behind the stern is taken away, placed by the cable (from the stern
+to past the touch-down) or by its size and place when **Place it by the cable** is off. Its walls show the water's
+colour, and **Water clarity** (2 to 40 m) sets how far you see into the water past them – the hull below the
+waterline, the seabed further away, the cable beyond the box.
+
+<img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
+
 
 ### Drums and carousels
 
@@ -1971,7 +2029,9 @@ Their settings appear under the choice:
   as many as measured at sea (hardly any at Beaufort 3, a few per cent at 6, much more in a gale; foam streaks
   along the wind from Beaufort 7). Foam lies round the hull at the waterline and moves with the vessel.
   **Waves**: **Foam** (white caps and hull foam), **Moving** waves in videos (off: the sea stands still).
-  **Water level** (open sea only) raises or lowers the water.
+  **Water level** (open sea only) raises or lowers the water. **Water depth**: down to the seabed (it shows through
+  the cut-away; a cable into the sea lies on it). **Cut-away behind the stern** and **Water clarity**: see
+  [Into the sea](#into-the-sea).
 - **Detail**: **Simple** (fewer things around the machine, renders fastest) or **Detailed** (more
   containers, workbenches, racks; real waves near the machine).
 - A hall never hides the machine: the walls are only seen from inside, so a camera outside the hall
@@ -2914,7 +2974,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 308 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 310 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
   support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
   **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
@@ -2935,7 +2995,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 80 s with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 90 s with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
@@ -2943,11 +3003,12 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   tensioners open, the lanes' cradles drop, the D-quadrant travels aft between the tensioners onto the handler on its
   A&R wire (× 60 time-lapse), the tipping wires are
   connected, and the handler tilts over the stern carrying it: it ends with the D standing vertical, curve up,
-  hanging from the A&R wire over the top pulley. The captions say where it runs faster than real. Click **Build & play**, or put
-  it in the render queue.
+  hanging from the A&R wire over the top pulley. Last, **into the sea**: from above the stern quarter, through
+  the cut-away, the cable hangs from horn A down to the seabed 30 m below (touch-down 32 m behind the horn) and pays
+  out at 10 m/min while the seabed passes aft. The captions say where it runs faster than real. Click **Build &
+  play**, or put it in the render queue.
 
-The moving cable, the tensioner tracks running, the cable spooling, the cable going into the sea and lowering the
-D-quadrant into the sea (the cable stays where it is while the D moves) come in later updates: they are added to this same demo. The labels of the X-ray step also show in
+Lowering the D-quadrant into the sea (the cable stays where it is while the D moves) comes in a later update: it is added to this same demo. The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 

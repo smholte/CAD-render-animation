@@ -69,11 +69,13 @@ OWNER_TYPES = {
     "cut": "FRCut",                                           # 3 Looks > Cutaway (ui_section.py)
     "v": "FRVessel",                                          # 5 Scene & Render > Vessel motion (task 0085)
     "cb": "FRCable", "ct": "FRCableContact",                   # 4 Motion > Cables and paths (task 0078)
+    "rd": "FRCableRider",                                     # … > Into the sea: things on the cable (task 0081)
     "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
     "sp": "FRSpool", "fl": "FRSpoolFollower",                 # 4 Motion > Drums and carousels (task 0080)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
+    "FRESING_UL_cable_riders": "FRCableRider",                # 4 Motion > Cables and paths (task 0081)
     "FRESING_UL_spools": "FRSpool",                           # 4 Motion > Drums and carousels (task 0080)
     "FRESING_UL_groups": "FRMaterialGroup", "FRESING_UL_rules": "FRRule", "FRESING_UL_schemes": "FRScheme",
     "FRESING_UL_visibility": "FRVisSet", "FRESING_UL_found": "FRFoundPart", "FRESING_UL_joints": "FRJoint",

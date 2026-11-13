@@ -46,6 +46,7 @@ FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
 TRACKS = os.path.join(DATA, "test_tracks.step")
+SEA_CABLE = os.path.join(DATA, "test_sea.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
@@ -646,6 +647,51 @@ def motion_spool(ctx):
     path = os.path.join(ctx.work, "spool.png")
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "spool", "The drum with its layers and level wind, the carousel with its arm (processor, draft)")
+    return note
+
+
+@line("motion.sea_cable", "A cable hangs into the sea and a CPS set rides down on it", "0.2.91",
+      what="A cable over rollers and a stern horn hangs into 15 m of water in a catenary to the seabed and lies on it; "
+           "a Run motor step pays it out at 60 m/min: the touch-down stays 20 m behind the horn, the seabed and the "
+           "cable's end on it move aft, the CPS set goes over the horn and down the catenary; seen through the "
+           "cut-away behind the stern")
+def motion_sea_cable(ctx):
+    from ..blender import animation, paths, paths_sea, render, tour
+    scene = ctx.fresh(SEA_CABLE)
+    s = scene.fresing
+    s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "SIMPLE", "CALM", 2.0
+    s.sea_depth = 15.0
+    t0 = time.time()
+    made = paths_sea.set_up_test_model(scene)
+    ctx.metric("set up the cable into the sea", time.time() - t0, "s")
+    item = paths.find(scene, made["cable"])
+    _check(item.b_kind == "SEA" and not item.problem, f"the cable into the sea: {item.problem or 'no sea end'}")
+    n = paths_sea.numbers(scene, item)
+    _check(abs(n.get("layback", 0.0) - 20.0) < 0.01, f"the layback is {n.get('layback', 0.0):.2f} m (20 m set)")
+    s.sea_cutaway = True
+    from ..blender import cameras
+    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Sea view")
+    scene.camera.matrix_world = paths_sea.view_matrix(scene, item)
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with the cable into the sea", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_sea_cable(scene)
+    times = []
+    for f in range(scene.frame_start, scene.frame_end + 1, 4):
+        t0 = time.perf_counter()
+        scene.frame_set(f)
+        times.append(time.perf_counter() - t0)
+    times.sort()
+    ctx.metric("frame change with the sea cable", 1000.0 * times[len(times) // 2], "ms")
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_end)
+    path = os.path.join(ctx.work, "sea_cable.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "sea_cable", "The cable from the horn down to the seabed through the cut-away, the CPS set on "
+                                   "it (processor, draft)")
     return note
 
 
@@ -1831,7 +1877,7 @@ def weather_step(ctx):
     return f"{res['frames']} frames; daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}"
 
 
-@line("house.bake", "House from House Planner: import, bake, export", "0.2.90",
+@line("house.bake", "House from House Planner: import, bake, export", "0.2.92",
       what="The made-up sample house (sample-house.hpscene): File > Import > House Planner scene, then Bake and export "
            "of one moment (summer morning, 4 samples, no photo); the package's structure is checked (files, page "
            "sizes and rows, rectangles = each surface's map size, light per vertex = each surface's vertex count)")

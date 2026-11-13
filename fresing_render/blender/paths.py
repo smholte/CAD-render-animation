@@ -228,7 +228,7 @@ def broken(scene, item) -> str:
     for c in _wheels(item):
         if not _alive(scene, c.carrier):
             return f"what '{c.name}' sat on is gone: use 'From CAD cable' again"
-    if not _alive(scene, item.a_part) or not _alive(scene, item.b_part):
+    if not _alive(scene, item.a_part) or (item.b_kind != "SEA" and not _alive(scene, item.b_part)):
         return "the part an end sat on is gone: use 'From CAD cable' again"
     return ""
 
@@ -349,6 +349,12 @@ def _inputs_of(item):
             for ob_, role in _spool.slot_objects(scene, item):
                 slots.append(_Slot(ob_, live=True, role=role))
             continue
+        if key == "b" and item.b_kind == "SEA":     # the end lies on the seabed (task 0081)
+            ends.append(w_slots[-1] if wheels else slot(item.part))
+            from . import paths_sea as _sea
+            for ob_, role in _sea.slot_objects(scene, item):
+                slots.append(_Slot(ob_, live=True, role=role))
+            continue
         on = getattr(item, key + "_kind") == "WHEEL" and wheels and wheels[k].carrier == ob
         ends.append(w_slots[k] if on else slot(ob))
     return wheels, slots, w_slots, ends[0], ends[1]
@@ -393,8 +399,8 @@ def _rel_now(item, slots) -> np.ndarray:
 def _can_move(item) -> bool:
     """Can the things that shape the cable move against each other or against the cable part? (Not: do they.)
     Never for a cable set to stay as drawn."""
-    if item.a_kind == "SPOOL":
-        return True                             # the start moves with the payout (task 0080)
+    if item.a_kind == "SPOOL" or item.b_kind == "SEA":
+        return True                             # the start / the sea end moves with the payout (tasks 0080, 0081)
     if item.still:
         return False
     _wheels_, slots, _w, _a, _b = _inputs_of(item)
@@ -449,6 +455,10 @@ def _varies(ob, depth: int = 0) -> bool:
 def _animated(item) -> bool:
     """Does anything that can move the cable's carriers against each other move along the time line (or is a
     sheave's part itself moved out of its place along it)?"""
+    if item.b_kind == "SEA":
+        from . import paths_sea as _sea
+        if _sea.moves_by_time(item.id_data, item):
+            return True                         # the seabed moves with the clock (task 0081)
     _wheels_, slots, _w, _a, _b = _inputs_of(item)
     chains = []
     for ob in [item.part] + [sl.carrier for sl in slots]:
@@ -1106,14 +1116,16 @@ def read_cad(scene, item, part) -> list[str]:
     if index_of(scene, item) < 0:
         raise PathError("This cable is not in the list.")
     name = index_of(scene, item)
+    was_sea = item.b_kind == "SEA"
     _STATE["busy"] += 1
     try:
         geo = _read(scene, item, part)
         item = _cable(scene, name)
         _direction(scene, item, geo)
         from . import spool as _spool
-        if _spool.wants_flip(scene, item, geo["line"]):     # a cable that comes off a spool starts there (0080)
-            _flip_rows(geo)
+        from . import paths_sea as _sea
+        if _spool.wants_flip(scene, item, geo["line"]) or _sea.wants_flip(scene, item, geo["line"]):
+            _flip_rows(geo)                     # it starts on its spool (0080) / it ends in the sea (0081)
         snap = _snapshot(item)
         old_part = item.part if _alive(scene, item.part) else None
         same = old_part == part
@@ -1171,6 +1183,9 @@ def read_cad(scene, item, part) -> list[str]:
     forget()
     from . import spool as _spool
     notes += _spool.after_read(scene, _cable(scene, name))     # a spool takes the start again (task 0080)
+    if was_sea and _wheels(_cable(scene, name)):                # the end goes into the sea again (task 0081)
+        from . import paths_sea as _sea
+        notes += _sea.add_sea_end(scene, _cable(scene, name))
     notes += _rebuild(scene, _cable(scene, name))
     return notes
 
@@ -1533,17 +1548,11 @@ def _counts(radii, wrap) -> list:
     return out
 
 
-def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> dict:
-    """The cable's shape at F moments. ``rel`` (F, K, 4, 4): where its slots are, as the cable part sees them.
-    Returns core.paths.solve_frames' result (points in the cable part's coordinates) + "scale" (part units to
-    metres), "names" (the wheels' names) and "problems" with those names in them.
-
-    ``known``: the solver is told each wheel's wrap in the CAD pose (``wrap_cad``), so it can tell a wheel the
-    cable has left (lifted: wrap 0, the cable runs straight past) from one it goes far round. Off for the solve
-    that finds those wraps. ``ref``: other wraps to measure by – while posing, the wraps of the pose solved a
-    moment ago (as one frame of an animation is measured by the frame before it: a wheel that was left stays left
-    while the cable would have to loop round it)."""
-    wheels, _slots, w_slots, a_slot, b_slot = _inputs_of(item)
+def _solve_parts(scene, item, rel: np.ndarray, _slots=None, known: bool = True, ref=None) -> tuple:
+    """What a solve of the cable needs at F moments, worked out from ``rel`` (F, K, 4, 4: where its slots are, as
+    the cable part sees them): (starts, centres, axes, radii, sides, on0, wraps0, scale) in the cable part's
+    coordinates (``radii`` in its units, ``scale`` its units to metres). ``known`` / ``ref``: see ``_solve_item``."""
+    wheels, _slots, w_slots, a_slot, _b_slot = _inputs_of(item)
     scale = _scale(_world(item.part))
     F, W = rel.shape[0], len(wheels)
     R, T = rel[:, :, :3, :3], rel[:, :, :3, 3]
@@ -1574,18 +1583,42 @@ def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> d
                                   starts)
     else:
         starts = point(a_slot, item.a_point)
-    ends = point(b_slot, item.b_point)
-    on0, on1 = item.a_kind == "WHEEL" and W > 0, item.b_kind == "WHEEL" and W > 0
+    on0 = item.a_kind == "WHEEL" and W > 0
     wraps0 = None
     if known and W and all(c.wrap_cad >= 0.0 for c in wheels):
         wraps0 = [float(c.wrap_cad) for c in wheels] if ref is None or len(ref) != W else [float(w) for w in ref]
-    res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, held=True, wraps0=wraps0)
-    _STATE["solves"] += F
-    if res["ok"].any() and W:
-        counts = _counts(radii * scale, res["wrap"][res["ok"]].max(axis=0))
-        if list(counts) != [int(n) for n in res["counts"]]:
-            res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, counts=counts, held=True,
-                                 wraps0=wraps0)
+    return starts, centres, axes, radii, sides, on0, wraps0, scale
+
+
+def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> dict:
+    """The cable's shape at F moments. ``rel`` (F, K, 4, 4): where its slots are, as the cable part sees them.
+    Returns core.paths.solve_frames' result (points in the cable part's coordinates) + "scale" (part units to
+    metres), "names" (the wheels' names) and "problems" with those names in them.
+
+    ``known``: the solver is told each wheel's wrap in the CAD pose (``wrap_cad``), so it can tell a wheel the
+    cable has left (lifted: wrap 0, the cable runs straight past) from one it goes far round. Off for the solve
+    that finds those wraps. ``ref``: other wraps to measure by – while posing, the wraps of the pose solved a
+    moment ago (as one frame of an animation is measured by the frame before it: a wheel that was left stays left
+    while the cable would have to loop round it).
+
+    A cable into the sea (task 0081): ``paths_sea.solve`` draws it from where it arrives on its last wheel."""
+    wheels, slots, w_slots, a_slot, b_slot = _inputs_of(item)
+    starts, centres, axes, radii, sides, on0, wraps0, scale = _solve_parts(scene, item, rel, slots, known, ref)
+    F, W = rel.shape[0], len(wheels)
+    if item.b_kind == "SEA":
+        from . import paths_sea as _sea
+        res = _sea.solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale)
+    else:
+        R, T = rel[:, :, :3, :3], rel[:, :, :3, 3]
+        ends = np.einsum("fij,j->fi", R[:, b_slot], np.asarray(item.b_point, dtype=float)) + T[:, b_slot]
+        on1 = item.b_kind == "WHEEL" and W > 0
+        res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, held=True, wraps0=wraps0)
+        _STATE["solves"] += F
+        if res["ok"].any() and W:
+            counts = _counts(radii * scale, res["wrap"][res["ok"]].max(axis=0))
+            if list(counts) != [int(n) for n in res["counts"]]:
+                res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, counts=counts, held=True,
+                                     wraps0=wraps0)
     names = [c.name for c in wheels]
     res["problems"] = {f: _named(t, names) for f, t in res["problems"].items()}
     res["scale"], res["names"] = scale, names
@@ -1675,6 +1708,8 @@ def _note(scene, item, res: dict, first) -> list[str]:
                 k = int(rows[int(np.argmax(wrap[:, i] >= math.radians(1.0)))])
                 found.append((f"bends tighter than its smallest bend (MBR {_mm(item.mbr)} mm) at "
                               f"'{wheels[i].name}': {_mm(radius)} mm", frame(k) if first is not None else 0))
+    for k, words in res.get("sea_notes", ()):        # the cable into the sea (task 0081)
+        found.append((f"{words} {when(k)}", frame(k)))
     text, at_frame = found[0] if found else ("", 0)
     if item.problem != text or item.problem_frame != at_frame:
         with _quiet(item):
@@ -1710,6 +1745,9 @@ def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
     if item.a_kind == "SPOOL":
         from . import spool as _spool
         _spool.after_draw(scene, item)          # its spool's state (on it, layer) follows (task 0080)
+    if len(item.riders):
+        from . import paths_riders as _riders
+        _riders.after_draw(scene, item)         # things on the cable ride its new shape (task 0081)
     return warnings
 
 
@@ -1952,6 +1990,9 @@ def changed(scene, item) -> None:
     if _STATE["busy"] or index_of(scene, item) < 0:
         return
     name = index_of(scene, item)
+    from . import paths_sea as _sea
+    _sea.sync_bed(scene)                        # the seabed's motion: the payout's sign, the speed (task 0081)
+    item = _cable(scene, name)
     if _alive(scene, item.part):
         if item.get("look_was", item.look) != item.look:      # another look: its usual pitch, unless one was typed
             was = item["look_was"]
@@ -1978,6 +2019,10 @@ def changed(scene, item) -> None:
         finally:
             _STATE["busy"] -= 1
     _rebuild(scene, item)
+    item = _cable(scene, name)
+    if len(item.riders):                        # things on the cable: placed again for the new path (task 0081)
+        from . import paths_riders as _riders
+        _riders.sync(scene, item)
 
 
 def contact_changed(scene, contact) -> None:
@@ -2368,6 +2413,9 @@ def remove(scene, index: int) -> None:
                     run()
         _remove_joints(scene, list(dict.fromkeys(gone)) + ([lead] if made_lead and lead else []))
         item = _cable(scene, name)
+        from . import paths_riders as _riders
+        _riders.remove_all(scene, item)         # things on the cable stay where CAD has them (task 0081)
+        item = _cable(scene, name)
         if _alive(scene, item.part):
             _strip(scene, item, item.part)
         _remove_shapes(scene, item)
@@ -2377,6 +2425,8 @@ def remove(scene, index: int) -> None:
         _STATE["busy"] -= 1
     forget()
     _drop_unused_trees()
+    from . import paths_sea as _sea
+    _sea.sync_bed(scene)
 
 
 def _moved(scene, item):
@@ -2470,6 +2520,8 @@ def _read_hook(scene) -> list:
 
 
 def _bake(scene) -> list[str]:
+    from . import paths_sea as _sea
+    _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
     notes, its, can, animated, obs = _plan(scene)
@@ -2626,7 +2678,8 @@ def candidates(scene) -> list:
 def _clash_hook(scene):
     """The clash check leaves the drawn cable out: it lies on its rollers and sheaves on purpose (and the check
     would test the stiff CAD shape)."""
-    return [], cable_parts(scene)
+    from . import paths_riders as _riders
+    return [], cable_parts(scene) + _riders.rider_parts(scene)
 
 
 # ---------------------------------------------------------------------------
@@ -2721,6 +2774,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 notes.append(f"{who} could not be carried over ({exc or type(exc).__name__}): use 'From CAD cable'")
     finally:
         _STATE["busy"] -= 1
+    from . import paths_riders as _riders
+    notes += _riders.after_model_update(scene, by_uid)          # things on the cables (task 0081)
     return notes
 
 
@@ -2734,6 +2789,8 @@ def forget() -> None:
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
     _STATE["rest"].clear()
+    from . import paths_sea as _sea
+    _sea.forget()
 
 
 def _follow(scene) -> None:

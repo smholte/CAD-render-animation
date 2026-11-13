@@ -103,6 +103,9 @@ def _settings_key(s, kind: str) -> dict:
             key["swell"] = swell
     if kind == "SEA":
         key["water"] = round(s.water_level, 3)
+        key["depth"] = round(float(s.sea_depth), 2)        # task 0081: the seabed (always on the open sea)
+        if s.sea_cutaway:                                  # the cut-away's settings only when it is on
+            key["cut"] = _cut_key(s)
     if kind == "PHOTO":
         key.update(photo=_photo_path(s), height=round(s.photo_height, 3))
     return key
@@ -320,6 +323,7 @@ def _update_live(scene, s, root) -> None:
     far = float(root.get("fr_far", 0.0))
     if far > 0:
         fix_clip(scene, far)
+    _update_under_water(scene, s, root)            # task 0081: the seabed's motion, the water's light
     _show_in_view(scene, s)
 
 
@@ -1216,13 +1220,13 @@ def _water_shader(t: _NT, mat):
 
 
 def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swell=(), weather: bool = False,
-                    wake: bool = False) -> bpy.types.Material:
+                    wake: bool = False, cut: bool = False) -> bpy.types.Material:
     bft, toward = wind if wind is not None else (sea_core.STATES.get(state, 3.0), sea_core.DEFAULT_TOWARD)
     own = _waves(state, (), (bft, toward))
     rows = own + [tuple(float(v) for v in w) for w in swell]
     name = (f"{MAT_PREFIX}water {state.lower()}{f' b{bft:.1f} d{toward:.0f}' if state == 'WIND' else ''}"
             f"{' foam' if foam else ''}{' moving' if moving else ''}{' weather' if weather else ''}"
-            f"{' wake' if wake else ''}{' swell ' + _rows_hash(swell) if swell else ''}")
+            f"{' wake' if wake else ''}{' swell ' + _rows_hash(swell) if swell else ''}{' cut' if cut else ''}")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -1241,6 +1245,8 @@ def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swel
     except Exception:
         pass
     _make("water", mat)
+    if cut:                                        # task 0081: see-through inside the cut-away box
+        _add_box_cut(mat, from_below=True)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "water"
     node = mat.node_tree.nodes.get("fr_time")
@@ -1379,9 +1385,10 @@ def _hull_foam_mesh(name: str, outline: np.ndarray, width: float) -> bpy.types.M
     return me
 
 
-def _hull_foam_material() -> bpy.types.Material:
-    """White foam where ``fr_d`` is small, broken up and moving; see-through elsewhere."""
-    name = MAT_PREFIX + "hull foam"
+def _hull_foam_material(cut: bool = False) -> bpy.types.Material:
+    """White foam where ``fr_d`` is small, broken up and moving; see-through elsewhere (and inside the cut-away box
+    with ``cut``, task 0081)."""
+    name = MAT_PREFIX + "hull foam" + (" cut" if cut else "")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -1419,6 +1426,8 @@ def _hull_foam_material() -> bpy.types.Material:
     t.link(foam, mix.inputs[2])
     out = t.node("ShaderNodeOutputMaterial")
     t.link(mix.outputs[0], out.inputs["Surface"])
+    if cut:
+        _add_box_cut(mat)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "hull_foam"
     return mat
@@ -1468,10 +1477,11 @@ def _hull_foam_group(name: str, sea_ob, rows, moving: bool, near: float) -> bpy.
     return ng
 
 
-def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, near: float, detailed: bool):
+def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, near: float, detailed: bool,
+                     cut: bool = False):
     width = sea_core.hull_foam_width(bft, _speed(s))
     me = _hull_foam_mesh("FR Sea: hull foam", outline, width)
-    mat = _hull_foam_material()
+    mat = _hull_foam_material(cut)
     me.materials.append(mat)
     ob = _new_object("FR Sea: hull foam", me, "hull_foam", col, root)
     ob["fr_foam_k"] = sea_core.hull_foam_strength(bft, _speed(s))
@@ -1687,9 +1697,10 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
     foam, moving, weather = bool(s.sea_foam), bool(s.sea_moving), _weather_on(s)
     speed = _speed(s)
     outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) else None
+    cut = kind == "SEA" and bool(s.sea_cutaway)          # task 0081: the cut-away behind the stern
     me = _sea_mesh("FR Sea", detailed, near)
     me.materials.append(_water_material(scene, s.sea_state, foam, moving, (bft, toward), swell, weather,
-                                        wake=foam and speed > 0 and outline is not None))
+                                        wake=foam and speed > 0 and outline is not None, cut=cut))
     ob = _new_object("FR Sea", me, "sea", col, root)
     ob.location.z = level
     if kind == "QUAY":
@@ -1706,9 +1717,551 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
                          float(max((ys.max() - ys.min()) / 2, 0.5)))
         ob["fr_wake_v"] = float(speed)
         if foam:
-            _build_hull_foam(scene, s, col, root, ob, outline, bft, own + list(swell), near, detailed)
+            _build_hull_foam(scene, s, col, root, ob, outline, bft, own + list(swell), near, detailed, cut)
     _build_spray(s, col, root, ob, own, bft, toward, outline, near, detailed)
+    if kind == "SEA":                              # task 0081: the seabed, the cut-away's water
+        _build_under_water(s, col, root, ob, level, detailed, near, swell, (bft, toward))
     return ob
+
+
+# =============================================================================
+# under the water (task 0081): the seabed, the cut-away behind the stern, the water's clarity
+# =============================================================================
+#
+# Only on the open sea (Background "Open sea"). The seabed is always there, ``sea_depth`` under the water: under
+# the opaque water it is never seen, so a sea without the cut-away renders as before. With the cut-away a box of
+# water behind the stern is taken away: the sea's surface, white caps, wake and hull foam are see-through inside it
+# (their materials test the box, read from the object attributes ``fr_seacut_o`` (front middle, world), ``fr_seacut_u``
+# (unit aft) and ``fr_seacut_s`` (length, half width) – no attribute: no cut), and a ring of water round the box (a
+# volume that absorbs and glows in the water's colour, ``core/sea.py``) fades whatever is seen through its walls.
+
+SEABED_MOTION = "FR seabed motion"         # the empty the seabed follows (made and driven by the sea cables: paths_sea)
+UNDER_ROLES = ("seabed", "stones", "sea_cut")
+CUT_ATTRS = ("fr_seacut_o", "fr_seacut_u", "fr_seacut_s")
+STONES = 420
+STONES_NEAR = 0.6                          # share of the stones within 12 m of the box (the rest within 250 m)
+PATCH_MARGIN = 20.0                        # m: the rippled patch reaches this far round the box (Detailed)
+PATCH_STEP = 0.3                           # m between its points
+PATCH_MAX_POINTS = 250_000
+
+
+def follow_seabed_motion(ob) -> bool:
+    """``ob`` moves with the seabed: a Copy Location constraint "FR seabed motion" (offset, x and y only) on the empty
+    of that name, which the sea cables drive (the vessel's advance). No empty: no constraint. True when it follows."""
+    empty = bpy.data.objects.get(SEABED_MOTION)
+    con = ob.constraints.get(SEABED_MOTION)
+    if empty is None or empty == ob:
+        if con is not None:
+            ob.constraints.remove(con)
+        return False
+    if con is not None and con.type != "COPY_LOCATION":
+        ob.constraints.remove(con)
+        con = None
+    if con is None:
+        con = ob.constraints.new("COPY_LOCATION")
+        con.name = SEABED_MOTION
+    if con.target != empty:
+        con.target = empty
+    con.use_x, con.use_y, con.use_z = True, True, False
+    con.use_offset = True
+    con.target_space = con.owner_space = "WORLD"
+    return True
+
+
+def seabed_objects() -> list:
+    """The seabed and its stones (they follow "FR seabed motion")."""
+    return [ob for ob in bpy.data.objects if ob.get(TAG) in ("seabed", "stones")]
+
+
+def refresh_seabed_motion() -> None:
+    """Every seabed object follows "FR seabed motion" (made or removed since the seabed was built)."""
+    for ob in seabed_objects():
+        follow_seabed_motion(ob)
+
+
+def waterline(scene=None) -> float | None:
+    """World z of the water's surface (the "FR Sea" object), None without a sea."""
+    for ob in bpy.data.objects:
+        if ob.get(TAG) == "sea":
+            return float(ob.matrix_world.translation.z)
+    return None
+
+
+def seabed_z(scene) -> float | None:
+    """World z of the seabed (the water's surface minus the water depth), None without the open sea."""
+    root = root_object()
+    if root is None or root.get("fr_kind") != "SEA":
+        return None
+    w = waterline(scene)
+    return None if w is None else w - float(scene.fresing.sea_depth)
+
+
+def _cable_box(scene):
+    """The box the sea cables ask for (``paths_sea.cut_box``), checked, or None."""
+    try:
+        from . import paths_sea
+        box = paths_sea.cut_box(scene)
+    except Exception as exc:                  # never stop the surroundings over this
+        print("Fresing Render: cut-away box of the sea cable not read:", exc)
+        return None
+    if not box:
+        return None
+    try:
+        ox, oy = (float(v) for v in tuple(box["origin"])[:2])
+        ux, uy = (float(v) for v in tuple(box["dir"])[:2])
+        length, width = float(box["length"]), float(box["width"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    n = math.hypot(ux, uy)
+    if n < 1e-9 or length <= 0.0 or width <= 0.0 or not all(map(math.isfinite, (ox, oy, length, width))):
+        return None
+    return {"origin": (ox, oy), "dir": (ux / n, uy / n), "length": length, "width": width}
+
+
+def _manual_box(s, mn, mx) -> dict:
+    """The box from the panel's numbers: from the stern (the model's lowest x) backwards (-x)."""
+    return {"origin": (float(mn[0]) - float(s.sea_cut_start), float(mn[1] + mx[1]) / 2 + float(s.sea_cut_side)),
+            "dir": (-1.0, 0.0), "length": float(s.sea_cut_length), "width": float(s.sea_cut_width)}
+
+
+def sea_cut_box(scene, cable: bool = True) -> dict | None:
+    """Where the cut-away box is, in world: {"origin": front middle (x, y), "dir": unit aft (x, y), "length", "width"}
+    – placed by the sea cable (``paths_sea.cut_box``) when "Place it by the cable" is on and a cable gives one, else
+    from the panel's numbers. None when the open sea has no cut-away."""
+    s = scene.fresing
+    root = root_object()
+    if not s.sea_cutaway or root is None or root.get("fr_kind") != "SEA":
+        return None
+    return _box_for(scene, s, root, cable)
+
+
+def _box_for(scene, s, root, cable: bool = True) -> dict:
+    box = _cable_box(scene) if (cable and s.sea_cut_auto) else None
+    if box is None:
+        mn, mx = root.get("fr_min"), root.get("fr_max")
+        if mn is None or mx is None:
+            mn, mx = _model_box(scene)
+        box = _manual_box(s, mn, mx)
+    return box
+
+
+def _cut_key(s) -> dict:
+    """What decides the cut-away (only when it is on: a sea without it keeps its key)."""
+    key = {"clarity": round(float(s.sea_clarity), 2)}
+    box = _cable_box(s.id_data) if s.sea_cut_auto else None
+    if box is not None:
+        key["box"] = [round(v, 2) for v in (*box["origin"], *box["dir"], box["length"], box["width"])]
+    else:
+        key["manual"] = [round(float(v), 2) for v in (s.sea_cut_length, s.sea_cut_width, s.sea_cut_start,
+                                                      s.sea_cut_side)]
+    return key
+
+
+def _set_cut_attrs(ob, box) -> None:
+    """The box test's numbers on an object whose material is cut (world coordinates)."""
+    if box is None:
+        for k in CUT_ATTRS:
+            if k in ob:
+                del ob[k]
+        return
+    ob["fr_seacut_o"] = (float(box["origin"][0]), float(box["origin"][1]), 0.0)
+    ob["fr_seacut_u"] = (float(box["dir"][0]), float(box["dir"][1]), 0.0)
+    ob["fr_seacut_s"] = (float(box["length"]), float(box["width"]) / 2.0, 0.0)
+
+
+def _box_test(b: _NB):
+    """1 inside the cut-away box (from above: the box reaches from the sky to the seabed), else 0."""
+    def attr(name):
+        return b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name=name).outputs["Vector"]
+    p = b.new("ShaderNodeNewGeometry").outputs["Position"]           # world
+    o, u, size = attr("fr_seacut_o"), attr("fr_seacut_u"), b.sep(attr("fr_seacut_s"))
+    d = b.vec("SUBTRACT", p, o)
+    along = b.vec("DOT_PRODUCT", d, u)
+    side = b.math("ABSOLUTE", b.vec("DOT_PRODUCT", d, b.vec("CROSS_PRODUCT", u, (0.0, 0.0, 1.0))))
+    inside = b.math("MULTIPLY", b.math("GREATER_THAN", along, 0.0), b.math("LESS_THAN", along, size["X"]))
+    return b.math("MULTIPLY", inside, b.math("LESS_THAN", side, size["Y"]))
+
+
+def _add_box_cut(mat, from_below: bool = False) -> None:
+    """The material is see-through inside the cut-away box (the shader before it is kept as it is). ``from_below``:
+    also for light from under the water (the sea's surface: the seabed in the box gets the sky's light, as through
+    real water, and its bounces skip the water's shader); the camera's own rays from below are never let through."""
+    nt = mat.node_tree
+    out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"), None)
+    if out is None or not out.inputs["Surface"].links:
+        return
+    shader = out.inputs["Surface"].links[0].from_socket
+    b = _NB(nt)
+    clear = b.new("ShaderNodeBsdfTransparent")
+    mix = b.new("ShaderNodeMixShader")
+    fac = _box_test(b)
+    if from_below:
+        lp = b.new("ShaderNodeLightPath")
+        below = b.math("MULTIPLY", b.new("ShaderNodeNewGeometry").outputs["Backfacing"],
+                       b.math("SUBTRACT", 1.0, lp.outputs["Is Camera Ray"]))
+        fac = b.math("MAXIMUM", fac, below)
+    b.put(mix.inputs["Fac"], fac)
+    nt.links.new(shader, mix.inputs[1])
+    nt.links.new(clear.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    mat["fr_seacut"] = True
+
+
+# ---- the seabed --------------------------------------------------------------
+
+
+def _ripples_socket(b: _NB, x, y):
+    """``core.sea.seabed_ripples`` in nodes: (height, the ripple's sine)."""
+    k = 2 * math.pi / sea_core.RIPPLE_LENGTH
+    bend = b.math("MULTIPLY_ADD", b.math("SINE", b.math("MULTIPLY_ADD", y, 0.21, 0.4)), 0.9,
+                  b.math("MULTIPLY", b.math("SINE", b.math("SUBTRACT", b.math("MULTIPLY", x, 0.13),
+                                                           b.math("MULTIPLY", y, 0.07))), 0.5))
+    ph = b.math("ADD", b.math("MULTIPLY", b.math("MULTIPLY_ADD", x, 0.96, b.math("MULTIPLY", y, 0.28)), k), bend)
+    r = b.math("SINE", ph)
+    swell = b.math("MULTIPLY", b.math("MULTIPLY", b.math("SINE", b.math("MULTIPLY_ADD", x, 0.23, 0.9)),
+                                      b.math("SINE", b.math("MULTIPLY_ADD", y, 0.17, 0.3))), 0.12)
+    return b.math("MULTIPLY_ADD", r, sea_core.RIPPLE_HEIGHT, swell), r
+
+
+def _seabed_material() -> bpy.types.Material:
+    """Sand and silt: patches of colour, silt in the ripples' troughs, the ripples (shading only where the mesh is
+    flat: object attribute ``fr_seabed_bump`` 1) and a fine grain."""
+    name = MAT_PREFIX + "seabed"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    b = _NB(t.nt)
+    co = b.new("ShaderNodeTexCoord").outputs["Object"]
+    xyz = b.sep(co)
+    h, r = _ripples_socket(b, xyz["X"], xyz["Y"])
+    on = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_seabed_bump").outputs["Fac"]
+    patches = _noise(t, 0.04, 4.0, 0.6, co)
+    grain = _noise(t, 9.0, 3.0, 0.6, co)
+    sand, silt = sea_core.SAND
+    col = _mix_color(t, b.ramp(patches, 0.35, 0.7, 0.0, 1.0), silt, sand)
+    col = _mix_color(t, b.ramp(r, -1.0, 0.2, 0.35, 0.0), col, tuple(c * 0.7 for c in silt))
+    col = _mix_color(t, b.ramp(grain, 0.3, 0.7, 0.0, 0.25), col, tuple(c * 0.75 for c in sand))
+    bump = b.new("ShaderNodeBump")
+    bump.inputs["Distance"].default_value = 1.0
+    b.put(bump.inputs["Strength"], on)
+    b.put(bump.inputs["Height"], h)
+    fine = b.new("ShaderNodeBump")
+    fine.inputs["Strength"].default_value = 0.12
+    fine.inputs["Distance"].default_value = 0.01
+    b.put(fine.inputs["Height"], grain)
+    b.put(fine.inputs["Normal"], bump.outputs["Normal"])
+    shader = _principled(t, col, 0.92, normal=fine.outputs["Normal"])
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(shader, out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "seabed"
+    return mat
+
+
+def _stone_material() -> bpy.types.Material:
+    name = MAT_PREFIX + "seabed stones"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    co = _coords(t)
+    n = _noise(t, 2.5, 5.0, 0.6, co)
+    col = _mix_color(t, _ramp(t, n, 0.0, 1.0, 0.3, 0.7), _srgb(0.30, 0.29, 0.26), _srgb(0.48, 0.45, 0.39))
+    col = _mix_color(t, _ramp(t, _noise(t, 0.3, 2.0, 0.5, co), 0.0, 0.6), col, _srgb(0.36, 0.33, 0.27))
+    shader = _principled(t, col, _ramp(t, n, 0.6, 0.9), normal=_bump(t, _noise(t, 6.0, 4.0, 0.6, co), 0.5, 0.02))
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(shader, out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "stones"
+    return mat
+
+
+def _box_frame(box, offset_xy) -> tuple:
+    """The box in the surroundings' frame: front middle o, unit aft u, unit side v (left of aft)."""
+    o = np.array(box["origin"][:2], float) - np.asarray(offset_xy, float)[:2]
+    u = np.array(box["dir"][:2], float)
+    u /= max(float(np.linalg.norm(u)), 1e-9)
+    v = np.array((-u[1], u[0]))
+    return o, u, v
+
+
+def _seabed_mesh(name: str, box, offset_xy, detailed: bool) -> bpy.types.Mesh:
+    """A plain square ±``SEABED_EXTENT`` round the model; in Detailed (with the cut-away) also a rippled patch round
+    the box (``core.sea.seabed_ripples``), the plain square ``SEABED_SINK`` under it."""
+    e = sea_core.SEABED_EXTENT
+    z0 = -sea_core.SEABED_SINK if detailed else 0.0
+    m = _Mesh()
+    m._add([(-e, -e, z0), (e, -e, z0), (e, e, z0), (-e, e, z0)], [(0, 1, 2, 3)], 0)
+    if detailed and box is not None:
+        o, u, v = _box_frame(box, offset_xy)
+        length, width = float(box["length"]), float(box["width"])
+        a0, a1 = -PATCH_MARGIN, length + PATCH_MARGIN
+        b0, b1 = -width / 2 - PATCH_MARGIN, width / 2 + PATCH_MARGIN
+        step = PATCH_STEP
+        while ((a1 - a0) / step + 1) * ((b1 - b0) / step + 1) > PATCH_MAX_POINTS:
+            step *= 1.25
+        na, nb = int(math.ceil((a1 - a0) / step)) + 1, int(math.ceil((b1 - b0) / step)) + 1
+        A, B = np.meshgrid(np.linspace(a0, a1, na), np.linspace(b0, b1, nb), indexing="ij")
+        x = o[0] + A * u[0] + B * v[0]
+        y = o[1] + A * u[1] + B * v[1]
+        # the ripples, sinking to under the plain square over the patch's last 3 m (no seam)
+        edge = np.minimum.reduce([A - a0, a1 - A, B - b0, b1 - B])
+        keep = np.clip(edge / 3.0, 0.0, 1.0)
+        z = sea_core.seabed_ripples(x, y) * keep - (1.0 - keep) * (sea_core.SEABED_SINK + 0.03)
+        pts = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+        idx = np.arange(na * nb).reshape(na, nb)
+        q = np.stack([idx[:-1, :-1], idx[1:, :-1], idx[1:, 1:], idx[:-1, 1:]], axis=-1).reshape(-1, 4)
+        if (u[0] * v[1] - u[1] * v[0]) < 0:                 # faces up
+            q = q[:, ::-1]
+        m._add(pts, q.tolist(), 0, smooth=True)
+    return m.to_mesh(name)
+
+
+def _stones_mesh(name: str, box, offset_xy, seed: int = 81) -> bpy.types.Mesh:
+    """A few hundred low stones on the sand round the box (most of them near it), a third sunk in."""
+    rng = np.random.default_rng(seed)
+    o, u, v = _box_frame(box, offset_xy)
+    length, width = float(box["length"]), float(box["width"])
+    n_near = int(STONES * STONES_NEAR)
+    a = np.concatenate([rng.uniform(-12.0, length + 12.0, n_near),
+                        rng.uniform(-250.0, length + 250.0, STONES - n_near)])
+    b = np.concatenate([rng.uniform(-width / 2 - 12.0, width / 2 + 12.0, n_near),
+                        rng.uniform(-width / 2 - 250.0, width / 2 + 250.0, STONES - n_near)])
+    cx, cy = o[0] + a * u[0] + b * v[0], o[1] + a * u[1] + b * v[1]
+    size = np.exp(rng.uniform(math.log(0.06), math.log(0.42), STONES))
+    seg, rows = 8, 4
+    lon = np.linspace(0, 2 * math.pi, seg, endpoint=False)
+    lat = np.linspace(-math.pi / 2, math.pi / 2, rows + 1)[1:-1]
+    unit = np.array([(0.0, 0.0, -1.0)] + [(math.cos(la) * math.cos(lo), math.cos(la) * math.sin(lo), math.sin(la))
+                                          for la in lat for lo in lon] + [(0.0, 0.0, 1.0)])
+    top = len(unit) - 1
+    faces = [(0, 1 + (i + 1) % seg, 1 + i) for i in range(seg)]
+    for j in range(rows - 2):
+        p, q = 1 + j * seg, 1 + (j + 1) * seg
+        faces += [(p + i, p + (i + 1) % seg, q + (i + 1) % seg, q + i) for i in range(seg)]
+    p = 1 + (rows - 2) * seg
+    faces += [(p + i, p + (i + 1) % seg, top) for i in range(seg)]
+    ground = sea_core.seabed_ripples(cx, cy)
+    m = _Mesh()
+    for i in range(STONES):
+        sx, sy = size[i] * rng.uniform(0.8, 1.3), size[i] * rng.uniform(0.6, 1.0)
+        sz = size[i] * rng.uniform(0.3, 0.55)
+        rot = rng.uniform(0, 2 * math.pi)
+        c, sn = math.cos(rot), math.sin(rot)
+        lump = 1.0 + rng.uniform(-0.18, 0.18, len(unit))[:, None]
+        pts = unit * lump * (sx, sy, sz)
+        pts = np.column_stack([pts[:, 0] * c - pts[:, 1] * sn, pts[:, 0] * sn + pts[:, 1] * c, pts[:, 2]])
+        pts += (cx[i], cy[i], float(ground[i]) - 0.35 * sz)
+        m._add(pts, faces, 0, smooth=True)
+    return m.to_mesh(name)
+
+
+# ---- the ring of water round the box -----------------------------------------
+
+
+def _rect(o, u, v, length: float, width: float) -> list:
+    """The four corners of a rectangle from o along u (``length``), ±width/2 along v, anticlockwise from above."""
+    corners = [o - v * width / 2, o + u * length - v * width / 2, o + u * length + v * width / 2, o + v * width / 2]
+    if (u[0] * v[1] - u[1] * v[0]) < 0:
+        corners = corners[::-1]
+    return corners
+
+
+def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed: bool) -> bpy.types.Mesh:
+    """The water round the box: a closed ring (outer box = the box grown by ``CUT_GROW`` x the clarity, the box as
+    its hole) from under the seabed to ``CUT_TOP`` under the water, normals out of the water. Point attribute
+    ``fr_dtop`` = metres under the ring's top, face attribute ``fr_inner`` = 1 on the box's walls."""
+    o, u, v = _box_frame(box, offset_xy)
+    length, width = float(box["length"]), float(box["width"])
+    g = sea_core.CUT_GROW * max(float(clarity), 0.5)
+    inner = _rect(o, u, v, length, width)
+    outer = _rect(o - u * g, u, v, length + 2 * g, width + 2 * g)
+    loops_i, loops_o = [], []
+    for k in range(4):                      # Detailed: a point every metre, so the top can follow the waves
+        a, b = inner[k], inner[(k + 1) % 4]
+        n = max(1, int(math.ceil(np.linalg.norm(b - a) / 1.0))) if detailed else 1
+        f = np.linspace(0.0, 1.0, n, endpoint=False)[:, None]
+        loops_i.append(a + (b - a) * f)
+        a2, b2 = outer[k], outer[(k + 1) % 4]
+        loops_o.append(a2 + (b2 - a2) * f)
+    ri, ro = np.concatenate(loops_i), np.concatenate(loops_o)
+    n = len(ri)
+    top, bot = -sea_core.CUT_TOP, -float(depth) - 2.0
+    pts = np.concatenate([np.column_stack([ro, np.full(n, top)]), np.column_stack([ri, np.full(n, top)]),
+                          np.column_stack([ro, np.full(n, bot)]), np.column_stack([ri, np.full(n, bot)])])
+    OT, IT, OB, IB = 0, n, 2 * n, 3 * n
+    faces, inner_flag = [], []
+    for i in range(n):
+        j = (i + 1) % n
+        faces += [(OB + i, OB + j, OT + j, OT + i),        # outer wall: out
+                  (IB + i, IT + i, IT + j, IB + j),        # the box's wall: into the box
+                  (OT + i, OT + j, IT + j, IT + i),        # top: up
+                  (OB + i, IB + i, IB + j, OB + j)]        # bottom: down
+        inner_flag += [0.0, 1.0, 0.0, 0.0]
+    m = _Mesh()
+    m._add(pts, faces, 0)
+    me = m.to_mesh(name)
+    at = me.attributes.new("fr_dtop", "FLOAT", "POINT")
+    at.data.foreach_set("value", np.concatenate([np.zeros(2 * n), np.full(2 * n, top - bot)]).astype(np.float32))
+    fa = me.attributes.new("fr_inner", "FLOAT", "FACE")
+    fa.data.foreach_set("value", np.array(inner_flag, np.float32))
+    return me
+
+
+def _cut_water_material(clarity: float, weather: bool) -> bpy.types.Material:
+    """The ring's water: see-through surface with a thin bright line along the top of the box's walls; inside a
+    homogeneous volume that absorbs (sigma = 3 / clarity) and glows in the water's colour x the light (so whatever
+    lies behind a wall fades into the water's colour, ``core.sea.seen_through``). The light: Weather & time's
+    ``day`` and ``clouds`` channels, else the Value node ``fr_light`` (set from the sky settings)."""
+    sigma = sea_core.absorption(clarity)
+    name = f"{MAT_PREFIX}sea cut water {float(clarity):.2f}{' weather' if weather else ''}"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    b = _NB(t.nt)
+    if weather:
+        def channel(n):
+            return b.new("ShaderNodeAttribute", attribute_type="VIEW_LAYER",
+                         attribute_name=weather_core.prop(n)).outputs["Fac"]
+        day = b.math("MINIMUM", b.math("MAXIMUM", channel("day"), 0.0), 1.0)
+        clouds = b.math("MINIMUM", b.math("MAXIMUM", channel("clouds"), 0.0), 1.0)
+        light = b.math("MULTIPLY_ADD", day, b.math("MULTIPLY_ADD", clouds, -(1.0 - sea_core.OVERCAST_LIGHT), 1.0),
+                       sea_core.NIGHT_LIGHT)
+    else:
+        lv = b.new("ShaderNodeValue")
+        lv.name = "fr_light"
+        lv.outputs[0].default_value = 1.0
+        light = lv.outputs[0]
+    # volume: absorption + glow (strength sigma x light): seen = behind T + colour (1 - T)
+    absorb = b.new("ShaderNodeVolumeAbsorption")
+    absorb.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    absorb.inputs["Density"].default_value = sigma
+    glow = b.new("ShaderNodeEmission")
+    glow.inputs["Color"].default_value = (*sea_core.UNDERWATER, 1.0)
+    b.put(glow.inputs["Strength"], b.math("MULTIPLY", light, sigma))
+    add = b.new("ShaderNodeAddShader")
+    b.put(add.inputs[0], absorb.outputs[0])
+    b.put(add.inputs[1], glow.outputs[0])
+    # surface: clear, a thin bright line along the top of the box's walls (where the water was cut)
+    dtop = b.new("ShaderNodeAttribute", attribute_type="GEOMETRY", attribute_name="fr_dtop").outputs["Fac"]
+    inner = b.new("ShaderNodeAttribute", attribute_type="GEOMETRY", attribute_name="fr_inner").outputs["Fac"]
+    line = b.math("MULTIPLY", b.ramp(dtop, 0.0, sea_core.CUT_EDGE, 0.85, 0.0, smooth=True),
+                  b.math("GREATER_THAN", inner, 0.5))
+    edge = b.new("ShaderNodeEmission")
+    edge.inputs["Color"].default_value = (0.55, 0.80, 0.78, 1.0)
+    b.put(edge.inputs["Strength"], b.math("MULTIPLY", light, 1.4))
+    clear = b.new("ShaderNodeBsdfTransparent")
+    # the walls darken with depth (less light down there): what lies behind them shows through, dimmer
+    dark_k, dark_d = sea_core.CUT_DARK
+    dim = b.math("MULTIPLY", b.ramp(dtop, 0.0, dark_d, 0.0, dark_k, smooth=True), b.math("GREATER_THAN", inner, 0.5))
+    shade = b.new("ShaderNodeEmission")
+    shade.inputs["Color"].default_value = (*(c * 0.25 for c in sea_core.UNDERWATER), 1.0)
+    b.put(shade.inputs["Strength"], light)
+    wall = b.new("ShaderNodeMixShader")
+    b.put(wall.inputs["Fac"], dim)
+    b.put(wall.inputs[1], clear.outputs[0])
+    b.put(wall.inputs[2], shade.outputs[0])
+    mix = b.new("ShaderNodeMixShader")
+    b.put(mix.inputs["Fac"], line)
+    b.put(mix.inputs[1], wall.outputs[0])
+    b.put(mix.inputs[2], edge.outputs[0])
+    out = b.new("ShaderNodeOutputMaterial")
+    b.put(out.inputs["Surface"], mix.outputs[0])
+    b.put(out.inputs["Volume"], add.outputs[0])
+    try:
+        mat.volume_intersection_method = "ACCURATE"          # EEVEE: the ring is not convex (it has a hole)
+    except (AttributeError, TypeError):
+        pass
+    for owner in (mat, getattr(mat, "cycles", None)):
+        if owner is not None and hasattr(owner, "emission_sampling"):
+            owner.emission_sampling = "NONE"         # the glow is the water's colour, it lights nothing
+            break
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "sea_cut"
+    mat["fr_clarity"] = float(clarity)
+    mat["fr_sigma"] = float(sigma)
+    return mat
+
+
+def _light_now(s) -> float:
+    """The light under water without Weather & time (``core.sea.sky_light``)."""
+    return sea_core.sky_light(float(s.light_strength), s.sky_weather == "OVERCAST", float(s.sun_elevation))
+
+
+def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near: float, swell, wind) -> None:
+    """The seabed (always), with the cut-away the ring of water round the box (and in Detailed the rippled patch and
+    the stones). Called at the end of ``_build_sea`` on the open sea."""
+    scene = s.id_data
+    depth = float(s.sea_depth)
+    cut = bool(s.sea_cutaway)
+    box = _box_for(scene, s, root) if cut else None
+    offset = (float(root.location.x), float(root.location.y))
+    rich = detailed and cut
+    me = _seabed_mesh("FR Sea: seabed", box, offset, rich)
+    me.materials.append(_seabed_material())
+    bed = _new_object("FR Sea: seabed", me, "seabed", col, root)
+    bed.location.z = level - depth
+    bed["fr_seabed_bump"] = 0.0 if rich else 1.0
+    follow_seabed_motion(bed)
+    if rich:
+        st = _new_object("FR Sea: stones", _stones_mesh("FR Sea: stones", box, offset), "stones", col, root)
+        st.data.materials.append(_stone_material())
+        st.location.z = level - depth
+        follow_seabed_motion(st)
+    if not cut:
+        return
+    _set_cut_attrs(sea_ob, box)
+    for ob in col.objects:
+        if ob.get(TAG) == "hull_foam":
+            _set_cut_attrs(ob, box)
+    ring = _new_object("FR Sea: cut-away water", _ring_mesh("FR Sea: cut-away water", box, offset, s.sea_clarity,
+                                                            depth, detailed), "sea_cut", col, root)
+    ring.data.materials.append(_cut_water_material(s.sea_clarity, _weather_on(s)))
+    ring.location = sea_ob.location
+    # only what the camera sees through the walls: no shadows, no light bounced off it
+    (ring.visible_camera, ring.visible_diffuse, ring.visible_glossy, ring.visible_transmission,
+     ring.visible_shadow) = (True, False, False, True, False)
+    if hasattr(ring, "visible_volume_scatter"):
+        ring.visible_volume_scatter = False
+    if detailed:                                   # the walls' top follows the waves (the sea's own modifier)
+        mod = ring.modifiers.new("Waves", "NODES")
+        mod.node_group = _waves_group(s.sea_state, bool(s.sea_moving), near, swell, wind)
+    root["fr_seacut_box"] = json.dumps(box)
+
+
+def _update_under_water(scene, s, root) -> None:
+    """Live (no rebuild): the seabed follows "FR seabed motion"; the water's light follows the sky settings."""
+    if root is None or root.get("fr_kind") != "SEA":
+        return
+    refresh_seabed_motion()
+    light = _light_now(s)
+    for ob in _objects(scene):
+        if ob.get(TAG) != "sea_cut" or ob.type != "MESH":
+            continue
+        for mat in ob.data.materials:
+            node = mat.node_tree.nodes.get("fr_light") if mat is not None and mat.node_tree else None
+            if node is not None and abs(node.outputs[0].default_value - light) > 1e-6:
+                node.outputs[0].default_value = light
 
 
 # =============================================================================

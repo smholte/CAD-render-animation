@@ -1429,6 +1429,71 @@ def build_spool(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
+SEA_ANIM = "Cable into the sea"
+
+
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step")
+def build_sea(b: Build):
+    from . import paths, paths_sea
+    sc = b.scene
+    s = sc.fresing
+    _look("PRODUCT")
+    s.background, s.env_detail, s.sea_state = "SEA", "SIMPLE", "CALM"
+    s.water_level = 2.0                     # the hull's draft: the waterline is the model's z = 0
+    s.sea_depth, s.sea_clarity = 15.0, 15.0
+    _update()
+    made = paths_sea.set_up_test_model(sc)
+    _check(made["animation"] == SEA_ANIM, f"the animation is called '{made['animation']}'")
+    it = paths.find(sc, made["cable"])
+    _check(it is not None and it.b_kind == "SEA" and not it.problem,
+           f"the cable into the sea: {it.problem if it is not None else 'missing'}")
+    s.sea_cut_auto = True
+    s.sea_cutaway = True
+    _update()
+    cam = _camera(b, "ISO", "Tour view", lens=30.0)
+    cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    shot = _shot(b, "Tour: into the sea")
+    a = s.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_sea_cable(scene):
+    """Along the built animation: the cable keeps its length from the horn to its end on the seabed, the touch-down
+    stays the layback behind the horn (the vessel moves with the lay), its end lies still on the seabed (it moves
+    aft with the seabed) and the CPS set goes down the catenary on the cable."""
+    import numpy as np
+
+    from . import build, paths, paths_riders, paths_sea
+    its = [it for it in paths.items(scene) if it.b_kind == "SEA"]
+    _check(len(its) == 1, "the cable into the sea is missing")
+    it = its[0]
+    _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
+    lays, ends, low = [], [], 1e9
+    for f in (scene.frame_start, (scene.frame_start + scene.frame_end) // 2, scene.frame_end):
+        scene.frame_set(f)
+        _update()
+        n = paths_sea.numbers(scene, it)
+        lays.append(n["layback"])
+        line = np.array(paths.shape_now(scene, it), dtype=float)
+        bed = np.array(paths_sea.bed(scene).matrix_world)
+        ends.append(np.linalg.inv(bed)[:3, :3] @ line[-1] + np.linalg.inv(bed)[:3, 3])
+        rings = [p.part for r in it.riders for p in r.parts if p.part.get(build.PROP_NAME) == "VERTEBRA"]
+        dg = __import__("bpy").context.evaluated_depsgraph_get()
+        for ring in rings:
+            ev = ring.evaluated_get(dg)
+            low = min(low, float((np.array(ev.matrix_world) @ np.r_[np.array(ev.data.vertices[0].co), 1.0])[2]))
+    pay = paths_sea.payout(scene, it)
+    drift = float(max(np.linalg.norm(e - ends[0]) for e in ends))
+    _check(pay > 7.0, f"only {pay:.2f} m of cable ran")
+    _check(max(lays) - min(lays) < 0.01, f"the layback changed from {min(lays):.2f} to {max(lays):.2f} m")
+    _check(drift < 1e-3, f"the cable's end on the seabed moved {drift * 1000:.1f} mm over the seabed")
+    _check(low < -1.0, "the CPS set did not go down into the sea")
+    _check(len(paths_riders.rider_parts(scene)) == 9, "the CPS set's 9 parts do not all ride on the cable")
+    return (f"{pay:.2f} m paid out, layback {lays[0]:.2f} m held to {(max(lays) - min(lays)) * 1000:.1f} mm, the end "
+            f"on the seabed still to {drift * 1000:.2f} mm, the CPS set {-low:.1f} m under the water")
+
+
 TRACKS_ANIM = "Tracks"
 
 
@@ -2665,6 +2730,13 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
+stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
+     "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
+     "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
+     "still where it lies on the seabed, the seabed moves aft under the vessel, the touch-down stays 20 m behind the "
+     "horn and the orange CPS set goes over the horn and down the curve on the cable.",
+     where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
+     check=_check_sea_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)
@@ -2917,7 +2989,7 @@ stop("house", OUT, "house", "House from House Planner",
      "shadows across the plot, the terrace in front. 5 Scene & Render > House from House Planner lists the seasons "
      "and moments (Preview shows each one) and the bake of the summer morning this tour made (Show in Explorer: "
      "sample-house.hpbake next to the tour, for House Planner).",
-     where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.90",
+     where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.92",
      check=_check_house)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
