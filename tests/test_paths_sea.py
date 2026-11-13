@@ -383,3 +383,23 @@ def test_numbers_of_the_frame_shown_after_reopening(sea, tmp_path):
     assert paths_sea.numbers(sc, cable(sc))["laid"] == pytest.approx(want, abs=1e-4)
     sc.frame_set(sc.frame_start)
     assert paths_sea.numbers(sc, cable(sc))["laid"] == pytest.approx(40.0, abs=1e-4)
+
+
+def test_hang_off_and_touch_down_after_reopening(sea, tmp_path):
+    sc = sea
+    animation.bake(sc, sc.fresing.animations[paths_sea.TEST_ANIMATION])
+    sc.frame_set(100)
+    want = paths_sea.tdp_world(sc, cable(sc))
+    box = paths_sea.cut_box(sc)
+    path = str(tmp_path / "again.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    paths.forget()
+    sc = bpy.context.scene
+    sc.frame_set(100)
+    got = paths_sea.tdp_world(sc, cable(sc))
+    assert got is not None and np.abs(got[0] - want[0]).max() < 1e-4 and np.abs(got[1] - want[1]).max() < 1e-4
+    assert paths_sea.cut_box(sc) == box                    # stored with the cable: the same without a solve
+    # the box: from under the horn (3 m towards the vessel) aft past the touch-down
+    o, u = np.array(box["origin"]), np.array(box["dir"])
+    assert u[0] < -0.99 and box["length"] > 20.0 * 1.3

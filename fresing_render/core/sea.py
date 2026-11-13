@@ -527,12 +527,13 @@ CLARITY_FADED = 3.0                        # sigma * clarity: 5 % left at the cl
 CUT_GROW = 4.0                             # the water ring reaches this x the clarity out from the box (e^-12: gone)
 CUT_TOP = 0.08                             # m: the ring's top lies this much under the water's surface
 CUT_EDGE = 0.12                            # m: the bright line along the top of the box's walls
-CUT_DARK = (0.55, 40.0)                    # the box's walls darken with depth: this much at this depth (m)
+CUT_DARK = (0.35, 40.0)                    # the box's walls darken with depth: this much at this depth (m)
 SEABED_EXTENT = 1000.0                     # m round the model
 SEABED_SINK = 0.06                         # m: in Detailed the plain seabed lies this much under the rippled patch
 # the water's colour under water in full daylight (linear RGB, radiance): what a thing far behind a wall turns into.
 # A North Sea green-blue; lighter than DEEP (the sea seen from above, mostly the sky's reflection on dark water).
-UNDERWATER = (0.010, 0.042, 0.048)
+UNDERWATER = (0.028, 0.115, 0.125)        # (task 0081, after the first demo pictures: clearer than the sea seen from
+#                                           above – a cut-away shows the water as an illustration does)
 NIGHT_LIGHT = 0.003                        # what is left of the light at night (the moon; the camera opens up)
 OVERCAST_LIGHT = 0.45                      # a grey sky gives this share of a clear day's light
 SAND = ((0.21, 0.175, 0.12), (0.11, 0.10, 0.075))   # the seabed: wet sand … silt (linear RGB)

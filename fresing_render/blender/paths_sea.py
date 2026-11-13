@@ -46,6 +46,7 @@ from . import flex, joints
 
 BED = "FR seabed motion"                # the empty that carries the seabed (one per scene)
 TAG = "fr_sea"                          # on that empty
+BOX = "fr_sea_box"                      # on a cable item: hang-off and touch-down (world, CAD place) when last set
 SINK = 0.3                              # the cable lying on the seabed sinks this share of its Ø into the silt
 SAG = 0.001                             # m: the drawn catenary lies at most this far inside the true curve
 N_LAID, N_PILED = 2, 64                 # points of the part on the seabed (straight / snaking)
@@ -399,6 +400,7 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     sea = {"kind": kind, "psi": psi, "a": h["a"], "layback": h["layback"], "angle": h["angle"],
            "laid": h["laid"], "suspended": s_h, "excess": h["excess"], "steep": h["steep"], "short": h["short"],
            "kink": h["kink"], "tdp": h["tdp"], "T": h["T"], "pay": ar.pay, "bottom": bottom, "top": top,
+           "T_part": _apply(ar.bed, h["T"]), "tdp_part": _apply(ar.bed, h["tdp"]),
            "length": L, "h": h["h"]}
     out = dict(res)
     out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, sea=sea,
@@ -491,6 +493,10 @@ def anchor(scene, item) -> list[str]:
     with flex._quiet(item):
         item.sea_start = tuple(float(v) for v in an["start"][0])
         item.sea_mark = mark
+    # the cut-away box (Sea surroundings): from the hang-off and the touch-down, the vessel in its CAD place
+    cad = np.array(paths._cad(item.part, {}), dtype=float)
+    T_w, tdp_w = (cad[:3, :3] @ _apply(ar.bed, an[k])[0] + cad[:3, 3] for k in ("T", "tdp"))
+    item[BOX] = [float(v) for v in tuple(T_w) + tuple(tdp_w)]
     out = []
     if float(an["T"][0, 2]) <= zb:
         out.append(f"Cable '{paths.label(item)}': its hang-off is under the seabed – a smaller water depth?")
@@ -619,16 +625,25 @@ def _moment(scene, item):
     return hit
 
 
-def tdp_world(scene, item, moment: int = 0):
-    """(hang-off point, touch-down point) in world coordinates at a moment of the last solve, or None."""
+def tdp_world(scene, item, moment=None, cad: bool = False):
+    """(hang-off point, touch-down point) in world coordinates, or None: of the frame shown (or ``moment`` of the
+    last solve), the vessel where it is now – or in its CAD place (``cad``: what the cut-away box is placed by, so
+    it does not move with the vessel's motion)."""
     paths = _paths()
     got = _STATE["sea"].get(paths._k(scene, item))
-    ob = bed(scene)
-    if got is None or ob is None:
+    if got is None and paths._usable(scene, item) and is_sea(item):         # (a project just opened)
+        if paths._baked(scene):
+            got, moment = _moment(scene, item), 0
+        else:
+            paths._rebuild(scene, item)
+            got = _STATE["sea"].get(paths._k(scene, item))
+    if got is None or not paths._alive(scene, item.part):
         return None
-    k = min(max(moment, 0), len(got["kind"]) - 1)
-    m = np.array(ob.matrix_world)
-    return m[:3, :3] @ got["T"][k] + m[:3, 3], m[:3, :3] @ got["tdp"][k] + m[:3, 3]
+    if moment is None:
+        moment = paths._moment_now(scene, item) if len(got["kind"]) > 1 else 0
+    k = min(max(int(moment), 0), len(got["kind"]) - 1)
+    m = np.array(paths._cad(item.part, {}) if cad else paths._world(item.part), dtype=float)
+    return m[:3, :3] @ got["T_part"][k] + m[:3, 3], m[:3, :3] @ got["tdp_part"][k] + m[:3, 3]
 
 
 def cut_box(scene):
@@ -636,19 +651,17 @@ def cut_box(scene):
     box's front middle (under the hang-off, 3 m towards the vessel), "dir": (ux, uy) aft, "length", "width"}; None
     without a cable into the sea."""
     for it in sea_cables(scene):
-        if not it.enabled:
+        if not it.enabled or BOX not in it:
             continue
-        got = tdp_world(scene, it)
-        if got is None:
-            continue
-        T, tdp = got
+        v = [float(x) for x in it[BOX]]
+        T, tdp = np.array(v[:3]), np.array(v[3:6])
         u = np.array(it.sea_dir, dtype=float)
         u[2] = 0.0
         u = u / max(float(np.linalg.norm(u)), 1e-12)
         lay = float(np.dot((tdp - T)[:2], u[:2]))
         front = T[:2] - 3.0 * u[:2]
         length = max(12.0, 3.0 + 1.35 * max(lay, 0.0) + 6.0)
-        width = max(14.0, 0.45 * length)
+        width = max(14.0, 0.45 * length, 0.9 * depth(scene, it) + 6.0)     # (wide enough to see the seabed)
         return {"origin": (float(front[0]), float(front[1])), "dir": (float(u[0]), float(u[1])),
                 "length": float(length), "width": float(width)}
     return None
