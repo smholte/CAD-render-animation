@@ -205,14 +205,13 @@ def test_the_top_track_lifts_and_squeezes_with_its_pads_running(made):
 
 
 def test_drivers_need_no_python(made):
+    """One driver per track (on its run object), a simple expression; the parts have none."""
     sc = _sc()
-    n = 0
     for it in tracks.items(sc):
+        fcs = list(it.run.animation_data.drivers)
+        assert len(fcs) == 1 and fcs[0].driver.is_simple_expression, it.name
         for ob in tracks.parts_of(sc, it):
-            fcs = [fc for fc in ob.animation_data.drivers if fc.data_path.startswith('modifiers["FR track"]')]
-            assert len(fcs) == 1 and fcs[0].driver.is_simple_expression, ob.name
-            n += 1
-    assert n == 146
+            assert ob.animation_data is None or not len(ob.animation_data.drivers), ob.name
     assert joints.couplings_simple(sc)
 
 
@@ -305,7 +304,7 @@ def test_refusals(made):
     n = len(sc.fresing.tracks)
     with pytest.raises(tracks.TrackError, match="part of a track|twice|already"):
         tracks.add(sc, [uid("DRIVE SPROCKET#1"), uid("DRIVE SPROCKET#1")], uid("TRACK CHAIN LINK#1"))
-    with pytest.raises(tracks.TrackError, match="hinge"):
+    with pytest.raises(tracks.TrackError, match="hinge|already"):
         tracks.add(sc, [uid("DRIVE SPROCKET#1"), uid("IDLER SPROCKET#1")], uid("TRACK PAD#1"))
     with pytest.raises(tracks.TrackError, match="2 wheels"):
         tracks.add(sc, [uid("DRIVE SPROCKET#1")], uid("TRACK CHAIN LINK#1"))

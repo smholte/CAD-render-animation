@@ -43,14 +43,14 @@ TAG = "fr_track"                    # on a moving part, the loop object and an a
 ROLE = "fr_track_role"              # on a moving part: "link" / "rider"; on the loop object: "loop"
 MOD = "FR track"
 TREE = "FR track part"
-LOOP = "FR track loop"
-VERSION = 1                         # of the node tree
+RUN_TREE = "FR track run"
+RUN_MOD = "FR track run"            # on a track's run object
+LOOP = "FR track loop"              # + the track's name: the hidden table of the loop
+RUN = "FR track run"                # + the track's name: its run (one point per part, where it is drawn now)
+VERSION = 2                         # of the node trees
 BIAS = 2.0                          # Travel = metres of chain (0 … length) + BIAS: never a small number (CLAUDE.md 8)
 RATIO_TOL = 0.005                   # a wheel's own coupling this far off is reported
 NEAR_CABLE = 0.6                    # m: a cable this close to a run is the track's default speed
-_INPUTS = (("Loop", "NodeSocketObject"), ("Carrier", "NodeSocketObject"), ("Length", "NodeSocketFloat"),
-           ("Count", "NodeSocketInt"), ("Travel", "NodeSocketFloat"), ("Phase", "NodeSocketFloat"),
-           ("Offset", "NodeSocketVector"), ("Turn", "NodeSocketVector"), ("Size", "NodeSocketFloat"))
 _STATE = {"inputs": {}, "busy": 0}
 
 
@@ -277,6 +277,12 @@ def _read(scene, wheels: list, chain, riders) -> dict:
         raise TrackError("A track runs round at least 2 wheels: click them round the loop.")
     if len({w["part"].name for w in wl}) < len(wl):
         raise TrackError("A wheel was clicked twice: click each wheel once.")
+    taken = {o.name: o.get(TAG) for o in track_parts(scene)}
+    for ob in [chain] + [w for w, _h in wheels] + [r for r in riders or () if r is not None]:
+        if ob.name in taken:
+            other = next((t for t in scene.fresing.tracks if key_of(t) == taken[ob.name]), None)
+            raise TrackError(f"'{_name(ob)}' runs in track '{label(other) if other else '?'}' already: remove that "
+                             "track first, or click the parts of another chain.")
     n = wl[0]["axis"]
     centre = np.mean([w["centre"] for w in wl], axis=0)
     span = max(float(np.linalg.norm(w["centre"] - centre)) for w in wl)
@@ -332,91 +338,124 @@ def _read(scene, wheels: list, chain, riders) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# the node tree (shared by every track part)
+# the node trees: one "run" per track works out every part's place at once; each part picks up its own
 # ---------------------------------------------------------------------------
 
-def _build_tree(ng) -> None:
+def _math(b, op, x, y=None):
+    n = b.new("ShaderNodeMath", operation=op)
+    for k, v in enumerate((x, y)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            n.inputs[k].default_value = v
+        else:
+            b.link(v, n.inputs[k])
+    return n.outputs[0]
+
+
+def _imath(b, op, x, y):
+    n = b.new("FunctionNodeIntegerMath", operation=op)
+    for k, v in enumerate((x, y)):
+        if isinstance(v, int):
+            n.inputs[k].default_value = v
+        else:
+            b.link(v, n.inputs[k])
+    return n.outputs[0]
+
+
+def _attr(b, name: str, kind: str):
+    n = b.new("GeometryNodeInputNamedAttribute", data_type=kind)
+    n.inputs["Name"].default_value = name
+    return flex._sock(n.outputs, "Attribute")
+
+
+def _sample(b, geometry, index, value, kind: str):
+    s = b.new("GeometryNodeSampleIndex", data_type=kind, domain="POINT")
+    b.link(geometry, s.inputs["Geometry"])
+    b.link(index, s.inputs["Index"])
+    b.link(value, flex._sock(s.inputs, "Value"))
+    return flex._sock(s.outputs, "Value")
+
+
+def _build_run(ng) -> None:
+    """On the run object's points (one per part, ``fr_c0`` its phase, ``fr_local`` its local matrix): ``fr_m`` = the
+    world matrix the part is drawn with now: carrier · F(c) · local, c = floored_mod(Travel - BIAS + c0, Length), F
+    from the table (linear between its two samples round c). All parts of a track in one go (fields)."""
     b = flex._Nodes(ng)
     gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
-
-    def math_(op, x, y=None):
-        n = b.new("ShaderNodeMath", operation=op)
-        b.link(x, n.inputs[0]) if not isinstance(x, (int, float)) else setattr(n.inputs[0], "default_value", x)
-        if y is not None:
-            b.link(y, n.inputs[1]) if not isinstance(y, (int, float)) else setattr(n.inputs[1], "default_value", y)
-        return n.outputs[0]
-
-    # c = floored_mod(Travel - BIAS + Phase, Length); f = c / Length * Count
-    c = math_("FLOORED_MODULO", math_("ADD", math_("SUBTRACT", gin.outputs["Travel"], BIAS), gin.outputs["Phase"]),
-              gin.outputs["Length"])
-    f = math_("MULTIPLY", math_("DIVIDE", c, gin.outputs["Length"]), gin.outputs["Count"])
-    fl = math_("FLOOR", f)
-    t = math_("SUBTRACT", f, fl)
+    c = _math(b, "FLOORED_MODULO", _math(b, "ADD", _math(b, "SUBTRACT", gin.outputs["Travel"], BIAS),
+                                         _attr(b, "fr_c0", "FLOAT")), gin.outputs["Length"])
+    f = _math(b, "MULTIPLY", _math(b, "DIVIDE", c, gin.outputs["Length"]), gin.outputs["Count"])
+    fl = _math(b, "FLOOR", f)
+    t = _math(b, "SUBTRACT", f, fl)
     i0f = b.new("FunctionNodeFloatToInt", rounding_mode="FLOOR")
     b.link(fl, i0f.inputs[0])
-    i0 = b.new("FunctionNodeIntegerMath", operation="FLOORED_MODULO")
-    b.link(i0f.outputs[0], i0.inputs[0])
-    b.link(gin.outputs["Count"], i0.inputs[1])
-    i1p = b.new("FunctionNodeIntegerMath", operation="ADD")
-    b.link(i0.outputs[0], i1p.inputs[0])
-    i1p.inputs[1].default_value = 1
-    i1 = b.new("FunctionNodeIntegerMath", operation="FLOORED_MODULO")
-    b.link(i1p.outputs[0], i1.inputs[0])
-    b.link(gin.outputs["Count"], i1.inputs[1])
-    loop = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
-    b.link(gin.outputs["Loop"], loop.inputs["Object"])
-    geo = loop.outputs["Geometry"]
+    i0 = _imath(b, "FLOORED_MODULO", i0f.outputs[0], gin.outputs["Count"])
+    i1 = _imath(b, "FLOORED_MODULO", _imath(b, "ADD", i0, 1), gin.outputs["Count"])
+    table = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
+    b.link(gin.outputs["Table"], table.inputs["Object"])
+    geo = table.outputs["Geometry"]
 
-    def mixed(attribute: str):
-        v0 = flex._sample(b, geo, i0.outputs[0], attribute)
-        v1 = flex._sample(b, geo, i1.outputs[0], attribute)
+    def mixed(value):
         mix = b.new("ShaderNodeMix", data_type="VECTOR", clamp_factor=False)
         b.link(t, mix.inputs["Factor"])
-        b.link(v0, flex._sock(mix.inputs, "A"))
-        b.link(v1, flex._sock(mix.inputs, "B"))
+        b.link(_sample(b, geo, i0, value(), "FLOAT_VECTOR"), flex._sock(mix.inputs, "A"))
+        b.link(_sample(b, geo, i1, value(), "FLOAT_VECTOR"), flex._sock(mix.inputs, "B"))
         return flex._sock(mix.outputs, "Result")
 
     place = b.new("FunctionNodeCombineTransform")
-    b.link(mixed(""), place.inputs["Translation"])
-    b.link(flex._rotation(b, mixed("fr_x"), mixed("fr_z")), place.inputs["Rotation"])
-    # Local: Offset, Turn (Euler), Size
-    rot = b.new("FunctionNodeEulerToRotation")
-    b.link(gin.outputs["Turn"], rot.inputs[0])
-    local = b.new("FunctionNodeCombineTransform")
-    b.link(gin.outputs["Offset"], local.inputs["Translation"])
-    b.link(rot.outputs[0], local.inputs["Rotation"])
-    size = b.new("ShaderNodeCombineXYZ")
-    for k in range(3):
-        b.link(gin.outputs["Size"], size.inputs[k])
-    b.link(size.outputs[0], local.inputs["Scale"])
+    b.link(mixed(lambda: b.new("GeometryNodeInputPosition").outputs[0]), place.inputs["Translation"])
+    b.link(flex._rotation(b, mixed(lambda: _attr(b, "fr_x", "FLOAT_VECTOR")),
+                          mixed(lambda: _attr(b, "fr_z", "FLOAT_VECTOR"))), place.inputs["Rotation"])
     carrier = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
     b.link(gin.outputs["Carrier"], carrier.inputs["Object"])
     m1 = b.new("FunctionNodeMatrixMultiply")
     b.link(place.outputs[0], m1.inputs[0])
-    b.link(local.outputs[0], m1.inputs[1])
+    b.link(_attr(b, "fr_local", "FLOAT4X4"), m1.inputs[1])
     m2 = b.new("FunctionNodeMatrixMultiply")
     b.link(carrier.outputs["Transform"], m2.inputs[0])
     b.link(m1.outputs[0], m2.inputs[1])
-    m3 = b.new("FunctionNodeMatrixMultiply")
-    b.link(flex._to_own_space(b), m3.inputs[0])
-    b.link(m2.outputs[0], m3.inputs[1])
-    b.link(flex._move(b, gin.outputs["Geometry"], m3.outputs[0]), gout.inputs[0])
+    store = b.new("GeometryNodeStoreNamedAttribute", data_type="FLOAT4X4", domain="POINT")
+    store.inputs["Name"].default_value = "fr_m"
+    b.link(gin.outputs["Geometry"], store.inputs["Geometry"])
+    b.link(m2.outputs[0], flex._sock(store.inputs, "Value"))
+    b.link(store.outputs[0], gout.inputs[0])
 
 
-def _tree():
-    ng = bpy.data.node_groups.get(TREE)
+def _build_part(ng) -> None:
+    """A part's own geometry moved to where its point of the run says: inverse(own world) · fr_m[Index]."""
+    b = flex._Nodes(ng)
+    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+    run = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
+    b.link(gin.outputs["Run"], run.inputs["Object"])
+    W = _sample(b, run.outputs["Geometry"], gin.outputs["Index"], _attr(b, "fr_m", "FLOAT4X4"), "FLOAT4X4")
+    m = b.new("FunctionNodeMatrixMultiply")
+    b.link(flex._to_own_space(b), m.inputs[0])
+    b.link(W, m.inputs[1])
+    b.link(flex._move(b, gin.outputs["Geometry"], m.outputs[0]), gout.inputs[0])
+
+
+TREES = {"run": (RUN_TREE, (("Table", "NodeSocketObject"), ("Carrier", "NodeSocketObject"),
+                            ("Length", "NodeSocketFloat"), ("Count", "NodeSocketInt"), ("Travel", "NodeSocketFloat")),
+                 _build_run),
+         "part": (TREE, (("Run", "NodeSocketObject"), ("Index", "NodeSocketInt")), _build_part)}
+
+
+def _tree(which: str = "part"):
+    name, inputs, builder = TREES[which]
+    ng = bpy.data.node_groups.get(name)
     if ng is not None and ng.get(TAG) == VERSION:
         return ng
     if ng is not None:
-        ng.name = TREE + " old"
-    ng = bpy.data.node_groups.new(TREE, "GeometryNodeTree")
+        ng.name = name + " old"
+    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
     ng[TAG] = VERSION
     ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    for label_, kind_ in _INPUTS:
+    for label_, kind_ in inputs:
         ng.interface.new_socket(label_, in_out="INPUT", socket_type=kind_)
     ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    _build_tree(ng)
-    _STATE["inputs"].pop(TREE, None)
+    builder(ng)
+    _STATE["inputs"].pop(name, None)
     return ng
 
 
@@ -430,14 +469,14 @@ def _inputs(ng) -> dict:
 
 
 def _drop_unused_tree() -> None:
-    for name in (TREE, TREE + " old"):
+    for name in (TREE, TREE + " old", RUN_TREE, RUN_TREE + " old"):
         ng = bpy.data.node_groups.get(name)
         if ng is not None and ng.users == 0:
             bpy.data.node_groups.remove(ng)
 
 
 # ---------------------------------------------------------------------------
-# the loop object
+# the loop table and the run
 # ---------------------------------------------------------------------------
 
 def _loop_mesh(name: str, A: np.ndarray, X: np.ndarray, Z: np.ndarray):
@@ -452,39 +491,81 @@ def _loop_mesh(name: str, A: np.ndarray, X: np.ndarray, Z: np.ndarray):
     return me
 
 
-def _set_loop(scene, item, A, X, Z):
-    name = f"{LOOP} {label(item)}"
-    me = _loop_mesh(name, A, X, Z)
-    ob = loop_object(scene, item)
+def _run_mesh(name: str, rows: list):
+    """One point per part (in ``rows`` order): its phase and its local matrix (Blender keeps a 4 x 4 attribute
+    column by column)."""
+    me = bpy.data.meshes.new(name)
+    me.vertices.add(len(rows))
+    c0 = me.attributes.new("fr_c0", "FLOAT", "POINT")
+    c0.data.foreach_set("value", np.array([r["c0"] for r in rows], dtype=np.float32))
+    loc = me.attributes.new("fr_local", "FLOAT4X4", "POINT")
+    m = np.array([np.array(r["local"]).reshape(4, 4).T.reshape(-1) for r in rows], dtype=np.float32)
+    loc.data.foreach_set("value", m.reshape(-1))
+    me[TAG] = True
+    me.update()
+    return me
+
+
+def _made_object(scene, item, role: str, me, hidden: bool):
+    """The track's table ("loop", hidden) or run ("run": points only, so it draws nothing but is worked out)."""
+    name = f"{LOOP if role == 'loop' else RUN} {label(item)}"
+    ob = getattr(item, role)
+    if ob is not None and not _alive(scene, ob):
+        ob = None
     if ob is None:
         ob = bpy.data.objects.new(name, me)
         ob[TAG] = key_of(item)
-        ob[ROLE] = "loop"
+        ob[ROLE] = role
         ob[build.PROP_KIND] = "track"
         flex._collection(scene).objects.link(ob)
-        ob.hide_viewport = ob.hide_render = ob.hide_select = True
+        ob.hide_select = True
+        if hidden:
+            ob.hide_viewport = ob.hide_render = True
     else:
         old = ob.data
         ob.data = me
         if old is not None and old.users == 0:
             bpy.data.meshes.remove(old)
     with flex._quiet(item):
-        item.loop = ob
+        setattr(item, role, ob)
+    return ob
+
+
+def _set_loop(scene, item, A, X, Z):
+    return _made_object(scene, item, "loop", _loop_mesh(f"{LOOP} {label(item)}", A, X, Z), True)
+
+
+def _set_run(scene, item, rows: list, count: int):
+    ob = _made_object(scene, item, "run", _run_mesh(f"{RUN} {label(item)}", rows), False)
+    tree = _tree("run")
+    ins = _inputs(tree)
+    mod = ob.modifiers.get(RUN_MOD)
+    if mod is None or mod.type != "NODES":
+        mod = ob.modifiers.new(RUN_MOD, "NODES")
+    if mod.node_group != tree:
+        mod.node_group = tree
+    flex._put(mod, ins["Table"], item.loop)
+    flex._put(mod, ins["Carrier"], item.carrier)
+    flex._put(mod, ins["Length"], float(item.length))
+    flex._put(mod, ins["Count"], int(count))
+    if ob.animation_data is None or not ob.animation_data.drivers:
+        flex._put(mod, ins["Travel"], BIAS)
     return ob
 
 
 def _remove_loop(scene, item) -> None:
-    ob = item.loop
-    if ob is not None:
-        try:
-            me = ob.data
-            bpy.data.objects.remove(ob)
-            if me is not None and me.users == 0:
-                bpy.data.meshes.remove(me)
-        except ReferenceError:
-            pass
-    with flex._quiet(item):
-        item.loop = None
+    for role in ("run", "loop"):
+        ob = getattr(item, role)
+        if ob is not None:
+            try:
+                me = ob.data
+                bpy.data.objects.remove(ob)
+                if me is not None and me.users == 0:
+                    bpy.data.meshes.remove(me)
+            except ReferenceError:
+                pass
+        with flex._quiet(item):
+            setattr(item, role, None)
 
 
 # ---------------------------------------------------------------------------
@@ -642,11 +723,11 @@ def _setup(scene, item, geo: dict, joint: str = "") -> list[str]:
             notes.append(f"No cable runs through it: it got its own speed joint '{joint}' (metres of chain). Pick "
                          "a cable's joint as its speed in the panel, or give it a Run motor step")
         with flex._quiet(item):
-            item.reverse = sign < 0.0
+            item.flip = -1.0 if sign < 0.0 else 1.0
     with flex._quiet(item):
         item.joint = joint
     _set_loop(scene, item, data["A"], data["X"], data["Z"])
-    _attach(scene, item, data)
+    _attach(scene, item, data)                        # (the run object and every part's modifier)
     notes += couple(scene, item)
     _write_drivers(scene, item)
     return notes
@@ -683,18 +764,12 @@ def _parts_data(scene, item, geo: dict, Cw: np.ndarray) -> dict:
     return {"A": Ac, "X": Xc, "Z": Zc, "M": m, "rows": rows}
 
 
-def _local_inputs(local) -> tuple:
-    L = Matrix([list(local[i * 4:(i + 1) * 4]) for i in range(4)])
-    loc, rot, sc = L.decompose()
-    return tuple(loc), tuple(rot.to_euler("XYZ")), float(sum(sc) / 3.0)
-
-
 def _attach(scene, item, data: dict) -> None:
-    """Each part gets its modifier "FR track" with its phase and local matrix."""
-    tree = _tree()
+    """The run object, then each part's modifier "FR track" pointing at its point of the run."""
+    run = _set_run(scene, item, data["rows"], data["M"])
+    tree = _tree("part")
     ins = _inputs(tree)
-    loop = loop_object(scene, item)
-    for r in data["rows"]:
+    for k, r in enumerate(data["rows"]):
         ob = bpy.data.objects.get(r["name"])
         if ob is None:
             continue
@@ -705,16 +780,8 @@ def _attach(scene, item, data: dict) -> None:
             mod = ob.modifiers.new(MOD, "NODES")
         if mod.node_group != tree:
             mod.node_group = tree
-        off, turn, size = _local_inputs(r["local"])
-        flex._put(mod, ins["Loop"], loop)
-        flex._put(mod, ins["Carrier"], item.carrier)
-        flex._put(mod, ins["Length"], float(item.length))
-        flex._put(mod, ins["Count"], int(data["M"]))
-        flex._put(mod, ins["Phase"], float(r["c0"]))
-        flex._put(mod, ins["Size"], float(size))
-        getattr(mod.properties.inputs, ins["Offset"]).value = off
-        getattr(mod.properties.inputs, ins["Turn"]).value = turn
-        getattr(mod.properties.inputs, ins["Travel"]).value = BIAS
+        flex._put(mod, ins["Run"], run)
+        flex._put(mod, ins["Index"], k)
         mod.show_viewport = mod.show_render = bool(item.enabled)
 
 
@@ -819,7 +886,7 @@ def speed_map(scene, item):
     if top is None or top.motion is None:
         return None, 1.0, 0.0, f"'{j.name}' follows another joint by a table: pick a joint with a plain speed"
     if j.kind == "SLIDE":
-        g = -1.0 if item.reverse else 1.0
+        g = (-1.0 if item.reverse else 1.0) * (item.flip or 1.0)
     else:                              # a wheel's own turn: the chain runs the way that wheel turns (no reverse)
         w = next((w for w in item.wheels if w.joint == j.name), None)
         if w is None or w.rate == 0.0:
@@ -837,7 +904,7 @@ def wheel_ratio(scene, item, w) -> float:
         return 0.0
     s_w = _axis_sign(scene, item, j)
     if lead.kind == "SLIDE":
-        sign = -1.0 if item.reverse else 1.0
+        sign = (-1.0 if item.reverse else 1.0) * (item.flip or 1.0)
         return math.degrees(sign * w.rate * s_w) / 1000.0
     lw = next((x for x in item.wheels if x.joint == lead.name), None)
     if lw is None or lw.rate == 0.0:
@@ -900,32 +967,31 @@ def couple(scene, item) -> list[str]:
 
 
 def _write_drivers(scene, item) -> None:
-    """Every part's Travel: the driver on the speed joint (or the plain bias when the track has no speed)."""
+    """The run's Travel: a driver on the speed joint (or the plain bias when the track has no speed)."""
     top, k, c, why = speed_map(scene, item)
     with flex._quiet(item):
         item.problem = why if item.enabled else ""
-    tree = _tree()
-    ins = _inputs(tree)
-    path = f'modifiers["{MOD}"].properties.inputs.{ins["Travel"]}.value'
-    expr = T.drive_expression(k, c, float(item.length), BIAS) if top is not None else ""
-    for ob in parts_of(scene, item):
-        mod = ob.modifiers.get(MOD)
-        if mod is None:
-            continue
-        ad = ob.animation_data
-        fc = ad.drivers.find(path) if ad is not None else None
-        if top is None:
-            if fc is not None:
-                ob.driver_remove(path)
-            getattr(mod.properties.inputs, ins["Travel"]).value = BIAS
-            continue
-        if fc is not None and fc.driver.expression == expr and len(fc.driver.variables) == 1 and \
-                fc.driver.variables[0].targets[0].id == top.motion:
-            continue
+    ob = item.run if _alive(scene, item.run) else None
+    if ob is None or ob.modifiers.get(RUN_MOD) is None:
+        return
+    mod = ob.modifiers[RUN_MOD]
+    ins = _inputs(_tree("run"))
+    path = f'modifiers["{RUN_MOD}"].properties.inputs.{ins["Travel"]}.value'
+    ad = ob.animation_data
+    fc = ad.drivers.find(path) if ad is not None else None
+    if top is None:
         if fc is not None:
             ob.driver_remove(path)
-        joints._scripted(ob.driver_add(path), top.motion, expr)
-        ob.update_tag()
+        getattr(mod.properties.inputs, ins["Travel"]).value = BIAS
+        return
+    expr = T.drive_expression(k, c, float(item.length), BIAS)
+    if fc is not None and fc.driver.expression == expr and len(fc.driver.variables) == 1 and \
+            fc.driver.variables[0].targets[0].id == top.motion:
+        return
+    if fc is not None:
+        ob.driver_remove(path)
+    joints._scripted(ob.driver_add(path), top.motion, expr)
+    ob.update_tag()
 
 
 # ---------------------------------------------------------------------------
@@ -1084,7 +1150,7 @@ def status(scene, item) -> tuple[str, str]:
         return "Off: as in the CAD file", "OFF"
     if item.problem:
         return item.problem, "ERROR"
-    if loop_object(scene, item) is None or not _alive(scene, item.carrier):
+    if loop_object(scene, item) is None or not _alive(scene, item.run) or not _alive(scene, item.carrier):
         return "Its loop is gone: remove it and add it again", "ERROR"
     if any(w.note for w in item.wheels):
         return f"{plural(item.parts, 'part')} on {item.joint}; see the notes", "WARN"
@@ -1109,7 +1175,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     notes = []
     keep = []
     for it in s.tracks:
-        keep.append({"name": it.name, "key": key_of(it), "joint": it.joint, "reverse": bool(it.reverse), "enabled": bool(it.enabled),
+        keep.append({"name": it.name, "key": key_of(it), "joint": it.joint, "reverse": bool(it.reverse),
+                     "flip": float(it.flip), "enabled": bool(it.enabled),
                      "made_joint": bool(it.made_joint),
                      "wheels": [w.part_uid for w in it.wheels], "chain": it.chain_uid,
                      "coupled": [w.part_uid for w in it.wheels if w.coupled],
@@ -1138,6 +1205,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             continue
         with flex._quiet(it):
             it.reverse = k["reverse"]
+            it.flip = k["flip"] if joint == k["joint"] else it.flip
             it.enabled = k["enabled"]
             it.made_joint = it.made_joint or (k["made_joint"] and joint == k["joint"])
         for w in it.wheels:

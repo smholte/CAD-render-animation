@@ -2452,6 +2452,7 @@ class FRTrack(bpy.types.PropertyGroup):
                     "chain) or the joint of one of its own wheels (the chain runs as that wheel turns). Animate that "
                     "joint, for example with a Run motor step in 6 Animation")
     made_joint: BoolProperty(default=False)                # the app made the speed joint (removed with the track)
+    flip: FloatProperty(default=1.0)                       # +1 / -1: the way that moves the pads with the cable (found)
     reverse: BoolProperty(
         name="Runs the other way", default=False, update=_track_changed,
         description="Off: the pads on the run nearest the cable move with the cable (or along the slide joint). "
@@ -2464,6 +2465,7 @@ class FRTrack(bpy.types.PropertyGroup):
     # ---- state (written by blender/tracks.py) ----
     carrier: PointerProperty(type=bpy.types.Object)        # the loop's coordinates: the first wheel's joint arrow
     loop: PointerProperty(type=bpy.types.Object)           # the hidden loop table "FR track loop <name>"
+    run: PointerProperty(type=bpy.types.Object)            # "FR track run <name>": one point per part, its place now
     normal: FloatVectorProperty(size=3, default=(0.0, 1.0, 0.0))  # the loop's normal, carrier coordinates
     pitch: FloatProperty(default=0.0)                      # m
     links: IntProperty(default=0)

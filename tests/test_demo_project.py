@@ -693,6 +693,8 @@ def test_tensioner_tracks_run_with_the_cable(made):
     off = per_frame()
     for it in tracks.items(sc):
         it.enabled = True
-    print(f"\nper frame with the 4 tracks running: {on:.1f} ms, off: {off:.1f} ms")
+    secs = made["out"]["seconds"]
+    print(f"\nper frame with the 4 tracks running: {on:.1f} ms, off: {off:.1f} ms; stage 'tracks' "
+          f"{secs.get('tracks', 0.0):.1f} s of {sum(secs.values()):.0f} s to make the demo")
     animation.clear_keys(sc)
     sc.frame_set(1)
