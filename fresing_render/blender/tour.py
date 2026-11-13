@@ -1341,6 +1341,73 @@ def _check_chains(scene):
     return f"3 chains, {n} links, the moving ends on their parts to {end * 1000:.3f} mm"
 
 
+# ---------------------------------------------------------------------------
+# a cable over sheaves, rollers and a chute (task 0078)
+# ---------------------------------------------------------------------------
+
+CABLE_ANIM = "Cable over sheaves"
+
+
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step")
+def build_cables(b: Build):
+    from . import paths
+    sc = b.scene
+    _look("PRODUCT")
+    made = paths.set_up_test_model(sc)
+    _check(len(made["contacts"]) == 6, f"only {len(made['contacts'])} of the 6 things the rope touches were found")
+    _check(made["animation"] == CABLE_ANIM, f"the animation is called '{made['animation']}'")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: cable")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_cables(scene):
+    """Along the built animation: the rope lies on every wheel it bends round, the drum, sheaves and rollers have
+    turned exactly as far as the rope ran, and the rope follows the luffing A-frame."""
+    import numpy as np
+
+    from . import joints, paths
+    its = list(paths.items(scene))
+    _check(len(its) == 1, "the cable is missing")
+    it = its[0]
+    _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
+    cab = joints.find(scene, it.joint)
+    _check(cab is not None, "the cable's speed joint is missing")
+    off = slip = moved = pay = 0.0
+    first = None
+    for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 15)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        pts = np.array(paths.shape_now(scene, it), dtype=float)
+        for w in paths.wheels_now(scene, it):
+            d = pts - np.asarray(w.centre, float)
+            ax = np.asarray(w.axis, float)
+            rad = np.linalg.norm(d - np.outer(d @ ax, ax), axis=1)
+            off = max(off, abs(float(rad.min()) - float(w.radius)))
+        pay = joints.get_value(cab)
+        for c in it.contacts:
+            if c.kind in paths.TURNING and c.turns and c.joint:
+                j = joints.find(scene, c.joint)
+                _check(j is not None, f"'{c.name}' has lost its joint")
+                want = math.radians(c.ratio) * pay * 1000.0
+                slip = max(slip, abs(joints.get_value(j) - want) * paths.radius_of(it, c))
+        if first is None:
+            first = pts
+        elif pts.shape == first.shape:
+            moved = max(moved, float(np.abs(pts - first).max()))
+    turning = sum(1 for c in it.contacts if c.kind in paths.TURNING and c.turns and c.joint)
+    _check(pay > 0.9, f"only {pay:.2f} m of rope ran: the cable speed does not move it")
+    _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
+    _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
+    _check(moved > 0.05, f"the rope moved only {moved * 1000:.0f} mm: it does not follow the A-frame")
+    _check(turning == 5, f"{turning} of the 5 turning parts turn")
+    return (f"{len(it.contacts)} contacts, {pay:.2f} m of rope ran, the rope on its sheaves to {off * 1000:.2f} mm, "
+            f"{turning} parts turning with it to {slip * 1000:.3f} mm")
+
+
 @tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step")
 def build_copies(b: Build):
     from mathutils import Vector
@@ -2165,6 +2232,12 @@ stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
      since="0.2.78", check=_check_chains, auto="clip")
+stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
+     "The wire rope comes off the winch drum, goes over the two sheaves of the A-frame, through the V rollers and "
+     "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
+     "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
+     where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.79", check=_check_cables,
+     auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

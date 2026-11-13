@@ -111,6 +111,12 @@ worker session stays the one in charge: it reads the brief, designs, merges, tes
   guide text, tooltips) may go to `sonnet` to save usage.
 - **Never `git add -A` while worktree subagents exist** without `.claude/worktrees/` in `.git/info/exclude`: their
   folders are added as links (happened in task 0061).
+- **A worktree subagent may start from an older commit** than the worker's branch (task 0078: all of them started
+  at the session's first commit, without the design). The brief's first line: "`git merge <the worker's branch>` in
+  your worktree first". Commit the brief (the Design) before spawning.
+- **Give an agent that did not write the code the job of breaking it** (task 0078: the independent tester found that the
+  task's own test rope could not be read, and ten more faults, while all 77 of the author's tests passed). Send its
+  findings back to the author (`SendMessage` resumes an agent with its context) rather than fixing them yourself.
 - **Say in the report** which subagents ran, what each did and which work was re-done after merging.
 
 ### Saving usage (owner's request, 5 Nov 2026)
@@ -232,6 +238,12 @@ fresing_render/            the Blender extension (Python package)
                            to the moving end, closed forms + a 1-D solve for the bend's place; ``fit_links`` reads pitch,
                            radius, plane and each link's place on its pins from the CAD links),
                            flex_fit.py (a tube mesh's centreline, radius, ends and end directions)
+                           paths.py (cable paths, task 0078: a cable's middle line is straight runs and round arcs; the
+                           tight-string solver over wheels – tangent points in closed form, alternated; `held` keeps each
+                           arc in its wheel's plane; a wheel the cable leaves is `lifted` –, the same over all frames at
+                           once (`solve_frames`, fixed point counts), reading a CAD cable (`centreline` for long tubes,
+                           `read_cable`: arcs → WRAP on a round part / BEND, rollers it rests on → TOUCH), the seat of a
+                           cable in a groove from the mesh, `is_round`, the ratio of a wheel turned by the cable)
   importer/                STEP reader (OpenCascade via OCP) and the runner that starts it as a subprocess
     step_reader.py         reads STEP -> tree.json + meshes.npz cache; meshes on all cores with helper processes;
                            facets by size (task 0074, `FACETS`): big parts capped in mm, small standard parts lighter
@@ -339,6 +351,21 @@ fresing_render/            the Blender extension (Python package)
                            they touch in the CAD pose; flex parts are left out of the clash check (clash.HOOKS);
                            ``set_up_test_hoses`` / ``set_up_test_chains`` (test_flex_*.step from tools/make_test_flex.py);
                            ops_flex.py, ui_flex.py (4 Motion > Hoses and drag chains)
+    paths.py               cables and paths (task 0078): a cable item = its CAD part + a slide joint whose value is the
+                           metres paid out ("Cable <name>", moves nothing) + the contacts in order (SHEAVE / ROLLER /
+                           CHUTE / BEND, each with a carrier whose coordinates hold its axis). The cable part gets a
+                           Geometry Nodes modifier "FR cable" that draws a tube through the points of its own hidden mesh
+                           "FR cable shapes <name>" (in the cable part's coordinates; a still tree without Scene Time, a
+                           moving one that picks the frame's slice); rollers and sheaves follow the cable joint (own
+                           joints kept, app-made ones tagged ``fr_cable``); live handler, ``bake`` at Build after
+                           ``flex.bake``; the look's group ("Power cables" / "Wire ropes"); ``set_up_test_model``
+                           (test_paths_a.step from tools/make_test_paths.py); ops_paths.py, ui_paths.py
+                           (4 Motion > Cables and paths)
+    cable_looks.py         the two cable looks (materials ``cable_power``, ``wire_rope``; hook in
+                           ``materials.build_nodes``): shader nodes that read the tube's point attribute ``fr_cable``
+                           = (cos φ, sin φ, length along the cable) and the object's ``fr_cable_pay`` (metres paid out
+                           + 2.0, a simple-expression driver on the cable joint) and ``fr_cable_look``; ``pattern`` =
+                           the same formula in plain Python for the tests
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -843,5 +870,22 @@ the release → Delete); the next run on `main` publishes it again.
   temporary scene for baking is a copy of a scene that already renders with Cycles (``web3d.Baker``).
 - Cycles bakes one object at a time over the whole target image: 8 bake planes into one atlas took 18 s, the same
   quads as one object 3–5 s (task 0099).
+- A driver on an **object's custom property** does not make Blender work out that object's Geometry Nodes again
+  (measured: a 32,000-point tube, 0 ms per frame), and a material reads the property with an Attribute node of type
+  OBJECT, in Cycles and EEVEE: a pattern that must move every frame (the cable's stripes, task 0078) moves by such a
+  driver, never by changing the geometry. A node tree with a Scene Time node is worked out at every frame: a shape
+  that stands still gets a tree without one.
+- Geometry Nodes 5.2: the Capture Attribute node has a ``Selection`` socket at index 1 – address sockets by name
+  (``cap.inputs["len"]``), or the value goes into the selection and every point reads 0 or 1 (task 0078).
+- `flex_fit.tube_centreline` cuts a tube at most 1,024 times: on a 300 m cable its line was 0.46 m off. Long cables
+  are read in overlapping pieces (`core/paths.centreline`); where two pieces meet, drop only the overlap – dropping
+  every later point "behind" the seam lost the part of a rope that turns back over a sheave (found by the independent
+  tester of task 0078, not by the author's tests).
+- "Round all the way" judged from a mesh's corners fails on real parts: a plain cylinder has corners only at its ends,
+  so a drum with one anchor hole had a slice with only that hole's rim and counted as "not round". Judge by the
+  triangles' share of the turn (`core/paths.is_round`).
+- A joint that moves nothing (`joints.create(..., allow_empty=True)`: a cable's speed, the demo's "Cable travel") was
+  dropped at a model update ("its moving parts are no longer in the model") with every coupling to it:
+  `joints.rebuild_from_specs` keeps a joint whose spec has no members and no riders (task 0078).
 - GitHub's test machines cannot start EEVEE (no GL context): a test that renders with EEVEE checks something else
   there instead of being skipped – each pytest group allows one skipped test (`ci_pytest_summary.py --max-skipped 1`).

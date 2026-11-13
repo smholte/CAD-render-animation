@@ -1610,7 +1610,9 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             objs = present(sp)
             missing = len(sp["members"]) - len(objs)
             carries = bool(stack_objs(sp)) and not objs     # moves nothing itself, but carries other joints
-            if not objs and not carries:
+            # made to move nothing (a cable's joint, task 0078: its value is the metres paid out)
+            empty = not sp["members"] and not riders_of.get(sp["name"])
+            if not objs and not carries and not empty:
                 warnings.append(f"Joint '{sp['name']}' removed: its moving parts are no longer in the model")
                 continue
             if missing:
@@ -1626,7 +1628,11 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
                                     "it now sits on its CAD parent")
                 elif sp.get("base") and base is None:
                     warnings.append(f"Joint '{sp['name']}': the part it sat on is gone; it now sits on its CAD parent")
-                if base is None:
+                if base is None and empty:
+                    roots = build.model_roots(scene)
+                    base = roots[0] if roots else None
+                    world = build.list_to_mat(sp["world"])
+                elif base is None:
                     base = default_base(objs or stack_objs(sp))
                     world = build.list_to_mat(sp["world"])     # where the axis was (the model did not move)
                 else:
@@ -1635,7 +1641,7 @@ def rebuild_from_specs(scene, specs: list[dict], by_uid: dict) -> list[str]:
             direction = world.to_3x3() @ Vector((0, 0, 1))
             try:
                 j = create(scene, sp["kind"], objs, origin, direction, name=sp["name"], base=base, stack=False,
-                           allow_empty=carries, frame_world=world)
+                           allow_empty=carries or empty, frame_world=world)
             except RuntimeError as exc:
                 warnings.append(f"Joint '{sp['name']}' could not be rebuilt: {exc}")
                 continue

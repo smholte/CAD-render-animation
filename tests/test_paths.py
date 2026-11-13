@@ -227,7 +227,7 @@ def test_the_cable_is_read_from_its_cad_shape(rope):
             want = N["rollers"][k]
             assert c.radius == pytest.approx(want["seat_radius"] * MM, abs=0.2 * MM)
             assert c.surface == pytest.approx(want["surface_radius"] * MM, abs=0.2 * MM)
-            assert c.wrap == 0.0 and c.full and c.part == ob(sc, "V ROLLER", k)
+            assert c.wrap == 0.0 and c.wrap_cad == -1.0 and c.full and c.part == ob(sc, "V ROLLER", k)
             continue
         want = N["contacts"][c.name]
         assert c.radius == pytest.approx(want["seat_radius"] * MM, abs=0.2 * MM), c.name
@@ -235,6 +235,7 @@ def test_the_cable_is_read_from_its_cad_shape(rope):
         assert math.degrees(c.wrap) == pytest.approx(want["wrap"], abs=0.2), c.name
         assert c.side == want["side"], c.name               # the maker's axis is +Y, as the parts' round faces are
         assert c.full == (c.name != "CHUTE") and c.part == ob(sc, c.name)
+        assert c.wrap_cad == pytest.approx(c.wrap, abs=1e-6)        # what a lifted wheel and a loop are measured by
         assert abs(c.gap) < 1.0 * MM and not c.note          # (the facets of a Draft mesh)
     # where each contact is along the rope
     assert [c.s for c in it.contacts] == sorted(c.s for c in it.contacts)
@@ -328,17 +329,16 @@ def test_a_cable_that_touches_nothing_is_refused(folder):
 
 
 def test_a_reading_far_off_the_cad_cable_is_refused(folder, monkeypatch):
-    """The reader can say "ok" with its path beside the cable: the app measures that itself and refuses in plain
-    words – where, and how far. (Here the limit is set far below the facets of the Draft mesh.)"""
+    """A path that lies beside the cable as drawn is refused in plain words – where, and how far – and nothing is
+    changed. (Here the reader's limit is set far below the facets of the Draft mesh.)"""
     sc = load(folder, MODEL_A)
     it = paths.add_cable(sc, CABLE)
-    monkeypatch.setattr(paths, "OFF_PATH", (0.00002, 0.0))
+    monkeypatch.setattr(P, "MAX_DEVIATION", (0.00002, 0.0))
     with pytest.raises(paths.PathError) as err:
         paths.read_cad(sc, it, ob(sc, "WIRE ROPE"))
     text = str(err.value)
-    assert text.startswith("The path of 'WIRE ROPE' cannot be read: ")
-    assert " m from its start the cable as drawn lies " in text
-    assert " mm beside the straight runs and round bends" in text
+    assert text.startswith("The path of 'WIRE ROPE' cannot be read: The path that can be read lies ")
+    assert " mm beside the cable as it is drawn, " in text and " m from its start" in text
     it = cable(sc)
     assert it.part is None and not len(it.contacts) and len(sc.fresing.joints) == 1
     assert paths.MOD not in ob(sc, "WIRE ROPE").modifiers
@@ -986,8 +986,10 @@ def test_a_pose_without_a_path_keeps_the_last_shape(rope):
     a = steps(sc, (("Luff", 0.0, 2.0, math.radians(-110.0)),))
     r = animation.bake(sc, a)
     it = cable(sc)
-    assert len(r["warnings"]) == 1 and it.problem_frame > 1
+    assert it.problem_frame > 1
     assert r["warnings"][0].startswith(f"Cable 'Wire rope' cannot go round 'SHEAVE 1' at frame {it.problem_frame}: ")
+    # (just before that the rope goes far further round the drum than it was drawn: said too)
+    assert [w.split(" at frame")[0] for w in r["warnings"][1:]] == ["Cable 'Wire rope' goes 269° round 'WINCH DRUM'"]
     sc.frame_set(it.problem_frame - 1)
     last = drawn(it.part)[0]
     check_on_seats(sc, luff_deg(sc))
@@ -998,34 +1000,230 @@ def test_a_pose_without_a_path_keeps_the_last_shape(rope):
     animation.clear_keys(sc)
 
 
-def test_a_wheel_the_cable_lifts_off_is_a_bad_frame():
-    """A wrap that jumps from next to nothing to a loop round the wheel (or the solver's own ``lifted``): the
-    cable has left that wheel. Those frames keep the last good shape and the warning names the wheel."""
-    wrap = np.array([[1.0, 0.5], [0.9, 0.4], [0.8, 0.01], [0.8, 5.9], [0.8, 5.8], [0.7, 0.02]])
-    F = len(wrap)
+@pytest.fixture()
+def lifting(folder):
+    """The test model with sheave 2 on a slide joint of its own, "Away": it carries the sheave up and forward, out
+    of the rope's way (the app's rotate joint for the sheave then rides on it)."""
+    sc = load(folder, MODEL_A)
+    centre = np.array(N["contacts"]["SHEAVE 2"]["axis_point"]) * MM
+    joints.create(sc, "SLIDE", [ob(sc, "SHEAVE 2")], Vector(centre), Vector((0.8, 0.0, 0.6)), name="Away")
+    paths.set_up_test_model(sc)
+    j = joints.find(sc, contact(sc, "SHEAVE 2").joint)
+    assert contact(sc, "SHEAVE 2").made_joint and joints.rides_on(sc, j).name == "Away"
+    return sc
 
-    def result():
-        return {"ok": np.ones(F, dtype=bool), "wrap": wrap.copy(), "bad": -np.ones(F, dtype=int), "problems": {},
-                "points": np.arange(F * 6, dtype=float).reshape(F, 2, 3),
-                "s": np.arange(F * 2, dtype=float).reshape(F, 2),
-                "length": np.arange(F, dtype=float)}
 
-    res = result()
-    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
-    assert list(res["ok"]) == [True, True, True, False, False, True] and res["off"] == {3: 1, 4: 1}
-    assert res["problems"][3] == "the cable no longer touches 'SHEAVE 2' (it has lifted off)"
-    for f in (3, 4):
-        assert np.array_equal(res["points"][f], res["points"][2]) and res["length"][f] == 2.0 and res["bad"][f] == 1
-    res = result()
-    res["wrap"][3:5, 1] = 0.0
-    res["lifted"] = np.zeros((F, 2), dtype=bool)
-    res["lifted"][3:5, 1] = True
-    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
-    assert list(res["ok"]) == [True, True, True, False, False, True] and res["off"] == {3: 1, 4: 1}
-    res = result()
-    res["wrap"][3:5, 1] = 0.3                                # a wrap that only grows and shrinks: nothing lifted
-    paths._lifted(res, ["SHEAVE 1", "SHEAVE 2"])
-    assert res["ok"].all() and not res["off"]
+def past_sheave_2(sc):
+    """With sheave 2 out of the way the rope cannot come onto the chute from in front of it either: it runs
+    straight from sheave 1 to its free end. Returns (that straight as the maker's formulas give it: start, end;
+    how far sheave 2's middle is beyond it, m – more than its seat radius: the rope cannot touch it)."""
+    w = {name: (c, r, side) for name, c, r, side in maker.wheels(0.0)}
+    end = np.array(N["rope"]["end"])
+    p1, _p2, t = maker.tangent(*w["SHEAVE 1"], np.array([end[0], end[2]]), 0.0, 1)
+    m = np.array(contact(sc, "SHEAVE 2").carrier.matrix_world, dtype=float)
+    centre = (m[:3, :3] @ np.array(contact(sc, "SHEAVE 2").centre) + m[:3, 3]) / MM
+    v = np.array([centre[0], centre[2]]) - p1
+    beyond = float(t[0] * v[1] - t[1] * v[0])               # (x, z): + is up and forward of the line
+    return np.array([p1[0], 0.0, p1[1]]) * MM, end * MM, beyond * MM
+
+
+def check_straight_past(sc):
+    """The drawn rope runs straight from sheave 1 to its end: no loop, no crease, every ring in its place."""
+    it = cable(sc)
+    a, b, beyond = past_sheave_2(sc)
+    assert beyond > contact(sc, "SHEAVE 2").radius
+    c, radii = rings(it.part)
+    assert np.isfinite(c).all() and np.abs(radii - 0.5 * it.diameter).max() < 1e-5
+    c1 = np.array(N["contacts"]["SHEAVE 1"]["axis_point"]) * MM
+    on1 = np.flatnonzero(np.linalg.norm(c - c1, axis=1) < N["contacts"]["SHEAVE 1"]["seat_radius"] * MM + 1 * MM)
+    between = c[on1[-1]:]
+    assert np.linalg.norm(between[0] - a) < 0.3 * MM and np.linalg.norm(between[-1] - b) < 0.3 * MM
+    assert to_line(between, np.array([a, b])).max() < 0.3 * MM
+    step = np.linalg.norm(np.diff(between, axis=0), axis=1)
+    assert len(between) >= 6 and step.min() > 0.05 * step.max()            # the lifted wheels' points, spread along it
+    assert np.all(np.diff((between - a) @ (b - a)) > 0.0)                  # it never turns back
+    co, att = drawn(it.part)
+    assert np.abs(to_line(co, c) - 0.5 * it.diameter).max() < 0.4 * MM     # the tube's skin: no crease anywhere
+    s_ = att[:, 2].reshape(-1, paths.SIDES)[:, 0]
+    assert np.all(np.diff(s_) > 0.0) and s_[-1] == pytest.approx(np.linalg.norm(np.diff(c, axis=0), axis=1).sum(),
+                                                                 abs=0.01)
+    assert s_[-1] < N["rope"]["length"] * MM - 0.3
+
+
+def test_a_sheave_the_cable_lifts_off(lifting):
+    sc = lifting
+    it = cable(sc)
+    update()
+    before = rings(it.part)[0]
+    wrap = contact(sc, "SHEAVE 2").wrap
+    assert math.degrees(wrap) == pytest.approx(N["contacts"]["SHEAVE 2"]["wrap"], abs=0.2)
+    # a little out of the way: the rope still goes round it, less far
+    joints.set_value(joints.find(sc, "Away"), 0.3)
+    update()
+    assert paths.status(sc, cable(sc))[1] == "OK" and 0.2 < contact(sc, "SHEAVE 2").wrap < wrap - 0.2
+    # right out of the way: the rope runs straight on from sheave 1, and the cable says so
+    joints.set_value(joints.find(sc, "Away"), 1.6)
+    update()
+    it = cable(sc)
+    assert paths.status(sc, it) == ("no longer touches 'SHEAVE 2' in this pose", "WARN")
+    assert contact(sc, "SHEAVE 2").wrap == 0.0 and contact(sc, "CHUTE").wrap == 0.0
+    check_straight_past(sc)
+    assert it.length < N["rope"]["length"] * MM - 0.3
+    there = rings(it.part)[0]
+    joints.set_value(joints.find(sc, "Away"), 1.9)          # further still: the same straight
+    update()
+    assert np.abs(rings(cable(sc).part)[0] - there).max() < 1e-6
+    # … and back: it lies on the sheave as before
+    joints.set_value(joints.find(sc, "Away"), 0.0)
+    update()
+    it = cable(sc)
+    assert paths.status(sc, it)[1] == "OK" and not it.problem
+    assert np.abs(rings(it.part)[0] - before).max() < 1e-6 and contact(sc, "SHEAVE 2").wrap == pytest.approx(wrap)
+    # along a built animation: out and back
+    a = steps(sc, (("Away", 0.0, 2.0, 1.6), ("Away", 2.0, 2.0, 0.0)))
+    r = animation.bake(sc, a)
+    it = cable(sc)
+    lifted_at = []
+    for f in range(1, r["frames"] + 1):
+        sc.frame_set(f)
+        if past_sheave_2(sc)[2] > contact(sc, "SHEAVE 2").radius:
+            lifted_at.append(f)
+    assert lifted_at and lifted_at == list(range(lifted_at[0], lifted_at[-1] + 1)) and lifted_at[-1] < r["frames"]
+    assert it.moving and abs(it.problem_frame - lifted_at[0]) <= 1
+    assert paths.status(sc, it) == (f"no longer touches 'SHEAVE 2' at frame {it.problem_frame}", "WARN")
+    assert r["warnings"][0] == f"Cable 'Wire rope' no longer touches 'SHEAVE 2' at frame {it.problem_frame}"
+    assert len(r["warnings"]) == 2 and r["warnings"][1].startswith("Cable 'Wire rope' no longer touches 'CHUTE' at ")
+    chute_at = int(r["warnings"][1].rsplit(" ", 1)[1])
+    assert 1 < chute_at <= it.problem_frame                 # (the rope leaves the chute first, or with the sheave)
+    print(f"\nsheave 2 slid out of the rope's way: no longer touched at frames {lifted_at[0]} … {lifted_at[-1]} of "
+          f"{r['frames']} (the app: from {it.problem_frame}; the chute from {chute_at})")
+    sc.frame_set(chute_at - 2)                              # before: both on their seats, a smaller wrap
+    c, _r = rings(it.part)
+    m = np.array(contact(sc, "SHEAVE 2").carrier.matrix_world, dtype=float)
+    centre = m[:3, :3] @ np.array(contact(sc, "SHEAVE 2").centre) + m[:3, 3]
+    d = np.linalg.norm(c - centre, axis=1)
+    on = d < contact(sc, "SHEAVE 2").radius + 1 * MM
+    assert on.sum() >= 3 and np.abs(d[on] - contact(sc, "SHEAVE 2").radius).max() < 0.01 * MM
+    for f in (lifted_at[0] + 1, (lifted_at[0] + lifted_at[-1]) // 2, lifted_at[-1] - 1):
+        sc.frame_set(f)
+        update()
+        check_straight_past(sc)
+    sc.frame_set(r["frames"])
+    update()
+    assert np.abs(rings(it.part)[0] - before).max() < 1e-5  # back on the sheave at the end
+    sc.frame_set(1)
+    update()
+    assert np.abs(rings(it.part)[0] - before).max() < 1e-5
+
+
+def test_a_wrap_far_wider_than_drawn_warns(rope):
+    """Contacts in the wrong order or a wrong side make the cable loop round a wheel: it is drawn (the user may
+    mean it) but the cable says what looks wrong. Here the "drawn" wrap of sheave 2 is set to 9° by hand."""
+    sc = rope
+    c = contact(sc, "SHEAVE 2")
+    with paths._quiet(c):
+        c.wrap_cad = math.radians(9.0)
+    paths.refresh(sc, force=True)
+    text = "goes 135° round 'SHEAVE 2' (drawn: 9°): check its side and the order of the contacts"
+    assert paths.status(sc, cable(sc)) == (text, "WARN")
+    update()
+    check_on_seats(sc, 0.0)                                 # it is drawn as solved all the same
+    r = animation.bake(sc, run_step(sc, 1.0))
+    assert r["warnings"] == ["Cable 'Wire rope' goes 135° round 'SHEAVE 2' at frame 1 (drawn: 9°): check its side "
+                             "and the order of the contacts"]
+    animation.clear_keys(sc)
+    # a side chosen by hand is what the cable is drawn like from then on: no warning
+    k = index(sc, "SHEAVE 2")
+    paths.flip_contact(sc, cable(sc), k)
+    c = cable(sc).contacts[k]
+    assert math.degrees(c.wrap_cad) == pytest.approx(math.degrees(c.wrap), abs=0.01) and math.degrees(c.wrap) > 200.0
+    assert paths.status(sc, cable(sc))[1] == "OK"
+    paths.flip_contact(sc, cable(sc), k)
+    c = cable(sc).contacts[k]
+    assert math.degrees(c.wrap_cad) == pytest.approx(N["contacts"]["SHEAVE 2"]["wrap"], abs=0.2)
+    assert paths.status(sc, cable(sc))[1] == "OK"
+
+
+def test_things_dragged_by_hand(rope, folder):
+    """A cable that can move (here: because of the luff joint) is watched: a sheave's part or a chute dragged out
+    of its place takes the cable along. One that stays as drawn does not; one that cannot move is not watched."""
+    from mathutils import Matrix
+    sc = rope
+    it = cable(sc)
+    assert it.moving
+    update()
+    before = rings(it.part)[0]
+    solves = paths._STATE["solves"]
+    shift = np.array([0.03, 0.0, -0.04])
+    for name in ("SHEAVE 2", "CHUTE"):                      # a sheave on its joint's arrow; a chute, its own carrier
+        part = ob(sc, name)
+        want = N["contacts"][name]
+        part.matrix_world = Matrix.Translation(shift) @ part.matrix_world
+        update()
+        solves += 1
+        assert paths._STATE["solves"] == solves, name
+        c, _r = rings(cable(sc).part)
+        d = np.linalg.norm(c - (np.array(want["axis_point"]) * MM + shift), axis=1)
+        on = d < want["seat_radius"] * MM + 1 * MM
+        assert on.sum() >= 3 and np.abs(d[on] - want["seat_radius"] * MM).max() < 0.5 * MM, name
+        assert paths.status(sc, cable(sc))[1] == "OK"
+        part.matrix_basis = build.rest_basis(part)
+        update()
+        solves += 1
+        assert paths._STATE["solves"] == solves and np.abs(rings(cable(sc).part)[0] - before).max() < 1e-6, name
+    # the sheave's own turn is no move: paying out solves nothing
+    joints.set_value(joints.find(sc, SPEED), 0.7)
+    update()
+    assert paths._STATE["solves"] == solves
+    # "Stays as drawn": whatever is dragged, it keeps the CAD path
+    cable(sc).still = True
+    update()
+    solves = paths._STATE["solves"]
+    chute = ob(sc, "CHUTE")
+    chute.matrix_world = Matrix.Translation(shift) @ chute.matrix_world
+    update()
+    assert paths._STATE["solves"] == solves and np.abs(rings(cable(sc).part)[0] - before).max() < 1e-6
+    paths.refresh(sc, force=True)
+    update()
+    assert np.abs(rings(cable(sc).part)[0] - before).max() < 1e-6
+    # a cable that cannot move (no joint between its wheels) is not watched: no cost; a refresh finds the chute
+    sc = load(folder, MODEL_A)
+    it = paths.add_cable(sc, CABLE)
+    paths.read_cad(sc, it, ob(sc, "WIRE ROPE"))
+    assert not cable(sc).moving
+    update()
+    solves = paths._STATE["solves"]
+    chute = ob(sc, "CHUTE")
+    chute.matrix_world = Matrix.Translation(shift) @ chute.matrix_world
+    update()
+    assert paths._STATE["solves"] == solves and np.abs(rings(cable(sc).part)[0] - before).max() < 1e-6
+    paths.refresh(sc, force=True)
+    update()
+    c, _r = rings(cable(sc).part)
+    d = np.linalg.norm(c - (np.array(N["contacts"]["CHUTE"]["axis_point"]) * MM + shift), axis=1)
+    assert np.abs(d[d < 0.601] - 0.6).max() < 0.5 * MM and (d < 0.601).sum() >= 3
+
+
+def test_build_steps_through_the_frames_once_for_hoses_and_cables(rope):
+    """A hose in the same project: its pass through the frames at Build reads the cable's wheels too."""
+    sc = rope
+    hose, _notes = flex.add_hose(sc, ob(sc, "SHEAVE PIN 1"))          # (a pin taken for a hose: it is a round bar)
+    assert len(flex.items(sc)) == 1 and paths._read_hook in flex.READ_HOOKS
+    stepped, mine = flex._STATE["steps"], paths._STATE["steps"]
+    r = built(sc, sc.fresing.animations[paths.TEST_ANIMATION])
+    assert flex._STATE["steps"] == stepped + r["frames"]    # once
+    assert paths._STATE["steps"] == mine and flex._STATE["read"] is None
+    it = cable(sc)
+    assert it.moving
+    for f in (1, 60, 76, 120):
+        sc.frame_set(f)
+        check_on_seats(sc, luff_deg(sc))
+    # an animation in which no wheel moves: the hoses step alone, the cable reads its one frame itself
+    stepped, mine = flex._STATE["steps"], paths._STATE["steps"]
+    r = built(sc, run_step(sc, 1.0))
+    assert flex._STATE["steps"] == stepped + r["frames"] + 1 and paths._STATE["steps"] == mine + 1
+    assert not cable(sc).moving
+    check_on_seats(sc, 0.0)
 
 
 def test_a_cable_that_stays_as_drawn(rope):
@@ -1374,6 +1572,8 @@ def test_model_update_keeps_the_cable(rope):
     assert joints.get_value(joints.find(sc, contact(sc, "SHEAVE 2").joint)) == pytest.approx(
         math.radians(contact(sc, "SHEAVE 2").ratio) * 500.0, rel=1e-5)
     assert not [n for n in notes if n.startswith("Cable 'Wire rope'")]       # nothing to report about the cable
+    # the cable's joint moves nothing: the update keeps it (joints.rebuild_from_specs) and so every coupling
+    assert not [n for n in notes if "removed" in n or "which is gone" in n or "sat on is gone" in n], notes
 
 
 def test_a_cable_gone_in_the_new_revision(rope):
@@ -1526,6 +1726,11 @@ def test_the_demo_vessels_power_cable(vessel):
           f"at most {off.max() * 100:.2f} % off, {int((off > paths.RATIO_TOL).sum())} more than 0.5 % off; "
           f"{other_way} turn the other way; {len(noted)} with a note")
     assert other_way == 0 and off.max() < 0.02 and np.median(off) < 0.005   # (Draft facets: about 1 mm on a roller)
+    # … which is no news per roller: one line in the summary
+    slightly = int(((off > paths.RATIO_TOL) & (off <= paths.RATIO_ROLLER)).sum())
+    assert not [c.note for c in rollers if "turns" in c.note]
+    assert (slightly > 0) == any(f"{slightly} rollers turn up to {off.max() * 100:.1f} % off the cable's speed by "
+                                 "their own joints" in n for n in notes)
     # the bends: which lie on a part, which are carried by the cable's parent
     print("    bends:", [(c.name, c.kind, round(c.radius, 3), round(math.degrees(c.wrap), 1)) for c in bends])
     # what it lies on that can move against the vessel: the D-quadrant's gutter (it travels and tilts). The coil
