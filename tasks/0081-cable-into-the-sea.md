@@ -1,6 +1,6 @@
 # 0081 – Cable into the sea: catenary, seabed, water clarity, cut-away, CPS on the cable
 
-**Who:** worker · **Status:** running · **Branch:** `claude/amazing-mayer-6a324q`
+**Who:** worker · **Status:** done (0.2.91) · **Branch:** `claude/amazing-mayer-6a324q`
 **Started by:** lead chat, 13 Nov 2026 (plan: tasks/0075 section E + the owner's answers at its end; 0083 findings)
 **Lane:** Flex parts (owner of this task): new `core/catenary.py`, `blender/paths_sea.py`, `ops_paths_sea.py`, a fold
 "Into the sea" in `ui_paths.py`, `tests/test_catenary*.py`, `tests/test_paths_sea*.py`; additive in `blender/paths.py`
@@ -209,10 +209,87 @@ Python per frame. 0082 calls `paths_sea.add_rider(scene, cable, parts, where, at
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (session branch `claude/amazing-mayer-6a324q`), 13 Nov 2026. Released as
+0.2.91 (0.2.90 went to task 0110 an hour earlier).
 
 **What changed:**
+- `core/catenary.py` (new, no Blender): the touching-down catenary (s² = h² + 2ah, X = a acosh(1 + h/a)), one unknown
+  (a) by bisection so that laid + hanging = L exactly; the edge cases LIFTED (two-point catenary of length L),
+  PILED (straight down + a snake on the seabed with the length kept), STRETCHED (straight, warned); a hang-off
+  level with or aft of the cable's end lays the cable towards it; `hang_off` = where the cable leaves its last
+  wheel (fixed point on the wrap: the catenary's tangent = the wheel's, else it leaves at the wheel's end with a
+  kink: "steep"); `anchor` (touch-down from the layback or from a = H / (w g)); `tensions`, `wet_weight`.
+- `blender/paths_sea.py` (new): the sea end of a cable (`b_kind == "SEA"`, settings `sea_*`): the last shaping
+  contact is the hang-off; the seabed frame is the empty "FR seabed motion" (advance = payout by a simple-expression
+  driver, or Weather & time's vessel speed × time – the speed the wake reads, one setting), a **slot** of the cable
+  like the payout (the cable joint's arrow + motion), so the existing live handler and Build bake handle it: the
+  catenary costs no Python per frame. The end on the seabed (`sea_start`) and its mark (`sea_mark`) are set at the
+  pose shown; from then L = mark + paid out − s(hang-off), so the length is exact, the touch-down follows payout and
+  vessel, and the stripes stand still on the laid part. Warnings with their first frame. `cut_box` for the Sea
+  (stored with the cable: CAD place, wide enough to see the seabed). `view_matrix`, `set_up_test_model`.
+- `blender/paths_riders.py` (new): things on the cable (CPS set, bend restrictor, pull head). The axis is the line
+  through the most parts' middles (rings and tube, not chocks); per part its place along it; per cable one "FR ride
+  run" object whose Geometry Nodes work out every part's matrix (Sample Curve on the frame's slice of the cable's
+  shapes mesh at s and s + length, the shortest turn onto the chord), each part moved by tracks.py's part tree.
+  Placed from the cable's end or at a payout mark; flip; kept through a model update; left out of the clash check.
+  **For 0082:** `paths_riders.add(scene, cable, objects, where="END"|"MARK", at=metres)`, `remove`, `matrix_now`,
+  `rider_parts`; the sea end: `paths_sea.add_sea_end`, `numbers`, `tdp_world`, `payout`.
+- `paths.py` (additive): sea slots in `_inputs_of`, `_solve_parts` split out of `_solve_item` (the sea end reuses
+  it), sea notes, the seabed synced at Build and at every cable change, riders placed again on every cable change,
+  a sea end kept through "From CAD cable again", a cable read so that it ends in the sea. `build.world_bounds`: a
+  part tagged `fr_bounds_cad` (sea cable, riders) counts its CAD shape (the floor and the orbit centre no longer
+  move with the hanging cable). Panel fold **Into the sea** (+ things on the cable), `ops_paths_sea.py`.
+- Sea (subagent, additive, `surroundings.py` + `core/sea.py`): seabed (Simple/Detailed, ripples, stones), water
+  depth, **cut-away** (sea surface, white caps, wake and hull foam cut away in a box; a water volume ring round it
+  with the **clarity** σ = 3 / clarity and the water's colour following the light; bright top line; waves on the
+  walls in Detailed; EEVEE "Accurate"); with the cut-away off the materials are 0.2.88's (tested). I made the
+  walls clearer (UNDERWATER ×2.7, less darkening with depth) after the first demo pictures read as a black pit.
+- Demo: stage `sea` (30 m, layback 32 m, 120 m on the seabed, cut-away, clarity 12 m) and **shot 8** "Into the sea"
+  (10 s at 10 m/min, orbit −10°); the video is now 89.6 s. Demo follow-ups (subagent, `demo_model/`): both handling
+  winches got a **level wind** (the deck has 2.6–2.9 m before the D-quadrant; 1.5° needs ~23.5 m) – winch 1's
+  follows the spool ACROSS: fleet angle 20.9° → 0.0° at both flanges, the warning is gone; the D's guide rollers:
+  the pads' V follows the cable Ø (`pad_v_depth`), roller-to-cable gap at Ø 50: 26.1 → 1.9 mm, Ø 200 / 500 unchanged
+  (touching); the D sweep is clear at Ø 50 and Ø 500 (the CPS slide's end shortened at Ø 500 where it was already in
+  the D's way). Joint sheet 308 → 310.
+- Test model `test_sea.step` (`tools/make_test_sea.py`, subagent): deck, 3 rollers, a 95° horn, a Ø 120 cable into
+  the water, a CPS set (6 vertebrae + tube + 2 chocks). Tour stop `sea_cable` (set "Cable into the sea"), PC-check
+  line `motion.sea_cable` (picture + frame metric), guide section "Into the sea" + surroundings lines + demo text,
+  pictures `panel_cable_sea.png`, `view_sea_cutaway.jpg`, new `demo_overview.jpg`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web session unless said):
+- `tests/test_catenary.py` (8), `tests/test_paths_sea.py` (11: tube = solver ≤ 1 mm at three frames, stripes move
+  on the hanging part and stand still on the laid part, real Blender with scripts off, the queue copy builds and
+  renders the same, model update, reopen), `tests/test_sea_cutaway.py` (13, subagent), `tests/test_paths_sea_
+  independent.py` (independent tester: 69 tests; **9 faults found, all fixed**: catenary under the seabed when the
+  hang-off is over the end, seabed driver not set again for a reversed cable / changed vessel speed / Weather off,
+  piled cable drawn too short, rider marks shifted by the payout, riders not placed again after a sea-end change
+  (MARK and END), scene water depth not followed), `test_demo_project.py`, `test_demo_cable_lay.py` (52),
+  `test_tour.py` (68), the cable / spool / panel tests (166) all pass locally.
+- Length exact: laid + hanging = L to 1e-9 m; the drawn polyline ≤ 0.1 mm per 100 m (dense check).
+- **Per frame on shot 8** (full demo, Blender as a module, median of 2 × 126 frame changes): 27.5 ms with the sea
+  end, 25.8 ms without: **+1.7 ms** (aim ≤ +2 ms).
+- **Make demo** (full form, same machine, one after the other): main 114.4 s, 0.2.90 118.5 s (+4.1 s; sea stage
+  0.8 s).
+- **Render cost of the cut-away** (subagent, Cycles CPU, 480×270, 32 samples, Calm, Detailed, CPU seconds because
+  the machine was loaded): stern quarter +18 %, from aft +14 % (≤ +30 %). Pictures from three places in the
+  subagent's run; the guide still and shot 8 checked by eye.
+- Demo numbers: layback 32 m, leaves horn A at 68°, bottom tension 9.8 kN, top 26.1 kN (51 kg/m, 0083's figures).
+- GitHub: 6 runs on the branch – 3 red while the guide pictures and the version were not in yet (pushed as
+  backups; nothing else failed), 3 green (after 0.2.90's version, after merging main with 0112, after merging main
+  with 0110 and renumbering to 0.2.91, 18.9 min) – plus the run on main.
 
 **Open points / follow-up tasks:**
+- **Wake direction (0109):** the wake puts the stern at the waterline's max x and `core/weather.BOW_AZ` has the bow
+  at −x; the demo (and this task) have the bow at +x. On the demo a vessel speed > 0 would draw the wake at the bow.
+  Not changed here (Scene & Render lane decides).
+- With "With the lay" the touch-down still moves a little when the deck path length changes (the carousel's leave
+  point moves: layback 32.0 → 33.8 m over shot 3's 150 m) – the length bookkeeping is right; the owner may prefer to
+  re-anchor per shot.
+- Rollers after the hang-off on a horn keep turning with the cable though it left the horn before them.
+- The sea end's numbers in the panel are worked out for the frame shown (one solve per frame while the panel draws,
+  cached).
+- The independent tester's file and the sea subagent's tests stay in the suite.
+- Subagents: Sea (seabed, clarity, cut-away), Demo (fleet angle, D rollers), test-model maker (Sonnet), independent
+  tester. Re-done after merging: the wall colour, the cut box (placement bug found in the demo picture), `numbers()`
+  must not write while drawing (found by the guide's panel picture).
+- Leftover branches on GitHub: none pushed besides the session branch.
