@@ -279,21 +279,27 @@ def bake(scene, anim, blocks, frame_of, ease) -> list[str]:
     if where == "indoor":
         warnings.append("The Weather & time steps change little indoors: pick the Open sea, the Vessel deck, the "
                         "Quayside or Sky as the background")
-    cur = state(scene)
+    base = state(scene)
     rows = {n: [] for n in core.CHANNEL_NAMES}
-
-    def put(f, st, interp="LINEAR"):
-        for n, v in core.derive(st, where).items():
-            rows[n].append((f, v, interp, "AUTO"))
-
-    put(1, cur)
+    steps = []
     for b in sorted(blocks, key=lambda x: x.start):
         f0, f1 = frame_of(b.start), frame_of(b.start + b.duration)
-        f1 = max(f1, f0 + 1)
-        end = step_state(cur, b)
-        for f in range(max(f0, 2), f1 + 1):
-            put(f, core.mix(cur, end, ease(b.easing, (f - f0) / (f1 - f0))))
-        cur = end
+        steps.append((b, f0, max(f1, f0 + 1)))
+    last = max(f1 for _b, _f0, f1 in steps)
+
+    def at(f):
+        """The weather at frame ``f``: each step leads from the weather of that moment (the steps before it, also
+        while they still run: overlapping steps blend, never jump) to its own values."""
+        st = base
+        for b, f0, f1 in steps:
+            if f <= f0:
+                continue
+            st = core.mix(st, step_state(st, b), ease(b.easing, (f - f0) / (f1 - f0)))
+        return st
+
+    for f in range(1, last + 1):
+        for n, v in core.derive(at(f), where).items():
+            rows[n].append((f, v, "LINEAR", "AUTO"))
     write_channels(scene, core.derive(state(scene), where))
     cb = animation._channelbag(scene, "SCENE")
     for n, keys in rows.items():

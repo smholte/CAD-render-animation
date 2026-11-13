@@ -87,7 +87,8 @@ def needs(scene, place: str) -> dict:
 def _mine(x) -> bool:
     """Made here (weather_sky tags its moon, floodlights, masts and fog with the same tag: never touch those)."""
     from .weather_sky import ROLES as SKY_ROLES
-    return x.get(TAG) is not None and x.get(TAG) not in SKY_ROLES
+    role = x.get(TAG)
+    return isinstance(role, str) and role not in SKY_ROLES
 
 
 def objects(scene=None) -> list:
@@ -236,6 +237,7 @@ def _new_object(col, name: str, role: str, me, parent=None, shadow: bool = False
     me[TAG] = role
     ob = bpy.data.objects.new(name, me)
     ob[TAG] = role
+    ob["fr_kind"] = "cnc"                    # not a part of the model's tree (logic.Tree leaves it out)
     col.objects.link(ob)
     ob.hide_select = True
     if parent is not None:

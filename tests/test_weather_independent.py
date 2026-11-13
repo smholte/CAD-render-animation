@@ -162,10 +162,6 @@ def test_from_old_keeps_the_sun_where_it_was_for_usual_heights():
             assert abs(((ch["sun_az"] - want) + 180.0) % 360.0 - 180.0) < 0.01, (el, rot, ch["sun_az"])
 
 
-@pytest.mark.xfail(reason="FOUND: core.from_old picks latitude 90 - sun height (up to 89), but the panel's "
-                          "latitude is limited to -70 … 70 (props.FRWeather.latitude): an old project with a low "
-                          "sun (height < ~19.5°) gets the sun at 19.5° when Weather & time is switched on",
-                   strict=True)
 def test_from_old_low_sun_fits_the_panel_latitude():
     for el in (5.0, 10.0, 15.0):
         st = core.from_old(el, 0.0, False, 90.0)
@@ -369,9 +365,6 @@ def test_exposure_follows_the_users_own_while_on_and_after():
     assert sc.view_settings.exposure == pytest.approx(-1.0, abs=1e-6)
 
 
-@pytest.mark.xfail(reason="FOUND: weather_sky.fog_on sets scene.render.use_compositing = True and fog_off never "
-                          "gives the user's own setting back (it does for the Z pass, FOG_PASS_Z): Off is not today",
-                   strict=True)
 def test_fog_off_gives_compositing_switch_back():
     sc = fresh("QUAY")
     sc.render.use_compositing = False
@@ -383,10 +376,6 @@ def test_fog_off_gives_compositing_switch_back():
     assert sc.render.use_compositing is False
 
 
-@pytest.mark.xfail(reason="FOUND: the fog's compositor group is tagged 'fr_weather' (weather_sky._fog_nodes) and "
-                          "weather_fx.remove deletes every node group with that tag; after_world runs fx after sky, "
-                          "so the fog / mist / haze over the picture never exists (from the panel or a step)",
-                   strict=True)
 def test_fog_from_the_panel_is_laid_over_the_picture():
     sc = fresh("QUAY")
     w = sc.fresing.weather
@@ -411,11 +400,6 @@ def test_user_compositor_is_left_alone_by_the_fog():
 # the parts work together: the night's lamps survive the rain/snow/flag part
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="FOUND: weather_fx.remove deletes every object tagged 'fr_weather' and the 'FR Weather' "
-                          "collection - the same tag and collection weather_sky uses for the moonlight and the "
-                          "floodlights. after_world runs sky.apply then fx.apply: with no rain/snow/flag "
-                          "fx.apply -> remove() deletes the moon and the floodlights (Night shift has no lamps)",
-                   strict=True)
 def test_night_shift_has_moonlight_and_floodlights():
     sc = fresh("QUAY")
     w = sc.fresing.weather
@@ -425,8 +409,6 @@ def test_night_shift_has_moonlight_and_floodlights():
     assert {"moon", "flood"} <= roles, roles
 
 
-@pytest.mark.xfail(reason="FOUND: same fault as above - with rain the sky's lamps are deleted too "
-                          "(weather_fx.remove(keep_collection=True) before rebuilding the rain)", strict=True)
 def test_rainy_night_keeps_its_lamps():
     sc = fresh("DECK")
     w = sc.fresing.weather
@@ -673,10 +655,6 @@ def test_shortest_step_and_disabled_step():
     assert chan(sc, "fog") == pytest.approx(core.derive(weather.state(sc))["fog"])
 
 
-@pytest.mark.xfail(reason="FOUND: weather.bake keys every frame of every step in start order; when two Weather & "
-                          "time steps overlap, the frames of the overlap get two keys each (the first step's mix and "
-                          "the second's, which starts from the first's END state): the sun jumps ~35° back and forth "
-                          "frame by frame and no warning is given (joint steps warn about overlaps)", strict=True)
 def test_overlapping_steps_never_jump_or_warn():
     """Two Weather & time steps that overlap: the channels must not jump about frame by frame (or the user is
     told the steps overlap)."""
@@ -1285,8 +1263,6 @@ def test_fog_keyed_by_a_step_is_not_clamped():
     assert chan(sc, "fog") == pytest.approx(3.912 / 0.05, rel=1e-4)      # 78 per km: past the soft max 40
 
 
-@pytest.mark.xfail(reason="FOUND: the same 'fr_weather' tag fault - a step that brings fog builds the fog group "
-                          "(weather_sky) and weather_fx.remove deletes it in the same after_world", strict=True)
 def test_fog_keyed_by_a_step_sets_up_the_fog():
     sc = fresh("QUAY")
     a, res = _fog_step(sc)
@@ -1308,10 +1284,6 @@ def test_rain_object_deleted_by_hand_comes_back():
     assert bpy.data.collections.get(weather_fx.COLLECTION).name in sc.collection.children
 
 
-@pytest.mark.xfail(reason="FOUND (minor): weather_fx parents 'tops', 'splash', 'pole' and 'flag' to the model root "
-                          "without fr_kind 'cnc' (weather_fx._new_object / _flag), so logic.Tree counts them inside "
-                          "the model: a Hide / Fade step on the whole model keys and fades them, and those keys are "
-                          "lost when the rain or flag is made again", strict=True)
 def test_rain_and_flag_are_not_parts_of_the_model_tree():
     """weather_sky marks its helpers fr_kind 'cnc' so logic.Tree leaves them out; the rain's and the flag's objects
     ride on the model root too."""
@@ -1328,9 +1300,6 @@ def test_rain_and_flag_are_not_parts_of_the_model_tree():
     assert not inside, inside
 
 
-@pytest.mark.xfail(reason="FOUND: switching Weather & time on in an old project with a low sun (Sun height 10°) "
-                          "puts the sun at ~19.5°: core.from_old asks for latitude 79.5, props.FRWeather.latitude "
-                          "clamps it to 70", strict=True)
 def test_first_switch_keeps_a_low_old_sun():
     sc = fresh("SKY")
     s = sc.fresing

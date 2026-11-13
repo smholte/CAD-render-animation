@@ -339,10 +339,11 @@ def test_fog_hides_the_far_sea():
     clear = _render(sc, 48, 27)
     weather_on(sc, visibility=400.0)
     fog = _render(sc, 48, 27)
-    near, far = slice(0, 5), slice(10, 13)          # rows bottom-up: sea tens of metres away / kilometres away
     assert np.abs(fog[:13] - clear[:13]).mean() > 0.03
-    contrast = (lambda a: abs(a[near].mean() - a[far].mean()))
-    assert contrast(fog) < 0.7 * contrast(clear)     # the sea fades into one grey
+    rows = (lambda a: a[:13].mean(axis=(1, 2)))       # brightness of each row of sea, near to far
+    assert (rows(fog) > rows(clear) - 0.005).all()    # every row of sea greyer in fog
+    assert rows(fog).std() < 0.85 * rows(clear).std()  # near and far come closer together
+    assert rows(fog)[9:13].std() < 0.02               # kilometres away: one grey
 
 
 def test_floodlights_only_outdoors_by_the_water():

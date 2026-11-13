@@ -59,6 +59,7 @@ def bft_name(bft: float) -> str:
 
 EQUINOX_DAY = 80            # 21 March: day and night 12 h everywhere
 DEFAULT_LATITUDE = 55.0     # the southern North Sea
+MAX_LATITUDE = 70.0         # the panel's limit (props.FRWeather.latitude)
 
 
 @dataclass(frozen=True)
@@ -204,12 +205,26 @@ def from_old(sun_elevation: float, light_rotation: float, overcast: bool, sun_ro
     ``weather_sky.SUN_ROTATION_ZERO_AZ``); turning the light by +r puts the sun at ``zero - r`` (measured, as in
     ``core/studio.main_light``). Sun: a clear sky without cloud patches; Overcast: full cover without a low cloud
     deck – the soft grey sky of before."""
-    lat = min(max(90.0 - float(sun_elevation) + declination(EQUINOX_DAY), 0.0), 89.0)
-    el, bearing = sun_position(12.0, EQUINOX_DAY, lat)          # bearing 180 (south)
+    target = float(sun_elevation)
+    lat = 90.0 - target + declination(EQUINOX_DAY)
+    hour = 12.0
+    if lat > MAX_LATITUDE:
+        # a low sun: the panel's latitude stops at 70°, so take the afternoon there when the sun stands that high
+        lat = MAX_LATITUDE
+        lo, hi = 12.0, 18.0
+        for _ in range(60):
+            mid = (lo + hi) / 2.0
+            if sun_position(mid, EQUINOX_DAY, lat)[0] > target:
+                lo = mid
+            else:
+                hi = mid
+        hour = (lo + hi) / 2.0
+    lat = max(lat, 0.0)
+    el, bearing = sun_position(hour, EQUINOX_DAY, lat)
     want_az = sun_rotation_zero_az - float(light_rotation)
     north = (want_az + bearing) % 360.0
     north = (north + 180.0) % 360.0 - 180.0
-    return State(hour=12.0, latitude=lat, north=north, clouds=1.0 if overcast else 0.0, low_clouds=0.0)
+    return State(hour=hour, latitude=lat, north=north, clouds=1.0 if overcast else 0.0, low_clouds=0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -307,7 +322,7 @@ CHANNELS = {
     "wind": (0.0, 40.0, "wind speed, m/s"),
     "wind_x": (-1.0, 1.0, "direction the wind blows towards, x"),
     "wind_y": (-1.0, 1.0, "direction the wind blows towards, y"),
-    "foam": (0.0, 1.0, "white-cap threshold of the sea's foam field (core/sea.foam_threshold): lower = more foam"),
+    "foam": (0.0, 10.0, "white-cap threshold of the sea's foam field (core/sea.foam_threshold): lower = more foam"),
 }
 CHANNEL_NAMES = tuple(CHANNELS)
 

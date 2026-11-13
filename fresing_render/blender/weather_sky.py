@@ -41,6 +41,7 @@ TAG = "fr_weather"              # on every object made here (value: its role)
 WORK_TAG = "fr_work_light"      # on a work light: the part's ID (build.PROP_UID)
 WORK_KIND = "fr_work_light_kind"
 WORK_LOCAL = "fr_work_light_local"       # the light's place relative to its part (16 numbers), for a model update
+FOG_COMPOSITING = "fr_weather_compositing"   # the user's own compositing switch, given back by fog_off
 HELPER_KIND = "cnc"             # fr_kind of objects that are not part of the CAD tree (logic.Tree skips it)
 COLLECTION = "FR Weather lights"
 WORK_COLLECTION = "FR Work lights"
@@ -724,6 +725,8 @@ def fog_on(scene) -> None:
         scene[FOG_PASS_Z] = bool(vl.use_pass_z)
         vl.use_pass_z = True
     scene.compositing_node_group = _fog_tree(scene)
+    if FOG_COMPOSITING not in scene:
+        scene[FOG_COMPOSITING] = bool(scene.render.use_compositing)
     scene.render.use_compositing = True
 
 
@@ -734,6 +737,9 @@ def fog_off(scene) -> None:
     ng = bpy.data.node_groups.get(FOG_GROUP)
     if ng is not None and ng.users == 0:
         bpy.data.node_groups.remove(ng)
+    if FOG_COMPOSITING in scene:
+        scene.render.use_compositing = bool(scene[FOG_COMPOSITING])
+        del scene[FOG_COMPOSITING]
     if FOG_PASS_Z in scene:
         vl = scene.view_layers[0] if scene.view_layers else None
         if vl is not None:

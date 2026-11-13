@@ -207,6 +207,13 @@ def clear(scene) -> None:
     orphans = [m for m in meshes if m.users == 0]
     if orphans:
         bpy.data.batch_remove(orphans)
+    # the spray (task 0109) is made only with weather: nothing of it stays when the weather goes
+    groups = [g for g in bpy.data.node_groups if g.name.startswith(f"{WAVES_GROUP} spray") and g.users == 0]
+    if groups:
+        bpy.data.batch_remove(groups)
+    spray = [m for m in bpy.data.materials if m.get("fr_env") == "spray" and m.users == 0]
+    if spray:
+        bpy.data.batch_remove(spray)
     root = root_object()
     if root is not None:
         for k in ("fr_kind", "fr_key", "fr_models", "fr_far", "fr_misfit"):
@@ -1127,7 +1134,7 @@ def _water_shader(t: _NT, mat):
     own, swell = rows[:n_own], rows[n_own:]
     bft = float(mat.get("fr_bft", 3.0))
     toward = float(mat.get("fr_toward", sea_core.DEFAULT_TOWARD))
-    foam_on, weather, wake = bool(mat.get("fr_foam")), bool(mat.get("fr_weather")), bool(mat.get("fr_wake"))
+    foam_on, weather, wake = bool(mat.get("fr_foam")), bool(mat.get("fr_sea_weather")), bool(mat.get("fr_wake"))
     co = b.new("ShaderNodeTexCoord").outputs["Object"]
     xyz = b.sep(co)
     x, y = xyz["X"], xyz["Y"]
@@ -1221,7 +1228,7 @@ def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swel
     mat["fr_foam"] = foam
     mat["fr_bft"] = float(bft)
     mat["fr_toward"] = float(toward)
-    mat["fr_weather"] = bool(weather)
+    mat["fr_sea_weather"] = bool(weather)
     mat["fr_wake"] = bool(wake)
     mat["fr_waves"] = json.dumps([[round(float(v), 7) for v in r] for r in rows])
     mat["fr_n_own"] = len(own)
