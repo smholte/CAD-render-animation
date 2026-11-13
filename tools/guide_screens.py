@@ -735,7 +735,16 @@ if MODE == "panels":
                 mod("blender.vessel_motion").add_marks(sc, [ob("TROLLEY.ASM")], "STILL")
                 sc.frame_set(60)
             elif name == "panel_5_web3d":               # exported once: the result line and its buttons show
-                mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"))
+                # task 0106: with Surroundings on the page open, as in the project (a sea) with haze and rain
+                mod("blender.ui")._OPEN_FOLDS = True
+                w = sc.fresing.web3d
+                w.env_mode = "PROJECT"
+                mod("blender.web3d_env").fill_from_project(sc)
+                w.env_sea, w.env_haze, w.env_rain, w.env_clouds = True, True, True, "SOME"
+                mod("blender.web3d").export(sc, os.path.join(tempfile.mkdtemp(), "Crane web 3D.glb"),
+                                            surroundings=mod("blender.web3d_env").choice(sc))
+            elif name == "panel_5_shots":               # folds closed again after the web 3D picture
+                mod("blender.ui")._OPEN_FOLDS = False
             elif name == "panel_5_output":              # back to the studio for the rest
                 sc.fresing.vessel.enabled = False
                 sc.frame_set(1)

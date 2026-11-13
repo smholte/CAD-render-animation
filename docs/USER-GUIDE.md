@@ -2151,11 +2151,49 @@ the machine himself, or for your website.
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
 
+#### Surroundings on the page
+
+The fold **Surroundings on the page** (under Include animation) puts the machine's surroundings on the page: the
+moving sea, the vessel rolling on it, the sky and the sun, haze and rain. **None** (the default) keeps the page as
+before: the machine alone on a light background. **As in the project** switches the ticks on as the project has
+them now; change them for this export only – the project itself does not change. **Take from the project** sets
+them back.
+
+- **Sea** – an endless sea to the horizon with the app's own waves (the same numbers, so the page's waves are the
+  ones in your renders), ripples, and white caps when **Rough**. The water sits at the project's water level; a
+  project without a sea gets one under the machine. With the **Vessel deck**, the deck goes on the page too.
+- **Vessel motion** (only when the project has it on, 5 Scene & Render > Vessel motion) – the machine and the deck
+  heave, pitch and roll in step with the waves, with the app's numbers; parts marked **Still** or **Level** stay as
+  in the app. It works together with Include animation.
+- **Sky** – the page's background and its light. **Sky from: The project** takes the project's sky and sun; with a
+  360° photo or a studio look the page gets that picture as its light (and the photo as its background), so shiny
+  metal mirrors what the app shows. **Time of day** draws a sky with the sun at **Sun height** and **Sun direction**;
+  **Clouds**: None, Some (they drift) or Overcast (grey, soft light).
+- **Haze** – the distance fades into the colour of the sky; the slider sets how thick.
+- **Rain** – falling rain and a wet, darker, glossier machine; on a rough sea also spray at the bow when it dips into
+  a wave. The drops move on the graphics card, so they cost little.
+- **Live sun shadows** – the sun casts sharp shadows on the machine, the deck and the sea; they move with the parts
+  and with the rolling vessel.
+- **Page quality** – **Phone**, **Balanced** or **Best**: how fine the waves, ripples, rain and shadows are, the
+  size of the sky picture and the screen resolution. **Auto quality** (on by default): the page lowers its quality
+  by itself when it cannot draw about 30 pictures a second and says so in a small note in its bottom right corner,
+  so one page works on a phone and on a PC.
+
+The line under Export adds what the surroundings cost in the file ("surroundings +0.3 MB"; without a 360° photo
+the page is often a little *smaller* than without surroundings, because the page's 3D code is smaller).
+Not on the page: the halls, the quay and the props; hoses and cables (as before).
+
+Measured on the 4-core test machine **without a graphics card** (software drawing, so only the differences mean
+something): the invented 124 m cable-lay vessel (Draft, Texture size 512) exports in 3–5 s with every item on; its
+page is 5.5 MB and draws its first picture after about 2 s. Phone, Balanced and Best draw 10,000, 38,000 and 102,000
+points of sea and 1,000, 2,600 and 5,900 rain drops; Best draws far fewer pictures a second there (0.4 against 3.5), which
+is what Auto quality is for. On a PC with a graphics card all three are many times faster.
+
 How the looks get in: every look (material, colour, shine, bumps) is baked once into small pictures that repeat over
 the parts, at the same scale as in your renders; looks that are one colour need no picture. Logos and stickers are
 baked one by one. What a web page cannot show, and is left out: edge wear and corner dirt, the stretched shine of
 brushed, ground or turned metal, the very fine orange peel of paint, tool marks on milled faces, the cutaway and
-X-ray look (parts are whole and solid), the surroundings (the page has its own light and shadow), chips, coolant,
+X-ray look (parts are whole and solid), chips, coolant,
 hoses and milling (material removal).
 
 Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a
