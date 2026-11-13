@@ -184,6 +184,18 @@ def stripes(diameter, pitch, angle) -> int       # starts: round(pi * d / (pitch
 def stripe_angle(diameter, pitch, starts) -> float
 ```
 
+**As made by A (differences from the above; B reads this):** `solve(..., held=None)` / `solve_frames(..., held=None)`:
+`held=True` keeps every arc in the plane through its wheel's `centre` (use it for sheaves, bends and every cable whose
+contacts move; a straight leaving that plane meets the arc with a kink of the fleet angle), `held=False` is the tight
+string on cylinders (helix), `None` picks held unless a straight leaves a plane by more than 0.1°. `read_cable(points,
+radius, rounds, touch_tol=None, fit_tol=None)` solves held. **`centreline(verts, tris, spacing=None)` → `flex_fit.Tube`
+replaces `flex_fit.tube_centreline` for cables** (that one is 462 mm off on a 300 m cable; this one 0.15 mm, 2.7 s).
+`Path.counts`; with `*_on_wheel` there is no separate end point (`points[0]` is the arc's first point). TOUCH only for
+parts round all the way. **A roller's ratio is taken at `contact.radius − cable radius`** (where CAD drew the cable's
+skin: matches the demo's joint sheet within 0.28 %; the part's own surface is up to 13 % off on the demo's waisted
+rollers, which the maker draws the cable into). Demo cable: 14 bends, 218 touching rollers, read in 3.9 s (+1.8 s
+centreline), path within 0.54 mm of the CAD centreline.
+
 ### `blender/cable_looks.py` (L)
 
 ```python
