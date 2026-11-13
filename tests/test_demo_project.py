@@ -226,8 +226,7 @@ def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
 
 
 def test_no_clash_in_the_animation(made, monkeypatch):
-    """The clash check over the whole animation: 0 rows (a clash is a fault in the model or the set-up). Left out: only
-    the static cable (until the cable paths of 0078/0082 move it, it lies on the rollers and gives rows). The rollers,
+    """The clash check over the whole animation: 0 rows (a clash is a fault in the model or the set-up). The rollers,
     wheels and drums are checked too since task 0097: they turn about their own axis, so the clash check holds them
     still on their carrier (task 0092). That they really turn about their own axis is checked here too."""
     from mathutils import Vector
@@ -250,8 +249,7 @@ def test_no_clash_in_the_animation(made, monkeypatch):
             off = c - o
             off -= dvec * off.dot(dvec)
             assert off.length < 0.01, (j.name, off.length)
-    cable = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "CABLE"]   # the static cable (0078/0082)
-    monkeypatch.setattr(clash, "HOOKS", clash.HOOKS + [lambda scene: ((), cable)])
+    # (the cable is on its path since task 0078: the clash check leaves a drawn cable out by itself, as it does hoses)
     # the sea at rest (task 0091): the vessel's sway moves the whole model as one, so it changes nothing between two
     # parts; but where the sway turns very slowly while a part slides (a lift, the cylinder rods) the check's step
     # between two frames came out up to centimetres off (screw_between reads a tiny turn from float32 matrices), and
@@ -260,6 +258,54 @@ def test_no_clash_in_the_animation(made, monkeypatch):
         run = clash.check(sc, store=False)
     assert run.stats["parts"] > 700
     assert not run.rows, [core.row_text(r) for r in run.rows[:5]]
+
+
+def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
+    """Task 0078: the CAD cable is a cable on its path (bends as drawn, the rollers it rests on found, none of their
+    joints changed), it has the power-cable look, and in shot 4 a Run motor step moves "Cable travel" at 10 m/min:
+    the stripes (the look's driver) and a roller's rim go exactly as far."""
+    import numpy as np
+
+    from fresing_render.blender import animation, build, cable_looks, joints, paths
+    sc = _scene()
+    it = paths.find(sc, demo.CABLE_ITEM)
+    assert it is not None and it.joint == demo.CABLE and not it.made_joint and it.still and it.look == "POWER"
+    assert it.part.get(build.PROP_NAME) == "CABLE" and paths.status(sc, it)[1] in ("OK", "WARN"), paths.status(sc, it)
+    kinds = [c.kind for c in it.contacts]
+    assert 10 <= kinds.count("BEND") + kinds.count("CHUTE") <= 16 and 200 <= kinds.count("ROLLER") <= 240, \
+        {k: kinds.count(k) for k in set(kinds)}
+    assert not any(c.made_joint for c in it.contacts)              # every roller had its joint from the sheet
+    rollers = [c for c in it.contacts if c.kind == "ROLLER"]
+    assert all(joints.find(sc, c.joint).follows == demo.CABLE for c in rollers)
+    assert 185.0 < it.length < 191.0 and abs(it.diameter - 0.2) < 0.002
+    assert it.part.get("fr_group_manual") == paths.GROUPS["POWER"]
+    assert it.part.material_slots[0].material.get("fr_material") == "cable_power"
+    # the drawn tube: the app's, with the attribute the look reads
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = it.part.evaluated_get(dg).data
+    assert cable_looks.ATTR in me.attributes and len(me.vertices) > 5000
+    # shot 4: 7 s at 10 m/min
+    a = sc.fresing.animations[demo.ANIM]
+    step = next(b for b in a.blocks if b.kind == "MOTOR" and b.joint == demo.CABLE)
+    assert step.speed_mmin == pytest.approx(10.0, rel=1e-6)
+    if not animation.has_keys(sc):
+        animation.bake(sc, a)
+    f0, f1 = animation.frame_of(a, step.start), animation.frame_of(a, step.start + step.duration)
+    cab = joints.find(sc, demo.CABLE)
+    c = rollers[len(rollers) // 2]
+    j = joints.find(sc, c.joint)
+    seen = []
+    for f in (f0, f1):
+        sc.frame_set(f)
+        bpy.context.view_layer.update()
+        seen.append((joints.get_value(cab), float(it.part[cable_looks.PAY]) - cable_looks.PAY_BIAS, joints.get_value(j)))
+    run = seen[1][0] - seen[0][0]
+    assert run == pytest.approx(10.0 / 60.0 * step.duration, rel=1e-4)
+    assert abs(seen[1][1] - seen[1][0]) < 0.001 and abs(seen[0][1] - seen[0][0]) < 0.001      # stripes: within 1 mm
+    rim = abs(seen[1][2] - seen[0][2]) * (paths.radius_of(it, c) - 0.5 * it.diameter)
+    assert rim == pytest.approx(run, rel=0.02), (rim, run)        # the roller's rim (Draft meshes: within 2 %)
+    assert np.isfinite(paths.shape_now(sc, it)).all()
+    sc.frame_set(1)
 
 
 def test_shot_7_moves_the_whole_quadrant_system(made):

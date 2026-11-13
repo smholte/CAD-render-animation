@@ -14,7 +14,7 @@ The menu item starts a background Blender (``pccheck/launcher.py -- demobuild <f
 the model maker as its own program and then the stages below; the app shows the progress and can cancel at any moment
 (``ops_demo.py``). A demo that failed or was cancelled leaves nothing behind (its folder is deleted).
 
-ADDING TO THE DEMO (tasks 0078–0082: cable, tensioner tracks, spooling, catenary, quadrant operations): the project is
+ADDING TO THE DEMO (tasks 0079–0082: tensioner tracks, spooling, catenary, quadrant operations; 0078 added ``cable``): the project is
 built as a list of small named **stages**, run in order::
 
     @stage("rollers", "Shot: roller highways")
@@ -520,8 +520,9 @@ def waits_for_tracks(name: str) -> bool:
 
 
 def turning_in_place(scene) -> list:
-    """The parts that only turn about their own round axis (rollers, sheaves, wheels, drums, the carousel with its coil)
-    and the static cable: what the test's clash check leaves out (``tests/test_demo_project.py``). Such a part sweeps
+    """The parts that only turn about their own round axis (rollers, sheaves, wheels, drums, the carousel with its
+    coil): what a clash check may leave out to save time (the cable on its path, task 0078, is left out by the
+    check itself). Such a part sweeps
     only its own room, so it cannot run into anything it does not touch at the start; checked frame by frame, the
     300 rollers made the check take hours on this model (task 0077, open point for the clash lane). The D-quadrant's
     rail wheels too (task 0091): in the time-lapse they turn ~170° a frame, and the check's step between two frames
@@ -537,7 +538,6 @@ def turning_in_place(scene) -> list:
         for m in joints.members(j):
             out.append(m)
             out += [o for o in m.children_recursive if o.get(build.PROP_KIND) == "part"]
-    out += [o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == "CABLE"]
     return out
 
 
@@ -573,6 +573,36 @@ def make_all_joints(d: Demo):
 # cylinders: the quadrant handler's two (pin points in the route sheet); the tensioners' four lift cylinders have no
 # pin points in the sheet: their rods ride on the lift joint as the sheet says
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# the cable on its path (task 0078)
+# ---------------------------------------------------------------------------
+
+CABLE_ITEM = "Power cable"            # the cable in 4 Motion > Cables and paths
+
+
+@stage("cable", "Cable on its path", after="joints")
+def cable_on_its_path(d: Demo):
+    """The CAD cable becomes a cable on its path (4 Motion > Cables and paths, as the button "Add cable" does): its
+    centreline is read, the bends and the rollers it rests on are found, and it gets the power-cable look whose
+    yellow stripes run with "Cable travel" – the joint every cable-turned roller already follows. It stays as drawn
+    (``still``): its turn round the D-quadrant's gutter does not travel with the quadrant yet (task 0082)."""
+    from . import paths
+    sc = d.scene
+    t0 = time.time()
+    d.progress("Reading the cable")
+    part = d.part("CABLE", root=d.root())
+    item = paths.add_cable(sc, CABLE_ITEM, joint=CABLE)
+    notes = paths.read_cad(sc, item, part)
+    item = paths.find(sc, CABLE_ITEM)
+    item.still = True
+    item.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
+    item.pitch, item.angle, item.stripe = 0.6, math.radians(45.0), 0.3
+    d.timings["cable"] = time.time() - t0
+    d.notes.append("cable: " + (notes[0] if notes else "read"))
+    for n in notes[1:4]:
+        d.notes.append("cable: " + n)
+
 
 def _nearest(d: Demo, name: str, point):
     """The part called ``name`` whose middle is nearest to ``point`` (world)."""
@@ -1056,19 +1086,22 @@ def shot_carousel(d: Demo):
 
 @stage("shot_rollers", "Shot 4: roller highways")
 def shot_rollers(d: Demo):
+    """Real time (task 0078): the cable runs at 10 m/min – a Run motor step on "Cable travel", speed in m/min – its
+    yellow stripes pass the rollers and every roller turns with it."""
     secs = 7.0
     start = getattr(d, "cable_end", 0.0)
-    metres = start + SPEED / 60.0 * secs * 3              # x 3
     cam = d.scene.objects.get("Roller highway")
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    fly = d.camera_step("PATH", d.t, secs, "Rollers turn with the cable (x 3)", easing="LINEAR", cam_blend=0.0,
-                        path_look="AHEAD")
+    fly = d.camera_step("PATH", d.t, secs, f"The cable runs at {SPEED:.0f} m/min: every roller turns with it",
+                        easing="LINEAR", cam_blend=0.0, path_look="AHEAD")
     for p in ((22000.0, -9800.0, 6000.0), (34000.0, -9200.0, 6200.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
-    d.joint(CABLE, d.t, secs, metres, slide=True, easing="LINEAR")
+    blk = d.animation.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, secs, "LINEAR"
+    blk.speed_mmin = SPEED
     d.t += secs
-    d.cable_end = metres
+    d.cable_end = start + SPEED / 60.0 * secs
 
 
 TENSIONER = "TENSIONER 2"

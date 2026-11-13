@@ -41,6 +41,7 @@ WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
 FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
+PATHS = os.path.join(DATA, "test_paths_a.step")
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -556,6 +557,61 @@ def motion_flex(ctx):
     _check(worst_end < 1e-5, f"a chain's moving end is {worst_end * 1000:.3f} mm off its part")
     _check(worst_link < 1e-5, f"a chain link is {worst_link * 1000:.3f} mm off its link length")
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
+
+
+@line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.79",
+      what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
+           "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
+           "sheaves and the rollers turn exactly with it; the rope follows the luffing A-frame, and its strands "
+           "have moved by the length that ran")
+def motion_paths(ctx):
+    from ..blender import animation, cable_looks, cameras, joints, paths, render, tour
+    scene = ctx.fresh(PATHS)
+    s = scene.fresing
+    t0 = time.time()
+    made = paths.set_up_test_model(scene)
+    ctx.metric("read the cable", time.time() - t0, "s")
+    item = paths.find(scene, made["cable"])
+    kinds = [c.kind for c in item.contacts]
+    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"],
+           f"the rope should touch a drum, 2 sheaves, 2 rollers and a chute; found: {', '.join(kinds) or 'nothing'}")
+    _check(abs(item.diameter - 0.024) < 0.0005, f"the rope's diameter was read as {item.diameter * 1000:.1f} mm (24)")
+    # posed by hand (no animation): the rope follows the A-frame at once
+    before = paths.shape_now(scene, item).copy()
+    joints.set_value(joints.find(scene, "Luff"), math.radians(10.0))
+    _update()
+    paths.refresh(scene)
+    item = paths.find(scene, made["cable"])
+    _check(paths.status(scene, item)[1] == "OK", f"posed by hand, the cable says: {paths.status(scene, item)[0]}")
+    after = paths.shape_now(scene, item)
+    _check(after.shape != before.shape or float(abs(after - before).max()) > 0.02,
+           "posed by hand, the rope did not follow the A-frame")
+    joints.set_value(joints.find(scene, "Luff"), 0.0)
+    _update()
+    paths.refresh(scene)
+    # a built animation: 6 s at 10 m/min while the A-frame luffs
+    scene.camera = cameras.add_camera(scene, "ISO", 50.0, "Cable view")
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with the cable", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_cables(scene)
+    scene.frame_set(scene.frame_end)
+    _update()
+    item = paths.find(scene, made["cable"])
+    ran = joints.get_value(joints.find(scene, item.joint))
+    shown = float(item.part[cable_looks.PAY]) - cable_looks.PAY_BIAS
+    _check(abs(ran - 1.0) < 0.01, f"{ran:.3f} m of rope ran in 6 s at 10 m/min (1.000 m expected)")
+    _check(abs(shown - ran) < 1e-3, f"the rope's strands are {abs(shown - ran) * 1000:.1f} mm off the rope itself")
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(60)
+    path = os.path.join(ctx.work, "cable_paths.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "cable_paths", "The rope over drum, sheaves, V rollers and chute, the A-frame leaning forward "
+                                     "(processor, draft)")
+    return note
 
 
 @line("motion.gcode", "G-code program drives X, Y, Z and the tool change", "0.2.30",
