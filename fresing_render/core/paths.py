@@ -36,15 +36,24 @@ more than 350° (it passes it on the other side), numbers that are not numbers. 
 ``solve_frames`` does the same for many frames at once (arrays over the frames, no Python loop over them) with the
 same number of points on every frame; a frame that has no path keeps the shape of the last frame that had one.
 
+**A wheel the cable leaves** (a sheave that sinks away under it) is **lifted off**: the cable passes it straight,
+its wrap is 0 and its points lie where the straight passes nearest its axis, so the number of points stays.
+Geometry alone cannot tell this from a cable that goes nearly all the way round (the tangents are the same
+lines): what tells is where the wrap comes from. Along the frames a wrap never jumps by more than half a turn,
+so one that shrinks to nothing and would come back as nearly a whole turn is a lifted wheel; for one frame alone
+the wraps of the CAD pose say it (``wraps0``). The path is then solved again without the lifted wheels.
+
 **Reading a CAD cable** (``read_cable``): the centreline of a cable drawn in CAD (``centreline``) is cut into
 straights and arcs, each arc is matched with the round part it lies on (a WRAP: centre, axis and radius then
 come from the part), the others are bends in the air (BEND, the fitted circle), and round parts the cable only
-rests on or runs past are TOUCH contacts. See ``read_cable``.
+rests on or runs past are TOUCH contacts. A reading whose path does not lie on the points is refused. See
+``read_cable``.
 
 **The surface a cable rests on** (``seat``, ``surface_radius``, ``is_round``): a round part's outline (radius
 against the place along its axis) is read from the triangles' edges – on a flat triangle the point furthest from
 the axis at any place along it lies on an edge, so a plain roller with corners only at its ends is read exactly –
-and the cable's round section is let down onto it.
+and the cable's round section is let down onto it. Whether a part is round all the way (it may turn) is read
+from the triangles of its outside, so holes, keyways and flats do not make a roller a chute.
 
 **A long cable's centreline** (``centreline``): ``flex_fit.tube_centreline`` read in overlapping pieces, because
 on its own it is made for hoses and loses a cable that is hundreds of radii long.
@@ -65,6 +74,7 @@ GOOD_ENOUGH = 1e-9              # m: a frame that still moves less than this aft
 MAX_WRAP = math.radians(350.0)  # further round a wheel than this: refused
 NO_WRAP = 1e-6                  # rad: a wrap this much less than nothing is no wrap at all (rounding)
 STEP = math.radians(4.0)        # points on an arc: one every 4°
+MAX_STARTS = 64                 # at most this many stripes round a cable
 _SLACK = math.radians(5.0)      # wraps are counted from -5° to 355°
 _NUDGE = 1e-6                   # rad: the nudge that shows how a straight's direction matters
 FLEET = math.sin(math.radians(0.1))     # a straight that leaves a wheel's plane by more than 0.1°: a fleet angle
@@ -91,6 +101,8 @@ class Path:
     wrap: np.ndarray            # (W,) rad >= 0
     length: float
     counts: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.int64))   # (W,) points per arc
+    lifted: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.int64))   # the wheels the cable does
+    #                             not reach (indices): it passes them straight, their wrap is 0 (see ``solve``)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -160,7 +172,8 @@ class _Chain:
     """The touching points of F frames x W wheels: angles ``t_in``/``t_out`` round each wheel (in its own u, v),
     places ``h_in``/``h_out`` along its axis from its centre, ``wrap``, and per frame ``code``/``bad``/``other``."""
 
-    def __init__(self, starts, centres, axes, radii, sides, ends, on0: bool, on1: bool, held=None):
+    def __init__(self, starts, centres, axes, radii, sides, ends, on0: bool, on1: bool, held=None, ref=None,
+                 lift: bool = False):
         self.S, self.E = starts, ends
         self.C, self.N = centres, axes
         self.r, self.sg = radii, sides
@@ -193,9 +206,13 @@ class _Chain:
         self.h_in = np.zeros((F, W))
         self.h_out = np.zeros((F, W))
         self.wrap = np.zeros((F, W))
+        self.raw = np.zeros((F, W))
         self.held = np.ones(F, dtype=bool)               # per frame: solved with the arcs in the wheels' planes
+        self.lift = np.zeros((F, W), dtype=bool)         # per frame: wheels the cable no longer reaches
         if W:
             self._solve(held)
+            if lift:
+                self._lift(held, ref)
 
     # -- bookkeeping ----------------------------------------------------------------------------------
 
@@ -239,6 +256,7 @@ class _Chain:
         cos = _dot(self.N[:, :-1], self.N[:, 1:])
         sin = np.linalg.norm(_cross(self.N[:, :-1], self.N[:, 1:]), axis=2)
         self.par = (sin[self.live] < PARALLEL).all(axis=0) if self.live.any() else np.ones(W - 1, dtype=bool)
+        self.level = sin < PARALLEL                      # per frame: which neighbours' axes are parallel just there
         for i in np.flatnonzero(self.par):
             j = i + 1
             d = self.C[:, j] - self.C[:, i]
@@ -248,7 +266,7 @@ class _Chain:
             rho = sa * self.r[i] - sb * self.r[j]
             d2 = dx * dx + dy * dy
             dist = np.sqrt(d2)
-            self._flag((dist < np.abs(rho) - TOUCH) | (dist < 1e-12), _OVERLAP, j, i)
+            self._flag(self.live & ((dist < np.abs(rho) - TOUCH) | (dist < 1e-12)), _OVERLAP, j, i)
             run = np.sqrt(np.maximum(d2 - rho * rho, 0.0))
             safe = np.where(d2 > 0.0, d2, 1.0)
             tx, ty = (run * dx - rho * dy) / safe, (run * dy + rho * dx) / safe
@@ -347,12 +365,118 @@ class _Chain:
         if held is None:
             loose = self.live & ((self.code != 0) | (self.fleet > FLEET))
             if loose.any():
-                sub = _Chain(self.S[loose], self.C[loose], self.N[loose], self.r, self.sg, self.E[loose], self.on0,
-                             self.on1, held=False)
-                for name in ("t_in", "t_out", "h_in", "h_out", "wrap", "p_in", "p_out", "code", "bad", "other"):
-                    getattr(self, name)[loose] = getattr(sub, name)
-                self.held[loose] = False
+                self._again(loose, False)
         self.ok = self.code == 0
+
+    def _again(self, frames, held) -> None:
+        """Solve these frames (a mask) as a chain of their own and take what it gives."""
+        sub = _Chain(self.S[frames], self.C[frames], self.N[frames], self.r, self.sg, self.E[frames], self.on0,
+                     self.on1, held=held)
+        for name in ("t_in", "t_out", "h_in", "h_out", "wrap", "raw", "p_in", "p_out", "code", "bad", "other", "held"):
+            getattr(self, name)[frames] = getattr(sub, name)
+
+    # -- a wheel the cable no longer reaches -----------------------------------------------------------------
+
+    def _lift(self, held, ref) -> None:
+        """Take the wheels out that the cable no longer reaches on their side, frame by frame.
+
+        A wheel the cable has left shows as a wrap of nearly a whole turn (it would have to come back round the
+        wheel). Which it is – a wide wrap or none – is told from a wrap the wheel is known to have: ``ref``, one
+        per wheel (the wrap in the CAD pose) or one per frame and wheel, and, from frame to frame, the frame
+        before: a wrap never jumps by more than half a turn. Counted on like that a wrap can fall below nothing:
+        the wheel is lifted off. Those frames are solved again without their lifted wheels (which can lift more),
+        and each lifted wheel's points are put where the straight passes nearest its axis. A frame that has no
+        path at all is tried with the wheels lifted that the last frame before it had lifted."""
+        F, W = self.F, self.W
+        turn = 2.0 * np.pi
+        solved = self.live & ((self.code == 0) | (self.code == _WRAP))
+        raw = np.mod(np.nan_to_num(self.raw), turn)
+        raw = np.where(raw > turn - NO_WRAP, 0.0, raw)
+        frame = np.arange(F)
+        last = np.maximum.accumulate(np.where(solved, frame, -1))        # the last frame with a path, up to here
+        if ref is not None and np.ndim(ref) == 2:
+            turns = raw - np.where(raw - ref > np.pi, turn, 0.0)
+        else:
+            back = np.zeros((F, W)) if ref is None else np.where(raw - np.asarray(ref)[None, :] > np.pi, -1.0, 0.0)
+            filled = raw[np.maximum(last, 0)]
+            step = np.diff(filled, axis=0, prepend=filled[:1])
+            jump = np.where(step > np.pi, -1.0, np.where(step < -np.pi, 1.0, 0.0))
+            fresh = solved & ~np.r_[False, solved[:-1]]                  # a run of frames with a path starts here
+            jump[fresh] = 0.0
+            count = np.cumsum(jump, axis=0)
+            run = np.maximum(np.maximum.accumulate(np.where(fresh, frame, -1)), 0)
+            turns = raw + turn * (count - count[run] + back[run])
+        gone = solved[:, None] & (turns < -NO_WRAP)
+        hope = self.live & ~solved & (last >= 0)
+        gone[hope] = gone[last[hope]]
+        hope &= gone.any(axis=1)
+        turns[hope] = turns[last[hope]]
+        gone[~(solved | hope)] = False
+        over = self.code == _WRAP                        # the wraps are judged anew, counted on
+        self.code[over], self.bad[over] = 0, -1
+        for i in range(W):
+            self._flag(solved & ~gone.any(axis=1) & (turns[:, i] > MAX_WRAP), _WRAP, i, -3)
+        rows = np.flatnonzero(gone.any(axis=1))
+        if len(rows):
+            kinds, which = np.unique(gone[rows], axis=0, return_inverse=True)
+            for k, pattern in enumerate(kinds):
+                self._without(rows[np.ravel(which) == k], pattern, held, turns, hope)
+        self.ok = self.code == 0
+
+    def _on(self, frames, i: int, theta, h):
+        c, s = np.cos(theta)[:, None], np.sin(theta)[:, None]
+        ring = c * self.u[frames, i] + s * self.v[frames, i]
+        return self.C[frames, i] + h[:, None] * self.N[frames, i] + self.r[i] * ring
+
+    def _without(self, frames, gone, held, turns, hope) -> None:
+        """Solve ``frames`` (indices) without the wheels ``gone`` (a mask) and put the result in their places."""
+        W = self.W
+        act = np.flatnonzero(~gone)
+        start = self._on(frames, 0, self.t_in[frames, 0], self.h_in[frames, 0]) if (self.on0 and gone[0]) else self.S[frames]
+        end = self._on(frames, W - 1, self.t_out[frames, -1], self.h_out[frames, -1]) if (self.on1 and gone[-1]) \
+            else self.E[frames]
+        if len(act):
+            sub = _Chain(start, self.C[frames][:, act], self.N[frames][:, act], self.r[act], self.sg[act], end,
+                         self.on0 and not gone[0], self.on1 and not gone[-1], held,
+                         ref=np.clip(turns[frames][:, act], 0.0, None), lift=True)
+            good = sub.code == 0
+        else:
+            sub, good = None, np.ones(len(frames), dtype=bool)
+        take = ~hope[frames] | good                      # a frame that had no path only takes one
+        fr = frames[take]
+        if not len(fr):
+            return
+        if sub is not None:
+            for name in ("t_in", "t_out", "h_in", "h_out", "wrap", "p_in", "p_out", "lift"):
+                getattr(self, name)[fr[:, None], act[None, :]] = getattr(sub, name)[take]
+            far = np.concatenate([act, [-1, -2, -3]])    # the smaller chain's numbers -> this chain's
+            self.code[fr], self.held[fr] = sub.code[take], sub.held[take]
+            self.bad[fr] = np.where(sub.bad[take] >= 0, far[sub.bad[take]], sub.bad[take])
+            self.other[fr] = np.where(sub.other[take] >= 0, far[sub.other[take]], sub.other[take])
+        else:
+            self.code[fr], self.bad[fr], self.other[fr] = 0, -1, -3
+        before = start[take]
+        for i in range(W):
+            if not gone[i]:
+                before = self.p_out[fr, i]
+                continue
+            later = act[act > i]
+            after = self.p_in[fr, later[0]] if len(later) else end[take]
+            if (i == 0 and self.on0) or not np.isfinite(before).all():
+                spot = before
+            elif i == W - 1 and self.on1:
+                spot = after
+            else:                                        # where the straight passes nearest the wheel's axis
+                d, n, w0 = after - before, self.N[fr, i], before - self.C[fr, i]
+                a, b = _dot(d, d), _dot(d, n)
+                den = a - b * b
+                f = np.where(den > 1e-12 * np.maximum(a, 1e-300),
+                             (b * _dot(n, w0) - _dot(d, w0)) / np.where(den > 0, den, 1.0), 0.5)
+                spot = before + np.clip(f, 0.0, 1.0)[:, None] * d
+            self.p_in[fr, i] = self.p_out[fr, i] = spot
+            self.wrap[fr, i] = self.h_in[fr, i] = self.h_out[fr, i] = 0.0
+            self.lift[fr, i] = True
+            before = spot
 
     def _ends(self):
         """The two ends: a point (the tangent from it) or a place on the wheel itself. Returns how long the first
@@ -377,6 +501,7 @@ class _Chain:
 
     def _points(self, wrap):
         """The touching points from the angles and places; True per frame where they are not numbers."""
+        self.raw = np.array(wrap, dtype=np.float64)
         self.wrap = np.where((wrap < 0.0) & (wrap > -NO_WRAP), 0.0, wrap)      # rounding: no wrap at all
         every = np.arange(self.W)
         self.p_in = self.point(self.t_in, self.h_in, every)
@@ -417,7 +542,8 @@ class _Chain:
         """Held: the straights from circles A to circles B whose axes are not parallel. A straight of direction
         t touches a circle where the circle's radius is square to t; t is right when the step from the one
         touching point to the other runs along t (Newton on t's two numbers, every straight for itself).
-        Circles that come within ``TOUCH`` of each other touch: a straight of no length where they are nearest."""
+        Circles that come within ``TOUCH`` of each other and have no such straight (they touch, or overlap by a
+        hair) get a straight of no length where they are nearest."""
         na, nb = self.N[:, A], self.N[:, B]
 
         def touch(t):
@@ -461,8 +587,10 @@ class _Chain:
                     far = np.minimum(apart, far)
         joined = far < TOUCH
         step = np.full(far.shape, np.inf)
-        busy = self.live[:, None] & ~joined
-        for _ in range(ROUNDS):
+        busy = self.live[:, None] & ~(far < 1e-9)        # (circles that touch exactly have no straight to find)
+        for round_ in range(ROUNDS):
+            if round_ == 12:                             # circles that nearly touch: a short straight between them
+                busy = busy & ~joined                    # is found soon or not at all
             if not (busy & ~(step < SETTLED)).any():
                 break
             e1, e2 = _square(t)
@@ -485,12 +613,13 @@ class _Chain:
             scale = np.minimum(1.0, 0.5 / np.where(big > 0.0, big, 1.0))
             t = _unit(t + (dx1 * scale)[..., None] * e1 + (dx2 * scale)[..., None] * e2)
             step = np.where(fine, big * reach, np.inf)
-        t = np.where(joined[..., None], joined_t, t)
+        with np.errstate(invalid="ignore"):
+            found = (step < GOOD_ENOUGH) & (_dot(touch(t)[2], t) >= -TOUCH)
+        t = np.where((joined & ~found)[..., None], joined_t, t)
         ea, eb, gap = touch(t)
         self.t_out[:, A] = np.arctan2(_dot(ea, self.v[:, A]), _dot(ea, self.u[:, A]))
         self.t_in[:, B] = np.arctan2(_dot(eb, self.v[:, B]), _dot(eb, self.u[:, B]))
-        with np.errstate(invalid="ignore"):
-            none = ~joined & (~(step < GOOD_ENOUGH) | ~(_dot(gap, t) >= -TOUCH))
+        none = ~joined & ~found
         for k in range(len(A)):
             self._flag(none[:, k], _OVERLAP, int(B[k]), int(A[k]))
 
@@ -499,6 +628,27 @@ class _Chain:
     def _solve_free(self):
         F, W = self.F, self.W
         self._pairs()
+        if W > 1:                                        # frames in which more axes are parallel than in the others
+            odd = self.live & (self.level != self.par[None, :]).any(axis=1)      # are chains of their own
+            if odd.any():
+                self.live = self.live & ~odd
+                if self.live.any():
+                    self._free()
+                else:
+                    self._points(np.zeros((F, W)))
+                self.live = self.live | odd
+                rows = np.flatnonzero(odd)
+                kinds, which = np.unique(self.level[rows], axis=0, return_inverse=True)
+                for k in range(len(kinds)):
+                    mask = np.zeros(F, dtype=bool)
+                    mask[rows[np.ravel(which) == k]] = True
+                    self._again(mask, False)
+                self.ok = self.code == 0
+                return
+        self._free()
+
+    def _free(self):
+        F, W = self.F, self.W
         cuts = np.flatnonzero(~self.par)
         self.first = np.concatenate([[0], cuts + 1]).astype(np.int64)     # each group's first and last wheel
         self.last = np.concatenate([cuts, [W - 1]]).astype(np.int64)
@@ -615,6 +765,8 @@ class _Chain:
             k = slice(int(first[i]), int(first[i]) + int(counts[i]))
             round_ = np.cos(theta)[..., None] * self.u[:, i, None, :] + np.sin(theta)[..., None] * self.v[:, i, None, :]
             pts[:, k] = self.C[:, i, None, :] + h[..., None] * self.N[:, i, None, :] + self.r[i] * round_
+            if self.lift[:, i].any():
+                pts[:, k] = np.where(self.lift[:, i, None, None], self.p_in[:, i, None, :], pts[:, k])
             s[:, k] = at[:, None] + arcs[:, i, None] * tau
             at = at + arcs[:, i]
         if tail:
@@ -633,10 +785,21 @@ def point_counts(wrap_max, step: float = STEP, least: int = 2) -> list[int]:
 def _counts(counts, wrap, step, W: int) -> np.ndarray:
     if counts is None:
         return np.array(point_counts(wrap, step), dtype=np.int64).reshape(W)
-    c = np.asarray(counts, dtype=np.int64).reshape(-1)
-    if len(c) != W:
-        raise ValueError("counts: one number per wheel")
-    return np.maximum(c, 2)
+    return np.maximum(np.asarray(counts, dtype=np.int64).reshape(-1), 2)
+
+
+def _asked(W: int, counts, step, wraps0) -> str:
+    """'' when what was asked for can be done, else what is wrong with it."""
+    try:
+        if not (math.isfinite(float(step)) and float(step) > 0.0):
+            return "The step between an arc's points must be more than 0."
+        if counts is not None and (np.size(counts) != W or not np.isfinite(np.asarray(counts, dtype=np.float64)).all()):
+            return "The points per arc must be one whole number for every contact."
+        if wraps0 is not None and (np.size(wraps0) != W or not np.isfinite(np.asarray(wraps0, dtype=np.float64)).all()):
+            return "The known wraps must be one angle for every contact."
+    except (TypeError, ValueError):
+        return "The step, the points per arc or the known wraps are not numbers."
+    return ""
 
 
 def _arrays(wheels):
@@ -648,43 +811,71 @@ def _arrays(wheels):
     return c, a, r, s
 
 
-def _one(start, wheels, end, on0: bool, on1: bool, held=None) -> _Chain:
+def _one(start, wheels, end, on0: bool, on1: bool, held=None, wraps0=None) -> _Chain:
     c, a, r, s = _arrays(wheels)
     W = len(wheels)
+    ref = None if wraps0 is None else np.asarray(wraps0, dtype=np.float64).reshape(W)
     return _Chain(np.asarray(start, dtype=np.float64).reshape(1, 3), c[None], a[None], r, s,
-                  np.asarray(end, dtype=np.float64).reshape(1, 3), bool(on0) and W > 0, bool(on1) and W > 0, held)
+                  np.asarray(end, dtype=np.float64).reshape(1, 3), bool(on0) and W > 0, bool(on1) and W > 0, held,
+                  ref=ref, lift=ref is not None)
+
+
+def _refusal(W: int, problem: str, bad: int = -1) -> Path:
+    return Path(False, problem, bad, np.zeros((0, 3)), np.zeros(0), np.zeros(W, dtype=np.int64), np.zeros(W), 0.0,
+                np.zeros(W, dtype=np.int64))
 
 
 def _path(ch: _Chain, counts, step, name=_number) -> Path:
     W = ch.W
     if ch.code[0]:
-        return Path(False, _sentence(int(ch.code[0]), int(ch.bad[0]), int(ch.other[0]), name), int(ch.bad[0]),
-                    np.zeros((0, 3)), np.zeros(0), np.zeros(W, dtype=np.int64), np.zeros(W), 0.0,
-                    np.zeros(W, dtype=np.int64))
+        return _refusal(W, _sentence(int(ch.code[0]), int(ch.bad[0]), int(ch.other[0]), name), int(ch.bad[0]))
     cnt = _counts(counts, ch.wrap[0], step, W)
     pts, s, first = ch.polyline(cnt)
-    return Path(True, "", -1, pts[0], s[0], first, ch.wrap[0].copy(), float(s[0, -1]), cnt)
+    return Path(True, "", -1, pts[0], s[0], first, ch.wrap[0].copy(), float(s[0, -1]), cnt, np.flatnonzero(ch.lift[0]))
 
 
 def solve(start, wheels: list[Wheel], end, start_on_wheel: bool = False, end_on_wheel: bool = False,
-          counts: list[int] | None = None, step: float = STEP, held: bool | None = None) -> Path:
+          counts: list[int] | None = None, step: float = STEP, held: bool | None = None, wraps0=None) -> Path:
     """The cable from ``start`` over the wheels to ``end`` (see the module's text).
 
     ``start_on_wheel`` / ``end_on_wheel``: the point lies on the first / last wheel (it is put on its circle) and
     the arc starts / ends there: no straight run and no extra point on that side, so ``points[0]`` is the first
     arc's first point. ``counts``: points per arc (default: one every ``step``, at least 2). ``held``: True – the
     arcs lie in the wheels' planes; False – the wheels are plain cylinders (a helix where there is a fleet angle);
-    None – the first, unless a straight then leaves a plane by more than 0.1°. No wheels: a straight line. Never
-    raises on a path that cannot be: ``ok`` is False, ``problem`` says why, ``points`` is empty."""
-    return _path(_one(start, wheels, end, start_on_wheel, end_on_wheel, held), counts, step)
+    None – the first, unless a straight then leaves a plane by more than 0.1°. No wheels: a straight line.
+
+    ``wraps0``: the wrap (rad) each wheel is known to have – in the CAD pose. With it a wheel the cable no longer
+    reaches on its side is **lifted off**: the cable passes it straight, its wrap is 0, its points all lie where
+    the straight passes nearest its axis (the number of points stays) and ``lifted`` names it. A wheel counts as
+    lifted when its wrap would be more than half a turn above the known one (the cable would have to come back
+    round it). Without ``wraps0`` one frame alone cannot tell a wide wrap from a wheel that was left: any wrap up
+    to 350° is drawn (a wheel just beside the cable's line: nearly a whole turn – refused; one further off: a
+    loop round it).
+
+    Never raises on a path that cannot be: ``ok`` is False, ``problem`` says why, ``points`` is empty."""
+    wrong = _asked(len(wheels), counts, step, wraps0)
+    if wrong:
+        return _refusal(len(wheels), wrong)
+    return _path(_one(start, wheels, end, start_on_wheel, end_on_wheel, held, wraps0), counts, step)
 
 
 def solve_frames(starts, centres, axes, radii, sides, ends, start_on_wheel: bool = False,
-                 end_on_wheel: bool = False, counts=None, step: float = STEP, held: bool | None = None) -> dict:
+                 end_on_wheel: bool = False, counts=None, step: float = STEP, held: bool | None = None,
+                 wraps0=None) -> dict:
     """``solve`` for F frames at once: starts (F, 3), centres (F, W, 3), axes (F, W, 3), radii (W,), sides (W,),
     ends (F, 3). Returns {"points": (F, n, 3), "s": (F, n), "wrap": (F, W), "length": (F,), "first": (W,),
     "counts": (W,), "ok": (F,), "bad": (F,), "problems": {frame: text}, "held": (F,) which frames have their
-    arcs in the wheels' planes}. With ``held`` None every frame chooses for itself, as ``solve`` does.
+    arcs in the wheels' planes, "lifted": (F, W) which wheels the cable does not reach in which frame}.
+
+    With ``held`` None every frame chooses for itself, as ``solve`` does (the cable then jumps by millimetres
+    where a fleet angle passes 0.1°: give ``held`` True for a cable whose contacts move).
+
+    **A wheel the cable leaves** is lifted off (see ``solve``): from frame to frame a wheel's wrap never jumps by
+    more than half a turn, so a wrap that shrinks to nothing and would come back as nearly a whole turn is a
+    lifted wheel, for as long as it stays away; ``wraps0`` (the wraps of the CAD pose) says the same for the
+    first frame and for the first frame after frames without a path. Without ``wraps0`` such a first frame is
+    read as ``solve`` reads it. A frame without a path is tried with the wheels lifted that the last good frame
+    had lifted.
 
     Every frame has the same number of points: ``counts`` per arc, by default enough for the widest wrap any
     frame has. A frame without a path (``ok`` False) keeps the shape of the last frame before it that has one (the
@@ -697,24 +888,33 @@ def solve_frames(starts, centres, axes, radii, sides, ends, start_on_wheel: bool
     axes = np.asarray(axes, dtype=np.float64).reshape(F, W, 3)
     sides = np.where(np.asarray(sides, dtype=np.float64).reshape(W) < 0.0, -1.0, 1.0)
     ends = np.asarray(ends, dtype=np.float64).reshape(F, 3)
+    wrong = _asked(W, counts, step, wraps0)
+    if wrong:
+        cnt = np.full(W, 2, dtype=np.int64)
+        n = 2 * W + (0 if (W and start_on_wheel) else 1) + (0 if (W and end_on_wheel) else 1)
+        return {"points": np.zeros((F, n, 3)), "s": np.zeros((F, n)), "wrap": np.zeros((F, W)), "length": np.zeros(F),
+                "first": np.zeros(W, dtype=np.int64), "counts": cnt, "ok": np.zeros(F, dtype=bool),
+                "bad": np.full(F, -1, dtype=np.int64), "problems": {f: wrong for f in range(F)},
+                "held": np.zeros(F, dtype=bool), "lifted": np.zeros((F, W), dtype=bool)}
+    ref = None if wraps0 is None else np.asarray(wraps0, dtype=np.float64).reshape(W)
     ch = _Chain(starts, centres, axes, radii, sides, ends, bool(start_on_wheel) and W > 0, bool(end_on_wheel) and W > 0,
-                held)
+                held, ref=ref, lift=True)
     ok = ch.code == 0
     widest = ch.wrap[ok].max(axis=0) if ok.any() else np.zeros(W)
     cnt = _counts(counts, widest, step, W)
     pts, s, first = ch.polyline(cnt)
-    wrap = ch.wrap.copy()
+    wrap, lifted = ch.wrap.copy(), ch.lift.copy()
     if not ok.all():
         if ok.any():
             good = np.flatnonzero(ok)
             last = np.maximum.accumulate(np.where(ok, np.arange(F), -1))
             take = np.where(last >= 0, last, good[0])
-            pts, s, wrap = pts[take], s[take], wrap[take]
+            pts, s, wrap, lifted = pts[take], s[take], wrap[take], lifted[take]
         else:
-            pts, s, wrap = np.zeros_like(pts), np.zeros_like(s), np.zeros_like(wrap)
+            pts, s, wrap, lifted = np.zeros_like(pts), np.zeros_like(s), np.zeros_like(wrap), np.zeros_like(lifted)
     problems = {int(f): _sentence(int(ch.code[f]), int(ch.bad[f]), int(ch.other[f])) for f in np.flatnonzero(~ok)}
     return {"points": pts, "s": s, "wrap": wrap, "length": s[:, -1].copy(), "first": first, "counts": cnt,
-            "ok": ok, "bad": ch.bad.copy(), "problems": problems, "held": ch.held & ok}
+            "ok": ok, "bad": ch.bad.copy(), "problems": problems, "held": ch.held & ok, "lifted": lifted}
 
 
 def tightest(wheels, wrap, least_wrap: float = math.radians(1.0)) -> tuple[int, float]:
@@ -737,6 +937,8 @@ def wheel_ratio(radius: float, side: int, axis, joint_axis, reverse: bool = Fals
     ``radius`` (m): where the cable's speed is the wheel's rim speed – the cable's middle on a sheave, the
     surface of a roller. The wheel turns about +axis when ``side`` is +1; the joint counts about ``joint_axis``;
     ``reverse``: the cable's joint counts the other way (end -> start)."""
+    if not (math.isfinite(float(radius)) and float(radius) > 0.0):
+        return 0.0
     sign = (1.0 if side >= 0 else -1.0) * (1.0 if float(np.dot(axis, joint_axis)) >= 0.0 else -1.0)
     if reverse:
         sign = -sign
@@ -744,23 +946,35 @@ def wheel_ratio(radius: float, side: int, axis, joint_axis, reverse: bool = Fals
 
 
 def stripes(diameter: float, pitch: float, angle: float) -> int:
-    """How many stripes (strands) go round a cable: the nearest whole number to π·d / (pitch · tan(angle)).
+    """How many stripes (strands) go round a cable: the nearest whole number to π·d / (pitch · tan(angle)), at
+    most 64 either way.
 
     ``pitch``: from one stripe to the next along the cable; ``angle`` (rad): between a stripe and the cable's
-    length – 90° gives 0 (rings round the cable), a negative angle the other hand."""
-    t = math.tan(max(min(float(angle), 0.5 * math.pi), -0.5 * math.pi))
-    if abs(t) > 1e9 or not pitch > 0.0:
+    length – 90° gives 0 (rings round the cable), a negative angle the other hand. 0 for numbers that are none."""
+    try:
+        diameter, pitch, angle = float(diameter), float(pitch), float(angle)
+    except (TypeError, ValueError):
         return 0
-    if abs(t) < 1e-6:
-        t = math.copysign(1e-6, t if t else 1.0)
-    return int(round(math.pi * float(diameter) / (float(pitch) * t)))
+    if not (math.isfinite(diameter) and math.isfinite(pitch) and math.isfinite(angle)) or not pitch > 0.0:
+        return 0
+    t = math.tan(max(min(angle, 0.5 * math.pi), -0.5 * math.pi))
+    if abs(t) > 1e9:
+        return 0
+    if abs(t) < 1e-9:
+        return MAX_STARTS if angle >= 0.0 else -MAX_STARTS
+    return int(max(min(round(math.pi * diameter / (pitch * t)), MAX_STARTS), -MAX_STARTS))
 
 
 def stripe_angle(diameter: float, pitch: float, starts: int) -> float:
-    """The angle (rad) between a stripe and the cable's length for ``starts`` stripes round it: 0 starts = 90°."""
-    if starts == 0:
+    """The angle (rad) between a stripe and the cable's length for ``starts`` stripes round it: 0 starts = 90°
+    (and 90° for a pitch or a diameter that is none)."""
+    try:
+        diameter, pitch, starts = float(diameter), float(pitch), float(starts)
+    except (TypeError, ValueError):
         return 0.5 * math.pi
-    return math.atan(math.pi * float(diameter) / (float(starts) * float(pitch)))
+    if starts == 0 or not (math.isfinite(diameter) and math.isfinite(pitch) and math.isfinite(starts)) or not pitch > 0.0:
+        return 0.5 * math.pi
+    return math.atan(math.pi * diameter / (starts * pitch))
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -771,6 +985,9 @@ SEAT_FINE = 32.0                # the outline is read in steps of the cable's ra
 ROUND_SLICES = 12               # is_round: the part is looked at in this many slices along the axis; in each
 ROUND_TOL = 0.02                # … the corners within this share of the furthest out are its outside, and
 ROUND_GAP = math.radians(65.0)  # … they leave no gap wider than this round the axis (6 flat sides: 60°)
+ROUND_BAND = 0.85               # with the triangles: a facet is "outside" from this share of the slice's outer radius,
+ROUND_SHARE = 0.9               # … the outside facets must cover this share of the turn,
+ROUND_SLICES_SHARE = 0.9        # … in this share of the slices
 WALL = 4.0                      # the outline between two of its points is a straight piece up to this slope
 
 
@@ -892,7 +1109,7 @@ def _seat(mesh, at: float, rope: float, search: float | None = None):
             if not 0 < k < 128:
                 break
         else:
-            if 0.0 < rest[k] < here - 1e-9:
+            if 0.0 < rest[k] < here - max(1e-4 * rope, 1e-5):    # (a dip of rounding, as 32-bit corners give, is none)
                 place = float(grid[k])
     radius, touch = _rest(zs, rs, place, rope, touching=True)
     if not radius[0] > 0.0:
@@ -919,12 +1136,19 @@ def surface_radius(verts, tris, centre, axis, at: float, width: float) -> float:
     return float(rs.max()) if len(rs) else 0.0
 
 
-def is_round(verts, centre, axis) -> bool:
+def is_round(verts, centre, axis, tris=None) -> bool:
     """True when the mesh is round all the way about this axis (a roller, a sheave, a drum: it may turn); False
     for a part that is round over a part of the turn only (a chute, a quadrant's gutter) or not at all.
 
-    The part is cut into 12 slices along the axis. In every slice the corners furthest from the axis (within
-    2 %) must go all the way round without a gap wider than 65°. Holes, spokes and keyways inside do not matter."""
+    With the triangles (``tris``) the outside itself is looked at: the part is cut into 12 slices along the axis,
+    and in a slice the facets that lie at 85 % or more of the slice's outer radius must cover 90 % of the turn.
+    At least 90 % of the slices must do so. So a cross hole, a keyway, a flat, an anchor hole in a drum's barrel
+    or a lug at one end leave a roller round; a sector of 300° or less, a square bar or a roller in one piece
+    with its bracket are not.
+
+    Without them only the corners are there: in every slice the corners furthest from the axis (within 2 %) must
+    go all the way round without a gap wider than 65°; a slice with a few corners that do not stand out beyond
+    the round slices (the rim of a hole) does not count against the part."""
     v = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
     if len(v) < 6:
         return False
@@ -942,18 +1166,52 @@ def is_round(verts, centre, axis) -> bool:
     slices = 1 if z1 - z0 < 1e-9 * big else ROUND_SLICES
     thick = (z1 - z0) / slices
     edge = 1e-6 * (z1 - z0) + 1e-9 * big                # a ring of corners on a slice's edge counts in both
+    t = None if tris is None else np.asarray(tris).reshape(-1, 3).astype(np.int64)
+    if t is not None and len(t):
+        return _round_outside(t, np.stack([x, y], axis=1), z, rho, phi, z0, thick, slices, edge)
+    far, whole = np.zeros(slices), np.zeros(slices, dtype=bool)
     for k in range(slices):
         here = (z >= z0 + k * thick - edge) & (z <= z0 + (k + 1) * thick + edge)
         if not here.any():
             continue
-        far = float(rho[here].max())
-        if not far > 1e-9 * big:
+        far[k] = float(rho[here].max())
+        if not far[k] > 1e-9 * big:
             continue
-        ang = np.sort(phi[here][rho[here] >= far * (1.0 - ROUND_TOL)])
+        ang = np.sort(phi[here][rho[here] >= far[k] * (1.0 - ROUND_TOL)])
         gap = max(float(np.diff(ang).max()) if len(ang) > 1 else 0.0, float(ang[0] - ang[-1]) + 2.0 * math.pi)
-        if gap > ROUND_GAP:
-            return False
-    return True
+        whole[k] = gap <= ROUND_GAP
+    if not whole.any():
+        return False
+    return bool((whole | (far <= far[whole].max() * (1.0 + ROUND_TOL))).all())
+
+
+def _round_outside(t, flat, z, rho, phi, z0: float, thick: float, slices: int, edge: float) -> bool:
+    """``is_round`` by the triangles: per slice, how much of the turn the facets at the slice's outer radius cover."""
+    corners = rho[t]
+    mids = np.stack([np.linalg.norm(0.5 * (flat[t[:, k]] + flat[t[:, (k + 1) % 3]]), axis=1) for k in range(3)], axis=1)
+    low = np.minimum(corners.min(axis=1), mids.min(axis=1))          # a facet's own lowest radius (about)
+    high = corners.max(axis=1)
+    turn = 2.0 * np.pi
+    d = np.mod(phi[t] - phi[t[:, :1]] + np.pi, turn) - np.pi         # the corners' angles from the first one's
+    start, wide = phi[t[:, 0]] + d.min(axis=1), d.max(axis=1) - d.min(axis=1)
+    bins = 72
+    pad = 0.5 * turn / bins
+    mid = (np.arange(bins) + 0.5) * turn / bins
+    lo = z0 + thick * np.arange(slices)
+    zt = z[t]
+    over = (zt.min(axis=1)[:, None] <= lo[None, :] + thick + edge) & (zt.max(axis=1)[:, None] >= lo[None, :] - edge)
+    outer = np.where(over, high[:, None], 0.0).max(axis=0)           # each slice's outer radius
+    reach = over & (low[:, None] >= ROUND_BAND * outer[None, :]) & (wide[:, None] < np.pi)
+    cover = np.zeros((slices, bins))
+    for k in range(0, len(t), 20000):                    # in blocks: facets x bins
+        part = slice(k, k + 20000)
+        inside = np.mod(mid[None, :] - start[part, None] + pad, turn) <= wide[part, None] + 2.0 * pad
+        cover += reach[part].T.astype(np.float32) @ inside.astype(np.float32)
+    there = outer > 0.0
+    if not there.any():
+        return False
+    good = (cover > 0.0).mean(axis=1) >= ROUND_SHARE
+    return bool(good[there].mean() >= ROUND_SLICES_SHARE)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -962,9 +1220,15 @@ def is_round(verts, centre, axis) -> bool:
 
 FIT_TOL = (5e-4, 0.01)          # a straight or an arc fits when no point is further off than 0.5 mm, or 1 % of
 #                                 the cable's radius if that is more (what tube_centreline is good to; a piece
-#                                 cut in two by a point a little further off is put together again)
-TOUCH_TOL = (2e-3, 0.25)        # a part carries the cable when its surface is within 2 mm, or a quarter of the
-#                                 cable's radius if that is more, of where the cable is drawn
+#                                 cut in two by a point a little further off is put together again) …
+FINE_TOL = 2e-4                 # … and when that does not read, tighter: down to what the points' own noise allows
+#                                 (at least this share of the radius): a clean thin rope's short bends need that
+TOUCH_TOL = (2e-3, 0.25, 0.25)  # a part carries the cable when the cable is drawn within 2 mm of where it rests
+#                                 on the part – or, if that is more, this share of its radius away from the part
+#                                 (air between them) and this share into the part (two numbers: they may differ)
+MAX_DEVIATION = (2e-3, 0.25)    # a reading whose path lies further from the points than 2 mm, or a quarter of the
+#                                 cable's radius if that is more, is refused
+SLIGHT = math.radians(1.0)      # a turn of less than this is no bend
 SQUARE = math.radians(20.0)     # a roller turns when the cable crosses its axis within this of square
 SAME_PLANE = math.radians(2.0)  # an arc lies on a part whose axis is this close to the arc's; arcs after each
 #                                 other this close are in one plane
@@ -1274,6 +1538,8 @@ class _Drawn:
             best, vec, s, piece = np.where(take, d, best), np.where(take[:, None], v, vec), \
                 np.where(take, self.sa[k] + f * math.sqrt(l2), s), np.where(take, k, piece)
         for i in range(W):
+            if ch.lift[0, i]:
+                continue
             c, nn, u, v_ = ch.C[0, i], ch.N[0, i], ch.u[0, i], ch.v[0, i]
             r, sg, wrap = float(ch.r[i]), float(ch.sg[i]), float(ch.wrap[0, i])
             rel = pts - c
@@ -1339,7 +1605,7 @@ class _Parts:
     def full(self, k: int) -> bool:
         if k not in self._full:
             r = self.rounds[k]
-            self._full[k] = bool(r.full) if r.full is not None else is_round(r.verts, self.c[k], self.a[k])
+            self._full[k] = bool(r.full) if r.full is not None else is_round(r.verts, self.c[k], self.a[k], r.tris)
         return self._full[k]
 
     def polar(self, k, pts):
@@ -1354,10 +1620,15 @@ def _side(point, centre, axis, heading) -> int:
     return 1 if float(_cross(point - centre, heading) @ axis) >= 0.0 else -1
 
 
-def _arc_on_part(parts: _Parts, pts, tol: float, touch_tol: float):
+def _rests(gap: float, touch_tol) -> bool:
+    """Is a cable drawn ``gap`` from where it would rest on a part (+ apart, - into it) carried by the part?"""
+    return -touch_tol[1] <= gap <= touch_tol[0]
+
+
+def _arc_on_part(parts: _Parts, pts, tol: float, touch_tol):
     """The part an arc's own points lie on: they keep one distance from its axis and stay at one place along it,
     as well as they keep to their own circle (``tol``), and that distance is where the cable rests on the part
-    (``touch_tol``). Returns (part, place, seat, touching radius, gap) or
+    (``touch_tol``: how far apart, how far into the part). Returns (part, place, seat, touching radius, gap) or
     None."""
     if not len(parts) or len(pts) < 2:
         return None
@@ -1368,15 +1639,15 @@ def _arc_on_part(parts: _Parts, pts, tol: float, touch_tol: float):
     best = None
     for k in np.flatnonzero(steady):
         mean = float(rho[k].mean())
-        if mean > parts.reach(int(k), float(along[k].mean())) + parts.rope + touch_tol:
+        if mean > parts.reach(int(k), float(along[k].mean())) + parts.rope + touch_tol[0]:
             continue
         place, seat_r, touch = parts.seat(int(k), float(along[k].mean()))
-        if seat_r > 0.0 and abs(mean - seat_r) <= touch_tol and (best is None or abs(mean - seat_r) < abs(best[4])):
+        if seat_r > 0.0 and _rests(mean - seat_r, touch_tol) and (best is None or abs(mean - seat_r) < abs(best[4])):
             best = (int(k), place, seat_r, touch, mean - seat_r)
     return best
 
 
-def _corner_on_part(parts: _Parts, c1, d1, c2, d2, where, tol: float, touch_tol: float, slack: float):
+def _corner_on_part(parts: _Parts, c1, d1, c2, d2, where, tol: float, touch_tol, slack: float):
     """The part two straights that meet at a corner both lie on (the cable goes round it between points)."""
     best = None
     for k in range(len(parts)):
@@ -1398,7 +1669,7 @@ def _corner_on_part(parts: _Parts, c1, d1, c2, d2, where, tol: float, touch_tol:
             continue
         mean = 0.5 * (dist[0] + dist[1])
         place, seat_r, touch = parts.seat(k, float((where - c) @ a))
-        if seat_r > 0.0 and abs(mean - seat_r) <= touch_tol and (best is None or abs(mean - seat_r) < abs(best[4])):
+        if seat_r > 0.0 and _rests(mean - seat_r, touch_tol) and (best is None or abs(mean - seat_r) < abs(best[4])):
             best = (k, place, seat_r, touch, mean - seat_r)
     return best
 
@@ -1579,31 +1850,44 @@ def _refine(wheels, joined, pts, drawn) -> bool:
 
 
 def read_cable(points, radius: float, rounds: list[Round], touch_tol: float | None = None,
-               fit_tol: float | None = None) -> Reading:
+               fit_tol: float | None = None, max_deviation: float | None = None) -> Reading:
     """Read a cable drawn in CAD: its contacts and the path over them.
 
     ``points`` (n, 3): the CAD centreline, about equally spaced (``centreline(...).points``: a point every cable
     radius; at least 6 on every arc). ``radius``: the cable's. ``rounds``: the round parts near it.
 
-    1. The points are cut into the fewest straights and arcs that fit them within ``fit_tol`` (default 0.5 mm or
-       1 % of the radius). A stretch that is neither (a spline, a coil with a pitch) is refused.
+    1. The points are cut into the fewest straights and arcs that fit them within the fit tolerance. A stretch
+       that is neither (a spline, a coil with a pitch) is refused.
     2. An arc that lies on a round part – its points keep one distance from the part's axis, and that distance
-       is where the cable rests on the part (``seat``) within ``touch_tol`` (default 2 mm or a quarter of the
-       radius) – is a WRAP: centre, axis and radius come from the part. Another arc is a BEND: the fitted circle.
+       is where the cable rests on the part (``seat``) within ``touch_tol`` – is a WRAP: centre, axis and radius
+       come from the part (an arc cut in two on one part is one WRAP). Another arc is a BEND: the fitted circle.
        Two straights that meet at a corner (a tight bend with less than 3 points on it) get the part both lie
-       on, else a bend that touches both.
+       on, else a bend that touches both. A turn of less than 1° is no bend: the cable is read straight there,
+       unless that leaves the path too far from the points.
     3. The bends' planes are set (``_planes``), arcs that follow each other directly are made to touch, and all
        bends are fitted together so that the whole path – solved with ``held`` True, the arcs in their planes –
        lies as near to the points as it can.
     4. A round part the centreline passes at its seat distance, crossing its axis within 20° of square, that is
-       round all the way and no WRAP there, is a TOUCH: it only turns.
+       round all the way and no WRAP there, is a TOUCH: it only turns. A part given twice is one TOUCH.
+
+    **The fit tolerance** (``fit_tol`` None): first the usual one, 0.5 mm or 1 % of the radius – what the
+    centreline of a faceted mesh is good to. When that does not read, or leaves the path further from the points
+    than twice the tolerance (a thin clean rope's short straights and bends are lost in 0.5 mm), a quarter of it,
+    and so on down to what the points' own roughness allows (``_noise``); last 2.5 times the usual one. The
+    first that reads is taken. A number given as ``fit_tol`` is used as it is.
+
+    ``touch_tol``: how far the cable may be drawn from where it rests on a part that carries it (default 2 mm, or
+    a quarter of the radius: ``TOUCH_TOL``, which has one share for air between them and one for into the part).
 
     ``start`` / ``end`` are the centreline's ends (put in the first / last arc's plane when the cable starts or
     ends on an arc), ``path`` is ``solve(start, wheels of the WRAP and BEND contacts, end, start_on_wheel,
-    end_on_wheel, held=True)``, ``deviation`` the furthest a point is from it.
+    end_on_wheel, held=True)``, ``deviation`` the furthest a point is from it. A reading with ``deviation`` above
+    ``max_deviation`` (default 2 mm or a quarter of the radius; a cable drawn off its parts may be that much
+    further) is refused: its contacts and path are still given, ``problem`` says where and by how much.
 
     Never raises on a centreline that cannot be read: ``ok`` False and ``problem`` in plain words (a stretch that
-    is neither straight nor an arc, a path that cannot be solved – its contacts numbered as in ``contacts``)."""
+    is neither straight nor an arc, a path that cannot be solved – its contacts numbered as in ``contacts`` –, a
+    path beside the cable)."""
     radius = float(radius)
     try:
         pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)
@@ -1620,82 +1904,44 @@ def read_cable(points, radius: float, rounds: list[Round], touch_tol: float | No
     pts = pts[keep]
     if len(pts) < 2:
         return failed("The cable's centreline has no length.")
-    tol = max(FIT_TOL[0], FIT_TOL[1] * radius) if fit_tol is None else float(fit_tol)
-    reach = max(TOUCH_TOL[0], TOUCH_TOL[1] * radius) if touch_tol is None else float(touch_tol)
     step = float(np.median(np.linalg.norm(np.diff(pts, axis=0), axis=1)))
     along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
     parts = _Parts(rounds or [], radius)
+    if touch_tol is None:                                # (air between the cable and the part, drawn into the part)
+        reach = (max(TOUCH_TOL[0], TOUCH_TOL[1] * radius), max(TOUCH_TOL[0], TOUCH_TOL[2] * radius))
+    else:
+        reach = (float(touch_tol), float(touch_tol))
+    limit = max(MAX_DEVIATION[0], MAX_DEVIATION[1] * radius) if max_deviation is None else float(max_deviation)
+    # the fit tolerance: the usual one first (0.5 mm / 1 % of the radius: what a faceted mesh's centreline is good
+    # to); when that does not read – a thin clean rope's short bends and straights are lost in it – tighter, down
+    # to what the points' own noise allows; last a wider one (a Draft mesh)
+    if fit_tol is not None:
+        tols = [float(fit_tol)]
+    else:
+        fine = max(6.0 * _noise(pts), FINE_TOL * radius, 2e-6)
+        usual = max(FIT_TOL[0], FIT_TOL[1] * radius, fine)
+        tols = [usual]
+        while tols[-1] / 4.0 >= fine:
+            tols.append(tols[-1] / 4.0)
+        if tols[-1] > 1.5 * fine:
+            tols.append(fine)
+        tols.append(2.5 * usual)
+    best = None
+    for tol in tols:
+        got = _shaped(pts, along, parts, radius, tol, reach, limit, step)
+        if best is None or got["rank"] < best["rank"]:
+            best = got
+        if got["rank"][0] == 0 and got["rank"][1] <= 2.0 * tol + _drawn_off(got["wheels"]):
+            best = got                                   # read, and as near to the points as the fit promised
+            break
+    if best["ch"] is None:
+        return failed(best["problem"])
+    wheels, ch, shape, on0, on1 = best["wheels"], best["ch"], best["shape"], best["on0"], best["on1"]
+    ends = best["ends"]
 
-    # 1. straights and arcs
-    pieces = _pieces(pts, tol)
-    kept = pieces
-    wheels = []
-    for k, pc in enumerate(kept):
-        if pc["kind"] == "arc":
-            lo, hi = pc["own"]
-            seg = pts[lo:hi + 1]
-            hit = _arc_on_part(parts, seg, tol, reach)
-            mid = seg[len(seg) // 2]
-            if hit is not None:
-                w = _wheel_of(parts, hit, mid, _unit(_cross(pc["n"], mid - pc["c"])))
-            else:
-                w = {"kind": "BEND", "part": -1, "c": pc["c"], "n": pc["n"], "r": pc["r"], "side": 1, "surface": 0.0,
-                     "gap": 0.0}
-            beside = [kept[q] if 0 <= q < len(kept) and kept[q]["kind"] == "line" else None for q in (k - 1, k + 1)]
-            w.update(lo=lo, hi=hi, s=float(along[(lo + hi) // 2]), corner=False, bulge=pc["bulge"],
-                     t_in=_unit(seg[1] - seg[0]), t_out=_unit(seg[-1] - seg[-2]), before=beside[0], after=beside[1])
-            wheels.append(w)
-        elif k and kept[k - 1]["kind"] == "line":
-            # two straights that meet: the cable goes round something between two points
-            one, two = kept[k - 1], pc
-            turn = math.acos(float(np.clip(one["d"] @ two["d"], -1.0, 1.0)))
-            if turn < CORNER:
-                continue
-            cross = _cross(one["d"], two["d"])
-            gap = two["c"] - one["c"]
-            den = float(cross @ cross)
-            f1 = float(_cross(gap, two["d"]) @ cross) / den
-            f2 = float(_cross(gap, one["d"]) @ cross) / den
-            where = 0.5 * ((one["c"] + f1 * one["d"]) + (two["c"] + f2 * two["d"]))
-            hit = _corner_on_part(parts, one["c"], one["d"], two["c"], two["d"], where, tol, reach, 2.0 * step + tol)
-            if hit is not None:
-                w = _wheel_of(parts, hit, where, _unit(one["d"] + two["d"]))
-            else:
-                w = _corner_bend(pts, one, two, where, turn, radius, step)
-            idx = int(np.argmin(np.linalg.norm(pts - where, axis=1)))
-            w.update(lo=idx, hi=idx, s=float(along[idx]), corner=True, bulge=0.0, t_in=one["d"], t_out=two["d"],
-                     before=one, after=two)
-            wheels.append(w)
-    odd = _not_arcs(pts, pieces, tol)
-    if odd is not None:
-        lo, hi = odd
-        return failed(f"The cable's shape between {along[lo]:.1f} m and {along[hi]:.1f} m from its start is neither "
-                      f"straight nor a round bend (a spline, or a coil with a pitch): its path cannot be read.")
-    on0 = bool(wheels) and not wheels[0]["corner"] and wheels[0]["before"] is None      # it starts / ends on an arc
-    on1 = bool(wheels) and not wheels[-1]["corner"] and wheels[-1]["after"] is None
-
-    # 2. arcs in one plane get one plane, arcs after each other touch; then all bends are fitted together
-    _planes(wheels, pts, tol)
+    # the contacts
     numbers = {}
 
-    def drawn():
-        model = [Wheel(w["c"], w["n"], w["r"], w["side"]) for w in wheels]
-        if on0:                                          # a cable that starts on an arc starts in the arc's plane
-            ends[0] = pts[0] - model[0].axis * float((pts[0] - model[0].centre) @ model[0].axis)
-        if on1:
-            ends[1] = pts[-1] - model[-1].axis * float((pts[-1] - model[-1].centre) @ model[-1].axis)
-        ch = _one(ends[0], model, ends[1], on0, on1, held=True)
-        return ch, (_Drawn(ch) if ch.code[0] == 0 else None)
-
-    joined = _joined(wheels, tol)
-    _snap(wheels, joined)
-    ch, shape = drawn()
-    if shape is not None:
-        if _refine(wheels, joined, pts, drawn):
-            _snap(wheels, joined)
-            ch, shape = drawn()
-
-    # 3. the contacts
     def name(i):
         return f"contact {numbers.get(i, i) + 1}"
 
@@ -1726,7 +1972,143 @@ def read_cable(points, radius: float, rounds: list[Round], touch_tol: float | No
         if what == 1:
             c.s = float(np.interp(c.s, along, s_on))
     contacts.sort(key=lambda c: c.s)
-    return Reading(True, "", contacts, ends[0], ends[1], on0, on1, path, float(np.linalg.norm(vec, axis=1).max()))
+    off = np.linalg.norm(vec, axis=1)
+    worst = int(np.argmax(off))
+    if off[worst] > limit + _drawn_off(wheels):
+        problem = (f"The path that can be read lies {off[worst] * 1000.0:.1f} mm beside the cable as it is drawn, "
+                   f"{along[worst]:.2f} m from its start: a bend there has too few points on it to be read, or it "
+                   f"is no round bend.")
+        return Reading(False, problem, contacts, ends[0], ends[1], on0, on1, path, float(off[worst]))
+    return Reading(True, "", contacts, ends[0], ends[1], on0, on1, path, float(off[worst]))
+
+
+def _noise(pts) -> float:
+    """How rough the points are (one standard deviation, m), from their third differences: those are nothing on
+    a straight and next to nothing on an arc, so what is left is the points' own noise."""
+    if len(pts) < 8:
+        return 0.0
+    d3 = pts[3:] - 3.0 * pts[2:-1] + 3.0 * pts[1:-2] - pts[:-3]
+    return float(np.median(np.linalg.norm(d3, axis=1))) / 6.9
+
+
+def _shaped(pts, along, parts, radius: float, tol: float, reach, limit: float, step: float) -> dict:
+    """Steps 1 – 3 of ``read_cable`` with one fit tolerance: the wheels and the solved path. ``rank`` says how
+    good it is: (0, deviation) read and near the points, (1, deviation) read but further off than ``limit``,
+    (2, 0) not read (``problem`` says why, ``ch`` is None when there is no path at all)."""
+    out = {"rank": (2, 0.0), "ch": None, "shape": None, "wheels": [], "on0": False, "on1": False,
+           "ends": [pts[0].copy(), pts[-1].copy()], "problem": ""}
+    kept = _pieces(pts, tol)
+    every = []
+    for k, pc in enumerate(kept):
+        if pc["kind"] == "arc":
+            lo, hi = pc["own"]
+            seg = pts[lo:hi + 1]
+            hit = _arc_on_part(parts, seg, tol, reach)
+            mid = seg[len(seg) // 2]
+            if hit is not None:
+                w = _wheel_of(parts, hit, mid, _unit(_cross(pc["n"], mid - pc["c"])))
+            else:
+                w = {"kind": "BEND", "part": -1, "c": pc["c"], "n": pc["n"], "r": pc["r"], "side": 1, "surface": 0.0,
+                     "gap": 0.0}
+            beside = [kept[q] if 0 <= q < len(kept) and kept[q]["kind"] == "line" else None for q in (k - 1, k + 1)]
+            w.update(lo=lo, hi=hi, s=float(along[(lo + hi) // 2]), corner=False, bulge=pc["bulge"],
+                     t_in=_unit(seg[1] - seg[0]), t_out=_unit(seg[-1] - seg[-2]), before=beside[0], after=beside[1],
+                     turn=float(along[hi] - along[lo]) / pc["r"])
+            if every and w["part"] >= 0 and every[-1]["part"] == w["part"] and every[-1]["side"] == w["side"]:
+                every[-1].update(hi=hi, t_out=w["t_out"], after=w["after"], turn=every[-1]["turn"] + w["turn"],
+                                 s=float(along[(every[-1]["lo"] + hi) // 2]))      # one wrap cut in two: one again
+                continue
+            every.append(w)
+        elif k and kept[k - 1]["kind"] == "line":
+            # two straights that meet: the cable goes round something between two points
+            one, two = kept[k - 1], pc
+            turn = math.acos(float(np.clip(one["d"] @ two["d"], -1.0, 1.0)))
+            if turn < CORNER:
+                continue
+            cross = _cross(one["d"], two["d"])
+            gap = two["c"] - one["c"]
+            den = float(cross @ cross)
+            f1 = float(_cross(gap, two["d"]) @ cross) / den
+            f2 = float(_cross(gap, one["d"]) @ cross) / den
+            where = 0.5 * ((one["c"] + f1 * one["d"]) + (two["c"] + f2 * two["d"]))
+            hit = _corner_on_part(parts, one["c"], one["d"], two["c"], two["d"], where, tol, reach, 2.0 * step + tol)
+            if hit is not None:
+                w = _wheel_of(parts, hit, where, _unit(one["d"] + two["d"]))
+            else:
+                w = _corner_bend(pts, one, two, where, turn, radius, step)
+            idx = int(np.argmin(np.linalg.norm(pts - where, axis=1)))
+            w.update(lo=idx, hi=idx, s=float(along[idx]), corner=True, bulge=0.0, t_in=one["d"], t_out=two["d"],
+                     before=one, after=two, turn=turn)
+            every.append(w)
+    odd = _not_arcs(pts, kept, tol) or _gradual(every)
+    if odd is not None:
+        lo, hi = odd
+        out["problem"] = (f"The cable's shape between {along[lo]:.1f} m and {along[hi]:.1f} m from its start is "
+                          f"neither straight nor a round bend (a spline, or a coil with a pitch): its path cannot "
+                          f"be read.")
+        return out
+    # a turn of less than a degree is no bend: the cable is read straight there (a part it lies on is then a
+    # roller it rests on) – unless that leaves the path too far from the points
+    slight = [w for w in every if w["turn"] < SLIGHT]
+    for wheels in ([w for w in every if w["turn"] >= SLIGHT], every) if slight else (every,):
+        wheels = [dict(w) for w in wheels]
+        got = _fitted(wheels, pts, tol)
+        if got["rank"][0] == 0 and got["rank"][1] > limit + _drawn_off(wheels):
+            got["rank"] = (1, got["rank"][1])
+        if got["rank"] < out["rank"] or out["ch"] is None:
+            out.update(got, wheels=wheels)
+        if got["rank"][0] == 0:
+            break
+    return out
+
+
+def _drawn_off(wheels) -> float:
+    """The furthest the CAD cable is drawn from where it rests on a part it goes round: the path, which lies on
+    the parts, may be that much further from the points."""
+    return max([abs(w["gap"]) for w in wheels if w["kind"] == "WRAP"], default=0.0)
+
+
+def _fitted(wheels, pts, tol: float) -> dict:
+    """The wheels' planes, arcs that touch, the path and the fit of all bends together (steps 2 – 3)."""
+    ends = [pts[0].copy(), pts[-1].copy()]
+    on0 = bool(wheels) and not wheels[0]["corner"] and wheels[0]["before"] is None      # it starts / ends on an arc
+    on1 = bool(wheels) and not wheels[-1]["corner"] and wheels[-1]["after"] is None
+    _planes(wheels, pts, tol)
+
+    def drawn():
+        model = [Wheel(w["c"], w["n"], w["r"], w["side"]) for w in wheels]
+        if on0:                                          # a cable that starts on an arc starts in the arc's plane
+            ends[0] = pts[0] - model[0].axis * float((pts[0] - model[0].centre) @ model[0].axis)
+        if on1:
+            ends[1] = pts[-1] - model[-1].axis * float((pts[-1] - model[-1].centre) @ model[-1].axis)
+        ch = _one(ends[0], model, ends[1], on0, on1, held=True)
+        return ch, (_Drawn(ch) if ch.code[0] == 0 else None)
+
+    joined = _joined(wheels, tol)
+    _snap(wheels, joined)
+    ch, shape = drawn()
+    if shape is not None:
+        if _refine(wheels, joined, pts, drawn):
+            _snap(wheels, joined)
+            ch, shape = drawn()
+    rank = (2, 0.0) if shape is None else (0, float(np.linalg.norm(shape.nearest(pts)[0], axis=1).max()))
+    return {"rank": rank, "ch": ch, "shape": shape, "on0": on0, "on1": on1, "ends": ends, "problem": ""}
+
+
+def _gradual(wheels):
+    """Two bends in the air that follow each other directly and are nearly the same bend (the same way round, in
+    nearly the same plane, radii less than half apart): a bend that changes little by little – a spline, a coil
+    with a pitch, or one arc that a tolerance too tight for its points cut in two. (first point, last point) or
+    None."""
+    for one, two in zip(wheels, wheels[1:]):
+        if one["kind"] != "BEND" or two["kind"] != "BEND" or one["corner"] or two["corner"]:
+            continue
+        if one["after"] is not None or two["before"] is not None:
+            continue
+        k1, k2 = one["n"] / one["r"], two["n"] / two["r"]
+        if float(np.linalg.norm(k1 - k2)) < 0.5 * max(1.0 / one["r"], 1.0 / two["r"]):
+            return one["lo"], two["hi"]
+    return None
 
 
 def _planes(wheels, pts, tol: float) -> None:
@@ -1841,10 +2223,11 @@ def _not_arcs(pts, pieces, tol: float):
     return None
 
 
-def _touches(parts: _Parts, pts, along, wheels, reach: float) -> list:
+def _touches(parts: _Parts, pts, along, wheels, touch_tol) -> list:
     """The round parts the centreline passes at the distance where the cable rests on them (and that it does not
     wrap there): each a dict with part, centre, distance, surface, side, s, gap. One per pass: of the low points
-    the noise makes near one pass the lowest counts."""
+    the noise makes near one pass the lowest counts; a part given twice (the same axis) counts once."""
+    reach = max(touch_tol)
     out = []
     n = len(pts)
     if not len(parts) or n < 3:
@@ -1888,7 +2271,7 @@ def _touches(parts: _Parts, pts, along, wheels, reach: float) -> list:
             if dist > parts.reach(k, float((here - c) @ a)) + parts.rope + reach:
                 continue                                 # the part does not reach the cable there
             _, seat_r, touch = parts.seat(k, float((here - c) @ a))
-            if not seat_r > 0.0 or abs(dist - seat_r) > reach:
+            if not seat_r > 0.0 or not _rests(dist - seat_r, touch_tol):
                 continue
             if not parts.full(k):                        # a round edge of a frame, a chain link's eye: it cannot turn
                 continue
@@ -1904,7 +2287,12 @@ def _touches(parts: _Parts, pts, along, wheels, reach: float) -> list:
             else:
                 passes.append(hit)
     for passes in found.values():
-        out.extend(passes)
+        for hit in passes:
+            a = parts.a[hit["part"]]
+            twice = any(abs(o["s"] - hit["s"]) < 1e-6 + 1e-3 * hit["room"] and np.linalg.norm(o["c"] - hit["c"]) < 1e-6
+                        and abs(float(parts.a[o["part"]] @ a)) > 1.0 - 1e-9 for o in out)
+            if not twice:
+                out.append(hit)
     return out
 
 
@@ -1990,10 +2378,11 @@ def centreline(verts, tris, spacing: float | None = None):
         gone = int(round(0.5 * lap / (piece.length / (len(pts) - 1))))   # the ragged ends where the mesh was cut
         pts = pts[(gone if k else 0):(len(pts) - gone if k < count - 1 else len(pts))]
         if line:                                         # no point twice: go on from where the line so far ends
-            heading = line[-1][-1] - line[-1][-2]
-            ahead = (pts - line[-1][-1]) @ heading > 0.0
-            ahead[:int(np.argmin(np.linalg.norm(pts - line[-1][-1], axis=1)))] = False
-            pts = pts[ahead]
+            last, heading = line[-1][-1], line[-1][-1] - line[-1][-2]
+            go = int(np.argmin(np.linalg.norm(pts - last, axis=1)))      # (only the overlap is dropped: a cable
+            while go < len(pts) and float((pts[go] - last) @ heading) <= 0.0:   # that turns back later keeps its points)
+                go += 1
+            pts = pts[go:]
         if len(pts) < 2:
             return in_one_go()
         line.append(pts)
