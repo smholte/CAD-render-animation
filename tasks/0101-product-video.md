@@ -1,6 +1,6 @@
 # 0101 – One-click product video: a first complete machine video from what the project already has
 
-**Who:** worker · **Status:** open · **Branch:** `task/0101-product-video`
+**Who:** worker · **Status:** done (0.2.81) · **Branch:** `task/0101-product-video`
 **Started by:** lead chat, 13 Nov 2026 (study 0069 #18; owner's pick 12 Nov: "#18 one-click product video after 0100,
 Motion lane, Sonnet · Medium")
 **Lane:** Motion. New files `blender/product_video.py`, `blender/ops_product_video.py`; the button and its options in
@@ -70,10 +70,20 @@ Motion blur (#6), steady videos (#14), new step kinds, music choice beyond what 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 13 Nov 2026
 
-**What changed:**
+**What changed:** `blender/product_video.py` (plan = pure list of steps, then written as an ordinary animation tagged
+`fr_product_video`), `ops_product_video.py` (asks before replacing steps the owner changed: step signature), the
+fold + button at the top of 6 Animation, `pv_*` options in `props.py`. Steps: Orbit 360 -> per joint (longest travel
+first, to its far limit and back, a Watch part camera) -> saved poses -> framed camera + Assembly sequence apart / hold /
+together -> up to two saved cameras -> title / end card and captions via the animation's finishing. Time shares scale to
+the pieces that exist; the status line names what was left out. Tour stop `productvideo`, PC-check line
+`animation.product_video`, guide section, picture `panel_6_product_video.png`, `ci_times.json` recorded.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core-class web machine, test_sequence.step with one joint): 5 new tests (with / without
+joint and subassembly, build twice = same, owner's steps noticed, other animation untouched, options); tour + clash
+tests (every tour animation 0 clashes) 60 passed; GitHub full run green, 22.7 min (slow queue). No subagents used.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** a saved pose stays where it ends (no "back to CAD" pose step); fly round is the
+orbit, not a fly-a-path; no contact sheet of rendered stills was checked by eye (no render run here); the
+close-ups are the first two saved cameras. Runs needed: 2 (main moved with docs only).
