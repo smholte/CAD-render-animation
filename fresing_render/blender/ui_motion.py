@@ -770,6 +770,32 @@ class FRESING_UL_blocks(bpy.types.UIList):
             sub.label(text=f"at {item.start:.1f} s")
 
 
+def _draw_product_video(layout, context) -> None:
+    """The one-click product video (task 0101): the button and its options in a fold."""
+    from . import product_video
+    scene = context.scene
+    s = scene.fresing
+    body = fold(layout, "fr_product_video", "Make a product video", "FILE_MOVIE")
+    if body:
+        col = split_props(body)
+        col.prop(s, "pv_seconds", text="Length")
+        col.prop(s, "pv_sub", text="Take apart")
+        col.prop(s, "pv_motions", text="Motions to show")
+        col.prop(s, "pv_title_on", text="Title card")
+        if s.pv_title_on:
+            col.prop(s, "pv_title", text="Title")
+        col.prop(s, "pv_end_on", text="End card")
+        col.prop(s, "pv_captions", text="Captions")
+        wrap(body, context, "Picture shape and the logo, colours and contact line come from the animation's own "
+                            "settings and 5 Scene & Render > Brand kit.", icon="INFO", inset=12)
+    primary(layout, "fresing.product_video", "Make a product video", "FILE_MOVIE")
+    a = product_video.find_animation(scene)
+    if a is not None:
+        wrap(layout, context, f"'{a.name}' is in the list below: about {animation.length_seconds(a):.0f} s without "
+                              "the cards. Change any step there, then Build & play or Add to queue.",
+             icon="INFO", inset=12)
+
+
 class FRESING_PT_animation(_Panel, bpy.types.Panel):
     bl_label = "6  Animation"
     bl_order = 5
@@ -796,6 +822,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                                     "+ below adds an animation",
                                     "Add steps: joint moves, poses, camera, show/hide",
                                     "Build & play, then Render animation"])
+        _draw_product_video(layout, context)
         row = layout.row()
         row.template_list("FRESING_UL_anims", "", s, "animations", s, "animations_index",
                           rows=list_rows(len(s.animations), 1, 4))

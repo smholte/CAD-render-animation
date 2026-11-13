@@ -576,6 +576,7 @@ if MODE == "panels":
         ("panel_6_fade", [("FRESING_PT_animation", False, True)]),      # a Fade out step to X-ray (task 0073)
         ("panel_6_camera_ride", [("FRESING_PT_animation", False, True)]),   # a Ride along camera step (task 0087)
         ("panel_6_sequence", [("FRESING_PT_animation", False, True)]),      # an Assembly sequence step (task 0100)
+        ("panel_6_product_video", [("FRESING_PT_animation", False, True)]),     # Make a product video (task 0101)
         ("panel_6_camera_path", [("FRESING_PT_animation", False, True)]),   # a Fly a path camera step (task 0087)
         ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
@@ -670,6 +671,9 @@ if MODE == "panels":
                     trolley = ob("TROLLEY")
                     b.aim_uid, b.aim_name = trolley["fr_uid"], "TROLLEY"
                 a.blocks_index = len(a.blocks) - 1
+            elif name == "panel_6_product_video":       # the fold open, the video made (task 0101)
+                mod("blender.ui")._OPEN_FOLDS = True
+                mod("blender.product_video").make(sc)
             elif name == "panel_6_sequence":            # Take apart the boom, outside in, along its +Z, trail lines
                 if not sc.fresing.animations:
                     sc.fresing.animations.add().name = "Animation"

@@ -1987,7 +1987,7 @@ hoses and milling (material removal).
 
 Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a
 made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
-needs much less memory since version 0.2.81 (baked in smaller pieces). Numbers for bigger machines: task 0105's
+needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.
 
 ### Brand kit & logo
@@ -2396,6 +2396,27 @@ Expected on a PC with a fast processor: about half as long (not measured yet).
 3. **Time test (2 frames)** renders the first frame and a typical one with these settings, then shows
    how long the whole video will take. The test frame is kept, so you can check the look.
 4. **Render animation** puts the video in 7 Render queue and starts the queue.
+
+### Make a product video
+
+<img class="panel" src="img/panel_6_product_video.png" alt="6 Animation: Make a product video, options open">
+
+One button makes a first complete film from what your project already has. Open **Make a product video** at the top of
+6 Animation, set the options and press the blue button.
+
+- **Length**: about 30, 60 or 90 seconds, title and end card included. The steps share the time.
+- **Take apart**: the biggest subassembly (at least 5 parts, not the whole model), the one selected in 2 Structure, or none.
+- **Motions to show**: how many joints (longest travel first; each goes to its far limit and back, with the camera
+  watching the moving part) and then saved poses. A saved pose stays where it ends. 0 shows none.
+- **Title card**, **End card** and **Captions** use the brand kit (5 Scene & Render). **Title** empty: the project's name.
+
+The video is a new animation called **Product video**: a turn round the machine, the motions, the subassembly taken
+apart and put together again (an Assembly sequence), a close-up from each of your first two saved cameras. A part the
+project has nothing for is left out (no joints: no motions; no subassembly: no take-apart); the line under the button says what.
+
+Every step is an ordinary step: change it, add one, switch one off. Press **Make a product video** again to make it
+anew; the app asks first if you changed its steps. Then **Build & play**, or **Add to queue** in 7 Render queue as for
+any animation. Other animations are never touched.
 
 <a id="queue"></a>
 ## 7 Render queue – render in the background

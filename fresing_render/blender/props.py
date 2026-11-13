@@ -2875,6 +2875,31 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                ("draft", "Draft", "Real light, grainy, quick"), ("preview", "Preview", "Real light, a bit grainy"),
                ("final", "Final", "Real light, clean"), ("best", "Best", "Real light, very clean (slow)")])
 
+    # ---- one-click product video (task 0101) ----
+    pv_seconds: EnumProperty(
+        name="Length", default="60",
+        items=[("30", "About 30 s", "A short video: one turn, a few motions, a quick take-apart"),
+               ("60", "About 60 s", "A full first video"), ("90", "About 90 s", "A long video with time for each piece")],
+        description="About how long the video is, cards included. The steps share the time between them")
+    pv_sub: EnumProperty(
+        name="Take apart", default="AUTO",
+        items=[("AUTO", "The biggest subassembly", "The subassembly with the most parts (at least 5) that is not "
+                                                   "the whole model"),
+               ("SELECTED", "The selected one", "The subassembly selected in the structure list (3 Structure)"),
+               ("NONE", "None", "No take-apart in the video")],
+        description="Which subassembly flies apart and together again in the video")
+    pv_motions: IntProperty(
+        name="Motions", default=3, min=0, max=8,
+        description="How many of the machine's motions to show: the joints with the longest travel first (each goes "
+                    "to its far limit and back), then the saved poses. 0 = none")
+    pv_title_on: BoolProperty(name="Title card", default=True,
+                              description="Starts the video with a title card in the brand kit's colours (3 s)")
+    pv_end_on: BoolProperty(name="End card", default=True,
+                            description="Ends the video with the brand kit's end card (3 s)")
+    pv_title: StringProperty(name="Title", description="The big text on the title card. Empty: the project's name")
+    pv_captions: BoolProperty(name="Captions", default=False,
+                              description="Shows the name of each step as a caption while it plays")
+
     # ---- output ----
     out_format: EnumProperty(name="Format", items=FORMAT_ITEMS, default="presentation", update=_output_changed,
                              description="What the picture is for: sets its shape (16:9, A4...). The size in "

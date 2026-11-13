@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.81 – 13 Nov 2026 – web 3D model: half the file for big machines, half the memory at 2048 (task 0105)
+## 0.2.82 – 13 Nov 2026 – web 3D model: half the file for big machines, half the memory at 2048 (task 0105)
 
 5 Scene & Render > **Web 3D model**
 - **Smaller file** (compressed), on by default: a big model (200,000 triangles or more) is packed with meshopt –
@@ -15,6 +15,18 @@ installer of that version was built from.
   for a customer whose program refuses it. The line under Export says "compressed" when it was packed.
 - **Texture size 2048 needs half the memory**: the looks are baked in smaller pieces (the demo vessel 5.2 → 2.5 GB,
   and a little faster: 58 → 46 s on the 4-core test machine).
+## 0.2.81 – 13 Nov 2026 – one-click product video (task 0101)
+
+New: 6 Animation > **Make a product video**
+- One button builds a first complete film from what the project already has: a title card, one turn round the
+  machine, the machine's own motions (each joint with a range goes to its far limit and back, with the camera watching
+  the moving part), the saved poses, a subassembly taken apart and put together again, a close-up from two saved
+  cameras and an end card. It is a new animation called "Product video" with ordinary steps you can change.
+- Options (folded under the button): length (about 30, 60 or 90 s), which subassembly to take apart (the biggest, the
+  selected one, or none), how many motions to show, title card, end card, title text and captions.
+- A project without joints skips the motions, one without a big subassembly skips the take-apart; the line under the
+  button says what was left out and why. Pressing it again makes the video anew and asks first if you changed its steps.
+- New test tour stop "One-click product video", new PC-check line, and a guide section "Make a product video".
 
 ## 0.2.80 – 13 Nov 2026 – cables and paths: one cable speed moves the cable and turns every roller (task 0078)
 
