@@ -1,6 +1,6 @@
 # 0102 – Demo: the D-quadrant as wide as the cable path; the tensioners lift and tilt out of its way
 
-**Who:** worker · **Status:** open · **Branch:** `task/0102-demo-quadrant-full-width`
+**Who:** worker · **Status:** running · **Branch:** `task/0102-demo-quadrant-full-width`
 **Started by:** lead chat, 13 Nov 2026 (owner's corrections of the demo deck, with his marked-up picture: described in
 words below, not committed) · runs side by side with 0080 and 0101; **0079 waits for this task** (it runs the tracks
 in the tensioner made here)
