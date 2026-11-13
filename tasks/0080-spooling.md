@@ -1,6 +1,6 @@
 # 0080 – Spooling: the cable comes off the carousel and the wire off the drum, layer by layer
 
-**Who:** worker (Claude Code web) · **Status:** running · **Branch:** `claude/epic-cori-m7bsix`
+**Who:** worker (Claude Code web) · **Status:** done (0.2.85) · **Branch:** `claude/epic-cori-m7bsix`
 **Started by:** lead chat, 13 Nov 2026 (cable-lay line; design in `tasks/0075-motion-paths-design.md` part D, owner's
 answers at its end) · runs **side by side with 0079** (tensioner tracks) – see "Lane" for who owns what
 **Lane:** Flex parts. New files `core/spool.py` (no Blender), `blender/spool.py`, `blender/ops_spool.py`,
@@ -286,7 +286,18 @@ brief asks that it keep the cable's volume within 1 %, so it spans the rope midd
   Blender writes them); leave point on its layer's circle within 0.5 mm (drum and carousel, 25 payouts); rope on the
   spool + paid out = wound within 1 mm; carousel turn per metre within 0.1 % at every radius; carousel stack volume
   within 1 % (core); level wind on the wrap; with it the fleet angle ~0°, without it 12.5° at the far flange (warned).
-SPEED_PLACEHOLDER
+- Speed, demo vessel (small form, Draft, 1,261 parts), frame change in shot 3, best of three alternating runs (this
+  machine's timings varied by ±3 ms between runs): 7.3 ms with the carousel and handling winch 1 spooling against
+  5.5–5.8 ms for the same demo without the spool stage: **+1.6–1.8 ms** (switching the two ropes' modifiers off in the
+  same run saves 1.1–2.0 ms; before the shapes held only a window of the coil it was +4 ms). The main cable is now
+  worked out per frame at Build (a moving start): its shapes hold 1.46 M points (frames × points).
+- **Make demo** (small form, before → after, same machine and code apart from the stage): 62.0 s → 92.2 s. The stage
+  itself 9.9 s (carousel 8.7 s: its 44 km wound path and tables; winch 1.2 s); Build 3.4 → 21.4 s (the power cable is
+  solved for every frame now that its start moves).
+- Real-app test 43/43 (0.8 min); the panel picture checked: no cut-off labels at the default width.
+- **GitHub runs:** 1 full run on the branch after merging main once (green, 19.7 min; suites 1 and 5 flagged SLOW),
+  then `main` by fast-forward (mode reuse): release 0.2.85 published, the Windows update check from the release green.
+  Main had moved to 0.2.84 meanwhile (tasks 0101–0105): version taken last, no clash.
 
 **Open points / follow-up tasks:**
 - The demo's handling winch drums have their fairlead 0.9 m from the flange: the app warns of a fleet angle of 20.9°
