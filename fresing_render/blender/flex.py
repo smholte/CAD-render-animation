@@ -932,8 +932,13 @@ def _build_hose(ng) -> None:
     b.link(fine.outputs[0], tube.inputs["Curve"])
     b.link(circle.outputs["Curve"], tube.inputs["Profile Curve"])
     tube.inputs["Fill Caps"].default_value = True
+    b.link(_slot(b, _shade(b, tube.outputs[0])), gout.inputs[0])
+
+
+def _shade(b: _Nodes, geometry):
+    """A tube's faces smooth, the rim of its end caps a sharp edge (cables use it too: blender/paths.py)."""
     smooth = b.new("GeometryNodeSetShadeSmooth", domain="FACE")
-    b.link(tube.outputs[0], smooth.inputs[0])
+    b.link(geometry, smooth.inputs[0])
     edge = b.new("GeometryNodeInputMeshEdgeAngle")                # the rim of the end caps stays a sharp edge
     soft = b.new("FunctionNodeCompare", data_type="FLOAT", operation="LESS_THAN")
     b.link(edge.outputs["Unsigned Angle"], soft.inputs[0])
@@ -941,7 +946,7 @@ def _build_hose(ng) -> None:
     rim = b.new("GeometryNodeSetShadeSmooth", domain="EDGE")
     b.link(smooth.outputs[0], rim.inputs[0])
     b.link(soft.outputs[0], rim.inputs["Shade Smooth"])
-    b.link(_slot(b, rim.outputs[0]), gout.inputs[0])
+    return rim.outputs[0]
 
 
 def _slot(b: _Nodes, geometry):
@@ -1443,15 +1448,24 @@ def _live(scene, force: bool = False) -> bool:
 
 def _read_places(scene, its, first: int, frames: int) -> dict:
     """Step through the frames and read the world matrices of these items' end parts: name -> (frames, 4, 4)."""
+    return read_places(scene, [ob for _i, it in its for ob in (it.a_part, it.b_part)], first, frames)
+
+
+def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True) -> dict:
+    """Step through ``frames`` frames from ``first`` and read where these objects are: name -> (frames, 4, 4), world.
+
+    Objects that are only drawn by nodes (hoses, links, cables, the toolpath, chips) are hidden meanwhile, so they
+    are not worked out at every frame. ``keep_shown`` False: also when they are among ``obs`` (a hidden object's
+    place is worked out from its parent's, see ``_world``). Cables use this too (blender/paths.py)."""
     from . import clash
-    ends = {ob.name: ob for _i, it in its for ob in (it.a_part, it.b_part)}
+    ends = {ob.name: ob for ob in obs if ob is not None}
     names = sorted(ends)
     obs = [ends[n] for n in names]
     out = {n: np.empty((frames, 4, 4)) for n in names}
-    if not names:
+    if not names or frames < 1:
         return out
     keep = (scene.frame_current, scene.frame_subframe)
-    needed = set(names)
+    needed = set(names) if keep_shown else set()
     shy = [o for o in scene.objects if not o.hide_viewport and o.name not in needed
            and any(m.type == "NODES" for m in getattr(o, "modifiers", ()))]
     for o in shy:                               # only drawn (hoses, links, toolpath, chips): not worked out per frame

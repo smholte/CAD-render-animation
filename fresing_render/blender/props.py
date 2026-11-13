@@ -2067,6 +2067,8 @@ class FRCableContact(bpy.types.PropertyGroup):
     side: IntProperty(default=1)                           # +1: the cable goes round it turning about +axis; -1: about -axis
     wrap: FloatProperty(default=0.0)                       # rad, as drawn now (written by paths.py)
     gap: FloatProperty(default=0.0)                        # m: how far the CAD cable was drawn off the surface
+    s: FloatProperty(default=0.0)                          # m along the cable from its start: where the contact is
+    full: BoolProperty(default=True)                       # the part is round all the way (it may turn)
     turns: BoolProperty(
         name="Turns with the cable", default=True, update=_cable_contact_changed,
         description="On: this roller or sheave turns as fast as the cable runs over it. Off: it stands still "
@@ -2118,6 +2120,11 @@ class FRCable(bpy.types.PropertyGroup):
         name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_changed,
         description="The tightest bend the cable may make (its minimum bend radius, MBR), in mm, measured to the "
                     "middle of the cable. You get a warning naming the sheave or bend that is tighter. 0 = no check")
+    still: BoolProperty(
+        name="Stays as drawn", default=False, update=_cable_changed,
+        description="Off: the cable follows the sheaves and chutes it lies on when they move against each other "
+                    "(a sheave on a luffing frame, a chute on a tilting arm). On: it keeps the path it has in the "
+                    "CAD pose whatever moves – it still runs and turns its rollers, and costs no time per frame")
     reverse: BoolProperty(
         name="Runs the other way", default=False, update=_cable_changed,
         description="Off: paying out moves the cable from its start to its end. On: from its end to its start. "
@@ -2129,6 +2136,7 @@ class FRCable(bpy.types.PropertyGroup):
     a_part: PointerProperty(type=bpy.types.Object)
     a_uid: StringProperty()
     a_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    a_free_end: BoolProperty(default=False)                # a free end: the start touches no part
     a_free: FloatProperty(
         name="Free length at the start", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
         update=_cable_changed,
@@ -2138,6 +2146,7 @@ class FRCable(bpy.types.PropertyGroup):
     b_part: PointerProperty(type=bpy.types.Object)
     b_uid: StringProperty()
     b_point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    b_free_end: BoolProperty(default=False)                # a free end: the end touches no part
     b_free: FloatProperty(
         name="Free length at the end", unit="LENGTH", default=0.0, min=0.0, soft_max=100.0, precision=3,
         update=_cable_changed,
