@@ -23,6 +23,16 @@ Baked light: **a choice per export**. The panel offers:
 - **Everything baked** – sun shadows baked too; closest to the render, but right only for a machine that stands still:
   with an animation or vessel motion in the export the panel says that baked shadows will not move (and asks once).
 
+**House round trip (owner + House Planner lead, 13 Nov):** the bake is also called by the House lane (Fresing Render
+imports a "house scene" package in the format of `smholte/house-scene-format`, bakes it and sends a "bake" package back).
+So: **the bake must also work on imported geometry that already has UV set 1, without unwrapping it again, and must
+return its results per object id.** Keep the three light choices with exactly these names – **Live only / Soft light
+baked, sun live / Everything baked** – the format uses them. Make the bake a function another lane can call (scene or
+object list + light choice + sky/sun in, a result per object id out), not only the panel's button. **Write the
+"Design" section of the report first and push it (task-file-only push) before building:** the owner passes it to the
+House Planner lead, and House Planner's task 0016 starts on it. Never attach `smholte/house-planner-dev` (private);
+tests use only the made-up sample packages of `smholte/house-scene-format`.
+
 ## Background
 
 - After 0106 the page has a sky/sun from the project (or the export's own choice) and a live sun with shadow maps; bake

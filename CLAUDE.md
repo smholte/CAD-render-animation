@@ -572,6 +572,9 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   way-cover sub-assembly, task 0034, 6 Nov 2026) – only after checking it holds nothing of a client's.
   Also the owner's own renders and his milling video on the landing page (`site/media/`, task 0047, owner's
   choice 8 Nov 2026) – only what he sends for the page.
+- **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
+  `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
+  repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
 - **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
   on the landing page shows only a basic interior. Never put the Fresing 400 or any part of it on the site, in a web 3D
   model, a test model, a guide picture or a report, unless the owner releases it explicitly.
