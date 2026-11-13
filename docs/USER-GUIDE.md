@@ -2152,7 +2152,7 @@ folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace
 3. Open **5 Scene & Render > House from House Planner**. It shows the house's title and plan version, the light
    House Planner asked for (**Soft light baked, sun live** or **Everything baked**) and the quality – these are set in
    House Planner's export dialog, not here.
-4. Under **Moments to bake**, each season with its moments. **Preview** shows a moment in the view: the sun stands
+4. Under **Moments to bake**, each season with its moments. The **eye** button (Preview) shows a moment in the view: the sun stands
    exactly where House Planner put it, the clouds and haze of that moment, the season's wet or snowy look, the lamps
    it switches on, bare trees in winter. Switch the 3D view to **Rendered** to see the light. (It sets 5 Scene &
    Render > Weather & time for you.)

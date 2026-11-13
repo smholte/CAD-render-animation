@@ -2498,7 +2498,7 @@ def _check_night(scene):
 HOUSE_MOMENT = "summer-evening"
 
 
-@tour_set("house", "House from House Planner")
+@tour_set("house", "House from House Planner", "sample-house.hpscene")
 def build_house(b: Build):
     """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
     shown in the view from the recipe's garden camera."""
@@ -2947,6 +2947,8 @@ def _fresh(models: tuple, out_folder: str):
         scene = bpy.context.scene
         scene.fresing.out_folder = out_folder
         for m in models:
+            if not m.lower().endswith((".step", ".stp")):
+                continue                    # (a house scene: the set's build imports it itself, task 0114)
             res = bpy.ops.fresing.import_step(filepath=m, quality="draft")
             if res != {"FINISHED"}:
                 raise RuntimeError(f"the import of {os.path.basename(m)} returned {res}: "

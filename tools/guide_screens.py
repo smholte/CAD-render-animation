@@ -1592,7 +1592,7 @@ elif MODE == "house_panel":
         sc = bpy.context.scene
         d = tempfile.mkdtemp(prefix="guide_house_")
         src = os.path.join(d, "sample-house.hpscene")
-        shutil.copyfile(os.path.join(DATA, "sample-house.hpscene"), src)
+        shutil.copyfile(os.path.join(DATA, "house", "hsf-v1.0", "samples", "sample-house.hpscene"), src)
         hi = mod("blender.house_import")
         with override():
             house = hi.import_scene(sc, src)["house"]

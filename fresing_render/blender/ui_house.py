@@ -70,11 +70,11 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         layout.label(text="Light", icon="LIGHT_SUN")
         col = layout.column(align=True)
         col.label(text=LIGHT_WORDS.get(rec.light, rec.light), icon="BLANK1")
-        col.label(text=f"Quality {rec.preset.capitalize()}: {rec.samples} samples, "
-                       f"{rec.texels_per_m:g} texels per metre", icon="BLANK1")
+        col.label(text=f"Quality: {rec.preset.capitalize()}", icon="BLANK1")
+        col.label(text=f"{rec.samples} samples, {rec.texels_per_m:g} texels/m", icon="BLANK1")
 
         # -- seasons and moments, each with Preview
-        layout.label(text="Moments to bake", icon="TIME")
+        layout.label(text="Moments to bake (eye: preview)", icon="TIME")
         for season in rec.seasons:
             sub = layout.box()
             snow = f", snow {season.snow_cover:.0%}" if season.snow_cover > 0 else ""
@@ -83,9 +83,9 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
                 row = sub.row(align=True)
                 el = m.elevation
                 state = "night" if el < 0 else f"sun {el:.0f}°"
-                row.label(text=f"{m.label or m.id}  {m.time}  ({state})",
+                row.label(text=f"{m.label or m.id} {m.time}, {state}",
                           icon="RADIOBUT_ON" if h.moment == m.id else "RADIOBUT_OFF")
-                row.operator("fresing.house_preview", text="Preview", icon="HIDE_OFF").moment = m.id
+                row.operator("fresing.house_preview", text="", icon="HIDE_OFF").moment = m.id
         if rec.open_storeys:
             names = {s.id: s.name for s in house.storeys}
             layout.label(text="Also open from above: " + ", ".join(names.get(s, s) for s in rec.open_storeys),
@@ -103,7 +103,7 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         est = _estimate(scene)
         if est is not None and est["seconds"] > 0:
             where = "on the graphics card (estimate)" if est["gpu"] else "on this PC's processor"
-            layout.label(text=f"Takes {lightbake.duration(est['seconds'])} {where}", icon="SORTTIME")
+            wrap(layout, context, f"Takes {lightbake.duration(est['seconds'])} {where}", icon="SORTTIME")
         primary(layout, "fresing.house_bake", "Bake and export…", "RENDER_STILL")
         wrap(layout, context, "Writes " + os.path.basename(house_bake.default_path(scene)) + " next to the project. "
              "Open it in House Planner.", icon="INFO")
