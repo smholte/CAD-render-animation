@@ -996,6 +996,10 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 3. The cable gets a line in the list, and the list **What it touches** fills. The cable is drawn with its
    look: black with yellow stripes, or steel strands.
 
+Above **Add cable** is **Speed from**. Leave it empty and the app makes a new joint "Cable <name>" for the cable.
+Pick a slide joint you already have there (for example the speed of a winch) and that joint becomes the speed of
+the new cable: no extra joint is made, and everything that follows it follows the cable.
+
 The app reads the middle line of the cable and its diameter, finds where the cable bends, the sheaves it goes
 round, the rollers it rests on (a pair of V rollers too) and the chutes it slides over. It makes a joint
 "Cable <name>" whose value is the metres of cable paid out, and lets every roller and sheave follow it. A roller or
@@ -1087,8 +1091,8 @@ in red.
   on its path over 218 rollers and its bends, with the yellow stripes, on the joint "Cable travel"; in the
   roller-highway shot it runs at 10 m/min and every roller turns with it. (A demo made with an older version:
   make it again.)
-- Not in yet: tensioner tracks that grip the cable, and the cable going into the sea. The coil on a carousel or
-  a drum: **Drums and carousels**, below.
+- Not in yet: the cable going into the sea. The coil on a carousel or a drum: **Drums and carousels**, below. The
+  tensioner tracks that grip the cable: **Tracks and belts**, after it.
 
 ### Drums and carousels
 
@@ -1180,6 +1184,75 @@ A problem shows in red under the list, as "check" in the list line and in the pa
 - The turn of the drum, the level wind and the arm are worked out once, as a table with one piece per layer (a few
   per turn on a carousel): they work in the render queue and with scripts switched off, like every joint.
 - The clash check (6 Animation) leaves the CAD coil out.
+
+### Tracks and belts
+
+A cable-laying tensioner grips the cable between two caterpillar tracks; a belt carries something on a loop of
+links. In the CAD file the links stand where they stood when you drew them. Here the chain **runs round its
+wheels**: every link, pad and plate travels round the loop, and the wheels turn one tooth for every link that
+passes. The pads on the run the cable passes move **with the cable, exactly as fast**.
+
+<img class="panel" src="img/panel_tracks.png" alt="Tracks and belts: three tracks in the list, the bottom track chosen: its links, its speed from the cable, the wheels with their diameter and how far the chain wraps them">
+
+<img class="wide" src="img/view_tracks.jpg" alt="The test model: the cable between the bottom track and the top track, which is lifted a little; on the right a belt over three pulleys">
+
+**Add a track**
+
+1. In 4 Motion > **Tracks and belts**, press **Add track**.
+2. Click the wheels round the loop in the 3D view, one by one: the sprockets, the idlers and the support rollers.
+   Press **Enter**. The status bar at the bottom says what to click next.
+3. Click **one link** of the chain. The app finds all the others by name in the same subassembly.
+4. If the links carry pads or back plates, click one pad and one plate. Each clicked part's copies come along. Press
+   **Enter**. (No pads? Press **Enter** at once.)
+5. The track gets a line in the list. **Esc** or a right click cancels at any step.
+
+The app reads the chain's pins from the round hinge faces of the links, lays the loop round the wheels and puts
+every link, pad and plate on it. The wheels' own joints are used and coupled to the track; a wheel without a joint
+gets one made by the app.
+
+**Speed**
+
+By default a track runs with the **cable** of **Cables and paths** that passes through it (its joint), so the pads
+grip the cable without slipping. With no cable the app makes a slide joint "Track <name>" whose value is the
+metres of chain that have gone round.
+
+- **Speed**: change the joint that drives the track: any slide joint, or the joint of one of its own wheels.
+- **Runs the other way**: turns the direction round.
+- **Add a Run motor step**: adds a step on the speed joint to the animation in 6 Animation, 10 m/min for 5 s.
+  Change it there as any step.
+
+A track carried by joints – the top track of a tensioner sits on a lift and a tilt – moves with them, and its pads
+keep running.
+
+The panel shows the number of links and their pitch, the length of the loop and of the chain, and under **Wheels**
+each wheel with its diameter at the chain's pins and how far the chain wraps it (in degrees, or "–" for a support
+roller the chain only runs over).
+
+**Warnings**
+
+A track that cannot be made says why in red and nothing changes:
+
+- the chain is **open**: a link is missing in the CAD file;
+- the links do not all have **one pitch**;
+- the wheels' **axes are not parallel**;
+- the chain's places in the CAD file **do not lie on one loop** round these wheels: a wheel is missing, or you
+  clicked one the chain does not go round;
+- a wheel is **too small** for the chain;
+- a wheel **moves against the others** (a tension idler on a joint of its own): not done yet.
+
+A **note** in the panel is not a refusal: the loop is longer or shorter than the chain (links × pitch) by more than
+2 % of a link, or a wheel already follows the speed joint by a coupling of your own at another ratio – it is kept,
+and the note says "its teeth will drift through the links".
+
+**Good to know**
+
+- The tick box in the list switches a track off: its parts are as in the CAD file and stand still.
+- **−** takes it off the list (the joints the app made for it go too); the arrow button selects its parts.
+- Nothing is worked out per frame in Python: it works in the render queue and with scripts switched off.
+- The clash check (6 Animation) leaves the parts of a track out.
+- A model update keeps the tracks.
+- The **demo project** uses it: in shot 5 the pads of the tensioners run with the cable while the top track
+  squeezes it.
 
 ### Poses & exploded views
 
@@ -2078,11 +2151,49 @@ the machine himself, or for your website.
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
 
+#### Surroundings on the page
+
+The fold **Surroundings on the page** (under Include animation) puts the machine's surroundings on the page: the
+moving sea, the vessel rolling on it, the sky and the sun, haze and rain. **None** (the default) keeps the page as
+before: the machine alone on a light background. **As in the project** switches the ticks on as the project has
+them now; change them for this export only – the project itself does not change. **Take from the project** sets
+them back.
+
+- **Sea** – an endless sea to the horizon with the app's own waves (the same numbers, so the page's waves are the
+  ones in your renders), ripples, and white caps when **Rough**. The water sits at the project's water level; a
+  project without a sea gets one under the machine. With the **Vessel deck**, the deck goes on the page too.
+- **Vessel motion** (only when the project has it on, 5 Scene & Render > Vessel motion) – the machine and the deck
+  heave, pitch and roll in step with the waves, with the app's numbers; parts marked **Still** or **Level** stay as
+  in the app. It works together with Include animation.
+- **Sky** – the page's background and its light. **Sky from: The project** takes the project's sky and sun; with a
+  360° photo or a studio look the page gets that picture as its light (and the photo as its background), so shiny
+  metal mirrors what the app shows. **Time of day** draws a sky with the sun at **Sun height** and **Sun direction**;
+  **Clouds**: None, Some (they drift) or Overcast (grey, soft light).
+- **Haze** – the distance fades into the colour of the sky; the slider sets how thick.
+- **Rain** – falling rain and a wet, darker, glossier machine; on a rough sea also spray at the bow when it dips into
+  a wave. The drops move on the graphics card, so they cost little.
+- **Live sun shadows** – the sun casts sharp shadows on the machine, the deck and the sea; they move with the parts
+  and with the rolling vessel.
+- **Page quality** – **Phone**, **Balanced** or **Best**: how fine the waves, ripples, rain and shadows are, the
+  size of the sky picture and the screen resolution. **Auto quality** (on by default): the page lowers its quality
+  by itself when it cannot draw about 30 pictures a second and says so in a small note in its bottom right corner,
+  so one page works on a phone and on a PC.
+
+The line under Export adds what the surroundings cost in the file ("surroundings +0.3 MB"; without a 360° photo
+the page is often a little *smaller* than without surroundings, because the page's 3D code is smaller).
+Not on the page: the halls, the quay and the props; hoses and cables (as before).
+
+Measured on the 4-core test machine **without a graphics card** (software drawing, so only the differences mean
+something): the invented 124 m cable-lay vessel (Draft, Texture size 512) exports in 3–5 s with every item on; its
+page is 5.5 MB and draws its first picture after about 2 s. Phone, Balanced and Best draw 10,000, 38,000 and 102,000
+points of sea and 1,000, 2,600 and 5,900 rain drops; Best draws far fewer pictures a second there (0.4 against 3.5), which
+is what Auto quality is for. On a PC with a graphics card all three are many times faster.
+
 How the looks get in: every look (material, colour, shine, bumps) is baked once into small pictures that repeat over
 the parts, at the same scale as in your renders; looks that are one colour need no picture. Logos and stickers are
 baked one by one. What a web page cannot show, and is left out: edge wear and corner dirt, the stretched shine of
 brushed, ground or turned metal, the very fine orange peel of paint, tool marks on milled faces, the cutaway and
-X-ray look (parts are whole and solid), the surroundings (the page has its own light and shadow), chips, coolant,
+X-ray look (parts are whole and solid), chips, coolant,
 hoses and milling (material removal).
 
 Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a

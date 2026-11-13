@@ -2397,6 +2397,87 @@ class FRSpool(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# tracks and belts (task 0079): a chain of CAD links, pads and plates runs round its wheels. See blender/tracks.py.
+# ---------------------------------------------------------------------------
+
+def _track_changed(self, context):
+    """A setting of a track changed (on/off, speed, direction): its parts and wheels follow at once."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import tracks
+    tracks.changed(context.scene, self)
+
+
+def _track_joints(self, context, edit_text):
+    """The joints a track can run on: slide joints, and the rotate joints of its own wheels."""
+    scene = context.scene if context is not None else None
+    if scene is None:
+        return []
+    own = {w.joint for w in self.wheels}
+    out = []
+    for j in scene.fresing.joints:
+        if j.kind == "SLIDE" or j.name in own:
+            if not edit_text or edit_text.lower() in j.name.lower():
+                out.append(j.name)
+    return out
+
+
+class FRTrackWheel(bpy.types.PropertyGroup):
+    """One wheel of a track: a sprocket, idler or roller. See blender/tracks.py."""
+    name: StringProperty(name="Name", description="The wheel's part")
+    part: PointerProperty(type=bpy.types.Object)
+    part_uid: StringProperty()
+    joint: StringProperty()                                # the rotate joint that turns it
+    made_joint: BoolProperty(default=False)                # the app made that joint (removed with the track)
+    coupled: BoolProperty(default=False)                   # the app made that joint follow the track's speed
+    radius: FloatProperty(default=0.0)                     # m: the chain's pitch line round it (or to the run it touches)
+    side: IntProperty(default=1)                           # +1: inside the loop
+    wrapped: BoolProperty(default=True)                    # the chain bends round it (False: it only touches)
+    wrap: FloatProperty(default=0.0)                       # rad the chain lies on it
+    rate: FloatProperty(default=0.0)                       # rad about the loop's normal per metre of chain
+    ratio: FloatProperty(default=0.0)                      # as its coupling has it: ° per mm (or turns per turn)
+    note: StringProperty(default="")
+
+
+class FRTrack(bpy.types.PropertyGroup):
+    """A track or belt: a chain of CAD links (with pads, plates) running round its wheels (task 0079)."""
+    name: StringProperty(name="Name", description="Name of this track. Double-click to rename it")
+    enabled: BoolProperty(
+        name="On", default=True, update=_track_changed,
+        description="On: the links, pads and plates run round the wheels with the speed joint and the wheels turn "
+                    "with them. Off: they show exactly as in the CAD file and stand still")
+    joint: StringProperty(
+        name="Speed", update=_track_changed, search=_track_joints,
+        description="The joint the track runs with: a cable's joint (metres of cable), any slide joint (metres of "
+                    "chain) or the joint of one of its own wheels (the chain runs as that wheel turns). Animate that "
+                    "joint, for example with a Run motor step in 6 Animation")
+    made_joint: BoolProperty(default=False)                # the app made the speed joint (removed with the track)
+    flip: FloatProperty(default=1.0)                       # +1 / -1: the way that moves the pads with the cable (found)
+    reverse: BoolProperty(
+        name="Runs the other way", default=False, update=_track_changed,
+        description="Off: the pads on the run nearest the cable move with the cable (or along the slide joint). "
+                    "On: the other way round. Tick it when the pads run the wrong way")
+    wheels: CollectionProperty(type=FRTrackWheel)
+    wheels_index: IntProperty(default=0)
+    key: StringProperty()                                  # what its parts and app-made joints are tagged with
+    chain_uid: StringProperty()                            # the link that was clicked
+    rider_uids: StringProperty()                           # the pads / plates that were clicked, one per line
+    # ---- state (written by blender/tracks.py) ----
+    carrier: PointerProperty(type=bpy.types.Object)        # the loop's coordinates: the first wheel's joint arrow
+    loop: PointerProperty(type=bpy.types.Object)           # the hidden loop table "FR track loop <name>"
+    run: PointerProperty(type=bpy.types.Object)            # "FR track run <name>": one point per part, its place now
+    normal: FloatVectorProperty(size=3, default=(0.0, 1.0, 0.0))  # the loop's normal, carrier coordinates
+    pitch: FloatProperty(default=0.0)                      # m
+    links: IntProperty(default=0)
+    parts: IntProperty(default=0)                          # links + riders that move
+    length: FloatProperty(default=0.0)                     # of the loop in metres of chain
+    chain_length: FloatProperty(default=0.0)               # links x pitch
+    data: StringProperty(default="")                       # JSON: each part's name, ID, phase c0, local matrix
+    problem: StringProperty(default="")
+    notes: StringProperty(default="")                      # what Add track had to say, one per line
+
+
+# ---------------------------------------------------------------------------
 # way covers (task 0034): telescopic covers follow one slide axis
 # ---------------------------------------------------------------------------
 
@@ -2762,6 +2843,13 @@ class FRCut(bpy.types.PropertyGroup):
     root_uid: StringProperty()
 
 
+def _web3d_env_mode(self, context):
+    """Surroundings switched on: the ticks start from the project (task 0106)."""
+    if self.env_mode == "PROJECT" and context is not None and context.scene is not None:
+        from . import web3d_env
+        web3d_env.fill_from_project(context.scene)
+
+
 class FRWeb3D(bpy.types.PropertyGroup):
     """Web 3D model (task 0099): settings of 5 Scene & Render > Web 3D model and the last export."""
 
@@ -2785,6 +2873,80 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
                     "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
                     "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
+    # ---- surroundings on the page (task 0106): set for one export, the project itself never changes
+    env_mode: EnumProperty(
+        name="Surroundings", default="NONE", update=_web3d_env_mode,
+        description="What the page shows around the machine. None: the machine alone on a light background (as "
+                    "before). As in the project: the sea, the sky, the light and the weather; the ticks below start "
+                    "from the project and change only this export",
+        items=[("NONE", "None", "The machine alone, as before: the smallest page"),
+               ("PROJECT", "As in the project", "The surroundings the ticks below pick, starting from the project's")])
+    env_sea: BoolProperty(
+        name="Sea", default=False,
+        description="An endless moving sea to the horizon with the app's own waves, the water at the project's "
+                    "level. Without a sea in the project it goes under the model at its water level")
+    env_sea_state: EnumProperty(
+        name="Sea state", default="CALM",
+        description="How rough the sea on the page is. Starts as the project's",
+        items=[("CALM", "Calm", "A gentle swell and small ripples"),
+               ("ROUGH", "Rough", "Higher waves, more ripples and white caps")])
+    env_vessel: BoolProperty(
+        name="Vessel motion", default=False,
+        description="The model (and the vessel deck) heave, pitch and roll on the page with the app's numbers, in "
+                    "step with the waves; Still and Level parts stay as in the app. Only when the project has "
+                    "vessel motion on and the page has a sea")
+    env_sky: BoolProperty(
+        name="Sky", default=True,
+        description="The page's background and light from the project's sky, 360° photo or studio look, so metal "
+                    "mirrors what the app shows. Off: a plain light background with the app's soft studio light")
+    env_sky_source: EnumProperty(
+        name="Sky from", default="PROJECT",
+        description="Where the sky on the page comes from",
+        items=[("PROJECT", "The project", "The project's sky and sun, or its 360° photo or studio look"),
+               ("TIME", "Time of day", "A sky with the sun at the height and direction set below")])
+    env_sun_height: FloatProperty(
+        name="Sun height", default=45.0, min=0.0, max=90.0,
+        description="Height of the sun above the horizon on the page (degrees): low gives long shadows and warm "
+                    "light at sunrise or sunset, 90 is noon in the tropics")
+    env_sun_direction: FloatProperty(
+        name="Sun direction", default=0.0, min=0.0, max=360.0,
+        description="Where the sun stands round the machine (degrees, as Rotate light in 5 Scene & Render): turn it "
+                    "to move the shadows")
+    env_clouds: EnumProperty(
+        name="Clouds", default="NONE",
+        description="Clouds in the page's sky. They drift slowly",
+        items=[("NONE", "None", "A clear sky"),
+               ("SOME", "Some", "Scattered clouds; the sun still shines"),
+               ("OVERCAST", "Overcast", "A grey sky: soft light, faint shadows")])
+    env_haze: BoolProperty(
+        name="Haze", default=False,
+        description="The distance fades into a colour that matches the sky, as on a hazy or misty day")
+    env_haze_strength: FloatProperty(
+        name="Haze strength", default=30.0, min=0.0, max=100.0, subtype="PERCENTAGE", precision=0,
+        description="How thick the haze is: low only softens the horizon, 100 % hides what is a few model sizes away")
+    env_rain: BoolProperty(
+        name="Rain and spray", default=False,
+        description="Falling rain and a wet look of the machine; on a rough sea also spray at the bow when it dips "
+                    "into a wave. The drops move on the graphics card, so they cost little")
+    env_rain_strength: FloatProperty(
+        name="Rain strength", default=50.0, min=0.0, max=100.0, subtype="PERCENTAGE", precision=0,
+        description="How hard it rains: more drops and a wetter look")
+    env_shadows: BoolProperty(
+        name="Live sun shadows", default=True,
+        description="The sun casts sharp shadows on the model, the deck and the sea that move with the parts and the "
+                    "rolling vessel. Off: a little faster on old phones")
+    env_quality: EnumProperty(
+        name="Page quality", default="BALANCED",
+        description="How much the page draws: the wave grid, ripple detail, rain drops, the sharpness of the shadows, "
+                    "the size of the sky picture and the screen resolution",
+        items=[("PHONE", "Phone", "Light: smooth on phones and old laptops; the smallest sky picture"),
+               ("BALANCED", "Balanced", "Good on most laptops and PCs (the default)"),
+               ("BEST", "Best", "The finest waves, shadows and sky for a big screen with a good graphics card; the "
+                                "biggest sky picture")])
+    env_auto: BoolProperty(
+        name="Auto", default=True,
+        description="The page lowers its quality by itself when it cannot draw about 30 pictures a second, and says "
+                    "so in a small note in its corner: one page works on a phone and on a PC")
     last_path: StringProperty(default="")
     last_html: StringProperty(default="")
     last_text: StringProperty(default="")
@@ -3212,6 +3374,13 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     cables_index: IntProperty(default=0)
     spools: CollectionProperty(type=FRSpool)               # drums and carousels the cables come off (task 0080)
     spools_index: IntProperty(default=0)
+    # ---- tracks and belts (task 0079) ----
+    tracks: CollectionProperty(type=FRTrack)
+    tracks_index: IntProperty(default=0)
+    cable_speed: StringProperty(
+        name="Speed from joint", default="",
+        description="Add cable gives the new cable this slide joint as its speed (its value is the metres of cable "
+                    "paid out), for example a joint that already turns rollers. Empty: the app makes a new joint")
     # ---- web 3D model (task 0099) ----
     web3d: PointerProperty(type=FRWeb3D)
 
@@ -3229,6 +3398,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCable, FRSpoolFollower, FRSpool,
+           FRTrackWheel, FRTrack,
            FRSceneSettings)
 
 
