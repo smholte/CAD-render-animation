@@ -1,6 +1,6 @@
 # 0112 – Render kit with motion: Thor and the brick press as app projects, gallery refresh
 
-**Who:** worker → owner (renders on his PC) → a short take-in session · **Status:** running (13 Nov) ·
+**Who:** worker → owner (renders on his PC) → a short take-in session · **Status:** done (13 Nov); owner renders next ·
 **Branch:** `task/0112-site-kit-with-motion` (or the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's choices 13 Nov, 20:00)
 **Area (Site kit lane, new):** `site/render_kit/` (kit script, `models.ini`, README, the .bat), new
@@ -91,12 +91,87 @@ The demo vessel (owner decides later). Rendering the final pictures (owner's PC)
 
 ---
 
+## Design (worker, 13 Nov)
+
+- **Projects are made on the owner's PC by the kit**, not shipped as .blend: the kit brings `models/thor.step` +
+  `models/ceb_press.step` and a small joint sheet per model (`projects/<model>.json`); `projects.py` makes the project
+  with the app he has installed (so the project always fits his app version – old-project rules never come in), and
+  the download is 28 MB instead of ~300 MB of .blend. Making the motion takes under a second.
+- **Sheets come from the sources**: `tools/site_projects/thor.py` (Assembly4 frames → joints; round faces on both sides
+  of each hinge check the axis; tooth counts from the parts' spreadsheets → couplings), `ceb.py` (cylinders split into
+  barrel and rod, source faults fixed and listed in the sheet's `notes`), `stepout.py` (moving bodies as nested
+  sub-assemblies, so joints are made on named sub-assemblies). `tools/make_site_projects.py` is the command line and
+  the Python entry for 0111 (`build_project("thor", out)`).
+- **Hand-over**: `.github/workflows/site-kit.yml` builds the kit on `main` (and by hand) and replaces the zip on the
+  draft release `site-kit`; the kit ends in one `site_pictures_<date>.zip`; `build_site.py --take` reads that zip.
+
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 13 Nov 2026. No version change (no app code changed).
 
 **What changed:**
+- `tools/site_projects/` + `tools/make_site_projects.py` (new): Thor and the CEB press from their repositories at
+  pinned commits (clone ~6 s, only the needed folders). **Thor**: 522 parts in 19 nested sub-assemblies; 18 joints –
+  Art1–Art6, the gripper's servo arm (0–85°), passive arm, two links and two fingers (parallelograms: fingers stay
+  upright), the four motor pinions (Art1 10:50 and Art2 10:60 inside ring gears, Art4 10:20 outside) and the wrist's
+  two bevel gears (15:30 against the gear plate) coupled by the tooth counts in Thor's own part files. 7 joints a user
+  moves; limits are safe ranges (Thor's repository gives none). 6 poses; loop "Thor at work" 10 s (reach down, grip,
+  lift and turn, put down, release, home). No carried block: the app cannot hand a part from the table to the gripper.
+  Two parts hidden for good (the app's "excluded"), said in the sheet: the elbow's toothed belt (inside the upper
+  arm; a one-piece belt cannot run round its pulleys) and the Art1 pinion's grub screw (it sticks 0.7 mm into the ring
+  gear when the pinion turns – in the source). **Press**: 248 parts; slide joints "Press plate" (0 … −200 mm) and
+  "Drawer" (−140 … +100 mm, on its rails), two app cylinders in follow mode; loop "Press cycle" 9.5 s (closed, pressed,
+  opened, brick up, brick pushed out, fill). Source faults fixed and listed in `projects/ceb_press.json` notes: both
+  cylinders were one fused solid each (split into barrel and rod, rods run on inside a bore), the main cylinder sat
+  10.8 mm off the compression chamber, the drawer did not fit its way (7 frame plates trimmed by ≤ 3.5 mm).
+- `site/render_kit/`: `projects.py` (new: the project from a sheet with the app's own functions + checks), kit script
+  (`project`, `video = turntable | product | animation | none`, `weather`, `pose`, `take_apart`, expected time before
+  the start and again after the first picture, start later, models found in the first kit's folder, posters, one
+  zip with the log), `models.ini` (the owner's set), `.bat` (shows the time, asks now/later), README (6 steps).
+- `tools/build_site.py --take`: a zip or a folder, the kit's posters, gallery clips ≤ 5 MB (720 p when 1080 p does
+  not fit), no doubles with `--keep-old`, Fresing 400 refused.
+- `.github/workflows/site-kit.yml` (new): builds the kit and replaces it on the draft release `site-kit`.
+- CLAUDE.md: layout, the workflow, three lessons. `tools/ci_times.json`: first times of the three new test files.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Draft meshes):
+- Thor: STEP 121.6 MB written in 15 s, imported in 25 s; motion made < 1 s; joints on the Assembly4 axes within
+  0.1° / 0.1 mm (test); every hinge has round faces on both sides (the wrong vertical elbow axis has 0 on Art2);
+  **clash check of the loop: 0 rows in 127 s** (251 frames); loop closes.
+- Press: STEP 24.6 MB in 5 s, imported in 7 s; **clash check: 0 rows in 8 s** (239 frames).
+- Kit end to end, small (240 px, 8 samples, processor): both projects, stills in a saved pose, weather, Thor's
+  product video, the press loop, posters, `site_pictures_<date>.zip` – 0 problems. Product video frames cost 3.8 s
+  each here at 240 px (mostly the app's work per frame with 517 moving parts, not the picture).
+- Kit zip: 27.7 MB (two STEP files compress 5x). 
+- Tests: `tests/test_site_projects.py`, `tests/test_render_kit.py`, `tests/test_site_take.py` (new), `test_site.py`:
+  44 pass locally (Thor's project with its clash check 171 s, the kit end to end 179 s). GitHub: 3 full runs, all
+  green, none red – branch 43503839179, branch after merging main (0.2.89) 43506551242, `main` 43509333092 (main had
+  moved again). The Site kit workflow ran on `main` (43509333140) and put `fresing_site_kit.zip` (27.7 MB) on the draft
+  release `site-kit`; "latest" stays v0.2.89. Several pytest groups ran slow (13–16 min) while other tasks' runs
+  shared the runners: `tools/ci_times.json` holds estimates for the three new files, not recorded times.
+- Subagents: one (Sonnet), the independent review of the `.bat` below; nothing else delegated.
+- No tour stop and no PC-check line: no new app function (the kit and the converters are tools, not the app).
+- Independent review of the `.bat` (subagent, Sonnet): 2 real faults fixed (an unquoted start time – `23:30 & calc`
+  would have run calc, a space split it; a crash during the estimate counted as success); 2 low risks left (a `)` in
+  `%TEMP%`, several Blender versions installed).
+- **Owner's expected render time on the RTX 3090: about 3 h 20 min** for the whole set (an estimate, not a
+  measurement: 0.02 s per megapixel × sample for Cycles on the 3090 + 1 s per video frame for the app's work; stills
+  2400 × 1350 Final ≈ 0.5 min each, the two 30 s product videos ≈ 80 min each, EVO's turntable ≈ 30 min). The kit
+  measures its own speed on the first still and says the finish time in its window and log.
+
+**Take-in session** (after the owner uploaded `site_pictures_<date>.zip` to the draft release `site-kit`):
+
+> **Claude Code on the web · Sonnet · effort Medium**
+> Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and take in the owner's site pictures (task
+> 0112's take-in): download the newest site_pictures_<date>.zip from the draft release site-kit (`gh api
+> repos/smholte/CAD-render-animation/releases`, then the asset with `-H "Accept: application/octet-stream"`), run
+> `~/venv/bin/python tools/build_site.py --take <zip>` (add `--keep-old` only if its log.txt says a model was skipped),
+> build and check the page (`tools/build_site.py`), look at the contact sheet's clips, and merge.
 
 **Open points / follow-up tasks:**
+- The owner renders and uploads (README steps); then the take-in session above.
+- 0111 can reuse Thor: `tools/make_site_projects.py thor --out <dir> --project` (or `build_project` from Python).
+- OpenArm and FarmBot STEP files are not in their git repositories: the kit takes them (and EVO) from the first kit's
+  `models` folder next to it; a later kit could fetch them if the owner wants it fully self-contained.
+- Thor's joint limits are safe guesses (0 clash rows in the loop); the product video moves the three longest joints to
+  their limits from Home – not clash-checked (only the loops are).
+- The kit's time estimate rule (0.02 s per megapixel × sample on the 3090) should be compared with the owner's log.
