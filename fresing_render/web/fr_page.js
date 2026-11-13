@@ -4,19 +4,30 @@
 // r180, three-viewer.min.js) and FRMath (fr_math.js). Nothing is fetched from the internet.
 //
 // URL options (for tests and for looking): ?quality=PHONE|BALANCED|BEST  ?auto=0  ?t=<seconds> (time stands still)
-// ?orbit=<theta deg>,<phi deg>,<distance in model radii>
+// ?orbit=<theta deg>,<phi deg>,<distance in model radii>  ?probe=<x>,<y>;<x>,<y>… (screen places 0 … 1 from the top
+// left: their pixel colours after each frame go into data-fr-probe on <html>, for tests)
+//
+// Baked light (task 0107, settings ``light`` = {light: SOFT | ALL, scale, curve}): parts whose material has an
+// occlusion map read through UV channel 1, or whose mesh has the attribute _FR_LIGHT, get their matte sky light
+// from it (bakedLight below). ``plain``: Surroundings None with baked light – no sky drawn, the light background
+// of the model-viewer page; the sky or the light picture still lights the model.
 (function () {
   'use strict';
   var T = window.FRTHREE, M = window.FRMath;
   var ST = JSON.parse(document.getElementById('fr-env').textContent);
   var Q = new URLSearchParams(location.search);
   var LEVELS = ['PHONE', 'BALANCED', 'BEST'];
+  var plain = !!ST.plain;
+  var probes = (Q.get('probe') || '').split(';').map(function (p) { return p.split(',').map(parseFloat); })
+    .filter(function (p) { return p.length === 2 && isFinite(p[0]) && isFinite(p[1]); });
   var page = window.frPage = { ready: false, settings: ST, level: null, fps: 0, frames: 0, errors: [], lowered: 0,
-                               info: {} };
+                               info: {}, light: { light: null, materials: 0, meshes: 0, plain: plain } };
   // the page's state in its own HTML (data-fr-state on <html>): the PC check reads it with a headless browser
   function mark() {
-    document.documentElement.dataset.frState = page.errors.length ? 'error: ' + page.errors.join(' | ').slice(0, 300)
+    var root = document.documentElement.dataset;
+    root.frState = page.errors.length ? 'error: ' + page.errors.join(' | ').slice(0, 300)
       : page.ready ? 'ready ' + page.level + ' frames ' + page.frames : 'loading';
+    if (ST.light || plain) root.frLight = JSON.stringify(page.light);
   }
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
   window.addEventListener('unhandledrejection', function (e) {
@@ -42,7 +53,9 @@
   var canvas = document.getElementById('view');
   var renderer;
   try {
-    renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    // plain form: a see-through canvas over the page's light background (as the model-viewer page)
+    renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance',
+                                     alpha: plain, preserveDrawingBuffer: probes.length > 0 });
   } catch (e) {              // no WebGL: the page says so; the PC check does not count it as the page's fault
     fail('', 'no-webgl: ' + e);
     document.documentElement.dataset.frState = 'no-webgl';
@@ -53,6 +66,13 @@
   renderer.toneMappingExposure = Math.pow(2, ST.sky.exposure || 0) * 1.15;
   renderer.shadowMap.enabled = !!ST.shadows;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
+  if (plain) renderer.setClearColor(0x000000, 0);
+  // a shader that does not compile is the page's fault: say so (three only writes it to the console)
+  renderer.debug.onShaderError = function (g, program, vs, fs) {
+    var log = [vs, fs].map(function (sh) { return g.getShaderInfoLog(sh) || ''; }).join(' ').trim();
+    page.errors.push('shader: ' + (log || g.getProgramInfoLog(program) || 'did not compile').slice(0, 200));
+    mark();
+  };
   var gl = renderer.getContext();
   var dbg = gl.getExtension('WEBGL_debug_renderer_info');
   page.info.webgl = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'webgl';
@@ -89,6 +109,8 @@
   if (!photo && clouds === 'OVERCAST') sunPower *= 0.12;
   var sun = new T.DirectionalLight(sunColour, sunPower * strength);
   scene.add(sun, sun.target);
+  sun.position.copy(sunDir);          // the light comes from here (fitShadow moves both with shadows on); without this
+                                      // three's default put the sun straight overhead when shadows were off
   sun.castShadow = !!ST.shadows;
   sun.shadow.bias = -0.0004;
   // a studio's or a photo's main light is broad, an overcast sun weak: lighter shadows than a clear sun's
@@ -179,15 +201,22 @@
     };
     skyMesh.material.toneMapped = false;
     skyMesh.renderOrder = -2;
-    scene.add(skyMesh);
+    if (!plain) scene.add(skyMesh);
     var envSky = new T.Sky();
     envSky.material = skyMesh.material;
     envSky.scale.setScalar(1000);
     envScene.add(envSky);
   }
   dome = makeDome();
-  scene.add(dome);
+  if (!plain) scene.add(dome);
   envScene.add(makeDome());
+  if (plain) {                                        // the model-viewer page's look: dark text on a light ground
+    var css = document.documentElement.style;
+    css.setProperty('--bg', '#F1F3F5'); css.setProperty('--ink', '#252E36'); css.setProperty('--muted', '#5B6670');
+    document.body.style.background = 'radial-gradient(#ffffff, #F1F3F5)';
+    [].forEach.call(document.querySelectorAll('header, .note'), function (el) { el.style.textShadow = 'none'; });
+    page.light.background = getComputedStyle(document.body).backgroundImage;
+  }
 
   // ---------------------------------------------------------------- light from the sky or the picture
   var pmrem = new T.PMREMGenerator(renderer);
@@ -201,7 +230,7 @@
   var waiting = 1;                                    // the model; pictures add theirs
   function oneLess() { if (--waiting === 0) start(); }
   if (photo) {
-    var bgUrl = ST.sky.photo ? picture(ST.sky.photo) : null;
+    var bgUrl = ST.sky.photo && !plain ? picture(ST.sky.photo) : null;
     if (bgUrl) {
       waiting++;
       new T.TextureLoader().load(bgUrl, function (tex) {
@@ -222,7 +251,9 @@
         oneLess();
       }, undefined, function (e) { page.errors.push('light picture: ' + e); oneLess(); });
     }
-    if (!bgUrl) scene.background = ST.sky.background ? new T.Color().fromArray(ST.sky.background) : horizon.clone();
+    if (!bgUrl && !plain) {
+      scene.background = ST.sky.background ? new T.Color().fromArray(ST.sky.background) : horizon.clone();
+    }
   } else {
     scene.environment = pmrem.fromScene(envScene, 0, 0.1, 5000).texture;
     scene.environmentIntensity = strength;
@@ -473,7 +504,150 @@
   vesselGroup.matrixAutoUpdate = levelGroup.matrixAutoUpdate = false;
   top.add(vesselGroup, levelGroup, stillGroup);
   scene.add(top);
-  var mixer = null, meshes = [];
+  var mixer = null, meshes = [], baked = null;
+
+  // ---------------------------------------------------------------- baked light (task 0107)
+  // Light factor F = scale * texel ^ curve (texel: the occlusion map read through UV channel 1, or the mesh's
+  // _FR_LIGHT attribute, linear 0 … 1): the light a white matte surface gets there, 1 = open sky above. The page
+  // multiplies it by its OWN light on an up-facing surface (sky: getIBLIrradiance(up) x environment intensity, in
+  // place of the environment's own matte light iblIrradiance; with ALL also the sun on an up-facing surface, added to
+  // the matte light ``irradiance`` that RE_IndirectDiffuse turns into Lambert light, as the live sun's). Reflections
+  // stay, dimmed by min(1, luminance F) in corners. ALL: the sun gives no matte light on baked surfaces (it is in
+  // the bake), only its highlight. A 360° photo or studio light has no sun of its own: both choices bake all of it,
+  // so they work as ALL. three's own occlusion map (which multiplies) is not used on these materials.
+  var BAKED_GLOBAL = [
+    'uniform float uFrScale;',
+    'uniform float uFrCurve;',
+    'uniform vec3 uFrSunUp;'].join('\n');
+  var BAKED_NO_SUN = [                    // the sun's matte light off, its highlight kept
+    'void RE_Direct_FrBaked( const in IncidentLight directLight, const in vec3 geometryPosition,',
+    '    const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal,',
+    '    const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {',
+    '  vec3 frKeep = reflectedLight.directDiffuse;',
+    '  RE_Direct_Physical( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal,',
+    '                      material, reflectedLight );',
+    '  reflectedLight.directDiffuse = frKeep;',
+    '}',
+    '#undef RE_Direct',
+    '#define RE_Direct RE_Direct_FrBaked'].join('\n');
+  var IBL_DIFFUSE = 'iblIrradiance += getIBLIrradiance( geometryNormal );';
+
+  function bakedLight(list) {
+    var all = ST.light.light === 'ALL' || photo;
+    var uniforms = { uFrScale: { value: +ST.light.scale || 1 }, uFrCurve: { value: +ST.light.curve || 2 },
+                     uFrSunUp: { value: new T.Vector3() } };
+    var patches = {}, sunAt = new T.Vector3();
+    function patch(kind) {                 // one function per kind: three shares the programs of a kind
+      if (patches[kind]) return patches[kind];
+      var maps = T.ShaderChunk.lights_fragment_maps;
+      var problem = function (what) {
+        page.errors.push('baked light: three.js shader has changed (' + what + ')'); mark();
+      };
+      if (maps.indexOf(IBL_DIFFUSE) < 0) problem('lights_fragment_maps');
+      var texel = kind === 'map' ? 'texture2D( aoMap, vAoMapUv ).rgb' : 'vFrLight';
+      var lights = [
+        'vec3 frF = uFrScale * pow( max( ' + texel + ', vec3( 0.0 ) ), vec3( uFrCurve ) );',
+        maps.replace(IBL_DIFFUSE,
+          'iblIrradiance += frF * getIBLIrradiance( normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz ) );'),
+        '#if defined( RE_IndirectDiffuse )',      // the sun as plain Lambert light, as RE_Direct_Physical gives it
+        '  irradiance += frF * uFrSunUp;',
+        '#endif',
+        '#if defined( RE_IndirectSpecular )',
+        '  float frOcc = min( 1.0, dot( frF, vec3( 0.2126, 0.7152, 0.0722 ) ) );',
+        '  radiance *= frOcc;',
+        '  clearcoatRadiance *= frOcc;',
+        '#endif'].join('\n');
+      var fn = function (sh) {
+        Object.assign(sh.uniforms, uniforms);
+        var f = sh.fragmentShader;
+        ['#include <lights_physical_pars_fragment>', '#include <lights_fragment_maps>', '#include <aomap_fragment>']
+          .forEach(function (inc) { if (f.indexOf(inc) < 0) problem(inc); });
+        f = f.replace('#include <lights_physical_pars_fragment>', '#include <lights_physical_pars_fragment>\n' +
+                      BAKED_GLOBAL + (kind === 'vtx' ? '\nvarying vec3 vFrLight;' : '') + (all ? '\n' + BAKED_NO_SUN : ''))
+             .replace('#include <lights_fragment_maps>', lights)
+             .replace('#include <aomap_fragment>', '');
+        sh.fragmentShader = f;
+        if (kind === 'vtx') {
+          sh.vertexShader = 'attribute vec3 frLight;\nvarying vec3 vFrLight;\n' +
+            sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvFrLight = frLight;');
+        }
+      };
+      var key = 'fr-baked-' + kind + (all ? '-all' : '-soft');
+      patches[kind] = { fn: fn, key: function () { return key; } };
+      return patches[kind];
+    }
+    // which meshes: a vertex light first, else an occlusion map on UV channel 1 (with the mesh's UV1)
+    var kindOf = function (o, m) {
+      var g = o.geometry;
+      if (!m || !m.isMeshStandardMaterial) return null;
+      if (g.getAttribute('_fr_light')) return 'vtx';
+      if (m.aoMap && m.aoMap.channel === 1 && g.getAttribute('uv1')) return 'map';
+      return null;
+    };
+    var uses = new Map();                  // material -> {kind: count}, so one shared with unbaked parts is copied
+    list.forEach(function (o) {
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) {
+        var u = uses.get(m) || {};
+        var k = kindOf(o, m) || 'none';
+        u[k] = (u[k] || 0) + 1;
+        uses.set(m, u);
+      });
+    });
+    var made = new Map(), count = 0;
+    function bakedMaterial(m, kind) {
+      var id = m.uuid + kind;
+      if (made.has(id)) return made.get(id);
+      var only = Object.keys(uses.get(m)).length === 1;
+      var b = only ? m : m.clone();      // shared with another kind of part: its own copy (textures stay shared)
+      var p = patch(kind);
+      b.onBeforeCompile = p.fn;
+      b.customProgramCacheKey = p.key;
+      b.needsUpdate = true;
+      made.set(id, b);
+      return b;
+    }
+    list.forEach(function (o) {
+      var arr = Array.isArray(o.material), mats = arr ? o.material.slice() : [o.material], hit = false;
+      for (var i = 0; i < mats.length; i++) {
+        var kind = kindOf(o, mats[i]);
+        if (!kind) continue;
+        if (kind === 'vtx' && !o.geometry.getAttribute('frLight')) {
+          o.geometry.setAttribute('frLight', o.geometry.getAttribute('_fr_light'));
+        }
+        mats[i] = bakedMaterial(mats[i], kind);
+        hit = true;
+      }
+      if (!hit) return;
+      o.material = arr ? mats : mats[0];
+      count++;
+    });
+    page.light.light = ST.light.light;
+    page.light.materials = made.size;
+    page.light.meshes = count;
+    page.light.sunMatte = !all;
+    return {
+      sunUp: function () {                 // the sun on an up-facing surface (three's units: colour x intensity)
+        var v = uniforms.uFrSunUp.value;
+        if (!all) { v.set(0, 0, 0); return; }
+        var d = sunAt.subVectors(sun.position, sun.target.position).normalize();    // as three lights with it
+        var k = sun.intensity * Math.max(d.y, 0);
+        v.set(sun.color.r * k, sun.color.g * k, sun.color.b * k);
+      }
+    };
+  }
+
+  // ?probe=: the colours of a few pixels of the frame just drawn (tests)
+  function probe() {
+    var w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(4);
+    var out = probes.map(function (p) {
+      var x = Math.round(T.MathUtils.clamp(p[0], 0, 1) * (w - 1));
+      var y = Math.round((1 - T.MathUtils.clamp(p[1], 0, 1)) * (h - 1));
+      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      return [px[0], px[1], px[2], px[3]];
+    });
+    page.probe = out;
+    document.documentElement.dataset.frProbe = JSON.stringify(out);
+  }
 
   function prepare(gltf) {
     var root = gltf.scene;
@@ -499,6 +673,7 @@
       var vm = o.userData && o.userData.fr_vm;
       if (vm === 'STILL' || vm === 'LEVEL') moves.push([o, vm]);
     });
+    if (ST.light) { baked = bakedLight(meshes); baked.sunUp(); }
     moves.forEach(function (pair) {   // parts that keep their place in the world (or stay level)
       var g = pair[1] === 'STILL' ? stillGroup : levelGroup;
       var holder = g.getObjectByName('fr-holder');
@@ -631,6 +806,7 @@
     domeUniforms.uTime.value = t;
     if (skyMesh) skyMesh.position.copy(camera.position);
     dome.position.copy(camera.position);
+    if (baked) baked.sunUp();
     if (rain) {
       rainUniforms.uTime.value = t;
       var bx = T.MathUtils.clamp(dist * 1.6, 6, 140);
@@ -662,6 +838,7 @@
     if (ST.shadows) fitShadow();
     renderer.render(scene, camera);
     page.frames++;
+    if (probes.length) probe();
     if (page.frames < 4 || page.frames % 60 === 0) mark();
     if (maxFrames && page.frames >= maxFrames) return;     // ?frames=N: stop drawing (pictures in tests)
     // frames per second (real clock time) and Auto
@@ -691,7 +868,9 @@
     page.ready = true;
     fpsSince = warmSince = performance.now();
     mark();
-    requestAnimationFrame(frame);
+    // probing (tests): draw the first frame now – a headless browser may take its picture of the page before the
+    // next animation frame comes
+    if (probes.length) frame(); else requestAnimationFrame(frame);
   }
 
   // ---------------------------------------------------------------- load the model

@@ -136,11 +136,35 @@ def haze_density(strength: float, size: float) -> float:
     return 3.0 / seen
 
 
+LIGHTS = ("SOFT", "ALL")             # baked light on the page (task 0107); "LIVE" = none
+PLAIN_BG = "#F1F3F5"                 # the plain form's background: the model-viewer page's (core/web3d._PAGE)
+
+
+def light_block(light: dict | None) -> dict | None:
+    """The page's ``light`` entry: {light: SOFT | ALL, scale, curve} (task 0107), None for no baked light."""
+    if not light or light.get("light", "LIVE") == "LIVE":
+        return None
+    kind = light["light"]
+    if kind not in LIGHTS:
+        raise ValueError(f"baked light must be one of {LIGHTS}, not {kind!r}")
+    scale, curve = float(light.get("scale", 1.0)), float(light.get("curve", 2.0))
+    if not (math.isfinite(scale) and scale > 0 and math.isfinite(curve) and curve > 0):
+        raise ValueError(f"baked light: scale and curve must be above 0 (scale {scale}, curve {curve})")
+    return {"light": kind, "scale": scale, "curve": curve}
+
+
 def settings(choice: dict, model_min, model_max, sea: dict | None = None, vessel: dict | None = None,
-             sky: dict | None = None, time_start: float = 0.0) -> dict:
+             sky: dict | None = None, time_start: float = 0.0, light: dict | None = None,
+             plain: bool = False) -> dict:
     """The page's settings block. ``sea``: {state, level, origin, near, waves, own, bump, foam, moving} of the sea
     as the page should draw it (or None); ``vessel``: {pivot, heave, roll, pitch, bow, hull} (or None); ``sky``:
-    {kind, sun, strength, exposure, photo, light, ...}."""
+    {kind, sun, strength, exposure, photo, light, ...}.
+
+    Task 0107: ``light`` = {light: SOFT | ALL, scale, curve} of the baked light in the model (the light factor is
+    scale x texel ^ curve), None = nothing baked. ``plain``: Surroundings None with a baked choice – no sea, vessel
+    motion, haze, rain or clouds, the model-viewer page's light background instead of the sky; the sky or the
+    project's light picture still lights the model. Neither key is written when it is not asked for (the page of
+    task 0106 stays as it was)."""
     q = choice.get("quality", "BALANCED")
     if q not in QUALITY:
         q = "BALANCED"
@@ -149,7 +173,7 @@ def settings(choice: dict, model_min, model_max, sea: dict | None = None, vessel
     sky = dict(sky or {})
     sky.setdefault("kind", "SKY")
     sky.setdefault("sun", sun_vector(45.0, 0.0))
-    sky["clouds"] = choice.get("clouds", "NONE") if choice.get("clouds") in CLOUDS else "NONE"
+    sky["clouds"] = choice.get("clouds", "NONE") if choice.get("clouds") in CLOUDS and not plain else "NONE"
     sky.setdefault("strength", 1.0)
     sky.setdefault("exposure", 0.0)
     el, az = angles_of(sky["sun"])
@@ -181,6 +205,11 @@ def settings(choice: dict, model_min, model_max, sea: dict | None = None, vessel
     if choice.get("rain"):
         out["rain"] = {"strength": float(choice.get("rain_strength", 0.5)),
                        "spray": bool(out["sea"] is not None and out["sea"].get("state") == "ROUGH")}
+    block = light_block(light)
+    if block is not None:
+        out["light"] = block
+    if plain:
+        out.update(sea=None, vessel=None, haze=None, rain=None, plain=True)
     return out
 
 
@@ -202,6 +231,9 @@ def items_text(st: dict) -> str:
         out.append("rain and spray" if st["rain"].get("spray") else "rain")
     if st.get("shadows"):
         out.append("sun shadows")
+    light = (st.get("light") or {}).get("light")
+    if light in LIGHTS:
+        out.append("baked light (soft)" if light == "SOFT" else "baked light (everything)")
     return ", ".join(out)
 
 
@@ -448,6 +480,13 @@ def open_headless(page_path: str, browser: str = "", query: str = "auto=0&frames
     into its own HTML (``data-fr-state``): 'ready <level> frames <n>', 'error: …' or 'loading'. Software drawing
     (SwiftShader) is asked for, so it works without a graphics card too. Raises RuntimeError when the browser does
     not answer."""
+    return read_page(page_path, browser, query, seconds)["state"]
+
+
+def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5", seconds: float = 120.0) -> dict:
+    """As ``open_headless``, but everything the page writes into its own HTML: {"state": …, "light": {light,
+    materials, meshes, plain, background} or None, "probe": [[r, g, b, a], …] or None} (task 0107; ``probe`` only
+    with ``probe=x,y;x,y`` in ``query``, screen places 0 … 1 from the top left)."""
     browser = browser or find_browser()
     if not browser:
         raise RuntimeError("no Edge, Chrome or Chromium found")
@@ -483,8 +522,14 @@ def open_headless(page_path: str, browser: str = "", query: str = "auto=0&frames
             time.sleep(0.5)
     dom = stdout.decode("utf-8", "replace")
     m = re.search(r'data-fr-state="([^"]*)"', dom)
-    if m is None:
-        if "<html" not in dom:
-            raise RuntimeError(f"the browser showed nothing (exit code {proc.returncode})")
-        return "loading"
-    return html.unescape(m.group(1))
+    if m is None and "<html" not in dom:
+        raise RuntimeError(f"the browser showed nothing (exit code {proc.returncode})")
+    out = {"state": html.unescape(m.group(1)) if m else "loading", "light": None, "probe": None}
+    for key, attr in (("light", "data-fr-light"), ("probe", "data-fr-probe")):
+        m = re.search(attr + r'="([^"]*)"', dom)
+        if m:
+            try:
+                out[key] = json.loads(html.unescape(m.group(1)))
+            except ValueError:
+                pass
+    return out
