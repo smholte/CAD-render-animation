@@ -92,6 +92,23 @@ def test_unwrap_restores_the_tree_exactly():
         assert _snapshot(mat) == before and weather_look.TAG not in mat
 
 
+def test_a_decals_clear_parts_get_no_film_or_snow():
+    _empty()
+    mat = bpy.data.materials.new("FR decal")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    alpha = nt.nodes.new("ShaderNodeValue")
+    alpha.name = "Alpha"
+    nt.links.new(alpha.outputs[0], bsdf.inputs["Alpha"])
+    before = _snapshot(mat)
+    weather_look.wrap(mat)
+    node = next(n for n in nt.nodes if n.bl_idname == "ShaderNodeGroup")
+    assert node.inputs["Alpha"].links[0].from_node == alpha          # the decal's own alpha
+    weather_look.unwrap(mat)
+    assert _snapshot(mat) == before
+
+
 def test_rebuilt_material_keeps_the_wrap_and_porous_follows_the_look():
     _empty()
     mat = _mat()
@@ -124,6 +141,25 @@ def test_apply_wraps_the_model_and_the_quay_but_not_the_water_and_takes_it_away(
     assert "concrete" in env and "water" not in env
     assert not any(weather_look.is_wrapped(m) for m in bpy.data.materials if m.get("fr_env") == "water")
     assert weather_look.apply(sc, True) == 0                 # cheap: nothing to do
+    ng = bpy.data.node_groups[weather_look.GROUP]
+    kinds = {n.bl_idname for n in ng.nodes}
+    assert kinds == {"NodeGroupInput", "NodeGroupOutput"}   # no wet, no snow anywhere: passes straight through
+    # a Weather & time step keys the snow layer: the snow part is built (and only that: no AO cost without snow)
+    sc["fr_wx_cover"] = 0.0
+    sc.keyframe_insert('["fr_wx_cover"]', frame=1)
+    sc["fr_wx_cover"] = 0.6
+    sc.keyframe_insert('["fr_wx_cover"]', frame=40)
+    weather_look.apply(sc, True)
+    kinds = {n.bl_idname for n in ng.nodes}
+    assert "ShaderNodeAmbientOcclusion" in kinds and "ShaderNodeTexVoronoi" not in kinds
+    sc["fr_wx_wet"] = 0.3
+    weather_look.apply(sc, True)
+    kinds = {n.bl_idname for n in ng.nodes}
+    assert "ShaderNodeAmbientOcclusion" in kinds and "ShaderNodeTexVoronoi" in kinds
+    assert all(weather_look.is_wrapped(m) for m in bpy.data.materials if m.name in wrapped)
+    sc.animation_data_clear()
+    for k in ("fr_wx_wet", "fr_wx_cover"):
+        del sc[k]
     weather_look.apply(sc, False)
     assert not any(weather_look.is_wrapped(m) for m in bpy.data.materials)
     assert bpy.data.node_groups.get(weather_look.GROUP) is None
@@ -208,6 +244,7 @@ def _looks(sc, out):
     """Renders: unwrapped, wrapped with nothing, wet, snow. Returns {name: (open plate, covered plate, picture)}."""
     res = {}
     plain = _render(sc, os.path.join(out, "plain.png"))
+    weather_look.node_group(True, True)              # both parts built, both at 0: still exactly as before
     for m in bpy.data.materials:
         if m.name.startswith("FR "):
             weather_look.wrap(m)

@@ -61,7 +61,7 @@ def scene_fcurves(scene) -> list:
     return list(getattr(act, "fcurves", ()) or ())
 
 
-def _peak(scene, name: str) -> float:
+def peak(scene, name: str) -> float:
     """The largest value a channel takes now or anywhere in a built animation (keys of a Weather & time step)."""
     v = float(scene.get(wcore.prop(name), 0.0))
     path = f'["{wcore.prop(name)}"]'
@@ -78,8 +78,8 @@ def needs(scene, place: str) -> dict:
     out = {"rain": False, "snow": False, "flag": False}
     if place not in ("sky", "photo"):
         return out
-    out["rain"] = _peak(scene, "rain") > 1e-4
-    out["snow"] = _peak(scene, "snow") > 1e-4
+    out["rain"] = peak(scene, "rain") > 1e-4
+    out["snow"] = peak(scene, "snow") > 1e-4
     out["flag"] = bool(getattr(w, "flag", False))
     return out
 
@@ -735,9 +735,9 @@ def _falling(scene, col, role: str, snow: bool):
     _set_input(mod, ng, "Tops", find("tops"))
     _set_input(mod, ng, "Cell", float(_tops_cell()))
     if snow:
-        mat = _material("snow", (0.9, 0.9, 0.92), 0.85, 0.9, 0.3)
+        mat = _material("snow", (0.9, 0.9, 0.92), 1.0, 0.9, 0.3)
     else:
-        mat = _material("rain", (0.75, 0.78, 0.8), 0.35, 0.15)
+        mat = _material("rain", (0.55, 0.58, 0.6), 1.0, 0.2)
     _set_input(mod, ng, "Material", mat)
     ob.data.materials.append(mat)
     _drive(ob, mod, _ident(ng, "Amount"), "a", {"a": "snow" if snow else "rain"}, scene)
@@ -762,7 +762,7 @@ def _snow(scene, col):
 
 def _splashes(scene, col, grid, root):
     sp = core.splash_spots(grid["h"], grid["up"], grid["x0"], grid["y0"], grid["cell"], grid["water"])
-    mat = _material("splash", (0.85, 0.88, 0.9), 0.6, 0.2)
+    mat = _material("splash", (0.7, 0.72, 0.75), 1.0, 0.2)
     ng = _splash_group()
     made = []
     for role, sel, parent in (("splash", sp["water"] < 0.5, root), ("splash_sea", sp["water"] >= 0.5, None)):

@@ -30,7 +30,7 @@ import bpy
 GROUP = "FR weather"
 NODE = "FR weather"                    # the group node's name in a wrapped material
 TAG = "fr_weather_wrap"                # on a wrapped material (materials.build_nodes wraps it again after a rebuild)
-GROUP_VERSION = 1
+GROUP_VERSION = 3
 WET, COVER = "fr_wx_wet", "fr_wx_cover"
 SKY_DISTANCE = 25.0                    # m: what lies within this far above a point keeps the snow off it
 AO_SAMPLES = 8
@@ -105,23 +105,45 @@ class _B:
         return m.outputs["Value"] if op in ("DOT_PRODUCT", "LENGTH", "DISTANCE") else m.outputs["Vector"]
 
 
-def _build(ng) -> None:
-    ng.nodes.clear()
+SOCKETS = [("INPUT", "Shader", "NodeSocketShader"), ("INPUT", "Porous", "NodeSocketFloat"),
+           ("INPUT", "Alpha", "NodeSocketFloat"), ("OUTPUT", "Shader", "NodeSocketShader")]
+
+
+def _sockets(ng) -> None:
+    """The group's sockets; kept when they are right (removing them would cut the links in every material)."""
+    have = [(i.in_out, i.name, i.socket_type) for i in ng.interface.items_tree if i.item_type == "SOCKET"]
+    if sorted(have) == sorted(SOCKETS):
+        return
     for item in list(ng.interface.items_tree):
         ng.interface.remove(item)
     ng.interface.new_socket("Shader", in_out="INPUT", socket_type="NodeSocketShader")
     porous = ng.interface.new_socket("Porous", in_out="INPUT", socket_type="NodeSocketFloat")
     porous.default_value, porous.min_value, porous.max_value = 0.3, 0.0, 1.0
     porous.description = "How much darker the surface gets when wet: 0.1 metal, 0.3 paint, 0.55 concrete"
+    alpha = ng.interface.new_socket("Alpha", in_out="INPUT", socket_type="NodeSocketFloat")
+    alpha.default_value, alpha.min_value, alpha.max_value = 1.0, 0.0, 1.0
+    alpha.description = "Where the look is see-through (a decal's clear parts): no wet film or snow there"
     ng.interface.new_socket("Shader", in_out="OUTPUT", socket_type="NodeSocketShader")
+
+
+def _build(ng, wet_on: bool = True, snow_on: bool = True) -> None:
+    """The group's nodes. Only the parts the project uses are built: Cycles does not fold a View Layer attribute
+    of 0 away, and the snow's AO node cost about as much as the rest of the render (measured: 2.06 s -> 3.9 s a
+    frame with the snow at 0). Neither: the group passes the shader straight through."""
+    ng.nodes.clear()
+    _sockets(ng)
     b = _B(ng)
     gin = b.node("NodeGroupInput", -1800, 0)
     gout = b.node("NodeGroupOutput", 1400, 0)
+    if not wet_on and not snow_on:
+        b.put(gout.inputs[0], gin.outputs[0])
+        return
 
     def channel(name, y):
         a = b.node("ShaderNodeAttribute", -1600, y, attribute_type="VIEW_LAYER", attribute_name=name)
         return b.math("MAXIMUM", a.outputs["Fac"], 0.0, x=-1420, y=y, clamp=True)
-    wet = channel(WET, 600)
+    seen = b.math("MINIMUM", b.math("MAXIMUM", gin.outputs["Alpha"], 0.0, x=-1600, y=800), 1.0, x=-1420, y=800)
+    wet = b.math("MULTIPLY", channel(WET, 600), seen, x=-1300, y=650)
     cover = channel(COVER, -900)
 
     geo = b.node("ShaderNodeNewGeometry", -1600, 200)
@@ -131,7 +153,18 @@ def _build(ng) -> None:
     up = sep.outputs["Z"]
     p = tc.outputs["Object"]
 
-    # ---- wet -------------------------------------------------------------------------------------------------
+    if not wet_on:
+        wetted = None
+    else:
+        wetted = _wet(b, gin, wet, up, p)
+    if not snow_on:
+        b.put(gout.inputs[0], wetted.outputs[0])
+        return
+    _snow(b, gin, gout, cover, seen, up, p, wetted.outputs[0] if wetted is not None else gin.outputs[0])
+
+
+def _wet(b, gin, wet, up, p):
+    """Darker, a clear water film, drops, run-off streaks and puddles."""
     flat = b.ramp(up, 0.96, 0.995, -1200, 400)                    # flat faces that face up: puddles
     slope = b.ramp(up, 0.97, 0.8, -1200, 300)                     # sloped and upright faces: streaks
     under = b.ramp(up, -0.2, -0.7, -1200, 200, 1.0, 0.4)          # faces turned down get less
@@ -157,7 +190,7 @@ def _build(ng) -> None:
     drops = b.math("MULTIPLY", b.math("MULTIPLY", in_drop, some, x=-400, y=100), b.math("SUBTRACT", 1.0, flat,
                                                                                           x=-500, y=300), x=-300, y=100)
     pn = b.noise(p, 0.6, 2.0, x=-800, y=450)
-    t0 = b.math("MULTIPLY_ADD", wet, -0.22, 0.7, x=-800, y=600)   # wetter: more puddles
+    t0 = b.math("MULTIPLY_ADD", wet, -0.14, 0.74, x=-800, y=600)  # wetter: more puddles (~20 % of flat ground)
     t1 = b.math("ADD", t0, 0.03, x=-650, y=600)
     puddle = b.math("MULTIPLY", b.ramp_s(pn, t0, t1, -650, 450), flat, x=-500, y=450)
     detail = b.math("MAXIMUM", b.math("MAXIMUM", drops, streak, x=-200, y=0), puddle, x=-100, y=200)
@@ -175,7 +208,9 @@ def _build(ng) -> None:
     # the water film: a clear coat that reflects by Fresnel; puddles and drops are smoother, drops bulge
     fres = b.node("ShaderNodeFresnel", 150, 150)
     fres.inputs["IOR"].default_value = 1.33
-    coat = b.math("MULTIPLY", film, b.math("ADD", fres.outputs[0], 0.02, x=300, y=150), x=450, y=200, clamp=True)
+    # (puddles reflect a little more than Fresnel alone: they read as water from any height)
+    shine = b.math("ADD", fres.outputs[0], b.math("MULTIPLY_ADD", puddle, 0.12, 0.02, x=150, y=100), x=300, y=150)
+    coat = b.math("MULTIPLY", film, shine, x=450, y=200, clamp=True)
     smooth = b.math("MAXIMUM", puddle, drops, x=150, y=0)
     rough = b.math("MULTIPLY_ADD", smooth, -0.16, 0.18, x=300, y=0)
     bump = b.node("ShaderNodeBump", 300, -150)
@@ -190,8 +225,11 @@ def _build(ng) -> None:
     b.put(wetted.inputs[0], coat)
     b.put(wetted.inputs[1], darker.outputs[0])
     b.put(wetted.inputs[2], gloss.outputs[0])
+    return wetted
 
-    # ---- snow ------------------------------------------------------------------------------------------------
+
+def _snow(b, gin, gout, cover, seen, up, p, shader_in):
+    """A white, rough layer on faces that face up, where the sky is open above them."""
     sky = b.node("ShaderNodeAmbientOcclusion", -650, -500, inside=False, only_local=False, samples=AO_SAMPLES)
     sky.inputs["Distance"].default_value = SKY_DISTANCE
     sky.inputs["Normal"].default_value = (0.0, 0.0, 1.0)          # look straight up (unlinked: world space)
@@ -209,7 +247,8 @@ def _build(ng) -> None:
     p1 = b.math("ADD", p0, 0.08, x=-500, y=-1100)
     patch = b.ramp_s(sn2, p0, p1, -350, -1000)
     some_snow = b.ramp(cover, 0.0, 0.08, -350, -1150)
-    snow_fac = b.math("MULTIPLY", b.math("MULTIPLY", lie, open_sky, x=-200, y=-700),
+    snow_fac = b.math("MULTIPLY", b.math("MULTIPLY", b.math("MULTIPLY", lie, open_sky, x=-200, y=-700), seen,
+                                         x=-100, y=-700),
                       b.math("MULTIPLY", patch, some_snow, x=-200, y=-1000), x=-50, y=-800, clamp=True)
     sh = b.noise(p, 25.0, 3.0, x=-200, y=-450)
     sbump = b.node("ShaderNodeBump", 0, -450)
@@ -222,19 +261,38 @@ def _build(ng) -> None:
     b.put(snow.inputs["Normal"], sbump.outputs["Normal"])
     out = b.node("ShaderNodeMixShader", 1000, 0)
     b.put(out.inputs[0], snow_fac)
-    b.put(out.inputs[1], wetted.outputs[0])
+    b.put(out.inputs[1], shader_in)
     b.put(out.inputs[2], snow.outputs[0])
     b.put(gout.inputs[0], out.outputs[0])
 
 
-def node_group() -> bpy.types.NodeTree:
+def _sig(wet_on: bool, snow_on: bool) -> str:
+    return f"{GROUP_VERSION}:{int(bool(wet_on))}{int(bool(snow_on))}"
+
+
+def needed(scene) -> tuple:
+    """(wet, snow): whether the project shows any wet or any snow layer – now or in a built animation."""
+    from .weather_fx import peak
+    return peak(scene, "wet") > 1e-4, peak(scene, "cover") > 1e-4
+
+
+def node_group(wet_on: bool | None = None, snow_on: bool | None = None) -> bpy.types.NodeTree:
+    """The shared group with the parts asked for (None: as it is, or what the scene needs when it is new)."""
     ng = bpy.data.node_groups.get(GROUP)
-    if ng is not None and ng.bl_idname == "ShaderNodeTree" and ng.get("fr_version") == GROUP_VERSION:
+    if ng is not None and ng.bl_idname != "ShaderNodeTree":
+        ng = None
+    if wet_on is None or snow_on is None:
+        if ng is not None and str(ng.get("fr_sig", "")).startswith(f"{GROUP_VERSION}:"):
+            return ng
+        scene = bpy.context.scene
+        wet_on, snow_on = needed(scene) if scene is not None else (True, True)
+    sig = _sig(wet_on, snow_on)
+    if ng is not None and ng.get("fr_sig") == sig:
         return ng
-    if ng is None or ng.bl_idname != "ShaderNodeTree":
+    if ng is None:
         ng = bpy.data.node_groups.new(GROUP, "ShaderNodeTree")
-    _build(ng)
-    ng["fr_version"] = GROUP_VERSION
+    _build(ng, wet_on, snow_on)
+    ng["fr_sig"] = sig
     return ng
 
 
@@ -261,6 +319,8 @@ def porous(mat) -> float:
         return 0.3
     from ..core import materials_lib
     spec = materials_lib.get(mid) or {}
+    if spec.get("transmission"):
+        return 0.0                                 # glass: a wet film, no darker
     if float(spec.get("metallic", 0.0)) >= 0.5:
         return 0.12
     if float(spec.get("roughness", 0.4)) >= 0.6:
@@ -270,7 +330,7 @@ def porous(mat) -> float:
 
 def wanted(mat) -> bool:
     """Lamps (an emitting look) and the water never get the group."""
-    if mat is None or not mat.use_nodes or mat.node_tree is None:
+    if mat is None or mat.node_tree is None:
         return False
     if mat.get("fr_env") in ("water", "photo") or mat.get("fr_weather"):
         return False
@@ -308,6 +368,7 @@ def wrap(mat) -> bool:
         node.inputs["Porous"].default_value = porous(mat)
         node.hide = True
         from_sock = sock.links[0].from_socket
+        _see_through(nt, from_sock.node, node)
         nt.links.remove(sock.links[0])
         nt.links.new(from_sock, node.inputs[0])
         nt.links.new(node.outputs[0], sock)
@@ -315,6 +376,18 @@ def wrap(mat) -> bool:
     if not mat.get(TAG):
         mat[TAG] = True
     return changed
+
+
+def _see_through(nt, shader, node) -> None:
+    """A look with an Alpha (a decal's Principled BSDF): its clear parts get no film or snow, or the decal would
+    show as a dark, glossy or white square on the part."""
+    a = shader.inputs.get("Alpha") if shader.bl_idname == "ShaderNodeBsdfPrincipled" else None
+    if a is None:
+        return
+    if a.is_linked:
+        nt.links.new(a.links[0].from_socket, node.inputs["Alpha"])
+    else:
+        node.inputs["Alpha"].default_value = float(a.default_value)
 
 
 def unwrap(mat) -> bool:
@@ -385,6 +458,7 @@ def apply(scene, on: bool) -> int:
         if ng is not None and ng.users == 0:
             bpy.data.node_groups.remove(ng)
         return n
+    node_group(*needed(scene))
     for m in targets(scene):
         if not m.get(TAG) or not is_wrapped(m):
             n += bool(wrap(m))

@@ -142,10 +142,14 @@ def top_heights(tris, x0: float, y0: float, cell: float, nx: int, ny: int, min_u
     keep = np.abs(nz) > 1e-4                         # vertical walls cover no cell centre
     a, b, c, nz = a[keep], b[keep], c[keep], nz[keep]
     # cells whose centre may lie in each triangle
-    ix0 = np.clip(np.ceil((np.minimum(np.minimum(a[:, 0], b[:, 0]), c[:, 0]) - x0) / cell - 0.5), 0, nx).astype(int)
-    ix1 = np.clip(np.floor((np.maximum(np.maximum(a[:, 0], b[:, 0]), c[:, 0]) - x0) / cell - 0.5), -1, nx - 1).astype(int)
-    iy0 = np.clip(np.ceil((np.minimum(np.minimum(a[:, 1], b[:, 1]), c[:, 1]) - y0) / cell - 0.5), 0, ny).astype(int)
-    iy1 = np.clip(np.floor((np.maximum(np.maximum(a[:, 1], b[:, 1]), c[:, 1]) - y0) / cell - 0.5), -1, ny - 1).astype(int)
+    lo_x = np.minimum(np.minimum(a[:, 0], b[:, 0]), c[:, 0])
+    hi_x = np.maximum(np.maximum(a[:, 0], b[:, 0]), c[:, 0])
+    lo_y = np.minimum(np.minimum(a[:, 1], b[:, 1]), c[:, 1])
+    hi_y = np.maximum(np.maximum(a[:, 1], b[:, 1]), c[:, 1])
+    ix0 = np.clip(np.ceil((lo_x - x0) / cell - 0.5), 0, nx).astype(int)
+    ix1 = np.clip(np.floor((hi_x - x0) / cell - 0.5), -1, nx - 1).astype(int)
+    iy0 = np.clip(np.ceil((lo_y - y0) / cell - 0.5), 0, ny).astype(int)
+    iy1 = np.clip(np.floor((hi_y - y0) / cell - 0.5), -1, ny - 1).astype(int)
     wx, wy = ix1 - ix0 + 1, iy1 - iy0 + 1
     some = (wx > 0) & (wy > 0)
     span = np.maximum(wx, wy)
