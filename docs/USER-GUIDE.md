@@ -973,8 +973,121 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
 - The hose or chain takes the material of its CAD part, so paint schemes, hiding and fades work as before.
 - A model update (1 Import) keeps your hoses and chains, and the settings you changed.
 - The clash check (6 Animation) leaves hoses and chains out.
-- Not in yet: hoses that push against other parts or each other, cables over sheaves and winch drums, hoses
-  with three ends, and bundles of cables.
+- Not in yet: hoses that push against other parts or each other, hoses with three ends, and bundles of cables.
+  A cable that runs over sheaves and winch drums is the next chapter, **Cables and paths**.
+
+### Cables and paths
+
+A power cable or a steel wire rope runs over rollers, sheaves and chutes. In the CAD file it is one stiff solid,
+drawn along its route. Here it **runs**: you give it one speed in m/min, the app draws the cable along its whole
+route, and everything it touches turns at the right speed – the winch drum, the sheaves, the rollers. The
+pattern on the cable (the yellow stripes of a power cable, the strands of a wire rope) runs along with it, so
+you see it move. (A hose that hangs and bends is the other panel: **Hoses and drag chains**, above.)
+
+<img class="panel" src="img/panel_cables.png" alt="Cables and paths: one wire rope in the list, the look, the list What it touches and the two ends">
+
+<img class="wide" src="img/view_cables_rope.jpg" alt="The test machine: a wire rope from the winch drum over two sheaves on an A-frame, two V rollers and a chute">
+
+**Add a cable**
+
+1. Click the cable or the wire rope in the 3D view. It is the solid that is drawn along the route in the CAD
+   file. (Parts named like a cable or a wire rope are found by name: **Add all … found by name** adds them all.)
+2. In 4 Motion > **Cables and paths**, press **Add cable**. (Nothing selected: press it and click the cable.)
+3. The cable gets a line in the list, and the list **What it touches** fills. The cable is drawn with its
+   look: black with yellow stripes, or steel strands.
+
+The app reads the middle line of the cable and its diameter, finds where the cable bends, the sheaves it goes
+round, the rollers it rests on (a pair of V rollers too) and the chutes it slides over. It makes a joint
+"Cable <name>" whose value is the metres of cable paid out, and lets every roller and sheave follow it. A roller or
+sheave that already has a joint of your own keeps it. **From CAD cable again** reads everything again, for when
+you changed the part in the CAD file.
+
+**Make it run**
+
+1. In 6 Animation, add the step **Run motor** (or press **Add a Run motor step** in the cable panel).
+2. Pick the cable's joint, "Cable <name>". The speed is **Cable speed (m/min)**: laying a power cable is about 10
+   m/min. A negative speed hauls the cable in.
+3. Press **Build animation** and play. The cable runs, and the drum, sheaves and rollers turn with it.
+
+You can also use a **Move joint** step on the cable's joint: "pay out to 25 m". The value of the joint is the
+metres of cable paid out, so the same cable can be moved by hand in 4 Motion, like any slide joint.
+
+**The look**
+
+The setting **Look** says how the cable looks. The look is a material (see 3 Looks), and the cable's part is put
+into the group "Power cables" or "Wire ropes" for it.
+
+| Look | Settings |
+| --- | --- |
+| **Power cable** | Black with yellow stripes at an angle. **Stripe distance** (from one stripe to the next, in mm), **Stripe angle** (90° gives rings round the cable), **Stripe width** (how much of the cable is yellow). |
+| **Steel wire rope** | Twisted steel strands. **Lay length**: the length of one full twist of a strand, in mm – about 6 to 7 times the diameter. |
+| **Plain** | The look the part has in 3 Looks. Nothing shows that the cable moves. |
+
+<img class="wide" src="img/view_cables_looks.jpg" alt="The wire rope on a sheave: left as steel strands, right with the power cable look">
+
+**What it touches**
+
+One line for each thing the cable touches, in order along the cable: a **sheave** (the cable bends round it and
+turns it), a **roller** (the cable runs over it and turns it, but does not bend round it), a **chute** (the cable
+bends round it and slides over it) or a **bend** (it bends here as it was drawn, no part carries it). Each line
+shows the diameter Ø in mm, how many degrees the cable goes round it (the wrap), and whether it runs over, under or
+beside it.
+
+- **Flip side** lays the cable round the other side of the chosen sheave or chute. Use it when the app chose the
+  wrong side.
+- **Remove** takes the chosen part off the cable's list. It no longer turns with the cable.
+- **Add**: press it, then click a roller, sheave or chute in the 3D view that the app did not find.
+- **Turns with the cable**: on for a roller or sheave that turns as fast as the cable runs over it. Switch it off
+  for a guide that stands still.
+- **Start on** / **End on**: the part each end of the cable is fixed to. Pick another part with the **pipette**
+  button; the small **×** next to it makes the end a **free end** again, which stays with the last thing the
+  cable touches. How far the cable runs straight on before the first or after the last thing is in the fold
+  **More** (**Free at start**, **Free at end**).
+- In **More**: **Diameter** (the cable lies higher or lower on its rollers when you change it), **Min. bend
+  (MBR)** and **Runs the other way**.
+
+**Sheaves that move**
+
+A sheave on a luffing A-frame, or on a tilting arm, moves against the cable's other parts. The cable follows it
+while you pose the machine, and **Build animation** works out the cable for every frame once; playing and
+rendering then cost nothing extra.
+
+<img class="wide" src="img/view_cables_luffed.jpg" alt="The same machine with the A-frame luffed forward by 12 degrees: the rope still lies in the grooves of the sheaves">
+
+Switch **Stays as drawn** on (in **More**) for a cable that must not follow: it keeps the path it has in the CAD
+file, whatever moves.
+
+**Warnings**
+
+A problem shows in the list row ("tight bend", "lifted off", "no path"), in the panel header and under the list,
+in red.
+
+- **"bends tighter than its smallest bend (MBR … mm)"**: the cable is bent round a sheave tighter than the maker
+  allows; the warning names the sheave. Change **Min. bend (MBR)** to the value of the data sheet (0 = no
+  limit), then use a bigger sheave or a smaller motion.
+- **"no longer touches 'SHEAVE 2'"**: at that frame the cable lifts off a sheave and is drawn straight past it.
+  Check the motion, or take the sheave off the list with **Remove**.
+- **"goes 250° round 'SHEAVE 1' … check its side and the order of the contacts"**: the cable goes much further
+  round the sheave than in the CAD file. Press **Flip side**, or check the order of the lines.
+- **"This part is not a cable"**: the part you picked is not a long round solid. Pick the cable itself.
+- **"the CAD cable is drawn 3 mm off it"** (grey, a note and no fault): the cable in the CAD file hovers a few mm
+  above the roller or lies a little into it. On a sheave or chute the app lays the cable into the groove; on a
+  roller the cable stays where it was drawn and the roller turns at the speed of the cable's skin there.
+
+**Good to know**
+
+- The speed of each roller and sheave comes from where the cable touches it: the cable's middle on a sheave, its
+  skin on a roller. A big sheave turns slowly, a small roller fast.
+- **Select** (the arrow button) shows which part a line is. **−** takes the cable off the list: the part shows as
+  in the CAD file again and the joints the app made for it go. Nothing is deleted from the model.
+- The cable takes the material of its look; paint schemes, hiding and fades keep working. The clash check
+  (6 Animation) leaves the drawn cable out, because it lies on its rollers on purpose.
+- The **demo project** (Help > Make demo project…) shows it on the invented cable-lay vessel: its power cable lies
+  on its path over 218 rollers and its bends, with the yellow stripes, on the joint "Cable travel"; in the
+  roller-highway shot it runs at 10 m/min and every roller turns with it. (A demo made with an older version:
+  make it again.)
+- Not in yet: tensioner tracks that grip the cable, the coil on a carousel or a drum, and the cable going into
+  the sea.
 
 ### Poses & exploded views
 
