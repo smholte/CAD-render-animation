@@ -164,7 +164,7 @@ def test_publish_kit_keeps_a_draft(tmp_path):
     zp.write_bytes(b"PK\x05\x06" + b"\0" * 18)
     calls = []
 
-    def api(method, url, token, data=None, ctype=""):
+    def api(method, url, token, data=None, ctype="application/json"):
         calls.append((method, url.split("?")[0].rsplit("/", 2)[-2:], json.loads(data) if ctype.endswith("json")
                       and data else None))
         if method == "GET":

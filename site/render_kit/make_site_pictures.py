@@ -587,6 +587,11 @@ def product_video(pkg, scene, m: dict, general: dict, full: str, send: str, smal
     a.out_resolution = "preview" if small else "hd"
     quality = "draft" if small else general["video_quality"]
     if small:                                    # the tests: a few frames of it are enough
+        seq = [i for i, b in enumerate(a.blocks) if b.kind == "SEQUENCE"]
+        if seq:                                  # chosen and planned above; its frames cost the most: not rendered
+            log(f"  small test: {info['sub'].get(build.PROP_NAME)} is chosen, its steps are not rendered")
+            for i in reversed(seq):
+                a.blocks.remove(i)
         _shorten(a, 0.5)
     # the poster: its first picture, the camera that frames the whole machine (later ones may be close-ups)
     return render_clip(pkg, scene, a, m, quality, full, send, "product", log, poster_at=0.0)

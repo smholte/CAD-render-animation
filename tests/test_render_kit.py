@@ -159,3 +159,4 @@ def test_kit_end_to_end_small(tmp_path):
     assert videos["ceb_press_product.mp4"]["video"] == "product"
     assert info["models"]["ceb_press"]["credit"].startswith("CEB Press") and info["app"]
     assert "take-apart" not in log, "the product video left out the take-apart of DRAWER"
+    assert "small test: DRAWER is chosen" in log
