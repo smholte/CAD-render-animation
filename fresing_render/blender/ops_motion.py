@@ -919,7 +919,7 @@ class FRESING_OT_block_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     kind: EnumProperty(items=[(k, {"SHOW": "Show subassembly", "HIDE": "Hide subassembly", "FADE_OUT": "Fade out subassembly",
-                                      "FADE_IN": "Fade in subassembly"}.get(k, label), desc,
+                                      "FADE_IN": "Fade in subassembly", "SEQUENCE": "Assembly sequence"}.get(k, label), desc,
                                icon, n) for k, label, desc, icon, n in props.BLOCK_KINDS])
 
     def execute(self, context):
@@ -982,11 +982,17 @@ class FRESING_OT_block_add(bpy.types.Operator):
         elif self.kind == "CAMERA":
             b.camera = context.scene.camera if context.scene.camera and not context.scene.camera.get(
                 "fr_anim_camera") else None
-        elif self.kind in ("SHOW", "HIDE", "FADE_OUT", "FADE_IN"):
+        elif self.kind in ("SHOW", "HIDE", "FADE_OUT", "FADE_IN", "SEQUENCE"):
             ob = _target_subassembly(context)
             if ob is not None:
                 b.target_uid = ob.get(build.PROP_UID, ob.name)
                 b.target_name = ob.get(build.PROP_NAME, ob.name)
+            if self.kind == "SEQUENCE":
+                import uuid
+                from . import sequence
+                b.seq_id = uuid.uuid4().hex[:12]
+                b.easing = "SMOOTH"
+                sequence.count(context.scene, b)       # its length follows from the parts
         a.blocks_index = len(a.blocks) - 1
         return {"FINISHED"}
 
@@ -1004,8 +1010,10 @@ class FRESING_OT_block_remove(bpy.types.Operator):
             return {"CANCELLED"}
         a.blocks.remove(a.blocks_index)
         a.blocks_index = max(0, a.blocks_index - 1)
-        from . import camera_path
+        from . import camera_path, sequence
         camera_path.tidy_paths(context.scene)      # a Fly a path step's line goes with it (task 0087)
+        sequence.end_preview(context.scene)
+        sequence.tidy_trails(context.scene)        # an Assembly sequence step's trail lines too (task 0100)
         return {"FINISHED"}
 
 
@@ -1055,6 +1063,10 @@ class FRESING_OT_block_duplicate(bpy.types.Operator):
             except (AttributeError, TypeError):
                 pass
         nb.start = animation.block_end(b)
+        if nb.kind == "SEQUENCE":
+            import uuid
+            nb.seq_id = uuid.uuid4().hex[:12]       # its own trail lines (task 0100)
+            nb.seq_preview = 0.0
         if nb.kind == "CAMERA" and nb.camera_mode == "PATH":
             from . import camera_path               # its own points and its own line (task 0087)
             camera_path.copy_path(context.scene, a.blocks[src], nb)
@@ -1076,6 +1088,10 @@ class FRESING_OT_block_target(bpy.types.Operator):
             return {"CANCELLED"}
         b.target_uid = ob.get(build.PROP_UID, ob.name)
         b.target_name = ob.get(build.PROP_NAME, ob.name)
+        if b.kind == "SEQUENCE":
+            from . import sequence
+            sequence.end_preview(context.scene)
+            sequence.count(context.scene, b)
         return {"FINISHED"}
 
 

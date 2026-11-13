@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.79 – 13 Nov 2026 – take a subassembly apart part by part (task 0100)
+
+New: 6 Animation > Add step > **Assembly sequence**
+- **"How it is built" in one step.** Select a subassembly and add the step: its parts fly out one after another,
+  each starting while the one before is still on its way, to an exploded place. **Put together** is the exact
+  reverse and every part ends exactly where it belongs.
+- **Order:** Outside in (bolts, nuts and washers first, then the parts nearest the outside; a part waits while
+  another part is still in its way), Tree order or Reverse. **Direction:** along an axis of the subassembly (+X …
+  -Z, it turns with the subassembly), up, or away from the centre. **Distance** by size or set. Along an axis the
+  parts end in a neat column: the first one out goes furthest, so nothing flies through a part that is already out.
+- **Per part** and **Overlap** set the pace; the step's length follows. **At the end:** stay, hide or fade.
+  **Trail lines** draws each part's path. **Preview** shows the step in the view without building.
+- Works after a joint has moved the subassembly, keeps every joint as it is, logos ride along, hoses follow; a part
+  whose way is blocked is named at Build.
+- Test tour: new stop "Assembly sequence"; PC check: new line `animation.sequence`; user guide: "Take a subassembly
+  apart".
+
 ## 0.2.78 – 13 Nov 2026 – hoses, cables and drag chains follow the motion (task 0058)
 
 New: 4 Motion > **Hoses and drag chains**

@@ -1994,6 +1994,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
       height in mm (pin to pin); every arm follows. It takes the lift selected in 4 Motion > Mechanisms.
     - **Run G-code program**: the CNC machine runs a program (see **Run a CNC program** below). Its
       length follows from the program.
+    - **Assembly sequence**: a subassembly comes apart part by part, fasteners first, or goes together (see
+      **Take a subassembly apart** below). Its length follows from the number of parts.
 
 5. For each step: **Start** and **Duration** in seconds, **Motion** (**Smooth** = slow start and
    stop, **Constant speed**, **Slow start**, **Slow stop**) and a **Label**. Untick a step to leave it
@@ -2115,6 +2117,37 @@ back.
 
 Each part fades on its own: other parts with the same material stay as they are. Logos and stickers on a part
 fade with it. A fading frame renders about as fast as the same frame without the fade.
+
+**Take a subassembly apart (or put it together)**
+
+<img class="panel" src="img/panel_6_sequence.png" alt="An Assembly sequence step: Take apart, Outside in, along +Z">
+
+"How it is built" in one step: the parts of a subassembly fly out one after another to an exploded place, or come in
+from there and go together, instead of many Show, Hide and pose steps.
+
+1. Select the subassembly (in the view or in 2 Structure) and add a step **Assembly sequence** (**+** next to the
+   steps). The box says how many parts move and how long the step takes.
+2. **Take apart** or **Put together**. Put together is the exact reverse: the same paths backwards, and every part
+   ends exactly where it belongs.
+3. **Order**: **Outside in** (bolts, nuts and washers first, then the parts nearest the outside; a part waits while
+   another part is still in its way), **Tree order** (as in 2 Structure) or **Reverse**.
+4. **Direction**: **Along an axis** of the subassembly (**+X** … **-Z**: its own axes from CAD, so it still works when
+   a joint has turned it), **Up**, or **Away from the centre**. Along an axis or up, the parts end in a neat column:
+   the first one out goes furthest, so nothing flies through a part that is already out.
+5. **Distance by size** (far enough to clear the whole subassembly), or untick it and set **Distance**.
+6. **Per part** (seconds each part takes) and **Overlap** (50 % = the next part starts half way through the one
+   before). The step's length follows from these.
+7. **At the end**: **Stay**, **Hide** (each part disappears once it is out; put together: it appears as it starts
+   to come in) or **Fade**. **Trail lines** draws each part's path as a thin blue line (one trail line per part; change
+   their look in **Trail lines** below).
+8. Drag **Preview** to see the step in the view without building; back to 0 % (or **Build & play**) puts the parts
+   back.
+
+The step starts from wherever the parts are at that moment (after a joint has turned the subassembly, say) and leaves
+every joint as it is, so a later step still works. Logos ride along; hoses and cables follow the parts they hang on;
+hoses and chain links themselves stay out of the sequence (the box says so). A part whose straight way out runs into
+another part is named in a warning at Build: pick another order or direction. Check the result with the **Clash
+check** below.
 
 **Trail lines: the path of a point**
 

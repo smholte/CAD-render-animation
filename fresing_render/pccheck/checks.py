@@ -41,6 +41,7 @@ WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
 FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
+SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -1066,6 +1067,27 @@ def animation_clash(ctx):
     _check(bool(post), "an arm swung through a post within one frame and was not found")
     _check(post[0].t_deep != round(post[0].t_deep), "the post was found on a frame, not between frames")
     return f"{clash.core.row_text(r)}; post found at frame {post[0].t_deep:.2f}; {run.stats['seconds']:.1f} s"
+
+
+@line("animation.sequence", "Assembly sequence: take apart, put together", "0.2.79",
+      what="A spindle unit of 12 parts is taken apart along its own axis (bolts and nut first, staggered, trail "
+           "lines) and put together again: every part ends within 0.01 mm of its place, and nothing runs into "
+           "anything on the way (clash check)")
+def animation_sequence(ctx):
+    from ..blender import animation, clash, tour
+    scene = ctx.fresh(SEQUENCE)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = tour.SEQUENCE_ANIM, 0.0, "25"
+    tour.sequence_steps(scene, a)
+    t0 = time.time()
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    note = tour.check_sequence(scene, a)
+    run = clash.check(scene)
+    _check(not run.rows, f"{len(run.rows)} clashes on the way: " + "; ".join(clash.core.row_text(r)
+                                                                           for r in run.rows[:3]))
+    return note + "; no clash"
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",
