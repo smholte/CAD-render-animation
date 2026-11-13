@@ -1,6 +1,6 @@
 # 0105 – Web 3D model: half-size files for big models and less memory when baking
 
-**Who:** worker · **Status:** open · **Branch:** `task/0105-web3d-smaller-files`
+**Who:** worker · **Status:** running · **Branch:** `claude/great-davinci-atwmky`
 **Started by:** lead chat, 13 Nov 2026 (0099's open points; owner: "all three" of the free-lane tasks)
 **Lane:** Web 3D: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`, `fresing_render/web/` (the
 viewer page), their tests. If a bundled encoder is needed: the extension's wheels (`blender_manifest.toml` wheel list,
