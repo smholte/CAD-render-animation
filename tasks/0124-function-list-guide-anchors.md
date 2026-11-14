@@ -1,6 +1,6 @@
 # 0124 – One function list + an anchor on every guide section + guide links on the website
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0124-function-list`
+**Who:** worker · **Status:** running · **Branch:** `ccr-0aa92403-hdxoti` (the web session's branch)
 **Started by:** lead chat, 14 Nov 2026 (task 1 of study 0123's proposed tasks) · **Lane:** Learning (+ Docs). Files:
 new `fresing_render/core/functions.py`, new `tests/test_functions.py`; `docs/USER-GUIDE.md` (anchors only, no text
 changes); `tools/build_guide.py` (contents list); additive: `tools/ci_precheck.py` (one check), `site/media/media.json`
