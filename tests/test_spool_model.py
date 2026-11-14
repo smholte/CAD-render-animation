@@ -35,30 +35,41 @@ COLOURS = {"BASE FRAME": GREY, "BEARING BLOCK": GREY, "LEVEL WIND RAIL": GREY, "
            "INNER CORE": YELLOW, "RIM FENCE": YELLOW, "ARM": YELLOW, "SHEAVE PIN": STEEL, "FAIRLEAD SHEAVE": STEEL,
            "GUIDE PIN": STEEL, "GUIDE SHEAVE": STEEL, "WIRE ROPE": (0.13, 0.13, 0.14),
            "WIRE ON DRUM": (0.13, 0.13, 0.14), "POWER CABLE": (0.05, 0.05, 0.05), "CABLE COIL": (0.05, 0.05, 0.05),
-           "WEIGHT": (0.9, 0.35, 0.05)}
+           "WEIGHT": (0.9, 0.35, 0.05), "DECK PLATE": (0.24, 0.26, 0.27), "GEARBOX": YELLOW,
+           "HYDRAULIC MOTOR": (0.1, 0.1, 0.11), "ISO 4017 M16 x 30 - 8.8 HDG": (0.68, 0.69, 0.7)}
+BOLT = "ISO 4017 M16 x 30 - 8.8 HDG"
+# task 0122: where the hold-down bolts' heads stand (the bearing blocks' feet, the gearbox's foot, the slew post's
+# flange); an M16 hex head is 24 across flats (x), 27.7 across corners (y), 10 high; the shank goes 30 down
+BOLT_HEADS = [(105, 290, 330), (-105, 290, 330), (105, -290, 330), (-105, -290, 330), (168, -372.5, 90),
+              (-168, -372.5, 90), (4460, 0, 30), (4300, 160, 30), (4140, 0, 30), (4300, -160, 30)]
 # the key parts' boxes (mm), worked out from the brief's numbers by hand
 BOXES = {
     "BASE FRAME": ((-400, -420, 0), (1100, 420, 300)),
-    "BEARING BLOCK": ((-80, 270, 300), (80, 310, 540)),
+    "BEARING BLOCK": ((-130, 270, 300), (130, 310, 540)),            # task 0122: a foot 260 long (160 before)
     "WINCH DRUM": ((-300, -320, 150), (300, 320, 750)),
     "WIRE ON DRUM": ((-204.641, -200, 245.359), (204.641, 200, 654.641)),
-    "LEVEL WIND RAIL": ((780, -300, 60), (820, 300, 100)),
+    "LEVEL WIND RAIL": ((775, -320, 60), (825, 320, 130)),            # task 0122: with end stops
     "LEVEL WIND CARRIAGE": ((750, -60, 80), (850, 60, 580)),
     "SHEAVE PIN": ((785, -50, 529.641), (815, 50, 559.641)),
     "FAIRLEAD SHEAVE": ((675, -20, 419.641), (925, 20, 669.641)),
     "WEIGHT": ((870, -80, 60), (930, 80, 200)),
     "WIRE ROPE": ((-204.641, -10, 200), (910, 10, 654.641)),
-    "CAROUSEL BASE": ((2100, -900, 0), (3900, 900, 100)),
+    "CAROUSEL BASE": ((2050, -950, 0), (3950, 950, 100)),             # task 0122: on a foot ring r 950
     "TURNTABLE": ((2000, -1000, 100), (4000, 1000, 140)),
     "INNER CORE": ((2700, -300, 140), (3300, 300, 520)),
     "RIM FENCE": ((2000, -1000, 140), (4000, 1000, 420)),
     "CABLE COIL": ((2140, -860, 140), (3860, 860, 300)),
-    "SLEW POST": ((4200, -100, 0), (4400, 100, 1000)),
+    "SLEW POST": ((4100, -200, 0), (4500, 200, 1000)),                # task 0122: on a foot flange r 200
     "ARM": ((3540, -200, 390), (4400, 100, 1140)),
     "GUIDE PIN": ((3530, -15, 415), (3670, 15, 445)),
     "GUIDE SHEAVE": ((3575, -170, 260), (3625, 170, 600)),
     "CABLE CLAMP": ((3560, -190, 1000), (3640, -110, 1060)),
     "POWER CABLE": ((3000, -170, 260), (3620, 620, 1000)),
+    # task 0122
+    "DECK PLATE": ((-700, -1200, -30), (4700, 1200, 0)),
+    "GEARBOX": ((-190, -425, 60), (190, -325, 600)),
+    "HYDRAULIC MOTOR": ((-110, -625, 140), (110, -425, 360)),
+    BOLT: None,                                                         # each bolt from BOLT_HEADS
 }
 
 
@@ -245,8 +256,9 @@ def test_parts_names_colours_and_assemblies(model):
     nodes = model.nodes
     assert sorted(n["name"] for n in nodes) == sorted(maker.PARTS + maker.ASSEMBLIES)
     assert [nodes[i]["name"] for i in model.parts] == maker.PARTS
-    assert model.info["stats"]["placed_parts"] == 22 and model.info["stats"]["unique_parts"] == 21
-    assert _solids_in(FILE) == 22, "every part is one solid"
+    # task 0122: 22 placed, 21 unique before (+ deck plate, gearbox, motor, 10 bolts of one shape)
+    assert model.info["stats"]["placed_parts"] == 35 and model.info["stats"]["unique_parts"] == 25
+    assert _solids_in(FILE) == 35, "every part is one solid"
     for i in model.parts:
         n = nodes[i]
         assert n["color"] is not None, (n["name"], "has no colour (a part of several solids loses it)")
@@ -283,7 +295,10 @@ def test_the_key_parts_boxes(made, model):
         lo, hi = maker.bounds(shape)
         want = BOXES[name]
         if name == "BEARING BLOCK" and uid.endswith("#2"):
-            want = ((-80, -310, 300), (80, -270, 540))
+            want = ((-130, -310, 300), (130, -270, 540))
+        if name == BOLT:
+            x, y, z = BOLT_HEADS[int(uid.rsplit("#", 1)[1]) - 1]
+            want = ((x - 12, y - 13.856, z - 30), (x + 12, y + 13.856, z + 10))
         assert np.allclose(lo, want[0], atol=0.1) and np.allclose(hi, want[1], atol=0.1), (uid, lo, hi)
         v, _t = model.mesh(i)
         assert np.allclose(v.min(axis=0), lo, atol=0.6) and np.allclose(v.max(axis=0), hi, atol=0.6), uid

@@ -10,7 +10,7 @@ degrees, Z up. Every part is one solid. The same numbers are in the code for tes
 (a dict), ``track_pins(which)``, ``belt_pins()``, ``PARTS``, ``ASSEMBLIES``, ``UID``.
 
 ======================================================================================================================
-TEST.TRACKS                      171 parts (belt N = 58), 17 different shapes, 4 sub-assemblies
+TEST.TRACKS                      180 parts (belt N = 58), 21 different shapes, 4 sub-assemblies
 ======================================================================================================================
 1. The tensioner. The CABLE runs along +X through (0, 0, 1000). All chain and wheel axes are along +Y; each track's
    loop lies in the planes y = const, symmetric about y = 0. Below, a point "(x, z)" lies in the plane y = 0.
@@ -21,8 +21,9 @@ TEST.TRACKS                      171 parts (belt N = 58), 17 different shapes, 4
   36° (from the gripping run's side), 6 back along the other run (x 300, 200, … -200), 5 round the drive sprocket.
   Link k hinges on pins k and k+1 (k = 0..21, pin 22 = pin 0); in the CAD pose every sprocket has its pins in its
   notches (at 18° + k 36° from +X in the x-z plane).
-  BASE FRAME               deck plate x -820..820, y -200..200, z 0..40; two side plates (y ±90..±110, x -350..350,
-                           z 40..880) with holes for the bottom track's shafts; for each CABLE ROLLER two posts
+  BASE FRAME               deck plate x -820..820, y -200..200, z 0..40 (corners chamfered); two side plates
+                           (y ±90..±110, x -350..350, z 40..880) with holes for the bottom track's shafts and three
+                           gussets outside each (x -200, 0, 200: 85 out, 200 up); for each CABLE ROLLER two posts
                            (x ±700 ±25, y ±55..±75, z 40..945) joined by a pin Ø24 (y -75..75) through its bore:
                            one solid
   CABLE                    a round bar Ø60 from (-800, 0, 1000) to (800, 0, 1000)
@@ -50,7 +51,11 @@ TEST.TRACKS                      171 parts (belt N = 58), 17 different shapes, 4
                            faces at z = 970: they touch the cable. Pad k sits on link k.
   TOP CARRIAGE.ASM         (tests make a +Z slide joint "lift" on it)
     TOP TRACK FRAME        two side plates (y ±90..±110, x -350..350, z 1110..1530) with holes for the top track's
-                           shafts, joined by a top beam (x -350..350, y -110..110, z 1490..1530) above the track
+                           shafts and three ribs outside each (x -200, 0, 200: y ±110..±130, z 1110..1490), joined by
+                           a top beam (x -350..350, y -110..110, z 1490..1530, its top edges chamfered) above the track
+    HYDRAULIC CYLINDER ROD (2 x)  the lift cylinders' rods (added after TOP TRACK.ASM, task 0122): Ø60 at x = ±200,
+                           y 0, from a clevis block (80 x 80 x 40) on the top beam (z 1530) up to z 2050, through a hole
+                           Ø66 in the PORTAL FRAME's crosshead into the barrel's bore Ø66
     TOP TRACK.ASM          the bottom track mirrored about the plane z = 1000 (placed by proper turns, no mirror
                            transform): gripping run = its BOTTOM run, pin line z = 1090, sprocket centres
                            z = 1251.8034, support rollers centre z = 1150 at x = ±100. The same part names; its pins
@@ -70,8 +75,9 @@ TEST.TRACKS                      171 parts (belt N = 58), 17 different shapes, 4
 2. The belt drive (a plain belt of separate links round three wheels of different size; wheel axes along +X; the
    loop lies in the plane x = 1500; below, a point "(y, z)" lies in that plane)
   BELT DRIVE.ASM
-    BELT FRAME             a plate behind the pulleys (x 1430..1450, y -200..850, z 0..900) with a stub shaft r 10
-                           from it into each pulley's bore (to x 1525): one solid
+    BELT FRAME             a plate behind the pulleys (x 1430..1450, y -200..850, z 0..900) on a foot (x 1300..1450,
+                           z 0..20) with three gussets behind it, a stub shaft r 10 from it into each pulley's bore (to
+                           x 1525): one solid
     BELT PULLEY A          centre (0, 400), pitch-line radius (where the hinges lie) 120: cylinder r 114,
                            x 1475..1525, bore r 10
     BELT PULLEY B          centre (700, 400), pitch radius 80: cylinder r 74
@@ -88,19 +94,31 @@ TEST.TRACKS                      171 parts (belt N = 58), 17 different shapes, 4
   Loop length 2324.9513 (tangents 698.856, 537.349, 533.614; arcs on A 295.972, B 182.193, C 76.967); pin 0 at
   (6.8571, 280.1961); pins on the wheels' pitch circles: A 8, B 4, C 2 (the others on the tangents).
 
-Colours: BASE FRAME, TOP TRACK FRAME, BELT FRAME grey (0.3, 0.3, 0.3); sprockets, rollers, shafts, pulleys steel
-(0.55, 0.57, 0.6); chain links (0.35, 0.36, 0.38); TRACK PAD dark rubber (0.07, 0.07, 0.075); CABLE black
-(0.05, 0.05, 0.05); CABLE ROLLER yellow (0.976, 0.659, 0); BELT LINK orange (0.9, 0.35, 0.05).
+3. Task 0122: the lift cylinders and their portal, fixed (added after BELT DRIVE.ASM)
+  PORTAL FRAME             four columns (x ±560..±640, y ±120..±190, z 40..1850) on the BASE FRAME's deck plate
+                           and a crosshead (x -640..640, y -190..190, z 1850..1950) with holes Ø66 for the rods at
+                           x = ±200
+  HYDRAULIC CYLINDER BARREL (2 x)  on the crosshead at x = ±200: Ø110, z 1950..2250, a gland flange Ø140 at its foot,
+                           a cap on top, a bore Ø66 from below up to z 2230 (a rod lifted 150 mm still has 30 to go)
+  ISO 4017 M20 x 40 - 8.8 HDG (4 x)  in the deck plate's corners (x ±780, y ±160)
+  The portal and the barrels are 90 mm from the cable, 71 from the chains' sweeps, 3 from the rods (radial, in the
+  holes); the crosshead is 320 above the top beam, 170 when the top track is lifted 150 mm.
+
+Colours: BASE FRAME, TOP TRACK FRAME, BELT FRAME, PORTAL FRAME grey (0.3, 0.3, 0.3); HYDRAULIC CYLINDER BARREL
+(0.1, 0.1, 0.11); HYDRAULIC CYLINDER ROD chrome-like (0.8, 0.81, 0.83); bolts galvanised (0.68, 0.69, 0.7); sprockets,
+rollers, shafts, pulleys steel (0.55, 0.57, 0.6); chain links (0.35, 0.36, 0.38); TRACK PAD dark rubber
+(0.07, 0.07, 0.075); CABLE black (0.05, 0.05, 0.05); CABLE ROLLER yellow (0.976, 0.659, 0); BELT LINK orange
+(0.9, 0.35, 0.05).
 
 Checked before the file is written (``check``): every part is one valid solid; no two parts overlap except
 neighbour BELT LINKs at their shared hinge (the knuckles); these pairs touch (distance 0, no volume in common): the
 gripping-run pads and the CABLE, the CABLE ROLLERs and the CABLE, each support roller and the two links over it,
 every shaft and its wheel(s) and frame, every pad and its own link, each pulley and the BELT FRAME's stub; the
 BASE FRAME is 5 mm and more from both chains' sweeps and from every part of the TOP CARRIAGE.ASM, the TOP TRACK FRAME
-5 mm and more from its chain's sweep, the BELT FRAME from the belt's.
+5 mm and more from its chain's sweep, the BELT FRAME from the belt's; the portal, the barrels and the bolts touch
+what they stand on, the rods the top beam (3 mm round them in the portal's holes and the barrels' bores).
 
-Writing the file takes about 6 s (the check 5 s); 371 KB; the importer reads it in 1.8 s (Normal: 12,796
-triangles in the 17 meshes).
+Writing the file takes about 11 s (the check 10 s); 534 KB; the importer reads it in about 0.5 s.
 
 Needs OpenCascade (OCP) and fresing_render/demo_model/geom.py (shapes, the scene tree, the STEP writer; no Blender).
 """
@@ -123,8 +141,18 @@ from OCP.STEPControl import STEPControl_Writer  # noqa: E402
 
 from fresing_render.demo_model import geom as G  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_details import chamfer, chamfered_rect, hex_bolt  # noqa: E402
+
 GREY, YELLOW, STEEL = (0.3, 0.3, 0.3), (0.976, 0.659, 0.0), (0.55, 0.57, 0.6)
 CHAIN, RUBBER, BLACK, ORANGE = (0.35, 0.36, 0.38), (0.07, 0.07, 0.075), (0.05, 0.05, 0.05), (0.9, 0.35, 0.05)
+DARK, CHROME, ZINC = (0.1, 0.1, 0.11), (0.8, 0.81, 0.83), (0.68, 0.69, 0.7)
+BOLT = "ISO 4017 M20 x 40 - 8.8 HDG"
+CYL_X = (-200.0, 200.0)                             # the lift cylinders (task 0122)
+CROSSHEAD_Z = (1850.0, 1950.0)
+ROD_R, CYL_BORE, ROD_TOP = 30.0, 33.0, 2050.0
+BARREL_TOP = 2250.0
+DECK_BOLTS = [(x, y) for x in (780.0, -780.0) for y in (160.0, -160.0)]
 
 # =====================================================================================================================
 # the numbers (mm)
@@ -307,7 +335,9 @@ TRACK_ASM = {"bottom": "BOTTOM TRACK.ASM", "top": "TOP TRACK.ASM"}
 _TRACK_PARTS = (["DRIVE SPROCKET", "IDLER SPROCKET"] + ["SPROCKET SHAFT"] * 2 + ["SUPPORT ROLLER"] * 2
                 + ["ROLLER SHAFT"] * 2 + ["TRACK CHAIN LINK"] * 22 + ["TRACK PAD"] * 22)
 PARTS = (["BASE FRAME", "CABLE", "CABLE ROLLER", "CABLE ROLLER"] + _TRACK_PARTS + ["TOP TRACK FRAME"] + _TRACK_PARTS
-         + ["BELT FRAME", "BELT PULLEY A", "BELT PULLEY B", "BELT PULLEY C"] + ["BELT LINK"] * BELT_N)
+         + ["HYDRAULIC CYLINDER ROD"] * 2
+         + ["BELT FRAME", "BELT PULLEY A", "BELT PULLEY B", "BELT PULLEY C"] + ["BELT LINK"] * BELT_N
+         + ["PORTAL FRAME"] + ["HYDRAULIC CYLINDER BARREL"] * 2 + ["ISO 4017 M20 x 40 - 8.8 HDG"] * 4)
 ASSEMBLIES = [ROOT, "BOTTOM TRACK.ASM", "TOP CARRIAGE.ASM", "TOP TRACK.ASM", "BELT DRIVE.ASM"]
 _ASM_PATH = {"bottom": f"{ROOT}#1/BOTTOM TRACK.ASM#1", "top": f"{ROOT}#1/TOP CARRIAGE.ASM#1/TOP TRACK.ASM#1"}
 
@@ -331,6 +361,12 @@ def _uids():
         u[name] = f"{ROOT}#1/BELT DRIVE.ASM#1/{name}#1"
     for k in range(1, BELT_N + 1):
         u[f"BELT LINK {k}"] = f"{ROOT}#1/BELT DRIVE.ASM#1/BELT LINK#{k}"
+    for k in (1, 2):                                                  # task 0122
+        u[f"HYDRAULIC CYLINDER ROD {k}"] = f"{ROOT}#1/TOP CARRIAGE.ASM#1/HYDRAULIC CYLINDER ROD#{k}"
+        u[f"HYDRAULIC CYLINDER BARREL {k}"] = f"{ROOT}#1/HYDRAULIC CYLINDER BARREL#{k}"
+    u["PORTAL FRAME"] = f"{ROOT}#1/PORTAL FRAME#1"
+    for k in range(1, 5):
+        u[f"BOLT {k}"] = f"{ROOT}#1/{BOLT}#{k}"
     return u
 
 
@@ -476,12 +512,22 @@ def shaft(r):
     return ycyl(r, 0.0, 0.0, -SHAFT_HALF, SHAFT_HALF)
 
 
+def _gusset(origin, out, h, w, t):
+    """A triangle plate (``w`` out along ``out``, ``h`` up) standing on z = origin z, ``t`` thick, centred on origin."""
+    out = np.asarray(out, float)
+    side = np.cross((0.0, 0.0, 1.0), out)
+    m = G.Frame(np.asarray(origin, float) + side * t / 2.0, out, -side)      # local y up
+    return G.polygon_prism([(0.0, 0.0), (w, 0.0), (0.0, h)], t, m)
+
+
 def base_frame():
     zs, zr = SPROCKET_Z["bottom"], ROLLER_Z["bottom"]
-    parts = [box(-820.0, -200.0, 0.0, 820.0, 200.0, 40.0)]
+    parts = [G.polygon_prism(chamfered_rect(-820.0, -200.0, 1640.0, 400.0, 25.0), 40.0)]
     holes = []
     for s in (1, -1):
         parts.append(box(-350.0, s * PLATE_Y[0], 40.0, 350.0, s * PLATE_Y[1], 880.0))
+        for x in (-200.0, 0.0, 200.0):
+            parts.append(_gusset((x, s * PLATE_Y[1], 40.0), (0.0, s, 0.0), 200.0, 85.0, 16.0))
     for x in (-A_HALF, A_HALF):
         holes.append(ycyl(SPROCKET_BORE, x, zs, -PLATE_Y[1] - 5.0, PLATE_Y[1] + 5.0))
     for x in ROLLER_X:
@@ -490,17 +536,50 @@ def base_frame():
         for s in (1, -1):
             parts.append(box(x - 25.0, s * 55.0, 40.0, x + 25.0, s * 75.0, 945.0))
         parts.append(ycyl(CABLE_ROLLER_BORE, x, CABLE_ROLLER_Z, -75.0, 75.0))
+    holes += [G.cyl(10.5, 42.0, (x, y, -1.0)) for x, y in DECK_BOLTS]
     return G.cut(G.fuse(*parts), *holes)
 
 
 def top_frame():
     zs, zr = SPROCKET_Z["top"], ROLLER_Z["top"]
-    parts = [box(-350.0, -PLATE_Y[1], 1490.0, 350.0, PLATE_Y[1], 1530.0)]
+    beam = chamfer(box(-350.0, -PLATE_Y[1], 1490.0, 350.0, PLATE_Y[1], 1530.0), 8.0,
+                   lambda q: abs(q[2] - 1530.0) < 1e-6)
+    parts = [beam]
     for s in (1, -1):
-        parts.append(box(-350.0, s * PLATE_Y[0], 1110.0, 350.0, s * PLATE_Y[1], 1530.0))
+        parts.append(box(-350.0, s * PLATE_Y[0], 1110.0, 350.0, s * PLATE_Y[1], 1490.0))
+        for x in (-200.0, 0.0, 200.0):
+            parts.append(box(x - 6.0, s * PLATE_Y[1], 1110.0, x + 6.0, s * (PLATE_Y[1] + 20.0), 1490.0))
     holes = [ycyl(SPROCKET_BORE, x, zs, -PLATE_Y[1] - 5.0, PLATE_Y[1] + 5.0) for x in (-A_HALF, A_HALF)]
     holes += [ycyl(ROLLER_BORE, x, zr, -PLATE_Y[1] - 5.0, PLATE_Y[1] + 5.0) for x in ROLLER_X]
     return G.cut(G.fuse(*parts), *holes)
+
+
+def portal_frame():
+    z0, z1 = CROSSHEAD_Z
+    parts = [box(-640.0, -190.0, z0, 640.0, 190.0, z1)]
+    for sx in (1, -1):
+        for sy in (1, -1):
+            parts.append(box(sx * 560.0, sy * 120.0, 40.0, sx * 640.0, sy * 190.0, z0))
+    holes = [G.cyl(CYL_BORE, z1 - z0 + 2.0, (x, 0.0, z0 - 1.0)) for x in CYL_X]
+    return G.cut(G.fuse(*parts), *holes)
+
+
+def barrel():
+    """A lift cylinder's barrel in its own place (origin on its axis on the crosshead's top)."""
+    h = BARREL_TOP - CROSSHEAD_Z[1]
+    body = G.fuse(G.cyl(55.0, h), G.cyl(70.0, 25.0), G.cyl(60.0, 20.0, (0.0, 0.0, h)),
+                  box(40.0, -20.0, h - 60.0, 70.0, 20.0, h - 20.0), box(40.0, -20.0, 40.0, 70.0, 20.0, 80.0))
+    return G.cut(body, G.cyl(CYL_BORE, h - 20.0 + 1.0, (0.0, 0.0, -1.0)))
+
+
+def rod():
+    """A lift cylinder's rod in its own place (origin on its axis on the top beam, z = 1530)."""
+    return G.fuse(box(-40.0, -40.0, 0.0, 40.0, 40.0, 40.0), G.cyl(ROD_R, ROD_TOP - 1530.0 - 20.0, (0.0, 0.0, 20.0)))
+
+
+def deck_bolt():
+    """ISO 4017 M20 x 40: the head on z 0..12.5, the shank down to z = -40."""
+    return hex_bolt(20, 40.0)
 
 
 def belt_link():
@@ -511,7 +590,8 @@ def belt_link():
 
 def belt_frame():
     x0, y0, z0, x1, y1, z1 = BELT_FRAME_BOX
-    parts = [box(x0, y0, z0, x1, y1, z1)]
+    parts = [box(x0, y0, z0, x1, y1, z1), box(1300.0, y0, z0, x1, y1, z0 + 20.0)]
+    parts += [_gusset((x0, y, z0 + 20.0), (-1.0, 0.0, 0.0), 300.0, 120.0, 16.0) for y in (-150.0, 350.0, 800.0)]
     for c, _r in BELT_WHEELS.values():
         parts.append(xcyl(PULLEY_BORE, c[0], c[1], x1, BELT_X + PULLEY_HALF))
     return G.fuse(*parts)
@@ -560,6 +640,9 @@ def model():
     carriage = G.Asm("TOP CARRIAGE.ASM")
     carriage.add(G.Part("TOP TRACK FRAME", top_frame(), GREY))
     carriage.add(track("top"))
+    rd = G.Part("HYDRAULIC CYLINDER ROD", rod(), CHROME)
+    for x in CYL_X:
+        carriage.add(rd, G.T(x, 0.0, 1530.0))
     root.add(carriage)
     belt = G.Asm("BELT DRIVE.ASM")
     belt.add(G.Part("BELT FRAME", belt_frame(), GREY))
@@ -570,6 +653,13 @@ def model():
     for k in range(BELT_N):
         belt.add(bl, link_frame(pins[k], pins[(k + 1) % BELT_N], np.array([1.0, 0.0, 0.0])))
     root.add(belt)
+    root.add(G.Part("PORTAL FRAME", portal_frame(), GREY))
+    br = G.Part("HYDRAULIC CYLINDER BARREL", barrel(), DARK)
+    for x in CYL_X:
+        root.add(br, G.T(x, 0.0, CROSSHEAD_Z[1]))
+    bt = G.Part(BOLT, deck_bolt(), ZINC)
+    for x, y in DECK_BOLTS:
+        root.add(bt, G.T(x, y, 40.0))
     return root
 
 
@@ -636,6 +726,10 @@ def _dist(a, b):
     return float(BRepExtrema_DistShapeShape(a, b).Value())
 
 
+def _n_of(parts, shape):
+    return next(n for n, _u, s in parts if s is shape)
+
+
 def check(root, say=print):
     parts = placed(root)
     assert [p[0] for p in parts] == PARTS, [p[0] for p in parts]
@@ -668,6 +762,12 @@ def check(root, say=print):
         touch.add(frozenset((UID[f"CABLE ROLLER {k}"], UID["BASE FRAME"])))
     for name in BELT_WHEELS:
         touch.add(frozenset((UID[name], UID["BELT FRAME"])))
+    touch.add(frozenset((UID["PORTAL FRAME"], UID["BASE FRAME"])))           # task 0122
+    for k in (1, 2):
+        touch.add(frozenset((UID[f"HYDRAULIC CYLINDER BARREL {k}"], UID["PORTAL FRAME"])))
+        touch.add(frozenset((UID[f"HYDRAULIC CYLINDER ROD {k}"], UID["TOP TRACK FRAME"])))
+    for k in range(1, 5):
+        touch.add(frozenset((UID[f"BOLT {k}"], UID["BASE FRAME"])))
     overlap = {frozenset((UID[f"BELT LINK {k + 1}"], UID[f"BELT LINK {(k + 1) % BELT_N + 1}"])) for k in range(BELT_N)}
     found = set()
     for i, (na, ua, sa) in enumerate(parts):
@@ -700,9 +800,18 @@ def check(root, say=print):
             "TOP TRACK FRAME - top sweep": _dist(shape[UID["TOP TRACK FRAME"]], track_sweep("top")),
             "BELT FRAME - belt sweep": _dist(shape[UID["BELT FRAME"]], G.cut(belt_sweep(), *[
                 xcyl(r - PULLEY_GAP, c[0], c[1], BELT_X - 40.0, BELT_X + 40.0) for c, r in BELT_WHEELS.values()]))}
+    fixed = [shape[UID["PORTAL FRAME"]]] + [shape[UID[f"HYDRAULIC CYLINDER BARREL {k}"]] for k in (1, 2)]
+    gaps["portal and barrels - sweeps"] = min(_dist(f, track_sweep(w)) for f in fixed for w in ("bottom", "top"))
+    gaps["portal and barrels - CABLE"] = min(_dist(f, shape[UID["CABLE"]]) for f in fixed)
     for k, v in gaps.items():
-        assert v >= 5.0, (k, v)
-    say("  clearances: " + ", ".join(f"{k} {v:.1f}" for k, v in gaps.items()))
+        assert v >= (50.0 if k.endswith("CABLE") else 5.0), (k, v)
+    rods = min(_dist(f, s) for f in fixed for s in carriage)
+    assert abs(rods - (CYL_BORE - ROD_R)) < 1e-3, ("the rods in their holes", rods)
+    lifted = min(_dist(f, G.xform(s, G.T(0.0, 0.0, 150.0))) for f in fixed for s in carriage
+                 if "HYDRAULIC CYLINDER ROD" not in _n_of(parts, s))
+    assert lifted > 50.0, ("the top track lifted 150 mm comes near the portal", lifted)
+    say("  clearances: " + ", ".join(f"{k} {v:.1f}" for k, v in gaps.items())
+        + f"; the rods {rods:.1f} from the portal and barrels (radial), the carriage lifted 150 mm {lifted:.0f}")
     # the chains: pins one pitch apart, the links' hinges on them
     for which in ("bottom", "top"):
         p = track_pins(which)
