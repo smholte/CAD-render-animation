@@ -288,7 +288,8 @@ class _Arrive:
     """The path from the cable's start up to where it arrives on the hang-off wheel, and that wheel, for F moments:
     the solver's points (part coordinates) and the wheel in the seabed's coordinates (metres)."""
 
-    def __init__(self, scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale, counts=None):
+    def __init__(self, scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale, counts=None,
+                 last: int = -1):
         paths = _paths()
         roles = _roles(slots)
         F, W = rel.shape[0], len(radii)
@@ -297,7 +298,7 @@ class _Arrive:
         self.inv = np.linalg.inv(self.bed)
         self.pay = _pay_of(scene, item, rel, roles)
         wheels = paths._wheels(item)
-        c_last = wheels[-1]
+        c_last = wheels[last]                   # (the hang-off: the last wheel, or one before it, task 0082)
         self.wmax = _wrap_max(item, c_last)
         n = axes[:, -1]
         sd = float(sides[-1])
@@ -323,6 +324,106 @@ class _Arrive:
         self.radius = float(radii[-1]) * scale
         self.side = sd
 
+    def take(self, idx):
+        """The same for some of the moments only (``idx``: their indices)."""
+        out = _Arrive.__new__(_Arrive)
+        out.__dict__.update(self.__dict__)
+        idx = np.asarray(idx, dtype=np.int64)
+        out.F = len(idx)
+        for key in ("bed", "inv", "pay", "arrive", "s_arrive", "centre", "axis"):
+            setattr(out, key, getattr(self, key)[idx])
+        res = dict(self.res)
+        for key in ("points", "s", "wrap", "length", "ok", "bad", "held", "lifted"):
+            res[key] = res[key][idx]
+        res["problems"] = {j: self.res["problems"][int(f)] for j, f in enumerate(idx) if int(f) in self.res["problems"]}
+        out.res = res
+        return out
+
+
+def _down_point(centre, axis, radius: float, side: float, down) -> np.ndarray:
+    """(F, 3): where a wheel's tangent points straight down – where a cable hanging from it leaves it."""
+    e = _unit(down - (down * axis).sum(1, keepdims=True) * axis)
+    return centre + radius * side * np.cross(e, axis)
+
+
+def _sub_arrive(scene, item, rel, slots, parts, idx, h: int, counts) -> _Arrive:
+    """The path up to wheel ``h`` (the wheels after it left out) for the moments ``idx``."""
+    starts, centres, axes, radii, sides, on0, wraps0, scale = parts
+    return _Arrive(scene, item, rel[idx], slots, starts[idx], centres[idx][:, :h + 1], axes[idx][:, :h + 1],
+                   radii[:h + 1], sides[:h + 1], on0, None if wraps0 is None else list(wraps0)[:h + 1], scale,
+                   counts=list(counts)[:h + 1], last=h)
+
+
+def _hang_of(scene, item, a, idx, h: int, prev, F: int):
+    """``core.catenary.hang_off`` for the moments ``idx`` hanging from wheel ``h`` (``a``: their _Arrive)."""
+    W = len(_paths()._wheels(item))
+    L0 = float(item.sea_mark) + a.pay - a.s_arrive
+    psi0 = None
+    if prev is not None and len(prev["psi"]) == F and \
+            (np.asarray(prev.get("hang", np.full(F, W - 1)))[idx] == h).all():
+        psi0 = prev["psi"][idx]
+    return C.hang_off(a.centre, a.axis, a.radius, a.side, a.arrive, a.wmax, np.array(item.sea_start, dtype=float),
+                      np.array(item.sea_dir, dtype=float), bottom_z(scene, item), L0, psi0=psi0)
+
+
+def _take_hung(hr: dict, sel, n: int) -> dict:
+    return {k: (v[sel] if isinstance(v, np.ndarray) and v.shape[:1] == (n,) else v) for k, v in hr.items()}
+
+
+def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
+    """(hang (F,), {wheel index: (moments, _Arrive for them, hang_off for them)}) – task 0082. The cable hangs from
+    its last wheel, unless that wheel is **released**: the solver lifts it (the cable runs past it), the cable would
+    leave it where it arrives (it does not bend round it), or the wheel before it has gone past it in the lay
+    direction (its hanging point lies further aft: a quadrant carried over the stern and down past the horn), so a
+    cable hanging from that one never comes to it. Then the wheel before hangs it, and so on (never the first).
+    Along an animation a wheel once released stays released for the later moments."""
+    _starts, centres, axes, radii, sides, _on0, _wraps0, _scale = parts
+    F, W = rel.shape[0], len(radii)
+    hang = np.full(F, W - 1, dtype=np.int64)
+    got = {W - 1: (np.arange(F), ar)}
+    hung = {}
+    down = _turn(ar.bed, np.tile([0.0, 0.0, -1.0], (F, 1)))
+    lay = np.array(item.sea_dir, dtype=float)
+    lay[2] = 0.0
+    lay = _turn(ar.bed, np.tile(lay, (F, 1)))
+    for h in range(W - 1, -1, -1):
+        idx = np.flatnonzero(hang == h)
+        if not len(idx):
+            break
+        if h not in got:
+            got[h] = (idx, _sub_arrive(scene, item, rel, slots, parts, idx, h, ar.counts))
+        a = got[h][1]
+        hung[h] = _hang_of(scene, item, a, idx, h, prev, F)
+        if h == 0:
+            break
+        lifted = a.res["lifted"][:, h] & a.res["ok"]
+        touch = hung[h]["psi"] * a.radius >= SHORT
+        td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx])
+        td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx])
+        past = ((td_p - td_h) * lay[idx]).sum(1) > 1e-6
+        free = np.zeros(F, dtype=bool)
+        free[idx] = lifted | past | ~touch
+        if F > 1:
+            free = np.maximum.accumulate(free) & (hang == h)
+        if not free.any():
+            break
+        hang[free] = h - 1
+    out = {}
+    for h in np.unique(hang):
+        h = int(h)
+        want = np.flatnonzero(hang == h)
+        if h not in got:
+            a = _sub_arrive(scene, item, rel, slots, parts, want, h, ar.counts)
+            hr = _hang_of(scene, item, a, want, h, prev, F)
+        else:
+            idx, a = got[h]
+            hr = hung[h]
+            if len(idx) != len(want) or (idx != want).any():
+                sel = np.searchsorted(idx, want)
+                a, hr = a.take(sel), _take_hung(hr, sel, len(idx))
+        out[h] = (want, a, hr)
+    return hang, out
+
 
 def _wheel_parts(scene, item, rel, slots, scale):
     """starts, centres, axes, radii, sides, on0 as paths._solve_item works them out (part coordinates)."""
@@ -335,82 +436,113 @@ def laid_points(piled: float) -> int:
     return int(np.clip(math.ceil(max(piled, 0.0) / C.SNAKE) * 16, N_PILED, 4000))
 
 
+_SEA_KEYS = ("kind", "psi", "a", "layback", "angle", "laid", "suspended", "excess", "steep", "short", "kink", "tdp", "T",
+             "pay", "bottom", "top", "T_part", "tdp_part", "length", "h")
+
+
 def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale) -> dict:
     """The cable's shape at F moments with its end in the sea: ``core.paths.solve_frames``' result (points in the
     cable part's coordinates) with the hang-off wheel's arc ending where the cable leaves it, the catenary and the
-    part on the seabed after it; plus ``sea`` (the numbers per moment) and ``sea_notes`` [(moment, words)]."""
+    part on the seabed after it; plus ``sea`` (the numbers per moment, "hang": the wheel it hangs from),
+    ``released`` (F, W: the wheels it has left, task 0082) and ``sea_notes`` [(moment, words)].
+
+    Every moment has the same points: a moment that hangs from an earlier wheel puts the points of the wheels it has
+    left on its catenary."""
     F = rel.shape[0]
-    if not len(radii):
+    W = len(radii)
+    if not W:
         res = P.solve_frames(starts, centres, axes, radii, sides, starts, on0, False)
         res["ok"][:] = False
         res["problems"] = {f: "a cable into the sea needs a contact it hangs from (a horn, chute or sheave)"
                            for f in range(F)}
         return res
+    parts = (starts, centres, axes, radii, sides, on0, wraps0, scale)
     ar = _Arrive(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale)
-    res = ar.res
-    S = np.array(item.sea_start, dtype=float)
-    u = np.array(item.sea_dir, dtype=float)
-    zb = bottom_z(scene, item)
-    L0 = float(item.sea_mark) + ar.pay - ar.s_arrive
     prev = _STATE["sea"].get(_paths()._k(scene, item))
-    psi0 = prev["psi"] if prev is not None and len(prev["psi"]) == F else None
-    h = C.hang_off(ar.centre, ar.axis, ar.radius, ar.side, ar.arrive, ar.wmax, S, u, zb, L0, psi0=psi0)
-    psi, kind, s_h, L = h["psi"], h["kind"], h["suspended"], h["L"]
+    hang, groups = _hang_offs(scene, item, rel, slots, parts, ar, prev)
+    counts = np.asarray(ar.counts, dtype=np.int64)
+    hung = {hh: g[2] for hh, g in groups.items()}
     # how many points the hanging part needs (one count for all moments)
-    good = (kind == C.NORMAL) | (kind == C.LIFTED)
-    a_min = float(h["a"][good].min()) if good.any() else 10.0
+    good = np.concatenate([hr["a"][(hr["kind"] == C.NORMAL) | (hr["kind"] == C.LIFTED)] for hr in hung.values()])
+    a_min = float(good.min()) if len(good) else 10.0
     step = math.sqrt(8.0 * SAG * max(a_min, 0.05))
-    n_cat = int(np.clip(math.ceil(float(s_h.max(initial=1.0)) / step), N_MIN, N_MAX))
-    piled = kind == C.PILED
-    n_laid = laid_points(float(h["laid"][piled].max())) if piled.any() else N_LAID
-    n_arc = ar.n_arc
-    # arc lengths from T along the cable: the hanging part, then the part on the seabed
-    jc = np.arange(1, n_cat + 1) / n_cat
-    jl = np.arange(1, n_laid + 1) / n_laid
-    lam = np.concatenate([s_h[:, None] * jc, s_h[:, None] + (L - s_h)[:, None] * jl], axis=1)
-    flat = (L - s_h) < 1e-4                     # nothing on the seabed (lifted off, too short)
-    if flat.any():
-        lam[flat] = L[flat, None] * (np.arange(1, n_cat + n_laid + 1) / (n_cat + n_laid))
-    # the arc on the hang-off wheel; a wrap of (almost) nothing: its points go onto the first few cm of the catenary
-    jj = np.linspace(0.0, 1.0, n_arc)
-    arc = np.stack([C.wheel_point(ar.centre, ar.axis, ar.radius, ar.side, ar.arrive, psi * t)[0] for t in jj], axis=1)
-    s_arc = ar.s_arrive[:, None] + ar.radius * psi[:, None] * jj
-    short = psi * ar.radius < SHORT
-    if short.any() and n_arc > 1:
-        eps = np.minimum(0.05, 0.1 * np.maximum(L[short], 1e-3))
-        lam_s = lam[short]
-        lam[short] = eps[:, None] + lam_s * ((L[short] - eps) / np.maximum(L[short], 1e-300))[:, None]
-        hs = {k: (v[short] if isinstance(v, np.ndarray) and v.shape[:1] == (F,) else v) for k, v in h.items()}
-        lead = C.points(hs, eps[:, None] * jj[1:])
-        arc[short, 1:] = lead
-        s_arc[short] = ar.s_arrive[short, None] + eps[:, None] * jj
-    sea_pts = C.points(h, lam)
-    s_T = s_arc[:, -1]
-    s_sea = np.where(short[:, None], ar.s_arrive[:, None], s_T[:, None]) + lam
-    to_part = lambda p: np.einsum("fij,fnj->fni", ar.bed[:, :3, :3], p) + ar.bed[:, None, :3, 3]   # noqa: E731
-    i0 = ar.i0
-    pts = np.concatenate([res["points"][:, :i0], to_part(arc), to_part(sea_pts)], axis=1)
-    s_all = np.concatenate([res["s"][:, :i0], s_arc / ar.scale, s_sea / ar.scale], axis=1)
-    ok = res["ok"] & np.isfinite(pts).all(axis=(1, 2)) & np.isfinite(s_all).all(axis=1)
-    wrap = res["wrap"].copy()
-    wrap[:, -1] = psi
-    lifted = res["lifted"].copy()
-    lifted[:, -1] = short
-    bottom, top = C.tensions(h["a"], h["h"], weight(item))
-    sea = {"kind": kind, "psi": psi, "a": h["a"], "layback": h["layback"], "angle": h["angle"],
-           "laid": h["laid"], "suspended": s_h, "excess": h["excess"], "steep": h["steep"], "short": h["short"],
-           "kink": h["kink"], "tdp": h["tdp"], "T": h["T"], "pay": ar.pay, "bottom": bottom, "top": top,
-           "T_part": _apply(ar.bed, h["T"]), "tdp_part": _apply(ar.bed, h["tdp"]),
-           "length": L, "h": h["h"]}
-    out = dict(res)
-    out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, sea=sea,
-               sea_notes=_notes(item, sea, ok))
+    s_max = max(float(hr["suspended"].max(initial=1.0)) for hr in hung.values())
+    n_cat = int(np.clip(math.ceil(s_max / step), N_MIN, N_MAX))
+    piles = np.concatenate([hr["laid"][hr["kind"] == C.PILED] for hr in hung.values()])
+    n_laid = laid_points(float(piles.max())) if len(piles) else N_LAID
+    n_pts = int(ar.i0) + int(counts[-1]) + n_cat + n_laid
+    pts, s_all = np.zeros((F, n_pts, 3)), np.zeros((F, n_pts))
+    ok = np.zeros(F, dtype=bool)
+    wrap, lifted = np.zeros((F, W)), np.zeros((F, W), dtype=bool)
+    released = np.zeros((F, W), dtype=bool)
+    bad, held = ar.res["bad"].copy(), ar.res["held"].copy()
+    problems = {}
+    sea = {}
+    for hh, (idx, a, hr) in groups.items():
+        res = a.res
+        psi, kind, s_h, L = hr["psi"], hr["kind"], hr["suspended"], hr["L"]
+        n_arc = int(counts[hh])
+        n_hang = int(counts[hh + 1:].sum()) + n_cat         # (the left wheels' points: more on the catenary)
+        jc = np.arange(1, n_hang + 1) / n_hang
+        jl = np.arange(1, n_laid + 1) / n_laid
+        lam = np.concatenate([s_h[:, None] * jc, s_h[:, None] + (L - s_h)[:, None] * jl], axis=1)
+        flat = (L - s_h) < 1e-4                 # nothing on the seabed (lifted off, too short)
+        if flat.any():
+            lam[flat] = L[flat, None] * (np.arange(1, n_hang + n_laid + 1) / (n_hang + n_laid))
+        # the arc on the hang-off wheel; a wrap of (almost) nothing: its points go onto the first few cm of the catenary
+        jj = np.linspace(0.0, 1.0, n_arc)
+        arc = np.stack([C.wheel_point(a.centre, a.axis, a.radius, a.side, a.arrive, psi * t)[0] for t in jj], axis=1)
+        s_arc = a.s_arrive[:, None] + a.radius * psi[:, None] * jj
+        short = psi * a.radius < SHORT
+        if short.any() and n_arc > 1:
+            eps = np.minimum(0.05, 0.1 * np.maximum(L[short], 1e-3))
+            lam_s = lam[short]
+            lam[short] = eps[:, None] + lam_s * ((L[short] - eps) / np.maximum(L[short], 1e-300))[:, None]
+            hs = {k: (v[short] if isinstance(v, np.ndarray) and v.shape[:1] == (len(idx),) else v)
+                  for k, v in hr.items()}
+            arc[short, 1:] = C.points(hs, eps[:, None] * jj[1:])
+            s_arc[short] = a.s_arrive[short, None] + eps[:, None] * jj
+        sea_pts = C.points(hr, lam)
+        s_T = s_arc[:, -1]
+        s_sea = np.where(short[:, None], a.s_arrive[:, None], s_T[:, None]) + lam
+        bed = a.bed
+        i0 = a.i0
+        g_pts = np.concatenate([res["points"][:, :i0], _apply_n(bed, arc), _apply_n(bed, sea_pts)], axis=1)
+        g_s = np.concatenate([res["s"][:, :i0], s_arc / a.scale, s_sea / a.scale], axis=1)
+        if g_pts.shape[1] != n_pts:
+            raise RuntimeError("the cable's points do not add up where it hangs from another wheel")   # (a bug)
+        pts[idx], s_all[idx] = g_pts, g_s
+        ok[idx] = res["ok"] & np.isfinite(g_pts).all(axis=(1, 2)) & np.isfinite(g_s).all(axis=1)
+        wrap[np.ix_(idx, np.arange(hh + 1))] = res["wrap"]
+        wrap[idx, hh] = psi
+        lifted[np.ix_(idx, np.arange(hh + 1))] = res["lifted"]
+        lifted[idx, hh] = short
+        released[idx, hh + 1:] = True
+        bad[idx], held[idx] = res["bad"], res["held"]
+        for j, text in res["problems"].items():
+            problems[int(idx[j])] = text
+        bottom, top = C.tensions(hr["a"], hr["h"], weight(item))
+        part = {"kind": kind, "psi": psi, "a": hr["a"], "layback": hr["layback"], "angle": hr["angle"],
+                "laid": hr["laid"], "suspended": s_h, "excess": hr["excess"], "steep": hr["steep"],
+                "short": hr["short"], "kink": hr["kink"], "tdp": hr["tdp"], "T": hr["T"], "pay": a.pay,
+                "bottom": bottom, "top": top, "T_part": _apply(bed, hr["T"]), "tdp_part": _apply(bed, hr["tdp"]),
+                "length": L, "h": hr["h"]}
+        for key in _SEA_KEYS:
+            v = np.asarray(part[key])
+            if key not in sea:
+                sea[key] = np.zeros((F,) + v.shape[1:], dtype=v.dtype)
+            sea[key][idx] = v
+    sea["hang"] = hang
+    out = dict(ar.res)
+    out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, bad=bad, held=held,
+               problems=problems, released=released, sea=sea, sea_notes=_notes(item, sea, ok))
     _STATE["sea"][_paths()._k(scene, item)] = {k: np.array(v) for k, v in sea.items()}
     if F == 1 or not item.sea_info:             # what the panel shows before anything is solved after a load
-        info = {"layback": float(h["layback"][0]), "angle": math.degrees(float(h["angle"][0])),
-                "bottom": float(bottom[0]), "top": float(top[0]), "laid": float(h["laid"][0]),
-                "hanging": float(s_h[0]), "kind": int(kind[0]), "a": float(h["a"][0]), "height": float(h["h"][0]),
-                "depth": depth(scene, item), "weight": weight(item)}
+        info = {"layback": float(sea["layback"][0]), "angle": math.degrees(float(sea["angle"][0])),
+                "bottom": float(sea["bottom"][0]), "top": float(sea["top"][0]), "laid": float(sea["laid"][0]),
+                "hanging": float(sea["suspended"][0]), "kind": int(sea["kind"][0]), "a": float(sea["a"][0]),
+                "height": float(sea["h"][0]), "depth": depth(scene, item), "weight": weight(item),
+                "hang": int(hang[0])}
         text = json.dumps({key: round(v, 4) if isinstance(v, float) else v for key, v in info.items()})
         if item.sea_info != text:
             try:
@@ -423,15 +555,25 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     return out
 
 
+def _apply_n(M, p):
+    """(F, n, 3): points p (F, n, 3) through the matrices M (F, 4, 4)."""
+    return np.einsum("fij,fnj->fni", M[:, :3, :3], p) + M[:, None, :3, 3]
+
+
 def _notes(item, sea, ok) -> list:
     """[(moment, words)]: what is wrong with the hanging cable, the first moment each happens."""
-    hang = next((c.name for c in reversed(item.contacts) if c.kind in ("SHEAVE", "CHUTE", "BEND")), "")
+    wheels = _paths()._wheels(item)
+    hangs = np.asarray(sea.get("hang", np.full(len(ok), len(wheels) - 1)))
     out = []
     kind = sea["kind"]
 
     def first(mask):
         idx = np.flatnonzero(mask & ok)
         return int(idx[0]) if len(idx) else -1
+
+    def name(k):
+        h = int(hangs[k]) if len(hangs) > k else -1
+        return wheels[h].name if 0 <= h < len(wheels) else ""
 
     k = first(kind == C.STRETCHED)
     if k >= 0:
@@ -440,16 +582,16 @@ def _notes(item, sea, ok) -> list:
     k = first(kind == C.PILED)
     if k >= 0:
         out.append((k, f"has {float(sea['excess'][k]):.2f} m more cable than the water is deep: it piles up on "
-                       f"the seabed under '{hang}'"))
+                       f"the seabed under '{name(k)}'"))
     k = first(kind == C.LIFTED)
     if k >= 0:
         out.append((k, "is so tight that it lifts its end off the seabed"))
     k = first(sea["steep"])
     if k >= 0:
-        out.append((k, f"bends over the end of '{hang}' – more bottom tension or a longer chute"))
+        out.append((k, f"bends over the end of '{name(k)}' – more bottom tension or a longer chute"))
     k = first(sea["short"])
     if k >= 0:
-        out.append((k, f"hangs too flat to touch '{hang}': more cable or less bottom tension"))
+        out.append((k, f"hangs too flat to touch '{name(k)}': more cable or less bottom tension"))
     return out
 
 
@@ -593,16 +735,40 @@ def numbers(scene, item) -> dict:
         got = _moment(scene, item)             # (a reopened project: the frame shown, from the places read at Build)
     if got is None:
         try:
-            return json.loads(item.sea_info) if item.sea_info else {}
+            info = json.loads(item.sea_info) if item.sea_info else {}
         except ValueError:
             return {}
+        if "hang" in info:
+            info.update(_hang_names(scene, item, {"hang": [info["hang"]], "kind": [0]}, 0))
+        return info
     k = paths._moment_now(scene, item) if len(got["kind"]) > 1 else 0
     k = min(max(k, 0), len(got["kind"]) - 1)
     out = {"layback": float(got["layback"][k]), "angle": math.degrees(float(got["angle"][k])),
            "bottom": float(got["bottom"][k]), "top": float(got["top"][k]), "laid": float(got["laid"][k]),
            "hanging": float(got["suspended"][k]), "kind": int(got["kind"][k]), "a": float(got["a"][k]),
            "height": float(got["h"][k]), "depth": depth(scene, item), "weight": weight(item)}
+    out.update(_hang_names(scene, item, got, k))
     return out                                  # (it is drawn by the panel: it must not write anything)
+
+
+def _hang_names(scene, item, got, k: int) -> dict:
+    """{"hang_off": the wheel it hangs from at moment k, and when it has left a later wheel: "left" (that wheel's
+    name), "left_frame" (the first frame it hangs from an earlier one; None in the pose shown)} – task 0082."""
+    paths = _paths()
+    wheels = paths._wheels(item)
+    if not wheels:
+        return {}
+    hang = np.asarray(got.get("hang", np.full(len(got["kind"]), len(wheels) - 1)))
+    h = int(hang[min(k, len(hang) - 1)]) if len(hang) else len(wheels) - 1
+    h = min(max(h, 0), len(wheels) - 1)
+    out = {"hang_off": wheels[h].name}
+    if h < len(wheels) - 1:
+        out["left"] = wheels[h + 1].name
+        out["left_frame"] = None
+        if len(hang) > 1:
+            first = paths._layout_of(paths._shapes(scene, item))[2]
+            out["left_frame"] = int(first + int(np.argmax(hang < len(wheels) - 1)))
+    return out
 
 
 def _moment(scene, item):
@@ -620,7 +786,7 @@ def _moment(scene, item):
     k = min(max(int(scene.frame_current) - first, 0), len(rel) - 1)
     keep = _STATE["sea"].get(paths._k(scene, item))
     try:
-        paths._solve_item(scene, item, rel[k:k + 1])
+        paths._solve_item(scene, item, rel[k:k + 1], first=first + k)
         hit = _STATE["sea"].get(paths._k(scene, item))
     finally:
         if keep is not None:
