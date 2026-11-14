@@ -11,6 +11,7 @@ import math
 import os
 import shutil
 import sys
+import time
 
 import numpy as np
 import pytest
@@ -398,6 +399,52 @@ def test_the_quadrant_operations_parts_are_kept_out_until_shot_9(made):
     assert math.degrees(s.joints[demo.TILT].rot_max) == pytest.approx(110.0, abs=1e-3)
     assert not s.joints["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"].follows
     assert "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt" not in s.joints
+
+
+def test_the_d_lowered_on_its_wire_runs_into_nothing(made):
+    """Task 0082: the D's whole way on the new joint – tensioners open, cradles down, the travel onto the handler, the
+    tilt to LOWER_TILT, the turn to hang plumb (the sheet's hang tip) and the lowering on 'Quadrant lower' to near the
+    seabed – gives 0 clash rows (the sea at rest, as the demo's check): the D, the handler, the rails, the tensioners,
+    the horns and the stern stay apart. Its own short animation, the demo's is built again afterwards."""
+    from fresing_render.blender import animation, clash, tour, vessel_motion
+    sc = _scene()
+    s = sc.fresing
+    d = demo.Demo(sc, made["folder"], VERSION, small=True)
+    q = d.sheet("route")["quadrant"]
+    keep = s.animations_index
+    a = s.animations.add()
+    a.name, a.tail, a.fps = "Lowering check", 0.2, "24"
+    t = 0.0
+    for name in demo.TENSIONERS:
+        up, out = demo.tensioner_open(d, name)
+        tour._joint_step(a, f"{name}: Top track lift", t, 1.0, up, slide=True)
+        tour._joint_step(a, f"{name}: Top track tilt", t + 1.0, 1.0, math.radians(out))
+    for lead, drop in demo.cradle_drops(d):
+        tour._joint_step(a, lead, t + 1.0, 1.0, drop, slide=True)
+    t += 2.0
+    tour._joint_step(a, demo.TRAVEL, t, 4.0, q["travel"][1] / 1000.0, slide=True)
+    t += 4.0
+    tour._joint_step(a, demo.TILT, t, 3.0, math.radians(q["lower_tilt"]))
+    t += 3.0
+    tour._joint_step(a, demo.TIP, t, 1.0, math.radians(q["hang_tip"]))
+    t += 1.0
+    depth = demo.SEA_DEPTH - 4.0                       # its lowest point a few metres over the seabed
+    tour._joint_step(a, "QUADRANT SYSTEM: Quadrant lower", t, 4.0, depth, slide=True)
+    try:
+        s.animations_index = len(s.animations) - 1
+        animation.bake(sc, a)
+        t0 = time.time()
+        with vessel_motion.at_rest(sc):
+            res = clash.check(sc, store=False)
+        print(f"\nlowering check: {time.time() - t0:.0f} s, {len(res.rows)} rows")
+        rows = [r for r in res.rows if r.kind == "CLASH"]
+        assert not rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 1)) for r in rows[:5]]
+    finally:
+        animation.clear_keys(sc)
+        s.animations.remove(len(s.animations) - 1)
+        s.animations_index = keep
+        animation.bake(sc, s.animations[demo.ANIM])
+        sc.frame_set(1)
 
 
 def test_xray_labels_apart_and_inside_the_picture(made):
