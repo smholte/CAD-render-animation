@@ -1657,7 +1657,7 @@ def vessel(tmp_path_factory):
     from fresing_render.blender import demo
     folder = str(tmp_path_factory.mktemp("demo_cable"))
     t0 = time.perf_counter()
-    out = demo.build_project(folder, "9.9.9", small=True, only=("model", "looks", "joints"))
+    out = demo.build_project(folder, "9.9.9", small=True, only=("model", "looks", "hold", "joints"))
     bpy.ops.wm.open_mainfile(filepath=out["path"])
     paths.forget()
     flex.forget()
