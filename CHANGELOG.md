@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.97 – 14 Nov 2026 – hoses with vessel motion, the Assembly sequence preview (task 0121)
+
+- **Hoses follow a vessel-motion change after Build.** Changing the strength, sea state, heading or a still/level part
+  after building left the hoses where the old motion had put them: the fittings moved, the tube ends did not. They are
+  worked out again for the new motion now (in the window once the slider rests).
+- **Vessel motion without Build is lighter:** a hose whose two ends move together as one body is moved along instead of
+  being worked out again at every frame (test model, 4 hoses, 60 frames: 4 solves instead of 240).
+- **Assembly sequence Preview is quick:** dragging the slider no longer plans the whole step at every move – on the
+  demo's tensioner (260 parts) 85–90 ms per step instead of about 4 s. The box now says that moving it takes a built
+  animation off.
+- **A preview left on no longer becomes permanent.** A model update (or Clear keys) with the Preview above 0 % kept the
+  parts half-way out for good; the preview now ends first.
+- **Assembly sequence with vessel motion:** the step's keys no longer depend on the frame you press Build at (they were
+  measured on the tilted vessel; up to 4 mm apart on the test model).
+- **Projects with vessel motion from 0.2.65–0.2.87** get the vessel's motion worked out again once when opened, so it
+  matches today's sea.
+
 ## 0.2.96 – 14 Nov 2026 – a model update keeps drums, carousels, riders and tracks (task 0119)
 
 - **Updating one model no longer undoes the drums and carousels of the others.** Before, updating (for example) the quay
