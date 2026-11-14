@@ -119,12 +119,13 @@ A1. **Winch keeps it tight** – `FRCable.keep_tight` (Bool, default off), `path
     pay) to 0.5 mm; drums (spool tables), sheaves, looks and riders follow the joint by themselves. A speed joint that
     an animation step moves: keep tight is skipped with a warning. Live: the handler's solve sets the joint value
     (`joints.set_value`), same tolerance, no update loop. Panel line + tooltip; status "pays out N m".
-A2. **The hang-off moves to the last contact the cable still bends round** (sea cables): in `paths_sea.solve`, per
-    moment, when the solver lifts the last wheel (the D's gutter has moved past horn A and below it), that wheel is
-    *released* and the one before hangs the cable; once released in a solve over frames it stays released for the
-    later frames. One point layout for every moment (released wheels' points spread along the start of the
-    catenary). Shown as information ("hangs from 'X' – left 'Y' at frame N"), not as a problem;
-    `paths_sea.numbers(...)["hang_off"]` names it.
+A2. **The hang-off moves to the last contact the cable still bends round** (sea cables; revised after the independent
+    tester): the hang-off follows the pose, the same live and at Build. A wheel the moving one has gone past (by more
+    than a 20 mm dead band, `paths_sea.BAND`), or that the cable no longer bends round, is released and the wheel
+    before hangs the cable; when the moving wheel comes back in front of it and the cable bends round it again, it
+    catches the cable again. Inside the dead band a wheel keeps its state of a moment before. One point layout for
+    every moment. Shown as information, not as a problem; `paths_sea.numbers(...)` gives "hang_off", "left",
+    "left_frame".
 A3. **Let go** – `FRCableContact.let_go_frame`, `FRCable.a_let_go_frame`, `FRCable.b_let_go_frame` (Int, −1 = never):
     from that frame on, the end or contact no longer moves with its carrier: it stays where it was at that frame – for a
     sea cable in the seabed's coordinates (it passes aft with the seabed), else in the cable part's. At Build from the
