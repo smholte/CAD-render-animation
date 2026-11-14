@@ -1,6 +1,6 @@
 # 0111 – "Turn it yourself" with a model picker: the tool-changing mill and the Thor arm, moving
 
-**Who:** worker · **Status:** waiting – starts when **0107** (baked light) **and 0112** (Thor project) are on `main` ·
+**Who:** worker · **Status:** running (14 Nov 2026) ·
 **Branch:** `task/0111-turn-it-yourself-picker` (or the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's choices 13 Nov, 20:00)
 **Area (Web 3D lane):** `site/index.html`, `site/style.css`, `site/media/` (new .glb files, posters, `media.json`),
