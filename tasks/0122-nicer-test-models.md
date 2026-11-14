@@ -1,6 +1,6 @@
 # 0122 – Nicer test models: better looking, more detail, more functions per model
 
-**Who:** worker · **Status:** running (14 Nov 2026; 0119–0121 done); not at the same time as 0062 · **Branch:**
+**Who:** worker · **Status:** done (14 Nov 2026, 0.2.101); not at the same time as 0062 · **Branch:**
 `ccr-bde4018f-wmqawe` (the session's branch)
 **Started by:** lead chat, 14 Nov 2026 (owner's wish) · **Lane:** Test models (new): `tools/make_test_*.py`,
 `tests/data/*.step` + their copies in `fresing_render/data/`, the set builds in `blender/tour.py` (only the sets of the
@@ -55,13 +55,13 @@ the worker.
 
 ## Done when
 
-- [ ] Owner's pick from step 1 in the report.
-- [ ] The picked models upgraded; each still one solid per part, colours kept, sorted as intended, 0 clash rows on
+- [x] Owner's pick from step 1 in the report.
+- [x] The picked models upgraded; each still one solid per part, colours kept, sorted as intended, 0 clash rows on
       every tour animation.
-- [ ] Every test passes without loosening; changed expected numbers listed in the report with the reason.
-- [ ] Before/after numbers: triangles, import time, tour build time, GitHub run time.
-- [ ] Tour texts and checks current; guide pictures of changed models re-made; PC check still all OK.
-- [ ] GitHub green incl. Windows; merged to `main`, next free version, released; report filled in; `TASKS.md`.
+- [x] Every test passes without loosening; changed expected numbers listed in the report with the reason.
+- [x] Before/after numbers: triangles, import time, tour build time, GitHub run time.
+- [x] Tour texts and checks current; guide pictures of changed models re-made; PC check still all OK.
+- [x] GitHub green incl. Windows; merged to `main`, next free version, released; report filled in; `TASKS.md`.
 
 ## Not in this task
 
@@ -172,8 +172,9 @@ listed (file:line, old → new, why); never loosen a check. Helpers: `tools/mode
   the all-sets clash check (tests/test_clash.py, limit 360 s) 246 → 300 s: crane animations 0.3 → ~3 s each.
 - 0 clash rows on every tour animation (clash set: its own 6.0 mm row). PC check lines of every batch OK; crane lines
   import.crane, joints.rotate, joints.stack, states.poses, model.update, queue.frame_shown OK.
-- GitHub: before this task 17.8 / 21.4 min (229 / 226 job-minutes, runs 43593305156, 43610881231); this branch
-  20.0 min, 220 job-minutes (run 43616862287: one real-app check, fixed). Runs: see below.
+- GitHub: before this task 17.8 / 21.4 min (229 / 226 job-minutes, runs 43593305156, 43610881231); this task 20.0 / 22.0
+  min (220 / 233 job-minutes). Three full runs: 43616862287 (the stack click check, made exact), 43621844399 (the fade
+  ratio, measured on the plain crane), 43624102576 green; `main` fast-forwarded to it (1644986).
 - Subagents: Explore (inventory), three batch writers in worktrees (machines, offshore, small; merged as they were),
   an independent tester: found the PC check turning the boom down (rod out of the barrel), no boom limits, crane over
   budget – all three fixed by the worker; it measured the clash-check time.
