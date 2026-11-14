@@ -960,19 +960,30 @@ def marine_demo(scene, water: float = MARINE_WATER) -> dict:
     scene[marine_looks.WATERLINE] = float(water)
     made = {}
 
-    def add(name, op, mat_id, colour, **kw):
-        op(**kw)
-        ob = bpy.context.active_object
-        ob.name = f"Marine {name}"
+    def add(name, make, mat_id, colour, location, scale=(1.0, 1.0, 1.0)):
+        import bmesh
+        bm = bmesh.new()
+        make(bm)
+        me = bpy.data.meshes.new(f"Marine {name}")
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new(f"Marine {name}", me)      # no bpy.ops: works from any button (tour Make)
+        scene.collection.objects.link(ob)
+        ob.location, ob.scale = location, scale
         mat = materials.ensure_material(f"Marine looks: {name}", mat_id, colour)
         materials.assign(ob, mat)
         made[mat_id] = mat
-    add("pile", bpy.ops.mesh.primitive_cylinder_add, "paint_marine_growth", "RAL 1023", radius=0.6, depth=8.0,
-        vertices=48, location=(0.0, 0.0, water))
-    add("wall", bpy.ops.mesh.primitive_cube_add, "paint_marine_streaks", "RAL 7035", size=1.0,
-        location=(2.2, 1.5, 3.0), scale=(1.2, 0.3, 6.0))
-    add("block", bpy.ops.mesh.primitive_cube_add, "concrete", "", size=1.0, location=(-2.0, 0.8, 0.5),
-        scale=(1.6, 1.6, 1.0))
+
+    def cylinder(bm):
+        import bmesh
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=48, radius1=0.6, radius2=0.6, depth=8.0)
+
+    def cube(bm):
+        import bmesh
+        bmesh.ops.create_cube(bm, size=1.0)
+    add("pile", cylinder, "paint_marine_growth", "RAL 1023", (0.0, 0.0, water))
+    add("wall", cube, "paint_marine_streaks", "RAL 7035", (2.2, 1.5, 3.0), (1.2, 0.3, 6.0))
+    add("block", cube, "concrete", "", (-2.0, 0.8, 0.5), (1.6, 1.6, 1.0))
     return made
 
 
