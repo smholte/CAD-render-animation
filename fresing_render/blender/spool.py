@@ -1719,7 +1719,13 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     notes = []
     forget()
     from . import paths
+
+    def concerned(sp) -> bool:                  # a drum of another model stays as it is (0119, row 2)
+        return any(u and (u in mapping or u in by_uid) for u in (sp.part_uid, sp.coil_uid))
+
     for i in range(len(s.spools)):
+        if not concerned(s.spools[i]):
+            continue
         sp = s.spools[i]
         _STATE["busy"] += 1
         try:
@@ -1738,6 +1744,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         coil = flex._new_object(scene, sp.coil_uid, by_uid, mapping) if sp.coil_uid else None
         with flex._quiet(sp):
             sp.part, sp.coil, sp.owner = part, coil, None
+            sp.part_uid = part.get(build.PROP_UID, "") if part is not None else sp.part_uid   # (0119, row 3: the new IDs)
+            sp.coil_uid = coil.get(build.PROP_UID, "") if coil is not None else sp.coil_uid
         if part is None:
             notes.append(f"Drum or carousel '{label(sp)}': its part is gone in the new revision")
             with flex._quiet(sp):

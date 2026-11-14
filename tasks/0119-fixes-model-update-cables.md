@@ -29,10 +29,20 @@ Fix rows **2, 3, 7, 17** of the bug hunt (lost work at a model update: other mod
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 14 Nov 2026
 
 **What changed (per row):**
+- **Row 2** (`spool.after_model_update`): only spools whose part or coil is in the updated model (`mapping` / `by_uid`) are
+  taken apart and set up again; other models' drums and carousels stay. Real: confirmed by the new test.
+- **Row 3**: `part_uid` / `coil_uid` are written from the new objects, so a second update finds the drum.
+- **Row 7** (`paths_riders.after_model_update`, now gets `mapping`): a part of the updated model that is gone is dropped
+  with a note ("N of its parts are gone in the new revision"); the old object is used only for parts in neither table
+  (another model). Not done through `by_uid.get(...)` alone, because a gone part's ID is in `mapping` as `gone:`.
+- **Row 17** (`tracks.after_model_update`): a note for pads/plates that are gone; the "coupled" flag is compared through
+  `mapping` (the wheel's new ID).
 
-**Tested:**
+**Tested:** new `tests/test_model_update_cables.py` (4 tests, all failed before the fix, pass after); `test_spool.py`,
+`test_tracks.py`, `test_paths_sea.py` pass locally (36). Rows 3, 7, 17 call the update hooks with the tables a real update
+hands them; row 2 is a real update of a second model (crane A to B). GitHub run: see below.
 
-**Open points:**
+**Open points:** none. No subagents. Runs: 1 (no version clash).

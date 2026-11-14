@@ -1193,6 +1193,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         wheels = [ob_of(u) for u in k["wheels"]]
         chain = ob_of(k["chain"])
         riders = [ob_of(u) for u in k["riders"]]
+        lost = sum(1 for r in riders if r is None)       # (0119, row 17: said, not dropped silently)
+        if lost:
+            notes.append(f"Track '{k['name']}': {plural(lost, 'pad or plate')} gone in the new revision")
         if chain is None or any(w is None for w in wheels):
             notes.append(f"Track '{k['name']}': its link or a wheel is gone in the new revision; add it again")
             continue
@@ -1208,8 +1211,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             it.flip = k["flip"] if joint == k["joint"] else it.flip
             it.enabled = k["enabled"]
             it.made_joint = it.made_joint or (k["made_joint"] and joint == k["joint"])
+        coupled = {mapping.get(u, u) for u in k["coupled"]}      # (the wheels' new IDs)
         for w in it.wheels:
-            if w.part_uid in k["coupled"]:
+            if w.part_uid in coupled:
                 with flex._quiet(w):
                     w.coupled = True
         changed(scene, it)

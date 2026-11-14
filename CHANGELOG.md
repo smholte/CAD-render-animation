@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.96 – 14 Nov 2026 – a model update keeps drums, carousels, riders and tracks (task 0119)
+
+- **Updating one model no longer undoes the drums and carousels of the others.** Before, updating (for example) the quay
+  model stopped every drum and carousel in the project: the cable went back to a plain CAD cable and the drawn rope was
+  deleted, without a note.
+- **A drum whose part ID changed in an update keeps working** at the next update (it was lost then: "its part is gone").
+- **Things riding on a cable:** a part that is gone in the new revision is dropped and the report says so (before, the
+  rider kept empty entries and the report said nothing).
+- **Tracks:** pads or plates that are gone are named in the report; a wheel whose part ID changed keeps its "coupled" tick.
+
 ## 0.2.95 – 14 Nov 2026 – a cable on a moving part; the quadrant operation in the demo (task 0082)
 
 - **Winch keeps it tight** (4 Motion > Cables and paths, a cable's details): the winch pays out exactly what the
