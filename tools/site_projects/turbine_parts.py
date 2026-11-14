@@ -826,7 +826,7 @@ def _cam(name, eye, target, lens):
 
 def cameras(fit: dict, variant: str) -> list[dict]:
     """Offshore: "Work boat" (low, on the boat landing's side, looking up) and "Whole turbine"; onshore:
-    "From the field" (a person in the field 330 m away: all of it) and "At the door" (the door, stair and
+    "From the field" (a person in the field 360 m away: all of it) and "At the door" (the door, stair and
     foundation from 26 m)."""
     _check(fit, variant)
     hub = np.asarray(fit["rotor"]["point"], float)
@@ -838,7 +838,7 @@ def cameras(fit: dict, variant: str) -> list[dict]:
     g = float(fit.get("ground_z", 0.0))
     door = _radial(AZ_DOOR)
     side = np.cross([0.0, 0.0, 1.0], door)
-    return [_cam("From the field", _radial(150.0) * 330000.0 + np.array([0.0, 0.0, g + 1700.0]),
-                 (0.0, hub[1], g + 118000.0), 30.0),
+    return [_cam("From the field", _radial(150.0) * 360000.0 + np.array([0.0, 0.0, g + 1700.0]),
+                 (0.0, hub[1], g + 110000.0), 28.0),       # from the ground (just in the picture) to the top tip
             _cam("At the door", door * 26000.0 + side * 9000.0 + np.array([0.0, 0.0, g + 1700.0]),
                  door * 5000.0 + np.array([0.0, 0.0, g + 4500.0]), 30.0)]
