@@ -1644,7 +1644,7 @@ def axis_from_hit(ob, polygon_index: int, hit: Vector, normal: Vector):
                 o = mw @ Vector(a[0:3])
                 d = (mw.to_3x3() @ Vector(a[3:6])).normalized()
                 o = o + d * (Vector(hit) - o).dot(d)      # put the axis point where the user clicked
-                r = a[6] * mw.to_scale()[0]
+                r = abs(a[6] * mw.to_scale()[0])        # a mirrored part has a negative scale (task 0117)
                 desc = f"round face Ø{r * 2000:.1f} mm" if r > 0 else "round face"
                 return o, d, desc
     return Vector(hit), Vector(normal).normalized(), "flat face (axis at right angles to it)"

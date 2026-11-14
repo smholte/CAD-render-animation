@@ -2971,7 +2971,7 @@ stop("update", MOTION, "update", "Model update A → B",
      "The crane is revision B: it has a new lamp on the boom (selected). The boom is still at 20° and the cover "
      "is still hidden: the work survived the update.", where="1 Import > Update model", select=("BOOM.LAMP",),
      check=_check_update)
-stop("mesh_import", MOTION, "mesh", "Mesh model: a joint on a facetted ring",
+stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "An invented crane read from a glTF mesh file (no CAD faces): its base shows the file's own grey checker "
      "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "

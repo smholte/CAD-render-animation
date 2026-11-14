@@ -135,7 +135,8 @@ def test_clicked_facetted_ring_gives_its_axis(tmp_path):
     # the inner wall: a hole of the same axis
     pt = Vector((0.6 * math.cos(a) * math.cos(math.radians(3.75)), 0.6 * math.sin(a), 0.475))
     h = hover.look(sc, bpy.context.evaluated_depsgraph_get(), *ray_at(pt, (-math.cos(a), -math.sin(a), 0)))
-    assert h.kind == "hole" and abs(h.diameter - 1200) < 6 and angle(h.direction, (0, 0, 1)) < 0.5
+    assert h.kind == "hole" and angle(h.direction, (0, 0, 1)) < 0.5
+    assert abs(h.diameter - 1600) < 8            # walls on one line share one axis, its size the biggest (as STEP)
     # the top: a flat face, its axis at right angles to it
     ob, index, o, d, desc = click(sc, *ray_at((0.7, 0.0, 0.55), (0, 0, 1)))
     assert desc.startswith("flat") and angle(d, (0, 0, 1)) < 1e-3
