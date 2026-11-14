@@ -37,7 +37,7 @@ def cache_key(step_path: str, quality: str, options: dict | None = None) -> str:
     st = os.stat(step_path)
     raw = f"{os.path.abspath(step_path)}|{st.st_size}|{int(st.st_mtime)}|{quality}|v{step_reader.CACHE_VERSION}"
     if options:                                           # mesh files: units, up axis, split (STEP: none, as before)
-        raw += "|" + json.dumps(options, sort_keys=True)
+        raw += f"|{st.st_mtime_ns}|" + json.dumps(options, sort_keys=True)   # a rewrite within the same second too
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 

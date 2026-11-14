@@ -59,6 +59,7 @@ SPLIT_AUTO_MESHES = 5        # Split by loose parts "Auto": on when the file has
 MAX_PIECES = 1000            # loose pieces of one mesh that become parts; the rest are one part "small pieces"
 GUESS_MM_FROM = 500.0        # OBJ, units Auto: a biggest side of at least this many units is read as mm
 CREDIT_MAX = 4000
+MAX_COUNT = 100_000_000      # items in an accessor without data of its own (all zeros): more is a broken file
 CONVERTER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "convert_blender.py")
 # glTF extensions this reader reads itself (or may leave out without changing the shape)
 _KNOWN = {"KHR_mesh_quantization", "KHR_materials_pbrSpecularGlossiness", "KHR_texture_transform",
@@ -147,6 +148,8 @@ def _load_gltf(path: str):
             size, kind = struct.unpack_from("<II", data, pos)
             chunk = data[pos + 8: pos + 8 + size]
             if kind == 0x4E4F534A and doc is None:
+                if len(chunk) < size:
+                    raise MeshError("the GLB file is cut off (in its description)")
                 doc = json.loads(chunk.decode("utf-8"))
             elif kind == 0x004E4942 and binary is None:
                 binary = chunk
@@ -160,7 +163,10 @@ def _load_gltf(path: str):
             raise MeshError(f"not a glTF file ({exc})") from exc
     if not isinstance(doc, dict):
         raise MeshError("not a glTF file")
-    version = str(doc.get("asset", {}).get("version", "2.0"))
+    asset = doc.get("asset", {})
+    if not isinstance(asset, dict):
+        raise MeshError("the glTF file is broken: its 'asset' description is not what glTF writes")
+    version = str(asset.get("version", "2.0"))
     if not version.startswith("2"):
         raise MeshError(f"glTF version {version}: only glTF 2.0 can be read (export it again as glTF 2.0)")
     buffers = []
@@ -198,6 +204,8 @@ def _accessor(doc, buffers, index, cache: dict) -> np.ndarray:
     except (KeyError, IndexError, TypeError) as exc:
         raise MeshError(f"accessor {index} is broken ({exc})") from exc
     item = np.dtype(comp).itemsize * size
+    if count < 0 or (count > MAX_COUNT and "bufferView" not in acc):
+        raise MeshError(f"accessor {index} says it holds {count:,} items: the file is broken")
     if "bufferView" in acc:
         view = doc["bufferViews"][acc["bufferView"]]
         buf = buffers[view.get("buffer", 0)]
@@ -274,13 +282,39 @@ def _image_ext(data: bytes, mime: str = "", name: str = "") -> str:
     return {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}.get(mime, ".png")
 
 
+_BROKEN = (KeyError, IndexError, TypeError, ValueError, AttributeError, struct.error, OverflowError)
+
+
 def read_gltf(path: str) -> Model:
+    """A glTF / GLB file as a Model. A damaged file raises ``MeshError`` saying so (never a bare Python error)."""
+    try:
+        return _read_gltf(path)
+    except MeshError:
+        raise
+    except json.JSONDecodeError as exc:
+        raise MeshError(f"the file's description (JSON) is damaged or cut off: {exc.msg} at character {exc.pos}") \
+            from exc
+    except UnicodeDecodeError as exc:
+        raise MeshError("the file's description is not text (UTF-8): the file is damaged") from exc
+    except _BROKEN as exc:
+        raise MeshError(f"the glTF file is broken: {_what_broke(exc)}") from exc
+
+
+def _what_broke(exc) -> str:
+    if isinstance(exc, KeyError):
+        return f"'{exc.args[0]}' is missing"
+    if isinstance(exc, IndexError):
+        return "it points at an item it does not have"
+    return f"{exc.__class__.__name__}: {exc}"[:200]
+
+
+def _read_gltf(path: str) -> Model:
     doc, buffers = _load_gltf(path)
     model = Model()
     model.up, model.unit = "y", 1.0
     used = set(doc.get("extensionsUsed", [])) | set(doc.get("extensionsRequired", []))
     if used & _CONVERT:
-        raise NeedsBlender(f"the file is compressed ({', '.join(sorted(used & _CONVERT))})")
+        raise NeedsBlender(f"the file is compressed ({', '.join(sorted(used & _CONVERT))}: Draco or meshopt)")
     unknown = sorted(set(doc.get("extensionsRequired", [])) - _KNOWN)
     if unknown:
         raise MeshError(f"the file needs glTF extensions this app cannot read: {', '.join(unknown)}")
@@ -494,7 +528,7 @@ def read_credit_files(model: Model, path: str) -> None:
     pick = [n for n in names if re.match(r"(?i)^(license|licence|copying|credits?|readme|attribution)[^/]*\.(txt|md)$", n)
             or re.match(r"(?i)^(license|licence)$", n)]
     pick.sort(key=lambda n: (0 if n.lower().startswith(("license", "licence")) else 1, n.lower()))
-    for name in pick[:1]:
+    for name in pick[:3]:
         try:
             with open(os.path.join(folder, name), "rb") as fh:
                 text = fh.read(CREDIT_MAX * 4).decode("utf-8", "replace")
@@ -503,12 +537,16 @@ def read_credit_files(model: Model, path: str) -> None:
         text = "".join(ch for ch in text if ch >= " " or ch in "\n\t").strip()
         if not text:
             continue
+        if not name.lower().startswith(("license", "licence", "copying")) and not re.search(
+                r"(?i)licen[cs]|copyright|©|attribution|\bauthor\b|creative commons|CC[- ]BY|CC0", text):
+            continue                                 # a README about something else is no credit
         full = f"{model.credit_text}\n\n{name}:\n{text}" if model.credit_text else text
         model.credit_text = full[:CREDIT_MAX]
         line = _credit_line_from_text(text)
         has_licence = re.search(r"(?i)licen[cs]|CC[- ]BY|creative commons", model.credit or "")
         if not model.credit or (not has_licence and re.search(r"(?i)licen[cs]ed under", line)):
             model.credit = line                      # Sketchfab's own attribution line names the licence
+        break
 
 
 def _credit_line_from_text(text: str) -> str:
@@ -551,7 +589,7 @@ def _floats(rows: list[str], width: int) -> np.ndarray:
     return out
 
 
-def read_mtl(path: str, model: Model, by_name: dict) -> None:
+def read_mtl(path: str, model: Model, by_name: dict, obj_folder: str = "") -> None:
     try:
         lines = _text_lines(path)
     except OSError:
@@ -591,11 +629,17 @@ def read_mtl(path: str, model: Model, by_name: dict) -> None:
             file = _map_file(rest)
             if not file:
                 continue
-            full = os.path.join(folder, file.replace("\\", os.sep))
-            try:
-                with open(full, "rb") as fh:
-                    data = fh.read()
-            except OSError:
+            data = None
+            base = os.path.basename(file.replace("\\", "/"))
+            for full in (os.path.join(folder, file.replace("\\", os.sep)), os.path.join(folder, base),
+                         os.path.join(obj_folder or folder, base)):
+                try:
+                    with open(full, "rb") as fh:
+                        data = fh.read()
+                    break
+                except OSError:
+                    continue
+            if data is None:
                 _note(model, f"texture '{file}' is missing: its material shows its colour only")
                 continue
             model.images.append({"name": os.path.splitext(os.path.basename(file))[0], "data": data,
@@ -634,16 +678,17 @@ def read_obj(path: str) -> Model:
     by_key: dict = {}
     mtl_by_name: dict[str, int] = {}
     obj_name, grp_name, mat_name = "", "", ""
+    obj_no = 0                              # every "o" line starts a new object, also one with an old name
     any_o = any(ln.lstrip().startswith("o ") for ln in lines)
     cur = None
     n_v = n_vt = n_vn = 0
 
     def target():
         nonlocal cur
-        key = ((obj_name if any_o else grp_name) or "Mesh", mat_name)
+        key = ((obj_name if any_o else grp_name) or "Mesh", mat_name, obj_no if any_o else 0)
         cur = by_key.get(key)
         if cur is None:
-            cur = [key[0], mat_name, []]
+            cur = [key[0], mat_name, [], key[2]]
             by_key[key] = cur
             groups.append(cur)
         return cur
@@ -652,7 +697,8 @@ def read_obj(path: str) -> Model:
         s = line.strip()
         if not s or s[0] == "#":
             continue
-        head, _, rest = s.partition(" ")
+        head, _, rest = s.replace("\t", " ").partition(" ")
+        rest = rest.strip()
         if head == "v":
             v_rows.append(rest)
             n_v += 1
@@ -677,10 +723,10 @@ def read_obj(path: str) -> Model:
                 ni = ni + n_vn + 1 if ni < 0 else ni
                 corners.append((vi - 1, ti - 1, ni - 1))
             if len(corners) >= 3:
-                (cur if cur is not None and cur[0] == ((obj_name if any_o else grp_name) or "Mesh")
-                 and cur[1] == mat_name else target())[2].append(corners)
+                (cur if cur is not None else target())[2].append(corners)
         elif head == "o":
             obj_name = _clean_name(rest, "Mesh")
+            obj_no += 1
             cur = None
         elif head == "g":
             grp_name = _clean_name(rest, "Mesh")
@@ -690,15 +736,15 @@ def read_obj(path: str) -> Model:
             cur = None
         elif head == "mtllib":
             for name in _mtl_names(rest, os.path.dirname(path)):
-                read_mtl(os.path.join(os.path.dirname(path), name), model, mtl_by_name)
+                read_mtl(os.path.join(os.path.dirname(path), name), model, mtl_by_name, os.path.dirname(path))
     v = _floats(v_rows, 3)
     vt = _floats(vt_rows, 2)
     vn = _floats(vn_rows, 3)
     if not len(v):
         raise MeshError("the OBJ file has no corners (v lines)")
     names_used: dict[str, int] = {}
-    part_nodes: dict[str, int] = {}
-    for oname, mname, faces in groups:
+    part_nodes: dict[tuple, list] = {}
+    for oname, mname, faces, number in groups:
         if not faces:
             continue
         g = _obj_geom(oname, faces, v, vt, vn)
@@ -709,9 +755,9 @@ def read_obj(path: str) -> Model:
             _note(model, f"material '{mname}' is not in the material file: grey")
         names_used[mname] = 1
         model.geoms.append(g)
-        part_nodes.setdefault(oname, [])
-        part_nodes[oname].append(len(model.geoms) - 1)
-    for oname, gl in part_nodes.items():
+        part_nodes.setdefault((oname, number), [])
+        part_nodes[(oname, number)].append(len(model.geoms) - 1)
+    for (oname, _number), gl in part_nodes.items():
         model.node(oname, -1, None, gl)
     if not model.geoms:
         raise MeshError("the OBJ file has no faces")
@@ -725,13 +771,61 @@ def _mtl_names(rest: str, folder: str) -> list[str]:
     return rest.split()
 
 
+def _polygon_triangles(pts) -> list[tuple[int, int, int]]:
+    """Triangles of one polygon (corner numbers): a fan when it is convex, else ear clipping in its own plane, so a
+    concave face (an L-shaped plate) keeps its shape."""
+    n = len(pts)
+    fan = [(0, k, k + 1) for k in range(1, n - 1)]
+    p = np.asarray(pts, np.float64)
+    nrm = np.zeros(3)
+    for k in range(n):                                     # Newell's normal
+        a, b = p[k], p[(k + 1) % n]
+        nrm += ((a[1] - b[1]) * (a[2] + b[2]), (a[2] - b[2]) * (a[0] + b[0]), (a[0] - b[0]) * (a[1] + b[1]))
+    ln = np.linalg.norm(nrm)
+    if ln == 0 or not np.isfinite(ln):
+        return fan
+    nrm /= ln
+    u = np.cross(nrm, [1.0, 0, 0] if abs(nrm[0]) < 0.9 else [0, 1.0, 0])
+    u /= np.linalg.norm(u)
+    w = np.cross(nrm, u)
+    q = np.column_stack((p @ u, p @ w))                    # counter-clockwise seen along the normal
+
+    def cross(o, a, b):
+        return (q[a][0] - q[o][0]) * (q[b][1] - q[o][1]) - (q[a][1] - q[o][1]) * (q[b][0] - q[o][0])
+    if all(cross(k, (k + 1) % n, (k + 2) % n) >= 0 for k in range(n)):
+        return fan
+    idx = list(range(n))
+    out = []
+    guard = 0
+    while len(idx) > 3 and guard < n * n:
+        guard += 1
+        m = len(idx)
+        for t in range(m):
+            a, b, c = idx[t - 1], idx[t], idx[(t + 1) % m]
+            if cross(a, b, c) <= 0:
+                continue                                   # a reflex corner is no ear
+            if any(cross(a, b, x) >= 0 and cross(b, c, x) >= 0 and cross(c, a, x) >= 0
+                   for x in idx if x not in (a, b, c)):
+                continue                                   # another corner inside: no ear
+            out.append((a, b, c))
+            idx.pop(t)
+            break
+        else:
+            break                                          # no ear (self-crossing polygon): fan what is left
+    if len(idx) >= 3:
+        out += [(idx[0], idx[k], idx[k + 1]) for k in range(1, len(idx) - 1)]
+    return out
+
+
 def _obj_geom(name, faces, v, vt, vn) -> Geom | None:
     """The faces of one object and material: fans of triangles; corners (v, vt, vn) made unique."""
     tris = []
     for f in faces:
-        a = f[0]
-        for k in range(1, len(f) - 1):
-            tris.append((a, f[k], f[k + 1]))
+        if len(f) == 3:
+            tris.append(tuple(f))
+            continue
+        for i, j, k in _polygon_triangles([v[c[0]] if 0 <= c[0] < len(v) else (0.0, 0.0, 0.0) for c in f]):
+            tris.append((f[i], f[j], f[k]))
     corners = np.array(tris, np.int64).reshape(-1, 3)                     # (3 m, 3): v, vt, vn per corner
     bad = (corners[:, 0] < 0) | (corners[:, 0] >= len(v))
     if bad.any():
@@ -755,11 +849,12 @@ def _obj_geom(name, faces, v, vt, vn) -> Geom | None:
 # FBX and compressed glTF: Blender's own importer -> a plain GLB
 # ---------------------------------------------------------------------------
 
-def convert_with_blender(path: str, out_dir: str, converter: str | None) -> str:
+def convert_with_blender(path: str, out_dir: str, converter: str | None, why: str = "") -> str:
     """Convert ``path`` to a GLB in ``out_dir`` with Blender's importer and exporter. ``converter``: Blender's own
     program (the app passes ``bpy.app.binary_path``) or a Python that has the bpy module (tests)."""
     if not converter:
-        raise MeshError("this file needs Blender's own importer, and no Blender was given to the reader")
+        raise MeshError(f"{why or 'this file'} – it needs Blender's own importer, and no Blender was given to "
+                        "the reader")
     glb = os.path.join(out_dir, "converted.glb")
     if "blender" in os.path.basename(converter).lower():
         cmd = [converter, "-b", "--factory-startup", "--python", CONVERTER, "--", path, glb]
@@ -876,15 +971,16 @@ def _pieces(g: Geom, max_pieces: int) -> list[np.ndarray]:
     k = int(lab.max()) + 1 if len(lab) else 0
     if k <= 1:
         return [np.arange(len(g.tri))]
-    a, b, c = g.pos[g.tri[:, 0]], g.pos[g.tri[:, 1]], g.pos[g.tri[:, 2]]
-    area = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
-    size = np.bincount(lab, weights=area, minlength=k)
-    rank = np.lexsort((np.arange(k), -size))                      # biggest first, then file order
     order = np.argsort(lab, kind="stable")
     bounds = np.searchsorted(lab[order], np.arange(k + 1))
-    sets = [order[bounds[r]: bounds[r + 1]] for r in rank]
-    if len(sets) > max_pieces:
-        sets = sets[: max_pieces - 1] + [np.sort(np.concatenate(sets[max_pieces - 1:]))]
+    sets = [order[bounds[r]: bounds[r + 1]] for r in range(k)]   # file order: a piece keeps its number when
+    if len(sets) > max_pieces:                                   # another one grows (the model update names them)
+        a, b, c = g.pos[g.tri[:, 0]], g.pos[g.tri[:, 1]], g.pos[g.tri[:, 2]]
+        area = np.bincount(lab, weights=0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1), minlength=k)
+        big = np.sort(np.lexsort((np.arange(k), -area))[: max_pieces - 1])   # the biggest, in file order
+        rest = np.setdiff1d(np.arange(k), big)
+        sets = [sets[r] for r in big] + [np.sort(np.concatenate([sets[r] for r in rest]))]
+        sets.append(None)                                        # marks "the last one is the small pieces"
     return sets
 
 
@@ -905,14 +1001,14 @@ def read_model(path: str, out_dir: str, converter: str | None = None) -> Model:
         try:
             model = read_gltf(path)
         except NeedsBlender as exc:
-            glb = convert_with_blender(path, out_dir, converter)
+            glb = convert_with_blender(path, out_dir, converter, str(exc))
             model = read_gltf(glb)
             _note(model, f"read through Blender's own glTF importer: {exc}")
             os.remove(glb)
     elif ext == ".obj":
         model = read_obj(path)
     elif ext == ".fbx":
-        glb = convert_with_blender(path, out_dir, converter)
+        glb = convert_with_blender(path, out_dir, converter, "an FBX file")
         model = read_gltf(glb)
         model.credit = model.credit_text = ""               # Blender's exporter wrote its own asset text
         _note(model, "FBX: read with Blender's own FBX importer (units and axes from the file's header)")
@@ -981,13 +1077,15 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
             _note(model, f"'{g.name}': corners with no number (NaN) are left out")
         g = Geom(g.name, pos, g.tri, g.nrm @ axes.T if g.nrm is not None else None, g.uv, g.material)
         sets = _pieces(g, MAX_PIECES) if do_split else [np.arange(len(g.tri))]
-        if len(sets) > 1 and len(sets) == MAX_PIECES:
+        merged = bool(sets) and sets[-1] is None
+        if merged:
+            sets.pop()
             pieces_note += 1
         out = []
         for k, ts in enumerate(sets):
             sub = _sub(g, ts, g.name) if len(sets) > 1 else g
             mid = len(mesh_meta)
-            small = len(sets) == MAX_PIECES and k == len(sets) - 1
+            small = merged and k == len(sets) - 1
             suffix = "" if len(sets) == 1 else (" small pieces" if small else f" {k + 1}")
             mesh_meta.append(_store_mesh(arrays, mid, sub, g.name + suffix))
             out.append((mid, suffix))
@@ -1011,7 +1109,8 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
         key = (parent, name)
         counts[key] = counts.get(key, 0) + 1
         puid = nodes[parent]["uid"] if parent >= 0 else ""
-        uid = f"{puid}/{name}#{counts[key]}" if puid else f"{name}#{counts[key]}"
+        safe = name.replace("%", "%25").replace("/", "%2F").replace("#", "%23")   # a uid is "parent/name#n"
+        uid = f"{puid}/{safe}#{counts[key]}" if puid else f"{safe}#{counts[key]}"
         node = {"uid": uid, "name": name, "instance": instance, "parent": parent,
                 "matrix": matrix, "kind": kind, "mesh": mesh, "color": color}
         if material:

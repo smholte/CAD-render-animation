@@ -271,7 +271,9 @@ and the web 3D model.
 - **The look "From file"**: every part shows the colour, shine and pictures (textures) its file gave it.
   The pictures are packed into the project, so it stays one file. The material groups are named after the
   file's materials; pick another **Ready-made material…** for a group and it replaces the file's look as usual
-  (pick **From file (the model's own look)** under *Other* to have it back).
+  (pick **From file (the model's own look)** under *Other* to have it back). A part that lands in a group an
+  earlier model already made (a pin among your own machine's pins) takes that group's look; pick **From file** for
+  that group if its parts should keep their file's looks (parts without one show the group's colour).
 - **Faces like a CAD model**: a mesh has no CAD faces, so the app finds them – flat faces, round faces (a
   facetted shaft, hole or slewing ring of 16 sides or more) and the rest. Clicking a round face for a joint
   gives its axis through its centre, as with a STEP part; hover, painting faces and stickers work the same.

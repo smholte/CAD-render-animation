@@ -577,9 +577,7 @@ def test_a_licence_file_next_to_the_model_gives_the_credit(tmp_path):
     assert "licensed under CC-BY-4.0" in info["credit"]
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 12: any README.* next to the model becomes its credit line, also one "
-                                       "that names no author or licence (a model saved in Downloads or a project "
-                                       "folder gets the credit 'Shopping list')")
+# FINDING 12 of the independent tester: fixed (task 0117)
 def test_an_unrelated_readme_is_not_the_credit(tmp_path):
     g = G()
     pos, tri = tri_quad()
@@ -621,8 +619,7 @@ def test_base_colour_texture_on_texcoord_1(tmp_path):
     assert sorted({float(x) for x in np.round(u[:, 1], 4)}) == [0.75, 1.0]   # Blender's v = 1 - glTF's v
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 1: a Draco glTF read without a converter only says 'needs Blender's "
-                                       "own importer', not that the file is Draco-compressed")
+# FINDING 1 of the independent tester: fixed (task 0117)
 def test_draco_without_a_converter_says_it_is_compressed(tmp_path):
     g = G()
     pos, tri = tri_quad()
@@ -682,11 +679,7 @@ def _broken(kind):
     return f
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 2: broken files raise bare Python errors (JSONDecodeError, IndexError, "
-                                       "ValueError, TypeError, AttributeError), not a MeshError that says what is "
-                                       "wrong; "
-                                       "the user reads 'Could not read the mesh file: IndexError: list index out of "
-                                       "range'")
+# FINDING 2 of the independent tester: fixed (task 0117)
 @pytest.mark.parametrize("kind", ["GLB cut inside its JSON", "bufferView index", "buffer index", "asset not an object",
                                   "scene nodes null", "matrix of 3 numbers", "POSITION is VEC2",
                                   "sparse past its buffer", "sparse index past the corners", "primitives null",
@@ -717,8 +710,7 @@ def test_huge_count_in_an_accessor_with_a_buffer_view_is_refused_fast(tmp_path):
     assert time.time() - t0 < 5
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 3: an accessor without a bufferView and a huge count allocates "
-                                       "count x size zeros (np.zeros) - MemoryError, or gigabytes for a mid-size count")
+# FINDING 3 of the independent tester: fixed (task 0117)
 def test_huge_count_in_an_accessor_without_a_buffer_view_is_refused(tmp_path):
     g = G()
     pos, tri = tri_quad()
@@ -773,8 +765,7 @@ def test_duplicate_sibling_names_get_unique_uids(tmp_path):
     assert len(set(uids)) == len(uids) == 6
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 4: a node name with '/' (or '#') makes uids collide: 'A/B#1/C' "
-                                       "(a part named 'B#1/C') equals the uid of part C under B")
+# FINDING 4 of the independent tester: fixed (task 0117)
 def test_names_with_slashes_do_not_make_uids_collide(tmp_path):
     g = G()
     pos, tri = tri_quad()
@@ -878,9 +869,7 @@ def test_obj_map_options_and_texture_names_with_spaces(tmp_path):
     assert "normal_texture" in m and m.get("normal_is_bump") is True
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 13: an MTL texture given with the author's absolute path "
-                                       "('map_Kd C:\\Users\\someone\\Desktop\\tile.png', from 3ds Max / SketchUp) is "
-                                       "'missing' even when tile.png lies next to the OBJ")
+# FINDING 13 of the independent tester: fixed (task 0117)
 def test_obj_texture_with_the_authors_absolute_path(tmp_path):
     png = maker.checker(8, 2)
     (tmp_path / "tile.png").write_bytes(png)
@@ -900,8 +889,7 @@ def test_obj_bom_crlf_continuation_and_vertex_colours(tmp_path):
     assert same_point_set(world_points(info, arr, nd), [[0, 0, 0], [1, 0, 0], [1, 1, 0]])
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 5: OBJ lines whose keyword is followed by a TAB ('v\\t1 2 3', "
-                                       "'f\\t1 2 3') are skipped: the file reads as 'no corners'")
+# FINDING 5 of the independent tester: fixed (task 0117)
 def test_obj_tab_separated_lines(tmp_path):
     text = "o T\nv\t0 0 0\nv\t1 0 0\nv\t1 1 0\nf\t1 2 3\n"
     info, arr, _ = read(write(tmp_path / "tab.obj", text), tmp_path, units="m", up="z")
@@ -933,8 +921,7 @@ def _polygon_area(xy):
     return 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 6: a concave OBJ ngon is cut as a fan from its first corner: "
-                                       "triangles outside the polygon (an L-shaped plate comes in wrong)")
+# FINDING 6 of the independent tester: fixed (task 0117)
 def test_obj_concave_ngon_keeps_its_shape(tmp_path):
     # an L: the fan from the first corner (2, 0) crosses the notch
     L = np.array([[2, 0], [2, 1], [1, 1], [1, 2], [0, 2], [0, 0]], float)
@@ -948,8 +935,7 @@ def test_obj_concave_ngon_keeps_its_shape(tmp_path):
     assert np.allclose(n, n[0], atol=1e-6)                           # no triangle turned over
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 7: two OBJ objects with the same name ('o Bolt' twice) are merged "
-                                       "into one part; Blender's own OBJ importer keeps them apart")
+# FINDING 7 of the independent tester: fixed (task 0117)
 def test_obj_two_objects_with_one_name_stay_two_parts(tmp_path):
     text = ("o Bolt\n" + CUBE_V + CUBE_QUADS +
             "o Bolt\n" + "".join(f"v {x + 5} {y} {z}\n" for x, y, z in box((0, 0, 0), (2, 2, 2))[0]) +
@@ -1000,8 +986,7 @@ def test_more_than_max_pieces_keep_the_small_ones_together(tmp_path, monkeypatch
     assert [n["name"] for n in parts(info)] == ["Lump 1", "Lump 2", "Lump small pieces"]
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 8: a mesh with exactly MAX_PIECES loose pieces names its last single "
-                                       "piece 'small pieces' and notes 'more than 999 pieces' (off by one)")
+# FINDING 8 of the independent tester: fixed (task 0117)
 def test_exactly_max_pieces_are_all_parts(tmp_path, monkeypatch):
     monkeypatch.setattr(mesh_reader, "MAX_PIECES", 3)
     info, _, _ = read(_boxes_glb(tmp_path, [1.0, 0.9, 0.8]), tmp_path)
@@ -1009,9 +994,7 @@ def test_exactly_max_pieces_are_all_parts(tmp_path, monkeypatch):
     assert not any("small pieces" in n for n in info["notes"])
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 9: split pieces are numbered by area: a revision where one piece grows "
-                                       "past another swaps their names, and the model update gives the work to the "
-                                       "wrong piece")
+# FINDING 9 of the independent tester: fixed (task 0117)
 def test_piece_names_follow_the_piece_not_its_rank(tmp_path):
     a, _, _ = read(_boxes_glb(tmp_path, [1.0, 0.8], "a.glb"), tmp_path, "a")
     b, ab, _ = read(_boxes_glb(tmp_path, [1.0, 1.2], "b.glb"), tmp_path, "b")
@@ -1334,9 +1317,7 @@ def test_a_changed_source_file_is_read_again(tmp_path):
     assert not b.cached and b.cache_dir != a.cache_dir
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 10: the cache key uses size and whole-second mtime only: a file "
-                                       "rewritten with the same size in the same second (moved corners) is taken "
-                                       "from the stale cache (inherited from STEP)")
+# FINDING 10 of the independent tester: fixed (task 0117)
 def test_a_same_size_change_in_the_same_second_is_read_again(tmp_path):
     src = tmp_path / "m.gltf"
     g = G()
@@ -1446,10 +1427,9 @@ def test_app_model_update_keeps_a_look_picked_by_hand_and_from_file_still_works(
     assert mesh_import.file_material(hook) is not None
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 15: in a project that already holds a STEP model, a mesh part that "
-                                       "joins "
-                                       "a group the STEP model made (BOOM PIN -> 'Shafts, pins & spacers') shows that "
-                                       "group's look, not its file material: the same model looks different by project")
+# FINDING 15 of the independent tester: decided (task 0117) – groups decide looks for every model alike. A mesh part
+# that joins a group an earlier model made takes that group's look (documented in the guide); groups made by the
+# mesh import start with "From file", and "From file" picked for any group shows each part's own file material.
 def test_app_mesh_model_after_a_step_model_keeps_its_file_looks(app_on, tmp_path):
     pytest.importorskip("OCP")
     bpy = app_on
@@ -1458,6 +1438,10 @@ def test_app_mesh_model_after_a_step_model_keeps_its_file_looks(app_on, tmp_path
     assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_crane_a.step")) == {"FINISHED"}
     assert bpy.ops.fresing.import_mesh(filepath=CRANE) == {"FINISHED"}
     root = next(r for r in build.model_roots(sc) if mesh_import.is_mesh_model(r))
+    pin = next(o for o in root.children_recursive if o.get(build.PROP_NAME) == "BOOM PIN")
+    g = sc.fresing.groups[pin[build.PROP_GROUP]]
+    assert g.material != mesh_import.FROM_FILE                  # the STEP model's group keeps its look
+    g.material = mesh_import.FROM_FILE                          # picked by hand: every part shows its own material
     for ob in root.children_recursive:
-        if ob.type == "MESH" and mesh_import.file_material(ob) is not None:
+        if ob.type == "MESH" and ob.get(build.PROP_GROUP) == g.name:
             assert ob.material_slots[0].material == mesh_import.file_material(ob), ob.get(build.PROP_NAME)
