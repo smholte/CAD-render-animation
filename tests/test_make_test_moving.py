@@ -26,7 +26,7 @@ def test_the_shipped_copy_is_the_test_data():
 def test_the_maker_checks_itself():
     root = maker.model()
     maker.check(root, say=lambda *_: None)
-    assert maker.count_parts(root) == len(maker.PARTS) == 14
+    assert maker.count_parts(root) == len(maker.PARTS) == 34           # 14 before task 0122
 
 
 def test_the_numbers():
