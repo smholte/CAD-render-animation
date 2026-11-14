@@ -53,6 +53,7 @@ N_LAID, N_PILED = 2, 64                 # points of the part on the seabed (stra
 N_MIN, N_MAX = 16, 600                  # points of the hanging part
 WRAP_SHEAVE = math.pi                   # a sheave lets the cable go at most half round it before it leaves
 SHORT = 1e-4                            # m: an arc this short on the hang-off wheel: the cable just touches it
+BAND = 0.02                             # m: dead band of "the wheel before has gone past the hang-off" (task 0082)
 _STATE = {"sea": {}}                    # runtime: per cable the last solve's numbers (dropped at load / undo)
 
 
@@ -311,6 +312,10 @@ class _Arrive:
             ok = res["ok"]
             widest = res["wrap"][ok].max(axis=0) if ok.any() else np.zeros(W)
             widest[-1] = max(float(widest[-1]), self.wmax)
+            # every wheel may come to hang the cable (task 0082): points enough for the wrap it may have then, so a
+            # pose shown live is drawn as finely as along a built animation
+            ws = paths._wheels(item)[:W]
+            widest[:len(ws)] = np.maximum(widest[:len(ws)], [_wrap_max(item, c) for c in ws])
             counts = paths._counts(np.asarray(radii) * scale, widest)
         res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, False, counts=counts, held=True,
                              wraps0=wraps0)
@@ -376,7 +381,9 @@ def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
     leave it where it arrives (it does not bend round it), or the wheel before it has gone past it in the lay
     direction (its hanging point lies further aft: a quadrant carried over the stern and down past the horn), so a
     cable hanging from that one never comes to it. Then the wheel before hangs it, and so on (never the first).
-    Along an animation a wheel once released stays released for the later moments."""
+    The pose decides, live and along an animation alike: a wheel the moving one comes back in front of, and the
+    cable bends round again, catches it again. Against flicker, "gone past" has a dead band of ``BAND``: within it
+    a wheel stays as it was a moment before (the frame before, or the pose solved a moment ago live)."""
     _starts, centres, axes, radii, sides, _on0, _wraps0, _scale = parts
     F, W = rel.shape[0], len(radii)
     hang = np.full(F, W - 1, dtype=np.int64)
@@ -400,11 +407,19 @@ def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
         touch = hung[h]["psi"] * a.radius >= SHORT
         td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx])
         td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx])
-        past = ((td_p - td_h) * lay[idx]).sum(1) > 1e-6
+        d = ((td_p - td_h) * lay[idx]).sum(1)            # > 0: the wheel before has gone past this one
+        sure = lifted | ~touch | (d > BAND)
+        near = d > -BAND
+        was = bool(F == 1 and prev is not None and len(prev.get("hang", ())) == 1 and int(prev["hang"][0]) < h)
+        out_h = np.zeros(len(idx), dtype=bool)
+        last = -2
+        for j, f in enumerate(idx):
+            if int(f) != last + 1:
+                was = was if j == 0 else False
+            out_h[j] = sure[j] or (was and near[j])
+            was, last = bool(out_h[j]), int(f)
         free = np.zeros(F, dtype=bool)
-        free[idx] = lifted | past | ~touch
-        if F > 1:
-            free = np.maximum.accumulate(free) & (hang == h)
+        free[idx] = out_h
         if not free.any():
             break
         hang[free] = h - 1
@@ -470,6 +485,10 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     n_cat = int(np.clip(math.ceil(s_max / step), N_MIN, N_MAX))
     piles = np.concatenate([hr["laid"][hr["kind"] == C.PILED] for hr in hung.values()])
     n_laid = laid_points(float(piles.max())) if len(piles) else N_LAID
+    if F == 1:              # a pose shown keeps the points it was drawn with (as many as a built animation had)
+        paths = _paths()
+        had = paths._layout_of(paths._shapes(scene, item))[1]
+        n_cat += max(0, int(had) - (int(ar.i0) + int(counts[-1]) + n_cat + n_laid))
     n_pts = int(ar.i0) + int(counts[-1]) + n_cat + n_laid
     pts, s_all = np.zeros((F, n_pts, 3)), np.zeros((F, n_pts))
     ok = np.zeros(F, dtype=bool)

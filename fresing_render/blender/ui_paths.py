@@ -436,7 +436,10 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         if cb.joint and joints.find(scene, cb.joint) is not None:
             wrap(layout, context, f"Cable speed: joint '{cb.joint}'", icon="FORCE_VORTEX")
             layout.prop(cb, "keep_tight", text="Winch keeps it tight")
-            if cb.keep_tight:                   # (task 0082)
+            skipped = paths.tight_skipped(scene, cb)
+            if skipped:                         # (task 0082)
+                wrap(layout, context, f"Not kept tight: {skipped}", icon="ERROR", alert=True)
+            if cb.keep_tight and not skipped:
                 wrap(layout, context, f"The winch pays out {paths.tight_payout(scene, cb):.2f} m now: as much as the "
                      "moving sheaves need", icon="BLANK1")
             else:
