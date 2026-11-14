@@ -2312,7 +2312,8 @@ the machine himself, or for your website.
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
 5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
-   page plays it in a loop. It makes the export slower.
+   page plays it in a loop. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
+   in or takes out come and go as in the animation. It makes the export slower.
 6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.

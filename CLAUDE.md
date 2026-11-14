@@ -458,6 +458,8 @@ tools/                     build_release.py, release_tools.py (release job), tes
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
                            make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
                            fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
+                           make_site_web_models.py (task 0111): the landing page's moving 3D models (test mill tool
+                           changes, Thor) exported with Soft light and put on the page by build_site.py --web-model;
                            make_site_projects.py + site_projects/ (task 0112): the site's moving models from their own
                            sources (cloned at pinned commits): thor.py reads Thor's FreeCAD Assembly4 files (a4.py) – the
                            joints from the attachment frames, checked by round faces on both sides of each hinge, the

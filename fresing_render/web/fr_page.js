@@ -21,7 +21,8 @@
   var probes = (Q.get('probe') || '').split(';').map(function (p) { return p.split(',').map(parseFloat); })
     .filter(function (p) { return p.length === 2 && isFinite(p[0]) && isFinite(p[1]); });
   var page = window.frPage = { ready: false, settings: ST, level: null, fps: 0, frames: 0, errors: [], lowered: 0,
-                               info: {}, light: { light: null, materials: 0, meshes: 0, plain: plain } };
+                               info: {}, light: { light: null, materials: 0, meshes: 0, plain: plain },
+                               paused: false, time: 0 };   // task 0111: a page around it may pause the motion
   // the page's state in its own HTML (data-fr-state on <html>): the PC check reads it with a headless browser
   function mark() {
     var root = document.documentElement.dataset;
@@ -781,7 +782,8 @@
 
   function frame() {
     var dt = Math.min(clock.getDelta(), 0.1);
-    elapsed += dt;
+    if (!page.paused) elapsed += dt;
+    page.time = elapsed;
     var t = frozen != null ? frozen : elapsed;
     var tScene = ST.time.start + t;
     var dist = camera.position.distanceTo(controls.target);

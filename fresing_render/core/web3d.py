@@ -499,14 +499,16 @@ class Gltf:
         return k
 
     def animation(self, name: str, times: np.ndarray, tracks: list[tuple[int, str, np.ndarray]]) -> int | None:
-        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4))."""
+        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4)[, interpolation]): LINEAR unless
+        a fourth item says "STEP" (a part shown and hidden by its scale, task 0111)."""
         if not tracks:
             return None
         t_acc = self.accessor(np.asarray(times, np.float32), "SCALAR", FLOAT, minmax=True)
         anim = {"name": name, "samplers": [], "channels": []}
-        for node, path, values in tracks:
+        for track in tracks:
+            node, path, values = track[:3]
             kind = "VEC4" if path == "rotation" else "VEC3"
-            anim["samplers"].append({"input": t_acc, "interpolation": "LINEAR",
+            anim["samplers"].append({"input": t_acc, "interpolation": track[3] if len(track) > 3 else "LINEAR",
                                      "output": self.accessor(np.asarray(values, np.float32), kind, FLOAT)})
             anim["channels"].append({"sampler": len(anim["samplers"]) - 1, "target": {"node": node, "path": path}})
         self.doc.setdefault("animations", []).append(anim)
