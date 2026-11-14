@@ -525,7 +525,7 @@ def test_swap_and_remove_buttons(scene):
     assert bpy.ops.fresing.joint_remove() == {"FINISHED"}
     assert len(s.joints) == 1 and joints.rides_on(scene, s.joints[0]) is None
     assert "now rides on what it sat on" in s.last_message
-    assert logic.part_count(build.model_roots(scene)[0]) == 12
+    assert logic.part_count(build.model_roots(scene)[0]) == 20      # 12 before task 0122 (screws, cylinder, pins)
 
 
 # ---------------------------------------------------------------------------
