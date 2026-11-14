@@ -1494,6 +1494,77 @@ def _check_sea_cable(scene):
             f"on the seabed still to {drift * 1000:.2f} mm, the CPS set {-low:.1f} m under the water")
 
 
+MOVING_ANIM = "Over the stern"
+
+
+@tour_set("moving_cable", "A cable on a moving part", "test_moving.step")
+def build_moving(b: Build):
+    from . import paths, paths_sea
+    sc = b.scene
+    s = sc.fresing
+    _look("PRODUCT")
+    s.background, s.env_detail, s.sea_state = "SEA", "SIMPLE", "CALM"
+    s.water_level = 2.0                     # the hull's draft: the waterline is the model's z = 0
+    s.sea_depth, s.sea_clarity = 15.0, 15.0
+    _update()
+    made = paths.set_up_moving_model(sc)
+    _check(made["animation"] == MOVING_ANIM, f"the animation is called '{made['animation']}'")
+    for name in (made["cable"], made["wire"]):
+        it = paths.find(sc, name)
+        _check(it is not None and not it.problem, f"'{name}': {it.problem if it is not None else 'missing'}")
+    s.sea_cut_auto = True
+    s.sea_cutaway = True
+    _update()
+    cam = _camera(b, "ISO", "Tour view", lens=30.0)
+    cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    shot = _shot(b, "Tour: over the stern")
+    a = s.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_moving_cable(scene):
+    """Along the built animation: the lift wire's winch keeps it tight (its free length as drawn to 0.5 mm, what it
+    pays out turns the head sheave), the cable end leaves the horn and hangs from the sheave once that has gone over
+    the stern, and after the let-go frame its start stays on the seabed while the block goes on; its length (start
+    to its end on the seabed) is kept throughout."""
+    import numpy as np
+
+    from . import build, paths, paths_sea
+    it, w = paths.find(scene, paths.MOVING_CABLE), paths.find(scene, paths.MOVING_WIRE)
+    _check(it is not None and w is not None, "the cable end or the lift wire is missing")
+    for x in (it, w):
+        _check(paths.status(scene, x)[1] == "OK", f"'{x.name}' says: {paths.status(scene, x)[0]}")
+    free0 = paths.free_length(scene, w, cad=True)
+    f0 = int(round(paths.MOVING_LET_GO * 25)) + 1
+    tight, totals, hangs, starts, sheaves = 0.0, [], [], [], []
+    sheave = next(o for o in scene.objects if o.get(build.PROP_NAME) == "SHEAVE")
+    for f in (scene.frame_start, f0 - 60, f0, (f0 + scene.frame_end) // 2, scene.frame_end):
+        scene.frame_set(f)
+        _update()
+        it, w = paths.find(scene, paths.MOVING_CABLE), paths.find(scene, paths.MOVING_WIRE)
+        tight = max(tight, abs(paths.free_length(scene, w) - paths.tight_payout(scene, w) - free0))
+        totals.append(float(paths.lengths_now(scene, it)[-1]))
+        hangs.append(paths_sea.numbers(scene, it).get("hang_off", ""))
+        if f >= f0:
+            inv = np.linalg.inv(np.array(paths_sea.bed(scene).matrix_world))
+            line = np.array(paths.shape_now(scene, it), dtype=float)
+            starts.append(inv[:3, :3] @ line[0] + inv[:3, 3])
+            sheaves.append(inv[:3, :3] @ np.array(sheave.matrix_world)[:3, 3] + inv[:3, 3])
+    pay = paths.tight_payout(scene, w)
+    drift = float(max(np.linalg.norm(p - starts[0]) for p in starts))
+    went = float(max(np.linalg.norm(p - sheaves[0]) for p in sheaves))
+    _check(tight < paths.TIGHT_TOL, f"the lift wire's free length changed by {tight * 1000:.1f} mm")
+    _check(pay > 10.0, f"the winch paid out only {pay:.2f} m")
+    _check(hangs[0] == "HORN" and hangs[-1] == "SHEAVE", f"the cable hangs from {hangs[0]} and then {hangs[-1]}")
+    _check(max(totals) - min(totals) < 1e-3, f"the cable's length changed by {(max(totals) - min(totals)) * 1000:.1f} mm")
+    _check(drift < 1e-3, f"the let-go start moved {drift * 1000:.1f} mm over the seabed")
+    _check(went > 3.0, "the block did not go on after the let-go")
+    return (f"the winch paid out {pay:.2f} m with the wire tight to {tight * 1000:.2f} mm; the cable left the horn "
+            f"for the sheave, kept its length to {(max(totals) - min(totals)) * 1000:.2f} mm and its let-go start "
+            f"stayed on the seabed to {drift * 1000:.2f} mm while the block went {went:.1f} m on")
+
+
 TRACKS_ANIM = "Tracks"
 
 
@@ -2737,6 +2808,15 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable.",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
      check=_check_sea_cable, auto="clip")
+stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
+     "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
+     "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
+     "once the sheave has gone past the horn the cable hangs from the sheave instead. Near the seabed the cable is "
+     "let go: its end and its turn round the sheave stay on the seabed while the block is lifted away. The grey "
+     "lift wire from the fairlead over the trolley's head sheave stays tight: its winch pays out as the trolley "
+     "travels and the block goes down, and the head sheave turns with it.",
+     where="4 Motion > Cables and paths (Winch keeps it tight, Let go here)", animation=MOVING_ANIM, play=True,
+     since="0.2.93", check=_check_moving_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

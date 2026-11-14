@@ -22,7 +22,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 def test_every_stop_is_complete():
     ids = [s.id for s in tour.STOPS]
     assert len(ids) == len(set(ids)), "two stops with the same id"
-    assert 20 <= len(tour.STOPS) <= 60          # 38 after tasks 0035 + 0087, 41 after 0085 + 0077, 45 after 0058 + 0099, 52 after 0106 + 0079, 55 after 0109
+    assert 20 <= len(tour.STOPS) <= 70          # 38 after tasks 0035 + 0087, 41 after 0085 + 0077, 45 after 0058 + 0099, 52 after 0106 + 0079, 55 after 0109, 59 after 0082
     assert [s.number for s in tour.STOPS] == list(range(1, len(tour.STOPS) + 1))
     for s in tour.STOPS:
         assert s.group in tour.GROUPS, s.id

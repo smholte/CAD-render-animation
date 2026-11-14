@@ -1151,6 +1151,35 @@ waterline, the seabed further away, the cable beyond the box.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
+#### A cable on a moving part
+
+A sheave, chute or quadrant the cable goes round may sit on something that moves: a trolley, a tilting handler, a
+block lowered on a wire. The cable then follows it at every frame – live while you pose, and worked out once for
+every frame when you build the animation. Three things help with that.
+
+**Winch keeps it tight.** A wire from a winch over moving sheaves needs more wire when they move apart and less
+when they come back. Tick **Winch keeps it tight** under the cable's speed: the app sets the cable speed itself so
+the free length (from where the wire leaves its drum, or its start, to its end – or to where it arrives on the horn
+it hangs from into the sea) stays as in the CAD file. The panel says how much the winch has paid out now; the drum,
+the sheaves and the stripes turn and run with it. Build animation writes that payout for every frame. Do not move
+that cable's speed with a step in 6 Animation as well: the app then leaves it to the step and says so.
+
+**The cable hangs on from the next sheave.** A cable into the sea hangs from the last contact it still bends
+round. When a quadrant or a block carries its sheave over the stern and down past the horn, the cable no longer
+reaches the horn: it hangs from the sheave instead (the cable stays one piece, with its exact length). The fold
+**Into the sea** says so in grey, for example "Hangs from 'SHEAVE': it left 'HORN' at frame 84" – no fault. Once
+left, the horn stays left for the rest of the animation.
+
+**Let go here.** Where the cable slides off a quadrant on the seabed, or its end is let go, go to that frame, choose
+the contact under "What it touches" (or use the small button on the start or end line) and press **Let go here**.
+From that frame on that contact or end no longer moves with its part: it stays where it was – for a cable into the
+sea it stays on the seabed and passes aft with it, while the quadrant is lifted away. The line says from which frame
+("It stays where it was from frame 231 on"); the button beside it, **Hold again**, takes it back. Build animation
+reads the place at that frame again, so a changed motion is taken along.
+
+Try it in the test tour ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
+lift wire stays tight and the cable end is let go near the seabed.
+
 
 ### Drums and carousels
 
