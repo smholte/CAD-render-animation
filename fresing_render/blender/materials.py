@@ -374,6 +374,14 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
         from . import cable_looks
         color, metallic, rough, normal = cable_looks.apply(b, bsdf, spec["cable"], color, metallic, rough, normal)
 
+    if spec.get("marine"):  # steel at sea (task 0116): growth below the waterline, splash zone, run-down streaks
+        from . import marine_looks
+        if marine_looks.kind_name(spec["marine"].get("kind", "GROWTH")) == "GROWTH":
+            for sc in bpy.data.scenes:       # the waterline follows the surroundings' sea
+                marine_looks.sync(sc)
+        color, metallic, rough, normal = marine_looks.apply(b, bsdf, spec["marine"], color, metallic, rough, normal,
+                                                            coat=float(spec.get("coat", 0.0)))
+
     if wear > 0.0 and not spec.get("transmission") and not spec.get("emission"):
         color, metallic, rough = _wear(b, float(wear), spec, color, metallic, rough)
 

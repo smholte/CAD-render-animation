@@ -70,11 +70,17 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 
 /* built on Blender */
 .turn { padding: 56px 0; background: var(--mist); }
-.turn-in { display: grid; grid-template-columns: 1fr 1.2fr; gap: 48px; align-items: center; }
-.turn p { max-width: 58ch; }
-.turn-poster { margin: 0; }
-.turn-poster img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 4px; background: #E8ECEF; }
-.turn-poster figcaption { font-size: .85rem; color: var(--slate); margin-top: 8px; }
+.turn p { max-width: 62ch; }
+/* "Turn it yourself": one card per model (task 0111); they wrap on a phone */
+.cards { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.card { background: var(--white); border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+  display: flex; flex-direction: column; }
+.card-pic { display: block; background: #E8ECEF; }
+.card-pic img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.card h3 { margin: 16px 18px 4px; font-size: 1.15rem; }
+.card p { margin: 0 18px 8px; color: var(--slate); font-size: .95rem; }
+.card .button { margin: auto 18px 18px; align-self: flex-start; }
 .blender { background: var(--deep); color: var(--white); padding: 56px 0; }
 .blender-in { display: grid; grid-template-columns: 1fr 340px; gap: 48px; align-items: center; }
 .blender p { color: var(--line); max-width: 62ch; }
@@ -116,7 +122,7 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .credits { padding-left: 1.2em; }
 
 @media (max-width: 860px) {
-  .hero-in, .two, .fresing-in, .blender-in, .turn-in { grid-template-columns: 1fr; gap: 28px; }
+  .hero-in, .two, .fresing-in, .blender-in { grid-template-columns: 1fr; gap: 28px; }
   .feature { max-width: 340px; }
   .hero { padding-top: 32px; }
   .bar nav a:not(:last-child) { display: none; }

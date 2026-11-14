@@ -11,7 +11,7 @@ Render. The models themselves are **not** in this repository – only the pictur
 - Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0 – https://github.com/AngelLM/Thor (first render; a corrected one follows)
 - FarmBot Genesis by FarmBot Inc., CC0 1.0 – https://genesis.farm.bot/
 - CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) – https://github.com/goscommons/CEB-Press
-- Test mill with a double-arm tool changer: an invented machine made by Fresing Render's own test-model maker (tools/make_test_atc.py) – the 3D model of "Turn it yourself" (task 0099), exported with 5 Scene & Render > Web 3D model
+- Test mill with a double-arm tool changer: an invented machine made by Fresing Render's own test-model maker (tools/make_test_atc.py) – a 3D model of "Turn it yourself" (tasks 0099, 0111), exported with 5 Scene & Render > Web 3D model
 
 Rendered by the owner on his PC with `site/render_kit` (RTX 3090, Final quality, 9 Nov 2026). The test-model
 placeholders of the first version are gone. Thor and OpenArm follow after a second run (see below).
@@ -30,17 +30,39 @@ CAD not licensed, Open-MiRoREA – non-commercial).
 | Thor robot arm | Ángel L. M. (AngelLM) | CC BY-SA 4.0 | https://github.com/AngelLM/Thor | Thor robot arm by Ángel L. M. (AngelLM), CC BY-SA 4.0 |
 | FarmBot Genesis | FarmBot Inc. | CC0 1.0 (to be confirmed on genesis.farm.bot) | https://genesis.farm.bot/ | FarmBot Genesis by FarmBot Inc., CC0 1.0 |
 | CEB brick press (hydraulic cylinders) | Open Source Ecology | CC BY-SA 4.0 (`LICENSE.md`) | https://github.com/goscommons/CEB-Press – FreeCAD, converted to STEP in this session (246 parts) | CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) |
+| IEA 15 MW wind turbine, offshore (monopile) and on land | IEA Wind TCP Task 37 (Gaertner et al., NREL / DTU / UMaine, 2020) | Apache-2.0 (`LICENSE`; no NOTICE file in the repository) | https://github.com/IEAWindSystems/IEA-15-240-RWT – its SolidWorks model (`CAD/deprecated/IEA-15-240-RWT_Solidworks.zip`), exported to STEP by the owner in Fusion (task 0116) | IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing |
 
 Not used: anything from GrabCAD (its terms do not allow it), MPCNC / LowRider (non-commercial licence), PrintNC
 (CAD moved off the licensed repository), and models whose licence could not be confirmed.
 
+## The IEA 15 MW turbine: what Fresing changed (Apache-2.0, section 4)
+
+The model is the IEA Wind TCP Task 37 reference turbine, version 1.0 (github.com/IEAWindSystems/IEA-15-240-RWT, tag
+v1.0, Apache-2.0; report: Gaertner et al., "Definition of the IEA 15-Megawatt Offshore Reference Wind Turbine",
+NREL/TP-5000-75698, 2020). The STEP files of the render kit (`iea15_offshore.step`, `iea15_onshore.step`, written by
+`tools/make_site_projects.py`) are **modified** copies of its SolidWorks model, and say so in their header. Changes:
+the model moved so the tower stands on z and the sea level is z 0 (on land 14 m lower); the tower solid cut into tower
+and monopile, a door opening cut into it; modelling aids hidden (the stand-in main bearing rings, the blades' root
+discs, a ball at the hub's centre, the monopile below the seabed); added by Fresing: nacelle cover with hatch, cooler,
+helicopter-hoist platform, aviation lights and wind sensors, tower door, steps, tower flanges, yaw seal, transition
+piece, working platform, davit, cabinet, ladder, boat landing, J-tubes (offshore), concrete foundation and stair (on
+land), signs, looks and the motion (yaw, rotor, pitch, door, davit). Nothing of the IEA model is in this repository;
+no maker's name or logo is on the model.
+
 ## The 3D viewer
 
-- "Turn it yourself" (model/index.html) shows the web model with Google's model-viewer 4.4.0, Apache-2.0
-  (`vendor/model-viewer-umd.min.js` and its licence, copied from `fresing_render/web/`; three.js MIT and lit
-  BSD-3-Clause are inside it with their notes). Nothing is loaded from other sites. Only invented or openly licensed
-  models go there – never the Fresing 400 (not public, owner 12 Nov 2026). Swap the model with
-  `tools/build_site.py --web-model <file.glb> --model <id>` after adding its credit here and in media.json.
+- "Turn it yourself" (task 0111) shows one card per model; each opens its own page `model/<id>/` (the old address
+  `model/` goes on to the first). The models: the test mill above (its tool changes, a loop) and the Thor robot arm
+  (task 0112's project, its loop) – this 3D file of Thor is CC BY-SA 4.0 like Thor itself, made from it with Fresing
+  Render (its screws and nuts left out to keep the file small); its page says so with the licence link.
+- A model with baked light or surroundings shows on the export's own page: three.js r180, MIT (`vendor/three-viewer.min.js`
+  and `LICENSE-three.txt`; meshoptimizer's decoder inside, MIT) and Fresing Render's own `fr_math.js` / `fr_page.js`.
+  A plain `.glb` shows in Google's model-viewer 4.4.0, Apache-2.0 (`vendor/model-viewer-umd.min.js` and its licence;
+  three.js MIT and lit BSD-3-Clause are inside it with their notes). All copied from `fresing_render/web/`; nothing is
+  loaded from other sites. Only invented or openly licensed models go there – never the Fresing 400 (not public,
+  owner 12 Nov 2026). Add or replace a model with `tools/build_site.py --web-model <file.glb or export folder>
+  --model <id> --caption "…" [--order N]` after adding its credit here and in media.json; take one out with
+  `--remove-web-model <id>`. The page's two models are made by `tools/make_site_web_models.py all`.
 
 ## Type and logo
 

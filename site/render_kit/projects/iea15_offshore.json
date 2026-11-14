@@ -1,0 +1,912 @@
+{
+ "model": "iea15_offshore",
+ "title": "IEA 15 MW wind turbine on a monopile",
+ "step": "iea15_offshore.step",
+ "units": "mm",
+ "up_axis": "Z",
+ "source": "IEA Wind TCP Task 37, IEA-15-240-RWT v1.0 (github.com/IEAWindSystems/IEA-15-240-RWT, Apache-2.0): its SolidWorks model (CAD/deprecated/IEA-15-240-RWT_Solidworks.zip), exported to STEP in Fusion",
+ "iea_commit": "630f7cbc6a7092caf5b9c3d4401c8102a60728a4",
+ "iea": {
+  "rotor_diameter_m": {
+   "value": 240.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Rotor diameter [m]"
+  },
+  "hub_height_m": {
+   "value": 150.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Hub height [m]"
+  },
+  "hub_diameter_m": {
+   "value": 7.94,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Hub diameter [m]"
+  },
+  "hub_to_blade_m": {
+   "value": 3.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Hub distance from center to blades [m]"
+  },
+  "overhang_m": {
+   "value": 11.014,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Hub Overhang [m] (-11.014, upwind)"
+  },
+  "shaft_tilt_deg": {
+   "value": 6.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Shaft tilt angle [deg]"
+  },
+  "precone_deg": {
+   "value": 4.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Rotor pre-cone angle [deg] (-4, towards the wind)"
+  },
+  "prebend_m": {
+   "value": 4.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Blade pre-bend [m]"
+  },
+  "blade_length_m": {
+   "value": 117.0,
+   "source": "TipRad 120.0 - HubRad 3.0, OpenFAST/IEA-15-240-RWT-Monopile/IEA-15-240-RWT-Monopile_ElastoDyn.dat (v1.0)"
+  },
+  "rated_rpm": {
+   "value": 7.56,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Maximum rotor speed [rpm]"
+  },
+  "min_rpm": {
+   "value": 5.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Minimum rotor speed [rpm]"
+  },
+  "tower_top_m": {
+   "value": 144.495,
+   "source": "TowerHt, OpenFAST/IEA-15-240-RWT-Monopile/IEA-15-240-RWT-Monopile_ElastoDyn.dat (v1.0)"
+  },
+  "tower_base_m": {
+   "value": 15.0,
+   "source": "TowerBsHt, OpenFAST/IEA-15-240-RWT-Monopile/IEA-15-240-RWT-Monopile_ElastoDyn.dat (v1.0); = Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Transition piece height [m]"
+  },
+  "yaw_bearing_m": {
+   "value": 0.38,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Tower top to nacelle (yaw bearing height) [m]"
+  },
+  "tower_base_diameter_m": {
+   "value": 10.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Tower base diameter [m]"
+  },
+  "monopile_diameter_m": {
+   "value": 10.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Monopile base diameter [m]"
+  },
+  "embedment_m": {
+   "value": 45.0,
+   "source": "Documentation/IEA-15-240-RWT_tabular.xlsx, sheet Overview (IEA-15-240-RWT v1.0): Monopile embedment depth [m]"
+  },
+  "water_depth_m": {
+   "value": 30.0,
+   "source": "WtrDpth, OpenFAST/IEA-15-240-RWT-Monopile/IEA-15-240-RWT-Monopile_HydroDyn.dat (v1.0)"
+  }
+ },
+ "measured": {
+  "hub_height_m": {
+   "value": 150.488,
+   "source": "measured: the hub's centre above the sea (offshore) / the ground (onshore)"
+  },
+  "rotor_diameter_m": {
+   "value": 240.001,
+   "source": "measured: twice the farthest blade point from the rotor axis"
+  },
+  "shaft_tilt_deg": {
+   "value": 6.0,
+   "source": "measured: the shaft's axis"
+  },
+  "precone_deg": {
+   "value": 0.0,
+   "source": "measured: blade axes against the rotor plane (the CAD has none; IEA 4°)"
+  },
+  "overhang_m": {
+   "value": 11.21,
+   "source": "measured: the hub's centre from the tower axis, level"
+  },
+  "tower_top_m": {
+   "value": 144.582,
+   "source": "measured: top of the tower solid (offshore frame, above the sea)"
+  },
+  "blade_length_m": {
+   "value": 117.0,
+   "source": "measured: the blade skin along its own z"
+  },
+  "prebend_m": {
+   "value": 4.005,
+   "source": "measured: the blade tip off its own z axis"
+  }
+ },
+ "frame": {
+  "turn_deg": 72.2491,
+  "z_shift_mm": 0.0,
+  "note": "turbine frame: tower axis = z, sea level z 0 (onshore: ground z 0, 14 m lower), rotor upwind towards -y (+y = north)"
+ },
+ "parts": 89,
+ "bodies": {
+  "BLADE 1 PITCH": 2,
+  "BLADE 2 PITCH": 2,
+  "BLADE 3 PITCH": 2,
+  "DAVIT SLEW": 2,
+  "DOOR SWING": 2,
+  "NACELLE YAW": 19,
+  "ROTOR TURNING": 4,
+  "TURBINE FIXED": 56
+ },
+ "invented": [
+  "BOAT LANDING 1",
+  "BOAT LANDING 2",
+  "CABINET",
+  "CLAMP J-TUBE 1.1",
+  "CLAMP J-TUBE 1.2",
+  "CLAMP J-TUBE 1.3",
+  "CLAMP J-TUBE 1.4",
+  "CLAMP J-TUBE 2.1",
+  "CLAMP J-TUBE 2.2",
+  "CLAMP J-TUBE 2.3",
+  "CLAMP J-TUBE 2.4",
+  "CLAMP J-TUBE 3.1",
+  "CLAMP J-TUBE 3.2",
+  "CLAMP J-TUBE 3.3",
+  "CLAMP J-TUBE 3.4",
+  "DAVIT",
+  "DAVIT PEDESTAL",
+  "DOOR FRAME",
+  "DOOR LEAF",
+  "FENDER 1",
+  "FENDER 2",
+  "FENDER 3",
+  "FENDER 4",
+  "GRATING DECK",
+  "GRATING REST PLATFORM",
+  "HANDLE DOOR",
+  "HELI DECK",
+  "HOOK BLOCK",
+  "J-TUBE 1",
+  "J-TUBE 2",
+  "J-TUBE 3",
+  "LADDER",
+  "LIGHT 1",
+  "LIGHT 2",
+  "NACELLE COOLER",
+  "NACELLE COVER",
+  "NACELLE HATCH",
+  "PLATFORM BEAM 1",
+  "PLATFORM BEAM 2",
+  "PLATFORM BEAM 3",
+  "PLATFORM BEAM 4",
+  "PLATFORM BEAM 5",
+  "PLATFORM BEAM 6",
+  "PLATFORM BEAM 7",
+  "PLATFORM BEAM 8",
+  "PLATFORM BEAM REST",
+  "RAIL CAGE 1",
+  "RAIL CAGE 2",
+  "RAIL GATE",
+  "RAIL HATCH",
+  "RAIL HELI",
+  "RAIL PLATFORM 1",
+  "RAIL PLATFORM 2",
+  "RAIL PLATFORM 3",
+  "RAIL PLATFORM 4",
+  "RAIL PLATFORM 5",
+  "RAIL PLATFORM 6",
+  "RAIL REST PLATFORM",
+  "SENSOR ANEMOMETER",
+  "SENSOR MAST",
+  "SENSOR VANE",
+  "STEP DOOR",
+  "TOWER FLANGE 1",
+  "TOWER FLANGE 2",
+  "TOWER FLANGE 3",
+  "TP SLEEVE",
+  "YAW SEAL"
+ ],
+ "joints": [
+  {
+   "name": "Yaw",
+   "kind": "ROTATE",
+   "parts": [
+    "NACELLE YAW"
+   ],
+   "point": [
+    0.0,
+    0.0,
+    144582.0
+   ],
+   "direction": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "rides_on": null,
+   "limits": [
+    -180.0,
+    180.0
+   ],
+   "source": "yaw axis: the tower's top cone and the yaw bearing (fixed) and the drum on the bedplate (turning) share it within 0.000 mm"
+  },
+  {
+   "name": "Rotor",
+   "kind": "ROTATE",
+   "parts": [
+    "ROTOR TURNING"
+   ],
+   "point": [
+    0.0,
+    -11210.318,
+    150488.063
+   ],
+   "direction": [
+    -0.0,
+    0.994522,
+    -0.104528
+   ],
+   "rides_on": "Yaw",
+   "limits": null,
+   "source": "shaft axis: the hollow shaft (r [1400.0, 1500.0]) and the nose it turns on (r [1000.0, 1100.0]) are one line (0.000 mm, 0.0000°); the hub's centre lies on it (0.000 mm); tilt 6.000°"
+  },
+  {
+   "name": "Pitch 1",
+   "kind": "ROTATE",
+   "parts": [
+    "BLADE 1 PITCH"
+   ],
+   "point": [
+    2921.366,
+    -11138.992,
+    151166.688
+   ],
+   "direction": [
+    -0.973789,
+    -0.023775,
+    -0.226208
+   ],
+   "rides_on": "Rotor",
+   "limits": [
+    -5.0,
+    95.0
+   ],
+   "source": "blade 1's own z axis (its pitch axis); the hub's ring face is centred on it (0.000 mm, 0.0000°), the root's edge 62 mm off it (the root is not quite round)"
+  },
+  {
+   "name": "Pitch 2",
+   "kind": "ROTATE",
+   "parts": [
+    "BLADE 2 PITCH"
+   ],
+   "point": [
+    -2051.626,
+    -10981.527,
+    152664.869
+   ],
+   "direction": [
+    0.683875,
+    -0.076264,
+    -0.725602
+   ],
+   "rides_on": "Rotor",
+   "limits": [
+    -5.0,
+    95.0
+   ],
+   "source": "blade 2's own z axis (its pitch axis); the hub's ring face is centred on it (0.000 mm, 0.0000°), the root's edge 62 mm off it (the root is not quite round)"
+  },
+  {
+   "name": "Pitch 3",
+   "kind": "ROTATE",
+   "parts": [
+    "BLADE 3 PITCH"
+   ],
+   "point": [
+    -869.74,
+    -11510.436,
+    147632.633
+   ],
+   "direction": [
+    0.289913,
+    0.100039,
+    0.95181
+   ],
+   "rides_on": "Rotor",
+   "limits": [
+    -5.0,
+    95.0
+   ],
+   "source": "blade 3's own z axis (its pitch axis); the hub's ring face is centred on it (0.000 mm, 0.0000°), the root's edge 62 mm off it (the root is not quite round)"
+  },
+  {
+   "name": "Door",
+   "kind": "ROTATE",
+   "parts": [
+    "DOOR SWING"
+   ],
+   "point": [
+    801.312,
+    -5096.256,
+    15530.0
+   ],
+   "direction": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "rides_on": null,
+   "limits": [
+    0.0,
+    100.0
+   ],
+   "source": "invented part (turbine_parts): its hinge"
+  },
+  {
+   "name": "Davit",
+   "kind": "ROTATE",
+   "parts": [
+    "DAVIT SLEW"
+   ],
+   "point": [
+    6978.57,
+    -3254.161,
+    15955.0
+   ],
+   "direction": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "rides_on": null,
+   "limits": [
+    -90.0,
+    90.0
+   ],
+   "source": "invented part (turbine_parts): its hinge"
+  }
+ ],
+ "cylinders": [],
+ "hide": [
+  {
+   "part": "MAIN BEARING SRB",
+   "why": "SRB_mock_bearing of the source: a plain ring standing in for the main bearing inside the shaft (a modelling aid, never seen)"
+  },
+  {
+   "part": "MAIN BEARING TDO",
+   "why": "TDO_mock_bearing of the source: as the SRB ring"
+  },
+  {
+   "part": "HUB CENTRE MARK",
+   "why": "a ball 0.2 m across at the hub's centre in the source (a modelling aid)"
+  },
+  {
+   "part": "BLADE 1 ROOT DISC",
+   "why": "a disc 2 m across and 10 mm thick at the blade root in the source (a modelling aid, no part of a turbine)"
+  },
+  {
+   "part": "BLADE 2 ROOT DISC",
+   "why": "a disc 2 m across and 10 mm thick at the blade root in the source (a modelling aid, no part of a turbine)"
+  },
+  {
+   "part": "BLADE 3 ROOT DISC",
+   "why": "a disc 2 m across and 10 mm thick at the blade root in the source (a modelling aid, no part of a turbine)"
+  },
+  {
+   "part": "MONOPILE BELOW SEABED",
+   "why": "the 45 m of the monopile in the ground below the 30 m deep seabed; the app has no seabed yet (task 0081), so it would hang in the water"
+  }
+ ],
+ "poses": [
+  {
+   "name": "Running",
+   "values": {
+    "Yaw": 0.0,
+    "Rotor": 43.147,
+    "Pitch 1": 0.0,
+    "Pitch 2": 0.0,
+    "Pitch 3": 0.0
+   }
+  },
+  {
+   "name": "Feathered",
+   "values": {
+    "Yaw": 0.0,
+    "Rotor": 43.147,
+    "Pitch 1": 90.0,
+    "Pitch 2": 90.0,
+    "Pitch 3": 90.0
+   }
+  },
+  {
+   "name": "Door open",
+   "values": {
+    "Yaw": 0.0,
+    "Rotor": 43.147,
+    "Pitch 1": 90.0,
+    "Pitch 2": 90.0,
+    "Pitch 3": 90.0,
+    "Door": 100.0,
+    "Davit": 90.0
+   }
+  }
+ ],
+ "start_pose": "Running",
+ "animation": {
+  "name": "Turbine running",
+  "seconds": 10.582,
+  "loop": true,
+  "periods": {
+   "Rotor": 120.0
+  },
+  "camera": "Whole turbine",
+  "note": "the rotor at the IEA's rated 7.56 rpm turns 4/3 of a turn: with three blades the last frame looks like the first",
+  "steps": [
+   {
+    "kind": "JOINT",
+    "joint": "Rotor",
+    "to": 523.147,
+    "start": 0.0,
+    "seconds": 10.582,
+    "easing": "LINEAR",
+    "label": "Rotor at rated speed"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Yaw",
+    "to": 4.0,
+    "start": 0.0,
+    "seconds": 5.291,
+    "easing": "SMOOTH",
+    "label": "Yaw a little"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Yaw",
+    "to": 0.0,
+    "start": 5.291,
+    "seconds": 5.291,
+    "easing": "SMOOTH",
+    "label": "Yaw back"
+   }
+  ]
+ },
+ "check_animation": {
+  "name": "Check every joint",
+  "seconds": 24.0,
+  "loop": false,
+  "steps": [
+   {
+    "kind": "POSE",
+    "pose": "Feathered",
+    "start": 0.0,
+    "seconds": 2.0,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Door open",
+    "start": 2.0,
+    "seconds": 2.0,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "POSE",
+    "pose": "Running",
+    "start": 4.0,
+    "seconds": 2.0,
+    "easing": "SMOOTH"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 1",
+    "to": -5.0,
+    "start": 6.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 1 -5"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 1",
+    "to": 95.0,
+    "start": 7.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 1 +95"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 1",
+    "to": 0.0,
+    "start": 8.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 1 +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 2",
+    "to": -5.0,
+    "start": 9.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 2 -5"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 2",
+    "to": 95.0,
+    "start": 10.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 2 +95"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 2",
+    "to": 0.0,
+    "start": 11.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 2 +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 3",
+    "to": -5.0,
+    "start": 12.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 3 -5"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 3",
+    "to": 95.0,
+    "start": 13.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 3 +95"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Pitch 3",
+    "to": 0.0,
+    "start": 14.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Pitch 3 +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Door",
+    "to": 0.0,
+    "start": 15.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Door +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Door",
+    "to": 100.0,
+    "start": 16.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Door +100"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Door",
+    "to": 0.0,
+    "start": 17.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Door +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Davit",
+    "to": -90.0,
+    "start": 18.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Davit -90"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Davit",
+    "to": 90.0,
+    "start": 19.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Davit +90"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Davit",
+    "to": 0.0,
+    "start": 20.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Davit +0"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Yaw",
+    "to": -10.0,
+    "start": 21.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Yaw -10"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Yaw",
+    "to": 10.0,
+    "start": 22.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Yaw +10"
+   },
+   {
+    "kind": "JOINT",
+    "joint": "Yaw",
+    "to": 0.0,
+    "start": 23.0,
+    "seconds": 1.0,
+    "easing": "SMOOTH",
+    "label": "Yaw +0"
+   }
+  ]
+ },
+ "decals": [
+  {
+   "part": "TP SLEEVE",
+   "point": [
+    2218.745874138672,
+    -4758.115881942412,
+    7000.0
+   ],
+   "normal": [
+    0.4226182617406995,
+    -0.9063077870366499,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 2500.0,
+   "text": "WTG A07"
+  },
+  {
+   "part": "TP SLEEVE",
+   "point": [
+    0.0,
+    5250.0,
+    11500.0
+   ],
+   "normal": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 1500.0,
+   "text": "N 0°"
+  },
+  {
+   "part": "TP SLEEVE",
+   "point": [
+    5250.0,
+    3.214697847761802e-13,
+    11500.0
+   ],
+   "normal": [
+    1.0,
+    6.123233995736766e-17,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 1500.0,
+   "text": "E 90°"
+  },
+  {
+   "part": "TP SLEEVE",
+   "point": [
+    6.429395695523604e-13,
+    -5250.0,
+    11500.0
+   ],
+   "normal": [
+    1.2246467991473532e-16,
+    -1.0,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 1500.0,
+   "text": "S 180°"
+  },
+  {
+   "part": "TP SLEEVE",
+   "point": [
+    -5250.0,
+    -9.644093543285406e-13,
+    11500.0
+   ],
+   "normal": [
+    -1.0,
+    -1.8369701987210297e-16,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 1500.0,
+   "text": "W 270°"
+  },
+  {
+   "part": "TOWER",
+   "point": [
+    2499.9999999999995,
+    -4330.127018922193,
+    17030.0
+   ],
+   "normal": [
+    0.49999999999999994,
+    -0.8660254037844387,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 1000.0,
+   "text": "WTG A07"
+  },
+  {
+   "part": "DOOR LEAF",
+   "point": [
+    1327.7417013759327,
+    -4955.19948886292,
+    17080.0
+   ],
+   "normal": [
+    0.258819045102521,
+    -0.9659258262890682,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "STICKER",
+   "width_mm": 300.0,
+   "sticker": "WARN_GENERAL"
+  },
+  {
+   "part": "DOOR LEAF",
+   "point": [
+    1327.7417013759327,
+    -4955.19948886292,
+    16780.0
+   ],
+   "normal": [
+    0.258819045102521,
+    -0.9659258262890682,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 700.0,
+   "text": "NO UNAUTHORISED ACCESS"
+  },
+  {
+   "part": "DAVIT",
+   "point": [
+    8485.483737205255,
+    -4045.1162833255057,
+    19280.0
+   ],
+   "normal": [
+    -0.42261826174069933,
+    -0.90630778703665,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "TEXT",
+   "width_mm": 500.0,
+   "text": "SWL 1 t"
+  },
+  {
+   "part": "DAVIT",
+   "point": [
+    7760.437507575934,
+    -3707.021673932946,
+    19280.0
+   ],
+   "normal": [
+    -0.42261826174069933,
+    -0.90630778703665,
+    0.0
+   ],
+   "up": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "kind": "STICKER",
+   "width_mm": 180.0,
+   "sticker": "WARN_LOAD"
+  }
+ ],
+ "cameras": [
+  {
+   "name": "Work boat",
+   "eye": [
+    16970.562748477143,
+    -16970.56274847714,
+    2500.0
+   ],
+   "target": [
+    0.0,
+    -4000.0,
+    26000.0
+   ],
+   "lens": 24.0
+  },
+  {
+   "name": "Whole turbine",
+   "eye": [
+    298259.7469025439,
+    -425959.0630302758,
+    40000.0
+   ],
+   "target": [
+    0.0,
+    -11210.318451936466,
+    122000.0
+   ],
+   "lens": 32.0
+  }
+ ],
+ "scene": {
+  "water_level_m": 30.0
+ },
+ "notes": [
+  "A door opening is cut into the tower (invented, as the door).",
+  "The source's one tower solid (pile tip -75 m to the tower top) is cut at +15 m (the IEA's tower base / transition piece height) into the tower and the monopile.",
+  "The bedplate's 2 extra solids of the source (slivers of no volume at its front) are left out.",
+  "The source's blades are drawn for a rotor that turns anticlockwise seen from the front (their leading edges point that way at 30, 60 and 90 m); the IEA's turbine, like every big one, turns clockwise. Each blade is mirrored in its own plane through the pitch axis and the shaft: root, length, pre-bend and twist stay, the leading edge leads the clockwise turn.",
+  "The source's blade skin is one B-spline of 4,343 x 203 control points, which OpenCascade meshes into 31-79 triangles (the blades were all but invisible); it is rebuilt as a light surface through 121 x 161 points sampled from it (largest deviation 2 mm): 217 k triangles at Draft, 874 k at Normal, 2.2 M at Fine per blade.",
+  "The blade is a closed solid: its trailing edge (up to 11.5 mm open in the CAD) closed, flat caps on root and tip (an open skin has no inside for the clash check).",
+  "The blade root is made round (r 2540 mm, on the pitch axis) and blended into the CAD's skin over the first 4 m: the CAD's root is 95 mm out of round and 62 mm off its pitch axis, so a pitching blade ran 160 mm into the hub's round ring; the IEA's blade root is circular."
+ ],
+ "unique_parts": 84
+}

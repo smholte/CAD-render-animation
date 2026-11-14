@@ -353,6 +353,12 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
   coat its fine structure.
 - **Rubber** is not pure black: a soft sheen and a little dust. **Glass and polycarbonate** look like
   glass in Cycles and in Fast preview.
+- **At sea and outdoors**: **Marine paint, growth below the waterline** is marine paint in your colour with
+  dark green-brown sea growth below the water (its top edge ragged, a little below the waterline) and a
+  splash zone of about 2.5 m above it with a greenish tint and thin rust streaks. The waterline follows the
+  sea of 5 Scene & Render > Surroundings (without a sea: height 0). **Marine paint, run-down streaks**:
+  light dirt and rust streaks running down upright faces (towers, walls), never on decks.
+  **Concrete**: cast concrete for foundations and pedestals, matte light grey.
 
 Projects made with an older version get the new looks when you open them; every group keeps its
 material and colour.
@@ -2343,7 +2349,8 @@ the machine himself, or for your website.
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
 5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
-   page plays it in a loop. It makes the export slower.
+   page plays it in a loop. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
+   in or takes out come and go as in the animation. It makes the export slower.
 6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.

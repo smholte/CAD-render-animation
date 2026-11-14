@@ -944,6 +944,88 @@ def cutaway(scene, a=None):
     return cut
 
 
+MARINE_WATER = 4.5            # the marine stop's waterline: above the studio floor, which would hide the pile's foot
+
+
+def marine_demo(scene, water: float = MARINE_WATER) -> dict:
+    """The marine looks (task 0116) on plain shapes: a yellow pile 1.2 m across and 8 m tall standing 4 m deep in
+    water (marine paint with growth), a grey wall with run-down streaks, a concrete block; the crane is hidden.
+    The waterline is the scene's (``marine_looks.WATERLINE``), as the sea of the surroundings sets it.
+    Returns {material id: material}. Used by the test tour and the PC check."""
+    import bpy
+
+    from . import build, marine_looks, materials
+    for ob in build.iter_parts(scene):
+        ob.hide_render = ob.hide_viewport = True
+    scene[marine_looks.WATERLINE] = float(water)
+    made = {}
+
+    def add(name, make, mat_id, colour, location, scale=(1.0, 1.0, 1.0)):
+        import bmesh
+        bm = bmesh.new()
+        make(bm)
+        me = bpy.data.meshes.new(f"Marine {name}")
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new(f"Marine {name}", me)      # no bpy.ops: works from any button (tour Make)
+        scene.collection.objects.link(ob)
+        ob.location, ob.scale = location, scale
+        mat = materials.ensure_material(f"Marine looks: {name}", mat_id, colour)
+        materials.assign(ob, mat)
+        made[mat_id] = mat
+
+    def cylinder(bm):
+        import bmesh
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=48, radius1=0.6, radius2=0.6, depth=8.0)
+
+    def cube(bm):
+        import bmesh
+        bmesh.ops.create_cube(bm, size=1.0)
+    add("pile", cylinder, "paint_marine_growth", "RAL 1023", (0.0, 0.0, water))
+    add("wall", cube, "paint_marine_streaks", "RAL 7035", (2.2, 1.5, 3.0), (1.2, 0.3, 6.0))
+    add("block", cube, "concrete", "", (-2.0, 0.8, 0.5), (1.6, 1.6, 1.0))
+    return made
+
+
+def marine_camera(scene, water: float = MARINE_WATER, name: str = "Marine looks"):
+    import bpy
+    from mathutils import Matrix, Vector
+    cam = bpy.data.objects.new(name, bpy.data.cameras.new(name))
+    scene.collection.objects.link(cam)
+    eye, target = Vector((5.0, -11.0, water + 1.0)), Vector((0.0, 0.0, water - 0.3))
+    fwd = (target - eye).normalized()
+    right = fwd.cross(Vector((0.0, 0.0, 1.0))).normalized()
+    up = right.cross(fwd)
+    cam.matrix_world = Matrix([[right[0], up[0], -fwd[0], eye[0]], [right[1], up[1], -fwd[1], eye[1]],
+                               [right[2], up[2], -fwd[2], eye[2]], [0, 0, 0, 1]])
+    cam.data.lens = 40.0
+    cam["fr_camera"] = True
+    scene.camera = cam
+    return cam
+
+
+@tour_set("marine", "Marine looks", "test_crane_a.step")
+def build_marine(b: Build):
+    _look("PRODUCT")
+    marine_demo(b.scene)
+    marine_camera(b.scene, name="Tour marine")
+    _shot(b, "@marine")
+
+
+def _check_marine(scene):
+    import bpy
+
+    from . import marine_looks
+    want = {"paint_marine_growth", "paint_marine_streaks", "concrete"}
+    shown = {ob.active_material.get("fr_material") for ob in bpy.data.objects
+             if ob.name.startswith("Marine ") and ob.type == "MESH" and ob.active_material is not None}
+    _check(want <= shown, f"missing looks: {', '.join(sorted(want - shown))}")
+    pile = bpy.data.objects.get("Marine pile")
+    _check(marine_looks.nodes_of(pile.active_material), "the pile's material has no marine growth")
+    _check(abs(marine_looks.waterline(scene) - MARINE_WATER) < 1e-6, "the waterline moved")
+    return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
+
+
 @tour_set("cutaway", "Cutaway", "test_crane_a.step")
 def build_cutaway(b: Build):
     from mathutils import Vector
@@ -2711,6 +2793,12 @@ stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
      animation="Mill a slot", at=1.0, check=_check_cut_look)
+stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
+     "A yellow pile standing in water: dark green-brown growth with a ragged top just below the waterline, a "
+     "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
+     "run-down streaks; the block in front is light grey concrete.",
+     where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
+           "streaks; Concrete)", since="0.2.94", check=_check_marine)
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)

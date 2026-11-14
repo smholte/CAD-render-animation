@@ -76,6 +76,20 @@
    "credit": "Test mill with a double-arm tool changer: an invented machine made by Fresing Render's own test-model maker (tools/make_test_atc.py)",
    "link": "https://github.com/smholte/CAD-render-animation",
    "licence": "GPL-3.0-or-later (as Fresing Render)"
+  },
+  "iea15_offshore": {
+   "title": "IEA 15 MW offshore wind turbine",
+   "credit": "IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing",
+   "link": "https://github.com/IEAWindSystems/IEA-15-240-RWT",
+   "licence": "Apache-2.0",
+   "licence_link": "https://www.apache.org/licenses/LICENSE-2.0"
+  },
+  "iea15_onshore": {
+   "title": "IEA 15 MW wind turbine on land",
+   "credit": "IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing",
+   "link": "https://github.com/IEAWindSystems/IEA-15-240-RWT",
+   "licence": "Apache-2.0",
+   "licence_link": "https://www.apache.org/licenses/LICENSE-2.0"
   }
  },
  "feature": {
@@ -83,10 +97,24 @@
   "caption": "Thor robot arm in the dark studio, rendered on a graphics card with Cycles",
   "model": "thor"
  },
- "web_model": {
-  "file": "test_atc.glb",
-  "caption": "An invented test mill with a double-arm tool changer and a 12-tool carousel, exported with 5 Scene & Render > Web 3D model",
-  "model": "test_atc",
-  "poster": "test_atc_poster.jpg"
- }
+ "web_models": [
+  {
+   "id": "test_atc",
+   "file": "test_atc.page.html",
+   "poster": "test_atc_poster.jpg",
+   "model": "test_atc",
+   "caption": "An invented test mill: the double-arm changer swaps tools from its 12-pot magazine, four changes in a loop",
+   "seconds": 10.08,
+   "order": 1
+  },
+  {
+   "id": "thor",
+   "file": "thor.page.html",
+   "poster": "thor_poster.jpg",
+   "model": "thor",
+   "caption": "The open-source Thor robot arm: six joints and its gripper at work, in a loop",
+   "seconds": 10.0,
+   "order": 2
+  }
+ ]
 }

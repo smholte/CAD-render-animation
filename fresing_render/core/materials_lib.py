@@ -27,6 +27,10 @@ CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", 
 #       kind "POWER" (black sheath, yellow stripes at an angle) or "ROPE" (steel wire rope: strands with their
 #       lay). Drawn where the mesh has the ``fr_cable`` attribute, the plain material elsewhere; pitch (m), starts
 #       and width are the look of a cable that gives none. ``blender/cable_looks.py`` has the nodes and every key.
+#   marine: {kind, …}   weathering of steel at sea (task 0116), drawn over the paint by ``blender/marine_looks.py``:
+#       kind "GROWTH" (marine growth below the waterline, a splash zone with slime and thin rust streaks above it;
+#       the waterline is a WORLD height: the scene's ``fr_waterline_z``, 0 when it has none) or "STREAKS" (light
+#       run-down streaks of dirt and rust, vertical in the world). ``marine_looks.DEFAULTS`` has every key.
 # Every look is clean by default (marketing stills); wear is a separate per-group slider.
 MATERIALS: dict[str, dict] = {
     # ---- paints --------------------------------------------------------------
@@ -173,6 +177,24 @@ MATERIALS: dict[str, dict] = {
     # bright galvanised wires, 6 strands; pitch = the lay length (one full turn of a strand)
     "wire_rope": dict(label="Steel wire rope", category="Metal", base_color=(0.62, 0.63, 0.64), metallic=1.0,
                       roughness=0.4, cable=dict(kind="ROPE", pitch=0.16, starts=6, width=0.0)),
+
+    # ---- task 0116: offshore structures (wind turbine foundations, J-tubes, boat landings) --------------------
+    # cast concrete: light warm grey, matte, a calm tone variation over metres, fine pores
+    "concrete": dict(label="Concrete", category="Other", base_color=(0.60, 0.585, 0.55), roughness=0.86,
+                     specular=0.4, bump=dict(scale=1800.0, strength=0.12),
+                     variation=dict(scale=0.7, roughness_min=0.8, roughness_max=0.93, color_amount=0.1)),
+    # the marine paint system with what the sea does to it: growth below the waterline, a splash zone above
+    "paint_marine_growth": dict(label="Marine paint, growth below the waterline", category="Paint",
+                                needs_color=True, roughness=0.28, coat=0.3, coat_roughness=0.12,
+                                peel=dict(scale=450.0, strength=0.06),
+                                variation=dict(scale=8.0, roughness_min=0.22, roughness_max=0.34,
+                                               color_amount=0.03),
+                                marine=dict(kind="GROWTH")),
+    "paint_marine_streaks": dict(label="Marine paint, run-down streaks", category="Paint", needs_color=True,
+                                 roughness=0.28, coat=0.3, coat_roughness=0.12, peel=dict(scale=450.0, strength=0.06),
+                                 variation=dict(scale=8.0, roughness_min=0.22, roughness_max=0.34,
+                                                color_amount=0.03),
+                                 marine=dict(kind="STREAKS")),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -228,6 +250,9 @@ UIDS: dict[str, int] = {
     "pom_black": 48,
     "cable_power": 49,
     "wire_rope": 50,
+    "concrete": 51,
+    "paint_marine_growth": 52,
+    "paint_marine_streaks": 53,
 }
 
 DEFAULT_COLOR = "RAL 7035"

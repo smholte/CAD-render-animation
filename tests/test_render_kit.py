@@ -37,7 +37,7 @@ def test_gallery_set_in_models_ini():
     kit = _kit()
     general, models = kit.read_settings(os.path.join(KIT, "models.ini"))
     by = {m["id"]: m for m in models}
-    assert set(by) == {"evo_cnc", "openarm", "thor", "farmbot", "ceb_press"}
+    assert set(by) == {"evo_cnc", "openarm", "thor", "farmbot", "ceb_press", "iea15_offshore", "iea15_onshore"}
     assert by["evo_cnc"]["video"] == "turntable" and len(by["evo_cnc"]["views"]) == 2
     assert by["farmbot"]["weather"] == "CLEAR_DAY" and by["farmbot"]["video"] == "none"
     for m in ("thor", "ceb_press"):
