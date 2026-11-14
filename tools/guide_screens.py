@@ -372,7 +372,8 @@ def build_state():
     pin, origin, direction = boom_axis()
     j1 = joints.create(sc, "ROTATE", [ob("BOOM.ASM")], origin, direction, ref=pin, name="Boom luff")
     j1.use_limits = True
-    j1.rot_min, j1.rot_max = math.radians(-5), math.radians(60)
+    j1.rot_min, j1.rot_max = math.radians(-5), math.radians(35)   # the luffing cylinder's stroke (task 0122)
+    mod("blender.tour").luff_cylinder(sc)                         # it follows the boom
     joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((1, 0, 0)), name="Trolley",
                   base=ob("BOOM.ASM"))                    # "Sits on": the trolley rides on the boom
     s.joints_index = 0
@@ -859,8 +860,7 @@ elif MODE == "hover":
                                                   movers=ob("BOOM.ASM").name)
         log("pick", res)
         # a spot on the far wall of the front lug's bore (axis x 0.1, z 0.4, along Y, Ø40.4)
-        ped = ob("PEDESTAL")
-        y0 = min((ped.matrix_world @ Vector(c)).y for c in ped.bound_box)
+        y0 = 0.22                     # the front cheek's outer face (task 0122: the pedestal's foot reaches further)
         view = region.data.view_rotation @ Vector((0, 0, -1))
         r = Vector((view.x, 0, view.z)).normalized()
         best = None
