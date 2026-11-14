@@ -84,6 +84,61 @@ as meshes, so this opens the site to them later.
 Downloading or adding the Sketchfab models to the site (a later Site kit task, after the owner downloads them).
 Changing the STEP reader. Mesh repair beyond what the face split needs. Decimation (later, if big scans need it).
 
+## Design (worker, 14 Nov 2026)
+
+**One rule:** the mesh reader writes **the same cache as the STEP reader** (`tree.json` + `meshes.npz`, CACHE_VERSION
+6 keys `p/n/t/f<mid>`, `meshes[mid].axes/axis_faces`), so build, faces, joints, hover, decals, clash, rules and the
+model update work unchanged. New, optional keys only: `u<mid>` (float32 (n, 2) UVs, Blender's v), `meshes[mid].
+file_material` (index into `info["materials"]`), `info["materials"]` (the file's materials: name, colour, metallic,
+roughness, alpha, texture files relative to the cache folder), `info["credit"]` / `info["credit_text"]`,
+`info["source_kind"] = "mesh"`, `info["options"]` (units, up, split as used), `info["notes"]` (what was guessed or
+left out). The cache's units are metres and Z up whatever the file had.
+
+**Files and owners**
+| File | Owner | What |
+| --- | --- | --- |
+| `core/mesh_faces.py` + `tests/test_mesh_faces.py` | subagent A (worktree) | face split + loose parts, pure NumPy (interface below) |
+| `importer/mesh_reader.py`, `importer/convert_blender.py` | worker | glTF/GLB + OBJ/MTL reader → cache; FBX (and glTF with Draco/meshopt) converted to GLB by Blender's own importer/exporter in a background Blender, then read as glTF |
+| `importer/runner.py` | worker | `ImportJob(path, quality, cache_root, options=None, converter=None)` picks the reader by extension; options in the cache key; each job its own `.partial-<pid>-<n>` folder (0118 row 14); a cache another import finished first is used, not deleted |
+| `blender/ops_import.py`, `ui.py` (Import panel), `build.py`, `materials.py`, `core/materials_lib.py`, `reimport.py` | worker | `fresing.import_mesh` + file handler + File > Import menu; UVs, file materials (textures packed) and the look "From file"; credit on the root; renamed parts matched by place + shape and reported |
+| `tools/make_test_mesh.py`, `tests/data/test_mesh_*`, `fresing_render/data/` copies | worker | test models (no downloads) |
+| `tests/test_mesh_reader.py`, `tests/test_mesh_import.py` | worker | reader (pure Python) and app side (bpy) |
+| `tests/test_mesh_independent.py` | subagent B (after the code) | independent tester: tries to break the reader + face split |
+| tour, PC check, guide, CHANGELOG, TASKS | worker | |
+
+**`core/mesh_faces.py` interface** (positions in the cache's units, metres; no bpy):
+```python
+MAX_AXES = 400
+def weld(pos, tol=None) -> np.ndarray            # (n,) int: one id per position (within tol; default 1e-6 x bbox diagonal)
+def loose_parts(pos, tri, tol=None) -> np.ndarray  # (m,) int label per triangle 0..k-1 (ordered by first triangle),
+                                                 # connected through *welded* vertices (split normals / UV seams do not split)
+@dataclass
+class Faces:
+    order: np.ndarray       # (m,) int64: new triangle k is old triangle order[k]; each face one block
+    starts: np.ndarray      # (F+1,) int32: first triangle of every face in the new order, + m at the end
+    kinds: np.ndarray       # (F,) uint8: 0 other, 1 flat, 2 cylinder, 3 cone
+    axes: list              # [ox, oy, oz, dx, dy, dz, r] per unique axis, like step_reader._Axes (foot of the line
+                            # nearest the origin, first non-zero direction component > 0, same line = one axis, r = max)
+    axis_faces: list        # flat [tri_start, tri_count, axis index, ...] in the NEW order (round faces)
+def split(pos, tri, normals=None) -> Faces
+```
+Needs: a facetted cylinder of 16–64 sides (open, capped, a boss on a box, a hole through a plate, a quarter-round
+fillet between two flats) is one face with an axis within 0.5° and a radius within 0.5 %; a box gives 6 flat faces;
+meshes with split normals (every triangle its own vertices) give the same faces; a sphere / free shape gives "other"
+faces bounded by sharp edges, never a crash; deterministic (the same mesh gives the same faces: model update keeps
+painted faces); 1 M triangles in < 10 s on the 4-core web machine.
+
+**Reader decisions:** glTF: node tree → assembly tree (uid as STEP: `parent/name#count`); a node with one primitive
+is a part, a mesh of several primitives (materials) is an assembly with one part per primitive; the same mesh +
+primitive used by several nodes is stored once (instancing). Y up → Z up on the roots. Colour = baseColorFactor
+(linear → sRGB), the material name goes to `material` (the rules' "CAD material"). No normals → flat normals (glTF
+spec). OBJ: `o`/`g` names, `usemtl` splits a part per material, MTL `Kd`, `d`, `Ns`, `map_Kd`, `map_Bump`; units
+asked in the dialog (Auto guesses mm when the biggest side is ≥ 500 units, else m, and says so); up axis Y by
+default (most OBJ exporters), Z on request. Split by loose parts: Auto = on when the file has fewer than 5 meshes;
+more than 1,000 pieces in one mesh: the biggest 999 are parts, the rest one part "small pieces". Credit:
+`asset.copyright`, `asset.extras` (Sketchfab: title, author, license, source) and a `license.txt` / `LICENSE*` /
+`README*` next to the file, one line + the full text (≤ 4,000 characters).
+
 ---
 
 ## Report (filled in by the chat that did the task)
