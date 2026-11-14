@@ -702,7 +702,7 @@ def motion_sea_cable(ctx):
            "block leaves the stern horn and hangs from the block's sheave, and is let go near the seabed – its start "
            "and its turn round the sheave stay on the seabed while the block is lifted away")
 def motion_moving_cable(ctx):
-    from ..blender import animation, cameras, paths, paths_sea, render, tour
+    from ..blender import animation, cameras, paths, render, tour
     scene = ctx.fresh(MOVING_CABLE)
     s = scene.fresing
     s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "SIMPLE", "CALM", 2.0
@@ -714,8 +714,7 @@ def motion_moving_cable(ctx):
         item = paths.find(scene, name)
         _check(item is not None and not item.problem, f"'{name}': {item.problem if item is not None else 'missing'}")
     s.sea_cutaway = True
-    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Moving view")
-    scene.camera.matrix_world = paths_sea.view_matrix(scene, paths.find(scene, made["cable"]))
+    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Moving view", points=paths.moving_view_points(scene))
     a = s.animations[made["animation"]]
     t0 = time.time()
     info = animation.bake(scene, a)

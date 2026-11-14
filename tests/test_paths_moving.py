@@ -109,6 +109,7 @@ def test_the_set_up_reads_both_ropes(moving):
     assert w.keep_tight and not it.keep_tight
     assert it.a_let_go_frame == let_go_frame(sc) and it.contacts[0].let_go_frame == let_go_frame(sc)
     assert it.contacts[1].let_go_frame == -1 and it.b_let_go_frame == -1
+    assert paths._stored_let_go(it) == {}                   # (a frame not built yet: its place is read at Build)
     for x in (it, w):
         assert paths.status(sc, x)[1] == "OK", paths.status(sc, x)
     assert "winch pays out 0.00 m" in paths.status(sc, w)[0]

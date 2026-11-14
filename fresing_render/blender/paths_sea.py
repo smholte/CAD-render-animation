@@ -436,8 +436,8 @@ def laid_points(piled: float) -> int:
     return int(np.clip(math.ceil(max(piled, 0.0) / C.SNAKE) * 16, N_PILED, 4000))
 
 
-_SEA_KEYS = ("kind", "psi", "a", "layback", "angle", "laid", "suspended", "excess", "steep", "short", "kink", "tdp", "T",
-             "pay", "bottom", "top", "T_part", "tdp_part", "length", "h")
+_SEA_KEYS = ("kind", "psi", "a", "layback", "angle", "laid", "suspended", "excess", "steep", "short", "kink", "tdp",
+             "T", "pay", "bottom", "top", "T_part", "tdp_part", "length", "h")
 
 
 def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale) -> dict:

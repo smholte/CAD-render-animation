@@ -1499,7 +1499,7 @@ MOVING_ANIM = "Over the stern"
 
 @tour_set("moving_cable", "A cable on a moving part", "test_moving.step")
 def build_moving(b: Build):
-    from . import paths, paths_sea
+    from . import paths
     sc = b.scene
     s = sc.fresing
     _look("PRODUCT")
@@ -1515,8 +1515,7 @@ def build_moving(b: Build):
     s.sea_cut_auto = True
     s.sea_cutaway = True
     _update()
-    cam = _camera(b, "ISO", "Tour view", lens=30.0)
-    cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    _camera(b, "ISO", "Tour view", lens=30.0, points=paths.moving_view_points(sc))
     shot = _shot(b, "Tour: over the stern")
     a = s.animations[made["animation"]]
     a.start_shot = shot.name
@@ -1557,7 +1556,8 @@ def _check_moving_cable(scene):
     _check(tight < paths.TIGHT_TOL, f"the lift wire's free length changed by {tight * 1000:.1f} mm")
     _check(pay > 10.0, f"the winch paid out only {pay:.2f} m")
     _check(hangs[0] == "HORN" and hangs[-1] == "SHEAVE", f"the cable hangs from {hangs[0]} and then {hangs[-1]}")
-    _check(max(totals) - min(totals) < 1e-3, f"the cable's length changed by {(max(totals) - min(totals)) * 1000:.1f} mm")
+    _check(max(totals) - min(totals) < 1e-3,
+           f"the cable's length changed by {(max(totals) - min(totals)) * 1000:.1f} mm")
     _check(drift < 1e-3, f"the let-go start moved {drift * 1000:.1f} mm over the seabed")
     _check(went > 3.0, "the block did not go on after the let-go")
     return (f"the winch paid out {pay:.2f} m with the wire tight to {tight * 1000:.2f} mm; the cable left the horn "

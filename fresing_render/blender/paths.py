@@ -986,11 +986,13 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
                    "side", "wrap", "wrap_cad", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
-                   "user", "note")
-_END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end"))
+                   "user", "note", "let_go_frame")
+_END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end",
+                                                         "_let_go_frame"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
-_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS)
+_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS,
+           "fr_let_go")
 
 
 def _values(group, fields) -> dict:
@@ -1988,6 +1990,14 @@ def _which_of(item, which) -> str:
     return str(i)
 
 
+def _drop_let_go_contacts(item) -> None:
+    """The places stored for contacts let go are forgotten (the list of contacts changed); Build reads them again."""
+    got = _stored_let_go(item)
+    keep = {k: v for k, v in got.items() if k in ("a", "b")}
+    if keep != got:
+        item[LET_GO] = json.dumps(keep)
+
+
 def _set_let_go_frame(item, which: str, frame: int) -> None:
     if which in ("a", "b"):
         with _quiet(item):
@@ -2008,36 +2018,39 @@ def let_go_frame(item, which) -> int:
 
 
 def _rel_at(scene, item, slots, frame: int) -> np.ndarray:
-    """(1, K, 4, 4): the slots at ``frame`` – from the places read at Build when it is among them, else read there."""
+    """(1, K, 4, 4): the slots at ``frame`` – from the places read at Build when it is among them, else as they are
+    now (the pose shown)."""
     stored = _stored_places(scene, item, slots) if _baked(scene) else None
     if stored is not None and stored[1] <= frame < stored[1] + len(stored[0]):
         return stored[0][frame - stored[1]][None]
-    if frame == int(scene.frame_current):
-        return _rel_now(item, slots)[None]
-    keep = (scene.frame_current, scene.frame_subframe)
-    from . import clash
-    try:
-        with clash._Guard():
-            scene.frame_set(int(frame))
-            return _rel_now(item, slots)[None]
-    finally:
-        scene.frame_set(keep[0], subframe=keep[1])
+    return _rel_now(item, slots)[None]
 
 
 def let_go(scene, item, which, frame=None) -> None:
     """From ``frame`` on (default: the frame shown) the end ``which`` ("a", "b") or the contact with that index no
     longer moves with its carrier: it stays where it was at that frame – in the seabed's coordinates for a cable
     into the sea (it passes aft with the seabed), else in the cable part's. Its place is read at that frame and
-    stored (Build reads it again). Raises PathError when it cannot be let go."""
+    stored (Build reads it again): from the frames of a built animation, or the pose shown at the frame shown. A
+    frame of an animation not built yet only sets the frame – its place is read when the animation is built (the
+    pose shown is not that frame's). Raises PathError when it cannot be let go."""
     w = _which_of(item, which)
     name = index_of(scene, item)
     frame = int(scene.frame_current if frame is None else frame)
     _wheels_, slots, _w, _a, _b = _inputs_of(item)
-    rel1 = _rel_at(scene, item, slots, frame)
+    stored = _stored_places(scene, item, slots) if _baked(scene) else None
+    known = frame == int(scene.frame_current) or \
+        (stored is not None and stored[1] <= frame < stored[1] + len(stored[0]))
+    rel1 = _rel_at(scene, item, slots, frame) if known else None
     item = _cable(scene, name)
-    place = _places_now(scene, item, rel1, slots)
     _set_let_go_frame(item, w, frame)
-    _store_let_go(item, w, frame, _hold_frame(item, rel1, slots) is not None, place[w])
+    if rel1 is not None:
+        _store_let_go(item, w, frame, _hold_frame(item, rel1, slots) is not None,
+                      _places_now(scene, item, rel1, slots)[w])
+    else:
+        got = _stored_let_go(item)
+        if w in got:
+            del got[w]
+            item[LET_GO] = json.dumps(got)
     changed(scene, item)
 
 
@@ -2504,6 +2517,8 @@ def _guarded(scene, item, change, why: str) -> None:
     try:
         change()
         item = _cable(scene, name)
+        if len(item.contacts) != len(snap["contacts"]):
+            _drop_let_go_contacts(item)         # (their places were kept by the contacts' places in the list)
         _STATE["rest"].clear()
         res = None
         if _usable(scene, item):
@@ -3415,14 +3430,15 @@ MOVING_LET_GO = 9.2                     # s: the cable end and the sheave are le
 MOVING_SPEED = 3.0                      # kn: the vessel's speed (Weather & time) while the block goes over the stern
 
 
-def set_up_moving_model(scene, let_go: bool = True) -> dict:
+def set_up_moving_model(scene, with_let_go: bool = True) -> dict:
     """The set-up of the moving-part test model (test_moving.step, tools/make_test_moving.py; task 0082), already
     imported: the joints "Travel" (the carrier aft along the gantry, 0 … 12 m), "Tilt" (the hanger about its pivot,
     0 … 40°, + swings the block aft) and "Lower" (the block down away from the hanger, 0 … 12 m); the cable "Cable end"
     read from CABLE (power cable look) and hung into the sea from the HORN (15 m of water, layback 20 m; the vessel
-    sails at 3 kn, Weather & time), its start (in the clamp) and its SHEAVE let go at 9.2 s (``let_go``); the wire "Lift wire" read from LIFT WIRE (steel wire
-    rope look) with "Winch keeps it tight" on; the animation "Over the stern": travel 10.5 m aft (0 … 4 s), tilt 30°
-    (4 … 5 s), lower 9 m (5 … 9 s), lift the block 5 m again (9.5 … 11.5 s). Not built. Returns the names made."""
+    sails at 3 kn, Weather & time), its start (in the clamp) and its SHEAVE let go at 9.2 s (``with_let_go``); the wire
+    "Lift wire" read from LIFT WIRE (steel wire rope look) with "Winch keeps it tight" on; the animation "Over the
+    stern": travel 10.5 m aft (0 … 4 s), tilt 30° (4 … 5 s), lower 9 m (5 … 9 s), lift the block 5 m again (9.5 …
+    11.5 s). Not built. Returns the names made."""
     from . import paths_sea as _sea
 
     def named(name):
@@ -3471,11 +3487,11 @@ def set_up_moving_model(scene, let_go: bool = True) -> dict:
     notes += read_cad(scene, wire, named("LIFT WIRE"))
     notes += set_keep_tight(scene, find(scene, MOVING_WIRE), True)
     fps = 25
-    if let_go:
+    if with_let_go:
         item = find(scene, MOVING_CABLE)
         frame = int(round(MOVING_LET_GO * fps)) + 1
         for which in ["a"] + [str(i) for i in _wheel_indices(item) if item.contacts[i].name == "SHEAVE"]:
-            _set_let_go_frame(item, which, frame)       # (its place is read when the animation is built)
+            let_go(scene, find(scene, MOVING_CABLE), which, frame)     # (its place is read when it is built)
     a = scene.fresing.animations.add()
     a.name, a.tail, a.fps = MOVING_ANIMATION, 0.0, str(fps)
     for jname, start, dur, to in (("Travel", 0.0, 4.0, 10.5), ("Tilt", 4.0, 1.0, math.radians(30.0)),
@@ -3490,3 +3506,14 @@ def set_up_moving_model(scene, let_go: bool = True) -> dict:
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     return {"joints": ["Travel", "Tilt", "Lower"], "cable": MOVING_CABLE, "wire": MOVING_WIRE,
             "animation": MOVING_ANIMATION, "notes": notes}
+
+
+def moving_view_points(scene) -> np.ndarray:
+    """(8, 3) world points a camera of the moving-part test model frames (the tour stop, the PC check): from the
+    gantry's front over the stern to the block lowered aft and the cable going down into the water."""
+    ob = next((o for o in scene.objects if o.get(build.PROP_NAME) == "CARRIER.ASM"), None)
+    if ob is None:
+        raise PathError("The model has no part 'CARRIER.ASM'.")
+    m = np.array((build.model_root_of(ob) or ob).matrix_world)
+    box = [(x, y, z) for x in (14.0, -12.0) for y in (-3.0, 3.0) for z in (-7.0, 7.6)]
+    return np.array([m[:3, :3] @ np.array(p) + m[:3, 3] for p in box])
