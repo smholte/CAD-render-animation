@@ -234,7 +234,7 @@ def fit_circle(pts: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float]:
 
 
 def tri_count(shape, linear: float, angular_deg: float) -> int:
-    """Triangles of ``shape`` meshed with these deflections (mm, degrees)."""
+    """Triangles of ``shape`` meshed with these deflections (mm, DEGREES – the importer's QUALITY gives radians)."""
     from OCP.BRep import BRep_Tool
     from OCP.BRepMesh import BRepMesh_IncrementalMesh
     from OCP.TopLoc import TopLoc_Location

@@ -420,6 +420,10 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
                  "leading edges point that way at 30, 60 and 90 m); the IEA's turbine, like every big one, turns "
                  "clockwise. Each blade is mirrored in its own plane through the pitch axis and the shaft: root, "
                  "length, pre-bend and twist stay, the leading edge leads the clockwise turn.")
+    notes.append("The source's blade skin is one B-spline of 4,343 x 203 control points, which OpenCascade meshes "
+                 "into 31-79 triangles (the blades were all but invisible); it is rebuilt as a light surface through "
+                 f"{LIGHT_GRID[0]} x {LIGHT_GRID[1]} points sampled from it (largest deviation "
+                 f"{LIGHT_DEVIATION[0]:.0f} mm): 217 k triangles at Draft, 874 k at Normal, 2.2 M at Fine per blade.")
     parts = list(src)
     for p in made:
         occ.one_solid(p.shape, p.name)
