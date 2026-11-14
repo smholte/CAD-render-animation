@@ -300,7 +300,10 @@ class _Near:
     def __init__(self, scene, memo: dict | None = None):
         self.memo = {} if memo is None else memo
         skip = {ob.name for ob in flex_parts(scene)}
-        self.parts = [ob for ob in build.iter_parts(scene) if ob.name not in skip and len(ob.data.vertices)]
+        # an excluded part (hidden for good) is never what an end or a bend rests on (task 0082: the demo's second end
+        # lies on the lay cable's path, kept out until the quadrant operation)
+        self.parts = [ob for ob in build.iter_parts(scene) if ob.name not in skip and len(ob.data.vertices)
+                      and not ob.get(build.PROP_EXCLUDED)]
         self.world = np.stack([_cad_world(ob, self.memo) for ob in self.parts]) if self.parts else np.zeros((0, 4, 4))
         box = np.array([[tuple(c) for c in ob.bound_box] for ob in self.parts], dtype=float).reshape(-1, 8, 3)
         corners = np.einsum("kij,kcj->kci", self.world[:, :3, :3], box) + self.world[:, None, :3, 3]

@@ -235,6 +235,8 @@ AR_EYE_OUT = 90.0               # the A&R eye's hole: this far beyond the D's ou
 AR_EYE_Z = 480.0                # ... and this high above the rail top (under the gutter, above the D's underside)
 PULLEY_Z = 200.0                # the top pulley's centre above the hinge axis: it stays under the passing D
 TILT_END = 100.0                # the handler's tilt at the end of shot 7 (deg)
+LOWER_TILT = 110.0              # ... and where the A&R winch lowers the D (task 0082): the D, hanging plumb from its
+#                                 eye, clears the stern's horns (their lower ends reach 1.4 m aft of the transom) by ~0.2 m
 
 
 def ar_eye_local(p) -> np.ndarray:

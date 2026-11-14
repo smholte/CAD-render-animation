@@ -213,6 +213,21 @@ def volume(shape) -> float:
     return g.Mass()
 
 
+def mass_centre(root: "Asm") -> tuple[float, np.ndarray]:
+    """Volume and centre of volume of every part of an assembly (in its coordinates): one material all through."""
+    vol, mom = 0.0, np.zeros(3)
+    for node, _uid, W, _label, _path in walk(root):
+        if not isinstance(node, Part):
+            continue
+        gp = GProp_GProps()
+        BRepGProp.VolumeProperties_s(node.shape, gp)
+        c = gp.CentreOfMass()
+        v = gp.Mass()
+        vol += v
+        mom += v * (W @ np.array([c.X(), c.Y(), c.Z(), 1.0]))[:3]
+    return vol, mom / max(vol, 1e-9)
+
+
 def _wire2d(profile, plane=lambda u, v: gp_Pnt(u, 0.0, v)):
     """Closed wire from a 2D profile: points (u, v) and ("arc", (u, v) through, (u, v) end)."""
     w = BRepBuilderAPI_MakeWire()
