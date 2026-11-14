@@ -128,7 +128,7 @@ def source_parts(leaves, T: S.TFrame, variant: str, door_cut=None) -> tuple[list
     for k, extra in enumerate(parts[1:]):
         out.append(("HUB CENTRE MARK" + (f" {k + 1}" if k else ""), f"hub extra {k}", extra, place(hub), ROTOR))
     for i, (skin, disc) in enumerate(S.blades(leaves), start=1):
-        out.append((f"BLADE {i}", "blade skin", _mirrored(skin.shape), place(skin), pitch_body(i), "BLADE"))
+        out.append((f"BLADE {i}", "blade", _mirrored(skin.shape), place(skin), pitch_body(i), "BLADE"))
         out.append((f"BLADE {i} ROOT DISC", "blade disc", occ.one_solid(disc.shape, "disc"), place(disc),
                     pitch_body(i), "BLADE ROOT DISC"))
     return out, notes
@@ -241,6 +241,7 @@ def light_blade(skin_shape, mirror: bool = True):
     P = np.array([[(lambda q: (q.X(), sign * q.Y(), q.Z()))(src.Value(float(u), float(v))) for v in vs]
                   for u in us])
     P = round_root(P)
+    P[0] = P[-1] = (P[0] + P[-1]) / 2.0                 # the trailing edge (up to 11.5 mm open in the CAD) closed
     arr = TColgp_Array2OfPnt(1, len(us), 1, len(vs))
     for i in range(len(us)):
         for j in range(len(vs)):
@@ -261,11 +262,48 @@ def light_blade(skin_shape, mirror: bool = True):
             proj = GeomAPI_ProjectPointOnSurf(q, surf)
             if proj.NbPoints():
                 worst = max(worst, float(proj.LowerDistance()))
-    shell = TopoDS_Shell()
-    b = BRep_Builder()
-    b.MakeShell(shell)
-    b.Add(shell, face)
-    return shell, worst
+    return closed_blade(face), worst
+
+
+def closed_blade(skin_face):
+    """The skin (closed round the airfoil) capped flat at the root and the tip and sewn: ONE closed solid. An open
+    skin has no inside, so the clash check judged hub points near its open root to be "in" the blade (80 mm rows
+    while it pitched, though no blade point enters the hub: tested exactly)."""
+    from OCP.BRepBuilderAPI import (BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeSolid, BRepBuilderAPI_MakeWire,
+                                    BRepBuilderAPI_Sewing)
+    from OCP.ShapeFix import ShapeFix_Shape, ShapeFix_Solid
+    from OCP.TopAbs import TopAbs_SHELL
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopoDS import TopoDS
+
+    to_shell = getattr(TopoDS, "Shell_s", None) or TopoDS.Shell
+    caps = []
+    for edge in occ.edges(skin_face):
+        pts = occ.edge_points(edge, 16)
+        if np.ptp(pts[:, 2]) < 1.0 and np.linalg.norm(pts[0] - pts[-1]) < 0.5:     # a closed end: root or tip
+            mk = BRepBuilderAPI_MakeFace(BRepBuilderAPI_MakeWire(edge).Wire(), True)
+            if not mk.IsDone():
+                raise RuntimeError("a blade end could not be capped")
+            caps.append(mk.Face())
+    if len(caps) != 2:
+        raise RuntimeError(f"the blade skin has {len(caps)} closed ends, not 2 (root and tip)")
+    sew = BRepBuilderAPI_Sewing(0.5)
+    for f in [skin_face] + caps:
+        sew.Add(f)
+    sew.Perform()
+    e = TopExp_Explorer(sew.SewedShape(), TopAbs_SHELL)
+    if not e.More():
+        raise RuntimeError("the blade could not be sewn into a shell")
+    fix = ShapeFix_Solid(BRepBuilderAPI_MakeSolid(to_shell(e.Current())).Solid())
+    fix.Perform()
+    tidy = ShapeFix_Shape(fix.Solid())                  # the sewn seam's tolerances: valid for BRepCheck
+    tidy.Perform()
+    solid = occ.one_solid(tidy.Shape(), "blade")
+    if not occ.is_valid(solid):
+        raise RuntimeError("the closed blade is not a valid solid")
+    if occ.volume(solid) <= 0:
+        raise RuntimeError("the closed blade has no volume (turned inside out)")
+    return solid
 
 
 def mirrored_blade(skin_shape):
@@ -447,6 +485,8 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
                  "into 31-79 triangles (the blades were all but invisible); it is rebuilt as a light surface through "
                  f"{LIGHT_GRID[0]} x {LIGHT_GRID[1]} points sampled from it (largest deviation "
                  f"{LIGHT_DEVIATION[0]:.0f} mm): 217 k triangles at Draft, 874 k at Normal, 2.2 M at Fine per blade.")
+    notes.append("The blade is a closed solid: its trailing edge (up to 11.5 mm open in the CAD) closed, flat caps on "
+                 "root and tip (an open skin has no inside for the clash check).")
     notes.append(f"The blade root is made round (r {ROOT_RADIUS:.0f} mm, on the pitch axis) and blended into the CAD's "
                  f"skin over the first {ROOT_BLEND / 1000:.0f} m: the CAD's root is 95 mm out of round and 62 mm off "
                  "its pitch axis, so a pitching blade ran 160 mm into the hub's round ring; the IEA's blade root is "
