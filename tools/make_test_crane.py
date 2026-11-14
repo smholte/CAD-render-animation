@@ -3,7 +3,7 @@
 TEST.CRANE                      mm; the boom turns about Y at PIVOT
   BASE                          base plate 1000 x 600 x 100, corners and top edges chamfered, four bolt holes Ø13
   PEDESTAL                      a foot flange with gussets, a block with chamfered corners and a fork on top (two
-                                cheeks with round tops, bore Ø40.4) that carries the boom pin; the boom
+                                cheeks with chamfered tops, bore Ø40.4) that carries the boom pin; the boom
                                 turns between the cheeks, 20 mm above the block (task 0072: no part starts inside
                                 another, so the clash check never sits on its threshold)
   ISO 4762 M10 x 20 - 12.9      x4, socket head screws holding the pedestal's foot down
@@ -83,9 +83,11 @@ def pedestal_shape(lug: bool = False):
     foot = chamfer(foot, 3.0, lambda p: abs(p[2] - 20.0) < 1e-6)
     block = g.polygon_prism(chamfered_rect(0, 0, 120, 160, 12), 210.0, g.T(0, 0, 20))
     parts = [foot, block]
-    for y0 in (0.0, 135.0):                                      # the cheeks: round tops round the pin
-        parts.append(g.box(20, y0, 200, 80, 25, 100))
-        parts.append(g.cyl(40.0, 25.0, (60, y0, 300), (0, 1, 0)))
+    # the cheeks, tops chamfered (not round: a round top on the bore's axis would make the importer call the bore
+    # "Ø80", since faces on one axis line share one axis with the largest radius)
+    cheek = [(20.0, 200.0), (100.0, 200.0), (100.0, 318.0), (82.0, 340.0), (38.0, 340.0), (20.0, 318.0)]
+    for y0 in (0.0, 135.0):
+        parts.append(g.xform(g.polygon_prism(cheek, 25.0), g.Frame((0, y0 + 25.0, 0), (1, 0, 0), (0, -1, 0))))
     # gussets between the foot and the block: a triangle 25 out and 70 up, 12 thick
     tri = [(0.0, 0.0), (25.0, 0.0), (0.0, 70.0)]
     for side in ("-y", "+y", "-x") + (() if lug else ("+x",)):

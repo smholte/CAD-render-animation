@@ -102,7 +102,9 @@ def test_hole_lights_up_with_its_axis(scene):
         h = look(scene, origin, direction)
         assert h.part == ped.name and h.kind == "hole", h
         assert h.text.endswith("Hole Ø40.4 mm – axis through its centre"), h.text
-        assert h.tris in ((44, 96), (216, 268)), h.tris
+        # the bore's whole CAD face block: 52 triangles ((212, 264) on the task-0122 crane; OpenCascade may number the
+        # faces in another order, so the block's place is read from the part's face starts)
+        assert h.tris[1] - h.tris[0] == 52 and h.tris[0] in list(ped.data["fr_face_starts"]), h.tris
         same_as_click(scene, h, origin, direction)
         fill, outline = hover.face_shape(ped.data, h.face)
         assert len(fill) == 3 * (h.tris[1] - h.tris[0]) and len(outline) % 2 == 0 and len(outline) > 0

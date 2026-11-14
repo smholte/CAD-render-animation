@@ -95,9 +95,9 @@ def test_rotate_joint_moves_boom_and_keeps_structure(scene):
     # the structure list and click-selection still follow the CAD tree
     logic.rebuild_tree(scene)
     names = [it.obj.get(build.PROP_NAME) for it in scene.fresing.tree if not it.is_part]
-    assert names == ["TEST.CRANE", "BOOM.ASM", "TROLLEY.ASM"]
+    assert names == ["TEST.CRANE", "BOOM.ASM", "HYDRAULIC CYLINDER.ASM", "TROLLEY.ASM"]   # cylinder: task 0122
     assert logic.subassembly_for_pick(ob(scene, "BOOM")) is boom_asm
-    assert logic.part_count(build.model_roots(scene)[0]) == 12
+    assert logic.part_count(build.model_roots(scene)[0]) == 20      # 12 before task 0122 (screws, cylinder, pins)
     joints.set_value(j, 0.0)
     update(scene)
     assert close(tip(scene), start)
@@ -328,7 +328,7 @@ def test_update_model_keeps_work(scene):
     assert close(tip(scene), tip_before)
     assert len([o for o in new_bolts if logic.is_hidden(o)]) == 1
     # nothing of the old model is left
-    assert len(list(build.iter_parts(scene))) == 12
+    assert len(list(build.iter_parts(scene))) == 20         # revision B: 21 placed, one bolt less (task 0122)
 
 
 def test_render_queue_still_and_video(scene, tmp_path):
