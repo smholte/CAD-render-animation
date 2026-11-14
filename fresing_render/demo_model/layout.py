@@ -49,7 +49,7 @@ JOINTS_JSON = "demo_joints.json"
 STORAGE_D = 16000.0             # the quay's storage carousel
 STORAGE_LAYERS = 11
 CPS_LENGTH = 15000.0
-TILT_STEP_FROM = 0.16           # the A&R drum's step over the tilt starts this far into the tilt's time (task 0095)
+LOWER_MAX = 45000.0             # the D lowered on the A&R wire: 0 … 45 m below the top pulley (task 0082)
 
 
 def _r(v, n=4):
@@ -284,6 +284,8 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     # ---- the cable along the oval (a static solid for stills)
     cable = Part("CABLE", g.route_solid(main, cr), m.CABLE_BLACK)
     S.handles["cable"] = [root.add(cable, instance="CABLE")]
+    # ---- the second end (task 0082): the cable's end that went round the oval last, for the quadrant operation
+    _second_end(p, S, root)
     # ---- the quay (its own file; placed for the vessel moored starboard side to)
     t = time.time()
     S.files["quay_loading"] = quay_loading(p, S, storage)
@@ -297,6 +299,32 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     S.root = root
     S.timings["total"] = time.time() - t0
     return S
+
+
+def second_end_route(p, main: rt.Route) -> rt.Route:
+    """The second end (task 0082): the main route from the D's lane-B bar end (where its gutter starts) round the whole
+    gutter, aft along side A through tensioner 2, over horn A and into the sea - the same segments."""
+    k = next(i for i, inf in enumerate(main.info) if inf.get("rollers") == "quadrant gutter")
+    r = rt.Route("second end", main.diameter)
+    for seg, inf in zip(main.segments[k:], main.info[k:]):
+        r.add(seg, **inf)
+    return r
+
+
+def _second_end(p, S: Scene, root: Asm) -> None:
+    """The cable's second end for the quadrant operation (task 0082): ``CABLE END`` from the D's lane-B bar end round
+    the gutter and on as the main cable to the sea (the demo shows it in place of the lay cable from shot 9 on), and a CPS
+    set on it, ``CPS SET (SECOND END)``, its pull head at the bar end. The CPS is drawn straight, along side B aft of
+    the bar end (a set lying in a curve has no one axis): the demo lays it on the cable as a rider (0081), which reads
+    its parts along that straight axis and draws each on its chord of the cable's path."""
+    pos, kit = S.pos, S.kit
+    r = second_end_route(p, S.routes["main"])
+    S.routes["second_end"] = r
+    S.handles["second_end"] = [root.add(Part("CABLE END", g.route_solid(r, p.cable_r), m.CABLE_BLACK))]
+    cps = dk.cps_set(p, kit, CPS_LENGTH)
+    nose = np.array([pos["quadrant_x"], pos["side_b_y"], p.line_z])
+    S.handles["second_end_cps"] = [root.add(cps, T(*nose) @ Rot((0, 0, 1), 180.0), "CPS SET (SECOND END)")]
+    S.info["second_end"] = {"nose": nose, "length": cps.info["length"], "outer_r": cps.info["outer_r"]}
 
 
 def _roller_stations(p, S: Scene, root: Asm) -> None:
@@ -466,8 +494,10 @@ def quadrant_system(p, S: Scene) -> Asm:
     Task 0095, as the owner works: the A&R wire is always on the D's eye at the top of its curve – straight along the
     deck while the D travels, over the handler's top pulley once the handler tilts; the tipping wires come up the
     swivel posts, over the swivel sheaves and down to the D's bottom corners (the bar's ends) once it is on the handler.
-    The wires that move are made by the demo project (``blender/demo.py``) from ``S.info["wires"]``; the model holds
-    only the tipping wires' fixed part (winch -> foot sheave -> up the post)."""
+    Task 0082: the model holds every wire in the CAD pose – the tipping wires' fixed part (winch -> foot sheave -> up
+    the post, WIRE ROPE), the A&R WIRE (drum -> the D's eye) and the TIPPING WIRE on to the D's bar ends (the D at its
+    stationary place) –, and the joint 'Quadrant lower' (the A&R winch lowers the D straight down once the handler has
+    tilted to rt.LOWER_TILT); the demo project makes the moving wires app cables (``blender/demo.py``)."""
     pos, kit = S.pos, S.kit
     qs = Asm("QUADRANT SYSTEM")
     xq = pos["quadrant_x"]
@@ -484,11 +514,22 @@ def quadrant_system(p, S: Scene) -> Asm:
                                         "handler only with the D on it (the travel rides on the tilt)"},
              rides_on="QUADRANT HANDLER: Handler tilt")
     eye = _pt(DM, quad.info["hang_off"])
+    # task 0082: the A&R winch lowers the D on its wire, straight down in the world once the handler has tilted it over
+    # the stern (to rt.LOWER_TILT, a little past the end of shot 9's tilt, so the D hanging from its eye clears the
+    # horns): the joint's direction with every joint at 0 is "down" turned back by that tilt
+    th = math.radians(rt.LOWER_TILT)
+    down = (-math.sin(th), 0.0, -math.cos(th))
+    qs.joint("Quadrant lower", "slide", [cq], eye, down, [0.0, LOWER_MAX],
+             {"by": "operator", "note": "the A&R winch lowers the D on its wire (positive, mm): straight down in the "
+                                        f"world with the handler tilted to {rt.LOWER_TILT:.0f}°; it rides "
+                                        "on the travel (task 0082)"},
+             rides_on="Quadrant travel")
     qs.joint("Quadrant tip", "rotate", [cq], eye, (0, -1, 0), [-180.0, 180.0],
              {"by": "operator", "note": "turns the D about its A&R eye at the top of the curve (the wire it hangs from, "
-                                        "task 0095): positive swings the straight bar down; it rides on the travel, "
-                                        "which rides on the handler's tilt (task 0082 tips it near the sea bottom)"},
-             rides_on="Quadrant travel")
+                                        "task 0095): positive swings the straight bar down; it rides on the lowering, "
+                                        "so it turns about the eye wherever the wire has lowered it (task 0082)"},
+             rides_on="Quadrant lower")
+    hang = hang_tip(quad, rt.LOWER_TILT)
     # rails on girders and trestles along the middle lane (they bridge the stern turn)
     x0, x1 = pos["pulley_x"] + 50.0, pos["quadrant_apex_x"]
     route_pts, _ss = _samples(S.routes["main"])
@@ -521,32 +562,16 @@ def quadrant_system(p, S: Scene) -> Asm:
     cqw = qs.add(qw, QW, "QUADRANT HANDLING WINCH")
     drum_c = _pt(QW, qw.info["drum_centre"])
     rd = qw.info["rope_centre_r"]
-    # the drum pays out as the D travels aft (a coupling to the travel: the wire's length grows with it mm for mm) and
-    # as the handler tilts (a second joint on the same axis that the first rides on, turned by a step: the wire's
-    # length is far from linear in the tilt angle – it bears on the pulley only from ~10° – but a SMOOTH step from
-    # TILT_STEP_FROM of the tilt's time to its end follows it within 2 %; test_demo_cable_lay checks it)
-    dj = next(j for j in qw.joints if j.name == "Drum turn")
-    cd = dj.parts[0][0]
-    deg_mm = 360.0 / (2 * math.pi * rd)
-    L0 = ar_wire_length(p, pos, drum_c[[0, 2]], rd, 0.0)[0]
-    L1 = ar_wire_length(p, pos, drum_c[[0, 2]], rd, rt.TILT_END)[0]
-    qw.joint("Drum turn on tilt", "rotate", [cd], dj.point, dj.direction, None,
-             {"by": "winch", "deg_per_mm": round(deg_mm, 9), "payout_mm": round(L1 - L0, 3),
-              "step_from": TILT_STEP_FROM,
-              "note": "pays the A&R wire out while the handler tilts 0 -> 100° (payout_mm; positive pays out): a SMOOTH "
-                      "step from step_from of the tilt's time to its end; 'Drum turn' rides on it"})
-    qw.joints.remove(dj)
-    qw.joint("Drum turn", "rotate", [[cd, c] for c in cd.node.children], dj.point, dj.direction, None,
-             {"by": "follows", "follows": "../Quadrant travel", "ratio": round(deg_mm, 9),
-              "rope_centre_radius": round(rd, 3),
-              "note": "pays the A&R wire out as the D travels aft (degrees per mm of travel; positive pays out)"},
-             rides_on="Drum turn on tilt")
+    # task 0082: one plain 'Drum turn' (the winch's own, positive pays out): the A&R wire is a cable of its own in the
+    # demo, which keeps it tight and turns the drum (0095's step over the tilt and its coupling to the travel are gone)
     base_frame = next(c for c in qw.children if c.node.name == "WINCH BASE FRAME")
     eye_part = next(c for c in quad.children if c.node.name == "A&R PAD EYE")
     tp = rt.top_pulley(p)
     ropes = {}
     ropes["A&R wire"] = rt.rope_route("A&R wire", p.quadrant_rope_d, 0.0, [
         ("sheave", tuple(drum_c[[0, 2]]), rd, +1, {"name": "drum"}), ("point", (eye[0], eye[2]))])
+    # the A&R wire itself (task 0082): from where it leaves the drum's top to the D's eye, the D at its stationary place
+    qs.add(Part("A&R WIRE", g.route_solid(ropes["A&R wire"], p.quadrant_rope_d / 2), m.ROPE_GREY), instance="A&R WIRE")
     ar = {"drum_centre": drum_c, "drum_axis": [0.0, 1.0, 0.0], "drum_r": rd,
           "drum_carrier": [cqw, base_frame], "eye": eye, "eye_carrier": [cq, eye_part],
           "eye_end": _hinge_world(pos, z_h, tp["eye"]), "pulley_centre": _hinge_world(pos, z_h, tp["centre"]),
@@ -614,10 +639,63 @@ def quadrant_system(p, S: Scene) -> Asm:
             "head_carrier": [cs, sw.info["head"], next(c for c in head.children if c.node.name == "SHEAVE HEAD")],
             "park": _pt(HM2, [2 * trp, 0.0, 6000.0 - p.deck_z]), "eye": _pt(DM, e_loc), "eye_carrier": [cq, pad],
             "eye_on_handler": e0, "eye_tilted": e1, "rope_d": p.tipping_rope_d, "swivel_ratio": sw_ratio}
+        # the tipping wire itself (task 0082): from the post's top up its axis, over the head sheave and on to the D's
+        # pad eye at the bar's end, the D at its stationary place (the demo shows it once it is connected)
+        r = tipping_wire(f"tipping wire {key} (to the D)", p.tipping_rope_d, [sxy[0], sxy[1], top + p.deck_z], hc,
+                         HM2[:3, :3] @ np.array([1.0, 0.0, 0.0]), trp, _pt(DM, e_loc))
+        ropes[r.name] = r
+        qs.add(Part("TIPPING WIRE", g.route_solid(r, p.tipping_rope_d / 2), m.ROPE_GREY),
+               instance=f"TIPPING WIRE {key.upper()}")
     S.info["wires"] = wires
     S.quadrant_info = {"quadrant": cq, "handler": ch, "ropes": ropes, "tipping": tips, "hang": eye,
-                       "quad_asm": quad, "handler_asm": hd, "qh_winch": cqw}
+                       "quad_asm": quad, "handler_asm": hd, "qh_winch": cqw, "hang_tip": hang}
     return qs
+
+
+def hang_tip(quad: Asm, tilt_deg: float) -> float:
+    """How far (degrees, 'Quadrant tip') the D turns about its A&R eye to hang plumb once the wire takes it off the
+    handler at ``tilt_deg``: its centre of mass (one material) straight under the eye (task 0082). Negative swings its
+    straight bar aft, away from the transom."""
+    _v, c = g.mass_centre(quad)
+    d = c - np.asarray(quad.info["hang_off"], float)
+    th = math.radians(tilt_deg)
+    X, Z = d[0] * math.cos(th) - d[2] * math.sin(th), d[0] * math.sin(th) + d[2] * math.cos(th)
+    return math.degrees(math.atan(X / Z))
+
+
+def tipping_wire(name: str, d: float, lead, centre, head_x, r: float, eye) -> rt.Route:
+    """A tipping wire from ``lead`` (on the swivel post's axis) straight up to the head sheave (centre, rope radius
+    r, in the vertical plane of ``head_x``), over its top and on to ``eye`` (model mm). The eye need not lie in the
+    sheave's plane: the wire leaves the groove where the line to the eye is square to the radius (the tangent from the
+    eye's projection onto the plane), so it runs on with a fleet angle."""
+    c = np.asarray(centre, float)
+    hx = rt.unit(head_x)
+    z = np.array([0.0, 0.0, 1.0])
+    n = np.cross(-hx, z)                                  # right hand about n: from the post's side over the top
+    E = np.asarray(eye, float)
+    Ep = E - n * float((E - c) @ n)
+    q = np.array([(Ep - c) @ hx, (Ep - c) @ z])
+    L2 = rt.tangent_to_point(np.zeros(2), r, -1, q)       # clockwise in (head x, z): over the top
+    ang = math.pi - math.atan2(L2[1], L2[0])
+    route = rt.Route(name, d)
+    p0 = c - r * hx
+    route.add(rt.Line(np.asarray(lead, float), p0), support="free", note="up the swivel post's axis")
+    arc = route.add(rt.Arc(c, n, p0, ang), support="sheave", name="head sheave")
+    if np.linalg.norm(arc.end - (c + L2[0] * hx + L2[1] * z)) > 1e-6:
+        raise ValueError(f"{name}: the wire's leave point is off the head sheave")
+    # the fleet angle: a short bend (the sheave's radius) from the groove's direction towards the eye, so the wire has
+    # no kink (a swept solid needs a smooth path)
+    t = arc.end_tangent
+    off = E - arc.end
+    side = off - t * float(off @ t)
+    if np.linalg.norm(side) > 1e-3 * np.linalg.norm(off):
+        b = rt.unit(side)
+        e2 = np.array([off @ t, off @ b])
+        T2 = rt.tangent_to_point(np.array([0.0, r]), r, +1, e2)
+        bend = math.atan2(T2[0], -(T2[1] - r)) % (2 * math.pi)
+        route.arc(b, r, math.degrees(bend), support="free", note="the fleet angle: off the groove towards the eye")
+    route.line_to(E, support="free", note="to the D's pad eye")
+    return route
 
 
 def _shackle(d: float) -> Part:
@@ -861,6 +939,15 @@ def route_sheet(S: Scene) -> dict:
             "quay_loading": "demo_quay_loading.step: from the quay's storage carousel over its arch, across the quay, "
                             "over the vessel's starboard side at the stern and round the boarding bend onto side A's "
                             "highway heading forward, where it meets the main route"},
+        "second_end": {"solid": uid(S.handles["second_end"]), "cps": uid(S.handles["second_end_cps"]),
+                       "route": S.routes["second_end"].to_dict(),
+                       "pull_head_nose": _r(S.info["second_end"]["nose"]),
+                       "cps_length": round(S.info["second_end"]["length"], 1),
+                       "cps_outer_radius": S.info["second_end"]["outer_r"],
+                       "note": "task 0082: the cable's second end for the quadrant operation - from the D's lane-B bar "
+                               "end round the gutter, side A aft, horn A, into the sea (the main route's segments from "
+                               "the gutter on). Its CPS set lies straight along side B aft of the bar end, its pull "
+                               "head's nose at the bar end: a rider (0081) reads it along that axis."},
         "ropes": ropes,
         "sheaves": sheaves,
         "handling_winches": winches,
@@ -881,8 +968,15 @@ def route_sheet(S: Scene) -> dict:
                      "pad_eyes": {k: _r(_pt(QD, v)) for k, v in quad.info["eyes"].items()},
                      "rails_y": [-dk.RAIL_Y, dk.RAIL_Y], "rail_top_z": p.rail_z,
                      "travel": [0.0, round(pos["quadrant_travel"], 3)], "travel_direction": [-1.0, 0.0, 0.0],
+                     "lower": [0.0, LOWER_MAX], "tilt_end": rt.TILT_END, "lower_tilt": rt.LOWER_TILT,
+                     "hang_tip": round(qi["hang_tip"], 4),
+                     "lower_note": "task 0082: 'Quadrant lower' lowers the D on its A&R wire straight down in the "
+                                   "world with the handler at lower_tilt; hang_tip (deg of 'Quadrant tip') turns it about "
+                                   "its "
+                                   "eye so its centre of mass hangs under the eye once the wire takes it off the "
+                                   "handler (its bar swings aft, clear of the transom)",
                      "handler": {"uid": uid(hpath), "hinge": _r(_pt(HD, [0, 0, 0])), "axis": [0.0, -1.0, 0.0],
-                                 "tilt": [0.0, 100.0], "length": pos["handler_len"],
+                                 "tilt": [0.0, rt.LOWER_TILT], "length": pos["handler_len"],
                                  "top_pulley": _r(_pt(HD, hd.info["pulley_centre"])),
                                  "cylinders": [{"barrel": uid(hpath + c["barrel"]), "rod": uid(hpath + c["rod"]),
                                                 "barrel_pin": _r(_pt(HD, c["barrel_pin"])),

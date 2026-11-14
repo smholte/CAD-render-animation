@@ -16,7 +16,7 @@ from . import geom as g
 from .geom import Asm, Part, Rot, T
 from .machines import (CHROME, DARK, MOTOR, RUBBER, STEEL, YELLOW, Kit, _arc_rollers, cable_drive,
                        turn_axis)
-from .route import ar_eye_local, top_pulley
+from .route import LOWER_TILT, ar_eye_local, top_pulley
 
 GREY = (0.55, 0.56, 0.57)
 CPS_YELLOW = (0.98, 0.78, 0.05)
@@ -561,7 +561,7 @@ def quadrant_handler(p, kit: Kit, length: float, z_hinge: float, deck_z: float) 
     cp = frame.add(pulley, T(*pc) @ Rot((1, 0, 0), 90))
     frame.add(Part("PULLEY PIN", g.cyl(70.0, 600.0, pc + [0, -300, 0], (0, 1, 0)), STEEL))
     cf = A.add(frame)
-    A.joint("Handler tilt", "rotate", [cf], (0, 0, 0), (0, -1, 0), [0.0, 100.0],
+    A.joint("Handler tilt", "rotate", [cf], (0, 0, 0), (0, -1, 0), [0.0, LOWER_TILT],
             {"by": "operator", "note": "tilts the handler up and over the stern (positive); the quadrant rides on it"})
     A.joint("Top pulley turn", "rotate", [[cf, cp]], pc, (0, -1, 0), None,
             cable_drive(rp, note="turned by the A&R wire once the handler tilts (positive = paying out)"))
