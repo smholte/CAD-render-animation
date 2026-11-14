@@ -1,6 +1,6 @@
 # 0082 – Quadrant operations: the second end goes over the stern on the D, into the sea, tipped off on the seabed
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0082-quadrant-operations` (or the web session's)
+**Who:** worker · **Status:** running (14 Nov) · **Branch:** `ccr-dfd4b55c-97xzhk`
 **Started by:** lead chat, 14 Nov 2026 (plan: end of tasks/0075; owner's steps: tasks/0083 "Quadrant sequence";
 owner 12 Nov: TASKS.md "Problems found")
 **Area:** Flex parts lane (`blender/paths*.py`, `core/paths.py`, `core/catenary.py`, `blender/paths_sea.py`,
