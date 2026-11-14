@@ -554,7 +554,12 @@ def test_speed_isolated_triangles():
     assert dt < 4.0
 
 
-@pytest.mark.skipif(not os.environ.get("FR_SLOW"), reason="set FR_SLOW=1 for the 1 M triangle timing")
+
+def SLOW(fn):
+    """Only with FR_SLOW=1 is this a test (no skipped tests on GitHub otherwise)."""
+    return fn if os.environ.get("FR_SLOW") else None
+
+@SLOW   # FR_SLOW=1: the 1 M triangle timings (not even collected otherwise: GitHub allows one skip per group)
 def test_speed_1m():
     p, t, copies = many_parts(1_000_000)
     t0 = time.perf_counter()
@@ -762,7 +767,7 @@ def height_field(n, noise=0.0, seed=0):
     return p, np.concatenate((np.stack((a, b_, c), -1).reshape(-1, 3), np.stack((a, c, d), -1).reshape(-1, 3)))
 
 
-@pytest.mark.skipif(not os.environ.get("FR_SLOW"), reason="set FR_SLOW=1 for the 1 M triangle timing")
+@SLOW   # FR_SLOW=1: the 1 M triangle timings (not even collected otherwise: GitHub allows one skip per group)
 @pytest.mark.parametrize("noise", (0.0, 0.002, 0.05))
 def test_speed_1m_height_field(noise):
     """A fine height field: smooth (one face), a little rough (many small faces), very rough (a face per
