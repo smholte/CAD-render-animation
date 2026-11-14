@@ -32,8 +32,9 @@ How it works, step by step
    own (a box side), stays a flat face of its own.
 6. Faces are numbered by their first triangle and every face is one block of triangles in the new order; the
    round faces' axes are stored like ``importer.step_reader._Axes`` does (same line = one axis, at most
-   ``MAX_AXES``; lines are matched within 5e-5 in direction and 1e-4 x the mesh's diagonal at the foot rather than
-   by rounding, so two faces of one line never fall on both sides of a rounding step).
+   ``MAX_AXES``; lines are matched within 5e-5 in direction and 1e-4 x the mesh's diagonal rather than by
+   rounding). One difference: the stored point is the point of the axis beside the middle of its first face, not
+   the one nearest the origin (see the comment in ``split``).
 
 Everything is vectorised over triangles and edges; Python loops run per cylinder group that the quick check did not
 pass, and per cylinder that has a strip to grow by. Cones are not found yet (their facets meet in creases that are not
@@ -61,6 +62,8 @@ OWN_FACE_SHARE = 0.05            # a flat patch with this share of its free-form
 BULGE_SHARE = 0.01               # ... and within this share of how far its arc bulges
 LENGTH_RATIO = 0.75              # creases along the axis must be this long compared with soft creases across it,
 SMOOTH_DEG, SMOOTH_WEIGHT = 2.0, 4.0  # where a crease across it smoother than SMOOTH_DEG counts SMOOTH_WEIGHT times
+NOISE = 6e-8                     # rounding of a position: half a float32 step, as a share of its largest coordinate
+NOISE_K = 4.0                    # a crease estimate's centre moves by up to NOISE_K x rounding x (radius / width)^2
 NEIGHBOURS = 8                   # an edge (or a patch's crease list) links each item to this many next ones
 
 
@@ -224,7 +227,7 @@ class _Edges:
     neighbouring triangles, ``same_way`` says whether their windings agree (they run the shared edge in opposite
     directions), ``eu``/``ev`` the edge's corners for every pair."""
 
-    def __init__(self, T: np.ndarray, nv: int):
+    def __init__(self, T: np.ndarray, nv: int, wpos: np.ndarray, scale: float):
         m = len(T)
         hu = T.ravel()
         hv = T[:, [1, 2, 0]].ravel()
@@ -251,6 +254,77 @@ class _Edges:
         self.ta, self.tb = self.ht[i], self.ht[j]
         self.same_way = self.fwd[i] != self.fwd[j]
         self.eu, self.ev = self.hu[i], self.hv[i]
+        if len(self.key):
+            self._t_junctions(wpos, scale)
+
+    def _t_junctions(self, wpos, scale):
+        """Neighbours over a T-junction: a free edge that lies along a piece of another free edge (one facet has
+        9 corners on a long edge, its neighbour only the 2 ends, as a non-conforming exporter writes). Free edges are
+        sorted by their line (direction and foot, rounded on two grids half a step apart); along one line each edge
+        is paired with the edge before it that reaches furthest, when they overlap."""
+        h = self.gstart[self.gsize == 1]
+        if len(h) < 2:
+            return
+        a, b = wpos[self.hu[h]], wpos[self.hv[h]]
+        d, ln = _unit(b - a)
+        keep = ln > 1e-9 * scale
+        h, a, b, d, ln = h[keep], a[keep], b[keep], d[keep], ln[keep]
+        if len(h) < 2:
+            return
+        first = np.argmax(np.abs(d) > 1e-9, axis=1)
+        sign = np.where(d[np.arange(len(d)), first] < 0, -1.0, 1.0)
+        dc = d * sign[:, None]                         # one direction per line
+        sa, sb = np.einsum("ij,ij->i", a, dc), np.einsum("ij,ij->i", b, dc)
+        foot = a - dc * sa[:, None]
+        s0, s1 = np.minimum(sa, sb), np.maximum(sa, sb)
+        tol = 1e-6 * scale
+        pi, pj = [], []
+        for shift in (0.0, 0.5):
+            key = np.column_stack((np.floor(dc / 1e-3 + shift), np.floor(foot / (1e-5 * scale) + shift))).astype(np.int64)
+            # one number per line (a hash: two lines that share one are told apart by the check below)
+            line = (key * np.array([1000003, 998244353, 1000000007, 19260817, 2147483647, 362437], np.int64)).sum(1)
+            _, inv, cnt = np.unique(line, return_inverse=True, return_counts=True)
+            two = np.flatnonzero(cnt[inv.ravel()] > 1)  # only lines with more than one free edge
+            if len(two) < 2:
+                continue
+            o = two[np.lexsort((-s1[two], s0[two], line[two]))]
+            lo_ = line[o]
+            new = np.concatenate(([True], lo_[1:] != lo_[:-1]))
+            grp = np.cumsum(new) - 1
+            # running furthest end within each line: lines are stacked one above the other
+            e1 = s1[o]
+            lift = grp * (float(e1.max() - s0.min()) + 1.0)
+            run = np.maximum.accumulate(e1 - s0.min() + lift)
+            idx = np.maximum.accumulate(np.where(e1 - s0.min() + lift >= run, np.arange(len(o)), 0))
+            j = np.flatnonzero(~new)
+            c = idx[j - 1]
+            ovl = (run[j - 1] - lift[j]) - (s0[o[j]] - s0.min())
+            good = ovl > tol
+            pi.append(o[c[good]])
+            pj.append(o[j[good]])
+        if not pi:
+            return
+        pi, pj = np.concatenate(pi), np.concatenate(pj)
+        if not len(pi):
+            return
+        pr = np.unique(np.column_stack((np.minimum(pi, pj), np.maximum(pi, pj))), axis=0)
+        pi, pj = pr[:, 0], pr[:, 1]
+        # both edges on one line (the shorter one's ends on the longer one's line)
+        short = np.where(ln[pi] <= ln[pj], pi, pj)
+        long_ = np.where(ln[pi] <= ln[pj], pj, pi)
+        off = []
+        for pnt in (a[short], b[short]):
+            v = pnt - a[long_]
+            off.append(np.linalg.norm(v - d[long_] * np.einsum("ij,ij->i", v, d[long_])[:, None], axis=1))
+        good = (np.maximum(off[0], off[1]) <= 1e-5 * scale) & (self.ht[h[pi]] != self.ht[h[pj]])
+        pi, pj, short = pi[good], pj[good], short[good]
+        if not len(pi):
+            return
+        self.ta = np.concatenate((self.ta, self.ht[h[pi]]))
+        self.tb = np.concatenate((self.tb, self.ht[h[pj]]))
+        self.same_way = np.concatenate((self.same_way, np.einsum("ij,ij->i", d[pi], d[pj]) < 0))
+        self.eu = np.concatenate((self.eu, self.hu[h[short]]))
+        self.ev = np.concatenate((self.ev, self.hv[h[short]]))
 
     def boundary(self, plab: np.ndarray) -> np.ndarray:
         """Per half-edge: does it bound its patch (a free edge, or another patch on the same edge)?"""
@@ -409,11 +483,14 @@ def _strip_frames(Pt: _Patches, E: _Edges, plab, wpos):
     centre_s = np.zeros(P)
     centre_s[has] = 0.5 * (smin[has] + smax[has])
     mid = Pt.c + t * (centre_s - np.einsum("ij,ij->i", t, Pt.c))[:, None]
-    return ep, mid, has
+    return ep, mid, has, np.where(has, width, 0.0)
 
 
-def _crease_centres(Pt: _Patches, ep, mid, has, scale):
-    """Centre line and radius of the circle through the strips on both sides of each crease (where known)."""
+def _crease_centres(Pt: _Patches, ep, mid, has, width, scale, noise):
+    """Centre line and radius of the circle through the strips on both sides of each crease (where known), and how
+    far rounding can move it: a strip's normal is only known to about rounding / width, and the two mid-lines
+    cross at the crease's small angle (width / radius), so the centre moves by about rounding x (radius / width)^2
+    (a 5 cm shaft of 32 sides at 300 m in float32: 2 % of its radius)."""
     ca, cb, e = Pt.ca, Pt.cb, Pt.e
     cosp = np.cos(np.radians(PARALLEL_DEG))
     ok = Pt.e_ok & has[ca] & has[cb]
@@ -436,10 +513,12 @@ def _crease_centres(Pt: _Patches, ep, mid, has, scale):
     off = al[:, None] * ta + be[:, None] * tb
     R = np.linalg.norm(off, axis=1)
     ok &= np.isfinite(R) & (R > 0) & (R < 1e3 * scale)
-    return Pt.cpoint + off, R, ok
+    w = np.maximum(np.minimum(width[ca], width[cb]), 1e-300)
+    sig = np.where(ok, NOISE_K * noise * (np.where(ok, R, 0.0) / w) ** 2, 0.0)
+    return Pt.cpoint + off, R, ok, sig
 
 
-def _agreeing_groups(Pt: _Patches, C, R, ok, abs_tol) -> np.ndarray:
+def _agreeing_groups(Pt: _Patches, C, R, ok, abs_tol, sig) -> np.ndarray:
     """Group label per patch (-1: none): a strip whose two creases give the same circle joins both neighbours."""
     P = Pt.P
     sel = np.flatnonzero(ok[Pt.end_c])
@@ -448,7 +527,7 @@ def _agreeing_groups(Pt: _Patches, C, R, ok, abs_tol) -> np.ndarray:
     i, j = _pairs_in_groups(p)
     ci, cj = c[i], c[j]
     par = np.abs(np.einsum("ij,ij->i", Pt.e[ci], Pt.e[cj])) > np.cos(np.radians(PARALLEL_DEG))
-    tol = LOCAL_TOL * np.maximum(R[ci], R[cj]) + abs_tol
+    tol = LOCAL_TOL * np.maximum(R[ci], R[cj]) + abs_tol + sig[ci] + sig[cj]
     dv = C[ci] - C[cj]
     dv -= Pt.e[ci] * np.einsum("ij,ij->i", dv, Pt.e[ci])[:, None]
     agree = par & (np.abs(R[ci] - R[cj]) <= tol) & (np.linalg.norm(dv, axis=1) <= tol)
@@ -498,8 +577,9 @@ class _Fitter:
     part: where a pipe runs smoothly into a bend, a facet of the pipe and the first piece of the bend can lie in one
     plane (one patch); only the triangles with every corner on the circle go to the cylinder."""
 
-    def __init__(self, Pt: _Patches, plab, T, wpos, abs_tol, scale, flat, nrm):
+    def __init__(self, Pt: _Patches, plab, T, wpos, abs_tol, scale, flat, nrm, sig):
         self.Pt, self.plab, self.T, self.wpos, self.abs_tol, self.scale = Pt, plab, T, wpos, abs_tol, scale
+        self.sig = sig
         self.flat, self.nrm = flat, nrm
         o = np.argsort(plab, kind="stable")
         self.tri_of = o
@@ -553,9 +633,8 @@ class _Fitter:
         dv = C[cand][:, None, :] - C[cc][None, :, :]
         e = Pt.e[cand]
         dv -= e[:, None, :] * np.einsum("ijk,ik->ij", dv, e)[:, :, None]
-        tol = LOCAL_TOL * R[cand] + self.abs_tol
-        agree = ((np.linalg.norm(dv, axis=2) <= tol[:, None]) & (np.abs(R[cand][:, None] - R[cc][None, :])
-                                                                 <= tol[:, None])
+        tol = (LOCAL_TOL * R[cand] + self.abs_tol + self.sig[cand])[:, None] + self.sig[cc][None, :]
+        agree = ((np.linalg.norm(dv, axis=2) <= tol) & (np.abs(R[cand][:, None] - R[cc][None, :]) <= tol)
                  & (np.abs(e @ Pt.e[cc].T) > np.cos(np.radians(PARALLEL_DEG))))
         best = int(np.argmax(agree.sum(axis=1)))
         sup = cc[agree[best]]
@@ -697,11 +776,29 @@ def _quick_checks(Pt: _Patches, plab, T, wpos, nrm, flat, gp, G, C, R, ok, abs_t
     d = np.linalg.eigh(M)[1][:, :, 2]
     ci = C[inn] - d[gi] * np.einsum("ij,ij->i", C[inn], d[gi])[:, None]
     n_ = np.maximum(cnt, 1)
-    centre = np.stack([np.bincount(gi, ci[:, k], minlength=G) for k in range(3)], axis=1) / n_[:, None]
-    Rg = np.bincount(gi, R[inn], minlength=G) / n_
+    c0 = np.stack([np.bincount(gi, ci[:, k], minlength=G) for k in range(3)], axis=1) / n_[:, None]
     tg = gp[plab]
     sel = np.flatnonzero((tg >= 0) & flat)
     g = tg[sel]
+    # the circle through the corners (Kasa, all groups at once), each group in its own frame round the rough centre
+    # the creases gave (their estimates carry the rounding of the strips' normals; the corners only their own)
+    hx = np.where(np.abs(d[:, 0]) < 0.9, 1.0, 0.0)
+    u, _ = _unit(np.cross(d, np.column_stack((hx, 1.0 - hx, np.zeros(G)))))
+    v = np.cross(d, u)
+    S = np.zeros((G, 9))
+    for k in range(3):
+        q = wpos[T[sel, k]] - c0[g]
+        x, y = np.einsum("ij,ij->i", q, u[g]), np.einsum("ij,ij->i", q, v[g])
+        z = x * x + y * y
+        for col, val in enumerate((x * x, x * y, y * y, x, y, np.ones_like(x), x * z, y * z, z)):
+            S[:, col] += np.bincount(g, val, minlength=G)
+    A = np.stack((S[:, [0, 1, 3]], S[:, [1, 2, 4]], S[:, [3, 4, 5]]), axis=1)
+    sol = (np.linalg.pinv(A) @ -S[:, 6:9, None])[:, :, 0]
+    cx, cy = -0.5 * sol[:, 0], -0.5 * sol[:, 1]
+    r2 = cx * cx + cy * cy - sol[:, 2]
+    has &= np.isfinite(r2) & (r2 > 0)
+    Rg = np.sqrt(np.where(has, r2, 1.0))
+    centre = c0 + cx[:, None] * u + cy[:, None] * v
     worst = np.zeros(G)
     hmin = np.full(G, np.inf)
     hmax = np.full(G, -np.inf)
@@ -734,15 +831,15 @@ def _quick_checks(Pt: _Patches, plab, T, wpos, nrm, flat, gp, G, C, R, ok, abs_t
     return d, centre, Rg, np.where(np.isfinite(hmax - hmin), hmax - hmin, 0.0), passed, ~long_enough
 
 
-def _cylinders(Pt: _Patches, E: _Edges, plab, T, wpos, scale, flat, nrm) -> _Fitter:
+def _cylinders(Pt: _Patches, E: _Edges, plab, T, wpos, scale, flat, nrm, noise) -> _Fitter:
     """Find the facetted cylinders: crease centres, groups of agreeing strips, each group checked as a whole
     (all at once the plain way, the rest one by one the careful way), pieces of bends dropped, the rest grown by
     the strips at their edges."""
     abs_tol = 1e-6 * scale
-    fit = _Fitter(Pt, plab, T, wpos, abs_tol, scale, flat, nrm)
-    ep, mid, has = _strip_frames(Pt, E, plab, wpos)
-    C, R, ok = _crease_centres(Pt, ep, mid, has, scale)
-    group = _agreeing_groups(Pt, C, R, ok, abs_tol)
+    ep, mid, has, width = _strip_frames(Pt, E, plab, wpos)
+    C, R, ok, sig = _crease_centres(Pt, ep, mid, has, width, scale, noise)
+    fit = _Fitter(Pt, plab, T, wpos, abs_tol, scale, flat, nrm, sig)
+    group = _agreeing_groups(Pt, C, R, ok, abs_tol, sig)
     size = np.bincount(group[group >= 0], minlength=Pt.P)
     group = np.where((group >= 0) & (size[np.maximum(group, 0)] >= 3), group, -1)
     gp = np.full(Pt.P, -1, dtype=np.int64)
@@ -851,7 +948,7 @@ def split(pos, tri, normals=None) -> Faces:
     area = 0.5 * dbl
     flat = (dbl > 1e-14 * max(diag, 1e-12) ** 2) & (T[:, 0] != T[:, 1]) & (T[:, 1] != T[:, 2]) & (T[:, 0] != T[:, 2])
     area = np.where(flat, area, 0.0)
-    E = _Edges(T, nv)
+    E = _Edges(T, nv, wpos, scale)
     dots = np.einsum("ij,ij->i", nrm[E.ta], nrm[E.tb])
     plab = _patches(m, nrm, area, flat, E, dots)
     # one side for every patch: triangles wound against their patch's first triangle are turned round
@@ -859,7 +956,7 @@ def split(pos, tri, normals=None) -> Faces:
     sgn = np.where(np.einsum("ij,ij->i", nrm, nrm[ref[plab]]) < 0, -1, 1)
     nrm = nrm * sgn[:, None]
     Pt = _Patches(plab, T, wpos, nrm, area, E, (P0 + P1 + P2) / 3.0, sgn)
-    fit = _cylinders(Pt, E, plab, T, wpos, scale, flat, nrm)
+    fit = _cylinders(Pt, E, plab, T, wpos, scale, flat, nrm, NOISE * float(np.abs(wpos).max()))
     taken = fit.taken
     part = (fit.patch_owner[plab] >= 0) & (taken < 0)
     if part.any():                                     # triangles left over from patches a cylinder took in part
@@ -875,11 +972,13 @@ def split(pos, tri, normals=None) -> Faces:
     starts = np.concatenate(([0], np.cumsum(counts))).astype(np.int32)
     kinds = np.zeros(F, dtype=np.uint8)
     kinds[face] = pkind[plab]
-    # one axis per line, like step_reader._Axes
+    # one axis per line, like step_reader._Axes, but its point is the one beside the face's middle, not the one
+    # nearest the origin: a direction read from a mesh is a little off (float32 corners), and the point nearest the
+    # origin of a part hundreds of metres out would carry that error times the distance (5 % of a 1 cm pin at 100 m)
     axes: list = []
     axis_faces: list = []
-    adir = np.zeros((MAX_AXES, 3))                     # direction and foot of every stored axis
-    afoot = np.zeros((MAX_AXES, 3))
+    adir = np.zeros((MAX_AXES, 3))                     # direction and point of every stored axis
+    apt = np.zeros((MAX_AXES, 3))
     q = max(1e-4 * diag, 1e-12)
     cyl_of_face = np.full(F, -1, dtype=np.int64)
     cp = np.flatnonzero(taken >= 0)
@@ -890,16 +989,18 @@ def split(pos, tri, normals=None) -> Faces:
         nz = np.flatnonzero(np.abs(d) > 1e-9)
         if len(nz) and d[nz[0]] < 0:
             d = -d
-        foot = centre - d * float(np.dot(centre, d))
+        mid = wpos[T[order[starts[f]:starts[f + 1]]]].reshape(-1, 3).mean(axis=0)
+        foot = centre + d * float(np.dot(mid - centre, d))
         n = len(axes)
-        hit = np.flatnonzero((np.abs(adir[:n] - d).max(axis=1) < 5e-5)
-                             & (np.einsum("ij,ij->i", afoot[:n] - foot, afoot[:n] - foot) < q * q))
+        rel = foot - apt[:n]
+        rel -= adir[:n] * np.einsum("ij,ij->i", rel, adir[:n])[:, None]
+        hit = np.flatnonzero((np.abs(adir[:n] - d).max(axis=1) < 5e-5) & (np.einsum("ij,ij->i", rel, rel) < q * q))
         if len(hit):
             idx = int(hit[0])
             axes[idx][6] = max(axes[idx][6], float(R))
         elif n < MAX_AXES:
             idx = n
-            adir[n], afoot[n] = d, foot
+            adir[n], apt[n] = d, foot
             axes.append([float(foot[0]), float(foot[1]), float(foot[2]), float(d[0]), float(d[1]), float(d[2]),
                          float(R)])
         else:
