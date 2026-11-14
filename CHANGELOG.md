@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.93 – 14 Nov 2026 – web 3D models keep their tool changes; two moving models on the website (task 0111)
+
+- **5 Scene & Render > Web 3D model** with Include animation: tools a tool change carries (spindle, changer arm,
+  pots) and parts a Show/Hide step brings in or takes out now come and go in the file as in the animation. Before, the
+  changer's arm turned with empty hands.
+- The website's **Turn it yourself** now offers a choice of 3D models, each on its own page that plays by itself in a
+  loop, with a Pause button: the test mill changing tools (2.2 MB) and the Thor robot arm at work (7.5 MB), both with
+  soft baked light and a live sun shadow.
+
 ## 0.2.92 – 13 Nov 2026 – houses from House Planner: bake the light, send it back (task 0114)
 
 - **File > Import > House Planner scene (.hpscene)**: brings in a house exported from House Planner – its rooms,
