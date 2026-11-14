@@ -1,6 +1,6 @@
 # 0118 – Bug hunt, round 3: everything built since 0068 (findings only, no code changes)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0118-bug-hunt-3` (the report only – **do not push to
+**Who:** worker · **Status:** running · **Branch:** `task/0118-bug-hunt-3` (the report only – **do not push to
 `main`**, see step 5)
 **Started by:** lead chat, 14 Nov 2026 · **Lane:** none – reads everything, **changes no app code, tests or tools**,
 so it runs next to every lane and starts **no** test run on GitHub
