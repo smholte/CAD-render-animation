@@ -344,9 +344,15 @@ def after_clear(scene) -> None:
     if not scene.get(STEP_TAG):
         return
     del scene[STEP_TAG]
+    from . import animation
     ad = scene.animation_data
-    if ad is not None and ad.action is not None:
-        ad.action = None
+    act = ad.action if ad is not None else None
+    if act is not None and act.get(animation.TAG):
+        animation._drop_action(scene)       # a scene action of the user's own comes back (bug hunt 0118 row 18c)
+        if act.users == 0:                   # Clear keys removed the orphans already: never leave this one behind
+            bpy.data.actions.remove(act)
+    if scene.get(animation.TAG):
+        del scene[animation.TAG]
     if enabled(scene):
         write_channels(scene, channels(scene))
         after_world(scene)

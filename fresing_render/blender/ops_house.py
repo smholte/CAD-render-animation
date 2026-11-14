@@ -12,6 +12,7 @@ from bpy_extras.io_utils import ImportHelper
 
 from ..core import house_scene as hs
 from ..core import words
+from . import longjob
 from . import files, house_bake, house_import
 
 TICK = 0.1                     # s of work between two redraws of the panel
@@ -153,6 +154,8 @@ class FRESING_OT_house_bake(bpy.types.Operator):
 
     def modal(self, context, event):
         rt = runtime(context.scene)
+        if longjob.swallow_undo(self, context, event, "house bake"):   # bug hunt 0118 row 13
+            return {"RUNNING_MODAL"}
         if event.type == "ESC" or rt.get("cancel"):
             self._gen.close()                           # puts the project back (HouseBake's finally)
             self._stop(context)

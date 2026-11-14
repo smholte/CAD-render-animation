@@ -26,6 +26,8 @@ scenes and the render queue move it like any joint – nothing new in the animat
 
 from __future__ import annotations
 
+import threading
+
 import bpy
 from mathutils import Matrix, Vector
 
@@ -586,6 +588,7 @@ def sync(scene) -> int:
         for k in need - have:
             ob[ATTR + k] = 1.0
         ob.update_tag()
+        _GEN[0] += 1
     ng = node_group(scene) if s.cuts or bpy.data.node_groups.get(GROUP) is not None else None
     for name in want:
         ob = scene.objects.get(name)
@@ -606,6 +609,23 @@ def cut_parts(scene, cut) -> list:
     """The objects carrying ``cut``'s attribute now."""
     k = ATTR + cut.key
     return [o for o in scene.objects if k in o and o.get(build.PROP_KIND) == "part"]
+
+
+_GEN = [0]                             # + 1 whenever ``sync`` changes which objects a cut cuts
+_COUNT: dict = {"key": None, "n": 0, "at": 0.0}
+COUNT_AGE = 2.0                        # s: an undo can change the members behind our back
+
+
+def cut_count(scene, cut) -> int:
+    """``len(cut_parts(...))`` for the side panel, kept between redraws (bug hunt 0118 row 18a: it walked every
+    object at each redraw, and the panel redraws every frame while playing) until the members change, objects come
+    or go, or ``COUNT_AGE`` seconds pass."""
+    import time
+    key = (scene.name, cut.key, len(scene.objects), len(cut.targets), _GEN[0])
+    now = time.monotonic()
+    if _COUNT["key"] != key or now - _COUNT["at"] > COUNT_AGE:
+        _COUNT.update(key=key, n=len(cut_parts(scene, cut)), at=now)
+    return _COUNT["n"]
 
 
 # ---------------------------------------------------------------------------
@@ -958,10 +978,6 @@ def after_model_update(scene, by_uid, mapping: dict) -> list[str]:
 _PENDING: set = set()
 
 
-def _cut_objects(scene) -> list:
-    return [o for o in scene.objects if any(k.startswith(ATTR) and k != NOCAP for k in o.keys())]
-
-
 def _wrap_pending() -> None:
     scene = bpy.context.scene
     names = list(_PENDING)
@@ -999,14 +1015,24 @@ def _on_depsgraph(scene, depsgraph):
         bpy.app.timers.register(_wrap_pending, first_interval=0.0)
 
 
+def sync_for_render(scene) -> None:
+    """Before a picture or video: members and materials in step. Called on the main thread by the app's render
+    buttons (``render.prepare_still``) and the render queue (``queue._setup_animation``) before they render."""
+    try:
+        if scene is not None and len(scene.fresing.cuts):
+            sync(scene)
+    except Exception as exc:                   # never stop a render
+        print("Fresing Render: cut-away before a render failed:", exc)
+
+
 @bpy.app.handlers.persistent
 def _on_render_init(scene, *_args):
-    """Before a picture or video (also in the render queue's background Blender): members and materials in step."""
-    try:
-        if len(scene.fresing.cuts):
-            sync(scene)
-    except Exception:                          # never stop a render
-        pass
+    """A render Blender started itself (F12): in step too, but only on the main thread. In the window a render runs
+    on the render job's thread, where writing objects, materials and settings is the kind of thing that crashed
+    Blender before (bug hunt 0118 row 15): the app's own buttons synced already, before starting it."""
+    if threading.current_thread() is not threading.main_thread():
+        return
+    sync_for_render(scene)
 
 
 def register() -> None:

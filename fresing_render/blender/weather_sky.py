@@ -88,6 +88,9 @@ def drive(owner, path: str, expr: str, scene, index: int = -1, extra: dict | Non
     fc = owner.driver_add(path, index) if index >= 0 else owner.driver_add(path)
     for m in list(fc.modifiers):           # the generator Blender may add: the expression alone decides
         fc.modifiers.remove(m)
+    # Blender 5.2.3 writes 0 for a driver result between 0 and about 1e-4 (CLAUDE.md section 8). Here that only
+    # touches the faintest values (the night sky's glow at its edge): invisible, so no joints.BIAS-style offset is
+    # needed (bug hunt 0118 row 18d). A new driver here whose small values matter needs one.
     d = fc.driver
     d.type = "SCRIPTED"
     for name in core.CHANNEL_NAMES:

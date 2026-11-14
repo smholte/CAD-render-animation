@@ -17,13 +17,30 @@ PLACE_WORDS = {
 }
 
 
+_LIGHTS: dict = {"key": None, "n": 0, "at": 0.0}
+LIGHTS_AGE = 2.0                       # s: kept between redraws (an undo can change it behind our back)
+
+
+def light_count(scene) -> int:
+    """How many work lights, for the fold's title. Looking walks every object (0.76 ms on the demo) and the panel
+    redraws every frame while playing (bug hunt 0118 row 18a): kept until objects come or go, at most 2 s."""
+    import time
+    from . import weather_sky
+    key = (scene.name, len(scene.objects))
+    now = time.monotonic()
+    if _LIGHTS["key"] != key or now - _LIGHTS["at"] > LIGHTS_AGE:
+        _LIGHTS.update(key=key, n=len(weather_sky.work_lights(scene)), at=now)
+    return _LIGHTS["n"]
+
+
 def _work_lights(layout, context) -> None:
     from . import weather_sky
     scene = context.scene
-    lights = weather_sky.work_lights(scene)
-    body = fold(layout, "fr_weather_work", f"Work lights ({len(lights)})" if lights else "Work lights", "LIGHT_SPOT")
+    n = light_count(scene)
+    body = fold(layout, "fr_weather_work", f"Work lights ({n})" if n else "Work lights", "LIGHT_SPOT")
     if not body:
         return
+    lights = weather_sky.work_lights(scene)            # the fold is open: the lights themselves
     wrap(body, context, "Select a part (a lamp on the machine), then make it a light:")
     row = body.row(align=True)
     row.operator("fresing.work_light_add", text="Spot", icon="LIGHT_SPOT").kind = "SPOT"

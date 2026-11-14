@@ -8,6 +8,7 @@ import time
 import bpy
 from bpy.props import BoolProperty, StringProperty
 
+from . import longjob
 from . import web3d, web3d_env
 
 TICK = 0.1                     # s of work between two redraws of the panel
@@ -121,6 +122,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
 
     def modal(self, context, event):
         rt = web3d.runtime(context.scene)
+        if longjob.swallow_undo(self, context, event, "web 3D export"):   # bug hunt 0118 row 13
+            return {"RUNNING_MODAL"}
         if event.type == "ESC" or rt.get("cancel"):
             self._gen.close()
             self._stop(context)

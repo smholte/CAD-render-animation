@@ -5,6 +5,25 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.96 – 14 Nov 2026 – render queue, long jobs and redraw fixes (task 0120)
+
+- **Every paint scheme** for an animation now really renders each video in its own colours. When the animation
+  started from a saved scene (always so for a Product video), every video came out in that scene's colours.
+- A picture added with **Current view** is rendered at the frame you were on when you added it: the sea, vessel
+  motion, rain and snow of that moment. Before, it showed the frame the queue happened to start at.
+- While a **House bake**, a **Web 3D model** export or a **Clash check** runs (they change the project for a while),
+  **Start later** waits for it and **Start queue** / **Render animation** say to start when it is done; before, the
+  queue could copy and render that half-done state. Saving during one of them now warns that the file holds its temporary state.
+- **Ctrl+Z** during a House bake, Web 3D export or Clash check does nothing and says "press Cancel first". Before,
+  the export stopped without a word, and a House bake mixed two states of the project.
+- **Build animation** says so when its start scene puts back another weather (or switches the weather off) than the
+  panel had.
+- A cut-away no longer changes the project from the render's own thread when a render starts (a kind of thing that
+  crashed Blender before); the app's render buttons and the queue bring it up to date just before.
+- The side panel walks the whole model less often while an animation plays (X-ray, work lights and cut-away counts
+  are kept between redraws). A key of your own on the scene is kept through Build and Clear keys, and Clear keys no
+  longer leaves an unused "FR Scene" action behind.
+
 ## 0.2.95 – 14 Nov 2026 – a cable on a moving part; the quadrant operation in the demo (task 0082)
 
 - **Winch keeps it tight** (4 Motion > Cables and paths, a cable's details): the winch pays out exactly what the

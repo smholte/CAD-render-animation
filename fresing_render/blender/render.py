@@ -232,6 +232,8 @@ def prepare_still(scene, s, quality: str) -> tuple[str, str, str]:
     apply_output(scene, s)
     device = apply_quality(scene, quality, s.use_gpu)
     world.apply(scene, s)
+    from . import section                        # cut-away in step here, on the main thread (bug hunt 0118 row 15)
+    section.sync_for_render(scene)
     from . import cameras
     cameras.update_blur(scene.camera, scene)   # the camera may have been moved by hand since
     final = output_path(scene, s, "" if quality == "final" else f"_{quality}")
