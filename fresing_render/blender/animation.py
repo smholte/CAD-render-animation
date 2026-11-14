@@ -277,6 +277,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     """Remove every key made by 'Build animation' and put the model back as it was."""
     s = scene.fresing
     was_baked = bool(s.anim_baked)
+    from . import sequence
+    sequence.end_preview(scene)                    # an Assembly sequence preview ends too (task 0121)
     for ob in list(scene.objects):
         if ob.get(TAG):
             _drop_action(ob)

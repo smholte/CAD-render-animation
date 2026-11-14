@@ -770,6 +770,10 @@ def _draw_sequence(context, box, b) -> None:
     if b.seq_preview > 0.0:
         hint = wrap(box, context, "Preview only: back to 0 % (or Build) puts the parts back", icon="INFO", inset=12)
         hint.active = False
+    elif context.scene.fresing.anim_baked:
+        hint = wrap(box, context, "Moving the preview takes the built animation off (Build again after)",
+                    icon="INFO", inset=12)
+        hint.active = False
 
 
 class FRESING_UL_anims(bpy.types.UIList):

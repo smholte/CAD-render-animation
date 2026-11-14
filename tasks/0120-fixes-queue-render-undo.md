@@ -29,7 +29,7 @@ Fix rows **1, 6, 11, 13, 15, 16, 18** of the bug hunt (every-paint-scheme animat
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 14 Nov 2026, branch `ccr-c5513248-6jgqki` · version 0.2.97
+**Chat / date:** Claude Code on the web, 14 Nov 2026, branch `ccr-c5513248-6jgqki` · version 0.2.98
 
 **What changed (per row):**
 - **Row 1** (every-scheme animation in the start scene's colours): `queue._setup_animation` applies the job's scheme

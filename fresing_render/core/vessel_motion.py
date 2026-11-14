@@ -287,8 +287,11 @@ def summary(state: str, strength: float, roll_deg: float) -> str:
     return f"{name} · roll ±{roll_deg:.1f}°"
 
 
+KEY_VERSION = 2              # of the motion's maths: 2 = the waves of task 0109 (an older rig is built again, 0121)
+
+
 def key(st: Settings) -> str:
     """What the motion depends on (rebuild when it changes)."""
-    k = (f"{st.state}|{st.heading}|{st.strength:.4f}|{st.length:.3f}|{st.beam:.3f}|{st.roll_period:.3f}|"
+    k = (f"v{KEY_VERSION}|{st.state}|{st.heading}|{st.strength:.4f}|{st.length:.3f}|{st.beam:.3f}|{st.roll_period:.3f}|"
          f"{st.centre[0]:.3f}|{st.centre[1]:.3f}")
     return k + (f"|{st.bft:.3f}" if st.state == "WIND" and st.bft is not None else "")
