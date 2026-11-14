@@ -67,6 +67,10 @@ as meshes, so this opens the site to them later.
    write the reader) tries to break it: odd files (no normals, quads/ngons in OBJ, negative scales, Y-up/Z-up,
    non-ASCII names, missing textures, 0-area triangles).
 
+8. **Bug hunt 0118 row 14** (Import lane, fits here): two imports of the same new file started within about a second
+   share one `.partial` folder – give each process its own (`.partial-<pid>`), moved into place as today; a test with
+   two imports at once. Holds for STEP and mesh files.
+
 ## Done when
 
 - [ ] glTF/GLB and OBJ import to the same cache as STEP; FBX as decided; units, up axis, names, colours, instancing
