@@ -67,7 +67,7 @@ def test_export_writes_a_valid_glb_and_one_file_page(mill_export):
     assert core.problems(data) == []
     s = core.summary(data)
     parts = mill_export["parts"]
-    assert s["parts"] == len(parts) == 9
+    assert s["parts"] == len(parts) == 25                    # the test mill (task 0122: rails, motors, clamps …)
     assert s["triangles"] == sum(len(p.data.polygons) for p in parts)
     assert s["size"] < 5_000_000                             # the target for the test mill
     page = path.with_suffix(".html")
@@ -97,7 +97,7 @@ def test_hidden_names_and_y_up(mill_export):
     doc, _ = _doc(mill_export["data"])
     names = [n["name"] for n in doc["nodes"] if "name" in n]
     assert names[0] == "Model" and doc["nodes"][0]["rotation"] == pytest.approx(list(core.Z_UP_TO_Y_UP))
-    assert names[1:] == [f"Part {k}" for k in range(1, 10)]
+    assert names[1:] == [f"Part {k}" for k in range(1, 26)]
     assert all(m["name"].startswith("Mesh ") for m in doc["meshes"])
     assert all(m["name"].startswith("Look ") for m in doc["materials"])
     for p in mill_export["parts"]:
@@ -149,7 +149,7 @@ def test_blender_reads_the_file_back(mill_export, tmp_path):
             bpy.context.window.scene = sc
         bpy.ops.import_scene.gltf(filepath=str(mill_export["path"]))
     obs = [o for o in sc.objects if o.type == "MESH"]
-    assert len(obs) == 9
+    assert len(obs) == 25
     assert sum(len(o.data.polygons) for o in obs) == core.summary(mill_export["data"])["triangles"]
     imgs = {n.image.name for o in obs for s in o.material_slots if s.material
             for n in s.material.node_tree.nodes if n.type == "TEX_IMAGE" and n.image}
