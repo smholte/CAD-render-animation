@@ -49,6 +49,7 @@ TRACKS = os.path.join(DATA, "test_tracks.step")
 SEA_CABLE = os.path.join(DATA, "test_sea.step")
 MOVING_CABLE = os.path.join(DATA, "test_moving.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
+MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -214,6 +215,64 @@ def import_materials(ctx):
     groups = {o[build.PROP_GROUP] for o in names.values()}
     _check(len(groups) >= 2, "all parts ended up in one group: the CAD material names were not used")
     return f"{len(names)} parts, {len(groups)} groups"
+
+
+@line("import.mesh", "Mesh model (glTF): import, faces, a joint on a facetted ring", "0.2.96",
+      what="The invented mesh crane read from a glTF file: its looks from the file, its 48-sided ring clicked for a "
+           "joint that turns the turret")
+def import_mesh(ctx):
+    import bpy
+
+    from ..blender import build, joints, mesh_import, tour
+    t0 = time.time()
+    scene = ctx.fresh(MESH_CRANE, read_again=True)
+    ctx.metric("import", time.time() - t0, "s")
+    root = build.model_roots(scene)[0]
+    _check(mesh_import.is_mesh_model(root), "the crane did not come in as a mesh model")
+    _check("Mesh crane" in root.get(mesh_import.PROP_CREDIT, ""), "the file's credit line was not read")
+    parts = list(build.iter_parts(scene))
+    _check(len(parts) == 10, f"expected 10 parts, got {len(parts)}")
+    base = _ob(scene, "BASE")
+    mat = base.material_slots[0].material
+    _check(mat is not None and mat.get("fr_has_texture"), "the base did not get the file's texture")
+    img = next((n.image for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeTexImage"), None)
+    _check(img is not None and img.packed_file is not None, "the texture is not packed into the project")
+    bpy.context.view_layer.update()
+    ring, o, d, desc = tour.mesh_ring_click(scene)
+    _check(desc.startswith("round face"), f"the ring's wall is not a round face ({desc})")
+    off = math.degrees(math.acos(min(1.0, abs(d.normalized().z))))
+    dia = float(desc.split("Ø")[1].split()[0])
+    _check(off < 0.5 and abs(dia - 1600.0) < 8.0, f"the ring's axis is {off:.2f}° off and Ø{dia:.1f} mm (Ø1600)")
+    j = joints.create(scene, "ROTATE", [_ob(scene, "TURRET")], o, d, name="Slew", base=base)
+    tip0 = _ob(scene, "BOOM").matrix_world.translation.copy()
+    joints.set_value(j, math.radians(90))
+    bpy.context.view_layer.update()
+    tip = _ob(scene, "BOOM").matrix_world.translation
+    _check(abs(tip.z - tip0.z) < 1e-4 and abs(tip.y - tip0.x) < 0.01, "the turret did not turn about the ring")
+    return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
+
+
+@line("import.mesh_fbx", "Mesh model (FBX) through Blender's own importer", "0.2.96",
+      requires=("import.mesh",),
+      what="The mesh crane saved as FBX and read again: a background Blender converts it, the app reads the result")
+def import_mesh_fbx(ctx):
+    import bpy
+
+    from ..blender import build
+    scene = ctx.scene_of("import.mesh")
+    fbx = os.path.join(ctx.work, "mesh crane.fbx")
+    bpy.ops.object.select_all(action="DESELECT")
+    res = bpy.ops.export_scene.fbx(filepath=fbx, path_mode="COPY", embed_textures=True)
+    _check(res == {"FINISHED"} and os.path.isfile(fbx), f"the FBX file was not written ({res})")
+    t0 = time.time()
+    scene = ctx.fresh(fbx, read_again=True)
+    ctx.metric("import", time.time() - t0, "s")
+    names = {o.get(build.PROP_NAME) for o in build.iter_parts(scene)}
+    _check({"BASE", "SLEWING RING", "BOOM"} <= names, f"parts missing after the FBX round trip: {sorted(names)[:6]}")
+    ring = _ob(scene, "SLEWING RING")
+    dims = sorted(ring.dimensions)
+    _check(abs(dims[-1] - 1.6) < 0.01, f"the ring is {dims[-1]:.3f} m across after the FBX round trip (1.6 m)")
+    return f"{len(names)} parts back from FBX"
 
 
 @line("faces.painted", "Painted faces", "0.2.9",

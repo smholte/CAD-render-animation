@@ -244,6 +244,47 @@ that goes back to its place at the next pose or Build, unless a pose or an anima
    line says **Model update failed** and why, and the project stays exactly as it was: nothing is
    half-updated.
 
+### Mesh models (glTF, OBJ, FBX)
+
+A model you did not draw yourself – a vessel or a truck downloaded from Sketchfab, a model a client sends as glTF –
+comes in like a STEP model: an explorer tree, groups and looks, joints, poses, animation, clash check, renders
+and the web 3D model.
+
+1. **File > Import > Mesh model (glTF, OBJ, FBX)…**, the button **Import mesh model (glTF, OBJ, FBX)…** under
+   Import STEP, or drag a .glb, .gltf, .obj or .fbx file onto the view.
+2. In the file browser (the gear at the top right) three settings:
+   - **Units**: glTF is always in metres and FBX says its own units. An OBJ file does not: **Auto** guesses
+     millimetres when the model is 500 units or more across, else metres, and says what it guessed in the
+     status line and under the model's name. Wrong? Import again with the right units.
+   - **Up axis**: most OBJ files are **Y up** (the Auto choice); pick **Z up** when the model comes in lying on
+     its back. glTF and FBX say it themselves.
+   - **Split by loose parts**: a model that comes as one big mesh gets every separate piece as a part of its
+     own, so you can move it and give it a look. **Auto** does this when the file has fewer than 5 meshes. A
+     mesh of more than 999 pieces keeps its smallest pieces together as one part "… small pieces".
+3. The progress bar and <kbd>Esc</kbd> work as for STEP. An FBX file is read by Blender's own FBX importer in
+   the background first (a few seconds more).
+
+**What you get**
+
+- **Parts and names** from the file's node tree; a part the file uses several times (four wheels) is stored
+  once, like a repeated bolt. A mesh with several materials becomes one part per material.
+- **The look "From file"**: every part shows the colour, shine and pictures (textures) its file gave it.
+  The pictures are packed into the project, so it stays one file. The material groups are named after the
+  file's materials; pick another **Ready-made material…** for a group and it replaces the file's look as usual
+  (pick **From file (the model's own look)** under *Other* to have it back).
+- **Faces like a CAD model**: a mesh has no CAD faces, so the app finds them – flat faces, round faces (a
+  facetted shaft, hole or slewing ring of 16 sides or more) and the rest. Clicking a round face for a joint
+  gives its axis through its centre, as with a STEP part; hover, painting faces and stickers work the same.
+- **Credit**: many downloaded models are free only if you name their maker (CC BY). The app reads the credit
+  line the file carries (glTF) or the *license.txt* next to it (Sketchfab) and shows it under the model's name.
+  The text block **Model credits** in the project keeps the full text of every mesh model (Blender's Text
+  Editor shows it). Put that line under any picture or video you share. When the line says "No credit line in
+  the file", check the licence where you downloaded the model.
+
+**Update to new revision…** under a mesh model's name reads a new version of the same file. Parts are matched by
+their names; a part renamed in the new file is found by its shape and place, keeps its work and is named in the
+report ("BOOM is now called MAIN BOOM").
+
 > **Projects on a shared drive:** when someone else has the project open, a red box "In use by
 > *name* on *computer*" appears here. Save your changes under another name (File > Save As).
 > The same happens when you open one project in two Fresing Render windows on your own PC: the second

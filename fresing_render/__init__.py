@@ -95,6 +95,8 @@ def register():
     pccheck.register()                       # after updates: its Help entry goes under the update check
     from .blender import ops_house
     ops_house.register_menu()                # task 0114: File > Import > House Planner scene (.hpscene)
+    from .blender import ops_import
+    ops_import.register_menu()               # task 0117: File > Import > Mesh model (glTF, OBJ, FBX)
 
 
 def unregister():
@@ -104,6 +106,8 @@ def unregister():
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     from .blender import ops_house
     ops_house.unregister_menu()
+    from .blender import ops_import
+    ops_import.unregister_menu()
     pccheck.unregister()
     updates.unregister()
     from .blender import section

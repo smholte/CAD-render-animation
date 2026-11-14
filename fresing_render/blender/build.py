@@ -122,6 +122,16 @@ def _new_mesh(name: str, pos: np.ndarray, nrm: np.ndarray, tri: np.ndarray) -> b
     return me
 
 
+def _set_uv(me, uv: np.ndarray, tri: np.ndarray) -> None:
+    """UVs per corner from UVs per point (a mesh model's, task 0117): the layer "UVMap"."""
+    if len(uv) != len(me.vertices) or len(tri) != len(me.polygons):
+        return
+    layer = me.uv_layers.new(name="UVMap")
+    if layer is None:
+        return
+    layer.data.foreach_set("uv", uv[tri.reshape(-1)].astype(np.float32).reshape(-1))
+
+
 def _matrix(rows) -> Matrix:
     return Matrix(rows) if rows else Matrix.Identity(4)
 
@@ -201,12 +211,21 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
             c = part_colours.setdefault(n["mesh"], {})
             c[tuple(n["color"])] = c.get(tuple(n["color"]), 0) + 1
     total = max(1, len(used))
+    file_mats = []
+    if info.get("materials"):                   # a mesh model's own materials (task 0117)
+        from . import mesh_import
+        file_mats = mesh_import.make_materials(info, cache_dir)
     for k, mid in enumerate(sorted(used)):
         key = f"p{mid}"
         if key not in arrays:
             continue
         me = _new_mesh(meshes_meta[mid]["name"] or f"Part {mid}", arrays[key], arrays[f"n{mid}"], arrays[f"t{mid}"])
         meta = meshes_meta[mid]
+        if f"u{mid}" in arrays:                 # a mesh model's UVs (task 0117)
+            _set_uv(me, arrays[f"u{mid}"], arrays[f"t{mid}"])
+        fm = meta.get("file_material")
+        if isinstance(fm, int) and 0 <= fm < len(file_mats) and file_mats[fm] is not None:
+            me["fr_file_material"] = file_mats[fm].name
         if meta.get("axes"):
             # round faces of the part, for picking joint axes with a click
             me["fr_axes"] = [v for ax in meta["axes"] for v in ax]
@@ -267,6 +286,9 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         root_obj[PROP_KIND] = "assembly"
         root_obj[PROP_UID] = scoped(src_name, scope)
         root_obj[PROP_NAME] = src_name
+    if root_obj is not None and info.get("source_kind") == "mesh":
+        from . import mesh_import
+        mesh_import.take_root_info(root_obj, info)
     if root_obj is not None:
         root_obj[PROP_ROOT] = True
         root_obj[PROP_UID_SCOPE] = scope

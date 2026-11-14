@@ -82,8 +82,12 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 
 def _group_look_changed(self, context):
     from . import materials
-    materials.ensure_material(self.name, self.material, self.color, self.wear)
+    mat = materials.ensure_material(self.name, self.material, self.color, self.wear)
     if context is not None and context.scene is not None:
+        from . import build                      # task 0117: to and from "From file" the parts change material
+        for ob in build.iter_parts(context.scene):
+            if ob.get(build.PROP_GROUP) == self.name:
+                materials.assign(ob, mat)
         from . import machining                  # the milled workpiece's cut faces follow its look (task 0051)
         try:
             machining.cut_look_changed(context.scene)

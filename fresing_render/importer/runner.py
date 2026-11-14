@@ -1,11 +1,16 @@
-"""Run the STEP reader in a separate process and follow its progress.
+"""Run the STEP reader (or the mesh reader, task 0117) in a separate process and follow its progress.
 
 No bpy here, so it can be tested on its own.
+
+Each job writes into a folder of its own (``<cache>.partial-<pid>-<n>``, bug hunt 0118 row 14: two imports of the
+same new file started within a second shared one ``.partial`` folder) and renames it into place when it is done; when
+another import put the same cache in place first, that one is used and this job's folder is removed.
 """
 
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
 import queue
@@ -17,18 +22,29 @@ import threading
 from . import step_reader
 
 READER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "step_reader.py")
+MESH_READER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mesh_reader.py")
+MESH_EXTENSIONS = (".glb", ".gltf", ".obj", ".fbx")      # task 0117: read by mesh_reader.py
+STALE_PARTIAL_S = 6 * 3600                                # a half-written folder this old is from a stopped import
+_JOB_NUMBER = itertools.count(1)
 
 
-def cache_key(step_path: str, quality: str) -> str:
+def is_mesh(path: str) -> bool:
+    """A file the mesh reader reads (glTF, GLB, OBJ, FBX), not a STEP file."""
+    return os.path.splitext(path)[1].lower() in MESH_EXTENSIONS
+
+
+def cache_key(step_path: str, quality: str, options: dict | None = None) -> str:
     st = os.stat(step_path)
     raw = f"{os.path.abspath(step_path)}|{st.st_size}|{int(st.st_mtime)}|{quality}|v{step_reader.CACHE_VERSION}"
+    if options:                                           # mesh files: units, up axis, split (STEP: none, as before)
+        raw += "|" + json.dumps(options, sort_keys=True)
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def cache_dir_for(step_path: str, quality: str, cache_root: str) -> str:
+def cache_dir_for(step_path: str, quality: str, cache_root: str, options: dict | None = None) -> str:
     stem = os.path.splitext(os.path.basename(step_path))[0][:40]
     safe = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in stem)
-    return os.path.join(cache_root, f"{safe}_{cache_key(step_path, quality)}")
+    return os.path.join(cache_root, f"{safe}_{cache_key(step_path, quality, options)}")
 
 
 def cache_is_valid(cache_dir: str) -> bool:
@@ -56,13 +72,24 @@ def python_executable() -> str:
 
 
 class ImportJob:
-    """One STEP -> cache conversion in a child process."""
+    """One STEP (or mesh file) -> cache conversion in a child process.
 
-    def __init__(self, step_path: str, quality: str, cache_root: str):
+    ``options`` (mesh files only): ``units`` (auto, m, cm, mm, in, ft), ``up`` (auto, y, z), ``split`` (auto, on,
+    off); ``converter``: Blender's program, for FBX and compressed glTF (``mesh_reader.convert_with_blender``)."""
+
+    def __init__(self, step_path: str, quality: str, cache_root: str, options: dict | None = None,
+                 converter: str | None = None):
         self.step_path = step_path
+        self.mesh = is_mesh(step_path)
+        self.options = {k: str(v) for k, v in (options or {}).items()} if self.mesh else {}
+        if self.mesh:
+            for key, default in (("units", "auto"), ("up", "auto"), ("split", "auto")):
+                self.options.setdefault(key, default)
+            quality = "mesh"
+        self.converter = converter
         self.quality = quality
-        self.cache_dir = cache_dir_for(step_path, quality, cache_root)
-        self.tmp_dir = self.cache_dir + ".partial"
+        self.cache_dir = cache_dir_for(step_path, quality, cache_root, self.options or None)
+        self.tmp_dir = f"{self.cache_dir}.partial-{os.getpid()}-{next(_JOB_NUMBER)}"
         self.proc: subprocess.Popen | None = None
         self.events: "queue.Queue[dict]" = queue.Queue()
         self.stderr_lines: list[str] = []
@@ -76,10 +103,41 @@ class ImportJob:
     def cached(self) -> bool:
         return cache_is_valid(self.cache_dir)
 
+    def command(self) -> list[str]:
+        """The reader's command line."""
+        if not self.mesh:
+            return [python_executable(), READER, self.step_path, self.tmp_dir, "--quality", self.quality]
+        cmd = [python_executable(), MESH_READER, self.step_path, self.tmp_dir]
+        for key in ("units", "up", "split"):
+            cmd += [f"--{key}", self.options[key]]
+        if self.converter:
+            cmd += ["--convert-with", self.converter]
+        return cmd
+
+    def _clear_stale(self) -> None:
+        """Half-written folders of this cache left by an import that was stopped (Blender closed, a crash)."""
+        import time
+        root, mine = os.path.dirname(self.cache_dir), os.path.basename(self.cache_dir)
+        try:
+            names = os.listdir(root)
+        except OSError:
+            return
+        for name in names:
+            if name == mine + ".partial" or (name.startswith(mine + ".partial-") and name != os.path.basename(
+                    self.tmp_dir)):
+                full = os.path.join(root, name)
+                try:
+                    old = time.time() - os.path.getmtime(full) > STALE_PARTIAL_S
+                except OSError:
+                    continue
+                if name == mine + ".partial" or old:          # the old name (before 0117) is never written again
+                    shutil.rmtree(full, ignore_errors=True)
+
     def start(self) -> None:
         if os.path.isdir(self.tmp_dir):
             shutil.rmtree(self.tmp_dir, ignore_errors=True)
         os.makedirs(os.path.dirname(self.cache_dir), exist_ok=True)
+        self._clear_stale()
         env = dict(os.environ)
         for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
             env.pop(var, None)              # another program's Python settings must not leak in
@@ -87,7 +145,7 @@ class ImportJob:
         env["PYTHONUNBUFFERED"] = "1"
         flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
         self.proc = subprocess.Popen(
-            [python_executable(), READER, self.step_path, self.tmp_dir, "--quality", self.quality],
+            self.command(),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
             env=env, creationflags=flags,
         )
@@ -146,10 +204,15 @@ class ImportJob:
                 self.error = ev.get("msg") or "Import failed"
 
     def _move_into_place(self) -> None:
-        """Rename the finished '.partial' folder to the cache folder (retry: virus scanners hold new files)."""
+        """Rename the finished '.partial-…' folder to the cache folder (retry: virus scanners hold new files). When
+        another import of the same file put a finished cache there first, that one is used (it may be read right
+        now) and this job's copy is removed."""
         import time
         for attempt in range(10):
             try:
+                if cache_is_valid(self.cache_dir):
+                    shutil.rmtree(self.tmp_dir, ignore_errors=True)
+                    break
                 if os.path.isdir(self.cache_dir):
                     shutil.rmtree(self.cache_dir, ignore_errors=True)
                 os.replace(self.tmp_dir, self.cache_dir)
@@ -170,7 +233,7 @@ class ImportJob:
         except OSError:
             return
         for name in names:
-            if name == mine or name.endswith(".partial") or name.rsplit("_", 1)[0] != stem:
+            if name == mine or ".partial" in name or name.rsplit("_", 1)[0] != stem:
                 continue
             full = os.path.join(root, name)
             if cache_is_valid(full):

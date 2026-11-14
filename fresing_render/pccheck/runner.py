@@ -257,8 +257,9 @@ class Context:
         from ..blender import ops_import
         from ..blender import prefs as fr_prefs
         from ..importer import runner as import_runner
-        if read_again:
-            shutil.rmtree(import_runner.cache_dir_for(step, quality, ops_import.cache_root()), ignore_errors=True)
+        if read_again:                          # (a mesh file's cache key has its options: ImportJob knows it)
+            shutil.rmtree(import_runner.ImportJob(step, quality, ops_import.cache_root()).cache_dir,
+                          ignore_errors=True)
         bpy.ops.wm.read_homefile(use_empty=True)
         p = fr_prefs.get()
         saved = p.default_template if p else ""
@@ -267,7 +268,10 @@ class Context:
         try:
             scene = bpy.context.scene
             scene.fresing.out_folder = os.path.join(self.work, "renders")
-            res = bpy.ops.fresing.import_step(filepath=step, quality=quality)
+            if import_runner.is_mesh(step):      # a mesh model (task 0117)
+                res = bpy.ops.fresing.import_mesh(filepath=step)
+            else:
+                res = bpy.ops.fresing.import_step(filepath=step, quality=quality)
             if res != {"FINISHED"}:
                 raise RuntimeError(f"the import returned {res}: {scene.fresing.last_message}")
         finally:

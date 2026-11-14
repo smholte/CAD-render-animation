@@ -1,0 +1,11 @@
+# Fresing test materials
+newmtl Steel
+Kd 0.55 0.56 0.58
+Ns 250
+d 1
+newmtl Blue
+Kd 0.05 0.2 0.6
+Ns 90
+newmtl Tile
+Kd 1 1 1
+map_Kd test_mesh_tile.png

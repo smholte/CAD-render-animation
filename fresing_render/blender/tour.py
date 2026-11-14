@@ -2766,6 +2766,65 @@ def _check_house(scene):
     return f"evening sun {el:.1f}° high; package {os.path.getsize(h.last_bake) / 1024:.0f} KB"
 
 
+# ----- a mesh model (task 0117) -----
+
+MESH_ANIM = "Slew the turret"
+
+
+def mesh_ring_click(scene):
+    """Click the mesh crane's facetted slewing ring like a user: a ray at its outer wall, half way up, between two
+    corners. Returns (part, axis origin, axis direction, the picker's words)."""
+    import bpy
+    from mathutils import Vector
+
+    from . import hover, joints
+    a = math.radians(3.75)                              # half a facet of the 48-sided ring
+    n = Vector((math.cos(a), math.sin(a), 0.0))
+    pt = Vector((0.8 * math.cos(a) * math.cos(a), 0.8 * math.sin(a), 0.475))
+    ob, index, loc, normal = hover.cast(scene, bpy.context.evaluated_depsgraph_get(), pt + n * 0.01, -n)
+    _check(index >= 0, "the click did not hit the slewing ring")
+    o, d, desc = joints.axis_from_hit(ob, index, loc, normal)
+    return ob, o, d, desc
+
+
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb")
+def build_mesh(b: Build):
+    """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
+    that turns the turret, as a user does it."""
+    from . import joints
+    sc = b.scene
+    _look("PRODUCT")
+    _update()
+    _ring, o, d, _desc = mesh_ring_click(sc)
+    joints.create(sc, "ROTATE", [_ob(sc, "TURRET")], o, d, name="Slew", base=_ob(sc, "BASE"))
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@mesh_import")
+    a = _animation(b, MESH_ANIM, shot=shot_name(find("mesh_import")))
+    _joint_step(a, "Slew", 0.0, 4.0, math.radians(120), label="The turret turns on the ring")
+    _bake(sc, a)
+
+
+def _check_mesh(scene):
+    from . import build, joints, mesh_import
+    root = build.model_roots(scene)[0]
+    _check(mesh_import.is_mesh_model(root), "the crane did not come in as a mesh model")
+    _check("Mesh crane" in root.get(mesh_import.PROP_CREDIT, ""), "the file's credit line is missing")
+    j = joints.find(scene, "Slew")
+    _check(j is not None and joints.is_valid(j), "the joint on the slewing ring is missing")
+    ring, _o, d, desc = mesh_ring_click(scene)
+    _check(ring.get(build.PROP_NAME) == "SLEWING RING" and desc.startswith("round face"),
+           f"the ring's wall is not a round face ({desc})")
+    off = math.degrees(math.acos(min(1.0, abs(d.normalized().z))))
+    _check(off < 0.5, f"the ring's axis is {off:.2f}° off vertical")
+    dia = float(desc.split("Ø")[1].split()[0])
+    _check(abs(dia - 1600.0) < 8.0, f"the ring measures Ø{dia:.1f} mm, it is Ø1600")
+    base = _ob(scene, "BASE")
+    _check(base.material_slots[0].material is not None and base.material_slots[0].material.get("fr_has_texture"),
+           "the base lost its texture from the file")
+    return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -2912,6 +2971,12 @@ stop("update", MOTION, "update", "Model update A → B",
      "The crane is revision B: it has a new lamp on the boom (selected). The boom is still at 20° and the cover "
      "is still hidden: the work survived the update.", where="1 Import > Update model", select=("BOOM.LAMP",),
      check=_check_update)
+stop("mesh_import", MOTION, "mesh", "Mesh model: a joint on a facetted ring",
+     "An invented crane read from a glTF mesh file (no CAD faces): its base shows the file's own grey checker "
+     "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
+     "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
+     "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
+     "joint", since="0.2.96", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
@@ -3186,7 +3251,14 @@ def _fresh(models: tuple, out_folder: str):
     try:
         scene = bpy.context.scene
         scene.fresing.out_folder = out_folder
+        from ..importer.runner import is_mesh
         for m in models:
+            if is_mesh(m):                  # a mesh model (task 0117)
+                res = bpy.ops.fresing.import_mesh(filepath=m)
+                if res != {"FINISHED"}:
+                    raise RuntimeError(f"the import of {os.path.basename(m)} returned {res}: "
+                                       f"{scene.fresing.last_message}")
+                continue
             if not m.lower().endswith((".step", ".stp")):
                 continue                    # (a house scene: the set's build imports it itself, task 0114)
             res = bpy.ops.fresing.import_step(filepath=m, quality="draft")

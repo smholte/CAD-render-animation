@@ -4,6 +4,7 @@ Parts of the old and the new model are matched:
     1. by occurrence name path (Inventor "Frame:1" names), when those are unique
     2. by part name path, the nearest copy first (repeated bolts)
     3. by part name anywhere, when the part only moved to another subassembly
+    4. by shape (triangles, size) in the same place: a renamed part (task 0117), named in the report
 Matched parts keep: manual material group, hidden / removed, unlocked, free moves,
 joints (moving parts and the part they sit on), poses, visibility sets, scenes and
 animation targets, painted faces when the part's faces did not change, and decals whose spot is
@@ -66,6 +67,7 @@ def records(objs) -> list[dict]:
         inst = ["" if i.startswith("=>[") else i for i in inst]      # OpenCascade placeholders
         out.append({
             "ob": ob,
+            "shape": _shape(ob),
             "kind": ob.get(build.PROP_KIND),
             "key_a": tuple(inst) if all(inst) else None,
             "key_b": tuple(_norm(c.get(build.PROP_NAME, c.name)) for c in chain),
@@ -73,6 +75,16 @@ def records(objs) -> list[dict]:
             "pos": cad_matrix(ob).translation.copy(),
         })
     return out
+
+
+def _shape(ob):
+    """A part's shape as numbers (triangles, size in 0.1 mm): a part renamed in a new revision is found by its shape
+    and place (task 0117: a mesh file's renamed node). None for assemblies."""
+    if ob.type != "MESH" or ob.data is None or not len(ob.data.polygons):
+        return None
+    lo = [min(c[k] for c in ob.bound_box) for k in range(3)]
+    hi = [max(c[k] for c in ob.bound_box) for k in range(3)]
+    return (len(ob.data.polygons),) + tuple(round((b - a) * 10000) for a, b in zip(lo, hi))
 
 
 def _candidates(olds: list[dict], news: list[dict], k: int = 8) -> list[tuple[float, int, int]]:
@@ -120,8 +132,11 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
         if len(olds) == 1 and len(news) == 1:
             take(olds[0], news[0])
 
-    # 2. name path, nearest first; 3. same name anywhere, only if it did not move
-    for key, tol in ((lambda r: (r["kind"], r["key_b"]), None), (lambda r: (r["kind"], r["leaf"]), move_tolerance)):
+    # 2. name path, nearest first; 3. same name anywhere, only if it did not move; 4. renamed: the same shape in the
+    #    same place (task 0117), reported
+    renamed = (lambda r: (r["kind"], r["shape"]) if r.get("shape") else None)
+    for key, tol in ((lambda r: (r["kind"], r["key_b"]), None), (lambda r: (r["kind"], r["leaf"]), move_tolerance),
+                     (renamed, move_tolerance)):
         go = by(key, [r for r in old if id(r) not in used_old])
         gn = by(key, [r for r in new if id(r) not in used_new])
         for k, olds in go.items():
@@ -144,6 +159,8 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
                     if tol is not None and dist > tol:
                         break
                     take(o, n)
+                    if key is renamed and o["leaf"] != n["leaf"]:
+                        o["renamed"] = True
                     progress = True
                 if not progress or tol is not None:
                     break
@@ -406,6 +423,8 @@ def _carry_over(context, st) -> dict:
     # 3. match
     old_recs, new_recs = records(old_objs), records(new_objs)
     pairs = match(old_recs, new_recs)
+    renamed = [f"{o['ob'].get(build.PROP_NAME, '')} is now called {n['ob'].get(build.PROP_NAME, '')}: same shape "
+               "and place, it kept its work" for o, n in pairs if o.get("renamed")]      # task 0117
     mapping = {old_root.get(build.PROP_UID): new_root.get(build.PROP_UID)}
     by_uid_new = joints.PartLookup({old_root.get(build.PROP_UID): new_root})
     for r in old_recs:                       # parts that are gone: their IDs must not hit a new part
@@ -494,6 +513,8 @@ def _carry_over(context, st) -> dict:
         line = s.report_missing.add()
         line.text, line.uid = name, uid
     for n in notes:
+        s.report_notes.add().text = n
+    for n in renamed:
         s.report_notes.add().text = n
     for name in lost_faces:
         s.report_notes.add().text = f"{name}: its faces changed, the faces painted on it are gone (paint them again)"

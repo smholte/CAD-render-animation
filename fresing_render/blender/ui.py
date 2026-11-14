@@ -165,6 +165,7 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
             col.prop(s, "import_up_axis", text="Up axis")
             primary(layout, "fresing.import_step", "Import STEP…", "IMPORT")
             layout.label(text="or drag a .step file onto the view", icon="INFO")
+            layout.operator("fresing.import_mesh", text="Import mesh model (glTF, OBJ, FBX)…", icon="MESH_DATA")
 
         for root in build.model_roots(context.scene):
             box = layout.box()
@@ -180,7 +181,19 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 col.label(text=f"{st.get('triangles_unique', 0) / 1e6:.1f} M triangles · read in "
                                f"{st.get('seconds_total', 0):.0f} s"
                                + (f" on {plural(helpers, 'core')}" if helpers else ""))
-            op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
+            from . import mesh_import
+            if mesh_import.is_mesh_model(root):        # task 0117: where it came from and whom to credit
+                col = box.column(align=True)
+                col.label(text=f"Mesh model: {os.path.basename(root.get(build.PROP_SOURCE, '') or '')}",
+                          icon="MESH_DATA")
+                credit = root.get(mesh_import.PROP_CREDIT, "")
+                wrap(col, context, f"Credit: {credit}" if credit else "No credit line in the file: check its licence",
+                     icon="COPY_ID" if credit else "ERROR", inset=12)
+                for note in mesh_import.notes(root)[:4]:
+                    wrap(col, context, note, icon="INFO", inset=12)
+                op = box.operator("fresing.import_mesh", text="Update to new revision…", icon="FILE_REFRESH")
+            else:
+                op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
             op.update_root = root.name
         if s.report_title:
             box = layout.box()

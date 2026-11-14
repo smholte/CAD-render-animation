@@ -499,6 +499,9 @@ def ensure_material(group: str, material_id: str, color_text: str = "", wear: fl
 def assign(ob: bpy.types.Object, mat: bpy.types.Material) -> None:
     if ob.type != "MESH" or ob.data is None:
         return
+    if mat is not None and mat.get("fr_material") == "from_file":     # task 0117: the part's own file material
+        from . import mesh_import
+        mat = mesh_import.file_material(ob) or mat
     ensure_axes(ob.data)
     if not ob.material_slots:
         ob.data.materials.append(None)

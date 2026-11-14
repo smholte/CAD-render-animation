@@ -183,6 +183,10 @@ MATERIALS: dict[str, dict] = {
     "concrete": dict(label="Concrete", category="Other", base_color=(0.60, 0.585, 0.55), roughness=0.86,
                      specular=0.4, bump=dict(scale=1800.0, strength=0.12),
                      variation=dict(scale=0.7, roughness_min=0.8, roughness_max=0.93, color_amount=0.1)),
+    # a mesh model's own materials (task 0117): every part shows the material its file gave it (colour, texture,
+    # roughness); a part without one gets this group's colour as satin paint
+    "from_file": dict(label="From file (the model's own look)", category="Other", needs_color=True, roughness=0.4,
+                      specular=0.5),
     # the marine paint system with what the sea does to it: growth below the waterline, a splash zone above
     "paint_marine_growth": dict(label="Marine paint, growth below the waterline", category="Paint",
                                 needs_color=True, roughness=0.28, coat=0.3, coat_roughness=0.12,
@@ -253,6 +257,7 @@ UIDS: dict[str, int] = {
     "concrete": 51,
     "paint_marine_growth": 52,
     "paint_marine_streaks": 53,
+    "from_file": 54,
 }
 
 DEFAULT_COLOR = "RAL 7035"

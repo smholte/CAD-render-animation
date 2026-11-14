@@ -821,3 +821,77 @@ def heavy_demo(ctx):
     _memory(ctx)
     _check(per < 5.0, f"a frame of the demo animation takes {per:.1f} s: far too slow")
     return f"{len(s.joints)} joints, '{demo.ANIM}' {scene.frame_end} frames, {per * 1000:.0f} ms per frame"
+
+
+def write_cylinders_glb(path: str, count: int, sides: int = 48, stacks: int = 20) -> int:
+    """An invented big mesh model (task 0117): ``count`` facetted cylinders (``sides`` sides, ``stacks`` rings up the
+    wall, capped) in ONE glTF mesh, as a model downloaded in one piece comes. Returns its triangles."""
+    import json as _json
+    import struct
+    ang = np.arange(sides) * 2 * np.pi / sides
+    ring = np.stack((np.cos(ang), np.sin(ang)), axis=1)
+    zs = np.linspace(0.0, 1.0, stacks + 1)
+    wall = np.concatenate([np.column_stack((ring, np.full(sides, z))) for z in zs])
+    pts = np.concatenate((wall, [[0, 0, 0], [0, 0, 1]]))
+    tris = []
+    for k in range(stacks):
+        a = k * sides + np.arange(sides)
+        b = k * sides + (np.arange(sides) + 1) % sides
+        tris += [np.stack((a, b, b + sides), 1), np.stack((a, b + sides, a + sides), 1)]
+    bot, top = len(pts) - 2, len(pts) - 1
+    i = np.arange(sides)
+    tris += [np.stack((np.full(sides, bot), (i + 1) % sides, i), 1),
+             np.stack((np.full(sides, top), stacks * sides + i, stacks * sides + (i + 1) % sides), 1)]
+    tri = np.concatenate(tris)
+    side = int(math.ceil(math.sqrt(count)))
+    P, T = [], []
+    for k in range(count):
+        x, y = (k % side) * 0.5, (k // side) * 0.5
+        r, h = 0.1 + 0.05 * (k % 3), 0.2 + 0.1 * (k % 4)
+        p = pts * (r, r, h) + (x, y, 0.0)
+        P.append(np.column_stack((p[:, 0], p[:, 2], -p[:, 1])))       # Z up -> glTF's Y up
+        T.append(tri + k * len(pts))
+    pos = np.concatenate(P).astype(np.float32)
+    idx = np.concatenate(T).astype(np.uint32).reshape(-1)
+    binary = pos.tobytes() + idx.tobytes()
+    doc = {"asset": {"version": "2.0", "copyright": "Fresing PC check (invented)"}, "scene": 0,
+           "scenes": [{"nodes": [0]}], "nodes": [{"name": "HEAVY MESH", "mesh": 0}],
+           "meshes": [{"name": "Cylinders", "primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
+           "buffers": [{"byteLength": len(binary)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": pos.nbytes},
+                           {"buffer": 0, "byteOffset": pos.nbytes, "byteLength": idx.nbytes}],
+           "accessors": [{"bufferView": 0, "componentType": 5126, "count": len(pos), "type": "VEC3",
+                          "min": pos.min(0).tolist(), "max": pos.max(0).tolist()},
+                         {"bufferView": 1, "componentType": 5125, "count": len(idx), "type": "SCALAR"}]}
+    js = _json.dumps(doc).encode()
+    js += b" " * (-len(js) % 4)
+    body = struct.pack("<II", len(js), 0x4E4F534A) + js + struct.pack("<II", len(binary), 0x004E4942) + binary
+    with open(path, "wb") as fh:
+        fh.write(struct.pack("<III", 0x46546C67, 2, 12 + len(body)) + body)
+    return len(idx) // 3
+
+
+@line("heavy.mesh", "Big mesh model: import, split into parts, faces", "0.2.96", (H,), expected=60,
+      what="An invented mesh of about 1 million triangles (500 facetted cylinders in one glTF mesh, no normals) is "
+           "imported: split into its loose parts, flat and round faces found, the axis of every cylinder",
+      shows="How long a big downloaded mesh model (a vessel or a truck in one piece) takes to come in on this PC",
+      not_shown="Textures, or scans with millions of tiny faces")
+def heavy_mesh(ctx):
+    import json as _json
+
+    from ..blender import build
+    count = 30 if small() else 500
+    path = os.path.join(ctx.work, "heavy_mesh.glb")
+    tris = write_cylinders_glb(path, count)
+    t0 = time.time()
+    scene = ctx.fresh(path, read_again=True)
+    ctx.metric("import", time.time() - t0, "s")
+    root = build.model_roots(scene)[0]
+    st = _json.loads(root.get("fr_stats", "{}"))
+    ctx.metric("faces found in", st.get("seconds_faces", 0.0), "s")
+    ctx.metric("triangles", round(tris / 1e6, 2), "M")
+    parts = list(build.iter_parts(scene))
+    _check(len(parts) == count, f"{len(parts)} parts, the mesh has {count} loose cylinders")
+    _check(st.get("round_faces", 0) >= count, f"only {st.get('round_faces', 0)} round faces for {count} cylinders")
+    _memory(ctx)
+    return f"{tris:,} triangles, {len(parts)} parts, faces in {st.get('seconds_faces', 0.0):.1f} s"

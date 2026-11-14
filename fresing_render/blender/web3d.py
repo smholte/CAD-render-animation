@@ -249,6 +249,18 @@ class Look:
             s = b.inputs.get(name)
             return float(s.default_value) if s is not None and not s.is_linked else default
 
+        self.file_image = None                 # task 0117: a mesh model's own picture, exported as it is
+        if mat is not None and mat.get("fr_file_material") and "color" in self.src:
+            found = _file_picture(b)
+            if found is not None:
+                self.file_image, factor = found
+                self.src.pop("color")
+                self.const["color"] = factor
+                for ch in ("rough", "metal", "normal"):   # its other pictures follow its UVs too: plain numbers
+                    if self.src.pop(ch, None) is not None and ch != "normal":
+                        sock = b.inputs.get(SOCKETS[ch])
+                        self.const[ch] = float(sock.default_value) if sock is not None else 0.5
+
         self.extra = {"coat": num("Coat Weight"), "coat_rough": num("Coat Roughness", 0.03),
                       "transmission": num("Transmission Weight"), "ior": num("IOR", 1.5),
                       "emission_strength": num("Emission Strength")}
@@ -258,6 +270,43 @@ class Look:
     def sockets(self) -> dict:
         """tile key -> (channel, input socket name)"""
         return {key: (ch, SOCKETS[ch]) for ch, key in self.src.items()}
+
+
+def _file_picture(bsdf):
+    """A mesh model's base colour picture (task 0117): (image, colour factor) when the Base Color is an Image Texture
+    on the part's UVs, alone or multiplied by a colour (``mesh_import._make_material``); else None."""
+    sock = bsdf.inputs.get("Base Color")
+    if sock is None or not sock.is_linked:
+        return None
+    node = sock.links[0].from_node
+    factor = (1.0, 1.0, 1.0)
+    if node.bl_idname == "ShaderNodeMix" and getattr(node, "blend_type", "") == "MULTIPLY":
+        a, b = node.inputs[6], node.inputs[7]
+        if not a.is_linked or b.is_linked:
+            return None
+        factor = tuple(float(x) for x in b.default_value[:3])
+        node = a.links[0].from_node
+    if node.bl_idname != "ShaderNodeTexImage" or node.image is None:
+        return None
+    return node.image, factor
+
+
+def picture_bytes(img) -> bytes:
+    """A picture as PNG or JPEG bytes: its packed file when it is one, else its pixels as a PNG."""
+    data = bytes(img.packed_file.data) if img.packed_file is not None else b""
+    if not data and img.filepath:
+        try:
+            with open(bpy.path.abspath(img.filepath), "rb") as fh:
+                data = fh.read()
+        except OSError:
+            data = b""
+    if data[:4] == b"\x89PNG" or data[:3] == b"\xff\xd8\xff":
+        return data
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)[::-1, :, :3]
+    return encode(np.clip(np.round(px * 255.0), 0, 255).astype(np.uint8), "color")
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +854,7 @@ class Job:
         yield 0.5
         mat_index: dict = {}
         cache: dict = {}
+        own_uv: set = set()                    # task 0117: materials with a mesh model's own picture
         for k, (name, lk) in enumerate(list(looks.items()) + [(f"decal:{n}", lk) for n, lk in decal_looks.items()]):
             label = (f"Look {k + 1}" if self.hide_names else
                      (name[3:] if name.startswith("FR ") else name).replace("decal:", "Decal "))
@@ -816,6 +866,7 @@ class Job:
             if self.hide_names:
                 mat["name"] = f"Look {len(self.gltf.doc['materials']) + 1}"
             mat_index[name] = cache[same] = self.gltf.material(mat)
+        own_uv = {mat_index[name] for name, lk in looks.items() if lk.file_image is not None and name in mat_index}
         light = self._light_textures() if self._lit is not None else None
         self._light_info = light
 
@@ -847,8 +898,9 @@ class Job:
             key = (me.name_full, mats, is_decal)
             if key not in mesh_of:
                 need_uv = is_decal or any(_textured(self.gltf.doc["materials"][m]) for m in mats if m >= 0)
+                own = not is_decal and any(m in own_uv for m in mats) and me.uv_layers.active is not None
                 mesh_of[key] = self._mesh(me, mats, is_decal, need_uv, len(mesh_of) + 1,
-                                          light["first_uv"].get(me.name_full) if light else None)
+                                          light["first_uv"].get(me.name_full) if light else None, own_uv=own)
             mesh, tris = mesh_of[key]
             if light is not None:
                 mesh = self._lit_mesh(ob, mesh, light)
@@ -901,7 +953,13 @@ class Job:
 
         c_tex = isinstance(color, np.ndarray)
         a_tex = isinstance(alpha, np.ndarray)
-        if c_tex or a_tex:
+        if lk.file_image is not None:          # task 0117: the file's own picture on the part's own UVs
+            key = ("file", lk.file_image.name_full)
+            if key not in cache:
+                cache[key] = self.gltf.texture(picture_bytes(lk.file_image), wrap=core.REPEAT)
+            pbr["baseColorTexture"] = {"index": cache[key]}
+            pbr["baseColorFactor"] = [float(x) for x in color] + [1.0 if a_tex else float(alpha)]
+        elif c_tex or a_tex:
             key = ("color", lk.src.get("color"), lk.src.get("alpha"), None if c_tex else color,
                    None if a_tex else alpha)
             if key not in cache:
@@ -963,8 +1021,9 @@ class Job:
         return mat
 
     def _mesh(self, me, mats: tuple, is_decal: bool, need_uv: bool, number: int,
-              light_uv: np.ndarray | None = None) -> tuple[int, int]:
-        co, vert, nrm, uv, mi = mesh_arrays(me, own_uv=is_decal, uv=need_uv)
+              light_uv: np.ndarray | None = None, own_uv: bool = False) -> tuple[int, int]:
+        """``own_uv``: the mesh's own UVs (a mesh model's picture, task 0117), not the tiles' box UVs."""
+        co, vert, nrm, uv, mi = mesh_arrays(me, own_uv=is_decal or own_uv, uv=need_uv)
         vidx, qn, uvw, inverse, first = core.weld(vert, nrm, uv, light_uv, corners=True)
         tri = inverse.reshape(-1, 3)
         groups = []
@@ -973,7 +1032,7 @@ class Job:
             groups.append((m, tri[mi == slot]))
         name = f"Mesh {number}" if self.hide_names else me.name
         step = core.POS_STEP if (is_decal or me.name_full in self._decal_meshes) else core.POS_STEP_BIG
-        k = self.gltf.mesh(name, co[vidx], qn, uvw, groups, max_step=step, tiled_uv=not is_decal)
+        k = self.gltf.mesh(name, co[vidx], qn, uvw, groups, max_step=step, tiled_uv=not (is_decal or own_uv))
         self._welded[k] = (first, inverse)
         return k, len(tri)
 
