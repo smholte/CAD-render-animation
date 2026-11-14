@@ -2,7 +2,7 @@
 toolpath). Nothing of a real machine or part: all sizes in mm, Z up.
 
 TEST.TOOLPATH
-  BED, COLUMN               fixed (the machine of the milling test model)
+  BED, COLUMN …             fixed (the machine of the milling test model, tools/make_test_mill.py)
   TABLE.ASM                 moves along Y (a slide joint in the tests)
     TABLE                   box 400 x 300 x 30 (top at z = 30)
     STOCK 120x80x40         the raw block: x -60..60, y -40..40, z 30..70
@@ -15,34 +15,28 @@ TEST.TOOLPATH
                               (28, 22): the cap hangs over by 6 / 3 mm - the stock under it cannot be cut from the top
                               through hole Ø10 at (52, 30)
   X.ASM                     moves along X
-    CARRIAGE
+    CARRIAGE …              (the machine of make_test_mill.py, task 0122: rails, motors, the head, edge clamps
+                            18 mm low beside the stock's back and front faces, their screws 18 mm out)
     Z.ASM                   moves along Z
-      SPINDLE               cylinder Ø60
+      SPINDLE               Ø60, its nose at z 130
       END MILL D10          flat end mill Ø10 x 40, tip at x = 0, y = 0, z = 90 (20 mm above the stock)
 
 usage: python make_test_toolpath.py out.step
 """
 
+import os
 import sys
 
 from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
 from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder, BRepPrimAPI_MakeSphere
-from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec
-from OCP.IFSelect import IFSelect_RetDone
-from OCP.Quantity import Quantity_Color, Quantity_TOC_sRGB
-from OCP.STEPCAFControl import STEPCAFControl_Writer
-from OCP.STEPControl import STEPControl_StepModelType
-from OCP.TCollection import TCollection_ExtendedString
-from OCP.TDataStd import TDataStd_Name
-from OCP.TDocStd import TDocStd_Document
 from OCP.TopAbs import TopAbs_EDGE
 from OCP.TopExp import TopExp_Explorer
-from OCP.TopLoc import TopLoc_Location
 from OCP.TopoDS import TopoDS
-from OCP.XCAFApp import XCAFApp_Application
-from OCP.XCAFDoc import XCAFDoc_ColorType, XCAFDoc_DocumentTool
+from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 STOCK = (-60.0, -40.0, 30.0, 120.0, 80.0, 40.0)        # x, y, z, dx, dy, dz
 BASE_TOP = 55.0
@@ -100,71 +94,19 @@ def finished_part():
     return BRepAlgoAPI_Cut(shape, hole).Shape()
 
 
-def build(path: str) -> None:
-    app = XCAFApp_Application.GetApplication_s()
-    doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
-    app.InitDocument(doc)
-    st = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
-    ct = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
-
-    def name(label, text):
-        TDataStd_Name.Set_s(label, TCollection_ExtendedString(text))
-
-    def part(shape, text, rgb=None):
-        lab = st.AddShape(shape, False)
-        name(lab, text)
-        if rgb:
-            ct.SetColor(lab, Quantity_Color(rgb[0], rgb[1], rgb[2], Quantity_TOC_sRGB),
-                        XCAFDoc_ColorType.XCAFDoc_ColorSurf)
-        return lab
-
-    def place(assy, lab, x=0.0, y=0.0, z=0.0):
-        t = gp_Trsf()
-        t.SetTranslation(gp_Vec(x, y, z))
-        st.AddComponent(assy, lab, TopLoc_Location(t))
-
-    def asm(text):
-        lab = st.NewShape()
-        name(lab, text)
-        return lab
-
-    grey, blue = (0.55, 0.57, 0.6), (0.075, 0.267, 0.486)
+def model():
+    """The machine of the milling test model (make_test_mill.py) round this stock and finished part."""
+    from make_test_mill import ALU, g, machine, part
     sx, sy, sz, sdx, sdy, sdz = STOCK
-    bed = part(BRepPrimAPI_MakeBox(gp_Pnt(-350, -250, -60), 700.0, 500.0, 60.0).Shape(), "BED", blue)
-    column = part(BRepPrimAPI_MakeBox(gp_Pnt(-350, 250, -60), 700.0, 120.0, 400.0).Shape(), "COLUMN", blue)
-    table = part(BRepPrimAPI_MakeBox(gp_Pnt(-200, -150, 0), 400.0, 300.0, 30.0).Shape(), "TABLE", grey)
-    stock = part(BRepPrimAPI_MakeBox(gp_Pnt(sx, sy, sz), sdx, sdy, sdz).Shape(), "STOCK 120x80x40",
-                 (0.75, 0.76, 0.78))
-    finished = part(finished_part(), "FINISHED PART", (0.75, 0.76, 0.78))
-    carriage = part(BRepPrimAPI_MakeBox(gp_Pnt(-60, 180, 120), 120.0, 80.0, 160.0).Shape(), "CARRIAGE", blue)
-    spindle = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, 130), gp_Dir(0, 0, 1)), 30.0, 120.0).Shape(),
-                   "SPINDLE", grey)
-    end_mill = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), 5.0, 40.0).Shape(),
-                    "END MILL D10")
+    stock = part("STOCK 120x80x40", g.box(sx, sy, sz, sdx, sdy, sdz), ALU)
+    finished = part("FINISHED PART", finished_part(), ALU)
+    end_mill = part("END MILL D10", g.cyl(5.0, 40.0))
+    return machine("TEST.TOOLPATH", stock, finished, STOCK, [(end_mill, FLAT_TIP)])
 
-    table_asm = asm("TABLE.ASM")
-    place(table_asm, table)
-    place(table_asm, stock)
-    place(table_asm, finished)
-    z_asm = asm("Z.ASM")
-    place(z_asm, spindle)
-    place(z_asm, end_mill, *FLAT_TIP)
-    x_asm = asm("X.ASM")
-    place(x_asm, carriage)
-    place(x_asm, z_asm)
-    root = asm("TEST.TOOLPATH")
-    place(root, bed)
-    place(root, column)
-    place(root, table_asm)
-    place(root, x_asm)
-    st.UpdateAssemblies()
 
-    writer = STEPCAFControl_Writer()
-    writer.SetColorMode(True)
-    writer.SetNameMode(True)
-    writer.Transfer(doc, STEPControl_StepModelType.STEPControl_AsIs)
-    if writer.Write(path) != IFSelect_RetDone:
-        raise RuntimeError("STEP write failed")
+def build(path: str) -> None:
+    from make_test_mill import write
+    write(model(), path)
 
 
 if __name__ == "__main__":
