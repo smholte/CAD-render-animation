@@ -11,15 +11,15 @@ TEST.CRANE                      mm; the boom turns about Y at PIVOT
     BOOM                        box girder 1500 x 100 x 100 from the pivot: round end round the pin, chamfered edges,
                                 side ribs, the tip tapered underneath, an end stop on top
     BOOM.PIN                    cylinder Ø40 along Y at the pivot (pick target for the joint axis)
-    BOOM.CYL.PIN                Ø20 through the fork under the boom: the luffing cylinder's rod pin
+    BOOM.LUFF.PIN                Ø20 through the fork under the boom: the luffing cylinder's rod pin
   TROLLEY.ASM                   rides on the boom (a sibling of BOOM.ASM in the CAD tree)
     TROLLEY                     body 150 x 150 x 60 with chamfers and a hoist motor on top
     WHEEL                       x2, flanged wheels
-  LUFF CYLINDER.ASM             luffing cylinder (task 0122): barrel pin in a fork on the pedestal's front, rod pin in a
+  HYDRAULIC CYLINDER.ASM             luffing cylinder (task 0122): barrel pin in a fork on the pedestal's front, rod pin in a
                                 fork under the boom; the piston can go 6 mm in and 140 mm out (boom up to ~37°)
-    LUFF CYLINDER.BARREL        eye, end cap, tube (bore Ø52), gland, two ports
-    LUFF CYLINDER.ROD           piston Ø50, rod Ø22, eye
-  PEDESTAL.CYL.PIN              Ø20 through the pedestal's fork: the barrel pin
+    HYDRAULIC CYLINDER.BARREL        eye, end cap, tube (bore Ø52), gland, two ports
+    HYDRAULIC CYLINDER.ROD           piston Ø50, rod Ø22, eye
+  PEDESTAL.LUFF.PIN              Ø20 through the pedestal's fork: the barrel pin
   COVER                         plate 300 x 200 x 10 with round corners, four screw heads and a handle
   ISO 4017 M12 x 40 - 8.8 HDG  x4, hex head bolts, the shank down in the base's holes
 
@@ -304,7 +304,7 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
     if lamp is not None:
         place(boom_asm, lamp, 1450, 0, 80)
     if luff:
-        place(boom_asm, part(luff_pin(), "BOOM.CYL.PIN", STEEL), LUFF_ROD_LOCAL[0], -22.0, LUFF_ROD_LOCAL[2])
+        place(boom_asm, part(luff_pin(), "BOOM.LUFF.PIN", STEEL), LUFF_ROD_LOCAL[0], -22.0, LUFF_ROD_LOCAL[2])
 
     trolley_asm = st.NewShape()
     name(trolley_asm, "TROLLEY.ASM")
@@ -326,12 +326,12 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
     if luff:
         barrel_s, rod_s = luff_parts()
         cyl_asm = st.NewShape()
-        name(cyl_asm, "LUFF CYLINDER.ASM")
-        place(cyl_asm, part(barrel_s, "LUFF CYLINDER.BARREL", (0.1, 0.1, 0.1)))
-        place(cyl_asm, part(rod_s, "LUFF CYLINDER.ROD", (0.85, 0.86, 0.88)))
+        name(cyl_asm, "HYDRAULIC CYLINDER.ASM")
+        place(cyl_asm, part(barrel_s, "HYDRAULIC CYLINDER.BARREL", (0.1, 0.1, 0.1)))
+        place(cyl_asm, part(rod_s, "HYDRAULIC CYLINDER.ROD", (0.85, 0.86, 0.88)))
         place(root, cyl_asm)
         (bx, bz), _r = luff_pins()
-        place(root, part(luff_pin(), "PEDESTAL.CYL.PIN", STEEL), bx, PIVOT[1] - 22.0, bz)
+        place(root, part(luff_pin(), "PEDESTAL.LUFF.PIN", STEEL), bx, PIVOT[1] - 22.0, bz)
     holes = list(BOLT_HOLES)
     if revision == "B":
         holes = [(950, 550), (50, 550), (950, 50)]          # one bolt less, other order

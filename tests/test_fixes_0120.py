@@ -19,7 +19,7 @@ from fresing_render.blender import (animation, cameras, clash, fade, logic, long
                                     ops_house, ops_web3d, queue, render, section, states, ui_weather, weather,
                                     weather_sky, web3d)
 
-YELLOW = "Colour #F9A800"          # the crane's yellow group
+YELLOW = "Welded frames & structures #F9A800"   # the crane's yellow group: boom and pedestal (task 0122)
 
 
 @pytest.fixture(scope="module", autouse=True)

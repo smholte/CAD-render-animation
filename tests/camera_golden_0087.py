@@ -18,7 +18,9 @@ sys.path.insert(0, os.path.dirname(HERE))
 import fresing_render  # noqa: E402
 from fresing_render.blender import animation, cameras  # noqa: E402
 
-CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
+# the plain crane of before task 0122 (boxes; ``tools/make_test_crane.py --plain``), kept as it was: the keys of
+# tests/data/camera_keys_0087.json were written with it, and the camera fits the model's size
+CRANE_A = os.path.join(HERE, "data", "test_crane_plain.step")
 
 
 def old_steps_scene():

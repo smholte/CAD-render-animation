@@ -398,6 +398,7 @@ def _boom_joint(scene):
 
 
 LUFF = "Luffing cylinder"
+YELLOW = "Welded frames & structures #F9A800"       # the crane's yellow group: boom and pedestal (task 0122)
 LUFF_ROD_EYE = (0.52, 0.3, 0.325)      # the rod eye's centre in the CAD pose, m (tools/make_test_crane.py luff_pins)
 
 
@@ -409,7 +410,7 @@ def luff_cylinder(scene):
     from . import build, cylinders
     if cylinders.find(scene, LUFF) is not None:
         return cylinders.find(scene, LUFF)
-    if not any(o.get(build.PROP_NAME) == "LUFF CYLINDER.BARREL" for o in scene.objects):
+    if not any(o.get(build.PROP_NAME) == "HYDRAULIC CYLINDER.BARREL" for o in scene.objects):
         return None
 
     def pin_at(name):                  # a pin part's axis: along its own +y, from its own origin (its head side)
@@ -417,8 +418,8 @@ def luff_cylinder(scene):
         m = ob.matrix_world
         return m @ Vector((0, 0.022, 0)), (m.to_3x3() @ Vector((0, 1, 0))).normalized(), ob
 
-    c, _notes = cylinders.create(scene, [_ob(scene, "LUFF CYLINDER.BARREL")], [_ob(scene, "LUFF CYLINDER.ROD")],
-                                 pin_at("PEDESTAL.CYL.PIN"), pin_at("BOOM.CYL.PIN"), name=LUFF)
+    c, _notes = cylinders.create(scene, [_ob(scene, "HYDRAULIC CYLINDER.BARREL")], [_ob(scene, "HYDRAULIC CYLINDER.ROD")],
+                                 pin_at("PEDESTAL.LUFF.PIN"), pin_at("BOOM.LUFF.PIN"), name=LUFF)
     _update()
     return c
 
@@ -534,7 +535,7 @@ def build_crane(b: Build):
     _shot(b, "@startlater")
     from . import logic                          # Every paint scheme (task 0074): two schemes to queue in
     logic.save_scheme(s, "Factory colours")
-    g = s.groups.get("Colour #F9A800") or (s.groups[0] if len(s.groups) else None)
+    g = s.groups.get(YELLOW) or (s.groups[0] if len(s.groups) else None)
     if g is not None:
         g.color = "RAL 5010"
         logic.save_scheme(s, "Blue")
@@ -719,7 +720,7 @@ def luff_eye_off(scene) -> float:
     """How far (mm) the luffing cylinder's rod eye sits from the pin under the boom, square to the pin."""
     from mathutils import Vector
     _update()
-    rod, pin = _ob(scene, "LUFF CYLINDER.ROD"), _ob(scene, "BOOM.CYL.PIN")
+    rod, pin = _ob(scene, "HYDRAULIC CYLINDER.ROD"), _ob(scene, "BOOM.LUFF.PIN")
     pr = pin.matrix_world @ Vector((0, 0.022, 0))
     axis = (pin.matrix_world.to_3x3() @ Vector((0, 1, 0))).normalized()
     eye = rod.matrix_world @ Vector(LUFF_ROD_EYE)     # the rod's own coordinates are the crane's (its assembly sits at 0)
@@ -854,8 +855,9 @@ def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
     _look("PRODUCT")
-    picks = (("Welded frames", "cast_iron_painted", "", 0.6), ("Colour #F9A800", "paint_gloss", "RAL 1003", 0.6),
-             ("Shafts", "steel_ground", "", 0.0), ("Colour #333333", "aluminium_anodized_black", "", 0.0),
+    picks = (("Welded frames", "paint_gloss", "RAL 1003", 0.6), ("Colour #333333", "cast_iron_painted", "", 0.6),
+             ("Shafts", "steel_ground", "", 0.0), ("Hydraulic", "aluminium_anodized_black", "", 0.0),
+             ("Chrome rods", "chrome_rod", "", 0.0),
              ("Casters", "rubber_black", "", 0.0), ("Covers", "aluminium_anodized_color", "#2E6DB4", 0.0),
              ("Fasteners", "zinc_flake", "", 0.0))
     for g in s.groups:
@@ -2874,9 +2876,10 @@ def _check_mesh(scene):
 LOOK, MOTION, MACH, OUT = GROUPS
 
 stop("materials", LOOK, "looks", "Ready-made materials and Wear",
-     "The crane in seven ready-made materials: yellow gloss paint and painted cast iron (both with Wear: in a "
-     "rendered picture their sharp edges look worn and corners a little dirty), ground steel pin, black anodised "
-     "trolley, rubber wheels, blue anodised cover, zinc flake bolts.",
+     "The crane in eight ready-made materials: yellow gloss paint on boom and pedestal, painted cast iron on base "
+     "and trolley (both with Wear: in a rendered picture their sharp edges look worn and corners a little dirty), "
+     "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
+     "zinc flake bolts.",
      where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials)
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "

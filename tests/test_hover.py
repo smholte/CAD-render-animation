@@ -96,8 +96,8 @@ def test_hole_lights_up_with_its_axis(scene):
         o.location.z += 5.0                                 # the pin (and the boom on it) out of the hole
     bpy.context.view_layer.update()
     try:
-        bb = [ped.matrix_world @ Vector(c) for c in ped.bound_box]
-        y = min(c.y for c in bb) + 0.005                    # in the front lug (the boom sits between the two)
+        y = 0.3 - 0.07                                      # in the front cheek (y 0.22 .. 0.245; the boom sits
+                                                            # between the two; task 0122: the foot is wider)
         origin, direction = Vector((0.1, y, 0.41)), Vector((0, 0, 1))      # from inside the bore, up at its wall
         h = look(scene, origin, direction)
         assert h.part == ped.name and h.kind == "hole", h

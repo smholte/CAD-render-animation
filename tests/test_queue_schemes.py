@@ -16,7 +16,7 @@ CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
 import fresing_render  # noqa: E402
 from fresing_render.blender import animation, cameras, logic, queue, render  # noqa: E402
 
-YELLOW = "Colour #F9A800"          # the crane's yellow group
+YELLOW = "Welded frames & structures #F9A800"   # the crane's yellow group: boom and pedestal (task 0122)
 
 
 @pytest.fixture(scope="module", autouse=True)
