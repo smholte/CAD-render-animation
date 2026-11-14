@@ -2904,7 +2904,7 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "lift wire from the fairlead over the trolley's head sheave stays tight: its winch pays out as the trolley "
      "travels and the block goes down, and the head sheave turns with it.",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here)", animation=MOVING_ANIM, play=True,
-     since="0.2.93", check=_check_moving_cable, auto="clip")
+     since="0.2.95", check=_check_moving_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

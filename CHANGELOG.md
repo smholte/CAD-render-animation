@@ -5,6 +5,32 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.95 – 14 Nov 2026 – a cable on a moving part; the quadrant operation in the demo (task 0082)
+
+- **Winch keeps it tight** (4 Motion > Cables and paths, a cable's details): the winch pays out exactly what the
+  cable's path needs when the parts it runs over move – a wire over a pulley on a tilting frame, a block that is
+  lowered. Its drum, sheaves and stripes turn with it. Build writes the payout for every frame; while you pose, it
+  follows at once. The line says how much the winch pays out now, or why it cannot (a step already moves it).
+- **A cable into the sea hangs from what it still goes round:** when the part it hangs from moves past the horn or
+  chute (a quadrant going over the stern), the cable leaves the horn and hangs from the moving part; when it comes
+  back, the horn catches the cable again. Into the sea says which part it hangs from.
+- **Let go here** on a cable's start, end or contact: from that frame on it stays where it was – on the seabed for
+  a cable into the sea – while the part that carried it moves away (an ROV releases the cable from the quadrant).
+- **Weather & time > Bow** (From the hull / +x / -x): the wake trails behind the real stern and the bow throws up
+  the spray. From the hull reads the waterline; older projects keep their look.
+- **Demo project:** the A&R wire and the tipping wires are now real cables of the app (kept tight by their
+  winches). After the sea shot comes the **quadrant operation at the second end**: shot 9 – the D carries the cable
+  end and its CPS aft and the handler tilts over the stern (was shot 7); 10 – the D hangs plumb from the A&R wire and
+  is lowered through the cut-away; 11 – it tips flat near the seabed, the cable and its CPS are let go and lie on the
+  seabed; 12 – it comes back up and travels back to its place. 0 clashes. The animation is about 2 ¼ minutes now.
+- **Test tour and PC check:** a new stop and line "A cable on a moving part" (a small model: a cable over a sheave
+  on a carriage that travels, tilts and lowers, into the sea, with a let-go).
+
+**Test this (on your PC):** Help > Make demo project (about 1 minute longer than before), open it, 6 Animation >
+What it can do today > Build & play from shot 9 on: the D goes over the stern with the cable end, down to the
+seabed, tips, leaves the cable on the seabed and comes back. Render shots 10 and 11 on the RTX 3090 and look at the
+D under water. Help > Make test tour project, stop "A cable on a moving part": Go, then OK or Problem.
+
 ## 0.2.94 – 14 Nov 2026 – marine looks: growth at the waterline, weathering streaks, concrete (task 0116)
 
 - **3 Looks > Ready-made material… has three new looks**: **Marine paint, growth below the waterline** (your paint

@@ -721,7 +721,7 @@ def motion_sea_cable(ctx):
     return note
 
 
-@line("motion.moving_cable", "A cable on a moving part: kept tight, hung on, let go", "0.2.93",
+@line("motion.moving_cable", "A cable on a moving part: kept tight, hung on, let go", "0.2.95",
       what="A trolley carries a block with a sheave aft over the stern, its hanger tilts and the block is lowered: the "
            "lift wire's winch keeps the wire tight (it pays out what the moving sheaves need), the cable end on the "
            "block leaves the stern horn and hangs from the block's sheave, and is let go near the seabed – its start "

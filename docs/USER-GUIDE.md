@@ -3023,30 +3023,33 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   it passes through both tensioners' lines. Every roller cradle in its way **drops** out of it: one "Cradle … drop"
   joint per lane, the others of that lane follow. The A&R winch's drum follows the
   D's travel as its wire pays out.
-- **Wires that move:** the **A&R wire** runs from its winch in front of the carousel to the eye at the top of the D's
-  curve – straight along the deck while the D travels, over the handler's top pulley once the handler tilts. The two
-  **tipping wires** come up the swivel posts at the stern, over their sheaves, and hang parked until the D is on the
-  handler; then they run to the D's bottom corners (the ends of its straight bar) and the sheave heads turn with the
-  tilt. They follow the joints by themselves (move "Quadrant travel" or "Handler tilt" and they go along), also in
-  the render queue. They are part of the demo, not a function of the app yet.
+- **Wires that move:** the **A&R wire** and the two **tipping wires** are cables of 4 Motion > Cables and paths with
+  **Winch keeps it tight** on: the A&R wire comes off its winch drum (the drum turns as it pays out), runs along the
+  deck to the eye at the top of the D's curve and over the handler's top pulley once the handler tilts; the tipping
+  wires come up the swivel posts, over their sheaves to the D's bottom corners (shown once they are connected).
+  The winches pay out exactly what the D's motion needs.
+- **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
+  gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
 - **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 90 s with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 2 ¼ minutes with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
-  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, and the **quadrant system**: both
-  tensioners open, the lanes' cradles drop, the D-quadrant travels aft between the tensioners onto the handler on its
-  A&R wire (× 60 time-lapse), the tipping wires are
-  connected, and the handler tilts over the stern carrying it: it ends with the D standing vertical, curve up,
-  hanging from the A&R wire over the top pulley. Last, **into the sea**: from above the stern quarter, through
-  the cut-away, the cable hangs from horn A down to the seabed 30 m below (touch-down 32 m behind the horn) and pays
-  out at 10 m/min while the seabed passes aft. The captions say where it runs faster than real. Click **Build &
-  play**, or put it in the render queue.
+  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
+from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
+(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. Then the **quadrant
+operation at the second end** (shots 9–12): both tensioners open, the lanes' cradles drop, the D-quadrant travels
+aft between the tensioners onto the handler with the cable end on it, the tipping wires are connected and the
+handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is
+lowered through the cut-away to near the seabed (10); it tips flat, the cable and its CPS are let go and lie on
+the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
+place, the tensioners close (12). The captions say where it runs faster than real. Click **Build & play**, or put
+it in the render queue.
 
-Lowering the D-quadrant into the sea (the cable stays where it is while the D moves) comes in a later update: it is added to this same demo. The labels of the X-ray step also show in
+The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 
