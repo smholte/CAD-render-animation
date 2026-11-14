@@ -1,7 +1,7 @@
 """Task 0034: way covers (telescopic covers follow one slide axis), against hand calculations.
 
-Generic model (tools/make_test_waycover.py): bed, carriage and five cover sections 20 mm thick, nested at
-x = 0, 20 … 80 mm (sections 1 and 3 are two parts each). Axis 500 mm, 5 moving sections: section k stands
+Generic model (tools/make_test_waycover.py): bed (with the cover's end bracket at x = 0 … 20), carriage (left face
+at x = 120) and five cover sections 20 mm thick, nested at x = 20, 40 … 100 mm (sections 1 and 3 are two parts each). Axis 500 mm, 5 moving sections: section k stands
 100 k mm from where it is in CAD. The owner's way-cover STEP (test_waycover_a.step, five sections, in the middle
 of its travel: 376.5 mm long, 166.5 mm closed, 586.5 mm open) is set up with the housing counting as a section.
 """
@@ -309,7 +309,8 @@ def test_remove_the_way_cover_leaves_the_axis_as_before(scene):
     assert not len(c.sections)
     axis_to(scene, 0.5)
     assert all(abs(g - r) < TOL for g, r in zip(positions(scene), rest))
-    assert abs(min_x(ob(scene, "CARRIAGE")) - min_x(ob(scene, "BASE")) - 0.06 - 0.5) < TOL
+    assert abs(min_x(ob(scene, "CARRIAGE")) - min_x(ob(scene, "BASE")) - 0.12 - 0.5) < TOL     # (task 0122: 0.06
+    # before: the carriage started inside sections 4 and 5; now the end bracket and the five sections come first)
 
 
 def test_read_total_from_the_axis_limits(scene):
