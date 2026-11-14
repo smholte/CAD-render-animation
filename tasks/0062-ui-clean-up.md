@@ -9,6 +9,8 @@ order in `TASKS.md`); the lead re-reads this brief and the panels as they are th
 **Model:** Opus · effort Medium (lead to confirm when it starts) · **Place:** Claude Code on the web, environment
 "CAD-render-animation"
 
+**Lead note 14 Nov 2026 – interactive learning (study 0123):** the owner wants this overhaul and the learning modes (Show me / Build it yourself on the test models, the guide inside the app) to work as one. Before this task starts the lead adds 0123's results here: the families come from the one function list (registry), and the shared panel helpers get the hook that lets a lesson highlight a button and open its folds. The modes themselves are built after this task.
+
 ## Goal
 
 The Fresing side panel has grown to 7 sections and ~35 sub-panels. Many projects (an offshore crane, a cable-laying
