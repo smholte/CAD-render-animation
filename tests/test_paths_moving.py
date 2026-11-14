@@ -146,12 +146,12 @@ def test_keep_tight_live_pays_out_what_travel_and_lowering_need(moving):
     before = joints.get_value(j)
     paths.refresh(sc)
     assert joints.get_value(j) == before
-    # off: the joint is left where it is and no longer follows
+    # off: the speed goes back to 0 (nothing else moves it) and no longer follows
     paths.set_keep_tight(sc, wire(sc), False)
     joints.set_value(joints.find(sc, "Lower"), 4.0)
     update()
     paths.refresh(sc)
-    assert joints.get_value(joints.find(sc, wire(sc).joint)) == pytest.approx(before)
+    assert joints.get_value(joints.find(sc, wire(sc).joint)) == 0.0 and before > 4.0
     assert "winch" not in paths.status(sc, wire(sc))[0]
 
 
@@ -198,6 +198,31 @@ def test_keep_tight_is_skipped_when_a_step_moves_the_speed(moving):
     j = joints.find(sc, wire(sc).joint)
     assert paths.TIGHT not in j.motion
     assert paths.status(sc, wire(sc))[1] == "WARN" and "not kept tight" in paths.status(sc, wire(sc))[0]
+
+
+def test_keep_tight_skipped_is_said_in_the_panel_and_off_puts_the_speed_back(moving):
+    from test_paths_panel import draw_panel
+    sc = moving
+    s = sc.fresing
+    s.cables_index = paths.index_of(sc, wire(sc))
+    joints.set_value(joints.find(sc, "Travel"), 3.0)
+    update()
+    paths.refresh(sc)
+    assert paths.tight_payout(sc, wire(sc)) == pytest.approx(3.0, abs=paths.TIGHT_TOL)
+    a = s.animations[paths.MOVING_ANIMATION]
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "MOTOR", wire(sc).joint, 0.0, 2.0, "LINEAR"
+    b.speed_mmin = 6.0
+    assert "a step in 6 Animation moves its speed" in paths.tight_skipped(sc, wire(sc))
+    texts = " ".join(draw_panel()[0])
+    assert "Not kept tight" in texts and "Add a Run motor step" in texts, texts
+    a.blocks.remove(len(a.blocks) - 1)
+    assert paths.tight_skipped(sc, wire(sc)) == ""
+    texts = " ".join(draw_panel()[0])
+    assert "Not kept tight" not in texts and "Add a Run motor step" not in texts
+    # off: nothing else moves the speed, so it goes back to 0
+    paths.set_keep_tight(sc, wire(sc), False)
+    assert joints.get_value(joints.find(sc, wire(sc).joint)) == 0.0
 
 
 def test_keep_tight_needs_a_joint_of_its_own(moving):

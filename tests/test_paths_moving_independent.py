@@ -432,8 +432,8 @@ def inside_sheave(m, pts) -> float:
     return float(max(0.0, SHEAVE_R - r[near].min())) if near.any() else 0.0
 
 
-def test_FAULT_live_hang_off_arc_is_drawn_as_a_chord(plain):
-    """FAULT: the pose shown (no Build) hanging from the SHEAVE after the HORN was released (travel 10.5 m aft,
+def test_live_hang_off_arc_is_drawn_round_the_sheave(plain):
+    """Was a fault (fixed): the pose shown (no Build) hanging from the SHEAVE after the HORN was released (travel 10.5 m aft,
     tilt 30°, lowered 4 m: frame 289's pose) draws the cable's ~107° round the sheave with two points – a chord
     that cuts ~0.2 m into the sheave. A Build of the same frame draws the arc round it. The arc on the wheel it
     hangs from keeps the point count of the wheel's wrap in the CAD pose (a few degrees)."""
@@ -456,8 +456,8 @@ def inside_deck(pts, margin=0.02):
     return ((pts > lo + margin) & (pts < hi - margin)).all(axis=1)
 
 
-def test_FAULT_a_motion_that_comes_back_hangs_the_cable_through_the_deck(plain):
-    """FAULT (or a question for the lead): the spec keeps a released wheel released "for the later frames". A motion
+def test_a_motion_that_comes_back_hangs_the_cable_from_the_horn_again(plain):
+    """Was a fault (the lead decided: the pose decides the hang-off, live and built alike): the spec keeps a released wheel released "for the later frames". A motion
     that brings the quadrant back over the horn (travel aft, tilt, lower, then all back) then hangs the cable from
     the sheave straight down through the deck at the end, where everything stands in its CAD place; the live pose of
     that same frame hangs it from the horn. Expected here: the built cable never passes through the deck, and the
@@ -566,8 +566,8 @@ def test_let_go_sheave_stays_on_the_seabed(moving):
     assert (np.abs(d - SHEAVE_R) > 0.5).all() or d.min() > SHEAVE_R + 0.5
 
 
-def test_FAULT_let_go_at_frame_0_before_the_animation_starts_lets_go_from_its_first_frame(plain):
-    """FAULT: let go at frame 0 (shown frame 1, not built) – "from that frame on" includes the whole animation, so
+def test_let_go_at_frame_0_before_the_animation_starts_lets_go_from_its_first_frame(plain):
+    """Was a fault (fixed): let go at frame 0 (shown frame 1, not built) – "from that frame on" includes the whole animation, so
     the start must stay put in seabed coordinates from the first frame. Today nothing is stored for a frame before
     the frames Build reads, and the start silently stays on its clamp at every frame."""
     m = plain
@@ -821,8 +821,8 @@ def test_spool_wire_kept_tight_turns_the_drum_by_its_table(folder):
     assert worst_lw < 0.1 * MM, worst_lw
 
 
-def test_FAULT_spool_wire_kept_tight_is_off_by_the_level_winds_fleet(folder):
-    """FAULT: "pay = L_free(now) - L_free(CAD)" to 0.5 mm (A1). With the spool model's level wind (a layer follower
+def test_spool_wire_kept_tight_holds_with_the_level_winds_fleet(folder):
+    """Was a fault (fixed): "pay = L_free(now) - L_free(CAD)" to 0.5 mm (A1). With the spool model's level wind (a layer follower
     that moves the fairlead sheave along the drum) the Build's payout is worked out with the sheave where it was
     before the payout moved it; the places are then read again but the payout is not worked out again. Measured on
     the web machine: free span - payout - CAD free span up to ~18 mm (frame 141, level wind 0.18 m off centre) – the

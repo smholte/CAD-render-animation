@@ -1906,8 +1906,9 @@ def _store_let_go(item, which: str, frame: int, sea: bool, v) -> None:
 def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
     """``values``: which -> (F, d) places in the cable part's coordinates (an end's point; a wheel's centre + axis),
     changed in place: from its let-go frame on, an end or contact stays where it was at that frame. Along a Build
-    that frame's place comes from the places read; in the pose shown (``first`` None: the frame shown), or for a
-    frame before those read, from the place stored when it was let go."""
+    that frame's place comes from the places read (a frame before the first one read: from the first one – it is
+    let go from the animation's start); in the pose shown (``first`` None: the frame shown) from the place stored
+    when it was let go (or by Build)."""
     F = rel.shape[0]
     hold = _hold_frame(item, rel, slots)
     sea = hold is not None
@@ -1920,8 +1921,8 @@ def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
         after = frames >= f0
         if not after.any():
             continue
-        if first is not None and int(first) <= f0 < int(first) + F:
-            m0 = f0 - int(first)
+        if first is not None and f0 < int(first) + F and (f0 >= int(first) or int(first) <= int(scene.frame_start)):
+            m0 = max(f0 - int(first), 0)
             kept = _to_hold(v[m0], None if hold is None else hold[m0])
         else:
             stored = _stored_let_go(item) if stored is None else stored
@@ -1958,11 +1959,13 @@ def _places_now(scene, item, rel1, slots) -> dict:
 
 
 def _refresh_let_go(scene, item, rel, slots, first: int) -> None:
-    """Build: the places let go within the frames read are stored again from those frames."""
+    """Build: the places let go within the frames read (or before them: at the first one) are stored again from
+    those frames."""
     sea = _hold_frame(item, rel, slots) is not None
     for which, f0 in _let_goes(item):
-        if first <= f0 < first + rel.shape[0]:
-            got = _places_now(scene, item, rel[f0 - first:f0 - first + 1], slots)
+        if f0 < first + rel.shape[0]:
+            m0 = max(f0 - first, 0)
+            got = _places_now(scene, item, rel[m0:m0 + 1], slots)
             if which in got:
                 _store_let_go(item, which, f0, sea, got[which])
 
@@ -2270,8 +2273,34 @@ def keep_tight_changed(scene, item) -> list[str]:
         j, why = _tight_joint(scene, item)
         if j is None:
             notes.append(f"Cable '{label(item)}' cannot be kept tight: {why}")
+    else:                                       # off: the speed goes back to 0, unless something else moves it
+        j, _why = _tight_joint(scene, item)
+        if j is not None and not _keyed(j) and not _stepped(scene, item) and joints.get_value(j) != 0.0:
+            joints.set_value(j, 0.0, use_limits=False)
     changed(scene, item)
     return notes
+
+
+def _stepped(scene, item) -> str:
+    """The name of the chosen animation when one of its steps moves the cable's speed joint, else ''."""
+    s = scene.fresing
+    if not item.joint or not 0 <= s.animations_index < len(s.animations):
+        return ""
+    a = s.animations[s.animations_index]
+    return a.name if any(b.joint == item.joint for b in a.blocks) else ""
+
+
+def tight_skipped(scene, item) -> str:
+    """'' when "Winch keeps it tight" is off or works; else why the winch does not keep the cable tight (plain
+    words: its speed joint follows another one, or a step of the animation moves it)."""
+    if not item.keep_tight:
+        return ""
+    j, why = _tight_joint(scene, item)
+    if j is None:
+        return why
+    if _keyed(j) or _stepped(scene, item):
+        return f"a step in 6 Animation moves its speed '{j.name}': that step decides"
+    return ""
 
 
 def tight_payout(scene, item) -> float:
@@ -3033,10 +3062,22 @@ def _bake(scene) -> list[str]:
             if values is not None:
                 _write_tight(scene, it, values, first)
                 if len(values) > 1 and any(sl.live and not sl.role for sl in slots):
-                    flex.drop_read()            # (a layer follower moves a carrier with the payout: read again)
-                    objs = {ob.name: ob for ob in [it.part] + [o for sl in slots for o in sl.objects()]}
-                    rel = _rel_from(it, slots, flex.read_places(scene, list(objs.values()), first, len(values),
-                                                                keep_shown=False))
+                    # a layer follower moves a carrier with the payout (a level wind's fairlead sheave): read the
+                    # places again with the keys written and work the payout out again, until it holds to TIGHT_TOL
+                    objs = list({ob.name: ob for ob in [it.part] + [o for sl in slots for o in sl.objects()]}.values())
+                    for _round in range(TIGHT_ROUNDS):
+                        flex.drop_read()
+                        read = _rel_from(it, slots, flex.read_places(scene, objs, first, len(values), keep_shown=False))
+                        got, new = _tighten(scene, it, read, slots, first, None)
+                        if new is None:
+                            rel = read
+                            break
+                        rel, done = got, float(np.abs(new - values).max(initial=0.0)) <= TIGHT_TOL
+                        if not done:
+                            values = new
+                            _write_tight(scene, it, values, first)
+                        else:
+                            break
             it = _cable(scene, n)
         if _let_goes(it):
             _refresh_let_go(scene, it, rel, slots, first)
