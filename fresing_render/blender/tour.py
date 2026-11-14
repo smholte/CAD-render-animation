@@ -407,7 +407,7 @@ def luff_cylinder(scene):
     stays on the pin under the boom. Made once per project (the crane's first copy); None on a crane without one."""
     from mathutils import Vector
 
-    from . import build, cylinders
+    from . import build, cylinders, joints
     if cylinders.find(scene, LUFF) is not None:
         return cylinders.find(scene, LUFF)
     if not any(o.get(build.PROP_NAME) == "HYDRAULIC CYLINDER.BARREL" for o in scene.objects):
@@ -421,6 +421,14 @@ def luff_cylinder(scene):
     c, _notes = cylinders.create(scene, [_ob(scene, "HYDRAULIC CYLINDER.BARREL")], [_ob(scene, "HYDRAULIC CYLINDER.ROD")],
                                  pin_at("PEDESTAL.LUFF.PIN"), pin_at("BOOM.LUFF.PIN"), name=LUFF)
     _update()
+    # the boom stops where the cylinder does (closed … fully out: about -1.5° … 37.6°); outside it the rod would leave
+    # its barrel (found by the independent tester)
+    j, _reason = cylinders.arm_joint(scene, c)
+    if j is not None:
+        lo, hi = cylinders.drive(scene, c, j).values_for_range(c.closed_length, c.closed_length + c.full_stroke)
+        j.rot_min, j.rot_max = min(lo, hi), max(lo, hi)
+        j.use_limits = True
+        joints.apply_limits(j, joints._model_size(scene))
     return c
 
 

@@ -86,16 +86,10 @@ def _check(cond: bool, message: str) -> None:
 
 
 def _boom_joint(scene):
-    """The crane's boom turns about its pin (picked like a click on the pin's round face)."""
-    from mathutils import Vector
-
-    from ..blender import joints
-    pin = _ob(scene, "BOOM.PIN")
-    origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector((0.1, 0.3, 0.42)), Vector((0, 0, 1)))
-    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
+    """The crane's boom turns about its pin (picked like a click on the pin's round face), + turns it up; the
+    luffing cylinder follows it (task 0122). The same joint as the test tour's."""
     from ..blender import tour
-    tour.luff_cylinder(scene)               # the luffing cylinder follows the boom (task 0122)
-    return j
+    return tour._boom_joint(scene)
 
 
 def _tip(scene):

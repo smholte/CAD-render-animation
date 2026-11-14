@@ -20,7 +20,7 @@ TEST.CRANE                      mm; the boom turns about Y at PIVOT
     HYDRAULIC CYLINDER.BARREL        eye, end cap, tube (bore Ø52), gland, two ports
     HYDRAULIC CYLINDER.ROD           piston Ø50, rod Ø22, eye
   PEDESTAL.LUFF.PIN              Ø20 through the pedestal's fork: the barrel pin
-  COVER                         plate 300 x 200 x 10 with round corners, four screw heads and a handle
+  COVER                         plate 300 x 200 x 10 with chamfered corners, four screw heads and a handle
   ISO 4017 M12 x 40 - 8.8 HDG  x4, hex head bolts, the shank down in the base's holes
 
 Revision B: one bolt removed, the bolts listed in another order, a new BOOM.LAMP in BOOM.ASM,
@@ -100,8 +100,10 @@ def pedestal_shape(lug: bool = False):
             along = (0, -sgn, 0)
         parts.append(g.xform(g.polygon_prism(tri, 12.0), g.Frame(at, out, along)))
     if lug:                                                      # the luffing cylinder's lug on the front
-        parts += [g.box(120, 60, 60, 48, 8, 70), g.box(120, 92, 60, 48, 8, 70)]        # a fork round the eye
-        parts += [g.cyl(24.0, 8.0, (LUFF_BASE_LOCAL[0], y0, LUFF_BASE_LOCAL[2]), (0, 1, 0)) for y0 in (60.0, 92.0)]
+        # a fork round the eye: two plates with chamfered ends (not round: see the cheeks)
+        lug = [(110.0, 60.0), (160.0, 60.0), (174.0, 74.0), (174.0, 116.0), (160.0, 130.0), (110.0, 130.0)]
+        parts += [g.xform(g.polygon_prism(lug, 8.0), g.Frame((0, y0 + 8.0, 0), (1, 0, 0), (0, -1, 0)))
+                  for y0 in (60.0, 92.0)]
     shape = g.fuse(*parts)
     cuts = [g.cyl(20.2, 200.0, (60, -20, 300), (0, 1, 0))]
     cuts += [g.cyl(5.5, 22.0, (x, y, -1.0)) for x in FOOT for y in FOOT_Y]
@@ -120,8 +122,10 @@ def boom_shape(lug: bool = False):
             parts.append(g.box(x - 4, y0, -40, 8, 6, 80))
     parts.append(g.polygon_prism(chamfered_rect(1360, -40, 24, 80, 4), 28.0, g.T(0, 0, 50)))     # end stop
     if lug:
-        parts += [g.box(LUFF_ROD_LOCAL[0] - 22, y0, -75, 44, 8, 26) for y0 in (-19.0, 11.0)]
-        parts += [g.cyl(22.0, 8.0, (LUFF_ROD_LOCAL[0], y0, LUFF_ROD_LOCAL[2]), (0, 1, 0)) for y0 in (-19.0, 11.0)]
+        x = LUFF_ROD_LOCAL[0]                                    # a fork round the rod eye, chamfered ends
+        lug = [(x - 22, -40.0), (x + 22, -40.0), (x + 22, -84.0), (x + 10, -97.0), (x - 10, -97.0), (x - 22, -84.0)]
+        parts += [g.xform(g.polygon_prism(lug, 8.0), g.Frame((0, y0 + 8.0, 0), (1, 0, 0), (0, -1, 0)))
+                  for y0 in (-19.0, 11.0)]
     shape = g.fuse(*parts)
     # the tip tapers underneath: from z -50 at x 1250 to z -18 at the end (local y = world z, extruded along -y)
     taper = g.xform(g.polygon_prism([(1250.0, -50.0), (1510.0, -18.0), (1510.0, -60.0), (1250.0, -60.0)], 140.0),
@@ -155,17 +159,27 @@ def wheel_shape():
 
 
 def cover_shape():
-    r = 20.0
-    prof = [(r, 0.0), (300 - r, 0.0), ("arc", (300 - r + r * math.sin(math.pi / 4), r - r * math.cos(math.pi / 4)),
-                                            (300.0, r)),
-            (300.0, 200 - r), ("arc", (300 - r + r * math.sin(math.pi / 4), 200 - r + r * math.cos(math.pi / 4)),
-                               (300 - r, 200.0)),
-            (r, 200.0), ("arc", (r - r * math.sin(math.pi / 4), 200 - r + r * math.cos(math.pi / 4)), (0.0, 200 - r)),
-            (0.0, r), ("arc", (r - r * math.sin(math.pi / 4), r - r * math.cos(math.pi / 4)), (r, 0.0))]
-    plate = g.prism(prof, 10.0)
-    heads = [g.cyl(7.0, 3.0, (x, y, 10.0)) for x in (20.0, 280.0) for y in (20.0, 180.0)]
+    """Plate 300 x 200 x 10 with chamfered corners, four screw heads and a handle."""
+    plate = g.polygon_prism(chamfered_rect(0, 0, 300, 200, 15), 10.0)
+    heads = [hex_prism(10.0, 3.0, 10.0).Moved(_loc(x, y)) for x in (20.0, 280.0) for y in (20.0, 180.0)]
     handle = [g.box(130, 92, 10, 6, 16, 18), g.box(164, 92, 10, 6, 16, 18), g.box(130, 92, 24, 40, 16, 6)]
     return g.fuse(plate, *heads, *handle)
+
+
+def _loc(x, y, z=0.0):
+    from OCP.TopLoc import TopLoc_Location as _L
+    t = gp_Trsf()
+    t.SetTranslation(gp_Vec(x, y, z))
+    return _L(t)
+
+
+def lamp_shape():
+    """Revision B's BOOM.LAMP: a work lamp on a foot (its centre at the origin, the foot on z -30)."""
+    foot = g.polygon_prism(chamfered_rect(-25, -20, 50, 40, 5), 6.0, g.T(0, 0, -30.0))
+    post = g.box(-5, -5, -24, 10, 10, 14)
+    housing = g.cyl(20.0, 40.0, (-20, 0, 0), (1, 0, 0))
+    rim = g.cyl(23.0, 5.0, (20, 0, 0), (1, 0, 0))
+    return g.fuse(foot, post, housing, rim)
 
 
 def hex_bolt(length: float = 40.0):
@@ -297,7 +311,9 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
         screw = part(socket_screw(), "ISO 4762 M10 x 20 - 12.9", (0.12, 0.12, 0.13))
     pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, -90, 0), gp_Dir(0, 1, 0)), 20.0, 180.0).Shape(),
                "BOOM.PIN")
-    lamp = part(BRepPrimAPI_MakeSphere(30.0).Shape(), "BOOM.LAMP") if revision in ("B", "C") else None
+    lamp = None
+    if revision in ("B", "C"):
+        lamp = part(BRepPrimAPI_MakeSphere(30.0).Shape() if plain else lamp_shape(), "BOOM.LAMP")
 
     boom_asm = st.NewShape()
     name(boom_asm, "BOOM.ASM")
