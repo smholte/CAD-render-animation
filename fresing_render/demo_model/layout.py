@@ -572,8 +572,8 @@ def quadrant_system(p, S: Scene) -> Asm:
     straight = rt.rope_route("A&R wire", p.quadrant_rope_d, 0.0, [
         ("sheave", tuple(drum_c[[0, 2]]), rd, +1, {"name": "drum"}), ("point", (eye[0], eye[2]))])
     # the A&R wire itself (task 0082): AR_WRAP° round the drum's outer layer, off it at its top and on to the D's eye, the
-    # D at its stationary place. Twice: the demo shows the one straight to the eye while the D travels and the handler
-    # starts to tilt, the other (the same wire with the handler's top pulley added) from where the wire meets the pulley
+    # D at its stationary place (the demo adds the handler's top pulley to its path: it bears on it once the handler
+    # tilts)
     leave = straight.segments[0]
     n = np.array([0.0, -1.0, 0.0])                       # the wrap's axis (anticlockwise seen from port, as rope_route)
     c3 = np.array([drum_c[0], 0.0, drum_c[2]])
@@ -582,8 +582,7 @@ def quadrant_system(p, S: Scene) -> Asm:
           support="sheave", name="drum")
     r.add(leave, support="free")
     ropes["A&R wire"] = r
-    for inst in ("A&R WIRE", "A&R WIRE (OVER THE PULLEY)"):
-        qs.add(Part("A&R WIRE", g.route_solid(r, p.quadrant_rope_d / 2), m.ROPE_GREY), instance=inst)
+    qs.add(Part("A&R WIRE", g.route_solid(r, p.quadrant_rope_d / 2), m.ROPE_GREY), instance="A&R WIRE")
     ar = {"drum_centre": drum_c, "drum_axis": [0.0, 1.0, 0.0], "drum_r": rd,
           "drum_carrier": [cqw, base_frame], "eye": eye, "eye_carrier": [cq, eye_part],
           "eye_end": _hinge_world(pos, z_h, tp["eye"]), "pulley_centre": _hinge_world(pos, z_h, tp["centre"]),

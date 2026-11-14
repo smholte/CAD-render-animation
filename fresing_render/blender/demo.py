@@ -777,8 +777,7 @@ def hold_quadrant_parts(d: Demo):
     d.notes.append(f"quadrant operation: {n} parts kept out until shot 9 (wires, second end, CPS)")
 
 
-AR_ITEM = "A&R wire"                  # the A&R wire straight from its drum to the D's eye (while the D travels)
-AR_PULLEY_ITEM = "A&R wire over the pulley"   # the same wire once it bears on the handler's top pulley
+AR_ITEM = "A&R wire"                  # from its drum (over the handler's top pulley once tilted) to the D's eye
 AR_SPOOL = "A&R winch"
 AR_DRUM = "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"
 PULLEY_TURN = "QUADRANT SYSTEM: QUADRANT HANDLER: Top pulley turn"
@@ -828,11 +827,11 @@ def make_wires(d: Demo):
     """Task 0082: the quadrant operation's wires and the cable's second end become cables of 4 Motion > Cables and paths
     (they are shown from shot 9 on: hidden here, Show steps there).
 
-    - The A&R wire: read from the CAD wire, spooled on the A&R winch's drum (as handling winch 1, 0080), "Winch keeps
-      it tight" (0082): the drum pays out what the D's travel, the tilt and the lowering need. It is in the list twice:
-      straight from the drum to the D's eye (shown while the D travels and the handler starts to tilt), and the same
-      wire with the handler's top pulley added (shown from where the wire meets the pulley; its speed follows the
-      first's). The pulley is turned by the lowering's own steps (the wire runs over it only once the D hangs from it).
+    - The A&R wire: read from the CAD wire, spooled on the A&R winch's drum (as handling winch 1, 0080), the handler's
+      top pulley added to its path (over its top), "Winch keeps it tight" (0082): the drum pays out what the D's travel,
+      the tilt and the lowering need. While the D travels the wire runs straight to its eye; once the handler has
+      tilted ~10° it bears on the pulley. The pulley is turned by the lowering's own steps (the wire runs over it only
+      once the D hangs from it).
     - The tipping wires: read from the CAD wires (post top, over the head sheave, to the D's bar ends), "Winch keeps it
       tight"; the head sheave follows each wire (the app), the foot sheave and the winch drum follow its speed joint.
     - The second end: read from CABLE END (round the D's gutter, side A, horn A), the power cable look; its sea end and
@@ -843,14 +842,14 @@ def make_wires(d: Demo):
     sc = d.scene
     t0 = time.time()
     objs = quadrant_ops_parts(d)
-    for o in objs:                                      # each comes in when it is read (two A&R wires lie as one)
+    for o in objs:                                      # each comes in when it is read (one at a time)
         logic.set_hidden(o, True)                       # shown in shot 9 (Show steps): not in shots 1–8
     js = {j["name"]: j for j in d.sheet("joints")["joints"]}
-    # ---- the A&R wire: spooled on its drum, kept tight
+    # ---- the A&R wire: spooled on its drum, over the handler's top pulley, kept tight
     d.progress("The A&R wire")
-    ar1, ar2 = _parts_named(d, AR_WIRE)
-    item, notes = _rope_cable(d, AR_ITEM, ar1)
-    from . import build
+    ar = _parts_named(d, AR_WIRE)[0]
+    item, notes = _rope_cable(d, AR_ITEM, ar)
+    from . import build, flex
     unit = joints.members(joints.find(sc, AR_DRUM))[0]
     turning = {o.name for o in logic.descendants(unit)}
     parts = [o for o in logic.descendants(build.logical_parent(unit)) if o.get(build.PROP_KIND) == "part"]
@@ -858,23 +857,26 @@ def make_wires(d: Demo):
     coil = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
     W = d.sheet("route")["wires"]
     spool.add(sc, "DRUM", drum, AR_ITEM, coil=coil, name=AR_SPOOL)
-    paths.read_cad(sc, paths.find(sc, AR_ITEM), ar1)     # read again: now it starts on its spool, ends at the D's eye
+    paths.read_cad(sc, paths.find(sc, AR_ITEM), ar)      # read again: now it starts on its spool, ends at the D's eye
+    # the handler's top pulley joins its path (as "Add contact" does, clicked on its top): in the CAD pose the D stands
+    # far forward, so the wire could only come back round it – it goes over its top (the side it bears on once the
+    # handler tilts), and in the CAD pose it does not touch it yet (wrap 0): the wire runs straight to the eye until the
+    # handler's tilt brings the pulley under it (the app lifts a wheel the wire does not reach)
+    joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")     # (it followed Cable travel: the lowering turns it)
+    pulley = d.part("HANDLER TOP PULLEY", root=d.root())
+    k = paths.add_contact(sc, paths.find(sc, AR_ITEM), pulley,
+                          d.mm(np.array(W["ar"]["pulley_centre"]) + [0.0, 0.0, W["ar"]["pulley_r"]]))
+    paths.flip_contact(sc, paths.find(sc, AR_ITEM), k)  # (the side it is fitted on in the CAD pose comes back round it)
+    item = paths.find(sc, AR_ITEM)
+    with flex._quiet(item.contacts[k]):
+        item.contacts[k].wrap_cad = 0.0
+        item.contacts[k].turns = False                  # (it turns only while the wire runs over it: the lowering's steps)
+    if joints.find(sc, PULLEY_TURN).follows:
+        joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")
+    paths.changed(sc, item)
     warn = paths.set_keep_tight(sc, paths.find(sc, AR_ITEM), True)
     if warn:
         raise RuntimeError("; ".join(warn))
-    # ... and the same wire over the handler's top pulley (its speed follows the first's)
-    pulley_turn = joints.find(sc, PULLEY_TURN)
-    joints.set_follows(sc, pulley_turn, "")             # (it followed Cable travel: the lowering's steps turn it)
-    item2, _n = _rope_cable(d, AR_PULLEY_ITEM, ar2)
-    pulley = d.part("HANDLER TOP PULLEY", root=d.root())
-    k = paths.add_contact(sc, paths.find(sc, AR_PULLEY_ITEM), pulley,
-                          d.mm(np.array(W["ar"]["pulley_centre"]) + [0.0, 0.0, W["ar"]["pulley_r"]]))
-    item2 = paths.find(sc, AR_PULLEY_ITEM)
-    item2.contacts[k].turns = False
-    if joints.find(sc, PULLEY_TURN).follows:
-        joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")
-    item = paths.find(sc, AR_ITEM)
-    joints.set_follows(sc, joints.find(sc, paths.find(sc, AR_PULLEY_ITEM).joint), item.joint, ratio=1.0)
     d.notes.append("wires: " + (notes[0] if notes else AR_ITEM))
     # ---- the tipping wires: kept tight, the foot sheave and the winch drum follow the wire's speed
     for (key, name), part in zip(TIP_ITEMS, _parts_named(d, TIPPING_WIRE)):
@@ -1190,6 +1192,7 @@ AR_SPEED = 10.0                       # m/min: the A&R winch lowers and hoists t
 TIP_MINUTES = 15.0                    # the tipping (0083: 10–20 min, est.)
 OVER_THE_STERN = "Over the stern"     # the saved cameras of shots 10 and 11
 AT_THE_SEABED = "At the seabed"
+RESET_SECONDS = 3.5                   # 'Cable travel' back to 0 at the start of shot 9 (while the tensioners open)
 
 
 def cradle_drops(d: Demo) -> list[tuple[str, float]]:
@@ -1222,17 +1225,6 @@ def shot_sea(d: Demo):
 # seabed (the owner's steps, tasks/0083 "Quadrant sequence")
 # ---------------------------------------------------------------------------
 
-def _cable_value_at(d: Demo, t: float) -> float:
-    """Metres of 'Cable travel' at the animation's time ``t`` (its Move and Run motor steps before it)."""
-    v = 0.0
-    for b in sorted((b for b in d.animation.blocks if b.joint == CABLE and b.start < t), key=lambda b: b.start):
-        if b.kind == "JOINT":
-            v = float(b.to_dist)
-        elif b.kind == "MOTOR":
-            v += float(b.speed_mmin) / 60.0 * min(float(b.duration), t - float(b.start))
-    return v
-
-
 def _step(d: Demo, kind: str, ob, t: float, label: str = ""):
     """A Show or Hide step for a part or assembly."""
     from . import build
@@ -1246,11 +1238,6 @@ def _step(d: Demo, kind: str, ob, t: float, label: str = ""):
 def _part_of(d: Demo, name: str):
     from . import paths
     return paths.find(d.scene, name).part
-
-
-def _smooth_at(share: float) -> float:
-    """Where in a SMOOTH step's time a share of its way is reached."""
-    return math.acos(1.0 - 2.0 * min(max(share, 0.0), 1.0)) / math.pi
 
 
 def ar_contact_tilt(d: Demo) -> float:
@@ -1325,13 +1312,11 @@ class _Pose:
 
 @stage("quadrant_ops", "The second end into the sea and its CPS (for shots 9–12)", after="shot_sea")
 def quadrant_ops(d: Demo):
-    """The second end gets its sea end where the vessel is at shot 9 (the seabed has moved aft with the cable paid out
-    in shots 1–8): its catenary from horn A to the seabed as the lay cable's, 30 m of water; nothing is paid out, so its
-    length is kept by the sea end alone. Its CPS set rides on it (0081), the pull head at its start, on the D's bar end;
-    the stage also works out how deep the D goes (``d.quadrant``)."""
-    import numpy as np
-
-    from . import build, flex, paths, paths_riders, paths_sea
+    """The second end gets its sea end (set in the pose the animation starts from; shot 9 starts with 'Cable travel'
+    back at 0, so the seabed is there again): its catenary from horn A to the seabed as the lay cable's, 30 m of water;
+    nothing is paid out, so its length is kept by the sea end alone. Its CPS set rides on it (0081), the pull head at
+    its start, on the D's bar end; the stage also works out how deep the D goes (``d.quadrant``)."""
+    from . import build, paths, paths_riders, paths_sea
     sc = d.scene
     t0 = time.time()
     d.progress("The second end into the sea")
@@ -1352,18 +1337,6 @@ def quadrant_ops(d: Demo):
         item = paths.find(sc, SECOND_ITEM)
         r = item.riders[len(item.riders) - 1]
     r.at = float(item.sea_mark) - float(r.length)       # the pull head at the cable's start, on the D's bar end
-    # its end lies on the seabed where it is when shot 9 starts: the seabed has passed aft by the lay cable's payout
-    # of shots 1–8 by then (it moves with the lay cable, the first cable into the sea)
-    lay = paths.find(sc, CABLE_ITEM)
-    u = np.array(lay.sea_dir, dtype=float)
-    u[2] = 0.0
-    u /= max(float(np.linalg.norm(u)), 1e-12)
-    ahead = _cable_value_at(d, d.t)
-    with flex._quiet(item):                             # (as it is: not set again from the layback)
-        item.sea_start = tuple(np.array(item.sea_start, dtype=float) - ahead * u)
-    paths.changed(sc, item)
-    item = paths.find(sc, SECOND_ITEM)
-    r = item.riders[len(item.riders) - 1]
     # how deep: lowered with the D hanging plumb until its lowest point is 1.5 m over the seabed (shot 10), tipped
     # there towards flat (shot 11) and lowered on until the cable round its gutter lies on the seabed (let go there)
     q = d.sheet("route")["quadrant"]
@@ -1403,6 +1376,12 @@ def shot_quadrant(d: Demo):
     travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
     secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
     d.camera_step("CUT", t, 0.0, "", camera=cam)
+    # the lay cable's end has gone: from here on the second end. 'Cable travel' (the lay cable's metres, and the
+    # seabed's place) goes back to 0 while the tensioners open (the camera on the deck forward, the sea out of sight),
+    # so the second end's touch-down, set where the animation starts, is where the vessel is from then on (Build sets
+    # it there again whenever it puts back the start scene); as fast as shot 3 paid it out, so the tracks' pads and
+    # the rollers keep moving smoothly
+    d.joint(CABLE, t, RESET_SECONDS, 0.0, slide=True, easing="LINEAR")
     _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t)
     _step(d, "SHOW", _part_of(d, SECOND_ITEM), t, "The second end: shackled at the D's bar end, round its gutter, over "
                                                   "horn A into the sea, its CPS on it")
@@ -1435,9 +1414,6 @@ def shot_quadrant(d: Demo):
     d.joint(TILT, t, TILT_SECONDS, TILT_TO,
             label="The handler tilts over the stern: the wire comes onto the top pulley, the D hangs vertical, both "
                   "legs of the cable down into the water")
-    swap = t + TILT_SECONDS * _smooth_at(ar_contact_tilt(d) / TILT_TO)
-    _step(d, "HIDE", _part_of(d, AR_ITEM), swap)
-    _step(d, "SHOW", _part_of(d, AR_PULLEY_ITEM), swap)
     t += TILT_SECONDS
     d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
     d.t = t + 3.0
@@ -1528,9 +1504,6 @@ def shot_back(d: Demo):
     d.joint(TIP, t, 1.0, 0.0)
     t += 1.0
     d.joint(TILT, t, TILT_SECONDS, 0.0, label="The handler tilts back down with the D")
-    swap = t + TILT_SECONDS * (1.0 - _smooth_at(ar_contact_tilt(d) / q["lower_tilt"]))
-    _step(d, "HIDE", _part_of(d, AR_PULLEY_ITEM), swap)
-    _step(d, "SHOW", _part_of(d, AR_ITEM), swap)
     t += TILT_SECONDS
     for _key, name in TIP_ITEMS:
         _step(d, "HIDE", _part_of(d, name), t, "The tipping wires are taken off" if _key == "port" else "")
