@@ -2169,7 +2169,9 @@ from) and **Measured**: **Compass** (0 = from the north, 90 = from the east) or 
 and drift with it; **Spray** blows off the wave tops and flies up at the bow from Beaufort 6; **Flag** puts a flag on a
 pole at the stern (or the back of the machine) that flies in the wind. For the waves to follow the wind, pick
 **From the wind** as the Sea under Background & surroundings. **Vessel speed** (knots, Open sea and Vessel deck): a
-wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still.
+wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still. **Bow**: which way the bow
+points – the wake trails behind the stern and the bow throws up the spray. **From the hull** reads it from the
+waterline (the bow is the narrower end); set **+x** or **-x** when your model says otherwise.
 
 **Night lights** (the fold): **Floodlights** on masts round the deck or the quay, set up for you: **Auto** (on from
 dusk to dawn), **On**, **Off**, and their **Strength**. The picture opens up at dusk and night the way a camera (or
