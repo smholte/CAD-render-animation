@@ -16,6 +16,9 @@ Rules for the guide
   is public: never the owner's machines, part names or renders). Re-run the "panels" mode after
   changing a panel and replace the pictures of your sections; look at them before committing.
 - Never promise numbers that were not measured; say where a measurement was made.
+- Every ##, ### and #### heading has <a id="short-id"></a> on the line above it (task 0124): the function
+  list (fresing_render/core/functions.py), the website and later the app link to it. Never change or reuse an
+  id; a new section gets a new one and an entry in the function list names it (the precheck checks both).
 - Check the result: ~/venv/bin/python tools/build_guide.py, then open dist/guide/user_guide.html.
 
 TOOLTIP STYLE GUIDE (every button and setting, CLAUDE.md section 6)
@@ -105,6 +108,7 @@ Fresing Render.
 <a id="start"></a>
 ## Getting started: your first render in 10 minutes
 
+<a id="install"></a>
 ### Install (once per PC)
 
 1. Unzip the installer folder (FresingRender-…-windows.zip) anywhere, for example in Downloads.
@@ -159,6 +163,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 - After an update, run the **PC check** once: it tests every main function of the new version on your PC
   ([The PC check](#pc-check)).
 
+<a id="navigate"></a>
 ### Moving around in the view
 
 | To | Mouse | Without a middle mouse button |
@@ -169,6 +174,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 | Zoom to what is selected | numpad <kbd>.</kbd> | **Zoom to it** in 2 Structure |
 | Everything in view | <kbd>Home</kbd> | View menu > Frame All |
 
+<a id="first-render"></a>
 ### Your first render
 
 <img class="panel" src="img/panel_1_import_start.png" alt="1 Import before the first import">
@@ -230,6 +236,7 @@ twice are sorted out when they are opened: the first copy keeps everything that 
 scene, **Everything back to CAD position** and model updates. A part moved by hand *inside* a model is different:
 that goes back to its place at the next pose or Build, unless a pose or an animation step holds it.
 
+<a id="update-model"></a>
 **Update to a new revision**
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
@@ -244,6 +251,7 @@ that goes back to its place at the next pose or Build, unless a pose or an anima
    line says **Model update failed** and why, and the project stays exactly as it was: nothing is
    half-updated.
 
+<a id="mesh-models"></a>
 ### Mesh models (glTF, OBJ, FBX)
 
 A model you did not draw yourself – a vessel or a truck downloaded from Sketchfab, a model a client sends as glTF –
@@ -318,6 +326,7 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
 - **Hide** hides what is selected. **Show only** hides everything else; a red box "Showing only: …"
   with **Show everything again** brings the rest back. **Show all** shows everything you hid.
 
+<a id="cleanup"></a>
 ### Clean-up
 
 <img class="panel" src="img/panel_2_cleanup.png" alt="Clean-up">
@@ -328,6 +337,7 @@ Removes parts that are never seen (inside parts, tiny screws), so renders get fa
 2. Click **Remove selected**. They disappear from the view and from every render, but stay in the
    project: **Restore all** brings them back.
 
+<a id="visibility"></a>
 ### Visibility sets
 
 <img class="panel" src="img/panel_2_visibility.png" alt="Visibility sets">
@@ -555,7 +565,7 @@ Good to know:
 - A [template](#schemes) keeps the decals with the names of their parts: used on another machine, it
   puts them on parts with the same name, where the spot lies on the part.
 
-<a id="find"></a>
+<a id="xray"></a>
 ### X-ray look
 
 <img class="panel" src="img/panel_3_xray.png" alt="3 Looks > X-ray look with the cover in X-ray">
@@ -613,6 +623,7 @@ Good to know:
   bottom of a cut part would otherwise show through its cut face.
 - A cut and a [fade](#animation) work together: a cut part that fades, fades with its cut faces.
 
+<a id="find"></a>
 ### Find & sort parts
 
 <img class="panel" src="img/panel_3_find.png" alt="Find & sort parts">
@@ -738,6 +749,7 @@ the lower joint, "Moves:" lists everything it moves and "Carries:" names the joi
 > When an animation is built (6 Animation), the joints follow it. **Stop it to move joints by hand**
 > (in the red box) frees them.
 
+<a id="couplings"></a>
 ### One joint moves others: couplings
 
 <img class="panel" src="img/panel_4_coupling.png" alt="A wheel that follows the trolley: 2.2918° per mm, a wheel of Ø50 mm rolling along">
@@ -779,6 +791,7 @@ speed you set.
 Couplings, motors and their settings stay through a model update (1 Import) and in saved projects,
 also when the PC does not allow scripts in project files.
 
+<a id="cylinders"></a>
 ### Cylinders
 
 <img class="panel" src="img/panel_4_cylinders.png" alt="Cylinders: a luffing cylinder driving the arm, stroke 100 mm">
@@ -824,6 +837,7 @@ arrows in the view**.
 Cylinders stay through a model update (1 Import) and in saved projects, also when the PC does not allow
 scripts in project files. **−** next to the list removes a cylinder: its parts go back to their CAD place.
 
+<a id="mechanisms"></a>
 ### Mechanisms
 
 A mechanism is a set of arms or links that hold each other in a closed loop, so they cannot each have a
@@ -875,6 +889,7 @@ saved projects. The joint list does not let you change or remove the drive joint
 it. **−** next to the list removes a mechanism: its parts go back to their CAD place (and the drive joint
 goes too, when the mechanism made it).
 
+<a id="way-covers"></a>
 ### Way covers
 
 A **way cover** is the row of steel sections that slide into each other and cover a machine axis, so chips
@@ -939,6 +954,7 @@ couplings, above), so the covers move in animations, in saved scenes and in the 
 does not allow scripts in project files. They stay through a model update (1 Import) and in saved projects.
 To move the covers in a video, use the animation step **Move joint** on the axis – nothing else is needed.
 
+<a id="hoses"></a>
 ### Hoses and drag chains
 
 In a CAD file a hydraulic hose, a cable or a drag chain is stiff: it stays in the pose you drew it in. When
@@ -1025,6 +1041,7 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
 - Not in yet: hoses that push against other parts or each other, hoses with three ends, and bundles of cables.
   A cable that runs over sheaves and winch drums is the next chapter, **Cables and paths**.
 
+<a id="cables"></a>
 ### Cables and paths
 
 A power cable or a steel wire rope runs over rollers, sheaves and chutes. In the CAD file it is one stiff solid,
@@ -1143,6 +1160,7 @@ in red.
 - The cable going into the sea: **Into the sea**, just below. The coil on a carousel or a drum: **Drums and
   carousels**, below. The tensioner tracks that grip the cable: **Tracks and belts**, after it.
 
+<a id="into-the-sea"></a>
 #### Into the sea
 
 The cable leaves the vessel over its last contact – a horn, a chute or an overboarding sheave – and hangs in a
@@ -1200,6 +1218,7 @@ waterline, the seabed further away, the cable beyond the box.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
+<a id="moving-cable"></a>
 #### A cable on a moving part
 
 A sheave, chute or quadrant the cable goes round may sit on something that moves: a trolley, a tilting handler, a
@@ -1230,6 +1249,7 @@ Try it in the test tour ("A cable on a moving part"): a trolley carries a block 
 lift wire stays tight and the cable end is let go near the seabed.
 
 
+<a id="drums"></a>
 ### Drums and carousels
 
 A wire rope is wound on a winch drum; a power cable lies in a carousel, coiled turn by turn in flat layers. In the
@@ -1321,6 +1341,7 @@ A problem shows in red under the list, as "check" in the list line and in the pa
   per turn on a carousel): they work in the render queue and with scripts switched off, like every joint.
 - The clash check (6 Animation) leaves the CAD coil out.
 
+<a id="tracks"></a>
 ### Tracks and belts
 
 A cable-laying tensioner grips the cable between two caterpillar tracks; a belt carries something on a loop of
@@ -1390,6 +1411,7 @@ and the note says "its teeth will drift through the links".
 - The **demo project** uses it: in shot 5 the pads of the tensioners run with the cable while the top track
   squeezes it.
 
+<a id="poses"></a>
 ### Poses & exploded views
 
 <img class="panel" src="img/panel_4_poses.png" alt="Poses & exploded views">
@@ -1410,6 +1432,7 @@ A **pose** stores every joint position and every moved subassembly: "Working", "
 3. Click **Explode**. To keep it, save it as a pose (**+** above). **Everything back to CAD position**
    (4 Motion) puts it together again.
 
+<a id="milling"></a>
 ### Milling
 
 <img class="panel" src="img/panel_4_milling.png" alt="Milling: a bit, the workpiece and the state of the cut">
@@ -1460,6 +1483,7 @@ Good to know
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
   ball Ø10, about 11 ms for a round pocket made of short pieces.
 
+<a id="tool-marks"></a>
 #### Tool marks
 
 <img class="wide" src="img/milling_marks.jpg" alt="Close-up of the milled test block: the wide arcs of a face mill on a faced strip, a pocket with finer arcs on its floor and lines on its walls, a drilled hole with rings">
@@ -1517,6 +1541,7 @@ Good to know
 - While you scrub or play, the block is shaded the quick way, so scrubbing is as fast as before. A moment
   after the frame stands still – and in every render – it gets its exact shading, without dark patches.
 
+<a id="chips"></a>
 #### Chips
 
 <img class="panel" src="img/panel_4_chips.png" alt="Chips: how many, what they are made of, Clear chips">
@@ -1566,6 +1591,7 @@ Good to know
     29.9 s with 25,000 brass crumbs (the limit, +23 %);
   - showing a frame in the view: 8–17 ms on top of the milling.
 
+<a id="air-blast"></a>
 #### Air blast
 
 <img class="wide" src="img/air_blast.jpg" alt="The test mill after a pocket: without air the block is covered in chips, with air blast it is clean">
@@ -1610,6 +1636,7 @@ the part clean** (2 s) 0. Working the chips out took 0.7 s without air and 0.9 s
 blast; showing a frame in the view 14 ms without and 12 ms with air; one rendered frame (processor,
 800 × 560, 32 samples) 19.7 s without and 18.7 s with air.
 
+<a id="coolant"></a>
 #### Coolant
 
 <img class="wide" src="img/coolant.jpg" alt="The test mill cutting a pocket with flood coolant: two blue hoses squirt milky coolant at the tool, drops fly off it, the block is wet">
@@ -1672,6 +1699,7 @@ Not yet: coolant through the spindle (through the tool), mist or steam in the ai
 coolant that runs off the table.
 
 
+<a id="toolpath"></a>
 #### Make a toolpath
 
 <img class="panel" src="img/panel_4_toolpath.png" alt="Make a toolpath: stock and finished part, the roughing and finishing tool, leave stock, step-down, stepover, scallop height, pass direction, Detail, Coolant, Make toolpath and its result">
@@ -1735,6 +1763,7 @@ an overhanging cap; flat Ø10 roughing, ball Ø10 finishing; reading the path be
 | Normal | 7,326 | 14 s | 59 s (75 s with the finished part kept as the limit) |
 | Fine | 8,993 | 29 s | 106 s |
 
+<a id="cnc"></a>
 ### CNC machine (G-code)
 
 <img class="panel" src="img/panel_4_cnc.png" alt="CNC machine: X, Y, Z joints, tool, workpiece, work zero, rapid speeds, acceleration, Read from LinuxCNC INI, air blast">
@@ -1782,6 +1811,7 @@ next to its field (**Reverse**).
   you moved the joints to the machine's home position (usually Z right up). It keeps the rotary axes' A0 B0 C0
   too.
 
+<a id="rotary-axes"></a>
 #### Rotary axes (4th / 5th axis)
 
 <img class="panel" src="img/panel_4_rotary.png" alt="Rotary axes: A and C picked on a trunnion, rapid speeds, Kinematics Follows part (TCP), the lines of Check">
@@ -1830,6 +1860,7 @@ air aim at the tool as before. Tool changes (by hand, carousel, double arm) keep
 **Milling on a turning part**: while an axis turns, the app reads the tool more often (each cut piece at most 0.5°
 of turn, the tool tip's chord within the detail level's tolerance: 0.005 mm at Normal), so a wrapped slot is smooth.
 
+<a id="tools"></a>
 ### Tools
 
 <img class="panel" src="img/panel_4_tools.png" alt="Tools: the tool list with T1 and T2, the selected tool's type, sizes and shape">
@@ -1924,6 +1955,7 @@ and Build warns.
 The chips (4 Motion > Milling > Chips) follow each tool's type: a face mill throws flat commas, a drill makes
 spirals; a thread mill and a slot cutter make chips like an end mill.
 
+<a id="tool-changes"></a>
 ### Tool changes
 
 Every tool change (M6) in the program plays by itself – on a machine without a tool changer, on one with a
@@ -2059,6 +2091,7 @@ of the tools' lengths after a change; for the old look – every tool's tip wher
 Everything around the model – light, background, floor, cameras – and the picture itself: its size,
 its quality, and the render. Also the one-click **turntable video**.
 
+<a id="light-look"></a>
 ### Light look
 
 <img class="panel" src="img/panel_5_scene.png" alt="5 Scene & Render">
@@ -2077,6 +2110,7 @@ stays pressed.
 
 <img src="img/looks.jpg" alt="The five light looks on the test crane">
 
+<a id="surroundings"></a>
 ### Background & surroundings
 
 **Background** says where the machine stands. The list has four groups:
@@ -2122,6 +2156,7 @@ Their settings appear under the choice:
   where they are; if it sticks out, a note offers the same button. Parts you only hide do not move the
   floor.
 
+<a id="light"></a>
 ### Light
 
 - **Light**, with a solid colour, no background or a hall: **Product studio**, **White studio**,
@@ -2145,6 +2180,7 @@ Their settings appear under the choice:
 Render time, measured on a slow 2-core test machine without a graphics card: the 360° photo and
 the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8 times as long.
 
+<a id="props"></a>
 ### Props for scale
 
 <img class="panel" src="img/panel_5_props.png" alt="Props for scale">
@@ -2156,6 +2192,7 @@ Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Eu
 2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
 3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
 
+<a id="vessel-motion"></a>
 ### Vessel motion
 
 <img class="panel" src="img/panel_5_vessel_motion.png" alt="Vessel motion">
@@ -2210,6 +2247,7 @@ update and saved scenes (it is one setting for the whole project, not per saved 
 (measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
 about 6 ms per frame of playback on a 3,000-part machine.
 
+<a id="weather"></a>
 ### Weather & time
 
 <img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
@@ -2274,6 +2312,7 @@ Build then says so ("The start scene … has no weather, so Build switched the w
 that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
 looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
 
+<a id="house"></a>
 ### Houses from House Planner
 
 <img class="panel" src="img/panel_5_house.png" alt="House from House Planner">
@@ -2320,6 +2359,7 @@ folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace
 - A house plan from a newer House Planner that Fresing Render cannot read is refused with a message saying which
   app to update; nothing in the project changes.
 
+<a id="camera"></a>
 ### Camera
 
 <img class="panel" src="img/panel_5_camera.png" alt="Camera">
@@ -2351,6 +2391,7 @@ For the active camera:
   with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
   middle sharp again. The face under the mouse lights up while you choose.
 
+<a id="turntable"></a>
 ### Turntable video
 
 <img class="panel" src="img/panel_5_turntable.png" alt="Turntable video">
@@ -2376,6 +2417,7 @@ animation "Turntable" are replaced.
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
 
+<a id="web3d"></a>
 ### Web 3D model
 
 <img class="panel" src="img/panel_5_web3d.png" alt="Web 3D model">
@@ -2406,6 +2448,7 @@ the machine himself, or for your website.
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
 
+<a id="web3d-surroundings"></a>
 #### Surroundings on the page
 
 The fold **Surroundings on the page** (under Include animation) puts the machine's surroundings on the page: the
@@ -2456,6 +2499,7 @@ made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (
 needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.
 
+<a id="web3d-light"></a>
 #### Light
 
 The fold **Light** (under Surroundings on the page) decides how the light gets onto the parts. A render's soft
@@ -2489,6 +2533,7 @@ their light per corner point, which only the page reads.
 The bake runs with Cycles on your graphics card when the app renders with one (5 Scene & Render > Render settings),
 otherwise on the processor; **Cancel** stops it between two pieces of the bake. The project is never changed.
 
+<a id="brand-kit"></a>
 ### Brand kit & logo
 
 <img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
@@ -2510,6 +2555,7 @@ shared library it is in your Documents folder, under Fresing Render).
 
 **Logo on images** puts the logo in a corner of every still image you render (**Corner**, **Size**).
 
+<a id="watermark"></a>
 ### Watermark
 
 <img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
@@ -2525,6 +2571,7 @@ Words across the picture, for a draft you send before the final render.
 
 It works for stills and for MP4 videos (not for PNG frames).
 
+<a id="labels"></a>
 ### Labels
 
 A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
@@ -2546,6 +2593,7 @@ A label is a few words in a box with a thin line to a spot on a part: "Gripper",
 
 Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
 
+<a id="image-size"></a>
 ### Image size & render
 
 <img class="panel" src="img/panel_5_output.png" alt="Image size & render">
@@ -2568,6 +2616,7 @@ project is not saved yet); **Graphics card** (on: render on the graphics card; o
 **Open render folder**. A file is named after the project, the camera and the size, for example
 `crane_Low_hero_1920x1080.png`; an earlier render is never overwritten (a number is added).
 
+<a id="saved-scenes"></a>
 ### Saved scenes
 
 <img class="panel" src="img/panel_5_shots.png" alt="Saved scenes">
@@ -2623,6 +2672,7 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    out. The arrows change the order; the copy button copies a step (the copy starts when the original
    ends). A step for a joint that follows another joint is red: pick the joint it follows instead.
 
+<a id="run-motor"></a>
 **Run a motor**
 
 <img class="panel" src="img/panel_6_motor.png" alt="A Run motor step: 12 rpm for 5 s with 0.5 s ramps, 0.90 turns">
@@ -2634,6 +2684,7 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 4. **Motion** sets the ramps: **Smooth** speeds up at the start and slows down at the end, **Slow
    start** / **Slow stop** only one of them, **Constant speed** none. **Ramp (s)** is how long speeding
    up and slowing down take; with ramps it turns a little less (0.90 turns with 0.5 s ramps).
+<a id="run-gcode"></a>
 **Run a CNC program**
 
 <img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 21.1 s on the machine (20.8 s without acceleration), one tool change">
@@ -2698,6 +2749,7 @@ about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, too
    takes the animation off the model, so the joints can be moved by hand again.
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
 
+<a id="camera-path"></a>
 **Camera that rides along, flies a path or watches a part**
 
 <img class="panel" src="img/panel_6_camera_ride.png" alt="A Camera step Ride along: rides on the boom, Keep level ticked">
@@ -2728,6 +2780,7 @@ the step the camera stays where the step left it; the next camera step starts fr
 the sharp spot follows the part the camera looks at. Like all steps, they work in the render queue and with scripts
 switched off.
 
+<a id="fade"></a>
 **Fade a housing away (or to X-ray)**
 
 <img class="panel" src="img/panel_6_fade.png" alt="A Fade out step on the cover with Fade to X-ray ticked">
@@ -2750,6 +2803,7 @@ back.
 Each part fades on its own: other parts with the same material stay as they are. Logos and stickers on a part
 fade with it. A fading frame renders about as fast as the same frame without the fade.
 
+<a id="sequence"></a>
 **Take a subassembly apart (or put it together)**
 
 <img class="panel" src="img/panel_6_sequence.png" alt="An Assembly sequence step: Take apart, Outside in, along +Z">
@@ -2781,6 +2835,7 @@ hoses and chain links themselves stay out of the sequence (the box says so). A p
 another part is named in a warning at Build: pick another order or direction. Check the result with the **Clash
 check** below.
 
+<a id="trails"></a>
 **Trail lines: the path of a point**
 
 <img class="panel" src="img/panel_6_trails.png" alt="6 Animation > Trail lines with a line on the trolley">
@@ -2798,6 +2853,7 @@ A line that draws where a point of the machine goes: the hook of a crane, the ti
 
 The line glows in its colour without lighting the scene, so it costs almost no render time.
 
+<a id="finishing"></a>
 **Finishing: ready to post or send**
 
 <img class="panel" src="img/panel_6_finishing.png" alt="Finishing">
@@ -2821,6 +2877,7 @@ to PNG frames.
 The last line shows how long the finished video is: the cards come on top of the animation's own
 length.
 
+<a id="pictures-music"></a>
 **Pictures and music**
 
 <img class="panel" src="img/panel_6_cards.png" alt="Pictures fold: one picture in the bottom left corner with a caption"> <img class="panel" src="img/panel_6_music.png" alt="Music fold: sound file, start, volume, fades">
@@ -2916,6 +2973,7 @@ Expected on a PC with a fast processor: about half as long (not measured yet).
    how long the whole video will take. The test frame is kept, so you can check the look.
 4. **Render animation** puts the video in 7 Render queue and starts the queue.
 
+<a id="product-video"></a>
 ### Make a product video
 
 <img class="panel" src="img/panel_6_product_video.png" alt="6 Animation: Make a product video, options open">
@@ -3107,6 +3165,7 @@ renders** under 5 Scene & Render > Labels, and tick it again before you render t
 <a id="tips"></a>
 ## Tips
 
+<a id="inventor-export"></a>
 ### Exporting from Inventor and Fusion
 
 - **Inventor**: File > Export > CAD Format, file type STEP, then **Options**: set the Application
@@ -3118,6 +3177,7 @@ renders** under 5 Scene & Render > Labels, and tick it again before you render t
   gives every revision the right materials by itself.
 - Clear part names help the sorting: "PLATE RVS", "SHAFT D40", supplier order codes.
 
+<a id="faster-renders"></a>
 ### Faster renders
 
 - **Clean-up** inside parts and small screws nobody sees.
@@ -3132,6 +3192,7 @@ renders** under 5 Scene & Render > Labels, and tick it again before you render t
 <a id="troubleshooting"></a>
 ## Troubleshooting
 
+<a id="self-test"></a>
 ### The self-test
 
 Start menu > Fresing Render > **Fresing Render - Self test** runs for a few minutes without a window
@@ -3198,6 +3259,7 @@ into the lead chat. It holds numbers only: version, processor, graphics card and
 its result and time. No file names, part names or pictures of your model; the report itself stays on
 your PC.
 
+<a id="updates-not-arriving"></a>
 ### Updates do not arrive
 
 - The self-test line "Update check" says whether this PC reaches the update address (GitHub) and which
@@ -3208,6 +3270,7 @@ your PC.
   **Show the update log** opens the log of every step; send it along when you ask for help. Then try
   **Update now** again, or run the newest installer.
 
+<a id="renders-folder"></a>
 ### Where are my renders?
 
 - Project saved: in the folder **Renders** next to the project file. Not saved yet: in
@@ -3215,6 +3278,7 @@ your PC.
 - Videos: an MP4 file and a folder with the single frames. Time-test frames: in `Renders\_time_tests`.
 - Quickest: **Show in folder** under Render image, or on a finished job in the queue.
 
+<a id="panel-gone"></a>
 ### The side panel or the Fresing tab is gone
 
 - Move the mouse over the view and press <kbd>N</kbd>, then click the **Fresing** tab on the right
@@ -3222,6 +3286,7 @@ your PC.
 - Still missing? Run Install.bat again (it repairs the installation; projects and renders are not
   touched).
 
+<a id="import-problems"></a>
 ### Import problems
 
 - The model lies on its back: import again with Up axis **Y up**.
@@ -3229,6 +3294,7 @@ your PC.
 - Everything grey and unsorted: the STEP file is probably AP203; export with AP214 (see Tips).
 - "Could not mesh …": that part is left out, the rest is imported.
 
+<a id="render-problems"></a>
 ### Render problems
 
 - Slow: is **Graphics card** on (Image size & render > Files & graphics card)? The self-test line

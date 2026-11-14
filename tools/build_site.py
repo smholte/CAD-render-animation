@@ -58,6 +58,7 @@ FORBIDDEN_MODELS = ("fresing_400", "fresing400", "f400")   # not public (owner, 
 COPY_DIRS = ("brand", "fonts")
 
 sys.path.insert(0, ROOT)
+from fresing_render.core import functions  # noqa: E402
 from fresing_render.core import web3d  # noqa: E402
 from fresing_render.core import web3d_env  # noqa: E402
 
@@ -129,16 +130,37 @@ def _esc(text: str) -> str:
     return html.escape(text, quote=True)
 
 
+def unknown_functions(media: dict) -> list[str]:
+    """media.json items whose ``functions`` name an id the function list (core/functions.py) does not have."""
+    items = [media.get("hero") or {}, media.get("feature") or {}] + list(media.get("pictures", [])) + web_models(media)
+    return [f"{it.get('file', '?')}: '{fid}' is not in the function list (fresing_render/core/functions.py)"
+            for it in items for fid in it.get("functions", []) if fid not in functions.FUNCTIONS]
+
+
+def how_html(item: dict, base: str = "guide/") -> str:
+    """The "How it's done" line under a picture, video or 3D model: its functions, each a link to its guide section
+    (media.json ``functions``, task 0124). '' when the item names none; an unknown id is refused."""
+    links = []
+    for fid in item.get("functions", []):
+        f = functions.FUNCTIONS.get(fid)
+        if f is None:
+            raise SystemExit(f"{item.get('file', '?')}: '{fid}' is not in the function list "
+                             "(fresing_render/core/functions.py)")
+        links.append(f'<a href="{_esc(functions.guide_link(fid, base))}">{_esc(f.title)}</a>')
+    return f'<span class="how">How it\'s done: {" · ".join(links)}</span>' if links else ""
+
+
 def hero_html(media: dict) -> str:
     hero = media.get("hero") or {}
     if not hero:
         return ""
     if not hero["file"].lower().endswith(".mp4"):         # a picture until there is a video
         return (f'<img src="media/{_esc(hero["file"])}" alt="{_esc(hero.get("caption", ""))}" width="1600" '
-                f'height="900">' + (f'\n      <figcaption>{_esc(hero["caption"])}</figcaption>'
+                f'height="900">' + (f'\n      <figcaption>{_esc(hero["caption"])}{how_html(hero)}</figcaption>'
                                     if hero.get("caption") else ""))
     poster = f' poster="media/{_esc(hero["poster"])}"' if hero.get("poster") else ""
-    cap = f'\n      <figcaption>{_esc(hero["caption"])}</figcaption>' if hero.get("caption") else ""
+    cap = (f'\n      <figcaption>{_esc(hero["caption"])}{how_html(hero)}</figcaption>' if hero.get("caption")
+           else "")
     return (f'<video src="media/{_esc(hero["file"])}"{poster} autoplay muted loop playsinline controls '
             f'preload="metadata" aria-label="{_esc(hero.get("caption", "Video"))}"></video>{cap}')
 
@@ -150,11 +172,11 @@ def gallery_html(media: dict) -> str:
         if f.lower().endswith(".mp4"):
             poster = f' poster="media/{_esc(p["poster"])}"' if p.get("poster") else ""
             rows.append(f'      <figure><video src="media/{f}"{poster} muted loop playsinline controls preload="none" '
-                        f'aria-label="{_esc(p["caption"])}"></video><figcaption>{_esc(p["caption"])}</figcaption>'
+                        f'aria-label="{_esc(p["caption"])}"></video><figcaption>{_esc(p["caption"])}{how_html(p)}</figcaption>'
                         f'</figure>')
             continue
         rows.append(f'      <figure><a href="media/{f}"><img src="media/{f}" alt="{_esc(p["caption"])}" '
-                    f'loading="lazy" width="1600" height="900"></a><figcaption>{_esc(p["caption"])}</figcaption>'
+                    f'loading="lazy" width="1600" height="900"></a><figcaption>{_esc(p["caption"])}{how_html(p)}</figcaption>'
                     f'</figure>')
     return "\n".join(rows)
 
@@ -164,7 +186,7 @@ def feature_html(media: dict) -> str:
     f = media.get("feature") or {}
     if not f:
         return ""
-    cap = f'\n      <figcaption>{_esc(f["caption"])}</figcaption>' if f.get("caption") else ""
+    cap = f'\n      <figcaption>{_esc(f["caption"])}{how_html(f)}</figcaption>' if f.get("caption") else ""
     return (f'<a href="media/{_esc(f["file"])}"><img src="media/{_esc(f["file"])}" alt="{_esc(f.get("caption", ""))}" '
             f'loading="lazy" width="1000" height="1350"></a>{cap}')
 
@@ -202,7 +224,7 @@ def turn_html(media: dict) -> str:
         cards.append(f"""      <li class="card">
         <a class="card-pic" href="model/{_esc(w["id"])}/">{pic}</a>
         <h3>{title}</h3>
-        <p>{_esc(w.get("caption", ""))}</p>
+        <p>{_esc(w.get("caption", ""))}{how_html(w)}</p>
         <p class="small">{_esc(web3d.mb(size))} to download{moves}</p>
         <a class="button" href="model/{_esc(w["id"])}/">Open the 3D model</a>
       </li>""")
@@ -243,7 +265,8 @@ def _note(media: dict, w: dict, viewer: str) -> str:
             lic = f'<a href="{_esc(m["licence_link"])}">{lic}</a>'
         parts.append(f"this 3D file {lic}")
     parts.append(viewer)
-    return " · ".join(parts)
+    how = how_html(w, base="../../guide/")
+    return " · ".join(parts) + (f"<br>{how}" if how else "")
 
 
 SITE_UI = """<div id="fr-site"><button id="fr-play" type="button" aria-pressed="false">Pause</button></div>
@@ -401,6 +424,9 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
             version = manifest_version()
     entry = changelog_entry(version)
     media = load_media()
+    bad = unknown_functions(media)
+    if bad:
+        raise SystemExit("site/media/media.json: " + "; ".join(bad))
     page = fill(open(os.path.join(SITE, "index.html"), encoding="utf-8").read(), {
         "version": _esc(version), "date": _esc(entry["date"]), "size": _mb(size),
         "download_url": download_url(version), "asset_name": asset_name(version),
@@ -533,6 +559,12 @@ def check(out: str, media: dict | None = None) -> list[str]:
             problems.append(f"video too big for the web: {f} ({size / 1e6:.1f} MB, at most {VIDEO_MAX / 1e6:.0f})")
     if "<script" in page.lower():
         problems.append("the page has a script (none allowed)")
+    problems += unknown_functions(media)
+    guide_page = os.path.join(out, "guide", "index.html")
+    if os.path.exists(guide_page):
+        ids = set(re.findall(r'id="([^"]+)"', open(guide_page, encoding="utf-8").read()))
+        for a in sorted(set(re.findall(r'href="guide/#([^"]+)"', page)) - ids):
+            problems.append(f"link to a guide section that does not exist: guide/#{a}")
     problems += check_model(out, media, credits_md)
     return problems
 
@@ -674,7 +706,8 @@ def take(folder: str, keep_old: bool = False) -> dict:
         src = os.path.join(folder, it["file"])
         if it["kind"] == "picture":
             web_jpg(src, os.path.join(MEDIA, it["file"]))
-            pictures.append({"file": it["file"], "caption": it["caption"], "model": it["model"]})
+            pictures.append({"file": it["file"], "caption": it["caption"], "model": it["model"],
+                             **({"functions": it["functions"]} if it.get("functions") else {})})
         elif it["kind"] == "video":
             gallery = bool((media.get("hero") or {}).get("keep"))      # the owner's own video stays at the top
             web_mp4(src, os.path.join(MEDIA, it["file"]), max_bytes=CLIP_MAX if gallery else VIDEO_MAX)
@@ -684,7 +717,8 @@ def take(folder: str, keep_old: bool = False) -> dict:
                 web_jpg(kit_poster, os.path.join(MEDIA, poster))
             else:
                 poster_of(os.path.join(MEDIA, it["file"]), os.path.join(MEDIA, poster))
-            item = {"file": it["file"], "poster": poster, "caption": it["caption"], "model": it["model"]}
+            item = {"file": it["file"], "poster": poster, "caption": it["caption"], "model": it["model"],
+                    **({"functions": it["functions"]} if it.get("functions") else {})}
             if gallery:
                 pictures.append(item)
             else:
@@ -822,6 +856,8 @@ def web_model(src: str, model: str, caption: str, title: str = "", order: int = 
         item["title"] = title
     items = [w for w in web_models(media)]
     at = next((i for i, w in enumerate(items) if w["id"] == wid), len(items))
+    if at < len(items) and items[at].get("functions"):        # a model exported again keeps its guide links
+        item["functions"] = items[at]["functions"]
     items = [w for w in items if w["id"] != wid]
     at = min(max(order - 1, 0), len(items)) if order else min(at, len(items))
     items.insert(at, item)

@@ -254,6 +254,10 @@ fresing_render/            the Blender extension (Python package)
                            hinge points – one cycle, one pitch –, the loop round the wheels from the pins (tangents with
                            signed radii + arcs), the chain parameter c that counts p per tooth on a wheel, a link's
                            second hinge one pitch ahead on the loop (chord), wheels one tooth per link)
+                           functions.py (the function list, task 0124: one entry per function the owner can see –
+                           family/panel/fold for 0062, button or setting, guide anchor, tour stops, PC-check lines,
+                           lesson step; `problems()` + `read_repo()` = the precheck's check that every stop, Full line and
+                           guide section is named and every entry is linked; media.json `functions` → the site's links)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -660,6 +664,13 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   builds and checks every animation of every set by itself (only the clash model keeps its 6.0 mm). A new set that
   fails it has a fault in its test model or its set-up (a part left standing that the motion runs through, a shape
   in the way): fix that, do not loosen the test.
+- **Function list and guide anchor** (task 0124): a task that adds a function the owner can see adds its entry in
+  `fresing_render/core/functions.py` (id, title, family, panel, fold, button or setting, guide anchor, tour stops,
+  PC-check lines, since) and `<a id="…"></a>` above its guide section, in the same task. The precheck refuses a tour
+  stop, Full PC-check line or guide section no entry names, and an entry whose anchor, panel, fold, button, setting, stop
+  or line does not exist (its message says what to fix). A picture, video or 3D model on the site names its functions
+  in `site/media/media.json` (`"functions": [...]`): the page links them to the guide. (The lesson rule follows with the
+  lessons task, study 0123.)
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of

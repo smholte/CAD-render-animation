@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.100 – 14 Nov 2026 – the guide's contents list every section (task 0124)
+
+- **User guide:** the contents on the left now list every section under its chapter (Cylinders, Light look, Make a
+  product video …), so you can jump straight to the one you need. Every section has its own link now.
+- **Website:** under each picture, video and 3D model a short line **How it's done:** links to the guide sections of
+  the functions it shows.
+- Behind the scenes: one list of every function of the app, which the automatic tests keep in step with the guide,
+  the test tour and the PC check; the coming side-panel overhaul and the lessons read it. Nothing in the app itself
+  changed.
+
 ## 0.2.99 – 14 Nov 2026 – mesh models: glTF, OBJ and FBX (task 0117)
 
 - **File > Import > Mesh model (glTF, OBJ, FBX)…** (also **Import mesh model…** in 1 Import, or drag the file onto

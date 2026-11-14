@@ -506,3 +506,35 @@ def test_built_on_blender_section(built):
     media = build_site.load_media()
     if media.get("feature"):
         assert f'media/{media["feature"]["file"]}' in sec
+
+
+def test_how_its_done_links_to_the_guide(built, tmp_path, monkeypatch):
+    """Task 0124: every picture, video and 3D model names its functions in media.json; the page shows "How it's done"
+    links to their guide sections; an id the function list does not have is refused."""
+    from fresing_render.core import functions
+    out, _version, page = built
+    media = build_site.load_media()
+    items = [media["hero"], media["feature"]] + media["pictures"] + build_site.web_models(media)
+    guide = open(os.path.join(out, "guide", "index.html"), encoding="utf-8").read()
+    for it in items:
+        assert it.get("functions"), f"{it['file']} names no functions in media.json"
+        for fid in it["functions"]:
+            f = functions.FUNCTIONS[fid]
+            assert f'<a href="guide/#{f.guide}">{build_site._esc(f.title)}</a>' in page
+            assert f'id="{f.guide}"' in guide
+    assert page.count("How it's done: ") == len(items)
+    for w in build_site.web_models(media):
+        viewer = open(os.path.join(out, "model", w["id"], "index.html"), encoding="utf-8").read()
+        assert "How it's done: " in viewer and 'href="../../guide/#web3d"' in viewer
+    assert "400" not in " ".join(fid for it in items for fid in it["functions"])
+    # an unknown id: build refuses it, check names it
+    bad = json.loads(json.dumps(media))
+    bad["pictures"][0]["functions"] = ["joints.rotate", "nope.nothing"]
+    assert any("'nope.nothing' is not in the function list" in p for p in build_site.unknown_functions(bad))
+    with pytest.raises(SystemExit, match="nope.nothing"):
+        build_site.how_html(bad["pictures"][0])
+    assert any("nope.nothing" in p for p in build_site.check(out, bad))
+    monkeypatch.setattr(build_site, "load_media", lambda path="": bad)
+    with pytest.raises(SystemExit, match="nope.nothing"):
+        build_site.build(str(tmp_path / "x"), version=build_site.manifest_version(), guide=False)
+    assert build_site.how_html({"file": "x.jpg"}) == ""

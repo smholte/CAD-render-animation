@@ -52,11 +52,12 @@ def _embed_images(body: str, base_dir: str) -> tuple[str, list[str]]:
 
 
 def _toc(body: str) -> str:
-    """Chapters (h2) with their anchors, for the contents list."""
+    """Chapters (h2) and their sections (h3) with their anchors, for the contents list (sections since task 0124)."""
     items = []
-    for m in re.finditer(r'<a id="([^"]+)"></a>\s*<h2[^>]*>(.*?)</h2>', body, re.S):
-        anchor, title = m.group(1), re.sub(r"<[^>]+>", "", m.group(2)).strip()
-        items.append(f'<li><a href="#{anchor}">{title}</a></li>')
+    for m in re.finditer(r'<a id="([^"]+)"></a>\s*<h([23])[^>]*>(.*?)</h\2>', body, re.S):
+        anchor, level, title = m.group(1), m.group(2), re.sub(r"<[^>]+>", "", m.group(3)).strip()
+        cls = "" if level == "2" else ' class="toc3"'
+        items.append(f'<li{cls}><a href="#{anchor}">{title}</a></li>')
     return "<ol class=\"toc\">" + "".join(items) + "</ol>" if items else ""
 
 
@@ -119,6 +120,7 @@ nav .meta {{ color: var(--muted); font-size: 13px; margin: 0 0 18px; }}
 .toc {{ list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }}
 .toc li a {{ display: block; padding: 5px 0 5px 14px; color: var(--muted); text-decoration: none; font-size: 15px; }}
 .toc li a:hover {{ color: var(--accent); }}
+.toc li.toc3 a {{ padding: 2px 0 2px 28px; font-size: 13px; }}
 main {{ min-width: 0; }}
 h1 {{ font-size: 34px; line-height: 1.2; margin: 0 0 6px; }}
 .sub {{ color: var(--muted); margin: 0 0 28px; }}
