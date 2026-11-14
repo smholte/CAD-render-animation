@@ -15,6 +15,10 @@ from fresing_render.blender import animation, build, cameras, fade, joints, mate
 
 HERE = os.path.dirname(__file__)
 CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
+# the plain crane of before task 0122 (yellow base): the render ratio below measures the cover's fade together with its
+# shadow on the base, so it depends on the base's colour (yellow 0.25-0.40, the new anthracite base 0.80-0.83 although
+# the fade is the same); the fade, not the model, is under test
+CRANE_PLAIN = os.path.join(HERE, "data", "test_crane_plain.step")
 DECALS_A = os.path.join(HERE, "data", "test_decals_a.step")
 TOP_FACE = 5                     # the panel's top face (as tests/test_decals.py)
 
@@ -222,8 +226,8 @@ def _render_ratio(sc, out_dir, engine):
     return float(np.abs(shots[26] - shots[1]).sum(axis=2)[mask].mean() / full[mask].mean())
 
 
-def test_render_fades_in_cycles(scene, tmp_path):
-    half = _render_ratio(scene, tmp_path, "CYCLES")
+def test_render_fades_in_cycles(tmp_path):
+    half = _render_ratio(_fresh(CRANE_PLAIN), tmp_path, "CYCLES")
     assert 0.2 < half < 0.8, half                                      # half way: half see-through
 
 
@@ -236,7 +240,7 @@ import bpy, addon_utils, fresing_render
 bpy.ops.wm.read_factory_settings(use_empty=True)
 addon_utils.enable("cycles", default_set=True)
 fresing_render.register()
-sc = T._fresh()
+sc = T._fresh(T.CRANE_PLAIN)
 print("RATIO", T._render_ratio(sc, {out!r}, "BLENDER_EEVEE"))
 """
 

@@ -154,6 +154,8 @@ listed (file:line, old → new, why); never loosen a check. Helpers: `tools/mode
 - `test_waycover:312` 0.06 → 0.12 (the end bracket now lies before the sections); `test_web3d` mill parts 9 → 25;
   `test_make_test_sea` 20 → 54, `test_make_test_moving` 14 → 34, `test_spool_model` lists and 22/21 → 35/25.
 - `test_pccheck` copy check now also covers test_cylinder_a and test_waycover_b.
+- `test_fade` render ratio (Cycles + EEVEE): on the plain crane – the ratio measures the fade together with the cover's
+  shadow on the base, so it follows the base's colour (yellow 0.25–0.40, the new anthracite base 0.80–0.83, same fade).
 
 **Tested and measured** (4-core web machine; Normal quality; triangles unique, before → after):
 
