@@ -123,10 +123,66 @@ listed (file:line, old → new, why); never loosen a check. Helpers: `tools/mode
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, session branch `ccr-bde4018f-wmqawe`, 14 Nov 2026 – version **0.2.101**.
+
+**Owner's pick (step 1):** crane **B** (more detail + a luffing cylinder that follows the boom), batches **Machines**,
+**Offshore**, **Small models**; budget **2 × or 10,000 triangles, whichever is more**. Fragile models left alone
+(clash, linkage, decals, faces, machine, materials, mesh, hoses/chains, cable paths).
 
 **What changed:**
+- Crane (`make_test_crane.py`, worker): anthracite chamfered base with bolt holes; pedestal with foot flange, 4 ISO 4762
+  screws, gussets, chamfered cheeks; boom girder with round end, ribs, tapered tip, end stop; trolley with hoist;
+  flanged wheels; cover with handle; real hex bolts; **HYDRAULIC CYLINDER.ASM** (hollow barrel, piston rod) on two
+  LUFF PINs in forks. `tour.luff_cylinder` (called by `_boom_joint`, also from the PC check and the guide) sets it up
+  as a follower and gives the boom the cylinder's limits (−1.5° … 37.6°); the boom stop checks the rod eye on its pin.
+  `--plain` still writes the old crane; `tests/data/test_crane_plain.step` keeps it for the 0087 camera golden keys.
+- Machines (subagent): mill, toolpath, gantry, atc, 4axis, 5axis – cast beds, ribbed columns, rails + guide blocks,
+  servo and spindle motors, T-slot tables with toe clamps, bearing caps, magazine guard (new `tools/machine_parts.py`).
+- Offshore (subagent): sea (deck plating, bulwarks, bollards, bolts), moving (knee braces, end stops, power unit),
+  spool (deck plate, gearbox, motor, pillow blocks, bolts), tracks (portal frame with two lift cylinders, gussets).
+- Small (subagent): luffer (anchor bolts, flanges, gussets, ports, manifold, gland screws), way covers b/c/d (bed with
+  rails, ball screw, motor, folded sheet sections), spindle unit (fins, keyway, V-belt pulley with key, hex nut).
+- Shared helpers `tools/model_details.py`; guide pictures of the changed models re-made (14 pictures, panels not).
 
-**Tested and measured** (name the machine and the model):
+**Expected numbers changed on purpose** (none loosened):
+- `test_phase2`: structure list + "HYDRAULIC CYLINDER.ASM"; crane parts 12 → 20 (A and B); `test_stacked_joints:528` 12 → 20.
+- `test_hover` hole: the spot in the front cheek (the foot is wider); the bore's block = 52 triangles starting at a CAD
+  face start (was two fixed ranges). `ui_test_app2` stack click: compared with the ray through the clicked pixel to
+  0.5 mm (was the ideal point to 2 mm: one pixel spans 2.5 mm on that face) – stricter.
+- `test_queue_schemes`, `test_fixes_0120`: the yellow group is "Welded frames & structures #F9A800" (boom + pedestal;
+  the base is anthracite now). `camera_golden_0087.py`: the plain crane (keys written with code before 0087).
+- `test_waycover:312` 0.06 → 0.12 (the end bracket now lies before the sections); `test_web3d` mill parts 9 → 25;
+  `test_make_test_sea` 20 → 54, `test_make_test_moving` 14 → 34, `test_spool_model` lists and 22/21 → 35/25.
+- `test_pccheck` copy check now also covers test_cylinder_a and test_waycover_b.
+
+**Tested and measured** (4-core web machine; Normal quality; triangles unique, before → after):
+
+| Model | Triangles | Placed parts |
+| --- | --- | --- |
+| crane A / B | 1,008 → 9,448 / 7,610 → 10,104 | 12 → 20 / 12 → 20 |
+| mill / toolpath / gantry | 2,693 → 8,095 / 2,573 → 7,593 / 3,068 → 7,580 | 9 → 25 / 8 → 24 / 11 → 31 |
+| atc / 4axis / 5axis | 6,951 → 10,917 / 1,515 → 6,541 / 940 → 5,176 | 25 → 40 / 10 → 28 / 11 → 30 |
+| spool / sea / moving / tracks | 36,742 → 41,542 / 11,556 → 16,598 / 27,952 → 31,890 / 12,796 → 15,296 | 22 → 35 / 20 → 54 / 14 → 34 / 171 → 180 |
+| cylinder A / B | 7,474 → 14,622 / 14,076 → 21,224 | 23 → 27 / 24 → 28 |
+| waycover b, d / c / sequence | 108 → 1,868 / 168 → 2,752 / 4,656 → 9,902 | unchanged |
+
+- Import of the crane 0.2 → 0.3 s. Whole tour build 119.7 → 135.9 s (house set alone +17 s: noise, unchanged model);
+  the all-sets clash check (tests/test_clash.py, limit 360 s) 246 → 300 s: crane animations 0.3 → ~3 s each.
+- 0 clash rows on every tour animation (clash set: its own 6.0 mm row). PC check lines of every batch OK; crane lines
+  import.crane, joints.rotate, joints.stack, states.poses, model.update, queue.frame_shown OK.
+- GitHub: before this task 17.8 / 21.4 min (229 / 226 job-minutes, runs 43593305156, 43610881231); this branch
+  20.0 min, 220 job-minutes (run 43616862287: one real-app check, fixed). Runs: see below.
+- Subagents: Explore (inventory), three batch writers in worktrees (machines, offshore, small; merged as they were),
+  an independent tester: found the PC check turning the boom down (rod out of the barrel), no boom limits, crane over
+  budget – all three fixed by the worker; it measured the clash-check time.
 
 **Open points / follow-up tasks:**
+- `site/media/test_atc.page.html` (site "Turn it yourself") still shows the old ATC machine: re-make with
+  `tools/make_site_web_models.py test_atc` (Web 3D lane). The site kit's `[test_luffer]` looks different next run.
+- Tight: sequence 9,902 / 10,000 triangles, cylinder A 14,622 / 14,948, moving 371 / 400 KB; the all-sets clash test
+  300 / 360 s locally. `fresing_render/data` 6.2 → 22 MB (installer zip a few MB bigger); the STEP files are not
+  byte-stable, so every maker run adds MBs to git history.
+- Cosmetic: `luff_cylinder` only on the first crane of the copies set; the trolley joint has no limits; older part
+  groups (RAM → Hydraulic cylinders, HORN → Electrical, BARREL.GLAND → Cable glands, CARRIAGE → Linear guides,
+  BOLLARD → Lifting gear). Panel pictures of the guide were not re-made (they show only panels).
+- Not built (proposals): a way cover on the mill's X axis, a drag chain on the gantry.
