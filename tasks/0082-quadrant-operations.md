@@ -159,10 +159,56 @@ the hull's waterline: the wider end is the stern, a tie keeps the old side; +x; 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 14 Nov 2026 (branch `ccr-dfd4b55c-97xzhk`), version **0.2.95**.
 
 **What changed:**
+- **App abilities** (4 Motion > Cables and paths): **Winch keeps it tight** (`keep_tight`: the speed joint pays out
+  free length now − free length in CAD; keys per frame at Build, iterated with spool starts and layer followers to
+  0.5 mm; live by the handler; skipped with a red line when a step moves the joint); **the sea hang-off follows the
+  pose** (a fixed horn the moving part has gone past, or that the cable no longer bends round, is released; it catches
+  the cable again when the part comes back; ±20 mm dead band; one point layout); **Let go** on a start, end or contact
+  (stays in seabed coordinates for a sea cable). Moving carriers themselves existed since 0078.
+- **Demo:** second end as its own cable item (`CABLE END` + `CPS SET (SECOND END)` as a rider) – the lay cable
+  ("Power cable") stays as drawn in shots 1–8 and is hidden at the cut into shot 9 (design: the second end's leg plus
+  its CPS are the owner's "two legs"; the lay cable over the stern would leave a U going back up to the vessel). A&R
+  wire (spooled on its drum) and both tipping wires are app cables with keep tight; 0095's driver wires are gone.
+  New joint "Quadrant lower" (rides on the travel, the tip rides on it). Shots: 8 into the sea, **9** = old shot 7 with
+  the second end, **10** tilt on to 110°, hang plumb, lower 32 m, **11** tip flat, let go, **12** everything back. The
+  D is lowered at **110°** tilt, not 100°: at 100° the hanging D hits the horns (their ends reach 1.4 m aft of the
+  transom); at 110° it clears them by 0.19 m.
+- **Wake** follows the bow (Weather & time > Bow: From the hull / +x / -x; spray at the bow too). Old projects keep
+  their look (a hull as wide at both ends keeps the old side).
+- Tour stop + PC-check line "A cable on a moving part" (`tools/make_test_moving.py`, `test_moving.step`), guide
+  section "A cable on a moving part", demo chapter updated, `flex._Near` skips excluded parts (the lay cable read the
+  coincident second end as a chute).
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** A (app abilities, tour, PC check, guide section), B (demo model and shots), an independent tester
+(32 tests from the Design without reading A's tests: 4 real faults – keep tight off by up to 20.6 mm with a level
+wind, the live arc on the hang-off drawn as a chord 204 mm into the sheave, let go at frame 0 ignored, a motion
+that comes back left the cable hanging through the deck – plus panel points; all sent back to A and fixed: 0.006 mm,
+0.09 mm, kept, hangs from the horn again). The release rule was changed after the tester (see Design A2).
+
+**Tested and measured** (4-core web machine, Blender as a module; small demo form):
+- `test_paths_moving.py` + `test_paths_moving_independent.py` (44), all paths/spool/sea/catenary tests (547 by A).
+- Demo: `test_demo_cable_lay.py` 58, `test_demo_project.py` 21, `test_demo_clash.py` **0 clash rows** (3,206 moments).
+  Second end: length = sea mark + payout within 1 mm every frame; bend round the gutter ≥ 4.04 m vs MBR 3.5 m;
+  tipping wires never within their radius of handler, hull, deck, bulwark, horns or cylinders; rails ≥ 100 mm from
+  the lay cable; the lowered D clears the transom by 1.26 m.
+- Make demo (small form): 119 s (0.2.92) → 153 s; its Build 22 → 49 s. Animation ~134 s.
+- GitHub: see the runs below.
 
 **Open points / follow-up tasks:**
+1. **The D sinks 0.76 m into the seabed in shot 11** (so that the cable round its gutter lies on the seabed at the
+   let-go); the pull head lies 0.4 m below the seabed line (vessel heave is in the stored let-go places). Demo lane:
+   let go higher and let the cable settle onto the seabed (an app ability: a let-go cable sinks to the seabed).
+2. Frames 1924–1927 of the second end: no path ("'QUADRANT GUTTER' and 'Bend 1' overlap", the last good shape is
+   kept); horn A is read as a bend, not a chute. Flex parts lane.
+3. A ~6 cm kink where the catenary leaves the gutter at the start of the lowering (out of the gutter's plane).
+4. The vessel does not creep during the lowering: a "Cable travel" run spins the D's gutter rollers and gave false
+   1.4–2.5 mm clash rows (lesson 0091). Not done either: glowing markers, sun rays, sediment specks.
+5. The tipping-wire swivels still follow the handler tilt by ratio (0095), not the wire; a keep-tight sea cable gets a
+   step in its payout when its hang-off changes.
+6. Build warnings left: "A&R wire no longer touches the pulley at frame 1" (by design, hidden then), "Second end
+   piles up 0.00 m".
+7. Owner: shots 10 and 11 on the RTX 3090 (the D under water, the cut-away does not reach the D at the seabed – shot
+   11 has its own camera under water); `core/weather.BOW_AZ` (wind "from the bow") still assumes the bow at −x.
