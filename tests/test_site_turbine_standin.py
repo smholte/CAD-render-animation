@@ -727,6 +727,22 @@ def _one_third(sheet: dict) -> dict:
     return s
 
 
+def _short_check(sheet: dict) -> dict:
+    """The check animation cut to its hinged extremes, 1 s each (the full one – every joint to both limits and the
+    nacelle yawing – took 10 min here with the closed blades; it gives 0 rows on the owner's model, checked by
+    ``tools/make_site_projects.py --project``)."""
+    s = json.loads(json.dumps(sheet))
+    js = {j["name"]: j for j in s["joints"]}
+    steps, t = [{"kind": "POSE", "pose": "Feathered", "start": 0.0, "seconds": 1.0, "easing": "SMOOTH"}], 1.0
+    for name, end in (("Door", 1), ("Davit", 0), ("Davit", 1)):
+        if name in js:
+            steps.append({"kind": "JOINT", "joint": name, "to": float(js[name]["limits"][end]), "start": t,
+                          "seconds": 1.0, "easing": "SMOOTH", "label": f"{name} {end}"})
+            t += 1.0
+    s["check_animation"] = {**s["check_animation"], "seconds": t, "steps": steps}
+    return s
+
+
 @pytest.mark.parametrize("variant", ["offshore"])
 def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
     """The converted stand-in imported with the app (Draft), joints, poses, decals, cameras, the loop built (cut to
@@ -734,7 +750,7 @@ def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
     sheet's axes, the loop closes, the check animation is taken away again, the sea at sea level."""
     pytest.importorskip("bpy")
     sheet, step = converted[variant]
-    sheet = _one_third(sheet)
+    sheet = _short_check(_one_third(sheet))
     model = f"iea15_{variant}"
     sheets = tmp_path / "sheets"
     sheets.mkdir()
@@ -754,13 +770,9 @@ def test_standin_project_builds_with_no_clash(converted, tmp_path, variant):
     assert r["hidden"] >= len(sheet["hide"])
     assert r["axis_error_deg"] <= 0.1 and r["axis_error_mm"] <= 0.1
     assert r["clash_rows"] == 0, r.get("clashes")
-    # The check animation pitches the blades 0 -> 90°. On the stand-in the app's clash check reports "HUB × BLADE"
-    # (139-174 mm, frames 13-14 only) although no point of the blade enters the hub at any pitch
-    # (test_blades_never_enter_the_hub_while_pitching): the blade is an OPEN shell (as the owner's) whose open root
-    # lies on the hub's ring face, and an inside test of an open shell is not defined. Reported to the author; every
-    # other pair must be clear.
-    other = [c for c in r.get("check_clashes", []) if not c.startswith("HUB × BLADE")]
-    assert not other, other
+    # The check animation pitches the blades to feather, opens the door and slews the davit to both ends. The blades
+    # are closed solids since this tester reported false "HUB × BLADE" rows of the open skin: every pair is clear.
+    assert r["check_clash_rows"] == 0, r.get("check_clashes")
     assert r["loop_gap"] < 1e-5
     assert r["frames"] == 1 + round(sheet["animation"]["seconds"] * 25)
     assert r["decals"] == len(sheet["decals"]) and r["cameras"] == len(sheet["cameras"])
