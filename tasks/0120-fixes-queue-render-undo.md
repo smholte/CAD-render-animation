@@ -1,6 +1,6 @@
 # 0120 – Bug-hunt fixes B: render queue, jobs during a bake, undo during long jobs, weather and redraw
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0120-fixes-queue-render-undo` (or the web session's)
+**Who:** worker · **Status:** running (web session) · **Branch:** `task/0120-fixes-queue-render-undo` (or the web session's)
 **Started by:** lead chat, 14 Nov 2026, from bug hunt 0118 (`tasks/0118-bug-hunt-3.md`)
 **Area:** Scene & Render + queue: `blender/queue.py`, `ops_motion.py` (Add image), `states.py` (saved scene frame), `house_bake.py`, `ops_web3d.py`, `ops_house.py`, `ops_clash.py` (modal undo), `section.py` + `ui_section.py`, `ui_fade.py`, `ui_weather.py`, `weather.py` (`after_clear`), `animation.py` **additively** (a Build warning, `_channelbag`) – 0121 adds one call in `clear_keys`: merge carefully; their tests. **Do not edit:** `spool.py`, `paths_riders.py`, `tracks.py` (0119), `sequence.py`, `flex.py`, `vessel_motion.py`, `reimport.py` (0121), `importer/`, `build.py`, `faces.py` (0117).
 **Model:** **Opus · effort Medium** · **Place:** Claude Code on the web, environment "CAD-render-animation"
