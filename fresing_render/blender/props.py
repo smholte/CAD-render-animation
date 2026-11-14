@@ -2221,6 +2221,14 @@ def _cable_contact_changed(self, context):
     paths.contact_changed(context.scene, self)
 
 
+def _keep_tight_changed(self, context):
+    """"Winch keeps it tight" switched: the cable speed follows the free length, or is left alone (task 0082)."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import paths
+    paths.keep_tight_changed(context.scene, self)
+
+
 class FRCableContact(bpy.types.PropertyGroup):
     """One thing a cable touches: a sheave, a roller, a chute or a bend. See blender/paths.py."""
     name: StringProperty(name="Name", description="The part the cable touches here")
@@ -2255,6 +2263,9 @@ class FRCableContact(bpy.types.PropertyGroup):
     ratio: FloatProperty(default=0.0)                      # degrees per mm of cable, with its sign
     user: BoolProperty(default=False)                      # added or changed by the user: a new reading keeps it
     note: StringProperty(default="")                       # '' or what the user should know (its own joint, a gap)
+    let_go_frame: IntProperty(default=-1)                  # task 0082: from this frame on it stays where it was then
+    #                                                        (in the seabed's coordinates for a cable into the sea),
+    #                                                        whatever its carrier does; -1 = it stays with its carrier
 
 
 def _sea_end_changed(self, context):
@@ -2385,6 +2396,14 @@ class FRCable(bpy.types.PropertyGroup):
                     "file")
     contacts: CollectionProperty(type=FRCableContact)      # in order along the cable, from its start
     contacts_index: IntProperty(default=0)
+    # ---- a cable on a moving part (task 0082, blender/paths.py) ----
+    keep_tight: BoolProperty(
+        name="Winch keeps it tight", default=False, update=_keep_tight_changed,
+        description="On: the cable speed pays out or hauls in just as much cable as the moving sheaves and chutes "
+                    "need, so the free length stays as in the CAD file (a winch that keeps its wire tight). Its "
+                    "drum and sheaves turn with it. Off: the cable speed only moves when an animation step moves it")
+    a_let_go_frame: IntProperty(default=-1)                # task 0082: the start stays where it was from this frame on
+    b_let_go_frame: IntProperty(default=-1)                # … the end (-1 = it stays with its part)
     # ---- state (written by blender/paths.py) ----
     problem: StringProperty(default="")                    # '' or the warning shown in the panel
     problem_frame: IntProperty(default=0)                  # the first frame it happens at (0 = in the pose shown)
@@ -3273,6 +3292,14 @@ class FRWeather(bpy.types.PropertyGroup):
         name="Vessel speed", default=0.0, min=0.0, max=20.0, precision=1, update=_weather_changed,
         description="How fast the vessel sails (knots): a wake of foam behind the stern. 0 for a vessel that lays "
                     "cable (walking pace or slower) or lies still")
+    bow: EnumProperty(
+        name="Bow", default="AUTO", update=_weather_changed,
+        items=(("AUTO", "From the hull", "The end where the hull is narrower at the waterline is the bow (a hull as "
+                                          "wide at both ends keeps the bow at -x)"),
+               ("POS_X", "+x", "The bow points to +x: the wake trails behind the stern at -x"),
+               ("NEG_X", "-x", "The bow points to -x: the wake trails behind the stern at +x")),
+        description="Which way the vessel's bow points: the wake trails behind the stern and the bow throws up the "
+                    "spray. From the hull reads it from the waterline")
 
 
 class FRHouse(bpy.types.PropertyGroup):

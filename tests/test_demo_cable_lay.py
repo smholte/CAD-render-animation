@@ -274,8 +274,11 @@ def test_part_counts(made):
     assert count("HINGE SHEAVE") == 0 and count("SHEAVE CHEEK") == 0 and count("CRADLE LIFT FRAME") >= 15
     assert count("HINGE PIN") == 2 + 1 and count("PISTON ROD") == 2 * 2 + 2 * 2 + 2   # tensioners (0102), handler
     assert count("A&R PAD EYE") == 1 and count("PAD EYE") == 2 and count("FOOT SHEAVE") == 2
-    assert count("PULL HEAD") == 5 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
-    assert count("CABLE") == 1 and count("CABLE END") == 1 and count("CABLE COIL") == 1
+    # five sets in the rack + the second end's (task 0082)
+    assert count("PULL HEAD") == 6 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
+    # the core's end and the second end (task 0082); the quadrant operation's wires (task 0082)
+    assert count("CABLE") == 1 and count("CABLE END") == 2 and count("CABLE COIL") == 1
+    assert count("A&R WIRE") == 1 and count("TIPPING WIRE") == 2
     assert count("CABLE END CLAMP") == 1 and count("ARCH FRAME") == 1 and count("GUIDE FRAME") == 1
     # each track's pads sit under their own track assembly; the top track in its tilting carriage on the lift frame
     for k in (1, 2):
@@ -407,22 +410,27 @@ def test_rollers_about_1500_apart_on_the_straights(made):
 
 
 def test_cable_solid_follows_the_route(made):
-    """The static CABLE (oval), the CABLE END at the core and the quay's CABLE lie on their routes within 1 mm."""
+    """The static CABLE (oval), the CABLE END at the core, the second end (task 0082) and the quay's CABLE lie on their
+    routes within 1 mm."""
     S = made["S"]
     p = Params()
-    for key, routes in (("assembly", {"CABLE": S.routes["main"], "CABLE END": S.routes["core_end"]}),
+    sheet = made["route"]
+    for key, routes in (("assembly", {sheet["cable"]["solid"]: S.routes["main"],
+                                      sheet["cable"]["cable_end_solid"]: S.routes["core_end"],
+                                      sheet["second_end"]["solid"]: S.routes["second_end"]}),
                         ("quay_loading", {"CABLE": S.routes["quay_loading"]})):
         info, arrays = made["trees"][key]
         routes = dict(routes)
         for i, n in enumerate(info["nodes"]):
-            if n["kind"] != "part" or n["name"] not in routes:
+            if n["kind"] != "part" or (n["uid"] not in routes and n["name"] not in routes):
                 continue
+            k = n["uid"] if n["uid"] in routes else n["name"]
             pts = arrays[f"p{n['mesh']}"].astype(float)
             W = _world(info, i)
             world = (pts @ W[:3, :3].T + W[:3, 3]) * 1000.0             # m -> mm
-            d = routes[n["name"]].distance(world[:: max(1, len(world) // 20000)])
-            assert np.max(np.abs(d - p.cable_r)) < 1.0, (key, n["name"])
-            routes.pop(n["name"])
+            d = routes[k].distance(world[:: max(1, len(world) // 20000)])
+            assert np.max(np.abs(d - p.cable_r)) < 1.0, (key, k)
+            routes.pop(k)
         assert not routes, key
 
 
@@ -584,9 +592,13 @@ def _in_the_ds_way(S, open_tensioners: bool = True, drop_cradles: bool = True) -
         c = S.handles[f"tensioner{k}"][0]
         tens[id(c)] = c
     quad = S.quadrant_info["quadrant"]
+    cps2 = S.handles["second_end_cps"][-1]
+    # the cables and wires move with the D or are kept out until it moves (task 0082: the A&R and tipping wires, the
+    # second end and its CPS ride on it)
+    flex = {"CABLE", "CABLE END", "A&R WIRE", "TIPPING WIRE"}
     cache, out = {}, []
     for node, uid, W, _label, path in g.walk(S.root):
-        if not isinstance(node, g.Part) or node.name == "CABLE" or any(c is quad for c in path):
+        if not isinstance(node, g.Part) or node.name in flex or any(c is quad or c is cps2 for c in path):
             continue
         M = W
         if path and id(path[0]) in tens:
@@ -656,7 +668,7 @@ def test_joint_sheet_names_parts_that_exist(made):
             "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt", "QUADRANT SYSTEM: QUADRANT HANDLER: Top pulley turn",
             "QUADRANT SYSTEM: Swivel sheave port swivel", "QUADRANT SYSTEM: Swivel sheave stb turn",
             "QUADRANT SYSTEM: TIPPING WINCH STB: Drum turn", "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn",
-            "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt",
+            "QUADRANT SYSTEM: Quadrant lower",
             "QUADRANT SYSTEM: Swivel sheave port foot sheave turn",
             "QUADRANT SYSTEM: QUADRANT: Quadrant gutter roller 1 turn", "QUADRANT SYSTEM: QUADRANT: Rail wheel 1 turn",
             "HANDLING WINCH 1: Drum turn", "HANDLING WINCH 2: Fairlead sheave turn", "HORN A: Chute roller 1 turn",
@@ -666,9 +678,10 @@ def test_joint_sheet_names_parts_that_exist(made):
     for w in want:
         assert w in names, w
     by = {j["name"]: j for j in joints}
-    assert by["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]["limits"] == [0.0, 100.0]
+    assert by["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]["limits"] == [0.0, rt.LOWER_TILT]
     assert by["QUADRANT SYSTEM: QUADRANT: Rail wheel 1 turn"]["drive"]["follows"] == "QUADRANT SYSTEM: Quadrant travel"
-    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
+    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant lower"
+    assert by["QUADRANT SYSTEM: Quadrant lower"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
     assert np.allclose(by["QUADRANT SYSTEM: Quadrant travel"]["axis"]["direction"], [-1, 0, 0])
     # the arch only slews: no slide joint on the loading tower
     assert not [j for j in joints if j["name"].startswith("LOADING TOWER") and j["type"] == "slide"]
@@ -781,7 +794,8 @@ def test_quadrant_system_can_move(made):
             assert np.abs(corners[:, 1]).min() >= lane["half_width"] or corners[:, 2].max() < lane["low_z"] - 50.0, \
                 label
     assert by["QUADRANT SYSTEM: Quadrant travel"]["rides_on"] == "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
-    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
+    assert by["QUADRANT SYSTEM: Quadrant lower"]["rides_on"] == "QUADRANT SYSTEM: Quadrant travel"
+    assert by["QUADRANT SYSTEM: Quadrant tip"]["rides_on"] == "QUADRANT SYSTEM: Quadrant lower"
     # nothing of the handler's forward end stands in the D's way: the top pulley and its brackets stay under the D's
     # underside (and its A&R eye) while it rolls on
     hd = S.quadrant_info["handler_asm"]
@@ -834,40 +848,209 @@ def test_ar_wire_hinge_sheave_gone_and_top_pulley(made):
     assert g.solids(rc.shape) == 1
 
 
-def test_ar_drum_pays_out_with_the_travel_and_the_tilt(made):
-    """Task 0095: the A&R drum's 'Drum turn' follows the D's travel (mm of wire per mm of travel) and rides on 'Drum turn
-    on tilt', which the demo turns with one SMOOTH step over the tilt: the step follows the wire's real payout within
-    2 % of the payout over the tilt (a coupling to the tilt angle would be 16 % off: the wire bears on the pulley only
-    from ~10°)."""
-    S, layout = made["S"], made["layout"]
-    p = S.p
-    by = {j["name"]: j for j in made["joints"]["joints"]}
-    drum = by["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"]
-    on_tilt = by["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt"]
-    W = made["route"]["wires"]["ar"]
-    assert drum["drive"]["follows"] == "QUADRANT SYSTEM: Quadrant travel"
-    assert drum["drive"]["ratio"] == pytest.approx(360.0 / (2 * math.pi * W["drum_r"]), rel=1e-6)
-    assert drum["rides_on"] == on_tilt["name"] and on_tilt["drive"]["by"] == "winch"
-    assert np.allclose(drum["axis"]["direction"], on_tilt["axis"]["direction"])
-    # travel: the wire's length (from the drum's top) grows about mm for mm (the eye moves aft level)
-    D = np.array(W["drum_centre"])[[0, 2]]
+def _points(made, prefix: str = "", names=None) -> np.ndarray:
+    """Every mesh point (model mm) of the assembly's parts whose uid starts with ``prefix`` (and named one of
+    ``names``)."""
+    info, arrays = made["trees"]["assembly"]
+    out = []
+    for i, n in enumerate(info["nodes"]):
+        if n["kind"] != "part" or not n["uid"].startswith(prefix) or (names and n["name"] not in names):
+            continue
+        W = _world(info, i)
+        out.append((arrays[f"p{n['mesh']}"].astype(float) @ W[:3, :3].T + W[:3, 3]) * 1000.0)
+    assert out, prefix
+    return np.concatenate(out)
 
-    def length(e):
-        q = rt.tangent_to_point(D, W["drum_r"], +1, e)
-        return W["drum_r"] * (math.atan2(q[1] - D[1], q[0] - D[0]) - math.pi / 2) + np.linalg.norm(e - q)
-    paid = length(np.array(W["eye_end"])[[0, 2]]) - length(np.array(W["eye"])[[0, 2]])
-    assert paid == pytest.approx(W["travel"], rel=0.01)
-    # tilt: the step against the real payout
-    L = lambda t: layout.ar_wire_length(p, S.pos, D, W["drum_r"], t)[0]  # noqa: E731
-    total = L(rt.TILT_END) - L(0.0)
-    assert on_tilt["drive"]["payout_mm"] == pytest.approx(total, abs=1.0)
-    k = on_tilt["drive"]["step_from"]
-    ss = np.linspace(0.0, 1.0, 41)
-    smooth = lambda q: (1 - np.cos(np.pi * q)) / 2  # noqa: E731
-    for s in ss:
-        th = rt.TILT_END * smooth(s)
-        step = total * smooth(min(1.0, max(0.0, (s - k) / (1 - k))))
-        assert abs(step - (L(th) - L(0.0))) < 0.02 * total, (s, th)
+
+def _rot(point, direction, deg: float) -> np.ndarray:
+    """A turn of ``deg`` about the axis (point, direction), right hand, as a 4x4 matrix (model mm)."""
+    d = np.asarray(direction, float) / np.linalg.norm(direction)
+    a = math.radians(deg)
+    K = np.array([[0, -d[2], d[1]], [d[2], 0, -d[0]], [-d[1], d[0], 0]])
+    R = np.eye(3) + math.sin(a) * K + (1 - math.cos(a)) * K @ K
+    M = np.eye(4)
+    M[:3, :3] = R
+    M[:3, 3] = np.asarray(point, float) - R @ np.asarray(point, float)
+    return M
+
+
+def _quadrant_pose(made, travel: float, tilt: float, lower: float, tip: float) -> np.ndarray:
+    """Where the D's parts go (model mm) with the quadrant's joints at these values: the tip rides on the lowering,
+    which rides on the travel, which rides on the handler's tilt (as the demo makes them)."""
+    by = {j["name"]: j for j in made["joints"]["joints"]}
+    tl, tv = by["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"], by["QUADRANT SYSTEM: Quadrant travel"]
+    lw, tp = by["QUADRANT SYSTEM: Quadrant lower"], by["QUADRANT SYSTEM: Quadrant tip"]
+
+    def slide(j, mm):
+        M = np.eye(4)
+        M[:3, 3] = np.array(j["axis"]["direction"]) * mm
+        return M
+    return (_rot(tl["axis"]["point"], tl["axis"]["direction"], tilt) @ slide(tv, travel) @ slide(lw, lower)
+            @ _rot(tp["axis"]["point"], tp["axis"]["direction"], tip))
+
+
+def test_quadrant_lower_points_straight_down_and_the_ar_winch_has_one_drum_turn(made):
+    """Task 0082: 'Quadrant lower' lowers the D on its A&R wire straight down in the world once the handler has tilted
+    it over the stern (to LOWER_TILT); it rides on the travel and the tip rides on it, so the D tips about its eye wherever
+    it hangs. The A&R winch has one plain 'Drum turn' (its wire, a cable of the demo, turns it): 0095's step over the
+    tilt and its coupling to the travel are gone. The sheet's hang tip puts the D's centre of mass under its eye."""
+    from fresing_render.demo_model import geom as g
+    S = made["S"]
+    js = made["joints"]["joints"]
+    by = {j["name"]: j for j in js}
+    q = made["route"]["quadrant"]
+    low = by["QUADRANT SYSTEM: Quadrant lower"]
+    assert low["type"] == "slide" and low["limits"] == [0.0, made["layout"].LOWER_MAX]
+    assert low["drive"]["by"] == "operator"
+    assert low["parts"] == by["QUADRANT SYSTEM: Quadrant travel"]["parts"]
+    assert low["parts"] == by["QUADRANT SYSTEM: Quadrant tip"]["parts"]
+    assert np.allclose(low["axis"]["point"], q["hang_off"], atol=1e-3)
+    tl = by["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]
+    down = _rot([0, 0, 0], tl["axis"]["direction"], rt.LOWER_TILT)[:3, :3] @ np.array(low["axis"]["direction"])
+    assert np.allclose(down, [0.0, 0.0, -1.0], atol=1e-6)
+    assert q["lower_tilt"] == rt.LOWER_TILT and q["tilt_end"] == rt.TILT_END < rt.LOWER_TILT <= tl["limits"][1]
+    # the A&R winch: one drum joint, driven on its own
+    drums = [j for j in js if j["name"].startswith("QUADRANT SYSTEM: QUADRANT HANDLING WINCH:")]
+    assert [j["name"] for j in drums] == ["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"]
+    assert drums[0]["drive"]["by"] == "winch" and "rides_on" not in drums[0] and "follows" not in drums[0]["drive"]
+    # hanging plumb: the centre of mass straight under the eye (and under it, not over it)
+    quad = S.quadrant_info["quad_asm"]
+    _v, c = g.mass_centre(quad)
+    QD = g.path_matrix(np.eye(4), S.handles["quadrant_system"] + [S.quadrant_info["quadrant"]])
+    P = _quadrant_pose(made, q["travel"][1], rt.LOWER_TILT, 10000.0, q["hang_tip"])
+    com = (P @ QD @ np.r_[c, 1.0])[:3]
+    eye = (P @ np.r_[q["hang_off"], 1.0])[:3]
+    assert abs(com[0] - eye[0]) < 1.0 and abs(com[1] - eye[1]) < 1.0 and com[2] < eye[2] - 1000.0
+    assert -30.0 < q["hang_tip"] < 0.0                    # its bar swings aft, away from the transom
+
+
+def test_the_lowered_d_hangs_clear_of_the_stern(made):
+    """Task 0082: the D, tilted over the stern to LOWER_TILT and hanging plumb from its eye (the sheet's hang tip), goes
+    straight down past the transom, the horns' lower ends and the handler with room to spare (lowering moves it only
+    down, so its place across is checked once; the handler's side: over its whole lowering)."""
+    from fresing_render.demo_model import geom as g
+    S = made["S"]
+    q = made["route"]["quadrant"]
+    D = _points(made, q["uid"] + "/")
+    root = f"{made['layout'].ROOT}#1"
+    hull = _points(made, g.path_uid(root, S.handles["vessel"]) + "/")
+    by = {j["name"]: j for j in made["joints"]["joints"]}
+    tl = by["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]
+    Hi = np.linalg.inv(_rot(tl["axis"]["point"], tl["axis"]["direction"], rt.LOWER_TILT))
+    hinge = np.array(tl["axis"]["point"])
+    for lower in (0.0, 300.0, 1000.0, 5000.0, made["layout"].LOWER_MAX):
+        P = _quadrant_pose(made, q["travel"][1], rt.LOWER_TILT, lower, q["hang_tip"])
+        w = D @ P[:3, :3].T + P[:3, 3]
+        # aft of the transom (the hull's aft end) by more than 0.4 m
+        assert w[:, 0].max() < hull[:, 0].min() - 400.0, (lower, w[:, 0].max())
+        # off the handler's rails: in the handler's own frame every point over its frame lies above the rail top
+        h = w @ Hi[:3, :3].T + Hi[:3, 3] - hinge
+        over = h[:, 0] < S.pos["handler_len"]
+        assert h[over, 2].min() > rt.HANDLER_RAIL_TOP + 50.0, (lower, h[over, 2].min())
+    # aft of the horns' lower ends (they reach 1.4 m aft of the transom) where the D's sides pass them
+    P = _quadrant_pose(made, q["travel"][1], rt.LOWER_TILT, 0.0, q["hang_tip"])
+    w = D @ P[:3, :3].T + P[:3, 3]
+    for key in ("horn_A", "horn_B"):
+        H = _points(made, g.path_uid(root, S.handles[key]) + "/")
+        band = (w[:, 1] > H[:, 1].min() - 100.0) & (w[:, 1] < H[:, 1].max() + 100.0)
+        assert band.any() and w[band, 0].max() < H[:, 0].min() - 100.0, (key, w[band, 0].max(), H[:, 0].min())
+
+
+def test_the_quadrant_operations_wires_in_the_cad_pose(made):
+    """Task 0082: the A&R wire (A&R WIRE) from where it leaves its drum's top to the D's eye; the tipping wires
+    (TIPPING WIRE) from the swivel post's top up its axis, over the head sheave's groove and on to the D's pad eye at
+    the bar's end – the D at its stationary place. Smooth (a bend for the fleet angle off the head sheave), and the
+    solids lie on them."""
+    S = made["S"]
+    p = S.p
+    sheet = made["route"]
+    W = sheet["wires"]
+    ropes = S.quadrant_info["ropes"]
+    ar = ropes["A&R wire"]
+    c = np.array(W["ar"]["drum_centre"])
+    st = ar.segments[0].start
+    assert abs(math.hypot(st[0] - c[0], st[2] - c[2]) - W["ar"]["drum_r"]) < 1e-3
+    assert np.linalg.norm(ar.end - W["ar"]["eye"]) < 1e-3
+    for key in ("port", "stb"):
+        r = ropes[f"tipping wire {key} (to the D)"]
+        w = W[f"tipping_{key}"]
+        assert np.linalg.norm(r.segments[0].start - w["lead_start"]) < 1e-3
+        assert np.allclose(r.segments[0].tangent(), [0.0, 0.0, 1.0])                  # up the post's axis
+        arc = r.segments[1]
+        assert arc.kind == "arc" and np.linalg.norm(arc.centre - w["head_centre"]) < 1e-3
+        assert abs(arc.radius - w["head_r"]) < 1e-3 and 0.0 < math.degrees(arc.angle) < 180.0
+        assert np.linalg.norm(r.end - w["eye"]) < 1e-3
+        assert all(gap < 1e-6 and ang < 1e-4 for gap, ang in r.joins()), r.joins()
+    info, arrays = made["trees"]["assembly"]
+    want = {"A&R WIRE": [ar], "TIPPING WIRE": [ropes["tipping wire port (to the D)"],
+                                               ropes["tipping wire stb (to the D)"]]}
+    seen = {k: 0 for k in want}
+    for i, n in enumerate(info["nodes"]):
+        if n["kind"] != "part" or n["name"] not in want:
+            continue
+        W_ = _world(info, i)
+        pts = (arrays[f"p{n['mesh']}"].astype(float) @ W_[:3, :3].T + W_[:3, 3]) * 1000.0
+        d = min((r.distance(pts) for r in want[n["name"]]), key=lambda x: float(np.max(np.abs(x - x.mean()))))
+        rr = p.quadrant_rope_d / 2 if n["name"] == "A&R WIRE" else p.tipping_rope_d / 2
+        assert np.max(np.abs(d - rr)) < 1.0, n["uid"]
+        seen[n["name"]] += 1
+    assert seen == {"A&R WIRE": 1, "TIPPING WIRE": 2}
+
+
+def test_the_second_end_and_its_cps(made):
+    """Task 0082: the cable's second end (CABLE END) from the D's lane-B bar end round the whole gutter, aft along side
+    A, over horn A into the sea – the main route's segments from the gutter on; its CPS set lies straight along side B aft
+    of the bar end with its pull head's nose at the bar end."""
+    S = made["S"]
+    p = S.p
+    se = made["route"]["second_end"]
+    main, r = S.routes["main"], S.routes["second_end"]
+    nose = np.array(se["pull_head_nose"])
+    assert np.allclose(r.segments[0].start, nose) and np.allclose(nose, [S.pos["quadrant_x"], p.lane_y, p.line_z])
+    assert r.segments[0].kind == "arc" and math.degrees(r.segments[0].angle) == pytest.approx(180.0)
+    assert r.segments[0].radius == pytest.approx(p.quadrant_r)
+    assert np.allclose(r.end, main.end) and r.length < main.length
+    assert se["route"]["length"] == pytest.approx(r.length, abs=1e-3)
+    uids = {n["uid"]: n for n in made["trees"]["assembly"][0]["nodes"]}
+    assert uids[se["solid"]]["name"] == "CABLE END" and se["cps"] in uids
+    cps = _points(made, se["cps"] + "/")
+    R0 = se["cps_outer_radius"]
+    assert np.abs(cps[:, 1] - nose[1]).max() < 1.05 * R0 and np.abs(cps[:, 2] - nose[2]).max() < 1.05 * R0
+    assert nose[0] <= cps[:, 0].max() < nose[0] + 0.5 * R0               # (the pull head's eye ring before its nose)
+    assert cps[:, 0].min() == pytest.approx(nose[0] - se["cps_length"], abs=R0)
+    head = _points(made, se["cps"] + "/", {"PULL HEAD"})
+    assert nose[0] <= head[:, 0].max() < nose[0] + 0.5 * R0 and head[:, 0].min() > nose[0] - 1500.0
+
+
+def test_the_rails_clear_the_lay_cable(made):
+    """Tasks 0084, 0082: the quadrant's rails (girders, trestles, the handler's rails) stay at least 10 cm from the lay
+    cable; the D's bogies and rail wheels too, all along its travel."""
+    S = made["S"]
+    p = S.p
+    C = S.routes["main"].sample(50.0)
+    info, arrays = made["trees"]["assembly"]
+    q = made["route"]["quadrant"]
+
+    def boxes(names, prefix=""):
+        out = []
+        for i, n in enumerate(info["nodes"]):
+            if n["kind"] == "part" and n["name"] in names and n["uid"].startswith(prefix):
+                W = _world(info, i)
+                pts = (arrays[f"p{n['mesh']}"].astype(float) @ W[:3, :3].T + W[:3, 3]) * 1000.0
+                out.append((n["uid"], pts.min(axis=0), pts.max(axis=0)))
+        return out
+
+    def gap(lo, hi):
+        return float(np.linalg.norm(np.maximum(np.maximum(lo - C, 0.0), C - hi), axis=1).min()) - p.cable_r
+    fixed = boxes({"QUADRANT RAIL", "RAIL TRESTLE"})
+    assert len(fixed) >= 10
+    worst = min((gap(lo, hi), u) for u, lo, hi in fixed)
+    assert worst[0] >= 100.0 - 0.01, worst
+    moving = boxes({"RAIL BOGIE", "RAIL WHEEL"}, q["uid"] + "/")
+    assert len(moving) >= 8
+    worst = min((gap(lo - [s, 0, 0], hi - [s, 0, 0]), u, s) for s in np.arange(0.0, q["travel"][1] + 1.0, 250.0)
+                for u, lo, hi in moving)
+    assert worst[0] >= 100.0, worst
 
 
 def test_tipping_wires_up_the_swivel_posts_to_the_bar_ends(made):
@@ -899,9 +1082,11 @@ def test_tipping_wires_up_the_swivel_posts_to_the_bar_ends(made):
         assert az(w["head_x"]) == pytest.approx(az(np.array(w["eye_on_handler"]) - axis), abs=0.02)
         turned = az(w["head_x"]) + sw["drive"]["ratio"] * rt.TILT_END
         assert turned == pytest.approx(az(np.array(w["eye_tilted"]) - axis), abs=0.02)
-    # the fixed part: one WIRE ROPE per side under the quadrant system (the moving parts are the demo's)
+    # the fixed part: one WIRE ROPE per side under the quadrant system; the wire on to the D: one TIPPING WIRE per side
+    # (task 0082, the demo makes it an app cable)
     qs = S.handles["quadrant_system"][-1].node
     assert len([c for c in qs.children if c.node.name == "WIRE ROPE"]) == 2
+    assert len([c for c in qs.children if c.node.name == "TIPPING WIRE"]) == 2
     for key in ("port", "stb"):
         r = S.quadrant_info["ropes"][f"tipping wire {key}"]
         names = [i.get("name") for i in r.info if i.get("support") == "sheave"]

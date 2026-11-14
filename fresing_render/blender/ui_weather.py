@@ -138,6 +138,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         if s.background in ("SEA", "DECK"):
             col = split_props(layout)
             col.prop(w, "vessel_speed", text="Vessel speed (kn)")
+            col.prop(w, "bow", text="Bow")
 
         # -- night
         if where == "sky":

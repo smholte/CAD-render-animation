@@ -96,6 +96,64 @@ The CPS run from the rack down the orange ramp (owner's CPS steps 1–5): a late
 head on the cable end as a 0081 rider). Mesh import (0117). The turbine (0116) – later the quadrant could lower the
 cable end next to its monopile, not now. New sea features (sun rays, specks) beyond what 0081 has.
 
+## Design (worker, 14 Nov – the subagents' brief; CLAUDE.md "Subagents")
+
+**Second end, not the lay cable.** The quadrant operation is the *second end*: the cable's end has come off the
+carousel. So the demo's lay cable ("Power cable", shots 1–8, still) is not stretched over the stern; at the cut into
+shot 9 it is hidden and a **second cable item "Second end"** shows: its own CAD part `CABLE END` (cable Ø) from the
+pull head shackled at the D's lane-B bar end, round the whole gutter (180°), aft along lane A through tensioner 2, over
+horn A, into the sea (sea end: layback as the lay cable). A CPS set on it (a 0081 rider, its own CAD set
+`CPS SET (SECOND END)`, pull head at the bar end). Its start is fixed on the D, so its length is kept by the sea end
+alone (catenary length = sea_mark − s(hang-off), nothing paid out) – no payout bookkeeping needed. Why not the lay
+cable: it would make a U on the seabed that goes back up to the vessel; the owner's "both legs" are the laid leg and
+the end with its CPS.
+
+**App abilities** (Flex parts lane; agent A, files `blender/paths.py`, `blender/paths_sea.py`, `blender/props.py`
+(additive), `blender/ui_paths.py`, `blender/ops_paths*.py`, tests, tour, PC check, guide section):
+
+A1. **Winch keeps it tight** – `FRCable.keep_tight` (Bool, default off), `paths.set_keep_tight(scene, item, on)`,
+    `paths.free_length(scene, item) -> m`. The cable's speed joint (value = m paid out) is set so the *free length*
+    (drawn path from where it leaves its spool / its start point to its end point, or to where it arrives on the
+    hang-off for a sea end) keeps its CAD-pose value: `pay = L_free(now) − L_free(CAD)`. At Build (`bake`): one key
+    per frame on the speed joint's motion (tagged, removed by `after_clear`), iterated (≤ 4, spool start depends on
+    pay) to 0.5 mm; drums (spool tables), sheaves, looks and riders follow the joint by themselves. A speed joint that
+    an animation step moves: keep tight is skipped with a warning. Live: the handler's solve sets the joint value
+    (`joints.set_value`), same tolerance, no update loop. Panel line + tooltip; status "pays out N m".
+A2. **The hang-off moves to the last contact the cable still bends round** (sea cables): in `paths_sea.solve`, per
+    moment, when the solver lifts the last wheel (the D's gutter has moved past horn A and below it), that wheel is
+    *released* and the one before hangs the cable; once released in a solve over frames it stays released for the
+    later frames. One point layout for every moment (released wheels' points spread along the start of the
+    catenary). Shown as information ("hangs from 'X' – left 'Y' at frame N"), not as a problem;
+    `paths_sea.numbers(...)["hang_off"]` names it.
+A3. **Let go** – `FRCableContact.let_go_frame`, `FRCable.a_let_go_frame`, `FRCable.b_let_go_frame` (Int, −1 = never):
+    from that frame on, the end or contact no longer moves with its carrier: it stays where it was at that frame – for a
+    sea cable in the seabed's coordinates (it passes aft with the seabed), else in the cable part's. At Build from the
+    places read; live from a place stored when it is set (`paths.let_go(scene, item, which, frame)`, which = "a",
+    "b" or a contact index; `paths.hold(scene, item, which)` clears it; Build refreshes the stored place). Panel:
+    "Let go here" / "Hold again" on the selected contact and on the ends.
+A4. **Moving carriers** (exists since 0078: a contact's carrier moves along a joint chain, live and at Build) –
+    tested with a new small model: a cable over a sheave on a carrier that travels, tilts and lowers, with a sea end,
+    keep tight and a let-go; tour stop, PC-check line, guide section "A cable on a moving part".
+
+**Demo** (agent B; `fresing_render/demo_model/`, `blender/demo.py`, `tests/test_demo_*.py`):
+B1. Model: joint **"Quadrant lower"** (slide, rides on "Quadrant travel", straight down in the world at the end of the
+    tilt, 0 … 45 m); "Quadrant tip" rides on it (so the D tips about its A&R eye where it hangs). The A&R winch: one
+    "Drum turn" (turned by the wire; 0095's "Drum turn on tilt" and its follow of the travel go), a CAD `A&R WIRE` from
+    the drum to the D's eye (CAD pose); CAD tipping wires from the post tops over the swivel head sheaves to the D's
+    bar ends (CAD pose; hidden until "connected"); `CABLE END` + `CPS SET (SECOND END)` (above).
+B2. Stages: A&R wire = a spool cable (as handling winch 1) with keep tight, over the handler's top pulley; tipping
+    wires = cables over the swivel head sheaves to the bar ends with keep tight, their drums and foot sheaves follow
+    their speed joints; 0095's driver wires (`make_wires`, collection "FR demo wires") removed. Second end + CPS.
+B3. Shots (shot 7 becomes shot 9, one shot): 9 over the stern with the second end on the D (tensioners open, cradles
+    drop, travel, wires connected, tilt); 10 lowered vertical (A&R lowers via "Quadrant lower", the vessel creeps with
+    the lay = "Cable travel" runs, seabed aft, cut-away on); 11 tip near the seabed, let go (pull head + gutter), the
+    cable lies on the seabed with its CPS; 12 back up, tilt back, travel back, top tracks down. Labels, × N captions.
+B4. Checks: 0 clash rows over the new shots (sea at rest), rails ≥ 10 cm from the lay cable, second end's length kept
+    every frame, MBR round the gutter, tipping wires clear of handler and stern; Make demo time vs 0.2.92.
+
+**Wake (me):** `fr_wake_flip` on the sea object (0 = as before: stern at max x) from a new setting "Bow" (Auto from
+the hull's waterline: the wider end is the stern, a tie keeps the old side; +x; −x).
+
 ---
 
 ## Report (filled in by the chat that did the task)

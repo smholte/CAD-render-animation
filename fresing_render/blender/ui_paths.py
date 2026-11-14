@@ -53,7 +53,8 @@ def short_status(scene, item) -> tuple[str, bool]:
     if level == "WARN":
         for start, word in (("bends tighter", "tight bend"), ("no longer touches", "lifted off"),
                             ("goes ", "check side"), ("cannot go round", "no path"), ("has no path", "no path"),
-                            ("its speed joint", "no speed")):
+                            ("its speed joint", "no speed"), ("cannot be kept tight", "not tight"),
+                            ("is not kept tight", "not tight")):
             if text.startswith(start):
                 return word, True
         return "check", True
@@ -244,12 +245,28 @@ def _speed_from(layout, scene) -> None:
     split_props(layout).prop_search(scene.fresing, "cable_speed", scene.fresing, "joints", text="Speed from")
 
 
+def let_go_text(frame: int, what: str) -> str:
+    """'It stays where it was from frame 231 on': a contact or end let go (task 0082)."""
+    return f"{what} stays where it was from frame {frame} on"
+
+
+def _let_go_row(layout, context, cb, which: str, what: str) -> None:
+    """A contact or end let go: from when, and the button that holds it again (task 0082)."""
+    frame = paths.let_go_frame(cb, which)
+    if frame < 0:
+        return
+    row = layout.row(align=True)
+    wrap(row.column(), context, let_go_text(frame, what), icon="UNLINKED", inset=40)
+    op = row.operator("fresing.cable_let_go", text="", icon="LINKED")
+    op.which, op.hold = which.upper() if which in ("a", "b") else "", True
+
+
 def _end_row(layout, context, cb, end: str) -> None:
-    """'End on: <part>' with the pipette that fixes the end to a clicked part and, for an end on a part, the
-    small button that makes it a free end again."""
+    """'End on: <part>' with the pipette that fixes the end to a clicked part, for an end on a part the small
+    button that makes it a free end again, and the one that lets it go (task 0082)."""
     text, alert = end_text(cb, end)
     row = layout.row(align=True)
-    wrap(row.column(), context, text, inset=64, alert=alert)
+    wrap(row.column(), context, text, inset=88, alert=alert)
     if end == "B" and cb.b_kind == "SEA":       # (set in the fold Into the sea)
         return
     op = row.operator("fresing.cable_end", text="", icon="EYEDROPPER")
@@ -258,6 +275,10 @@ def _end_row(layout, context, cb, end: str) -> None:
     if getattr(cb, key + "_kind") == "FIXED" and not getattr(cb, key + "_free_end"):
         op = row.operator("fresing.cable_end", text="", icon="X")
         op.end, op.free = end, True
+    if not (end == "A" and cb.a_kind == "SPOOL") and paths.let_go_frame(cb, key) < 0:
+        op = row.operator("fresing.cable_let_go", text="", icon="UNLINKED")
+        op.which, op.hold = end, False
+    _let_go_row(layout, context, cb, key, "The start" if end == "A" else "The end")
 
 
 def _contact_details(layout, context, cb, index: int) -> None:
@@ -285,6 +306,12 @@ def _contact_details(layout, context, cb, index: int) -> None:
         gap = ct.note.startswith(GAP_NOTE)
         wrap(box, context, ct.note[:1].upper() + ct.note[1:], icon="INFO" if gap else "ERROR", inset=12,
              alert=not gap)
+    if ct.kind in paths.SHAPING:                # (task 0082)
+        if ct.let_go_frame >= 0:
+            _let_go_row(box, context, cb, str(index), "It")
+        else:
+            op = box.operator("fresing.cable_let_go", text="Let go here", icon="UNLINKED")
+            op.which, op.hold = "", False
 
 
 SEA_KINDS = {1: "lifts its end off the seabed", 2: "piles up on the seabed", 3: "is too short"}
@@ -315,6 +342,9 @@ def _sea_fold(layout, context, cb) -> None:
         col.prop(cb, "sea_speed", text="Vessel speed")
         n = paths_sea.numbers(scene, cb)
         if n:
+            if n.get("left"):                   # (task 0082: information, not a problem)
+                when = f" at frame {n['left_frame']}" if n.get("left_frame") is not None else ""
+                wrap(body, context, f"Hangs from '{n['hang_off']}': it left '{n['left']}'{when}", icon="INFO")
             box = body.box().column(align=True)
             lines = [f"Layback {n['layback']:.1f} m, leaves at {n['angle']:.0f}° down",
                      f"Tension at the seabed {n['bottom']:.1f} kN, at the top {n['top']:.1f} kN",
@@ -405,8 +435,14 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         # -- its speed
         if cb.joint and joints.find(scene, cb.joint) is not None:
             wrap(layout, context, f"Cable speed: joint '{cb.joint}'", icon="FORCE_VORTEX")
-            wrap(layout, context, "Animate it in 6 Animation with the step Run motor: speed in m/min", icon="BLANK1")
-            layout.operator("fresing.cable_motor_step", text="Add a Run motor step", icon="ADD")
+            layout.prop(cb, "keep_tight", text="Winch keeps it tight")
+            if cb.keep_tight:                   # (task 0082)
+                wrap(layout, context, f"The winch pays out {paths.tight_payout(scene, cb):.2f} m now: as much as the "
+                     "moving sheaves need", icon="BLANK1")
+            else:
+                wrap(layout, context, "Animate it in 6 Animation with the step Run motor: speed in m/min",
+                     icon="BLANK1")
+                layout.operator("fresing.cable_motor_step", text="Add a Run motor step", icon="ADD")
 
         # -- its look
         col = split_props(layout)

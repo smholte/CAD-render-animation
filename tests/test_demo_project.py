@@ -11,6 +11,7 @@ import math
 import os
 import shutil
 import sys
+import time
 
 import numpy as np
 import pytest
@@ -312,8 +313,7 @@ def test_shot_7_moves_the_whole_quadrant_system(made):
     """Tasks 0091, 0095: shot 7 drops the S-bend's cradles in the D's lane, runs the D-quadrant's whole travel onto the
     handler, tilts the handler its whole range carrying the D (the travel rides on the tilt), and ends there: the D
     vertical, curve up, hanging from the A&R wire over the top pulley – not tipped (task 0082 tips it near the sea
-    bottom). The A&R drum pays out with the travel (a coupling) and over the tilt (a step). The clash check over the
-    whole animation (above) covers this shot too."""
+    bottom). The clash check over the whole animation (test_demo_clash.py) covers this shot too."""
     from mathutils import Vector
 
     from fresing_render.blender import animation, build, joints
@@ -340,7 +340,7 @@ def test_shot_7_moves_the_whole_quadrant_system(made):
     def at(seconds):
         sc.frame_set(int(round(seconds * fps)) + 1)
         return hf.matrix_world.inverted() @ qf.matrix_world
-    tilt, drum = blocks[demo.TILT], blocks[demo.DRUM_TILT]
+    tilt = blocks[demo.TILT]
     on_handler = at(tilt.start)
     assert math.degrees(joints.get_value(s.joints[demo.TILT])) == pytest.approx(0.0, abs=1e-3)
     assert joints.get_value(s.joints[demo.TRAVEL]) == pytest.approx(t_max, abs=1e-4)
@@ -365,116 +365,86 @@ def test_shot_7_moves_the_whole_quadrant_system(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     up = root.matrix_world.to_3x3().inverted() @ (qf.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0)))
     assert up.normalized().z > 0.98
-    # the drum's step lies inside the tilt and ends with it; its turn is the payout over the tilt
-    assert tilt.start < drum.start and drum.start + drum.duration == pytest.approx(tilt.start + tilt.duration)
-    row = next(j for j in made["sheet"]["joints"] if j["name"] == demo.DRUM_TILT)
-    assert math.degrees(drum.to_angle) == pytest.approx(row["drive"]["payout_mm"] * row["drive"]["deg_per_mm"], rel=1e-5)
     # the D sits on the handler's rails: its bar where the sheet's travel puts it (handler mm: hinge at 0)
     assert on_handler.translation.z * 1000 == pytest.approx(400.0, abs=0.5)
     sc.frame_set(1)
 
 
-def _ends(ob):
-    """Start and end (world) of a straight wire piece (a 1 m cylinder along y, stretched) and its thickness scale."""
-    from mathutils import Vector
-    M = ob.matrix_world
-    return M @ Vector((0, 0, 0)), M @ Vector((0, 1, 0)), M.to_3x3().col[0].length
+def test_the_quadrant_operations_parts_are_kept_out_until_shot_9(made):
+    """Task 0082: the model's A&R wire, tipping wires, the cable's second end and its CPS set are kept out (excluded:
+    hidden, not in the clash check, not read as a contact of the lay cable) until the quadrant operation; 0095's
+    constraint and driver wires are gone; the joints of the quadrant: 'Quadrant lower' rides on the travel and the tip
+    on it, the handler tilts to LOWER_TILT, and the A&R winch's drum follows nothing."""
+    from fresing_render.blender import build, joints, paths
+    sc = _scene()
+    d = demo.Demo(sc, made["folder"], VERSION, small=True)
+    objs = demo.quadrant_ops_parts(d)
+    names = sorted(o.get(build.PROP_NAME) for o in objs)
+    assert names == ["A&R WIRE", "CABLE END", "CPS SET", "TIPPING WIRE", "TIPPING WIRE"], names
+    from fresing_render.blender import logic
+    for o in objs:
+        for t in [o] + list(logic.descendants(o)):
+            if t.get(build.PROP_KIND) == "part":
+                assert t.get(build.PROP_EXCLUDED) and t.hide_render, t.name
+    assert not bpy.data.collections.get("FR demo wires")
+    assert not [o for o in sc.objects if o.get("fr_demo_wire")]
+    # the lay cable's contacts: nothing of the quadrant operation's own parts
+    it = paths.find(sc, demo.CABLE_ITEM)
+    held = {o.name for o in objs} | {t.name for o in objs for t in logic.descendants(o)}
+    assert not [c.part.name for c in it.contacts if c.part is not None and c.part.name in held]
+    s = sc.fresing
+    low = s.joints["QUADRANT SYSTEM: Quadrant lower"]
+    assert joints.rides_on(sc, low).name == demo.TRAVEL
+    assert joints.rides_on(sc, s.joints[demo.TIP]).name == low.name
+    assert math.degrees(s.joints[demo.TILT].rot_max) == pytest.approx(110.0, abs=1e-3)
+    assert not s.joints["QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"].follows
+    assert "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt" not in s.joints
 
 
-def test_wires_follow_their_ends(made):
-    """Task 0095: the A&R wire is on the D's eye at the top of its curve at the start, at the end of the travel and all
-    through the tilt (over the top pulley from ~10°), its other end on the drum; the tipping wires hang parked until the
-    D is on the handler and then end on the bar's ends. Checked against the eyes' places worked out from the D's own
-    part (not the wires' empties), within 3 mm, also after a Build at another frame rate; every driver of the wires is
-    a simple expression (scripts off); a wire's straight piece never runs through steel."""
-    from mathutils import Vector
-    from mathutils.bvhtree import BVHTree
-
-    from fresing_render.blender import animation, build, joints
+def test_the_d_lowered_on_its_wire_runs_into_nothing(made):
+    """Task 0082: the D's whole way on the new joint – tensioners open, cradles down, the travel onto the handler, the
+    tilt to LOWER_TILT, the turn to hang plumb (the sheet's hang tip) and the lowering on 'Quadrant lower' to near the
+    seabed – gives 0 clash rows (the sea at rest, as the demo's check): the D, the handler, the rails, the tensioners,
+    the horns and the stern stay apart. Its own short animation, the demo's is built again afterwards."""
+    from fresing_render.blender import animation, clash, tour, vessel_motion
     sc = _scene()
     s = sc.fresing
-    a = s.animations[demo.ANIM]
     d = demo.Demo(sc, made["folder"], VERSION, small=True)
-    W = d.sheet("route")["wires"]
-    animation.clear_keys(sc)
-    sc.frame_set(1)
-    bpy.context.view_layer.update()
-    eye_car = d.uid(W["ar"]["eye_carrier"])
-    eye_l = eye_car.matrix_world.inverted() @ d.mm(W["ar"]["eye"])
-    drum_car = d.uid(W["ar"]["drum_carrier"])
-    drum_l = drum_car.matrix_world.inverted() @ d.mm(W["ar"]["drum_centre"])
-    tips = {}
-    for k in ("port", "stb"):
-        c = d.uid(W[f"tipping_{k}"]["eye_carrier"])
-        h = d.uid(W[f"tipping_{k}"]["head_carrier"])
-        tips[k] = (c, c.matrix_world.inverted() @ d.mm(W[f"tipping_{k}"]["eye"]),
-                   h, h.matrix_world.inverted() @ d.mm(W[f"tipping_{k}"]["park"]))
-    O = {o.name: o for o in sc.objects if o.get(demo.WIRE_TAG)}
-    assert len(O) >= 20 and all(o.users_collection[0].name == demo.WIRES for o in O.values())
-    assert not any(o.get(build.PROP_KIND) for o in O.values())               # no part: the clash check leaves them
-    for o in O.values():                                                     # scripts off
-        for ad in (o.animation_data, getattr(o.data, "animation_data", None)):
-            for fc in (ad.drivers if ad else []):
-                assert fc.driver.is_simple_expression, (o.name, fc.driver.expression)
-    deck, w2 = O["A&R wire (deck)"], O["A&R wire (pulley to eye)"]
-    steel = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) not in ("WIRE ROPE", "CABLE")]
-    near = []
-
-    def through_steel(ob, r):
-        p0, p1, sx = _ends(ob)
-        L = (p1 - p0).length
-        pts = [p0 + (p1 - p0) * (i / 200) for i in range(201) if 0.3 < L * i / 200 < L - 0.3]
-        lo = Vector([min(q[i] for q in pts) for i in range(3)]) - Vector((0.1,) * 3)
-        hi = Vector([max(q[i] for q in pts) for i in range(3)]) + Vector((0.1,) * 3)
-        dg = bpy.context.evaluated_depsgraph_get()
-        for o in steel:
-            bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
-            if any(max(c[i] for c in bb) < lo[i] or min(c[i] for c in bb) > hi[i] for i in range(3)):
-                continue
-            tree, Mi = BVHTree.FromObject(o, dg), o.matrix_world.inverted()
-            for q in pts:
-                hit = tree.find_nearest(Mi @ q)
-                if hit[0] is not None and (o.matrix_world @ hit[0] - q).length < r - 0.002:
-                    near.append((ob.name, o.get(build.PROP_NAME), sc.frame_current))
-                    break
-
-    def check(fps_note):
-        tmax = s.joints[demo.TRAVEL].slide_max
-        conn = joints.get_value(s.joints[demo.TRAVEL]) > tmax - 0.001
-        E = eye_car.matrix_world @ eye_l
-        s0, s1, _ = _ends(deck)
-        a0, a1, ax = _ends(w2)
-        assert ((a1 if ax > 0.5 else s1) - E).length < 0.003, (fps_note, sc.frame_current)
-        if ax > 0.5:                                                    # over the pulley: the deck piece ends on it
-            assert math.degrees(joints.get_value(s.joints[demo.TILT])) > 5.0
-        assert abs((s0 - drum_car.matrix_world @ drum_l).length - W["ar"]["drum_r"] / 1000.0) < 0.003
-        through_steel(deck, W["ar"]["rope_d"] / 2000.0)
-        if ax > 0.5:
-            through_steel(w2, W["ar"]["rope_d"] / 2000.0)
-        for k, (c, el, h, pl) in tips.items():
-            t0, t1, _ = _ends(O[f"Tipping wire {k}"])
-            want = c.matrix_world @ el if conn else h.matrix_world @ pl
-            assert (t1 - want).length < 0.003, (fps_note, k, sc.frame_current, conn)
-            through_steel(O[f"Tipping wire {k}"], W[f"tipping_{k}"]["rope_d"] / 2000.0)
+    q = d.sheet("route")["quadrant"]
+    keep = s.animations_index
+    a = s.animations.add()
+    a.name, a.tail, a.fps = "Lowering check", 0.2, "24"
+    t = 0.0
+    for name in demo.TENSIONERS:
+        up, out = demo.tensioner_open(d, name)
+        tour._joint_step(a, f"{name}: Top track lift", t, 1.0, up, slide=True)
+        tour._joint_step(a, f"{name}: Top track tilt", t + 1.0, 1.0, math.radians(out))
+    for lead, drop in demo.cradle_drops(d):
+        tour._joint_step(a, lead, t + 1.0, 1.0, drop, slide=True)
+    t += 2.0
+    tour._joint_step(a, demo.TRAVEL, t, 4.0, q["travel"][1] / 1000.0, slide=True)
+    t += 4.0
+    tour._joint_step(a, demo.TILT, t, 3.0, math.radians(q["lower_tilt"]))
+    t += 3.0
+    tour._joint_step(a, demo.TIP, t, 1.0, math.radians(q["hang_tip"]))
+    t += 1.0
+    depth = demo.SEA_DEPTH - 4.0                       # its lowest point a few metres over the seabed
+    tour._joint_step(a, "QUADRANT SYSTEM: Quadrant lower", t, 4.0, depth, slide=True)
     try:
-        for fps in ("25", "50"):
-            a.fps = fps
-            animation.bake(sc, a)
-            f = int(a.fps)
-            blocks = {b.joint: b for b in a.blocks if b.kind == "JOINT"}
-            tr, ti = blocks[demo.TRAVEL], blocks[demo.TILT]
-            seen_contact = False
-            for sec in [tr.start, tr.start + tr.duration * 0.5, ti.start] + \
-                    [ti.start + ti.duration * q for q in (0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0)]:
-                sc.frame_set(int(round(sec * f)) + 1)
-                check(fps)
-                seen_contact = seen_contact or _ends(w2)[2] > 0.5
-            assert seen_contact
-    finally:
-        a.fps = "25"
+        s.animations_index = len(s.animations) - 1
         animation.bake(sc, a)
-    assert not near, near[:5]
-    sc.frame_set(1)
+        t0 = time.time()
+        with vessel_motion.at_rest(sc):
+            res = clash.check(sc, store=False)
+        print(f"\nlowering check: {time.time() - t0:.0f} s, {len(res.rows)} rows")
+        rows = [r for r in res.rows if r.kind == "CLASH"]
+        assert not rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 1)) for r in rows[:5]]
+    finally:
+        animation.clear_keys(sc)
+        s.animations.remove(len(s.animations) - 1)
+        s.animations_index = keep
+        animation.bake(sc, s.animations[demo.ANIM])
+        sc.frame_set(1)
 
 
 def test_xray_labels_apart_and_inside_the_picture(made):
@@ -537,7 +507,7 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
-    assert ids[:3] == ["model", "looks", "joints"] and ids[-1] == "finish"
+    assert ids[:4] == ["model", "looks", "hold", "joints"] and ids[-1] == "finish"      # hold: task 0082
     assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
                                                        "shot_tensioner", "shot_drum", "shot_quadrant", "shot_sea"]
     saved = list(demo.STAGES)

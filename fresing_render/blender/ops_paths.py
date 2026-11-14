@@ -560,6 +560,71 @@ class FRESING_OT_cable_end(_Pick, _NeedsOn, bpy.types.Operator):
         return {"FINISHED"}
 
 
+def let_go_what(item, which: str) -> str:
+    """What "Let go here" acts on, in words: 'the start', 'the end' or the contact's name."""
+    w = str(which).upper()
+    if w in ("A", "B"):
+        return f"the {end_word(w)}"
+    i = int(which)
+    return f"'{item.contacts[i].name}'" if 0 <= i < len(item.contacts) else "the contact"
+
+
+class FRESING_OT_cable_let_go(_NeedsOn, bpy.types.Operator):
+    """From the frame shown on, this contact or end no longer moves with what carries it: it stays where it is at
+    this frame, whatever its part does next (for a cable into the sea it stays on the seabed and passes aft with
+    it). Use it where the cable slides off a quadrant or chute, or its end is let go. Build animation reads it again"""
+
+    bl_idname = "fresing.cable_let_go"
+    bl_label = "Let go here"
+
+    which: StringProperty(name="Which", default="A", options={"SKIP_SAVE"},
+                          description="'A' the cable's start (the default), 'B' its end; empty: the contact chosen "
+                                      "under What it touches")
+    hold: BoolProperty(name="Hold again", default=False, options={"SKIP_SAVE"},
+                       description="Take back Let go: it moves with what carries it again")
+
+    @classmethod
+    def description(cls, context, properties):
+        what = {"A": "the cable's start", "B": "the cable's end", "": "this contact"}.get(properties.which.upper(),
+                                                                                        "this end of the cable")
+        if properties.hold:
+            return (f"Takes back Let go: {what} moves with what carries it again, at every frame. The frame it "
+                    "was let go at is forgotten")
+        return (f"From the frame shown on, {what} no longer moves with what carries it: it stays where it is at "
+                "this frame (for a cable into the sea it stays on the seabed and passes aft with it). Use it where "
+                "the cable slides off a quadrant or chute, or its end is let go. Build animation reads it again")
+
+    def _which(self, context) -> str:
+        if self.which.upper() in ("A", "B"):
+            return self.which.lower()
+        _item_, index = chosen_contact(context)
+        return str(index)
+
+    def execute(self, context):
+        scene = context.scene
+        item = _item(context)
+        which = self._which(context)
+        if which == "-1":
+            _say(context, self, "Choose a contact under What it touches first", "WARNING")
+            return {"CANCELLED"}
+        what = let_go_what(item, which)
+        name = paths.label(item)
+        try:
+            if self.hold:
+                paths.hold(scene, item, which)
+            else:
+                paths.let_go(scene, item, which)
+        except paths.PathError as exc:
+            return _refuse(context, self, exc)
+        if self.hold:
+            _say(context, self, f"{what[:1].upper() + what[1:]} of '{name}' moves with what carries it again")
+        else:
+            _say(context, self, f"{what[:1].upper() + what[1:]} of '{name}' stays where it is from frame "
+                 f"{scene.frame_current} on")
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_cable_add, FRESING_OT_cable_add_all, FRESING_OT_cable_remove, FRESING_OT_cable_read,
            FRESING_OT_cable_select, FRESING_OT_cable_motor_step, FRESING_OT_cable_contact_add,
-           FRESING_OT_cable_contact_remove, FRESING_OT_cable_contact_flip, FRESING_OT_cable_end)
+           FRESING_OT_cable_contact_remove, FRESING_OT_cable_contact_flip, FRESING_OT_cable_end,
+           FRESING_OT_cable_let_go)
