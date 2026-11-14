@@ -97,10 +97,24 @@
   "caption": "Thor robot arm in the dark studio, rendered on a graphics card with Cycles",
   "model": "thor"
  },
- "web_model": {
-  "file": "test_atc.glb",
-  "caption": "An invented test mill with a double-arm tool changer and a 12-tool carousel, exported with 5 Scene & Render > Web 3D model",
-  "model": "test_atc",
-  "poster": "test_atc_poster.jpg"
- }
+ "web_models": [
+  {
+   "id": "test_atc",
+   "file": "test_atc.page.html",
+   "poster": "test_atc_poster.jpg",
+   "model": "test_atc",
+   "caption": "An invented test mill: the double-arm changer swaps tools from its 12-pot magazine, four changes in a loop",
+   "seconds": 10.08,
+   "order": 1
+  },
+  {
+   "id": "thor",
+   "file": "thor.page.html",
+   "poster": "thor_poster.jpg",
+   "model": "thor",
+   "caption": "The open-source Thor robot arm: six joints and its gripper at work, in a loop",
+   "seconds": 10.0,
+   "order": 2
+  }
+ ]
 }

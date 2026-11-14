@@ -77,6 +77,47 @@ def objects(scene) -> tuple[list, list]:
     return parts, marks
 
 
+def visibility_curve(ob):
+    """The F-curve that shows and hides ``ob`` in a built animation ("hide_render"; tool copies, Show/Hide steps),
+    None when its visibility is not keyed (task 0111)."""
+    ad = ob.animation_data
+    if ad is None or ad.action is None:
+        return None
+    try:
+        from bpy_extras import anim_utils
+        cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
+    except Exception:
+        return None
+    return cb.fcurves.find("hide_render") if cb is not None else None
+
+
+def shown_at(fc, frame: float) -> bool:
+    return fc is None or fc.evaluate(frame) < 0.5
+
+
+def appearing(scene, shown: list) -> list:
+    """Meshes hidden now that a built animation shows at some frame (task 0111): the tool copies a tool change
+    moves between spindle, arm and pots, and parts a Show step brings in. Without them a web model of a tool change
+    lost its tools."""
+    from . import gcode
+    have = {ob.name for ob in shown}
+    names = set(scene.view_layers[0].objects.keys()) if scene.view_layers else set()
+    out = []
+    for ob in scene.objects:
+        if ob.name in have or ob.type != "MESH" or ob.data is None or not len(ob.data.polygons):
+            continue
+        if not (ob.get(build.PROP_KIND) == "part" or ob.get(gcode.TAG) == "tool"):
+            continue
+        if ob.name not in names or ob.hide_get():
+            continue
+        fc = visibility_curve(ob)
+        if fc is None:
+            continue
+        if any(shown_at(fc, f) for f in range(scene.frame_start, scene.frame_end + 1)):
+            out.append(ob)
+    return out
+
+
 def can_export(scene) -> str:
     """'' when an export can start, else why not (plain words)."""
     if runtime(scene).get("running"):
@@ -660,6 +701,11 @@ class Job:
         parts, marks = objects(scene)
         if not parts:
             raise RuntimeError("No part is shown: nothing to export")
+        lit_parts = parts                      # baked light: what is shown at this frame
+        if self.animation:
+            from . import animation
+            if animation.has_keys(scene):      # task 0111: tool copies and parts the animation shows later
+                parts = parts + appearing(scene, parts)
         self._modes = {}
         if self.surroundings is None and self.light != "LIVE":    # task 0107: the plain page, the project's light
             from . import surroundings
@@ -752,7 +798,7 @@ class Job:
 
         # -- baked light (task 0107)
         if self.light != "LIVE":
-            yield from self._bake_light(parts, marks)
+            yield from self._bake_light(lit_parts, marks)
 
         # -- materials
         self.text = "Writing the looks"
@@ -1020,23 +1066,35 @@ class Job:
         keep = scene.frame_current
         obs = [ob for ob, _ in self._nodes]
         mats = np.empty((len(frames), len(obs), 4, 4), np.float32)
+        curves = [visibility_curve(ob) for ob in obs]
+        shown = np.ones((len(frames), len(obs)), bool)     # task 0111: keyed visibility (tool copies)
         try:
             for i, f in enumerate(frames):
                 scene.frame_set(f)
                 for j, ob in enumerate(obs):
+                    if curves[j] is not None and not shown_at(curves[j], f):
+                        shown[i, j] = False    # hidden: not worked out by Blender, its place is held below
+                        mats[i, j] = mats[i - 1, j] if i else np.array(ob.matrix_world)
+                        continue
                     mats[i, j] = np.array(ob.matrix_world)
                 if i % 10 == 0:
                     self.text = f"Reading the motion: frame {f} of {frames[-1]}"
                     yield 0.9 + 0.08 * i / len(frames)
         finally:
             scene.frame_set(keep)
-        moving = np.where(np.abs(mats - mats[:1]).max(axis=(0, 2, 3)) > 1e-6)[0]
+        for j in np.where(~shown.all(axis=0))[0]:  # hidden at the start: the place where it first shows
+            first = int(np.argmax(shown[:, j])) if shown[:, j].any() else 0
+            mats[:first, j] = mats[first, j]
+        blink = ~shown.all(axis=0)
+        moving = np.where((np.abs(mats - mats[:1]).max(axis=(0, 2, 3)) > 1e-6) | blink)[0]
         if not len(moving):
             return False
         tracks = []
         for j in moving:
             ob, node = self._nodes[j]
             t, q, s = core.decompose(mats[:, j])
+            if blink[j]:                       # shown / hidden: scale 0 while hidden, switched (STEP)
+                s = s * shown[:, j, None]
             nd = self.gltf.doc["nodes"][node]
             nd.pop("matrix", None)
             here = frames.index(keep) if keep in frames else 0
@@ -1044,9 +1102,13 @@ class Job:
             nd["rotation"] = [float(v) for v in q[here]]
             if np.abs(s - 1.0).max() > 1e-5:
                 nd["scale"] = [float(v) for v in s[here]]
+            if blink[j]:
+                nd["scale"] = [float(v) for v in s[here]]
             tracks.append((node, "translation", t))
             tracks.append((node, "rotation", q))
-            if np.abs(s - s[:1]).max() > 1e-5:
+            if blink[j]:
+                tracks.append((node, "scale", s, "STEP"))
+            elif np.abs(s - s[:1]).max() > 1e-5:
                 tracks.append((node, "scale", s))
         times = (np.array(frames, np.float64) - frames[0]) / fps
         self.gltf.animation(scene.fresing.anim_baked or "Animation", times, tracks)

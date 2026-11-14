@@ -1,6 +1,6 @@
 # 0116 – IEA 15 MW wind turbine for the site: onshore and offshore, detailed, moving
 
-**Who:** worker · **Status:** done (0.2.93, 14 Nov 2026) · **Branch:** `task/0116-wind-turbine` (or the web session's branch)
+**Who:** worker · **Status:** done (0.2.94, 14 Nov 2026) · **Branch:** `task/0116-wind-turbine` (or the web session's branch)
 **Started by:** lead chat, 13 Nov 2026 (owner's picks from study 0113, 22:07; owner's wishes 22:54)
 **Area (Site kit lane):** new `tools/site_projects/iea15*.py` (+ an invented-parts maker, e.g.
 `tools/site_projects/turbine_parts.py`), `tools/make_site_projects.py` (additive: a new model id),

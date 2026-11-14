@@ -2716,7 +2716,7 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
      "run-down streaks; the block in front is light grey concrete.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
-           "streaks; Concrete)", since="0.2.93", check=_check_marine)
+           "streaks; Concrete)", since="0.2.94", check=_check_marine)
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)

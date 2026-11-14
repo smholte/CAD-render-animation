@@ -277,7 +277,7 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
-@line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.93",
+@line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.94",
       what="A yellow pile 1.2 m across and 8 m tall standing 4 m deep in water (marine paint with growth), a grey wall "
            "with run-down streaks and a concrete block, rendered small (processor, draft): judge the dark "
            "green-brown growth with its ragged top just below the waterline, the greenish splash zone with rust "

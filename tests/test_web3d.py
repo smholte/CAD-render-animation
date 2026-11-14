@@ -250,6 +250,41 @@ def test_animation_of_moving_parts(tmp_path):
     assert not out["animated"] and core.summary(open(out["path"], "rb").read())["animations"] == 0
 
 
+def _key_hidden(ob, rows):
+    for frame, hidden in rows:
+        ob.hide_render = ob.hide_viewport = hidden
+        ob.keyframe_insert("hide_render", frame=frame)
+        ob.keyframe_insert("hide_viewport", frame=frame)
+
+
+def test_animation_shows_and_hides_parts(tmp_path):
+    """Task 0111: parts the animation shows and hides – the tool copies of a tool change, Show/Hide steps – come along:
+    one hidden at the first frame is in the file too, and both are scaled to 0 while hidden, switched without
+    in-between (STEP). Before, the hidden one was left out and the other stayed on the page all the time."""
+    sc = fresh()
+    parts = list(build.iter_parts(sc))
+    later, gone = parts[-1], parts[-2]
+    _key_hidden(later, [(1, True), (6, False)])          # comes in at frame 6
+    _key_hidden(gone, [(1, False), (8, True)])           # goes at frame 8
+    sc.frame_start, sc.frame_end = 1, 11
+    sc.frame_set(1)
+    assert not web3d._visible(later)
+    sc.fresing.anim_baked = "Show and hide"
+    out = web3d.export(sc, str(tmp_path / "v.glb"), size=512, animation=True, page=False)
+    assert out["animated"] and out["parts"] == len(parts)
+    doc, binary = core.read_glb(open(out["path"], "rb").read())
+    anim = doc["animations"][0]
+    scales = {c["target"]["node"]: anim["samplers"][c["sampler"]] for c in anim["channels"]
+              if c["target"]["path"] == "scale"}
+    assert len(scales) == 2 and all(s["interpolation"] == "STEP" for s in scales.values())
+    seen = {}
+    for node, smp in scales.items():
+        s = core.accessor_array(doc, binary, smp["output"])[:, 0]
+        seen[tuple(np.round(s).astype(int))] = doc["nodes"][node]
+    assert set(seen) == {(0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)}
+    assert seen[(0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1)]["scale"] == [0.0, 0.0, 0.0]   # hidden on the first frame
+
+
 def test_cancel_writes_nothing_and_cleans_up(tmp_path):
     sc = fresh()
     job = web3d.Job(sc, str(tmp_path / "c.glb"), size=512)
