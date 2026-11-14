@@ -407,8 +407,8 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     tip); the A&R winch lowers it to 1.5 m over the seabed with the vessel creeping on; it tips towards flat and is
     lowered until the cable round its gutter lies on the seabed, where the second end is let go (its start and the
     gutter's turn); it comes back up, tilts back, travels back, the tensioners close and the cradles rise.
-    Every frame from shot 9 on: the second end is exactly as long as it is (its sea end alone keeps it: nothing paid
-    out; within 0.5 m of its 221 m as drawn), with a path everywhere but a few frames where the D lifts its turn off horn
+    Every frame from shot 9 on: the second end is exactly as long as it is (its sea end keeps it: nothing is paid out
+    from shot 9 on; exactly in the solver's own measure, within 1 m – 0.5 % – along the drawn points' chords), with a path everywhere but a few frames where the D lifts its turn off horn
     A (kept as before: at most 6 frames); the bend round the D's gutter never tighter than its MBR; the second end's
     CPS rides at its start, the pull head at the D's bar end."""
     from mathutils import Vector
@@ -424,14 +424,15 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     assert ids.index("shot_sea") < ids.index("quadrant_ops") < ids.index("shot_quadrant") < ids.index("shot_lower") \
         < ids.index("shot_tip") < ids.index("shot_back") < ids.index("finish")
     steps = [b for b in a.blocks if b.kind == "JOINT"]
+    t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
     tilts = [math.degrees(b.to_angle) for b in steps if b.joint == demo.TILT]
     assert tilts == pytest.approx([100.0, q["lower_tilt"], 0.0])
     lowers = [b.to_dist for b in sorted((b for b in steps if b.joint == demo.LOWER), key=lambda b: b.start)]
     assert lowers[0] > 25.0 and lowers[1] > lowers[0] and lowers[-1] == 0.0
     tips = [math.degrees(b.to_angle) for b in sorted((b for b in steps if b.joint == demo.TIP), key=lambda b: b.start)]
     assert tips[0] == pytest.approx(q["hang_tip"]) and tips[1] == pytest.approx(-q["lower_tilt"]) and tips[-1] == 0.0
-    first_lower = min(b.start for b in steps if b.joint == demo.LOWER)
-    assert any(b.kind == "MOTOR" and b.joint == demo.CABLE and b.start >= first_lower for b in a.blocks)  # creeps on
+    # from shot 9 on 'Cable travel' stands still: the second end follows it, nothing of it is paid out
+    assert not [b for b in a.blocks if b.joint == demo.CABLE and b.start + b.duration > t9]
     assert sum(1 for b in a.blocks if "(x " in b.name) >= 4                 # the time-lapse captions
     se = paths.find(sc, demo.SECOND_ITEM)
     assert se.b_kind == "SEA" and paths.let_go_frame(se, "a") > 0
@@ -440,12 +441,14 @@ def test_the_quadrant_operation_shots_10_to_12(made):
               and c.kind != "ROLLER"]
     assert gutter and all(paths.let_go_frame(se, str(i)) == let_go for i in gutter)
     # the length, the path, the MBR round the gutter: every second frame from shot 9 on
-    t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
-    # (from where 'Cable travel', the seabed's place, is back at 0: the second end's touch-down is set there)
-    f9 = animation.frame_of(a, t9 + demo.RESET_SECONDS) + 1
+    f9 = animation.frame_of(a, t9) + 1
     res, first = _solved(sc, se)
     bad = sorted(k + first for k in res["problems"] if k + first >= f9)
     assert len(bad) <= 6, bad
+    # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
+    want = se.sea_mark + paths_sea.payout(sc, se)
+    good = [k for k in range(f9 - first, len(res["ok"])) if res["ok"][k]]
+    assert np.abs(np.asarray(res["length"])[good] - want).max() < 0.001
     quad = d.uid(q["uid"])
     arc = d.sheet("route")["second_end"]["route"]["segments"][0]
     sc.frame_set(1)                                              # the D in its CAD place: model -> its own frame
@@ -457,7 +460,7 @@ def test_the_quadrant_operation_shots_10_to_12(made):
         P = paths.shape_now(sc, se)
         assert np.isfinite(P).all()
         L = float(np.linalg.norm(np.diff(P, axis=0), axis=1).sum())
-        worst_len = max(worst_len, abs(L - se.sea_mark))
+        worst_len = max(worst_len, abs(L - (se.sea_mark + paths_sea.payout(sc, se))))
         if f < let_go:                                           # round the gutter: its circle, carried by the D
             W = np.array(quad.matrix_world) @ to_quad
             c = W @ np.r_[np.array(arc["centre"]) / 1000.0, 1.0]
@@ -484,7 +487,7 @@ def test_the_quadrant_operation_shots_10_to_12(made):
         if f == let_go:                                          # the cable round the gutter lies on the seabed
             root_z = (d.root().matrix_world.inverted() @ Vector(P[0])).z
             assert abs(root_z - bed) < 0.8, (root_z, bed)
-    assert worst_len < 0.5, worst_len
+    assert worst_len < 1.0, worst_len                        # (the drawn points' chords: within 0.5 %)
     assert worst_r >= 0.98 * se.mbr, (worst_r, se.mbr)
     # the CPS rides at its start: the pull head at the D's bar end, where the second end starts, at shot 9's start
     sc.frame_set(f9)

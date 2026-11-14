@@ -908,6 +908,11 @@ def make_wires(d: Demo):
     it = paths.add_cable(sc, SECOND_ITEM)
     notes = paths.read_cad(sc, it, part)
     it = paths.find(sc, SECOND_ITEM)
+    # its speed follows 'Cable travel', the lay cable's metres that move the seabed: while the lay cable pays out
+    # (shots 1–8, the second end hidden) the seabed passes aft and the second end's touch-down keeps its place behind
+    # the vessel; from shot 9 on nothing is paid out
+    joints.set_follows(sc, joints.find(sc, it.joint), CABLE, ratio=1.0)
+    it = paths.find(sc, SECOND_ITEM)
     it.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
     it.pitch, it.angle, it.stripe = 0.6, math.radians(45.0), 0.3
     d.notes.append("second end: " + (notes[0] if notes else "read"))
@@ -1192,7 +1197,6 @@ AR_SPEED = 10.0                       # m/min: the A&R winch lowers and hoists t
 TIP_MINUTES = 15.0                    # the tipping (0083: 10–20 min, est.)
 OVER_THE_STERN = "Over the stern"     # the saved cameras of shots 10 and 11
 AT_THE_SEABED = "At the seabed"
-RESET_SECONDS = 3.5                   # 'Cable travel' back to 0 at the start of shot 9 (while the tensioners open)
 
 
 def cradle_drops(d: Demo) -> list[tuple[str, float]]:
@@ -1224,6 +1228,18 @@ def shot_sea(d: Demo):
 # the quadrant operation (task 0082): the second end goes over the stern on the D, into the sea, tipped off on the
 # seabed (the owner's steps, tasks/0083 "Quadrant sequence")
 # ---------------------------------------------------------------------------
+
+def _cable_value_at(d: Demo, t: float) -> float:
+    """Metres of 'Cable travel' at the animation's time ``t`` (its Move and Run motor steps before it)."""
+    v = 0.0
+    for b in sorted((b for b in d.animation.blocks if b.joint == CABLE and b.start < t), key=lambda b: b.start):
+        k = min(1.0, (t - float(b.start)) / max(float(b.duration), 1e-9))
+        if b.kind == "JOINT":
+            v += (float(b.to_dist) - v) * k if k < 1.0 else float(b.to_dist) - v
+        elif b.kind == "MOTOR":
+            v += float(b.speed_mmin) / 60.0 * min(float(b.duration), t - float(b.start))
+    return v
+
 
 def _step(d: Demo, kind: str, ob, t: float, label: str = ""):
     """A Show or Hide step for a part or assembly."""
@@ -1312,9 +1328,9 @@ class _Pose:
 
 @stage("quadrant_ops", "The second end into the sea and its CPS (for shots 9–12)", after="shot_sea")
 def quadrant_ops(d: Demo):
-    """The second end gets its sea end (set in the pose the animation starts from; shot 9 starts with 'Cable travel'
-    back at 0, so the seabed is there again): its catenary from horn A to the seabed as the lay cable's, 30 m of water;
-    nothing is paid out, so its length is kept by the sea end alone. Its CPS set rides on it (0081), the pull head at
+    """The second end gets its sea end (set in the pose the animation starts from; its speed follows 'Cable travel', so
+    the touch-down stays behind the vessel while the seabed passes aft in shots 1–8): its catenary from horn A to the
+    seabed as the lay cable's, 30 m of water; from shot 9 on nothing is paid out, so its length is kept. Its CPS set rides on it (0081), the pull head at
     its start, on the D's bar end; the stage also works out how deep the D goes (``d.quadrant``)."""
     from . import build, paths, paths_riders, paths_sea
     sc = d.scene
@@ -1336,7 +1352,9 @@ def quadrant_ops(d: Demo):
         r.flip = True                                   # its front (the bend restrictors) looks towards the sea
         item = paths.find(sc, SECOND_ITEM)
         r = item.riders[len(item.riders) - 1]
-    r.at = float(item.sea_mark) - float(r.length)       # the pull head at the cable's start, on the D's bar end
+    # the pull head at the cable's start, on the D's bar end, from shot 9 on (a rider moves along with what is paid
+    # out: 'Cable travel' when shot 9 starts)
+    r.at = float(item.sea_mark) - float(r.length) + _cable_value_at(d, d.t)
     # how deep: lowered with the D hanging plumb until its lowest point is 1.5 m over the seabed (shot 10), tipped
     # there towards flat (shot 11) and lowered on until the cable round its gutter lies on the seabed (let go there)
     q = d.sheet("route")["quadrant"]
@@ -1376,12 +1394,6 @@ def shot_quadrant(d: Demo):
     travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
     secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
     d.camera_step("CUT", t, 0.0, "", camera=cam)
-    # the lay cable's end has gone: from here on the second end. 'Cable travel' (the lay cable's metres, and the
-    # seabed's place) goes back to 0 while the tensioners open (the camera on the deck forward, the sea out of sight),
-    # so the second end's touch-down, set where the animation starts, is where the vessel is from then on (Build sets
-    # it there again whenever it puts back the start scene); as fast as shot 3 paid it out, so the tracks' pads and
-    # the rollers keep moving smoothly
-    d.joint(CABLE, t, RESET_SECONDS, 0.0, slide=True, easing="LINEAR")
     _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t)
     _step(d, "SHOW", _part_of(d, SECOND_ITEM), t, "The second end: shackled at the D's bar end, round its gutter, over "
                                                   "horn A into the sea, its CPS on it")
@@ -1429,8 +1441,9 @@ def _pulley(d: Demo, t: float, seconds: float, lowered_m: float) -> None:
 def shot_lower(d: Demo):
     """The owner's steps 8–10: the handler tilts on to LOWER_TILT and the D, taken by its A&R wire, hangs plumb from its
     eye (clear of the stern's horns); the A&R winch lowers it into the water and down to 1.5 m over the seabed, the
-    tipping winches paying out in step (both wires kept tight), the vessel creeping on along the route (the seabed
-    passes aft); from over the stern quarter through the cut-away (time-lapse)."""
+    tipping winches paying out in step (both wires kept tight); from over the stern quarter through the cut-away
+    (time-lapse). The vessel holds its place: the D's gutter rollers turn with the lay cable's 'Cable travel', so a
+    creep would spin them while the D is lowered."""
     q = d.sheet("route")["quadrant"]
     l1 = d.quadrant["lower_1"]
     t = d.t
@@ -1441,12 +1454,8 @@ def shot_lower(d: Demo):
     secs = 8.0
     lapse = round(l1 / (AR_SPEED / 60.0) / secs)
     d.joint(LOWER, t, secs, l1, slide=True,
-            label=f"The A&R winch lowers the D into the sea, the tipping winches pay out in step, the vessel creeps on "
-                  f"(x {lapse})")
+            label=f"The A&R winch lowers the D into the sea, the tipping winches pay out in step (x {lapse})")
     _pulley(d, t, secs, l1)
-    blk = d.animation.blocks.add()                      # the vessel creeps along the route: the seabed passes aft
-    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, t, secs, "LINEAR"
-    blk.speed_mmin = 0.5 * l1 / secs * 60.0
     d.camera_step("ORBIT", t, secs, "", orbit_angle=math.radians(-12.0), easing="SMOOTH")
     d.t = t + secs + 1.0
 
