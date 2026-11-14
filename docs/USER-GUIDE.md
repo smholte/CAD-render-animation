@@ -250,7 +250,7 @@ A model you did not draw yourself – a vessel or a truck downloaded from Sketch
 comes in like a STEP model: an explorer tree, groups and looks, joints, poses, animation, clash check, renders
 and the web 3D model.
 
-1. **File > Import > Mesh model (glTF, OBJ, FBX)…**, the button **Import mesh model (glTF, OBJ, FBX)…** under
+1. **File > Import > Mesh model (glTF, OBJ, FBX)…**, the button **Import mesh model…** under
    Import STEP, or drag a .glb, .gltf, .obj or .fbx file onto the view.
 2. In the file browser (the gear at the top right) three settings:
    - **Units**: glTF is always in metres and FBX says its own units. An OBJ file does not: **Auto** guesses

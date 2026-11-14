@@ -165,7 +165,7 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
             col.prop(s, "import_up_axis", text="Up axis")
             primary(layout, "fresing.import_step", "Import STEP…", "IMPORT")
             layout.label(text="or drag a .step file onto the view", icon="INFO")
-            layout.operator("fresing.import_mesh", text="Import mesh model (glTF, OBJ, FBX)…", icon="MESH_DATA")
+            layout.operator("fresing.import_mesh", text="Import mesh model…", icon="MESH_DATA")
 
         for root in build.model_roots(context.scene):
             box = layout.box()
