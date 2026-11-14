@@ -20,7 +20,13 @@ def _args() -> list:
 
 def convert(src: str, dst: str) -> None:
     import bpy
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+    # an empty scene without read_factory_settings: resetting the set-up makes Blender sync the extensions' wheels
+    # (``mesh_reader`` also gives this Blender a settings folder of its own)
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob)
+    for coll in (bpy.data.meshes, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
+        for block in list(coll):
+            coll.remove(block)
     ext = os.path.splitext(src)[1].lower()
     print("FRCONVERT Reading the file with Blender", flush=True)
     if ext == ".fbx":

@@ -339,3 +339,32 @@ def test_fbx_without_a_converter_says_so(tmp_path):
     with pytest.raises(mesh_reader.MeshError) as e:
         mesh_reader.read_mesh(str(p), str(tmp_path / "o"))
     assert "Blender" in str(e.value)
+
+
+def test_the_converter_blender_never_touches_the_users_settings_folder(tmp_path, monkeypatch):
+    """A background Blender on the user's settings folder that resets to factory settings syncs the extensions'
+    wheels and deleted the app's OpenCascade (task 0117, found by the PC check on GitHub): it gets a folder of its
+    own, and the script clears its scene by hand."""
+    seen = {}
+
+    class Proc:
+        returncode = 1
+        stdout = iter(["FRERROR stop here\n"])
+
+        def __init__(self, cmd, env=None, **kw):
+            seen["cmd"], seen["env"] = cmd, env
+
+        def wait(self):
+            return 1
+    monkeypatch.setattr(mesh_reader.subprocess, "Popen", Proc)
+    monkeypatch.setenv("BLENDER_USER_RESOURCES", "/the/users/folder")
+    monkeypatch.setenv("BLENDER_USER_EXTENSIONS", "/the/users/extensions")
+    with pytest.raises(mesh_reader.MeshError, match="stop here"):
+        mesh_reader.convert_with_blender(str(tmp_path / "x.fbx"), str(tmp_path), "/opt/blender/blender")
+    env = seen["env"]
+    assert env["BLENDER_USER_RESOURCES"] != "/the/users/folder" and "fr_convert_" in env["BLENDER_USER_RESOURCES"]
+    assert not os.path.exists(env["BLENDER_USER_RESOURCES"])               # removed afterwards
+    assert "BLENDER_USER_EXTENSIONS" not in env and "PYTHONPATH" not in env
+    assert seen["cmd"][1:3] == ["-b", "--factory-startup"]
+    with open(mesh_reader.CONVERTER, encoding="utf-8") as fh:
+        assert "read_factory_settings(" not in fh.read()

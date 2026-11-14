@@ -863,6 +863,13 @@ def convert_with_blender(path: str, out_dir: str, converter: str | None, why: st
     env = dict(os.environ)
     for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE", "PYTHONPATH"):
         env.pop(var, None)              # the app's search path (set for this reader) holds Blender's scripts' bpy
+    import tempfile
+    own = tempfile.mkdtemp(prefix="fr_convert_")
+    # Blender's own settings folder of its own, empty: a Blender on the user's folder syncs the extensions' wheels
+    # for its (factory) set-up and DELETED the app's OpenCascade (task 0117, found by the PC check on GitHub)
+    env["BLENDER_USER_RESOURCES"] = own
+    for var in ("BLENDER_USER_CONFIG", "BLENDER_USER_SCRIPTS", "BLENDER_USER_DATAFILES", "BLENDER_USER_EXTENSIONS"):
+        env.pop(var, None)
     kwargs: dict = {}
     job = None
     if os.name == "nt":
@@ -891,6 +898,7 @@ def convert_with_blender(path: str, out_dir: str, converter: str | None, why: st
             tail.append(line)
             del tail[:-20]
     proc.wait()
+    shutil.rmtree(own, ignore_errors=True)
     if proc.returncode != 0 or not os.path.isfile(glb):
         why = next((ln[len("FRERROR "):] for ln in reversed(tail) if ln.startswith("FRERROR ")), "")
         raise MeshError(f"Blender could not read the file{': ' + why if why else ''} "
