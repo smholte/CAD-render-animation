@@ -133,18 +133,18 @@ def boom_shape(lug: bool = False):
 
 
 def trolley_shape():
-    """Body 150 x 150 x 60; on its back half (y > 80) a hoist: motor, rope drum with flanges, two stands. The front
-    half of the top stays a clear flat face (tests click it 30 mm in from the corner)."""
+    """Body 150 x 150 x 60; a hoist on its top at x > 55, y > 85: motor, rope drum with flanges, two stands. The rest
+    of the top stays a clear flat face (the real-app test clicks it 30 mm in from the corner, from the +y side)."""
     body = g.polygon_prism(chamfered_rect(0, 0, 150, 150, 8), 60.0)
     body = chamfer(body, 5.0, lambda p: abs(p[2] - 60.0) < 1e-6)
-    y, z = 112.0, 86.0
-    motor = g.cyl(22.0, 45.0, (12, y, z), (1, 0, 0))
-    fan = g.cyl(18.0, 6.0, (6, y, z), (1, 0, 0))
-    feet = g.box(14, y - 16, 60, 40, 32, 10)
-    drum = g.cyl(16.0, 66.0, (66, y, z), (1, 0, 0))
-    flanges = [g.cyl(24.0, 5.0, (x, y, z), (1, 0, 0)) for x in (61.0, 132.0)]
-    stands = [g.box(x, y - 10, 60, 6, 20, 26) for x in (57.0, 137.0)]
-    return g.fuse(body, motor, fan, feet, drum, *flanges, *stands)
+    y, z = 112.0, 84.0
+    fan = g.cyl(16.0, 5.0, (56, y, z), (1, 0, 0))
+    motor = g.cyl(20.0, 32.0, (61, y, z), (1, 0, 0))
+    feet = g.box(62, y - 16, 60, 28, 32, 8)
+    drum = g.cyl(15.0, 36.0, (100, y, z), (1, 0, 0))
+    flanges = [g.cyl(22.0, 4.0, (x, y, z), (1, 0, 0)) for x in (96.0, 136.0)]
+    stands = [g.box(x, y - 9, 60, 5, 18, 24) for x in (92.0, 140.0)]
+    return g.fuse(body, fan, motor, feet, drum, *flanges, *stands)
 
 
 def wheel_shape():

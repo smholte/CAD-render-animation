@@ -509,8 +509,15 @@ def s_stack_first():
 def s_stack_click():
     # the trolley's top face (150 x 150 x 60 mm box), 30 mm in from a corner: a flat face -> vertical axis
     pt = find("TROLLEY").matrix_world @ Vector((0.03, 0.03, 0.06))
-    globals()["pick_pt"] = pt.copy()
     x, y = to_window(pt)
+    # the point the click really lands on: the ray through that whole pixel (task 0122: on a face seen at a low angle
+    # one pixel spans more than 2 mm, so the ideal 3D point is not where the click lands)
+    win, area, region = ui()
+    co = (x - region.x, y - region.y)
+    ro = view3d_utils.region_2d_to_origin_3d(region, region.data, co)
+    rd = view3d_utils.region_2d_to_vector_3d(region, region.data, co)
+    hit, loc, _n, _i, hit_ob, _m = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(), ro, rd)
+    globals()["pick_pt"] = loc.copy() if hit and hit_ob.get("fr_name") == "TROLLEY" else pt.copy()
     click(x, y)
     return 0.8
 
@@ -532,7 +539,7 @@ def s_stack_made():
     j2 = tops[0]
     globals()["j2name"] = j2.name
     o, d = joints.axis_world(j2)
-    check("stack: its axis goes through the clicked point", (o - pick_pt).length < 2e-3 and abs(abs(d.z) - 1) < 1e-3,
+    check("stack: its axis goes through the clicked point", (o - pick_pt).length < 5e-4 and abs(abs(d.z) - 1) < 1e-3,
           f"{tuple(round(v, 4) for v in o)} dir {tuple(round(v, 3) for v in d)}")
     sign = 1 if d.z > 0 else -1
     globals()["sign"] = sign
