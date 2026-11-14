@@ -2906,15 +2906,16 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode)
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
-     "The rod comes out of the cylinder 150 mm and pushes the arm up; the rod's eye stays on its pin all the way.",
+     "The rod comes out of the cylinder 150 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
+     "the barrel, with its oil ports and pipe, tilts about its own pin.",
      where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip")
 stop("mechanism", MOTION, "linkage", "Mechanisms: scissor lift, crank",
      "The scissor lift rises to 1.5 m with every arm following; next to it the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
      check=_check_linkage, auto="clip")
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
-     "The carriage slides 500 mm along X and back; the five cover sections telescope out and in with it, each by "
-     "its own share.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
+     "The carriage slides 500 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
+     "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
      check=_check_waycover, auto="clip")
 stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
      "A cover on each side of the carriage: as it slides 500 mm to the right the left cover opens and the right one "
@@ -2988,7 +2989,7 @@ stop("clash", MOTION, "clash", "Clash check: two arms meet",
 stop("sequence", MOTION, "sequence", "Assembly sequence",
      "The spindle unit comes apart part by part straight up: first the nut and the four bolts, then the pulley, the "
      "cover, the bearings, the spacer, the shaft and last the housing, each starting while the one before is still "
-     "on its way; a thin blue line draws each part's path. Then it all comes back down in the reverse order and "
+     "on its way (the pulley's key slides up out of the shaft's keyway); a thin blue line draws each part's path. Then it all comes back down in the reverse order and "
      "ends exactly where it was.", where="6 Animation (Add step > Assembly sequence)", since="0.2.79",
      animation=SEQUENCE_ANIM, at=0.5, play=True, check=lambda scene: check_sequence(scene), auto="clip")
 
