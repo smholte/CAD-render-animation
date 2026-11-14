@@ -1,6 +1,6 @@
 # 0117 – Mesh import: glTF / OBJ / FBX models as projects the app can work with
 
-**Who:** worker · **Status:** running · **Branch:** `ccr-8270e3a4-hwpgr0` (the web session's)
+**Who:** worker · **Status:** done (0.2.99) · **Branch:** `ccr-8270e3a4-hwpgr0` (the web session's)
 **Started by:** lead chat, 14 Nov 2026 (owner's pick from study 0113, 13 Nov 22:07: "mesh import – to do")
 **Area (new Import lane):** new `fresing_render/importer/mesh_reader.py` (+ helpers, e.g. `core/mesh_faces.py` for the
 face split), `importer/runner.py` additively (start the mesh reader like the STEP reader), `blender/ops_import.py`
@@ -143,10 +143,86 @@ more than 1,000 pieces in one mesh: the biggest 999 are parts, the rest one part
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker session, branch `ccr-8270e3a4-hwpgr0`), 14 Nov 2026.
 
 **What changed:**
+- **Version 0.2.99.**
+- `importer/mesh_reader.py` (new): glTF 2.0 / GLB (accessors with strides, sparse, normalised ints, strips, fans,
+  data URIs, external files, TRS/matrix nodes, instancing, PBR and spec-gloss materials, textures written to the
+  cache) and OBJ/MTL (o/g, usemtl → a part per material, ngons as fans, negative indices, Kd/d/Ns/map_Kd/bump) →
+  **the STEP cache** (tree.json + meshes.npz, same keys) plus UVs `u<mid>`, `info["materials"]`, credit, notes.
+  Metres and Z up in the cache; OBJ units Auto (≥ 500 units = mm, said in the status line), up Y by default.
+  Split by loose parts (Auto when < 5 meshes; > 999 pieces: the rest one part "small pieces"). No normals → flat.
+- **FBX:** read by Blender's own FBX importer in a background Blender (`importer/convert_blender.py`, `blender -b
+  --factory-startup`), written as a plain GLB, then read as glTF. Same route for glTF compressed with Draco or
+  meshopt. Chosen because a pure-Python FBX reader would be a large new parser; Blender's importer is on every PC
+  already. Costs ~1.5 s Blender start (measured here: 1.7 s for the test crane, a path with a space and an accent).
+- `core/mesh_faces.py` (new, subagent A): weld, loose parts, flat / cylinder / other faces, cylinder axes as
+  `step_reader._Axes` stores them; triangles reordered per face → `fr_face_starts`. Cones are not found (they come
+  out flat/other).
+- `importer/runner.py`: `ImportJob` picks the reader by extension, mesh options in the cache key (STEP keys
+  unchanged), **each job its own `.partial-<pid>-<n>` folder** (bug hunt 0118 row 14), a cache another import put in
+  place first is used, stale half-written folders (> 6 h, and the old `.partial` name) are removed.
+- App: `fresing.import_mesh` (units, up axis, split; model update), file handler (.glb .gltf .obj .fbx),
+  File > Import > Mesh model (glTF, OBJ, FBX)…, **Import mesh model…** in 1 Import; under a mesh model's name the
+  file, its credit line and the reader's notes. `blender/mesh_import.py` (new): the file's materials (Principled +
+  base colour / normal / metallic-roughness pictures, packed), the look **"From file"** (`materials_lib` id
+  `from_file`, `materials.assign` swaps in the part's own material; new groups whose parts all have one start with
+  it), credit on the root + text block "Model credits". `build.py`: UV layer "UVMap", `fr_file_material`.
+- `reimport.py`: a 4th match – same shape (triangles, size) in the same place = renamed, kept and named in the report.
+  Also for STEP.
+- `web3d.py`: a part with a file picture exports that picture as it is on its own UVs (not baked as a 0.2 m tile).
+- `joints.axis_from_hit`: a mirrored part (negative scale) gave a negative radius and no Ø (found by the wheels).
+- `props._group_look_changed`: the parts of the group get their material again (to and from "From file").
+- Tour stop "Mesh model: joint on a ring" (set `mesh`, `test_mesh_crane.glb`, joint "Slew" made by clicking the
+  48-sided ring, animation turns the turret 120°); PC check Full lines `import.mesh`, `import.mesh_fbx` (FBX through
+  the background Blender – Windows covered on GitHub), Heavy `heavy.mesh` (1 M triangles in one mesh).
+- `tools/make_test_mesh.py` (new): test_mesh_crane(.glb, _b.glb), test_mesh_single.glb, test_mesh_parts.obj/.mtl
+  + tile.png; byte-identical at every run; the crane ships in `fresing_render/data/`.
+- Guide: 1 Import > Mesh models; picture panel_1_import(_start).png. CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine):
+- Face split (`tests/test_mesh_faces.py`, 94 tests): facetted cylinders 16–64 sides (tube, capped, boss, hole,
+  fillet, thin shaft, 2 m slewing ring) axis within 8.5e-7°, radius 5e-14 relative. 1 M triangles 4.7–6.6 s
+  (`FR_SLOW=1`), 100k < 1 s.
+- Whole reader on a 1 M-triangle glTF (500 cylinders in one mesh): 6.8 s, 500 parts, 500 round faces; the Heavy line
+  in Blender (module) 11.1 s incl. building 500 objects, peak 694 MB. Scaled-down Heavy 1.7 s.
+- `tests/test_mesh_reader.py` (22), `tests/test_mesh_import.py` (11): ring clicked → axis 0.00° off, Ø1600.0;
+  hover lights the whole wall (96 triangles); pin and mirrored wheels; joint turns the turret; decal; OBJ units;
+  split; web 3D export (glTF problems: none, the PNG on own UVs); model update A → B (BOOM renamed MAIN BOOM kept,
+  HOOK BLOCK new, 0 missing, joint kept); save + reopen (packed texture). Two imports of one new file at once (glTF
+  and STEP). FBX via bpy module and via the real Blender 5.2.3.
+- `tests/test_tour.py` 72 passed; `test_clash.py::test_every_tour_animation_has_no_clash` passed (0 clashes);
+  PC check lines import.mesh 1.5 s, import.mesh_fbx 2.6 s.
+
+**Subagents:** A (worktree) wrote `core/mesh_faces.py` + its tests from the Design; merged as it was, then its 4
+slow timing tests made FR_SLOW-only (GitHub allows one skipped test per group); later it fixed the tester's findings
+11 and 14 (sent back to it). B = independent tester (`tests/test_mesh_independent.py`, 105 tests): 15 findings,
+77 things that worked. Fixed by the worker: 1 Draco without Blender says "compressed"; 2 damaged glTF files (12 kinds)
+say "the glTF file is broken: …" instead of a bare Python error; 3 a huge count without data is refused; 4 `/` and
+`#` in names no longer make uids collide (escaped, mesh files only); 5 OBJ lines with tabs; 6 concave ngons by ear
+clipping; 7 two OBJ objects with one name stay two parts; 8 exactly 999 pieces is no "small pieces"; 9 split pieces
+numbered in file order (a piece keeps its name when another grows); 10 mesh cache keys use the mtime in ns; 12 a
+README is a credit only when it speaks of a licence/author; 13 an MTL texture with the author's absolute path is
+found next to the OBJ. Fixed by A: 11 cylinders whose facets meet in T-junctions; 14 float32 cylinders hundreds of
+metres out (one face, radius within 0.5 %; the stored axis point now lies beside its face, every user treats it as a
+point on the line). 15 decided: groups decide looks for every model alike – a mesh part joining a group an earlier
+model made takes that group's look (guide says so; pick "From file" for the group).
+
+**Found by GitHub (run 43588174871, the task's first):** the FBX converter's background Blender used the user's
+settings folder and reset it to factory settings, so Blender's extension-wheel sync **deleted the app's OpenCascade**
+(every later STEP import in that app failed, Linux and Windows PC check). Reproduced here, fixed (its own temporary
+settings folder, no factory reset; test `test_the_converter_blender_never_touches_the_users_settings_folder`).
+
+**Runs:** 3 – the first found the converter fault above (and the expected "since 0.2.96 > 0.2.95"); the second
+(43590650152, main merged, 0.2.98) was green, but task 0120 took 0.2.98 on main meanwhile: main merged again, 0.2.99,
+a third run.
 
 **Open points / follow-up tasks:**
+- Cones are not recognised as round faces (they come out flat/other): later if a model needs them.
+- A very short cylinder (length < ~0.5 x radius) with smooth fillet rings at both ends may lose its axis.
+- The STEP cache key still uses whole-second mtimes (finding 10 fixed for mesh files only, STEP caches kept valid).
+- Importing one mesh file with other options (units) replaces the stored cache of the earlier options.
+- A part with a file picture and faces painted by hand in a tiled look exports with its own UVs only (rare).
+- Normal and metallic/roughness pictures of a file material are not in the web 3D export (plain numbers).
+- glTF skins/animations and KHR_texture_transform are left out (said in the import notes).
