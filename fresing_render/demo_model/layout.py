@@ -50,6 +50,7 @@ STORAGE_D = 16000.0             # the quay's storage carousel
 STORAGE_LAYERS = 11
 CPS_LENGTH = 15000.0
 LOWER_MAX = 45000.0             # the D lowered on the A&R wire: 0 … 45 m below the top pulley (task 0082)
+AR_WRAP = 30.0                  # the CAD A&R wire starts this far (deg) round its drum's outer layer (a cable is read off it)
 
 
 def _r(v, n=4):
@@ -568,10 +569,21 @@ def quadrant_system(p, S: Scene) -> Asm:
     eye_part = next(c for c in quad.children if c.node.name == "A&R PAD EYE")
     tp = rt.top_pulley(p)
     ropes = {}
-    ropes["A&R wire"] = rt.rope_route("A&R wire", p.quadrant_rope_d, 0.0, [
+    straight = rt.rope_route("A&R wire", p.quadrant_rope_d, 0.0, [
         ("sheave", tuple(drum_c[[0, 2]]), rd, +1, {"name": "drum"}), ("point", (eye[0], eye[2]))])
-    # the A&R wire itself (task 0082): from where it leaves the drum's top to the D's eye, the D at its stationary place
-    qs.add(Part("A&R WIRE", g.route_solid(ropes["A&R wire"], p.quadrant_rope_d / 2), m.ROPE_GREY), instance="A&R WIRE")
+    # the A&R wire itself (task 0082): AR_WRAP° round the drum's outer layer, off it at its top and on to the D's eye, the
+    # D at its stationary place. Twice: the demo shows the one straight to the eye while the D travels and the handler
+    # starts to tilt, the other (the same wire with the handler's top pulley added) from where the wire meets the pulley
+    leave = straight.segments[0]
+    n = np.array([0.0, -1.0, 0.0])                       # the wrap's axis (anticlockwise seen from port, as rope_route)
+    c3 = np.array([drum_c[0], 0.0, drum_c[2]])
+    r = rt.Route("A&R wire", p.quadrant_rope_d)
+    r.add(rt.Arc(c3, n, c3 + rt.rotate(leave.start - c3, n, -math.radians(AR_WRAP)), math.radians(AR_WRAP)),
+          support="sheave", name="drum")
+    r.add(leave, support="free")
+    ropes["A&R wire"] = r
+    for inst in ("A&R WIRE", "A&R WIRE (OVER THE PULLEY)"):
+        qs.add(Part("A&R WIRE", g.route_solid(r, p.quadrant_rope_d / 2), m.ROPE_GREY), instance=inst)
     ar = {"drum_centre": drum_c, "drum_axis": [0.0, 1.0, 0.0], "drum_r": rd,
           "drum_carrier": [cqw, base_frame], "eye": eye, "eye_carrier": [cq, eye_part],
           "eye_end": _hinge_world(pos, z_h, tp["eye"]), "pulley_centre": _hinge_world(pos, z_h, tp["centre"]),

@@ -380,7 +380,7 @@ def test_the_quadrant_operations_parts_are_kept_out_until_shot_9(made):
     d = demo.Demo(sc, made["folder"], VERSION, small=True)
     objs = demo.quadrant_ops_parts(d)
     names = sorted(o.get(build.PROP_NAME) for o in objs)
-    assert names == ["A&R WIRE", "CABLE END", "CPS SET", "TIPPING WIRE", "TIPPING WIRE"], names
+    assert names == ["A&R WIRE", "A&R WIRE", "CABLE END", "CPS SET", "TIPPING WIRE", "TIPPING WIRE"], names
     from fresing_render.blender import logic
     for o in objs:
         for t in [o] + list(logic.descendants(o)):

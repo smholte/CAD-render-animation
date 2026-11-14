@@ -278,7 +278,7 @@ def test_part_counts(made):
     assert count("PULL HEAD") == 6 and count("CPS RACK") == 1 and count("CPS RAMP") == 1 and count("CPS SLIDE") == 1
     # the core's end and the second end (task 0082); the quadrant operation's wires (task 0082)
     assert count("CABLE") == 1 and count("CABLE END") == 2 and count("CABLE COIL") == 1
-    assert count("A&R WIRE") == 1 and count("TIPPING WIRE") == 2
+    assert count("A&R WIRE") == 2 and count("TIPPING WIRE") == 2              # (the A&R wire twice: with, without the pulley)
     assert count("CABLE END CLAMP") == 1 and count("ARCH FRAME") == 1 and count("GUIDE FRAME") == 1
     # each track's pads sit under their own track assembly; the top track in its tilting carriage on the lift frame
     for k in (1, 2):
@@ -994,7 +994,8 @@ def test_the_quadrant_operations_wires_in_the_cad_pose(made):
         rr = p.quadrant_rope_d / 2 if n["name"] == "A&R WIRE" else p.tipping_rope_d / 2
         assert np.max(np.abs(d - rr)) < 1.0, n["uid"]
         seen[n["name"]] += 1
-    assert seen == {"A&R WIRE": 1, "TIPPING WIRE": 2}
+    assert seen == {"A&R WIRE": 2, "TIPPING WIRE": 2}
+    assert all(gap < 1e-6 and ang < 1e-4 for gap, ang in ar.joins())
 
 
 def test_the_second_end_and_its_cps(made):
