@@ -1,6 +1,6 @@
 # 0082 – Quadrant operations: the second end goes over the stern on the D, into the sea, tipped off on the seabed
 
-**Who:** worker · **Status:** running (14 Nov) · **Branch:** `ccr-dfd4b55c-97xzhk`
+**Who:** worker · **Status:** done (0.2.95, 14 Nov) · **Branch:** `ccr-dfd4b55c-97xzhk`
 **Started by:** lead chat, 14 Nov 2026 (plan: end of tasks/0075; owner's steps: tasks/0083 "Quadrant sequence";
 owner 12 Nov: TASKS.md "Problems found")
 **Area:** Flex parts lane (`blender/paths*.py`, `core/paths.py`, `core/catenary.py`, `blender/paths_sea.py`,
@@ -84,11 +84,11 @@ same steps work on a real model later.
 
 ## Done when
 
-- [ ] Cable contacts on a moving carrier: live and at Build, length exact, tested on the tour model and the demo
-- [ ] A&R + tipping wires are app cables in the demo; drums and sheaves turn; 0095's driver wires gone
-- [ ] Demo shots 9–12 as the owner's steps; Make demo still finishes (time in the report vs 0.2.92)
-- [ ] 0 clash rows; length and MBR checks; wake follows the bow; independent tester's findings fixed
-- [ ] Tour stop, PC-check line, guide, CHANGELOG; full run green; version taken last
+- [x] Cable contacts on a moving carrier: live and at Build, length exact, tested on the tour model and the demo
+- [x] A&R + tipping wires are app cables in the demo; drums and sheaves turn; 0095's driver wires gone
+- [x] Demo shots 9–12 as the owner's steps; Make demo still finishes (time in the report vs 0.2.92)
+- [x] 0 clash rows; length and MBR checks; wake follows the bow; independent tester's findings fixed
+- [x] Tour stop, PC-check line, guide, CHANGELOG; full run green; version taken last
 
 ## Not in this task
 
@@ -195,7 +195,7 @@ that comes back left the cable hanging through the deck – plus panel points; a
   tipping wires never within their radius of handler, hull, deck, bulwark, horns or cylinders; rails ≥ 100 mm from
   the lay cable; the lowered D clears the transom by 1.26 m.
 - Make demo (small form): 119 s (0.2.92) → 153 s; its Build 22 → 49 s. Animation ~134 s.
-- GitHub: see the runs below.
+- GitHub: branch run 43556388897 green (full, 17.9 min); main run 43557914021 (reuse): release v0.2.95 published, the old-version update check green, offered to the apps. Runs needed: 3 full on the branch (the first two red only on the expected PC-check version line).
 
 **Open points / follow-up tasks:**
 1. **The D sinks 0.76 m into the seabed in shot 11** (so that the cable round its gutter lies on the seabed at the
