@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.96 – 14 Nov 2026 – render queue, long jobs and redraw fixes (task 0120)
+## 0.2.97 – 14 Nov 2026 – render queue, long jobs and redraw fixes (task 0120)
 
 - **Every paint scheme** for an animation now really renders each video in its own colours. When the animation
   started from a saved scene (always so for a Product video), every video came out in that scene's colours.
@@ -23,6 +23,16 @@ installer of that version was built from.
 - The side panel walks the whole model less often while an animation plays (X-ray, work lights and cut-away counts
   are kept between redraws). A key of your own on the scene is kept through Build and Clear keys, and Clear keys no
   longer leaves an unused "FR Scene" action behind.
+
+## 0.2.96 – 14 Nov 2026 – a model update keeps drums, carousels, riders and tracks (task 0119)
+
+- **Updating one model no longer undoes the drums and carousels of the others.** Before, updating (for example) the quay
+  model stopped every drum and carousel in the project: the cable went back to a plain CAD cable and the drawn rope was
+  deleted, without a note.
+- **A drum whose part ID changed in an update keeps working** at the next update (it was lost then: "its part is gone").
+- **Things riding on a cable:** a part that is gone in the new revision is dropped and the report says so (before, the
+  rider kept empty entries and the report said nothing).
+- **Tracks:** pads or plates that are gone are named in the report; a wheel whose part ID changed keeps its "coupled" tick.
 
 ## 0.2.95 – 14 Nov 2026 – a cable on a moving part; the quadrant operation in the demo (task 0082)
 

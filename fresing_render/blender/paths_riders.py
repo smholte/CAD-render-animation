@@ -585,21 +585,32 @@ def changed(scene, rider) -> None:
     sync(scene, item)
 
 
-def after_model_update(scene, by_uid: dict) -> list[str]:
-    """Riders go to the matching new parts (by their part IDs) and are read again."""
+def after_model_update(scene, by_uid: dict, mapping: dict | None = None) -> list[str]:
+    """Riders go to the matching new parts (by their part IDs) and are read again. A part of the updated model that
+    is gone in the new revision is dropped with a note (0119, row 7); a part of another model stays."""
+    from . import flex
+    mapping = mapping or {}
     out = []
     for it in scene.fresing.cables:
         for r in it.riders:
-            objects = []
+            objects, gone = [], 0
             for p in r.parts:
-                ob = by_uid.get(p.part_uid) if p.part_uid else None
-                if ob is None and _alive(scene, p.part):
+                uid = p.part_uid
+                if uid and (uid in mapping or uid in by_uid):
+                    ob = flex._new_object(scene, uid, by_uid, mapping)
+                    if ob is None:
+                        gone += 1
+                elif _alive(scene, p.part):
                     ob = p.part
+                else:
+                    ob, gone = None, gone + 1
                 if ob is not None:
                     objects.append(ob)
             if not objects:
                 out.append(f"'{r.name}' on cable '{it.name}': its parts are no longer in the model")
                 continue
+            if gone:
+                out.append(f"'{r.name}' on cable '{it.name}': {gone} of its parts are gone in the new revision")
             try:
                 _write(scene, it, r, objects)
             except Exception as exc:               # (a model update never fails over a rider)
