@@ -2944,8 +2944,9 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
-     "keep running) and comes back down to squeeze the cable 2 mm. Behind, a belt of separate links runs round three "
-     "pulleys of different size; all wheels turn with the chain.",
+     "keep running; the rods of its two lift cylinders slide up into the barrels on the portal) and comes back down "
+     "to squeeze the cable 2 mm. Behind, a belt of separate links runs round three pulleys of different size; all "
+     "wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
 stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
