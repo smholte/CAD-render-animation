@@ -69,6 +69,34 @@ New app functions. The learning modes themselves (0123 and after). The site's ow
 the demo vessel). Old test models that only exist for an old-project test (`old_app_template`, `test_crane_inv_*`):
 leave them.
 
+## Design (worker, 14 Nov 2026)
+
+### Step 1 – inventory (short; read-only map by an Explore subagent + the worker for the crane)
+
+| Model (maker) | Readers | What must stay | Risk |
+| --- | --- | --- | --- |
+| crane a/b (`make_test_crane.py`) | ~40: tour hub + looks, marine, cutaway, copies, update, vessel, weather sets; PC check; guide; test_phase2, test_hover, test_model_update, test_studio_cameras … | names BASE, PEDESTAL, BOOM.ASM/BOOM/BOOM.PIN, TROLLEY.ASM/TROLLEY/WHEEL, COVER, ISO 4017 bolts; PIVOT (100, 300, 400); BOOM.PIN untouched (hover: tris 0–52); trolley 0.35 m travel; rev B = lamp, one bolt less, cover +10 mm | medium: counts (12 parts) and pedestal triangle ranges in tests change on purpose |
+| gantry, mill, toolpath, 4axis, 5axis, atc | tour machining sets, PC check milling/motion lines, ~25 tests | tool names and tips, stock, pivots, pockets, gauge line; nothing new in the cut zone or a sweep | low–medium |
+| spool, sea, moving, tracks, sequence | tour offshore sets, their `set_up_test_model`s | exact PARTS lists, UIDs with instance numbers (tracks), nothing near a cable | medium (lists change on purpose) |
+| cylinder, waycover b/c/d | tour, PC check | stroke from barrel/piston/gland, pins' first axis; carriage min x | medium |
+| clash, linkage, decals, faces, machine, materials, mesh, flex, paths | many exact numbers (clash depth 6.0, 8 links/9 pins, CAD face indices, 11 placed parts, byte-identical glTF, hose lists) | almost everything | high: leave, or add separate parts only |
+
+Not made by a maker / left alone: `test_waycover_a` (owner's generic sub-assembly), `test_crane_inv_*`, `old_app_template`, `test_tool_*`.
+Copy gap found: no test compares the shipped copies of test_cylinder_a, test_linkage_a, test_toolpath, test_waycover_a/b.
+
+### Step 1 – the crane upgraded (draft on the branch: `tools/make_test_crane.py`, `--plain` = the old crane, `--luff` = proposal B)
+
+- BASE: anthracite plate, chamfered corners and top edges, bolt holes; PEDESTAL: foot flange with 4 socket screws
+  (ISO 4762 M10 x 20 – new parts) and gussets, chamfered block, cheeks with round tops and bosses; BOOM: chamfered
+  girder, round end round the pin, side ribs, tapered tip, end stop; TROLLEY: chamfers, hoist motor and rope drum;
+  WHEEL: flanged; COVER: round corners, screw heads, handle; bolts: hex heads with the shank in the holes.
+- B adds LUFF CYLINDER.ASM (barrel + rod) between a fork on the pedestal and a fork under the boom (shows the
+  cylinder function; every crane set would set it up).
+- Measured (4-core web machine, Normal): 1,008 → 7,072 unique triangles (B: 10,296), 12 → 16 placed parts (B 18);
+  import 0.2 → 0.3 s; tour crane set build 3.1–4.3 s → 4.6 s. The ×2 triangle budget cannot hold for models made of
+  plain boxes (12 triangles each): owner asked.
+- Stills (Cycles, the tour's Tour view): sent to the owner in the session.
+
 ---
 
 ## Report (filled in by the chat that did the task)
