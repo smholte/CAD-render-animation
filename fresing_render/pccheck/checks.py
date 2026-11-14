@@ -47,6 +47,7 @@ PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
 TRACKS = os.path.join(DATA, "test_tracks.step")
 SEA_CABLE = os.path.join(DATA, "test_sea.step")
+MOVING_CABLE = os.path.join(DATA, "test_moving.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 
 LINES: list[Line] = []
@@ -692,6 +693,48 @@ def motion_sea_cable(ctx):
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "sea_cable", "The cable from the horn down to the seabed through the cut-away, the CPS set on "
                                    "it (processor, draft)")
+    return note
+
+
+@line("motion.moving_cable", "A cable on a moving part: kept tight, hung on, let go", "0.2.93",
+      what="A trolley carries a block with a sheave aft over the stern, its hanger tilts and the block is lowered: the "
+           "lift wire's winch keeps the wire tight (it pays out what the moving sheaves need), the cable end on the "
+           "block leaves the stern horn and hangs from the block's sheave, and is let go near the seabed – its start "
+           "and its turn round the sheave stay on the seabed while the block is lifted away")
+def motion_moving_cable(ctx):
+    from ..blender import animation, cameras, paths, render, tour
+    scene = ctx.fresh(MOVING_CABLE)
+    s = scene.fresing
+    s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "SIMPLE", "CALM", 2.0
+    s.sea_depth = 15.0
+    t0 = time.time()
+    made = paths.set_up_moving_model(scene)
+    ctx.metric("set up the cable on a moving part", time.time() - t0, "s")
+    for name in (made["cable"], made["wire"]):
+        item = paths.find(scene, name)
+        _check(item is not None and not item.problem, f"'{name}': {item.problem if item is not None else 'missing'}")
+    s.sea_cutaway = True
+    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Moving view", points=paths.moving_view_points(scene))
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with a cable on a moving part", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_moving_cable(scene)
+    times = []
+    for f in range(scene.frame_start, scene.frame_end + 1, 6):
+        t0 = time.perf_counter()
+        scene.frame_set(f)
+        times.append(time.perf_counter() - t0)
+    times.sort()
+    ctx.metric("frame change with the moving cable", 1000.0 * times[len(times) // 2], "ms")
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_end)
+    path = os.path.join(ctx.work, "moving_cable.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "moving_cable", "The block lifted away from the cable end it let go on the seabed, the lift wire "
+                                      "tight over the head sheave (processor, draft)")
     return note
 
 

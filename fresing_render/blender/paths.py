@@ -986,11 +986,13 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
                    "side", "wrap", "wrap_cad", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
-                   "user", "note")
-_END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end"))
+                   "user", "note", "let_go_frame")
+_END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end",
+                                                         "_let_go_frame"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
-_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS)
+_CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS,
+           "fr_let_go")
 
 
 def _values(group, fields) -> dict:
@@ -1156,7 +1158,7 @@ def read_cad(scene, item, part) -> list[str]:
             item["look_was"] = item.look
             _ends(scene, item, part, geo, keep_user=same)
             geo["slightly"] = _notes_of_joints(scene, item, memo)
-            res = _solve_item(scene, item, _cad_rel(item, memo), known=False)
+            res = _solve_item(scene, item, _cad_rel(item, memo), known=False, let_go=False)
             if not res["ok"].all():
                 raise PathError(f"The path of '{_part_name(part)}' cannot be drawn: {res['problems'][0]}")
             for i, c in enumerate(_wheels(item)):
@@ -1548,10 +1550,13 @@ def _counts(radii, wrap) -> list:
     return out
 
 
-def _solve_parts(scene, item, rel: np.ndarray, _slots=None, known: bool = True, ref=None) -> tuple:
+def _solve_parts(scene, item, rel: np.ndarray, _slots=None, known: bool = True, ref=None, first=None,
+                 let_go: bool = True) -> tuple:
     """What a solve of the cable needs at F moments, worked out from ``rel`` (F, K, 4, 4: where its slots are, as
     the cable part sees them): (starts, centres, axes, radii, sides, on0, wraps0, scale) in the cable part's
-    coordinates (``radii`` in its units, ``scale`` its units to metres). ``known`` / ``ref``: see ``_solve_item``."""
+    coordinates (``radii`` in its units, ``scale`` its units to metres). ``known`` / ``ref``: see ``_solve_item``.
+    ``first``: the frame of moment 0 (None: the pose shown, at the frame shown); ``let_go`` False: every end and
+    contact with its carrier, also one that was let go (the CAD pose, task 0082)."""
     wheels, _slots, w_slots, a_slot, _b_slot = _inputs_of(item)
     scale = _scale(_world(item.part))
     F, W = rel.shape[0], len(wheels)
@@ -1583,6 +1588,13 @@ def _solve_parts(scene, item, rel: np.ndarray, _slots=None, known: bool = True, 
                                   starts)
     else:
         starts = point(a_slot, item.a_point)
+    if let_go and _let_goes(item):              # ends and contacts let go stay where they were (task 0082)
+        values = {"a": starts}
+        for k, i in enumerate(_wheel_indices(item)):
+            values[str(i)] = np.concatenate([centres[:, k], axes[:, k]], axis=1)
+        _apply_let_go(scene, item, rel, _slots, first, values)
+        for k, i in enumerate(_wheel_indices(item)):
+            centres[:, k], axes[:, k] = values[str(i)][:, :3], values[str(i)][:, 3:]
     on0 = item.a_kind == "WHEEL" and W > 0
     wraps0 = None
     if known and W and all(c.wrap_cad >= 0.0 for c in wheels):
@@ -1590,7 +1602,7 @@ def _solve_parts(scene, item, rel: np.ndarray, _slots=None, known: bool = True, 
     return starts, centres, axes, radii, sides, on0, wraps0, scale
 
 
-def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> dict:
+def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None, first=None, let_go: bool = True) -> dict:
     """The cable's shape at F moments. ``rel`` (F, K, 4, 4): where its slots are, as the cable part sees them.
     Returns core.paths.solve_frames' result (points in the cable part's coordinates) + "scale" (part units to
     metres), "names" (the wheels' names) and "problems" with those names in them.
@@ -1601,16 +1613,17 @@ def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None) -> d
     moment ago (as one frame of an animation is measured by the frame before it: a wheel that was left stays left
     while the cable would have to loop round it).
 
-    A cable into the sea (task 0081): ``paths_sea.solve`` draws it from where it arrives on its last wheel."""
+    A cable into the sea (task 0081): ``paths_sea.solve`` draws it from where it arrives on its last wheel.
+    ``first`` / ``let_go``: see ``_solve_parts``."""
     wheels, slots, w_slots, a_slot, b_slot = _inputs_of(item)
-    starts, centres, axes, radii, sides, on0, wraps0, scale = _solve_parts(scene, item, rel, slots, known, ref)
+    starts, centres, axes, radii, sides, on0, wraps0, scale = _solve_parts(scene, item, rel, slots, known, ref, first,
+                                                                           let_go)
     F, W = rel.shape[0], len(wheels)
     if item.b_kind == "SEA":
         from . import paths_sea as _sea
         res = _sea.solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale)
     else:
-        R, T = rel[:, :, :3, :3], rel[:, :, :3, 3]
-        ends = np.einsum("fij,j->fi", R[:, b_slot], np.asarray(item.b_point, dtype=float)) + T[:, b_slot]
+        ends = _end_points(scene, item, rel, slots, b_slot, first, let_go)
         on1 = item.b_kind == "WHEEL" and W > 0
         res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, on1, held=True, wraps0=wraps0)
         _STATE["solves"] += F
@@ -1652,7 +1665,8 @@ def _set_cad_wraps(scene, item, memo: dict | None = None) -> bool:
     """Each wheel's wrap in the CAD pose (``wrap_cad``; -1 = not known): what the solver measures a lifted wheel
     and the app a loop against. Written when the contacts or their sides change. True when the CAD pose has a path."""
     wheels = _wheels(item)
-    res = _solve_item(scene, item, _cad_rel(item, {} if memo is None else memo), known=False) if wheels else None
+    res = _solve_item(scene, item, _cad_rel(item, {} if memo is None else memo), known=False,
+                      let_go=False) if wheels else None
     good = res is not None and bool(res["ok"].all())
     for i, c in enumerate(wheels):
         wrap = float(res["wrap"][0, i]) if good else -1.0
@@ -1736,7 +1750,7 @@ def _usable(scene, item) -> bool:
 
 def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
     """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had)."""
-    res = _solve_item(scene, item, rel, ref=ref)
+    res = _solve_item(scene, item, rel, ref=ref, first=first)
     warnings = _note(scene, item, res, first)
     if res["ok"].any():
         scale = res["scale"]
@@ -1803,11 +1817,471 @@ def _rebuild(scene, item) -> list[str]:
             return _draw(scene, item, stored[0], stored[1])
         if not _baked(scene):
             _drop_places(scene, item)
-        rel = _rel_now(item, slots)
+        rel = _tight_now(scene, item, _rel_now(item, slots), slots)      # (the winch keeps it tight, task 0082)
         _STATE["last"][_k(scene, item)] = rel
         return _draw(scene, item, rel[None], None)
     finally:
         _STATE["busy"] -= 1
+
+
+# ---------------------------------------------------------------------------
+# a cable on a moving part (task 0082): the winch keeps it tight; ends and contacts let go
+# ---------------------------------------------------------------------------
+
+TIGHT_TOL = 0.0005                      # m: the payout that keeps a cable tight is worked out to this
+TIGHT_ROUNDS = 4                        # … in at most this many rounds (a start on a spool moves with the payout)
+TIGHT = "fr_cable_tight"                # on a speed joint's motion empty while Build's keys keep it tight: the cable
+LET_GO = "fr_let_go"                    # on a cable item: JSON {which: [frame, sea, place]} – the places let go
+
+
+def _let_goes(item) -> list:
+    """[(which, frame)]: the ends ("a", "b") and contacts (their index, as text) let go, and from which frame."""
+    out = []
+    if item.a_let_go_frame >= 0 and item.a_kind != "SPOOL":
+        out.append(("a", int(item.a_let_go_frame)))
+    if item.b_let_go_frame >= 0 and item.b_kind != "SEA":
+        out.append(("b", int(item.b_let_go_frame)))
+    for i, c in enumerate(item.contacts):
+        if c.let_go_frame >= 0 and c.kind in SHAPING:
+            out.append((str(i), int(c.let_go_frame)))
+    return out
+
+
+def _wheel_indices(item) -> list:
+    """The index in ``item.contacts`` of each wheel of ``_wheels``, in order."""
+    return [i for i, c in enumerate(item.contacts) if c.kind in SHAPING]
+
+
+def _hold_frame(item, rel, slots):
+    """(F, 4, 4) or None: what a place let go stays in, as the cable part sees it – the seabed for a cable into the
+    sea (it passes aft with the seabed), else the cable part itself (None)."""
+    if item.b_kind != "SEA" or slots is None:
+        return None
+    for k, sl in enumerate(slots):
+        if sl.role == "sea_bed":
+            return rel[:, k]
+    return None
+
+
+def _to_hold(v, m) -> np.ndarray:
+    """A place (a point, or a centre + axis) in the cable part's coordinates -> in the holding frame ``m``."""
+    v = np.array(v, dtype=float)
+    if m is None:
+        return v
+    inv = np.linalg.inv(m)
+    out = v.copy()
+    out[:3] = inv[:3, :3] @ v[:3] + inv[:3, 3]
+    if len(v) > 3:
+        out[3:] = _unit(inv[:3, :3] @ v[3:])
+    return out
+
+
+def _from_hold(v, m, n: int) -> np.ndarray:
+    """(n, d): a place in the holding frames ``m`` (n, 4, 4; None: the cable part) -> the cable part's coordinates."""
+    v = np.asarray(v, dtype=float)
+    if m is None:
+        return np.tile(v, (n, 1))
+    out = np.empty((n, len(v)))
+    out[:, :3] = np.einsum("fij,j->fi", m[:, :3, :3], v[:3]) + m[:, :3, 3]
+    if len(v) > 3:
+        a = np.einsum("fij,j->fi", m[:, :3, :3], v[3:])
+        out[:, 3:] = a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-12)
+    return out
+
+
+def _stored_let_go(item) -> dict:
+    try:
+        got = json.loads(item.get(LET_GO, "") or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
+
+
+def _store_let_go(item, which: str, frame: int, sea: bool, v) -> None:
+    got = _stored_let_go(item)
+    got[which] = [int(frame), bool(sea), [float(x) for x in v]]
+    item[LET_GO] = json.dumps(got)
+
+
+def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
+    """``values``: which -> (F, d) places in the cable part's coordinates (an end's point; a wheel's centre + axis),
+    changed in place: from its let-go frame on, an end or contact stays where it was at that frame. Along a Build
+    that frame's place comes from the places read; in the pose shown (``first`` None: the frame shown), or for a
+    frame before those read, from the place stored when it was let go."""
+    F = rel.shape[0]
+    hold = _hold_frame(item, rel, slots)
+    sea = hold is not None
+    frames = np.full(F, int(scene.frame_current)) if first is None else int(first) + np.arange(F)
+    stored = None
+    for which, f0 in _let_goes(item):
+        v = values.get(which)
+        if v is None:
+            continue
+        after = frames >= f0
+        if not after.any():
+            continue
+        if first is not None and int(first) <= f0 < int(first) + F:
+            m0 = f0 - int(first)
+            kept = _to_hold(v[m0], None if hold is None else hold[m0])
+        else:
+            stored = _stored_let_go(item) if stored is None else stored
+            got = stored.get(which)
+            if not got or int(got[0]) != f0 or bool(got[1]) != sea or len(got[2]) != v.shape[1]:
+                continue                        # (nothing stored for this frame: it stays with its carrier)
+            kept = np.array(got[2], dtype=float)
+        v[after] = _from_hold(kept, None if hold is None else hold[after], int(after.sum()))
+
+
+def _end_points(scene, item, rel, slots, b_slot, first=None, let_go: bool = True) -> np.ndarray:
+    """(F, 3): the end point (not into the sea) at each moment, in the cable part's coordinates."""
+    ends = np.einsum("fij,j->fi", rel[:, b_slot, :3, :3], np.asarray(item.b_point, dtype=float)) + rel[:, b_slot, :3, 3]
+    if let_go and item.b_let_go_frame >= 0 and item.b_kind != "SEA":
+        values = {"b": ends}
+        _apply_let_go(scene, item, rel, slots, first, values)
+        ends = values["b"]
+    return ends
+
+
+def _places_now(scene, item, rel1, slots) -> dict:
+    """which -> the place of every end and contact at the one moment ``rel1`` (1, K, 4, 4), as its carrier has it,
+    in the holding frame (``_hold_frame``)."""
+    starts, centres, axes, _r, _s, _o, _w, _sc = _solve_parts(scene, item, rel1, slots, let_go=False)
+    hold = _hold_frame(item, rel1, slots)
+    m = None if hold is None else hold[0]
+    out = {"a": _to_hold(starts[0], m)}
+    for k, i in enumerate(_wheel_indices(item)):
+        out[str(i)] = _to_hold(np.concatenate([centres[0, k], axes[0, k]]), m)
+    if item.b_kind != "SEA":
+        b_slot = _inputs_of(item)[4]
+        out["b"] = _to_hold(_end_points(scene, item, rel1, slots, b_slot, let_go=False)[0], m)
+    return out
+
+
+def _refresh_let_go(scene, item, rel, slots, first: int) -> None:
+    """Build: the places let go within the frames read are stored again from those frames."""
+    sea = _hold_frame(item, rel, slots) is not None
+    for which, f0 in _let_goes(item):
+        if first <= f0 < first + rel.shape[0]:
+            got = _places_now(scene, item, rel[f0 - first:f0 - first + 1], slots)
+            if which in got:
+                _store_let_go(item, which, f0, sea, got[which])
+
+
+def _which_of(item, which) -> str:
+    """'a', 'b' or a contact's index as text; raises PathError when that cannot be let go."""
+    w = str(which).lower()
+    if w == "a":
+        if item.a_kind == "SPOOL":
+            raise PathError("The start comes off a drum or carousel: it cannot be let go")
+        return w
+    if w == "b":
+        if item.b_kind == "SEA":
+            raise PathError("The end hangs into the sea: it lies on the seabed already")
+        return w
+    try:
+        i = int(w)
+    except ValueError:
+        raise PathError(f"'{which}' is no end or contact of the cable") from None
+    if not 0 <= i < len(item.contacts):
+        raise PathError(f"The cable has no contact number {i + 1}")
+    if item.contacts[i].kind not in SHAPING:
+        raise PathError(f"'{item.contacts[i].name}' is a roller: the cable only rests on it, so there is nothing "
+                        "to let go")
+    return str(i)
+
+
+def _drop_let_go_contacts(item) -> None:
+    """The places stored for contacts let go are forgotten (the list of contacts changed); Build reads them again."""
+    got = _stored_let_go(item)
+    keep = {k: v for k, v in got.items() if k in ("a", "b")}
+    if keep != got:
+        item[LET_GO] = json.dumps(keep)
+
+
+def _set_let_go_frame(item, which: str, frame: int) -> None:
+    if which in ("a", "b"):
+        with _quiet(item):
+            setattr(item, which + "_let_go_frame", int(frame))
+    else:
+        c = item.contacts[int(which)]
+        with _quiet(c):
+            c.let_go_frame = int(frame)
+
+
+def let_go_frame(item, which) -> int:
+    """The frame from which the end or contact ``which`` stays where it was (-1: it stays with its carrier)."""
+    w = str(which).lower()
+    if w in ("a", "b"):
+        return int(getattr(item, w + "_let_go_frame"))
+    i = int(w)
+    return int(item.contacts[i].let_go_frame) if 0 <= i < len(item.contacts) else -1
+
+
+def _rel_at(scene, item, slots, frame: int) -> np.ndarray:
+    """(1, K, 4, 4): the slots at ``frame`` – from the places read at Build when it is among them, else as they are
+    now (the pose shown)."""
+    stored = _stored_places(scene, item, slots) if _baked(scene) else None
+    if stored is not None and stored[1] <= frame < stored[1] + len(stored[0]):
+        return stored[0][frame - stored[1]][None]
+    return _rel_now(item, slots)[None]
+
+
+def let_go(scene, item, which, frame=None) -> None:
+    """From ``frame`` on (default: the frame shown) the end ``which`` ("a", "b") or the contact with that index no
+    longer moves with its carrier: it stays where it was at that frame – in the seabed's coordinates for a cable
+    into the sea (it passes aft with the seabed), else in the cable part's. Its place is read at that frame and
+    stored (Build reads it again): from the frames of a built animation, or the pose shown at the frame shown. A
+    frame of an animation not built yet only sets the frame – its place is read when the animation is built (the
+    pose shown is not that frame's). Raises PathError when it cannot be let go."""
+    w = _which_of(item, which)
+    name = index_of(scene, item)
+    frame = int(scene.frame_current if frame is None else frame)
+    _wheels_, slots, _w, _a, _b = _inputs_of(item)
+    stored = _stored_places(scene, item, slots) if _baked(scene) else None
+    known = frame == int(scene.frame_current) or \
+        (stored is not None and stored[1] <= frame < stored[1] + len(stored[0]))
+    rel1 = _rel_at(scene, item, slots, frame) if known else None
+    item = _cable(scene, name)
+    _set_let_go_frame(item, w, frame)
+    if rel1 is not None:
+        _store_let_go(item, w, frame, _hold_frame(item, rel1, slots) is not None,
+                      _places_now(scene, item, rel1, slots)[w])
+    else:
+        got = _stored_let_go(item)
+        if w in got:
+            del got[w]
+            item[LET_GO] = json.dumps(got)
+    changed(scene, item)
+
+
+def hold(scene, item, which) -> None:
+    """The end or contact ``which`` moves with its carrier again (undoes ``let_go``)."""
+    w = str(which).lower()
+    if w not in ("a", "b"):
+        w = str(int(w))
+    if let_go_frame(item, w) < 0:
+        return
+    _set_let_go_frame(item, w, -1)
+    got = _stored_let_go(item)
+    if w in got:
+        del got[w]
+        item[LET_GO] = json.dumps(got)
+    changed(scene, item)
+
+
+def _tight_joint(scene, item) -> tuple:
+    """(the cable's speed joint, '') when the winch can keep the cable tight with it, else (None, why)."""
+    j = joints.find(scene, item.joint) if item.joint else None
+    if j is None or j.motion is None or j.frame is None:
+        return None, "its speed joint is gone"
+    if j.follows:
+        return None, (f"its speed joint '{j.name}' follows '{j.follows}': only a joint that moves by itself can "
+                      "keep it tight")
+    return j, ""
+
+
+def _keyed(j) -> bool:
+    """Is the joint's value moved by keys that are not the winch's own (an animation step, keys made by hand)?"""
+    if j.motion.get(TIGHT):
+        return False
+    return any(fc.data_path == joints.COUPLING_PATH for fc in _fcurves(j.motion))
+
+
+def _roles(slots) -> dict:
+    return {sl.role: k for k, sl in enumerate(slots) if sl.role}
+
+
+_PAY_ROLES = (("pay_frame", "pay_motion"), ("sea_pay_frame", "sea_pay_motion"))
+
+
+def _value_read(item, rel, slots, j) -> np.ndarray:
+    """(F,): the speed joint's value at each moment, as the slots show it."""
+    roles = _roles(slots)
+    for fr, mo in _PAY_ROLES:
+        if fr in roles and mo in roles:
+            return (np.linalg.inv(rel[:, roles[fr]]) @ rel[:, roles[mo]])[:, 2, 3]
+    return np.full(rel.shape[0], joints.get_value(j))
+
+
+def _with_value(scene, item, rel, slots, j, value) -> np.ndarray:
+    """``rel`` as it is with the speed joint at ``value`` (F,) instead of where it was read: the payout's slots, the
+    spool's turn and a seabed that moves with the payout go along. (A carrier that a spool's layer follower moves
+    does not: Build reads those again.)"""
+    value = np.asarray(value, dtype=float)
+    old = _value_read(item, rel, slots, j)
+    d = value - old
+    if not len(d) or float(np.abs(d).max()) == 0.0:
+        return rel
+    roles = _roles(slots)
+    out = rel.copy()
+    for fr, mo in _PAY_ROLES:
+        if fr in roles and mo in roles:
+            local = np.linalg.inv(rel[:, roles[fr]]) @ rel[:, roles[mo]]
+            local[:, 2, 3] = value
+            out[:, roles[mo]] = rel[:, roles[fr]] @ local
+    if "spool" in roles:
+        from . import spool as _spool
+        sp = _spool.of_cable(scene, item)
+        js = _spool._joint(scene, sp) if sp is not None else None
+        if js is not None:
+            top, f = joints.chain_map(scene, js)
+            if top is not None and top.name == j.name:
+                turn = np.asarray(f(value), dtype=float) - np.asarray(f(old), dtype=float)
+                rz = np.tile(np.eye(4), (len(turn), 1, 1))
+                rz[:, 0, 0] = rz[:, 1, 1] = np.cos(turn)
+                rz[:, 1, 0] = np.sin(turn)
+                rz[:, 0, 1] = -np.sin(turn)
+                out[:, roles["spool"]] = rel[:, roles["spool"]] @ rz
+    if "sea_bed" in roles:
+        from . import paths_sea as _sea
+        sea = [it for it in _sea.sea_cables(scene) if it.enabled]
+        if sea and not _sea.moves_by_time(scene, sea[0]):
+            top, k, _c, sign = _sea._pay_map(scene, sea[0])
+            if top is not None and top.name == j.name:
+                u = np.array(sea[0].sea_dir, dtype=float)
+                u[2] = 0.0
+                u = u / max(float(np.linalg.norm(u)), 1e-12)
+                kb = roles["sea_bed"]
+                out[:, kb, :3, 3] += np.einsum("fij,fj->fi", rel[:, kb, :3, :3], (sign * k * d)[:, None] * u[None])
+    return out
+
+
+def _free_of(scene, item, rel, slots, first=None, let_go: bool = True) -> np.ndarray:
+    """(F,) metres: the cable's free length at each moment – the drawn path from its start (where it leaves its
+    spool) to its end, or to where it arrives on the wheel it hangs from into the sea; NaN where it has no path."""
+    parts = _solve_parts(scene, item, rel, slots, first=first, let_go=let_go)
+    starts, centres, axes, radii, sides, on0, wraps0, scale = parts
+    F = rel.shape[0]
+    out = np.full(F, np.nan)
+    if item.b_kind == "SEA":
+        if not len(radii):
+            return out
+        from . import paths_sea as _sea
+        ar = _sea._Arrive(scene, item, rel, slots, *parts)
+        _hang, groups = _sea._hang_offs(scene, item, rel, slots, parts, ar)
+        for _h, (idx, a, _hr) in groups.items():
+            out[idx] = np.where(a.res["ok"], a.s_arrive, np.nan)
+        return out
+    ends = _end_points(scene, item, rel, slots, _inputs_of(item)[4], first, let_go)
+    res = P.solve_frames(starts, centres, axes, radii, sides, ends, on0, item.b_kind == "WHEEL" and len(radii) > 0,
+                         held=True, wraps0=wraps0)
+    return np.where(res["ok"], res["length"] * scale, np.nan)
+
+
+def free_length(scene, item, cad: bool = False) -> float:
+    """The cable's free length (m) in the pose shown – or, with ``cad``, in the CAD pose (every joint at 0, nothing
+    paid out): the drawn path from its start, or where it leaves its spool, to its end, or to where it arrives on
+    the wheel it hangs from into the sea. NaN when it has no path."""
+    slots = _inputs_of(item)[1]
+    if cad:
+        return float(_free_of(scene, item, _cad_rel(item, {}), slots, let_go=False)[0])
+    return float(_free_of(scene, item, _rel_now(item, slots)[None], slots)[0])
+
+
+def _tighten(scene, item, rel, slots, first, notes=None) -> tuple:
+    """(rel, values): the speed joint's value at each moment that keeps the cable tight – the free length as in the
+    CAD pose: pay = free length now − free length in CAD – and ``rel`` as it is with the joint there. (rel, None)
+    when the cable is not kept tight, or cannot be (the reason goes into ``notes``)."""
+    if not item.keep_tight:
+        return rel, None
+    j, why = _tight_joint(scene, item)
+    say = notes.append if notes is not None else (lambda _t: None)
+    if j is None:
+        say(f"Cable '{label(item)}' cannot be kept tight: {why}")
+        return rel, None
+    if _keyed(j):
+        say(f"Cable '{label(item)}': an animation step moves its speed '{j.name}', so the winch does not keep it "
+            "tight (take the step out, or switch 'Winch keeps it tight' off)")
+        return rel, None
+    L0 = float(_free_of(scene, item, _cad_rel(item, {}), slots, let_go=False)[0])
+    if not np.isfinite(L0):
+        say(f"Cable '{label(item)}' cannot be kept tight: it has no path in the CAD pose")
+        return rel, None
+    sign = -1.0 if item.reverse else 1.0
+    F = rel.shape[0]
+    v = _value_read(item, rel, slots, j)
+    for _ in range(TIGHT_ROUNDS if item.a_kind == "SPOOL" else 1):
+        new = sign * (_free_of(scene, item, _with_value(scene, item, rel, slots, j, v), slots, first) - L0)
+        good = np.isfinite(new)
+        if not good.all():                      # a moment without a path keeps the value of the one before
+            last = np.maximum.accumulate(np.where(good, np.arange(F), -1))
+            new = np.where(last >= 0, new[np.maximum(last, 0)], v) if good.any() else v.copy()
+        done = float(np.abs(new - v).max(initial=0.0)) <= TIGHT_TOL
+        v = new
+        if done:
+            break
+    lo, hi = joints.limits(j)
+    if (v < lo).any() or (v > hi).any():
+        say(f"Cable '{label(item)}': keeping it tight would pay out more than its speed joint '{j.name}' allows")
+        v = np.clip(v, lo, hi)
+    return _with_value(scene, item, rel, slots, j, v), v
+
+
+def _tight_now(scene, item, rel, slots) -> np.ndarray:
+    """The pose shown (``rel``: K, 4, 4): the speed joint set where it keeps the cable tight, when that is more
+    than ``TIGHT_TOL`` from where it is. Returns the slots as they are then."""
+    if not item.keep_tight or _baked(scene):
+        return rel
+    got, v = _tighten(scene, item, rel[None], slots, None)
+    if v is None:
+        return rel
+    j = joints.find(scene, item.joint)
+    if abs(joints.get_value(j) - float(v[0])) <= TIGHT_TOL:
+        return rel
+    joints.set_value(j, float(v[0]), use_limits=False)
+    return got[0]
+
+
+def _write_tight(scene, item, values, first: int) -> None:
+    """Build: one key per frame on the speed joint (tagged ``TIGHT``; 'Clear keys' removes them with the others)."""
+    j = joints.find(scene, item.joint)
+    if j is None or j.motion is None:
+        return
+    if len(values) == 1:
+        joints.set_value(j, float(values[0]), use_limits=False)
+        return
+    from . import animation
+    cb = animation._channelbag(j.motion, "OBJECT")
+    animation._write(cb, joints.COUPLING_PATH, 0, [(first + f, float(v), "LINEAR", "AUTO")
+                                                   for f, v in enumerate(values)])
+    j.motion[TIGHT] = item.name
+
+
+def set_keep_tight(scene, item, on: bool) -> list[str]:
+    """"Winch keeps it tight" on or off (``FRCable.keep_tight``). On: the speed joint is set so the cable's free
+    length stays as in the CAD pose (live, and one key per frame at Build). A built animation is taken off first.
+    Returns warnings (why it cannot be kept tight)."""
+    with _quiet(item):
+        item.keep_tight = bool(on)
+    return keep_tight_changed(scene, item)
+
+
+def keep_tight_changed(scene, item) -> list[str]:
+    """``keep_tight`` was switched (props.py calls this)."""
+    if index_of(scene, item) < 0:
+        return []
+    name = index_of(scene, item)
+    if _baked(scene):
+        from . import animation
+        animation.clear_keys(scene)             # (its keys were made for the other setting: Build again)
+    item = _cable(scene, name)
+    notes: list = []
+    if item.keep_tight:
+        j, why = _tight_joint(scene, item)
+        if j is None:
+            notes.append(f"Cable '{label(item)}' cannot be kept tight: {why}")
+    changed(scene, item)
+    return notes
+
+
+def tight_payout(scene, item) -> float:
+    """Metres the winch has paid out to keep the cable tight, at the frame shown (0 when it is not kept tight)."""
+    if not item.keep_tight:
+        return 0.0
+    j = joints.find(scene, item.joint) if item.joint else None
+    if j is None:
+        return 0.0
+    return (-1.0 if item.reverse else 1.0) * joints.get_value(j)
 
 
 # ---------------------------------------------------------------------------
@@ -1938,7 +2412,7 @@ def _strip(scene, item, part) -> None:
 def _cad_path(scene, item, memo: dict) -> tuple:
     """The cable's path with everything in the CAD pose: (points (n, 3) world, the metres along it (n,), the
     solve's result). No points when it has no path there."""
-    res = _solve_item(scene, item, _cad_rel(item, memo))
+    res = _solve_item(scene, item, _cad_rel(item, memo), let_go=False)
     if not res["ok"].all():
         return np.zeros((0, 3)), np.zeros(0), res
     return _at(_cad(item.part, memo), res["points"][0]), res["s"][0] * res["scale"], res
@@ -1965,7 +2439,7 @@ def _free_ends(scene, item) -> None:
     if not todo:
         return
     memo: dict = {}
-    res = _solve_item(scene, item, _cad_rel(item, memo))
+    res = _solve_item(scene, item, _cad_rel(item, memo), let_go=False)
     if not res["ok"].all():
         return
     pts, scale = res["points"][0], res["scale"]
@@ -2043,6 +2517,8 @@ def _guarded(scene, item, change, why: str) -> None:
     try:
         change()
         item = _cable(scene, name)
+        if len(item.contacts) != len(snap["contacts"]):
+            _drop_let_go_contacts(item)         # (their places were kept by the contacts' places in the list)
         _STATE["rest"].clear()
         res = None
         if _usable(scene, item):
@@ -2451,6 +2927,7 @@ def _live(scene, force: bool = False) -> bool:
             continue
         _wheels_, slots, _w, _a, _b = _inputs_of(it)
         rel = _rel_now(it, slots) if rel is None else rel
+        rel = _tight_now(scene, it, rel, slots)         # (the winch keeps it tight, task 0082)
         # the pose before this one was solved a moment ago (posing): its wraps are what this one is measured by
         follows = not force and _STATE["last"].get(_k(scene, it)) is not None and not it.problem.startswith("cannot")
         _STATE["last"][_k(scene, it)] = rel
@@ -2519,6 +2996,18 @@ def _read_hook(scene) -> list:
         return []
 
 
+def _rel_from(item, slots, mats: dict) -> np.ndarray:
+    """(F, K, 4, 4): the slots as the cable part sees them at every frame read (``mats``: name -> (F, 4, 4))."""
+    inv = np.linalg.inv(mats[item.part.name])
+    rel = np.zeros((len(inv), len(slots), 4, 4))
+    still = _cad_rel(item, {})[0] if item.still else None       # (a spool's start moves all the same)
+    for f in range(len(inv)):
+        for k, sl in enumerate(slots):
+            rel[f, k] = still[k] if still is not None and not sl.live else \
+                inv[f] @ _place(item, sl, lambda ob, f=f: mats[ob.name][f])
+    return rel
+
+
 def _bake(scene) -> list[str]:
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
@@ -2534,17 +3023,23 @@ def _bake(scene) -> list[str]:
         it = _cable(scene, n)
         _wheels_, slots, _w, _a, _b = _inputs_of(it)
         if n in can:
-            inv = np.linalg.inv(mats[it.part.name])
-            rel = np.zeros((len(inv), len(slots), 4, 4))
-            still = _cad_rel(it, {})[0] if it.still else None       # (a spool's start moves all the same)
-            for f in range(len(inv)):
-                for k, sl in enumerate(slots):
-                    rel[f, k] = still[k] if still is not None and not sl.live else \
-                        inv[f] @ _place(it, sl, lambda ob, f=f: mats[ob.name][f])
+            rel = _rel_from(it, slots, mats)
             if n not in animated or float(np.abs(rel - rel[:1]).max(initial=0.0)) <= MOVE_TOL:
                 rel = rel[:1]
         else:
             rel = _rel_now(it, slots)[None]
+        if it.keep_tight:                       # the winch keeps it tight: a key per frame on its speed (task 0082)
+            rel, values = _tighten(scene, it, rel, slots, first, notes)
+            if values is not None:
+                _write_tight(scene, it, values, first)
+                if len(values) > 1 and any(sl.live and not sl.role for sl in slots):
+                    flex.drop_read()            # (a layer follower moves a carrier with the payout: read again)
+                    objs = {ob.name: ob for ob in [it.part] + [o for sl in slots for o in sl.objects()]}
+                    rel = _rel_from(it, slots, flex.read_places(scene, list(objs.values()), first, len(values),
+                                                                keep_shown=False))
+            it = _cable(scene, n)
+        if _let_goes(it):
+            _refresh_let_go(scene, it, rel, slots, first)
         moving = len(rel) > 1
         if moving:
             _store_places(scene, it, rel, slots, first)
@@ -2581,6 +3076,9 @@ def after_clear(scene) -> None:
     _STATE["busy"] += 1
     try:
         for it in list(scene.fresing.cables):
+            j = joints.find(scene, it.joint) if it.joint else None
+            if j is not None and j.motion is not None and TIGHT in j.motion:
+                del j.motion[TIGHT]             # (the winch's keys went with the others)
             if not _usable(scene, it):
                 continue
             can = _can_move(it)
@@ -2588,10 +3086,10 @@ def after_clear(scene) -> None:
             if it.moving != can:
                 with _quiet(it):
                     it.moving = can
-            if can or had:
+            if can or had or it.keep_tight:
                 _drop_places(scene, it)
                 _wheels_, slots, _w, _a, _b = _inputs_of(it)
-                _draw(scene, it, _rel_now(it, slots)[None], None)
+                _draw(scene, it, _tight_now(scene, it, _rel_now(it, slots), slots)[None], None)
     finally:
         _STATE["busy"] -= 1
     forget()                                    # the parts may not be back in place yet: look again at the next update
@@ -2641,9 +3139,17 @@ def status(scene, item) -> tuple[str, str]:
         return item.problem, "WARN"
     if not item.joint or joints.find(scene, item.joint) is None:
         return "its speed joint is gone: nothing moves it (remove the cable and add it again)", "WARN"
+    tight = ""
+    if item.keep_tight:                         # (task 0082)
+        j, why = _tight_joint(scene, item)
+        if j is None:
+            return f"cannot be kept tight: {why}", "WARN"
+        if _keyed(j):
+            return f"is not kept tight: an animation step moves its speed '{j.name}'", "WARN"
+        tight = f", the winch pays out {tight_payout(scene, item):.2f} m"
     n = len(item.contacts)
-    return f"{item.length:.2f} m over {plural(n, 'contact')}" + (", a shape per frame" if item.moving and _baked(scene)
-                                                                else ""), "OK"
+    return f"{item.length:.2f} m over {plural(n, 'contact')}" + tight + \
+        (", a shape per frame" if item.moving and _baked(scene) else ""), "OK"
 
 
 _WORDS = ("CABLE", "CABLES", "KABEL", "KABELS", "WIRE ROPE", "WIREROPE", "ROPE", "ROPES", "WIRE", "SEIL", "DRAHTSEIL",
@@ -2916,3 +3422,98 @@ def set_up_test_model(scene) -> dict:
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     return {"joints": [luff_name, item.joint], "cable": name, "animation": TEST_ANIMATION,
             "contacts": [c.name for c in item.contacts], "notes": notes}
+
+
+MOVING_ANIMATION = "Over the stern"
+MOVING_CABLE, MOVING_WIRE = "Cable end", "Lift wire"
+MOVING_LET_GO = 9.2                     # s: the cable end and the sheave are let go (the block lies near the seabed)
+MOVING_SPEED = 3.0                      # kn: the vessel's speed (Weather & time) while the block goes over the stern
+
+
+def set_up_moving_model(scene, with_let_go: bool = True) -> dict:
+    """The set-up of the moving-part test model (test_moving.step, tools/make_test_moving.py; task 0082), already
+    imported: the joints "Travel" (the carrier aft along the gantry, 0 … 12 m), "Tilt" (the hanger about its pivot,
+    0 … 40°, + swings the block aft) and "Lower" (the block down away from the hanger, 0 … 12 m); the cable "Cable end"
+    read from CABLE (power cable look) and hung into the sea from the HORN (15 m of water, layback 20 m; the vessel
+    sails at 3 kn, Weather & time), its start (in the clamp) and its SHEAVE let go at 9.2 s (``with_let_go``); the wire
+    "Lift wire" read from LIFT WIRE (steel wire rope look) with "Winch keeps it tight" on; the animation "Over the
+    stern": travel 10.5 m aft (0 … 4 s), tilt 30° (4 … 5 s), lower 9 m (5 … 9 s), lift the block 5 m again (9.5 …
+    11.5 s). Not built. Returns the names made."""
+    from . import paths_sea as _sea
+
+    def named(name):
+        for ob in scene.objects:
+            if ob.get(build.PROP_NAME) == name:
+                return ob
+        raise PathError(f"The model has no part '{name}'.")
+
+    root = build.model_root_of(named("CARRIER.ASM")) or named("CARRIER.ASM")
+    m = root.matrix_world
+    mm = 0.001
+
+    def at(x, y, z):
+        return m @ Vector((x * mm, y * mm, z * mm))
+
+    def way(x, y, z):
+        return (m.to_3x3() @ Vector((x, y, z))).normalized()
+
+    with joints._batch(scene):
+        joints.create(scene, "SLIDE", [named("CARRIER.ASM")], at(8000, 0, 7300), way(-1, 0, 0), name="Travel")
+        joints.create(scene, "ROTATE", [named("HANGER.ASM")], at(8000, 0, 6500), way(0, 1, 0), name="Tilt")
+        joints.create(scene, "SLIDE", [named("LOWER.ASM")], at(8000, 0, 5150), way(0, 0, -1), name="Lower")
+    for jname, lo, hi in (("Travel", 0.0, 12.0), ("Tilt", 0.0, math.radians(40.0)), ("Lower", 0.0, 12.0)):
+        j = joints.find(scene, jname)
+        if j.kind == "ROTATE":
+            j.rot_min, j.rot_max = lo, hi
+        else:
+            j.slide_min, j.slide_max = lo, hi
+        j.use_limits = True
+    bpy.context.view_layer.update()
+    notes = []
+    item = add_cable(scene, MOVING_CABLE)
+    notes += read_cad(scene, item, named("CABLE"))
+    w = scene.fresing.weather
+    w.enabled = True
+    w.vessel_speed = MOVING_SPEED               # (the vessel sails on: the cable that comes free lies on the seabed)
+    item = find(scene, MOVING_CABLE)
+    with _quiet(item):
+        item.sea_depth, item.sea_layback, item.sea_laid = 15.0, 20.0, 40.0
+        item.sea_speed = "WEATHER"
+    notes += _sea.add_sea_end(scene, item)
+    wire = add_cable(scene, MOVING_WIRE)
+    with _quiet(wire):
+        wire.look = "ROPE"
+    wire["look_was"] = "ROPE"
+    notes += read_cad(scene, wire, named("LIFT WIRE"))
+    notes += set_keep_tight(scene, find(scene, MOVING_WIRE), True)
+    fps = 25
+    if with_let_go:
+        item = find(scene, MOVING_CABLE)
+        frame = int(round(MOVING_LET_GO * fps)) + 1
+        for which in ["a"] + [str(i) for i in _wheel_indices(item) if item.contacts[i].name == "SHEAVE"]:
+            let_go(scene, find(scene, MOVING_CABLE), which, frame)     # (its place is read when it is built)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = MOVING_ANIMATION, 0.0, str(fps)
+    for jname, start, dur, to in (("Travel", 0.0, 4.0, 10.5), ("Tilt", 4.0, 1.0, math.radians(30.0)),
+                                  ("Lower", 5.0, 4.0, 9.0), ("Lower", 9.5, 2.0, 4.0)):
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", jname, start, dur, "SMOOTH"
+        b.use_from = True
+        if jname == "Tilt":
+            b.to_angle = to
+        else:
+            b.to_dist = to
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    return {"joints": ["Travel", "Tilt", "Lower"], "cable": MOVING_CABLE, "wire": MOVING_WIRE,
+            "animation": MOVING_ANIMATION, "notes": notes}
+
+
+def moving_view_points(scene) -> np.ndarray:
+    """(8, 3) world points a camera of the moving-part test model frames (the tour stop, the PC check): from the
+    gantry's front over the stern to the block lowered aft and the cable going down into the water."""
+    ob = next((o for o in scene.objects if o.get(build.PROP_NAME) == "CARRIER.ASM"), None)
+    if ob is None:
+        raise PathError("The model has no part 'CARRIER.ASM'.")
+    m = np.array((build.model_root_of(ob) or ob).matrix_world)
+    box = [(x, y, z) for x in (14.0, -12.0) for y in (-3.0, 3.0) for z in (-7.0, 7.6)]
+    return np.array([m[:3, :3] @ np.array(p) + m[:3, 3] for p in box])
