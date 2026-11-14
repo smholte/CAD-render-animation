@@ -195,6 +195,25 @@ def _spans(n: int) -> np.ndarray:
     return np.unique(np.round(np.concatenate([np.linspace(0.0, 1.0, n - 24), np.linspace(0.94, 1.0, 25)]), 9))
 
 
+ROOT_RADIUS = 2540.0            # mm: the round root (the CAD's fitted root circle: r 2543; the hub's ring: 2460-2600)
+ROOT_BLEND = 4000.0             # mm: from the root up to here the skin blends from that circle into the CAD's shape
+
+
+def round_root(P: np.ndarray) -> np.ndarray:
+    """Grid points (blade coordinates, z along the span) with the root made round and centred on the pitch axis (z):
+    the CAD's root is 95 mm out of round and 62 mm off the axis, so a blade pitching in the hub's round ring ran
+    160 mm into the hub. The IEA's blade has a circular root (its first airfoil is "circular"). Each point keeps its
+    angle about the axis; the blend is a smoothstep from the root (all circle) to ROOT_BLEND (all CAD)."""
+    out = P.copy()
+    z = P[..., 2]
+    t = np.clip(z / ROOT_BLEND, 0.0, 1.0)
+    w = 1.0 - t * t * (3.0 - 2.0 * t)
+    ang = np.arctan2(P[..., 1], P[..., 0])
+    out[..., 0] = P[..., 0] + w * (ROOT_RADIUS * np.cos(ang) - P[..., 0])
+    out[..., 1] = P[..., 1] + w * (ROOT_RADIUS * np.sin(ang) - P[..., 1])
+    return out
+
+
 def light_blade(skin_shape, mirror: bool = True):
     """The blade's skin as a light surface: the source's one B-spline has 4,343 x 203 control points, which
     OpenCascade meshes in minutes into a few dozen triangles (the blades were all but invisible in the app). A grid
@@ -219,11 +238,13 @@ def light_blade(skin_shape, mirror: bool = True):
     sign = -1.0 if mirror else 1.0
     if mirror:
         us = us[::-1]                                   # mirrored, walked the other way round: the same outer side
+    P = np.array([[(lambda q: (q.X(), sign * q.Y(), q.Z()))(src.Value(float(u), float(v))) for v in vs]
+                  for u in us])
+    P = round_root(P)
     arr = TColgp_Array2OfPnt(1, len(us), 1, len(vs))
-    for i, u in enumerate(us):
-        for j, v in enumerate(vs):
-            p = src.Value(float(u), float(v))
-            arr.SetValue(i + 1, j + 1, gp_Pnt(p.X(), sign * p.Y(), p.Z()))
+    for i in range(len(us)):
+        for j in range(len(vs)):
+            arr.SetValue(i + 1, j + 1, gp_Pnt(*map(float, P[i, j])))
     fit = GeomAPI_PointsToBSplineSurface(arr, 3, 8, GeomAbs_C2, LIGHT_TOL)
     if not fit.IsDone():
         raise RuntimeError("the light blade surface could not be fitted")
@@ -234,6 +255,8 @@ def light_blade(skin_shape, mirror: bool = True):
     for u in (us[:-1] + us[1:])[::6] / 2:
         for v in (vs[:-1] + vs[1:])[::8] / 2:
             p = src.Value(float(u), float(v))
+            if p.Z() < ROOT_BLEND:                      # the root is made round on purpose (round_root)
+                continue
             q = gp_Pnt(p.X(), sign * p.Y(), p.Z())
             proj = GeomAPI_ProjectPointOnSurf(q, surf)
             if proj.NbPoints():
@@ -424,6 +447,10 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
                  "into 31-79 triangles (the blades were all but invisible); it is rebuilt as a light surface through "
                  f"{LIGHT_GRID[0]} x {LIGHT_GRID[1]} points sampled from it (largest deviation "
                  f"{LIGHT_DEVIATION[0]:.0f} mm): 217 k triangles at Draft, 874 k at Normal, 2.2 M at Fine per blade.")
+    notes.append(f"The blade root is made round (r {ROOT_RADIUS:.0f} mm, on the pitch axis) and blended into the CAD's "
+                 f"skin over the first {ROOT_BLEND / 1000:.0f} m: the CAD's root is 95 mm out of round and 62 mm off "
+                 "its pitch axis, so a pitching blade ran 160 mm into the hub's round ring; the IEA's blade root is "
+                 "circular.")
     parts = list(src)
     for p in made:
         occ.one_solid(p.shape, p.name)

@@ -490,7 +490,7 @@ def test_anchors_lie_on_their_parts(built):
 def test_cameras(built):
     v, fit, _parts = built
     cams = {c["name"]: c for c in tp.cameras(fit, v)}
-    assert set(cams) == ({"Work boat", "Whole turbine"} if v == "offshore" else {"From the field"})
+    assert set(cams) == ({"Work boat", "Whole turbine"} if v == "offshore" else {"From the field", "At the door"})
     for c in cams.values():
         assert 10.0 < c["lens"] < 200.0
         assert np.linalg.norm(np.subtract(c["target"], c["eye"])) > 10000.0
@@ -500,8 +500,10 @@ def test_cameras(built):
         assert 18.0 <= cams["Work boat"]["lens"] <= 30.0
         assert cams["Work boat"]["target"][2] > e[2] + 10000      # looking up
     else:
-        e = np.asarray(cams["From the field"]["eye"])
-        assert e[2] == pytest.approx(fit["ground_z"] + 1700.0) and 60000 < np.hypot(e[0], e[1]) < 80000
+        e = np.asarray(cams["From the field"]["eye"])        # far enough to see all 256 m of it
+        assert e[2] == pytest.approx(fit["ground_z"] + 1700.0) and 250000 < np.hypot(e[0], e[1]) < 400000
+        d = np.asarray(cams["At the door"]["eye"])
+        assert d[2] == pytest.approx(fit["ground_z"] + 1700.0) and 15000 < np.hypot(d[0], d[1]) < 40000
 
 
 # ---------------------------------------------------------------------------
