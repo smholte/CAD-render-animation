@@ -1,8 +1,7 @@
 # 0122 – Nicer test models: better looking, more detail, more functions per model
 
-**Who:** worker · **Status:** waiting – starts when 0119, 0120 and 0121 are done (they change tests that read
-`test_spool`, `test_tracks`, `test_flex_*`, `test_sequence`); not at the same time as 0062 · **Branch:**
-`task/0122-nicer-test-models`
+**Who:** worker · **Status:** running (14 Nov 2026; 0119–0121 done); not at the same time as 0062 · **Branch:**
+`ccr-bde4018f-wmqawe` (the session's branch)
 **Started by:** lead chat, 14 Nov 2026 (owner's wish) · **Lane:** Test models (new): `tools/make_test_*.py`,
 `tests/data/*.step` + their copies in `fresing_render/data/`, the set builds in `blender/tour.py` (only the sets of the
 models it changes), the expected numbers in the tests that read those models, guide pictures that show a changed model
