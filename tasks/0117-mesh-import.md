@@ -1,6 +1,6 @@
 # 0117 – Mesh import: glTF / OBJ / FBX models as projects the app can work with
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0117-mesh-import` (or the web session's)
+**Who:** worker · **Status:** running · **Branch:** `ccr-8270e3a4-hwpgr0` (the web session's)
 **Started by:** lead chat, 14 Nov 2026 (owner's pick from study 0113, 13 Nov 22:07: "mesh import – to do")
 **Area (new Import lane):** new `fresing_render/importer/mesh_reader.py` (+ helpers, e.g. `core/mesh_faces.py` for the
 face split), `importer/runner.py` additively (start the mesh reader like the STEP reader), `blender/ops_import.py`

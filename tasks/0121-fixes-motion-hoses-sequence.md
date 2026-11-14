@@ -1,6 +1,6 @@
 # 0121 – Bug-hunt fixes C: hoses with vessel motion, the Assembly sequence preview, old vessel-motion rigs
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0121-fixes-motion-hoses-sequence` (or the web session's)
+**Who:** worker (web session) · **Status:** running · **Branch:** `task/0121-fixes-motion-hoses-sequence` (or the web session's)
 **Started by:** lead chat, 14 Nov 2026, from bug hunt 0118 (`tasks/0118-bug-hunt-3.md`)
 **Area:** Flex + Motion: `blender/flex.py` (`_moved`, `_live`, `_follow`), `blender/vessel_motion.py` (`changed`, `_sync`) + `core/vessel_motion.py` (rig key version), `blender/sequence.py` + `core/sequence.py` (preview, `_in_way`, `_across`, measuring at rest), `props.py` (`_seq_preview_changed`, additive), `reimport.py` (`_carry_over`: end the preview), `animation.py` **only** the one call in `clear_keys` (0120 edits it too: merge carefully); their tests. **Do not edit:** files of 0119, 0120, 0117 named in their briefs.
 **Model:** **Opus · effort Medium** · **Place:** Claude Code on the web, environment "CAD-render-animation"
