@@ -62,7 +62,7 @@ class FRESING_PT_cutaway(_Panel, bpy.types.Panel):
         if cut.shape_kind == "BOX":
             col.prop(cut, "size", text="Box size")
         # what it cuts
-        n = len(section.cut_parts(scene, cut))
+        n = section.cut_count(scene, cut)
         sub = box.column(align=True)
         sub.label(text=f"Cuts {plural(n, 'part')}:", icon="OBJECT_DATA")
         for i, t in enumerate(cut.targets):

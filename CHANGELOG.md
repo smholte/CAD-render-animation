@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.98 – 14 Nov 2026 – mesh models: glTF, OBJ and FBX (task 0117)
+## 0.2.99 – 14 Nov 2026 – mesh models: glTF, OBJ and FBX (task 0117)
 
 - **File > Import > Mesh model (glTF, OBJ, FBX)…** (also **Import mesh model…** in 1 Import, or drag the file onto
   the view): a model you did not draw – a vessel or a truck from Sketchfab, a client's glTF – comes in like a STEP
@@ -34,6 +34,26 @@ installer of that version was built from.
 the test crane: Help > Make test tour project, then the tour's "Mesh model" stop). Check the parts look like in the
 file, the credit line under the model's name, and that 4 Motion > Add rotate joint on a round part gives the right
 axis.
+
+## 0.2.98 – 14 Nov 2026 – render queue, long jobs and redraw fixes (task 0120)
+
+- **Every paint scheme** for an animation now really renders each video in its own colours. When the animation
+  started from a saved scene (always so for a Product video), every video came out in that scene's colours.
+- A picture added with **Current view** is rendered at the frame you were on when you added it: the sea, vessel
+  motion, rain and snow of that moment. Before, it showed the frame the queue happened to start at.
+- While a **House bake**, a **Web 3D model** export or a **Clash check** runs (they change the project for a while),
+  **Start later** waits for it and **Start queue** / **Render animation** say to start when it is done; before, the
+  queue could copy and render that half-done state. Saving during one of them now warns that the file holds its temporary state.
+- **Ctrl+Z** during a House bake, Web 3D export or Clash check does nothing and says "press Cancel first". Before,
+  the export stopped without a word, and a House bake mixed two states of the project.
+- **Build animation** says so when its start scene switches the weather off (the scene was saved before the weather
+  was set): set the weather and save that scene again to keep it.
+- A cut-away no longer changes the project from the render's own thread when a render starts (a kind of thing that
+  crashed Blender before); the app's render buttons and the queue bring it up to date just before.
+- The side panel walks the whole model less often while an animation plays (X-ray, work lights and cut-away counts
+  are kept between redraws). A key of your own on the scene is kept through Build and Clear keys, and Clear keys no
+  longer leaves an unused "FR Scene" action behind.
+
 ## 0.2.97 – 14 Nov 2026 – hoses with vessel motion, the Assembly sequence preview (task 0121)
 
 - **Hoses follow a vessel-motion change after Build.** Changing the strength, sea state, heading or a still/level part

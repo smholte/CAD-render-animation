@@ -175,6 +175,8 @@ def _drive(ob, index: int, expr: str, variables: list) -> None:
         fc = ob.driver_add("location", index)
     for m in list(fc.modifiers):
         fc.modifiers.remove(m)
+    # Blender 5.2.3 writes 0 for a driver result between 0 and about 1e-4 (CLAUDE.md section 8): the seabed's first
+    # 0.1 mm of payout is lost. Too small to see, so no joints.BIAS-style offset (bug hunt 0118 row 18d).
     d = fc.driver
     d.type = "SCRIPTED"
     while d.variables:

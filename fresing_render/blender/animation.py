@@ -177,11 +177,18 @@ def motor_total(j, b) -> float:
 # ---------------------------------------------------------------------------
 
 
+USER_ACTION = "fr_user_action"     # on an ID block: the action of its own a Build put aside (bug hunt 0118 row 18c)
+USER_SLOT = "fr_user_slot"         # … and the identifier of its slot
+
+
 def _channelbag(id_block, id_type: str):
     from bpy_extras import anim_utils
     ad = id_block.animation_data or id_block.animation_data_create()
     act = ad.action
     if act is None or not act.get(TAG):
+        if act is not None and id_block.get(USER_ACTION) is None:   # someone's own keys: kept aside, put back
+            id_block[USER_ACTION] = act            # at Clear keys (an ID property holds it: it is never lost)
+            id_block[USER_SLOT] = ad.action_slot.identifier if ad.action_slot is not None else ""
         act = bpy.data.actions.new(f"FR {id_block.name}")
         act[TAG] = True
         ad.action = act
@@ -324,9 +331,23 @@ def clear_keys(scene, restore: bool = True) -> None:
 
 def _drop_action(id_block) -> None:
     ad = id_block.animation_data
-    if ad is None:
+    if ad is not None:
+        ad.action = None                     # the action itself is removed in one batch afterwards
+    own = id_block.get(USER_ACTION)
+    if own is None:
         return
-    ad.action = None                         # the action itself is removed in one batch afterwards
+    slot = id_block.get(USER_SLOT) or ""
+    del id_block[USER_ACTION]
+    if USER_SLOT in id_block:
+        del id_block[USER_SLOT]
+    if not isinstance(own, bpy.types.Action):
+        return
+    ad = id_block.animation_data or id_block.animation_data_create()
+    ad.action = own                          # the keys of its own the Build had put aside
+    for sl in own.slots:
+        if sl.identifier == slot:
+            ad.action_slot = sl
+            break
 
 
 # ---------------------------------------------------------------------------
@@ -481,6 +502,20 @@ def _block_values(j, b) -> tuple[float, float]:
     return b.from_dist, b.to_dist
 
 
+def _weather_note(shot: str, before: str, after: str) -> str:
+    """A Build warning when the start scene switched the panel's weather off (bug hunt 0118 row 16): Build puts the
+    start scene's weather back by design, but silently it looked as if the weather was lost. A start scene with
+    weather of its own (the tour's "Clear day") is meant, and gets no warning."""
+    import json
+    if before == after:
+        return ""
+    b, a = json.loads(before).get("weather", {}), json.loads(after).get("weather", {})
+    if b.get("enabled") and not a.get("enabled"):
+        return (f"The start scene '{shot}' has no weather, so Build switched the weather off. To keep it: set the "
+                f"weather, then save the scene '{shot}' again")
+    return ""                     # a start scene with weather of its own: that weather is the scene's point
+
+
 def bake(scene, anim) -> dict:
     """Turn the blocks of ``anim`` into keyframes. Returns {'frames', 'seconds', 'warnings'}."""
     s = scene.fresing
@@ -496,7 +531,11 @@ def bake(scene, anim) -> dict:
     s.anim_restore_saved = True
 
     if anim.start_shot:
+        before = states.settings_json(s, ("weather",))
         warnings += states.apply_shot(scene, anim.start_shot)
+        note = _weather_note(anim.start_shot, before, states.settings_json(s, ("weather",)))
+        if note:
+            warnings.append(note)
     bpy.context.view_layer.update()
     _fresh_blur(scene, anim)
 

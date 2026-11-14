@@ -199,6 +199,23 @@ def xray_parts(scene) -> list:
     return [o for o in scene.objects if o.get(LOOK)]
 
 
+_XRAY_GEN = [0]                        # + 1 whenever this module gives or takes the X-ray look
+_XRAY_COUNT: dict = {"key": None, "n": 0, "at": 0.0}
+XRAY_AGE = 2.0                         # s: an undo can change the look behind our back
+
+
+def xray_count(scene) -> int:
+    """How many parts have the X-ray look, for the side panel (bug hunt 0118 row 18a: the panel walked every object
+    twice per redraw, and it redraws every frame while playing). Kept until the look is given or taken, objects come
+    or go, or ``XRAY_AGE`` seconds pass."""
+    import time
+    key = (scene.name, len(scene.objects), _XRAY_GEN[0])
+    now = time.monotonic()
+    if _XRAY_COUNT["key"] != key or now - _XRAY_COUNT["at"] > XRAY_AGE:
+        _XRAY_COUNT.update(key=key, n=len(xray_parts(scene)), at=now)
+    return _XRAY_COUNT["n"]
+
+
 def apply_look(scene, obs, color=None, strength=None) -> int:
     """Give ``obs`` (parts; their decals go along) the X-ray look. Returns how many parts."""
     s = scene.fresing
@@ -208,6 +225,7 @@ def apply_look(scene, obs, color=None, strength=None) -> int:
     for ob in obs:
         if ob.type != "MESH":
             continue
+        _XRAY_GEN[0] += 1
         for o in prepare(ob):
             o[LOOK] = 1
             o[FADE] = 1.0
@@ -229,6 +247,7 @@ def remove_look(scene, obs) -> int:
 
 
 def _plain(o) -> None:
+    _XRAY_GEN[0] += 1
     for k in (LOOK, XRAY, XCOLOR, XSTRENGTH):
         if k in o:
             del o[k]

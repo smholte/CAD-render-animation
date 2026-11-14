@@ -189,6 +189,15 @@ def _after_save(_dummy=None):
 
 
 @persistent
+def _before_save(_dummy=None):
+    try:
+        from . import queue
+        queue.warn_busy_save(bpy.context.scene)   # Ctrl+S during a House bake / web 3D export / clash check (0118)
+    except Exception:
+        pass
+
+
+@persistent
 def _before_load(_dummy=None):
     try:
         from . import queue
@@ -216,6 +225,8 @@ def register():
         bpy.app.handlers.load_pre.append(_before_load)
     if _after_save not in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.append(_after_save)
+    if _before_save not in bpy.app.handlers.save_pre:
+        bpy.app.handlers.save_pre.append(_before_save)
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         if _after_undo not in lst:
             lst.append(_after_undo)
@@ -233,6 +244,8 @@ def unregister():
         bpy.app.handlers.load_pre.remove(_before_load)
     while _after_save in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.remove(_after_save)
+    while _before_save in bpy.app.handlers.save_pre:
+        bpy.app.handlers.save_pre.remove(_before_save)
     for lst in (bpy.app.handlers.undo_post, bpy.app.handlers.redo_post):
         while _after_undo in lst:
             lst.remove(_after_undo)

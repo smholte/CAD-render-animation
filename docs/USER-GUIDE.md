@@ -2268,7 +2268,10 @@ the step before) and changes to the values in the step over its duration: **To**
 **Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
 **Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
 start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
-queue renders it, also for every paint scheme. Rain, snow, spray and the flag depend only on the frame, so a frame
+queue renders it, also for every paint scheme. An animation that starts from a saved scene (its start scene) gets
+that scene's weather back at **Build animation** – also "no weather" when the scene was saved before you set it.
+Build then says so ("The start scene … has no weather, so Build switched the weather off"): set the weather and save
+that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
 looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
 
 ### Houses from House Planner
@@ -2944,7 +2947,8 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 
 - **Current view** adds a picture of the model exactly as the view shows it now, from the active camera.
   In a built animation that is the frame you are on: its pose, the parts hidden at that moment and the
-  camera where it is at that frame. **All scenes** adds one per saved scene.
+  camera where it is at that frame, and the sea, vessel motion, rain and snow of that frame. **All scenes** adds one
+  per saved scene.
   Videos come from **Render animation** in 6.
 - **Every paint scheme** (a fold under it): the same video or picture in every colour option, for a customer,
   rendered overnight in one go. Tick the paint schemes (saved in 3 Looks > Paint schemes; **All** / **None** tick
@@ -2964,7 +2968,11 @@ or close the app and let it run overnight: the PC stays awake while it renders.
   happened. While it waits, Windows does not go to sleep by itself (shutting the PC down or closing the lid still
   stops it). Saving the project, also under a new name (**Save As**), keeps the delayed start.
   At the time it does exactly what **Start queue** does; if a render is still going then (a time test of the day),
-  it starts as soon as that one has finished.
+  it starts as soon as that one has finished. The same while a **House bake**, a **Web 3D model** export or a
+  **Clash check** runs: they change the project for a while (temporary objects, the weather, hidden parts), so the
+  queue waits for them, and **Start queue** says "… is running: start the queue when it is done". Save the project
+  after such a job too: saving while it runs keeps its temporary state in the file (the app says so).
+  While one of them runs, **Ctrl+Z** does nothing ("Undo is off while … runs"): press **Cancel** (or Esc) first.
 - **Render animation** and **Time test** while a delayed start waits render only that new job now; the jobs that
   were waiting still start at the set time. **Start now** starts them all at once (and ends the wait).
   **Update now** is refused while a delayed start waits: cancel it, or update when the queue has finished.

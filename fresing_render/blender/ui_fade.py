@@ -18,7 +18,7 @@ class FRESING_PT_xray(_Panel, bpy.types.Panel):
         self.layout.label(icon="XRAY")
 
     def draw_header_preset(self, context):
-        n = len(fade.xray_parts(context.scene))
+        n = fade.xray_count(context.scene)
         if n:
             header_status(self.layout, plural(n, "part"))
 
@@ -26,7 +26,7 @@ class FRESING_PT_xray(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        n = len(fade.xray_parts(scene))
+        n = fade.xray_count(scene)
         if not n:
             steps(layout, context, ["Select a subassembly (or a part), or pick a group in the list above",
                                     "X-ray it: it turns see-through with glowing edges",

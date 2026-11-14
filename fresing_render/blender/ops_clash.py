@@ -7,6 +7,7 @@ import time
 import bpy
 from bpy.props import IntProperty
 
+from . import longjob
 from . import clash
 
 TICK = 0.12                    # s of checking between two redraws of the panel
@@ -88,6 +89,8 @@ class FRESING_OT_clash_check(bpy.types.Operator):
 
     def modal(self, context, event):
         rt = clash.runtime(context.scene)
+        if longjob.swallow_undo(self, context, event, "clash check"):   # bug hunt 0118 row 13
+            return {"RUNNING_MODAL"}
         if event.type == "ESC" or rt.get("cancel"):
             self._gen.close()
             self._stop(context)

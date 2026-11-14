@@ -871,7 +871,7 @@ def write_cylinders_glb(path: str, count: int, sides: int = 48, stacks: int = 20
     return len(idx) // 3
 
 
-@line("heavy.mesh", "Big mesh model: import, split into parts, faces", "0.2.98", (H,), expected=60,
+@line("heavy.mesh", "Big mesh model: import, split into parts, faces", "0.2.99", (H,), expected=60,
       what="An invented mesh of about 1 million triangles (500 facetted cylinders in one glTF mesh, no normals) is "
            "imported: split into its loose parts, flat and round faces found, the axis of every cylinder",
       shows="How long a big downloaded mesh model (a vessel or a truck in one piece) takes to come in on this PC",

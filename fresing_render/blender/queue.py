@@ -15,6 +15,7 @@ writes ``status.json``; the app reads it every few seconds while it is open.
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import shutil
@@ -68,6 +69,9 @@ QUEUE_ONLY = "fr_queue_only"     # on a hidden saved scene or camera made by "Ad
 
 
 FLOOR_PIN = "fr_floor_z"         # on a hidden saved scene: the floor of the built animation (task 0060)
+
+
+SHOT_FRAME = "fr_frame"          # on a hidden saved scene: the frame "Add image" was clicked at (bug hunt 0118 row 6)
 
 
 def animation_floor_z(scene):
@@ -331,6 +335,9 @@ def start(context, only=None) -> str:
     s = scene.fresing
     if is_running(scene):
         raise RuntimeError("The queue is already running")
+    busy = busy_job(scene)
+    if busy:                                 # its temporary state would be copied and rendered (0118 row 11)
+        raise RuntimeError(busy_note(busy))
     waiting = [j for j in s.queue if j.status in ("WAITING", "STOPPED", "FAILED")
                and (only is None or j.job_id in only)]
     if not waiting:
@@ -610,6 +617,42 @@ def _redraw() -> None:
         pass
 
 
+def busy_job(scene) -> str:
+    """The long job that is changing this project for a while (bug hunt 0118 row 11): "House bake", "Web 3D export"
+    or "Clash check" while it runs, else "". Its temporary objects, weather and hiding must never reach the queue's
+    copy of the project (nor a saved file)."""
+    if scene is None:
+        return ""
+    for mod, label in (("ops_house", "House bake"), ("web3d", "Web 3D export"), ("clash", "Clash check")):
+        try:
+            module = importlib.import_module(f"{__package__}.{mod}")
+            if module.runtime(scene).get("running"):
+                return label
+        except Exception:                            # noqa: BLE001 - a module that cannot load runs nothing
+            continue
+    return ""
+
+
+def busy_note(busy: str) -> str:
+    return (f"The {busy} is running and has changed the project for a while: start the queue when it is done "
+            f"(or Cancel it first)")
+
+
+def warn_busy_save(scene) -> str:
+    """Before Ctrl+S: a long job's temporary state goes into the file. Blender cannot stop the save; say so."""
+    busy = busy_job(scene)
+    if not busy:
+        return ""
+    note = (f"Saved while the {busy} runs: the file holds its temporary state. Save again when it is done "
+            f"(the {busy} puts the project back at its end)")
+    try:
+        scene.fresing.last_message = note
+    except Exception:                                # noqa: BLE001
+        pass
+    print("Fresing Render:", note)
+    return note
+
+
 def _delay_tick():
     if not _DELAY["when"]:
         return None
@@ -621,8 +664,8 @@ def _delay_tick():
         _redraw()
         return min(_DELAY_TICK, max(0.2, _DELAY["when"] - time.time()))
     scene = bpy.context.scene
-    if is_running(scene):                            # e.g. a Time test started during the day: start after it
-        _redraw()
+    if is_running(scene) or busy_job(scene):         # e.g. a Time test started during the day, a House bake (0118
+        _redraw()                                    # row 11): start after it
         return _DELAY_TICK / 3
     try:
         qdir = start_delayed_now(bpy.context)
@@ -930,6 +973,9 @@ def run_job(scene, job: dict, progress, should_stop):
                 raise RuntimeError(f"The saved scene '{job['shot']}' was deleted")
             for w in states.apply_shot(scene, job["shot"]):
                 progress(0, w)
+            frame = s.shots[job["shot"]].get(SHOT_FRAME)
+            if frame is not None:                 # the sea, vessel motion, rain and snow of the frame it was added at
+                scene.frame_set(int(frame))
             pin = s.shots[job["shot"]].get(FLOOR_PIN)
             if pin is not None:                   # a frame of a built animation: the video's floor (task 0060)
                 scene["fr_floor_pin_z"] = float(pin)
@@ -963,8 +1009,11 @@ def _setup_animation(scene, job: dict, progress) -> dict:
     info = animation.bake(scene, anim)
     for w in info["warnings"]:
         progress(0, w)
-    from . import machining                      # milling (task 0027): read the bits' motion of this animation
+    # Build puts the start scene's own looks back: the job's paint scheme goes over them again (bug hunt 0118 row 1)
+    _apply_job_scheme(scene, job, progress)
+    from . import machining, section             # milling (task 0027): read the bits' motion of this animation
     machining.prepare(scene, progress)
+    section.sync_for_render(scene)               # cut-away in step on the main thread (bug hunt 0118 row 15)
     quality = job.get("quality") or anim.quality
     size = presets.compute(anim.out_format, anim.out_resolution, "auto", 300, 0.0, 1920, 1080)
     if job.get("scale"):                         # the automatic test tour (task 0059): small frames
