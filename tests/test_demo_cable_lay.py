@@ -1018,3 +1018,130 @@ def test_every_turning_roller_turns_about_its_own_axis():
         n += 1
     assert n >= 230 and sum(1 for j in g.resolve_joints(S.root) if j["name"].startswith("CRADLE")
                             and "Roller" in j["name"]) == 2 * len(S.stations["highway"]) >= 40
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Task 0081: handling winch fleet angle (level wind), the D's gutter rollers over the cable sizes
+# ---------------------------------------------------------------------------------------------------------
+
+FLEET_LIMIT = 1.5                     # degrees: the app's warning limit (spiral groove / Lebus practice)
+
+
+def _fleet(hw: dict, shift: float = 0.0):
+    """The fleet angles (deg, at the a_lo and a_hi flange) of a handling winch from the route sheet, with the formula
+    the app uses (``core.spool.fleet_angles``): the rope from the top layer's middle at each flange to where it meets
+    the fairlead sheave's groove – moved ``shift`` mm along the drum's axis (the level wind's travel). Also gives where
+    that point lies along the axis (mm from the drum's middle)."""
+    from fresing_render.core import spool as SP
+    d = hw["rope_d"]
+    lo, hi = hw["flange_faces"]
+    sp = SP.Spool(kind=SP.DRUM, d=d / 1000.0, r1=hw["first_layer_rc"] / 1000.0, a_lo=lo / 1000.0, a_hi=hi / 1000.0,
+                  pitch=hw["pitch"] / 1000.0, r_max=(hw["flange_r"] - d / 2.0) / 1000.0,
+                  groove=SP.LEBUS if hw["groove"] == "lebus" else SP.SPIRAL)
+    path = SP.wind(sp)
+    ax = np.array(hw["drum_axis"])
+    rel = np.array(hw["fairlead_groove_top"]) - np.array(hw["drum_centre"])
+    along = float(rel @ ax)
+    across = float(np.linalg.norm(rel - along * ax))
+    q = np.array([across, 0.0, along + shift]) / 1000.0           # the spool frame: z along the drum's axis
+    return [math.degrees(a) for a in SP.fleet_angles(path, q)], along
+
+
+def test_handling_winch_fleet_angle_with_its_level_wind(made):
+    """Task 0081 (0080's follow-up): the app warned of a 20.9° fleet angle on handling winch 1 – its fairlead sheave
+    stood 0.9 m from the flange. For 1.5° the sheave would have to stand ~23 m from the 1.28 m drum; aft of the winch
+    the D-quadrant rests ~2.6 m away (its curve over the lane) and forward lies the carousel's well, so the sheave rides
+    on a level wind instead: a carriage across the drum ("Level wind", a slide joint along the drum's axis) carries the
+    sheave (its turn rides on it) and the hanging end's shackle. With the carriage over the wrap being paid out, the
+    fleet angle at both flanges is ~0° (the app makes the joint follow the layer, ACROSS)."""
+    by = {j["name"]: j for j in made["joints"]["joints"]}
+    winches = made["route"]["handling_winches"]
+    assert [w["name"] for w in winches] == ["HANDLING WINCH 1", "HANDLING WINCH 2"]
+    for hw in winches:
+        before, along = _fleet(hw)
+        assert min(before) > 20.0 and max(before) < 22.0, before          # with the sheave standing still: ~20.9°
+        lw = by[hw["level_wind"]["joint"]]
+        assert lw["type"] == "slide" and lw["drive"]["by"] == "winch"
+        assert abs(abs(float(np.dot(lw["axis"]["direction"], hw["drum_axis"]))) - 1.0) < 1e-6    # across the drum
+        assert by[hw["name"] + ": Fairlead sheave turn"]["rides_on"] == lw["name"]
+        sheave = next(s for s in made["route"]["sheaves"] if s["name"].endswith(f"(handling winch {hw['name'][-1]})"))
+        assert sheave["uid"].startswith(lw["parts"][0] + "/")                # the sheave is on the carriage
+        assert abs(float(np.dot(np.array(sheave["centre"]) - np.array(hw["drum_centre"]), hw["drum_axis"]))) < 1e-6
+        lo, hi = hw["flange_faces"]
+        d = hw["rope_d"]
+        sign = float(np.dot(lw["axis"]["direction"], hw["drum_axis"]))
+        for k, a_end in enumerate((lo + d / 2.0, hi - d / 2.0)):
+            travel = (a_end - along) * sign                                 # the carriage over that flange's wrap
+            assert lw["limits"][0] - 1e-6 <= travel <= lw["limits"][1] + 1e-6, (hw["name"], travel)
+            after, _ = _fleet(hw, a_end - along)
+            assert after[k] <= FLEET_LIMIT and after[k] < 0.01, (hw["name"], k, after)
+
+
+def _roller_gaps(p, quad, cache) -> np.ndarray:
+    """Each gutter roller's gap to the cable round the D's curve (mm; 0 = touching): the roller's outer face (a vertical
+    cylinder from its bottom to its flange) against the cable's circle (radius ``quadrant_r`` at the cable's height), in
+    the vertical plane through the roller's axis."""
+    from fresing_render.demo_model import deck as dk
+    zc = dk.d_shape(p)["zc"]
+    gaps = []
+    for c in quad.children:
+        if c.node.name != "GUIDE ROLLER":
+            continue
+        v = _mesh_points(c.node.shape, cache, 0.5) @ c.M[:3, :3].T + c.M[:3, 3]
+        ctr = c.M[:2, 3]
+        lo, hi = v[:, 2].min(), v[:, 2].max()
+        rr = np.hypot(*(v[:, :2] - ctr).T)[v[:, 2] < lo + 20.0].max()
+        dz = 0.0 if lo <= zc <= hi else min(abs(lo - zc), abs(hi - zc))
+        gaps.append(math.hypot(p.quadrant_r - (np.hypot(*ctr) + rr), dz) - p.cable_r)
+    return np.array(gaps)
+
+
+@pytest.mark.parametrize("d", [50.0, 60.0, 80.0, 120.0, 140.0, 170.0, 200.0, 500.0])
+def test_the_ds_gutter_rollers_reach_the_cable(d):
+    """Task 0081 (0102's open point): the D's gutter rollers hang from its top plate and end at ``band_z`` – 30 mm over
+    the tensioners' bottom pads, which the D's ends pass over. For a small cable the pads' V edges stood higher than the
+    cable's centre (a 40 mm deep V), so the rollers ended up to 45 mm above it and could not reach it. The pads' V now
+    follows the cable Ø (a tensioner's pads are made for its cable): the rollers touch the cable from Ø 80 up and clear
+    a Ø 50–60 cable by under 2 mm; no roller stands in the cable. Nothing of the D outside ``inner`` is lower than
+    ``band_z`` (its outer lip used to reach the cable's centre for every cable: into the pads' V at Ø 50)."""
+    pytest.importorskip("OCP")
+    from fresing_render.demo_model import deck as dk
+    from fresing_render.demo_model import geom as g
+    from fresing_render.demo_model import machines as m
+    p = Params(cable_d=d)
+    ds = dk.d_shape(p)
+    assert ds["band_z"] - ds["zc"] >= m.pad_top(p) + 30.0 - 1e-9                 # 30 mm over the pads (0102)
+    wide = m.PAD_V_WIDE * p.cable_r / math.tan(p.pad_v_half_angle)
+    assert m.pad_v_depth(p) >= min(m.PAD["v_depth"], wide) - 1e-9                # still cradles the cable
+    if d >= 170.0:
+        assert m.pad_v_depth(p) == m.PAD["v_depth"]                             # big cables: the 0084 pads
+    quad = dk.quadrant_d(p, m.Kit(p))
+    cache: dict = {}
+    gaps = _roller_gaps(p, quad, cache)
+    assert len(gaps) == 25 and (gaps >= -0.05).all(), gaps
+    assert (gaps < (0.05 if d >= 80.0 else 2.0)).all(), gaps                    # touching / just clear
+    for node, _uid, W, _label, _path in g.walk(quad):
+        if not isinstance(node, g.Part) or node.name not in ("QUADRANT GUTTER", "GUIDE ROLLER"):
+            continue                                    # (a small D's bogies stand outside ``inner``: on the rails)
+        v = _mesh_points(node.shape, cache) @ W[:3, :3].T + W[:3, 3]
+        out = np.abs(v[:, 1]) > ds["inner"] + 1.0
+        assert (v[out, 2] >= ds["band_z"] - 0.5).all(), (d, node.name, float(v[out, 2].min() - ds["band_z"]))
+
+
+@pytest.fixture(scope="module")
+def small_and_big():
+    """The whole model (not written) for the owner's smallest and biggest cable: ~40 s each."""
+    pytest.importorskip("OCP")
+    from fresing_render.demo_model import layout
+    return {d: layout.build(Params(cable_d=d), with_lebus=False) for d in (50.0, 500.0)}
+
+
+@pytest.mark.parametrize("d", [50.0, 500.0])
+def test_the_d_quadrants_way_is_clear_for_the_smallest_and_biggest_cable(small_and_big, d):
+    """Task 0081: the D's sweep (0102's check, made at Ø 200) at the ends of the owner's range: with the tensioners open
+    and the lanes' cradles dropped nothing stands in the room the D sweeps (at Ø 500 the CPS slide's end reached into
+    it: the slide now ends where its trough clears the room), and the gutter rollers reach the cable."""
+    S = small_and_big[d]
+    assert _in_the_ds_way(S) == []
+    gaps = _roller_gaps(S.p, S.quadrant_info["quadrant"].node, {})
+    assert (gaps >= -0.05).all() and (gaps < (0.05 if d >= 80.0 else 2.0)).all(), gaps

@@ -1500,6 +1500,71 @@ def build_spool(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
+SEA_ANIM = "Cable into the sea"
+
+
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step")
+def build_sea(b: Build):
+    from . import paths, paths_sea
+    sc = b.scene
+    s = sc.fresing
+    _look("PRODUCT")
+    s.background, s.env_detail, s.sea_state = "SEA", "SIMPLE", "CALM"
+    s.water_level = 2.0                     # the hull's draft: the waterline is the model's z = 0
+    s.sea_depth, s.sea_clarity = 15.0, 15.0
+    _update()
+    made = paths_sea.set_up_test_model(sc)
+    _check(made["animation"] == SEA_ANIM, f"the animation is called '{made['animation']}'")
+    it = paths.find(sc, made["cable"])
+    _check(it is not None and it.b_kind == "SEA" and not it.problem,
+           f"the cable into the sea: {it.problem if it is not None else 'missing'}")
+    s.sea_cut_auto = True
+    s.sea_cutaway = True
+    _update()
+    cam = _camera(b, "ISO", "Tour view", lens=30.0)
+    cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    shot = _shot(b, "Tour: into the sea")
+    a = s.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_sea_cable(scene):
+    """Along the built animation: the cable keeps its length from the horn to its end on the seabed, the touch-down
+    stays the layback behind the horn (the vessel moves with the lay), its end lies still on the seabed (it moves
+    aft with the seabed) and the CPS set goes down the catenary on the cable."""
+    import numpy as np
+
+    from . import build, paths, paths_riders, paths_sea
+    its = [it for it in paths.items(scene) if it.b_kind == "SEA"]
+    _check(len(its) == 1, "the cable into the sea is missing")
+    it = its[0]
+    _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
+    lays, ends, low = [], [], 1e9
+    for f in (scene.frame_start, (scene.frame_start + scene.frame_end) // 2, scene.frame_end):
+        scene.frame_set(f)
+        _update()
+        n = paths_sea.numbers(scene, it)
+        lays.append(n["layback"])
+        line = np.array(paths.shape_now(scene, it), dtype=float)
+        bed = np.array(paths_sea.bed(scene).matrix_world)
+        ends.append(np.linalg.inv(bed)[:3, :3] @ line[-1] + np.linalg.inv(bed)[:3, 3])
+        rings = [p.part for r in it.riders for p in r.parts if p.part.get(build.PROP_NAME) == "VERTEBRA"]
+        dg = __import__("bpy").context.evaluated_depsgraph_get()
+        for ring in rings:
+            ev = ring.evaluated_get(dg)
+            low = min(low, float((np.array(ev.matrix_world) @ np.r_[np.array(ev.data.vertices[0].co), 1.0])[2]))
+    pay = paths_sea.payout(scene, it)
+    drift = float(max(np.linalg.norm(e - ends[0]) for e in ends))
+    _check(pay > 7.0, f"only {pay:.2f} m of cable ran")
+    _check(max(lays) - min(lays) < 0.01, f"the layback changed from {min(lays):.2f} to {max(lays):.2f} m")
+    _check(drift < 1e-3, f"the cable's end on the seabed moved {drift * 1000:.1f} mm over the seabed")
+    _check(low < -1.0, "the CPS set did not go down into the sea")
+    _check(len(paths_riders.rider_parts(scene)) == 9, "the CPS set's 9 parts do not all ride on the cable")
+    return (f"{pay:.2f} m paid out, layback {lays[0]:.2f} m held to {(max(lays) - min(lays)) * 1000:.1f} mm, the end "
+            f"on the seabed still to {drift * 1000:.2f} mm, the CPS set {-low:.1f} m under the water")
+
+
 TRACKS_ANIM = "Tracks"
 
 
@@ -2564,6 +2629,61 @@ def _check_night(scene):
     return weather.header(scene)
 
 
+# ----- a house from House Planner (task 0114) -----
+
+HOUSE_MOMENT = "summer-evening"
+
+
+@tour_set("house", "House from House Planner", "sample-house.hpscene")
+def build_house(b: Build):
+    """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
+    shown in the view from the recipe's garden camera."""
+    import shutil
+
+    import bpy
+
+    from . import house_bake, house_import
+    sc = b.scene
+    src = b.file("sample-house.hpscene")
+    shutil.copyfile(os.path.join(DATA, "sample-house.hpscene"), src)
+    house = house_import.import_scene(sc, src)["house"]
+    path = b.file("sample-house.hpbake")
+    out = house_bake.HouseBake(sc, path, moments=[house.recipe.moments[0].id], photos=False, videos=False,
+                               samples=4).run()
+    h = house_import.settings(sc)
+    h.last_bake, h.last_seconds = out["path"], float(out["seconds"])
+    h.last_problems = "\n".join(out["problems"])
+    h.last_text = f"1 moment baked in {out['seconds'] / 60:.1f} min (tour: 4 samples)"
+    cam = house.recipe.cameras.get("garden-view") or next(iter(house.recipe.cameras.values()))
+    data = bpy.data.cameras.new("Tour garden")
+    data.sensor_fit = "VERTICAL"
+    data.angle_y = math.radians(float(cam.fov))
+    ob = bpy.data.objects.new("Tour garden", data)
+    sc.collection.objects.link(ob)
+    ob.matrix_world = house_bake.camera_matrix(cam.position, cam.target)
+    sc.camera = ob
+    house_import.preview(sc, HOUSE_MOMENT)
+    _update()
+    _shot(b, "@house")
+
+
+def _check_house(scene):
+    from ..core import house_scene as hs
+    from . import house_import
+    _check(house_import.has_house(scene), "no house in this project")
+    h = house_import.settings(scene)
+    house = house_import.house(scene)
+    m = next((x for x in house.recipe.moments if x.id == HOUSE_MOMENT), None)
+    _check(m is not None, f"the sample has no moment '{HOUSE_MOMENT}'")
+    el, az = hs.sun_angles(m.direction)
+    got = house_import._angle(el, az, _channel(scene, "sun_el"), _channel(scene, "sun_az"))
+    _check(got < 0.5, f"the sky's sun is {got:.1f}° from House Planner's evening sun")
+    _check(bool(h.last_bake) and os.path.exists(h.last_bake), "the bake package next to the tour is missing")
+    bad = hs.structure_problems(h.last_bake, house)
+    _check(not bad, "the bake package is not right: " + "; ".join(bad[:2]))
+    return f"evening sun {el:.1f}° high; package {os.path.getsize(h.last_bake) / 1024:.0f} KB"
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -2596,7 +2716,7 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
      "run-down streaks; the block in front is light grey concrete.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
-           "streaks; Concrete)", since="0.2.91", check=_check_marine)
+           "streaks; Concrete)", since="0.2.93", check=_check_marine)
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)
@@ -2687,6 +2807,13 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
      auto="clip")
+stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
+     "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
+     "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
+     "still where it lies on the seabed, the seabed moves aft under the vessel, the touch-down stays 20 m behind the "
+     "horn and the orange CPS set goes over the horn and down the curve on the cable.",
+     where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
+     check=_check_sea_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)
@@ -2934,6 +3061,13 @@ stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
      "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
      "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.89", shot="Tour view",
      check=_check_web3d_light)
+stop("house", OUT, "house", "House from House Planner",
+     "The made-up sample house from House Planner on a summer evening: a low sun from the north-west, long warm "
+     "shadows across the plot, the terrace in front. 5 Scene & Render > House from House Planner lists the seasons "
+     "and moments (Preview shows each one) and the bake of the summer morning this tour made (Show in Explorer: "
+     "sample-house.hpbake next to the tour, for House Planner).",
+     where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.92",
+     check=_check_house)
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
@@ -2962,6 +3096,8 @@ def _fresh(models: tuple, out_folder: str):
         scene = bpy.context.scene
         scene.fresing.out_folder = out_folder
         for m in models:
+            if not m.lower().endswith((".step", ".stp")):
+                continue                    # (a house scene: the set's build imports it itself, task 0114)
             res = bpy.ops.fresing.import_step(filepath=m, quality="draft")
             if res != {"FINISHED"}:
                 raise RuntimeError(f"the import of {os.path.basename(m)} returned {res}: "

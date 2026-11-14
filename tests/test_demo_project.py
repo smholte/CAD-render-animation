@@ -77,7 +77,7 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 308                           # task 0102: no S-bend cradles; the cradles that drop
+    assert len(sheet) == 310                           # task 0102: no S-bend cradles; the cradles that drop
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
     assert len(by) == len(sheet) + 2 and demo.CABLE in by and demo.WINCH_TRAVEL in by
@@ -120,7 +120,7 @@ def test_every_joint_of_the_sheet(made):
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
     assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
     #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 4                                 # carousel, arch, guide cage; handling winch 1's drum (task 0080)
+    assert spooled == 5                                 # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081)
 
 
 def test_a_coupling_turns_at_its_ratio(made):
@@ -209,7 +209,7 @@ def test_scenes_cameras_brand_and_the_animation(made):
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 80.0, body + cards
+    assert 60.0 <= body + cards <= 95.0, body + cards          # (0081: shot 8, 10 s more)
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
@@ -261,8 +261,9 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     the stripes (the look's driver) and a roller's rim go exactly as far."""
     import numpy as np
 
-    from fresing_render.blender import animation, build, cable_looks, joints, paths
+    from fresing_render.blender import animation, build, cable_looks, joints, paths, paths_sea
     sc = _scene()
+    sc.frame_set(sc.frame_start)
     it = paths.find(sc, demo.CABLE_ITEM)
     assert it is not None and it.joint == demo.CABLE and not it.made_joint and it.still and it.look == "POWER"
     assert it.part.get(build.PROP_NAME) == "CABLE" and paths.status(sc, it)[1] in ("OK", "WARN"), paths.status(sc, it)
@@ -273,7 +274,10 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     rollers = [c for c in it.contacts if c.kind == "ROLLER"]
     assert all(joints.find(sc, c.joint).follows == demo.CABLE for c in rollers)
     # 0102: no S-bends, a shorter oval; 0080: the cable starts where it leaves the coil (the quarter turn is the spool's)
-    assert 150.0 < it.length < 165.0 and abs(it.diameter - 0.2) < 0.002
+    # 0081: into the sea – the drawn length is the path to horn A + the catenary + 120 m on the seabed
+    n = paths_sea.numbers(sc, it)
+    on_deck = it.length - n["hanging"] - n["laid"]
+    assert it.b_kind == "SEA" and 150.0 < on_deck < 165.0 and abs(it.diameter - 0.2) < 0.002, on_deck
     assert it.part.get("fr_group_manual") == paths.GROUPS["POWER"]
     assert it.part.material_slots[0].material.get("fr_material") == "cable_power"
     # the drawn tube: the app's, with the attribute the look reads
@@ -535,7 +539,7 @@ def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
     assert ids[:3] == ["model", "looks", "joints"] and ids[-1] == "finish"
     assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
-                                                       "shot_tensioner", "shot_drum", "shot_quadrant"]
+                                                       "shot_tensioner", "shot_drum", "shot_quadrant", "shot_sea"]
     saved = list(demo.STAGES)
     try:
         @demo.stage("cable", "Cable on its path", after="joints")

@@ -86,7 +86,8 @@ def test_table_moves_the_follower(scene):
         want = joints.interp(XS, YS, x)
         assert joints.get_value(J(scene, "Wheel 1")) == pytest.approx(want, abs=1e-9)
         assert angle_of(scene, "Wheel 1") == pytest.approx(want, abs=TOL), x
-        assert J(scene, "Wheel 1").motion[joints.VALUE] == pytest.approx(want, abs=TOL), x
+        # (not the copy a driver writes into the motion's own value: Blender runs drivers on several threads and that
+        # copy can be a step behind – CLAUDE.md section 8; it failed 1 run in 5 on main's run 43517923768)
 
 
 def test_table_drivers_need_no_python(scene):

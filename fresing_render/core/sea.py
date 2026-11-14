@@ -506,3 +506,91 @@ def wake(xb, y, half_beam: float, speed_knots: float):
     arms = ARMS * (1.0 - smoothstep(0.0, 1.5 + 0.03 * xp, arm_d)) * np.exp(-xp / (0.7 * length))
     on = smoothstep(0.0, 2.0, v)
     return np.where(behind, np.maximum(band, arms) * on, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# under the water (task 0081): the seabed, the water's clarity, the cut-away behind the stern
+# ---------------------------------------------------------------------------
+#
+# The cut-away takes a box of water away behind the stern (air: the camera sees the cable and the seabed clearly).
+# Round it lies a ring of water as a volume: whatever is seen through one of the box's walls – the hull below the
+# waterline, the seabed further away, the cable beyond the box – fades into the water's own colour with its distance
+# behind the wall. The volume only absorbs and glows (no scattering): a homogeneous medium, which Cycles works out in
+# one step (no ray marching, no noise):
+#
+#     seen = behind * T + colour * (1 - T),   T = exp(-sigma * d),   sigma = 3 / clarity
+#
+# "Clarity" is the distance at which a thing behind water has faded to 5 % (e^-3) – roughly how far a diver sees.
+
+CLARITY_RANGE = (2.0, 40.0)                # m: very murky … very clear (the slider's range)
+CLARITY_FADED = 3.0                        # sigma * clarity: 5 % left at the clarity's distance
+CUT_GROW = 4.0                             # the water ring reaches this x the clarity out from the box (e^-12: gone)
+CUT_TOP = 0.08                             # m: the ring's top lies this much under the water's surface
+CUT_EDGE = 0.12                            # m: the bright line along the top of the box's walls
+CUT_DARK = (0.35, 40.0)                    # the box's walls darken with depth: this much at this depth (m)
+SEABED_EXTENT = 1000.0                     # m round the model
+SEABED_SINK = 0.06                         # m: in Detailed the plain seabed lies this much under the rippled patch
+# the water's colour under water in full daylight (linear RGB, radiance): what a thing far behind a wall turns into.
+# A North Sea green-blue; lighter than DEEP (the sea seen from above, mostly the sky's reflection on dark water).
+UNDERWATER = (0.028, 0.115, 0.125)        # (task 0081, after the first demo pictures: clearer than the sea seen from
+#                                           above – a cut-away shows the water as an illustration does)
+NIGHT_LIGHT = 0.003                        # what is left of the light at night (the moon; the camera opens up)
+OVERCAST_LIGHT = 0.45                      # a grey sky gives this share of a clear day's light
+SAND = ((0.21, 0.175, 0.12), (0.11, 0.10, 0.075))   # the seabed: wet sand … silt (linear RGB)
+RIPPLE_LENGTH = 0.9                        # m between sand ripples
+RIPPLE_HEIGHT = 0.03                       # m: their amplitude (Detailed: real geometry; Simple: only the shading)
+
+
+def absorption(clarity: float) -> float:
+    """Absorption sigma (per metre) of water with this clarity (m): a thing at the clarity's distance has 5 % left."""
+    c = min(max(float(clarity), 0.1), 1000.0)
+    return CLARITY_FADED / c
+
+
+def transmittance(distance, clarity: float):
+    """What is left of a thing ``distance`` metres behind water: e^(-sigma d)."""
+    return np.exp(-absorption(clarity) * np.maximum(np.asarray(distance, float), 0.0))
+
+
+def fade(distance, clarity: float):
+    """How far a thing ``distance`` metres behind water has faded into the water's colour: 1 - e^(-sigma d)."""
+    return 1.0 - transmittance(distance, clarity)
+
+
+def light_level(day: float = 1.0, clouds: float = 0.0) -> float:
+    """The light under water, 1 = a clear day: ``day`` 0 (night) … 1 and the cloud cover (Weather & time's channels
+    ``day`` and ``clouds``; the material works out the same formula from them)."""
+    day = min(max(float(day), 0.0), 1.0)
+    clouds = min(max(float(clouds), 0.0), 1.0)
+    return day * (1.0 - (1.0 - OVERCAST_LIGHT) * clouds) + NIGHT_LIGHT
+
+
+def sky_light(strength: float = 1.0, overcast: bool = False, elevation_deg: float = 45.0) -> float:
+    """The same without Weather & time: the panel's Light strength, Sun or Overcast and the sun's height."""
+    el = math.radians(min(max(float(elevation_deg), 0.0), 90.0))
+    return max(float(strength), 0.0) * (OVERCAST_LIGHT if overcast else 1.0) * (0.3 + 0.7 * math.sin(el)) / (
+        0.3 + 0.7 * math.sin(math.radians(45.0)))
+
+
+def underwater_colour(light: float = 1.0) -> tuple[float, float, float]:
+    """The water's colour (linear radiance) at this light level: dark at night."""
+    return tuple(c * max(float(light), 0.0) for c in UNDERWATER)
+
+
+def seen_through(behind, distance, clarity: float, light: float = 1.0):
+    """What the camera sees of a thing (its own radiance ``behind``, RGB) ``distance`` metres behind a wall of the
+    cut-away: behind * T + the water's colour * (1 - T)."""
+    t = transmittance(distance, clarity)
+    behind = np.asarray(behind, float)
+    return behind * t + np.asarray(underwater_colour(light)) * (1.0 - t)
+
+
+def seabed_ripples(x, y):
+    """Height (m) of the sand ripples at (x, y) in the seabed's own coordinates (the shader's and the Detailed mesh's
+    formula): crests across the current, slightly bent, longer swells of sand under them."""
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    k = 2 * math.pi / RIPPLE_LENGTH
+    bend = 0.9 * np.sin(0.21 * y + 0.4) + 0.5 * np.sin(0.13 * x - 0.07 * y)
+    r = np.sin(k * (0.96 * x + 0.28 * y) + bend)
+    swell = 0.12 * np.sin(0.23 * x + 0.9) * np.sin(0.17 * y + 0.3)
+    return RIPPLE_HEIGHT * r + swell

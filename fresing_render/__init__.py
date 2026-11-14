@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.90"
+__version__ = "0.2.93"
 
 _modules = []
 
@@ -22,11 +22,13 @@ def _classes():
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
     from .blender import ops_flex, ui_flex          # task 0058: 4 Motion > Hoses and drag chains
     from .blender import ops_paths, ui_paths        # task 0078: 4 Motion > Cables and paths (after Hoses and drag chains)
+    from .blender import ops_paths_sea              # task 0081: … > Into the sea, things on the cable
     from .blender import ops_product_video       # task 0101: 6 Animation > Make a product video
     from .blender import ops_spool, ui_spool        # task 0080: 4 Motion > Drums and carousels (after Cables and paths)
     from .blender import ops_tracks, ui_tracks      # task 0079: 4 Motion > Tracks and belts (after Drums and carousels)
     from .blender import ops_web3d, ui_web3d     # task 0099: 5 Scene & Render > Web 3D model (after Turntable video)
     from .blender import ops_weather, ui_weather  # task 0109: 5 Scene & Render > Weather & time (after Vessel motion)
+    from .blender import ops_house, ui_house      # task 0114: 5 Scene & Render > House from House Planner
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -39,15 +41,18 @@ def _classes():
     looks[at:at] = ui_vessel_motion.CLASSES      # 5 Scene & Render > Vessel motion (task 0085), after Props
     at = looks.index(ui_vessel_motion.CLASSES[-1]) + 1
     looks[at:at] = ui_weather.CLASSES            # 5 Scene & Render > Weather & time (task 0109)
+    at = looks.index(ui_weather.CLASSES[-1]) + 1
+    looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
     return (updates.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
-            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
+            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES)
+            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
+            + ops_house.CLASSES)
 
 
 def register():
@@ -88,6 +93,8 @@ def register():
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
+    from .blender import ops_house
+    ops_house.register_menu()                # task 0114: File > Import > House Planner scene (.hpscene)
 
 
 def unregister():
@@ -95,6 +102,8 @@ def unregister():
 
     from . import pccheck
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
+    from .blender import ops_house
+    ops_house.unregister_menu()
     pccheck.unregister()
     updates.unregister()
     from .blender import section

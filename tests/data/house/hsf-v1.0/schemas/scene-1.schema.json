@@ -1,0 +1,659 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/smholte/house-scene-format/blob/v1.0/schemas/scene-1.schema.json",
+ "title": "scene.json of a .hpscene package, format version 1",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "format",
+  "version",
+  "generator",
+  "id",
+  "created",
+  "title",
+  "house",
+  "files",
+  "hash",
+  "uv1",
+  "scene_hash",
+  "place",
+  "storeys",
+  "recipe"
+ ],
+ "properties": {
+  "format": {
+   "const": "house-scene"
+  },
+  "version": {
+   "type": "string",
+   "pattern": "^[0-9]+\\.[0-9]+$"
+  },
+  "generator": {
+   "type": "object",
+   "properties": {
+    "app": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    },
+    "version": {
+     "type": "string",
+     "maxLength": 40
+    }
+   },
+   "required": [
+    "app",
+    "version"
+   ],
+   "additionalProperties": false
+  },
+  "id": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+  },
+  "created": {
+   "type": "string",
+   "format": "date-time",
+   "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d(:\\d\\d)?(\\.\\d+)?Z$"
+  },
+  "title": {
+   "type": "string",
+   "minLength": 1,
+   "maxLength": 120
+  },
+  "house": {
+   "type": "object",
+   "properties": {
+    "version_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+    },
+    "version_name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    }
+   },
+   "required": [
+    "version_id",
+    "version_name"
+   ],
+   "additionalProperties": false
+  },
+  "files": {
+   "type": "object",
+   "properties": {
+    "house": {
+     "const": "house.glb"
+    },
+    "preview": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "house"
+   ],
+   "additionalProperties": false
+  },
+  "hash": {
+   "const": "hp-hash/1"
+  },
+  "uv1": {
+   "const": "hp-uv/1"
+  },
+  "scene_hash": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{32}$"
+  },
+  "place": {
+   "type": "object",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180
+    },
+    "north": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 2,
+     "maxItems": 2
+    },
+    "ground_level": {
+     "type": "number"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude",
+    "north",
+    "ground_level"
+   ],
+   "additionalProperties": false
+  },
+  "storeys": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+     },
+     "level": {
+      "type": "integer"
+     },
+     "elevation": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "level",
+     "elevation",
+     "height"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "recipe": {
+   "$ref": "#/$defs/recipe"
+  }
+ },
+ "$defs": {
+  "recipe": {
+   "type": "object",
+   "properties": {
+    "light": {
+     "enum": [
+      "LIVE",
+      "SOFT",
+      "ALL"
+     ]
+    },
+    "quality": {
+     "type": "object",
+     "properties": {
+      "preset": {
+       "enum": [
+        "DRAFT",
+        "NORMAL",
+        "FINE"
+       ],
+       "x-extensible": true
+      },
+      "texels_per_m": {
+       "type": "number",
+       "minimum": 4,
+       "maximum": 400
+      },
+      "samples": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "minimum": 1,
+       "maximum": 65536
+      },
+      "page_size": {
+       "enum": [
+        1024,
+        2048
+       ]
+      },
+      "texels_per_m_by_group": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{1,32}$"
+       },
+       "additionalProperties": {
+        "type": "number",
+        "minimum": 4,
+        "maximum": 400
+       }
+      }
+     },
+     "required": [
+      "preset",
+      "texels_per_m",
+      "samples",
+      "page_size"
+     ],
+     "additionalProperties": false
+    },
+    "include": {
+     "type": "object",
+     "properties": {
+      "storeys": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "uniqueItems": true
+      },
+      "groups": {
+       "type": "array",
+       "items": {
+        "enum": [
+         "house",
+         "garden",
+         "street",
+         "houses",
+         "park",
+         "furniture",
+         "installs",
+         "ceilItems"
+        ],
+        "x-extensible": true
+       },
+       "uniqueItems": true
+      }
+     },
+     "required": [
+      "storeys",
+      "groups"
+     ],
+     "additionalProperties": false
+    },
+    "open_storeys": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+     },
+     "uniqueItems": true
+    },
+    "seasons": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+       },
+       "date": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d\\d-\\d\\d$"
+       },
+       "snow_cover": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+       },
+       "wet": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+       },
+       "foliage": {
+        "enum": [
+         "full",
+         "autumn",
+         "bare"
+        ],
+        "x-extensible": true
+       }
+      },
+      "required": [
+       "id",
+       "label",
+       "date",
+       "snow_cover",
+       "wet",
+       "foliage"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "moments": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+       },
+       "season": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "time": {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+       },
+       "utc_offset": {
+        "type": "string",
+        "pattern": "^[+-](0\\d|1[0-4]):[0-5]\\d$"
+       },
+       "sun": {
+        "type": "object",
+        "properties": {
+         "azimuth": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360
+         },
+         "elevation": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+         },
+         "direction": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+         }
+        },
+        "required": [
+         "azimuth",
+         "elevation",
+         "direction"
+        ],
+        "additionalProperties": false
+       },
+       "sky": {
+        "type": "object",
+        "properties": {
+         "clouds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         "low_clouds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         "visibility": {
+          "type": "number",
+          "minimum": 50
+         }
+        },
+        "required": [
+         "clouds",
+         "low_clouds",
+         "visibility"
+        ],
+        "additionalProperties": false
+       },
+       "lamps": {
+        "oneOf": [
+         {
+          "enum": [
+           "all",
+           "none"
+          ],
+          "x-extensible": true
+         },
+         {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9_.:-]+$",
+           "maxLength": 63
+          },
+          "uniqueItems": true
+         }
+        ]
+       }
+      },
+      "required": [
+       "id",
+       "label",
+       "season",
+       "time",
+       "utc_offset",
+       "sun",
+       "sky",
+       "lamps"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "cameras": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+       },
+       "position": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 3,
+        "maxItems": 3
+       },
+       "target": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 3,
+        "maxItems": 3
+       },
+       "fov": {
+        "type": "number",
+        "exclusiveMinimum": 1,
+        "exclusiveMaximum": 170
+       }
+      },
+      "required": [
+       "id",
+       "label",
+       "position",
+       "target",
+       "fov"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "photos": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+       },
+       "camera": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "moment": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "size": {
+        "type": "array",
+        "items": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 16384
+        },
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "falling": {
+        "$ref": "#/$defs/falling"
+       }
+      },
+      "required": [
+       "id",
+       "camera",
+       "moment",
+       "size"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "videos": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+       },
+       "kind": {
+        "enum": [
+         "turntable"
+        ],
+        "x-extensible": true
+       },
+       "camera": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "moment": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+       },
+       "size": {
+        "type": "array",
+        "items": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 16384
+        },
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "seconds": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 600
+       },
+       "fps": {
+        "enum": [
+         24,
+         25,
+         30,
+         50,
+         60
+        ],
+        "x-extensible": true
+       },
+       "falling": {
+        "$ref": "#/$defs/falling"
+       }
+      },
+      "required": [
+       "id",
+       "kind",
+       "camera",
+       "moment",
+       "size",
+       "seconds",
+       "fps"
+      ],
+      "additionalProperties": false
+     }
+    }
+   },
+   "required": [
+    "light",
+    "quality",
+    "include",
+    "open_storeys",
+    "seasons",
+    "moments",
+    "cameras",
+    "photos",
+    "videos"
+   ],
+   "additionalProperties": false
+  },
+  "falling": {
+   "type": "object",
+   "properties": {
+    "rain": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "snow": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "wind": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 12
+    },
+    "wind_from": {
+     "type": "number",
+     "minimum": 0,
+     "exclusiveMaximum": 360
+    }
+   },
+   "required": [
+    "rain",
+    "snow",
+    "wind",
+    "wind_from"
+   ],
+   "additionalProperties": false
+  }
+ }
+}

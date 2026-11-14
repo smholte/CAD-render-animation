@@ -53,6 +53,12 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
+  house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
+      imported and one moment baked, task 0114).
+  sea_panel   4 Motion > Cables and paths with the fold "Into the sea" open (panel_cable_sea; as "panels", on
+      test_sea.step, task 0081).
+  sea   the sea cable test model through the cut-away: the cable from the horn down to the seabed, the CPS set on it
+      (view_sea_cutaway.jpg; Cycles on the processor, as "render").
   tracks   the tensioner of the tracks test model after 0.42 m of cable with the top track lifted 0.08 m
       (view_tracks.jpg; Cycles on the processor, as "render").
   spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
@@ -973,7 +979,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel", "tracks_panel"):
+              "spools_panel", "tracks_panel", "sea_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -987,7 +993,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
                 "spools_panel": os.path.join(DATA, "test_spool.step"),
-                "tracks_panel": os.path.join(DATA, "test_tracks.step")}[MODE]
+                "tracks_panel": os.path.join(DATA, "test_tracks.step"),
+                "sea_panel": os.path.join(DATA, "test_sea.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1073,6 +1080,19 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_cables_setup)
         _grab("panel_cables", [("FRESING_PT_cables", False, True)])
+
+    elif MODE == "sea_panel":
+        # task 0081: 4 Motion > Cables and paths, the sea cable chosen, the fold "Into the sea" open, the CPS set chosen
+        def _sea_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.paths_sea").set_up_test_model(sc)
+            sc.fresing.cables_index = 0
+            select_only()
+            mod("blender.ui")._OPEN_FOLDS = True
+            return 1.0
+        step(_sea_setup)
+        _grab("panel_cable_sea", [("FRESING_PT_cables", False, True)])
 
     elif MODE == "spools_panel":
         # task 0080: 4 Motion > Drums and carousels on the spooling test model, the drum chosen, More open
@@ -1579,6 +1599,38 @@ elif MODE == "clash":
         return 0.5
     step(_clash_view_shot)
 
+elif MODE == "house_panel":
+    # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment
+    # baked (4 samples). Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=house_panel.
+    step(_start)
+
+    def _house_setup():
+        import shutil
+        import tempfile
+        sc = bpy.context.scene
+        d = tempfile.mkdtemp(prefix="guide_house_")
+        src = os.path.join(d, "sample-house.hpscene")
+        shutil.copyfile(os.path.join(DATA, "house", "hsf-v1.0", "samples", "sample-house.hpscene"), src)
+        hi = mod("blender.house_import")
+        with override():
+            house = hi.import_scene(sc, src)["house"]
+            out = mod("blender.house_bake").HouseBake(sc, os.path.join(d, "Made-up sample house.hpbake"),
+                                                      moments=[house.recipe.moments[0].id], photos=False,
+                                                      videos=False, samples=4).run()
+        h = hi.settings(sc)
+        h.last_bake, h.last_seconds = out["path"], out["seconds"]
+        h.last_problems = ""
+        h.last_text = f"1 moment baked in {out['seconds'] / 60:.1f} min, " \
+                      f"{os.path.getsize(out['path']) / 2**20:.1f} MB"
+        hi.preview(sc, "summer-evening")
+        sc.fresing.last_message = ""
+        select_only()
+        show_only([("FRESING_PT_house", False, True)])
+        wiggle()
+        return 2.5
+    step(_house_setup)
+    step(lambda: (shoot_sidebar("panel_5_house"), 0.5)[1])
+
 elif MODE in ("toolpath", "toolpath_view"):
     # task 0029: 4 Motion > Milling > Make a toolpath on the toolpath test model, made (as "panels", xvfb 1500x7000);
     # "toolpath_view" = the block cut to the end by the program the app made (xvfb 1920x1200)
@@ -1891,7 +1943,47 @@ def render_tracks():
     log("saved view_tracks", f"{os.path.getsize(out) // 1024} KB")
 
 
-if MODE == "tracks":
+def render_sea():
+    """Task 0081: the sea cable test model through the cut-away after 8 m paid out: the cable from the horn down to
+    the seabed, the CPS set on the catenary."""
+    import addon_utils
+    import numpy as np
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_sea.step"), quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    joints, cams, paths, sea = mod("blender.joints"), mod("blender.cameras"), mod("blender.paths"), \
+        mod("blender.paths_sea")
+    s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "DETAILED", "CALM", 2.0
+    s.sea_depth, s.sea_clarity = 15.0, 15.0
+    bpy.ops.fresing.light_look(look="SUN")
+    sea.set_up_test_model(sc)
+    it = paths.find(sc, sea.TEST_CABLE)
+    joints.set_value(joints.find(sc, it.joint), 6.0, use_limits=False)
+    bpy.context.view_layer.update()
+    paths.refresh(sc)
+    bpy.context.view_layer.update()
+    s.sea_cutaway = True
+    cam = cams.add_camera(sc, "ISO", 30.0, name="Guide sea")
+    cam.matrix_world = sea.view_matrix(sc, it)
+    sc.camera = cam
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 1100, 620, False, SCRATCH
+    mod("blender.render").apply_output(sc, s)
+    t = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", f"{time.time() - t:.0f} s")
+    out = os.path.join(OUT, "view_sea_cutaway.jpg")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", out], check=True)
+    log("saved view_sea_cutaway", f"{os.path.getsize(out) // 1024} KB")
+
+
+if MODE == "sea":
+    try:
+        render_sea()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "tracks":
     try:
         render_tracks()
     except Exception:

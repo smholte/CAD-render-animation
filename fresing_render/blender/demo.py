@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
-MIN_JOINTS = 309                      # the joint sheet's 308 + Cable travel (the quay's come on top)
+MIN_JOINTS = 311                      # the joint sheet's 310 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -691,6 +691,8 @@ def spool_stage(d: Demo):
     spool.add(sc, "DRUM", drum, WINCH_WIRE, coil=on_drum, name=WINCH_SPOOL)
     sp = spool.find(sc, WINCH_SPOOL)
     sp.groove = "LEBUS"
+    # its level wind follows the layer (task 0081): the fairlead sheave stays in line with the wrap, no fleet angle
+    spool.add_follower(sc, spool.find(sc, WINCH_SPOOL), "HANDLING WINCH 1: Level wind", "ACROSS")
     d.notes.append("spool: " + spool.summary(sc, spool.find(sc, WINCH_SPOOL)))
     d.timings["spool winch"] = time.time() - t1
 
@@ -1104,6 +1106,46 @@ def surroundings(d: Demo):
 
 
 # ---------------------------------------------------------------------------
+# the cable into the sea (task 0081)
+# ---------------------------------------------------------------------------
+
+SEA_DEPTH = 30.0                      # m of water at the lay site
+SEA_LAYBACK = 32.0                    # m from horn A to the touch-down: 0083's numbers for 30 m (26–39 m at 20–50 m)
+SEA_LAID = 120.0                      # m already on the seabed behind the touch-down when the animation starts
+SEA_CLARITY = 12.0                    # m: water clarity in the cut-away's walls
+SEA_SHOT_SECONDS = 10.0
+INTO_SEA = "Into the sea"             # the saved camera of shot 8
+
+
+@stage("sea", "Cable into the sea: catenary to the seabed, cut-away behind the stern", after="surroundings")
+def sea_stage(d: Demo):
+    """The power cable hangs from horn A into the sea (4 Motion > Cables and paths > Into the sea, as the button
+    does): 30 m of water, the touch-down 32 m behind the horn, 120 m already on the seabed; the vessel moves with
+    the lay, so the touch-down stays behind it while the seabed passes under. The Sea gets its seabed at 30 m, a
+    cut-away behind the stern placed by the cable, water clarity 12 m."""
+    from . import paths, paths_sea
+    sc = d.scene
+    t0 = time.time()
+    d.progress("The cable into the sea")
+    s = d.s
+    s.sea_depth = SEA_DEPTH
+    item = paths.find(sc, CABLE_ITEM)
+    item.sea_depth, item.sea_layback, item.sea_laid, item.sea_mode = 0.0, SEA_LAYBACK, SEA_LAID, "LAYBACK"
+    notes = paths_sea.add_sea_end(sc, paths.find(sc, CABLE_ITEM))
+    item = paths.find(sc, CABLE_ITEM)
+    if item.problem:
+        raise RuntimeError(f"the cable into the sea: {item.problem}")
+    s.sea_clarity = SEA_CLARITY
+    s.sea_cut_auto = True
+    s.sea_cutaway = True
+    _update()
+    n = paths_sea.numbers(sc, item)
+    d.notes.append(f"sea: layback {n['layback']:.1f} m, leaves horn A at {n['angle']:.0f}°, bottom tension "
+                   f"{n['bottom']:.1f} kN, top {n['top']:.1f} kN" + (f"; {notes[0]}" if notes else ""))
+    d.timings["sea"] = time.time() - t0
+
+
+# ---------------------------------------------------------------------------
 # saved cameras (model mm: x to the bow, transom at 0, y to port, z up)
 # ---------------------------------------------------------------------------
 
@@ -1116,6 +1158,7 @@ VIEWS = {
     "Handling winch": ((-2600.0, -3200.0, 1300.0), "WINCH DRUM", 45.0),
     "Stern": ((-13000.0, -21000.0, 13000.0), (6000.0, 0.0, 4000.0), 28.0),
     "Quadrant": ((-7000.0, 15000.0, 9000.0), "QUADRANT FRAME", 26.0),
+    INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-16000.0, 0.0, -14000.0), 30.0),
 }
 
 
@@ -1352,6 +1395,21 @@ def shot_quadrant(d: Demo):
     t += TILT_SECONDS
     d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
     d.t = t + 3.0
+
+
+@stage("shot_sea", "Shot 8: into the sea – the catenary to the touch-down, the cable on the seabed")
+def shot_sea(d: Demo):
+    """From above and aft of the stern quarter, through the cut-away: the cable pays out at 10 m/min for 10 s, its
+    stripes run down the catenary to the touch-down and stand still on the seabed, the seabed passes aft under the
+    vessel (it moves with the lay), vessel motion Calm."""
+    cam = d.scene.objects.get(INTO_SEA)
+    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
+    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, f"Into the sea: the cable hangs to the seabed {SEA_DEPTH:.0f} m "
+                  f"down and is laid at {SPEED:.0f} m/min", orbit_angle=math.radians(-10.0), easing="SMOOTH")
+    blk = d.animation.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, SEA_SHOT_SECONDS, "LINEAR"
+    blk.speed_mmin = SPEED
+    d.t += SEA_SHOT_SECONDS
 
 
 @stage("finish", "Animation")
