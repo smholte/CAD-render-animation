@@ -766,10 +766,8 @@ def convert_with_blender(path: str, out_dir: str, converter: str | None) -> str:
     else:
         cmd = [converter, CONVERTER, path, glb]
     env = dict(os.environ)
-    for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
-        env.pop(var, None)
-    if "blender" in os.path.basename(converter).lower():
-        env.pop("PYTHONPATH", None)
+    for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE", "PYTHONPATH"):
+        env.pop(var, None)              # the app's search path (set for this reader) holds Blender's scripts' bpy
     kwargs: dict = {}
     job = None
     if os.name == "nt":
