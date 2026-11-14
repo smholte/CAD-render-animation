@@ -158,3 +158,28 @@ def test_tooltip_check_reads_every_section():
     # sections are listed when something is missing or weak (since 0.2.16: nothing), and always with --all
     assert ("### " in text) == any(i.verdict != "ok" for i in items)
     assert "### 4 Motion" in t.report(items, show_all=True)
+
+
+# ---- anchors on every section (task 0124) --------------------------------------------------------------------
+
+OLD_ANCHORS = ["layout", "start", "updates", "import", "structure", "looks", "rule-sets", "faces", "decals", "find",
+               "cutaway", "rules", "schemes", "motion", "scene", "animation", "clash", "queue", "tour", "demo", "tips",
+               "troubleshooting", "pc-check"]          # the 23 anchors before task 0124: links to them keep working
+
+
+def test_old_anchors_still_work_and_find_is_on_find_and_sort(page):
+    for a in OLD_ANCHORS:
+        assert page.count(f'id="{a}"') == 1, a
+    assert re.search(r'<a id="find"></a>\s*<h3[^>]*>Find &amp; sort parts</h3>', page)
+    assert re.search(r'<a id="xray"></a>\s*<h3[^>]*>X-ray look</h3>', page)
+
+
+def test_contents_list_shows_the_sections(page):
+    toc = re.search(r'<ol class="toc">(.*?)</ol>', page, re.S).group(1)
+    subs = re.findall(r'<li class="toc3"><a href="#([^"]+)">', toc)
+    assert len(subs) >= 50
+    assert "cylinders" in subs and "light-look" in subs and "product-video" in subs
+    ids = set(re.findall(r'id="([^"]+)"', page))
+    assert set(subs) <= ids
+    order = re.findall(r'href="#([^"]+)"', toc)
+    assert order.index("motion") < order.index("cylinders") < order.index("scene")    # under their chapter

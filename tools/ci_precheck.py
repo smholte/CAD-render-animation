@@ -210,6 +210,12 @@ def check_groups() -> list[str]:
     return problems
 
 
+def check_functions() -> list[str]:
+    """The function list (task 0124): every tour stop, Full PC-check line and guide section named, every entry linked."""
+    from fresing_render.core import functions
+    return [f"function list: {p}" for p in functions.problems(**functions.read_repo(ROOT))]
+
+
 def check_tasks(text: str) -> list[str]:
     """TASKS.md: every table has rows with as many cells as its header; no task number twice in a table."""
     problems = []
@@ -394,6 +400,7 @@ def main(argv=None) -> int:
     notes += n
     problems += check_counts()
     problems += check_groups()
+    problems += check_functions()
     problems += check_tasks(read("TASKS.md"))
 
     import ci_groups

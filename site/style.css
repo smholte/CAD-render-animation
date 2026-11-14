@@ -61,6 +61,9 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .grid img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform .2s; }
 .grid a:hover img { transform: scale(1.02); }
 .grid figcaption { padding: 10px 14px 12px; font-size: .92rem; color: var(--slate); }
+/* "How it's done": guide links under a picture, video or 3D model (task 0124) */
+.how { display: block; margin-top: 4px; font-size: .85rem; }
+.how a, .grid .how a { display: inline; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* what it does */
 .what { padding: 56px 0; }

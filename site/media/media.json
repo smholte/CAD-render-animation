@@ -4,39 +4,67 @@
   "poster": "fresing_mill_three_tools_poster.jpg",
   "caption": "A Fresing CNC mill machining a plate with three tools (T1 face mill, T2 end mill, T3 chamfer mill): the G-code drives the machine and the chips fly (rendered with Fresing Render)",
   "model": "fresing_mill",
-  "keep": true
+  "keep": true,
+  "functions": [
+   "cnc.gcode",
+   "cnc.tools",
+   "milling.chips"
+  ]
  },
  "pictures": [
   {
    "file": "evo_cnc_low.jpg",
    "caption": "An open-source CNC router in the CNC hall",
-   "model": "evo_cnc"
+   "model": "evo_cnc",
+   "functions": [
+    "scene.surroundings",
+    "looks.materials"
+   ]
   },
   {
    "file": "evo_cnc_iso_left.jpg",
    "caption": "The same router from the other side",
-   "model": "evo_cnc"
+   "model": "evo_cnc",
+   "functions": [
+    "scene.camera",
+    "scene.still"
+   ]
   },
   {
    "file": "evo_cnc_turntable.mp4",
    "poster": "evo_cnc_turntable_poster.jpg",
    "caption": "Mekanika EVO CNC router: turntable",
-   "model": "evo_cnc"
+   "model": "evo_cnc",
+   "functions": [
+    "scene.turntable"
+   ]
   },
   {
    "file": "farmbot_high.jpg",
    "caption": "A gantry robot outdoors, in the sun",
-   "model": "farmbot"
+   "model": "farmbot",
+   "functions": [
+    "scene.surroundings",
+    "looks.light_look"
+   ]
   },
   {
    "file": "ceb_press_low.jpg",
    "caption": "An open-source brick press: the hydraulic cylinder presses the earth block",
-   "model": "ceb_press"
+   "model": "ceb_press",
+   "functions": [
+    "machines.cylinder",
+    "scene.still"
+   ]
   },
   {
    "file": "ceb_press_iso_left.jpg",
    "caption": "The press from the other side",
-   "model": "ceb_press"
+   "model": "ceb_press",
+   "functions": [
+    "scene.camera",
+    "looks.materials"
+   ]
   }
  ],
  "models": {
@@ -95,7 +123,11 @@
  "feature": {
   "file": "thor_side.jpg",
   "caption": "Thor robot arm in the dark studio, rendered on a graphics card with Cycles",
-  "model": "thor"
+  "model": "thor",
+  "functions": [
+   "looks.light_look",
+   "scene.still"
+  ]
  },
  "web_models": [
   {
@@ -105,7 +137,11 @@
    "model": "test_atc",
    "caption": "An invented test mill: the double-arm changer swaps tools from its 12-pot magazine, four changes in a loop",
    "seconds": 10.08,
-   "order": 1
+   "order": 1,
+   "functions": [
+    "web.export",
+    "cnc.doublearm"
+   ]
   },
   {
    "id": "thor",
@@ -114,7 +150,11 @@
    "model": "thor",
    "caption": "The open-source Thor robot arm: six joints and its gripper at work, in a loop",
    "seconds": 10.0,
-   "order": 2
+   "order": 2,
+   "functions": [
+    "web.export",
+    "joints.rotate"
+   ]
   }
  ]
 }
