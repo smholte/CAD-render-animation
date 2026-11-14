@@ -462,7 +462,9 @@ site/                      the landing page https://smholte.github.io/CAD-render
                            site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
                            "site-kit" (on main when the kit or its makers change; by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, release_tools.py (release job), test-model makers, real-app tests,
+tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
+                           model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
+                           guide blocks, servo motors, clamps – each part one solid), real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
@@ -1032,3 +1034,12 @@ the release → Delete); the next run on `main` publishes it again.
   Three blades share one shape: name each occurrence (`stepout` sixth item) or the importer calls all three "BLADE 1".
 - A queued render in a test costs the app's work per frame (milling, chips, air: 12–17 s per frame for a 270 px draft
   whose picture alone takes 4 s), and the same test takes 290–630 s on different runs: a smaller picture saves little.
+- The importer gives faces on one axis line ONE axis with the largest radius: a lug's round top on its bore's axis made
+  the hover call the Ø40.4 bore "Hole Ø80" (task 0122). Test models give lugs and forks chamfered ends.
+- The PC check had its own boom joint without the tour's axis flip: +30° turned the crane's boom DOWN (older than 0122;
+  with the new luffing cylinder it pulled the rod out of its barrel – found by the independent tester). It now uses
+  `tour._boom_joint`. Share such set-up helpers instead of copying them.
+- A real-app click lands on a whole pixel: on a face seen at a low angle one pixel spans more than 2 mm. Compare with
+  the ray through the clicked pixel (`ui_test_app2.py` stack check), not with the ideal 3D point.
+- The STEP writer is not byte-stable (time stamp, entity order): re-running a maker changes the file; copy it to both
+  `tests/data/` and `fresing_render/data/` every time (the copy check is byte for byte).

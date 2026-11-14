@@ -2955,7 +2955,8 @@ ran: check again"): it would belong to neither build. You can scrub the time lin
 follow. Adding an animation to the render queue that has clashes, or was never checked, gives a
 one-line note in the status bar; the video is rendered anyway.
 
-How long it takes, measured on the 4-core cloud test machine: the test crane's animations 0.1–0.3 s, the CNC
+How long it takes, measured on the 4-core cloud test machine: the test crane's animations 2.5–3.5 s (its luffing
+cylinder slides in its barrel; 0.1–0.3 s before version 0.2.101), the CNC
 gantry's 2,983-frame tool-change program 7 s, the scissor lift and crank (49 parts that touch everywhere) 15 s,
 the PC check's made-up 3,000-part machine 10 s long 73 s (its modules run through each other on purpose: 1,668
 clashes), the demo vessel's 73 s animation with its turning rollers, wheels, sprockets, sheaves and carousel 3.4 min
@@ -3056,6 +3057,8 @@ After an update you want to see quickly that everything still works. The **test 
 projects, made from the app's own test models (a crane, a mill, a gantry, a cylinder, a scissor lift, a way
 cover…), with every function already set up: 45 numbered **stops**, from materials and painted faces through
 joints, cylinders, hoses, drag chains and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
+Since version 0.2.101 the test models look like small real machines – chamfered frames, ribs, rails, motors, real
+bolts and screws – and the crane has a luffing cylinder that follows its boom (the boom stops where the cylinder does).
 
 <img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
 

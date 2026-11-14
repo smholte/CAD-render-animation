@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.101 – 14 Nov 2026 – the test models look like real machines (task 0122)
+
+- **Test models:** the small models of the test tour, the PC check and the guide pictures now look like real machines:
+  chamfered frames with ribs and gussets, rails and guide blocks, motors, real hex bolts and socket screws, clamps on
+  the milling tables, deck plating, bollards and handrails on the offshore models, folded sheet-metal way covers, a
+  V-belt pulley with its key on the spindle unit.
+- **Test crane:** a luffing hydraulic cylinder under the boom. In the test tour and the PC check it follows the boom –
+  its rod slides out and its eye stays on its pin – and the boom stops where the cylinder does (about −1.5° … 37.6°).
+- The guide's pictures of these models are new. Nothing in the app's functions changed.
+
 ## 0.2.100 – 14 Nov 2026 – the guide's contents list every section (task 0124)
 
 - **User guide:** the contents on the left now list every section under its chapter (Cylinders, Light look, Make a
