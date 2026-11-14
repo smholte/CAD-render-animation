@@ -3000,8 +3000,8 @@ stop("productvideo", MOTION, "productvideo", "One-click product video",
      auto="clip")
 
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
-     "The gantry runs a short program: lines, arcs, a tool change to T2 and drilling. The toolpath is drawn as a "
-     "thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
+     "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
+     "toolpath is drawn as a thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
      animation="G-code", play=True, check=_check_gcode, auto="clip")
 stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
@@ -3055,7 +3055,7 @@ stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
-     "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table and the block.",
+     "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table, the clamps and the block.",
      where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip")
 stop("air", MACH, "air", "Air blast",
      "The bit cuts a pocket with air on (M7 … M9): chips are blown away from the cut; at the end the part is "
