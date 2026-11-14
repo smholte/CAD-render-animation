@@ -446,6 +446,7 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     bad = sorted(k + first for k in res["problems"] if k + first >= f9)
     assert len(bad) <= 6, bad
     # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
+    sc.frame_set(f9)                                             # (from here on nothing is paid out)
     want = se.sea_mark + paths_sea.payout(sc, se)
     good = [k for k in range(f9 - first, len(res["ok"])) if res["ok"][k]]
     assert np.abs(np.asarray(res["length"])[good] - want).max() < 0.001
