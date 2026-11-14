@@ -95,6 +95,8 @@ def _settings_key(s, kind: str) -> dict:
             key["wx"] = 1
             if _speed(s) > 0:
                 key["speed"] = round(_speed(s), 2)
+            if getattr(s.weather, "bow", "AUTO") != "AUTO":
+                key["bow"] = s.weather.bow           # task 0082: which way the wake and the bow spray go
             sw = _spray_wind(s)
             if sw is not None:
                 key["spray"] = [round(sw[0], 2), round(sw[1][0], 3), round(sw[1][1], 3)]
@@ -1106,6 +1108,8 @@ def _wake_shader(b: _NB, x, y, t):
     v = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake_v").outputs["Fac"]
     ws = b.sep(w)
     stern, mid, hb = ws["X"], ws["Y"], ws["Z"]
+    flip = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake_flip").outputs["Fac"]
+    x = b.math("MULTIPLY", x, b.math("MULTIPLY_ADD", flip, -2.0, 1.0))      # task 0082: bow at +x (stern at min x)
     xb = b.math("SUBTRACT", x, stern)
     xp = b.math("MAXIMUM", xb, 0.0)
     ay = b.math("ABSOLUTE", b.math("SUBTRACT", y, mid))
@@ -1574,7 +1578,7 @@ def _spray_points(b: _NB, count: int, seed: int, life: tuple, t, spawn, velocity
 
 
 def _spray_group(name: str, own, bft_sea: float, toward: float, wind, outline, radius: float,
-                 moving: bool, detailed: bool, mat) -> bpy.types.NodeTree:
+                 moving: bool, detailed: bool, mat, fwd: int = -1) -> bpy.types.NodeTree:
     """Spray (task 0109): drops blown off the white caps (where the foam field is high, ``core/sea.py``) and thrown
     up at the bow, seeded, the same at every frame of every render. From Beaufort 5.5, full at 9."""
     old = bpy.data.node_groups.get(name)
@@ -1625,13 +1629,15 @@ def _spray_group(name: str, own, bft_sea: float, toward: float, wind, outline, r
     if n_crest > 0 and own:
         parts.append(_spray_points(b, n_crest, 11, (0.8, 1.8), t, crest_spawn, crest_velocity, 0.08))
     if outline is not None and amount > 0:
-        bow_x = float(outline[:, 0].min())
-        at_bow = outline[outline[:, 0] < bow_x + 4.0]
+        # task 0082: ``fwd`` is the bow's side (-1: at min x, as before)
+        bow_x = float(outline[:, 0].min()) if fwd < 0 else float(outline[:, 0].max())
+        at_bow = outline[np.abs(outline[:, 0] - bow_x) < 4.0]
         y_lo, y_hi = float(at_bow[:, 1].min()), float(at_bow[:, 1].max())
         tp = 2 * math.pi / math.sqrt(sea_core.G * 2 * math.pi / max(sea_core.peak_wavelength(own), 1.0))
 
         def bow_spawn(b, cs, t0):          # the bow digs into a wave: a burst once per wave period
-            xyz = b.sep(_random(b, "FLOAT_VECTOR", (bow_x - 1.0, y_lo - 0.5, 0.0), (bow_x + 9.0, y_hi + 0.5, 1.0), cs))
+            x0, x1 = (bow_x - 1.0, bow_x + 9.0) if fwd < 0 else (bow_x - 9.0, bow_x + 1.0)
+            xyz = b.sep(_random(b, "FLOAT_VECTOR", (x0, y_lo - 0.5, 0.0), (x1, y_hi + 0.5, 1.0), cs))
             cache["bow"] = xyz["Y"]
             beat = b.math("SINE", b.math("MULTIPLY", t0, 2 * math.pi / max(tp * 0.85, 1.0)))
             return xyz["X"], xyz["Y"], 0.5, b.math("GREATER_THAN", beat, 0.55)
@@ -1681,11 +1687,36 @@ def _build_spray(s, col, root, sea_ob, own, bft_sea, toward, outline, near, deta
     mod = ob.modifiers.new("Spray", "NODES")
     reach = min(max(near, 60.0), 160.0)
     mod.node_group = _spray_group(f"{WAVES_GROUP} spray", own, bft_sea, toward, sw, outline, reach,
-                                  bool(s.sea_moving), detailed, mat)
+                                  bool(s.sea_moving), detailed, mat, fwd=-stern_side(s, outline))
     return ob
 
 
 # ---- the sea itself ----------------------------------------------------------
+
+
+def _end_width(outline: np.ndarray, at_max: bool, reach: float = 3.0) -> float:
+    """How wide the waterline is near one end (within ``reach`` m of its lowest or highest x)."""
+    xs = outline[:, 0]
+    end = xs.max() if at_max else xs.min()
+    near = outline[np.abs(xs - end) <= reach]
+    if len(near) < 2:
+        return 0.0
+    return float(near[:, 1].max() - near[:, 1].min())
+
+
+def stern_side(s, outline) -> int:
+    """+1: the stern is the waterline's end at the highest x (the wake trails to +x, the bow at -x – as before task
+    0082); -1: the stern is at the lowest x. Weather & time > Bow: +x / -x as set; From the hull: the wider end is the
+    stern (a bow narrows), a hull about as wide at both ends keeps +1."""
+    bow = getattr(getattr(s, "weather", None), "bow", "AUTO")
+    if bow == "POS_X":
+        return -1
+    if bow == "NEG_X" or outline is None or len(outline) < 3:
+        return 1
+    lo, hi = _end_width(outline, False), _end_width(outline, True)
+    if lo > 1.15 * hi:
+        return -1
+    return 1
 
 
 def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bpy.types.Object:
@@ -1711,10 +1742,12 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
     own = _waves(s.sea_state, (), (bft, toward))
     if outline is not None:
         xs, ys = outline[:, 0], outline[:, 1]
-        stern = xs.max()
-        aft = outline[xs > stern - 3.0]
-        ob["fr_wake"] = (float(stern), float((aft[:, 1].min() + aft[:, 1].max()) / 2),
+        side = stern_side(s, outline)          # task 0082: +1 stern at max x (as before), -1 at min x
+        stern = xs.max() if side > 0 else xs.min()
+        aft = outline[np.abs(xs - stern) < 3.0]
+        ob["fr_wake"] = (float(stern * side), float((aft[:, 1].min() + aft[:, 1].max()) / 2),
                          float(max((ys.max() - ys.min()) / 2, 0.5)))
+        ob["fr_wake_flip"] = 0.0 if side > 0 else 1.0
         ob["fr_wake_v"] = float(speed)
         if foam:
             _build_hull_foam(scene, s, col, root, ob, outline, bft, own + list(swell), near, detailed, cut)

@@ -3273,6 +3273,14 @@ class FRWeather(bpy.types.PropertyGroup):
         name="Vessel speed", default=0.0, min=0.0, max=20.0, precision=1, update=_weather_changed,
         description="How fast the vessel sails (knots): a wake of foam behind the stern. 0 for a vessel that lays "
                     "cable (walking pace or slower) or lies still")
+    bow: EnumProperty(
+        name="Bow", default="AUTO", update=_weather_changed,
+        items=(("AUTO", "From the hull", "The end where the hull is narrower at the waterline is the bow (a hull as "
+                                          "wide at both ends keeps the bow at -x)"),
+               ("POS_X", "+x", "The bow points to +x: the wake trails behind the stern at -x"),
+               ("NEG_X", "-x", "The bow points to -x: the wake trails behind the stern at +x")),
+        description="Which way the vessel's bow points: the wake trails behind the stern and the bow throws up the "
+                    "spray. From the hull reads it from the waterline")
 
 
 class FRHouse(bpy.types.PropertyGroup):

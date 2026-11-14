@@ -461,3 +461,35 @@ def test_every_sea_driver_is_a_simple_expression(scene):
             found += 1
             assert fc.driver.is_simple_expression, (mat.name, fc.driver.expression)
     assert found >= 2
+
+
+def test_wake_follows_the_bow():
+    """Task 0082: the wake trails behind the real stern. From the hull: the end where the waterline is wider is the
+    stern (a bow narrows); a hull as wide at both ends keeps the old sides (stern at +x); +x / -x as set."""
+    from types import SimpleNamespace
+
+    from fresing_render.blender import surroundings as su
+    box = np.array([(-40.0, -8.0), (40.0, -8.0), (40.0, 8.0), (-40.0, 8.0)])
+    bow_plus = np.array([(0.0, -8.0), (60.0, -8.0), (75.0, -2.0), (78.0, 0.0), (75.0, 2.0), (60.0, 8.0), (0.0, 8.0)])
+    s = lambda bow: SimpleNamespace(weather=SimpleNamespace(bow=bow))  # noqa: E731
+    assert su.stern_side(s("AUTO"), box) == 1                   # old projects keep their look
+    assert su.stern_side(s("AUTO"), bow_plus) == -1             # the demo: transom at x = 0, bow at +x
+    assert su.stern_side(s("AUTO"), bow_plus * [-1, 1]) == 1
+    assert su.stern_side(s("POS_X"), box) == -1 and su.stern_side(s("NEG_X"), bow_plus) == 1
+    assert su.stern_side(s("AUTO"), None) == 1
+
+
+def test_wake_behind_a_stern_at_low_x(scene):
+    """Bow at +x: the sea object says so (fr_wake_flip 1) and the wake's stern is the waterline's lowest x."""
+    s = scene.fresing
+    s.sea_state = "ROUGH"
+    s.weather.enabled = True
+    s.weather.vessel_speed = 8.0
+    s.weather.bow = "POS_X"
+    _apply(scene)
+    sea_ob = _env("sea")[0]
+    assert sea_ob["fr_wake_flip"] == 1.0 and sea_ob["fr_wake"][0] == pytest.approx(30.0, abs=0.1)  # -(-30)
+    s.weather.bow = "NEG_X"
+    _apply(scene)
+    sea_ob = _env("sea")[0]
+    assert sea_ob["fr_wake_flip"] == 0.0 and sea_ob["fr_wake"][0] == pytest.approx(30.0, abs=0.1)
