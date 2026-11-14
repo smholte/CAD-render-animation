@@ -12,12 +12,14 @@ The same numbers are in the code for tests and the app's set-up: ``NUMBERS`` (a 
 ``ASSEMBLIES``, ``UID``.
 
 ======================================================================================================================
-TEST.SPOOL                                                    22 parts, 21 different shapes, 4 sub-assemblies
+TEST.SPOOL                                                    35 parts, 25 different shapes, 4 sub-assemblies
 ======================================================================================================================
 1. The winch (drum axis along +Y through (0, 0, 450); the rope runs in the plane y = 0)
-  BASE FRAME               x -400..1100, y -420..420, z 0..60, with two bearing pedestals (x -90..90,
-                           y ±265..±315, z 60..300): one solid
-  BEARING BLOCK (2 x)      x -80..80, y ±270..±310 (centred on y = ±290), z 300..540, a bore Ø61 on the drum axis
+  BASE FRAME               x -400..1100, y -420..420, z 0..60 (corners chamfered), with two bearing pedestals
+                           (x -140..140, y ±265..±315, z 60..300) and a gusset either side of each: one solid
+  BEARING BLOCK (2 x)      a pillow block: a foot x -130..130, z 300..330, a housing x -80..80 with a round top r 80
+                           about the drum axis and a grease nipple up to z 540, y ±270..±310 (centred on y = ±290), a
+                           bore Ø61 on the drum axis; two ISO 4017 M16 x 30 bolts in the foot (x ±105)
   DRUM.ASM                 origin on the drum axis at (0, 0, 450); its own z = the drum axis (= +Y), its own x = +Z
                            (an angle about the drum axis below, beta, runs from +Z towards +X: the turn about +Y)
     WINCH DRUM             barrel with a SPIRAL GROOVE (a true helix, right-handed about +Y): groove radius 10.5, its
@@ -40,7 +42,8 @@ TEST.SPOOL                                                    22 parts, 21 diffe
                            Its first quarter turn lies on layer 2 (r 187.321 under it) like a real rope in the
                            valley of the layer below: 2.68 into WIRE ON DRUM's outer face. Paying out turns the drum
                            about +Y (the top moves towards +X).
-  LEVEL WIND RAIL          fixed on the base: x 780..820, y -300..300, z 60..100 (along Y at x = 800)
+  LEVEL WIND RAIL          fixed on the base: x 780..820, y -300..300, z 60..100 (along Y at x = 800), end stops
+                           x 775..825, y ±300..±320, z 60..130
   LEVEL WIND.ASM           origin (800, 0, 0); slides along Y (as drawn at y = 0, travel ±240 on the rail)
     LEVEL WIND CARRIAGE    a block x 750..850, y -60..60, z 100.5..150 with two skirts down beside the rail
                            (0.5 clear of it) and two cheeks (y ±25..±40, x 770..830, z 150..580) with a bore Ø30
@@ -49,10 +52,17 @@ TEST.SPOOL                                                    22 parts, 21 diffe
     FAIRLEAD SHEAVE        on SHEAVE PIN (bore Ø31): rope-middle radius 100 (a round groove of radius 10.5, its
                            bottom at r 90, straight walls out to the rim r 125), 40 wide (y -20..20), hub r 35;
                            centre (800, 0, 544.641), axis Y: its top is at the rope's height z = 644.641
-  WEIGHT                   a block on the base: x 870..930, y -80..80, z 60..200; the rope ends on its top
+  WEIGHT                   a block on the base: x 870..930, y -80..80, z 60..200, its top edges chamfered 8; the rope
+                           ends on its top
+  GEARBOX                  on the base frame beside the drum's -Y shaft end: a foot (x -190..190, z 60..90, two
+                           ISO 4017 M16 x 30 bolts at x ±168), a body x -150..150, y -415..-330 with a round top r 150
+                           about the drum axis, a coupling boss r 60 (y -330..-325: 5 clear of the shaft's end) and a
+                           motor boss on its outer face
+  HYDRAULIC MOTOR          flanged to the gearbox's outer face, axis along Y through (0, *, 250), y -625..-425
 
 2. The carousel (axis vertical through (3000, 0))
-  CAROUSEL BASE            a fixed plinth: cylinder r 900 about the carousel axis, z 0..100
+  CAROUSEL BASE            a fixed plinth: cylinder r 900 about the carousel axis, z 0..100, on a foot ring r 950
+                           (z 0..20) with a step r 920 (z 20..35)
   CAROUSEL.ASM             origin (3000, 0, 0); turns about +Z through it (paying out: clockwise seen from above)
     TURNTABLE              disc r 1000, z 100..140
     INNER CORE             tube r 270..300, z 140..520
@@ -63,7 +73,8 @@ TEST.SPOOL                                                    22 parts, 21 diffe
                            rope-middle radii 600..840: r 580..860 – except the quarter turn the POWER CABLE draws
                            (r 575..620, from +X to +Y) and a notch under the guide sheave (carousel x 570..632,
                            y -115..115, z 260..305), so the CAD cable and the guide sheave are not drawn through it
-  SLEW POST                fixed column: cylinder r 100 about the vertical through (4300, 0), z 0..1000
+  SLEW POST                fixed column: cylinder r 100 about the vertical through (4300, 0), z 0..1000, on a foot
+                           flange r 200 (z 0..30) with four gussets and four ISO 4017 M16 x 30 bolts (r 160)
   ARM.ASM                  origin (4300, 0, 0); slews about +Z through it (the ARM PIVOT)
     ARM                    a boss r 100 (z 1000.5..1140) on the post, a beam (x 3540..4400, y -200..50,
                            z 1060..1140) reaching over x = 3600 and a hanger of two cheeks (x 3540..3560 and
@@ -82,10 +93,17 @@ TEST.SPOOL                                                    22 parts, 21 diffe
                            straight 570 up to the clamp's underside (3600, -150, 1000).   Length 1748.097.
                            Paying out turns the carousel about -Z (clockwise seen from above).
 
+  DECK PLATE               under both machines: x -700..4700, y -1200..1200, z -30..0, corners chamfered, a plating
+                           seam (8 wide, 3 deep) across at x = 1600
+  ISO 4017 M16 x 30 - 8.8 HDG (10 x)   the bearing blocks', the gearbox's and the slew post's hold-down bolts (head on
+                           the foot, the shank through a hole 1 mm wider down to what the foot stands on)
+
 Colours: BASE FRAME, BEARING BLOCK, LEVEL WIND RAIL, LEVEL WIND CARRIAGE, CAROUSEL BASE, SLEW POST, CABLE CLAMP grey
-(0.3, 0.3, 0.3); WINCH DRUM, TURNTABLE, INNER CORE, RIM FENCE, ARM yellow (0.976, 0.659, 0); the sheaves and pins steel
-(0.55, 0.57, 0.6); WIRE ROPE and WIRE ON DRUM dark grey (0.13, 0.13, 0.14); POWER CABLE and CABLE COIL black
-(0.05, 0.05, 0.05); WEIGHT orange (0.9, 0.35, 0.05).
+(0.3, 0.3, 0.3); WINCH DRUM, TURNTABLE, INNER CORE, RIM FENCE, ARM, GEARBOX yellow (0.976, 0.659, 0); the sheaves and
+pins steel (0.55, 0.57, 0.6); WIRE ROPE and WIRE ON DRUM dark grey (0.13, 0.13, 0.14); POWER CABLE and CABLE COIL black
+(0.05, 0.05, 0.05); WEIGHT orange (0.9, 0.35, 0.05); DECK PLATE (0.24, 0.26, 0.27); HYDRAULIC MOTOR (0.1, 0.1, 0.11);
+bolts galvanised (0.68, 0.69, 0.7). (Task 0122 added the deck, gearbox, motor, bolts, gussets and stops; every part the
+ropes, the drum and the carousel read is as before.)
 
 GROOVE START: the drum's groove (its middle at r 160.5, the rope's at 160) is the first layer of a wound path that
 ends at the leave point, laid back from there: layer 3 from y = 0 back to -190 (8.962 turns), a climb of 90° of turn,
@@ -109,8 +127,8 @@ other part (WIRE ROPE: 27.7 from the drum's lands; POWER CABLE: 60 from the arm)
 are 0.5 mm apart (bores, the carriage over its rail, the arm over its post) except the turntable on its plinth and
 the guide sheave's rim on the coil's layer 3 (they touch).
 
-Writing the file takes about 10 s (the spiral groove 2-3 s, the check 6 s); 731 KB; the importer reads it in 1.6 s
-(Normal: 36,742 triangles, 13,600 of them the drum).
+Writing the file takes about 11 s (the spiral groove 2-3 s, the check 6 s); 896 KB (a test keeps it under 1 MB); the
+importer reads it in about 1.6 s.
 
 Needs OpenCascade (OCP) and fresing_render/demo_model/geom.py (shapes, the scene tree, the STEP writer; no Blender).
 """
@@ -133,8 +151,14 @@ from OCP.STEPControl import STEPControl_Writer  # noqa: E402
 
 from fresing_render.demo_model import geom as G  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_details import chamfer, hex_bolt  # noqa: E402
+from model_details import chamfered_rect as _crect  # noqa: E402
+
 GREY, YELLOW, STEEL = (0.3, 0.3, 0.3), (0.976, 0.659, 0.0), (0.55, 0.57, 0.6)
 ROPE_GREY, BLACK, ORANGE = (0.13, 0.13, 0.14), (0.05, 0.05, 0.05), (0.9, 0.35, 0.05)
+DECK, MOTOR, ZINC = (0.24, 0.26, 0.27), (0.1, 0.1, 0.11), (0.68, 0.69, 0.7)
+BOLT = "ISO 4017 M16 x 30 - 8.8 HDG"
 COS30 = math.cos(math.radians(30.0))
 BORE = 0.5                          # a bore something turns or slides in is this much wider (radius)
 
@@ -170,6 +194,11 @@ CARRIAGE_HALF_Y = 60.0                          # the carriage's block: y -60..6
 BASE_BOX = (-400.0, -420.0, 0.0, 1100.0, 420.0, 60.0)
 BLOCK_Y, BLOCK_HALF = 290.0, 20.0               # bearing blocks: centred on y = ±290, 40 wide
 BLOCK_Z = (300.0, 540.0)
+PED_X = 140.0                                   # the bearing pedestals: x -140..140 (task 0122; 90 before)
+BLOCK_BOLTS_X = (105.0, -105.0)                 # the bearing blocks' bolts (their feet: x -130..130, 30 thick)
+GEARBOX_BOLTS = [(168.0, -372.5), (-168.0, -372.5)]
+MOTOR_Z = 250.0
+POST_BOLTS = [(160.0 * math.cos(math.radians(a)), 160.0 * math.sin(math.radians(a))) for a in (0, 90, 180, 270)]
 
 
 def _groove_start():
@@ -387,7 +416,7 @@ def _numbers():
 PARTS = ["BASE FRAME", "BEARING BLOCK", "BEARING BLOCK", "WINCH DRUM", "WIRE ON DRUM", "LEVEL WIND RAIL",
          "LEVEL WIND CARRIAGE", "SHEAVE PIN", "FAIRLEAD SHEAVE", "WEIGHT", "WIRE ROPE", "CAROUSEL BASE", "TURNTABLE",
          "INNER CORE", "RIM FENCE", "CABLE COIL", "SLEW POST", "ARM", "GUIDE PIN", "GUIDE SHEAVE", "CABLE CLAMP",
-         "POWER CABLE"]
+         "POWER CABLE", "DECK PLATE", "GEARBOX", "HYDRAULIC MOTOR"] + ["ISO 4017 M16 x 30 - 8.8 HDG"] * 10
 ASSEMBLIES = ["TEST.SPOOL", "DRUM.ASM", "LEVEL WIND.ASM", "CAROUSEL.ASM", "ARM.ASM"]
 _IN = {"WINCH DRUM": "DRUM.ASM", "WIRE ON DRUM": "DRUM.ASM", "LEVEL WIND CARRIAGE": "LEVEL WIND.ASM",
        "SHEAVE PIN": "LEVEL WIND.ASM", "FAIRLEAD SHEAVE": "LEVEL WIND.ASM", "TURNTABLE": "CAROUSEL.ASM",
@@ -448,18 +477,94 @@ def wire_on_drum():
     return G.revolve([(GROOVE_BOTTOM, lo), (GROOVE_BOTTOM, hi), (o2, hi), (o2, to), (o3, to), (o3, lo)])
 
 
+def _bolt_holes(points, z0, depth):
+    return [G.cyl(8.5, depth + 2.0, (x, y, z0 - 1.0)) for x, y in points]
+
+
+def _gusset(origin, out, h, w, t):
+    """A triangle plate (``w`` out along ``out``, ``h`` up) standing on z = origin z, ``t`` thick, centred on origin."""
+    out = np.asarray(out, float)
+    side = np.cross((0.0, 0.0, 1.0), out)                     # local z: square to ``out``, level
+    m = G.Frame(np.asarray(origin, float) + side * t / 2.0, out, -side)      # local y up
+    return G.polygon_prism([(0.0, 0.0), (w, 0.0), (0.0, h)], t, m)
+
+
 def base_frame():
-    parts = [box(*BASE_BOX)]
+    plate = G.polygon_prism(_crect(BASE_BOX[0], BASE_BOX[1], BASE_BOX[3] - BASE_BOX[0], BASE_BOX[4] - BASE_BOX[1],
+                                   30.0), BASE_BOX[5])
+    parts = [plate]
     for s in (1, -1):
-        parts.append(box(-90.0, s * (BLOCK_Y - 25.0), BASE_BOX[5], 90.0, s * (BLOCK_Y + 25.0), BLOCK_Z[0]))
+        parts.append(box(-PED_X, s * (BLOCK_Y - 25.0), BASE_BOX[5], PED_X, s * (BLOCK_Y + 25.0), BLOCK_Z[0]))
+        for sx in (1.0, -1.0):
+            parts.append(_gusset((sx * PED_X, s * BLOCK_Y, BASE_BOX[5]), (sx, 0.0, 0.0), 160.0, 80.0, 16.0))
     return G.fuse(*parts)
 
 
 def bearing_block():
-    """Centred on its own origin on the drum axis (placed at y = ±290)."""
-    z0, z1 = BLOCK_Z[0] - DRUM_C[2], BLOCK_Z[1] - DRUM_C[2]
-    return G.cut(box(-80.0, -BLOCK_HALF, z0, 80.0, BLOCK_HALF, z1),
-                 G.rod((0.0, -BLOCK_HALF - 10.0, 0.0), (0.0, BLOCK_HALF + 10.0, 0.0), SHAFT_R + BORE))
+    """Centred on its own origin on the drum axis (placed at y = ±290): a pillow block."""
+    z0 = BLOCK_Z[0] - DRUM_C[2]
+    h = BLOCK_HALF
+    body = G.fuse(box(-130.0, -h, z0, 130.0, h, z0 + 30.0), box(-80.0, -h, z0 + 30.0, 80.0, h, 0.0),
+                  G.rod((0.0, -h, 0.0), (0.0, h, 0.0), 80.0),
+                  G.cyl(6.0, BLOCK_Z[1] - DRUM_C[2] - 75.0, (0.0, 0.0, 75.0)))       # grease nipple to z 540
+    return G.cut(body, G.rod((0.0, -h - 10.0, 0.0), (0.0, h + 10.0, 0.0), SHAFT_R + BORE),
+                 *_bolt_holes([(x, 0.0) for x in BLOCK_BOLTS_X], z0, 30.0))
+
+
+def gearbox():
+    """Beside the drum's -Y shaft end, on the base frame."""
+    zc = DRUM_C[2]
+    y0, y1 = -415.0, -330.0
+    foot = box(-190.0, y0, BASE_BOX[5], 190.0, y1, BASE_BOX[5] + 30.0)
+    body = box(-150.0, y0, BASE_BOX[5] + 30.0, 150.0, y1, zc)
+    top = G.rod((0.0, y0, zc), (0.0, y1, zc), 150.0)
+    coupling = G.rod((0.0, y1, zc), (0.0, -SHAFT_END - 5.0, zc), 60.0)
+    boss = G.rod((0.0, y0 - 10.0, MOTOR_Z), (0.0, y0, MOTOR_Z), 100.0)
+    shape = G.fuse(foot, body, top, coupling, boss)
+    return G.cut(shape, *_bolt_holes(GEARBOX_BOLTS, BASE_BOX[5], 30.0))
+
+
+def hydraulic_motor():
+    y = -425.0
+    return G.fuse(G.rod((0.0, y - 20.0, MOTOR_Z), (0.0, y, MOTOR_Z), 110.0),
+                  G.rod((0.0, y - 180.0, MOTOR_Z), (0.0, y - 20.0, MOTOR_Z), 85.0),
+                  G.rod((0.0, y - 200.0, MOTOR_Z), (0.0, y - 180.0, MOTOR_Z), 70.0),
+                  box(-30.0, y - 140.0, MOTOR_Z + 70.0, 30.0, y - 60.0, MOTOR_Z + 110.0))   # the port block
+
+
+def deck_plate():
+    plate = G.polygon_prism(_crect(-700.0, -1200.0, 5400.0, 2400.0, 100.0), 30.0, G.T(0.0, 0.0, -30.0))
+    return G.cut(plate, box(1596.0, -1201.0, -3.0, 1604.0, 1201.0, 1.0))
+
+
+def carousel_base():
+    return G.fuse(G.cyl(PLINTH_R, TURNTABLE[1], tuple(CAR_C)), G.cyl(950.0, 20.0, tuple(CAR_C)),
+                  G.cyl(920.0, 15.0, tuple(CAR_C + np.array([0.0, 0.0, 20.0]))))
+
+
+def slew_post():
+    parts = [G.cyl(POST_R, POST_TOP, tuple(PIVOT)), G.cyl(200.0, 30.0, tuple(PIVOT))]
+    for k in range(4):
+        a = math.radians(45.0 + 90.0 * k)
+        u = np.array([math.cos(a), math.sin(a), 0.0])
+        parts.append(_gusset(PIVOT + (POST_R - 5.0) * u + np.array([0.0, 0.0, 30.0]), u, 200.0, 90.0, 16.0))
+    holes = _bolt_holes([(PIVOT[0] + x, PIVOT[1] + y) for x, y in POST_BOLTS], 0.0, 30.0)
+    return G.cut(G.fuse(*parts), *holes)
+
+
+def level_wind_rail():
+    x0, y0, z0, x1, y1, z1 = RAIL_BOX
+    stops = [box(x0 - 5.0, s * y1, z0, x1 + 5.0, s * (y1 + 20.0), z1 + 30.0) for s in (1, -1)]
+    return G.fuse(box(*RAIL_BOX), *stops)
+
+
+def weight():
+    return chamfer(box(*WEIGHT_BOX), 8.0, lambda q: abs(q[2] - WEIGHT_TOP) < 1e-6)
+
+
+def bolt():
+    """ISO 4017 M16 x 30: the head on z 0..10, the shank down to z = -30."""
+    return hex_bolt(16, 30.0)
 
 
 def carriage():
@@ -516,7 +621,7 @@ def model():
     drum.add(G.Part("WINCH DRUM", winch_drum(), YELLOW))
     drum.add(G.Part("WIRE ON DRUM", wire_on_drum(), ROPE_GREY))
     root.add(drum, DRUM_FRAME)
-    root.add(G.Part("LEVEL WIND RAIL", box(*RAIL_BOX), GREY))
+    root.add(G.Part("LEVEL WIND RAIL", level_wind_rail(), GREY))
     lw = G.Asm("LEVEL WIND.ASM")
     lw.add(G.Part("LEVEL WIND CARRIAGE", carriage(), GREY))
     on_pin = G.Frame((0.0, 0.0, SHEAVE_C[2]), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))       # local z along +Y
@@ -524,17 +629,17 @@ def model():
     lw.add(G.Part("FAIRLEAD SHEAVE", sheave(SHEAVE_BOTTOM, SHEAVE_GROOVE, SHEAVE_RIM, SHEAVE_HALF, SHEAVE_GROOVE,
                                             15.0 + BORE, 35.0, 8.0), STEEL), on_pin)
     root.add(lw, G.T(SHEAVE_C[0], 0.0, 0.0))
-    root.add(G.Part("WEIGHT", box(*WEIGHT_BOX), ORANGE))
+    root.add(G.Part("WEIGHT", weight(), ORANGE))
     root.add(G.Part("WIRE ROPE", rope_part("wire"), ROPE_GREY))
     # the carousel
-    root.add(G.Part("CAROUSEL BASE", G.cyl(PLINTH_R, TURNTABLE[1], tuple(CAR_C)), GREY))
+    root.add(G.Part("CAROUSEL BASE", carousel_base(), GREY))
     car = G.Asm("CAROUSEL.ASM")
     car.add(G.Part("TURNTABLE", G.cyl(TURNTABLE[0], TURNTABLE[2] - TURNTABLE[1], (0.0, 0.0, TURNTABLE[1])), YELLOW))
     car.add(G.Part("INNER CORE", ring(*CORE), YELLOW))
     car.add(G.Part("RIM FENCE", ring(*RIM), YELLOW))
     car.add(G.Part("CABLE COIL", cable_coil(), BLACK))
     root.add(car, G.T(*CAR_C))
-    root.add(G.Part("SLEW POST", G.cyl(POST_R, POST_TOP, tuple(PIVOT)), GREY))
+    root.add(G.Part("SLEW POST", slew_post(), GREY))
     am = G.Asm("ARM.ASM")
     am.add(G.Part("ARM", arm(), YELLOW))
     gx = GUIDE_C[0] - PIVOT[0]
@@ -546,6 +651,18 @@ def model():
     am.add(G.Part("CABLE CLAMP", box(x0 - PIVOT[0], y0, z0, x1 - PIVOT[0], y1, z1), GREY))
     root.add(am, G.T(*PIVOT))
     root.add(G.Part("POWER CABLE", rope_part("cable"), BLACK))
+    # task 0122: the deck, the drum's drive and the hold-down bolts
+    root.add(G.Part("DECK PLATE", deck_plate(), DECK))
+    root.add(G.Part("GEARBOX", gearbox(), YELLOW))
+    root.add(G.Part("HYDRAULIC MOTOR", hydraulic_motor(), MOTOR))
+    b = G.Part(BOLT, bolt(), ZINC)
+    for s in (1, -1):
+        for x in BLOCK_BOLTS_X:
+            root.add(b, G.T(x, s * BLOCK_Y, BLOCK_Z[0] + 30.0))
+    for x, y in GEARBOX_BOLTS:
+        root.add(b, G.T(x, y, BASE_BOX[5] + 30.0))
+    for x, y in POST_BOLTS:
+        root.add(b, G.T(PIVOT[0] + x, PIVOT[1] + y, 30.0))
     return root
 
 
