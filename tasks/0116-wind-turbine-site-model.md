@@ -289,6 +289,13 @@ run-down weathering streaks). Procedural, Cycles + EEVEE, no image files, a test
   that led to the closed blades). Re-done after merging: B's cameras (onshore field view 70 m → 360 m, plus "At the
   door"), C's floor test value.
 
+**GitHub runs:** 3 on the finished branch – precheck failed (0111 had taken 0.2.93; a '|' inside a TASKS.md cell),
+then 2 failures (`test_render_kit` still listed five kit models; the marine tour set used `bpy.ops` + `active_object`,
+which the app's Make test tour button does not have), then green (run 43545794265, 21 min). `main` fast-forwarded to
+it: reuse run 43547798525 published **v0.2.94**, the Windows self-update check and the offer to the apps passed; the
+site-kit workflow rebuilt `fresing_site_kit.zip` (36 MB) on the draft release with both turbines. Earlier pushes'
+runs were cancelled by later pushes.
+
 **Open points / follow-up tasks:**
 - **Scour protection** and showing the 45 m of pile in the ground: 0081's seabed reached `main` while this task ran
   (it was not there at the start, as the brief asked): a small follow-up (rock layer, the pile below the seabed shown).
