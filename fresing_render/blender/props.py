@@ -1192,7 +1192,7 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         name="Preview", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
         update=_seq_preview_changed,
         description="Drag to see the step in the view without building: 0 % = the start, 100 % = the end. Back to "
-                    "0 % (or Build) puts the parts back")
+                    "0 % (or Build) puts the parts back. A built animation is taken off when you start: build it again after")
     seq_count: IntProperty(default=0)
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)

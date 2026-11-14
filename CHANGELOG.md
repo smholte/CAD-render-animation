@@ -5,6 +5,33 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.97 – 14 Nov 2026 – hoses with vessel motion, the Assembly sequence preview (task 0121)
+
+- **Hoses follow a vessel-motion change after Build.** Changing the strength, sea state, heading or a still/level part
+  after building left the hoses where the old motion had put them: the fittings moved, the tube ends did not. They are
+  worked out again for the new motion now (in the window once the slider rests).
+- **Vessel motion without Build is lighter:** a hose whose two ends move together as one body is moved along instead of
+  being worked out again at every frame (test model, 4 hoses, 60 frames: 4 solves instead of 240).
+- **Assembly sequence Preview is quick:** dragging the slider no longer plans the whole step at every move – on the
+  demo's tensioner (260 parts) 85–90 ms per step instead of about 4 s. The box now says that moving it takes a built
+  animation off.
+- **A preview left on no longer becomes permanent.** A model update (or Clear keys) with the Preview above 0 % kept the
+  parts half-way out for good; the preview now ends first.
+- **Assembly sequence with vessel motion:** the step's keys no longer depend on the frame you press Build at (they were
+  measured on the tilted vessel; up to 4 mm apart on the test model).
+- **Projects with vessel motion from 0.2.65–0.2.87** get the vessel's motion worked out again once when opened, so it
+  matches today's sea.
+
+## 0.2.96 – 14 Nov 2026 – a model update keeps drums, carousels, riders and tracks (task 0119)
+
+- **Updating one model no longer undoes the drums and carousels of the others.** Before, updating (for example) the quay
+  model stopped every drum and carousel in the project: the cable went back to a plain CAD cable and the drawn rope was
+  deleted, without a note.
+- **A drum whose part ID changed in an update keeps working** at the next update (it was lost then: "its part is gone").
+- **Things riding on a cable:** a part that is gone in the new revision is dropped and the report says so (before, the
+  rider kept empty entries and the report said nothing).
+- **Tracks:** pads or plates that are gone are named in the report; a wheel whose part ID changed keeps its "coupled" tick.
+
 ## 0.2.95 – 14 Nov 2026 – a cable on a moving part; the quadrant operation in the demo (task 0082)
 
 - **Winch keeps it tight** (4 Motion > Cables and paths, a cable's details): the winch pays out exactly what the

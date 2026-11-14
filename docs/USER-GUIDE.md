@@ -2770,7 +2770,7 @@ from there and go together, instead of many Show, Hide and pose steps.
    to come in) or **Fade**. **Trail lines** draws each part's path as a thin blue line (one trail line per part; change
    their look in **Trail lines** below).
 8. Drag **Preview** to see the step in the view without building; back to 0 % (or **Build & play**) puts the parts
-   back.
+   back. A built animation is taken off when you start dragging (the box says so): build it again when done.
 
 The step starts from wherever the parts are at that moment (after a joint has turned the subassembly, say) and leaves
 every joint as it is, so a later step still works. Logos ride along; hoses and cables follow the parts they hang on;

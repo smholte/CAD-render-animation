@@ -3322,7 +3322,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     finally:
         _STATE["busy"] -= 1
     from . import paths_riders as _riders
-    notes += _riders.after_model_update(scene, by_uid)          # things on the cables (task 0081)
+    notes += _riders.after_model_update(scene, by_uid, mapping)          # things on the cables (task 0081)
     return notes
 
 

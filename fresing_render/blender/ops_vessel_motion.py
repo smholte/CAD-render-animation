@@ -151,6 +151,7 @@ class FRESING_OT_vessel_still_remove(bpy.types.Operator):
         v.still.remove(v.still_index)
         v.still_index = min(v.still_index, len(v.still) - 1)
         vessel_motion.sync(scene)
+        vessel_motion.hoses_follow(scene)
         _redraw(context)
         return {"FINISHED"}
 

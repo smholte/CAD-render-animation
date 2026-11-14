@@ -142,7 +142,13 @@ def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.nda
     wish = fast + rest
     if blocked is None or len(wish) < 2:
         return wish
-    ahead = {i: [j for j in wish if j != i and _in_way(parts[i].corners, parts[j].corners, dirs[i])] for i in wish}
+    boxes = _corner_array(parts)
+    pos = np.empty(len(parts), dtype=int)
+    pos[wish] = np.arange(len(wish))
+    ahead = {}
+    for i in wish:
+        hit = np.flatnonzero(_in_way_all(boxes, i, dirs[i]))
+        ahead[i] = [int(j) for j in hit[np.argsort(pos[hit], kind="stable")] if j != i]
     seen: dict = {}
 
     def stopped(i, j):
@@ -167,11 +173,41 @@ def _in_way(a, b, u) -> bool:
     return hi_b > lo_a + 1e-6 and _across(a, b, u)
 
 
+def _corner_array(parts: list[Part]) -> np.ndarray:
+    """(n, 8, 3): every part's box corners."""
+    return np.stack([np.asarray(p.corners, dtype=float).reshape(-1, 3) for p in parts])
+
+
+def _frame(u) -> tuple[np.ndarray, np.ndarray]:
+    """Two directions square to ``u`` (and to each other): "across" ``u``."""
+    e1 = _unit(np.cross(u, (1.0, 0.0, 0.0)) if abs(u[0]) < 0.9 else np.cross(u, (0.0, 1.0, 0.0)))
+    return e1, np.cross(u, e1)
+
+
+def _spans_all(boxes: np.ndarray, u) -> tuple[np.ndarray, np.ndarray]:
+    d = boxes @ np.asarray(u, dtype=float)
+    return d.min(axis=1), d.max(axis=1)
+
+
+def _across_all(boxes: np.ndarray, i: int, u) -> np.ndarray:
+    """``_across`` of part i against every part at once (n booleans; part i itself included)."""
+    ok = np.ones(len(boxes), dtype=bool)
+    for e in _frame(u):
+        lo, hi = _spans_all(boxes, e)
+        ok &= ~((hi[i] <= lo + 1e-6) | (hi <= lo[i] + 1e-6))
+    return ok
+
+
+def _in_way_all(boxes: np.ndarray, i: int, u) -> np.ndarray:
+    """``_in_way`` of part i against every part at once (task 0121: the pairs one by one cost seconds for 260
+    parts)."""
+    lo, hi = _spans_all(boxes, u)
+    return (hi > lo[i] + 1e-6) & _across_all(boxes, i, u)
+
+
 def _across(a, b, u) -> bool:
     """Do the boxes of corners ``a`` and ``b`` overlap seen along ``u`` (side by side across it)?"""
-    e1 = _unit(np.cross(u, (1.0, 0.0, 0.0)) if abs(u[0]) < 0.9 else np.cross(u, (0.0, 1.0, 0.0)))
-    e2 = np.cross(u, e1)
-    for e in (e1, e2):
+    for e in _frame(u):
         lo_a, hi_a = _span(a, e)
         lo_b, hi_b = _span(b, e)
         if hi_a <= lo_b + 1e-6 or hi_b <= lo_a + 1e-6:
@@ -205,18 +241,22 @@ def plan(parts: list[Part], st: Settings, blocked=None) -> list[Move]:
     step = interval(len(parts), st.part_time, st.overlap)
     total = duration(len(parts), st.part_time, st.overlap)
     travel: dict[int, float] = {}
+    boxes = _corner_array(parts) if st.direction != "CENTRE" else None
+    dir_arr = np.asarray(dirs, dtype=float)
+    went = np.zeros(len(parts))                             # travel of the parts already worked out
+    later = np.zeros(len(parts), dtype=bool)                # … which are the parts that leave after this one
     for rank in range(len(seq) - 1, -1, -1):                # the last to leave first: it goes the base distance
         i = seq[rank]
         u = dirs[i]
         t = base
-        if st.direction != "CENTRE":                        # stack: end beyond the parts that leave after it
-            lo_i, _ = _span(parts[i].corners, u)
-            for k in seq[rank + 1:]:
-                if float(np.dot(dirs[k], u)) < SAME_WAY or not _across(parts[i].corners, parts[k].corners, u):
-                    continue
-                _lo_k, hi_k = _span(parts[k].corners, u)
-                t = max(t, hi_k + travel[k] + gap - lo_i)
+        if boxes is not None and later.any():              # stack: end beyond the parts that leave after it
+            lo, hi = _spans_all(boxes, u)
+            m = later & (dir_arr @ u >= SAME_WAY) & _across_all(boxes, i, u)
+            if m.any():
+                t = max(t, float(np.max(hi[m] + went[m])) + gap - float(lo[i]))
         travel[i] = t
+        went[i] = t
+        later[i] = True
     moves = []
     for rank, i in enumerate(seq):
         u = dirs[i]

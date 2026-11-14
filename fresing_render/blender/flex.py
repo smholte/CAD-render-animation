@@ -89,7 +89,11 @@ _INPUTS = (("Shapes", "NodeSocketObject"), ("First", "NodeSocketInt"), ("Frames"
            ("Radius", "NodeSocketFloat"), ("Link", "NodeSocketObject"))
 
 # runtime only: nothing here outlives undo, redo or a file load, and no Blender object is kept
-_STATE = {"busy": 0, "last": {}, "arrays": {}, "solves": 0, "steps": 0, "inputs": {}, "read": None}
+_STATE = {"busy": 0, "last": {}, "arrays": {}, "solves": 0, "steps": 0, "inputs": {}, "read": None, "solved": {},
+          "moved_rigid": 0, "motion_scene": None}
+RIGID_TOL = 2e-5                        # m (and rad): the two end parts kept their places to each other (float32)
+GRAVITY_TURN = math.radians(0.5)        # a hose moved as a whole may turn this far against gravity (task 0121)
+MOTION_WAIT = 0.4                       # s: a vessel-motion slider rests this long before the hoses are baked again
 READ_HOOKS: list = []                   # fn(scene) -> objects whose places Build should read in the hoses' pass
 #                                         through the frames too (cables: blender/paths.py), see ``read_places``
 
@@ -1417,9 +1421,45 @@ def _moved(scene) -> list:
     return out
 
 
+def _down_in(m: np.ndarray) -> np.ndarray:
+    """World down in the coordinates of the part whose world matrix is ``m``."""
+    r = m[:3, :3]
+    d = np.linalg.solve(r, np.array((0.0, 0.0, -1.0)))
+    return d / max(np.linalg.norm(d), 1e-12)
+
+
+def _remember(scene, i, it, mats: dict, arrays) -> None:
+    """Keep what item i was solved for (its end parts' places) and its solved slice: moved as a whole later."""
+    a, b = mats[it.a_part.name][0], mats[it.b_part.name][0]
+    lo, n = int(it.offset), int(it.points)
+    _STATE["solved"][(scene.name, i)] = (a, np.linalg.solve(a, b), _down_in(a),
+                                         tuple(np.array(x[0, lo:lo + n], dtype=float) for x in arrays))
+
+
+def _carried(scene, i, it, mats: dict):
+    """Item i's slice moved along with its end parts when they moved as one body since it was solved (the pair kept
+    its places to each other and, for a hose, turned less than ``GRAVITY_TURN`` against gravity – its sag is the
+    same then); None when it has to be solved again (task 0121: vessel motion moves every pair at every frame)."""
+    kept = _STATE["solved"].get((scene.name, i))
+    if kept is None:
+        return None
+    a0, rel0, down0, (co, fx, fz) = kept
+    if co.shape[0] != int(it.points):
+        return None
+    a, b = mats[it.a_part.name][0], mats[it.b_part.name][0]
+    if not np.allclose(np.linalg.solve(a, b), rel0, rtol=0.0, atol=RIGID_TOL):
+        return None
+    if it.kind == "HOSE" and float(np.dot(_down_in(a), down0)) < math.cos(GRAVITY_TURN):
+        return None
+    d = a @ np.linalg.inv(a0)
+    r, t = d[:3, :3], d[:3, 3]
+    return (co @ r.T + t)[None], (fx @ r.T)[None], (fz @ r.T)[None]
+
+
 def _live(scene, force: bool = False) -> bool:
     """Solve the items whose end parts moved (all with ``force``) for where the parts are now and write the
-    one-moment shapes mesh. True when something was written."""
+    one-moment shapes mesh. An item whose two end parts moved as one body is moved, not solved. True when something
+    was written."""
     moved = _moved(scene)
     if not moved and not force:
         return False
@@ -1429,6 +1469,8 @@ def _live(scene, force: bool = False) -> bool:
         per = _layout(scene)
         todo = _usable(scene)
         arrays = tuple(np.zeros((1, per, 3), np.float32) for _ in range(3))
+        for k in [k for k in _STATE["solved"] if k[0] == scene.name]:
+            del _STATE["solved"][k]
     else:
         usable = dict(_usable(scene))
         todo = [(i, usable[i]) for i, _key in moved if i in usable]
@@ -1437,11 +1479,23 @@ def _live(scene, force: bool = False) -> bool:
         _STATE["last"][(scene.name, i)] = key
     if not todo and not whole:
         return False
-    results, problems = _solve(todo, _places_now(todo), 1)
+    mats = _places_now(todo)
+    solve = []
     for i, it in todo:
-        _patch(arrays, it, results[i])
+        carried = None if whole else _carried(scene, i, it, mats)
+        if carried is None:
+            solve.append((i, it))
+        else:
+            _patch(arrays, it, carried)
+            _STATE["moved_rigid"] += 1
+    if solve:
+        results, problems = _solve(solve, mats, 1)
+        for i, it in solve:
+            _patch(arrays, it, results[i])
+            _remember(scene, i, it, mats, arrays)
     _write_shapes(scene, arrays, 0)
-    _note_problems(scene, todo, problems, None)
+    if solve:
+        _note_problems(scene, solve, problems, None)
     if whole:
         sh = _shapes(scene)
         for key in (_ENDS, _ENDS_OBS, _ENDS_FIRST):       # the places read at a Build belong to that Build
@@ -1585,6 +1639,7 @@ def _rebuild(scene, only: int | None = None) -> list[str]:
             _live(scene, force=True)
         else:
             _STATE["last"].pop((scene.name, only), None)
+            _STATE["solved"].pop((scene.name, only), None)      # its settings changed: solve it again
             _live(scene)
             _sync(scene)
         return []
@@ -1654,6 +1709,46 @@ def bake(scene, anim) -> list[str]:
                 "they show as they were"]
     finally:
         _STATE["busy"] -= 1
+
+
+def motion_changed(scene) -> None:
+    """Vessel motion changed after Build (vessel_motion.changed, task 0121): the end parts move another way at every
+    frame, so a built animation's shapes are worked out again – at once in the background, in the window once the
+    slider has rested ``MOTION_WAIT`` s (dragging it would step through the whole animation at every move)."""
+    if not len(scene.fresing.flex) or not _baked(scene) or _STATE["busy"]:
+        return
+    if bpy.app.background:
+        _motion_bake(scene)
+        return
+    _STATE["motion_scene"] = scene.name
+    if bpy.app.timers.is_registered(_motion_timer):
+        bpy.app.timers.unregister(_motion_timer)
+    bpy.app.timers.register(_motion_timer, first_interval=MOTION_WAIT)
+
+
+def _motion_bake(scene) -> list[str]:
+    _STATE["busy"] += 1
+    _STATE["read"] = None                       # places read before the change are the old motion's
+    try:
+        return _bake(scene, step=True)
+    except Exception as exc:                    # never break the UI over a hose
+        print("Fresing Render: hoses not worked out again:", exc)
+        return []
+    finally:
+        _STATE["read"] = None
+        _STATE["busy"] -= 1
+
+
+def _motion_timer():
+    try:
+        scene = bpy.data.scenes.get(_STATE["motion_scene"] or "")
+        _STATE["motion_scene"] = None
+        if scene is not None and len(scene.fresing.flex) and _baked(scene):
+            _motion_bake(scene)
+            _redraw_views()
+    except Exception as exc:
+        print("Fresing Render: hoses not worked out again:", exc)
+    return None
 
 
 def after_clear(scene) -> None:
@@ -1885,6 +1980,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
 def forget() -> None:
     """Drop what this module remembers between calls (undo, redo, file load, a changed list)."""
     _STATE["last"].clear()
+    _STATE["solved"].clear()
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
     _STATE["read"] = None
@@ -1977,8 +2073,9 @@ def unregister() -> None:
             lst.remove(fn)
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
-    if bpy.app.timers.is_registered(_settle):
-        bpy.app.timers.unregister(_settle)
+    for fn in (_settle, _motion_timer):
+        if bpy.app.timers.is_registered(fn):
+            bpy.app.timers.unregister(fn)
     forget()
 
 
