@@ -248,7 +248,8 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
     home = {n: (k.home.get(n, d) if together else d) for n, d in start.items()}
     deltas = dict(k.ostate)
     deltas.update(home)
-    with _WorldAt(scene, k.jstate, deltas):
+    from . import vessel_motion
+    with vessel_motion.at_rest(scene), _WorldAt(scene, k.jstate, deltas):    # measured on a still sea (0121)
         rays = Rays(m.parts)
         moves = plan_now(b, sub, m.parts, rays)
         worlds = {o.name: o.matrix_world.copy() for o in m.parts}
@@ -434,8 +435,12 @@ def tidy_trails(scene) -> int:
 # preview (without building)
 # ---------------------------------------------------------------------------
 
+_PLAN: dict = {}                      # the preview's plan while its slider moves (task 0121): "key", "moves", …
+
+
 def end_preview(scene) -> None:
-    """Put back every part the preview moved (Build, the slider at 0)."""
+    """Put back every part the preview moved (Build, Clear keys, a model update)."""
+    _PLAN.clear()
     moved = False
     for ob in scene.objects:
         if PREVIEW in ob:
@@ -452,11 +457,26 @@ def end_preview(scene) -> None:
         bpy.context.view_layer.update()
 
 
+def _plan_key(scene, b, sub, parts: list) -> tuple:
+    """What the preview's plan depends on: the step's settings, the subassembly and every part's place."""
+    def flat(m):
+        return tuple(round(x, 7) for r in m for x in r)
+    names = ("seq_mode", "seq_direction", "seq_axis", "seq_distance", "seq_by_size", "seq_order", "seq_part_time",
+             "seq_overlap", "target_uid")
+    return (scene.name, b.as_pointer(), tuple(getattr(b, n) for n in names), sub.name, flat(sub.matrix_world),
+            tuple((o.name, flat(o.matrix_world)) for o in parts))
+
+
 def preview(scene, b, share: float) -> None:
-    """Show the step at ``share`` (0 … 1 of its length) in the view: the parts move, nothing is keyed."""
+    """Show the step at ``share`` (0 … 1 of its length) in the view: the parts move, nothing is keyed. The plan is
+    kept while only the slider moves (task 0121: planning again at every step took seconds on big subassemblies)."""
     from . import animation
     if scene.fresing.anim_baked:
+        keep = b.seq_preview
         animation.clear_keys(scene)                   # keys would hold the parts where Build left them
+        b["seq_preview"] = keep                       # (clear_keys ends every preview: this one goes on)
+        scene.fresing.last_message = ("The Assembly sequence preview took the built animation off: "
+                                      "press Build animation again when done")
     for ob in scene.objects:                          # back to where they were, then plan from there
         if PREVIEW in ob:
             m = build.get_mat(ob, PREVIEW)
@@ -464,13 +484,19 @@ def preview(scene, b, share: float) -> None:
                 ob.matrix_basis = m
     bpy.context.view_layer.update()
     sub = target(scene, b)
-    m = movers(scene, sub)
+    m = movers(scene, sub) if sub is not None else None
     if share <= 0.0 or sub is None or not m.parts:
+        _PLAN.clear()
         for ob in scene.objects:
             if PREVIEW in ob:
                 del ob[PREVIEW]
         return
-    moves = plan_now(b, sub, m.parts)
+    key = _plan_key(scene, b, sub, m.parts)
+    if _PLAN.get("key") != key:
+        _PLAN.clear()
+        _PLAN.update(key=key, moves=plan_now(b, sub, m.parts),
+                     worlds={o.name: o.matrix_world.copy() for o in m.parts})
+    moves, worlds = _PLAN["moves"], _PLAN["worlds"]
     total = core.duration(len(m.parts), b.seq_part_time, b.seq_overlap / 100.0)
     t = share * total
     by_name = {o.name: o for o in m.parts}
@@ -483,6 +509,6 @@ def preview(scene, b, share: float) -> None:
         if b.seq_mode == "TOGETHER":
             p = 1.0 - p
         basis = build.get_mat(ob, PREVIEW)
-        w = ob.matrix_world.copy()
+        w = worlds[mv.name]
         ob.matrix_basis = basis @ w.inverted() @ Matrix.Translation(Vector(tuple(mv.offset)) * p) @ w
     bpy.context.view_layer.update()

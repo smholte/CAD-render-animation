@@ -524,12 +524,20 @@ def _sync(scene) -> bool:
 
 
 def changed(scene, sea: bool = False) -> None:
-    """A setting changed. ``sea``: the swell changes too, so the sea is built again (the surroundings call sync)."""
+    """A setting changed. ``sea``: the swell changes too, so the sea is built again (the surroundings call sync).
+    Hoses of a built animation are worked out again for the new motion (task 0121)."""
     if sea:
         from . import world
         world.apply(scene, scene.fresing)
-    else:
-        sync(scene)
+    sync(scene)                          # (after world.apply too: the hoses below need the new rig)
+    hoses_follow(scene)
+
+
+def hoses_follow(scene) -> None:
+    """The vessel moves another way now: a built animation's hoses and drag chains were solved for the old motion.
+    (Cables keep their shapes in their own coordinates and need nothing.)"""
+    from . import flex
+    flex.motion_changed(scene)
 
 
 def after_surroundings(scene) -> None:
@@ -599,6 +607,12 @@ def _on_depsgraph(scene, _depsgraph=None):
 @persistent
 def _on_load(_dummy=None):
     _STATE["sig"].clear()
+    try:                                     # a rig of an older version is built again once (task 0121)
+        scene = bpy.context.scene
+        if scene is not None and hasattr(scene, "fresing") and rig("vessel") is not None:
+            sync(scene)
+    except Exception as exc:
+        print("Fresing Render: vessel motion not checked on load:", exc)
 
 
 def register():
@@ -673,4 +687,5 @@ def add_marks(scene, objs, mode: str) -> int:
         m.mode = mode
         m.label = ob.get(build.PROP_NAME, ob.name)
     sync(scene)
+    hoses_follow(scene)
     return n

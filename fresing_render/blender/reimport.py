@@ -378,7 +378,8 @@ def _repoint(scene, by_name: dict, notes: list[str]) -> None:
 def _carry_over(context, st) -> dict:
     scene = context.scene
     s = scene.fresing
-    from . import animation
+    from . import animation, sequence
+    sequence.end_preview(scene)          # parts an Assembly sequence preview moved are not free moves (0121)
     animation.clear_keys(scene)
     old_root, new_root = st.old_root, st.new_root
 
