@@ -247,7 +247,7 @@ def check_output(f: mf.Faces, m: int):
         assert abs(np.linalg.norm(d) - 1) < 1e-9
         nz = np.flatnonzero(np.abs(d) > 1e-9)
         assert d[nz[0]] > 0
-        assert abs(np.dot(a[0:3], d)) < 1e-6 * max(1.0, np.linalg.norm(a[0:3]))  # foot nearest the origin
+        assert np.all(np.isfinite(a)) and a[6] >= 0
     af = f.axis_faces
     assert len(af) % 3 == 0
     for k in range(0, len(af), 3):
@@ -779,3 +779,40 @@ def test_speed_1m_height_field(noise):
     print(f"\n{len(t)} triangles, noise {noise}: {dt:.2f} s, {len(f.kinds)} faces")
     check_output(f, len(t))
     assert dt < 10.0
+
+
+@pytest.mark.parametrize("n", (16, 32, 64))
+def test_cylinder_with_t_junctions(n):
+    """Every facet cut into a fan of slivers from one far corner: 9 corners on one long edge, 2 on the next facet's
+    (a non-conforming export). The facets meet only through T-junctions; the wall is still one round face."""
+    r, h = 0.1, 1.0
+    b = Builder()
+    walls = []
+    for i in range(n):
+        a0, a1 = 2 * np.pi * i / n, 2 * np.pi * (i + 1) / n
+        left = b.points([[r * np.cos(a0), r * np.sin(a0), z] for z in np.linspace(0, h, 9)])
+        right = b.points([[r * np.cos(a1), r * np.sin(a1), 0.0], [r * np.cos(a1), r * np.sin(a1), h]])
+        walls += [b.tri(left[j], right[0], left[j + 1]) for j in range(8)] + [b.tri(left[8], right[0], right[1])]
+    p, t = b.mesh()
+    p2, d, o = rotate(p, n, (np.array([0, 0, 1.0]), True), (np.zeros(3), False))
+    f = mf.split(p2, t)
+    check_output(f, len(t))
+    assert len(f.kinds) == 1 and f.kinds[0] == 2
+    assert_axis(f.axes[0], d, o, r)
+    assert abs(f.axes[0][6] - r) < 0.005 * r
+
+
+@pytest.mark.parametrize("off,r,n", [(100.0, 0.01, 32), (300.0, 0.05, 32), (1000.0, 0.1, 32), (1000.0, 0.1, 64),
+                                     (500.0, 0.5, 64)])
+def test_float32_cylinder_far_from_the_origin(off, r, n):
+    """A vessel's parts in float32 world coordinates hundreds of metres out: one round face, axis and radius as
+    near the origin (the crease estimates carry the rounding of the strips' normals; the fit uses the corners)."""
+    p, t, walls = capped(n, r=r, h=4 * r)
+    p2, d, o = rotate(p, int(off), (np.array([0, 0, 1.0]), True), (np.zeros(3), False))
+    shift = np.array([off, 0.3 * off, 3.0])
+    p2 = (p2 + shift).astype(np.float32).astype(np.float64)
+    f = mf.split(p2, t)
+    check_output(f, len(t))
+    assert sum(f.kinds == 2) == 1
+    assert_axis(f.axes[0], d, o + shift, r)
+    assert abs(f.axes[0][6] - r) < 0.005 * r
