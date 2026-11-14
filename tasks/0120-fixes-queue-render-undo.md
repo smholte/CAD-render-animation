@@ -49,8 +49,10 @@ Fix rows **1, 6, 11, 13, 15, 16, 18** of the bug hunt (every-paint-scheme animat
   (every app still render, in the window and the queue) and `queue._setup_animation`. Blender's own F12 in the
   window no longer syncs at render start – the cut is kept in step by its own edits anyway.
 - **Row 16** (Build switches the weather off silently): `animation.bake` compares the weather before/after the start
-  scene and warns ("The start scene 'X' has no weather, so Build switched the weather off …", or "Build put back
-  the weather saved with the start scene …"). Guide: Weather & time paragraph.
+  scene and warns when it switched the weather off ("The start scene 'X' has no weather, so Build switched the
+  weather off …"). A first version also warned when a start scene brought other weather of its own: the test tour's
+  "Weather changes in a video" stop (start scene "Clear day") showed that is the scene's point, so that warning was
+  dropped (run 43585482413, 2 failures). Guide: Weather & time paragraph.
 - **Row 18** (a) `fade.xray_count`, `ui_weather.light_count`, `section.cut_count`: counts kept between redraws
   (bumped by a generation number when the look/members change, objects come or go, at most 2 s for undo); the work
   lights' list is walked only when its fold is open. (b) `section._cut_objects` removed. (c) `weather.after_clear`

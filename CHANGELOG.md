@@ -16,8 +16,8 @@ installer of that version was built from.
   queue could copy and render that half-done state. Saving during one of them now warns that the file holds its temporary state.
 - **Ctrl+Z** during a House bake, Web 3D export or Clash check does nothing and says "press Cancel first". Before,
   the export stopped without a word, and a House bake mixed two states of the project.
-- **Build animation** says so when its start scene puts back another weather (or switches the weather off) than the
-  panel had.
+- **Build animation** says so when its start scene switches the weather off (the scene was saved before the weather
+  was set): set the weather and save that scene again to keep it.
 - A cut-away no longer changes the project from the render's own thread when a render starts (a kind of thing that
   crashed Blender before); the app's render buttons and the queue bring it up to date just before.
 - The side panel walks the whole model less often while an animation plays (X-ray, work lights and cut-away counts

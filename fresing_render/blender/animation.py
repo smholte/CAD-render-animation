@@ -501,8 +501,9 @@ def _block_values(j, b) -> tuple[float, float]:
 
 
 def _weather_note(shot: str, before: str, after: str) -> str:
-    """A Build warning when the start scene put another weather in place of the panel's (bug hunt 0118 row 16):
-    Build puts the start scene's weather back by design, but silently it looked as if the weather was lost."""
+    """A Build warning when the start scene switched the panel's weather off (bug hunt 0118 row 16): Build puts the
+    start scene's weather back by design, but silently it looked as if the weather was lost. A start scene with
+    weather of its own (the tour's "Clear day") is meant, and gets no warning."""
     import json
     if before == after:
         return ""
@@ -510,10 +511,7 @@ def _weather_note(shot: str, before: str, after: str) -> str:
     if b.get("enabled") and not a.get("enabled"):
         return (f"The start scene '{shot}' has no weather, so Build switched the weather off. To keep it: set the "
                 f"weather, then save the scene '{shot}' again")
-    if a.get("enabled"):
-        return (f"Build put back the weather saved with the start scene '{shot}' (not the one the panel had). To "
-                f"keep the panel's: save the scene '{shot}' again")
-    return ""
+    return ""                     # a start scene with weather of its own: that weather is the scene's point
 
 
 def bake(scene, anim) -> dict:

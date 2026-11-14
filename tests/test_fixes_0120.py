@@ -180,8 +180,10 @@ def test_build_warns_when_the_start_scene_switches_the_weather_off(scene):
     states.save_shot(scene, "Start")                    # saved again, now without weather on either side
     info = animation.bake(scene, s.animations["Spin"])
     assert not any("weather" in w for w in info["warnings"])
-    assert animation._weather_note("S", '{"weather": {"enabled": false}}',
-                                   '{"weather": {"enabled": true, "preset": "STORM"}}').startswith("Build put back")
+    assert animation._weather_note("S", '{"weather": {"enabled": false}}',      # a scene with weather of its own
+                                   '{"weather": {"enabled": true, "preset": "STORM"}}') == ""
+    assert animation._weather_note("S", '{"weather": {"enabled": true, "preset": "CLEAR"}}',
+                                   '{"weather": {"enabled": true, "preset": "STORM"}}') == ""
 
 
 # -- row 18 ---------------------------------------------------------------------------------------------------
