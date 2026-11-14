@@ -1,6 +1,6 @@
 # 0123 – Study: interactive learning with the test models (three modes, in-app guide, links from the website)
 
-**Who:** worker · **Status:** open – can start (a study: counts as no code task, starts no test run of the app) ·
+**Who:** worker · **Status:** running (web session, 14 Nov; a study: counts as no code task, starts no test run of the app) ·
 **Branch:** `task/0123-learning-study`
 **Started by:** lead chat, 14 Nov 2026 (owner's wish) · **Lane:** Learning (new). Findings + a small prototype; no change
 to the app on `main`. The report (this file) goes to `main`; the prototype stays on the branch (name it in the report).
