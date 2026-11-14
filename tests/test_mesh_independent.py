@@ -1091,10 +1091,7 @@ def test_facetted_cylinders_give_their_axis(r, h, sides, axis, centre):
     check_axis(fs, r, axis, centre)
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 14: a facetted cylinder stored as float32 a few hundred metres from "
-                                       "the origin (a vessel's corners in world coordinates) breaks into 2-6 round "
-                                       "faces "
-                                       "and its radius is up to 0.8 % off - 10x the float32 rounding")
+# FINDING 14 of the independent tester: fixed (task 0117)
 @pytest.mark.parametrize("off, r", [(300.0, 0.05), (200.0, 0.05), (1000.0, 0.1)])
 def test_float32_cylinder_far_out_is_one_round_face(off, r):
     p, t = cylinder(r, 4 * r, 32, axis=(0, 1, 0), centre=(off, 0.3 * off, 3.0))
@@ -1157,9 +1154,7 @@ def test_cylinder_with_thin_triangles_on_its_facets():
     check_axis(fs, 0.1, (0, 0, 1), (0, 0, 0))
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 11: a facetted cylinder whose facets meet in T-junctions (9 corners on "
-                                       "one long edge, 2 on its neighbour's: a non-conforming export) has no round "
-                                       "face")
+# FINDING 11 of the independent tester: fixed (task 0117)
 def test_cylinder_with_t_junctions_on_its_facets():
     p, t = _sliver_cylinder(0.1, 1.0, 32, tjunctions=True)
     fs = mesh_faces.split(p, t)

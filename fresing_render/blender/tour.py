@@ -2976,7 +2976,7 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
      "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
-     "joint", since="0.2.96", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
+     "joint", since="0.2.98", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "

@@ -217,7 +217,7 @@ def import_materials(ctx):
     return f"{len(names)} parts, {len(groups)} groups"
 
 
-@line("import.mesh", "Mesh model (glTF): import, faces, a joint on a facetted ring", "0.2.96",
+@line("import.mesh", "Mesh model (glTF): import, faces, a joint on a facetted ring", "0.2.98",
       what="The invented mesh crane read from a glTF file: its looks from the file, its 48-sided ring clicked for a "
            "joint that turns the turret")
 def import_mesh(ctx):
@@ -252,7 +252,7 @@ def import_mesh(ctx):
     return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
 
 
-@line("import.mesh_fbx", "Mesh model (FBX) through Blender's own importer", "0.2.96",
+@line("import.mesh_fbx", "Mesh model (FBX) through Blender's own importer", "0.2.98",
       requires=("import.mesh",),
       what="The mesh crane saved as FBX and read again: a background Blender converts it, the app reads the result")
 def import_mesh_fbx(ctx):

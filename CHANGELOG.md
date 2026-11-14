@@ -5,6 +5,35 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.98 – 14 Nov 2026 – mesh models: glTF, OBJ and FBX (task 0117)
+
+- **File > Import > Mesh model (glTF, OBJ, FBX)…** (also **Import mesh model…** in 1 Import, or drag the file onto
+  the view): a model you did not draw – a vessel or a truck from Sketchfab, a client's glTF – comes in like a STEP
+  model, with its tree, names and colours; a part used several times (four wheels) is stored once. It is read in the
+  background with the same progress bar and Esc. FBX is read by Blender's own FBX importer first (a few seconds more).
+- **Units and up axis:** glTF is metres and FBX says its own; for OBJ pick the units (Auto guesses mm or m from the
+  size and says what it guessed) and the up axis (Y up by default).
+- **Split by loose parts:** a model that comes as one big mesh gets every separate piece as a part you can move and
+  give a look (Auto: when the file has fewer than 5 meshes).
+- **The look "From file":** every part shows the colour, shine and pictures its file gave it; the pictures are packed
+  into the project. Pick another material for a group and it replaces the file's look as usual.
+- **Round faces on a mesh:** the app finds flat and round faces on a facetted mesh, so clicking a facetted shaft,
+  hole or slewing ring for a joint gives its axis through the centre, as on a STEP part (tested: within 0.5° and
+  0.5 % of the radius). Hover, painted faces and stickers work the same.
+- **Credit line:** the file's credit (or Sketchfab's license.txt next to it) is shown under the model's name, and the
+  text block "Model credits" in the project keeps the full text.
+- **Model update** of a mesh model keeps your work; a part renamed in the new file is found by its shape and place
+  and named in the report.
+- **Web 3D model:** a part with a picture from its file exports that picture as it is, on its own UVs.
+- **Fixed:** two imports of the same new file started within a second could share one half-written folder
+  (bug hunt 0118 row 14); each import now writes its own.
+- **Test tour and PC check:** a stop and a line "Mesh model: joint on a ring", a line for an FBX file, and
+  a Heavy line with a mesh of 1 million triangles.
+
+**Test this (on your PC):** File > Import > Mesh model…, pick a .glb (for example one downloaded from Sketchfab, or
+the test crane: Help > Make test tour project, then the tour's "Mesh model" stop). Check the parts look like in the
+file, the credit line under the model's name, and that 4 Motion > Add rotate joint on a round part gives the right
+axis.
 ## 0.2.97 – 14 Nov 2026 – hoses with vessel motion, the Assembly sequence preview (task 0121)
 
 - **Hoses follow a vessel-motion change after Build.** Changing the strength, sea state, heading or a still/level part
