@@ -392,7 +392,35 @@ def _boom_joint(scene):
     origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector((0.1, 0.3, 0.42)), Vector((0, 0, 1)))
     if direction.y > 0:              # + turns the boom up (along +Y it went down through the base: found by 0065)
         direction = -direction
-    return joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
+    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
+    luff_cylinder(scene)
+    return j
+
+
+LUFF = "Luffing cylinder"
+LUFF_ROD_EYE = (0.52, 0.3, 0.325)      # the rod eye's centre in the CAD pose, m (tools/make_test_crane.py luff_pins)
+
+
+def luff_cylinder(scene):
+    """The crane's luffing cylinder (task 0122) follows the boom: its barrel turns on the pedestal's pin, its rod's eye
+    stays on the pin under the boom. Made once per project (the crane's first copy); None on a crane without one."""
+    from mathutils import Vector
+
+    from . import build, cylinders
+    if cylinders.find(scene, LUFF) is not None:
+        return cylinders.find(scene, LUFF)
+    if not any(o.get(build.PROP_NAME) == "LUFF CYLINDER.BARREL" for o in scene.objects):
+        return None
+
+    def pin_at(name):                  # a pin part's axis: along its own +y, from its own origin (its head side)
+        ob = _ob(scene, name)
+        m = ob.matrix_world
+        return m @ Vector((0, 0.022, 0)), (m.to_3x3() @ Vector((0, 1, 0))).normalized(), ob
+
+    c, _notes = cylinders.create(scene, [_ob(scene, "LUFF CYLINDER.BARREL")], [_ob(scene, "LUFF CYLINDER.ROD")],
+                                 pin_at("PEDESTAL.CYL.PIN"), pin_at("BOOM.CYL.PIN"), name=LUFF)
+    _update()
+    return c
 
 
 def _tip(scene):
@@ -682,7 +710,21 @@ def _check_boom(scene):
     scene.frame_set(end)
     moved = (_tip(scene) - a).length
     _check(moved > 0.5, f"the boom's tip moved only {moved * 1000:.0f} mm")
-    return f"tip moved {moved * 1000:.0f} mm, {end} frames"
+    off = luff_eye_off(scene)
+    _check(off < 0.05, f"the luffing cylinder's rod eye is {off:.2f} mm off its pin under the boom")
+    return f"tip moved {moved * 1000:.0f} mm, {end} frames; rod eye on its pin to {off:.3f} mm"
+
+
+def luff_eye_off(scene) -> float:
+    """How far (mm) the luffing cylinder's rod eye sits from the pin under the boom, square to the pin."""
+    from mathutils import Vector
+    _update()
+    rod, pin = _ob(scene, "LUFF CYLINDER.ROD"), _ob(scene, "BOOM.CYL.PIN")
+    pr = pin.matrix_world @ Vector((0, 0.022, 0))
+    axis = (pin.matrix_world.to_3x3() @ Vector((0, 1, 0))).normalized()
+    eye = rod.matrix_world @ Vector(LUFF_ROD_EYE)     # the rod's own coordinates are the crane's (its assembly sits at 0)
+    v = eye - pr
+    return (v - axis * v.dot(axis)).length * 1000.0
 
 
 def _check_stack(scene):
@@ -2883,7 +2925,8 @@ stop("looks", LOOK, HUB_SET, "Light looks",
      where="5 Scene & Render > Light look", check=_check_looks)
 
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
-     "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it.",
+     "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
+     "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
      where="4 Motion (joints); 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
      auto="clip")
 stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",

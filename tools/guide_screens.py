@@ -1771,6 +1771,7 @@ def render_crane(with_decals: bool = False, with_cut: bool = False):
     j = joints.create(sc, "ROTATE", [ob("BOOM.ASM")], origin, direction, ref=pin, name="Boom luff")
     joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((1, 0, 0)), name="Trolley",
                   base=ob("BOOM.ASM"))
+    mod("blender.tour").luff_cylinder(sc)               # the luffing cylinder follows the boom (task 0122)
     joints.set_value(j, math.radians(18))
     s.background = "SKY"
     s.floor = "VISIBLE"

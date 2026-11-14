@@ -3,7 +3,7 @@
 TEST.CRANE                      mm; the boom turns about Y at PIVOT
   BASE                          base plate 1000 x 600 x 100, corners and top edges chamfered, four bolt holes Ø13
   PEDESTAL                      a foot flange with gussets, a block with chamfered corners and a fork on top (two
-                                cheeks with round tops and bosses, bore Ø40.4) that carries the boom pin; the boom
+                                cheeks with round tops, bore Ø40.4) that carries the boom pin; the boom
                                 turns between the cheeks, 20 mm above the block (task 0072: no part starts inside
                                 another, so the clash check never sits on its threshold)
   ISO 4762 M10 x 20 - 12.9      x4, socket head screws holding the pedestal's foot down
@@ -11,19 +11,25 @@ TEST.CRANE                      mm; the boom turns about Y at PIVOT
     BOOM                        box girder 1500 x 100 x 100 from the pivot: round end round the pin, chamfered edges,
                                 side ribs, the tip tapered underneath, an end stop on top
     BOOM.PIN                    cylinder Ø40 along Y at the pivot (pick target for the joint axis)
+    BOOM.CYL.PIN                Ø20 through the fork under the boom: the luffing cylinder's rod pin
   TROLLEY.ASM                   rides on the boom (a sibling of BOOM.ASM in the CAD tree)
     TROLLEY                     body 150 x 150 x 60 with chamfers and a hoist motor on top
     WHEEL                       x2, flanged wheels
-  COVER                         plate 300 x 200 x 10 with round corners and four screw heads
+  LUFF CYLINDER.ASM             luffing cylinder (task 0122): barrel pin in a fork on the pedestal's front, rod pin in a
+                                fork under the boom; the piston can go 6 mm in and 140 mm out (boom up to ~37°)
+    LUFF CYLINDER.BARREL        eye, end cap, tube (bore Ø52), gland, two ports
+    LUFF CYLINDER.ROD           piston Ø50, rod Ø22, eye
+  PEDESTAL.CYL.PIN              Ø20 through the pedestal's fork: the barrel pin
+  COVER                         plate 300 x 200 x 10 with round corners, four screw heads and a handle
   ISO 4017 M12 x 40 - 8.8 HDG  x4, hex head bolts, the shank down in the base's holes
 
 Revision B: one bolt removed, the bolts listed in another order, a new BOOM.LAMP in BOOM.ASM,
 and the cover moved 10 mm.
 
-usage: python make_test_crane.py out.step [A|B] [--inventor-names] [--plain] [--luff]
+usage: python make_test_crane.py out.step [A|B] [--inventor-names] [--plain]
 
 ``--plain`` writes the plain crane of tasks 0011–0072 (boxes and cylinders; the old-project models
-test_crane_inv_*.step were made with it). ``--luff`` (task 0122, a proposal) adds a luffing cylinder under the boom.
+test_crane_inv_*.step were made with it).
 """
 
 import math
@@ -80,8 +86,6 @@ def pedestal_shape(lug: bool = False):
     for y0 in (0.0, 135.0):                                      # the cheeks: round tops round the pin
         parts.append(g.box(20, y0, 200, 80, 25, 100))
         parts.append(g.cyl(40.0, 25.0, (60, y0, 300), (0, 1, 0)))
-    parts.append(g.cyl(30.0, 6.0, (60, -6.0, 300), (0, 1, 0)))     # bosses round the bore
-    parts.append(g.cyl(30.0, 6.0, (60, 160.0, 300), (0, 1, 0)))
     # gussets between the foot and the block: a triangle 25 out and 70 up, 12 thick
     tri = [(0.0, 0.0), (25.0, 0.0), (0.0, 70.0)]
     for side in ("-y", "+y", "-x") + (() if lug else ("+x",)):
@@ -95,11 +99,12 @@ def pedestal_shape(lug: bool = False):
         parts.append(g.xform(g.polygon_prism(tri, 12.0), g.Frame(at, out, along)))
     if lug:                                                      # the luffing cylinder's lug on the front
         parts += [g.box(120, 60, 60, 48, 8, 70), g.box(120, 92, 60, 48, 8, 70)]        # a fork round the eye
+        parts += [g.cyl(24.0, 8.0, (LUFF_BASE_LOCAL[0], y0, LUFF_BASE_LOCAL[2]), (0, 1, 0)) for y0 in (60.0, 92.0)]
     shape = g.fuse(*parts)
     cuts = [g.cyl(20.2, 200.0, (60, -20, 300), (0, 1, 0))]
     cuts += [g.cyl(5.5, 22.0, (x, y, -1.0)) for x in FOOT for y in FOOT_Y]
     if lug:
-        cuts.append(g.cyl(10.0, 40.0, LUFF_BASE_LOCAL, (0, 1, 0)))
+        cuts.append(g.cyl(LUFF_PIN_R, 40.0, LUFF_BASE_LOCAL, (0, 1, 0)))
     return g.cut(shape, *cuts)
 
 
@@ -113,27 +118,31 @@ def boom_shape(lug: bool = False):
             parts.append(g.box(x - 4, y0, -40, 8, 6, 80))
     parts.append(g.polygon_prism(chamfered_rect(1360, -40, 24, 80, 4), 28.0, g.T(0, 0, 50)))     # end stop
     if lug:
-        parts += [g.box(LUFF_ROD_LOCAL[0] - 22, y0, -95, 44, 8, 46) for y0 in (-19.0, 11.0)]
+        parts += [g.box(LUFF_ROD_LOCAL[0] - 22, y0, -75, 44, 8, 26) for y0 in (-19.0, 11.0)]
+        parts += [g.cyl(22.0, 8.0, (LUFF_ROD_LOCAL[0], y0, LUFF_ROD_LOCAL[2]), (0, 1, 0)) for y0 in (-19.0, 11.0)]
     shape = g.fuse(*parts)
     # the tip tapers underneath: from z -50 at x 1250 to z -18 at the end (local y = world z, extruded along -y)
     taper = g.xform(g.polygon_prism([(1250.0, -50.0), (1510.0, -18.0), (1510.0, -60.0), (1250.0, -60.0)], 140.0),
                     g.Frame((0, 70, 0), (1, 0, 0), (0, -1, 0)))
     cuts = [g.cyl(20.2, 120.0, (0, -60, 0), (0, 1, 0)), taper]
     if lug:
-        cuts.append(g.cyl(10.0, 40.0, (LUFF_ROD_LOCAL[0], -20, LUFF_ROD_LOCAL[2]), (0, 1, 0)))
+        cuts.append(g.cyl(LUFF_PIN_R, 40.0, (LUFF_ROD_LOCAL[0], -20, LUFF_ROD_LOCAL[2]), (0, 1, 0)))
     return g.cut(shape, *cuts)
 
 
 def trolley_shape():
+    """Body 150 x 150 x 60; on its back half (y > 80) a hoist: motor, rope drum with flanges, two stands. The front
+    half of the top stays a clear flat face (tests click it 30 mm in from the corner)."""
     body = g.polygon_prism(chamfered_rect(0, 0, 150, 150, 8), 60.0)
     body = chamfer(body, 5.0, lambda p: abs(p[2] - 60.0) < 1e-6)
-    motor = g.cyl(22.0, 80.0, (35, 105, 86), (1, 0, 0))                   # hoist motor along x
-    cap = g.cyl(24.0, 8.0, (27, 105, 86), (1, 0, 0))
-    feet = g.box(45, 90, 60, 60, 30, 12)
-    drum = g.cyl(18.0, 70.0, (40, 45, 84), (1, 0, 0))                     # rope drum
-    drum_ends = [g.cyl(24.0, 5.0, (x, 45, 84), (1, 0, 0)) for x in (35.0, 110.0)]
-    stands = [g.box(x, 35, 60, 6, 20, 24) for x in (29.0, 115.0)]
-    return g.fuse(body, motor, cap, feet, drum, *drum_ends, *stands)
+    y, z = 112.0, 86.0
+    motor = g.cyl(22.0, 45.0, (12, y, z), (1, 0, 0))
+    fan = g.cyl(18.0, 6.0, (6, y, z), (1, 0, 0))
+    feet = g.box(14, y - 16, 60, 40, 32, 10)
+    drum = g.cyl(16.0, 66.0, (66, y, z), (1, 0, 0))
+    flanges = [g.cyl(24.0, 5.0, (x, y, z), (1, 0, 0)) for x in (61.0, 132.0)]
+    stands = [g.box(x, y - 10, 60, 6, 20, 26) for x in (57.0, 137.0)]
+    return g.fuse(body, motor, fan, feet, drum, *flanges, *stands)
 
 
 def wheel_shape():
@@ -168,36 +177,54 @@ def socket_screw():
     return g.fuse(head, g.cyl(5.0, 20.0, (0, 0, -20.0)))
 
 
-# the luffing cylinder (proposal --luff): base pin on the pedestal's front lug, rod pin under the boom
-LUFF_BASE_LOCAL = (150.0, 60.0, 95.0)            # pedestal space (the cut starts at y 60 and runs 40 along +y)
-LUFF_ROD_LOCAL = (420.0, 0.0, -75.0)             # boom space
+# the luffing cylinder (task 0122, the owner's pick B): its barrel pin in a fork on the pedestal's front, its rod pin
+# in a fork under the boom. Barrel = eye, end cap, tube (bore Ø52), gland (bore Ø24); rod = piston Ø50, rod Ø22, eye.
+LUFF_BASE_LOCAL = (150.0, 60.0, 95.0)            # pedestal space: the pin's axis (along +y from y 60, 40 long)
+LUFF_ROD_LOCAL = (420.0, 0.0, -75.0)             # boom space: the rod pin's centre
+LUFF_PIN_R = 10.0                                # pins Ø20; the eyes' bores are the pins' size (as the test luffer)
+LUFF_CAP, LUFF_GLAND = 34.0, 200.0               # the barrel's inner ends (mm from the barrel pin)
+LUFF_PISTON = (40.0, 60.0)                       # the piston in the CAD pose: 6 mm can go in, 140 mm out
+
+
+def luff_pins():
+    """(barrel pin, rod pin) in world mm (x, z); both pins along Y through y = PIVOT y."""
+    return ((PED[0] + LUFF_BASE_LOCAL[0], PED[2] + LUFF_BASE_LOCAL[2]),
+            (PIVOT[0] + LUFF_ROD_LOCAL[0], PIVOT[2] + LUFF_ROD_LOCAL[2]))
+
+
+def _eye(z: float):
+    """An eye round a pin along y at (0, 0, z): Ø36 x 18, bore the pin's size."""
+    return g.cut(g.cyl(18.0, 18.0, (0, -9, z), (0, 1, 0)), g.cyl(LUFF_PIN_R, 30.0, (0, -15, z), (0, 1, 0)))
 
 
 def luff_parts():
-    """Barrel and rod in a frame whose z runs from the base pin to the rod pin (pin to pin = L)."""
-    bx = PED[0] + LUFF_BASE_LOCAL[0]
-    bz = PED[2] + LUFF_BASE_LOCAL[2]
-    rx, rz = PIVOT[0] + LUFF_ROD_LOCAL[0], PIVOT[2] + LUFF_ROD_LOCAL[2]
+    """Barrel and rod, placed: their own z runs from the barrel pin to the rod pin (L apart)."""
+    (bx, bz), (rx, rz) = luff_pins()
     L = math.hypot(rx - bx, rz - bz)
-    eye = g.cut(g.fuse(g.cyl(18.0, 18.0, (0, -9, 0), (0, 1, 0)), g.cyl(16.0, 30.0, (0, 0, 0))),
-                g.cyl(10.2, 30.0, (0, -15, 0), (0, 1, 0)))
-    barrel = g.fuse(eye, g.cyl(32.0, 190.0, (0, 0, 22.0)), g.cyl(35.0, 12.0, (0, 0, 22.0)),
-                    g.cyl(35.0, 12.0, (0, 0, 200.0)), g.cyl(9.0, 24.0, (24, 0, 40.0), (1, 0, 0)),
-                    g.cyl(9.0, 24.0, (24, 0, 180.0), (1, 0, 0)))
-    rod_eye = g.cut(g.fuse(g.cyl(18.0, 18.0, (0, -9, L), (0, 1, 0)), g.cyl(14.0, 30.0, (0, 0, L - 30.0))),
-                    g.cyl(10.2, 30.0, (0, -15, L), (0, 1, 0)))
-    rod = g.fuse(rod_eye, g.cyl(11.0, L - 60.0, (0, 0, 60.0)))
+    bore = g.cyl(26.0, LUFF_GLAND - LUFF_CAP, (0, 0, LUFF_CAP))
+    gland_bore = g.cyl(12.0, 20.0, (0, 0, LUFF_GLAND - 4.0))
+    barrel = g.fuse(g.cyl(16.0, 26.0, (0, 0, 0)), g.cyl(35.0, 12.0, (0, 0, 22.0)),       # neck, end cap
+                    g.cyl(32.0, 190.0, (0, 0, 22.0)), g.cyl(35.0, 12.0, (0, 0, 200.0)),  # tube, gland
+                    g.cyl(8.0, 18.0, (20, 0, 46.0), (1, 0, 0)), g.cyl(8.0, 18.0, (20, 0, 186.0), (1, 0, 0)))
+    barrel = g.fuse(g.cut(barrel, bore, gland_bore, g.cyl(LUFF_PIN_R, 40.0, (0, -20, 0), (0, 1, 0))), _eye(0.0))
+    rod = g.fuse(g.cyl(25.0, LUFF_PISTON[1] - LUFF_PISTON[0], (0, 0, LUFF_PISTON[0])),
+                 g.cyl(11.0, L - 16.0 - LUFF_PISTON[1], (0, 0, LUFF_PISTON[1])),
+                 g.cyl(14.0, 20.0, (0, 0, L - 30.0)), _eye(L))
     ang = math.degrees(math.atan2(rx - bx, rz - bz))             # tilt from +z towards +x
     m = g.T(bx, PIVOT[1], bz) @ g.Rot((0, 1, 0), ang)
     return g.xform(barrel, m), g.xform(rod, m)
+
+
+def luff_pin(length: float = 44.0):
+    """A pin Ø20 along +y from y 0, with a head Ø28 x 4 before its start."""
+    return g.fuse(g.cyl(LUFF_PIN_R, length, (0, 0, 0), (0, 1, 0)), g.cyl(14.0, 4.0, (0, -4.0, 0), (0, 1, 0)))
 
 
 # ---------------------------------------------------------------------------
 # the assembly
 # ---------------------------------------------------------------------------
 
-def build(path: str, revision: str = "A", inventor_names: bool = False, plain: bool = False,
-          luff: bool = False) -> None:
+def build(path: str, revision: str = "A", inventor_names: bool = False, plain: bool = False) -> None:
     """``inventor_names``: every placed part gets an occurrence name like Inventor writes ("BOLT:3").
 
     Revision "C" (with inventor_names) is revision A with bolt 1 removed and bolts 3 and 4 swapped:
@@ -241,6 +268,7 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
             name(comp, occurrence)
 
     px, py, pz = PIVOT
+    luff = not plain
     if plain:
         base = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 1000.0, 600.0, 100.0).Shape(), "BASE", YELLOW)
         ped = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 120.0, 160.0, 230.0).Shape()
@@ -275,6 +303,8 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
     place(boom_asm, pin)
     if lamp is not None:
         place(boom_asm, lamp, 1450, 0, 80)
+    if luff:
+        place(boom_asm, part(luff_pin(), "BOOM.CYL.PIN", STEEL), LUFF_ROD_LOCAL[0], -22.0, LUFF_ROD_LOCAL[2])
 
     trolley_asm = st.NewShape()
     name(trolley_asm, "TROLLEY.ASM")
@@ -300,6 +330,8 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
         place(cyl_asm, part(barrel_s, "LUFF CYLINDER.BARREL", (0.1, 0.1, 0.1)))
         place(cyl_asm, part(rod_s, "LUFF CYLINDER.ROD", (0.85, 0.86, 0.88)))
         place(root, cyl_asm)
+        (bx, bz), _r = luff_pins()
+        place(root, part(luff_pin(), "PEDESTAL.CYL.PIN", STEEL), bx, PIVOT[1] - 22.0, bz)
     holes = list(BOLT_HOLES)
     if revision == "B":
         holes = [(950, 550), (50, 550), (950, 50)]          # one bolt less, other order
@@ -322,5 +354,5 @@ def build(path: str, revision: str = "A", inventor_names: bool = False, plain: b
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     build(args[0] if args else "test_crane.step", args[1] if len(args) > 1 else "A",
-          inventor_names="--inventor-names" in sys.argv, plain="--plain" in sys.argv, luff="--luff" in sys.argv)
+          inventor_names="--inventor-names" in sys.argv, plain="--plain" in sys.argv)
     print("written")

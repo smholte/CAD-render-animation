@@ -92,7 +92,10 @@ def _boom_joint(scene):
     from ..blender import joints
     pin = _ob(scene, "BOOM.PIN")
     origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector((0.1, 0.3, 0.42)), Vector((0, 0, 1)))
-    return joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
+    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
+    from ..blender import tour
+    tour.luff_cylinder(scene)               # the luffing cylinder follows the boom (task 0122)
+    return j
 
 
 def _tip(scene):
