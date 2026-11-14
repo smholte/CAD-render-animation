@@ -1,6 +1,6 @@
 # 0120 – Bug-hunt fixes B: render queue, jobs during a bake, undo during long jobs, weather and redraw
 
-**Who:** worker · **Status:** running (web session) · **Branch:** `task/0120-fixes-queue-render-undo` (or the web session's)
+**Who:** worker · **Status:** done (0.2.98) · **Branch:** `task/0120-fixes-queue-render-undo` (or the web session's)
 **Started by:** lead chat, 14 Nov 2026, from bug hunt 0118 (`tasks/0118-bug-hunt-3.md`)
 **Area:** Scene & Render + queue: `blender/queue.py`, `ops_motion.py` (Add image), `states.py` (saved scene frame), `house_bake.py`, `ops_web3d.py`, `ops_house.py`, `ops_clash.py` (modal undo), `section.py` + `ui_section.py`, `ui_fade.py`, `ui_weather.py`, `weather.py` (`after_clear`), `animation.py` **additively** (a Build warning, `_channelbag`) – 0121 adds one call in `clear_keys`: merge carefully; their tests. **Do not edit:** `spool.py`, `paths_riders.py`, `tracks.py` (0119), `sequence.py`, `flex.py`, `vessel_motion.py`, `reimport.py` (0121), `importer/`, `build.py`, `faces.py` (0117).
 **Model:** **Opus · effort Medium** · **Place:** Claude Code on the web, environment "CAD-render-animation"
@@ -21,9 +21,9 @@ Fix rows **1, 6, 11, 13, 15, 16, 18** of the bug hunt (every-paint-scheme animat
 
 ## Done when
 
-- [ ] Each row: fixed with a test that failed before, or shown not real (with how)
-- [ ] Full run green on GitHub; CHANGELOG in plain words (what the owner would have noticed); version taken last
-- [ ] Report filled in; TASKS.md row → done
+- [x] Each row: fixed with a test that failed before, or shown not real (with how)
+- [x] Full run green on GitHub; CHANGELOG in plain words (what the owner would have noticed); version taken last
+- [x] Report filled in; TASKS.md row → done
 
 ---
 
@@ -63,7 +63,15 @@ Fix rows **1, 6, 11, 13, 15, 16, 18** of the bug hunt (every-paint-scheme animat
 
 **Tested:** `tests/test_fixes_0120.py` – 13 tests, 12 failed on the code before the fixes (the 13th tests the new
 key helper only). Locally: queue (schemes, fixes, safety, delayed), fade, section, weather (+fx, sky, independent),
-house_blender, web3d, idprops, updates – 254 passed. Precheck and tooltip report clean (736 ok). GitHub: see below.
+house_blender, web3d, idprops, updates – 254 passed. Precheck and tooltip report clean (736 ok).
+
+**GitHub runs: 4 for the branch.** 1st (43585482413): 2 failures – the tour stop "Weather changes in a video" got my
+second warning (start scene with weather of its own), so that warning was dropped. 2nd: version clash (0119 took
+0.2.96). 3rd (43587953745): green, but 0121 took 0.2.97 meanwhile. 4th (43589992734, 1f2d030): green, 26.7 min;
+`main` fast-forwarded to it, run 43592103421 on `main` = reuse, release v0.2.98 published, the Windows update check
+and "Offer the release" green.
+
+**Subagents:** none (seven small fixes in shared files; the tests were written first from the rows' proofs).
 
 **Open points:** Edit > Undo from the menu (and the undo history) during a long job still passes – only the keys
 are caught. A save during a long job warns but cannot be stopped. Row 15: a user's own F12 in the window renders
