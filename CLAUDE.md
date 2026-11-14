@@ -288,6 +288,8 @@ fresing_render/            the Blender extension (Python package)
                            lean of the normal + the anisotropic tangent; inputs Size, Strength, Pixel angle), wired into a
                            material by ``materials.build_nodes`` when its spec has ``toolmarks``
     idprops.py             store_array: arrays into ID properties safely (task 0038)
+    longjob.py             the long modal jobs (web 3D export, House bake, clash check) swallow Ctrl+Z while they run
+                           (task 0120); queue.busy_job: the queue waits / refuses / a save warns while one runs
     waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
                            k/N of its travel (coupling ratios + limits); several covers per project in
                            scene.fresing.waycovers (task 0035; the old single cover moves in at load), the last section
