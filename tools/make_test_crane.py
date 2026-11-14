@@ -30,12 +30,8 @@ import math
 import os
 import sys
 
-from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse
-from OCP.BRepFilletAPI import BRepFilletAPI_MakeChamfer
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder, BRepPrimAPI_MakeSphere
-from OCP.GeomAbs import GeomAbs_Line
 from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec
 from OCP.IFSelect import IFSelect_RetDone
 from OCP.Quantity import Quantity_Color, Quantity_TOC_sRGB
@@ -44,15 +40,14 @@ from OCP.STEPControl import STEPControl_StepModelType
 from OCP.TCollection import TCollection_ExtendedString
 from OCP.TDataStd import TDataStd_Name
 from OCP.TDocStd import TDocStd_Document
-from OCP.TopAbs import TopAbs_EDGE, TopAbs_VERTEX
-from OCP.TopExp import TopExp_Explorer
 from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS
 from OCP.XCAFApp import XCAFApp_Application
 from OCP.XCAFDoc import XCAFDoc_ColorType, XCAFDoc_DocumentTool
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fresing_render.demo_model import geom as g  # noqa: E402
+from model_details import chamfer, chamfered_rect, hex_prism  # noqa: E402
 
 PIVOT = (100.0, 300.0, 400.0)       # mm: boom pin centre
 YELLOW = (0.976, 0.659, 0.0)        # RAL 1003-ish: the crane's paint (the groups' "Colour #F9A800")
@@ -68,58 +63,6 @@ FOOT_Y = (-25.0, 185.0)
 # ---------------------------------------------------------------------------
 # shapes
 # ---------------------------------------------------------------------------
-
-def _edges(shape):
-    ex = TopExp_Explorer(shape, TopAbs_EDGE)
-    while ex.More():
-        yield TopoDS.Edge(ex.Current())
-        ex.Next()
-
-
-def _ends(edge):
-    pts = []
-    ex = TopExp_Explorer(edge, TopAbs_VERTEX)
-    while ex.More():
-        p = BRep_Tool.Pnt_s(TopoDS.Vertex(ex.Current()))
-        pts.append((p.X(), p.Y(), p.Z()))
-        ex.Next()
-    return pts
-
-
-def chamfer(shape, d: float, keep):
-    """Chamfer every straight edge whose two ends both pass ``keep((x, y, z))``."""
-    mk = BRepFilletAPI_MakeChamfer(shape)
-    n = 0
-    seen = set()
-    for e in _edges(shape):
-        if BRepAdaptor_Curve(e).GetType() != GeomAbs_Line:
-            continue
-        ends = _ends(e)
-        key = tuple(sorted(tuple(round(c, 3) for c in p) for p in ends))
-        if key in seen or len(ends) < 2 or not all(keep(p) for p in ends):
-            continue
-        seen.add(key)
-        mk.Add(float(d), e)
-        n += 1
-    if not n:
-        return shape
-    mk.Build()
-    if not mk.IsDone():
-        raise RuntimeError("chamfer failed")
-    return mk.Shape()
-
-
-def chamfered_rect(x0, y0, w, h, c):
-    """(x, y) corners of a w x h rectangle with its corners cut by c."""
-    return [(x0 + c, y0), (x0 + w - c, y0), (x0 + w, y0 + c), (x0 + w, y0 + h - c), (x0 + w - c, y0 + h),
-            (x0 + c, y0 + h), (x0, y0 + h - c), (x0, y0 + c)]
-
-
-def hex_prism(af: float, h: float, z0: float = 0.0):
-    r = af / math.sqrt(3.0)
-    pts = [(r * math.cos(math.radians(30 + 60 * k)), r * math.sin(math.radians(30 + 60 * k))) for k in range(6)]
-    return g.polygon_prism(pts, h, g.T(0, 0, z0))
-
 
 def base_shape():
     plate = g.polygon_prism(chamfered_rect(0, 0, 1000, 600, 20), 100.0)

@@ -97,6 +97,28 @@ Copy gap found: no test compares the shipped copies of test_cylinder_a, test_lin
   plain boxes (12 triangles each): owner asked.
 - Stills (Cycles, the tour's Tour view): sent to the owner in the session.
 
+### Owner's pick (14 Nov 2026, in the session)
+
+Crane **B** (more detail + luffing cylinder, set up in every tour set that uses the crane); batches **Machines**,
+**Offshore** and **Small models**; not the fragile ones (clash, linkage, decals, faces, machine, materials, mesh,
+flex, paths). Budget: **2 × the triangles at Normal or 10,000, whichever is more**; tour build ≤ ~2.5 min, no GitHub
+job more than ~10 % longer.
+
+### Split (subagents, CLAUDE.md section 2)
+
+| Who | Files it owns | Tour sets it may edit (only their build functions, checks and stop texts in `tour.py`) |
+| --- | --- | --- |
+| worker (this session) | `make_test_crane.py`, `model_details.py` (shared helpers – read-only for the others), crane data files, `tour.py` crane sets + merging, tests reading the crane, guide pictures, version, CHANGELOG, TASKS.md | crane, looks, marine, cutaway, copies, update, vessel, weather, web3d stops |
+| Machines | `make_test_gantry.py`, `make_test_mill.py`, `make_test_toolpath.py`, `make_test_4axis.py`, `make_test_5axis.py`, `make_test_atc.py`, their `tests/data` + `fresing_render/data` files | gantry, atc, mill, tools, marks, air, coolant, toolpath, rotary4, rotary5, doublearm |
+| Offshore | `make_test_spool.py`, `make_test_sea.py`, `make_test_moving.py`, `make_test_tracks.py` (+ data) | spool, sea_cable, moving_cable, tracks |
+| Small | `make_test_cylinder.py`, `make_test_waycover.py` (b/c/d; `test_waycover_a` is the owner's file: untouched), `make_test_sequence.py` (+ data) | cylinder, waycover, waycover2, sequence, productvideo |
+| Independent tester (after the merge) | none: runs the tour, the clash test, the model-reading tests and the PC check lines; reports | – |
+
+Rules for every batch: each part one solid; colours kept; names checked with `part_types.classify`, fasteners in
+ISO/DIN notation; no part starting inside a part of another rigid body; nothing new inside a sweep; every tour
+animation of its sets 0 clash rows; the geometry the tests rely on kept – or an expected number changed on purpose and
+listed (file:line, old → new, why); never loosen a check. Helpers: `tools/model_details.py` + `demo_model/geom.py`.
+
 ---
 
 ## Report (filled in by the chat that did the task)
