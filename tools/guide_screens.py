@@ -1668,7 +1668,9 @@ elif MODE in ("toolpath", "toolpath_view"):
             if p is not None:
                 p.hide_viewport = True
             for o in sc.objects:
-                if o.get("fr_name") in ("SPINDLE", "END MILL D10", "CARRIAGE", "COLUMN") or o.get("fr_cnc") == "tool":
+                if o.get("fr_name") in ("SPINDLE", "END MILL D10", "CARRIAGE", "COLUMN", "SPINDLE HOUSING",
+                                        "SPINDLE MOTOR", "LINEAR RAIL Z", "SERVO MOTOR Z") \
+                        or o.get("fr_cnc") == "tool":       # the head (task 0122: housing, motor, rails) out of view
                     o.hide_viewport = True
             win, area, region, _sb = areas()
             sp = area.spaces.active
