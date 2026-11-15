@@ -2851,6 +2851,8 @@ The box counts them ("… ride on another part and leave before it").
 <a id="back-to-cad"></a>
 **Back to CAD: undo a pose**
 
+<img class="panel" src="img/panel_6_back_to_cad.png" alt="A Back to CAD step for the boom only (Whole model unticked)">
+
 A saved pose (Go to pose) stays where it ends. The step **Back to CAD** brings the machine home again: every joint goes
 back to its CAD value and every moved part back to its place, smoothly over the step's **Duration** (**Motion** as for
 the other steps).
