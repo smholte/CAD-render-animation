@@ -1,6 +1,6 @@
 # 0144 – Render kit: a Fresing start window – graphics-card load limit, models, resume, quiet overnight runs
 
-**Who:** worker · **Status:** open – can start (Site kit lane free) · **Branch:** `task/0144-kit-start-window`
+**Who:** worker · **Status:** running · **Branch:** `task/0144-kit-start-window`
 **Started by:** lead chat, 15 Nov 2026 (owner, before a ~4 h overnight kit run) · **Model:** Opus · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Site kit lane):** `site/render_kit/` ("Make site pictures.bat", `make_site_pictures.py`, `models.ini`,
