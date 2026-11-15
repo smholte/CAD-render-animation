@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.104 – 15 Nov 2026 – a follower's true value, Back to CAD after a Take apart, no false clash rows (task 0132)
+
+- **A joint that follows another shows its true value:** in 4 Motion the joint list and the joint's box show a
+  follower's angle or distance worked out from the joint it follows. Right after a change it could show the value of
+  one step before.
+- **Back to CAD right after a Take apart plays it backwards:** the same paths, the last part out comes in first, so no
+  bolt flies through a cover any more. Joints that also have to go home move after that. In every other case Back to
+  CAD is as before. The step's box says when it plays a Take apart backwards.
+- **No false clash rows from a Put together:** a Put together with nothing taken apart before it puts its parts out at
+  once at its first frame. The clash check no longer reads that jump as a move through the other parts; real clashes
+  are still found.
+
 ## 0.2.103 – 15 Nov 2026 – the quadrant at the seabed, a cable that settles, one bow (task 0125)
 
 - **A let-go cable settles onto the seabed:** a cable into the sea that is let go above the seabed – its end, and the

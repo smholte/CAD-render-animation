@@ -712,6 +712,26 @@ def sample_times(scene) -> list:
     return sorted(times)
 
 
+def _jumps(scene, objs: list) -> dict:
+    """{frame (float): bool per part} – the parts the built animation puts somewhere else at once at that frame (a Put
+    together whose parts are not out yet, task 0132), and the parts riding on them. The way between that frame and the
+    one before is a cut, not a motion: it is not swept (each frame itself is checked as always)."""
+    from . import animation
+    out = {}
+    for f, names in animation.jumps(scene).items():
+        mask = np.zeros(len(objs), dtype=bool)
+        for i, ob in enumerate(objs):
+            p = ob
+            while p is not None:
+                if p.name in names:
+                    mask[i] = True
+                    break
+                p = p.parent
+        if mask.any():
+            out[float(f)] = mask
+    return out
+
+
 def _set_time(scene, t: float) -> None:
     f = math.floor(t + 1e-9)
     scene.frame_set(int(f), subframe=float(t - f))
@@ -775,6 +795,7 @@ class Check:
         self.names = [ob.name for ob in self.objs]
         self.labels = [label(ob) for ob in self.objs]
         self.times = sample_times(scene)
+        self.jumps = _jumps(scene, self.objs)
 
     def _read(self):
         """Every part's world matrix and visibility at every moment (yields progress 0 … 0.4)."""
@@ -1613,6 +1634,9 @@ class Check:
                     lo0, hi0 = core.world_boxes(self.mats[k], self.lo, self.hi)
                     lo1, hi1 = core.world_boxes(self.mats[k + 1], self.lo, self.hi)
                     pairs = self._candidates(np.minimum(lo0, lo1), np.maximum(hi0, hi1), self.vis[k], swept)
+                    jump = self.jumps.get(self.times[k + 1])
+                    if jump is not None:                # a step puts these parts elsewhere at once: a cut, no sweep
+                        pairs = [(p, q) for p, q in pairs if not (jump[p] or jump[q])]
                     subs += self._between(k, pairs, dmat, groups)
             if k % 5 == 0:
                 yield 0.4 + 0.6 * k / T

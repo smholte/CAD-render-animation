@@ -656,6 +656,31 @@ def test_motion_panel_shows_couplings_and_motors(scene):
                item)
 
 
+def test_panel_shows_a_followers_real_value(scene):
+    """Task 0132: the joint list and the joint box show a follower's value worked out from its leader, never the copy
+    Blender's driver writes into it (one step behind now and then, task 0127). The stale copy is simulated here."""
+    from fresing_render.blender import ui_motion
+    jaws(scene)
+    trolley_and_wheels(scene)
+    joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=-0.5)
+    joints.set_value(J(scene, "Jaw A"), 0.04)
+    joints.set_value(J(scene, "Wheel 1"), math.radians(30.0))
+    J(scene, "Jaw B").motion[joints.VALUE] = 0.0                  # the driver's copy, a step behind
+    J(scene, "Wheel 2").motion[joints.VALUE] = 0.0
+    s = scene.fresing
+    names = [it.name for it in s.joints]
+    s.joints_index = names.index("Jaw B")
+    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    assert "Distance: -40.0 mm" in text, text
+    s.joints_index = names.index("Wheel 2")
+    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    assert "Angle: -15.0°" in text, text
+    rows = {it.name: _texts(lambda p, it: ui_motion.FRESING_UL_joints.draw_item(None, bpy.context, p.layout, s, it,
+                                                                                 0, s, "", 0), it) for it in s.joints}
+    assert "-40.0 mm" in rows["Jaw B"] and "-15.0°" in rows["Wheel 2"], rows
+    assert ui_motion.value_text(J(scene, "Jaw A")) == "40.0 mm"
+
+
 def test_animation_panel_shows_the_motor_step(scene):
     from fresing_render.blender import ui_motion
     a, b = motor_setup(scene)

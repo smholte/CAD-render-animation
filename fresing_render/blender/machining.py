@@ -703,7 +703,9 @@ def signature(scene) -> str:
         if not fcs and not drivers:
             h.update(_mat_bytes(ob.matrix_basis))
         for key in ("fr_value",):
-            if key in ob and not any(fc.data_path == f'["{key}"]' for fc in fcs):
+            # a driven copy (a follower's) is left out: its driver is hashed above, and the copy Blender writes can
+            # be one step behind (task 0127), which made the signature differ for the same set-up (task 0132)
+            if key in ob and not any(fc.data_path == f'["{key}"]' for fc in list(fcs) + drivers):
                 h.update(f"{key}={round(float(ob[key]), 9)}".encode())
         for c in getattr(ob, "constraints", []):
             h.update(f"con:{c.type}:{c.mute}:{getattr(getattr(c, 'target', None), 'name', '')}".encode())
