@@ -80,6 +80,6 @@ skipped – no Windows-only code; the changed cases are covered by 0129's indepe
 
 **Open points / follow-up tasks:**
 - Only Put together's own jump is recorded; other deliberate jumps (none known) would need the same `Keys.jumps`.
-- GitHub: 1 full run (green, 23 min, run 43755483219); no version clash.
+- GitHub: 2 full runs, both green: the branch (run 43755483219, 23 min) and main (run 43757800828, 25 min, full instead of reuse because the lead had pushed a task-list commit to main meanwhile); no version clash. Released as v0.2.104.
 - A Back to CAD after a Take apart with a step in between that moves something else (a joint) is not reversed (by the
   brief: only when the Take apart is the step right before).
