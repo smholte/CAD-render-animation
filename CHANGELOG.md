@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.106 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
+
+- **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
+  no part jumps any more. Each Put together brings the parts back to where the matching Take apart found them.
+- **Same order every time:** two parts that sit flush no longer swap places between Builds, the render queue and the
+  product video.
+- **Preview not stored:** Save pose, Save scene and Make product video while the sequence Preview is above 0 % put
+  the parts back first.
+- **Hidden parts stay out:** a part hidden with the eye in 2 Structure takes no part in the sequence and stays hidden
+  (the step's box counts it).
+- A sequence's trail line of a part a model update removed is dropped without a warning; the Preview works the plan
+  out again when a part round the subassembly is hidden, shown or moved.
+
 ## 0.2.105 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
 
 - **New look:** *Marine paint, worn leading edge (blades)* (3 Looks, Paint): along a wind turbine blade's front edge,
