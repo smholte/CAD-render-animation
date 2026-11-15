@@ -411,6 +411,10 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
   splash zone of about 2.5 m above it with a greenish tint and thin rust streaks. The waterline follows the
   sea of 5 Scene & Render > Surroundings (without a sea: height 0). **Marine paint, run-down streaks**:
   light dirt and rust streaks running down upright faces (towers, walls), never on decks.
+  **Marine paint, worn leading edge (blades)**: for a wind turbine blade. Along the blade's front edge, from
+  about 60 % of its length to the tip, the paint is worn away in patches: dull grey glass-fibre shows, with
+  small chips. It expects the blade as the CAD file draws it (length along the part's z axis, front edge
+  towards -y); a blade drawn the other way round wears on its back edge.
   **Concrete**: cast concrete for foundations and pedestals, matte light grey.
 
 Projects made with an older version get the new looks when you open them; every group keeps its
@@ -2883,6 +2887,10 @@ the other steps).
    the joints that move its parts (and its moved parts) go back; the rest stays where it is.
 3. A motor (a joint that turns without end) goes to its nearest whole turn: it looks the same as in CAD and does not
    spin back through every turn it made.
+4. **Right after a Take apart** of the same subassembly (or with Whole model ticked), Back to CAD plays that Take
+   apart backwards, as Put together would: the same paths, the last part out comes in first, so no bolt flies through
+   a cover. The box says so. Joints that also have to go back move after that (the last 30 % of the step). In every
+   other case all parts go home together on straight lines.
 
 The step only writes keys on the joints, as a Move joint step does: it works with scripts switched off and in the
 render queue.
@@ -2984,6 +2992,9 @@ What counts:
   left out.
 - Fast moves (G-code rapids, a turning arm) are checked between frames too, so a part cannot jump through
   another one in one frame step.
+- A step that puts parts somewhere else at once on purpose is a cut, not a move: a **Put together** with nothing
+  taken apart before it puts its parts out at its first frame, and that jump is not checked as a path through the
+  other parts. Every frame itself is still checked.
 - **Parts that turn in place** – rollers, sheaves, drums, a coil, a shaft or a pin in its bore – fill the same room
   at every angle. The check finds them by itself: a part that turns about an axis that stays put (against the world,
   or against the carriage it rides on) and is round about that axis is held where it is and only moves with what

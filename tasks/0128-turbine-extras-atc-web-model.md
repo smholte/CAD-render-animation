@@ -59,10 +59,15 @@ The cable-lay demo next to the monopile / a J-tube (later). The other site model
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 15 Nov 2026. **State: pushed on branch `task/0128-turbine-extras` (0.2.102), NOT merged:** the run is red in one job that fails the same way on other branches (below).
 
 **What changed:**
+- Scour protection (offshore): part `SCOUR PROTECTION`, a rock bed of flat faces (72-sided, foot 34 m radius, 1.9 m thick at the pile) with 150 boulders, one solid, ~4.4 k triangles (a revolved version meshed 46 k, a lofted one 230 k). 0 new clash rows expected: it is in the fixed TOWER body (not run here: the full turbine needs the owner's STEP).
+- "Seabed" camera + sheet `scene.sea_depth_m` / `scene.cutaway` (90 m box round the pile); `site/render_kit/projects.py` `apply_scene` sets the app's seabed depth and the cut-away box. The pile **below** the seabed stays hidden: the seabed is an opaque surface, so it cannot be shown without changing the sea code (task 0125's files). The note in the sheet says so.
+- New look `paint_blade_eroded` ("Marine paint, worn leading edge (blades)"), kind EROSION in `marine_looks.py`: strip along the edge facing -y of the part, from 70 m to the tip, patches of grey laminate with chips. Guide text added. Both turbines use it for `blade`. **Open:** I checked the blade's own axes on the stand-in turbine only (span along z, leading edge -y after mirroring); the real blade is not here. If the first kit pictures show the wear on the back edge, flip `edge_dir` in `marine_looks.DEFAULTS["EROSION"]`. No new tour stop / PC-check line (the existing `looks.marine` ones cover the family); it has its own render test.
+- ATC web model re-made (`test_atc.page.html`): page 2.15 MB -> 2.49 MB (+16 %), model 1.1 MB, 44,167 triangles, 10.1 s loop.
+- The shipped `iea15_offshore.json` was edited by hand (parts 89 -> 90, new part, camera, scene, hide note), because the owner's STEP is not here; the test that compares it with a fresh conversion needs the STEP and was skipped. Please run it on the owner's machine/kit run.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine): new `tests/test_blade_erosion.py` (4), `test_site_turbine_parts.py` (21), `test_site_turbine*.py`, stand-in conversion tests, marine/materials/guide/function tests all pass locally. GitHub run 43670263324: every job green except `Linux - real app ui` (`ui_test_spool.py`: "level wind follows the layer", 35/43), also after a re-run. The spool test passes alone here (43/43, 48 s), and the same failure is in run 43621844399 on branch `ccr-bde4018f-wmqawe`, before my commits: not caused by this task (task 0127 is about tests that fail at random). I did not touch or loosen it.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** merge this branch once the spool test is green on `main` (or 0127 fixes it): merge `main` into the branch, push, wait for green, `git push origin HEAD:main`. Runs used: 2 (one real failure that is not mine, one re-run). Owner's note for the kit run: "The offshore turbine now has rock round the pile and a Seabed picture under the water; the blades are worn along their front edge towards the tip (tell me if it is on the wrong edge)."

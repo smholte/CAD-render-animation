@@ -438,8 +438,10 @@ def test_back_to_cad_between_take_apart_and_put_together(fr):
     end = worlds(sc, parts, sc.frame_end)
     for o in parts:
         assert maxdiff(end[o.name], cad[o.name]) < TOL, ("after Put together", o.get(build.PROP_NAME))
-    # (not asserted: Back to CAD flies every taken-apart part home at once on straight lines, so the bolts pass
-    # through the cover and the rail block - the clash check finds 4-7 mm; see the report)
+    # task 0132: right after the Take apart, Back to CAD plays it backwards (it flew every part home at once on
+    # straight lines before: the bolts passed through the cover and the rail block, 4-7 mm)
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 2)) for r in run.rows]
 
 
 def test_back_to_cad_without_joints_brings_a_taken_apart_unit_home(fr):
@@ -455,13 +457,31 @@ def test_back_to_cad_without_joints_brings_a_taken_apart_unit_home(fr):
     assert not info["warnings"], info["warnings"]
     out = worlds(sc, parts, animation.frame_of(a, dur + 0.1))
     assert all((out[n].translation - cad[n].translation).length > 0.02 for n in cad)
-    half = worlds(sc, parts, animation.frame_of(a, dur + 0.3 + 0.4))
     end = worlds(sc, parts, sc.frame_end)
     for n in cad:
         assert maxdiff(end[n], cad[n]) < TOL, n
-        # eased on the straight line between out and home
-        d, way = half[n].translation - cad[n].translation, out[n].translation - cad[n].translation
-        assert d.cross(way).length < 1e-6 and 0.05 < d.length / way.length < 0.95, n
+    # task 0132: right after a Take apart it is that Take apart backwards (the last part out comes in first), each
+    # part on its own way out, and nothing flies through another part
+    seq = next(x for x in a.blocks if x.kind == "SEQUENCE")
+    rev = animation._Reversed(seq, dur + 0.3, 0.8)
+    with sequence._WorldAt(sc, {}, {}):
+        moves = sequence.plan_now(rev, unit(sc), parts, scene=sc)
+    first_in = min(moves, key=lambda mv: mv.t0).name
+    last_out = max(sequence.plan_now(seq, unit(sc), parts, scene=sc), key=lambda mv: mv.t0).name
+    assert first_in == last_out
+    f_in = animation.frame_of(a, dur + 0.3 + 0.8 * 0.2)
+    sc.frame_set(f_in)
+    by = {o.name: o for o in parts}
+    assert (by[first_in].matrix_world.translation - out[first_in].translation).length > 1e-4    # on its way in
+    for n in cad:
+        if n != first_in and (out[n].translation - cad[n].translation).length > 0.02:
+            way = out[n].translation - cad[n].translation
+            for f in range(animation.frame_of(a, dur + 0.3), sc.frame_end + 1, 2):
+                sc.frame_set(f)
+                d = by[n].matrix_world.translation - cad[n].translation
+                assert d.cross(way).length < 1e-5 * way.length, (n, f)              # on its own line
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 2)) for r in run.rows]
 
 
 def test_back_to_cad_alone_on_a_model_at_cad_does_nothing(fr):
@@ -634,8 +654,13 @@ def test_riders_put_together_alone_end_on_their_carried_places(fr):
             sc.frame_set(f)
             d = o.matrix_world.translation - start[o.name].translation
             assert d.cross(way).length < 1e-5 * way.length, (o.get(build.PROP_NAME), f)
-    # (no clash check here: a Put together that does not follow a Take apart puts its parts out with a jump at its
-    # first frame, which the clash check reads as a motion through the bolts - older than task 0129)
+    # task 0132: the jump out at its first frame is a cut, not a motion (it gave rows through the bolts before)
+    jumped = animation.jumps(sc)            # (a rider carried out by its carrier's jump has no jump of its own)
+    assert set(jumped) == {animation.frame_of(a, 1.0)}
+    assert jumped[animation.frame_of(a, 1.0)] <= {o.name for o in parts} and named(sc, "COVER").name in \
+        jumped[animation.frame_of(a, 1.0)]
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 2)) for r in run.rows]
 
 
 def test_frame_moved_away_by_a_joint_before_the_step_no_longer_blocks(fr):
@@ -694,3 +719,51 @@ def test_riders_on_a_turned_carrier_fly_straight_and_come_home(fr):
         run = clash.check(sc)
         assert not [r for r in run.rows if r.frame_from >= animation.frame_of(a, 1.0)], \
             [(r.a, r.b, r.frame_from, round(r.depth * 1000, 2)) for r in run.rows]
+
+
+# --- task 0132: a step's own jump is not swept; a real clash still is ------------------------------------------------
+
+def test_put_together_alone_no_rows_but_a_real_clash_is_found(fr):
+    """A Put together with nothing taken apart before puts its parts out at once at its first frame: no rows from that.
+    Then the portal frame is driven down through the unit: that clash is found (and only from the frame's move)."""
+    sc = fr
+    frame = named(sc, "PORTAL FRAME")
+    drop = joints.create(sc, "SLIDE", [frame], Vector((0, 0, 0)), Vector((0, 0, 1)), name="Frame drop")
+    a = add_anim(sc)
+    b = add_seq(sc, a, start=0.2, seq_mode="TOGETHER", seq_part_time=0.4)
+    t_drop = 0.2 + b.duration + 0.2
+    add_joint_step(a, drop, start=t_drop, to=-0.15, dur=1.0)
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    f_in = animation.frame_of(a, 0.2)
+    assert set(animation.jumps(sc)) == {f_in}
+    run = clash.check(sc)
+    assert run.rows, "the portal frame driven through the unit must clash"
+    assert all(r.frame_to >= animation.frame_of(a, t_drop) for r in run.rows), \
+        [(r.a, r.b, r.frame_from, r.frame_to) for r in run.rows]
+    assert any(frame.get(build.PROP_NAME) in (r.a, r.b) for r in run.rows)
+    # the same project without the drop: no rows at all
+    animation.clear_keys(sc)
+    next(x for x in a.blocks if x.kind == "JOINT").enabled = False
+    animation.bake(sc, a)
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, r.frame_from, round(r.depth * 1000, 2)) for r in run.rows]
+    animation.clear_keys(sc)
+    assert animation.JUMPS not in sc
+
+
+def test_a_jump_is_only_skipped_for_the_parts_that_jump(fr):
+    """The cut is per part: a part that really moves through another in the same frame gap is still found. A
+    recorded jump that names another part does not hide it."""
+    sc = fr
+    frame = named(sc, "PORTAL FRAME")
+    drop = joints.create(sc, "SLIDE", [frame], Vector((0, 0, 0)), Vector((0, 0, 1)), name="Frame drop")
+    a = add_anim(sc)
+    s = a.blocks.add()                    # a 1-frame move: the frame jumps through the unit between two frames
+    s.kind, s.joint, s.start, s.duration, s.use_from = "JOINT", drop.name, 0.4, 0.04, True
+    s.to_dist, s.easing = -0.4, "LINEAR"
+    animation.bake(sc, a)
+    f1 = animation.frame_of(a, 0.44)
+    sc[animation.JUMPS] = '{"%d": ["%s"]}' % (f1, named(sc, "COVER").name)
+    run = clash.check(sc)
+    assert any(frame.get(build.PROP_NAME) in (r.a, r.b) for r in run.rows), "a real fast move must still be swept"

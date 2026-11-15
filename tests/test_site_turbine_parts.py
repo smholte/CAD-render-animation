@@ -302,7 +302,7 @@ def test_every_part_is_one_valid_solid_with_a_known_name_and_body(built):
     must = {"NACELLE COVER", "NACELLE HATCH", "HELI DECK", "RAIL HELI", "LIGHT 1", "LIGHT 2", "SENSOR MAST",
             "YAW SEAL", "TOWER FLANGE 1", "TOWER FLANGE 3", "DOOR FRAME", "DOOR LEAF", "HANDLE DOOR"}
     must |= ({"TP SLEEVE", "GRATING DECK", "RAIL GATE", "DAVIT PEDESTAL", "DAVIT", "HOOK BLOCK", "CABINET",
-              "LADDER", "RAIL CAGE 1", "GRATING REST PLATFORM", "BOAT LANDING 1", "FENDER 1", "J-TUBE 3"}
+              "LADDER", "RAIL CAGE 1", "GRATING REST PLATFORM", "BOAT LANDING 1", "FENDER 1", "J-TUBE 3", "SCOUR PROTECTION"}
              if v == "offshore" else {"CONCRETE PEDESTAL", "CONCRETE SLAB", "GRAVEL APRON", "STEP STAIR"})
     assert must <= set(names), must - set(names)
     by = {p.name: p.body for p in parts}
@@ -446,6 +446,8 @@ def test_nothing_reaches_the_turning_rotor_or_the_blades(built):
     limit = min(ROTOR_S_MIN, -BLADE_RHO)
     worst = {}
     for p in parts:
+        if p.name.startswith("SCOUR"):          # on the seabed, 180 m below the hub: the lowest blade tip is 30 m up
+            continue
         yaws = (0.0,) if p.body == "NACELLE" else (-10.0, 0.0, 10.0)
         for yaw in yaws:
             M = _rot((0, 0, 0), (0, 0, 1), yaw)
@@ -490,7 +492,7 @@ def test_anchors_lie_on_their_parts(built):
 def test_cameras(built):
     v, fit, _parts = built
     cams = {c["name"]: c for c in tp.cameras(fit, v)}
-    assert set(cams) == ({"Work boat", "Whole turbine"} if v == "offshore" else {"From the field", "At the door"})
+    assert set(cams) == ({"Work boat", "Whole turbine", "Seabed"} if v == "offshore" else {"From the field", "At the door"})
     for c in cams.values():
         assert 10.0 < c["lens"] < 200.0
         assert np.linalg.norm(np.subtract(c["target"], c["eye"])) > 10000.0
@@ -499,6 +501,11 @@ def test_cameras(built):
         assert fit["msl_z"] + 1000 < e[2] < fit["msl_z"] + 6000 and 20000 < np.hypot(e[0], e[1]) < 30000
         assert 18.0 <= cams["Work boat"]["lens"] <= 30.0
         assert cams["Work boat"]["target"][2] > e[2] + 10000      # looking up
+        sb = cams["Seabed"]                                        # task 0128: on the seabed, inside the cut-away box
+        half = 0.5 * 1000.0 * 90.0                                 # (the sheet's scene.cutaway: 90 m square round the pile)
+        assert fit["seabed_z"] + 2000 < sb["eye"][2] < fit["seabed_z"] + 15000
+        assert 20000 < np.hypot(sb["eye"][0], sb["eye"][1]) < half - 3000 and abs(sb["eye"][0]) < half
+        assert sb["target"][2] > fit["seabed_z"] and np.hypot(sb["target"][0], sb["target"][1]) < 1.0
     else:
         e = np.asarray(cams["From the field"]["eye"])        # far enough to see all 256 m of it
         assert e[2] == pytest.approx(fit["ground_z"] + 1700.0) and 250000 < np.hypot(e[0], e[1]) < 400000
@@ -587,3 +594,23 @@ if not HAVE_SRC:
     del (test_synthetic_numbers_match_the_measured, test_rotor_reach_measured,
          test_nacelle_parts_clear_the_drivetrain_and_the_tower, test_tower_parts_do_not_run_into_the_tower,
          test_door_swing_is_clear_of_the_real_tower)
+
+
+def test_scour_protection_lies_on_the_seabed_round_the_pile(built):
+    """Task 0128: rock armour on the seabed, a hole round the pile, flat faces (light), one solid."""
+    v, fit, parts = built
+    by = {p.name: p for p in parts}
+    if v != "offshore":
+        assert "SCOUR PROTECTION" not in by
+        return
+    sc = by["SCOUR PROTECTION"]
+    assert sc.body == "TOWER"
+    lo, hi = occ.bbox(sc.shape)
+    z0 = fit["seabed_z"]
+    assert lo[2] == pytest.approx(z0, abs=1.0)                     # stands on the seabed, not in it or above it
+    assert 1500.0 < hi[2] - z0 < 3500.0                            # 1.5 – 3.5 m of rock
+    assert 30000.0 < hi[0] < 38000.0 and -38000.0 < lo[0] < -30000.0     # about 7 pile radii out
+    rp = tp.tower_radius(fit, z0)
+    pile = occ.common(sc.shape, tp._zcyl(z0 - 100.0, z0 + 4000.0, rp))
+    assert occ.volume(pile) < 1.0                                  # nothing inside the pile
+    assert _triangles(sc.shape) < 12000                            # flat faces: light

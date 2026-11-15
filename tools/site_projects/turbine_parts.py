@@ -36,7 +36,7 @@ BODIES = ("TOWER", "NACELLE", "DOOR", "DAVIT")
 # name prefixes -> looks (models.ini "colours"); a part's name starts with one of these (longest match wins)
 PREFIXES = ("NACELLE", "HELI", "LIGHT", "SENSOR", "TOWER FLANGE", "YAW SEAL", "DOOR", "HANDLE", "STEP", "RAIL",
             "GRATING", "TP", "PLATFORM BEAM", "DAVIT", "HOOK", "CABINET", "LADDER", "BOAT LANDING", "FENDER",
-            "J-TUBE", "CLAMP", "CONCRETE", "GRAVEL")
+            "J-TUBE", "CLAMP", "CONCRETE", "GRAVEL", "SCOUR")
 TOWER_PART = "TOWER"          # the source tower's part name for the decals beside the door (the converter's name)
 
 # layout (compass azimuths, degrees)
@@ -665,7 +665,105 @@ def _offshore(fit: dict) -> list[Part]:
 
     parts += _access(fit)
     parts += _jtubes(fit)
+    parts += _scour(fit)
     return parts
+
+
+# scour protection (task 0128): rock armour on the seabed round the pile, as a real offshore foundation has it
+SCOUR_GAP = 20.0              # between the pile and the rock
+SCOUR_R_FILTER = 34000.0      # the filter layer's outer radius (about 7 pile radii), 0.25 m thick at its edge
+SCOUR_R_ARMOUR = 24000.0      # the armour layer's outer slope
+SCOUR_R_CROWN = 11000.0       # the armour is thickest inside this radius
+SCOUR_TOP = 1900.0            # its thickness at the pile
+SCOUR_STONES = 150            # angular boulders on the slope, half sunk into it
+SCOUR_SEED = 15150
+
+
+def scour_profile(fit: dict) -> list[tuple[float, float]]:
+    """The (r, z) profile of the rock bed: the seabed's level z0 at its foot, in mm."""
+    z0 = float(fit["seabed_z"])
+    ri = tower_radius(fit, z0) + SCOUR_GAP
+    return [(ri, z0), (SCOUR_R_FILTER, z0), (SCOUR_R_FILTER, z0 + 250.0), (SCOUR_R_ARMOUR, z0 + 900.0),
+            (SCOUR_R_CROWN, z0 + 1600.0), (ri, z0 + SCOUR_TOP)]
+
+
+def _bed_height(fit: dict, r: float) -> float:
+    """The rock bed's surface at radius r (mm, absolute z)."""
+    prof = scour_profile(fit)                                # foot, filter edge x2, armour edge, crown, at the pile
+    rs = [prof[5][0], prof[4][0], prof[3][0], prof[1][0]]
+    zs = [prof[5][1], prof[4][1], prof[3][1], prof[2][1]]
+    return float(np.interp(r, rs, zs))
+
+
+SCOUR_SIDES = 72              # the bed is a polygon of this many sides: flat faces mesh light (a revolved cone of
+                              # 34 m radius needed 46 k triangles at the importer's Normal facets)
+
+
+def _polygons(rings):
+    """A solid through regular polygons [(circumradius, z), ...] (a polyhedron: every face a true plane, so it meshes
+    in two triangles – a loft's ruled faces are splines and meshed 230 k triangles)."""
+    from OCP.BRepBuilderAPI import (BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeSolid,
+                                    BRepBuilderAPI_Sewing)
+    from OCP.TopAbs import TopAbs_SHELL
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopoDS import TopoDS
+
+    def pts(r, z):
+        return [(r * math.cos(2.0 * math.pi * k / SCOUR_SIDES), r * math.sin(2.0 * math.pi * k / SCOUR_SIDES), z)
+                for k in range(SCOUR_SIDES)]
+
+    def face(points):
+        poly = BRepBuilderAPI_MakePolygon()
+        for q in points:
+            poly.Add(_p(q))
+        poly.Close()
+        return BRepBuilderAPI_MakeFace(poly.Wire(), True).Face()
+
+    sew = BRepBuilderAPI_Sewing(1e-3)
+    levels = [pts(r, z) for r, z in rings]
+    for lo, hi in zip(levels[:-1], levels[1:]):
+        for k in range(SCOUR_SIDES):
+            j = (k + 1) % SCOUR_SIDES
+            sew.Add(face([lo[k], lo[j], hi[j], hi[k]]))
+    sew.Add(face(levels[0][::-1]))
+    sew.Add(face(levels[-1]))
+    sew.Perform()
+    ex = TopExp_Explorer(sew.SewedShape(), TopAbs_SHELL)
+    mk = BRepBuilderAPI_MakeSolid(TopoDS.Shell(ex.Current()))
+    solid = mk.Solid()
+    if occ.volume(solid) < 0:                   # turned inside out: reverse it
+        solid = solid.Reversed()
+    return solid
+
+
+def _faceted_bed(prof):
+    """The rock bed: polygons at the profile's heights (foot, filter edge, armour edge, crown, pile) with a polygonal
+    hole round the pile whose flats are at least ``r_in`` from the axis (the pile stays clear)."""
+    c = 1.0 / math.cos(math.pi / SCOUR_SIDES)
+    r_in, z0 = prof[0][0], prof[0][1]
+    bed = _polygons([(prof[1][0], prof[1][1]), (prof[2][0], prof[2][1]), (prof[3][0], prof[3][1]),
+                     (prof[4][0], prof[4][1]), (r_in * c, prof[5][1])])
+    return _cut(bed, _polygons([(r_in * c, z0 - 10.0), (r_in * c, prof[5][1] + 10.0)]))
+
+
+def _scour(fit: dict) -> list[Part]:
+    """One solid: the rock bed (a revolved profile: filter layer and armour sloping out) and boulders half sunk in
+    its slope. ``SCOUR_STONES`` boxes, no two alike, so it is rough but light (a few thousand triangles)."""
+    rng = np.random.default_rng(SCOUR_SEED)
+    prof = scour_profile(fit)
+    ri = prof[0][0]
+    shapes = [_faceted_bed(prof)]
+    for _ in range(SCOUR_STONES):
+        r = ri + 300.0 + (SCOUR_R_ARMOUR - ri - 900.0) * math.sqrt(rng.random())      # even over the area
+        a = rng.random() * 2.0 * math.pi
+        size = 900.0 + 900.0 * rng.random()
+        z = _bed_height(fit, r)
+        box = occ.box((-size / 2, -size * 0.35, -size * 0.3), (size / 2, size * 0.35, size * 0.3))
+        M = (occ.translate((r * math.cos(a), r * math.sin(a), z + size * 0.05))
+             @ occ.rot_z(math.degrees(rng.random() * 360.0)))
+        tilt = occ.frame((0, 0, 0), (rng.normal(0, 0.25), rng.normal(0, 0.25), 1.0))
+        shapes.append(occ.moved(box, M @ tilt))
+    return [Part("SCOUR PROTECTION", "TOWER", _solid(_fuse(shapes), "SCOUR PROTECTION"))]
 
 
 def _access(fit: dict) -> list[Part]:
@@ -834,7 +932,11 @@ def cameras(fit: dict, variant: str) -> list[dict]:
         eye = _radial(AZ_LADDER) * 24000.0 + np.array([0.0, 0.0, fit["msl_z"] + 2500.0])
         return [_cam("Work boat", eye, (0.0, -4000.0, fit["msl_z"] + 26000.0), 24.0),
                 _cam("Whole turbine", _radial(145.0) * 520000.0 + np.array([0.0, 0.0, fit["msl_z"] + 40000.0]),
-                     (0.0, hub[1], fit["msl_z"] + 122000.0), 32.0)]
+                     (0.0, hub[1], fit["msl_z"] + 122000.0), 32.0),
+                # task 0128: at the seabed inside the cut-away box (``scene.cutaway``): the pile's foot and the
+                # rock bed round it, 45 m of pile below the seabed stay hidden under it
+                _cam("Seabed", _radial(AZ_LADDER + 160.0) * 40000.0 + np.array([0.0, 0.0, fit["seabed_z"] + 9000.0]),
+                     (0.0, 0.0, fit["seabed_z"] + 3000.0), 26.0)]
     g = float(fit.get("ground_z", 0.0))
     door = _radial(AZ_DOOR)
     side = np.cross([0.0, 0.0, 1.0], door)

@@ -19,7 +19,9 @@ Block kinds
     SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
             follows from the number of parts, the time per part and the overlap
     CAD     back to CAD (task 0129): every joint of the model (or of one subassembly) to its CAD value – a motor to
-            its nearest whole turn – and every moved part to its CAD place, eased as Go to pose (``cad_targets``)
+            its nearest whole turn – and every moved part to its CAD place, eased as Go to pose (``cad_targets``).
+            Right after a Take apart of that subassembly it plays that Take apart backwards first (task 0132,
+            ``apart_before``): the same ways, the last part out first in, so no bolt flies through a cover
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -30,6 +32,7 @@ the keys puts the model back the way it was.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 
@@ -150,6 +153,56 @@ def cad_targets(scene, b, jstate: dict, ostate: dict, tree=None, uids=None):
         values[j.name] = v
     objs = [n for n in ostate if scope is None or n in scope]
     return values, objs
+
+
+JUMPS = "fr_jumps"           # on the scene: {frame: [part names]} a step puts elsewhere at once (task 0132, JSON)
+
+
+def jumps(scene) -> dict:
+    """{frame: set of object names} that the built animation puts somewhere else at once at that frame (a Put together
+    whose parts are not out yet): a cut between that frame and the one before, not a motion (task 0132)."""
+    try:
+        return {int(f): set(n) for f, n in json.loads(scene.get(JUMPS, "{}")).items()}
+    except (TypeError, ValueError):
+        return {}
+
+
+MOTION_KINDS = ("JOINT", "MOTOR", "CYLINDER", "MECHANISM", "GCODE", "POSE", "SEQUENCE", "CAD")
+
+
+def apart_before(anim, b, inside=None):
+    """The Take apart step a Back to CAD step ``b`` plays backwards (task 0132), or None: the step that moves things
+    right before ``b`` (camera, weather, show / hide and fade steps do not count) when it is a Take apart of the
+    subassembly ``b`` brings back – the same one, any one for Whole model, or (``inside(uid)``, Build) one inside it."""
+    if b.kind != "CAD":
+        return None
+    before = [x for x in anim.blocks
+              if x.enabled and x.kind in MOTION_KINDS and x != b and x.start <= b.start + 1e-9]
+    if not before:
+        return None
+    last = max(enumerate(before), key=lambda ix: (ix[1].start, ix[0]))[1]
+    if last.kind != "SEQUENCE" or last.seq_mode != "APART" or not last.target_uid or last.duration <= 0.0:
+        return None
+    if b.cad_whole or last.target_uid == b.target_uid or (inside is not None and inside(last.target_uid)):
+        return last
+    return None
+
+
+class _Reversed:
+    """A Take apart step played backwards as a Put together over another step's time (task 0132): every setting of
+    the Take apart, its times scaled to ``duration`` (the same lines, the same order backwards)."""
+
+    def __init__(self, apart, start: float, duration: float):
+        for p in apart.bl_rna.properties:
+            if p.identifier != "rna_type":
+                setattr(self, p.identifier, getattr(apart, p.identifier))
+        k = duration / max(1e-9, float(apart.duration))
+        self.kind, self.seq_mode, self.seq_trails = "SEQUENCE", "TOGETHER", False
+        self.start, self.duration = float(start), float(duration)
+        self.seq_part_time = float(apart.seq_part_time) * k
+
+
+REVERSE_SHARE = 0.7          # of a Back to CAD step that also moves joints: the Take apart backwards first, then those
 
 
 def fade_ends(b) -> tuple[float, float]:
@@ -327,6 +380,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     if orphans:
         bpy.data.batch_remove(orphans)          # one by one is slow with thousands of actions
     s.anim_baked = ""
+    if JUMPS in scene:
+        del scene[JUMPS]
     if was_baked:
         for m in [m for m in scene.timeline_markers if m.name.startswith("▸ ")]:
             scene.timeline_markers.remove(m)
@@ -598,6 +653,7 @@ def bake(scene, anim) -> dict:
 
     busy_until: dict[str, int] = {}
     seq_home: dict = {}                  # Assembly sequence: a part's place before a Take apart step moved it
+    jumps: dict = {}                     # frame -> parts a step puts elsewhere at once (task 0132): JUMPS, clash check
 
     def joint_move(j, v_from, v_to, f0, f1, easing):
         if busy_until.get(j.name, 0) > f0:
@@ -849,7 +905,7 @@ def bake(scene, anim) -> dict:
             wx_blocks.append(b)
         elif b.kind == "SEQUENCE":
             sequence.bake_step(scene, b, f0, sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray,
-                                                            seq_home, _merge, warnings, uids, tree))
+                                                            seq_home, _merge, warnings, uids, tree, jumps))
         elif b.kind == "CAD":
             got = cad_targets(scene, b, jstate, ostate, tree, uids)
             if got is None:
@@ -857,6 +913,28 @@ def bake(scene, anim) -> dict:
                                 else f"'{block_label(b)}': subassembly not found")
                 continue
             values, objs = got
+            scope = None if b.cad_whole else uids.get(b.target_uid)
+
+            def inside(uid, scope=scope):
+                ob = uids.get(uid)
+                while ob is not None and scope is not None:
+                    if ob == scope:
+                        return True
+                    ob = ob.parent
+                return False
+            apart = apart_before(anim, b, inside)
+            if apart is not None:
+                # the Take apart right before it, backwards (task 0132); joints and other parts after it
+                in_seq = {o.name for o in sequence.movers(scene, sequence.target(scene, apart, uids), tree).parts}
+                rest = any(abs(v - jstate[n]) > 1e-9 for n, v in values.items()) or any(
+                    any(abs(d[r][c] - ident[r][c]) > 1e-9 for r in range(4) for c in range(4))
+                    for n in objs for d in [seq_home.get(n, ostate.get(n, ident)) if n in in_seq
+                                            else ostate.get(n, ident)])
+                d_rev = b.duration * (REVERSE_SHARE if rest else 1.0)
+                sequence.bake_step(scene, _Reversed(apart, b.start, d_rev), f0,
+                                   sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray, seq_home, _merge,
+                                                 warnings, uids, tree, jumps))
+                f0 = min(frame_of(anim, b.start + d_rev), f1)
             for name, v in values.items():
                 if abs(v - jstate[name]) > 1e-9:
                     joint_move(s.joints[name], jstate[name], v, f0, f1, b.easing)
@@ -897,6 +975,10 @@ def bake(scene, anim) -> dict:
             continue
         cb = _channelbag(j.motion, "OBJECT")
         _write(cb, f'["{joints.VALUE}"]', 0, keys)
+    if jumps:
+        scene[JUMPS] = json.dumps({str(f): sorted(n) for f, n in sorted(jumps.items())})
+    elif JUMPS in scene:
+        del scene[JUMPS]
     warnings += _mechanism_keys(scene, jkeys, f_end)
     for name, keys in okeys.items():
         ob = by_name.get(name)

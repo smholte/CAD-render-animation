@@ -29,8 +29,9 @@ CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", 
 #       and width are the look of a cable that gives none. ``blender/cable_looks.py`` has the nodes and every key.
 #   marine: {kind, …}   weathering of steel at sea (task 0116), drawn over the paint by ``blender/marine_looks.py``:
 #       kind "GROWTH" (marine growth below the waterline, a splash zone with slime and thin rust streaks above it;
-#       the waterline is a WORLD height: the scene's ``fr_waterline_z``, 0 when it has none) or "STREAKS" (light
-#       run-down streaks of dirt and rust, vertical in the world). ``marine_looks.DEFAULTS`` has every key.
+#       the waterline is a WORLD height: the scene's ``fr_waterline_z``, 0 when it has none) "STREAKS" (light
+#       run-down streaks of dirt and rust, vertical in the world) or "EROSION" (a wind turbine blade's worn
+#       leading edge, task 0128). ``marine_looks.DEFAULTS`` has every key.
 # Every look is clean by default (marketing stills); wear is a separate per-group slider.
 MATERIALS: dict[str, dict] = {
     # ---- paints --------------------------------------------------------------
@@ -199,6 +200,13 @@ MATERIALS: dict[str, dict] = {
                                  variation=dict(scale=8.0, roughness_min=0.22, roughness_max=0.34,
                                                 color_amount=0.03),
                                  marine=dict(kind="STREAKS")),
+    # a wind turbine blade's paint with a worn leading edge (task 0128)
+    "paint_blade_eroded": dict(label="Marine paint, worn leading edge (blades)", category="Paint", needs_color=True,
+                               roughness=0.4, coat=0.1, coat_roughness=0.25,   # a blade's satin finish
+                               peel=dict(scale=450.0, strength=0.06),
+                               variation=dict(scale=8.0, roughness_min=0.22, roughness_max=0.34,
+                                              color_amount=0.03),
+                               marine=dict(kind="EROSION")),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -258,6 +266,7 @@ UIDS: dict[str, int] = {
     "paint_marine_growth": 52,
     "paint_marine_streaks": 53,
     "from_file": 54,
+    "paint_blade_eroded": 55,
 }
 
 DEFAULT_COLOR = "RAL 7035"

@@ -311,3 +311,15 @@ first is possible (a dot travelling to the pin) and left for task 3.
 Subagents: two read-only mapping agents (tour + crane set build; guide, site, installer) – their findings are in the
 answers above; nothing they wrote was used as code. No independent reviewer (study only; task 3 should give the engine
 to one).
+
+### Owner's answers (15 Nov 2026, 20:50, to the lead chat)
+
+1. **Highlight: not the magenta frame.** The owner wants a different look and **several versions made so he can
+   compare them** (pictures side by side, or a switch in the prototype) before one is chosen – the lesson build task
+   (3) or a small look study before it makes them.
+2. **Show me: both, with a switch** – wait for *Next* by default, a "Play on" choice that runs with pauses.
+3. **Build it yourself: accept the step however it was done** (check the result in the scene).
+4. **Lesson downloads: Thor, CEB brick press, IEA 15 MW turbine – yes.** The demo vessel possibly later: the owner
+   first checks with the company he works for.
+5. **Guide inside the app:** side-panel section per function + pop-out + full guide in the browser – enough.
+6. **`fresing://`:** yes – the installer may register it (current user only, removed by Uninstall).
