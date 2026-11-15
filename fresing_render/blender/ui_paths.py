@@ -302,6 +302,8 @@ def _contact_details(layout, context, cb, index: int) -> None:
         col.label(text="Has no joint: it does not turn")
     else:
         col.label(text="Does not turn")
+    if ct.kind == "SHEAVE":                     # (task 0125: a sheave head that turns to its wire)
+        split_props(box).prop_search(ct, "swivel", scene.fresing, "joints", text="Swivel")
     if ct.note:
         gap = ct.note.startswith(GAP_NOTE)
         wrap(box, context, ct.note[:1].upper() + ct.note[1:], icon="INFO" if gap else "ERROR", inset=12,
