@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.108 – 16 Nov 2026 – Web 3D page becomes a player (task 0134)
+
+- **Settings on the page** (the gear, or M): switch the sea, vessel motion, sky, haze, rain and sun shadows on and
+  off; Quality Auto, Phone, Balanced or Best; how many pictures a second it draws; the graphics card's name;
+  Auto-turn (starts after 8 s without a touch); a Sun / time-of-day slider (live light only). The page remembers the
+  choices for the next visit; Reset forgets them.
+- **Playback:** Space plays and pauses, a time line to drag to any moment (also on a phone), speed ½× 1× 2×.
+- **Saved views:** one button per camera of the project; the view flies there (View 1, 2 … with part names hidden).
+- **Fullscreen** (F), **Reset view** (R), **Screenshot** (S), **Copy link to this view** (L), keys help (?), and a
+  **clean look** (H) that hides every control. A loading bar shows the MB.
+- **Says when the browser draws without the graphics card** (a red bar with the fix: `chrome://restart`) and then
+  uses its lightest settings.
+- **Lighter on the PC:** a picture only when something changes, at most 60 a second, nothing in a hidden tab; a still
+  machine costs the graphics card nothing. Auto quality no longer drops to Phone after you leave the page and come
+  back (the hidden time counted as one slow picture), and it steps up again when there is room.
+- Every exported page is now this player (Surroundings None in its light plain form); the panel's fold "On the page"
+  lists what it offers.
+
 ## 0.2.107 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
 
 - **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
