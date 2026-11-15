@@ -967,10 +967,11 @@ def cps_run_marks(d: Demo) -> dict:
     sc = d.scene
     item = paths.find(sc, CPS_RUN_ITEM)
     r = next(r for r in item.riders if r.name == CPS_RUN_RIDER)
-    route = d.sheet("route")["cps_store"]["run_route"]
+    cs = d.sheet("route")["cps_store"]
+    route = cs["run_route"]
     seg = next(g for g in route["segments"] if g.get("rollers") == "quadrant gutter")
-    margin = float(route["segments"][0]["length"]) / 1000.0 - float(r.length)   # behind the set's nose
-    front0 = margin + float(r.length)
+    front0 = (float(cs["rack_x"][1]) - float(route["segments"][0]["start"][0])) / 1000.0   # (the shelf's end: its tail)
+    margin = front0 - float(r.length)                    # the line behind the set's nose
     return {"front0": front0, "gutter": float(seg["s_start"]) / 1000.0, "length": float(item.length),
             "out": float(item.length) - front0 - 0.001, "home": float(seg["s_start"]) / 1000.0 - margin,
             "set_length": float(r.length), "joint": item.joint}

@@ -750,7 +750,7 @@ def cps_set(p, kit: Kit, length: float = 16000.0) -> Asm:
 
 def cps_rack(x0: float, x1: float, rows_y: list, levels_z: list, deck_z: float, R0: float) -> Part:
     """The CPS rack along the deck (model coordinates): posts every ~3 m outside the rows, cross beams under each
-    level, a cradle rail under each row. Placed at I."""
+    level, a cradle rail under each row. Placed at I. ``R0``: the sets' widest radius (their vertebrae's rings)."""
     y_lo, y_hi = min(rows_y) - R0 - 400.0, max(rows_y) + R0 + 400.0
     xs = np.linspace(x0, x1, max(2, int((x1 - x0) / 3000.0) + 1))
     parts = []
@@ -759,9 +759,9 @@ def cps_rack(x0: float, x1: float, rows_y: list, levels_z: list, deck_z: float, 
             parts.append(g.box(x - 100, y - 100, deck_z, 200, 200, max(levels_z) + R0 + 300 - deck_z))
         for z in levels_z:
             parts.append(g.box(x - 100, y_lo - 100, z - R0 - 220, 200, y_hi - y_lo + 200, 160))
-            for y in rows_y:
-                parts.append(g.box(x - 60, y - R0 - 40, z - R0 - 61, 120, 80, 61 + 0.4 * R0))
-                parts.append(g.box(x - 60, y + R0 - 40, z - R0 - 61, 120, 80, 61 + 0.4 * R0))
+            for y in rows_y:                             # side guides: up to 0.7 R0 under the set's middle (task
+                parts.append(g.box(x - 60, y - R0 - 40, z - R0 - 61, 120, 80, 61 + 0.3 * R0))   # 0126: its rings
+                parts.append(g.box(x - 60, y + R0 - 40, z - R0 - 61, 120, 80, 61 + 0.3 * R0))   # clear them)
     for z in levels_z:
         for y in rows_y:
             parts.append(g.box(x0 - 100, y - 0.35 * R0 - 30, z - R0 - 70, x1 - x0 + 200, 60, 20))

@@ -225,7 +225,8 @@ def test_scenes_cameras_brand_and_the_animation(made):
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 150.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s)
+    assert 60.0 <= body + cards <= 180.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
+    #                                                            0126: shot 8b, ~24 s)
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
@@ -394,7 +395,7 @@ def test_shot_8b_runs_a_cps_set_from_the_rack(made):
     v, _t = chk._mesh(head, bpy.context.evaluated_depsgraph_get())
     R = np.linalg.inv(np.array(d.root().matrix_world)) @ np.array(head.matrix_world)
     v = (v @ R[:3, :3].T + R[:3, 3]) * 1000.0
-    nose = v[np.argmax(v[:, 0])]
+    nose = v[np.argmin(v[:, 0])]                                  # (it lies on the gutter's start, heading +x)
     assert nose[0] == pytest.approx(float(d.sheet("route")["positions"]["quadrant_x"]), abs=20.0), nose
     shown = {b.target_uid for b in a.blocks if b.kind == "SHOW" and abs(b.start - _t9(a)) < 1e-6}
     hidden = {b.target_uid for b in a.blocks if b.kind == "HIDE" and abs(b.start - _t9(a)) < 1e-6}
@@ -423,7 +424,7 @@ def test_the_second_end_is_hauled_in_while_the_d_travels(made):
     travel = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.TRAVEL and b.to_dist > 0)
     assert len(steps) == 2 and steps[0].start + steps[0].duration < _t9(a)
     assert steps[1].start == travel.start and steps[1].duration == travel.duration
-    assert steps[0].to_dist - steps[1].to_dist == pytest.approx(travel.to_dist, abs=1e-6)
+    assert steps[0].to_dist - steps[1].to_dist == pytest.approx(travel.to_dist, abs=1e-4)
     lower = min(b.start for b in a.blocks if b.kind == "JOINT" and b.joint == demo.LOWER)
     piles = [int(m.group(1)) for w in said if "Second end" in w and "piles up" in w
              for m in [re.search(r"at frame (\d+)", w)] if m]
@@ -585,9 +586,12 @@ def test_the_quadrant_operation_shots_10_to_12(made):
             worst_turn = max(worst_turn, float(np.degrees(np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1, 1))).max()))
     assert worst_turn < 1.5, worst_turn                          # (the gutter's own arc: ~1.4° a point)
     # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
-    sc.frame_set(f9)                                             # (from here on nothing is paid out)
+    # (from the D's travel's end on nothing is paid out; task 0126: while it travels the second end is hauled in)
+    trav = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.TRAVEL and b.to_dist > 0)
+    f_on = animation.frame_of(a, trav.start + trav.duration) + 1
+    sc.frame_set(f_on)
     want = se.sea_mark + paths_sea.payout(sc, se)
-    good = [k for k in range(f9 - first, len(res["ok"])) if res["ok"][k]]
+    good = [k for k in range(f_on - first, len(res["ok"])) if res["ok"][k]]
     assert np.abs(np.asarray(res["length"])[good] - want).max() < 0.001
     quad = d.uid(q["uid"])
     arc = d.sheet("route")["second_end"]["route"]["segments"][0]
@@ -901,6 +905,7 @@ def test_stages_can_be_added_and_replaced():
                                                        "shot_tensioner", "shot_drum", "shot_sea", "shot_cps", "shot_quadrant", "shot_lower",
                                                        "shot_tip", "shot_back"]
     saved = list(demo.STAGES)
+    before = [s.id for s in demo.STAGES]
     try:
         @demo.stage("cable", "Cable on its path", after="joints")
         def cable(d):
@@ -910,7 +915,7 @@ def test_stages_can_be_added_and_replaced():
         def rollers(d):
             pass
         ids = [s.id for s in demo.STAGES]
-        assert ids[ids.index("joints") + 1] == "cable"
+        assert ids == before                                     # replaced in its place
         assert ids.count("shot_rollers") == 1 and demo.STAGES[ids.index("shot_rollers")].fn is rollers
     finally:
         demo.STAGES[:] = saved

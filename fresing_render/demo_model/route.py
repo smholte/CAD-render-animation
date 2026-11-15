@@ -233,7 +233,7 @@ CPS_SHELF_GAP = 300.0           # the rack's top shelf (and the set on it) ends 
 CPS_RAMP_DEG = 8.0              # the orange ramp's slope
 CPS_RUN_MARGIN = 300.0          # the CPS run's path starts this far behind the set's nose on the shelf
 CPS_STOP = 1000.0               # ... and ends this far forward of tensioner 2 on side A (the set stops there)
-CPS_S_GAP = 150.0               # a straight between two bends in different planes (the slide's last turn and the ramp's
+CPS_S_GAP = 350.0               # a straight between two bends in different planes (the slide's last turn and the ramp's
 #                                 foot, an S-bend and the D's gutter): back to back, the app could not read them from a
 #                                 facetted bar
 

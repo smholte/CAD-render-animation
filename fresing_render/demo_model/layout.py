@@ -736,7 +736,7 @@ def _cps_store(p, S: Scene, root: Asm) -> None:
     x0 = x1 - CPS_LENGTH - 500.0
     rows = [start[1], start[1] + 1200.0]
     levels = [p.deck_z + 1200.0, p.deck_z + 2400.0, pos["cps_shelf_z"]]
-    root.add(dk.cps_rack(x0, x1, rows, levels, p.deck_z, R0), T(0, 0, 0), "CPS RACK")
+    root.add(dk.cps_rack(x0, x1, rows, levels, p.deck_z, rt.cps_reach_r(p)), T(0, 0, 0), "CPS RACK")
     n_sets = 0
     for z in levels:
         for y in rows:
