@@ -96,6 +96,7 @@ class Moving:
     def __init__(self, folder, with_let_go=True):
         self.sc = load(folder, MOVING)
         self.made = paths.set_up_moving_model(self.sc, with_let_go=with_let_go)
+        paths.find(self.sc, paths.MOVING_CABLE).sea_settle = 0.0     # (settling: tests/test_paths_settle.py, 0125)
         update()
         self.cad = {n: mat(part(self.sc, n)) for n in ("HEAD SHEAVE", "BLOCK", "SHEAVE", "CLAMP", "HORN")}
 

@@ -1659,8 +1659,9 @@ def build_moving(b: Build):
 def _check_moving_cable(scene):
     """Along the built animation: the lift wire's winch keeps it tight (its free length as drawn to 0.5 mm, what it
     pays out turns the head sheave), the cable end leaves the horn and hangs from the sheave once that has gone over
-    the stern, and after the let-go frame its start stays on the seabed while the block goes on; its length (start
-    to its end on the seabed) is kept throughout."""
+    the stern, and after the let-go frame its start stays behind while the block goes on and settles onto the seabed
+    (task 0125: it only goes down, and lies on the seabed at the end); its length (start to its end on the seabed) is
+    kept throughout."""
     import numpy as np
 
     from . import build, paths, paths_sea
@@ -1685,18 +1686,22 @@ def _check_moving_cable(scene):
             starts.append(inv[:3, :3] @ line[0] + inv[:3, 3])
             sheaves.append(inv[:3, :3] @ np.array(sheave.matrix_world)[:3, 3] + inv[:3, 3])
     pay = paths.tight_payout(scene, w)
-    drift = float(max(np.linalg.norm(p - starts[0]) for p in starts))
+    zs = [float(p[2]) for p in starts]
+    bottom = paths_sea.bottom_z(scene, it)
+    sank = all(b <= a + 1e-6 for a, b in zip(zs, zs[1:]))
+    drift = abs(zs[-1] - bottom)
     went = float(max(np.linalg.norm(p - sheaves[0]) for p in sheaves))
     _check(tight < paths.TIGHT_TOL, f"the lift wire's free length changed by {tight * 1000:.1f} mm")
     _check(pay > 10.0, f"the winch paid out only {pay:.2f} m")
     _check(hangs[0] == "HORN" and hangs[-1] == "SHEAVE", f"the cable hangs from {hangs[0]} and then {hangs[-1]}")
     _check(max(totals) - min(totals) < 1e-3,
            f"the cable's length changed by {(max(totals) - min(totals)) * 1000:.1f} mm")
-    _check(drift < 1e-3, f"the let-go start moved {drift * 1000:.1f} mm over the seabed")
+    _check(sank and drift < 0.01, f"the let-go start did not settle onto the seabed: {zs[-1] - bottom:.3f} m over it")
     _check(went > 3.0, "the block did not go on after the let-go")
     return (f"the winch paid out {pay:.2f} m with the wire tight to {tight * 1000:.2f} mm; the cable left the horn "
             f"for the sheave, kept its length to {(max(totals) - min(totals)) * 1000:.2f} mm and its let-go start "
-            f"stayed on the seabed to {drift * 1000:.2f} mm while the block went {went:.1f} m on")
+            f"settled {zs[0] - zs[-1]:.2f} m onto the seabed (to {drift * 1000:.1f} mm) while the block went "
+            f"{went:.1f} m on")
 
 
 TRACKS_ANIM = "Tracks"
@@ -2039,7 +2044,9 @@ def check_product_video(scene) -> str:
     _check(kinds[0] == "CAMERA" and a.blocks[0].camera_mode == "ORBIT", "it does not start with the turn round")
     _check(kinds.count("JOINT") == 2 and kinds.count("SEQUENCE") == 2, f"steps are {kinds}")
     _check(kinds.index("JOINT") < kinds.index("SEQUENCE"), "the take-apart comes before the motion")
-    return f"{len(a.blocks)} steps, {animation.length_seconds(a):.0f} s without the cards"
+    close = [b for b in a.blocks if b.kind == "CAMERA" and b.name.startswith("Close-up")]   # task 0129: picked
+    _check(close and all(b.camera is not None for b in close), "no close-up the app picked")
+    return f"{len(a.blocks)} steps, {len(close)} close-up, {animation.length_seconds(a):.0f} s without the cards"
 
 
 @tour_set("productvideo", "Product video", "test_sequence.step")
@@ -2057,6 +2064,140 @@ def build_productvideo(b: Build):
     info = product_video.make(sc)
     a = info["animation"]
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+FRAME_ANIM = "Round the frame"
+BACK_ANIM = "Back to CAD"
+FRAME_UNIT = "SLIDE.UNIT"               # tools/make_test_sequence.py --frame: 7 parts under a portal frame
+FRAME_UNDER = ("RAIL BLOCK", "COVER", "CARRIAGE", "GRIPPER BLOCK", "SPLIT PIN")   # under its beam
+
+
+def frame_rig(scene):
+    """The frame model's two joints (task 0129): the carriage slides along X on the rail block, the gripper block
+    lifts on the carriage – both ride on a part of the unit."""
+    from mathutils import Vector
+
+    from . import joints
+    s = scene.fresing
+    if "Carriage" in s.joints and "Gripper lift" in s.joints:
+        return s.joints["Carriage"], s.joints["Gripper lift"]
+    rail, car, blk = _ob(scene, "RAIL BLOCK"), _ob(scene, "CARRIAGE"), _ob(scene, "GRIPPER BLOCK")
+    slide = joints.create(scene, "SLIDE", [car], Vector((0, 0, 0.04)), Vector((1, 0, 0)), name="Carriage", base=rail)
+    slide.use_limits, slide.slide_min, slide.slide_max = True, -0.05, 0.06
+    lift = joints.create(scene, "SLIDE", [blk], Vector((0, 0, 0.08)), Vector((0, 0, 1)), name="Gripper lift",
+                         base=car)
+    lift.use_limits, lift.slide_min, lift.slide_max = True, 0.0, 0.02
+    return slide, lift
+
+
+def frame_steps(scene, a) -> tuple:
+    """The carriage slides 50 mm and the gripper lifts 10 mm; then the unit comes apart straight up – the parts under
+    the frame's beam go sideways –, holds, and comes together again. Returns the two sequence steps."""
+    from . import build, sequence
+    slide, lift = frame_rig(scene)
+    _joint_step(a, slide.name, 0.0, 1.0, 0.05, slide=True)
+    _joint_step(a, lift.name, 0.0, 1.0, 0.01, slide=True)
+    u = _ob(scene, FRAME_UNIT)
+    out = []
+    for mode in ("APART", "TOGETHER"):
+        blk = a.blocks.add()
+        blk.kind, blk.seq_mode, blk.seq_id = "SEQUENCE", mode, f"tourframe{mode.lower()}"
+        blk.target_uid, blk.target_name = u[build.PROP_UID], u[build.PROP_NAME]
+        blk.seq_direction, blk.seq_order = "UP", "OUTSIDE_IN"
+        blk.seq_part_time, blk.seq_overlap = 0.6, 50.0
+        sequence.count(scene, blk)
+        blk.start = out[0].start + out[0].duration + 0.5 if out else 1.2
+        out.append(blk)
+    return tuple(out)
+
+
+def check_frame(scene) -> str:
+    """Parts under the beam leave sideways, the bolts up; the gripper block (a rider) leaves before the carriage and
+    stays where it flew while the carriage leaves; all back within 0.01 mm; Build gives no warning."""
+    from . import animation, build, sequence
+    a = next((x for x in scene.fresing.animations if x.name == FRAME_ANIM), None)
+    _check(a is not None, f"no animation '{FRAME_ANIM}'")
+    if scene.fresing.anim_baked != a.name:
+        res = animation.bake(scene, a)
+        _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    apart = next(b for b in a.blocks if b.kind == "SEQUENCE")
+    parts = sequence.movers(scene, _ob(scene, FRAME_UNIT)).parts
+    _check(len(parts) == 7, f"{len(parts)} parts move, not 7")
+    keep = scene.frame_current
+    try:
+        def at(f):
+            scene.frame_set(f)
+            return {o.name: o.matrix_world.copy() for o in parts}
+        home = at(animation.frame_of(a, apart.start))
+        out = at(animation.frame_of(a, apart.start + apart.duration))
+        end = at(scene.frame_end)
+    finally:
+        scene.frame_set(keep)
+    side = 0
+    for o in parts:
+        d = out[o.name].translation - home[o.name].translation
+        nm = o.get(build.PROP_NAME, o.name)
+        _check(d.length > 0.05, f"'{nm}' moved only {d.length * 1000:.0f} mm")
+        if nm in FRAME_UNDER:
+            _check(abs(d.z) < 1e-5, f"'{nm}' flew up through the frame's beam")
+            side += 1
+        else:
+            _check(d.z > 0.05, f"'{nm}' did not go up")
+    worst = max(max(abs(x) for r in (end[n] - home[n]) for x in r) for n in home)
+    _check(worst < 1e-5, f"put together, a part is {worst * 1000:.3f} mm from where it started")
+    return f"7 parts out, {side} sideways under the beam, back within {worst * 1000:.4f} mm"
+
+
+def check_back_to_cad(scene) -> str:
+    """The carriage and the gripper slide out (a pose), then Back to CAD brings both back to 0 over its second."""
+    from . import animation, joints
+    a = next((x for x in scene.fresing.animations if x.name == BACK_ANIM), None)
+    _check(a is not None, f"no animation '{BACK_ANIM}'")
+    if scene.fresing.anim_baked != a.name:
+        res = animation.bake(scene, a)
+        _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    slide, lift = frame_rig(scene)
+    cad = next(b for b in a.blocks if b.kind == "CAD")
+    keep = scene.frame_current
+    try:
+        scene.frame_set(animation.frame_of(a, cad.start))
+        before = joints.get_value(slide)
+        scene.frame_set(animation.frame_of(a, cad.start + cad.duration / 2))
+        mid = joints.get_value(slide)
+        scene.frame_set(scene.frame_end)
+        after = (joints.get_value(slide), joints.get_value(lift))
+    finally:
+        scene.frame_set(keep)
+    _check(before > 0.05, f"the pose put the carriage at {before * 1000:.0f} mm, not 60 mm")
+    _check(0.0 < mid < before, "half way, the carriage is not on its way back")
+    _check(max(abs(x) for x in after) < 1e-6, f"Back to CAD left the joints at {after}")
+    return f"carriage {before * 1000:.0f} mm -> {mid * 1000:.0f} mm -> 0, gripper -> 0"
+
+
+@tour_set("sequenceframe", "Round a frame, back to CAD", "test_sequence_frame.step")
+def build_sequenceframe(b: Build):
+    from . import states
+    sc = b.scene
+    _look("PRODUCT")
+    pts = __import__("numpy").array([(x, y, z) for x in (-0.2, 0.2) for y in (-0.2, 0.35) for z in (0.0, 0.25)])
+    _camera(b, "ISO", "Tour view", points=pts)
+    shot = _shot(b, "Tour: round a frame")
+    a = _animation(b, FRAME_ANIM, shot.name)
+    frame_steps(sc, a)
+    slide, lift = frame_rig(sc)
+    from . import joints
+    joints.set_value(slide, 0.06)
+    joints.set_value(lift, 0.02)
+    _update()
+    pose = states.save_pose(sc, "Slid out")
+    joints.set_value(slide, 0.0)
+    joints.set_value(lift, 0.0)
+    _update()
+    back = _animation(b, BACK_ANIM, shot.name)
+    p = back.blocks.add()
+    p.kind, p.pose, p.start, p.duration, p.easing = "POSE", pose.name, 0.0, 1.0, "SMOOTH"
+    c = back.blocks.add()
+    c.kind, c.start, c.duration, c.easing, c.cad_whole = "CAD", 1.5, 1.0, "SMOOTH", True
 
 
 def _tall_view_points(scene):
@@ -3015,10 +3156,12 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
      "once the sheave has gone past the horn the cable hangs from the sheave instead. Near the seabed the cable is "
-     "let go: its end and its turn round the sheave stay on the seabed while the block is lifted away. The grey "
+     "let go: its end and its turn round the sheave stay behind while the block is lifted away, and settle onto the "
+     "seabed in 2 s – the loop lies flat on it. The grey "
      "lift wire from the fairlead over the trolley's head sheave stays tight: its winch pays out as the trolley "
      "travels and the block goes down, and the head sheave turns with it.",
-     where="4 Motion > Cables and paths (Winch keeps it tight, Let go here)", animation=MOVING_ANIM, play=True,
+     where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
+     animation=MOVING_ANIM, play=True,
      since="0.2.95", check=_check_moving_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
@@ -3051,8 +3194,23 @@ stop("sequence", MOTION, "sequence", "Assembly sequence",
 stop("productvideo", MOTION, "productvideo", "One-click product video",
      "6 Animation > Make a product video made a whole film from the project: one turn round the machine, the "
      "spindle unit's joint swinging out and back with the camera watching it, then the unit taken apart part by part "
-     "and put together again. Title and end card come at render time.", where="6 Animation > Make a product video",
+     "and put together again, and at the end a close-up of the unit the app picked (no saved close-up camera). Title "
+     "and end card come at render time.", where="6 Animation > Make a product video",
      since="0.2.81", animation=PRODUCT_ANIM, at=0.5, play=True, check=lambda scene: check_product_video(scene),
+     auto="clip")
+
+stop("sequenceframe", MOTION, "sequenceframe", "Sequence round a frame, a rider",
+     "A slide unit stands under a yellow portal frame. The carriage slides 50 mm and the gripper on it lifts a little; "
+     "then the unit comes apart 'Up': the two bolts go straight up past the beam, but every part under the beam goes "
+     "sideways out of the frame's open side instead of through it. The gripper block (it rides on the carriage) "
+     "leaves first, from where the carriage put it, and stays where it flew while the carriage leaves under it. Then "
+     "it all comes back and ends exactly where it was.", where="6 Animation (Add step > Assembly sequence)",
+     since="0.2.102", animation=FRAME_ANIM, at=0.45, play=True, check=lambda scene: check_frame(scene), auto="clip")
+
+stop("backtocad", MOTION, "sequenceframe", "Back to CAD step",
+     "The saved pose 'Slid out' moves the carriage and the gripper out; then the step 'Back to CAD' slides both back "
+     "to where the CAD file has them, smoothly, over one second.", where="6 Animation (Add step > Back to CAD)",
+     since="0.2.102", animation=BACK_ANIM, at=0.75, play=True, check=lambda scene: check_back_to_cad(scene),
      auto="clip")
 
 stop("gcode", MACH, "gantry", "G-code program runs the machine",

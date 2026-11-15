@@ -148,7 +148,7 @@ def sea_block(scene, ch: dict, model_min, model_max) -> dict | None:
     p = sur.SEA.get(state, sur.SEA["CALM"])
     swell = []
     if ch.get("vessel"):
-        swell = [w.as_tuple() for w in core_vm.swell(state, s.vessel.heading)]
+        swell = [w.as_tuple() for w in core_vm.swell(state, s.vessel.heading, None, _sur().bow_az(scene))]
     waves = sur._waves(state, swell)
     own = len(sur._waves(state))
     # the waves the app's sea draws (task 0109): none shorter than 1 m; a short wave fades out from 5 to 8 of its

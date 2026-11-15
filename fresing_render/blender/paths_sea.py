@@ -25,7 +25,9 @@ them move, so a catenary costs no Python per frame (Build writes every frame's s
 **Leaving the hang-off.** The path up to the hang-off wheel is the tight-string solver's (``core/paths.py``); from
 where the cable arrives on that wheel ``core.catenary.hang_off`` finds where it leaves: where the catenary's tangent
 is the wheel's (no kink). A chute or bend ends where the CAD cable leaves it (its wrap in the CAD pose); a sheave
-after half a turn. Steeper than that, the cable leaves at the end with a kink and the app warns.
+after half a turn. Steeper than that, the cable leaves at the end and the app warns. Where the catenary's direction
+is not the wheel's tangent (beyond the end, or out of the wheel's plane) the cable goes on in a free bend of the
+wheel's radius to it (task 0125): no kink.
 
 **Riders** (things on the cable): see the second half of this file.
 
@@ -306,7 +308,8 @@ class _Arrive:
         n = axes[:, -1]
         sd = float(sides[-1])
         down = _turn(self.bed, np.tile([0.0, 0.0, -1.0], (F, 1)))      # (part coordinates)
-        e = _unit(down - (down * n).sum(1, keepdims=True) * n)
+        lay = _turn(self.bed, np.tile(_flat(item.sea_dir), (F, 1)))
+        e = _away(down, lay, n)
         td = centres[:, -1] + radii[-1] * sd * np.cross(e, n)          # where the wheel's tangent points down
         ends = td + e * max(float(radii[-1]), 1e-3)
         if counts is None:
@@ -347,9 +350,28 @@ class _Arrive:
         return out
 
 
-def _down_point(centre, axis, radius: float, side: float, down) -> np.ndarray:
-    """(F, 3): where a wheel's tangent points straight down – where a cable hanging from it leaves it."""
-    e = _unit(down - (down * axis).sum(1, keepdims=True) * axis)
+def _flat(v) -> np.ndarray:
+    v = np.array(v, dtype=float)
+    v[2] = 0.0
+    return v / max(float(np.linalg.norm(v)), 1e-12)
+
+
+FLAT = 0.2                              # a wheel whose plane holds less of "down" than this lies (nearly) flat
+
+
+def _away(down, lay, axis) -> np.ndarray:
+    """(F, 3) unit, in the wheel's plane: the way a cable hanging from it goes – down; for a wheel lying (nearly)
+    flat, where "down" says nothing, the lay direction (task 0125: the quadrant tipped flat at the seabed)."""
+    d = down - (down * axis).sum(1, keepdims=True) * axis
+    lv = lay - (lay * axis).sum(1, keepdims=True) * axis
+    flat = np.linalg.norm(d, axis=1) < FLAT
+    return _unit(np.where(flat[:, None], lv, d))
+
+
+def _down_point(centre, axis, radius: float, side: float, down, lay=None) -> np.ndarray:
+    """(F, 3): where a wheel's tangent points straight down – where a cable hanging from it leaves it (for a wheel
+    lying flat: where it points along ``lay``)."""
+    e = _away(down, down if lay is None else lay, axis)
     return centre + radius * side * np.cross(e, axis)
 
 
@@ -382,7 +404,8 @@ def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
     its last wheel, unless that wheel is **released**: the solver lifts it (the cable runs past it), the cable would
     leave it where it arrives (it does not bend round it), or the wheel before it has gone past it in the lay
     direction (its hanging point lies further aft: a quadrant carried over the stern and down past the horn), so a
-    cable hanging from that one never comes to it. Then the wheel before hangs it, and so on (never the first).
+    cable hanging from that one never comes to it, or the wheel before has come down over it (their circles overlap:
+    no path fits round both, task 0125). Then the wheel before hangs it, and so on (never the first).
     The pose decides, live and along an animation alike: a wheel the moving one comes back in front of, and the
     cable bends round again, catches it again. Against flicker, "gone past" has a dead band of ``BAND``: within it
     a wheel stays as it was a moment before (the frame before, or the pose solved a moment ago live)."""
@@ -407,10 +430,14 @@ def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
             break
         lifted = a.res["lifted"][:, h] & a.res["ok"]
         touch = hung[h]["psi"] * a.radius >= SHORT
-        td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx])
-        td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx])
+        td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx], lay[idx])
+        td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx], lay[idx])
         d = ((td_p - td_h) * lay[idx]).sum(1)            # > 0: the wheel before has gone past this one
-        sure = lifted | ~touch | (d > BAND)
+        # the wheel before has come down over this one: their circles overlap and no straight fits between them on
+        # their sides (task 0125: the D's gutter over horn A) – the cable lies on the one that came, not on both
+        gap = np.linalg.norm(centres[idx, h] - centres[idx, h - 1], axis=1) - (radii[h] + radii[h - 1])
+        over = ~a.res["ok"] & (np.asarray(a.res["bad"]) == h) & (gap < 0.0)
+        sure = lifted | ~touch | (d > BAND) | over
         near = d > -BAND
         was = bool(F == 1 and prev is not None and len(prev.get("hang", ())) == 1 and int(prev["hang"][0]) < h)
         out_h = np.zeros(len(idx), dtype=bool)
@@ -446,6 +473,17 @@ def _wheel_parts(scene, item, rel, slots, scale):
     """starts, centres, axes, radii, sides, on0 as paths._solve_item works them out (part coordinates)."""
     paths = _paths()
     return paths._solve_parts(scene, item, rel, slots)
+
+
+STEEP_NOTE = math.radians(2.0)          # a cable leaving a chute beyond its end by more than this is reported
+BEND_STEP = math.radians(0.5)           # the free bend between the hang-off wheel and the catenary: a point per 0.5°
+
+
+def bend_points(turn: float) -> int:
+    """Points of the free bend (task 0125) for the largest turn it makes at any moment (0: no bend, no points)."""
+    if turn < C.BEND_MIN:
+        return 0
+    return int(np.clip(math.ceil(turn / BEND_STEP), 4, 400))
 
 
 def laid_points(piled: float) -> int:
@@ -487,11 +525,12 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     n_cat = int(np.clip(math.ceil(s_max / step), N_MIN, N_MAX))
     piles = np.concatenate([hr["laid"][hr["kind"] == C.PILED] for hr in hung.values()])
     n_laid = laid_points(float(piles.max())) if len(piles) else N_LAID
+    n_bend = bend_points(max(float(hr["bend"].max(initial=0.0)) for hr in hung.values()))
     if F == 1:              # a pose shown keeps the points it was drawn with (as many as a built animation had)
         paths = _paths()
         had = paths._layout_of(paths._shapes(scene, item))[1]
-        n_cat += max(0, int(had) - (int(ar.i0) + int(counts[-1]) + n_cat + n_laid))
-    n_pts = int(ar.i0) + int(counts[-1]) + n_cat + n_laid
+        n_cat += max(0, int(had) - (int(ar.i0) + int(counts[-1]) + n_cat + n_laid + n_bend))
+    n_pts = int(ar.i0) + int(counts[-1]) + n_bend + n_cat + n_laid
     pts, s_all = np.zeros((F, n_pts, 3)), np.zeros((F, n_pts))
     ok = np.zeros(F, dtype=bool)
     wrap, lifted = np.zeros((F, W)), np.zeros((F, W), dtype=bool)
@@ -523,13 +562,37 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
                   for k, v in hr.items()}
             arc[short, 1:] = C.points(hs, eps[:, None] * jj[1:])
             s_arc[short] = a.s_arrive[short, None] + eps[:, None] * jj
+        # the free bend from the wheel to the catenary (task 0125); none at a moment: its points go onto the first
+        # few cm of the catenary
+        bend_len = hr["bend"] * hr["bend_r"]
+        if n_bend:
+            b_pts, b_s = C.bend_points(hr, n_bend)
+            none = hr["bend"] < 1e-9
+            if none.any():
+                # (a moment that only just touches the wheel has put its arc's points on the catenary's first cm
+                # already: these go on after them)
+                Ln = L[none]
+                lam0 = np.where(short[none], np.minimum(0.05, 0.1 * np.maximum(Ln, 1e-3)), 0.0)
+                eps = np.minimum(0.05, 0.1 * np.maximum(Ln - lam0, 1e-3))
+                jb = np.arange(1, n_bend + 1) / (n_bend + 1)
+                hn = _take_hung(hr, none, len(idx))
+                b_pts[none] = C.points(hn, lam0[:, None] + eps[:, None] * jb)
+                b_s[none] = lam0[:, None] + eps[:, None] * jb
+                ln = lam[none]
+                lam[none] = lam0[:, None] + eps[:, None] + (ln - lam0[:, None]) * (
+                    (Ln - lam0 - eps) / np.maximum(Ln - lam0, 1e-300))[:, None]
+        else:
+            b_pts, b_s = np.zeros((len(idx), 0, 3)), np.zeros((len(idx), 0))
         sea_pts = C.points(hr, lam)
         s_T = s_arc[:, -1]
-        s_sea = np.where(short[:, None], a.s_arrive[:, None], s_T[:, None]) + lam
+        s_leave = np.where(short, a.s_arrive, s_T)
+        s_sea = s_leave[:, None] + bend_len[:, None] + lam
         bed = a.bed
         i0 = a.i0
-        g_pts = np.concatenate([res["points"][:, :i0], _apply_n(bed, arc), _apply_n(bed, sea_pts)], axis=1)
-        g_s = np.concatenate([res["s"][:, :i0], s_arc / a.scale, s_sea / a.scale], axis=1)
+        g_pts = np.concatenate([res["points"][:, :i0], _apply_n(bed, arc), _apply_n(bed, b_pts), _apply_n(bed, sea_pts)],
+                               axis=1)
+        g_s = np.concatenate([res["s"][:, :i0], s_arc / a.scale, (s_leave[:, None] + b_s) / a.scale, s_sea / a.scale],
+                             axis=1)
         if g_pts.shape[1] != n_pts:
             raise RuntimeError("the cable's points do not add up where it hangs from another wheel")   # (a bug)
         pts[idx], s_all[idx] = g_pts, g_s
@@ -581,8 +644,10 @@ def _apply_n(M, p):
     return np.einsum("fij,fnj->fni", M[:, :3, :3], p) + M[:, None, :3, 3]
 
 
-def _notes(item, sea, ok) -> list:
-    """[(moment, words)]: what is wrong with the hanging cable, the first moment each happens."""
+def _notes(item, sea, ok, laid_down=None) -> list:
+    """[(moment, words)]: what is wrong with the hanging cable, the first moment each happens. ``laid_down`` (F,):
+    moments where the wheel it hangs from has been let go – it settles onto the seabed and lies there: more cable than
+    the water is deep, a cable that leaves the wheel steeply or not at all is no fault then (task 0125)."""
     wheels = _paths()._wheels(item)
     hangs = np.asarray(sea.get("hang", np.full(len(ok), len(wheels) - 1)))
     out = []
@@ -600,17 +665,26 @@ def _notes(item, sea, ok) -> list:
     if k >= 0:
         out.append((k, f"is {abs(float(sea['excess'][k])):.2f} m too short to reach its end on the seabed: drawn "
                        "straight – set the touch-down again or pay out more"))
-    k = first(kind == C.PILED)
+    calm = np.zeros(len(ok), dtype=bool) if laid_down is None else np.asarray(laid_down, dtype=bool)
+    k = first((kind == C.PILED) & (np.asarray(sea["excess"]) >= 0.005) & ~calm)      # (not "0.00 m", task 0125)
     if k >= 0:
         out.append((k, f"has {float(sea['excess'][k]):.2f} m more cable than the water is deep: it piles up on "
                        f"the seabed under '{name(k)}'"))
-    k = first(kind == C.LIFTED)
+    k = first((kind == C.LIFTED) & ~calm)
     if k >= 0:
         out.append((k, "is so tight that it lifts its end off the seabed"))
-    k = first(sea["steep"])
+    # (a cable that leaves a chute a hair beyond its end goes on in a free bend of the chute's radius: no fault; more
+    # than STEEP_NOTE beyond it is worth a word, task 0125)
+    steep = np.asarray(sea["steep"], dtype=bool) & ~calm & (np.asarray(sea["kink"]) > STEEP_NOTE)
+    if float(item.mbr) > 0.0 and steep.any():   # beyond the end it bends at the wheel's radius: a fault only when
+        paths = _paths()                        # that is tighter than the cable may bend
+        radius = np.array([paths.radius_of(item, wheels[int(h)]) if 0 <= int(h) < len(wheels) else 0.0
+                           for h in (hangs if len(hangs) == len(ok) else np.full(len(ok), len(wheels) - 1))])
+        steep &= radius < float(item.mbr) - 1e-6
+    k = first(steep)
     if k >= 0:
         out.append((k, f"bends over the end of '{name(k)}' – more bottom tension or a longer chute"))
-    k = first(sea["short"])
+    k = first(np.asarray(sea["short"], dtype=bool) & ~calm)
     if k >= 0:
         out.append((k, f"hangs too flat to touch '{name(k)}': more cable or less bottom tension"))
     return out

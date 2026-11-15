@@ -23,7 +23,22 @@ No two parts overlap: rings fit round the shaft with 0.1 mm play, the bolts in t
 keyway with 0.2 … 1 mm. The details of task 0122 (fins, keyway, grooves, spigot) block no part's way up that was
 free before: the order (fasteners, pulley, cover, bearing, spacer, bearing, shaft, housing) is the one of task 0100.
 
+Task 0129: ``--frame`` writes a second model, test_sequence_frame.step: a portal frame (outside the subassembly)
+stands over a slide unit, so parts that would fly up run into its beam and must go another way.
+
+TEST.SEQUENCE.FRAME
+  BASE PLATE              as above
+  PORTAL FRAME            one solid: posts x ±170 … ±190, y -20 … 20, z 0 … 170; beam x -190 … 190, z 150 … 170
+  SLIDE.UNIT              (the subassembly: 7 parts, 2 of them fasteners)
+    RAIL BLOCK            x -150 … 150, y -60 … 60, z 0 … 40 (on the base plate; two blind holes Ø8.4 for the bolts)
+    COVER                 x -140 … -60, y -50 … 50, z 40 … 50, two holes Ø8.4 at x -100, y ±40
+    ISO 4762 M8x25        2 x, at x -100, y ±40: heads on the cover (z 50 … 58), clear of the beam (|y| > 20)
+    CARRIAGE              x -40 … 40, y -50 … 50, z 40 … 80 (the tests put it on a slide joint on the rail block)
+    GRIPPER BLOCK         x -20 … 20, y -30 … 30, z 80 … 120 (the tests put it on a joint on the carriage: a rider)
+    SPLIT PIN             a small pin on the rail block at x 120, y 0 under the beam (z 40 … 60): it must go sideways
+
 usage: python make_test_sequence.py out.step
+       python make_test_sequence.py --frame out.step
 """
 
 import math
@@ -115,6 +130,93 @@ def bolt():
     return g.xform(socket_screw(8, 30.0), g.T(0, 0, 115.0))
 
 
+def portal_frame():
+    posts = [g.box(x0, -20.0, 0.0, 20.0, 40.0, 170.0) for x0 in (-190.0, 170.0)]
+    beam = g.box(-190.0, -20.0, 150.0, 380.0, 40.0, 20.0)
+    return chamfer(g.fuse(beam, *posts), 2.0, lambda p: abs(p[2] - 170.0) < 1e-6)
+
+
+def rail_block():
+    b = chamfer(g.box(-150.0, -60.0, 0.0, 300.0, 120.0, 40.0), 2.0, lambda p: abs(p[2] - 40.0) < 1e-6)
+    return g.cut(b, *[g.cyl(4.2, 16.0, (-100.0, y, 25.0)) for y in (-40.0, 40.0)])
+
+
+def slide_cover():
+    c = g.box(-140.0, -50.0, 40.0, 80.0, 100.0, 10.0)
+    return g.cut(c, *[g.cyl(4.2, 12.0, (-100.0, y, 39.0)) for y in (-40.0, 40.0)])
+
+
+def carriage():
+    return chamfer(g.box(-40.0, -50.0, 40.0, 80.0, 100.0, 40.0), 1.5, lambda p: abs(p[2] - 80.0) < 1e-6)
+
+
+def gripper_block():
+    return chamfer(g.box(-20.0, -30.0, 80.0, 40.0, 60.0, 40.0), 1.5, lambda p: abs(p[2] - 120.0) < 1e-6)
+
+
+def split_pin():
+    return g.cyl(5.0, 20.0, (120.0, 0.0, 40.0))
+
+
+def build_frame(path: str) -> None:
+    """The second model (task 0129): the slide unit under a portal frame."""
+    app = XCAFApp_Application.GetApplication_s()
+    doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
+    app.InitDocument(doc)
+    st = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+    ct = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+
+    def name(label, text):
+        TDataStd_Name.Set_s(label, TCollection_ExtendedString(text))
+
+    def part(shape, text, rgb):
+        if g.solids(shape) != 1:
+            raise RuntimeError(f"{text}: {g.solids(shape)} solids (a test model part is one solid)")
+        lab = st.AddShape(shape, False)
+        name(lab, text)
+        ct.SetColor(lab, Quantity_Color(rgb[0], rgb[1], rgb[2], Quantity_TOC_sRGB), XCAFDoc_ColorType.XCAFDoc_ColorSurf)
+        return lab
+
+    def place(assy, lab, trsf=None):
+        st.AddComponent(assy, lab, TopLoc_Location(trsf if trsf is not None else gp_Trsf()))
+
+    def asm(text):
+        lab = st.NewShape()
+        name(lab, text)
+        return lab
+
+    grey, blue, orange, steel, dark, yellow = ((0.55, 0.57, 0.6), (0.075, 0.267, 0.486), (0.95, 0.45, 0.05),
+                                               (0.8, 0.8, 0.82), (0.15, 0.15, 0.17), (0.95, 0.78, 0.1))
+    base = part(base_plate(), "BASE PLATE", grey)
+    frame = part(portal_frame(), "PORTAL FRAME", yellow)
+    unit = asm("SLIDE.UNIT")
+    place(unit, part(rail_block(), "RAIL BLOCK", blue))
+    place(unit, part(slide_cover(), "COVER", steel))
+    b = part(g.xform(socket_screw(8, 25.0), g.T(0, 0, 50.0)), "ISO 4762 M8x25", dark)
+    for y in (-40.0, 40.0):
+        t = gp_Trsf()
+        t.SetTranslation(gp_Vec(-100.0, y, 0))
+        place(unit, b, t)
+    place(unit, part(carriage(), "CARRIAGE", orange))
+    place(unit, part(gripper_block(), "GRIPPER BLOCK", steel))
+    place(unit, part(split_pin(), "SPLIT PIN", dark))
+    root = asm("TEST.SEQUENCE.FRAME")
+    place(root, base)
+    place(root, frame)
+    place(root, unit)
+    st.UpdateAssemblies()
+    _write(doc, path)
+
+
+def _write(doc, path: str) -> None:
+    writer = STEPCAFControl_Writer()
+    writer.SetColorMode(True)
+    writer.SetNameMode(True)
+    writer.Transfer(doc, STEPControl_StepModelType.STEPControl_AsIs)
+    if writer.Write(path) != IFSelect_RetDone:
+        raise RuntimeError("STEP write failed")
+
+
 def build(path: str) -> None:
     app = XCAFApp_Application.GetApplication_s()
     doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
@@ -165,15 +267,13 @@ def build(path: str) -> None:
     place(root, base)
     place(root, unit)
     st.UpdateAssemblies()
-
-    writer = STEPCAFControl_Writer()
-    writer.SetColorMode(True)
-    writer.SetNameMode(True)
-    writer.Transfer(doc, STEPControl_StepModelType.STEPControl_AsIs)
-    if writer.Write(path) != IFSelect_RetDone:
-        raise RuntimeError("STEP write failed")
+    _write(doc, path)
 
 
 if __name__ == "__main__":
-    build(sys.argv[1] if len(sys.argv) > 1 else "test_sequence.step")
+    args = [a for a in sys.argv[1:] if a != "--frame"]
+    if "--frame" in sys.argv[1:]:
+        build_frame(args[0] if args else "test_sequence_frame.step")
+    else:
+        build(args[0] if args else "test_sequence.step")
     print("written")

@@ -1676,6 +1676,33 @@ def _set_cad_wraps(scene, item, memo: dict | None = None) -> bool:
     return good or not wheels
 
 
+def _shown(item, first, F: int) -> np.ndarray:
+    """(F,) bool: the cable's part is shown at each moment (an animation's Show / Hide steps key its hide_render;
+    task 0125: a cable is only warned about where it can be seen). All True in the pose shown."""
+    if first is None or item.part is None:
+        return np.ones(F, dtype=bool)
+    fc = next((c for c in _fcurves(item.part) if c.data_path == "hide_render"), None)
+    if fc is None:
+        return np.full(F, not bool(item.part.hide_render))
+    return np.array([fc.evaluate(float(first + k)) < 0.5 for k in range(F)], dtype=bool)
+
+
+def _laid_down(scene, item, sea: dict, first, F: int) -> np.ndarray:
+    """(F,) bool: the wheel a sea cable hangs from has been let go at that moment (it settles onto the seabed)."""
+    out = np.zeros(F, dtype=bool)
+    hang = np.asarray(sea.get("hang", ()))
+    if len(hang) != F:
+        return out
+    frames = np.full(F, int(scene.frame_current)) if first is None else int(first) + np.arange(F)
+    idx = _wheel_indices(item)
+    for h in np.unique(hang):
+        if 0 <= int(h) < len(idx):
+            f0 = int(item.contacts[idx[int(h)]].let_go_frame)
+            if f0 >= 0:
+                out |= (hang == h) & (frames >= f0)
+    return out
+
+
 def _note(scene, item, res: dict, first) -> list[str]:
     """Write the cable's problem (or clear it) and what the contacts show; returns the warning sentences.
     ``first``: the frame of moment 0, None for the pose shown. In this order: a frame without a path (it keeps
@@ -1685,6 +1712,7 @@ def _note(scene, item, res: dict, first) -> list[str]:
     name = label(item)
     ok = res["ok"]
     found = []                                  # (text for the list, its frame)
+    vis = _shown(item, first, len(ok))
 
     def when(k):
         return "in this pose" if first is None else f"at frame {first + k}"
@@ -1692,17 +1720,19 @@ def _note(scene, item, res: dict, first) -> list[str]:
     def frame(k):
         return 0 if first is None else first + int(k)
 
-    if not ok.all():
-        k = int(np.argmax(~ok))
+    if (~ok & vis).any():
+        k = int(np.argmax(~ok & vis))
         bad = int(res["bad"][k])
         what = f"cannot go round '{wheels[bad].name}'" if 0 <= bad < len(wheels) else "has no path"
         found.append((f"{what} {when(k)}: {res['problems'].get(k, '')}", frame(k)))
-    rows = np.flatnonzero(ok)
+    rows = np.flatnonzero(ok & vis)
     lifted = np.asarray(res.get("lifted", np.zeros((len(ok), len(wheels)), dtype=bool)), dtype=bool)
     if len(rows) and wheels:
         wrap = res["wrap"][rows]
         off = lifted[rows]
         for i in np.flatnonzero(off.any(axis=0)):
+            if 0.0 <= float(wheels[i].wrap_cad) < 1e-6:
+                continue                        # (it does not touch it in CAD either: it comes onto it later, 0125)
             k = int(rows[int(np.argmax(off[:, i]))])
             found.append((f"no longer touches '{wheels[i].name}' {when(k)}", frame(k)))
         for i, c in enumerate(wheels):
@@ -1722,7 +1752,11 @@ def _note(scene, item, res: dict, first) -> list[str]:
                 k = int(rows[int(np.argmax(wrap[:, i] >= math.radians(1.0)))])
                 found.append((f"bends tighter than its smallest bend (MBR {_mm(item.mbr)} mm) at "
                               f"'{wheels[i].name}': {_mm(radius)} mm", frame(k) if first is not None else 0))
-    for k, words in res.get("sea_notes", ()):        # the cable into the sea (task 0081)
+    sea_notes = res.get("sea_notes", ())
+    if res.get("sea") is not None:              # only where the cable is shown; a hang-off let go lies (task 0125)
+        from . import paths_sea as _sea
+        sea_notes = _sea._notes(item, res["sea"], ok & vis, _laid_down(scene, item, res["sea"], first, len(ok)))
+    for k, words in sea_notes:                  # the cable into the sea (task 0081)
         found.append((f"{words} {when(k)}", frame(k)))
     text, at_frame = found[0] if found else ("", 0)
     if item.problem != text or item.problem_frame != at_frame:
@@ -1751,6 +1785,8 @@ def _usable(scene, item) -> bool:
 def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
     """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had)."""
     res = _solve_item(scene, item, rel, ref=ref, first=first)
+    if first is not None:                       # (Build: what the rollers the cable has left read, task 0125)
+        _STATE.setdefault("drawn", {})[item.name] = (rel, int(first), res)
     warnings = _note(scene, item, res, first)
     if res["ok"].any():
         scale = res["scale"]
@@ -1908,18 +1944,19 @@ def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
     changed in place: from its let-go frame on, an end or contact stays where it was at that frame. Along a Build
     that frame's place comes from the places read (a frame before the first one read: from the first one – it is
     let go from the animation's start); in the pose shown (``first`` None: the frame shown) from the place stored
-    when it was let go (or by Build)."""
+    when it was let go (or by Build). A cable into the sea: what is let go then **settles onto the seabed** over
+    ``item.sea_settle`` seconds (task 0125, ``settle``)."""
     F = rel.shape[0]
     hold = _hold_frame(item, rel, slots)
     sea = hold is not None
     frames = np.full(F, int(scene.frame_current)) if first is None else int(first) + np.arange(F)
     stored = None
+    kept_all = {}                               # which -> (f0, place in the holding frame)
     for which, f0 in _let_goes(item):
         v = values.get(which)
         if v is None:
             continue
-        after = frames >= f0
-        if not after.any():
+        if not (frames >= f0).any():
             continue
         if first is not None and f0 < int(first) + F and (f0 >= int(first) or int(first) <= int(scene.frame_start)):
             m0 = max(f0 - int(first), 0)
@@ -1930,7 +1967,121 @@ def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
             if not got or int(got[0]) != f0 or bool(got[1]) != sea or len(got[2]) != v.shape[1]:
                 continue                        # (nothing stored for this frame: it stays with its carrier)
             kept = np.array(got[2], dtype=float)
-        v[after] = _from_hold(kept, None if hold is None else hold[after], int(after.sum()))
+        kept_all[which] = (f0, kept)
+    seconds = float(getattr(item, "sea_settle", 0.0)) if sea else 0.0
+    fps = scene.render.fps / max(float(scene.render.fps_base), 1e-9)
+    for which, (f0, kept) in kept_all.items():
+        after = frames >= f0
+        n = int(after.sum())
+        if seconds > 0.0:
+            group = {w: k for w, (f, k) in kept_all.items() if f == f0}
+            e = settle_share((frames[after] - f0) / fps, seconds)
+            bottom = _sea_bottom(scene, item)
+            if "a" in group or "b" in group:    # an end with a CPS on it: the CPS lies on the seabed, not in it
+                bottom += _rider_lift(scene, item)
+            place = settle(kept, group, bottom, e)
+            v = values[which]
+            v[after] = _from_hold_each(place, hold[after])
+        else:
+            values[which][after] = _from_hold(kept, None if hold is None else hold[after], n)
+
+
+def _rider_lift(scene, item) -> float:
+    """m: how much higher the middle of a cable lies where a thing fitted on it (a CPS set, task 0081) rests on the
+    seabed: its widest part's radius less the height of the middle of the bare cable lying there (0 without one)."""
+    from . import paths_sea as _sea
+    parts = [p.part for r in item.riders if r.enabled for p in r.parts if p.part is not None and p.part.data]
+    if not parts or item.part is None:
+        return 0.0
+    key = ("lift", item.name, tuple(sorted(o.name for o in parts)))
+    got = _STATE.setdefault("lift", {}).get(key)
+    if got is None:
+        memo: dict = {}
+        inv = np.linalg.inv(_cad(item.part, memo))
+        scale = _scale(_cad(item.part, memo))
+        reach = 0.0
+        for r in item.riders:
+            if not r.enabled:
+                continue
+            o, a = np.array(r.origin, dtype=float), _unit(np.array(r.axis, dtype=float))
+            for rp in r.parts:
+                ob = rp.part
+                if ob is None or ob.data is None or not hasattr(ob.data, "vertices"):
+                    continue
+                co = np.empty(len(ob.data.vertices) * 3)
+                ob.data.vertices.foreach_get("co", co)
+                M = inv @ _cad(ob, memo)
+                v = co.reshape(-1, 3) @ M[:3, :3].T + M[:3, 3] - o
+                d = v - np.outer(v @ a, a)
+                if len(d):
+                    reach = max(reach, float(np.linalg.norm(d, axis=1).max()) * scale)
+        got = max(0.0, reach - (_sea.bottom_z(scene, item) + _sea.depth(scene, item)))
+        _STATE["lift"][key] = got
+    return got
+
+
+def _sea_bottom(scene, item) -> float:
+    from . import paths_sea as _sea
+    return _sea.bottom_z(scene, item)
+
+
+def settle_share(t, seconds: float) -> np.ndarray:
+    """How far (0 … 1) a stretch let go has sunk ``t`` seconds after it was let go (smoothstep over ``seconds``)."""
+    x = np.clip(np.asarray(t, dtype=float) / max(float(seconds), 1e-9), 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+
+
+def _turn_to(n, target) -> tuple:
+    """(axis k, angle): the shortest turn that takes the unit n to the unit target."""
+    k = np.cross(n, target)
+    s, c = float(np.linalg.norm(k)), float(np.clip(n @ target, -1.0, 1.0))
+    if s < 1e-12:
+        return np.array([1.0, 0.0, 0.0]), 0.0 if c > 0 else math.pi
+    return k / s, math.atan2(s, c)
+
+
+def _rodrigues(v, k, angle):
+    """(n, 3): v (3,) turned about the unit k by each angle (n,)."""
+    a = np.asarray(angle, dtype=float)[:, None]
+    return v * np.cos(a) + np.cross(k, v) * np.sin(a) + k * (k @ v) * (1.0 - np.cos(a))
+
+
+def settle(kept, group: dict, bottom: float, share) -> np.ndarray:
+    """(n, d): the place ``kept`` (holding frame = the seabed's coordinates, m: a point, or a wheel's centre + axis)
+    on its way down to the seabed, at each ``share`` (0 … 1) of the way (task 0125). Everything let go at the same
+    moment (``group``: which -> place) moves as one: when a wheel is among them (the quadrant's gutter the cable lies
+    round), it is turned flat about its centre and lowered until its circle – the cable's middle – lies at ``bottom``
+    (the height of the middle of a cable lying on the seabed), and the ends let go with it go along; without a wheel
+    each end sinks straight down to ``bottom``."""
+    kept = np.asarray(kept, dtype=float)
+    share = np.asarray(share, dtype=float)
+    wheel = next((np.asarray(g, dtype=float) for g in group.values() if len(g) == 6), None)
+    if wheel is None:
+        out = np.tile(kept, (len(share), 1))
+        out[:, 2] = kept[2] + (bottom - kept[2]) * share
+        return out
+    c, n = wheel[:3], wheel[3:] / max(float(np.linalg.norm(wheel[3:])), 1e-12)
+    up = np.array([0.0, 0.0, 1.0 if n[2] >= 0.0 else -1.0])
+    k, angle = _turn_to(n, up)
+    ang = angle * share
+    drop = (bottom - c[2]) * share
+    out = np.empty((len(share), len(kept)))
+    out[:, :3] = c + _rodrigues(kept[:3] - c, k, ang)
+    out[:, 2] += drop
+    if len(kept) > 3:
+        out[:, 3:] = _rodrigues(kept[3:], k, ang)
+    return out
+
+
+def _from_hold_each(v, m) -> np.ndarray:
+    """(n, d): places (n, d) in the holding frames ``m`` (n, 4, 4) -> the cable part's coordinates."""
+    v = np.asarray(v, dtype=float)
+    out = np.empty_like(v)
+    out[:, :3] = np.einsum("fij,fj->fi", m[:, :3, :3], v[:, :3]) + m[:, :3, 3]
+    if v.shape[1] > 3:
+        a = np.einsum("fij,fj->fi", m[:, :3, :3], v[:, 3:])
+        out[:, 3:] = a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-12)
+    return out
 
 
 def _end_points(scene, item, rel, slots, b_slot, first=None, let_go: bool = True) -> np.ndarray:
@@ -2149,7 +2300,7 @@ def _with_value(scene, item, rel, slots, j, value) -> np.ndarray:
     return out
 
 
-def _free_of(scene, item, rel, slots, first=None, let_go: bool = True) -> np.ndarray:
+def _free_of(scene, item, rel, slots, first=None, let_go: bool = True, hangs=None) -> np.ndarray:
     """(F,) metres: the cable's free length at each moment – the drawn path from its start (where it leaves its
     spool) to its end, or to where it arrives on the wheel it hangs from into the sea; NaN where it has no path."""
     parts = _solve_parts(scene, item, rel, slots, first=first, let_go=let_go)
@@ -2162,6 +2313,8 @@ def _free_of(scene, item, rel, slots, first=None, let_go: bool = True) -> np.nda
         from . import paths_sea as _sea
         ar = _sea._Arrive(scene, item, rel, slots, *parts)
         _hang, groups = _sea._hang_offs(scene, item, rel, slots, parts, ar)
+        if hangs is not None:                   # (which wheel it hangs from, per moment: task 0125)
+            hangs.append(np.asarray(_hang))
         for _h, (idx, a, _hr) in groups.items():
             out[idx] = np.where(a.res["ok"], a.s_arrive, np.nan)
         return out
@@ -2203,8 +2356,11 @@ def _tighten(scene, item, rel, slots, first, notes=None) -> tuple:
     sign = -1.0 if item.reverse else 1.0
     F = rel.shape[0]
     v = _value_read(item, rel, slots, j)
+    hangs: list = []
     for _ in range(TIGHT_ROUNDS if item.a_kind == "SPOOL" else 1):
-        new = sign * (_free_of(scene, item, _with_value(scene, item, rel, slots, j, v), slots, first) - L0)
+        hangs.clear()
+        new = sign * (_free_of(scene, item, _with_value(scene, item, rel, slots, j, v), slots, first, hangs=hangs)
+                      - L0)
         good = np.isfinite(new)
         if not good.all():                      # a moment without a path keeps the value of the one before
             last = np.maximum.accumulate(np.where(good, np.arange(F), -1))
@@ -2213,11 +2369,36 @@ def _tighten(scene, item, rel, slots, first, notes=None) -> tuple:
         v = new
         if done:
             break
+    if hangs and F > 2:                         # a sea cable whose hang-off changes: no step in the payout (task 0125)
+        fps = scene.render.fps / max(float(scene.render.fps_base), 1e-9)
+        v = ramp_steps(v, hangs[0], max(2, int(round(RAMP * fps))))
     lo, hi = joints.limits(j)
     if (v < lo).any() or (v > hi).any():
         say(f"Cable '{label(item)}': keeping it tight would pay out more than its speed joint '{j.name}' allows")
         v = np.clip(v, lo, hi)
     return _with_value(scene, item, rel, slots, j, v), v
+
+
+RAMP = 1.0                              # s: a keep-tight sea cable's winch takes this long over a hang-off change
+
+
+def ramp_steps(v, hang, n: int) -> np.ndarray:
+    """(F,): the payout ``v`` with its step where the wheel the cable hangs from changes (``hang`` (F,)) spread over
+    the ``n`` frames after it (smoothstep): where the cable leaves a horn and hangs from the quadrant, the free
+    length up to the hang-off jumps, the winch does not (task 0125). The trend of the frames around it is kept."""
+    v = np.array(v, dtype=float)
+    hang = np.asarray(hang)
+    F = len(v)
+    for k in np.flatnonzero(hang[1:] != hang[:-1]) + 1:
+        before = v[k - 1] - v[k - 2] if k >= 2 else 0.0
+        after = v[k + 1] - v[k] if k + 1 < F else before
+        step = (v[k] - v[k - 1]) - 0.5 * (before + after)
+        if abs(step) < 1e-9:
+            continue
+        j = np.arange(F - k)
+        t = np.clip((j + 1) / float(n), 0.0, 1.0)
+        v[k:] -= step * (1.0 - t * t * (3.0 - 2.0 * t))
+    return v
 
 
 def _tight_now(scene, item, rel, slots) -> np.ndarray:
@@ -2947,7 +3128,8 @@ def _moved(scene, item):
 def _live(scene, force: bool = False) -> bool:
     """Solve the moving cables whose carriers moved against them (all cables with ``force``) for where things are
     now. True when something was written."""
-    wrote = False
+    from . import paths_swivel
+    wrote = paths_swivel.live(scene)            # (task 0125: a swivel turns to its wire before the wire is solved)
     for it in list(scene.fresing.cables):
         if not _usable(scene, it) or not (it.moving or force):
             continue
@@ -3020,7 +3202,8 @@ def _read_hook(scene) -> list:
         if not len(scene.fresing.cables):
             return []
         _notes, _its, _can, animated, obs = _plan(scene)
-        return obs if animated else []
+        from . import paths_swivel
+        return list(obs) + list(paths_swivel.objects(scene)) if animated else []      # (+ swivels, task 0125)
     except Exception:
         return []
 
@@ -3038,16 +3221,22 @@ def _rel_from(item, slots, mats: dict) -> np.ndarray:
 
 
 def _bake(scene) -> list[str]:
+    from . import paths_rollers, paths_swivel
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
+    _STATE["drawn"] = {}
     notes, its, can, animated, obs = _plan(scene)
     mats = {}
+    extra = paths_swivel.objects(scene)         # sheaves on swivels (task 0125): read in the same pass
     if can:
         before = flex._STATE["steps"]
-        mats = flex.read_places(scene, obs, first, frames if animated else 1, keep_shown=False)
+        mats = flex.read_places(scene, list({o.name: o for o in list(obs) + list(extra)}.values()), first,
+                                frames if animated else 1, keep_shown=False)
         _STATE["steps"] += flex._STATE["steps"] - before          # (0 when the hoses' pass had read them)
+    # the swivels keyed to their wires; the places of what they carry turned along (no second pass)
+    notes += paths_swivel.after_read(scene, mats, first, frames if (can and animated) else 1)
     for n in its:
         it = _cable(scene, n)
         _wheels_, slots, _w, _a, _b = _inputs_of(it)
@@ -3091,6 +3280,8 @@ def _bake(scene) -> list[str]:
                 it.moving = moving
         _STATE["last"].pop(_k(scene, it), None)
         notes += _draw(scene, it, rel, first)
+    notes += paths_rollers.after_bake(scene, first, frames, _STATE.get("drawn", {}))   # (task 0125)
+    _STATE["drawn"] = {}
     return notes
 
 
@@ -3112,10 +3303,13 @@ def bake(scene, anim) -> list[str]:
 
 def after_clear(scene) -> None:
     """'Clear keys': a cable over things that can move follows them live again."""
-    if not len(scene.fresing.cables):
+    from . import paths_rollers, paths_swivel
+    paths_rollers.after_clear(scene)            # (task 0125: rollers left by the cable follow it again – also when
+    if not len(scene.fresing.cables):           # every cable was removed meanwhile)
         return
     _STATE["busy"] += 1
     try:
+        paths_swivel.after_clear(scene)         # (task 0125: swivels follow their wires live again)
         for it in list(scene.fresing.cables):
             j = joints.find(scene, it.joint) if it.joint else None
             if j is not None and j.motion is not None and TIGHT in j.motion:
@@ -3336,6 +3530,7 @@ def forget() -> None:
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
     _STATE["rest"].clear()
+    _STATE.pop("lift", None)
     from . import paths_sea as _sea
     _sea.forget()
 
@@ -3469,6 +3664,7 @@ MOVING_ANIMATION = "Over the stern"
 MOVING_CABLE, MOVING_WIRE = "Cable end", "Lift wire"
 MOVING_LET_GO = 9.2                     # s: the cable end and the sheave are let go (the block lies near the seabed)
 MOVING_SPEED = 3.0                      # kn: the vessel's speed (Weather & time) while the block goes over the stern
+MOVING_SETTLE = 2.0                     # s: what is let go settles onto the seabed (task 0125) before the end at 11.5 s
 
 
 def set_up_moving_model(scene, with_let_go: bool = True) -> dict:
@@ -3476,7 +3672,8 @@ def set_up_moving_model(scene, with_let_go: bool = True) -> dict:
     imported: the joints "Travel" (the carrier aft along the gantry, 0 … 12 m), "Tilt" (the hanger about its pivot,
     0 … 40°, + swings the block aft) and "Lower" (the block down away from the hanger, 0 … 12 m); the cable "Cable end"
     read from CABLE (power cable look) and hung into the sea from the HORN (15 m of water, layback 20 m; the vessel
-    sails at 3 kn, Weather & time), its start (in the clamp) and its SHEAVE let go at 9.2 s (``with_let_go``); the wire
+    sails at 3 kn, Weather & time), its start (in the clamp) and its SHEAVE let go at 9.2 s (``with_let_go``), settling
+onto the seabed in 2 s (task 0125); the wire
     "Lift wire" read from LIFT WIRE (steel wire rope look) with "Winch keeps it tight" on; the animation "Over the
     stern": travel 10.5 m aft (0 … 4 s), tilt 30° (4 … 5 s), lower 9 m (5 … 9 s), lift the block 5 m again (9.5 …
     11.5 s). Not built. Returns the names made."""
@@ -3520,6 +3717,7 @@ def set_up_moving_model(scene, with_let_go: bool = True) -> dict:
     with _quiet(item):
         item.sea_depth, item.sea_layback, item.sea_laid = 15.0, 20.0, 40.0
         item.sea_speed = "WEATHER"
+        item.sea_settle = MOVING_SETTLE
     notes += _sea.add_sea_end(scene, item)
     wire = add_cable(scene, MOVING_WIRE)
     with _quiet(wire):

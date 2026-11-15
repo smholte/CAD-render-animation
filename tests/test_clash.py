@@ -5,7 +5,8 @@ ends exactly 6.0 mm inside B's flat side (deepest at the last frame). Arm A pass
 miss) and, turned the other way within one frame, goes through a thin post (found only between frames). Pins turn
 in their bores all the time (touching, never a clash).
 
-Task 0067: every animation of every test-tour project is built and checked: 0 rows (the clash model keeps its 6.0 mm).
+Task 0067: every animation of every test-tour project is built and checked: 0 rows (the clash model keeps its 6.0 mm);
+since task 0127 in tests/test_tour_clash.py, one test per set.
 The faults the check found there were fixed in the test models (double arm, carousel gantry, slider-crank) and the
 tour's set-ups (the scissor lift's cylinder), and one in the check itself (points beside a sharp outer edge).
 """
@@ -363,38 +364,7 @@ def Matrix_translation(x, y, z):
     return Matrix.Translation((x, y, z))
 
 
-# ---------------------------------------------------------------------------
-# the test tour's projects: no false clashes (task 0067)
-# ---------------------------------------------------------------------------
-
-TOUR_SECONDS = 360          # time box of the whole check below (build ~40 s, checks ~70 s on a 4-core machine; the
-                            # toolpath set's milling program adds ~2 min, task 0029)
-
-
-def test_every_tour_animation_has_no_clash(tmp_path):
-    """Every animation of every test-tour project is built and checked: 0 rows, except the clash model's own 6.0 mm.
-    A new tour set (a new function's stop) is checked here by itself."""
-    import time
-    t0 = time.perf_counter()
-    folder = str(tmp_path / "tour")
-    out = tour.build_all(folder, "9.9.9")
-    assert not out["errors"], out["errors"]
-    found, checked = {}, 0
-    for sid in tour.SETS:
-        tour.open_set(folder, "9.9.9", sid)
-        sc = bpy.context.scene
-        for a in list(sc.fresing.animations):
-            animation.bake(sc, a)
-            rows = clash.check(sc, store=False).rows
-            checked += 1
-            if sid == "clash":
-                assert [frozenset((r.a, r.b)) for r in rows] == [frozenset(("ARM.A", "ARM.B"))], sid
-                assert abs(rows[0].depth / MM - tour.CLASH_DEPTH) < 0.1
-            elif rows:
-                found[f"{sid} / {a.name}"] = [core.row_text(r) for r in rows[:5]]
-    assert not found, found
-    assert checked >= 15
-    assert time.perf_counter() - t0 < TOUR_SECONDS
+# (the test tour's projects: tests/test_tour_clash.py, one test per set since task 0127)
 
 
 # ---------------------------------------------------------------------------

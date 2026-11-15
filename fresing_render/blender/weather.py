@@ -45,11 +45,21 @@ def sky_on(scene) -> bool:
     return enabled(scene) and place(scene) == "sky"
 
 
+def bow_az(scene) -> float:
+    """Scene azimuth the vessel's bow points to (task 0125): the one source wind 'from the bow', the wake, the bow
+    spray and the swell read (``surroundings.bow_az``)."""
+    try:
+        from . import surroundings
+        return surroundings.bow_az(scene)
+    except Exception:                        # (an older project being read)
+        return core.BOW_AZ
+
+
 def state(scene) -> core.State:
     w = settings(scene)
     return core.State(**{k: (int(getattr(w, k)) if k == "day" else
                              getattr(w, k) if k in ("use_date", "wind_ref", "floodlights") else float(getattr(w, k)))
-                         for k in PROPS})
+                         for k in PROPS}, bow_az=bow_az(scene))
 
 
 def put_state(scene, st: core.State) -> None:
@@ -66,6 +76,9 @@ def put_state(scene, st: core.State) -> None:
 
 
 def channels(scene, st: core.State | None = None) -> dict:
+    if st is not None and st.bow_az != bow_az(scene):
+        from dataclasses import replace
+        st = replace(st, bow_az=bow_az(scene))
     return core.derive(st or state(scene), place(scene))
 
 

@@ -94,12 +94,22 @@ def _carries(j, ob) -> bool:
     return False
 
 
+def _shape_sig(me) -> str:
+    """A fingerprint of a mesh's points (what a tool's tip is read from)."""
+    if me is None or not hasattr(me, "vertices"):
+        return ""
+    co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+    me.vertices.foreach_get("co", co)
+    return hashlib.blake2b(co.tobytes(), digest_size=16).hexdigest()
+
+
 def _rest_tip(ob):
     """(tip, axis) of a tool part in its own space; the axis points from the tip into the holder."""
     from . import machining
-    # (the mesh's address too: another file can have a tool of the same name and size elsewhere, task 0066)
-    key = ("tip", ob.name, ob.data.name if ob.data else "", len(ob.data.vertices) if ob.data else 0,
-           ob.data.as_pointer() if ob.data else 0)
+    # keyed by the mesh's points themselves: another file can have a tool of the same name and size elsewhere (task
+    # 0066), and its mesh's memory address is no proof: after a project was opened, the new tool's mesh got the old
+    # one's address now and then, and the 4-axis bar was "cut" by the 5-axis tool's tip 40 mm above it (task 0127)
+    key = ("tip", ob.name, _shape_sig(ob.data))
     hit = _CACHE.get(key)
     if hit is None:
         info = machining.detect(ob, snap=False)
@@ -837,9 +847,11 @@ def info_key(b) -> tuple:
 
 
 def forget() -> None:
-    """Drop every cached summary (a project was opened), the tool copies' names and the last rotary Check."""
+    """Drop every cached summary (a project was opened), the read programs and tool tips, the tool copies' names and the
+    last rotary Check."""
     _INFO.clear()
     _COPIES.clear()
+    _CACHE.clear()                                         # (programs and tool tips of the project before, task 0127)
     from . import doublearm, rotary
     rotary.LAST_CHECK.clear()                              # (bug hunt 0068 row 19c)
     doublearm.LAST_CHECK.clear()
@@ -1282,6 +1294,10 @@ def _walk(scene, b, jstate: dict) -> None:
         for j in s.joints:
             if not j.follows and j.name in values:
                 jstate[j.name] = joints.clamp(j, values[j.name])
+    elif b.kind == "CAD":                                   # Back to CAD (task 0129)
+        got = animation.cad_targets(scene, b, jstate, {})
+        if got is not None:
+            jstate.update(got[0])
 
 
 def _offsets(scene, mach, sch) -> dict:

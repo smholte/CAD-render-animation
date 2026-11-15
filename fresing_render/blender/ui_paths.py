@@ -302,6 +302,8 @@ def _contact_details(layout, context, cb, index: int) -> None:
         col.label(text="Has no joint: it does not turn")
     else:
         col.label(text="Does not turn")
+    if ct.kind == "SHEAVE":                     # (task 0125: a sheave head that turns to its wire)
+        split_props(box).prop_search(ct, "swivel", scene.fresing, "joints", text="Swivel")
     if ct.note:
         gap = ct.note.startswith(GAP_NOTE)
         wrap(box, context, ct.note[:1].upper() + ct.note[1:], icon="INFO" if gap else "ERROR", inset=12,
@@ -340,6 +342,7 @@ def _sea_fold(layout, context, cb) -> None:
         col.prop(cb, "sea_depth", text="Water depth")
         col.prop(cb, "sea_laid", text="On the seabed")
         col.prop(cb, "sea_speed", text="Vessel speed")
+        col.prop(cb, "sea_settle", text="Settles in")       # (task 0125: what is let go sinks onto the seabed)
         n = paths_sea.numbers(scene, cb)
         if n:
             if n.get("left"):                   # (task 0082: information, not a problem)

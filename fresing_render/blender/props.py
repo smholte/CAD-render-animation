@@ -763,6 +763,8 @@ BLOCK_KINDS = [
      "out one after another, fasteners first", "MOD_EXPLODE", 11),
     ("WEATHER", "Weather & time", "Changes the weather and the time of day over the step: day to dusk, the rain "
      "starting, the fog lifting (5 Scene & Render > Weather & time)", "OUTLINER_DATA_LIGHTPROBE", 12),
+    ("CAD", "Back to CAD", "Brings every joint (of the whole model or of one subassembly) back to where the CAD file "
+     "has it, and moved parts back to their places, over the step's duration: undoes a pose", "LOOP_BACK", 13),
 ]
 
 
@@ -1151,8 +1153,9 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                ("AXIS", "Along an axis", "Along one axis of the subassembly, all the same way (it turns with the "
                                          "subassembly)"),
                ("UP", "Up", "Straight up")],
-        description="Which way the parts fly. Along an axis or up, parts that would end in each other's way are "
-                    "stacked one beyond the other")
+        description="Which way the parts fly. Parts that would end in each other's way are stacked one beyond the "
+                    "other. A part whose way runs into a part outside the subassembly (a frame round it) takes another "
+                    "way that is clear")
     seq_axis: EnumProperty(name="Axis", default="Z",
                            items=[("X", "+X", "Along the subassembly's own X axis"),
                                   ("Y", "+Y", "Along the subassembly's own Y axis"),
@@ -1197,6 +1200,11 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)
     seq_riders: IntProperty(default=0)
+    # Back to CAD (task 0129)
+    cad_whole: BoolProperty(
+        name="Whole model", default=True,
+        description="On: every joint of the model goes back to its CAD value. Off: only the joints and moved parts of "
+                    "the subassembly picked below (Use selected)")
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
@@ -2270,6 +2278,11 @@ class FRCableContact(bpy.types.PropertyGroup):
     let_go_frame: IntProperty(default=-1)                  # task 0082: from this frame on it stays where it was then
     #                                                        (in the seabed's coordinates for a cable into the sea),
     #                                                        whatever its carrier does; -1 = it stays with its carrier
+    swivel: StringProperty(
+        name="Swivel", default="", update=_cable_contact_changed,
+        description="The rotate joint of the swivel this sheave sits on (a sheave head that turns about a post). The "
+                    "app turns it so the cable leaving the sheave stays in the sheave's plane, live and at Build "
+                    "animation. Empty: the sheave keeps the turn its joints give it")
 
 
 def _sea_end_changed(self, context):
@@ -2406,6 +2419,11 @@ class FRCable(bpy.types.PropertyGroup):
         description="On: the cable speed pays out or hauls in just as much cable as the moving sheaves and chutes "
                     "need, so the free length stays as in the CAD file (a winch that keeps its wire tight). Its "
                     "drum and sheaves turn with it. Off: the cable speed only moves when an animation step moves it")
+    sea_settle: FloatProperty(
+        name="Settles in", default=4.0, min=0.0, soft_max=30.0, precision=1, unit="TIME_ABSOLUTE",
+        update=_cable_changed,
+        description="A cable into the sea: how long the stretch that is let go takes to sink onto the seabed and lie "
+                    "there (seconds). 0 = it stays where it was let go, also when that is above or in the seabed")
     a_let_go_frame: IntProperty(default=-1)                # task 0082: the start stays where it was from this frame on
     b_let_go_frame: IntProperty(default=-1)                # … the end (-1 = it stays with its part)
     # ---- state (written by blender/paths.py) ----
@@ -3302,8 +3320,9 @@ class FRWeather(bpy.types.PropertyGroup):
                                           "wide at both ends keeps the bow at -x)"),
                ("POS_X", "+x", "The bow points to +x: the wake trails behind the stern at -x"),
                ("NEG_X", "-x", "The bow points to -x: the wake trails behind the stern at +x")),
-        description="Which way the vessel's bow points: the wake trails behind the stern and the bow throws up the "
-                    "spray. From the hull reads it from the waterline")
+        description="Which way the vessel's bow points: the wake trails behind the stern, the bow throws up the "
+                    "spray, the wind 'from the bow' and the swell of vessel motion turn with it. From the hull reads "
+                    "it from the waterline")
 
 
 class FRHouse(bpy.types.PropertyGroup):

@@ -493,3 +493,72 @@ def test_wake_behind_a_stern_at_low_x(scene):
     _apply(scene)
     sea_ob = _env("sea")[0]
     assert sea_ob["fr_wake_flip"] == 0.0 and sea_ob["fr_wake"][0] == pytest.approx(30.0, abs=0.1)
+
+
+def test_one_bow_for_wind_wake_and_swell_core():
+    """Task 0125: the bow's azimuth is one number (``core.weather.bow_az``): wind 'from the bow' and the swell of
+    vessel motion turn with it; the bow at -x (180) is what every older project had."""
+    from fresing_render.core import vessel_motion as vm
+    assert W.bow_az("POS_X") == 0.0 and W.bow_az("NEG_X") == 180.0
+    assert W.bow_az("AUTO", 1) == 180.0 and W.bow_az("AUTO", -1) == 0.0
+    assert W.State().bow_az == W.BOW_AZ == 180.0
+    # wind from ahead blows towards the stern; from starboard (the right side looking forward) across
+    assert W.wind_vector(W.State(wind_ref="BOW", wind_from=0.0, bow_az=0.0)) == pytest.approx((-1.0, 0.0), abs=1e-9)
+    assert W.wind_vector(W.State(wind_ref="BOW", wind_from=90.0, bow_az=0.0)) == pytest.approx((0.0, 1.0), abs=1e-9)
+    assert W.wind_vector(W.State(wind_ref="BOW", wind_from=0.0)) == pytest.approx((1.0, 0.0), abs=1e-9)
+    # a compass wind does not care where the bow is
+    assert W.wind_vector(W.State(wind_from=45.0, bow_az=0.0)) == pytest.approx(W.wind_vector(W.State(wind_from=45.0)))
+    # mixing keeps the bow
+    assert W.mix(W.State(bow_az=0.0), W.State(bow_az=0.0, hour=15.0), 0.5).bow_az == 0.0
+    # the swell: the same heading to the bow, turned with it
+    a, b = vm.swell("CALM", "BOW"), vm.swell("CALM", "BOW", bow_az=0.0)
+    for wa, wb in zip(a, b):
+        assert (wb.dx, wb.dy) == pytest.approx((-wa.dx, -wa.dy), abs=1e-9) and wb.amp == wa.amp
+    st = vm.Settings()
+    assert vm.key(st) == vm.key(vm.Settings(bow_az=180.0)) and "bow" not in vm.key(st)     # older rigs: same key
+    assert vm.key(vm.Settings(bow_az=0.0)) != vm.key(st)
+
+
+def test_the_bow_read_from_the_hull_turns_the_wind(scene):
+    """The demo's case: a hull with its bow at +x. From the hull, the sea's build reads the bow (+x) and 'wind from the
+    bow' blows from +x; the wake trails to -x. The same hull turned (bow at -x) gives the old directions."""
+    from fresing_render.blender import weather
+    s = scene.fresing
+    s.weather.enabled = True
+    s.weather.wind_ref = "BOW"
+    s.weather.wind_from = 0.0
+    s.weather.vessel_speed = 5.0
+    _apply(scene)
+    assert surroundings.bow_az(scene) == 180.0                       # the invented hull's bow is at -x
+    assert (scene[W.prop("wind_x")], scene[W.prop("wind_y")]) == pytest.approx((1.0, 0.0), abs=1e-6)
+    root = bpy.data.objects["Invented hull"]
+    root.rotation_euler.z = math.pi                                  # now its bow points to +x
+    bpy.context.view_layer.update()
+    surroundings.ensure(scene, s, replace=True)                      # ('Fit surroundings to the model')
+    _apply(scene)
+    assert surroundings.bow_az(scene) == 0.0
+    assert weather.state(scene).bow_az == 0.0
+    assert (scene[W.prop("wind_x")], scene[W.prop("wind_y")]) == pytest.approx((-1.0, 0.0), abs=1e-6)
+    assert _env("sea")[0]["fr_wake_flip"] == 1.0                     # the wake: behind the stern at -x
+    # set by hand, the setting wins
+    s.weather.bow = "NEG_X"
+    _apply(scene)
+    assert surroundings.bow_az(scene) == 180.0
+    assert (scene[W.prop("wind_x")], scene[W.prop("wind_y")]) == pytest.approx((1.0, 0.0), abs=1e-6)
+
+
+def test_an_older_project_and_the_vessel_deck_keep_their_wind(scene):
+    """Nothing read yet (a project saved before task 0125): the bow at -x as before. The Vessel deck's hull is as wide
+    at both ends: its bow stays at -x, as it always was."""
+    s = scene.fresing
+    root = surroundings.root_object()
+    if root is not None and surroundings.BOW_KEY in root:            # (as saved before task 0125)
+        del root[surroundings.BOW_KEY]
+    assert surroundings.bow_az(scene) == 180.0
+    s.weather.enabled = True
+    s.weather.wind_ref = "BOW"
+    s.weather.wind_from = 90.0
+    s.background = "DECK"
+    _apply(scene)
+    assert surroundings.bow_az(scene) == 180.0
+    assert (scene[W.prop("wind_x")], scene[W.prop("wind_y")]) == pytest.approx((0.0, -1.0), abs=1e-6)

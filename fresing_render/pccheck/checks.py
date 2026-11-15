@@ -49,6 +49,7 @@ TRACKS = os.path.join(DATA, "test_tracks.step")
 SEA_CABLE = os.path.join(DATA, "test_sea.step")
 MOVING_CABLE = os.path.join(DATA, "test_moving.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
+SEQUENCE_FRAME = os.path.join(DATA, "test_sequence_frame.step")
 MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
 
 LINES: list[Line] = []
@@ -777,11 +778,12 @@ def motion_sea_cable(ctx):
     return note
 
 
-@line("motion.moving_cable", "A cable on a moving part: kept tight, hung on, let go", "0.2.95",
+@line("motion.moving_cable", "A cable on a moving part: kept tight, hung on, let go, settles", "0.2.95",
       what="A trolley carries a block with a sheave aft over the stern, its hanger tilts and the block is lowered: the "
            "lift wire's winch keeps the wire tight (it pays out what the moving sheaves need), the cable end on the "
            "block leaves the stern horn and hangs from the block's sheave, and is let go near the seabed – its start "
-           "and its turn round the sheave stay on the seabed while the block is lifted away")
+           "and its turn round the sheave stay behind while the block is lifted away and settle onto the seabed in "
+           "2 s (task 0125)")
 def motion_moving_cable(ctx):
     from ..blender import animation, cameras, paths, render, tour
     scene = ctx.fresh(MOVING_CABLE)
@@ -1196,6 +1198,36 @@ def motion_doublearm(ctx):
             "s per change")
 
 
+def _rotary_why(scene, home, me) -> str:
+    """What to look at when the 4th axis' cut is not where it should be (task 0127: seen on 3 GitHub runs out of
+    many, never on a chat machine in 36 runs): did the bits' path read from the motion come into the bar (then the
+    cut went wrong), or not (then the motion was read wrong); how long the reading and the cut took; where the bar
+    and the A axis were; the machine's processors."""
+    import numpy as np
+
+    from ..blender import joints, machining
+    out = []
+    try:
+        m = np.array(home, dtype=float)
+        for c in machining.cut_items(scene):
+            o = np.asarray(c.path.o, dtype=float).reshape(-1, 3)
+            if not len(o):
+                out.append("path: no samples")
+                continue
+            w = o @ m[:3, :3].T + m[:3, 3]
+            r = np.hypot(w[:, 1], w[:, 2] - 0.15) / 0.001
+            out.append(f"path: {len(o)} samples, the tip comes {r.min():.2f} mm near the bar's axis")
+    except Exception as exc:                    # (the reason is wanted even if this goes wrong)
+        out.append(f"path not read: {exc}")
+    rt = machining.runtime(scene)
+    ja = scene.fresing.joints.get("Rotary A")
+    a1 = math.degrees(joints.get_value(ja)) if ja is not None else float("nan")
+    out.append(f"read in {rt.get('sample_s', 0.0):.1f} s; {machining.status(scene)}; cut mesh {len(me.polygons)} faces")
+    out.append(f"bar at frame {scene.frame_current}: turned {math.degrees(home.to_euler().x):.1f}°, A {a1:.1f}°")
+    out.append(f"{os.cpu_count()} processors")
+    return "[" + "; ".join(out) + "]"
+
+
 @line("milling.rotary", "4th and 5th axis: rotary table and trunnion", "0.2.52",
       what="The 4-axis test mill turns its round bar while a slot is milled wrapped round it and two flats are cut "
            "(Plain); the 5-axis trunnion tilts and turns its block while the tool follows the part (TCP); the cut "
@@ -1277,7 +1309,7 @@ def milling_rotary(ctx):
     want = [23.0, 23.0, 22.0, 22.0]
     err = max(abs(g - w_) for g, w_ in zip(got, want))
     _check(err < 0.05, "the cuts on the bar are not where the program puts them: radius "
-           + ", ".join(f"{g:.2f}" for g in got) + " mm (should be 23, 23, 22, 22)")
+           + ", ".join(f"{g:.2f}" for g in got) + " mm (should be 23, 23, 22, 22) " + _rotary_why(scene, home, me))
     scene.frame_set(int(end * 0.3))
     pts = [(-0.12, -0.03, 0.12), (0.12, 0.03, 0.2)]
     import numpy as np
@@ -1484,6 +1516,53 @@ def animation_product_video(ctx):
     ctx.metric("build", time.time() - t0, "s")
     _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
     return tour.check_product_video(scene)
+
+
+@line("animation.sequence_frame", "Assembly sequence round a frame, a part riding on another", "0.2.102",
+      what="A slide unit under a portal frame comes apart 'Up': the parts under the frame's beam go sideways instead "
+           "of through it, the gripper block (it rides on the carriage) leaves first from where the carriage put it; "
+           "put together, every part ends within 0.01 mm of its place, and the clash check finds nothing")
+def animation_sequence_frame(ctx):
+    from ..blender import animation, clash, tour
+    scene = ctx.fresh(SEQUENCE_FRAME)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = tour.FRAME_ANIM, 0.0, "25"
+    tour.frame_steps(scene, a)
+    t0 = time.time()
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    note = tour.check_frame(scene)
+    run = clash.check(scene)
+    _check(not run.rows, f"{len(run.rows)} clashes on the way: " + "; ".join(clash.core.row_text(r)
+                                                                           for r in run.rows[:3]))
+    return note + "; no clash"
+
+
+@line("animation.back_to_cad", "Back to CAD step", "0.2.102",
+      what="A Go to pose step slides the carriage and the gripper out, then a Back to CAD step brings both joints "
+           "back to 0 over one second (eased)")
+def animation_back_to_cad(ctx):
+    from ..blender import animation, states, tour
+    scene = ctx.fresh(SEQUENCE_FRAME)
+    slide, lift = tour.frame_rig(scene)
+    from ..blender import joints
+    joints.set_value(slide, 0.06)
+    joints.set_value(lift, 0.02)
+    import bpy
+    bpy.context.view_layer.update()
+    pose = states.save_pose(scene, "Slid out")
+    joints.set_value(slide, 0.0)
+    joints.set_value(lift, 0.0)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = tour.BACK_ANIM, 0.0, "25"
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    p = a.blocks.add()
+    p.kind, p.pose, p.start, p.duration = "POSE", pose.name, 0.0, 1.0
+    _check(bpy.ops.fresing.block_add(kind="CAD") == {"FINISHED"}, "Add step > Back to CAD did not finish")
+    c = a.blocks[-1]
+    c.start, c.duration = 1.5, 1.0
+    return tour.check_back_to_cad(scene)
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

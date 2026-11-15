@@ -30,8 +30,15 @@ cases are kept, never drawn with a wrong length without a word (``kind``):
 radius r) and leaves it where the catenary's tangent at T is the wheel's tangent – no kink. The point T lies at the
 wrap ψ round the wheel from where the cable arrives; the catenary from T(ψ) with L(ψ) = L₀ − r ψ gives a direction,
 that direction a ψ: a fixed point, found in a few rounds (T moves little against the span). When the catenary is
-steeper than the wheel's end (``wrap_max``: a chute ends) the cable leaves at the end with a kink (``steep``); when
-it would leave before it arrives, it does not touch the wheel (``short``, ψ = 0).
+steeper than the wheel's end (``wrap_max``: a chute ends) the cable leaves at the end (``steep``); when it would
+leave before it arrives, it does not touch the wheel (``short``, ψ = 0). The wrap wanted is read as the one nearest
+the wheel's range (an angle a little beyond half a turn is "beyond the end", not "before the start": task 0125).
+
+**No kink** (task 0125). Where the catenary's direction is not the wheel's tangent – beyond a chute's end, or out of
+the wheel's plane (a wheel tilted out of the catenary's vertical plane) – the cable does not kink: it goes on in a
+**free bend** of the wheel's radius from the wheel's tangent to the catenary's direction (in the plane of the two),
+and the catenary starts where that bend ends (a fixed point: the catenary's direction depends a little on where it
+starts). ``bend_points`` gives its points.
 """
 
 from __future__ import annotations
@@ -47,6 +54,8 @@ WET_200 = 51.0                  # kg/m in water of a 200 mm power cable (500 N/m
 ROUNDS = 64                     # bisection steps (2⁻⁶⁴ of the range in log: far below a micrometre)
 FIX_ROUNDS = 60                 # rounds of the fixed point on the wrap
 FIX_TOL = 1e-12                 # rad
+BEND_MIN = 1e-4                 # rad: a smaller kink is left as it is (no free bend)
+BEND_ROUNDS = 40                # rounds of the fixed point on the free bend's turn
 SNAKE = 4.0                     # m: wavelength of cable piled on the seabed (only drawn in the warned case)
 _TINY = 1e-9
 
@@ -373,6 +382,47 @@ def _wrap_of(direction, k, t0):
     return np.arctan2((np.cross(t0, e) * k).sum(1), (t0 * e).sum(1))
 
 
+def _in_range(want, wmax):
+    """The wrap ``want`` (rad, -π … π) turned by a whole turn where that brings it nearer the range 0 … wmax: half a
+    turn and a bit round a 180° chute is beyond its end (steep), not before its start (task 0125)."""
+    want = np.asarray(want, dtype=float)
+    best, gap = want.copy(), np.maximum(np.maximum(-want, want - wmax), 0.0)
+    for turn in (2.0 * math.pi, -2.0 * math.pi):
+        w = want + turn
+        g = np.maximum(np.maximum(-w, w - wmax), 0.0)
+        better = g < gap - 1e-12
+        best, gap = np.where(better, w, best), np.where(better, g, gap)
+    return best
+
+
+def _bend(t, d):
+    """(theta, m): the turn from the unit tangent t to the unit direction d, and the unit m square to t towards d."""
+    c = np.clip((t * d).sum(1), -1.0, 1.0)
+    m = d - c[:, None] * t
+    n = np.linalg.norm(m, axis=1, keepdims=True)
+    m = np.where(n > 1e-12, m / np.maximum(n, 1e-300), 0.0)
+    return np.arccos(c), m
+
+
+def _bend_low(T, t, m, r, theta) -> np.ndarray:
+    """(F,): the lowest height a free bend (from T along t, turning towards m by theta on the radius r) reaches."""
+    phi = theta[:, None] * np.linspace(0.0, 1.0, 33)[None, :]
+    z = T[:, 2, None] + r[:, None] * (np.sin(phi) * t[:, 2, None] + (1.0 - np.cos(phi)) * m[:, 2, None])
+    return z.min(axis=1)
+
+
+def bend_points(res: dict, n: int):
+    """(points (F, n, 3), arc lengths (F, n) from the wheel's leave point): the free bend between the wheel and the
+    catenary (``hang_off``), at n steps of equal turn ending where the catenary starts (all at the leave point when
+    there is no bend)."""
+    t, m, theta, rb = res["bend_t"], res["bend_m"], res["bend"], res["bend_r"]
+    T0 = res["T_wheel"]
+    phi = theta[:, None] * (np.arange(1, n + 1) / max(n, 1))[None, :]
+    pts = T0[:, None, :] + rb[:, None, None] * (np.sin(phi)[..., None] * t[:, None, :]
+                                                 + (1.0 - np.cos(phi))[..., None] * m[:, None, :])
+    return pts, rb[:, None] * phi
+
+
 def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0, psi0=None) -> dict:
     """Where the cable leaves its last wheel into the sea, and the catenary from there.
 
@@ -399,7 +449,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     def at(p):
         T = centre + _rot(rho, k, p) * r[:, None]
         res = hang(T, start, aft, bottom_z, L0 - r * p)
-        return T, res, _wrap_of(res["direction"], k, t0)
+        return T, res, _in_range(_wrap_of(res["direction"], k, t0), wmax)
 
     done = np.zeros(F, dtype=bool)
     for _ in range(FIX_ROUNDS):
@@ -419,11 +469,38 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
             hi = np.where(ahead, hi, mid)
         psi = np.where(done, psi, 0.5 * (lo + hi))
     T, res, want = at(psi)
-    res["psi"], res["T"] = psi, T
-    res["steep"] = want > wmax + 1e-9
-    res["short"] = want < -1e-9
+    steep, short = want > wmax + 1e-9, want < -1e-9
     tangent = np.cross(k, _rot(rho, k, psi))
-    res["kink"] = np.arccos(np.clip((tangent * res["direction"]).sum(1), -1.0, 1.0))
+    # the free bend from the wheel's tangent to the catenary's direction (task 0125): the catenary starts where it ends
+    theta, m = _bend(tangent, res["direction"])
+    use = (theta > BEND_MIN) & ~short
+    # (a wheel at the seabed – a quadrant set down on it: a free bend would curl into the seabed; the cable leaves it
+    # lying on the seabed instead)
+    use &= _bend_low(T, tangent, m, r, theta) > float(bottom_z) + 1e-3
+    theta = np.where(use, theta, 0.0)
+    if use.any():
+        L1 = L0 - r * psi
+        for _ in range(BEND_ROUNDS):
+            top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
+            res = hang(top, start, aft, bottom_z, L1 - r * theta)
+            new, m_new = _bend(tangent, res["direction"])
+            new = np.where(use, new, 0.0)
+            m = np.where(use[:, None], m_new, m)
+            done = np.abs(new - theta) < 1e-10
+            theta = new
+            if done.all():
+                break
+        top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
+        # (a bend that came to end at or below the seabed while it was worked out: none there, after all)
+        low = use & (_bend_low(T, tangent, m, r, theta) <= float(bottom_z) + 1e-3)
+        if low.any():
+            theta = np.where(low, 0.0, theta)
+            top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
+        res = hang(top, start, aft, bottom_z, L1 - r * theta)
+    res["psi"], res["T_wheel"] = psi, T
+    res["steep"], res["short"] = steep, short
+    res["kink"] = theta                         # the free bend's turn (rad): 0 when the cable leaves the wheel smoothly
+    res["bend"], res["bend_t"], res["bend_m"], res["bend_r"] = theta, tangent, m, r.copy()
     res["tangent"] = tangent
     return res
 

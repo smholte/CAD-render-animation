@@ -5,13 +5,58 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.102 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
+## 0.2.104 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
 
 - **New look:** *Marine paint, worn leading edge (blades)* (3 Looks, Paint): along a wind turbine blade's front edge,
   from about 60 % of its length to the tip, the paint is worn away in patches – dull grey laminate with small chips.
 - **Site model (render kit):** the offshore turbine has rock scour protection round the monopile's foot, a new
   "Seabed" view under the water (seabed and cut-away of the sea), and worn blade edges on both turbines.
 - **Site page:** the "Turn it yourself" test mill is the new, more detailed machine of 0.2.101.
+
+## 0.2.103 – 15 Nov 2026 – the quadrant at the seabed, a cable that settles, one bow (task 0125)
+
+- **A let-go cable settles onto the seabed:** a cable into the sea that is let go above the seabed – its end, and the
+  turn round a quadrant or sheave let go with it – now sinks onto the seabed and lies there (a turn round a quadrant
+  lies down flat; a CPS set on the end rests on the seabed, not in it). **4 Motion > Cables and paths > Into the sea >
+  Settles in** sets how long it takes (4 s; 0 = it stays where it was let go, as before).
+- **A sheave on a swivel turns to its wire:** pick the swivel's rotate joint as the head sheave's **Swivel**: the head
+  turns so the wire leaves the sheave in its own plane, live and at Build animation. The demo's tipping wires use it.
+- **Rollers the cable has left stand still:** rollers on the end of a horn that the cable no longer reaches (it leaves
+  the horn earlier into the sea) no longer turn with the cable.
+- **No kink where the cable leaves a quadrant or horn into the sea:** it goes on in a smooth bend of the gutter's radius
+  to the hanging part (it used to flip between two answers and kink by up to 69° while the D tilted).
+- **No lost path** when the D-quadrant comes down over horn A (frames 1924–1927 of the demo): the cable hangs from the
+  quadrant.
+- **Fewer wrong warnings:** no "piles up 0.00 m", nothing about a wire that only comes onto its pulley later, nothing for
+  frames where the cable is hidden, nothing about a cable that lies on the seabed after it was let go.
+- **Winch keeps it tight:** a cable into the sea no longer jumps its payout when it leaves a horn for a quadrant (the winch
+  takes the difference up over 1 s).
+- **One bow:** Weather & time > Bow is now the one direction the wake, the bow spray, wind "From the bow" and the swell of
+  vessel motion all use. From the hull reads it from the waterline: the demo's wind from the bow now blows from +x (its
+  bow). The Vessel deck and older projects keep their look.
+- **Demo:** in shot 11 the D is set down on the seabed (its lowest point 16 mm over it at the deepest heave, never in it);
+  the second end is let go as the D lifts off and settles onto the seabed with its CPS; the tipping-wire heads turn to
+  their wires.
+
+## 0.2.102 – 15 Nov 2026 – the assembly sequence watches the whole model, Back to CAD (task 0129)
+
+- **Assembly sequence – the rest of the model counts:** a part whose way out would run through a frame, a beam or a
+  wall that is not in the subassembly now goes another way – along another axis of the subassembly, sideways before
+  backwards – that is clear of it and of the parts still in place. Only when no way is clear does Build name the part
+  and what it runs into.
+- **Assembly sequence – parts that ride on another part** (a gripper block on a carriage, a block in a robot's
+  gripper) now fly on their own: first, from where the joint has put them, and they stay where they flew while the
+  part they rode on leaves under them.
+- **Assembly sequence – Away from the centre** now stacks parts that go nearly the same way, so parts nested in each
+  other no longer end up inside each other.
+- **New step "Back to CAD"** (6 Animation, Add step): every joint – of the whole model or of one subassembly – goes
+  back to where the CAD file has it, and moved parts back to their places, smoothly over the step. A motor goes to its
+  nearest whole turn.
+- **Product video:** after the saved poses a Back to CAD step brings the machine home before the take-apart. The
+  close-ups use your saved cameras that show part of the machine close; without them the app picks the spots itself –
+  a type plate or logo first, then the moving parts round each joint (a boom at its hinge), seen from the side that
+  shows most of it. (The import's whole-machine view no longer counts as a close-up.)
+- The Assembly sequence preview no longer works its plan out twice when you start dragging.
 
 ## 0.2.101 – 14 Nov 2026 – the test models look like real machines (task 0122)
 

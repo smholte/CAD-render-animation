@@ -111,6 +111,8 @@ def test_every_joint_of_the_sheet(made):
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
         elif row["name"] == demo.PULLEY_TURN:                       # turned by the lowering's steps (task 0082)
             assert not j.follows
+        elif "Swivel sheave" in row["name"] and row["name"].endswith(" swivel"):
+            assert not j.follows, row["name"]                       # turned to its wire (Swivel, task 0125)
         elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
             assert "Fairlead" in row["name"], row["name"]
         elif drive.get("by") == "follows":
@@ -120,7 +122,10 @@ def test_every_joint_of_the_sheet(made):
             cable_turned += 1
         else:
             assert not j.follows, row["name"]
-        # the axis where the sheet puts it (model mm, in the model's frame: the vessel moves with the sea)
+        # the axis where the sheet puts it (model mm, in the model's frame: the vessel moves with the sea) – but a
+        # swivel head's sheave turns about the post to its wire from the first frame on (task 0125)
+        if "Swivel sheave" in row["name"] and row["name"].endswith(" turn") and "foot" not in row["name"]:
+            continue
         o, d = joints.axis_world(j)
         p = np.array(M @ Vector(np.array(row["axis"]["point"]) / 1000.0))
         dv = np.array((M.to_3x3() @ Vector(row["axis"]["direction"])).normalized())
@@ -405,19 +410,25 @@ def _dense(P, step=0.25):
 def test_the_quadrant_operation_shots_10_to_12(made):
     """Task 0082, the owner's steps 8–15: the handler tilts on to LOWER_TILT and the D hangs plumb (the sheet's hang
     tip); the A&R winch lowers it to 1.5 m over the seabed with the vessel creeping on; it tips towards flat and is
-    lowered until the cable round its gutter lies on the seabed, where the second end is let go (its start and the
-    gutter's turn); it comes back up, tilts back, travels back, the tensioners close and the cradles rise.
+    set down on the seabed (task 0125: its lowest point, heaving with the vessel, never more than 5 cm into the seabed
+    – measured on its mesh); as the hoist begins the second end is let go (its start and the gutter's turn) and settles
+    onto the seabed; it comes back up, tilts back, travels back, the tensioners close and the cradles rise.
     Every frame from shot 9 on: the second end is exactly as long as it is (its sea end keeps it: nothing is paid out
-    from shot 9 on; exactly in the solver's own measure, within 1 m – 0.5 % – along the drawn points' chords), with a path everywhere but a few frames where the D lifts its turn off horn
-    A (kept as before: at most 6 frames); the bend round the D's gutter never tighter than its MBR; the second end's
-    CPS rides at its start, the pull head at the D's bar end."""
+    from shot 9 on; exactly in the solver's own measure, within 1 m – 0.5 % – along the drawn points' chords), with a
+    path at every frame (task 0125: the D's gutter over horn A lets the horn go); where it leaves the gutter no point
+    turns more than the gutter's own arc does (task 0125: no kink); the bend round the D's gutter never tighter than
+    its MBR; the second end's CPS rides at its start, the pull head at the D's bar end, and on the seabed (not under
+    it) once settled."""
     from mathutils import Vector
 
     from fresing_render.blender import animation, build, joints, paths, paths_sea
     sc = _scene()
     s = sc.fresing
     a = s.animations[demo.ANIM]
-    animation.bake(sc, a)
+    said = animation.bake(sc, a)["warnings"]
+    # task 0125: no "piles up 0.00 m", nothing about a wire that only comes onto its pulley later, no lost path
+    assert not [w for w in said if "0.00 m" in w or "no longer touches 'HANDLER TOP PULLEY'" in w
+                or "cannot go round" in w], said
     d = demo.Demo(sc, made["folder"], VERSION, small=True)
     q = d.sheet("route")["quadrant"]
     ids = [x.id for x in demo.STAGES]
@@ -444,7 +455,33 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     f9 = animation.frame_of(a, t9) + 1
     res, first = _solved(sc, se)
     bad = sorted(k + first for k in res["problems"] if k + first >= f9)
-    assert len(bad) <= 6, bad
+    assert not bad, bad
+    # no kink where it leaves the gutter (or horn A) for the sea: the turn between neighbouring points within 3 m of
+    # where the catenary starts is never more than the gutter's own arc's (a point every ~1.4°)
+    sea_ = res["sea"]
+    scale = res["scale"]
+    worst_turn = 0.0
+    # (shot 10 and shot 11 until the D tips flat; the D tipped flat over the seabed: open point of task 0125)
+    lw_ = sorted((b for b in steps if b.joint == demo.LOWER), key=lambda b: b.start)
+    tp_ = sorted((b for b in steps if b.joint == demo.TIP), key=lambda b: b.start)
+    f_lo, f_tip = animation.frame_of(a, lw_[0].start) - 60, animation.frame_of(a, tp_[1].start)
+    for k in range(f_lo - first, f_tip - first, 3):
+        if not res["ok"][k]:
+            continue
+        P = np.asarray(res["points"][k]) * scale
+        sk = np.asarray(res["s"][k]) * scale
+        if float(sea_["h"][k]) < 0.5:                            # (the D at the seabed: the cable lies there)
+            continue
+        sT = sk[int(np.argmin(np.linalg.norm(P - np.asarray(sea_["T_part"][k]) * scale, axis=1)))]
+        bend = float(sea_["kink"][k]) * 4.05                     # (the free bend's length, on the gutter's radius)
+        near = np.flatnonzero((sk > sT - bend - 2.0) & (sk < sT + min(2.0, 0.3 * float(sea_["h"][k]))))
+        Q = P[near]
+        dv = np.diff(Q, axis=0)
+        ln = np.linalg.norm(dv, axis=1)
+        u = dv[ln > 1e-6] / ln[ln > 1e-6, None]
+        if len(u) > 1:
+            worst_turn = max(worst_turn, float(np.degrees(np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1, 1))).max()))
+    assert worst_turn < 1.5, worst_turn                          # (the gutter's own arc: ~1.4° a point)
     # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
     sc.frame_set(f9)                                             # (from here on nothing is paid out)
     want = se.sea_mark + paths_sea.payout(sc, se)
@@ -485,9 +522,11 @@ def test_the_quadrant_operation_shots_10_to_12(made):
                 keep = inner[:-2] & inner[1:-1] & inner[2:] & (area > 1e-9) & (np.minimum(ab, bc) > 0.05)
                 if keep.any():
                     worst_r = min(worst_r, float((ab * bc * ca / (4 * area))[keep].min()))
-        if f == let_go:                                          # the cable round the gutter lies on the seabed
-            root_z = (d.root().matrix_world.inverted() @ Vector(P[0])).z
-            assert abs(root_z - bed) < 0.8, (root_z, bed)
+        if f >= let_go + int(math.ceil(se.sea_settle * 25)) + 1:   # settled: its start lies on the seabed
+            inv = np.linalg.inv(np.array(paths_sea.bed(sc).matrix_world))
+            z0 = float((inv[:3, :3] @ P[0] + inv[:3, 3])[2])
+            lift = paths._rider_lift(sc, se)                       # (its CPS rests on the seabed: it lies higher)
+            assert lift > 0.05 and abs(z0 - (bed + lift)) < 0.02, (f, z0, bed, lift)
     assert worst_len < 1.0, worst_len                        # (the drawn points' chords: within 0.5 %)
     assert worst_r >= 0.98 * se.mbr, (worst_r, se.mbr)
     # the CPS rides at its start: the pull head at the D's bar end, where the second end starts, at shot 9's start
@@ -497,6 +536,25 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     P = paths.shape_now(sc, se)
     mid = sum((head.matrix_world @ Vector(v) for v in head.bound_box), Vector()) / 8.0
     assert (mid - Vector(P[0])).length < 1.5
+    # shot 11: the D set down on the seabed, heaving with the vessel – never more than 5 cm into it (its mesh); once
+    # settled the pull head lies on the seabed, not under it
+    seabed = paths_sea.waterline(sc) - demo.SEA_DEPTH
+    lw = sorted((b for b in steps if b.joint == demo.LOWER), key=lambda b: b.start)
+    f_set, f_up = animation.frame_of(a, lw[1].start), animation.frame_of(a, lw[2].start + lw[2].duration)
+    dparts = demo.lowered_parts(sc)                              # (what 'Quadrant lower' carries: the D)
+    assert len(dparts) > 10
+    lowest = 1e9
+    for f in range(f_set, f_up + 1, 2):
+        sc.frame_set(f)
+        for o in dparts:
+            co = np.empty(len(o.data.vertices) * 3)
+            o.data.vertices.foreach_get("co", co)
+            M = np.array(o.matrix_world)
+            lowest = min(lowest, float((co.reshape(-1, 3) @ M[2, :3] + M[2, 3]).min()))
+    assert seabed - 0.05 < lowest < seabed + 0.3, (lowest, seabed)
+    sc.frame_set(let_go + int(math.ceil(se.sea_settle * 25)) + 5)
+    hz = [(head.matrix_world @ Vector(v)).z for v in head.bound_box]
+    assert min(hz) > seabed - 0.05 and min(hz) < seabed + 0.5, (min(hz), seabed)
     # the D comes back to its stationary place, the tensioners close, the cradles rise, the wires are taken off
     sc.frame_set(int(sc.frame_end))
     for jn in (demo.TRAVEL, demo.TILT, demo.LOWER, demo.TIP):
@@ -531,6 +589,9 @@ def test_the_wires_of_the_quadrant_operation(made):
         for jn in (f"QUADRANT SYSTEM: Swivel sheave {key} foot sheave turn",
                    f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn", f"QUADRANT SYSTEM: Swivel sheave {key} turn"):
             assert s.joints[jn].follows == it.joint, jn
+        # task 0125: the head sheave turns to the wire (Swivel), no longer with the handler's tilt by a ratio
+        head = [c for c in it.contacts if c.kind == "SHEAVE"]
+        assert len(head) == 1 and head[0].swivel == f"QUADRANT SYSTEM: Swivel sheave {key} swivel"
     t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
     f9 = animation.frame_of(a, t9)
     for it in [ar] + [paths.find(sc, n) for _k, n in demo.TIP_ITEMS]:
@@ -577,6 +638,20 @@ def test_the_wires_of_the_quadrant_operation(made):
                         near.append((f, name, o.get(build.PROP_NAME)))
                         break
     assert shown > 20 and not near, near[:5]
+    # task 0125: while shown, each tipping wire leaves its head sheave in the sheave's plane (the swivel turns to it)
+    worst = 0.0
+    for f in range(f9, int(sc.frame_end) + 1, 7):
+        sc.frame_set(f)
+        for _key, name in demo.TIP_ITEMS:
+            it = paths.find(sc, name)
+            if it.part.hide_render:
+                continue
+            sheave = [w for w, c in zip(paths.wheels_now(sc, it), paths._wheels(it)) if c.kind == "SHEAVE"][0]
+            P = paths.shape_now(sc, it)
+            run = P[-1] - P[-2]
+            run = run / np.linalg.norm(run)
+            worst = max(worst, math.degrees(math.asin(min(1.0, abs(float(run @ sheave.axis))))))
+    assert worst < 1.0, worst
     sc.frame_set(1)
 
 

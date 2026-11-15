@@ -167,9 +167,10 @@ def waves_from_tuples(rows) -> list[Wave]:
     return [Wave(*map(float, r)) for r in rows]
 
 
-def swell(state: str, heading: str, bft: float | None = None) -> list[Wave]:
-    """The long, low swell that moves the vessel (added to the sea only when vessel motion is on)."""
-    head = math.radians(HEADINGS.get(heading, HEADINGS[REFERENCE_HEADING])[1])
+def swell(state: str, heading: str, bft: float | None = None, bow_az: float = 180.0) -> list[Wave]:
+    """The long, low swell that moves the vessel (added to the sea only when vessel motion is on). ``bow_az``: the
+    scene azimuth the bow points to (task 0125; the table holds for the bow at -x, 180): the heading turns with it."""
+    head = math.radians(HEADINGS.get(heading, HEADINGS[REFERENCE_HEADING])[1] + float(bow_az) - 180.0)
     rng = random.Random(85)
     share = np.array(SWELL_SHARE, float)
     amps = swell_height(state, bft) * share / share.sum() * 2.2
@@ -249,10 +250,10 @@ def measure(motion: Motion, seconds: float = 120.0, dt: float = 0.04, start: flo
 
 
 def scales(state: str, sea_waves: list[Wave], length: float, beam: float, roll_period: float = 11.0,
-           bft: float | None = None) -> dict:
+           bft: float | None = None, bow_az: float = 180.0) -> dict:
     """Factor per channel so that this vessel at the reference heading moves as the state's numbers say."""
     target = targets(state, bft)
-    ref = raw(sea_waves + swell(state, REFERENCE_HEADING, bft), length, beam, (0.0, 0.0), roll_period)
+    ref = raw(sea_waves + swell(state, REFERENCE_HEADING, bft, bow_az), length, beam, (0.0, 0.0), roll_period)
     m = measure(ref, WINDOW, 0.05)
     return {ch: (target[ch] / m[ch] if m[ch] > 1e-9 else 0.0) for ch in ("roll", "pitch", "heave")}
 
@@ -267,13 +268,14 @@ class Settings:
     roll_period: float = 11.0
     centre: tuple = (0.0, 0.0)   # the hull's middle in the sea's coordinates
     bft: float | None = None     # the wind's Beaufort force (sea state WIND only)
+    bow_az: float = 180.0        # scene azimuth of the bow (task 0125: 180 = -x as the table, 0 = +x)
 
 
 def motion(st: Settings, sea_waves: list[Wave]) -> Motion:
     """The vessel's motion in a sea state: the sea's own waves + the swell, scaled to the state's numbers."""
     length, beam = max(st.length, MIN_LENGTH), max(st.beam, MIN_BEAM)
-    f = scales(st.state, sea_waves, length, beam, st.roll_period, st.bft)
-    m = raw(sea_waves + swell(st.state, st.heading, st.bft), length, beam, st.centre, st.roll_period)
+    f = scales(st.state, sea_waves, length, beam, st.roll_period, st.bft, st.bow_az)
+    m = raw(sea_waves + swell(st.state, st.heading, st.bft, st.bow_az), length, beam, st.centre, st.roll_period)
     k = max(0.0, float(st.strength))
     return Motion(m.heave.scaled(f["heave"] * k).trimmed(), m.roll.scaled(f["roll"] * k).trimmed(),
                   m.pitch.scaled(f["pitch"] * k).trimmed())
@@ -294,4 +296,5 @@ def key(st: Settings) -> str:
     """What the motion depends on (rebuild when it changes)."""
     k = (f"v{KEY_VERSION}|{st.state}|{st.heading}|{st.strength:.4f}|{st.length:.3f}|{st.beam:.3f}|{st.roll_period:.3f}|"
          f"{st.centre[0]:.3f}|{st.centre[1]:.3f}")
-    return k + (f"|{st.bft:.3f}" if st.state == "WIND" and st.bft is not None else "")
+    k += f"|{st.bft:.3f}" if st.state == "WIND" and st.bft is not None else ""
+    return k + (f"|bow{st.bow_az:.0f}" if st.bow_az != 180.0 else "")       # (an older rig's key stays the same)

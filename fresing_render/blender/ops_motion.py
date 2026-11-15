@@ -987,6 +987,13 @@ class FRESING_OT_block_add(bpy.types.Operator):
         elif self.kind == "CAMERA":
             b.camera = context.scene.camera if context.scene.camera and not context.scene.camera.get(
                 "fr_anim_camera") else None
+        elif self.kind == "CAD":                         # Back to CAD (task 0129): the whole model unless unticked
+            b.cad_whole = True
+            b.easing = "SMOOTH"
+            ob = _target_subassembly(context)
+            if ob is not None:
+                b.target_uid = ob.get(build.PROP_UID, ob.name)
+                b.target_name = ob.get(build.PROP_NAME, ob.name)
         elif self.kind in ("SHOW", "HIDE", "FADE_OUT", "FADE_IN", "SEQUENCE"):
             ob = _target_subassembly(context)
             if ob is not None:
@@ -1093,6 +1100,8 @@ class FRESING_OT_block_target(bpy.types.Operator):
             return {"CANCELLED"}
         b.target_uid = ob.get(build.PROP_UID, ob.name)
         b.target_name = ob.get(build.PROP_NAME, ob.name)
+        if b.kind == "CAD":
+            b.cad_whole = False                         # picked a subassembly: only its joints go back
         if b.kind == "SEQUENCE":
             from . import sequence
             sequence.end_preview(context.scene)

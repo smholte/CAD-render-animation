@@ -83,6 +83,8 @@ class State:
     wind_ref: str = "NORTH"         # NORTH: wind_from is a compass bearing; BOW: degrees from the vessel's bow
     floodlights: str = "AUTO"       # AUTO (on from dusk), ON, OFF
     flood_strength: float = 1.0     # x the floodlights' own power
+    bow_az: float = 180.0           # scene azimuth the vessel's bow points to (task 0125: 180 = -x, 0 = +x); not a
+    #                                 panel setting – the app reads it from the scene (``surroundings.bow_az``)
 
 
 # the presets of the panel: (id, label, tooltip, what differs from State())
@@ -231,14 +233,24 @@ def from_old(sun_elevation: float, light_rotation: float, overcast: bool, sun_ro
 # wind
 # ---------------------------------------------------------------------------
 
-BOW_AZ = 180.0          # the vessel lies along x, bow at -x (core/vessel_motion.py, the Vessel deck)
+BOW_AZ = 180.0          # the default: the vessel lies along x, bow at -x (the Vessel deck); State.bow_az is the scene's
+
+
+def bow_az(bow: str, stern_side: int = 1) -> float:
+    """Scene azimuth of the bow (task 0125, one source for wind, wake and swell): Weather & time > Bow +x -> 0, -x ->
+    180; From the hull -> from the waterline (``stern_side`` -1: the stern at the lowest x, so the bow at +x)."""
+    if bow == "POS_X":
+        return 0.0
+    if bow == "NEG_X":
+        return 180.0
+    return 0.0 if int(stern_side) < 0 else BOW_AZ
 
 
 def wind_from_az(st: State) -> float:
     """Scene azimuth the wind comes from."""
     if st.wind_ref == "BOW":
-        # 0 = from ahead, 90 = from starboard (the right side looking forward: +Y with the bow at -X)
-        return (BOW_AZ - st.wind_from + 180.0) % 360.0 - 180.0
+        # 0 = from ahead, 90 = from starboard (the right side looking forward: +Y with the bow at -X, -Y at +X)
+        return (float(st.bow_az) - st.wind_from + 180.0) % 360.0 - 180.0
     return to_scene_az(st.wind_from, st.north)
 
 
@@ -285,7 +297,7 @@ def mix(a: State, b: State, f: float) -> State:
         snow=_lerp(a.snow, b.snow, f), snow_cover=_lerp(a.snow_cover, b.snow_cover, f),
         wind=_lerp(a.wind, b.wind, f), wind_from=(a.wind_from + d_dir * f) % 360.0,
         wind_ref=pick(a.wind_ref, b.wind_ref), floodlights=pick(a.floodlights, b.floodlights),
-        flood_strength=_lerp(a.flood_strength, b.flood_strength, f))
+        flood_strength=_lerp(a.flood_strength, b.flood_strength, f), bow_az=a.bow_az)
 
 
 # ---------------------------------------------------------------------------
