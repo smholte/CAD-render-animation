@@ -1,6 +1,6 @@
 # 0129 – Motion extras: sequence watches the whole model, riders fly on their own, "Back to CAD" step, close-ups
 
-**Who:** worker · **Status:** running (web session, branch `ccr-006450f6-mv1oyp`) · **Branch:** `task/0129-motion-extras`
+**Who:** worker · **Status:** done (15 Nov 2026, 0.2.102; web session, branch `ccr-006450f6-mv1oyp`) · **Branch:** `task/0129-motion-extras`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort High
 **Area (Motion lane):** `fresing_render/core/sequence.py`, `blender/sequence.py`, the product video (task 0101's
 files), the pose steps in `blender/animation.py` / `states.py` (additive: a new step kind), `ui_motion.py` (panels 4
@@ -153,3 +153,7 @@ block) and one on the carriage (block): riders.
 - Obstacles and rays read the parts' CAD meshes: parts that the app draws elsewhere by Geometry Nodes (track pads)
   are seen where their mesh is.
 - A fresh preview plan on big subassemblies with many blocked ways takes seconds (above).
+- GitHub runs: 3 – one cancelled by my own next push, one red (my new guide picture not used in a chapter; plus the
+  spool real-app test that failed at random, fixed by task 0127 on main meanwhile), one green (7305df0, 20 min);
+  `main` fast-forwarded to it. Leftover branch to delete on github.com: `ccr-006450f6-mv1oyp`.
+- The progress note `claude/render-app-progress.md` is in the claude.ai project: this session cannot reach it (lead).
