@@ -954,10 +954,6 @@ def bake(scene, anim) -> dict:
     for b in blocks:
         scene.timeline_markers.new("▸ " + block_label(b), frame=frame_of(anim, b.start))
     s.anim_baked = anim.name
-    if len(s.cables):                              # sheaves on swivels turn to their wires (task 0125): keyed first,
-        from . import paths_swivel                 # so trails, hoses and cables read the swivels where they are
-        warnings += paths_swivel.before_read(scene, int(scene.frame_start),
-                                             int(max(scene.frame_start, scene.frame_end)) - int(scene.frame_start) + 1)
     from . import trails
     warnings += trails.update_all(scene, anim)     # trail lines (task 0073): read along the built motion
     from . import flex

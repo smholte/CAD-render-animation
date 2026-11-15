@@ -3165,7 +3165,8 @@ def _read_hook(scene) -> list:
         if not len(scene.fresing.cables):
             return []
         _notes, _its, _can, animated, obs = _plan(scene)
-        return obs if animated else []
+        from . import paths_swivel
+        return list(obs) + list(paths_swivel.objects(scene)) if animated else []      # (+ swivels, task 0125)
     except Exception:
         return []
 
@@ -3183,18 +3184,22 @@ def _rel_from(item, slots, mats: dict) -> np.ndarray:
 
 
 def _bake(scene) -> list[str]:
-    from . import paths_rollers
+    from . import paths_rollers, paths_swivel
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
-    _STATE["drawn"] = {}                        # (the swivels were keyed to their wires before: animation.bake)
+    _STATE["drawn"] = {}
     notes, its, can, animated, obs = _plan(scene)
     mats = {}
+    extra = paths_swivel.objects(scene)         # sheaves on swivels (task 0125): read in the same pass
     if can:
         before = flex._STATE["steps"]
-        mats = flex.read_places(scene, obs, first, frames if animated else 1, keep_shown=False)
+        mats = flex.read_places(scene, list({o.name: o for o in list(obs) + list(extra)}.values()), first,
+                                frames if animated else 1, keep_shown=False)
         _STATE["steps"] += flex._STATE["steps"] - before          # (0 when the hoses' pass had read them)
+    # the swivels keyed to their wires; the places of what they carry turned along (no second pass)
+    notes += paths_swivel.after_read(scene, mats, first, frames if (can and animated) else 1)
     for n in its:
         it = _cable(scene, n)
         _wheels_, slots, _w, _a, _b = _inputs_of(it)
