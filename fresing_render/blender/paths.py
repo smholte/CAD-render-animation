@@ -529,6 +529,7 @@ def add_cable(scene, name: str = "", joint: str = ""):
     made = ""
     if not joint:
         made = _new_cable_joint(scene, name).name
+    scene[SETTLE_STAMP] = 1                    # (a new cable: "Settles in" means what it says, task 0137)
     item = s.cables.add()
     with _quiet(item):
         item.name = name
@@ -986,7 +987,7 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
                    "side", "wrap", "wrap_cad", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
-                   "user", "note", "let_go_frame")
+                   "user", "note", "let_go_frame", "swivel")
 _END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end",
                                                          "_let_go_frame"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
@@ -1047,6 +1048,8 @@ def _write_contact(c, d: dict, memo: dict) -> None:
         c.coupled = bool(d.get("coupled", False))
         c.user = bool(d.get("user", False))
         c.note = d.get("note", "") or ""
+        c.swivel = d.get("swivel", "") or ""                    # (task 0137: kept through every rewrite)
+        c.let_go_frame = int(d.get("let_go_frame", -1))
 
 
 def _row_of(c, memo: dict) -> dict:
@@ -1058,7 +1061,7 @@ def _row_of(c, memo: dict) -> dict:
             "wrap": float(c.wrap), "wrap_cad": float(c.wrap_cad), "gap": float(c.gap), "full": bool(c.full),
             "turns": bool(c.turns),
             "joint": c.joint, "made": bool(c.made_joint), "coupled": bool(c.coupled), "user": bool(c.user),
-            "note": c.note}
+            "note": c.note, "swivel": c.swivel, "let_go_frame": int(c.let_go_frame)}
 
 
 def _merge(scene, item, geo: dict) -> list:
@@ -1100,6 +1103,7 @@ def _merge(scene, item, geo: dict) -> list:
             used.add(k)
             d = rows[k]
             d["turns"] = bool(c.turns)
+            d["swivel"], d["let_go_frame"] = c.swivel, int(c.let_go_frame)       # (task 0137)
             if c.joint and joints.find(scene, c.joint) is not None and d["kind"] in TURNING:
                 d["joint"], d["made"], d["coupled"] = c.joint, bool(c.made_joint), bool(c.coupled)
         elif c.made_joint and c.joint:
@@ -2389,16 +2393,36 @@ def ramp_steps(v, hang, n: int) -> np.ndarray:
     v = np.array(v, dtype=float)
     hang = np.asarray(hang)
     F = len(v)
-    for k in np.flatnonzero(hang[1:] != hang[:-1]) + 1:
-        before = v[k - 1] - v[k - 2] if k >= 2 else 0.0
-        after = v[k + 1] - v[k] if k + 1 < F else before
-        step = (v[k] - v[k - 1]) - 0.5 * (before + after)
+    ks = np.flatnonzero(hang[1:] != hang[:-1]) + 1
+    if not len(ks):
+        return v
+    # the trend is read from frame pairs with no change between them (task 0137: changes 1–2 frames apart counted
+    # the next one's step in the trend), and every step from the payout as it came in (they add up, not compound)
+    clean = np.ones(F, dtype=bool)              # clean[i]: no change between frames i-1 and i
+    clean[0] = False
+    clean[ks] = False
+    d = np.diff(v, prepend=v[:1])
+    steps = []
+    for k in ks:
+        lo = np.flatnonzero(clean[:k])
+        hi = np.flatnonzero(clean[k + 1:]) + k + 1
+        before = float(d[lo[-1]]) if len(lo) else None
+        after = float(d[hi[0]]) if len(hi) else None
+        if before is None and after is None:
+            trend = 0.0
+        elif before is None or after is None:
+            trend = before if after is None else after
+        else:
+            trend = 0.5 * (before + after)
+        steps.append((k, float(d[k]) - trend))
+    out = v.copy()
+    for k, step in steps:
         if abs(step) < 1e-9:
             continue
         j = np.arange(F - k)
         t = np.clip((j + 1) / float(n), 0.0, 1.0)
-        v[k:] -= step * (1.0 - t * t * (3.0 - 2.0 * t))
-    return v
+        out[k:] -= step * (1.0 - t * t * (3.0 - 2.0 * t))
+    return out
 
 
 def _tight_now(scene, item, rel, slots) -> np.ndarray:
@@ -2707,6 +2731,39 @@ def changed(scene, item) -> None:
     if len(item.riders):                        # things on the cable: placed again for the new path (task 0081)
         from . import paths_riders as _riders
         _riders.sync(scene, item)
+
+
+def joint_renamed(scene, old: str, new: str) -> None:
+    """A joint was renamed (joints.rename): the cables' speed joints, the contacts' turn and swivel joints and the
+    couplings put aside at Build (swivels, rollers) name it by its new name (task 0137)."""
+    if not old or old == new:
+        return
+    from . import paths_rollers, paths_swivel
+    for it in scene.fresing.cables:
+        if it.joint == old:
+            with _quiet(it):
+                it.joint = new
+        for c in it.contacts:
+            with _quiet(c):
+                if c.joint == old:
+                    c.joint = new
+                if c.swivel == old:
+                    c.swivel = new
+    for j in scene.fresing.joints:
+        m = j.motion
+        if m is None:
+            continue
+        for key in (paths_swivel.WAS, paths_rollers.WAS):
+            raw = m.get(key)
+            if not raw:
+                continue
+            try:
+                d = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(d, dict) and d.get("follows") == old:
+                d["follows"] = new
+                m[key] = json.dumps(d)
 
 
 def contact_changed(scene, contact) -> None:
@@ -3293,12 +3350,74 @@ def bake(scene, anim) -> list[str]:
     forget()
     _STATE["busy"] += 1
     try:
-        return _bake(scene)
+        out = _bake(scene)
+        _remember_motion(scene)
+        return out
     except Exception as exc:                    # a Build never fails over a cable
         return [f"The cables could not be worked out ({exc or type(exc).__name__}): they show as they were"]
     finally:
         _STATE["busy"] -= 1
         flex.drop_read()                        # (what the hoses' pass through the frames had read for us)
+
+
+MOTION_KEY = "fr_cable_motion_key"      # on the scene: the vessel / seabed motion the built sea cables are for (0137)
+
+
+def _remember_motion(scene) -> None:
+    try:
+        from . import vessel_motion
+        vessel_motion.remember(scene, MOTION_KEY)
+    except Exception:
+        pass
+
+
+def motion_changed(scene, force: bool = True) -> None:
+    """The vessel or the seabed moves another way after Build (vessel_motion.follow, task 0137): a built cable into
+    the sea was worked out for the old motion, so the cables are worked out again – at once in the background, in the
+    window once the slider has rested (``flex.MOTION_WAIT``). ``force`` False: only when the motion differs from the
+    one of the Build. Cables that do not reach the sea move with their parts and need nothing."""
+    if _STATE["busy"] or not _baked(scene) or \
+            not any(it.enabled and it.b_kind == "SEA" for it in scene.fresing.cables):
+        return
+    from . import vessel_motion
+    if not force and not vessel_motion.moved_since(scene, MOTION_KEY):
+        return
+    if bpy.app.background:
+        _motion_bake(scene)
+        return
+    _STATE["motion_scene"] = scene.name
+    _STATE["motion_force"] = force or _STATE.get("motion_force", False)
+    if bpy.app.timers.is_registered(_motion_timer):
+        bpy.app.timers.unregister(_motion_timer)
+    bpy.app.timers.register(_motion_timer, first_interval=flex.MOTION_WAIT)
+
+
+def _motion_bake(scene) -> list[str]:
+    forget()
+    _STATE["busy"] += 1
+    try:
+        out = _bake(scene)
+        _remember_motion(scene)
+        return out
+    except Exception as exc:                    # never break the UI over a cable
+        print("Fresing Render: cables not worked out again:", exc)
+        return []
+    finally:
+        _STATE["busy"] -= 1
+        flex.drop_read()
+
+
+def _motion_timer():
+    try:
+        scene = bpy.data.scenes.get(_STATE.pop("motion_scene", None) or "")
+        force = _STATE.pop("motion_force", False)
+        from . import vessel_motion
+        if scene is not None and _baked(scene) and (force or vessel_motion.moved_since(scene, MOTION_KEY)):
+            _motion_bake(scene)
+            flex._redraw_views()
+    except Exception as exc:
+        print("Fresing Render: cables not worked out again:", exc)
+    return None
 
 
 def after_clear(scene) -> None:
@@ -3539,6 +3658,8 @@ def _follow(scene) -> None:
     if _STATE["busy"] or scene is None or not hasattr(scene, "fresing"):
         return
     try:
+        if scene.get("fr_bake"):
+            return                              # a working copy (the web 3D bake, task 0136), not a project scene
         s = scene.fresing
         if not len(s.cables) or s.anim_baked:
             return                              # nothing to do, or the built animation's frames show
@@ -3575,6 +3696,30 @@ def _on_frame(scene, _depsgraph=None):
 @persistent
 def _on_load(_dummy=None):
     forget()
+    for sc in bpy.data.scenes:
+        try:
+            version_settle(sc)
+        except Exception as exc:                # never stop a project from opening
+            print("Fresing Render: cables not brought up to date:", exc)
+
+
+SETTLE_STAMP = "fr_cable_settle"        # on the scene: opened (or a cable made) with 0.2.109 or newer (task 0137)
+
+
+def version_settle(scene) -> int:
+    """A project saved before "Settles in" meant anything to it (0.2.108 and older): a let-go cable into the sea whose
+    "Settles in" was never set gets 0 – it stays where it was let go, as it did when the project was made (task 0137;
+    0.2.103 made it sink over 4 s). The scene is stamped so it happens once. Returns how many cables changed."""
+    if scene.get(SETTLE_STAMP) or not hasattr(scene, "fresing"):
+        return 0
+    n = 0
+    for it in scene.fresing.cables:
+        if it.b_kind == "SEA" and it.get("sea_settle") is None and _let_goes(it):
+            with _quiet(it):
+                it.sea_settle = 0.0
+            n += 1
+    scene[SETTLE_STAMP] = 1
+    return n
 
 
 @persistent
