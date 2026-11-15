@@ -1,5 +1,5 @@
 """core/house_scene.py (task 0114): reading a House Planner scene and writing the bake package, checked against the
-pinned house-scene-format v1.0 (its checker, schemas and samples in tests/data/house/hsf-v1.0). Pure Python."""
+pinned house-scene-format v1.0.1 (its checker, schemas and samples in tests/data/house/hsf-v1.0.1). Pure Python."""
 
 import io
 import json
@@ -19,7 +19,7 @@ from fresing_render.core import house_hash, weather, web3d
 from fresing_render.core import house_scene as hs
 
 HERE = os.path.dirname(__file__)
-PIN = os.path.join(HERE, "data", "house", "hsf-v1.0")
+PIN = os.path.join(HERE, "data", "house", "hsf-v1.0.1")
 SCENE = os.path.join(PIN, "samples", "sample-house.hpscene")
 BAKE = os.path.join(PIN, "samples", "sample-house.hpbake")
 sys.path.insert(0, PIN)
@@ -785,3 +785,61 @@ def test_writer_infinite_light_is_the_brightest(scene):
     raw = w.files()[w.bake_json()["vertex_files"][0]["file"]]
     assert list(raw[:3]) == [255, 0, 0] and raw[3] == 255
     assert any("+inf as 255" in p for p in w.problems)
+
+
+# ---------------------------------------------------------------------------
+# task 0130: format 1.0.1
+
+
+def _zip_names(names_flags):
+    """A zip whose names carry (or not) the UTF-8 flag: [(raw name bytes, flag)] -> bytes."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for raw, flag in names_flags:
+            zi = zipfile.ZipInfo(raw.decode("cp437"))
+            zi.flag_bits = 0x800 if flag else 0
+            zf.writestr(zi, b"x")
+    return buf.getvalue()
+
+
+def test_ascii_name_without_the_utf8_flag_is_valid():
+    files = hs.read_zip(_zip_names([(b"plain.txt", False), (b"a/b.json", False)]))
+    assert set(files) == {"plain.txt", "a/b.json"}
+
+
+def test_non_ascii_name_without_the_utf8_flag_is_refused():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("caf\u00e9.txt", b"x")          # zipfile sets the UTF-8 flag (bit 11) for this name
+    data = bytearray(buf.getvalue())
+    for sig, at in ((b"PK\x03\x04", 6), (b"PK\x01\x02", 8)):      # clear the flag in the local and central headers
+        i = data.index(sig)
+        flags = int.from_bytes(data[i + at:i + at + 2], "little") & ~0x800
+        data[i + at:i + at + 2] = flags.to_bytes(2, "little")
+    with pytest.raises(hs.FormatError, match="not UTF-8"):
+        hs.read_zip(bytes(data))
+
+
+def test_non_ascii_name_with_the_utf8_flag_is_valid():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("café.txt", b"x")          # zipfile sets the flag for non-ASCII
+    assert "café.txt" in hs.read_zip(buf.getvalue())
+
+
+@pytest.mark.parametrize("light,night,clouds,separate,want", [
+    ("SOFT", False, 0.1, True, "measure"), ("SOFT", False, 0.9, True, "measure"),
+    ("SOFT", False, 1.0, True, "zero"),                    # full overcast by day: [0, 0, 0], not null
+    ("SOFT", True, 0.0, True, "null"), ("SOFT", True, 1.0, True, "null"),
+    ("SOFT", False, 0.1, False, "null"),                   # 360° photo, studio: no separate sun
+    ("ALL", False, 0.1, True, "null"), ("LIVE", False, 1.0, True, "null"),
+])
+def test_sun_light_rule_is_format_8_3(light, night, clouds, separate, want):
+    assert hs.sun_light_rule(light, night, clouds, separate) == want
+
+
+def test_writer_keeps_zero_sun_light_and_nulls_the_rest(scene):
+    w = hs.BakeWriter(scene, light="SOFT", samples=4)
+    w.add_moment("summer-morning", {"floor:r_living": _fake(scene, "floor:r_living", None, 1.0)},
+                 reference=[1, 1, 1], exposure=0.0, sun_light=[0.0, 0.0, 0.0])
+    assert w.bake_json()["moments"][0]["sun_light"] == [0.0, 0.0, 0.0]

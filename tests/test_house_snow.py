@@ -1,6 +1,6 @@
 """Snow layers for a House Planner bake (task 0114, ``fresing_render/core/house_snow.py``; FORMAT.md 8.6 of
-house-scene-format v1.0). No Blender: the sample house's winter season, small made-up glb files, and the pinned
-format checker (``tests/data/house/hsf-v1.0``) reading the layers' ``snow/winter.glb``."""
+house-scene-format v1.0.1). No Blender: the sample house's winter season, small made-up glb files, and the pinned
+format checker (``tests/data/house/hsf-v1.0.1``) reading the layers' ``snow/winter.glb``."""
 
 import json
 import os
@@ -16,7 +16,7 @@ from fresing_render.core import house_snow as hs
 
 HERE = os.path.dirname(__file__)
 ROOT = os.path.dirname(HERE)
-PIN = os.path.join(HERE, "data", "house", "hsf-v1.0")
+PIN = os.path.join(HERE, "data", "house", "hsf-v1.0.1")
 SAMPLE = os.path.join(PIN, "samples", "sample-house.hpscene")
 
 sys.dont_write_bytecode = True        # the pinned copy stays exactly the tag (test_house_pinned.py)

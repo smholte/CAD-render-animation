@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.104 – 15 Nov 2026 – house format 1.0.1 (task 0130)
+
+- **House round trip follows format 1.0.1:** the app now checks its House packages against the final tag `v1.0.1`
+  (a package name made of plain letters is accepted with or without the zip's UTF-8 mark; a name with accents or other
+  special characters without it is refused).
+- **The sun's strength in a baked house is cleaner at a low sun:** it is now measured on a surface turned straight at the
+  sun instead of being worked out from an upward-facing one (which multiplied the noise at a low evening sun). The
+  numbers agree with the old way within 1 % at 35°, 12° and 4.8°; by day under a full overcast the sun is written as
+  zero, and "none" only where there is no separate sun (night, a 360° photo, a studio).
+
 ## 0.2.103 – 15 Nov 2026 – the quadrant at the seabed, a cable that settles, one bow (task 0125)
 
 - **A let-go cable settles onto the seabed:** a cable into the sea that is let go above the seabed – its end, and the

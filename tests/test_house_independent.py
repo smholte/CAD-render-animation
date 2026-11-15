@@ -1,9 +1,9 @@
-"""Task 0114, independent tests: written from FORMAT.md (house-scene-format v1.0) and the task's Design by a tester who
+"""Task 0114, independent tests: written from FORMAT.md (house-scene-format v1.0.1) and the task's Design by a tester who
 did not write the code, to break the House Planner reader and writer (core/house_scene.py, core/house_snow.py,
 core/house_hash.py) and the Blender side (blender/house_import.py, house_bake.py).
 
 A test whose comment starts with ``# FOUND:`` failed when it was written: it names a fault and what FORMAT.md says.
-Everything else passed. The pinned checker (tests/data/house/hsf-v1.0) is the judge of every written package:
+Everything else passed. The pinned checker (tests/data/house/hsf-v1.0.1) is the judge of every written package:
 "ERROR = a reader must refuse it" (FORMAT 12)."""
 
 import copy
@@ -26,7 +26,7 @@ from fresing_render.core import house_hash, house_snow, weather, web3d
 from fresing_render.core import house_scene as hs
 
 HERE = os.path.dirname(__file__)
-PIN = os.path.join(HERE, "data", "house", "hsf-v1.0")
+PIN = os.path.join(HERE, "data", "house", "hsf-v1.0.1")
 SCENE = os.path.join(PIN, "samples", "sample-house.hpscene")
 BAKE = os.path.join(PIN, "samples", "sample-house.hpbake")
 sys.path.insert(0, PIN)
