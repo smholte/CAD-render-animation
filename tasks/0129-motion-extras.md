@@ -52,6 +52,48 @@ Open points of 0100 (`tasks/0100-assembly-sequence.md`) and 0101 (`tasks/0101-pr
 
 Fly a path instead of the orbit in the product video (later). Contact sheet checks by eye (owner on his PC).
 
+## Design (worker, 15 Nov 2026)
+
+No parallel writers (the pieces share `sequence.py`, `animation.py`, `props.py`, `ui_motion.py`); one independent tester
+(subagent, did not write the code) at the end, its findings fixed by the worker.
+
+**core/sequence.py** (no Blender)
+- `plan(parts, st, blocked=None, obstacle=None, carried=None)`. `Settings.frame`: the subassembly's 3 axes (world,
+  columns) for other ways. `blocked(i, j)` as before (reads `blocked.dirs`, now updated when a part changes its way);
+  optional `blocked.hit(i, j, u, dist)` for a part's actual way. `obstacle(i, u, dist) -> bool`: part i, moving
+  `dist` m along `u`, runs into a part outside the subassembly.
+- Rounds (at most 4): order -> travels -> each part's way checked against the obstacles (its travel) and the parts
+  still in place when it leaves; a blocked part takes the next of its other ways (the wanted one, then the
+  subassembly's ±X/±Y/±Z and world up, most like the wanted first, the opposite last) that is clear of both; then
+  plan again. What is still blocked after that is reported by Blender (as before).
+- Distance by size per part along its own way (the same for all when nobody changed way).
+- `carried[i]` = parts that ride on part i (a joint on i carries them): i never leaves before them (any order).
+- Stacking for every direction: a part ends beyond each part that leaves after it going nearly the same way (cos ≥
+  `NEAR` = cos 25°) and whose way (start to end box) lies across its own way. Along an axis / up nothing changes
+  (all the same way); "Away from the centre" now stacks too.
+
+**blender/sequence.py**
+- `movers`: riders are movers too (`Movers.carried`: index map for core); `Movers.riders` kept for the count.
+- `Obstacles`: the model's other visible parts near the subassembly (world boxes, NumPy filter on the region the
+  subassembly can reach); per obstacle a BVH of only its triangles in that region; a part's way = its mesh shrunk
+  0.1 mm, the start and end copies + its edges swept (exact swept surface), BVH overlap; plus rays from the
+  obstacle's points inside the swept box back against the part (an obstacle fully inside the way).
+- Riders' keys: x(f) = own offset·s(f) − Σ carriers' offset·s(f) (world), one key per frame inside the windows
+  (LINEAR), so the part stays where it flew while its carrier flies out under it (exact at every frame).
+- Blocked-way warnings also name parts outside the subassembly.
+
+**"Back to CAD" step** (kind `CAD`, `BLOCK_KINDS`): `cad_whole` (default on) or the picked subassembly (`target_uid`);
+its joints (a member in it) to 0 – a motor to the nearest whole turn – and its moved parts to their CAD places, eased
+as Go to pose; G-code's joint state follows it (`gcode.py`, additive). Label "Back to CAD" / "Back to CAD <name>".
+
+**Product video**: a Back to CAD step after the saved poses. Close-ups: saved cameras win; else `pick_spots`: type
+plates / decals first, then the moving parts of the joints (longest travel first), each framed with
+`cameras.add_camera(points=…)` from the iso view that sees most of it (rays from the spot to the camera).
+
+**Test model**: `tools/make_test_sequence.py --frame` -> `test_sequence_frame.step`: a portal frame over a slide unit
+(rail block, carriage, gripper block, cover, 4 bolts); the tests add a slide joint on the rail block (carriage +
+block) and one on the carriage (block): riders.
+
 ---
 
 ## Report (filled in by the chat that did the task)
