@@ -98,10 +98,58 @@ block) and one on the carriage (block): riders.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus), 15 Nov 2026 – version 0.2.102
 
 **What changed:**
+- `core/sequence.py`: `plan(..., obstacle=, carried=)`; a part whose way runs into a part outside the subassembly
+  takes another way (`other_ways`: the subassembly's axes, sideways before backwards) clear of it and of the parts
+  still in place, up to `ROUNDS` plans; riders never leave before their carrier (any order); stacking for every
+  direction with `NEAR` (cos 25°) and the later part's whole way (start + end box) – "Away from the centre" stacks.
+- `blender/sequence.py`: riders are movers (`Movers.carriers`); their keys are written per frame inside their own and
+  their nearest carrier's windows (exact on every frame; LINEAR between); the preview does the same. `Obstacles`:
+  NumPy box filter over the model's other visible parts, then the swept surface of the part (back faces at the start,
+  front faces at the end, silhouette edges swept; mesh 0.1 mm inside) against their triangles near the subassembly
+  (BVH overlap) + rays back from their points. Ray points of `Rays` 0.1 mm inside too (a part sliding along the face
+  it sits on grazed the chamfer and was "blocked"). The preview's kept plan compares places within 1 µm (float32 noise
+  made it plan twice – also in 0.2.101).
+- New step **Back to CAD** (`CAD`, `cad_whole`, `animation.cad_targets`, G-code `_walk` follows it), panel box,
+  tooltip. Product video: Back to CAD after the poses; steps on whole frames; close-ups from saved cameras that do
+  not show the whole model (`shows_whole_model`: the import's camera counted as a "close-up" before), else
+  `pick_spots` (decals – type plate first –, then the moving parts round each joint, the iso view that sees most).
+- Test model `test_sequence_frame.step` (`tools/make_test_sequence.py --frame`), tour stops `sequenceframe` and
+  `backtocad` (set "Round a frame, back to CAD"), PC-check lines `animation.sequence_frame`, `animation.back_to_cad`,
+  function list, guide (sequence, new Back to CAD section, product video), pictures `panel_6_back_to_cad.png`,
+  `panel_6_product_video.png`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3 as a module):
+- New tests: 9 in `test_sequence.py` (core: centre stacking, riders' order, obstacles, other ways; Blender: the frame
+  model – parts under the beam sideways, bolts up, back home within 0.01 mm, **0 clash rows** –, the same parts go up
+  with the frame hidden, riders exact on every frame, preview with riders, Back to CAD whole/subassembly/motor/operator,
+  saved + reopened + built through the queue's own set-up with every driver a simple expression), 3 in
+  `test_product_video.py` (Back to CAD after the pose, close-ups frame a moving part, saved close cameras win, the
+  crane: framed at the boom's hinge). `test_motion_fixes.py`'s pair-by-pair reference follows the new stacking rule.
+- Locally: sequence + product video + motion fixes + independent 82 passed; tour + functions + guide + every tour
+  animation 0 clashes 111 passed (11.7 min); the four PC-check lines OK (8 s).
+- **Preview, demo TENSIONER** (small demo, 264 movers – 260 + 4 riders), old 0.2.101 vs new, same file: per slider
+  step after the first two **84–95 ms → 83–106 ms** (unchanged). A fresh plan (first touch; the first touch also
+  clears the demo's keys, ~3.3 s, as before): AXIS 3.7 + 0.31 s → 5.5 + 0.12 s, CENTRE 0.27 + 0.29 → 3.2 + 0.14 s,
+  UP 0.31 + 0.31 → 1.9 + 0.09 s (the old code planned twice). Going up, 93 of the 264 parts now go another way (the
+  cable runs through the tracks: the parts under it go sideways); checking 264 ways against 974 parts outside costs
+  1.5–2.5 s.
+- **Close-ups on the demo** (no automated test: `demo*` is task 0125/0126's): `pick_spots` 0.08 s, "Quadrant tip" (42
+  parts) and "Handler tilt", fully in frame, seen 100 %; its product video keeps its own saved cameras.
+- Independent tester (subagent, did not write the code): 28 tests in `tests/test_motion_extras_independent.py`, three
+  faults found and fixed by the worker (last round's way kept the old way's order and distance – a part flew through a
+  part in place; the obstacle cache answered for 1.2 × the asked distance; float32 put Back to CAD one frame into the
+  pose: false warning).
 
 **Open points / follow-up tasks:**
+- Thor's block (0112's Thor project) not tried: its STEP needs the site kit's pinned sources; the frame test model
+  covers riders two levels deep.
+- Back to CAD right after a Take apart flies all parts home at once on straight lines: bolts pass through the cover
+  (tester, 4–7 mm). Use Put together for that; a Back to CAD that plays a sequence backwards could follow.
+- A Put together with no Take apart before it jumps its parts out at its first frame; the clash check reads that jump
+  as motion (older than 0129).
+- Obstacles and rays read the parts' CAD meshes: parts that the app draws elsewhere by Geometry Nodes (track pads)
+  are seen where their mesh is.
+- A fresh preview plan on big subassemblies with many blocked ways takes seconds (above).
