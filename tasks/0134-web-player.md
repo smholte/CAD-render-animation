@@ -1,6 +1,6 @@
 # 0134 – Web 3D player: settings menu, playback controls, "no graphics card" warning, lighter on PC
 
-**Who:** worker · **Status:** open – starts **after 0136 is merged** (0136 fixes the export crash in `web3d.py`; 0128 merged as 0.2.105)
+**Who:** worker · **Status:** done (0.2.108) – was: open – starts **after 0136 is merged** (0136 fixes the export crash in `web3d.py`; 0128 merged as 0.2.105)
 · **Branch:** `task/0134-web-player`
 **Started by:** lead chat, 15 Nov 2026 (owner's wishes, 15 Nov evening) · **Model:** Opus · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
@@ -87,10 +87,55 @@ the page → 0115 (owner decides).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 15–16 Nov 2026 (branch `claude/blissful-cray-6t7nco`; the session's branch
+name instead of `task/0134-web-player`). No subagents.
 
 **What changed:**
+- **One player for every page** (the reason: each feature once, and the page is no bigger). Surroundings None now
+  writes the three.js page in its plain form (light background, project's light) instead of model-viewer. Test mill
+  page: 1.517 MB with model-viewer → 1.516 MB with the player. model-viewer stays only for a bare `.glb` on the site.
+- `fr_page.js`: draws on demand (camera moves, animation/sea/vessel/rain playing, menu change, resize; nothing while
+  hidden), at most 60 pictures a second (30 in software), pixels capped by count (`QUALITY[...]["pixels"]` 1.2 / 3.7 /
+  8.3 million); software renderer detection (Basic Render / WARP / SwiftShader / llvmpipe / software → `warned`,
+  Phone, no shadows, 30 fps; backup "probably" when the name is hidden and Phone stays < 15 fps); items on/off; Quality
+  Auto/manual; sun over the day (live light only); auto-turn after 8 s; saved views (fly 0.9 s); link
+  (`orbit, at, fov, time, paused, speed, quality, off, turn, sun`); screenshot; remembered choices (localStorage).
+- `fr_player.js` (new): gear menu, play bar (Space, slider, ½× 1× 2×, ← →), view buttons (1…9), Fullscreen F, Reset R,
+  Screenshot S, Link L, help ?, clean look H, the red bar, `?selftest=1` for the PC check.
+- Loading bar in the page template (MB read of the model, then "Preparing").
+- Export: the project's cameras go into the page as views (`blender/web3d.views`; View 1, 2 … with hide names).
+- Site: `build_site.py` writes each own-page model again with today's player (`fresh_page`); no site Pause button on
+  those (the player has its own). Test mill and Thor re-made (`make_site_web_models.py all`, 9 min); now with 1 and 2
+  saved views.
+- Panel fold "On the page" (short list), guide section `web3d-player`, function `web.player`, PC-check line
+  `web3d.export` opens the page headless with `selftest=1` (menu, help, link, Space on a moving page, the bar), tour
+  stop `web3d` text + check.
 
-**Tested and measured** (name the machine and the model):
+**"Lowered to keep it smooth" – the cause:** `requestAnimationFrame` does not run in a hidden tab (or a frozen page),
+so the old `document.hidden` check inside the frame never ran; the first frame after coming back counted the whole
+hidden time as one slow frame (e.g. 120 frames over 5 s = 24 fps < 27) and Auto stepped down – every time. Also the
+first second of shader compiling could count. Reproduced headless (`tools/web_player_probe.js`, a 3 s hidden tab or
+freeze on the old page: lowered 1, level Phone); new page: 0, Balanced. Now only pictures drawn one right after the
+other count, a warm-up follows every change, and Auto steps up again (two good 2-s windows ≥ 50 fps; slower after a
+step down).
 
-**Open points / follow-up tasks:**
+**Tested and measured** (4-core web machine, no graphics card, headless Chromium with SwiftShader):
+- Pictures drawn with the camera still: **0 in 5 s** (test mill page, 1280×800); old page here ~30 a second (on a
+  PC: the screen's rate, 160–165). Paused animation: 0. After a drag: drawing stops when the turn settles.
+- Page size: see above (−1 kB). Phone window 390×844 at 3×: test mill page loads in ~0.43 s, Phone quality draws
+  0.33 million pixels; sea test page at Phone: no error.
+- `tests/test_web_player.py` (13 tests, headless; on GitHub's runner node checks the scripts), `test_web3d*.py`,
+  `test_site.py`, `test_tour.py`, `test_functions.py` pass locally. Site built, both "Turn it yourself" pages checked
+  headless (load, Space pauses, 0 pictures while paused, menu).
+- The PC-check line's new part passed on its own here; the line as a whole fails here at the read-back on `main` too
+  (the bpy module has no meshopt library), GitHub's real Blender runs it.
+
+**For the owner – try on your PC (Chrome) and phone:** open a page (5 Scene & Render > Web 3D model > Open page, or
+"Turn it yourself" on the site): 1. the gear: switch items, pick Phone/Best, see the pictures a second and your
+graphics card's name; 2. Space and the time line; 3. the view buttons; 4. L, then paste the link in a new tab; 5. H;
+6. leave the tab for a minute and come back: no "lowered" note; 7. with nothing moving, Task Manager → GPU should
+stay near 0 %.
+
+**Open points:** the sun slider is greyed for a 360° photo light too ("The light comes from the project's 360°
+picture"); fullscreen is not offered where the browser has none (iPhone Safari). GitHub runs: see TASKS.md.
+
