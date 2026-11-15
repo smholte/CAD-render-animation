@@ -1,6 +1,6 @@
 # 0132 – Motion follow-ups: follower value in the joint box, Back to CAD after a Take apart, Put together's first-frame jump
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0132-motion-follow-ups`
+**Who:** worker · **Status:** running · **Branch:** `task/0132-motion-follow-ups`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all tasks") · **Model:** Opus · effort Medium
 **Area (Motion lane; the clash part in the Clash lane, free):** `blender/ui_motion.py` (the joint box only – **not the
 cable boxes**: task 0126 may touch those), `blender/sequence.py`, the Back to CAD code in `animation.py` (additive),
