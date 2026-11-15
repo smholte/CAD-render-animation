@@ -16,10 +16,11 @@ With P_f = (rho cos phi, rho sin phi, z): |n_xy| rho cos(phi - v - alpha) + n_z 
 n_m in xy) – two answers; the one that puts C on P's side of the axis is taken. For a sheave whose plane holds the
 post's axis this is "turn C's angle onto P's angle".
 
-Live (no animation built): ``live`` sets each swivel for the pose shown. At Build: ``before_read`` reads P and the
-swivel's arrow at every frame, works the values out at once (unwrapped: never a jump of a turn) and keys the joint
-one key per frame (tagged ``TAG`` on its motion empty); a coupling of the swivel is put aside meanwhile (``WAS``)
-and put back by ``after_clear``.
+Live (no animation built): ``live`` sets each swivel for the pose shown. At Build no extra pass through the frames:
+paths.py reads ``objects`` (the swivels' arrows and motions, the places their wires go to) in its own one pass, then
+``after_read`` works the values out from those places at once (unwrapped: never a jump of a turn), keys the joint one
+key per frame (tagged ``TAG`` on its motion empty; a coupling of the swivel put aside meanwhile, ``WAS``, put back by
+``after_clear``) and moves what rides on the swivel in the places read, as if they had been read with the keys.
 """
 
 from __future__ import annotations
@@ -231,81 +232,128 @@ def _put_aside(scene, j) -> None:
     joints._free(scene, j)                      # (not set_follows: that would take the Build's keys off)
 
 
+def objects(scene) -> list:
+    """Build: the objects whose world matrix at every frame ``after_read`` needs (each swivel's arrow and motion
+    empty, the places its wire goes to). paths.py reads them in its one pass through the frames."""
+    out = {}
+    try:
+        for it, k, _c, j in _swivels(scene):
+            out[j.frame.name], out[j.motion.name] = j.frame, j.motion
+            for ob, _p in _candidates(it, k, j.motion):
+                out[ob.name] = ob
+    except Exception as exc:
+        print("Fresing Render: swivel objects failed:", exc)
+    return list(out.values())
+
+
 def before_read(scene, first: int, frames: int) -> list[str]:
-    """Build: every swivel keyed to its wire, one key per frame, before the cables' places are read. Returns
-    warnings."""
+    """(Kept until paths.py calls ``objects`` / ``after_read``: nothing to do before the read any more.)"""
+    return []
+
+
+def _rz(v: np.ndarray) -> np.ndarray:
+    """(F, 4, 4) turns about z by ``v`` (F,)."""
+    out = np.zeros((len(v), 4, 4))
+    c, s = np.cos(v), np.sin(v)
+    out[:, 0, 0], out[:, 0, 1], out[:, 1, 0], out[:, 1, 1] = c, -s, s, c
+    out[:, 2, 2] = out[:, 3, 3] = 1.0
+    return out
+
+
+def _plan(scene, notes: list) -> list:
+    """(cable name, contact, joint name, (object, point)) for every swivel that turns to its wire at this Build."""
+    from . import paths
+    plans: dict = {}
+    for it, k, c, j in _swivels(scene):
+        if j.name in plans:
+            continue
+        plans[j.name] = None
+        if j.couple_table:
+            notes.append(f"Swivel '{j.name}' of '{paths.label(it)}' follows '{j.follows}' by a table: it keeps that "
+                         "motion and does not turn to the cable")
+        elif _stepped(scene, j) or _keyed_by_others(j):
+            notes.append(f"Swivel '{j.name}' of '{paths.label(it)}' is moved by the animation: it does not turn to "
+                         "the cable")
+        else:
+            got = _pick(_world(j.frame), _candidates(it, k, j.motion), _world)
+            if got is not None:
+                plans[j.name] = (it.name, c, j.name, got)
+    return [p for p in plans.values() if p is not None]
+
+
+def _correct(arrays: dict, delta: np.ndarray, motion, done: set) -> None:
+    """Every object in ``arrays`` (name -> (F, 4, 4) world) carried by ``motion`` is moved by ``delta`` (F or 1, 4,
+    4: the motion's new place times its old one turned inside out), in place; ``done``: arrays already moved."""
+    import bpy
+    for name, arr in arrays.items():
+        if id(arr) in done:
+            continue
+        ob = bpy.data.objects.get(name)
+        if ob is None or not _under(ob, motion):
+            continue
+        n = min(len(arr), len(delta))
+        if len(delta) == 1:
+            arr[...] = delta[0] @ arr
+        else:
+            arr[:n] = delta[:n] @ arr[:n]
+        done.add(id(arr))
+
+
+def after_read(scene, mats: dict, first: int, frames: int) -> list[str]:
+    """Build: ``mats`` (object name -> (F, 4, 4) world, read in paths.py's one pass through the frames, F = frames
+    or 1) holds the swivels' arrows and motions and the places their wires go to. Every swivel is keyed to its wire
+    (one key per frame; a coupling put aside), and ``mats`` is corrected in place for everything that rides on a
+    swivel's motion – as if it had been read with the keys. Returns warnings."""
     notes: list[str] = []
     try:
-        todo = _swivels(scene)
-        if not todo:
+        if not len(scene.fresing.cables):
             return notes
-        from . import animation, flex, paths
-        plans = {}
-        for it, k, c, j in todo:
-            if j.name in plans:
-                continue
-            if j.couple_table:
-                notes.append(f"Swivel '{j.name}' of '{paths.label(it)}' follows '{j.follows}' by a table: it keeps "
-                             "that motion and does not turn to the cable")
-                plans[j.name] = None
-                continue
-            if _stepped(scene, j) or _keyed_by_others(j):
-                notes.append(f"Swivel '{j.name}' of '{paths.label(it)}' is moved by the animation: it does not "
-                             "turn to the cable")
-                plans[j.name] = None
-                continue
-            cands = _candidates(it, k, j.motion)
-            got = _pick(_world(j.frame), cands, _world)
-            if got is None:
-                plans[j.name] = None
-                continue
-            plans[j.name] = (it.name, c, j.name, got)
-        work = [p for p in plans.values() if p is not None]
+        work = _plan(scene, notes)
         if not work:
             return notes
-        for _cab, _c, jn, _got in work:         # couplings aside first (they change the motion's drivers)
-            _put_aside(scene, joints.find(scene, jn))
-        if frames > 1:
-            obs = {}
-            for _cab, _c, jn, (ob, _p) in work:
-                j = joints.find(scene, jn)
-                obs[j.frame.name], obs[ob.name] = j.frame, ob
-            mats = flex.read_places(scene, list(obs.values()), first, frames, keep_shown=False)
-        else:
-            mats = None
+        from . import animation, flex
+        cached = flex._STATE.get("read")
         for cab, c, jn, (ob, p) in work:
+            done: set = set()                   # (an array the hoses' pass kept may be in ``mats`` too: once)
             j = joints.find(scene, jn)
-            cm, nm = _sheave_in_motion(c, j)       # (C(v) = Rz(v) C_m in the arrow's coordinates)
-            mi = _motion_in_frame(j)
-            if mats is None:
-                fw, pw = _world(j.frame)[None], _at(_world(ob), p)[None]
-            else:
-                fw, pw = mats[j.frame.name], _at(mats[ob.name], p)
-            m0 = fw @ mi
-            pf = np.einsum("fij,fj->fi", np.linalg.inv(m0), np.concatenate([pw, np.ones((len(pw), 1))], axis=1))[:, :3]
+            _put_aside(scene, j)                # (a follower's value cannot be set or keyed)
+            j = joints.find(scene, jn)
+
+            def at(o):
+                return np.asarray(mats[o.name], dtype=float) if o.name in mats else _world(o)[None]
+            fw, mw, pw = at(j.frame), at(j.motion), at(ob)
+            F = max(len(fw), len(mw), len(pw))
+            fw, mw, pw = (np.broadcast_to(x, (F, 4, 4)) for x in (fw, mw, pw))
+            m0 = fw @ _motion_in_frame(j)       # the motion's place with the joint at 0
+            inv0 = np.linalg.inv(m0)
+            turned = inv0 @ mw                  # Rz(the value it had while read)
+            old = np.unwrap(np.arctan2(turned[:, 1, 0], turned[:, 0, 0]))
+            pf = np.einsum("fij,fj->fi", inv0[:, :3, :3], _at(pw, p)) + inv0[:, :3, 3]
+            cm, nm = _sheave_in_motion(c, j)    # (C(v) = Rz(v) C_m in the arrow's coordinates)
             v = values(cm, nm, pf)
             good = np.isfinite(v)
-            if not good.any():
-                continue
-            if not good.all():                  # (P on the axis for a while: the swivel stays where it was)
+            if not good.any():                  # (the swivel can do nothing for it: it stays as it is)
+                v = old.copy()
+            elif not good.all():                # (P on the axis for a while: the swivel stays where it was)
                 idx = np.arange(len(v))
                 last = np.maximum.accumulate(np.where(good, idx, -1))
-                nxt = np.where(last < 0, np.argmax(good), last)
-                v = v[nxt]
+                v = v[np.where(last < 0, int(np.argmax(good)), last)]
             v = np.unwrap(v)
-            now = joints.get_value(j)
-            v = v + 2.0 * math.pi * round((now - v[0]) / (2.0 * math.pi))
-            if len(v) == 1:
+            v = v + 2.0 * math.pi * round((old[0] - v[0]) / (2.0 * math.pi))
+            if F == 1 or frames <= 1:
                 joints.set_value(j, float(v[0]), use_limits=False)
             else:
                 cb = animation._channelbag(j.motion, "OBJECT")
                 animation._write(cb, joints.COUPLING_PATH, 0, [(first + f, float(x), "LINEAR", "AUTO")
-                                                                 for f, x in enumerate(v)])
+                                                                 for f, x in enumerate(v[:frames])])
             j.motion[TAG] = cab
             if joints.outside_limits(j, float(v.min())) or joints.outside_limits(j, float(v.max())):
                 notes.append(f"Swivel '{j.name}' of '{cab}' would turn beyond its limits to follow the cable")
-        flex.drop_read()                        # (places read before the swivels were keyed are old now)
-        try:                                    # (the frame shown with the new values, for what is read now)
+            delta = mw @ np.linalg.inv(turned) @ _rz(v) @ np.linalg.inv(mw)    # M_new @ inv(M_old)
+            _correct(mats, delta, j.motion, done)
+            if cached is not None and cached[0] == (scene.name, int(first), F):
+                _correct(cached[1], delta, j.motion, done)      # (the hoses' pass kept them: a later read gets them)
+        try:                                    # (the frame shown with the new values)
             import bpy
             (bpy.context.view_layer if bpy.context.scene == scene else scene.view_layers[0]).update()
         except Exception:

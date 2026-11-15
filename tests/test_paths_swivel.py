@@ -7,6 +7,7 @@ and down to the pad. Joints: "Swivel" (HEAD about the post's axis), "Side" (PAD 
 joint (made by 'From CAD cable', riding on the swivel through HEAD).
 """
 
+import inspect
 import math
 import os
 import sys
@@ -22,7 +23,7 @@ HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
 
 import fresing_render  # noqa: E402
-from fresing_render.blender import animation, build, joints, paths, paths_swivel  # noqa: E402
+from fresing_render.blender import animation, build, flex, joints, paths, paths_swivel  # noqa: E402
 
 import bench_flex as bf  # noqa: E402
 
@@ -163,6 +164,65 @@ def set_side(sc, y):
     update()
 
 
+def bake(sc, anim) -> dict:
+    """Build animation. Until paths._bake reads ``paths_swivel.objects`` in its own pass and calls ``after_read``
+    (task 0125, wired by the lead worker), the same is done here before its read: one extra pass, same result."""
+    if "after_read" in inspect.getsource(paths._bake):
+        return animation.bake(sc, anim)
+    was = paths_swivel.before_read
+
+    def shim(scene, first, frames):
+        mats = flex.read_places(scene, paths_swivel.objects(scene), first, frames, keep_shown=False)
+        return paths_swivel.after_read(scene, mats, first, frames)
+    paths_swivel.before_read = shim
+    try:
+        return animation.bake(sc, anim)
+    finally:
+        paths_swivel.before_read = was
+
+
+def riders(sc) -> list:
+    """The objects that ride on the swivel and that a cable reads: the head, the sheave, its joint's arrow and
+    motion."""
+    sheave = joints.find(sc, paths.find(sc, "Wire").contacts[0].joint)
+    return [o for o in sc.objects if o.name in ("HEAD", "SHEAVE")] + [sheave.frame, sheave.motion, swivel(sc).motion]
+
+
+def test_after_read_corrects_the_places_read():
+    """The places read before the swivel was keyed, corrected by ``after_read``, equal those read with the keys."""
+    sc = make_scene(swivel=False)
+    animation.bake(sc, sc.fresing.animations[ANIM])        # the pad's keys; the swivel not keyed yet
+    paths.find(sc, "Wire").contacts[0]["swivel"] = "Swivel"     # (no update: the built animation stays)
+    first, frames = sc.frame_start, sc.frame_end - sc.frame_start + 1
+    objs = list({o.name: o for o in paths_swivel.objects(sc) + riders(sc)}.values())
+    assert {swivel(sc).frame.name, swivel(sc).motion.name, "PAD"} <= {o.name for o in paths_swivel.objects(sc)}
+    flex.drop_read()
+    mats = {k: v.copy() for k, v in flex.read_places(sc, objs, first, frames, keep_shown=False).items()}
+    before = {k: v.copy() for k, v in mats.items()}
+    assert paths_swivel.after_read(sc, mats, first, frames) == []
+    assert swivel(sc).motion[paths_swivel.TAG] == "Wire"
+    flex.drop_read()
+    fresh = flex.read_places(sc, objs, first, frames, keep_shown=False)
+    worst = max(float(np.abs(mats[o.name] - fresh[o.name]).max()) for o in riders(sc))
+    assert worst < 1e-4                                             # (float32 matrices)
+    assert max(float(np.abs(before[o.name] - fresh[o.name]).max()) for o in riders(sc)) > 0.1    # (it did move)
+    assert float(np.abs(mats["PAD"] - before["PAD"]).max()) == 0.0   # what does not ride on it stays as read
+    animation.clear_keys(sc)
+    assert paths_swivel.TAG not in swivel(sc).motion
+
+
+def test_after_read_with_one_moment_sets_the_value():
+    """No cable read per frame (F == 1, or nothing read at all): the swivel is set for the pose, no keys."""
+    sc = make_scene()
+    joints.set_value(joints.find(sc, "Side"), 2.0, use_limits=False)
+    update()
+    assert paths_swivel.after_read(sc, {}, sc.frame_start, 1) == []
+    assert joints.get_value(swivel(sc)) == pytest.approx(math.atan2(2.0, END[0]), abs=1e-5)
+    assert not paths._fcurves(swivel(sc).motion) and swivel(sc).motion[paths_swivel.TAG] == "Wire"
+    paths_swivel.after_clear(sc)
+    assert paths_swivel.TAG not in swivel(sc).motion
+
+
 def test_the_sign_of_the_swivel():
     """A positive value turns the head anticlockwise seen from above (about +z): what the closed form assumes."""
     sc = make_scene(swivel=False)
@@ -208,7 +268,7 @@ def test_no_swivel_set_changes_nothing():
     set_side(sc, 2.0)
     assert joints.get_value(swivel(sc)) == 0.0 and not paths_swivel.live(sc)
     assert tilt(sc) > 10.0                      # (the wire leaves the sheave's plane: what the swivel is for)
-    r = animation.bake(sc, sc.fresing.animations[ANIM])
+    r = bake(sc, sc.fresing.animations[ANIM])
     assert not any("wivel" in w for w in r["warnings"])
     assert paths_swivel.TAG not in swivel(sc).motion and not paths._fcurves(swivel(sc).motion)
     animation.clear_keys(sc)
@@ -218,7 +278,7 @@ def test_build_keys_the_swivel_and_a_coupling_is_put_aside():
     sc = make_scene()
     joints.set_follows(sc, swivel(sc), "Lead", ratio=1.0, offset_value=0.05)
     update()
-    r = animation.bake(sc, sc.fresing.animations[ANIM])
+    r = bake(sc, sc.fresing.animations[ANIM])
     assert not any("wivel" in w for w in r["warnings"]), r["warnings"]
     j = swivel(sc)
     assert j.follows == "" and paths_swivel.WAS in j.motion and j.motion[paths_swivel.TAG] == "Wire"
@@ -242,7 +302,7 @@ def test_build_keys_the_swivel_and_a_coupling_is_put_aside():
 
 def test_build_without_a_coupling_and_live_again_after():
     sc = make_scene()
-    r = animation.bake(sc, sc.fresing.animations[ANIM])
+    r = bake(sc, sc.fresing.animations[ANIM])
     assert not any("wivel" in w for w in r["warnings"]), r["warnings"]
     sc.frame_set(sc.frame_end)
     update(1)
@@ -260,7 +320,7 @@ def test_a_step_that_moves_the_swivel_wins():
     b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", "Swivel", 0.0, 1.0, "SMOOTH"
     b.use_from = True
     b.to_angle = math.radians(10.0)
-    r = animation.bake(sc, a)
+    r = bake(sc, a)
     assert any("Swivel 'Swivel'" in w and "moved by the animation" in w for w in r["warnings"]), r["warnings"]
     assert paths_swivel.TAG not in swivel(sc).motion
     sc.frame_set(sc.frame_end)
