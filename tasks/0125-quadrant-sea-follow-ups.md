@@ -1,6 +1,6 @@
 # 0125 – Quadrant and sea follow-ups: the D on the seabed, no lost path, no kink, the bow the right way
 
-**Who:** worker · **Status:** running · **Branch:** `ccr-f499cc61-gp70i0` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.103) · **Branch:** `ccr-f499cc61-gp70i0` (the web session's branch)
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort High
 **Area (Flex parts lane + Demo models lane + the bow in the Scene & Render lane):** `fresing_render/core/paths.py`,
 `core/catenary.py`, `blender/paths*.py` (incl. `paths_sea.py`, `paths_riders.py`), `blender/flex.py` only if needed,
@@ -157,6 +157,11 @@ No independent tester this time (usage).
 - Tests: new `test_paths_settle.py` (6), `test_paths_swivel.py` (9), `test_paths_rollers.py` (5), bow tests in
   `test_sea.py` (3); 0082's let-go tests set Settles in 0 (they test "stays"); demo tests extended (no lost path, no kink,
   D on the seabed, pull head, swivels, warnings). Cable / sea / moving suites 124 passed; weather/sea 117 passed.
+
+- GitHub: 5 full runs on the branch – 1st red (two demo test expectations: the swivel heads now turned, the kink check's
+  window), 2nd red (the tour clash test's 360 s time box on a run where every group was ~2 x slow; 331 s here, same
+  as `main`), 3rd red (a free bend that ended under the seabed in shot 11: drawn 3.1 m too long), 4th green (run
+  43683565323, 19.0 min); then `main` fast-forwarded to that commit (reuse).
 
 **Owner's check list (RTX 3090):** Help > Make demo project, then play shots 10–12: (1) shot 10: where the cable leaves
 the D's gutter into the water it bends smoothly, no corner; (2) shot 11 (camera "At the seabed"): the D comes down and
