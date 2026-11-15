@@ -1283,6 +1283,15 @@ def ar_contact_tilt(d: Demo) -> float:
     return hi
 
 
+def lowered_parts(scene) -> list:
+    """The parts 'Quadrant lower' carries (the D itself, not its bogies on the rails), no cables."""
+    from . import joints, paths
+    j = joints.find(scene, LOWER)
+    cables = {o.name for o in paths.cable_parts(scene)}
+    return [o for o in (j.motion.children_recursive if j is not None and j.motion is not None else ())
+            if o.type == "MESH" and o.name not in cables and not o.get("fr_excluded")]
+
+
 class _Pose:
     """The D (and the second end on its gutter) at joint values of the quadrant system, read from the model in the app
     (model mm): set, read, put back."""
@@ -1294,7 +1303,9 @@ class _Pose:
         self.quad = d.uid(q["uid"])
         self.names = (TRAVEL, TILT, LOWER, TIP)
         self.was = {n: joints.get_value(joints.find(self.sc, n)) for n in self.names}
-        self.parts = [o for o in [self.quad] + list(_descendants(self.quad)) if o.type == "MESH"]
+        # (the D itself: what 'Quadrant lower' carries – its bogies stay on the rails; task 0125: the parts below the
+        # quadrant's assembly were the bogies only, so its depth was measured on the rail wheels)
+        self.parts = lowered_parts(self.sc)
         arc = d.sheet("route")["second_end"]["route"]["segments"][0]
         import numpy as np
         c, nrm, p0 = (np.array(arc[k], float) for k in ("centre", "normal", "start"))
@@ -1320,13 +1331,16 @@ class _Pose:
         _update()
         _update()
 
+    def lowered(self) -> list:
+        return lowered_parts(self.sc)
+
     def points(self, values: dict, every: int = 1):
         """The D's mesh points (model mm, (n, 3)) at these joint values (every ``every``-th point of each part)."""
         import numpy as np
         self._at(values)
         R = np.linalg.inv(np.array(self.d.root().matrix_world))
         out = []
-        for o in self.parts:
+        for o in self.lowered():
             me = o.data
             co = np.empty(len(me.vertices) * 3)
             me.vertices.foreach_get("co", co)

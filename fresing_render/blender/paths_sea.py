@@ -475,6 +475,7 @@ def _wheel_parts(scene, item, rel, slots, scale):
     return paths._solve_parts(scene, item, rel, slots)
 
 
+STEEP_NOTE = math.radians(2.0)          # a cable leaving a chute beyond its end by more than this is reported
 BEND_STEP = math.radians(0.5)           # the free bend between the hang-off wheel and the catenary: a point per 0.5°
 
 
@@ -672,7 +673,9 @@ def _notes(item, sea, ok, laid_down=None) -> list:
     k = first((kind == C.LIFTED) & ~calm)
     if k >= 0:
         out.append((k, "is so tight that it lifts its end off the seabed"))
-    k = first(np.asarray(sea["steep"], dtype=bool) & ~calm)
+    # (a cable that leaves a chute a hair beyond its end goes on in a free bend of the chute's radius: no fault; more
+    # than STEEP_NOTE beyond it is worth a word, task 0125)
+    k = first(np.asarray(sea["steep"], dtype=bool) & ~calm & (np.asarray(sea["kink"]) > STEEP_NOTE))
     if k >= 0:
         out.append((k, f"bends over the end of '{name(k)}' – more bottom tension or a longer chute"))
     k = first(np.asarray(sea["short"], dtype=bool) & ~calm)
