@@ -134,6 +134,9 @@ def _span(corners, u) -> tuple[float, float]:
     return float(d.min()), float(d.max())
 
 
+KEY_STEP = 1e-6                      # m: near ends closer than this are flush (task 0140)
+
+
 def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.ndarray], blocked=None,
           carried: dict | None = None) -> list[int]:
     """Indices of ``parts`` in the order they leave when taken apart. ``blocked(i, j)``: True when part i, leaving
@@ -147,9 +150,12 @@ def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.nda
 
     def out_key(i):
         if st.direction == "CENTRE":
-            return float(np.linalg.norm(parts[i].centre - centre))
-        lo, _hi = _span(np.asarray(parts[i].corners) - centre, dirs[i])
-        return lo                                          # the part's near end, measured along its own way out
+            k = float(np.linalg.norm(parts[i].centre - centre))
+        else:
+            k, _hi = _span(np.asarray(parts[i].corners) - centre, dirs[i])   # the near end, along its own way out
+        # to 1 µm: two flush parts differ by float32 noise, which swapped them between Builds (task 0140); a tie
+        # falls to the model tree's order
+        return round(k / KEY_STEP) * KEY_STEP
     key = {i: out_key(i) for i in by_tree}
     rank = {i: n for n, i in enumerate(by_tree)}
     fast = sorted((i for i in by_tree if parts[i].fastener), key=lambda i: (-key[i], rank[i]))

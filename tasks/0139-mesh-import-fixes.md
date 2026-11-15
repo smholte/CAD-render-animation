@@ -1,6 +1,6 @@
 # 0139 – Mesh import fixes: updates keep work on the right piece, file materials kept, side files noticed, faster updates
 
-**Who:** worker · **Status:** open – can start when a code slot is free · **Branch:** `task/0139-mesh-import-fixes`
+**Who:** worker · **Status:** running · **Branch:** `claude/affectionate-ritchie-rn1qgs`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Import lane (+ small fixes in `joints.axis_from_hit` and `hover.py`)):** `importer/mesh_reader.py`, `importer/runner.py`, `blender/mesh_import.py`, `blender/reimport.py` (match rules, `_carry_over`), `joints.axis_from_hit`, `hover.py`, their tests.
