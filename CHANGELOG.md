@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.102 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
+
+- **New look:** *Marine paint, worn leading edge (blades)* (3 Looks, Paint): along a wind turbine blade's front edge,
+  from about 60 % of its length to the tip, the paint is worn away in patches – dull grey laminate with small chips.
+- **Site model (render kit):** the offshore turbine has rock scour protection round the monopile's foot, a new
+  "Seabed" view under the water (seabed and cut-away of the sea), and worn blade edges on both turbines.
+- **Site page:** the "Turn it yourself" test mill is the new, more detailed machine of 0.2.101.
+
 ## 0.2.101 – 14 Nov 2026 – the test models look like real machines (task 0122)
 
 - **Test models:** the small models of the test tour, the PC check and the guide pictures now look like real machines:

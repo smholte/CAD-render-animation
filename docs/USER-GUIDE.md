@@ -411,6 +411,10 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
   splash zone of about 2.5 m above it with a greenish tint and thin rust streaks. The waterline follows the
   sea of 5 Scene & Render > Surroundings (without a sea: height 0). **Marine paint, run-down streaks**:
   light dirt and rust streaks running down upright faces (towers, walls), never on decks.
+  **Marine paint, worn leading edge (blades)**: for a wind turbine blade. Along the blade's front edge, from
+  about 60 % of its length to the tip, the paint is worn away in patches: dull grey glass-fibre shows, with
+  small chips. It expects the blade as the CAD file draws it (length along the part's z axis, front edge
+  towards -y); a blade drawn the other way round wears on its back edge.
   **Concrete**: cast concrete for foundations and pedestals, matte light grey.
 
 Projects made with an older version get the new looks when you open them; every group keeps its

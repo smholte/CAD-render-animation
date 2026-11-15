@@ -10,6 +10,10 @@ pale barnacle spots – whose upper edge is patchy (it wanders ``edge_jitter`` m
 waterline); above it the splash zone, ``splash`` m high: a slime / algae tint and thin vertical rust streaks, both
 fading upwards.
 
+**EROSION** (``paint_blade_eroded``, task 0128): a worn leading edge for a wind turbine blade – a strip along the edge
+that faces ``edge_dir``, from ``span_from`` to the tip, where the paint is gone in patches: grey laminate, dull, with
+small chips and a rough relief; ``erosion`` is its formula in plain Python.
+
 **STREAKS** (``paint_marine_streaks``): light run-down streaks of dirt and rust, thin and vertical in the world,
 stronger in some places than in others, never on faces that face up or down.
 
@@ -34,8 +38,8 @@ import numpy as np
 # no ``import bpy`` at the top: the formula works without Blender; ``apply`` gets the node builder
 
 WATERLINE = "fr_waterline_z"           # scene custom property: world z of the water surface, metres
-KINDS = ("GROWTH", "STREAKS")
-MATERIALS = {"GROWTH": "paint_marine_growth", "STREAKS": "paint_marine_streaks"}
+KINDS = ("GROWTH", "STREAKS", "EROSION")
+MATERIALS = {"GROWTH": "paint_marine_growth", "STREAKS": "paint_marine_streaks", "EROSION": "paint_blade_eroded"}
 
 #: names of the nodes in a material (tests and tools look them up)
 NODE_WATERLINE = "FR marine waterline"     # the View Layer attribute: output "Fac" = the waterline
@@ -43,6 +47,7 @@ NODE_HEIGHT = "FR marine height"           # output 0: height above the waterlin
 NODE_GROWTH = "FR marine growth"           # output 0: what ``growth`` gives (1 = covered)
 NODE_SPLASH = "FR marine splash"           # output 0: what ``splash`` gives (1 at and below the waterline)
 NODE_STREAKS = "FR marine streaks"         # output 0: how much streak colour a point gets, 0 … 1
+NODE_EROSION = "FR blade erosion"          # output 0: how worn a point is, 0 … 1 (what ``erosion`` gives)
 
 #: Blender's noise lies mostly between these two: the edge's wander is mapped from them to −1 … +1
 NOISE_LO, NOISE_HI = 0.3, 0.7
@@ -80,6 +85,24 @@ DEFAULTS = {
                     rust_along=0.8,
                     strength_scale=0.6,               # stronger and weaker places, per metre
                     roughness=0.12),                  # added to the roughness on a streak
+    # EROSION (task 0128): a worn leading edge, for a wind turbine blade. In the part's own coordinates the blade runs
+    # along z (metres, root 0) and its leading edge faces ``edge_dir`` (the importer keeps the CAD part's axes; the
+    # IEA 15 MW blades of the site's model are drawn that way, the leading edge towards -y after mirroring)
+    "EROSION": dict(edge_dir=(0.0, -1.0, 0.0),        # the way the leading edge faces, in the part's coordinates
+                    edge_lo=0.55,                     # worn from here (cosine of the angle to edge_dir) …
+                    edge_hi=0.86,                     # … fully worn from here: a strip ~40 degrees each side
+                    span_from=70.0,                   # along the blade (m): no wear before this, …
+                    span_full=108.0,                  # … full wear from here (the outer third and the tip)
+                    patches=1.1,                      # wear patches per metre
+                    patch_lo=0.45,                    # noise value where a patch begins (a lower value: more worn)
+                    patch_hi=0.60,
+                    laminate=(0.36, 0.38, 0.40),      # the grey glass-fibre laminate where the paint is gone
+                    chips=40.0,                       # small chips per metre
+                    chip_size=0.2,                    # share of a cell
+                    paint_roughness=0.75,             # worn paint is duller
+                    laminate_roughness=0.88,
+                    bump=0.6,
+                    relief=0.004),                    # m
 }
 
 
@@ -122,6 +145,15 @@ def growth_band(look: dict | None = None) -> tuple[float, float]:
     is covered, above the second nothing."""
     d = {**DEFAULTS["GROWTH"], **(look or {})}
     return (d["edge"] - d["edge_jitter"] - d["edge_soft"] / 2, d["edge"] + d["edge_jitter"] + d["edge_soft"] / 2)
+
+
+def erosion(cos_edge, span, n=0.5, look: dict | None = None):
+    """How worn a point is (0 = paint as new … 1 = laminate showing): ``cos_edge`` = how squarely its surface faces
+    ``edge_dir`` (cosine, -1 … 1), ``span`` = its distance along the blade (m), ``n`` = the patch noise (0 … 1)."""
+    d = {**DEFAULTS["EROSION"], **(look or {})}
+    t = lambda v, a, b: np.clip((np.asarray(v, float) - a) / (b - a), 0.0, 1.0)      # noqa: E731
+    return (t(cos_edge, d["edge_lo"], d["edge_hi"]) * t(span, d["span_from"], d["span_full"])
+            * t(1.0 - np.asarray(n, float), 1.0 - d["patch_hi"], 1.0 - d["patch_lo"]))
 
 
 # ---- the waterline -----------------------------------------------------------------------------------------------
@@ -301,6 +333,47 @@ def _streaks(b, d: dict, color, metallic, rough, normal):
     return color, metallic, rough, normal
 
 
+def _erosion(b, d: dict, color, metallic, rough, normal):
+    m = b.math
+    x0, y = -2800, 3400
+    geo = b.node("ShaderNodeNewGeometry", x0 - 300, y)
+    vt = b.node("ShaderNodeVectorTransform", x0 - 150, y)
+    vt.vector_type = "NORMAL"
+    vt.convert_from, vt.convert_to = "WORLD", "OBJECT"
+    b.put(vt.inputs[0], geo.outputs["Normal"])
+    face = b.vmath("DOT_PRODUCT", b.vmath("NORMALIZE", vt.outputs[0], x=x0, y=y),
+                   tuple(float(v) for v in d["edge_dir"]), x=x0 + 150, y=y)
+    strip = b.map(face, float(d["edge_lo"]), float(d["edge_hi"]), 0.0, 1.0, x=x0 + 300, y=y)
+    z = b.node("ShaderNodeSeparateXYZ", x0, y - 300)
+    b.put(z.inputs[0], b.coord())
+    ramp = b.map(z.outputs[2], float(d["span_from"]), float(d["span_full"]), 0.0, 1.0, x=x0 + 300, y=y - 300)
+    patch = b.map(b.noise(None, float(d["patches"]), 4.0, x=x0, y=y - 600), float(d["patch_lo"]),
+                  float(d["patch_hi"]), 1.0, 0.0, x=x0 + 300, y=y - 600)
+    # map's To range 1 … 0 on the noise's low end: more worn where the noise is low (as ``erosion`` has it)
+    worn = _named(m("MULTIPLY", m("MULTIPLY", strip, ramp, x=x0 + 600, y=y - 150), patch, x=x0 + 750, y=y - 300,
+                    clamp=True), NODE_EROSION, "Blade erosion")
+    vor = b.node("ShaderNodeTexVoronoi", x0, y - 900)
+    b.put(vor.inputs["Vector"], b.coord())
+    b.put(vor.inputs["Scale"], float(d["chips"]))
+    size = float(d["chip_size"])
+    chip = b.map(vor.outputs["Distance"], size, size * 0.5, 0.0, 1.0, x=x0 + 300, y=y - 900)
+    # a few chips in the paint round the worn strip too (the strip's wider neighbourhood)
+    near = b.map(strip, 0.0, 0.6, 0.0, 1.0, x=x0 + 450, y=y - 1050)
+    show = m("MAXIMUM", worn, m("MULTIPLY", chip, m("MULTIPLY", near, ramp, x=x0 + 600, y=y - 1050),
+                                x=x0 + 750, y=y - 1050), x=x0 + 900, y=y - 700, clamp=True)
+    color = b.mix("RGBA", show, color, _linear(d["laminate"]), x=x0 + 1100, y=y)
+    metallic = b.mix("FLOAT", show, metallic, 0.0, x=x0 + 1100, y=y - 250)
+    rough = b.mix("FLOAT", show, rough, float(d["laminate_roughness"]), x=x0 + 1100, y=y - 450)
+    rough = b.mix("FLOAT", b.map(worn, 0.0, 0.2, 0.0, 0.5, x=x0 + 900, y=y - 500), rough,
+                  float(d["paint_roughness"]), x=x0 + 1250, y=y - 450)
+    lumps = b.noise(None, 25.0, 5.0, x=x0 + 900, y=y - 1300)
+    bump = b.node("ShaderNodeBump", x0 + 1450, y - 1300, Strength=float(d["bump"]), Distance=float(d["relief"]))
+    b.put(bump.inputs["Height"], m("MULTIPLY", show, lumps, x=x0 + 1250, y=y - 1300))
+    if normal is not None:
+        b.put(bump.inputs["Normal"], normal)
+    return color, metallic, rough, bump.outputs["Normal"]
+
+
 def apply(b, bsdf, spec: dict, color, metallic, rough, normal, coat: float = 0.0):
     """Put a marine look into a material that ``materials.build_nodes`` is building. ``spec``: the library entry's
     ``marine`` dict (``kind`` "GROWTH" | "STREAKS" and any key of ``DEFAULTS``); ``color``, ``metallic``, ``rough``,
@@ -310,6 +383,8 @@ def apply(b, bsdf, spec: dict, color, metallic, rough, normal, coat: float = 0.0
     d = {**DEFAULTS[kind], **{k: v for k, v in spec.items() if k != "kind"}}
     if kind == "GROWTH":
         return _growth(b, bsdf, d, coat, color, metallic, rough, normal)
+    if kind == "EROSION":
+        return _erosion(b, d, color, metallic, rough, normal)
     return _streaks(b, d, color, metallic, rough, normal)
 
 
@@ -318,5 +393,5 @@ def nodes_of(mat) -> dict:
     nt = getattr(mat, "node_tree", None)
     if nt is None:
         return {}
-    return {name: nt.nodes[name] for name in (NODE_WATERLINE, NODE_HEIGHT, NODE_GROWTH, NODE_SPLASH, NODE_STREAKS)
+    return {name: nt.nodes[name] for name in (NODE_WATERLINE, NODE_HEIGHT, NODE_GROWTH, NODE_SPLASH, NODE_STREAKS, NODE_EROSION)
             if name in nt.nodes}

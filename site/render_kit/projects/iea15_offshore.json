@@ -119,7 +119,7 @@
   "z_shift_mm": 0.0,
   "note": "turbine frame: tower axis = z, sea level z 0 (onshore: ground z 0, 14 m lower), rotor upwind towards -y (+y = north)"
  },
- "parts": 89,
+ "parts": 90,
  "bodies": {
   "BLADE 1 PITCH": 2,
   "BLADE 2 PITCH": 2,
@@ -128,7 +128,7 @@
   "DOOR SWING": 2,
   "NACELLE YAW": 19,
   "ROTOR TURNING": 4,
-  "TURBINE FIXED": 56
+  "TURBINE FIXED": 57
  },
  "invented": [
   "BOAT LANDING 1",
@@ -189,6 +189,7 @@
   "RAIL PLATFORM 5",
   "RAIL PLATFORM 6",
   "RAIL REST PLATFORM",
+  "SCOUR PROTECTION",
   "SENSOR ANEMOMETER",
   "SENSOR MAST",
   "SENSOR VANE",
@@ -387,7 +388,7 @@
   },
   {
    "part": "MONOPILE BELOW SEABED",
-   "why": "the 45 m of the monopile in the ground below the 30 m deep seabed; the app has no seabed yet (task 0081), so it would hang in the water"
+   "why": "the 45 m of the monopile in the ground below the 30 m deep seabed: the app's seabed is a surface you cannot see into, so the pile would only stick out of its underside (task 0128)"
   }
  ],
  "poses": [
@@ -894,10 +895,33 @@
     122000.0
    ],
    "lens": 32.0
+  },
+  {
+   "name": "Seabed",
+   "eye": [
+    -36252.311481466,
+    16904.730469627983,
+    -21000.0
+   ],
+   "target": [
+    0.0,
+    0.0,
+    -27000.0
+   ],
+   "lens": 26.0
   }
  ],
  "scene": {
-  "water_level_m": 30.0
+  "water_level_m": 30.0,
+  "sea_depth_m": 30.0,
+  "cutaway": {
+   "centre_m": [
+    0.0,
+    0.0
+   ],
+   "length_m": 90.0,
+   "width_m": 90.0
+  }
  },
  "notes": [
   "A door opening is cut into the tower (invented, as the door).",
@@ -908,5 +932,5 @@
   "The blade is a closed solid: its trailing edge (up to 11.5 mm open in the CAD) closed, flat caps on root and tip (an open skin has no inside for the clash check).",
   "The blade root is made round (r 2540 mm, on the pitch axis) and blended into the CAD's skin over the first 4 m: the CAD's root is 95 mm out of round and 62 mm off its pitch axis, so a pitching blade ran 160 mm into the hub's round ring; the IEA's blade root is circular."
  ],
- "unique_parts": 84
+ "unique_parts": 85
 }
