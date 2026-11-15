@@ -404,6 +404,13 @@ def _bend(t, d):
     return np.arccos(c), m
 
 
+def _bend_low(T, t, m, r, theta) -> np.ndarray:
+    """(F,): the lowest height a free bend (from T along t, turning towards m by theta on the radius r) reaches."""
+    phi = theta[:, None] * np.linspace(0.0, 1.0, 33)[None, :]
+    z = T[:, 2, None] + r[:, None] * (np.sin(phi) * t[:, 2, None] + (1.0 - np.cos(phi)) * m[:, 2, None])
+    return z.min(axis=1)
+
+
 def bend_points(res: dict, n: int):
     """(points (F, n, 3), arc lengths (F, n) from the wheel's leave point): the free bend between the wheel and the
     catenary (``hang_off``), at n steps of equal turn ending where the catenary starts (all at the leave point when
@@ -469,8 +476,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     use = (theta > BEND_MIN) & ~short
     # (a wheel at the seabed – a quadrant set down on it: a free bend would curl into the seabed; the cable leaves it
     # lying on the seabed instead)
-    end_z = T[:, 2] + r * (np.sin(theta) * tangent[:, 2] + (1.0 - np.cos(theta)) * m[:, 2])
-    use &= (end_z > float(bottom_z)) & (T[:, 2] - float(bottom_z) > r * (1.0 - np.cos(theta)))
+    use &= _bend_low(T, tangent, m, r, theta) > float(bottom_z) + 1e-3
     theta = np.where(use, theta, 0.0)
     if use.any():
         L1 = L0 - r * psi
@@ -485,6 +491,11 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
             if done.all():
                 break
         top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
+        # (a bend that came to end at or below the seabed while it was worked out: none there, after all)
+        low = use & (_bend_low(T, tangent, m, r, theta) <= float(bottom_z) + 1e-3)
+        if low.any():
+            theta = np.where(low, 0.0, theta)
+            top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
         res = hang(top, start, aft, bottom_z, L1 - r * theta)
     res["psi"], res["T_wheel"] = psi, T
     res["steep"], res["short"] = steep, short
