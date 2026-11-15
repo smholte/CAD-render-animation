@@ -1,6 +1,6 @@
 # 0127 – Tests that fail at random: find the cause, fix it
 
-**Who:** worker (web) · **Status:** running · **Branch:** `ccr-bbe8fc8f-l3cyzo`
+**Who:** worker (web) · **Status:** done (15 Nov, no version change) · **Branch:** `ccr-bbe8fc8f-l3cyzo`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort Medium
 **Area (Quality & delivery lane + the app file the cause is in):** `tests/`, `tools/ci_*.py`, and – only if the fault is
 in the app – the one place it sits (likely `blender/joints.py` table couplings, `blender/rotary.py` /
@@ -107,7 +107,7 @@ Speeding up the whole run (a later task if the run stays above ~20 min). Feature
 - GitHub: run 43670249797 on the branch green (16.6 min, a busy GitHub: 5 groups flagged slow); there the split clash
   test took 255 s in all, its longest set 39 s (toolpath), then house 29 s, crane 20 s – each far from its 150 s box
   (before: one test of 171–365 s against 360 s). `milling.rotary` OK in the PC check. Times recorded into
-  `tools/ci_times.json` from that run; the merge with `main` ran once more (RUN2). 2 runs in all, no failure.
+  `tools/ci_times.json` from that run; the merge with `main` ran once more: run 43671649506 green (20.1 min, busy GitHub). 2 runs in all, no failure; `main` fast-forwarded to that commit (0557782).
 
 **Open points / follow-up tasks:**
 - Motion lane: the joint panel shows a follower's value from `motion["fr_value"]` (greyed), which can be one step
