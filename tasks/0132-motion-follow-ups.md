@@ -1,6 +1,6 @@
 # 0132 – Motion follow-ups: follower value in the joint box, Back to CAD after a Take apart, Put together's first-frame jump
 
-**Who:** worker · **Status:** running · **Branch:** `task/0132-motion-follow-ups`
+**Who:** worker · **Status:** done (0.2.104) · **Branch:** `task/0132-motion-follow-ups`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all tasks") · **Model:** Opus · effort Medium
 **Area (Motion lane; the clash part in the Clash lane, free):** `blender/ui_motion.py` (the joint box only – **not the
 cable boxes**: task 0126 may touch those), `blender/sequence.py`, the Back to CAD code in `animation.py` (additive),
@@ -80,5 +80,6 @@ skipped – no Windows-only code; the changed cases are covered by 0129's indepe
 
 **Open points / follow-up tasks:**
 - Only Put together's own jump is recorded; other deliberate jumps (none known) would need the same `Keys.jumps`.
+- GitHub: 1 full run (green, 23 min, run 43755483219); no version clash.
 - A Back to CAD after a Take apart with a step in between that moves something else (a joint) is not reversed (by the
   brief: only when the Take apart is the step right before).
