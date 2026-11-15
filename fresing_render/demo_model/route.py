@@ -225,6 +225,45 @@ CPS_OUT = 2800.0                # the CPS ramp runs this much outboard of side B
 ENGINE_FRAME = 2050.0           # half the cable engine's frame along the cable (its cross beams)
 ENGINE_WIDTH = 1050.0           # half its width
 HW_SCALE = 0.8                  # the two handling winches: 80 % of the old drum (task 0095)
+CPS_V_HALF = 30.0               # deg: a lane cradle's rollers rise this much from level (deck.V_HALF: a 120° V)
+CPS_RING = 1.02                 # a CPS set's vertebrae's rings (deck.cps_set): its widest, x its outer radius
+CPS_GUTTER_GAP = 15.0           # mm: the CPS in the D's gutter lies this far off its guide rollers (its 500 mm pieces
+#                                 are chords of the curve: a piece's middle comes 7.7 mm nearer them, task 0126)
+CPS_SHELF_GAP = 300.0           # the rack's top shelf (and the set on it) ends this far before the ramp starts (at least)
+CPS_RAMP_DEG = 8.0              # the orange ramp's slope
+CPS_RUN_MARGIN = 300.0          # the CPS run's path starts this far behind the set's nose on the shelf
+CPS_STOP = 1000.0               # ... and ends this far forward of tensioner 2 on side A (the set stops there)
+CPS_S_GAP = 150.0               # a straight between two bends in different planes (the slide's last turn and the ramp's
+#                                 foot, an S-bend and the D's gutter): back to back, the app could not read them from a
+#                                 facetted bar
+
+
+def cps_outer_r(p) -> float:
+    """A CPS set's outer radius (deck.cps_set): ~2 x the cable Ø (tasks/0083)."""
+    return max(1.0 * p.cable_d, 120.0)
+
+
+def cps_shelf_gap(p) -> float:
+    """How far before the ramp's top the rack's top shelf (and the set lying on it) ends: CPS_SHELF_GAP, or more where
+    the bend over the ramp's edge (the bend radius, CPS_RAMP_DEG) starts further back (a big cable)."""
+    return max(CPS_SHELF_GAP, p.bend_r * math.tan(math.radians(CPS_RAMP_DEG / 2.0)) + 20.0)
+
+
+def cps_reach_r(p) -> float:
+    """A CPS set's widest radius (its vertebrae's rings, task 0126): what has to pass."""
+    return CPS_RING * cps_outer_r(p)
+
+
+def cps_gutter_up(p) -> float:
+    """How much higher than the cable's middle a CPS's middle goes round the D's gutter (task 0126): on the same floor
+    (the cable lies 10 mm over it, the CPS's rings too)."""
+    return cps_reach_r(p) - p.cable_r
+
+
+def cps_gutter_out(p) -> float:
+    """How much further out than the cable's middle a CPS's middle goes round the D's gutter (task 0126): pulled against
+    the same guide rollers, CPS_GUTTER_GAP off them."""
+    return cps_reach_r(p) - p.cable_r + CPS_GUTTER_GAP
 
 # The quadrant system's A&R wire (task 0095): the D-quadrant's A&R pad eye at the top of its curve, the handler's top
 # pulley placed so the wire bears on it once the handler tilts and, at the end of the tilt, hangs straight down from
@@ -239,9 +278,30 @@ LOWER_TILT = 110.0              # ... and where the A&R winch lowers the D (task
 #                                 eye, clears the stern's horns (their lower ends reach 1.4 m aft of the transom) by ~0.2 m
 
 
+CPS_ROOM_MAX = 150.0            # mm: the D's lip and top plate move at most this much for a CPS (task 0126), else the D
+#                                 stays as the cable needs it (a Ø 500 cable's Ø 1000 CPS: the D would hit the open
+#                                 tensioners; the demo's cable is Ø 200)
+
+
+def d_lip(p) -> float:
+    """The D-quadrant's outer lip (its inner face, from the curve's centre; deck.d_shape): 120 mm outside the cable, and
+    since task 0126 room for a CPS set against the guide rollers, 20 mm off it (``d_has_cps_room``)."""
+    cable = p.quadrant_r + p.cable_r + 120.0
+    cps = p.quadrant_r + cps_gutter_out(p) + cps_reach_r(p) + 20.0
+    return cps if cable < cps <= cable + CPS_ROOM_MAX else cable
+
+
+def d_has_cps_room(p) -> bool:
+    """Whether the D-quadrant's gutter has room for a CPS set going round it (task 0126: up to CPS_ROOM_MAX more)."""
+    cable = p.quadrant_r + p.cable_r + 120.0
+    return p.quadrant_r + cps_gutter_out(p) + cps_reach_r(p) + 20.0 <= cable + CPS_ROOM_MAX
+
+
 def ar_eye_local(p) -> np.ndarray:
     """The A&R pad eye's hole centre in the D's coordinates (origin on the bar's line at the curve's centre, rail top):
-    the middle of the curve's outer edge, just outside the gutter's lip."""
+    the middle of the curve's outer edge, just outside the gutter's lip as it was before task 0126 (the lip went 115 mm
+    further out for a CPS; the eye stayed, so the handler's top pulley and the stern stay where they were: the gutter
+    has a notch round the eye's plate under the CPS's way)."""
     return np.array([p.quadrant_r + p.cable_r + 160.0 + AR_EYE_OUT, 0.0, AR_EYE_Z])
 
 
@@ -475,18 +535,20 @@ def main_route(p, pos: dict) -> Route:
     return r
 
 
-def cps_slide_route(p, pos: dict) -> Route:
+def cps_slide_route(p, pos: dict, lift: float = 0.0) -> Route:
     """The CPS's way from the rack's top shelf down the orange twisted ramp (outboard of tensioner 1) and the curved
-    slide (an S-curve) onto side B's highway, joining the cable route tangentially just forward of tensioner 1."""
+    slide (an S-curve) onto side B's highway, joining the cable route tangentially just forward of tensioner 1. Its line
+    is the CPS's middle: on the lane it lies ``lift`` over the cable's (task 0126: on the same V cradles, deck.cps_lift)."""
     R = p.bend_r
-    J = np.array([pos["cps_join_x"], p.lane_y, p.line_z])
+    J = np.array([pos["cps_join_x"], p.lane_y, p.line_z + lift])          # (task 0126: on the cradles' rollers)
     back = Route("cps back", 400.0)
     back.add(Line(J + [1.0, 0, 0], J))
     turn(back, -1, R, pos["cps_s_deg"])
     if pos["cps_s_straight"] > 1.0:
         back.line_to(back.end + pos["cps_s_straight"] * back.end_tangent)
     turn(back, +1, R, pos["cps_s_deg"])
-    pitch(back, +1, R, 8.0)
+    back.line_to(back.end + CPS_S_GAP * back.end_tangent)   # (task 0126: a straight between the slide's last
+    pitch(back, +1, R, CPS_RAMP_DEG)                                  # turn and the ramp's foot – see CPS_S_GAP)
     t = back.end_tangent
     k = (pos["cps_shelf_z"] - back.end[2]) / t[2]
     back.line_to(back.end + k * t)
@@ -503,6 +565,65 @@ def cps_slide_route(p, pos: dict) -> Route:
             info = {"support": "slide", "note": "the curved slide onto side B's highway"}
         out.add(s2, **info)
     return out
+
+
+def s_bend(r: Route, offset, radius: float, **info) -> None:
+    """Two arcs of ``radius`` that shift the route by ``offset`` (square to its tangent) and go on in its direction."""
+    off = np.asarray(offset, float)
+    d = float(np.linalg.norm(off))
+    if d < 1e-6:
+        return
+    u = off / d
+    ang = s_bend_angle(d, radius)
+    t0 = r.end_tangent
+    r.arc(u, radius, ang, **info)
+    t = r.end_tangent
+    b = -(u - t * float(t @ u))
+    r.arc(unit(b), radius, ang, **info)
+    if float(np.linalg.norm(r.end_tangent - t0)) > 1e-6:
+        raise ValueError("S-bend: the route does not go on in its direction")
+
+
+def cps_run_route(p, pos: dict, slide: Route, length: float, lift: float) -> Route:
+    """Task 0126, the owner's CPS steps 1–5: the middle line a CPS set runs along – from behind the set lying on the
+    rack's top shelf (``length`` long, its end ``cps_shelf_gap`` before the ramp) along the shelf, over the ramp's edge (a
+    bend of the bend radius: the ramp starts 8° down), down the orange ramp and the curved slide onto side B (``slide``),
+    forward on side B's cradles, an S-bend out and down into the D's gutter (on its floor, against its guide rollers),
+    round the D at its stationary position, an S-bend back onto side A's cradles, and aft along side A to CPS_STOP
+    forward of tensioner 2. On the cradles it lies ``lift`` (deck.cps_lift) over the cable's line, round the gutter
+    ``cps_gutter_out`` outside it and ``cps_gutter_up`` over it."""
+    R, Rq = p.bend_r, p.quadrant_r
+    out, up = cps_gutter_out(p), cps_gutter_up(p)
+    ramp = slide.segments[0]
+    start, t_ramp = ramp.start, ramp.start_tangent
+    level = unit([t_ramp[0], t_ramp[1], 0.0])
+    down = math.degrees(math.asin(-float(t_ramp[2])))
+    f = R * math.tan(math.radians(down / 2.0))           # the bend over the ramp's edge starts this far before it
+    if f + 1.0 > cps_shelf_gap(p):
+        raise ValueError("the CPS ramp's edge bend is longer than the gap between the shelf and the ramp")
+    rear = start - cps_shelf_gap(p) * level
+    r = Route("cps_run", 2.0 * cps_outer_r(p))
+    r.add(Line(rear - (length + CPS_RUN_MARGIN) * level, start - f * level), support="rack",
+          note="the CPS set on the rack's top shelf")
+    pitch(r, -1, R, down, support="free", note="over the edge onto the orange ramp")
+    r.line_to(ramp.end, support="ramp", note="down the orange twisted ramp")
+    for seg, info in zip(slide.segments[1:], slide.info[1:]):
+        r.add(seg, **info)
+    x_q = pos["quadrant_x"]
+    ang = s_bend_angle(math.hypot(out, lift - up), R)
+    x_s = x_q - 2.0 * R * math.sin(math.radians(ang)) - CPS_S_GAP
+    r.line_to([x_s, p.lane_y, p.line_z + lift], support="rollers", rollers="side B",
+              note="side B forward on the V cradles (the CPS higher in the V than the cable)")
+    s_bend(r, [0.0, out, up - lift], R, support="free", note="out and down into the D's gutter")
+    r.line_to(r.end + [CPS_S_GAP, 0.0, 0.0], support="free")
+    turn(r, -1, Rq + out, 180.0, support="rollers", rollers="quadrant gutter",
+         note="round the D at its stationary position, against its guide rollers")
+    r.line_to(r.end + [-CPS_S_GAP, 0.0, 0.0], support="free")
+    s_bend(r, [0.0, out, lift - up], R, support="free", note="back onto side A's cradles")
+    x_stop = pos["tensioners"][0] + TENSIONER_HALF + CPS_STOP
+    r.line_to([x_stop, -p.lane_y, p.line_z + lift], support="rollers", rollers="side A",
+              note="side A aft on the V cradles, to CPS_STOP forward of tensioner 2")
+    return r
 
 
 def core_end_route(p, coil_in: float, z: float) -> Route:

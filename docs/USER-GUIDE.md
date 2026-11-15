@@ -3180,7 +3180,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
 
 **What is in it** – set up the way you would, with the app's own buttons:
 - **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 310 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **4 Motion:** 307 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
   support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
   **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
@@ -3198,17 +3198,24 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   The winches pay out exactly what the D's motion needs.
 - **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
   gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
+- **CPS from the rack:** the set on the rack's top shelf next to the orange ramp rides on a hidden line, the cable
+  **CPS run** in 4 Motion > Cables and paths (its speed joint is the metres the set has moved): down the ramp and the
+  curved slide, along side B's roller cradles (higher in the V than the cable: it is twice as thick), round the D's
+  gutter (on its floor, against its guide rollers) and down side A. Its pieces follow the line round every bend.
 - **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
   each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 2 ¼ minutes with the title and end card): a flight round the vessel that
+- **6 Animation > What it can do today** (about 2 ½ minutes with the title and end card): a flight round the vessel that
   ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
   **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
 from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
-(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. Then the **quadrant
+(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. Then a **CPS set from the
+rack** (shot 8b, × 15 time-lapse): it slides tail first down the orange ramp and the curved slide onto side B, runs
+round the D and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
+place in front of the cable end, which is connected to its rear end as the next shot begins. Then the **quadrant
 operation at the second end** (shots 9–12): both tensioners open, the lanes' cradles drop, the D-quadrant travels
 aft between the tensioners onto the handler with the cable end on it, the tipping wires are connected and the
 handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is

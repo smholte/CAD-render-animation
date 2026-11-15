@@ -16,7 +16,8 @@ from . import geom as g
 from .geom import Asm, Part, Rot, T
 from .machines import (CHROME, DARK, MOTOR, RUBBER, STEEL, YELLOW, Kit, _arc_rollers, cable_drive,
                        turn_axis)
-from .route import LOWER_TILT, ar_eye_local, top_pulley
+from .route import (CPS_RING, CPS_V_HALF, LOWER_TILT, ar_eye_local, cps_gutter_up, cps_outer_r, cps_reach_r,
+                    d_has_cps_room, d_lip, top_pulley)
 
 GREY = (0.55, 0.56, 0.57)
 CPS_YELLOW = (0.98, 0.78, 0.05)
@@ -45,24 +46,49 @@ def roller_about(kit: Kit, centre, axis, r: float, length: float, name: str = "C
 # Highways: V roller cradles on trestles, walkways
 # ---------------------------------------------------------------------------------------------------------
 
-V_HALF = math.radians(30.0)            # each cradle roller rises 30° from level: a 120° V
+V_HALF = math.radians(CPS_V_HALF)      # each cradle roller rises 30° from level: a 120° V
 CRADLE_RR = 100.0
 CRADLE_LEN = 600.0
 CRADLE_OFF = 200.0                      # each roller sits this much outwards along its axis
 CRADLE_BASE = 420.0                     # the cradle's base plate: this far under the cable's centre
 
 
+def _cradle_rollers(p):
+    """[(centre, axis)] of a V cradle's two rollers (local: the cable's centre at the origin, along x)."""
+    out = []
+    for sy in (-1, 1):
+        ax = np.array([0.0, sy * math.cos(V_HALF), math.sin(V_HALF)])
+        n = np.array([0.0, -sy * math.sin(V_HALF), math.cos(V_HALF)])      # from the roller to the cable
+        out.append((-(p.cable_r + CRADLE_RR) * n + CRADLE_OFF * ax, ax, n))
+    return out
+
+
+def cps_lift(p) -> float:
+    """How much higher a CPS set's middle lies on a lane's V cradle than the cable's (task 0126): the lowest height at
+    which its widest round (``route.cps_reach_r``) clears both rollers – their raised ends (the flanges that keep the
+    cable in the middle) included: a big round rests on the inner flanges, not on the rollers' waists."""
+    R = cps_reach_r(p)
+    prof = Kit.roller_profile(CRADLE_RR, CRADLE_LEN - 120.0)
+    lift = 0.0
+    for ctr, ax, _n in _cradle_rollers(p):
+        u = np.array([1.0, 0.0, 0.0])
+        v = np.cross(ax, u)
+        for rho, a in prof:
+            for phi in np.linspace(0.0, 2.0 * math.pi, 361):
+                q = ctr + a * ax + rho * (math.cos(phi) * u + math.sin(phi) * v)
+                if abs(q[1]) < R:
+                    lift = max(lift, float(q[2] + math.sqrt(R * R - q[1] * q[1])))
+    return lift
+
+
 def cradle(p, kit: Kit) -> Asm:
     """A V roller cradle. Local: the cable's centre at the origin, travelling towards -x. Two rollers in a 120° V
     (each with its joint, turned by the cable) on a bracket whose base plate lies CRADLE_BASE under the cable."""
     def make():
-        cr, rr = p.cable_r, CRADLE_RR
+        rr = CRADLE_RR
         a = Asm("ROLLER CRADLE")
         ends = []
-        for sy in (-1, 1):
-            ax = np.array([0.0, sy * math.cos(V_HALF), math.sin(V_HALF)])
-            n = np.array([0.0, -sy * math.sin(V_HALF), math.cos(V_HALF)])      # from the roller to the cable
-            ctr = -(cr + rr) * n + CRADLE_OFF * ax
+        for (ctr, ax, n), sy in zip(_cradle_rollers(p), (-1, 1)):
             part, M = roller_about(kit, ctr, ax, rr, CRADLE_LEN - 120.0)
             c = a.add(part, M)
             contact = ctr + rr * n               # the surface point straight towards the cable (not along the axle)
@@ -400,16 +426,20 @@ def d_shape(p) -> dict:
     pad_top = pad_top_of(p)                              # the bottom pads' highest edge, from the cable's centre (their
     #                                                      V follows the cable Ø, task 0081: the rollers reach the cable)
     z_up = zc + max(-30.0, pad_top + 30.0)
-    zt = max(z_up + 300.0, zc + cr + 60.0)               # the guide rollers' top, the gutter's top plate under it
-    lip = Rq + cr + 120.0
+    zt_c = max(z_up + 300.0, zc + cr + 60.0)             # the guide rollers' top, the gutter's top plate under it – for
+    R0, up = cps_reach_r(p), cps_gutter_up(p)            # the cable; task 0126: a CPS set goes round the gutter too, on
+    zt = max(zt_c, zc + up + R0 + 20.0) if d_has_cps_room(p) else zt_c     # its floor, against its guide rollers,
+    #                                                      under its top plate (a CPS too big for the D: as before)
+    lip = d_lip(p)
     web_in = Rq - cr - 2 * rr - 70.0
     inner = Rq - D_INNER
     bar_end = web_in + 40.0                              # the upper bar's ends: at the gutter's inner web, well inside the
     #                                                      cable (a part's edge close to it reads as a seat, task 0078)
     eye_y = Rq + 150.0                                   # the tipping eyes: on brackets over the cable's line,
-    eye_z = zt + 580.0                                   # high enough that their wires clear the gutter when vertical
+    eye_z = zt_c + 580.0                                 # high enough that their wires clear the gutter when vertical
     return {"zc": zc, "rr": rr, "band_z": z_up, "zt": zt, "lip": lip, "lip_z": max(zc, z_up), "web_in": web_in,
-            "inner": inner, "half_width": lip + 40.0, "floor": zc - cr - 10.0, "bar_end": bar_end, "eye_y": eye_y, "eye_z": eye_z,
+            "inner": inner, "half_width": lip + 40.0, "floor": zc - cr - 10.0, "bar_end": bar_end, "eye_y": eye_y,
+            "eye_z": eye_z, "eye_low": zc + (max(cr + 30.0, up + R0 + 40.0) if d_has_cps_room(p) else cr + 30.0),
             "top_z": max(zt + 30.0, eye_z + 190.0), "edge_top_z": zt + 30.0, "floor_deg": math.degrees(math.asin(min(1.0, inner / (lip + 40.0)))),
             "ring_deg": math.degrees(math.asin(min(1.0, inner / (web_in + 120.0))))}
 
@@ -454,7 +484,11 @@ def quadrant_d(p, kit: Kit) -> Asm:
     lower = [(web_in, floor - 40.0), (lip + 40.0, floor - 40.0), (lip + 40.0, lz), (lip, lz), (lip, floor),
              (web_in + 40.0, floor), (web_in + 40.0, z_up + 1.0), (web_in, z_up + 1.0)]
     fd = ds["floor_deg"]
-    A.add(Part("QUADRANT GUTTER", g.fuse(sector(upper, -90.0, 90.0), sector(lower, -fd, fd)), YELLOW))
+    gutter = g.fuse(sector(upper, -90.0, 90.0), sector(lower, -fd, fd))
+    e = ar_eye_local(p)
+    if e[0] - 35.0 < lip + 40.0:                         # task 0126: the lip went out past the A&R eye's plate (its top
+        gutter = g.cut(gutter, g.box(e[0] - 35.0, -185.0, floor - 45.0, 70.0, 370.0, 30.0))    # 20 under the floor)
+    A.add(Part("QUADRANT GUTTER", gutter, YELLOW))
     # frame: the straight bar, spokes from the bar's middle to the gutter, a ring under the gutter – all inside |y| <=
     # inner; the upper bar over the cable's height from end to end of the curve, posts down to the bar
     zb0, zb1 = BOGIE_H, floor - 40.0
@@ -482,7 +516,8 @@ def quadrant_d(p, kit: Kit) -> Asm:
                   g.cyl(75.0, 200.0, eye + [-100.0, 0, 0], (1, 0, 0)))
     A.add(Part("A&R PAD EYE", g.fuse(plate, g.box(web_in + 80.0, -50.0, zb0 + 30.0, ar - 30.0 - web_in - 80.0 + 1.0,
                                                   100.0, 170.0)), YELLOW))      # under the gutter's floor
-    zb = zc + cr + 30.0                                  # over the cable's top where it leaves the gutter at rest
+    zb = ds["eye_low"]                                   # over the cable's (task 0126: a CPS's) top where it leaves the
+    #                                                      gutter at rest
     for key, sy in (("tipping_port", 1.0), ("tipping_stb", -1.0)):
         c = np.array([-300.0, sy * ds["eye_y"], ds["eye_z"]])
         # a thin lug with a big hole (the tipping wire comes in at up to ~60° to the hole's axis) on a bracket from the
@@ -653,20 +688,34 @@ def swivel_sheave(p, kit: Kit, rope_d: float, rp: float, height: float, rope_z: 
 # CPS: sets, rack, ramp and slide
 # ---------------------------------------------------------------------------------------------------------
 
+CPS_PIECE = 500.0                       # the longest stiff piece of a CPS set (task 0126): round the D's gutter (the
+#                                         bend radius) a piece's middle lies 7.7 mm inside its ends, a 4.2 m tube 0.5 m
+
+
 def cps_set(p, kit: Kit, length: float = 16000.0) -> Asm:
     """A cable protection system lying along +x from its nose (pull head) at the origin: pull head, grey tube,
-    yellow segments, brown vertebrae, grey, yellow bend restrictors next to the cable. Outer Ø ~2 x the cable Ø."""
+    yellow segments, brown vertebrae, grey, yellow bend restrictors next to the cable. Outer Ø ~2 x the cable Ø.
+    Task 0126: every piece at most CPS_PIECE long (the tube and the sleeve in pieces, the pull head 600), so the set
+    follows its path round the bends."""
     def make():
-        R0 = max(1.0 * p.cable_d, 120.0)                 # outer radius
+        R0 = cps_outer_r(p)                              # outer radius
         a = Asm("CPS SET")
-        head = g.fuse(g.cone(0.25 * R0, R0 * 0.85, 700.0, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * 0.85, 300.0, (700, 0, 0), (1, 0, 0)),
+        head = g.fuse(g.cone(0.25 * R0, R0 * 0.85, 450.0, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * 0.85, 150.0, (450, 0, 0), (1, 0, 0)),
                       g.torus_piece((-0.2 * R0, 0, 0), (0, 1, 0), (-0.4 * R0, 0, 0), 2 * math.pi, 0.06 * R0))
         a.add(Part("PULL HEAD", head, STEEL))
-        x = 1000.0
-        tube_l = 0.28 * length
-        a.add(Part("CPS TUBE", g.fuse(g.cyl(R0 * 0.9, tube_l, (x, 0, 0), (1, 0, 0)),
-                                      g.cyl(R0, 120.0, (x, 0, 0), (1, 0, 0))), CPS_GREY))
-        x += tube_l
+        x = 600.0
+        tube_l = 0.28 * length + 400.0
+        n = int(math.ceil(tube_l / CPS_PIECE))
+        for k in range(n):
+            l_k = tube_l / n
+            if k == 0:                                   # the collar behind the pull head
+                piece = Part("CPS TUBE", g.fuse(g.cyl(R0 * 0.9, l_k, (0, 0, 0), (1, 0, 0)),
+                                                g.cyl(R0, 120.0, (0, 0, 0), (1, 0, 0))), CPS_GREY)
+            else:
+                piece = kit.get(("cps_tube", R0, round(l_k, 3)), lambda: Part("CPS TUBE", g.cyl(R0 * 0.9, l_k, (0, 0, 0),
+                                                                                                   (1, 0, 0)), CPS_GREY))
+            a.add(piece, T(x, 0, 0))
+            x += l_k
         seg_l = 500.0
         seg = kit.get(("cps_seg", R0), lambda: Part("CPS SEGMENT", g.fuse(
             g.cyl(R0, seg_l - 60, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * 0.8, 60.0, (seg_l - 60, 0, 0), (1, 0, 0))), CPS_YELLOW))
@@ -675,14 +724,18 @@ def cps_set(p, kit: Kit, length: float = 16000.0) -> Asm:
             x += seg_l
         vl = 380.0
         vert = kit.get(("cps_vert", R0), lambda: Part("CPS VERTEBRA", g.fuse(
-            g.cyl(R0 * 0.82, vl, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * 1.02, vl * 0.45, (vl * 0.25, 0, 0), (1, 0, 0))),
+            g.cyl(R0 * 0.82, vl, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * CPS_RING, vl * 0.45, (vl * 0.25, 0, 0), (1, 0, 0))),
             CPS_BROWN))
         for k in range(int(0.26 * length / vl)):
             a.add(vert, T(x, 0, 0))
             x += vl
         gl = 0.08 * length
-        a.add(Part("CPS SLEEVE", g.cyl(R0 * 0.85, gl, (x, 0, 0), (1, 0, 0)), CPS_GREY))
-        x += gl
+        n = int(math.ceil(gl / CPS_PIECE))
+        sleeve = kit.get(("cps_sleeve", R0, round(gl / n, 3)),
+                         lambda: Part("CPS SLEEVE", g.cyl(R0 * 0.85, gl / n, (0, 0, 0), (1, 0, 0)), CPS_GREY))
+        for k in range(n):
+            a.add(sleeve, T(x, 0, 0))
+            x += gl / n
         bl = 450.0
         br = kit.get(("cps_br", R0), lambda: Part("BEND RESTRICTOR ELEMENT", g.fuse(
             g.cone(R0 * 0.95, R0 * 0.75, bl - 60, (0, 0, 0), (1, 0, 0)), g.cyl(R0 * 0.95, 60.0, (bl - 60, 0, 0), (1, 0, 0))),
@@ -718,6 +771,14 @@ def cps_rack(x0: float, x1: float, rows_y: list, levels_z: list, deck_z: float, 
     return Part("CPS RACK", g.fuse(*parts), YELLOW)
 
 
+TROUGH_GAP = 15.0                       # the CPS's underside over the trough's bottom (task 0126: it cut 5 mm into it)
+
+
+def trough_depth(R0: float) -> tuple[float, float]:
+    """(inner, outer) depth of the U under its path (an ellipse: wider than deep), for a CPS of radius R0."""
+    return R0 + TROUGH_GAP, R0 + TROUGH_GAP + 45.0
+
+
 def trough_along(route, start: float, end: float, R0: float, twist_deg: float = 0.0, step: float = 600.0):
     """A shallow U trough (inner radius R0 + 60) under a path (route from s = start to end); twisting by
     ``twist_deg`` about the path from start to end (the orange ramp)."""
@@ -741,13 +802,14 @@ def trough_along(route, start: float, end: float, R0: float, twist_deg: float = 
         pts.append(q)
         frames.append((side2, up2))
     ri, ro = R0 + 60.0, R0 + 120.0
+    bi, bo = trough_depth(R0)
     prof = []
     for k in range(9):                                   # outer arc of the U, then the inner arc back
         a = math.radians(-180.0 + 180.0 * k / 8)
-        prof.append((ro * math.cos(a), ro * math.sin(a) * 0.75))
+        prof.append((ro * math.cos(a), bo * math.sin(a)))
     for k in range(8, -1, -1):
         a = math.radians(-180.0 + 180.0 * k / 8)
-        prof.append((ri * math.cos(a), ri * math.sin(a) * 0.75))
+        prof.append((ri * math.cos(a), bi * math.sin(a)))
     return g.trough(pts, frames, prof), pts
 
 

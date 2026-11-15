@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
-MIN_JOINTS = 311                      # the joint sheet's 310 + Cable travel (the quay's come on top)
+MIN_JOINTS = 308                      # the joint sheet's 307 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -942,15 +942,87 @@ def make_wires(d: Demo):
     it = paths.add_cable(sc, SECOND_ITEM)
     notes = paths.read_cad(sc, it, part)
     it = paths.find(sc, SECOND_ITEM)
-    # its speed follows 'Cable travel', the lay cable's metres that move the seabed: while the lay cable pays out
-    # (shots 1–8, the second end hidden) the seabed passes aft and the second end's touch-down keeps its place behind
-    # the vessel; from shot 9 on nothing is paid out
-    joints.set_follows(sc, joints.find(sc, it.joint), CABLE, ratio=1.0)
-    it = paths.find(sc, SECOND_ITEM)
+    # its speed: Move steps of shot 9 (task 0126, ``haul_in``). Until then (hidden) it stands at 0 while 'Cable travel',
+    # the lay cable's metres, moves the seabed aft; just before shot 9 it takes Cable travel's value there, so the
+    # second end's touch-down lies behind the vessel as it was set in the CAD pose (0082 made it follow Cable travel)
     it.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
     it.pitch, it.angle, it.stripe = 0.6, math.radians(45.0), 0.3
     d.notes.append("second end: " + (notes[0] if notes else "read"))
     d.timings["wires"] = time.time() - t0
+
+
+CPS_RUN_ITEM = "CPS run"              # the line a CPS set runs along from the rack (hidden), task 0126
+CPS_RUN_RIDER = "CPS from the rack"
+CPS_SPEED = 10.0                      # m/min: a CPS set pulled along the deck (invented, plausible)
+CPS_LAPSE = 15                        # its time-lapse factor in shot 8b
+CPS_RACK, CPS_ON_D = "CPS rack", "CPS on the D"     # the saved cameras of shot 8b
+
+
+def cps_run_marks(d: Demo) -> dict:
+    """Metres along the CPS run's line (``CPS_RUN_ITEM``) and what its speed joint is set to (task 0126): ``front0`` the
+    set's front (its tail, the bend restrictors) on the rack, ``gutter`` where the line comes into the D's gutter (lane
+    B end), ``out`` the speed at the far end (the set's tail at the line's end, forward of tensioner 2), ``home`` the speed
+    with its pull head at the gutter's lane B end (where the second end's CPS lies in shot 9)."""
+    from . import paths
+    sc = d.scene
+    item = paths.find(sc, CPS_RUN_ITEM)
+    r = next(r for r in item.riders if r.name == CPS_RUN_RIDER)
+    route = d.sheet("route")["cps_store"]["run_route"]
+    seg = next(g for g in route["segments"] if g.get("rollers") == "quadrant gutter")
+    margin = float(route["segments"][0]["length"]) / 1000.0 - float(r.length)   # behind the set's nose
+    front0 = margin + float(r.length)
+    return {"front0": front0, "gutter": float(seg["s_start"]) / 1000.0, "length": float(item.length),
+            "out": float(item.length) - front0 - 0.001, "home": float(seg["s_start"]) / 1000.0 - margin,
+            "set_length": float(r.length), "joint": item.joint}
+
+
+@stage("cps_path", "The CPS run: its line from the rack round the D, the set on the rack that runs it", after="joints")
+def cps_path(d: Demo):
+    """Task 0126, the owner's CPS steps 1–5. ``CPS RUN LINE`` (a thin bar along the CPS's middle line, the maker's
+    ``route.cps_run_route``) becomes a cable of 4 Motion > Cables and paths (hidden, "Stays as drawn") whose speed joint
+    is the metres the set has moved; the set on the ramp's shelf rides on it (a rider, 0081), its parts in their CAD
+    places with nothing moved."""
+    import numpy as np
+
+    from . import build, flex, logic, paths, paths_riders
+    sc = d.scene
+    t0 = time.time()
+    cs = d.sheet("route")["cps_store"]
+    line, cset = d.uid(cs["run_line"]), d.uid(cs["run_set"])
+    logic.set_hidden(line, True)
+    item = paths.add_cable(sc, CPS_RUN_ITEM)
+    # the lay cable lies right under the line on the lanes (the CPS is higher in the V): its bends are bends in the air,
+    # not chutes on the cable (the cable becomes a cable of its own next, then every cable leaves the others out)
+    lay = d.uid(d.sheet("route")["cable"]["solid"])
+    was = lay.get(build.PROP_EXCLUDED, False)
+    lay[build.PROP_EXCLUDED] = True
+    try:
+        notes = paths.read_cad(sc, item, line)
+    finally:
+        lay[build.PROP_EXCLUDED] = was
+    item = paths.find(sc, CPS_RUN_ITEM)
+    with flex._quiet(item):
+        item.still = True                               # nothing it lies on moves: no shape per frame
+        item.diameter = 2.0 * float(cs["outer_radius"]) / 1000.0
+    paths.changed(sc, item)
+    item = paths.find(sc, CPS_RUN_ITEM)
+    shape = paths.shape_now(sc, item)
+    route = cs["run_route"]["segments"]
+    first = d.mm(route[0]["start"])
+    if float(np.linalg.norm(shape[0] - np.array(first))) > float(np.linalg.norm(shape[-1] - np.array(first))):
+        raise RuntimeError("the CPS run's line was read from its far end")
+    paths_riders.add(sc, item, [cset], where="END", at=0.0, name=CPS_RUN_RIDER)
+    item = paths.find(sc, CPS_RUN_ITEM)
+    r = next(r for r in item.riders if r.name == CPS_RUN_RIDER)
+    head = [p for p in r.parts if p.part is not None and p.part.get(build.PROP_NAME) == "PULL HEAD"]
+    if not head or float(head[0].at) < 0.5 * float(r.length):
+        raise RuntimeError("the CPS set on the ramp's shelf does not lie tail first towards the ramp")
+    with flex._quiet(r):
+        r.at = float(item.length) - cps_run_marks(d)["front0"]          # its parts where CAD has them
+    paths_riders.changed(sc, r)
+    d.notes.append(f"CPS run: {notes[0] if notes else 'read'}; the set {r.length:.2f} m on the rack, its line "
+                   f"{item.length:.1f} m")
+    d.timings["cps_path"] = time.time() - t0
 
 
 # ---------------------------------------------------------------------------
@@ -1049,6 +1121,8 @@ VIEWS = {
     INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-16000.0, 0.0, -14000.0), 30.0),
     "Over the stern": ((-38000.0, -30000.0, 10000.0), (-3000.0, 0.0, -10000.0), 30.0),       # shots 10, 12 (0082)
     "At the seabed": ((-24000.0, -6000.0, -12000.0), (-4000.0, 0.0, -28500.0), 32.0),        # shot 11, under water
+    "CPS rack": ((11000.0, 23000.0, 14000.0), (24000.0, 6500.0, 5200.0), 26.0),              # shot 8b (0126)
+    "CPS on the D": ((49000.0, 12500.0, 14500.0), (35500.0, 0.0, 5000.0), 28.0),
 }
 
 
@@ -1439,7 +1513,35 @@ def quadrant_ops(d: Demo):
     d.timings["quadrant_ops"] = time.time() - t0
 
 
-@stage("shot_quadrant", "Shot 9: the D carries the second end aft and over the stern", after="quadrant_ops")
+@stage("shot_cps", "Shot 8b: a CPS set from the rack, round the D and back, in front of the cable end", after="quadrant_ops")
+def shot_cps(d: Demo):
+    """Task 0126, the owner's CPS steps 1–5 (tasks/0083): the lay cable has gone overboard (hidden: the second end comes
+    in shot 9); a CPS set slides from the rack's top shelf, tail first, down the orange ramp and the curved slide onto
+    side B's cradles, travels round the D-quadrant at its stationary position and down side A, stops forward of
+    tensioner 2 and runs back the other way until its pull head is at the D's lane-B bar end: its place in front of the
+    cable end, which is connected to its rear end as shot 9 begins (the second end and its CPS there take its place)."""
+    from . import paths
+    m = cps_run_marks(d)
+    t = d.t
+    cam_a, cam_b = d.scene.objects.get(CPS_RACK), d.scene.objects.get(CPS_ON_D)
+    d.camera_step("CUT", t, 0.0, "", camera=cam_a)
+    _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t,
+          "The cable's end comes: a CPS set (cable protection) goes on it – from the rack")
+    t += 1.0
+    out = round(m["out"] / (CPS_SPEED / 60.0) / CPS_LAPSE, 1)
+    d.joint(m["joint"], t, out, m["out"], slide=True, easing="SMOOTH",
+            label=f"The CPS set slides tail first down the orange ramp and the curved slide onto side B, round the D "
+                  f"and down side A (x {CPS_LAPSE})")
+    d.camera_step("MOVE", t + 0.42 * out, 4.0, "", camera=cam_b, easing="SMOOTH")
+    t += out
+    back = round((m["out"] - m["home"]) / (CPS_SPEED / 60.0) / CPS_LAPSE * 2.0, 1)
+    d.joint(m["joint"], t + 1.0, back, m["home"], slide=True, easing="SMOOTH",
+            label="It stops forward of tensioner 2 and runs back: its pull head at the D's bar end, in front of the "
+                  "cable end")
+    d.t = t + 1.0 + back + 1.5
+
+
+@stage("shot_quadrant", "Shot 9: the D carries the second end aft and over the stern", after="shot_cps")
 def shot_quadrant(d: Demo):
     """The owner's steps 1–7 with the cable: the lay cable gives way to the second end (its end shackled at the D's bar
     end, round the gutter, along side A and over horn A into the sea, its CPS on it). Both tensioners open – the top
@@ -1456,8 +1558,9 @@ def shot_quadrant(d: Demo):
     secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
     d.camera_step("CUT", t, 0.0, "", camera=cam)
     _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t)
-    _step(d, "SHOW", _part_of(d, SECOND_ITEM), t, "The second end: shackled at the D's bar end, round its gutter, over "
-                                                  "horn A into the sea, its CPS on it")
+    _step(d, "HIDE", d.uid(d.sheet("route")["cps_store"]["run_set"]), t)     # (its place: the second end's CPS)
+    _step(d, "SHOW", _part_of(d, SECOND_ITEM), t, "The cable end is connected to the CPS's rear end: the second end, "
+                                                  "shackled at the D's bar end, round its gutter, over horn A into the sea")
     _step(d, "SHOW", d.uid(d.sheet("route")["second_end"]["cps"]), t)
     _step(d, "SHOW", _part_of(d, AR_ITEM), t)
     for k, name in enumerate(TENSIONERS):
@@ -1473,6 +1576,7 @@ def shot_quadrant(d: Demo):
     d.joint(TRAVEL, t, secs, travel, slide=True, easing="SMOOTH",
             label=f"The D-quadrant carries the cable aft between the tensioners onto the handler, on its A&R wire "
                   f"(x {QUADRANT_LAPSE})")
+    haul_in(d, t, secs, travel)
     fly = d.camera_step("PATH", t, secs, "", easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(quad),
                         aim_name=quad.get(build.PROP_NAME, "QUADRANT FRAME"))
     for p in ((22000.0, 15500.0, 9500.0), (-3000.0, 15000.0, 9000.0)):
@@ -1490,6 +1594,19 @@ def shot_quadrant(d: Demo):
     t += TILT_SECONDS
     d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
     d.t = t + 3.0
+
+
+def haul_in(d: Demo, t: float, seconds: float, travel: float) -> None:
+    """The second end's speed (task 0126, 0125's open point 1): just before shot 9 (hidden) to 'Cable travel's metres
+    there; while the D carries the bight aft (``travel`` m from ``t``, as the D's own step) hauled in by as much: the
+    stretch from the D's gutter to horn A gets that much shorter, and with nothing hauled in the cable's hanging length
+    grew by it – 36 m piled up on the seabed by the end of the travel."""
+    from . import paths
+    j = paths.find(d.scene, SECOND_ITEM).joint
+    v9 = _cable_value_at(d, d.t)
+    t9 = min(b.start for b in d.animation.blocks if b.kind == "SHOW" and b.target_name == "CABLE END")
+    d.joint(j, t9 - 0.5, 0.4, v9, slide=True, easing="LINEAR")
+    d.joint(j, t, seconds, v9 - travel, slide=True, easing="SMOOTH")
 
 
 def _pulley(d: Demo, t: float, seconds: float, lowered_m: float) -> None:
