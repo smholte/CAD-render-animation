@@ -1,6 +1,6 @@
 # 0129 – Motion extras: sequence watches the whole model, riders fly on their own, "Back to CAD" step, close-ups
 
-**Who:** worker · **Status:** open · **Branch:** `task/0129-motion-extras`
+**Who:** worker · **Status:** running (web session, branch `ccr-006450f6-mv1oyp`) · **Branch:** `task/0129-motion-extras`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort High
 **Area (Motion lane):** `fresing_render/core/sequence.py`, `blender/sequence.py`, the product video (task 0101's
 files), the pose steps in `blender/animation.py` / `states.py` (additive: a new step kind), `ui_motion.py` (panels 4
