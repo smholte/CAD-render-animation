@@ -86,8 +86,12 @@ def test_table_moves_the_follower(scene):
         want = joints.interp(XS, YS, x)
         assert joints.get_value(J(scene, "Wheel 1")) == pytest.approx(want, abs=1e-9)
         assert angle_of(scene, "Wheel 1") == pytest.approx(want, abs=TOL), x
-        # (not the copy a driver writes into the motion's own value: Blender runs drivers on several threads and that
-        # copy can be a step behind – CLAUDE.md section 8; it failed 1 run in 5 on main's run 43517923768)
+        # (not the copy a driver writes into the motion's own value, ``motion["fr_value"]``: when the leader's value is
+        # set from Python and the follower's motion has its second driver (the turn), Blender 5.2.3 leaves that copy
+        # one step behind now and then – in 11 of 40 runs of this loop on the 4-core web machine, never with the turn's
+        # driver taken off (0 of 80), never when the frames play keyed values; a bare two-object case does it too
+        # (17 of 3,000). The part's turn and ``joints.get_value`` were right every time (100 of 100 runs). Task 0127,
+        # CLAUDE.md section 8; failed GitHub runs 43488885387 and 43517923768)
 
 
 def test_table_drivers_need_no_python(scene):
