@@ -308,7 +308,8 @@ class _Arrive:
         n = axes[:, -1]
         sd = float(sides[-1])
         down = _turn(self.bed, np.tile([0.0, 0.0, -1.0], (F, 1)))      # (part coordinates)
-        e = _unit(down - (down * n).sum(1, keepdims=True) * n)
+        lay = _turn(self.bed, np.tile(_flat(item.sea_dir), (F, 1)))
+        e = _away(down, lay, n)
         td = centres[:, -1] + radii[-1] * sd * np.cross(e, n)          # where the wheel's tangent points down
         ends = td + e * max(float(radii[-1]), 1e-3)
         if counts is None:
@@ -349,9 +350,28 @@ class _Arrive:
         return out
 
 
-def _down_point(centre, axis, radius: float, side: float, down) -> np.ndarray:
-    """(F, 3): where a wheel's tangent points straight down – where a cable hanging from it leaves it."""
-    e = _unit(down - (down * axis).sum(1, keepdims=True) * axis)
+def _flat(v) -> np.ndarray:
+    v = np.array(v, dtype=float)
+    v[2] = 0.0
+    return v / max(float(np.linalg.norm(v)), 1e-12)
+
+
+FLAT = 0.2                              # a wheel whose plane holds less of "down" than this lies (nearly) flat
+
+
+def _away(down, lay, axis) -> np.ndarray:
+    """(F, 3) unit, in the wheel's plane: the way a cable hanging from it goes – down; for a wheel lying (nearly)
+    flat, where "down" says nothing, the lay direction (task 0125: the quadrant tipped flat at the seabed)."""
+    d = down - (down * axis).sum(1, keepdims=True) * axis
+    lv = lay - (lay * axis).sum(1, keepdims=True) * axis
+    flat = np.linalg.norm(d, axis=1) < FLAT
+    return _unit(np.where(flat[:, None], lv, d))
+
+
+def _down_point(centre, axis, radius: float, side: float, down, lay=None) -> np.ndarray:
+    """(F, 3): where a wheel's tangent points straight down – where a cable hanging from it leaves it (for a wheel
+    lying flat: where it points along ``lay``)."""
+    e = _away(down, down if lay is None else lay, axis)
     return centre + radius * side * np.cross(e, axis)
 
 
@@ -410,8 +430,8 @@ def _hang_offs(scene, item, rel, slots, parts, ar, prev=None) -> tuple:
             break
         lifted = a.res["lifted"][:, h] & a.res["ok"]
         touch = hung[h]["psi"] * a.radius >= SHORT
-        td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx])
-        td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx])
+        td_h = _down_point(centres[idx, h], axes[idx, h], radii[h], sides[h], down[idx], lay[idx])
+        td_p = _down_point(centres[idx, h - 1], axes[idx, h - 1], radii[h - 1], sides[h - 1], down[idx], lay[idx])
         d = ((td_p - td_h) * lay[idx]).sum(1)            # > 0: the wheel before has gone past this one
         # the wheel before has come down over this one: their circles overlap and no straight fits between them on
         # their sides (task 0125: the D's gutter over horn A) – the cable lies on the one that came, not on both

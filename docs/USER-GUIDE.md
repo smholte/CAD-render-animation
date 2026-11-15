@@ -1248,6 +1248,25 @@ reads the place at that frame again, so a changed motion is taken along.
 Try it in the test tour ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
 lift wire stays tight and the cable end is let go near the seabed.
 
+<a id="settle"></a>
+#### A let-go cable settles onto the seabed
+
+A cable into the sea that is let go above the seabed does not stay hanging in the water: what was let go – its end,
+and the turn round a quadrant or sheave that was let go with it – sinks onto the seabed and lies there. A turn round
+a quadrant lies down flat, the end goes with it. **Into the sea > Settles in** says how long that takes (4 s; 0 =
+it stays exactly where it was let go, as before). The cable keeps its length; once it lies on the seabed the app
+does not warn that it "piles up" or "bends over the end" – lying there is what it should do. Let it go just as the
+quadrant or block starts to come up again, so the cable sinks while its carrier moves away.
+
+<a id="swivel"></a>
+#### A sheave on a swivel
+
+A tipping wire runs up a post and over a sheave head that swivels about the post, on to the quadrant. Choose the
+head sheave under "What it touches" and pick the swivel's rotate joint in **Swivel**: the app then turns the swivel
+so the wire leaves the sheave in the sheave's own plane – live while you pose, and for every frame when you build
+the animation (one key per frame on the swivel). A coupling the swivel had is put aside while the animation is
+built and comes back with **Clear keys**. A step in 6 Animation that moves the swivel wins (the app says so).
+
 
 <a id="drums"></a>
 ### Drums and carousels
@@ -2286,8 +2305,10 @@ and drift with it; **Spray** blows off the wave tops and flies up at the bow fro
 pole at the stern (or the back of the machine) that flies in the wind. For the waves to follow the wind, pick
 **From the wind** as the Sea under Background & surroundings. **Vessel speed** (knots, Open sea and Vessel deck): a
 wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still. **Bow**: which way the bow
-points – the wake trails behind the stern and the bow throws up the spray. **From the hull** reads it from the
-waterline (the bow is the narrower end); set **+x** or **-x** when your model says otherwise.
+points. It is the one direction everything uses: the wake trails behind the stern, the bow throws up the spray, the
+wind **From the bow** blows from it and the swell of Vessel motion comes in at the heading you picked against it.
+**From the hull** reads it from the waterline (the bow is the narrower end; a hull as wide at both ends, like the
+Vessel deck's, has its bow at -x); set **+x** or **-x** when your model says otherwise.
 
 **Night lights** (the fold): **Floodlights** on masts round the deck or the quay, set up for you: **Auto** (on from
 dusk to dawn), **On**, **Off**, and their **Strength**. The picture opens up at dusk and night the way a camera (or

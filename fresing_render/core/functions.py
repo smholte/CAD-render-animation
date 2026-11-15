@@ -171,6 +171,11 @@ fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel
 fn(id="offshore.moving_cable", title="A cable on a moving part", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_let_go", guide="moving-cable", tour=("moving_cable",), pccheck=("motion.moving_cable",),
    since="0.2.95")
+fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family="offshore", panel="FRESING_PT_cables",
+   fold="fr_cables_sea", prop="sea_settle", guide="settle", tour=("moving_cable",), pccheck=("motion.moving_cable",),
+   since="0.2.102")
+fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
+   prop="swivel", guide="swivel", since="0.2.102")
 fn(id="offshore.spool", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
    button="fresing.spool_add", guide="drums", tour=("spool",), pccheck=("motion.spool",), since="0.2.85")
 fn(id="offshore.vessel_motion", title="Vessel motion at sea", family="offshore", panel="FRESING_PT_vessel_motion",
@@ -470,7 +475,7 @@ def read_repo(root: str) -> dict:
                 name = getattr(node.func, "id", "") or getattr(node.func, "attr", "")
                 if name == "fold" and len(node.args) >= 2 and _strings(node.args[1]):
                     folds.add(_strings(node.args[1]))
-                elif name == "prop" and len(node.args) >= 2 and _strings(node.args[1]):
+                elif name in ("prop", "prop_search") and len(node.args) >= 2 and _strings(node.args[1]):
                     props.add(_strings(node.args[1]))
     out.update(panels=panels, folds=folds, operators=operators, props=props, texts="\n".join(texts))
     return out

@@ -3312,8 +3312,9 @@ class FRWeather(bpy.types.PropertyGroup):
                                           "wide at both ends keeps the bow at -x)"),
                ("POS_X", "+x", "The bow points to +x: the wake trails behind the stern at -x"),
                ("NEG_X", "-x", "The bow points to -x: the wake trails behind the stern at +x")),
-        description="Which way the vessel's bow points: the wake trails behind the stern and the bow throws up the "
-                    "spray. From the hull reads it from the waterline")
+        description="Which way the vessel's bow points: the wake trails behind the stern, the bow throws up the "
+                    "spray, the wind 'from the bow' and the swell of vessel motion turn with it. From the hull reads "
+                    "it from the waterline")
 
 
 class FRHouse(bpy.types.PropertyGroup):

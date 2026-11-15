@@ -1396,8 +1396,7 @@ def quadrant_ops(d: Demo):
         pose.put_back()
     d.quadrant = {"lower_1": round(l1, 3), "lower_2": round(l2, 3), "sink": round(sink, 1)}
     d.notes.append(f"second end: sea end {notes[0] if notes else 'set'}; CPS rider, front {r.mark:.1f} m along the "
-                   f"cable; the D lowered {l1:.1f} m, tipped, lowered to {l2:.1f} m (its frame {sink:.0f} mm into "
-                   "the seabed)")
+                   f"cable; the D lowered {l1:.1f} m, tipped (set down in shot 11)")
     d.timings["quadrant_ops"] = time.time() - t0
 
 
@@ -1568,6 +1567,8 @@ def shot_tip(d: Demo):
     # mesh at every frame it stands there) – no longer to where the cable round the gutter would lie on the seabed
     l2 = set_down_depth(d, t, t + 3.0 + LET_GO_AFTER + 0.5, l2)
     d.quadrant["lower_2"] = round(l2, 3)
+    d.notes.append(f"shot 11: the D set down at {l2:.2f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the seabed "
+                   "at the deepest heave")
     d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
     _pulley(d, t, 3.0, l2)
     t += 3.0

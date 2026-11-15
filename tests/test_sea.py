@@ -551,7 +551,10 @@ def test_an_older_project_and_the_vessel_deck_keep_their_wind(scene):
     """Nothing read yet (a project saved before task 0125): the bow at -x as before. The Vessel deck's hull is as wide
     at both ends: its bow stays at -x, as it always was."""
     s = scene.fresing
-    assert surroundings.BOW_KEY not in scene and surroundings.bow_az(scene) == 180.0
+    root = surroundings.root_object()
+    if root is not None and surroundings.BOW_KEY in root:            # (as saved before task 0125)
+        del root[surroundings.BOW_KEY]
+    assert surroundings.bow_az(scene) == 180.0
     s.weather.enabled = True
     s.weather.wind_ref = "BOW"
     s.weather.wind_from = 90.0

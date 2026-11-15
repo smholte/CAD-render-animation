@@ -1659,8 +1659,9 @@ def build_moving(b: Build):
 def _check_moving_cable(scene):
     """Along the built animation: the lift wire's winch keeps it tight (its free length as drawn to 0.5 mm, what it
     pays out turns the head sheave), the cable end leaves the horn and hangs from the sheave once that has gone over
-    the stern, and after the let-go frame its start stays on the seabed while the block goes on; its length (start
-    to its end on the seabed) is kept throughout."""
+    the stern, and after the let-go frame its start stays behind while the block goes on and settles onto the seabed
+    (task 0125: it only goes down, and lies on the seabed at the end); its length (start to its end on the seabed) is
+    kept throughout."""
     import numpy as np
 
     from . import build, paths, paths_sea
@@ -1685,18 +1686,22 @@ def _check_moving_cable(scene):
             starts.append(inv[:3, :3] @ line[0] + inv[:3, 3])
             sheaves.append(inv[:3, :3] @ np.array(sheave.matrix_world)[:3, 3] + inv[:3, 3])
     pay = paths.tight_payout(scene, w)
-    drift = float(max(np.linalg.norm(p - starts[0]) for p in starts))
+    zs = [float(p[2]) for p in starts]
+    bottom = paths_sea.bottom_z(scene, it)
+    sank = all(b <= a + 1e-6 for a, b in zip(zs, zs[1:]))
+    drift = abs(zs[-1] - bottom)
     went = float(max(np.linalg.norm(p - sheaves[0]) for p in sheaves))
     _check(tight < paths.TIGHT_TOL, f"the lift wire's free length changed by {tight * 1000:.1f} mm")
     _check(pay > 10.0, f"the winch paid out only {pay:.2f} m")
     _check(hangs[0] == "HORN" and hangs[-1] == "SHEAVE", f"the cable hangs from {hangs[0]} and then {hangs[-1]}")
     _check(max(totals) - min(totals) < 1e-3,
            f"the cable's length changed by {(max(totals) - min(totals)) * 1000:.1f} mm")
-    _check(drift < 1e-3, f"the let-go start moved {drift * 1000:.1f} mm over the seabed")
+    _check(sank and drift < 0.01, f"the let-go start did not settle onto the seabed: {zs[-1] - bottom:.3f} m over it")
     _check(went > 3.0, "the block did not go on after the let-go")
     return (f"the winch paid out {pay:.2f} m with the wire tight to {tight * 1000:.2f} mm; the cable left the horn "
             f"for the sheave, kept its length to {(max(totals) - min(totals)) * 1000:.2f} mm and its let-go start "
-            f"stayed on the seabed to {drift * 1000:.2f} mm while the block went {went:.1f} m on")
+            f"settled {zs[0] - zs[-1]:.2f} m onto the seabed (to {drift * 1000:.1f} mm) while the block went "
+            f"{went:.1f} m on")
 
 
 TRACKS_ANIM = "Tracks"
@@ -3015,10 +3020,12 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
      "once the sheave has gone past the horn the cable hangs from the sheave instead. Near the seabed the cable is "
-     "let go: its end and its turn round the sheave stay on the seabed while the block is lifted away. The grey "
+     "let go: its end and its turn round the sheave stay behind while the block is lifted away, and settle onto the "
+     "seabed in 2 s – the loop lies flat on it. The grey "
      "lift wire from the fairlead over the trolley's head sheave stays tight: its winch pays out as the trolley "
      "travels and the block goes down, and the head sheave turns with it.",
-     where="4 Motion > Cables and paths (Winch keeps it tight, Let go here)", animation=MOVING_ANIM, play=True,
+     where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
+     animation=MOVING_ANIM, play=True,
      since="0.2.95", check=_check_moving_cable, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",

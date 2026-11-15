@@ -221,7 +221,7 @@ def clear(scene) -> None:
         bpy.data.batch_remove(spray)
     root = root_object()
     if root is not None:
-        for k in ("fr_kind", "fr_key", "fr_models", "fr_far", "fr_misfit"):
+        for k in ("fr_kind", "fr_key", "fr_models", "fr_far", "fr_misfit", BOW_KEY):
             if k in root:
                 del root[k]
 
@@ -300,7 +300,7 @@ def _build(scene, s, kind: str, key: str, models: str) -> None:
     root["fr_kind"] = kind
     # task 0125: the sea's build may have read the bow from the hull (the wind and the swell turn with it): the key of
     # what was built, so the next check does not build it again
-    root["fr_key"] = json.dumps(_settings_key(s, kind), sort_keys=True) if scene.get(BOW_KEY) is not None else key
+    root["fr_key"] = json.dumps(_settings_key(s, kind), sort_keys=True) if root.get(BOW_KEY) is not None else key
     root["fr_models"] = models
     root["fr_far"] = far
     _show_in_view(scene, s)
@@ -1706,7 +1706,7 @@ def _end_width(outline: np.ndarray, at_max: bool, reach: float = 3.0) -> float:
     return float(near[:, 1].max() - near[:, 1].min())
 
 
-BOW_KEY = "fr_bow_az"               # on the scene: the bow's azimuth read from the hull when the sea was last built
+BOW_KEY = "fr_bow_az"               # on the surroundings' root: the bow's azimuth read from the hull at the sea's build
 
 
 def bow_az(scene) -> float:
@@ -1717,7 +1717,8 @@ def bow_az(scene) -> float:
     bow = getattr(getattr(s, "weather", None), "bow", "AUTO")
     if bow != "AUTO":
         return weather_core.bow_az(bow)
-    v = scene.get(BOW_KEY)
+    root = root_object()
+    v = root.get(BOW_KEY) if root is not None and root.get("fr_kind") in ("SEA", "DECK") else None
     return float(v) if v in (0.0, 180.0) else weather_core.BOW_AZ
 
 
@@ -1754,8 +1755,9 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
     outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) or _need_bow(s) else None
     if outline is not None:                        # task 0125: the bow read once, for the wind, the wake and the swell
         az = weather_core.bow_az(getattr(s.weather, "bow", "AUTO"), stern_side(s, outline))
-        if scene.get(BOW_KEY) != az:
-            scene[BOW_KEY] = az
+        if root.get(BOW_KEY) != az:
+            root[BOW_KEY] = az
+            root["fr_kind"] = kind                 # (read by bow_az while the rest is built)
     bft, toward = sea_wind(s)
     swell = _vessel().swell_rows(s)
     cut = kind == "SEA" and bool(s.sea_cutaway)          # task 0081: the cut-away behind the stern

@@ -1731,6 +1731,8 @@ def _note(scene, item, res: dict, first) -> list[str]:
         wrap = res["wrap"][rows]
         off = lifted[rows]
         for i in np.flatnonzero(off.any(axis=0)):
+            if 0.0 <= float(wheels[i].wrap_cad) < 1e-6:
+                continue                        # (it does not touch it in CAD either: it comes onto it later, 0125)
             k = int(rows[int(np.argmax(off[:, i]))])
             found.append((f"no longer touches '{wheels[i].name}' {when(k)}", frame(k)))
         for i, c in enumerate(wheels):
@@ -3181,15 +3183,13 @@ def _rel_from(item, slots, mats: dict) -> np.ndarray:
 
 
 def _bake(scene) -> list[str]:
-    from . import paths_rollers, paths_swivel
+    from . import paths_rollers
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
-    _STATE["drawn"] = {}
-    pre = paths_swivel.before_read(scene, first, frames)    # swivels keyed to their wires first (task 0125)
+    _STATE["drawn"] = {}                        # (the swivels were keyed to their wires before: animation.bake)
     notes, its, can, animated, obs = _plan(scene)
-    notes = pre + notes
     mats = {}
     if can:
         before = flex._STATE["steps"]

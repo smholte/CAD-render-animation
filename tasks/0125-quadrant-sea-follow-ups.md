@@ -91,8 +91,9 @@ on), the cable round the gutter 0.38 m under it; tipping wire vs its sheave's pl
 | **Rollers the cable has left stand still**: `after_bake(scene, first, frames, drawn) -> list[str]` (``drawn``: cable name -> (rel, first, solve result) of this Build); a roller whose joint follows the cable's speed and which no drawn cable touches at a frame does not turn at that frame (keys per frame, coupling put aside, restored by `after_clear(scene)`) | new `blender/paths_rollers.py`, `tests/test_paths_rollers.py` | subagent R |
 | Demo: let go with the D on the seabed (heave measured), the settle, swivels on, tests | `blender/demo.py`, `tests/test_demo_*.py` | worker |
 
-Hooks (in `paths.py`, by the worker): `_bake` calls `paths_swivel.before_read` before the places are read and
-`paths_rollers.after_bake` after every cable is drawn; `after_clear` calls both modules' `after_clear`; `_live` calls
+Hooks (by the worker): `animation.bake` calls `paths_swivel.before_read` right after the keys are written, before
+trails, hoses and cables read the motion (moved there from `paths._bake` on the swivel subagent's advice);
+`paths._bake` calls `paths_rollers.after_bake` after every cable is drawn; `after_clear` calls both modules' `after_clear`; `_live` calls
 `paths_swivel.live` first.
 
 ---
