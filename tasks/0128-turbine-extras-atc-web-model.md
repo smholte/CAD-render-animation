@@ -1,6 +1,6 @@
 # 0128 – Turbine extras (scour protection, the pile in the ground, worn leading edges) + the site's ATC model re-made
 
-**Who:** worker · **Status:** open · **Branch:** `task/0128-turbine-extras`
+**Who:** worker · **Status:** running · **Branch:** `task/0128-turbine-extras`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Sonnet · effort Medium (stuck: Opus)
 **Area (Site kit lane + Web 3D lane's site files + Looks lane additively):** `tools/site_projects/iea15*.py`,
 `tools/site_projects/turbine_parts.py`, `site/render_kit/models.ini` + `site/render_kit/projects/iea15_*.json`,
