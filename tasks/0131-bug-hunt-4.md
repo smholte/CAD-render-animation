@@ -1,6 +1,6 @@
 # 0131 – Bug hunt, round 4: everything built since 0118 (findings only, no code changes)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0131-bug-hunt-4` (the report only – **do not push to
+**Who:** worker · **Status:** running · **Branch:** `task/0131-bug-hunt-4` (the report only – **do not push to
 `main`**, see step 5)
 **Started by:** lead chat, 15 Nov 2026 (owner: "all tasks") · **Lane:** none – reads everything, **changes no app code,
 tests or tools**, so it runs next to every lane and starts **no** test run on GitHub
