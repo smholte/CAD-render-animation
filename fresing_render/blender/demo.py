@@ -893,6 +893,15 @@ def make_wires(d: Demo):
         warn = paths.set_keep_tight(sc, it, True)
         if warn:
             raise RuntimeError("; ".join(warn))
+        # task 0125: the sheave head turns to its wire (Swivel on the head sheave), no longer with the handler's tilt
+        # by a ratio (0095)
+        sw = f"QUADRANT SYSTEM: Swivel sheave {key} swivel"
+        joints.set_follows(sc, joints.find(sc, sw), "")
+        it = paths.find(sc, name)
+        head = [c for c in it.contacts if c.kind == "SHEAVE" and c.name == "TIPPING SHEAVE"]
+        if len(head) != 1:
+            raise RuntimeError(f"{name}: its head sheave was not read as one sheave")
+        head[0].swivel = sw
         it = paths.find(sc, name)
         sign = -1.0 if it.reverse else 1.0
         for jn in (f"QUADRANT SYSTEM: Swivel sheave {key} foot sheave turn",
@@ -1311,6 +1320,20 @@ class _Pose:
         _update()
         _update()
 
+    def points(self, values: dict, every: int = 1):
+        """The D's mesh points (model mm, (n, 3)) at these joint values (every ``every``-th point of each part)."""
+        import numpy as np
+        self._at(values)
+        R = np.linalg.inv(np.array(self.d.root().matrix_world))
+        out = []
+        for o in self.parts:
+            me = o.data
+            co = np.empty(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            W = R @ np.array(o.matrix_world)
+            out.append(co.reshape(-1, 3)[::every] @ W[:3, :3].T + W[:3, 3])
+        return np.concatenate(out) * 1000.0 if out else np.zeros((0, 3))
+
     def lows(self, values: dict) -> tuple[float, float]:
         """(lowest point of the D, lowest point of the cable round its gutter), model mm (z), at these values (m, rad)."""
         import numpy as np
@@ -1460,6 +1483,72 @@ def shot_lower(d: Demo):
     d.t = t + secs + 1.0
 
 
+LET_GO_AFTER = 2.0                    # s after the D is set down: the second end is let go, the hoist begins
+SET_DOWN_CLEAR = 0.02                 # m: the D's lowest point over the seabed at the deepest heave
+
+
+def _vessel_at(d: Demo, frames) -> "list":
+    """(F, 4, 4) world: the vessel's motion at these frames (``core.vessel_motion`` as the rig's drivers give it:
+    T(pivot + heave) · R(pitch) · R(roll) · T(-pivot)); identities without vessel motion."""
+    import numpy as np
+
+    from . import vessel_motion as vm
+    sc = d.scene
+    out = np.tile(np.eye(4), (len(frames), 1, 1))
+    mo = vm.motion(sc) if vm.effective(sc) else None
+    p = vm.pivot(sc)
+    if mo is None or p is None:
+        return out
+    t = np.asarray(frames, float) * sc.render.fps_base / sc.render.fps
+    heave, roll, pitch = mo.heave.value(t), mo.roll.value(t), mo.pitch.value(t)
+    P = np.array(p, float)
+    for k in range(len(t)):
+        cr, sr, cp, sp = math.cos(roll[k]), math.sin(roll[k]), math.cos(pitch[k]), math.sin(pitch[k])
+        Rx = np.array([[1, 0, 0], [0, cr, -sr], [0, sr, cr]])
+        Ry = np.array([[cp, 0, sp], [0, 1, 0], [-sp, 0, cp]])
+        R = Ry @ Rx
+        out[k, :3, :3] = R
+        out[k, :3, 3] = P + np.array([0.0, 0.0, heave[k]]) - R @ P
+    return out
+
+
+def set_down_depth(d: Demo, t0: float, t1: float, guess: float) -> float:
+    """How far the A&R winch lowers the D (m of 'Quadrant lower', tipped flat) so that from ``t0`` to ``t1`` of the
+    animation its lowest point, heaving with the vessel, comes down to ``SET_DOWN_CLEAR`` over the seabed at the
+    deepest moment and never lower (measured on its mesh points)."""
+    import numpy as np
+
+    from . import animation, paths_sea
+    q = d.sheet("route")["quadrant"]
+    frames = np.arange(animation.frame_of(d.animation, t0), animation.frame_of(d.animation, t1) + 1)
+    V = _vessel_at(d, frames)
+    R0 = np.array(d.root().matrix_basis)
+    bed = paths_sea.waterline(d.scene) - SEA_DEPTH
+    base = {TRAVEL: q["travel"][1] / 1000.0, TILT: math.radians(q["lower_tilt"]), TIP: math.radians(-q["lower_tilt"])}
+    pose = _Pose(d)
+
+    def low(lv: float) -> float:
+        pts = pose.points(dict(base, **{LOWER: lv}), every=2) / 1000.0
+        w = pts @ R0[:3, :3].T + R0[:3, 3]
+        z = np.einsum("fj,nj->fn", V[:, 2, :3], w) + V[:, 2, 3][:, None]
+        return float(z.min())
+
+    try:
+        lv = float(guess)
+        for _ in range(4):                     # (the lowering is a straight slide: one or two steps hit it)
+            z0, z1 = low(lv), low(lv + 0.5)
+            slope = (z1 - z0) / 0.5
+            if abs(slope) < 1e-6:
+                break
+            step = (bed + SET_DOWN_CLEAR - z0) / slope
+            lv += step
+            if abs(step) < 1e-4:
+                break
+    finally:
+        pose.put_back()
+    return lv
+
+
 @stage("shot_tip", "Shot 11: near the seabed the D tips, the cable lies on the seabed and is let go", after="shot_lower")
 def shot_tip(d: Demo):
     """The owner's steps 11–13: near the seabed the A&R winch holds and the tipping winches pay out more – the D tips
@@ -1475,19 +1564,25 @@ def shot_tip(d: Demo):
             label=f"Near the seabed the A&R winch holds, the tipping winches pay out: the D tips towards flat "
                   f"(x {round(TIP_MINUTES * 60.0 / secs)})")
     t += secs
-    d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed: the cable round the gutter lies on it")
+    # task 0125: lowered until the D, heaving with the vessel, just touches the seabed at its deepest (measured on its
+    # mesh at every frame it stands there) – no longer to where the cable round the gutter would lie on the seabed
+    l2 = set_down_depth(d, t, t + 3.0 + LET_GO_AFTER + 0.5, l2)
+    d.quadrant["lower_2"] = round(l2, 3)
+    d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
     _pulley(d, t, 3.0, l2)
     t += 3.0
     sc = d.scene
-    frame = animation.frame_of(d.animation, t)
+    # let go as the A&R winch begins to hoist: the cable end, its turn round the gutter and its CPS stay and settle onto
+    # the seabed (Settles in, task 0125) while the D comes up away from them
+    frame = animation.frame_of(d.animation, t + LET_GO_AFTER)
     it = paths.find(sc, SECOND_ITEM)
     gutter = [i for i, c in enumerate(it.contacts)
               if c.kind in ("CHUTE", "SHEAVE", "BEND") and c.part is not None and "QUADRANT" in c.name]
     for which in ["a"] + [str(i) for i in gutter]:
         paths.let_go(sc, paths.find(sc, SECOND_ITEM), which, frame)
-    d.camera_step("ORBIT", t, 2.0, "Let go: the cable end and its CPS stay on the seabed",
-                  orbit_angle=math.radians(6.0), easing="SMOOTH")
-    d.t = t + 2.0
+    d.camera_step("ORBIT", t, LET_GO_AFTER, "Let go: the cable end, its turn round the gutter and its CPS settle "
+                  "onto the seabed", orbit_angle=math.radians(6.0), easing="SMOOTH")
+    d.t = t + LET_GO_AFTER
 
 
 @stage("shot_back", "Shot 12: the D comes back up, over the stern and onto its rails", after="shot_tip")

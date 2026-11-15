@@ -58,6 +58,9 @@ def moving(folder):
     sc = load(folder)
     made = paths.set_up_moving_model(sc)
     assert made["cable"] == paths.MOVING_CABLE and made["wire"] == paths.MOVING_WIRE
+    # these tests are about what is let go staying where it was (0082); its settling onto the seabed (task 0125) is
+    # tested in tests/test_paths_settle.py
+    paths.find(sc, paths.MOVING_CABLE).sea_settle = 0.0
     return sc
 
 
