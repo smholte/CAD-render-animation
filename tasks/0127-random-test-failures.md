@@ -1,6 +1,6 @@
 # 0127 – Tests that fail at random: find the cause, fix it
 
-**Who:** worker · **Status:** open · **Branch:** `task/0127-random-test-failures`
+**Who:** worker (web) · **Status:** running · **Branch:** `ccr-bbe8fc8f-l3cyzo`
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort Medium
 **Area (Quality & delivery lane + the app file the cause is in):** `tests/`, `tools/ci_*.py`, and – only if the fault is
 in the app – the one place it sits (likely `blender/joints.py` table couplings, `blender/rotary.py` /
