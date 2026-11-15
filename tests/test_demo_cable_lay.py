@@ -50,7 +50,8 @@ def test_oval_route_respects_mbr_and_is_smooth(d):
     assert r.segments[0].start[0] > pos["tower_x"] and r.end[2] < 0 and r.end[0] < 0
     # the other routes too: the quay's loading route, the CPS slide, the cable's end at the core
     others = [rt.quay_route(p, pos, __import__("fresing_render.demo_model.layout", fromlist=["x"]).quay_positions(p, pos)),
-              rt.cps_slide_route(p, pos), rt.core_end_route(p, pos["coil_in"], p.turntable_t + p.cable_r)]
+              rt.cps_slide_route(p, pos, __import__("fresing_render.demo_model.deck", fromlist=["x"]).cps_lift(p)),
+              rt.core_end_route(p, pos["coil_in"], p.turntable_t + p.cable_r)]
     for o in others:
         _smooth(o)
         assert o.min_radius() >= p.mbr, o.name
@@ -594,8 +595,8 @@ def _in_the_ds_way(S, open_tensioners: bool = True, drop_cradles: bool = True) -
     quad = S.quadrant_info["quadrant"]
     cps2 = S.handles["second_end_cps"][-1]
     # the cables and wires move with the D or are kept out until it moves (task 0082: the A&R and tipping wires, the
-    # second end and its CPS ride on it)
-    flex = {"CABLE", "CABLE END", "A&R WIRE", "TIPPING WIRE"}
+    # second end and its CPS ride on it; task 0126: the CPS run's line is a hidden path, round the D at rest)
+    flex = {"CABLE", "CABLE END", "A&R WIRE", "TIPPING WIRE", "CPS RUN LINE"}
     cache, out = {}, []
     for node, uid, W, _label, path in g.walk(S.root):
         if not isinstance(node, g.Part) or node.name in flex or any(c is quad or c is cps2 for c in path):
