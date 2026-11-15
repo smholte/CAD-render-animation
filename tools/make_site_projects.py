@@ -162,7 +162,8 @@ def build_project(model: str, out: str, quality: str = "draft", check: bool = Tr
 # the kit and its draft release
 # ---------------------------------------------------------------------------
 
-KIT_FILES = ("Make site pictures.bat", "make_site_pictures.py", "projects.py", "models.ini", "README.txt")
+KIT_FILES = ("Make site pictures.bat", "make_site_pictures.py", "projects.py", "models.ini", "README.txt",
+             "kit_run.py", "kit_window.ps1", "fresing_logo.png")       # task 0144: the start window
 
 
 def make_kit(path: str, cache: str = "", work: str = "") -> str:

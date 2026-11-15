@@ -59,6 +59,31 @@ be continued if it stops.
 
 The renders themselves; the take-in session (tasks/0112's report); the app's own render queue.
 
+## Design (worker, 15 Nov)
+
+- **Window: PowerShell 5.1 WinForms** (`site/render_kit/kit_window.ps1`, started by the .bat with `powershell.exe -STA
+  -ExecutionPolicy Bypass`; nothing to install, Windows 11 has it). Blender's own Python has no tkinter. Three modes:
+  `-Mode start` (the start window), `-Mode status` (the small status window with Pause/Resume/Stop) and `-Mode end`
+  (a 60-second countdown with Cancel before sleep / shut down). ASCII only in the file (5.1 reads it as ANSI), CRLF.
+  Logo: `fresing_logo.png` (the reversed full logo turned into a PNG, WinForms cannot draw SVG).
+- **Pure Python, no Blender: `site/render_kit/kit_run.py`** – the choices (`DEFAULT_STANDARD`, `standard_path()` =
+  `%LOCALAPPDATA%\Fresing Render\site_kit.json`, outside the kit; `load_choices`), quiet hours (`limits_at`), the
+  expected wall time (`wall_seconds`: GPU seconds stretch by 100/p in 5-minute steps, the quiet window counted; the
+  window has the same loop in PowerShell, a pytest compares them where `pwsh` exists), the `Pacer` (duty cycle: after a
+  frame of t s wait t·(100/p − 1); temperature guard: wait while ≥ max until max − 3 °C, `nvidia-smi` read at most every
+  10 s; pause / stop from `output/control.txt`; `status.json` for the status window), the `RunState`
+  (`output/run_state.json`: the run's models and choices, the finished pictures/clips per model; `resume_info`).
+- **make_site_pictures.py**: `--estimate-json=<file>` (models with their GPU/CPU seconds, the standard, the run to
+  continue) for the window; `--choices=<file>` (the window's answer) and `--resume`; the stills call the pacer around
+  each still, the clips through the queue's `should_stop` (called before every frame: the pacer measures the frame
+  that just ended); a resumed clip keeps its frames (the queue's own resume, same fingerprint). Stop keeps what is done:
+  JSON, contact sheet and zip of the finished pictures, exit code 4.
+- **.bat**: estimate → start window (cancel ends; a window that cannot start falls back to the old Enter/time prompt)
+  → status window started next to the console → Blender → open the output → end mode (sleep / shut down unless
+  stopped). Power limit (`nvidia-smi -pl`) left out: it needs admin rights.
+- **Checks**: the window's parse on GitHub's Windows job (`tools/ci_windows_install.ps1`, PowerShell 5.1 parser) and
+  in pytest with `pwsh` on Linux runners.
+
 ---
 
 ## Report (filled in by the chat that did the task)
