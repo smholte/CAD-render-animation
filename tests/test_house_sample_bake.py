@@ -11,7 +11,7 @@ import zipfile
 from fresing_render.core import house_scene as hs
 
 HERE = os.path.dirname(__file__)
-PIN = os.path.join(HERE, "data", "house", "hsf-v1.0")
+PIN = os.path.join(HERE, "data", "house", "hsf-v1.0.1")
 BAKE = os.path.join(HERE, "data", "house", "sample-house.fresing.hpbake")
 SCENE = os.path.join(PIN, "samples", "sample-house.hpscene")
 

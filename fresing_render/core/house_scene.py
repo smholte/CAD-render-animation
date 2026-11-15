@@ -1,7 +1,7 @@
 """House Planner scenes in, bake packages out (task 0114). No Blender.
 
-The format is the public repository github.com/smholte/house-scene-format, **tag v1.0** (its ``FORMAT.md`` is the
-contract; a copy of its checker, schemas and samples is in ``tests/data/house/hsf-v1.0``). "FORMAT 7.5" below means
+The format is the public repository github.com/smholte/house-scene-format, **tag v1.0.1** (its ``FORMAT.md`` is the
+contract; a copy of its checker, schemas and samples is in ``tests/data/house/hsf-v1.0.1``). "FORMAT 7.5" below means
 section 7.5 of that text. This module never imports the checker (``hsf``): the app ships without it.
 
 - **Reading** a ``.hpscene`` (:func:`read_scene`): the zip rules (FORMAT 2), the version (another major is refused,
@@ -885,6 +885,15 @@ def _wrap(a: float) -> float:
     """An angle in degrees into (-180, 180]."""
     a = (a + 180.0) % 360.0 - 180.0
     return 180.0 if a == -180.0 else a
+
+
+def sun_light_rule(light: str, night: bool, clouds: float, sun_separate: bool) -> str:
+    """What a moment's ``sun_light`` is (FORMAT 8.3, 1.0.1): ``"null"`` with ALL and LIVE, at night and where there is no
+    separate sun (360° photo, studio); ``"zero"`` ([0, 0, 0], not null) by day under a full overcast with SOFT;
+    else ``"measure"`` (the sun's light at normal incidence)."""
+    if str(light).upper() != "SOFT" or night or not sun_separate:
+        return "null"
+    return "zero" if float(clouds) >= 0.999 else "measure"
 
 
 def sun_rotation_deg(scene_az: float, zero_az: float = 90.0) -> float:
