@@ -63,7 +63,7 @@ from fresing_render.core import web3d  # noqa: E402
 from fresing_render.core import web3d_env  # noqa: E402
 
 PAGE_SUFFIX = ".page.html"                  # an export's own page in site/media (built into model/<id>/index.html)
-VENDOR_PAGE = (web3d_env.THREE_FILE, web3d_env.MATH_FILE, web3d_env.PAGE_FILE)   # the three.js page's scripts
+VENDOR_PAGE = web3d_env.SCRIPTS            # the player's scripts (three.js, ours; task 0134: + fr_player.js)
 
 
 def asset_name(version: str) -> str:
@@ -296,13 +296,16 @@ SITE_UI = """<div id="fr-site"><button id="fr-play" type="button" aria-pressed="
 """
 
 
-def _with_site_ui(page: str, title: str, note: str, animated: bool) -> str:
-    """A model page with the site's parts: its title, the note line, the Pause/Play button (task 0111)."""
+def _with_site_ui(page: str, title: str, note: str, animated: bool, player: bool = False) -> str:
+    """A model page with the site's parts: its title, the note line, the Pause/Play button (task 0111). ``player``:
+    the export's own player page (task 0134) has its own play button, time line and Space key – no site button."""
     t = _esc(title)
     page = re.sub(r"<title>.*?</title>", f"<title>{t} – Fresing Render</title>", page, count=1, flags=re.S)
     page = re.sub(r"<h1>.*?</h1>", f"<h1>{t}</h1>", page, count=1, flags=re.S)
     page = re.sub(r'<div class="note">.*?</div>', lambda _m: f'<div class="note">{note}</div>', page, count=1,
                   flags=re.S)
+    if player:
+        return page
     ui = SITE_UI.format(animated="true" if animated else "false")
     i = page.rindex("</body>")
     return page[:i] + ui + page[i:]
@@ -313,7 +316,7 @@ def model_page(media: dict, w: dict) -> str:
     title = _title(media, w)
     animated = bool(w.get("seconds"))
     if own_page(w):
-        page = open(os.path.join(MEDIA, w["file"]), encoding="utf-8").read()
+        page = fresh_page(os.path.join(MEDIA, w["file"]), title)
         for name in VENDOR_PAGE:             # the scripts from vendor/ (cached between the models), not inline
             inline = web3d_env._inline(web3d_env._read(name))
             if inline in page:
@@ -323,7 +326,7 @@ def model_page(media: dict, w: dict) -> str:
         note = _note(media, w, "model-viewer by Google (Apache-2.0)")
         page = web3d.viewer_html(title, src="../../media/" + w["file"], script_src="../../vendor/" + web3d.MV_FILE,
                                  note=note, animated=animated)
-    return _with_site_ui(page, title, note, animated)
+    return _with_site_ui(page, title, note, animated, player=own_page(w))
 
 
 def redirect_page(first: str) -> str:
@@ -344,13 +347,27 @@ def redirect_page(first: str) -> str:
 """
 
 
+def fresh_page(path: str, title: str) -> str:
+    """An export's own page written again with today's player (task 0134): its settings, model and pictures, the
+    scripts of this version – so a page exported by an older app gets the newer player on the site too."""
+    import base64
+    page = open(path, encoding="utf-8").read()
+    st = web3d_env.page_settings(page)
+    animated = bool(st.pop("animated", False))
+    pictures = {}
+    for m in re.finditer(r'<script type="application/octet-stream" id="fr-pic-([^"]+)" data-type="([^"]*)"[^>]*>'
+                         r'([^<]*)</script>', page):
+        pictures[html.unescape(m.group(1))] = (html.unescape(m.group(2)), base64.b64decode(m.group(3).strip()))
+    return web3d_env.page_html(title, glb_of(path), st, pictures, animated=animated)
+
+
 def glb_of(path: str) -> bytes:
     """The model file of a web model: the .glb itself, or the one inside an export's own page."""
     if not path.endswith(".html"):
         return open(path, "rb").read()
     import base64
     page = open(path, encoding="utf-8").read()
-    m = re.search(r'id="fr-glb">([^<]*)</script>', page)
+    m = re.search(r'id="fr-glb"[^>]*>([^<]*)</script>', page)
     if not m:
         raise ValueError(f"{os.path.basename(path)} holds no 3D model")
     return base64.b64decode(m.group(1).strip())
@@ -619,8 +636,9 @@ def _check_one(out: str, media: dict, w: dict) -> list[str]:
             target = os.path.join(target, "index.html")
         if not os.path.exists(target):
             problems.append(f"model page {wid}: missing file {ref}")
-    if 'id="fr-play"' not in page or 'href="../../"' not in page:
-        problems.append(f"model page {wid}: no Pause button or no link back")
+    playable = f'src="../../vendor/{web3d_env.PLAYER_FILE}"' in page if own_page(w) else 'id="fr-play"' in page
+    if not playable or 'href="../../"' not in page:
+        problems.append(f"model page {wid}: no Pause button (or player) or no link back")
     m = media.get("models", {}).get(w.get("model", ""), {})
     if m.get("credit") and _esc(m["credit"]) not in page:
         problems.append(f"model page {wid}: the model is not credited")

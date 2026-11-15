@@ -26,6 +26,7 @@ import tempfile
 import time
 
 import bpy
+import mathutils
 import numpy as np
 
 from ..core import web3d as core
@@ -759,7 +760,7 @@ class Job:
             if animation.has_keys(scene):      # task 0111: tool copies and parts the animation shows later
                 parts = parts + appearing(scene, parts)
         self._modes = {}
-        if self.surroundings is None and self.light != "LIVE":    # task 0107: the plain page, the project's light
+        if self.surroundings is None:          # 0107 / 0134: the plain page, the project's light
             from . import surroundings
             self._floor = surroundings.floor_height(scene)
             mn, mx = build.world_bounds(parts)
@@ -1187,25 +1188,29 @@ class Job:
         page = os.path.splitext(self.path)[0] + ".html"
         extra = 0
         if self.page:
+            # task 0134: every page is the three.js player (0106/0107's page); Surroundings None gives its plain form
+            from ..core import web3d_env as env
+            from . import web3d_env
             title = os.path.splitext(os.path.basename(self.path))[0]
-            text = core.viewer_html(title, glb=data, animated=bool(self.result.get("animated")),
-                                    note="Made with Fresing Render")
-            if self.surroundings is not None or self._lit is not None:  # 0106: three.js page; 0107: baked light
-                from ..core import web3d_env as env
-                from . import web3d_env
-                plain = len(text.encode("utf-8"))
-                ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
-                st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
-                if self._lit is not None:
-                    st["light"] = env.light_block({"light": self.light, "scale": float(self._light_info["scale"]),
-                                                   "curve": 2.0, "sun": float(self._lit.sun_ratio)})
-                    if self.surroundings is None:
-                        st["plain"] = True
-                text = env.page_html(title, data, st, pictures, note="Made with Fresing Render",
-                                     animated=bool(self.result.get("animated")))
-                extra = len(text.encode("utf-8")) - plain
+            animated = bool(self.result.get("animated"))
+            ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
+            st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
+            if self._lit is not None:
+                st["light"] = env.light_block({"light": self.light, "scale": float(self._light_info["scale"]),
+                                               "curve": 2.0, "sun": float(self._lit.sun_ratio)})
+            if self.surroundings is None:
+                st["plain"] = True
+            st["views"] = views(self.scene, self.hide_names)
+            text = env.page_html(title, data, st, pictures, note="Made with Fresing Render", animated=animated)
+            if self.surroundings is not None:
+                # what the surroundings add: the same page in its plain form, without pictures
+                bare = env.settings(dict(env.default_choice(), shadows=bool(st.get("shadows"))), *self._bounds,
+                                    sky=dict(st["sky"], kind="SKY"), plain=True)
+                extra = len(text.encode("utf-8")) - len(env.page_html(title, data, bare, {}, note="Made with Fresing Render",
+                                                                      animated=animated).encode("utf-8"))
                 self.result.update(env_items=env.items_text(st), env_bytes=extra,
                                    env_pictures=sum(len(b) for _m, b in pictures.values()))
+            self.result["views"] = len(st["views"])
             with open(page + ".part", "w", encoding="utf-8") as fh:
                 fh.write(text)
             os.replace(page + ".part", page)
@@ -1232,6 +1237,35 @@ class Job:
         for _ in self.steps():
             pass
         return self.finish()
+
+
+def views(scene, hide_names: bool = True) -> list[dict]:
+    """The project's saved cameras for the page (task 0134): {name, eye, target, vfov, hfov} in Blender's world
+    (metres, degrees of the render's frame). The names are the owner's own texts; with Hide part names on they are
+    "View 1", "View 2" … The target lies along the camera's view at its sharp distance (the model's middle)."""
+    from . import cameras
+    out = []
+    r = scene.render
+    aspect = (r.resolution_x * r.pixel_aspect_x) / max(1.0, r.resolution_y * r.pixel_aspect_y)
+    for k, ob in enumerate(sorted(cameras.fr_cameras(scene), key=lambda o: o.name)):
+        cam = ob.data
+        mw = ob.matrix_world
+        eye = mw.translation
+        fwd = (mw.to_3x3() @ mathutils.Vector((0.0, 0.0, -1.0))).normalized()
+        try:
+            dist = cameras.focus_distance(ob, scene)
+        except Exception:  # noqa: BLE001 - a camera without a model in front: a few metres on
+            dist = 5.0
+        target = eye + fwd * max(dist, 0.01)
+        fov = 2 * math.atan(cam.sensor_width / 2 / max(cam.lens, 1e-3))   # across the wider side (sensor fit Auto)
+        if cam.sensor_fit == "VERTICAL" or (cam.sensor_fit == "AUTO" and aspect < 1):
+            vfov, hfov = fov, 2 * math.atan(math.tan(fov / 2) * aspect)
+        else:
+            hfov, vfov = fov, 2 * math.atan(math.tan(fov / 2) / max(aspect, 1e-3))
+        name = f"View {k + 1}" if hide_names else ob.name
+        out.append({"name": name, "eye": [float(v) for v in eye], "target": [float(v) for v in target],
+                    "vfov": round(math.degrees(vfov), 3), "hfov": round(math.degrees(hfov), 3)})
+    return out
 
 
 def light_targets(scene) -> list:

@@ -2473,12 +2473,44 @@ the machine himself, or for your website.
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
 
+<a id="web3d-player"></a>
+#### On the page: what the visitor can do
+
+The page is a small player (the fold **On the page** in the panel lists it too). The visitor sees the machine, the
+title and these controls:
+
+- **Gear** (or **M**): the settings. Switch the surroundings items the page holds on and off (sea, vessel motion,
+  sky, haze, rain and spray, sun shadows); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
+  how many pictures a second the page draws right now; the **graphics card** the browser uses; **Auto-turn** (the
+  machine turns slowly after 8 s without a touch and stops at the first one); **Sun / time of day** – a slider that
+  moves the live sun from morning to evening (greyed with baked light: "Light is baked into this model"). The page
+  **remembers** these choices for the next visit on that PC; **Reset** goes back to the page's own.
+- **Playback** (a page with an animation): **Space** plays and pauses, the time line can be dragged to any moment
+  (also on a phone), speed **½×, 1×, 2×**, the arrow keys jump two seconds.
+- **Saved views**: one button per camera of the project (keys **1 … 9**); the view flies there. The buttons carry
+  the cameras' names – with **Hide part names** on they are View 1, View 2 …
+- **Fullscreen** (F), **Reset view** (R), **Screenshot** (S: a PNG of the view, without the buttons), **Copy link to
+  this view** (L: the address then opens the same view, moment and settings), **Keyboard help** (?).
+- **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in
+  the bottom right corner (or H again) brings them back.
+- A **loading bar** shows how many MB of the model have come in.
+
+**Light on the computer:** the page draws a picture only when something changes – the view moves, the animation,
+sea, vessel or rain plays, a setting changes – at most 60 a second, and nothing while its tab is hidden. A machine
+that stands still costs the graphics card nothing. Auto quality lowers the quality when the page cannot keep up and
+raises it again when there is room.
+
+**"This browser is drawing the 3D model without the graphics card":** a red bar at the top says so when the browser
+draws in software (Chrome or Edge after a graphics-card driver reset do this until they are closed completely). The
+fix is in the bar: type `chrome://restart` (Edge: `edge://restart`) in the address bar; still slow: Settings →
+System → "Use graphics acceleration when available" on, then restart. Meanwhile the page uses its lightest settings.
+
 <a id="web3d-surroundings"></a>
 #### Surroundings on the page
 
 The fold **Surroundings on the page** (under Include animation) puts the machine's surroundings on the page: the
-moving sea, the vessel rolling on it, the sky and the sun, haze and rain. **None** (the default) keeps the page as
-before: the machine alone on a light background. **As in the project** switches the ticks on as the project has
+moving sea, the vessel rolling on it, the sky and the sun, haze and rain. **None** (the default) shows the
+machine alone on a light background. **As in the project** switches the ticks on as the project has
 them now; change them for this export only – the project itself does not change. **Take from the project** sets
 them back.
 
@@ -2498,9 +2530,10 @@ them back.
 - **Live sun shadows** – the sun casts sharp shadows on the machine, the deck and the sea; they move with the parts
   and with the rolling vessel.
 - **Page quality** – **Phone**, **Balanced** or **Best**: how fine the waves, ripples, rain and shadows are, the
-  size of the sky picture and the screen resolution. **Auto quality** (on by default): the page lowers its quality
-  by itself when it cannot draw about 30 pictures a second and says so in a small note in its bottom right corner,
-  so one page works on a phone and on a PC.
+  size of the sky picture and the screen resolution (and the most pixels it draws: about 1.2, 3.7 and 8.3 million).
+  **Auto quality** (on by default): the page lowers its quality by itself when it cannot draw about 30 pictures a
+  second, and raises it again when there is room, and says so in a small note in its bottom right corner, so one
+  page works on a phone and on a PC. The visitor can pick another in the page's settings.
 
 The line under Export adds what the surroundings cost in the file ("surroundings +0.3 MB"; without a 360° photo
 the page is often a little *smaller* than without surroundings, because the page's 3D code is smaller).
@@ -2550,8 +2583,8 @@ baked choices. The sea is not baked (it moves); the vessel deck is. With a 360°
 separate sun: both baked choices bake all of its light. Hoses and cables (drawn by the app) are not baked; they still
 cast shadows. Parts that move in an animation are baked in the pose of the export frame.
 
-With a baked choice the page is always the newer page of Surroundings on the page – with Surroundings **None** in
-its plain form: the light background as before, no sea or weather. Other 3D programs that open the `.glb` show the
+Every page is the same player – with Surroundings **None** in its plain form: the light background, no sea or
+weather. Other 3D programs that open the `.glb` show the
 soft light as shadowing in corners (glTF's occlusion map) on the larger parts; small parts with many copies carry
 their light per corner point, which only the page reads.
 

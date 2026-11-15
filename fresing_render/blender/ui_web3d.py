@@ -47,6 +47,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub.prop(w, "animation", text="Include animation")
         self.draw_surroundings(context, layout, w)
         self.draw_light(context, layout, w)
+        self.draw_player(context, layout)
 
         layout.separator()
         if rt.get("running"):
@@ -68,6 +69,26 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
                               "the cutaway" + (", the halls and the quay." if w.env_mode == "PROJECT" else
                                                ", the surroundings (see Surroundings on the page)."), icon="INFO")
+
+    PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
+        ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
+        ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
+        ("CAMERA_DATA", "Saved views: one button per camera of the project (names hidden with part names)"),
+        ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
+        ("HIDE_ON", "Clean look (H): every control hidden, a faint button brings them back"),
+        ("ERROR", "Says so when the browser draws without the graphics card, and how to fix it"),
+    )
+
+    def draw_player(self, context, layout):
+        """The fold "On the page" (task 0134): what the exported page lets the visitor do."""
+        head, body = layout.panel("fr_web3d_player", default_closed=True)
+        head.label(text="On the page")
+        if body is None:
+            return
+        for icon, text in self.PLAYER:
+            wrap(body, context, text, icon=icon)
+        wrap(body, context, "The page draws only when something moves, at most 60 pictures a second, and remembers "
+                            "the visitor's choices.", inset=12)
 
     def draw_light(self, context, layout, w):
         """The fold "Baked light" (task 0107): folded, its choice in the header."""

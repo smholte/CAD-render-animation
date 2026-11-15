@@ -34,17 +34,25 @@ THREE_VERSION = "0.180.0"
 THREE_FILE = "three-viewer.min.js"
 MATH_FILE = "fr_math.js"
 PAGE_FILE = "fr_page.js"
+PLAYER_FILE = "fr_player.js"         # task 0134: the player's controls (menu, playback, views, view tools)
+SCRIPTS = (THREE_FILE, MATH_FILE, PAGE_FILE, PLAYER_FILE)   # in the page's order
 G = 9.81
 SEA_RADIUS = 20000.0                 # m: the app's sea reaches this far (core/surroundings.SEA_RADIUS)
 SEA_RIM = 400.0                      # m: ... and its edge rises this much (no gap under the horizon)
 
 # Page quality: what the page does at each level. ``sky`` (px, width of the background picture) and ``light`` (px,
-# width of the light picture) are written into the file; the rest the page sets itself, and Auto may step down.
+# width of the light picture) are written into the file; the rest the page sets itself, and Auto may step down (and,
+# since task 0134, up again). ``pixels``: the most pixels the page draws (task 0134: capped by count, not only by
+# ratio – 2560 x 1440 is 3.7 million; at scale 1.5 and ratio 1.5 Balanced asked for 8.3 million).
 QUALITY = {
-    "PHONE": dict(seg=96, ripple=256, rain=1500, shadow=1024, pixel_ratio=1.0, sky=1024, light=128, spray=300),
-    "BALANCED": dict(seg=192, ripple=512, rain=4000, shadow=2048, pixel_ratio=1.5, sky=2048, light=256, spray=600),
-    "BEST": dict(seg=320, ripple=1024, rain=9000, shadow=4096, pixel_ratio=2.0, sky=4096, light=256, spray=1200),
+    "PHONE": dict(seg=96, ripple=256, rain=1500, shadow=1024, pixel_ratio=1.0, sky=1024, light=128, spray=300,
+                  pixels=1_200_000),
+    "BALANCED": dict(seg=192, ripple=512, rain=4000, shadow=2048, pixel_ratio=1.5, sky=2048, light=256, spray=600,
+                     pixels=3_700_000),
+    "BEST": dict(seg=320, ripple=1024, rain=9000, shadow=4096, pixel_ratio=2.0, sky=4096, light=256, spray=1200,
+                 pixels=8_300_000),
 }
+MAX_FPS = 60                         # task 0134: the page never draws more pictures a second (30 without a graphics card)
 LEVELS = ("PHONE", "BALANCED", "BEST")
 CLOUDS = ("NONE", "SOME", "OVERCAST")
 SKY_JPG_QUALITY = 84
@@ -409,21 +417,48 @@ _PAGE = """<!doctype html>
              background: rgba(20,28,34,.45); padding: 4px 8px; border-radius: 4px; }}
   #fail, #loading {{ display: none; position: absolute; inset: 0; align-items: center; justify-content: center;
                     padding: 24px; text-align: center; }}
-  #loading {{ display: flex; pointer-events: none; }}
+  #loading {{ display: flex; flex-direction: column; gap: 10px; pointer-events: none; font-size: 14px; }}
+  #loadbar {{ width: min(320px, 70vw); height: 6px; border-radius: 3px; background: rgba(127,127,127,.35);
+             overflow: hidden; }}
+  #loadbar span {{ display: block; height: 100%; width: 0; background: #F2A900; transition: width .15s; }}
+  html.fr-light header, html.fr-light .note {{ text-shadow: none; }}
 </style>
+<script>
+// task 0134: the loading bar – MB of the model (and pictures) the browser has read so far, of the whole
+(function () {{
+  var timer = setInterval(function () {{
+    var els = document.querySelectorAll('script[data-bytes]'), got = 0, all = 0;
+    for (var i = 0; i < els.length; i++) {{
+      var n = +els[i].getAttribute('data-bytes') || 0, c = 0, ch = els[i].childNodes;
+      for (var j = 0; j < ch.length; j++) c += ch[j].length || 0;
+      all += n; got += Math.min(n, Math.floor(c * 3 / 4));
+    }}
+    var text = document.getElementById('loadtext'), bar = document.getElementById('loadbar');
+    if (!text || !all) return;
+    var parsed = document.readyState !== 'loading';
+    if (parsed) got = all;
+    window.frLoad = {{ got: got, all: all }};
+    text.textContent = parsed ? 'Preparing the 3D model \u2026' : 'Loading the 3D model \u2026 ' +
+      (got / 1e6).toFixed(1) + ' of ' + (all / 1e6).toFixed(1) + ' MB';
+    bar.firstChild.style.width = (100 * got / all).toFixed(1) + '%';
+    if (parsed) clearInterval(timer);
+  }}, 100);
+}})();
+</script>
 </head>
 <body>
 <canvas id="view"></canvas>
 <header><h1>{title}</h1><span class="hint">Drag to turn · scroll or pinch to zoom · right-drag to move</span></header>
 <div class="note">{note}</div>
 <div id="quality"></div>
-<div id="loading">Loading …</div>
+<div id="loading"><span id="loadtext">Loading the 3D model …</span><div id="loadbar"><span></span></div></div>
 <div id="fail">This page needs a browser with WebGL (Edge, Chrome, Firefox or Safari of the last few years).</div>
 <script type="application/json" id="fr-env">{settings}</script>
 {data}
 {three}
 {math}
 {page}
+{player}
 </body>
 </html>
 """
@@ -436,14 +471,16 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
     title_h = html.escape(title or "3D model", quote=True)
     st = dict(st)
     st["animated"] = bool(animated)
-    data = ['<script type="application/octet-stream" id="fr-glb">' + base64.b64encode(glb).decode("ascii") + "</script>"]
+    data = [f'<script type="application/octet-stream" id="fr-glb" data-bytes="{len(glb)}">'
+            + base64.b64encode(glb).decode("ascii") + "</script>"]
     for pid, (mime, raw) in (pictures or {}).items():
         data.append(f'<script type="application/octet-stream" id="fr-pic-{html.escape(pid, quote=True)}" '
-                    f'data-type="{html.escape(mime, quote=True)}">' + base64.b64encode(raw).decode("ascii")
-                    + "</script>")
+                    f'data-type="{html.escape(mime, quote=True)}" data-bytes="{len(raw)}">'
+                    + base64.b64encode(raw).decode("ascii") + "</script>")
     text = json.dumps(st, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     return _PAGE.format(title=title_h, note=note, settings=text, data="\n".join(data),
-                        three=_inline(_read(THREE_FILE)), math=_inline(_read(MATH_FILE)), page=_inline(_read(PAGE_FILE)))
+                        three=_inline(_read(THREE_FILE)), math=_inline(_read(MATH_FILE)), page=_inline(_read(PAGE_FILE)),
+                        player=_inline(_read(PLAYER_FILE)))
 
 
 def page_settings(page: str) -> dict:
@@ -499,7 +536,9 @@ def open_headless(page_path: str, browser: str = "", query: str = "auto=0&frames
 def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5", seconds: float = 120.0) -> dict:
     """As ``open_headless``, but everything the page writes into its own HTML: {"state": …, "light": {light,
     materials, meshes, plain, background} or None, "probe": [[r, g, b, a], …] or None} (task 0107; ``probe`` only
-    with ``probe=x,y;x,y`` in ``query``, screen places 0 … 1 from the top left)."""
+    with ``probe=x,y;x,y`` in ``query``, screen places 0 … 1 from the top left), "player": the player's state
+    {warned, gpu, level, paused, views, items, …} and "selftest": with ``selftest=1`` in ``query`` what the player's
+    own check found {ok, menu, space, help, link, warned} (task 0134)."""
     browser = browser or find_browser()
     if not browser:
         raise RuntimeError("no Edge, Chrome or Chromium found")
@@ -537,8 +576,10 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     m = re.search(r'data-fr-state="([^"]*)"', dom)
     if m is None and "<html" not in dom:
         raise RuntimeError(f"the browser showed nothing (exit code {proc.returncode})")
-    out = {"state": html.unescape(m.group(1)) if m else "loading", "light": None, "probe": None}
-    for key, attr in (("light", "data-fr-light"), ("probe", "data-fr-probe")):
+    out = {"state": html.unescape(m.group(1)) if m else "loading", "light": None, "probe": None, "player": None,
+           "selftest": None}
+    for key, attr in (("light", "data-fr-light"), ("probe", "data-fr-probe"), ("player", "data-fr-player"),
+                      ("selftest", "data-fr-selftest")):
         m = re.search(attr + r'="([^"]*)"', dom)
         if m:
             try:

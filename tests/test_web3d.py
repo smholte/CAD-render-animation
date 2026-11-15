@@ -73,10 +73,14 @@ def test_export_writes_a_valid_glb_and_one_file_page(mill_export):
     page = path.with_suffix(".html")
     assert page.exists()
     text = page.read_text(encoding="utf-8")
-    assert "<model-viewer" in text and "customElements" in text      # the viewer is inside the page
+    # task 0134: the player (three.js) is inside the page, model-viewer is not used any more
+    assert "FRTHREE" in text and "frPage" in text and "fr-menu" in text and "<model-viewer" not in text
     import base64
     import re
-    assert base64.b64decode(re.search(r'id="glb">([^<]+)</script>', text).group(1)) == data
+    assert base64.b64decode(re.search(r'id="fr-glb" data-bytes="\d+">([^<]+)</script>', text).group(1)) == data
+    from fresing_render.core import web3d_env as env
+    st = env.page_settings(text)
+    assert st["plain"] is True and st["sea"] is None and isinstance(st["views"], list)
     w = mill_export["scene"].fresing.web3d
     assert w.last_path == str(path) and w.last_size == len(data)
     assert w.last_text.startswith(core.mb(len(data))) and "triangles" in w.last_text
@@ -348,6 +352,35 @@ def test_compressed_export_and_the_panels_default(mill_export, tmp_path):
     assert modes == {"ATTRIBUTES", "TRIANGLES" if meshopt.native() is not None else "INDICES"}
     assert web3d.meshopt_native() is not None                         # Blender as a module ships libmeshoptimizer
     page = open(out["html"], encoding="utf-8").read()
-    assert "meshoptDecoderLocation" in page
+    assert "setMeshoptDecoder(T.MeshoptDecoder)" in page             # the player reads it (task 0134)
     off = web3d.export(sc, str(tmp_path / "plain.glb"), size=512, compress=False)
     assert not off["compressed"] and off["size"] > out["size"]
+
+
+def test_saved_cameras_go_on_the_page_as_views(tmp_path):
+    """Task 0134: the project's cameras are the page's saved views – the owner's names, or View 1, 2 … when part names
+    are hidden; the eye where the camera stands, the target along its view, the render's frame in degrees."""
+    import math
+
+    from fresing_render.blender import cameras
+    from fresing_render.core import web3d_env as env
+    sc = fresh()
+    hero = cameras.add_camera(sc, "LOW", lens=50.0, name="Hero shot")
+    cameras.add_camera(sc, "TOP", lens=35.0, name="Above")
+    bpy.context.view_layer.update()
+    names = web3d.views(sc, hide_names=False)
+    assert [v["name"] for v in names] == sorted(ob.name for ob in cameras.fr_cameras(sc))   # the import's own too
+    assert {"Above", "Hero shot"} <= {v["name"] for v in names}
+    v = next(x for x in names if x["name"] == "Hero shot")
+    assert np.allclose(v["eye"], list(hero.matrix_world.translation), atol=1e-6)
+    fwd = np.array(v["target"]) - np.array(v["eye"])
+    look = np.array(hero.matrix_world.to_3x3() @ __import__("mathutils").Vector((0, 0, -1)))
+    assert np.allclose(fwd / np.linalg.norm(fwd), look, atol=1e-5)
+    r = sc.render
+    aspect = r.resolution_x / r.resolution_y
+    assert abs(v["hfov"] - math.degrees(2 * math.atan(18 / 50))) < 1e-3
+    assert abs(math.tan(math.radians(v["vfov"]) / 2) * aspect - math.tan(math.radians(v["hfov"]) / 2)) < 1e-4
+    out = web3d.export(sc, str(tmp_path / "views.glb"), size=512)
+    st = env.page_settings(open(out["html"], encoding="utf-8").read())
+    n = len(names)
+    assert [x["name"] for x in st["views"]] == [f"View {k + 1}" for k in range(n)] and out["views"] == n

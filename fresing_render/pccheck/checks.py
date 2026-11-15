@@ -2118,8 +2118,10 @@ def house_bake(ctx):
 
 @line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",
       what="The test mill saved as a web 3D model (.glb, Texture size 1024, compressed as a big model is) and its "
-           "one-file viewer page; the file is read back, checked against the glTF rules (part names hidden) and "
-           "opened by Blender's own glTF importer")
+           "one-file page; the file is read back, checked against the glTF rules (part names hidden) and opened by "
+           "Blender's own glTF importer. The page's player (task 0134) is opened in Edge or Chrome without a window: "
+           "its settings menu, keys help and link, Space pauses a page with motion, and it says it draws without the "
+           "graphics card")
 def web3d_export(ctx):
     from ..blender import build, web3d
     from ..core import web3d as core
@@ -2137,8 +2139,9 @@ def web3d_export(ctx):
     _check(all(n.startswith(("Model", "Part ")) for n in info["names"]), "a part name is in the file")
     with open(out["html"], encoding="utf-8") as fh:
         page = fh.read()
-    _check("<model-viewer" in page and 'id="glb"' in page, "the viewer page has no viewer or no model inside")
-    _check(info["compressed"] and "meshoptDecoderLocation" in page, "the file was not compressed (meshopt)")
+    _check("FRTHREE" in page and 'id="fr-glb"' in page and "fr-menu" in page,
+           "the page has no player or no model inside")
+    _check(info["compressed"] and "MeshoptDecoder" in page, "the file was not compressed (meshopt)")
     lib = web3d.meshopt_native()
     _check(lib is not None, "Blender's meshopt library was not found: big files are packed less tightly "
                             f"(looked in {web3d.meshopt_paths()[:2]})")
@@ -2146,7 +2149,51 @@ def web3d_export(ctx):
     _check(got == info["triangles"], f"Blender read {got} triangles back, the file has {info['triangles']}")
     ctx.metric("export", out["seconds"], "s")
     ctx.metric("file", len(data) / 1e6, "MB")
-    return f"{out['text']}; read back by Blender's glTF importer"
+    return f"{out['text']}; read back by Blender's glTF importer; {_player_check(out['html'], ctx)}"
+
+
+def _player_check(page_path: str, ctx) -> str:
+    """Task 0134: the page's player in this PC's Edge or Chrome without a window (software drawing): the settings
+    menu, the keys help and the link work, Space pauses and plays a page with motion, and the page says it draws
+    without the graphics card (a headless browser has none)."""
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    browser = env.find_browser()
+    if not browser:
+        return "no Edge or Chrome on this PC: the player was not opened"
+    # a page with motion: two plates, one moving (the test mill exports still)
+    g = core.Gltf()
+    look = g.material({"pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0]}})
+    import numpy as np
+    pos = np.array([[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1]], float)
+    mesh = g.mesh("p", pos, np.tile(np.array([[0, 127, 0]], np.int8), (4, 1)), None,
+                  [(look, np.array([[0, 2, 1], [0, 3, 2]]))], quantize=False)
+    g.node({"mesh": mesh})
+    g.node({"mesh": mesh, "translation": [3.0, 0.0, 0.0]})
+    t = np.linspace(0, 2, 5)
+    g.animation("A", t, [(1, "translation", np.array([[3.0, 0.3 * np.sin(x), 0.0] for x in t]))])
+    st = env.settings(env.default_choice(), [-1, -1, 0], [4, 1, 0.5], plain=True)
+    moving = os.path.join(ctx.work, "web3d", "player check.html")
+    with open(moving, "w", encoding="utf-8") as fh:
+        fh.write(env.page_html("Player check", g.glb(), st, animated=True))
+    found = []
+    for path in (page_path, moving):
+        try:
+            got = env.read_page(path, browser, "selftest=1", seconds=60)
+        except RuntimeError as exc:
+            return f"{os.path.basename(browser)} gave no answer ({exc}); not counted"
+        if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+            return f"no WebGL in the browser without a window ({got['state'][:80]}); not counted"
+        _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+        r = got.get("selftest") or {}
+        _check(r.get("menu"), "the page's settings menu did not open")
+        _check(r.get("help") and r.get("link"), "the page's keys help or its link to the view does not work")
+        found.append(r)
+    _check(found[1].get("space") is True, "Space did not pause and play the page's motion")
+    warned = found[0].get("warned")
+    _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
+                         "has none)")
+    return f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}) in {os.path.basename(browser)}"
 
 
 @line("web3d.bake", "Web 3D model with baked light", "0.2.89",

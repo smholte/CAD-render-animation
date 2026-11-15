@@ -94,7 +94,8 @@ def test_turn_it_yourself(built, tmp_path):
         assert f'media/{w["poster"]}' in card and "Open the 3D model" in card
         assert re.search(r"\d+(\.\d)? MB", card), card
         viewer = open(os.path.join(out, "model", w["id"], "index.html"), encoding="utf-8").read()
-        assert 'id="fr-play"' in viewer and 'href="../../"' in viewer
+        assert 'href="../../"' in viewer
+        assert ('id="fr-play"' in viewer) != build_site.own_page(w)            # the player has its own (task 0134)
         assert build_site._esc(media["models"][w["model"]]["credit"]) in viewer
         assert not re.search(r'<script[^>]+src="https?://', viewer)
         if build_site.own_page(w):

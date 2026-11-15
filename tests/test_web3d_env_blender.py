@@ -155,11 +155,13 @@ def test_export_with_surroundings(tmp_path):
     sc.frame_set(77)
     out2 = web3d.export(sc, str(tmp_path / "Crane 2.glb"), size=512, surroundings=web3d_env.choice(sc))
     assert open(out2["path"], "rb").read() == open(out["path"], "rb").read()
-    # Surroundings None: today's model-viewer page
+    # Surroundings None: the same player in its plain form (task 0134; model-viewer before)
     w.env_mode = "NONE"
     out3 = web3d.export(sc, str(tmp_path / "Crane 3.glb"), size=512, surroundings=web3d_env.choice(sc))
     plain = open(out3["html"], encoding="utf-8").read()
-    assert "<model-viewer" in plain and "FRTHREE" not in plain and "surroundings" not in out3["text"]
+    st3 = env.page_settings(plain)
+    assert "<model-viewer" not in plain and "FRTHREE" in plain and "surroundings" not in out3["text"]
+    assert st3["plain"] and st3["sea"] is None and st3["vessel"] is None and st3["rain"] is None
 
 
 def _browser() -> bool:
@@ -202,11 +204,17 @@ def test_page_opens_in_a_browser(tmp_path):
         levels["BEST"]["info"]["seaPoints"]
     assert levels["PHONE"]["info"]["rain"] < levels["BEST"]["info"]["rain"]
     assert math.isfinite(levels["BEST"]["load_ms"])
-    # Auto: software drawing at Best cannot keep 30 pictures a second, so the page steps down by itself
-    r = subprocess.run(["node", SHOT, out["html"], "-", "900", "600", "--query=quality=BEST&t=8", "--wait=7000"],
+    # Auto: software drawing at Best cannot keep 30 pictures a second, so the page steps down by itself (soft=0: as
+    # if it had a graphics card – without it the page starts at its lightest, below)
+    r = subprocess.run(["node", SHOT, out["html"], "-", "900", "600", "--query=quality=BEST&soft=0", "--wait=7000"],
                        capture_output=True, text=True, timeout=300)
     info = json.loads(r.stdout.strip().splitlines()[-1])
     assert info["ok"] and info["lowered"] >= 1 and info["level"] != "BEST", info
+    # task 0134: headless Chromium draws with SwiftShader – no graphics card: the page says so and starts at Phone
+    r = subprocess.run(["node", SHOT, out["html"], "-", "480", "320", "--wait=300"], capture_output=True, text=True,
+                       timeout=300)
+    info = json.loads(r.stdout.strip().splitlines()[-1])
+    assert info["ok"] and info["level"] == "PHONE", info
     # the headless state the PC check reads; a broken model is an error, never a page stuck on "Loading"
     assert env.open_headless(out["html"]).startswith("ready")
     st = env.page_settings(open(out["html"], encoding="utf-8").read())

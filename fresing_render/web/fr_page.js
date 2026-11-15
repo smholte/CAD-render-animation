@@ -6,6 +6,15 @@
 // URL options (for tests and for looking): ?quality=PHONE|BALANCED|BEST  ?auto=0  ?t=<seconds> (time stands still)
 // ?orbit=<theta deg>,<phi deg>,<distance in model radii>  ?probe=<x>,<y>;<x>,<y>… (screen places 0 … 1 from the top
 // left: their pixel colours after each frame go into data-fr-probe on <html>, for tests)
+// Task 0134 (the player; fr_player.js draws its controls): ?at=<x>,<y>,<z> (the point the view turns about, three's
+// coordinates, m) ?time=<s> (the moment to start at) ?paused=1 ?speed=0.5|1|2 ?off=sea,haze,… (items switched off)
+// ?turn=1 (auto-turn) ?soft=0 (tests: never judge the browser as drawing without a graphics card) ?fov=<deg>.
+//
+// Drawing (task 0134): at most 60 pictures a second (30 without a graphics card); a picture only when something
+// changed – the view moves, the animation, sea, vessel or rain plays, a menu choice, the window's size – and none
+// while the tab is hidden. Auto quality judges only pictures drawn one after the other (a pause, a hidden tab or a
+// frozen page is not a slow picture: before 0134 the time a tab spent hidden counted as one long frame, and Auto
+// lowered the quality when the visitor came back) and steps up again when there is room.
 //
 // Baked light (task 0107, settings ``light`` = {light: SOFT | ALL, scale, curve}): parts whose material has an
 // occlusion map read through UV channel 1, or whose mesh has the attribute _FR_LIGHT, get their matte sky light
@@ -22,14 +31,34 @@
     .filter(function (p) { return p.length === 2 && isFinite(p[0]) && isFinite(p[1]); });
   var page = window.frPage = { ready: false, settings: ST, level: null, fps: 0, frames: 0, errors: [], lowered: 0,
                                info: {}, light: { light: null, materials: 0, meshes: 0, plain: plain },
-                               paused: false, time: 0 };   // task 0111: a page around it may pause the motion
+                               paused: false, time: 0,     // task 0111: a page around it may pause the motion
+                               // task 0134: the player (fr_player.js reads and sets these)
+                               raised: 0, speed: 1, duration: 0, animated: false, auto: false, quality: 'AUTO',
+                               warned: '', gpu: '', cap: 60, items: [], on: {}, views: [], turn: false,
+                               turning: false, sunLive: false, sunHour: 13, sunWhy: '', listeners: [] };
+  // what the visitor chose last time on this page (fr_player.js writes it; the link's own choices come first)
+  var PREF_KEY = 'fresing-player:' + (location.pathname || document.title);
+  var PREF = {};
+  try { PREF = JSON.parse(window.localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { PREF = {}; }
+  page.prefKey = PREF_KEY;
+  page.pref = PREF;
+  function changed(what) {                  // tell the player (menu, time line) that something changed
+    for (var i = 0; i < page.listeners.length; i++) {
+      try { page.listeners[i](what); } catch (e) { /* a broken listener never stops the page */ }
+    }
+  }
   // the page's state in its own HTML (data-fr-state on <html>): the PC check reads it with a headless browser
   function mark() {
     var root = document.documentElement.dataset;
     root.frState = page.errors.length ? 'error: ' + page.errors.join(' | ').slice(0, 300)
       : page.ready ? 'ready ' + page.level + ' frames ' + page.frames : 'loading';
     if (ST.light || plain) root.frLight = JSON.stringify(page.light);
+    root.frPlayer = JSON.stringify({ warned: page.warned, gpu: page.gpu, level: page.level, auto: page.auto,
+                                     paused: page.paused, duration: page.duration, views: page.views.length,
+                                     items: page.items, fps: Math.round(page.fps * 10) / 10, raised: page.raised,
+                                     lowered: page.lowered, frames: page.frames });
   }
+  page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
   window.addEventListener('unhandledrejection', function (e) {
     fail('The 3D model in this page could not be shown.', String(e.reason && e.reason.message || e.reason));
@@ -77,6 +106,11 @@
   var gl = renderer.getContext();
   var dbg = gl.getExtension('WEBGL_debug_renderer_info');
   page.info.webgl = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'webgl';
+  // task 0134: a browser that draws without the graphics card (Chrome after a graphics-card reset: "Microsoft Basic
+  // Render Driver", WARP; headless browsers: SwiftShader; Linux without a driver: llvmpipe) – say so, draw lightly
+  page.gpu = dbg ? String(page.info.webgl || '') : '';
+  var SOFTWARE = /basic render|warp|swiftshader|llvmpipe|softpipe|software/i;
+  if (page.gpu && SOFTWARE.test(page.gpu) && Q.get('soft') !== '0') page.warned = 'software';
 
   var scene = new T.Scene();
   var mn = b2t(ST.model.min), mx = b2t(ST.model.max);
@@ -88,26 +122,45 @@
   var camera = new T.PerspectiveCamera(30, 1, R * 0.01, hasSea ? 30000 : R * 400);
 
   // ---------------------------------------------------------------- level of quality
-  var level = Q.get('quality') && LEVELS.indexOf(Q.get('quality').toUpperCase()) >= 0
-    ? Q.get('quality').toUpperCase() : ST.quality;
-  var auto = Q.has('auto') ? Q.get('auto') !== '0' : !!ST.auto;
+  // the order: the link (?quality=, ?auto=), else the visitor's own choice last time (menu), else the export's
+  var urlQ = Q.get('quality') && LEVELS.indexOf(Q.get('quality').toUpperCase()) >= 0 ? Q.get('quality').toUpperCase()
+    : null;
+  var prefQ = PREF.quality === 'AUTO' || LEVELS.indexOf(PREF.quality) >= 0 ? PREF.quality : null;
+  var level = urlQ || (prefQ && prefQ !== 'AUTO' ? prefQ : ST.quality);
+  var auto = Q.has('auto') ? Q.get('auto') !== '0' : prefQ ? prefQ === 'AUTO' : !!ST.auto;
+  var topLevel = level;                    // Auto steps up again, never above where it started
+  var chosen = !!(urlQ || (prefQ && prefQ !== 'AUTO'));
+  if (page.warned && !chosen) { level = 'PHONE'; }   // no graphics card: the lightest settings
+  page.cap = page.warned ? 30 : 60;
+  page.auto = auto;
+  page.quality = auto ? 'AUTO' : level;
   var frozen = Q.has('t') && isFinite(parseFloat(Q.get('t'))) ? parseFloat(Q.get('t')) : null;
   var maxFrames = Q.has('frames') ? parseInt(Q.get('frames'), 10) || 0 : 0;
   function L() { return ST.levels[level]; }
 
   // ---------------------------------------------------------------- the sun
-  var sunDirB = ST.sky.sun;
-  var sunDir = b2t(sunDirB).normalize();
+  var sunDir = b2t(ST.sky.sun).normalize();
   var elev = ST.sky.elevation;
   var clouds = ST.sky.clouds || 'NONE';
   var photo = ST.sky.kind === 'PHOTO';
   var strength = ST.sky.strength == null ? 1 : ST.sky.strength;
-  var low = 1 - T.MathUtils.smoothstep(elev, 2, 35);           // 1 at sunrise, 0 above 35 degrees
-  var sunColour = new T.Color(1.0, 0.96, 0.9).lerp(new T.Color(1.0, 0.62, 0.36), low);
-  var sunPower = photo ? T.MathUtils.clamp(ST.sky.sun_share || 1, 0.3, 3.0)
-                       : 3.2 * T.MathUtils.clamp(Math.sin(elev * Math.PI / 180) * 4, 0.05, 1);
-  if (!photo && clouds === 'SOME') sunPower *= 0.8;
-  if (!photo && clouds === 'OVERCAST') sunPower *= 0.12;
+  var low, sunColour, sunPower, horizon, skyBright, ground;
+  function sunLook() {                  // the sun's colour and strength, the haze and the ground for its height
+    low = 1 - T.MathUtils.smoothstep(elev, 2, 35);             // 1 at sunrise, 0 above 35 degrees
+    sunColour = new T.Color(1.0, 0.96, 0.9).lerp(new T.Color(1.0, 0.62, 0.36), low);
+    sunPower = photo ? T.MathUtils.clamp(ST.sky.sun_share || 1, 0.3, 3.0)
+                     : 3.2 * T.MathUtils.clamp(Math.sin(elev * Math.PI / 180) * 4, 0.05, 1);
+    if (!photo && clouds === 'SOME') sunPower *= 0.8;
+    if (!photo && clouds === 'OVERCAST') sunPower *= 0.12;
+    // colours of the far distance (haze) and the ground below the horizon
+    horizon = ST.sky.horizon ? new T.Color().fromArray(ST.sky.horizon)
+      : new T.Color(0.55, 0.64, 0.76).lerp(new T.Color(0.86, 0.6, 0.45), low * 0.8);
+    if (!photo && clouds === 'OVERCAST') horizon = new T.Color(0.52, 0.55, 0.58);
+    skyBright = photo ? 1 : (0.35 + 0.65 * T.MathUtils.smoothstep(elev, -2, 25));
+    if (!ST.sky.horizon) horizon.multiplyScalar(skyBright);
+    ground = hasSea ? new T.Color(0.012, 0.045, 0.055) : new T.Color(0.33, 0.32, 0.30).multiplyScalar(skyBright);
+  }
+  sunLook();
   var sun = new T.DirectionalLight(sunColour, sunPower * strength);
   scene.add(sun, sun.target);
   sun.position.copy(sunDir);          // the light comes from here (fitShadow moves both with shadows on); without this
@@ -116,14 +169,6 @@
   sun.shadow.bias = -0.0004;
   // a studio's or a photo's main light is broad, an overcast sun weak: lighter shadows than a clear sun's
   sun.shadow.intensity = photo ? 0.65 : clouds === 'OVERCAST' ? 0.4 : 1.0;
-
-  // colours of the far distance (haze) and the ground below the horizon
-  var horizon = ST.sky.horizon ? new T.Color().fromArray(ST.sky.horizon)
-    : new T.Color(0.55, 0.64, 0.76).lerp(new T.Color(0.86, 0.6, 0.45), low * 0.8);
-  if (!photo && clouds === 'OVERCAST') horizon = new T.Color(0.52, 0.55, 0.58);
-  var skyBright = photo ? 1 : (0.35 + 0.65 * T.MathUtils.smoothstep(elev, -2, 25));
-  if (!ST.sky.horizon) horizon.multiplyScalar(skyBright);
-  var ground = hasSea ? new T.Color(0.012, 0.045, 0.055) : new T.Color(0.33, 0.32, 0.30).multiplyScalar(skyBright);
 
   // ---------------------------------------------------------------- the sky (procedural) and the dome
   var skyMesh = null, dome = null;
@@ -256,12 +301,14 @@
       scene.background = ST.sky.background ? new T.Color().fromArray(ST.sky.background) : horizon.clone();
     }
   } else {
-    scene.environment = pmrem.fromScene(envScene, 0, 0.1, 5000).texture;
+    var envTarget = pmrem.fromScene(envScene, 0, 0.1, 5000);
+    scene.environment = envTarget.texture;
     scene.environmentIntensity = strength;
   }
 
   // ---------------------------------------------------------------- haze
-  if (ST.haze) scene.fog = new T.FogExp2(horizon.clone(), ST.haze.density);
+  var fog = ST.haze ? new T.FogExp2(horizon.clone(), ST.haze.density) : null;
+  scene.fog = fog;
 
   // ---------------------------------------------------------------- the sea
   var sea = null, seaUniforms = null, rippleTex = null;
@@ -509,7 +556,7 @@
   vesselGroup.matrixAutoUpdate = levelGroup.matrixAutoUpdate = false;
   top.add(vesselGroup, levelGroup, stillGroup);
   scene.add(top);
-  var mixer = null, meshes = [], baked = null;
+  var mixer = null, meshes = [], baked = null, wet = [];
 
   // ---------------------------------------------------------------- baked light (task 0107)
   // Light factor F = scale * texel ^ curve (texel: the occlusion map read through UV channel 1, or the mesh's
@@ -663,6 +710,8 @@
           mats.forEach(function (m) {
             if (m.userData.frWet || m.roughness === undefined) return;
             m.userData.frWet = true;
+            m.userData.frDry = { roughness: m.roughness, color: m.color.clone() };   // rain off in the menu
+            wet.push(m);
             var s = ST.rain.strength;
             m.roughness = m.roughness * (1 - 0.45 * s);
             m.color.multiplyScalar(1 - 0.25 * s);
@@ -686,7 +735,11 @@
     });
     if (gltf.animations && gltf.animations.length) {
       mixer = new T.AnimationMixer(top);
-      gltf.animations.forEach(function (clip) { mixer.clipAction(clip).play(); });
+      gltf.animations.forEach(function (clip) {
+        mixer.clipAction(clip).play();
+        page.duration = Math.max(page.duration, clip.duration);
+      });
+      page.animated = !!ST.animated && page.duration > 0;
     }
   }
 
@@ -699,23 +752,234 @@
   controls.minDistance = R * 0.05;
   controls.maxDistance = hasSea ? Math.min(12000, R * 60) : R * 30;
   if (hasSea) controls.maxPolarAngle = Math.PI * 0.497;
-  function firstView() {
-    var o = (Q.get('orbit') || '').split(',').map(parseFloat);
+  controls.autoRotateSpeed = 1.0;            // auto-turn: one turn a minute
+  var FOV = 30;
+
+  // a view: {pos, target, fov}. The home view looks from theta (deg, about the vertical, 0 = +z) and phi (deg from
+  // straight above) at ``at`` (default the model's middle), at ``o[2]`` model radii or far enough to see it all
+  function homeView(o, at, fov) {
+    o = o || [];
     var theta = (isFinite(o[0]) ? o[0] : 45) * Math.PI / 180, phi = (isFinite(o[1]) ? o[1] : 65) * Math.PI / 180;
-    var vf = camera.fov * Math.PI / 360, hf = Math.atan(Math.tan(vf) * Math.max(camera.aspect, 0.2));
+    var target = at ? at.clone() : centre.clone();
+    var f = fov || FOV;
+    var vf = f * Math.PI / 360, hf = Math.atan(Math.tan(vf) * Math.max(camera.aspect, 0.2));
     var dist = isFinite(o[2]) ? o[2] * R : R / Math.sin(Math.min(vf, hf)) * 1.02;
-    camera.position.set(centre.x + dist * Math.sin(phi) * Math.sin(theta), centre.y + dist * Math.cos(phi),
-                        centre.z + dist * Math.sin(phi) * Math.cos(theta));
+    return { pos: new T.Vector3(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi),
+                                target.z + dist * Math.sin(phi) * Math.cos(theta)), target: target, fov: f };
+  }
+  function put(v) {
+    camera.position.copy(v.pos);
+    controls.target.copy(v.target);
+    camera.fov = v.fov;
+    camera.updateProjectionMatrix();
     controls.update();
   }
+  function numbers(name, n) {
+    var a = (Q.get(name) || '').split(',').map(parseFloat);
+    return a.length === n && a.every(isFinite) ? a : null;
+  }
+  function firstView() {
+    var at = numbers('at', 3), f = parseFloat(Q.get('fov'));
+    put(homeView((Q.get('orbit') || '').split(',').map(parseFloat), at ? new T.Vector3(at[0], at[1], at[2]) : null,
+                 isFinite(f) ? T.MathUtils.clamp(f, 5, 100) : FOV));
+  }
+
+  // flying to a view (saved views, Reset view): 0.9 s, eased
+  var fly = null;
+  function flyTo(v, seconds) {
+    fly = { pos: camera.position.clone(), target: controls.target.clone(), fov: camera.fov, to: v,
+            t0: performance.now(), ms: 1000 * (seconds == null ? 0.9 : seconds) };
+    stopTurn();
+    wake();
+  }
+  function stepFly(now) {
+    var k = T.MathUtils.clamp((now - fly.t0) / Math.max(fly.ms, 1), 0, 1), e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(fly.pos, fly.to.pos, e);
+    controls.target.lerpVectors(fly.target, fly.to.target, e);
+    camera.fov = fly.fov + (fly.to.fov - fly.fov) * e;
+    camera.updateProjectionMatrix();
+    if (k >= 1) { fly = null; changed('view'); }
+  }
+  controls.addEventListener('start', function () { fly = null; input(); });
+  controls.addEventListener('change', function () { wake(); });
+
+  // the project's saved cameras (task 0134; Blender world, ``vfov``/``hfov`` of the render in degrees): the page
+  // shows at least the render's frame, whatever the window's shape
+  page.views = (ST.views || []).map(function (v, k) {
+    return { name: String(v.name || 'View ' + (k + 1)), eye: b2t(v.eye), target: b2t(v.target),
+             vfov: +v.vfov || FOV, hfov: +v.hfov || 0 };
+  });
+  function viewFov(v) {
+    var f = v.vfov;
+    if (v.hfov) f = Math.max(f, 2 * Math.atan(Math.tan(v.hfov * Math.PI / 360) / Math.max(camera.aspect, 0.2)) * 180 / Math.PI);
+    return T.MathUtils.clamp(f, 5, 100);
+  }
+  page.goView = function (k) {
+    var v = page.views[k];
+    if (!v) return;
+    flyTo({ pos: v.eye.clone(), target: v.target.clone(), fov: viewFov(v) });
+    changed('view');
+  };
+  page.resetView = function () { flyTo(homeView()); };
+  page.cameraState = function () {          // tests: where the camera is (three's coordinates)
+    return { pos: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov, flying: !!fly };
+  };
+
+  // the view as a link: camera, moment and menu choices in the address (task 0134)
+  page.viewLink = function () {
+    var off = camera.position.clone().sub(controls.target), d = Math.max(off.length(), 1e-9);
+    var theta = Math.atan2(off.x, off.z) * 180 / Math.PI, phi = Math.acos(T.MathUtils.clamp(off.y / d, -1, 1)) * 180 / Math.PI;
+    var p = ['orbit=' + theta.toFixed(1) + ',' + phi.toFixed(1) + ',' + (d / R).toFixed(4),
+             'at=' + [controls.target.x, controls.target.y, controls.target.z].map(function (x) { return x.toFixed(3); }).join(',')];
+    if (Math.abs(camera.fov - FOV) > 0.05) p.push('fov=' + camera.fov.toFixed(1));
+    if (moving() || page.paused || page.animated) p.push('time=' + elapsed.toFixed(2));
+    if (page.paused) p.push('paused=1');
+    if (page.speed !== 1) p.push('speed=' + page.speed);
+    if (!auto) p.push('quality=' + level, 'auto=0');
+    var off_ = page.items.filter(function (n) { return on[n] === false; });
+    if (off_.length) p.push('off=' + off_.join(','));
+    if (page.turn) p.push('turn=1');
+    if (page.sunLive && Math.abs(page.sunHour - 13) > 0.01) p.push('sun=' + page.sunHour.toFixed(2));
+    return location.href.split('#')[0].split('?')[0] + '?' + p.join('&');
+  };
+
+  // ---------------------------------------------------------------- what is on the page (the settings menu)
+  var on = {};
+  page.items = [];
+  if (hasSea) page.items.push('sea');
+  if (ST.vessel) page.items.push('vessel');
+  if (!plain) page.items.push('sky');
+  if (ST.haze) page.items.push('haze');
+  if (ST.rain) page.items.push('rain');
+  if (ST.shadows) page.items.push('shadows');
+  var offList = Q.has('off') ? Q.get('off').split(',') : (PREF.off || []);
+  page.items.forEach(function (n) { on[n] = offList.indexOf(n) < 0; });
+  if (page.warned && !Q.has('off') && !PREF.off) on.shadows = false;       // no graphics card: no shadows
+  page.on = on;
+  var PLAIN_BG = new T.Color('#F1F3F5'), bgKeep = null;
+  function lightGround(yes) {             // dark text on a light ground (the plain form, or the sky switched off)
+    var css = document.documentElement.style;
+    css.setProperty('--bg', yes ? '#F1F3F5' : '#8FA6B5');
+    css.setProperty('--ink', yes ? '#252E36' : '#F4F6F8');
+    css.setProperty('--muted', yes ? '#5B6670' : '#D5DBE0');
+    document.documentElement.classList.toggle('fr-light', !!yes);
+  }
+  function recompile() {
+    scene.traverse(function (o) {
+      (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(function (m) { m.needsUpdate = true; });
+    });
+    warm(2500);
+  }
+  function applyItems(first) {
+    if (sea) sea.visible = on.sea !== false;
+    if (rain) rain.visible = on.rain !== false;
+    if (spray) spray.visible = on.rain !== false && on.sea !== false;
+    wet.forEach(function (m) {
+      var d = m.userData.frDry, s = on.rain === false ? 0 : ST.rain.strength;
+      m.roughness = d.roughness * (1 - 0.45 * s);
+      m.color.copy(d.color).multiplyScalar(1 - 0.25 * s);
+    });
+    if (!plain) {
+      var skyOn = on.sky !== false;
+      if (skyMesh) skyMesh.visible = skyOn;
+      dome.visible = skyOn;
+      if (!skyOn && scene.background !== PLAIN_BG) { bgKeep = scene.background; scene.background = PLAIN_BG; }
+      if (skyOn && scene.background === PLAIN_BG) scene.background = bgKeep;
+      lightGround(!skyOn);
+    }
+    var hz = ST.haze && on.haze !== false;
+    var fogWas = scene.fog;
+    scene.fog = hz ? fog : null;
+    domeUniforms.uHaze.value = hz ? Math.min(1, ST.haze.strength * 1.4) : 0;
+    var sh = !!ST.shadows && on.shadows !== false, shWas = renderer.shadowMap.enabled;
+    sun.castShadow = sh;
+    renderer.shadowMap.enabled = sh;
+    if (catcher) catcher.visible = sh;
+    if (!sh) { sun.position.copy(sunDir); sun.target.position.set(0, 0, 0); }
+    if (!first && (shWas !== sh || fogWas !== scene.fog)) recompile();
+    wake();
+    changed('items');
+  }
+  page.setItem = function (name, value) {
+    if (page.items.indexOf(name) < 0) return;
+    on[name] = !!value;
+    applyItems();
+    if (!moving()) chain = false;
+  };
+
+  // ---------------------------------------------------------------- the sun over the day (live light only)
+  var el0 = ST.sky.elevation, az0 = ST.sky.azimuth != null ? ST.sky.azimuth : 0, lastEnv = 0;
+  page.sunLive = !ST.light && !photo;
+  page.sunWhy = ST.light ? 'Light is baked into this model' : photo ? "The light comes from the project's 360° picture" : '';
+  // hour 5 … 21: the export's sun at 13:00, rising and setting at 5 and 21, turning 100° each way
+  page.setSunHour = function (h, final) {
+    if (!page.sunLive) return;
+    h = T.MathUtils.clamp(+h || 13, 5, 21);
+    page.sunHour = h;
+    elev = Math.max(0.5, el0 * Math.sin(Math.PI * (h - 5) / 16));
+    var az = (az0 + (h - 13) / 8 * 100) * Math.PI / 180, e = elev * Math.PI / 180;
+    sunLook();
+    sunDir.copy(b2t([Math.sin(az) * Math.cos(e), Math.cos(az) * Math.cos(e), Math.sin(e)])).normalize();
+    sun.color.copy(sunColour);
+    sun.intensity = sunPower * strength;
+    if (!sun.castShadow) { sun.position.copy(sunDir); sun.target.position.set(0, 0, 0); }
+    domeUniforms.uSunDir.value.copy(sunDir);
+    domeUniforms.uSunCol.value.copy(sunColour).multiplyScalar(skyBright);
+    domeUniforms.uHazeCol.value.copy(horizon);
+    domeUniforms.uGround.value.copy(ground);
+    domeUniforms.uCloudCol.value.copy(clouds === 'OVERCAST' ? new T.Color(0.42, 0.44, 0.46) : new T.Color(0.95, 0.95, 0.97))
+      .multiplyScalar(skyBright);
+    if (skyMesh) {
+      skyMesh.material.uniforms.sunPosition.value.copy(sunDir);
+      skyMesh.material.uniforms.rayleigh.value = clouds === 'OVERCAST' ? 0.6 : 1.4 + low;
+    }
+    if (fog) fog.color.copy(horizon);
+    if (rainUniforms) rainUniforms.uColour.value.copy(horizon).lerp(new T.Color(0.9, 0.92, 0.95), 0.5);
+    var now = performance.now();
+    if (final || now - lastEnv > 300) {        // the sky's light on the parts: worked out again (a few ms)
+      lastEnv = now;
+      if (envTarget) envTarget.dispose();
+      envTarget = pmrem.fromScene(envScene, 0, 0.1, 5000);
+      scene.environment = envTarget.texture;
+    }
+    wake();
+    changed('sun');
+  };
+
+  // ---------------------------------------------------------------- auto-turn: after ~8 s without input
+  var lastInput = performance.now(), turnTimer = null;
+  page.turn = Q.has('turn') ? Q.get('turn') === '1' : !!PREF.turn;
+  function stopTurn() {
+    if (page.turning) { page.turning = false; controls.autoRotate = false; changed('turn'); }
+  }
+  function armTurn() {
+    clearTimeout(turnTimer);
+    if (!page.turn) return;
+    turnTimer = setTimeout(function () {
+      if (page.turn && !fly && page.ready && performance.now() - lastInput >= 7900) {
+        page.turning = true; controls.autoRotate = true; wake(); changed('turn');
+      } else armTurn();
+    }, Math.max(50, 8000 - (performance.now() - lastInput)));
+  }
+  function input() { lastInput = performance.now(); stopTurn(); armTurn(); }
+  page.input = input;
+  page.setTurn = function (v) { page.turn = !!v; if (!v) stopTurn(); armTurn(); changed('turn'); };
+  canvas.addEventListener('pointerdown', input);
+  canvas.addEventListener('wheel', input, { passive: true });
 
   // ---------------------------------------------------------------- quality
-  var noteEl = document.getElementById('quality');
+  var noteEl = document.getElementById('quality'), noteTimer = null;
+  function note(text, seconds) {
+    if (!noteEl) return;
+    clearTimeout(noteTimer);
+    noteEl.textContent = text;
+    noteEl.style.display = text ? 'block' : 'none';
+    if (text && seconds) noteTimer = setTimeout(function () { noteEl.style.display = 'none'; }, seconds * 1000);
+  }
   function setLevel(name, why) {
     level = name;
     page.level = name;
     var l = L();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, l.pixel_ratio));
     resize();
     if (sea) {
       sea.geometry.dispose();
@@ -735,23 +999,56 @@
       page.info.rain = n;
     }
     if (spray) spray.geometry.setDrawRange(0, l.spray * SPRAY_BURSTS);
-    if (why) {
-      noteEl.textContent = why;
-      noteEl.style.display = 'block';
-    }
+    if (why) note(why, 8);
+    page.quality = auto ? 'AUTO' : level;
+    warm(2000);
+    wake();
+    changed('quality');
   }
+  page.setQuality = function (q) {
+    if (q === 'AUTO') {
+      auto = true;
+      topLevel = ST.quality;
+      setLevel(page.warned ? 'PHONE' : ST.quality);
+    } else if (LEVELS.indexOf(q) >= 0) {
+      auto = false;
+      topLevel = q;
+      setLevel(q);
+    }
+    page.auto = auto;
+    page.quality = auto ? 'AUTO' : level;
+    note('');
+    changed('quality');
+  };
 
   function resize() {
     var w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+    var l = L();
+    // pixels capped by count, not only by ratio (a 2560 x 1440 screen at scale 1.5 asked for 8 million at Best)
+    var ratio = Math.min(window.devicePixelRatio || 1, l.pixel_ratio);
+    if (l.pixels) ratio = Math.max(0.5, Math.min(ratio, Math.sqrt(l.pixels / Math.max(w * h, 1))));
+    if (Math.abs(renderer.getPixelRatio() - ratio) > 1e-3) renderer.setPixelRatio(ratio);
     renderer.setSize(w, h, false);
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
+    page.info.pixels = gl.drawingBufferWidth * gl.drawingBufferHeight;
+    page.info.pixelRatio = ratio;
+    wake();
   }
   window.addEventListener('resize', resize);
 
-  // ---------------------------------------------------------------- every frame
-  var clock = new T.Clock(), elapsed = 0, fpsFrames = 0, fpsSince = performance.now(), warmSince = fpsSince;
-  var lastBurst = -10, burst = 0, tmp = new T.Matrix4();
+  // ---------------------------------------------------------------- drawing
+  var elapsed = 0, lastBurst = -10, burst = 0, tmp = new T.Matrix4(), ONE = new T.Matrix4();
+  if (Q.has('time') && isFinite(parseFloat(Q.get('time')))) elapsed = Math.max(0, parseFloat(Q.get('time')));
+  var paused = Q.get('paused') === '1';
+  Object.defineProperty(page, 'paused', {           // the site's own button (task 0111) sets it directly
+    get: function () { return paused; },
+    set: function (v) { paused = !!v; chain = false; wake(); changed('paused'); }, enumerable: true });
+  var sp = parseFloat(Q.get('speed'));
+  if (sp === 0.5 || sp === 1 || sp === 2) page.speed = sp;
+  else if (PREF.speed === 0.5 || PREF.speed === 2) page.speed = PREF.speed;
+  page.setTime = function (s) { elapsed = Math.max(0, +s || 0); page.time = elapsed; chain = false; wake(); changed('time'); };
+  page.setSpeed = function (v) { page.speed = v === 0.5 || v === 2 ? v : 1; changed('speed'); };
   // the two ends of the hull at the waterline: spray where one dips into a wave (which end is the bow depends on how
   // the model was drawn)
   var midY = (ST.model.min[1] + ST.model.max[1]) / 2;
@@ -780,25 +1077,31 @@
     sun.shadow.normalBias = 2.5 * r / L().shadow;
   }
 
-  function frame() {
-    var dt = Math.min(clock.getDelta(), 0.1);
-    if (!page.paused) elapsed += dt;
-    page.time = elapsed;
+  // something keeps moving: then a picture is drawn every frame (up to page.cap a second), else only on a change
+  function moving() {
+    if (frozen != null || paused) return false;
+    return page.animated || (hasSea && !!ST.sea.moving && on.sea !== false) || (!!ST.vessel && on.vessel !== false) ||
+      (!!rain && on.rain !== false);
+  }
+  page.moving = moving;
+
+  function draw() {
     var t = frozen != null ? frozen : elapsed;
+    page.time = elapsed;
     var tScene = ST.time.start + t;
     var dist = camera.position.distanceTo(controls.target);
     camera.near = T.MathUtils.clamp(dist * 0.01, 0.002, 20);
     camera.updateProjectionMatrix();
-    controls.update();
     if (controls.target.y < lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0)) {   // never under the water
       var dy = lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0) - controls.target.y;
       controls.target.y += dy; camera.position.y += dy;
     }
     if (camera.position.y < lowest) camera.position.y = lowest;
     if (mixer) mixer.setTime(ST.animated ? t : 0);
+    var vOn = ST.vessel && on.vessel !== false;
     if (ST.vessel) {
-      vesselGroup.matrix.copy(toThree(M.vesselMatrix(ST.vessel, tScene)));
-      levelGroup.matrix.copy(toThree(M.vesselMatrix(ST.vessel, tScene, 'LEVEL')));
+      vesselGroup.matrix.copy(vOn ? toThree(M.vesselMatrix(ST.vessel, tScene)) : ONE);
+      levelGroup.matrix.copy(vOn ? toThree(M.vesselMatrix(ST.vessel, tScene, 'LEVEL')) : ONE);
       vesselGroup.matrixWorldNeedsUpdate = levelGroup.matrixWorldNeedsUpdate = true;
     }
     var tSea = hasSea && ST.sea.moving ? tScene : 0;
@@ -814,8 +1117,8 @@
       rainUniforms.uLen.value = Math.max(0.3, bx * 0.02);
       rainUniforms.uCentre.value.copy(camera.position).lerp(controls.target, 0.4);
     }
-    if (spray && hullEnds.length) {
-      var vmB = ST.vessel ? M.vesselMatrix(ST.vessel, tScene) : null;
+    if (spray && hullEnds.length && spray.visible) {
+      var vmB = vOn ? M.vesselMatrix(ST.vessel, tScene) : null;
       var limit = 0.25 * seaUniforms.uAmpOwn.value;
       for (var e = 0; e < hullEnds.length; e++) {
         var end = hullEnds[e];
@@ -835,42 +1138,130 @@
       sprayUniforms.uScale.value = T.MathUtils.clamp((ST.vessel ? ST.vessel.hull[1] : R) / 12, 0.15, 3);
       sprayUniforms.uPix.value = renderer.getPixelRatio() * canvas.clientHeight / 800;
     }
-    if (ST.shadows) fitShadow();
+    if (sun.castShadow) fitShadow();
     renderer.render(scene, camera);
     page.frames++;
     if (probes.length) probe();
     if (page.frames < 4 || page.frames % 60 === 0) mark();
-    if (maxFrames && page.frames >= maxFrames) return;     // ?frames=N: stop drawing (pictures in tests)
-    // frames per second (real clock time) and Auto
-    var now = performance.now();
-    if (document.hidden) { fpsFrames = 0; fpsSince = now; }
-    else {
-      fpsFrames++;
-      var span = (now - fpsSince) / 1000;
-      if (span >= 2 || (fpsFrames >= 2 && span >= 1 && fpsFrames / span < 10)) {
-        page.fps = fpsFrames / span;
-        if (auto && now - warmSince > 2500 && page.fps < 0.9 * 30 && LEVELS.indexOf(level) > 0) {
-          var lower = LEVELS[LEVELS.indexOf(level) - 1];
-          page.lowered++;
-          setLevel(lower, 'Quality ' + lower.charAt(0) + lower.slice(1).toLowerCase() + ': lowered to keep it smooth');
-          warmSince = performance.now();
-        }
-        fpsFrames = 0; fpsSince = performance.now();
-      }
-    }
-    requestAnimationFrame(frame);
   }
 
+  // the picture as a PNG (Screenshot): drawn now, without the page's buttons; the plain form on its light ground
+  page.screenshot = function () {
+    draw();
+    var out = canvas;
+    if (plain) {
+      out = document.createElement('canvas');
+      out.width = canvas.width; out.height = canvas.height;
+      var c2 = out.getContext('2d');
+      c2.fillStyle = '#F1F3F5';
+      c2.fillRect(0, 0, out.width, out.height);
+      c2.drawImage(canvas, 0, 0);
+    }
+    return out.toDataURL('image/png');
+  };
+
+  // frames per second: only pictures drawn one right after the other count (a pause, a hidden tab, a frozen page
+  // or the first pictures after a change, while the graphics card prepares its programs, are not slow pictures)
+  var scheduled = false, dirty = true, chain = false, lastDraw = 0, fpsTime = 0, fpsCount = 0, warmUntil = 0;
+  var idleTimer = null, goodWindows = 0, lastLower = -1e9, lastRaise = -1e9;
+  function warm(ms) { warmUntil = performance.now() + (ms || 1500); fpsTime = fpsCount = 0; goodWindows = 0; chain = false; }
+  function wake() { dirty = true; schedule(); }
+  page.wake = wake;
+  function schedule() {
+    if (scheduled || !page.ready || document.hidden || (maxFrames && page.frames >= maxFrames)) return;
+    scheduled = true;
+    requestAnimationFrame(tick);
+  }
+  function idle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (!scheduled && page.fps !== 0) { page.fps = 0; changed('fps'); mark(); }
+    }, 1500);
+  }
+  function judge(now) {
+    if (fpsTime < 2000) return;
+    page.fps = fpsCount * 1000 / fpsTime;
+    fpsTime = fpsCount = 0;
+    changed('fps');
+    var k = LEVELS.indexOf(level);
+    // no graphics card named (the browser hides it) and still slow at the lightest level: probably software
+    if (!page.warned && !page.gpu && level === 'PHONE' && page.fps < 15 && Q.get('soft') !== '0') {
+      page.warned = 'probably';
+      page.cap = 30;
+      if (on.shadows && !Q.has('off') && !PREF.off) page.setItem('shadows', false);
+      changed('warned');
+      mark();
+    }
+    if (!auto) return;
+    if (page.fps < 0.9 * AUTO_FPS && k > 0) {
+      var lower = LEVELS[k - 1];
+      page.lowered++;
+      lastLower = now;
+      goodWindows = 0;
+      setLevel(lower, 'Quality ' + lower.charAt(0) + lower.slice(1).toLowerCase() + ': lowered to keep it smooth');
+    } else if (!page.warned && page.fps >= Math.min(50, 0.8 * page.cap) && k < LEVELS.indexOf(topLevel)) {
+      // room to spare twice in a row: one step up again; not soon after it had to come down from there
+      goodWindows++;
+      var wait = lastRaise > lastLower ? 8000 : now - lastRaise < 30000 ? 60000 : 8000;
+      if (goodWindows >= 2 && now - lastLower > wait) {
+        var higher = LEVELS[k + 1];
+        page.raised++;
+        lastRaise = now;
+        setLevel(higher, 'Quality ' + higher.charAt(0) + higher.slice(1).toLowerCase() + ': raised again');
+      }
+    } else goodWindows = 0;
+  }
+  var AUTO_FPS = 30;
+
+  function tick(now) {
+    scheduled = false;
+    if (document.hidden) { chain = false; return; }        // visibilitychange wakes it again
+    var run = moving() || page.turning || !!fly || (probes.length > 0 && page.frames < (maxFrames || 4));
+    // at most page.cap pictures a second (a 165 Hz screen asked for 165)
+    if (lastDraw && now - lastDraw < 1000 / page.cap - 2) {
+      if (run || dirty || chain) { scheduled = true; requestAnimationFrame(tick); }
+      return;
+    }
+    var dt = chain ? Math.min((now - lastDraw) / 1000, 0.1) : 0;
+    if (moving()) elapsed += dt * page.speed;
+    if (fly) stepFly(now);
+    var moved = controls.update(dt > 0 ? dt : null);       // damping after a drag, auto-turn
+    if (!(dirty || run || moved)) { chain = false; idle(); return; }
+    dirty = false;
+    draw();
+    if (chain && now > warmUntil && now - lastDraw < 1000) { fpsTime += now - lastDraw; fpsCount++; }
+    lastDraw = now;
+    chain = true;
+    judge(now);
+    changed('time');
+    if (run || moved || dirty || page.turning) schedule();
+    else { chain = false; idle(); }
+  }
+  function frame() { dirty = true; tick(performance.now()); }   // draw now (the first picture of a probing test)
+  document.addEventListener('visibilitychange', function () {
+    chain = false;
+    warm(1500);
+    if (!document.hidden) wake();
+  });
+  window.addEventListener('pageshow', function () { chain = false; warm(1500); wake(); });
+
   function start() {
-    document.getElementById('loading').style.display = 'none';
-    setLevel(level);
-    firstView();
+    var ld = document.getElementById('loading');
+    if (ld) ld.style.display = 'none';
     page.ready = true;
-    fpsSince = warmSince = performance.now();
+    setLevel(level);
+    applyItems(true);
+    firstView();
+    var sh = parseFloat(Q.get('sun'));
+    if (page.sunLive && isFinite(sh)) page.setSunHour(sh, true);
+    page.time = elapsed;
+    warm(2500);
     mark();
+    changed('ready');
+    armTurn();
     // probing (tests): draw the first frame now – a headless browser may take its picture of the page before the
     // next animation frame comes
-    if (probes.length) frame(); else requestAnimationFrame(frame);
+    if (probes.length) frame(); else wake();
   }
 
   // ---------------------------------------------------------------- load the model
@@ -889,6 +1280,5 @@
     };
     if (T.MeshoptDecoder.ready) T.MeshoptDecoder.ready.then(go, bad); else go();
   } catch (e) { fail('The 3D model in this page could not be read.', 'model: ' + e); }
-  resize();
   page.setLevel = function (name) { setLevel(name); };
 })();

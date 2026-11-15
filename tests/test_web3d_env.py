@@ -214,14 +214,14 @@ def test_page_is_one_offline_file():
     assert page.count("<script") == page.count("</script>")
 
 
-def test_page_without_surroundings_stays_model_viewer():
-    """Surroundings None writes today's page: the three.js page is only for surroundings."""
+def test_model_viewer_page_stays_for_the_site():
+    """Task 0134: the exports all use the player; model-viewer's page stays for a bare .glb on the website."""
     plain = web3d.viewer_html("M", glb=b"x", script_text="/*mv*/")
     assert "model-viewer" in plain and "FRTHREE" not in plain
 
 
 def test_three_bundle_is_shipped_with_its_licence():
-    for f in (env.THREE_FILE, env.MATH_FILE, env.PAGE_FILE, "LICENSE-three.txt"):
+    for f in env.SCRIPTS + ("LICENSE-three.txt",):
         assert os.path.exists(os.path.join(web3d.WEB_DIR, f)), f
     head = open(os.path.join(web3d.WEB_DIR, env.THREE_FILE), encoding="utf-8").read(400)
     assert "three.js r180" in head and "MIT" in head

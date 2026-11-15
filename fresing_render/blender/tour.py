@@ -3336,7 +3336,12 @@ def _check_web3d(scene):
     _check(info["parts"] == out["parts"] > 0, f"{info['parts']} parts in the file, {out['parts']} shown")
     _check(os.path.exists(out["html"]), "the viewer page was not written")
     _check(info["names"][1:3] == ["Part 1", "Part 2"], "the part names are not hidden")
-    return f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel)"
+    from ..core import web3d_env as env                 # task 0134: the player is in the page, with the saved views
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
+            f"{len(st['views'])} saved views")
 
 
 def _check_web3d_env(scene):
@@ -3413,7 +3418,11 @@ def _check_demo(scene):
 stop("web3d", OUT, HUB_SET, "Web 3D model",
      "This stop saves the crane as a web 3D model next to the tour. Press Open page in 5 Scene & Render > Web 3D "
      "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
-     "scroll to zoom. The page is one file and also works without internet.",
+     "scroll to zoom. The page is one file and also works without internet. On the right: the gear opens the "
+     "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun), then Fullscreen, Reset "
+     "view, Screenshot, Copy link, keys (?) and the eye that hides every control; bottom left one button per saved "
+     "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
+     "draws without the graphics card.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d)
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
