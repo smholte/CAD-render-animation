@@ -35,7 +35,7 @@ Other rows of 0131 (they have their own tasks: 0136–0140); the files of runnin
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 15 Nov 2026 · version 0.2.108 · no subagents (Medium task; each fix small)
+**Chat / date:** Claude Code on the web, 15 Nov 2026 · version 0.2.109 · no subagents (Medium task; each fix small)
 
 **What changed:**
 - Row 3: the mesh reader marks names it makes (split pieces "WELDMENT 3", "Node k") in tree.json (`made_name`), the

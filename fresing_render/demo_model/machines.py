@@ -59,14 +59,18 @@ class Kit:
             self._cache[key] = make()
         return self._cache[key]
 
+    @staticmethod
+    def roller_profile(r: float, length: float) -> list:
+        """(radius, along the axis) of a cable roller's outline: raised ends (+15) that keep the cable in the middle."""
+        h = length / 2
+        return [(30.0, -h - 60), (55.0, -h - 60), (55.0, -h), (r + 15.0, -h), (r + 15.0, -h + 40),
+                (r, -h + 120), (r, h - 120), (r + 15.0, h - 40), (r + 15.0, h), (55.0, h), (55.0, h + 60),
+                (30.0, h + 60)]
+
     def roller(self, r: float = 125.0, length: float = 700.0, name: str = "CABLE ROLLER") -> Part:
         """Cable roller about local y (centred), slightly waisted so the cable stays in the middle."""
         def make():
-            h = length / 2
-            prof = [(30.0, -h - 60), (55.0, -h - 60), (55.0, -h), (r + 15.0, -h), (r + 15.0, -h + 40),
-                    (r, -h + 120), (r, h - 120), (r + 15.0, h - 40), (r + 15.0, h), (55.0, h), (55.0, h + 60),
-                    (30.0, h + 60)]
-            return Part(name, g.revolve(prof, (0, 0, 0), (0, 1, 0)), STEEL)
+            return Part(name, g.revolve(self.roller_profile(r, length), (0, 0, 0), (0, 1, 0)), STEEL)
         return self.get(("roller", name, r, length), make)
 
     def roller_stand(self, h: float, width: float = 900.0) -> Part:
