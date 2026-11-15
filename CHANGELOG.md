@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.108 – 15 Nov 2026 – the demo: a CPS set from the rack onto the cable end (task 0126)
+
+- **Demo, new shot 8b:** after the cable has gone into the sea, a **CPS set** (cable protection) slides from the rack's
+  top shelf, tail first, down the orange ramp and the curved slide onto side B's roller highway, runs round the
+  D-quadrant and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
+  place in front of the cable end. Shot 9 then shows the cable end connected to it (time-lapse × 15; about 24 s).
+- **Its pieces follow the bends:** the CPS sets of the demo are now made of pieces of at most 0.5 m (the grey tube and
+  sleeve in pieces), so they lie on their way round the D and the slide within 16 mm; they rest on the roller cradles
+  (higher in the V than the cable, on the rollers' raised ends), on the D's floor against its guide rollers, and run
+  into nothing on the way (checked at every frame).
+- **The demo vessel for it:** the slide comes onto side B at the CPS's height, the cradle under the slide's last bend is
+  gone (307 joints instead of 310), the D-quadrant's gutter is 123 mm wider and its top plate 58 mm higher, the tipping
+  eyes' lugs sit over the CPS's way, the rack's side guides are lower.
+- **The second end no longer piles up while the D carries it aft (shot 9):** it is hauled in by the D's travel (36 m
+  piled up on the seabed by the end of the travel before). While the D is lowered to the seabed (shots 10–11) the
+  cable still lays down in a loop under it – the warning says so.
 ## 0.2.107 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
 
 - **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
