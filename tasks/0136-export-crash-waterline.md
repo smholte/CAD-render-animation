@@ -1,6 +1,6 @@
 # 0136 – Fix: web 3D export crashes with a moving cable not built; marine growth follows the sea
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0136-export-crash-waterline`
+**Who:** worker · **Status:** done (0.2.106) · **Branch:** `task/0136-export-crash-waterline`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Web 3D lane + one call in Scene & Render):** `blender/web3d.py` (the Baker), `blender/handlers.py` or a small shared helper for pausing the live handlers, `blender/surroundings.py` (one call), their tests.
