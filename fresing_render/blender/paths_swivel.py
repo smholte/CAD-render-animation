@@ -340,6 +340,16 @@ def after_read(scene, mats: dict, first: int, frames: int) -> list[str]:
                 v = v[np.where(last < 0, int(np.argmax(good)), last)]
             v = np.unwrap(v)
             v = v + 2.0 * math.pi * round((old[0] - v[0]) / (2.0 * math.pi))
+            if F > 1:                           # it turns only while its wire is shown, else it holds (task 0125:
+                from . import paths             # a head turning through every frame cost the clash check twice the time)
+                vis = paths._shown(paths.find(scene, cab), first, F)
+                if not vis.any():
+                    v = old.copy()
+                elif not vis.all():
+                    idx = np.arange(F)
+                    last = np.maximum.accumulate(np.where(vis, idx, -1))
+                    nxt = np.minimum.accumulate(np.where(vis, idx, F)[::-1])[::-1]
+                    v = v[np.where(last >= 0, last, nxt)]
             if F == 1 or frames <= 1:
                 joints.set_value(j, float(v[0]), use_limits=False)
             else:

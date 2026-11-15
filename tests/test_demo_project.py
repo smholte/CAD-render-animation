@@ -525,7 +525,8 @@ def test_the_quadrant_operation_shots_10_to_12(made):
         if f >= let_go + int(math.ceil(se.sea_settle * 25)) + 1:   # settled: its start lies on the seabed
             inv = np.linalg.inv(np.array(paths_sea.bed(sc).matrix_world))
             z0 = float((inv[:3, :3] @ P[0] + inv[:3, 3])[2])
-            assert abs(z0 - bed) < 0.02, (f, z0, bed)
+            lift = paths._rider_lift(sc, se)                       # (its CPS rests on the seabed: it lies higher)
+            assert lift > 0.05 and abs(z0 - (bed + lift)) < 0.02, (f, z0, bed, lift)
     assert worst_len < 1.0, worst_len                        # (the drawn points' chords: within 0.5 %)
     assert worst_r >= 0.98 * se.mbr, (worst_r, se.mbr)
     # the CPS rides at its start: the pull head at the D's bar end, where the second end starts, at shot 9's start
