@@ -3261,12 +3261,12 @@ def bake(scene, anim) -> list[str]:
 
 def after_clear(scene) -> None:
     """'Clear keys': a cable over things that can move follows them live again."""
-    if not len(scene.fresing.cables):
-        return
     from . import paths_rollers, paths_swivel
+    paths_rollers.after_clear(scene)            # (task 0125: rollers left by the cable follow it again – also when
+    if not len(scene.fresing.cables):           # every cable was removed meanwhile)
+        return
     _STATE["busy"] += 1
     try:
-        paths_rollers.after_clear(scene)        # (task 0125: rollers left by the cable follow it again)
         paths_swivel.after_clear(scene)         # (task 0125: swivels follow their wires live again)
         for it in list(scene.fresing.cables):
             j = joints.find(scene, it.joint) if it.joint else None
