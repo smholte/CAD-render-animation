@@ -111,6 +111,8 @@ def test_every_joint_of_the_sheet(made):
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
         elif row["name"] == demo.PULLEY_TURN:                       # turned by the lowering's steps (task 0082)
             assert not j.follows
+        elif "Swivel sheave" in row["name"] and row["name"].endswith(" swivel"):
+            assert not j.follows, row["name"]                       # turned to its wire (Swivel, task 0125)
         elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
             assert "Fairlead" in row["name"], row["name"]
         elif drive.get("by") == "follows":
@@ -461,15 +463,18 @@ def test_the_quadrant_operation_shots_10_to_12(made):
             continue
         P = np.asarray(res["points"][k]) * scale
         sk = np.asarray(res["s"][k]) * scale
+        if float(sea_["h"][k]) < 0.5:                            # (the D at the seabed: the cable lies there)
+            continue
         sT = sk[int(np.argmin(np.linalg.norm(P - np.asarray(sea_["T_part"][k]) * scale, axis=1)))]
-        near = np.flatnonzero(np.abs(sk - sT) < 3.0)
+        bend = float(sea_["kink"][k]) * 4.05                     # (the free bend's length, on the gutter's radius)
+        near = np.flatnonzero((sk > sT - bend - 2.0) & (sk < sT + min(2.0, 0.3 * float(sea_["h"][k]))))
         Q = P[near]
         dv = np.diff(Q, axis=0)
         ln = np.linalg.norm(dv, axis=1)
         u = dv[ln > 1e-6] / ln[ln > 1e-6, None]
         if len(u) > 1:
             worst_turn = max(worst_turn, float(np.degrees(np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1, 1))).max()))
-    assert worst_turn < 1.5, worst_turn
+    assert worst_turn < 1.5, worst_turn                          # (the gutter's own arc: ~1.4° a point)
     # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
     sc.frame_set(f9)                                             # (from here on nothing is paid out)
     want = se.sea_mark + paths_sea.payout(sc, se)

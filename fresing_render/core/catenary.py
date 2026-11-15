@@ -467,6 +467,10 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     # the free bend from the wheel's tangent to the catenary's direction (task 0125): the catenary starts where it ends
     theta, m = _bend(tangent, res["direction"])
     use = (theta > BEND_MIN) & ~short
+    # (a wheel at the seabed – a quadrant set down on it: a free bend would curl into the seabed; the cable leaves it
+    # lying on the seabed instead)
+    end_z = T[:, 2] + r * (np.sin(theta) * tangent[:, 2] + (1.0 - np.cos(theta)) * m[:, 2])
+    use &= (end_z > float(bottom_z)) & (T[:, 2] - float(bottom_z) > r * (1.0 - np.cos(theta)))
     theta = np.where(use, theta, 0.0)
     if use.any():
         L1 = L0 - r * psi
