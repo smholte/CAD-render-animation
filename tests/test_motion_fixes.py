@@ -33,7 +33,8 @@ def _boxes(n, seed):
 
 
 def _plan_pairwise(parts, st, blocked=None):
-    """The plan as 0.2.92 worked it out, pair by pair (the reference for the vectorised one)."""
+    """The plan as 0.2.92 worked it out, pair by pair (the reference for the vectorised one); since task 0129 parts
+    going nearly the same way stack in every direction ("Away from the centre" too)."""
     centre = core.centre_of(parts)
     dirs = core.directions(parts, st, centre)
     if blocked is not None:
@@ -66,13 +67,15 @@ def _plan_pairwise(parts, st, blocked=None):
         i = seq[r]
         u = dirs[i]
         t = base
-        if st.direction != "CENTRE":
-            lo_i, _ = core._span(parts[i].corners, u)
-            for k in seq[r + 1:]:
-                if float(np.dot(dirs[k], u)) < core.SAME_WAY or not core._across(parts[i].corners,
-                                                                                 parts[k].corners, u):
-                    continue
-                t = max(t, core._span(parts[k].corners, u)[1] + travel[k] + gap - lo_i)
+        lo_i, _ = core._span(parts[i].corners, u)
+        for k in seq[r + 1:]:             # task 0129: every direction, parts going nearly the same way (NEAR)
+            if float(np.dot(dirs[k], u)) < core.NEAR:
+                continue
+            end = np.asarray(parts[k].corners) + dirs[k] * travel[k]
+            way = np.concatenate([np.asarray(parts[k].corners), end])
+            if not core._across(parts[i].corners, way, u):
+                continue
+            t = max(t, core._span(end, u)[1] + gap - lo_i)
         travel[i] = t
     return [(parts[i].name, tuple(np.round(dirs[i] * travel[i], 12))) for i in seq]
 

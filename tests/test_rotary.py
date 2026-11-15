@@ -474,3 +474,27 @@ def test_chips_on_a_table_that_carries_the_4th_axis(tmp_path):
     # chips resting past the table (the fixed bed, the headstock): in world space, not on the plate
     rw = np.isfinite(bk.rest_t[d[1]["id"]])
     assert rw.any()
+
+
+def _tool(sc):
+    return next(o for o in sc.objects if o.get(build.PROP_NAME) == "TOOL T1 FLAT D6")
+
+
+def test_a_tool_tip_never_comes_from_another_projects_tool(tmp_path):
+    """Task 0127: the PC check's 4-axis bar was left uncut on 3 GitHub runs. The 5-axis and the 4-axis test models
+    have a tool of the same name, mesh name and point count whose tips lie 40 mm apart in the tool's own space; the
+    tip was cached by the mesh's memory address, and after a project was opened the new tool's mesh got the old one's
+    address now and then. Opening a project drops the cached tips, and a tip is cached by the mesh's points."""
+    for model in (MODEL5, MODEL4):
+        bpy.ops.wm.read_homefile(use_empty=True)             # as the PC check opens each project (load_post runs)
+        sc = bpy.context.scene
+        sc.fresing.out_folder = str(tmp_path)
+        assert bpy.ops.fresing.import_step(filepath=model, quality="draft") == {"FINISHED"}
+        if model == MODEL5:
+            tip5 = gcode._rest_tip(_tool(sc))[0].copy()
+            kept = dict(gcode._CACHE)
+        else:
+            assert not any(k[0] == "tip" for k in gcode._CACHE), "a tool tip of the project before is still kept"
+    gcode._CACHE.update(kept)                                # even if one were kept (worst case: same address)
+    tip4 = gcode._rest_tip(_tool(sc))[0]
+    assert tip5.z == pytest.approx(0.23, abs=1e-4) and tip4.z == pytest.approx(0.19, abs=1e-4), (tip5, tip4)

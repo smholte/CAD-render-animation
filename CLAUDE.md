@@ -662,7 +662,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   see", where in the side panel, the set it lives in, `shot` or `animation`, a number `check`), set up in that set's
   build function (another test model: a new `@tour_set`). Raise `MIN_LINES_TOUR` in `tools/ci_check_pccheck.py` and
   `MIN_CHECKS["tour"]` in `tools/ci_real_app.py` (the precheck says so); `tests/test_tour.py` runs its Go and check.
-  **Every tour animation gives 0 clashes** (task 0067): `tests/test_clash.py::test_every_tour_animation_has_no_clash`
+  **Every tour animation gives 0 clashes** (task 0067): `tests/test_tour_clash.py` (one test per set, task 0127)
   builds and checks every animation of every set by itself (only the clash model keeps its 6.0 mm). A new set that
   fails it has a fault in its test model or its set-up (a part left standing that the motion runs through, a shape
   in the way): fix that, do not loosen the test.
@@ -1043,3 +1043,16 @@ the release → Delete); the next run on `main` publishes it again.
   the ray through the clicked pixel (`ui_test_app2.py` stack check), not with the ideal 3D point.
 - The STEP writer is not byte-stable (time stamp, entity order): re-running a maker changes the file; copy it to both
   `tests/data/` and `fresing_render/data/` every time (the copy check is byte for byte).
+- When a value is set from Python and a follower's motion has two drivers (its value copy `["fr_value"]` and its turn),
+  Blender 5.2.3 now and then leaves the driver-written **custom property** one step behind – in the evaluated copy and
+  sometimes in the original – while the turn is right (task 0127: 11 of 40 runs of `test_table_moves_the_follower`'s
+  loop; a bare case of two objects, the leader with a driver on itself, 17 of 3,000; keyed values played as frames: 0).
+  Never test or read a follower's `motion["fr_value"]`: read `joints.get_value` or what moves the part. The panel still
+  shows that copy for a follower (Motion lane open point).
+- A test that is near its time box on a 4-core machine times out on a busy GitHub runner: give each piece its own box
+  (`tests/test_tour_clash.py`: one test per tour set, each builds only its own project, task 0127).
+- Never key a cache that outlives a project on a datablock's memory address (`as_pointer()`): after a project is opened,
+  a new mesh of the same size often gets the old one's address. `gcode._rest_tip` did, and the PC check's 4-axis tool
+  got the 5-axis tool's tip (same name, mesh name and point count, 40 mm apart): the bar was left uncut on 3 GitHub runs
+  (task 0127). Key on the content (`gcode._shape_sig`) and drop such caches in `load_post` (`gcode.forget`). Tests that
+  clear a module's cache by hand before each model hide this: the PC check opens many projects in one Blender.

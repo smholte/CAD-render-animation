@@ -2685,6 +2685,8 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
       length follows from the program.
     - **Assembly sequence**: a subassembly comes apart part by part, fasteners first, or goes together (see
       **Take a subassembly apart** below). Its length follows from the number of parts.
+    - **Back to CAD**: every joint goes back to where the CAD file has it, and moved parts back to their places,
+      over the step's duration (see **Back to CAD** below).
     - **Weather & time**: the weather and the time of day change over the step – day to dusk, the rain
       starting, the fog lifting (see **Weather & time** in 5 Scene & Render).
 
@@ -2839,8 +2841,9 @@ from there and go together, instead of many Show, Hide and pose steps.
 3. **Order**: **Outside in** (bolts, nuts and washers first, then the parts nearest the outside; a part waits while
    another part is still in its way), **Tree order** (as in 2 Structure) or **Reverse**.
 4. **Direction**: **Along an axis** of the subassembly (**+X** … **-Z**: its own axes from CAD, so it still works when
-   a joint has turned it), **Up**, or **Away from the centre**. Along an axis or up, the parts end in a neat column:
-   the first one out goes furthest, so nothing flies through a part that is already out.
+   a joint has turned it), **Up**, or **Away from the centre**. Parts going the same way end in a neat column: the
+   first one out goes furthest, so nothing flies through a part that is already out (also away from the centre: parts
+   nested in each other do not end up inside each other).
 5. **Distance by size** (far enough to clear the whole subassembly), or untick it and set **Distance**.
 6. **Per part** (seconds each part takes) and **Overlap** (50 % = the next part starts half way through the one
    before). The step's length follows from these.
@@ -2852,9 +2855,37 @@ from there and go together, instead of many Show, Hide and pose steps.
 
 The step starts from wherever the parts are at that moment (after a joint has turned the subassembly, say) and leaves
 every joint as it is, so a later step still works. Logos ride along; hoses and cables follow the parts they hang on;
-hoses and chain links themselves stay out of the sequence (the box says so). A part whose straight way out runs into
-another part is named in a warning at Build: pick another order or direction. Check the result with the **Clash
-check** below.
+hoses and chain links themselves stay out of the sequence (the box says so).
+
+**Parts round the subassembly.** The rest of the model counts too: a part whose way out would run through a frame,
+a beam or a wall that is not in the subassembly goes another way instead – along another axis of the subassembly
+(sideways before backwards) that is clear of that part and of the parts still in place. A hidden part is not in
+anybody's way. Only when no way is clear, a warning at Build names the part and what it runs into: pick another
+direction or a shorter distance. A part whose straight way out runs into another part of the subassembly is named the
+same way: pick another order or direction. Check the result with the **Clash check** below.
+
+**Parts that ride on another part.** A part a joint carries on another part of the subassembly (a gripper block on a
+carriage, a block in a robot's gripper) flies on its own: it leaves before the part it rides on, from where that part
+has put it, and stays where it flew while the part it rode on flies out under it. Put together, it comes back last.
+The box counts them ("… ride on another part and leave before it").
+
+<a id="back-to-cad"></a>
+**Back to CAD: undo a pose**
+
+<img class="panel" src="img/panel_6_back_to_cad.png" alt="A Back to CAD step for the boom only (Whole model unticked)">
+
+A saved pose (Go to pose) stays where it ends. The step **Back to CAD** brings the machine home again: every joint goes
+back to its CAD value and every moved part back to its place, smoothly over the step's **Duration** (**Motion** as for
+the other steps).
+
+1. Add a step **Back to CAD** (**+** next to the steps) after the pose.
+2. **Whole model** (ticked): every joint of the model. Untick it, select a subassembly and press **Use selected**: only
+   the joints that move its parts (and its moved parts) go back; the rest stays where it is.
+3. A motor (a joint that turns without end) goes to its nearest whole turn: it looks the same as in CAD and does not
+   spin back through every turn it made.
+
+The step only writes keys on the joints, as a Move joint step does: it works with scripts switched off and in the
+render queue.
 
 <a id="trails"></a>
 **Trail lines: the path of a point**
@@ -3006,12 +3037,16 @@ One button makes a first complete film from what your project already has. Open 
 - **Length**: about 30, 60 or 90 seconds, title and end card included. The steps share the time.
 - **Take apart**: the biggest subassembly (at least 5 parts, not the whole model), the one selected in 2 Structure, or none.
 - **Motions to show**: how many joints (longest travel first; each goes to its far limit and back, with the camera
-  watching the moving part) and then saved poses. A saved pose stays where it ends. 0 shows none.
+  watching the moving part) and then saved poses, followed by a **Back to CAD** step that brings the machine home
+  before the take-apart. 0 shows none.
 - **Title card**, **End card** and **Captions** use the brand kit (5 Scene & Render). **Title** empty: the project's name.
 
 The video is a new animation called **Product video**: a turn round the machine, the motions, the subassembly taken
-apart and put together again (an Assembly sequence), a close-up from each of your first two saved cameras. A part the
-project has nothing for is left out (no joints: no motions; no subassembly: no take-apart); the line under the button says what.
+apart and put together again (an Assembly sequence) and two close-ups. The close-ups come from your first two saved
+cameras that show part of the machine close (a view of the whole machine, such as the one the import makes, does not
+count). Without such cameras the app picks the spots itself: a type plate or another logo first, then the moving parts
+round each joint (a boom at its hinge), each seen from the side that shows most of it. A part the project has nothing
+for is left out (no joints: no motions; no subassembly: no take-apart); the line under the button says what.
 
 Every step is an ordinary step: change it, add one, switch one off. Press **Make a product video** again to make it
 anew; the app asks first if you changed its steps. Then **Build & play**, or **Add to queue** in 7 Render queue as for

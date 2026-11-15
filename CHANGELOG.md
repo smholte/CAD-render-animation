@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.102 – 15 Nov 2026 – the assembly sequence watches the whole model, Back to CAD (task 0129)
+
+- **Assembly sequence – the rest of the model counts:** a part whose way out would run through a frame, a beam or a
+  wall that is not in the subassembly now goes another way – along another axis of the subassembly, sideways before
+  backwards – that is clear of it and of the parts still in place. Only when no way is clear does Build name the part
+  and what it runs into.
+- **Assembly sequence – parts that ride on another part** (a gripper block on a carriage, a block in a robot's
+  gripper) now fly on their own: first, from where the joint has put them, and they stay where they flew while the
+  part they rode on leaves under them.
+- **Assembly sequence – Away from the centre** now stacks parts that go nearly the same way, so parts nested in each
+  other no longer end up inside each other.
+- **New step "Back to CAD"** (6 Animation, Add step): every joint – of the whole model or of one subassembly – goes
+  back to where the CAD file has it, and moved parts back to their places, smoothly over the step. A motor goes to its
+  nearest whole turn.
+- **Product video:** after the saved poses a Back to CAD step brings the machine home before the take-apart. The
+  close-ups use your saved cameras that show part of the machine close; without them the app picks the spots itself –
+  a type plate or logo first, then the moving parts round each joint (a boom at its hinge), seen from the side that
+  shows most of it. (The import's whole-machine view no longer counts as a close-up.)
+- The Assembly sequence preview no longer works its plan out twice when you start dragging.
+
 ## 0.2.101 – 14 Nov 2026 – the test models look like real machines (task 0122)
 
 - **Test models:** the small models of the test tour, the PC check and the guide pictures now look like real machines:

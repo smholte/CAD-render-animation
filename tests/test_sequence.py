@@ -118,6 +118,117 @@ def test_put_together_is_the_exact_reverse():
     assert first_in.name == "cup"
 
 
+def _ends(parts, moves):
+    by = {m.name: m for m in moves}
+    return {p.name: np.asarray(p.corners) + by[p.name].offset for p in parts}
+
+
+def test_away_from_the_centre_stacks_nested_parts():
+    """Task 0129: parts nested in each other near the centre went the same way the same distance and ended nested
+    again. Now each ends beyond the parts that leave after it going nearly the same way (GAP apart)."""
+    parts = [box("cup", (0.0, -3, -3), (6, 3, 3), index=0),
+             box("ring", (0.5, -1, -1), (4.5, 1, 1), index=1),
+             box("pin", (1.0, -0.3, -0.3), (4.0, 0.3, 0.3), index=2),
+             box("far", (-9, -1, -1), (-7, 1, 1), index=3)]
+    st = core.Settings(direction="CENTRE", by_size=False, distance=2.0)
+    moves = core.plan(parts, st)
+    by = {m.name: m for m in moves}
+    ends = _ends(parts, moves)
+    rank = {m.name: m.rank for m in moves}
+    gap = max(core.MIN_GAP, core.GAP * 2.0)
+    for a in parts:
+        for b in parts:
+            if a is b or rank[a.name] > rank[b.name]:
+                continue
+            u = by[a.name].direction
+            if float(u @ by[b.name].direction) < core.NEAR:
+                continue
+            # a leaves first: it ends beyond b's end, at least the gap
+            assert (ends[a.name] @ u).min() >= (ends[b.name] @ u).max() + gap - 1e-9, (a.name, b.name)
+    assert by["far"].distance == pytest.approx(2.0)                 # alone on its side: the set distance
+
+
+def test_riders_leave_before_their_carrier_in_every_order():
+    parts = stack()
+    carried = {0: [1, 2], 3: [4]}            # the cup carries the rings, the lid the bolt
+    for order in ("OUTSIDE_IN", "TREE", "REVERSE"):
+        moves = core.plan(parts, core.Settings(direction="UP", order=order), carried=carried)
+        rank = {m.name: m.rank for m in moves}
+        assert rank["ring1"] < rank["cup"] and rank["ring2"] < rank["cup"] and rank["bolt"] < rank["lid"], order
+    tree = core.plan(parts, core.Settings(direction="UP", order="TREE"), carried=carried)
+    assert [m.name for m in sorted(tree, key=lambda m: m.rank)] == ["ring1", "ring2", "cup", "bolt", "lid"]
+
+
+class _Beam:
+    """A beam outside the subassembly, as Blender's swept test answers it: a part runs into it when its way (box
+    moved along u by dist) overlaps the beam's box."""
+
+    def __init__(self, parts, lo, hi):
+        self.parts, self.lo, self.hi = parts, np.array(lo, float), np.array(hi, float)
+        self.asked = 0
+
+    def __call__(self, i, u, dist):
+        self.asked += 1
+        c = np.asarray(self.parts[i].corners)
+        way = np.concatenate([c, c + np.asarray(u) * dist])
+        lo, hi = way.min(axis=0) + 1e-4, way.max(axis=0) - 1e-4
+        return bool(np.all(hi > self.lo) and np.all(lo < self.hi))
+
+
+def test_a_part_outside_the_subassembly_sends_a_part_another_way():
+    parts = [box("left", (-6, -2, 0), (-2, 2, 2), index=0), box("mid", (-1, -2, 0), (1, 2, 2), index=1),
+             box("right", (2, -2, 0), (6, 2, 2), index=2)]
+    beam = _Beam(parts, (-1.5, -10, 5), (1.5, 10, 6))                # over the middle part only, along Y
+    st = core.Settings(direction="UP", by_size=False, distance=8.0)
+    moves = {m.name: m for m in core.plan(parts, st, obstacle=beam)}
+    assert np.allclose(moves["left"].direction, (0, 0, 1)) and np.allclose(moves["right"].direction, (0, 0, 1))
+    mid = moves["mid"]
+    assert abs(mid.direction[2]) < 1e-9                               # sideways: clear of the beam
+    assert not beam(1, mid.direction, mid.distance)
+    # without the beam: everything up, as before
+    plain = core.plan(parts, st)
+    assert all(np.allclose(m.direction, (0, 0, 1)) for m in plain)
+    # a way that is blocked everywhere keeps the wanted way (Blender reports it)
+    cage = _Beam(parts, (-100, -100, -100), (100, 100, 100))
+    stuck = {m.name: m for m in core.plan(parts, st, obstacle=cage)}
+    assert all(np.allclose(m.direction, (0, 0, 1)) for m in stuck.values())
+
+
+def test_another_way_is_clear_of_the_parts_still_in_place():
+    """The middle part cannot go up (beam); ±X would run into the parts left and right of it while they are still in
+    place."""
+    parts = [box("left", (-6, -2, 0), (-2, 2, 2), index=0), box("mid", (-1, -2, 0), (1, 2, 2), index=1),
+             box("right", (2, -2, 0), (6, 2, 2), index=2)]
+    beam = _Beam(parts, (-1.5, -10, 5), (1.5, 10, 6))
+    st = core.Settings(direction="UP", by_size=False, distance=8.0, order="TREE",
+                       frame=((1, 0, 0), (0, 1, 0), (0, 0, 1)))
+
+    class Hit:
+        dirs = None
+
+        def __call__(self, i, j):
+            return False
+
+        def hit(self, i, j, u, dist):
+            return bool(core._in_way(np.asarray(parts[i].corners), np.asarray(parts[j].corners), np.asarray(u))
+                        and (np.asarray(parts[j].corners) @ np.asarray(u)).min()
+                        < (np.asarray(parts[i].corners) @ np.asarray(u)).max() + dist)
+    moves = {m.name: m for m in core.plan(parts, st, blocked=Hit(), obstacle=beam)}
+    assert np.allclose(moves["mid"].direction, (-1, 0, 0))          # tree order: the left part has left already
+    parts[1].index, parts[0].index = 0, 1                            # the middle part first: both still there
+    moves = {m.name: m for m in core.plan(parts, st, blocked=Hit(), obstacle=beam)}
+    u = moves["mid"].direction
+    assert abs(u[0]) < 1e-9 and abs(u[2]) < 1e-9, u                 # not ±X, not up: along Y
+
+
+def test_other_ways_most_like_the_wanted_first():
+    st = core.Settings(frame=((1, 0, 0), (0, 1, 0), (0, 0, 1)))
+    ways = core.other_ways((0, 0, 1), st)
+    assert len(ways) == 5
+    assert np.allclose(ways[-1], (0, 0, -1))
+    assert all(abs(w[2]) < 1e-9 for w in ways[:4])
+
+
 # ---------------------------------------------------------------------------
 # in Blender
 # ---------------------------------------------------------------------------
@@ -365,3 +476,268 @@ def test_add_step_operator_and_label(sc):
     assert bpy.ops.fresing.block_duplicate() == {"FINISHED"}
     assert a.blocks[-1].seq_id != b.seq_id
     states.by_uid(sc)
+
+
+# ---------------------------------------------------------------------------
+# task 0129: a frame round the subassembly, riders
+# ---------------------------------------------------------------------------
+
+FRAME = os.path.join(HERE, "data", "test_sequence_frame.step")
+UNDER_BEAM = ("RAIL BLOCK", "COVER", "CARRIAGE", "GRIPPER BLOCK", "SPLIT PIN")
+
+
+@pytest.fixture()
+def fr(tmp_path):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.fresing.out_folder = str(tmp_path)
+    assert bpy.ops.fresing.import_step(filepath=FRAME, quality="draft") == {"FINISHED"}
+    return sc
+
+
+def rig(sc):
+    """The carriage slides along X on the rail block; the gripper block lifts on the carriage: both ride."""
+    rail, car, blk = named(sc, "RAIL BLOCK"), named(sc, "CARRIAGE"), named(sc, "GRIPPER BLOCK")
+    slide = joints.create(sc, "SLIDE", [car], Vector((0, 0, 0.04)), Vector((1, 0, 0)), name="Carriage", base=rail)
+    lift = joints.create(sc, "SLIDE", [blk], Vector((0, 0, 0.08)), Vector((0, 0, 1)), name="Lift", base=car)
+    return slide, lift
+
+
+def add_frame_seq(sc, a, start=0.0, **kw):
+    b = a.blocks.add()
+    b.kind = "SEQUENCE"
+    u = named(sc, "SLIDE.UNIT")
+    b.target_uid, b.target_name = u[build.PROP_UID], u[build.PROP_NAME]
+    b.start = start
+    b.seq_id = f"f{len(a.blocks)}"
+    b.seq_direction = "UP"
+    for k, v in kw.items():
+        setattr(b, k, v)
+    sequence.count(sc, b)
+    return b
+
+
+def carriage_step(a, j, start=0.0, to=0.05):
+    s = a.blocks.add()
+    s.kind, s.joint, s.start, s.duration, s.use_from = "JOINT", j.name, start, 1.0, True
+    s.to_dist = to
+    return s
+
+
+def test_parts_under_a_frame_go_another_way_and_nothing_clashes(fr):
+    sc = fr
+    slide, _lift = rig(sc)
+    a = add_anim(sc, "Frame")
+    carriage_step(a, slide)
+    apart = add_frame_seq(sc, a, start=1.0, seq_part_time=0.6)
+    hold = 1.0 + apart.duration + 0.4
+    add_frame_seq(sc, a, start=hold, seq_mode="TOGETHER", seq_part_time=0.6)
+    unit = named(sc, "SLIDE.UNIT")
+    parts = sequence.movers(sc, unit).parts
+    assert apart.seq_count == len(parts) == 7 and apart.seq_riders == 2
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    at = worlds(sc, parts, animation.frame_of(a, 1.0))                  # the carriage has slid 50 mm
+    out = worlds(sc, parts, animation.frame_of(a, 1.0 + apart.duration))
+    for o in parts:
+        name = o.get(build.PROP_NAME)
+        d = out[o.name].translation - at[o.name].translation
+        assert d.length > 0.05, name
+        if name in UNDER_BEAM:
+            assert abs(d.z) < 1e-6, (name, tuple(d))                    # not up through the beam: sideways
+        else:
+            assert d.normalized().z > 1 - 1e-6, (name, tuple(d))        # the bolts go up past the beam
+    end = worlds(sc, parts, sc.frame_end)
+    for n in at:                                                         # back where the joint had put them
+        assert max(abs(x) for r in (end[n] - at[n]) for x in r) < TOL, n
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, round(r.depth * 1000, 2)) for r in run.rows]
+
+
+def test_without_the_frame_the_same_parts_go_up(fr):
+    sc = fr
+    frame = named(sc, "PORTAL FRAME")
+    frame.hide_render = True                                            # hidden: no longer in anybody's way
+    a = add_anim(sc)
+    b = add_frame_seq(sc, a)
+    parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    moves = sequence.plan_now(b, named(sc, "SLIDE.UNIT"), parts, scene=sc)
+    assert all(np.allclose(m.direction, (0, 0, 1)) for m in moves)
+    frame.hide_render = False
+    moves = {m.name: m for m in sequence.plan_now(b, named(sc, "SLIDE.UNIT"), parts, scene=sc)}
+    turned = {o.get(build.PROP_NAME) for o in parts if not np.allclose(moves[o.name].direction, (0, 0, 1))}
+    assert turned == set(UNDER_BEAM)
+
+
+def test_riders_fly_on_their_own_from_their_carried_place(fr):
+    sc = fr
+    slide, lift = rig(sc)
+    a = add_anim(sc, "Riders")
+    carriage_step(a, slide)
+    s = a.blocks.add()
+    s.kind, s.joint, s.start, s.duration, s.use_from, s.to_dist = "JOINT", lift.name, 0.0, 1.0, True, 0.01
+    b = add_frame_seq(sc, a, start=1.0, seq_part_time=0.8, seq_overlap=50.0)
+    car, blk, rail = named(sc, "CARRIAGE"), named(sc, "GRIPPER BLOCK"), named(sc, "RAIL BLOCK")
+    cad = blk.matrix_world.translation.copy()
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    f_start = animation.frame_of(a, 1.0)
+    w0 = worlds(sc, parts, f_start)
+    # carried: 50 mm along X with the carriage, 10 mm up on its own joint
+    assert (w0[blk.name].translation - cad - Vector((0.05, 0.0, 0.01))).length < TOL
+    assert b.seq_riders == 2
+    # the block leaves first of the three, the rail block last
+    starts = {o.name: key_frames(o)[0] for o in (blk, car, rail)}
+    f_blk = [k for k in key_frames(blk) if k >= f_start]
+    f_car = [k for k in key_frames(car) if k >= f_start]
+    f_rail = [k for k in key_frames(rail) if k >= f_start]
+    assert min(f_blk) < min(f_car) < min(f_rail), starts
+    # every frame from the block's start to the end: the block is at its start place + its own flight only;
+    # once out, it stays put while the carriage and the rail block fly out under it
+    end_f = sc.frame_end
+    out = worlds(sc, parts, end_f)
+    blk_out = out[blk.name].translation
+    for f in range(int(max(f_blk)), end_f + 1):
+        sc.frame_set(f)
+        assert (blk.matrix_world.translation - blk_out).length < TOL, f
+    for f in range(int(min(f_blk)), int(max(f_blk)) + 1):
+        sc.frame_set(f)
+        d = blk.matrix_world.translation - w0[blk.name].translation
+        way = blk_out - w0[blk.name].translation
+        assert d.cross(way).length < 1e-6 * max(1.0, way.length), f        # on its straight line all the time
+    assert (blk_out - w0[blk.name].translation).length > 0.05
+
+
+# ---------------------------------------------------------------------------
+# task 0129: the Back to CAD step
+# ---------------------------------------------------------------------------
+
+def test_back_to_cad_after_a_pose_whole_model_and_one_subassembly(fr):
+    sc = fr
+    slide, lift = rig(sc)
+    unit = named(sc, "SLIDE.UNIT")
+    frame = named(sc, "PORTAL FRAME")
+    cad_frame = frame.matrix_world.copy()
+    cad = {o.name: o.matrix_world.copy() for o in sequence.movers(sc, unit).parts}
+    joints.set_value(slide, 0.06)
+    joints.set_value(lift, 0.02)
+    frame.matrix_basis = build.rest_basis(frame) @ Matrix.Translation((0.0, 0.3, 0.0))   # a moved part
+    bpy.context.view_layer.update()
+    pose = states.save_pose(sc, "Out").name
+    states.reset_pose(sc)
+    joints.apply_free_moves(sc, {}, reset_others=True)
+    bpy.context.view_layer.update()
+    a = add_anim(sc, "Back")
+    p = a.blocks.add()
+    p.kind, p.pose, p.start, p.duration = "POSE", pose, 0.0, 1.0
+    c = a.blocks.add()
+    c.kind, c.start, c.duration = "CAD", 1.5, 1.0
+    assert animation.block_label(c) == "Back to CAD"
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    sc.frame_set(animation.frame_of(a, 1.0))
+    assert joints.get_value(slide) == pytest.approx(0.06, abs=1e-6)
+    sc.frame_set(animation.frame_of(a, 2.0))                               # half way back, eased
+    assert 0.0 < joints.get_value(slide) < 0.06
+    sc.frame_set(sc.frame_end)
+    assert joints.get_value(slide) == pytest.approx(0.0, abs=1e-7)
+    assert joints.get_value(lift) == pytest.approx(0.0, abs=1e-7)
+    for n, w in cad.items():
+        o = sc.objects[n]
+        assert max(abs(x) for r in (o.matrix_world - w) for x in r) < 1e-6, n
+    assert max(abs(x) for r in (frame.matrix_world - cad_frame) for x in r) < 1e-6
+    sc.frame_set(animation.frame_of(a, 1.0))
+    assert (frame.matrix_world.translation - cad_frame.translation).y == pytest.approx(0.3, abs=1e-6)
+
+    # only the subassembly: the joints that move its parts go back, a joint elsewhere stays
+    other = joints.create(sc, "SLIDE", [frame], Vector((0, 0, 0)), Vector((0, 1, 0)), name="Frame travel")
+    animation.clear_keys(sc)
+    a.blocks.clear()
+    for j, v in ((slide, 0.06), (other, 0.1)):
+        s = a.blocks.add()
+        s.kind, s.joint, s.start, s.duration, s.use_from, s.to_dist = "JOINT", j.name, 0.0, 1.0, True, v
+    c = a.blocks.add()
+    c.kind, c.start, c.duration, c.cad_whole = "CAD", 1.0, 1.0, False
+    c.target_uid, c.target_name = unit[build.PROP_UID], unit[build.PROP_NAME]
+    assert animation.block_label(c) == "Back to CAD: SLIDE.UNIT"
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    sc.frame_set(sc.frame_end)
+    assert joints.get_value(slide) == pytest.approx(0.0, abs=1e-7)
+    assert joints.get_value(other) == pytest.approx(0.1, abs=1e-6)
+
+
+def test_back_to_cad_turns_a_motor_to_its_nearest_whole_turn(fr):
+    sc = fr
+    pin = named(sc, "SPLIT PIN")
+    m = joints.create(sc, "ROTATE", [pin], Vector((0.12, 0, 0.05)), Vector((0, 0, 1)), name="Spin")
+    m.is_motor = True
+    a = add_anim(sc)
+    s = a.blocks.add()
+    s.kind, s.joint, s.start, s.duration, s.use_from = "JOINT", m.name, 0.0, 1.0, True
+    s.to_angle = math.radians(3 * 360 + 200)
+    c = a.blocks.add()
+    c.kind, c.start, c.duration = "CAD", 1.0, 1.0
+    animation.bake(sc, a)
+    sc.frame_set(sc.frame_end)
+    assert joints.get_value(m) == pytest.approx(math.radians(4 * 360), abs=1e-5)
+
+
+def test_back_to_cad_step_operator(fr):
+    sc = fr
+    assert bpy.ops.fresing.anim_add() == {"FINISHED"}
+    assert bpy.ops.fresing.block_add(kind="CAD") == {"FINISHED"}
+    b = animation.active(sc).blocks[-1]
+    assert b.kind == "CAD" and b.cad_whole and b.duration == pytest.approx(2.0)
+    desc = bpy.ops.fresing.block_add.get_rna_type().properties["kind"].enum_items["CAD"].description
+    assert "CAD" in desc
+
+
+def test_back_to_cad_in_the_queue_copy_and_with_scripts_off(fr, tmp_path):
+    """The render queue opens the saved project in a background copy and builds the animation there; Back to CAD
+    only keys the joints' values, so every driver stays one Blender runs with scripts off."""
+    sc = fr
+    slide, lift = rig(sc)
+    a = add_anim(sc, "Back")
+    carriage_step(a, slide, to=0.06)
+    c = a.blocks.add()
+    c.kind, c.start, c.duration = "CAD", 1.5, 1.0
+    path = str(tmp_path / "back é.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    from fresing_render.blender import queue
+    setup = queue._setup_animation(sc, {"kind": "ANIMATION", "animation": "Back", "quality": "draft", "id": "t",
+                                        "out_dir": str(tmp_path)}, lambda *x: None)
+    assert setup
+    j = sc.fresing.joints["Carriage"]
+    sc.frame_set(animation.frame_of(sc.fresing.animations["Back"], 1.2))
+    assert joints.get_value(j) == pytest.approx(0.06, abs=1e-6)
+    sc.frame_set(sc.frame_end)
+    assert joints.get_value(j) == pytest.approx(0.0, abs=1e-7)
+    for ob in sc.objects:
+        ad = ob.animation_data
+        for d in (ad.drivers if ad else []):
+            drv = d.driver
+            assert drv.type != "SCRIPTED" or drv.is_simple_expression, (ob.name, d.data_path, drv.expression)
+
+
+def test_preview_keeps_a_rider_where_it_flew(fr):
+    sc = fr
+    rig(sc)
+    a = add_anim(sc)
+    b = add_frame_seq(sc, a)
+    unit = named(sc, "SLIDE.UNIT")
+    parts = sequence.movers(sc, unit).parts
+    w0 = {o.name: o.matrix_world.copy() for o in parts}
+    plan = {m.name: m for m in sequence.plan_now(b, unit, parts, scene=sc)}
+    b.seq_preview = 100.0
+    bpy.context.view_layer.update()
+    for o in parts:                                    # every part (riders too) exactly at its own out place
+        want = w0[o.name].translation + Vector(tuple(plan[o.name].offset))
+        assert (o.matrix_world.translation - want).length < TOL, o.get(build.PROP_NAME)
+    b.seq_preview = 0.0
+    for o in parts:
+        assert (o.matrix_world.translation - w0[o.name].translation).length < 1e-7

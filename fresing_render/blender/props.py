@@ -763,6 +763,8 @@ BLOCK_KINDS = [
      "out one after another, fasteners first", "MOD_EXPLODE", 11),
     ("WEATHER", "Weather & time", "Changes the weather and the time of day over the step: day to dusk, the rain "
      "starting, the fog lifting (5 Scene & Render > Weather & time)", "OUTLINER_DATA_LIGHTPROBE", 12),
+    ("CAD", "Back to CAD", "Brings every joint (of the whole model or of one subassembly) back to where the CAD file "
+     "has it, and moved parts back to their places, over the step's duration: undoes a pose", "LOOP_BACK", 13),
 ]
 
 
@@ -1151,8 +1153,9 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                ("AXIS", "Along an axis", "Along one axis of the subassembly, all the same way (it turns with the "
                                          "subassembly)"),
                ("UP", "Up", "Straight up")],
-        description="Which way the parts fly. Along an axis or up, parts that would end in each other's way are "
-                    "stacked one beyond the other")
+        description="Which way the parts fly. Parts that would end in each other's way are stacked one beyond the "
+                    "other. A part whose way runs into a part outside the subassembly (a frame round it) takes another "
+                    "way that is clear")
     seq_axis: EnumProperty(name="Axis", default="Z",
                            items=[("X", "+X", "Along the subassembly's own X axis"),
                                   ("Y", "+Y", "Along the subassembly's own Y axis"),
@@ -1197,6 +1200,11 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)
     seq_riders: IntProperty(default=0)
+    # Back to CAD (task 0129)
+    cad_whole: BoolProperty(
+        name="Whole model", default=True,
+        description="On: every joint of the model goes back to its CAD value. Off: only the joints and moved parts of "
+                    "the subassembly picked below (Use selected)")
     gcode_path_render: BoolProperty(
         name="Toolpath in renders", default=False, update=_gcode_step_changed,
         description="Also shows the toolpath in pictures and videos (for presentations). Off: only in the view")
