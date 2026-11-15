@@ -1,7 +1,7 @@
 # 0130 – House round trip: format 1.0.1 (re-pin, ASCII zip names, sun_light from a sun-facing probe)
 
-**Who:** worker · **Status:** waiting – starts when `smholte/house-scene-format` has the tag **v1.0.1** (House Planner's
-task 0030) · **Branch:** `task/0130-house-format-1-0-1`
+**Who:** worker · **Status:** open – can start (tag **v1.0.1** of `smholte/house-scene-format` made 15 Nov, commit
+89bc92d) · **Branch:** `task/0130-house-format-1-0-1`
 **Started by:** lead chat, 15 Nov 2026 (House Planner's lead answered 0114's questions 1–4) · **Model:** Sonnet · effort Medium
 **Area (House lane):** `fresing_render/core/house_scene.py`, `core/house_hash.py` / `core/house_snow.py` (only the tag in
 their docstrings, unless 1.0.1 changes them), `blender/house_bake.py` (`_sun_light`), `tests/data/house/hsf-v1.0` →
