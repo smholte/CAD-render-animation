@@ -29,6 +29,33 @@ def ignore_next(ob) -> None:
 _LAST = {"key": None}
 
 
+_PAUSED_LISTS = ("depsgraph_update_pre", "depsgraph_update_post", "frame_change_pre", "frame_change_post")
+
+
+class pause_live:
+    """``with pause_live():`` the app's own live handlers (cables, hoses, vessel motion, drums, tracks, mechanisms, section,
+    milling ...) do not run: a scene that is only a working copy (the web 3D bake scene) carries the project's data, and
+    a handler acting on it crashed Blender (task 0136). The handlers are put back, in place, on the way out."""
+
+    def __enter__(self):
+        pkg = __name__.rsplit(".", 2)[0]               # "fresing_render"
+        self._saved = []
+        for name in _PAUSED_LISTS:
+            lst = getattr(bpy.app.handlers, name)
+            mine = [(i, fn) for i, fn in enumerate(lst) if getattr(fn, "__module__", "").startswith(pkg)]
+            for _i, fn in reversed(mine):
+                lst.remove(fn)
+            self._saved.append((lst, mine))
+        return self
+
+    def __exit__(self, *exc):
+        for lst, mine in self._saved:
+            for i, fn in mine:                          # ascending: each goes back to its old place
+                if fn not in lst:
+                    lst.insert(min(i, len(lst)), fn)
+        return False
+
+
 def _key():
     """What a click changes: the active object and whether it is selected."""
     try:

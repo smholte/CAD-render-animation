@@ -1,6 +1,6 @@
 # 0140 – Assembly sequence fixes: nested sequences, stable order, preview not saved, hidden parts left out
 
-**Who:** worker · **Status:** done (0.2.106) · **Branch:** `claude/confident-cannon-e9dcg5` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.107) · **Branch:** `claude/confident-cannon-e9dcg5` (the web session's branch)
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Motion lane (assembly sequence)):** `core/sequence.py`, `blender/sequence.py`, `product_video.py` (the start), `trails.py` / `sequence.tidy_trails`, their tests, the guide's sequence section.

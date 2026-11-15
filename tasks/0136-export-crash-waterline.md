@@ -1,6 +1,6 @@
 # 0136 – Fix: web 3D export crashes with a moving cable not built; marine growth follows the sea
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0136-export-crash-waterline`
+**Who:** worker · **Status:** done (0.2.106) · **Branch:** `task/0136-export-crash-waterline`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Web 3D lane + one call in Scene & Render):** `blender/web3d.py` (the Baker), `blender/handlers.py` or a small shared helper for pausing the live handlers, `blender/surroundings.py` (one call), their tests.
@@ -32,10 +32,16 @@ Other rows of 0131 (they have their own tasks: 0136–0140); the files of runnin
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 15 Nov 2026.
 
-**What changed:**
+**What changed:** (1) `handlers.pause_live()` takes the app's live depsgraph / frame handlers out while a bake runs and
+puts them back; `web3d.Baker._run` uses it, and the bake copy is tagged `fr_bake`. (12) `surroundings.ensure` ends with
+`marine_looks.sync(scene)`. New `tests/test_web3d_bake_safe.py` (export of a moving cable, not built / after Clear keys,
+in a process of its own; the pause helper; waterline at water level 3 m / -2 m and with the Vessel deck). Version 0.2.106.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (2-core-class web machine, test_moving.step, test_crane_a.step): without the fix the export
+segfaults (returncode -11, as in the bug hunt) and the waterline stays at 0; with it all 4 new tests pass. Nearby tests:
+marine_looks, web3d_env_blender, surroundings.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** `paths._follow` should still get the one-line guard for scenes tagged `fr_bake`
+(task 0137; not touched here, 0126 runs in `paths.py`).
