@@ -1,6 +1,6 @@
 # 0141 – Study: why the demo's Build depends on the frame shown (cause of 0131 row 6, findings only)
 
-**Who:** worker · **Status:** open – can start now (findings only: no app code pushed, starts no test run) ·
+**Who:** worker · **Status:** running (web session, 15 Nov; findings only: no app code pushed, starts no test run) ·
 **Branch:** `task/0141-demo-build-frame-study` (scratch only, never merged)
 **Started by:** lead chat, 15 Nov 2026 (owner: a Fable task with the usage left) · **Model:** Fable · effort High ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
