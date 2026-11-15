@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.108 – 15 Nov 2026 – mesh model updates keep work on the right piece (task 0139)
+
+- **Fixed (lost work):** updating a glTF/OBJ/FBX model moved joints, looks and stickers onto the wrong piece when a
+  split mesh gained or lost a piece (the piece numbers "WELDMENT 3", "Node 7" shift). Names the app made itself are
+  now matched by shape and place.
+- **Fixed (lost work):** a mesh model's own looks were lost at save when no part showed them (a group set to another
+  look); **From file** now always brings them back. An update lets the old revision's looks go.
+- **Fixed:** a change to an OBJ's material file (.mtl), a texture picture or a glTF's .bin file now arrives at the next
+  import or **Update to new revision** (before, the old copy was used).
+- **Faster:** updating a big mesh model (3,000 parts: 37 s → 24 s on the 4-core test machine).
+- **Fixed:** a round face on a part stretched along its axis showed 3 x its diameter; the hover could draw an old
+  part's outline after two updates; OBJ/MTL files from older Windows programs (å, ö, ø) keep their names and find
+  their pictures; a glTF with several scenes and no default reads the first one with something in it.
+
 ## 0.2.107 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
 
 - **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
