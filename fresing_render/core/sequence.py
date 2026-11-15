@@ -382,6 +382,11 @@ def plan(parts: list[Part], st: Settings, blocked=None, obstacle=None, carried: 
                 changed = True
         if not changed:
             break
+    else:
+        if obstacle is not None:          # the last round changed ways: order and distances for those ways (0129)
+            seq = order(parts, st, centre, dirs, blocked, carried)
+            bases = np.array([base_for(i) for i in range(len(parts))])
+            travel = _travels(boxes, seq, dirs, bases, gap)
 
     step = interval(len(parts), st.part_time, st.overlap)
     total = duration(len(parts), st.part_time, st.overlap)

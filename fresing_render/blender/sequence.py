@@ -628,10 +628,20 @@ class Obstacles:
         if stop is not None and dist >= stop[0]:
             self.hit_name[i] = stop[1]
             return True
-        pts = self.mesh(i)[0]
-        if not len(pts):
+        if not len(self.mesh(i)[0]):
             return False
-        dist = dist * PAD                                     # a little further: a later ask a little further is known
+        if not self._test(i, u, dist * PAD, key):             # a little further: a later ask a little further is known
+            return False
+        return self._test(i, u, dist, key)                    # blocked further out: the asked distance itself
+
+    def _test(self, i, u, dist, key) -> bool:
+        if dist <= self._clear.get(key, -1.0):
+            return False
+        stop = self._stop.get(key)
+        if stop is not None and dist >= stop[0]:
+            self.hit_name[i] = stop[1]
+            return True
+        pts = self.mesh(i)[0]
         a, z = pts.min(axis=0), pts.max(axis=0)
         off = np.asarray(u, dtype=float) * dist
         lo, hi = np.minimum(a, a + off), np.maximum(z, z + off)

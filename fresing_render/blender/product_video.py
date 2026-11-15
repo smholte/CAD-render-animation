@@ -468,12 +468,15 @@ def make(scene) -> dict:
     a.start_shot = shot.name
     a.tail = 1.0
     a.blocks.clear()
+    fps = float(animation.fps_of(a))
     for st in info["steps"]:
         b = a.blocks.add()
         b.kind = st["kind"]
         b.name = st["label"]
-        b.start = st["start"]
-        b.duration = st["duration"]
+        # on whole frames: a step that starts where the one before ends must not land a frame inside it through
+        # float32 rounding at a half frame (task 0129: "Two steps move 'Carriage' at the same time")
+        f0, f1 = round(st["start"] * fps), round((st["start"] + st["duration"]) * fps)
+        b.start, b.duration = f0 / fps, (f1 - f0) / fps
         b.easing = st.get("easing", "SMOOTH")
         if st["kind"] == "JOINT":
             j = s.joints[st["joint"]]
