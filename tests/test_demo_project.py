@@ -19,6 +19,7 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+sys.path.insert(0, HERE)                          # (demo_cps_check, task 0126)
 
 bpy = pytest.importorskip("bpy")
 pytest.importorskip("OCP")
@@ -78,12 +79,14 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 310                           # task 0102: no S-bend cradles; the cradles that drop
+    assert len(sheet) == 307                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
+    #                                                    none under the CPS slide's last bend onto side B
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
-    # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end
-    wires = [paths.find(sc, n).joint for n in (demo.AR_ITEM, demo.SECOND_ITEM) + tuple(n for _k, n in demo.TIP_ITEMS)]
-    assert len(by) == len(sheet) + 2 + 4 and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
+    wires = [paths.find(sc, n).joint for n in (demo.AR_ITEM, demo.SECOND_ITEM, demo.CPS_RUN_ITEM)
+             + tuple(n for _k, n in demo.TIP_ITEMS)]
+    assert len(by) == len(sheet) + 2 + 5 and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
@@ -222,7 +225,8 @@ def test_scenes_cameras_brand_and_the_animation(made):
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 150.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s)
+    assert 60.0 <= body + cards <= 180.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
+    #                                                            0126: shot 8b, ~24 s)
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
@@ -321,13 +325,111 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     sc.frame_set(1)
 
 
+def _t9(a) -> float:
+    """Where shot 9 starts: the second end is shown (task 0126: the lay cable is hidden earlier, in shot 8b)."""
+    return next(b.start for b in a.blocks if b.kind == "SHOW" and b.target_name == "CABLE END")
+
+
 def _first_steps(a) -> dict:
     """The first Move step of each joint in shot 9 and later (the quadrant operation)."""
-    t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
+    t9 = _t9(a)
     out = {}
     for b in sorted((b for b in a.blocks if b.kind == "JOINT" and b.start >= t9 - 1e-6), key=lambda b: b.start):
         out.setdefault(b.joint, b)
     return out
+
+
+def _cps_shot(sc, a) -> tuple:
+    """(first, last frame) of shot 8b (task 0126): from its cut to the second end's Show step."""
+    t0 = next(b.start for b in a.blocks if b.kind == "CAMERA" and b.camera_mode == "CUT" and b.camera is not None
+              and b.camera.name == demo.CPS_RACK)
+    return animation_frame(a, t0), animation_frame(a, _t9(a))
+
+
+def animation_frame(a, t: float) -> int:
+    from fresing_render.blender import animation
+    return animation.frame_of(a, t)
+
+
+def test_shot_8b_runs_a_cps_set_from_the_rack(made):
+    """Task 0126, the owner's CPS steps 1–5: the set on the ramp's shelf lies where CAD has it until shot 8b; it slides
+    tail first down the ramp and the slide, along side B, round the D, down side A to forward of tensioner 2, and back
+    until its pull head is at the D's lane-B bar end; shot 9 then shows the second end and its CPS in its place.
+    Measured at every frame of the shot (``tests/demo_cps_check.py``): every piece within 2 cm of the CPS's middle line
+    (its axis' ends and three points between), and nothing in anything – no corner of a piece inside a roller, cradle,
+    rail, rack, trough or the D, nor theirs inside a piece (the clash check leaves riders out: this is its check)."""
+    import demo_cps_check as chk
+
+    from fresing_render.blender import animation, build, joints, paths
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    animation.bake(sc, a)
+    d = demo.Demo(sc, made["folder"], VERSION, small=True)
+    m = demo.cps_run_marks(d)
+    item = paths.find(sc, demo.CPS_RUN_ITEM)
+    assert item.still and item.part.hide_render and len(item.riders) == 1
+    r = item.riders[0]
+    pieces = [p.part for p in r.parts]
+    cs = d.sheet("route")["cps_store"]
+    assert {o.get(build.PROP_UID) for o in pieces} == {o.get(build.PROP_UID) for o in
+                                                      paths_riders_parts(d.uid(cs["run_set"]))}
+    f0, f9 = _cps_shot(sc, a)
+    steps = sorted((b for b in a.blocks if b.kind == "JOINT" and b.joint == m["joint"]), key=lambda b: b.start)
+    assert [round(b.to_dist, 3) for b in steps] == [round(m["out"], 3), round(m["home"], 3)]
+    assert f0 < animation.frame_of(a, steps[0].start) and animation.frame_of(a, steps[-1].start + steps[-1].duration) < f9
+    j = joints.find(sc, m["joint"])
+    # before the shot: on the rack, where CAD has it (nothing moved)
+    sc.frame_set(f0)
+    assert joints.get_value(j) == pytest.approx(0.0, abs=1e-6)
+    dg = bpy.context.evaluated_depsgraph_get()
+    for ob in pieces:
+        assert np.abs(chk._mesh(ob, dg)[0] - chk._mesh(ob)[0]).max() < 1e-3, ob.name
+    # its way, every frame (the clash part every second frame, see measure)
+    res = chk.measure(sc, d, list(range(f0, f9 + 1)), pieces, chk.near_parts(sc, d), clash_every=2)
+    assert res["frames"] == f9 - f0 + 1
+    assert res["line"] <= 20.0, res
+    assert res["depth"] <= 0.5, res                                # (the clash check's own depth, core.clash.DEPTH)
+    # at the end: its pull head at the D's lane-B bar end (where the gutter starts), the second end shown in its place
+    sc.frame_set(f9 - 1)
+    head = next(o for o in pieces if o.get(build.PROP_NAME) == "PULL HEAD")
+    v, _t = chk._mesh(head, bpy.context.evaluated_depsgraph_get())
+    R = np.linalg.inv(np.array(d.root().matrix_world)) @ np.array(head.matrix_world)
+    v = (v @ R[:3, :3].T + R[:3, 3]) * 1000.0
+    nose = v[np.argmin(v[:, 0])]                                  # (it lies on the gutter's start, heading +x)
+    assert nose[0] == pytest.approx(float(d.sheet("route")["positions"]["quadrant_x"]), abs=20.0), nose
+    shown = {b.target_uid for b in a.blocks if b.kind == "SHOW" and abs(b.start - _t9(a)) < 1e-6}
+    hidden = {b.target_uid for b in a.blocks if b.kind == "HIDE" and abs(b.start - _t9(a)) < 1e-6}
+    assert cs["run_set"] in hidden and d.sheet("route")["second_end"]["cps"] in shown
+    sc.frame_set(1)
+
+
+def paths_riders_parts(asm) -> list:
+    from fresing_render.blender import paths_riders
+    return paths_riders.parts_from([asm])
+
+
+def test_the_second_end_is_hauled_in_while_the_d_travels(made):
+    """Task 0126 (0125's open point 1): while the D carries the bight aft in shot 9 the second end is hauled in by the
+    D's travel, so nothing of it piles up on the seabed then (36 m by the end of the travel before); it first piles up
+    while the D is lowered towards the seabed (shot 10)."""
+    import re
+
+    from fresing_render.blender import animation, joints, paths
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    said = animation.bake(sc, a)["warnings"]
+    se = paths.find(sc, demo.SECOND_ITEM)
+    assert not joints.find(sc, se.joint).follows
+    steps = sorted((b for b in a.blocks if b.kind == "JOINT" and b.joint == se.joint), key=lambda b: b.start)
+    travel = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.TRAVEL and b.to_dist > 0)
+    assert len(steps) == 2 and steps[0].start + steps[0].duration < _t9(a)
+    assert steps[1].start == travel.start and steps[1].duration == travel.duration
+    assert steps[0].to_dist - steps[1].to_dist == pytest.approx(travel.to_dist, abs=1e-4)
+    lower = min(b.start for b in a.blocks if b.kind == "JOINT" and b.joint == demo.LOWER)
+    piles = [int(m.group(1)) for w in said if "Second end" in w and "piles up" in w
+             for m in [re.search(r"at frame (\d+)", w)] if m]
+    assert all(f >= animation.frame_of(a, lower) for f in piles), said
+    sc.frame_set(1)
 
 
 def test_shot_9_carries_the_second_end_over_the_stern(made):
@@ -432,10 +534,11 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     d = demo.Demo(sc, made["folder"], VERSION, small=True)
     q = d.sheet("route")["quadrant"]
     ids = [x.id for x in demo.STAGES]
-    assert ids.index("shot_sea") < ids.index("quadrant_ops") < ids.index("shot_quadrant") < ids.index("shot_lower") \
+    assert ids.index("shot_sea") < ids.index("quadrant_ops") < ids.index("shot_cps") < ids.index("shot_quadrant") \
+        < ids.index("shot_lower") \
         < ids.index("shot_tip") < ids.index("shot_back") < ids.index("finish")
     steps = [b for b in a.blocks if b.kind == "JOINT"]
-    t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
+    t9 = _t9(a)
     tilts = [math.degrees(b.to_angle) for b in steps if b.joint == demo.TILT]
     assert tilts == pytest.approx([100.0, q["lower_tilt"], 0.0])
     lowers = [b.to_dist for b in sorted((b for b in steps if b.joint == demo.LOWER), key=lambda b: b.start)]
@@ -483,9 +586,12 @@ def test_the_quadrant_operation_shots_10_to_12(made):
             worst_turn = max(worst_turn, float(np.degrees(np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1, 1))).max()))
     assert worst_turn < 1.5, worst_turn                          # (the gutter's own arc: ~1.4° a point)
     # the solver's own length (its arc length along the drawn points) is the cable's: its sea end's mark + paid out
-    sc.frame_set(f9)                                             # (from here on nothing is paid out)
+    # (from the D's travel's end on nothing is paid out; task 0126: while it travels the second end is hauled in)
+    trav = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.TRAVEL and b.to_dist > 0)
+    f_on = animation.frame_of(a, trav.start + trav.duration) + 1
+    sc.frame_set(f_on)
     want = se.sea_mark + paths_sea.payout(sc, se)
-    good = [k for k in range(f9 - first, len(res["ok"])) if res["ok"][k]]
+    good = [k for k in range(f_on - first, len(res["ok"])) if res["ok"][k]]
     assert np.abs(np.asarray(res["length"])[good] - want).max() < 0.001
     quad = d.uid(q["uid"])
     arc = d.sheet("route")["second_end"]["route"]["segments"][0]
@@ -592,7 +698,7 @@ def test_the_wires_of_the_quadrant_operation(made):
         # task 0125: the head sheave turns to the wire (Swivel), no longer with the handler's tilt by a ratio
         head = [c for c in it.contacts if c.kind == "SHEAVE"]
         assert len(head) == 1 and head[0].swivel == f"QUADRANT SYSTEM: Swivel sheave {key} swivel"
-    t9 = next(b.start for b in a.blocks if b.kind == "HIDE" and b.target_name == "CABLE")
+    t9 = _t9(a)
     f9 = animation.frame_of(a, t9)
     for it in [ar] + [paths.find(sc, n) for _k, n in demo.TIP_ITEMS]:
         res, first = _solved(sc, it)
@@ -796,9 +902,10 @@ def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
     assert ids[:4] == ["model", "looks", "hold", "joints"] and ids[-1] == "finish"      # hold: task 0082
     assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
-                                                       "shot_tensioner", "shot_drum", "shot_sea", "shot_quadrant", "shot_lower",
+                                                       "shot_tensioner", "shot_drum", "shot_sea", "shot_cps", "shot_quadrant", "shot_lower",
                                                        "shot_tip", "shot_back"]
     saved = list(demo.STAGES)
+    before = [s.id for s in demo.STAGES]
     try:
         @demo.stage("cable", "Cable on its path", after="joints")
         def cable(d):
@@ -808,7 +915,7 @@ def test_stages_can_be_added_and_replaced():
         def rollers(d):
             pass
         ids = [s.id for s in demo.STAGES]
-        assert ids[ids.index("joints") + 1] == "cable"
+        assert ids == before                                     # replaced in its place
         assert ids.count("shot_rollers") == 1 and demo.STAGES[ids.index("shot_rollers")].fn is rollers
     finally:
         demo.STAGES[:] = saved

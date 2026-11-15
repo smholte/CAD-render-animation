@@ -49,6 +49,8 @@ JOINTS_JSON = "demo_joints.json"
 STORAGE_D = 16000.0             # the quay's storage carousel
 STORAGE_LAYERS = 11
 CPS_LENGTH = 15000.0
+CPS_LINE_R = 25.0                       # the CPS run line's radius (task 0126: a thin bar on the CPS's middle line, hidden;
+#                                         thinner bars read as many short bends: too few facets on their arcs)
 LOWER_MAX = 45000.0             # the D lowered on the A&R wire: 0 … 45 m below the top pulley (task 0082)
 AR_WRAP = 30.0                  # the CAD A&R wire starts this far (deg) round its drum's outer layer (a cable is read off it)
 
@@ -182,7 +184,7 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     S.info["quay"] = q
     quay_r = rt.quay_route(p, pos, q)
     S.routes["quay_loading"] = quay_r
-    cps_r = rt.cps_slide_route(p, pos)
+    cps_r = rt.cps_slide_route(p, pos, dk.cps_lift(p))
     S.routes["cps_slide"] = cps_r
     # ---- carousel (its cable end through the hole at the foot of the core) + loading tower with the arch
     t = time.time()
@@ -344,6 +346,12 @@ def _roller_stations(p, S: Scene, root: Asm) -> None:
     boxes.append((pos["tower_x"] - 1700, pos["tower_x"] + 1700, pos["lower_y"] - 1700, pos["lower_y"] + 1700, -1e9, 1e9))
     for sy in (-1, 1):                                      # the rails' girders (stations must not stand on them)
         boxes.append((pos["pulley_x"], pos["quadrant_apex_x"], sy * dk.RAIL_Y - 300, sy * dk.RAIL_Y + 300, -1e9, 1e9))
+    # the CPS slide's last bend onto side B (task 0126): a CPS on it passes over the lane's cradles there, less than its
+    # radius + a cradle's half width off the lane's line – none there (the next one, at the join, carries it)
+    R, J = p.bend_r, pos["cps_join_x"]
+    off = rt.cps_outer_r(p) + 700.0
+    boxes.append((J - math.sqrt(2.0 * R * off - off * off), J - 450.0, pos["side_b_y"] - 700.0, pos["side_b_y"] + 700.0,
+                  -1e9, 1e9))
     # the D-quadrant at rest: its upper bar crosses the lanes' ends (task 0102)
     ry = p.quadrant_r + 1000.0
     boxes.append((pos["quadrant_x"] - 600.0 - 350.0, pos["quadrant_apex_x"] + 500.0, -ry, ry, -1e9, 1e9))
@@ -715,25 +723,37 @@ def _shackle(d: float) -> Part:
 
 
 def _cps_store(p, S: Scene, root: Asm) -> None:
+    """The rack (five sets), the orange twisted ramp and the curved slide; task 0126: the set on the ramp's shelf lies
+    the other way round (its bend restrictors towards the ramp: it goes down tail first, so that, once it has run round
+    the D and back, its pull head is at the D's lane-B bar end, as the second end's CPS of shots 9–12), and the line it
+    runs along (``CPS RUN LINE``, a thin bar the demo reads as a path: ``route.cps_run_route``)."""
     pos, kit = S.pos, S.kit
     route = S.routes["cps_slide"]
     start = route.segments[0].start
     cps = dk.cps_set(p, kit, CPS_LENGTH)
     R0 = cps.info["outer_r"]
-    x1 = start[0] + 300.0
+    x1 = start[0] - rt.cps_shelf_gap(p)                  # (task 0126: the shelf ends before the ramp's edge bend)
     x0 = x1 - CPS_LENGTH - 500.0
     rows = [start[1], start[1] + 1200.0]
     levels = [p.deck_z + 1200.0, p.deck_z + 2400.0, pos["cps_shelf_z"]]
-    root.add(dk.cps_rack(x0, x1, rows, levels, p.deck_z, R0), T(0, 0, 0), "CPS RACK")
+    root.add(dk.cps_rack(x0, x1, rows, levels, p.deck_z, rt.cps_reach_r(p)), T(0, 0, 0), "CPS RACK")
     n_sets = 0
     for z in levels:
         for y in rows:
             if z == levels[0] and y == rows[1]:
                 continue                                      # one slot empty: five sets
             n_sets += 1
+            if z == levels[-1] and y == rows[0]:              # on the ramp's line: the set that runs (task 0126)
+                S.handles["cps_run_set"] = [root.add(cps, T(x1 - cps.info["length"], y, z), f"CPS SET {n_sets}")]
+                continue
             root.add(cps, T(x1 - 200.0, y, z) @ Rot((0, 0, 1), 180.0), f"CPS SET {n_sets}")
+    run = rt.cps_run_route(p, pos, route, cps.info["length"], dk.cps_lift(p))
+    S.routes["cps_run"] = run
+    S.handles["cps_run_line"] = [root.add(Part("CPS RUN LINE", g.route_solid(run, CPS_LINE_R), m.CABLE_BLACK),
+                                          T(0, 0, 0), "CPS RUN LINE")]
     ramp_len = route.segments[0].length
-    ramp, _ = dk.trough_along(route, 0.0, ramp_len, R0, twist_deg=30.0)
+    Rr = rt.cps_reach_r(p)                               # (the troughs: for the sets' widest round, task 0126)
+    ramp, _ = dk.trough_along(route, 0.0, ramp_len, Rr, twist_deg=30.0)
     root.add(Part("CPS RAMP", ramp, dk.ORANGE), T(0, 0, 0), "CPS RAMP")
     # the slide: the arcs, ending where it is clear of side B's cradles – and of the D-quadrant's room (task 0081: a big
     # cable's CPS trough is wide; at Ø 500 its end reached into the room the D sweeps on its way aft)
@@ -744,17 +764,18 @@ def _cps_store(p, S: Scene, root: Asm) -> None:
         if abs(q[1] - pos["side_b_y"]) < clear:
             s_end = s
             break
-    slide, pts = dk.trough_along(route, ramp_len, s_end, R0, step=300.0)
+    slide, pts = dk.trough_along(route, ramp_len, s_end, Rr, step=300.0)
     root.add(Part("CPS SLIDE", slide, dk.ORANGE), T(0, 0, 0), "CPS SLIDE")
     # supports from the deck every ~3 m under ramp and slide
     for k, s in enumerate(np.arange(1500.0, s_end, 3000.0)):
         _i, q, _t = _where(route, s)
-        h = q[2] - 0.75 * (R0 + 120.0) - p.deck_z
+        h = q[2] - dk.trough_depth(Rr)[1] - p.deck_z
         root.add(Part("RAMP SUPPORT", g.fuse(g.box(-120, -120, 0, 240, 240, h + 20),
                                              g.box(-300, -300, 0, 600, 600, 30)), m.YELLOW), T(q[0], q[1], p.deck_z),
                  f"RAMP SUPPORT {k + 1}")
     S.info["cps"] = {"rack": [x0, x1], "rows_y": rows, "levels_z": levels, "length": cps.info["length"],
-                     "outer_r": R0, "sets": n_sets}
+                     "outer_r": R0, "sets": n_sets, "lift": dk.cps_lift(p), "gutter_out": rt.cps_gutter_out(p),
+                     "gutter_up": rt.cps_gutter_up(p)}
 
 
 def quay_loading(p, S: Scene, storage: Asm) -> Asm:
@@ -1002,6 +1023,16 @@ def route_sheet(S: Scene) -> dict:
                                  "bar's end once the D is on the handler."),
         "cps_store": {"rack_x": _r(cps["rack"]), "rows_y": _r(cps["rows_y"]), "levels_z": _r(cps["levels_z"]),
                       "sets": cps["sets"], "set_length": round(cps["length"], 1), "outer_radius": cps["outer_r"],
+                      "run_set": uid(S.handles["cps_run_set"]), "run_line": uid(S.handles["cps_run_line"]),
+                      "run_route": S.routes["cps_run"].to_dict(), "lift": round(cps["lift"], 3),
+                      "gutter_out": round(cps["gutter_out"], 3), "gutter_up": round(cps["gutter_up"], 3),
+                      "run_note": "task 0126: the owner's CPS steps 1-5. run_set lies on the top shelf on the ramp's "
+                                  "line, its bend restrictors towards the ramp; run_route is its middle line from behind "
+                                  "it along the shelf, down the ramp and the slide, forward on side B, round the D at "
+                                  "rest and aft on side A to 1 m forward of tensioner 2 (run_line: a thin bar along it). "
+                                  "On the lane cradles the line lies 'lift' over the cable's, round the D's gutter "
+                                  "'gutter_out' outside it (against the guide rollers) and 'gutter_up' over it (on the "
+                                  "gutter's floor).",
                       "parts": "pull head (steel), grey tube, yellow segments, brown vertebrae, grey sleeve, yellow "
                                "bend restrictors"},
         "quay": {"file": FILES["quay_loading"], "edge_y": q["edge_y"], "top_z": q["z"],

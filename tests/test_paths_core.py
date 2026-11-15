@@ -1526,7 +1526,7 @@ def test_demo_cable_rollers(demo):
     other = [n for n in missed if not (n.startswith("HORN B") or "sprocket" in n or "sheave" in n.lower() or "pulley" in n)]
     assert not other and not extra, (other, extra)
     assert len([n for n in missed if n.startswith("HORN B")]) == 13 and len([n for n in missed if "sprocket" in n]) == 8
-    assert len(touch) == 195 and kinds == {"CABLE ROLLER": 133, "GUIDE ROLLER": 54, "CABLE ENGINE WHEEL": 8}   # 0102
+    assert len(touch) == 193 and kinds == {"CABLE ROLLER": 131, "GUIDE ROLLER": 54, "CABLE ENGINE WHEEL": 8}   # 0102, 0126
     assert [c.s for c in rd.contacts] == sorted(c.s for c in rd.contacts)
     # each roller: round, the cable square across it, turning the way the sheet says, at the sheet's speed when
     # the speed is taken where the cable is drawn (the sheet's way); the maker draws the cable up to 16 mm into
