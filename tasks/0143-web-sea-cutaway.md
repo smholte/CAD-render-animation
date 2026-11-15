@@ -1,4 +1,4 @@
-# 0143 – Web 3D model: under the sea – seabed, the cable in the water, the sea cut-away
+# 0143 – Web 3D model: under the sea – seabed, the cable in the water, the sea cut-away, the camera under water
 
 **Who:** worker · **Status:** waiting – starts **after 0142 is merged** (same files) · **Branch:**
 `task/0143-web-sea-cutaway`
@@ -28,6 +28,11 @@ touch-down, and the app's **sea cut-away** box (the see-through window in the se
 3. A switch in 0134's settings menu: "Under the sea" on/off (only when the export holds it); Auto quality may turn
    it off on Phone.
 4. Without a cut-away in the project: the sea stays as today.
+5. **The camera may go under the sea** (owner, 15 Nov 23:44): today the page stops the camera at the horizon
+   (`controls.maxPolarAngle = 0.497π` with a sea, `fr_page.js`). Let it dive: under water the view gets the water's
+   colour and fog by the project's clarity, the surface seen from below, the seabed as the floor (the camera stops
+   just above it). Smooth at the surface (no flicker when the camera crosses it). A menu switch "Camera under water"
+   (on by default when the export holds the seabed).
 
 ## Done when
 
