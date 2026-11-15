@@ -295,7 +295,9 @@ def test_live_only_export_is_unchanged(tmp_path):
     a = web3d.Job(sc, str(tmp_path / "a.glb"), size=512).run()
     b = web3d.Job(sc, str(tmp_path / "b.glb"), size=512, light="LIVE").run()
     assert (tmp_path / "a.glb").read_bytes() == (tmp_path / "b.glb").read_bytes()
-    assert "<model-viewer" in open(b["html"], encoding="utf-8").read()
+    from fresing_render.core import web3d_env as env
+    page = open(b["html"], encoding="utf-8").read()        # task 0134: the player, plain form, no baked light
+    assert "FRTHREE" in page and "light" not in env.page_settings(page)
     assert "light" not in b
     del a
 
