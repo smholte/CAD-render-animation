@@ -1,6 +1,6 @@
 # 0130 – House round trip: format 1.0.1 (re-pin, ASCII zip names, sun_light from a sun-facing probe)
 
-**Who:** worker · **Status:** done (0.2.104) – tag **v1.0.1** exists (commit 89bc92d) · **Branch:** `task/0130-house-format-1-0-1`
+**Who:** worker · **Status:** done (0.2.107) – tag **v1.0.1** exists (commit 89bc92d) · **Branch:** `task/0130-house-format-1-0-1`
 **Started by:** lead chat, 15 Nov 2026 (House Planner's lead answered 0114's questions 1–4) · **Model:** Sonnet · effort Medium
 **Area (House lane):** `fresing_render/core/house_scene.py`, `core/house_hash.py` / `core/house_snow.py` (only the tag in
 their docstrings, unless 1.0.1 changes them), `blender/house_bake.py` (`_sun_light`), `tests/data/house/hsf-v1.0` →
@@ -51,7 +51,7 @@ House Planner's own code (private repository). Other House lane wishes.
 
 **Chat / date:** worker session, 15 Nov 2026.
 
-**What changed:** (0.2.104)
+**What changed:** (0.2.107)
 - Pinned copy now `tests/data/house/hsf-v1.0.1` (tag v1.0.1, commit 89bc92d, SHA-256 list in PINNED.md; only
   `hsf/package.py` differs from v1.0, samples and schemas are byte-identical). All references renamed.
 - Zip names: our reader already refused non-ASCII without the UTF-8 flag and accepted ASCII; added tests for both and

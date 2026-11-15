@@ -56,8 +56,9 @@ def _hidden_notes(variant: str) -> list[dict]:
                                                  "(a modelling aid, no part of a turbine)"} for i in (1, 2, 3)]
     if variant == "offshore":
         out.append({"part": "MONOPILE BELOW SEABED",
-                    "why": "the 45 m of the monopile in the ground below the 30 m deep seabed; the app has no seabed "
-                           "yet (task 0081), so it would hang in the water"})
+                    "why": "the 45 m of the monopile in the ground below the 30 m deep seabed: the app's seabed is a "
+                           "surface you cannot see into, so the pile would only stick out of its underside "
+                           "(task 0128)"})
     return out
 
 
@@ -541,7 +542,10 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
         "poses": poses, "start_pose": "Running", "animation": loop,
         "check_animation": check_animation(poses, js),
         "decals": tp.anchors(fit, variant), "cameras": tp.cameras(fit, variant),
-        "scene": ({"water_level_m": round(-(fit["seabed_z"]) / 1000.0, 3)} if variant == "offshore"
+        "scene": ({"water_level_m": round(-(fit["seabed_z"]) / 1000.0, 3),
+                   "sea_depth_m": round(-(fit["seabed_z"]) / 1000.0, 3),       # the app's seabed = the pile's foot
+                   "cutaway": {"centre_m": [0.0, 0.0], "length_m": 90.0, "width_m": 90.0}}   # for "Seabed" (0128)
+                  if variant == "offshore"
                   else {"floor_offset_m": round(_lowest(parts, sheet_hidden) / 1000.0, 4)}),
         "notes": notes,
     }

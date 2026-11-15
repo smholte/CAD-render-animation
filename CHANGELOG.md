@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.104 – 15 Nov 2026 – house format 1.0.1 (task 0130)
+## 0.2.107 – 15 Nov 2026 – house format 1.0.1 (task 0130)
 
 - **House round trip follows format 1.0.1:** the app now checks its House packages against the final tag `v1.0.1`
   (a package name made of plain letters is accepted with or without the zip's UTF-8 mark; a name with accents or other
@@ -14,6 +14,33 @@ installer of that version was built from.
   sun instead of being worked out from an upward-facing one (which multiplied the noise at a low evening sun). The
   numbers agree with the old way within 1 % at 35°, 12° and 4.8°; by day under a full overcast the sun is written as
   zero, and "none" only where there is no separate sun (night, a 360° photo, a studio).
+## 0.2.106 – 15 Nov 2026 – Export web 3D model no longer crashes; marine growth follows the sea (task 0136)
+
+- **Fixed a crash:** *Export web 3D model* closed Blender (and lost unsaved work) when the project had a moving cable
+  and the animation was not built (after Clear keys, after a product video, before the first Build). The export now
+  pauses the app's live updates while it bakes the looks.
+- **Fixed:** the marine growth band stays at the sea's waterline when you change the water level or switch the Vessel
+  deck on.
+
+## 0.2.105 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
+
+- **New look:** *Marine paint, worn leading edge (blades)* (3 Looks, Paint): along a wind turbine blade's front edge,
+  from about 60 % of its length to the tip, the paint is worn away in patches – dull grey laminate with small chips.
+- **Site model (render kit):** the offshore turbine has rock scour protection round the monopile's foot, a new
+  "Seabed" view under the water (seabed and cut-away of the sea), and worn blade edges on both turbines.
+- **Site page:** the "Turn it yourself" test mill is the new, more detailed machine of 0.2.101.
+
+## 0.2.104 – 15 Nov 2026 – a follower's true value, Back to CAD after a Take apart, no false clash rows (task 0132)
+
+- **A joint that follows another shows its true value:** in 4 Motion the joint list and the joint's box show a
+  follower's angle or distance worked out from the joint it follows. Right after a change it could show the value of
+  one step before.
+- **Back to CAD right after a Take apart plays it backwards:** the same paths, the last part out comes in first, so no
+  bolt flies through a cover any more. Joints that also have to go home move after that. In every other case Back to
+  CAD is as before. The step's box says when it plays a Take apart backwards.
+- **No false clash rows from a Put together:** a Put together with nothing taken apart before it puts its parts out at
+  once at its first frame. The clash check no longer reads that jump as a move through the other parts; real clashes
+  are still found.
 
 ## 0.2.103 – 15 Nov 2026 – the quadrant at the seabed, a cable that settles, one bow (task 0125)
 

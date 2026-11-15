@@ -28,6 +28,8 @@ import math
 import os
 import time
 
+import numpy as np
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHEETS = os.path.join(HERE, "projects")
 
@@ -311,6 +313,18 @@ def apply_scene(pkg, scene, m: Model) -> dict:
         s.water_level = float(sc["water_level_m"])
     if "floor_offset_m" in sc:
         s.floor_offset = float(sc["floor_offset_m"])
+    if "sea_depth_m" in sc:                      # task 0128: the app's seabed under the sea (0081)
+        s.sea_depth = float(sc["sea_depth_m"])
+    cut = sc.get("cutaway")
+    if cut:                                      # the cut-away box over the seabed round a point, not behind a stern
+        mn, mx = (np.asarray(v, float) for v in _mod(pkg, "blender.surroundings")._model_box(scene))
+        cx, cy = (float(v) for v in cut["centre_m"])
+        length, width = float(cut["length_m"]), float(cut["width_m"])
+        s.sea_cutaway, s.sea_cut_auto = True, False
+        s.sea_cut_length, s.sea_cut_width = length, width
+        # the box starts at the model's lowest x minus "from the stern" and runs towards -x: its front at cx + length/2
+        s.sea_cut_start = float(mn[0]) - (cx + length / 2.0)
+        s.sea_cut_side = cy - float(mn[1] + mx[1]) / 2.0
     return dict(sc)
 
 
