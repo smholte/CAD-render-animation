@@ -1685,14 +1685,14 @@ def finish(d: Demo):
     if getattr(d, "set_down", None):            # task 0125: the D set down on the seabed, as built (heave and all)
         off = d.set_down_error(*d.set_down)
         if abs(off) > SET_DOWN_TOL:             # (the step's depth worked out before Build missed: once more)
-            blk = next(b for b in a.blocks if b.joint == LOWER and abs(b.start - d.set_down[0]) < 1e-6)
+            blk = next(b for b in a.blocks if b.joint == LOWER and abs(b.start - d.set_down[0]) < 1e-3)
             blk.to_dist = float(blk.to_dist) + off
             r = animation.bake(sc, a)
             d.quadrant["lower_2"] = round(float(blk.to_dist), 3)
-        d.notes.append(f"shot 11 as built: the D's lowest point {SET_DOWN_CLEAR * 1000 - off * 1000:.0f} mm over the "
-                       f"seabed at the deepest heave (corrected by {off * 1000:.0f} mm)" if abs(off) > SET_DOWN_TOL else
-                       f"shot 11 as built: the D's lowest point {SET_DOWN_CLEAR * 1000 - off * 1000:.0f} mm over the "
-                       "seabed at the deepest heave")
+        was = (off + SET_DOWN_CLEAR) * 1000.0
+        d.notes.append(f"shot 11 as built: the D's lowest point {was:.0f} mm over the seabed at the deepest heave"
+                       + (f", its lowering corrected by {off * 1000:.0f} mm to {SET_DOWN_CLEAR * 1000:.0f} mm"
+                          if abs(off) > SET_DOWN_TOL else ""))
     d.timings["build"] = time.time() - t0
     if r["warnings"]:
         d.notes.append("animation: " + "; ".join(r["warnings"][:3]))
