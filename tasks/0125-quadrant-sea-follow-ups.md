@@ -100,7 +100,7 @@ trails, hoses and cables read the motion (moved there from `paths._bake` on the 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 15 Nov 2026 (branch `ccr-f499cc61-gp70i0`), version **0.2.102**.
+**Chat / date:** Claude Code on the web, 15 Nov 2026 (branch `ccr-f499cc61-gp70i0`), version **0.2.103**.
 
 **What changed:**
 - **Settle (new ability):** `FRCable.sea_settle` ("Into the sea > Settles in", 4 s; 0 = as before). What a sea cable lets

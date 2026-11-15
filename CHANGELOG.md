@@ -5,6 +5,31 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.103 – 15 Nov 2026 – the quadrant at the seabed, a cable that settles, one bow (task 0125)
+
+- **A let-go cable settles onto the seabed:** a cable into the sea that is let go above the seabed – its end, and the
+  turn round a quadrant or sheave let go with it – now sinks onto the seabed and lies there (a turn round a quadrant
+  lies down flat; a CPS set on the end rests on the seabed, not in it). **4 Motion > Cables and paths > Into the sea >
+  Settles in** sets how long it takes (4 s; 0 = it stays where it was let go, as before).
+- **A sheave on a swivel turns to its wire:** pick the swivel's rotate joint as the head sheave's **Swivel**: the head
+  turns so the wire leaves the sheave in its own plane, live and at Build animation. The demo's tipping wires use it.
+- **Rollers the cable has left stand still:** rollers on the end of a horn that the cable no longer reaches (it leaves
+  the horn earlier into the sea) no longer turn with the cable.
+- **No kink where the cable leaves a quadrant or horn into the sea:** it goes on in a smooth bend of the gutter's radius
+  to the hanging part (it used to flip between two answers and kink by up to 69° while the D tilted).
+- **No lost path** when the D-quadrant comes down over horn A (frames 1924–1927 of the demo): the cable hangs from the
+  quadrant.
+- **Fewer wrong warnings:** no "piles up 0.00 m", nothing about a wire that only comes onto its pulley later, nothing for
+  frames where the cable is hidden, nothing about a cable that lies on the seabed after it was let go.
+- **Winch keeps it tight:** a cable into the sea no longer jumps its payout when it leaves a horn for a quadrant (the winch
+  takes the difference up over 1 s).
+- **One bow:** Weather & time > Bow is now the one direction the wake, the bow spray, wind "From the bow" and the swell of
+  vessel motion all use. From the hull reads it from the waterline: the demo's wind from the bow now blows from +x (its
+  bow). The Vessel deck and older projects keep their look.
+- **Demo:** in shot 11 the D is set down on the seabed (its lowest point 16 mm over it at the deepest heave, never in it);
+  the second end is let go as the D lifts off and settles onto the seabed with its CPS; the tipping-wire heads turn to
+  their wires.
+
 ## 0.2.102 – 15 Nov 2026 – the assembly sequence watches the whole model, Back to CAD (task 0129)
 
 - **Assembly sequence – the rest of the model counts:** a part whose way out would run through a frame, a beam or a
