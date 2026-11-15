@@ -3703,11 +3703,11 @@ def _on_load(_dummy=None):
             print("Fresing Render: cables not brought up to date:", exc)
 
 
-SETTLE_STAMP = "fr_cable_settle"        # on the scene: opened (or a cable made) with 0.2.109 or newer (task 0137)
+SETTLE_STAMP = "fr_cable_settle"        # on the scene: opened (or a cable made) with 0.2.110 or newer (task 0137)
 
 
 def version_settle(scene) -> int:
-    """A project saved before "Settles in" meant anything to it (0.2.108 and older): a let-go cable into the sea whose
+    """A project saved before "Settles in" meant anything to it (0.2.109 and older): a let-go cable into the sea whose
     "Settles in" was never set gets 0 – it stays where it was let go, as it did when the project was made (task 0137;
     0.2.103 made it sink over 4 s). The scene is stamped so it happens once. Returns how many cables changed."""
     if scene.get(SETTLE_STAMP) or not hasattr(scene, "fresing"):

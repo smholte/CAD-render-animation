@@ -1262,7 +1262,7 @@ it stays exactly where it was let go, as before). The cable keeps its length; on
 does not warn that it "piles up" or "bends over the end" – lying there is what it should do. Let it go just as the
 quadrant or block starts to come up again, so the cable sinks while its carrier moves away.
 
-A project saved with version 0.2.108 or older opens with **Settles in** at 0 for a cable that was let go and never had
+A project saved with version 0.2.109 or older opens with **Settles in** at 0 for a cable that was let go and never had
 it set, so it stays where it was let go, as it did then; set it again to let the cable sink.
 
 When you change the vessel motion, the sea state, the bow or the vessel speed (Weather & time) after **Build
