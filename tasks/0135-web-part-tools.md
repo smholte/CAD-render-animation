@@ -19,8 +19,14 @@ everything but one part – like the app's own tools, on PC and phone.
    pages) the card shows the group/look name or nothing, never a part name. Hover highlight on PC.
 2. **Measure.** (a) Point to point: two clicks on surfaces → distance in mm (and the X/Y/Z parts of it), a line with
    the number. (b) **Between planes** (owner's wish): click a flat face, then another; parallel (within ~1°) → the
-   distance between the planes; not parallel → the angle between them, and the point-to-point distance. Snaps to a
-   round face's axis (hole centre to hole centre) as a stretch goal – say in the report if done. Needs face data in
+   distance between the planes; not parallel → the angle between them, and the point-to-point distance.
+   (c) **Diameter** (owner, 15 Nov 22:18): click a round face (hole, shaft, bore) → its diameter (Ø … mm).
+   (d) **Centre to centre:** two round faces → distance between their axes (parallel axes; otherwise the shortest
+   distance between the axis lines and the angle). (e) **Face to centre:** a flat face and a round face → distance
+   from the plane to the axis. (f) **X/Y/Z switch:** when on, every measurement also shows its X, Y and Z parts as
+   arrows in the axis colours (X red, Y green, Z blue, as Blender), each with its own number. Round faces: read their
+   axis and radius from the export (the app already finds them, `fr_face_starts` / `joints.axis_from_hit`; 0122 note:
+   faces on one axis line get ONE axis with the largest radius – keep the clicked face's own radius). Needs face data in
    the export: decide the lightest way (a per-triangle face id or normal groups in the .glb, as the app's
    `fr_face_starts`), measure the file-size cost and keep it optional per export if it is large.
 3. **Cutaway slider.** One plane (X / Y / Z, flip) moved by a slider; cut faces closed or a clear cap colour, like the
@@ -32,7 +38,8 @@ everything but one part – like the app's own tools, on PC and phone.
 
 ## Done when
 
-- [ ] 1–5 in the player; headless tests (a click at a known pixel gives the expected part / distance / plane distance
+- [ ] 1–5 in the player; headless tests (a click at a known pixel gives the expected part / distance / plane distance /
+      diameter / centre-to-centre / face-to-centre, and the X/Y/Z parts
       on a test model with known sizes, e.g. the test crane or `test_atc.step`); no part name in a page exported with
       hide names (test).
 - [ ] File-size cost of the face data measured (test crane, demo vessel) and reported.
