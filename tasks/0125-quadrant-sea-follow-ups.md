@@ -1,6 +1,6 @@
 # 0125 – Quadrant and sea follow-ups: the D on the seabed, no lost path, no kink, the bow the right way
 
-**Who:** worker · **Status:** open · **Branch:** `task/0125-quadrant-sea-follow-ups` (or the web session's branch)
+**Who:** worker · **Status:** running · **Branch:** `ccr-f499cc61-gp70i0` (the web session's branch)
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort High
 **Area (Flex parts lane + Demo models lane + the bow in the Scene & Render lane):** `fresing_render/core/paths.py`,
 `core/catenary.py`, `blender/paths*.py` (incl. `paths_sea.py`, `paths_riders.py`), `blender/flex.py` only if needed,
@@ -68,6 +68,32 @@ sea at rest), the demo's clash check is split in windows (`tests/test_demo_clash
 The CPS run from the rack (task 0126, after this one). 0081's touch-down drifting with the deck path length (owner
 may prefer re-anchoring – leave as is). Glowing markers, sun rays, sediment specks. The site, the turbine, the
 assembly sequence.
+
+## Design (worker, 15 Nov 2026)
+
+Baseline on the small demo (4-core web machine, Blender as a module, before any change): Make demo 166 s (Build 54 s);
+second end without a path at frames 1924–1927; in shot 10 the second end is PILED and its leave point on the gutter
+flips between "steep" and "short" every few frames (an angle that wraps at ±180°: kinks of 23–69° at frames 2120–2160),
+then a steady 3° kink out of the gutter's plane; the D's lowest point 0.97 m under the seabed at the let-go (heave
+on), the cable round the gutter 0.38 m under it; tipping wire vs its sheave's plane up to 13.6°.
+
+**Who does what** (one owner per file):
+
+| Piece | Files | Owner |
+| --- | --- | --- |
+| Bow: one source (`core/weather.bow_az`, `State.bow_az`, `surroundings.bow_az(scene)` + scene key `fr_bow_az`, swell heading turns with it) | `core/weather.py`, `core/vessel_motion.py`, `blender/weather.py`, `surroundings.py`, `vessel_motion.py`, `web3d_env.py` | worker |
+| Leaving the hang-off smoothly: the wrap wanted is read nearest the wheel's range (no flip), a **free bend** of the wheel's radius from the wheel's tangent to the catenary's direction (in and out of the wheel's plane) | `core/catenary.py`, `blender/paths_sea.py` | worker |
+| A wheel that overlaps the wheel before it is released (the cable hangs from the earlier one) | `blender/paths_sea.py` | worker |
+| **Settle** (`FRCable.sea_settle`, s): places let go of a sea cable sink onto the seabed over that time (ends: down to the bed; a wheel: down until its circle lies on the bed, turned flat) | `blender/paths.py` (`_apply_let_go`), props, UI, guide, functions, tour, PC check | worker |
+| Warnings: no "piles up 0.00 m"; a cable's notes only for frames where its part is shown | `blender/paths.py`, `paths_sea.py` | worker |
+| Keep tight on a sea cable: the payout's step at a hang-off change becomes a short ramp | `blender/paths.py` | worker |
+| **Swivel follows its wire** (`FRCableContact.swivel` = rotate joint name): `before_read(scene, first, frames) -> list[str]` keys the swivel joints at Build (one key per frame, tagged, the joint's own coupling put aside and restored by `after_clear(scene)`); `live(scene) -> bool` sets them for the pose shown | new `blender/paths_swivel.py`, `tests/test_paths_swivel.py`, a field in `ui_paths.py` contact details | subagent S |
+| **Rollers the cable has left stand still**: `after_bake(scene, first, frames, drawn) -> list[str]` (``drawn``: cable name -> (rel, first, solve result) of this Build); a roller whose joint follows the cable's speed and which no drawn cable touches at a frame does not turn at that frame (keys per frame, coupling put aside, restored by `after_clear(scene)`) | new `blender/paths_rollers.py`, `tests/test_paths_rollers.py` | subagent R |
+| Demo: let go with the D on the seabed (heave measured), the settle, swivels on, tests | `blender/demo.py`, `tests/test_demo_*.py` | worker |
+
+Hooks (in `paths.py`, by the worker): `_bake` calls `paths_swivel.before_read` before the places are read and
+`paths_rollers.after_bake` after every cable is drawn; `after_clear` calls both modules' `after_clear`; `_live` calls
+`paths_swivel.live` first.
 
 ---
 

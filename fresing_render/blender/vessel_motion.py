@@ -89,7 +89,7 @@ def swell_rows(s) -> list:
     """The long swell the sea gets while vessel motion is on (``s`` = scene.fresing); [] otherwise."""
     if not (s.vessel.enabled and s.background in KINDS):
         return []
-    return [w.as_tuple() for w in core.swell(s.sea_state, s.vessel.heading, _bft(s))]
+    return [w.as_tuple() for w in core.swell(s.sea_state, s.vessel.heading, _bft(s), _bow(s))]
 
 
 def swell_key(s) -> str:
@@ -98,7 +98,13 @@ def swell_key(s) -> str:
     if not rows:
         return ""
     bft = _bft(s)
-    return f"{s.vessel.heading}" + (f"|{bft:.2f}" if bft is not None else "")
+    bow = _bow(s)
+    return f"{s.vessel.heading}" + (f"|{bft:.2f}" if bft is not None else "") + (f"|bow{bow:.0f}" if bow != 180.0 else "")
+
+
+def _bow(s) -> float:
+    """Scene azimuth of the bow (task 0125: the swell's heading turns with it)."""
+    return _surroundings().bow_az(s.id_data)
 
 
 def _sea_waves(scene) -> list:
@@ -166,7 +172,7 @@ def core_settings(scene) -> core.Settings | None:
     length, beam = size(scene)
     centre = (h["middle"][0] - h["sea_xy"][0], h["middle"][1] - h["sea_xy"][1])
     return core.Settings(state=s.sea_state, heading=v.heading, strength=v.strength / 100.0, length=length, beam=beam,
-                         roll_period=v.roll_period, centre=centre, bft=_bft(s))
+                         roll_period=v.roll_period, centre=centre, bft=_bft(s), bow_az=_bow(s))
 
 
 def motion(scene) -> core.Motion | None:

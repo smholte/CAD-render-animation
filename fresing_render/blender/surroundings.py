@@ -298,7 +298,9 @@ def _build(scene, s, kind: str, key: str, models: str) -> None:
             _build_sea(s, col, root, lay.water_level, float(max(size[0], size[1])), kind)
         far = lay.extent * 1.3
     root["fr_kind"] = kind
-    root["fr_key"] = key
+    # task 0125: the sea's build may have read the bow from the hull (the wind and the swell turn with it): the key of
+    # what was built, so the next check does not build it again
+    root["fr_key"] = json.dumps(_settings_key(s, kind), sort_keys=True) if scene.get(BOW_KEY) is not None else key
     root["fr_models"] = models
     root["fr_far"] = far
     _show_in_view(scene, s)
@@ -1704,6 +1706,30 @@ def _end_width(outline: np.ndarray, at_max: bool, reach: float = 3.0) -> float:
     return float(near[:, 1].max() - near[:, 1].min())
 
 
+BOW_KEY = "fr_bow_az"               # on the scene: the bow's azimuth read from the hull when the sea was last built
+
+
+def bow_az(scene) -> float:
+    """Scene azimuth the vessel's bow points to (task 0125: one source for wind 'from the bow', the wake, the bow spray
+    and the swell): Weather & time > Bow +x / -x as set; From the hull: what the sea's last build read from the
+    waterline (``stern_side``); nothing read yet (an older project, no sea): -x, as before."""
+    s = scene.fresing
+    bow = getattr(getattr(s, "weather", None), "bow", "AUTO")
+    if bow != "AUTO":
+        return weather_core.bow_az(bow)
+    v = scene.get(BOW_KEY)
+    return float(v) if v in (0.0, 180.0) else weather_core.BOW_AZ
+
+
+def _need_bow(s) -> bool:
+    """The bow must be read from the hull now: From the hull, and something the sea build uses depends on it (wind
+    'from the bow', the swell of vessel motion)."""
+    w = getattr(s, "weather", None)
+    if getattr(w, "bow", "AUTO") != "AUTO":
+        return False
+    return bool((_weather_on(s) and w.wind_ref == "BOW") or (s.vessel.enabled and s.background in ("SEA", "DECK")))
+
+
 def stern_side(s, outline) -> int:
     """+1: the stern is the waterline's end at the highest x (the wake trails to +x, the bow at -x – as before task
     0082); -1: the stern is at the lowest x. Weather & time > Bow: +x / -x as set; From the hull: the wider end is the
@@ -1723,11 +1749,15 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
     scene = s.id_data
     detailed = s.env_detail == "DETAILED"
     near = max(40.0, 5.0 * machine_size)
-    bft, toward = sea_wind(s)
-    swell = _vessel().swell_rows(s)
     foam, moving, weather = bool(s.sea_foam), bool(s.sea_moving), _weather_on(s)
     speed = _speed(s)
-    outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) else None
+    outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) or _need_bow(s) else None
+    if outline is not None:                        # task 0125: the bow read once, for the wind, the wake and the swell
+        az = weather_core.bow_az(getattr(s.weather, "bow", "AUTO"), stern_side(s, outline))
+        if scene.get(BOW_KEY) != az:
+            scene[BOW_KEY] = az
+    bft, toward = sea_wind(s)
+    swell = _vessel().swell_rows(s)
     cut = kind == "SEA" and bool(s.sea_cutaway)          # task 0081: the cut-away behind the stern
     me = _sea_mesh("FR Sea", detailed, near)
     me.materials.append(_water_material(scene, s.sea_state, foam, moving, (bft, toward), swell, weather,

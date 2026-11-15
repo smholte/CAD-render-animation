@@ -2270,6 +2270,11 @@ class FRCableContact(bpy.types.PropertyGroup):
     let_go_frame: IntProperty(default=-1)                  # task 0082: from this frame on it stays where it was then
     #                                                        (in the seabed's coordinates for a cable into the sea),
     #                                                        whatever its carrier does; -1 = it stays with its carrier
+    swivel: StringProperty(
+        name="Swivel", default="", update=_cable_contact_changed,
+        description="The rotate joint of the swivel this sheave sits on (a sheave head that turns about a post). The "
+                    "app turns it so the cable leaving the sheave stays in the sheave's plane, live and at Build "
+                    "animation. Empty: the sheave keeps the turn its joints give it")
 
 
 def _sea_end_changed(self, context):
@@ -2406,6 +2411,11 @@ class FRCable(bpy.types.PropertyGroup):
         description="On: the cable speed pays out or hauls in just as much cable as the moving sheaves and chutes "
                     "need, so the free length stays as in the CAD file (a winch that keeps its wire tight). Its "
                     "drum and sheaves turn with it. Off: the cable speed only moves when an animation step moves it")
+    sea_settle: FloatProperty(
+        name="Settles in", default=4.0, min=0.0, soft_max=30.0, precision=1, unit="TIME_ABSOLUTE",
+        update=_cable_changed,
+        description="A cable into the sea: how long the stretch that is let go takes to sink onto the seabed and lie "
+                    "there (seconds). 0 = it stays where it was let go, also when that is above or in the seabed")
     a_let_go_frame: IntProperty(default=-1)                # task 0082: the start stays where it was from this frame on
     b_let_go_frame: IntProperty(default=-1)                # … the end (-1 = it stays with its part)
     # ---- state (written by blender/paths.py) ----

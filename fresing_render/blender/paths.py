@@ -1751,6 +1751,8 @@ def _usable(scene, item) -> bool:
 def _draw(scene, item, rel: np.ndarray, first, ref=None) -> list[str]:
     """Solve for these places and write the shapes mesh (a pose without a path keeps the shape it had)."""
     res = _solve_item(scene, item, rel, ref=ref, first=first)
+    if first is not None:                       # (Build: what the rollers the cable has left read, task 0125)
+        _STATE.setdefault("drawn", {})[item.name] = (rel, int(first), res)
     warnings = _note(scene, item, res, first)
     if res["ok"].any():
         scale = res["scale"]
@@ -2947,7 +2949,8 @@ def _moved(scene, item):
 def _live(scene, force: bool = False) -> bool:
     """Solve the moving cables whose carriers moved against them (all cables with ``force``) for where things are
     now. True when something was written."""
-    wrote = False
+    from . import paths_swivel
+    wrote = paths_swivel.live(scene)            # (task 0125: a swivel turns to its wire before the wire is solved)
     for it in list(scene.fresing.cables):
         if not _usable(scene, it) or not (it.moving or force):
             continue
@@ -3038,11 +3041,15 @@ def _rel_from(item, slots, mats: dict) -> np.ndarray:
 
 
 def _bake(scene) -> list[str]:
+    from . import paths_rollers, paths_swivel
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
+    _STATE["drawn"] = {}
+    pre = paths_swivel.before_read(scene, first, frames)    # swivels keyed to their wires first (task 0125)
     notes, its, can, animated, obs = _plan(scene)
+    notes = pre + notes
     mats = {}
     if can:
         before = flex._STATE["steps"]
@@ -3091,6 +3098,8 @@ def _bake(scene) -> list[str]:
                 it.moving = moving
         _STATE["last"].pop(_k(scene, it), None)
         notes += _draw(scene, it, rel, first)
+    notes += paths_rollers.after_bake(scene, first, frames, _STATE.get("drawn", {}))   # (task 0125)
+    _STATE["drawn"] = {}
     return notes
 
 
@@ -3114,8 +3123,11 @@ def after_clear(scene) -> None:
     """'Clear keys': a cable over things that can move follows them live again."""
     if not len(scene.fresing.cables):
         return
+    from . import paths_rollers, paths_swivel
     _STATE["busy"] += 1
     try:
+        paths_rollers.after_clear(scene)        # (task 0125: rollers left by the cable follow it again)
+        paths_swivel.after_clear(scene)         # (task 0125: swivels follow their wires live again)
         for it in list(scene.fresing.cables):
             j = joints.find(scene, it.joint) if it.joint else None
             if j is not None and j.motion is not None and TIGHT in j.motion:
