@@ -61,9 +61,10 @@ if not "%ERRORLEVEL%"=="0" (
 echo.
 echo The start window opens now. Choose there and click Start.
 if exist "%CHOICES%" del "%CHOICES%"
+if exist "%OUT%\run_result.txt" del "%OUT%\run_result.txt"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File "%KIT%kit_window.ps1" -Mode start -Estimate "%EST%" -Choices "%CHOICES%"
 set "WIN=%ERRORLEVEL%"
-if "%WIN%"=="1" (
+if "%WIN%"=="10" (
     echo Cancelled: nothing was started.
     exit /b 0
 )
@@ -72,7 +73,7 @@ if "%WIN%"=="0" if exist "%CHOICES%" goto with_window
 rem --- no start window: the questions in this console (as before task 0144) ---
 set "WIN=none"
 echo.
-echo The start window could not open: the questions come here instead.
+echo The start window could not open ^(see the line above^): the questions come here instead.
 echo The graphics-card load and the quiet hours saved as the standard are used.
 set "START="
 set /p "START=Start now: press Enter. Start later: type a time like 23:30 and press Enter: "
@@ -83,6 +84,7 @@ echo You can keep working; close this window to stop.
 echo.
 "%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--start-at=%START%"
 set "CODE=%ERRORLEVEL%"
+if exist "%OUT%\run_result.txt" set /p CODE=<"%OUT%\run_result.txt"
 goto finished
 
 :with_window
@@ -95,6 +97,7 @@ echo You can keep working; closing this black window stops the run too (double-c
 echo.
 "%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--choices=%CHOICES%"
 set "CODE=%ERRORLEVEL%"
+if exist "%OUT%\run_result.txt" set /p CODE=<"%OUT%\run_result.txt"
 >"%OUT%\control.txt" echo ended
 
 :finished

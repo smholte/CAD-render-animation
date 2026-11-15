@@ -104,6 +104,37 @@ function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Ar
 $env:LOCALAPPDATA = $LocalAppData
 New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 
+# Task 0144: the render kit's window script runs in Windows PowerShell 5.1 (the kit's .bat starts powershell.exe):
+# it must parse there, and its expected-time loop must give the numbers of kit_run.wall_seconds (tests/test_kit_window.py).
+$KitWindow = Join-Path $PSScriptRoot "..\site\render_kit\kit_window.ps1"
+if (-not $Uninstall -and (Test-Path -LiteralPath $KitWindow)) {
+    Note "Render kit window: parse and expected time in Windows PowerShell 5.1"
+    $probe = Join-Path $WorkDir "kit_window_probe.ps1"
+    $kitPath = (Resolve-Path -LiteralPath $KitWindow).Path
+    Set-Content -LiteralPath $probe -Encoding utf8BOM -Value @"
+`$errs = `$null
+[void][System.Management.Automation.Language.Parser]::ParseFile('$kitPath', [ref]`$null, [ref]`$errs)
+if (`$errs.Count) { `$errs | ForEach-Object { 'PARSE line ' + `$_.Extent.StartLineNumber + ': ' + `$_.Message }; exit 5 }
+. '$kitPath' -Mode lib
+'WALL ' + [math]::Round((Get-WallSeconds 3600 600 ([datetime]'2026-11-15T12:00:00') 70 `$false '22:00' '07:00' 60), 0)
+'WALL ' + [math]::Round((Get-WallSeconds 14400 0 ([datetime]'2026-11-15T20:00:00') 100 `$true '22:00' '07:00' 50), 0)
+'PS ' + `$PSVersionTable.PSVersion.Major
+"@
+    $savedModulePath = $env:PSModulePath
+    Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
+    try {
+        $said = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $probe 2>&1 | ForEach-Object { "$_" }
+        $code = $LASTEXITCODE
+    } finally {
+        $env:PSModulePath = $savedModulePath
+    }
+    $said | ForEach-Object { Write-Host "   $_" }
+    $want = @("WALL 5743", "WALL 21600", "PS 5")
+    if ($code -ne 0 -or ($want | Where-Object { $said -notcontains $_ })) {
+        Problem "the render kit's kit_window.ps1 does not parse or compute in Windows PowerShell 5.1 (exit $code): $($said -join ' / ')"
+    }
+}
+
 if ($Uninstall) {
     $bat = Get-ChildItem -LiteralPath $UnzipDir -Recurse -Filter "Uninstall.bat" | Select-Object -First 1
     if (-not $bat) { throw "Uninstall.bat not found under $UnzipDir (run the install part first)" }

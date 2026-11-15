@@ -38,6 +38,7 @@ STEP = 300.0                      # s: the time step of the expected-time loop (
 CONTROL = "control.txt"
 STATUS = "status.json"
 STATE = "run_state.json"
+RESULT = "run_result.txt"         # the run's exit code for the .bat (Blender cannot pass 4 through)
 STOPPED_CODE = 4                  # the .bat: "Stopped – double-click again to continue"
 
 
@@ -275,7 +276,14 @@ class Pacer:
         try:
             with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(self.status, fh, ensure_ascii=True)
-            os.replace(tmp, os.path.join(self.out, STATUS))
+            for attempt in range(3):             # the status window may be reading it (Windows: no replace then)
+                try:
+                    os.replace(tmp, os.path.join(self.out, STATUS))
+                    break
+                except OSError:
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.05)
         except OSError:
             pass
 

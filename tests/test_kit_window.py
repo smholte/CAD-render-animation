@@ -269,7 +269,8 @@ def test_window_and_bat_are_wired(kit):
     the kit packs the new files."""
     bat = open(os.path.join(KIT, "Make site pictures.bat"), "rb").read().decode("utf-8")
     for want in ("kit_window.ps1", "-Mode start", "-Mode status", "-Mode end", "--estimate-json=", "--choices=",
-                 "set /p", "-ExecutionPolicy Bypass", "-STA"):
+                 "set /p", "-ExecutionPolicy Bypass", "-STA",
+                 'set /p CODE=<"%OUT%\\run_result.txt"', 'if "%WIN%"=="10"'):
         assert want in bat, want
     ps = open(os.path.join(KIT, "kit_window.ps1"), "rb").read()
     assert ps.isascii(), [i for i, b in enumerate(ps) if b > 127][:5]
@@ -375,6 +376,7 @@ def test_run_stops_and_continues_with_a_fake_renderer(kit, tmp_path, monkeypatch
     args = ["x", str(models_dir), str(out), str(ini), f"--choices={choices}"]
     assert kit.main(args) == 4
     assert rendered == ["a LOW", "a HIGH"]
+    assert (out / "run_result.txt").read_text() == "4"           # the .bat reads it: Blender cannot pass 4 through
     log = (out / "log.txt").read_text(encoding="utf-8")
     assert "STOPPED" in log and "Continue the run" in log
     assert json.load(open(out / "status.json"))["state"] == "stopped"
@@ -387,6 +389,7 @@ def test_run_stops_and_continues_with_a_fake_renderer(kit, tmp_path, monkeypatch
     assert kit.main(args) == 0
     assert rendered == ["a LOW", "a HIGH", "a video", "b ISO"]
     assert kit.kit_run.resume_info(str(out)) is None
+    assert (out / "run_result.txt").read_text() == "0"
     log = (out / "log.txt").read_text(encoding="utf-8")
     assert "STOPPED" in log and "Continuing the run of" in log and "(4 of 4 of the run)" in log
     sent = json.load(open(out / "send" / "site_pictures.json"))

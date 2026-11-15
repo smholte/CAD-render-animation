@@ -6,7 +6,8 @@
         The start window: graphics-card load, max temperature, quiet hours, models, start time, when done, continue a
         stopped run. Writes the choices for make_site_pictures.py (--choices=) and keeps them as the standard in
         %LOCALAPPDATA%\Fresing Render\site_kit.json (outside the kit, so a new kit keeps them).
-        Exit 0 = Start, 1 = Cancel. Anything else: the .bat asks in the console instead.
+        Exit 0 = Start, 10 = Cancel. Anything else (1 = PowerShell could not run the script): the .bat asks in the
+        console instead.
     -Mode status -Out <output folder>
         The small status window: reads output\status.json every 2 s, writes pause / run / stop to output\control.txt.
         Closes itself when the .bat writes "ended" there.
@@ -77,6 +78,7 @@ function Write-Utf8([string]$Path, [string]$Text) {
 
 if ($Mode -eq "lib") { return }
 
+try {                                                   # a failure here: exit 2, the .bat asks in the console
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try {
@@ -95,6 +97,10 @@ $Deep = New-Color "#1A2027"
 $Font = New-Object System.Drawing.Font("Segoe UI", 9.75)
 $Bold = New-Object System.Drawing.Font("Segoe UI", 9.75, [System.Drawing.FontStyle]::Bold)
 $Small = New-Object System.Drawing.Font("Segoe UI", 8.5)
+} catch {
+    Write-Host ("The window could not open: " + $_.Exception.Message)
+    exit 2
+}
 
 function New-Form([string]$Title, [int]$W, [int]$H) {
     $f = New-Object System.Windows.Forms.Form
@@ -108,6 +114,7 @@ function New-Form([string]$Title, [int]$W, [int]$H) {
     $f.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $f.MaximizeBox = $false
     $f.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    $f.add_Shown({ $was = $this.TopMost; $this.TopMost = $true; $this.Activate(); $this.TopMost = $was })   # to the front
     $head = New-Object System.Windows.Forms.Panel
     $head.BackColor = $Deep
     $head.SetBounds(0, 0, $W, 64)
@@ -385,7 +392,7 @@ function Show-StartWindow {
     $cancel.add_Click({ $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; $form.Close() })
 
     $result = $form.ShowDialog()
-    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return 1 }
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return 10 }
 
     $chosen = New-Object System.Collections.ArrayList
     for ($i = 0; $i -lt $models.Count; $i++) { if ($list.GetItemChecked($i)) { [void]$chosen.Add($ids[$i]) } }
@@ -450,12 +457,24 @@ function Show-StatusWindow {
         if ($a -eq [System.Windows.Forms.DialogResult]::Yes) { & $send "stop"; $stop.Enabled = $false; $pause.Enabled = $false }
     })
 
+    $form.add_FormClosing({
+        param($sender, $e)
+        if ($pause.Enabled -and $pause.Text -eq "Resume") {
+            $a = [System.Windows.Forms.MessageBox]::Show(
+                "The run is paused and nothing could resume it once this window is closed. Resume the run and close?",
+                "Fresing site pictures", [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Question)
+            if ($a -eq [System.Windows.Forms.DialogResult]::Yes) { & $send "run" } else { $e.Cancel = $true }
+        }
+    })
+    $script:gone = $false
     $timer = New-Object System.Windows.Forms.Timer
     $timer.Interval = 2000
     $timer.add_Tick({
         $word = ""
         try { $word = (Get-Content -LiteralPath $control -Raw).Trim().ToLower() } catch { }
-        if ($word -eq "ended") { $timer.Stop(); $form.Close(); return }
+        if ($word -eq "ended") { $timer.Stop(); $pause.Enabled = $false; $form.Close(); return }
+        if ($script:gone) { return }
         try { $s = Get-Content -LiteralPath $statusFile -Raw | ConvertFrom-Json } catch { return }
         $state = [string]$s.state
         if ($s.pid -and $state -ne "finished" -and $state -ne "stopped" -and
@@ -464,7 +483,7 @@ function Show-StatusWindow {
             $line2.Text = "Double-click the kit again and tick Continue to make the rest."
             $pause.Enabled = $false
             $stop.Enabled = $false
-            $timer.Stop()
+            $script:gone = $true                            # keep looking for "ended": the .bat closes the window
             return
         }
         $head = ""
@@ -497,17 +516,18 @@ function Show-StatusWindow {
 # when done: sleep or shut down after a countdown
 # ---------------------------------------------------------------------------------------------------------------
 function Show-EndCountdown {
-    if ($Code -eq 4) { return 0 }                       # stopped by hand: the owner is there
+    if ($Code -ne 0 -and $Code -ne 1) { return 0 }      # only after a finished run (1 = with problems); not after
+                                                        # Stop (4: the owner is there) or a crash
     try { $c = Get-Content -LiteralPath $Choices -Raw | ConvertFrom-Json } catch { return 0 }
     $what = [string]$c.when_done
     if ($what -ne "sleep" -and $what -ne "shutdown") { return 0 }
     $verb = "go to sleep"
-    if ($what -eq "shutdown") { $verb = "shut down" }
+    if ($what -eq "shutdown") { $verb = "shut down (programs with unsaved work are closed)" }
     $W = 420
     $form = New-Form "Fresing site pictures - done" $W 190
     $form.TopMost = $true
     $left = 60
-    $msg = Add-Label $form "" 16 80 ($W - 32) 44 $Bold
+    $msg = Add-Label $form "" 16 76 ($W - 32) 56 $Bold
     $go = New-Button "Now" ($W - 252) 140 110 $true
     $cancel = New-Button "Cancel" ($W - 132) 140 116
     $form.Controls.AddRange(@($go, $cancel))
@@ -529,7 +549,7 @@ function Show-EndCountdown {
     $r = $form.ShowDialog()
     if ($r -ne [System.Windows.Forms.DialogResult]::OK) { Write-Host "Cancelled: the PC stays on."; return 0 }
     if ($what -eq "shutdown") {
-        & shutdown.exe /s /t 0
+        & shutdown.exe /s /f /t 0                       # /f: an open Notepad must not hold it up all night
     } else {
         [void][System.Windows.Forms.Application]::SetSuspendState([System.Windows.Forms.PowerState]::Suspend, $false, $false)
     }

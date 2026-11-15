@@ -772,9 +772,6 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
     for i, view in enumerate(m["views"]):
         unit = f"still:{view.lower()}"
         jpg = os.path.join(send, f"{m['id']}_{view.lower().replace(' ', '_')}.jpg")
-        if state is not None and state.is_done(m["id"], unit) and os.path.isfile(jpg):
-            log(f"  {view}: done in the earlier run")
-            continue
         if view not in VIEW_NAMES and view.upper() in own:       # a camera the project brings (its sheet)
             projects = _projects()
             sheet = projects.load(os.path.join(KIT_SHEETS, m["project"] + ".json"))
@@ -784,6 +781,11 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
                                      margin=cameras.SPACE.get(m.get("space", "NORMAL").upper(), 1.06))
         scene.camera = cam
         png = os.path.join(full, f"{m['id']}_{view.lower().replace(' ', '_')}.png")
+        if state is not None and state.is_done(m["id"], unit) and os.path.isfile(jpg):
+            # the camera is made all the same: the scene must be as in the earlier run, or the clip's frames that
+            # run made are not kept (the queue compares a fingerprint of every object)
+            log(f"  {view}: done in the earlier run")
+            continue
         if pacer is not None:
             pacer.show(step=f"Picture {i + 1} of {len(m['views'])} ({view})")
             pacer.before_still()
@@ -878,6 +880,21 @@ def run(models_dir: str, out: str, settings: str, small: bool = False, only: str
                 os.remove(os.path.join(out, old))
             except OSError:
                 pass
+    code = 3
+    try:
+        code = _run_paced(models_dir, out, settings, small, only, cpu, log, start_at, choices, resume)
+    finally:
+        # real Blender turns every non-zero end into the code of --python-exit-code: the .bat reads the true code
+        # (4 = stopped by hand) from this file (task 0144)
+        try:
+            with open(os.path.join(out, kit_run.RESULT), "w", encoding="ascii") as fh:
+                fh.write(str(code))
+        except OSError:
+            pass
+    return code
+
+
+def _run_paced(models_dir, out, settings, small, only, cpu, log, start_at, choices, resume) -> int:
     pacer = None
     try:
         pacer = kit_run.Pacer(kit_run.load_choices(choices), out, log)
