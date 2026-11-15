@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.106 – 15 Nov 2026 – Export web 3D model no longer crashes; marine growth follows the sea (task 0136)
+
+- **Fixed a crash:** *Export web 3D model* closed Blender (and lost unsaved work) when the project had a moving cable
+  and the animation was not built (after Clear keys, after a product video, before the first Build). The export now
+  pauses the app's live updates while it bakes the looks.
+- **Fixed:** the marine growth band stays at the sea's waterline when you change the water level or switch the Vessel
+  deck on.
+
 ## 0.2.105 – 15 Nov 2026 – turbine extras: rock round the pile, worn blade edges, the new test mill (task 0128)
 
 - **New look:** *Marine paint, worn leading edge (blades)* (3 Looks, Paint): along a wind turbine blade's front edge,
