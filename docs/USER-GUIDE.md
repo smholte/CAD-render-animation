@@ -2859,7 +2859,14 @@ from there and go together, instead of many Show, Hide and pose steps.
 
 The step starts from wherever the parts are at that moment (after a joint has turned the subassembly, say) and leaves
 every joint as it is, so a later step still works. Logos ride along; hoses and cables follow the parts they hang on;
-hoses and chain links themselves stay out of the sequence (the box says so).
+hoses and chain links themselves stay out of the sequence (the box says so). A part you hid with the eye in
+2 Structure stays out too and stays hidden (the box counts it). Saving a pose or a scene, or **Make product video**,
+while the Preview is above 0 % puts the parts back first: the preview is never stored.
+
+**Steps inside steps.** You can take a subassembly apart, then the whole machine, and put them together in the
+reverse order: each Put together brings the parts back to where the matching Take apart found them, so the
+subassembly's parts wait outside where its own Take apart left them until its own Put together. Parts that sit flush
+keep the same order at every Build, in the render queue and in the product video.
 
 **Parts round the subassembly.** The rest of the model counts too: a part whose way out would run through a frame,
 a beam or a wall that is not in the subassembly goes another way instead – along another axis of the subassembly

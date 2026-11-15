@@ -785,6 +785,10 @@ def _draw_sequence(context, box, b) -> None:
         if b.seq_left_out:
             wrap(box, context, f"{plural(b.seq_left_out, 'hose or chain link', 'hoses or chain links')} left out: "
                                "they follow the parts they hang on", icon="INFO", inset=12)
+        if b.seq_hidden:
+            wrap(box, context, f"{plural(b.seq_hidden, 'hidden part')} left out: "
+                               f"{'it stays' if b.seq_hidden == 1 else 'they stay'} hidden (2 Structure)",
+                 icon="INFO", inset=12)
         if b.seq_riders:
             wrap(box, context, f"{plural(b.seq_riders, 'part rides', 'parts ride')} on another part (a joint "
                                f"carries {'it' if b.seq_riders == 1 else 'them'}) and "

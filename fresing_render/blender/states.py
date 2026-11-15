@@ -69,6 +69,8 @@ def capture_pose(scene, pose) -> None:
 
 
 def save_pose(scene, name: str):
+    from . import sequence
+    sequence.end_preview(scene)          # an Assembly sequence preview's places are not a pose (task 0140)
     s = scene.fresing
     pose = s.poses.get(name)
     if pose is None:
@@ -350,6 +352,8 @@ def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visi
 
     In a built animation the pose and visibility are those of the frame shown; the camera is the static one the
     animation started from (pass ``camera`` to store another, e.g. the queue's copy of the animation camera)."""
+    from . import sequence
+    sequence.end_preview(scene)          # an Assembly sequence preview's places are not stored (task 0140)
     s = scene.fresing
     shot = s.shots.get(name)
     if shot is None:

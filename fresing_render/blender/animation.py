@@ -652,7 +652,7 @@ def bake(scene, anim) -> dict:
     ident = Matrix.Identity(4)
 
     busy_until: dict[str, int] = {}
-    seq_home: dict = {}                  # Assembly sequence: a part's place before a Take apart step moved it
+    seq_home: dict = {}                  # Assembly sequence: per part a stack of its places before Take apart steps
     jumps: dict = {}                     # frame -> parts a step puts elsewhere at once (task 0132): JUMPS, clash check
 
     def joint_move(j, v_from, v_to, f0, f1, easing):
@@ -928,7 +928,7 @@ def bake(scene, anim) -> dict:
                 in_seq = {o.name for o in sequence.movers(scene, sequence.target(scene, apart, uids), tree).parts}
                 rest = any(abs(v - jstate[n]) > 1e-9 for n, v in values.items()) or any(
                     any(abs(d[r][c] - ident[r][c]) > 1e-9 for r in range(4) for c in range(4))
-                    for n in objs for d in [seq_home.get(n, ostate.get(n, ident)) if n in in_seq
+                    for n in objs for d in [sequence.home_top(seq_home, n, ostate.get(n, ident)) if n in in_seq
                                             else ostate.get(n, ident)])
                 d_rev = b.duration * (REVERSE_SHARE if rest else 1.0)
                 sequence.bake_step(scene, _Reversed(apart, b.start, d_rev), f0,
