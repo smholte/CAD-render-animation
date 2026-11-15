@@ -1,6 +1,6 @@
 # 0126 – Demo: the CPS run from the rack to the cable end
 
-**Who:** worker · **Status:** done (0.2.107) · **Branch:** `ccr-8f1ac832-0ayr4f` (the session's branch)
+**Who:** worker · **Status:** done (0.2.108) · **Branch:** `ccr-8f1ac832-0ayr4f` (the session's branch)
 **Started by:** lead chat, 15 Nov 2026 (owner: "all 5 suggested tasks") · **Model:** Opus · effort High
 **Area (Demo models lane):** `fresing_render/demo_model/` (rack, ramp, curved slide, the CPS set's parts if they need
 splitting), `blender/demo.py` (a new stage before the quadrant stages; shots renumbered only if needed), app code in the
@@ -48,7 +48,7 @@ The quadrant sequence itself (0082, 0125). The site. Glow markers, sediment.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 15 Nov 2026 (branch `ccr-8f1ac832-0ayr4f`), version **0.2.107**. No subagents.
+**Chat / date:** Claude Code on the web, 15 Nov 2026 (branch `ccr-8f1ac832-0ayr4f`), version **0.2.108**. No subagents.
 
 **What changed:**
 - **New stage `shot_cps` – shot 8b** (between shot 8 and shot 9, ~24 s, × 15): the lay cable is hidden (cut to camera
@@ -96,8 +96,8 @@ The quadrant sequence itself (0082, 0125). The site. Glow markers, sediment.
 - Tests: `test_demo_cable_lay.py` 58 passed; `test_paths.py -k demo_vessels`, `test_paths_core.py -k demo_cable`
   passed (193 rollers); `test_demo_project.py` (new tests for shot 8b and the haul-in; counts, stage order, length).
 
-- GitHub: 2 full runs on the branch, both green – 43765129282 (25.7 min), then 43767623115 (25.9 min) after merging
-  `main` again (task 0136 had taken 0.2.106: renumbered to 0.2.107); `main` fast-forwarded to it with the task list.
+- GitHub: 3 full runs on the branch, all green – 43765129282 (25.7 min), then 43767623115 (25.9 min) after merging
+  `main` again (task 0136 had taken 0.2.106: renumbered to 0.2.107), then a third after task 0140 took 0.2.107 (renumbered to 0.2.108).
 
 **Owner's check list (RTX 3090):** Help > Make demo project, then play shot 8b (after "Into the sea"): (1) the set on
 the top shelf next to the orange ramp slides down the ramp, restrictors first, and onto the rollers of side B; (2) it

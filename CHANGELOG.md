@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.107 – 15 Nov 2026 – the demo: a CPS set from the rack onto the cable end (task 0126)
+## 0.2.108 – 15 Nov 2026 – the demo: a CPS set from the rack onto the cable end (task 0126)
 
 - **Demo, new shot 8b:** after the cable has gone into the sea, a **CPS set** (cable protection) slides from the rack's
   top shelf, tail first, down the orange ramp and the curved slide onto side B's roller highway, runs round the
@@ -21,6 +21,18 @@ installer of that version was built from.
 - **The second end no longer piles up while the D carries it aft (shot 9):** it is hauled in by the D's travel (36 m
   piled up on the seabed by the end of the travel before). While the D is lowered to the seabed (shots 10–11) the
   cable still lays down in a loop under it – the warning says so.
+## 0.2.107 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
+
+- **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
+  no part jumps any more. Each Put together brings the parts back to where the matching Take apart found them.
+- **Same order every time:** two parts that sit flush no longer swap places between Builds, the render queue and the
+  product video.
+- **Preview not stored:** Save pose, Save scene and Make product video while the sequence Preview is above 0 % put
+  the parts back first.
+- **Hidden parts stay out:** a part hidden with the eye in 2 Structure takes no part in the sequence and stays hidden
+  (the step's box counts it).
+- A sequence's trail line of a part a model update removed is dropped without a warning; the Preview works the plan
+  out again when a part round the subassembly is hidden, shown or moved.
 ## 0.2.106 – 15 Nov 2026 – Export web 3D model no longer crashes; marine growth follows the sea (task 0136)
 
 - **Fixed a crash:** *Export web 3D model* closed Blender (and lost unsaved work) when the project had a moving cable

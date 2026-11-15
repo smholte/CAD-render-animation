@@ -229,6 +229,18 @@ def test_other_ways_most_like_the_wanted_first():
     assert all(abs(w[2]) < 1e-9 for w in ways[:4])
 
 
+def test_flush_parts_keep_their_order_whatever_the_float32_noise():
+    """Task 0140 (0131 row 9): two parts whose near ends are flush rank by the model tree, not by 1e-9 m of noise."""
+    def two(za, zb):
+        return [box("cover", (-1, 0, za), (1, 1, 1), index=0), box("carriage", (2, 0, zb), (4, 1, 1), index=1)]
+    st = core.Settings(direction="AXIS", axis=(0, 0, 1), by_size=False, distance=1.0)
+    orders = set()
+    for za, zb in ((0.0500000007, 0.0500000045), (0.0500000045, 0.0500000007)):
+        moves = core.plan(two(za, zb), st)
+        orders.add(tuple(m.name for m in sorted(moves, key=lambda m: m.rank)))
+    assert orders == {("cover", "carriage")}, orders
+
+
 # ---------------------------------------------------------------------------
 # in Blender
 # ---------------------------------------------------------------------------
@@ -741,3 +753,159 @@ def test_preview_keeps_a_rider_where_it_flew(fr):
     b.seq_preview = 0.0
     for o in parts:
         assert (o.matrix_world.translation - w0[o.name].translation).length < 1e-7
+
+
+# ---------------------------------------------------------------------------
+# task 0140: the rows of bug hunt 0131
+# ---------------------------------------------------------------------------
+
+def _whole_seq(sc, a, start=0.0, **kw):
+    b = a.blocks.add()
+    b.kind = "SEQUENCE"
+    root = named(sc, "TEST.SEQUENCE.FRAME")
+    b.target_uid, b.target_name = root[build.PROP_UID], root[build.PROP_NAME]
+    b.start = start
+    b.seq_id = f"w{len(a.blocks)}"
+    b.seq_direction = "UP"
+    for k, v in kw.items():
+        setattr(b, k, v)
+    sequence.count(sc, b)
+    return b
+
+
+def _jumps(sc, parts, f_from, f_to, limit=0.015):
+    out = []
+    sc.frame_set(f_from)
+    last = {o.name: o.matrix_world.translation.copy() for o in parts}
+    for f in range(f_from + 1, f_to + 1):
+        sc.frame_set(f)
+        for o in parts:
+            p = o.matrix_world.translation.copy()
+            if (p - last[o.name]).length > limit:
+                out.append((f, o.get(build.PROP_NAME), round((p - last[o.name]).length * 1000, 1)))
+            last[o.name] = p
+    return out
+
+
+def test_nested_sequences_do_not_jump(fr):
+    """0131 row 8: Take apart the slide unit, Take apart the whole model, Put together the whole model, Put together
+    the slide unit: no part jumps, the slide unit's parts wait where its own Take apart left them, nothing clashes."""
+    sc = fr
+    a = add_anim(sc, "Nested")
+    s1 = add_frame_seq(sc, a, start=0.0, seq_part_time=1.5)
+    t = s1.duration + 0.2
+    s2 = _whole_seq(sc, a, start=t, seq_part_time=1.5)
+    t += s2.duration + 0.2
+    s3 = _whole_seq(sc, a, start=t, seq_mode="TOGETHER", seq_part_time=1.5)
+    t += s3.duration + 0.2
+    s4 = add_frame_seq(sc, a, start=t, seq_mode="TOGETHER", seq_part_time=1.5)
+    unit_parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    every = sequence.movers(sc, named(sc, "TEST.SEQUENCE.FRAME")).parts
+    home = worlds(sc, every, 1)
+    animation.bake(sc, a)
+    out1 = worlds(sc, unit_parts, animation.frame_of(a, s1.duration + 0.1))
+    assert all((out1[n].translation - home[n].translation).length > 0.05 for n in out1)
+    assert _jumps(sc, every, 1, sc.frame_end) == []
+    before4 = worlds(sc, unit_parts, animation.frame_of(a, s4.start) - 1)
+    for n in out1:                                     # back where the slide unit's own Take apart left them
+        assert (before4[n].translation - out1[n].translation).length < TOL, n
+    end = worlds(sc, every, sc.frame_end)
+    for n in home:
+        assert (end[n].translation - home[n].translation).length < TOL, n
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, round(r.depth * 1000, 2)) for r in run.rows]
+
+
+def test_preview_is_not_stored_in_a_pose_a_scene_or_the_product_video(fr):
+    """0131 row 10: Save pose, Save scene and Make a product video while a Preview is above 0 % end the preview
+    first: what they store is the model where it stands, not the preview's places."""
+    from fresing_render.blender import product_video
+    sc = fr
+    a = add_anim(sc)
+    b = add_frame_seq(sc, a)
+    parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    home = {o.name: o.matrix_world.translation.copy() for o in parts}
+    b.seq_preview = 60.0
+    bpy.context.view_layer.update()
+    assert any((o.matrix_world.translation - home[o.name]).length > 0.04 for o in parts)
+    states.save_pose(sc, "P")
+    assert b.seq_preview == 0.0 and not [o for o in parts if sequence.PREVIEW in o]
+    assert not joints.free_moves(sc)
+    b.seq_preview = 60.0
+    bpy.context.view_layer.update()
+    states.save_shot(sc, "S")
+    assert b.seq_preview == 0.0 and not joints.free_moves(sc)
+    b.seq_preview = 60.0
+    bpy.context.view_layer.update()
+    info = product_video.make(sc)
+    animation.bake(sc, info["animation"])
+    sc.frame_set(1)
+    for o in parts:
+        assert (o.matrix_world.translation - home[o.name]).length < TOL, o.get(build.PROP_NAME)
+
+
+def test_parts_hidden_in_structure_take_no_part(sc):
+    """0131 row 11: a part hidden with the eye in 2 Structure is not counted, gets no time and stays hidden, also with
+    Put together + Hide / Fade."""
+    from fresing_render.blender import logic
+    cover = named(sc, "COVER")
+    logic.set_hidden(cover, True)
+    a = add_anim(sc)
+    b = add_seq(sc, a, seq_mode="TOGETHER", seq_end="FADE")
+    assert b.seq_count == 11
+    assert b.seq_hidden == 1
+    parts = sequence.movers(sc, unit(sc)).parts
+    assert cover not in parts
+    animation.bake(sc, a)
+    for f in range(1, sc.frame_end + 1, 5):
+        sc.frame_set(f)
+        assert cover.hide_render, f
+    b.seq_end = "HIDE"
+    animation.bake(sc, a)
+    for f in range(1, sc.frame_end + 1, 5):
+        sc.frame_set(f)
+        assert cover.hide_render, f
+
+
+def test_trail_of_a_removed_part_is_dropped_silently(sc):
+    """0131 row 16f: a sequence step's trail line whose part is gone (a model update removed it) is removed by the
+    next Build, with no warning."""
+    a = add_anim(sc)
+    b = add_seq(sc, a, seq_trails=True)
+    animation.bake(sc, a)
+    animation.clear_keys(sc)
+    gone = named(sc, "COVER")
+    assert any(t.part == gone for t in sc.fresing.trails if t.seq_owner == b.seq_id)
+    bpy.data.objects.remove(gone, do_unlink=True)
+    sequence.count(sc, b)
+    info = animation.bake(sc, a)
+    assert not [w for w in info["warnings"] if "gone" in w], info["warnings"]
+    mine = [t for t in sc.fresing.trails if t.seq_owner == b.seq_id]
+    assert len(mine) == 11 and all(t.part is not None for t in mine)
+
+
+def test_preview_plans_again_when_a_part_outside_changes(fr):
+    """0131 row 16g: hiding the portal frame while the preview shows a step plans again (the parts under the beam
+    then go up), so the preview shows what Build will build."""
+    sc = fr
+    a = add_anim(sc)
+    b = add_frame_seq(sc, a)
+    unit = named(sc, "SLIDE.UNIT")
+    parts = sequence.movers(sc, unit).parts
+    cover = named(sc, "COVER")
+    w0 = cover.matrix_world.translation.copy()
+    b.seq_preview = 100.0
+    bpy.context.view_layer.update()
+    d = cover.matrix_world.translation - w0
+    assert abs(d.z) < 1e-6                                # sideways under the beam
+    named(sc, "PORTAL FRAME").hide_render = True
+    b.seq_preview = 99.0
+    b.seq_preview = 100.0
+    bpy.context.view_layer.update()
+    d = cover.matrix_world.translation - w0
+    assert d.normalized().z > 1 - 1e-6, tuple(d)          # the frame is gone: straight up
+    k1 = sequence._plan_key(sc, b, unit, parts)
+    assert sequence._same_plan(k1, sequence._plan_key(sc, b, unit, parts))
+    named(sc, "PORTAL FRAME").location.z += 0.01
+    bpy.context.view_layer.update()
+    assert not sequence._same_plan(k1, sequence._plan_key(sc, b, unit, parts))

@@ -425,6 +425,8 @@ def _bounds_points(objs):
 def make(scene) -> dict:
     """Make or update the animation. Returns {animation, plan, seconds, left_out}."""
     s = scene.fresing
+    from . import sequence
+    sequence.end_preview(scene)          # a sequence preview's places would be stored in the start scene (task 0140)
     if animation.has_keys(scene):
         animation.clear_keys(scene)
     info = plan(scene)
