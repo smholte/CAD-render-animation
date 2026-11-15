@@ -122,7 +122,9 @@ trails, hoses and cables read the motion (moved there from `paths._bake` on the 
 - **Keep tight on a sea cable:** the payout's step at a hang-off change is spread over 1 s (`paths.ramp_steps`).
 - **Swivel follows its wire** (subagent S, `blender/paths_swivel.py`): `FRCableContact.swivel` (field in the contact
   details); closed form, keyed per frame at Build from the cables' own pass through the frames (the places of what it
-  carries corrected, no second pass), live while posing; coupling put aside and back at Clear keys. Guide `#swivel`,
+  carries corrected, no second pass), live while posing; coupling put aside and back at Clear keys. It turns only while
+  its wire is shown (else it holds, aimed at where the wire will be): a head turning through every frame of shots 9–12
+  made the demo's clash check 2–3 x slower. Guide `#swivel`,
   function `offshore.swivel`.
 - **Rollers the cable has left stand still** (subagent R, `blender/paths_rollers.py`): at Build a roller whose joint
   follows the cable's speed turns only at frames where a drawn cable touches it (keys per frame, coupling put aside and
@@ -150,6 +152,8 @@ No independent tester this time (usage).
   plane up to 13.6° → 0.0°. Build warnings: "0.00 m" and the A&R pulley note gone.
 - Make demo 166 s → 213 s; its Build 54 s → 116 s (two Builds: the set-down check; one Build 58–62 s, +2.4 ms per frame of
   Build). Frame change when playing: not changed by this task (nothing new runs per frame; the shapes are baked).
+- Demo clash check (`test_demo_clash.py`): **0 clash rows**; its main test 478 s here (GitHub before this task 465–533 s
+  for the file); with the swivels turning through every frame it had taken 1,311 s on GitHub – fixed.
 - Tests: new `test_paths_settle.py` (6), `test_paths_swivel.py` (9), `test_paths_rollers.py` (5), bow tests in
   `test_sea.py` (3); 0082's let-go tests set Settles in 0 (they test "stays"); demo tests extended (no lost path, no kink,
   D on the seabed, pull head, swivels, warnings). Cable / sea / moving suites 124 passed; weather/sea 117 passed.
@@ -171,3 +175,7 @@ from the bow (+x, the front of the vessel).
 4. The D's depth worked out before Build differs from the built animation by 0.38 m (cause not found; the check after
    Build corrects it at the cost of a second Build, +55 s on Make demo).
 5. Rollers: a lifted SHEAVE that the cable runs past still turns with its coupling (subagent R's note).
+6. Shot 11, while the D tipped flat comes down its last ~10 m (frames ~2514–2560): the cable must go round past the
+   gutter's end and back down; it now does so in a free bend of the gutter's radius of up to ~180° (before: a hard
+   kink back). The brief's case (shot 10, the start of the lowering) is smooth; this one wants the hang-off to come off
+   the gutter's other end, or the cable to lie off the D – Flex parts lane.
