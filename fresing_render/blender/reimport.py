@@ -70,6 +70,7 @@ def records(objs) -> list[dict]:
             "shape": _shape(ob),
             "kind": ob.get(build.PROP_KIND),
             "key_a": tuple(inst) if all(inst) else None,
+            "made": any(c.get(build.PROP_MADE_NAME) for c in chain),     # a name the mesh reader made (task 0139)
             "key_b": tuple(_norm(c.get(build.PROP_NAME, c.name)) for c in chain),
             "leaf": _norm(ob.get(build.PROP_NAME, ob.name)),
             "pos": cad_matrix(ob).translation.copy(),
@@ -132,18 +133,24 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
         if len(olds) == 1 and len(news) == 1:
             take(olds[0], news[0])
 
-    # 2. name path, nearest first; 3. same name anywhere, only if it did not move; 4. renamed: the same shape in the
-    #    same place (task 0117), reported
+    # 1b. names the mesh reader made (piece numbers, "Node 3") shift when a piece is added or removed: those match
+    #     by shape and place first (task 0139, 0131 row 3); their assemblies by their parts (``_made_assemblies``)
+    made = (lambda r: (r["kind"], r["shape"], "made") if r.get("made") and r.get("shape") else None)
+    # 2. name path, nearest first (a made name only in the same place); 3. same name anywhere, only if it did not
+    #    move; 4. renamed: the same shape in the same place (task 0117), reported
     renamed = (lambda r: (r["kind"], r["shape"]) if r.get("shape") else None)
-    for key, tol in ((lambda r: (r["kind"], r["key_b"]), None), (lambda r: (r["kind"], r["leaf"]), move_tolerance),
-                     (renamed, move_tolerance)):
+    for key, tol in ((made, move_tolerance), (lambda r: (r["kind"], r["key_b"]), None),
+                     (lambda r: (r["kind"], r["leaf"]), move_tolerance), (renamed, move_tolerance)):
         go = by(key, [r for r in old if id(r) not in used_old])
         gn = by(key, [r for r in new if id(r) not in used_new])
         for k, olds in go.items():
             news = gn.get(k, [])
             if not news:
                 continue
-            if tol is None and len(olds) == 1 and len(news) == 1:
+            t = tol
+            if t is None and any(r.get("made") for r in olds + news):
+                t = move_tolerance               # a made name says nothing on its own: the place must agree
+            if t is None and len(olds) == 1 and len(news) == 1:
                 take(olds[0], news[0])
                 continue
             while True:                      # repeat: the k-d tree only offers the nearest few
@@ -156,15 +163,45 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
                     o, n = rem_o[i], rem_n[j]
                     if id(o) in used_old or id(n) in used_new:
                         continue
-                    if tol is not None and dist > tol:
+                    if t is not None and dist > t:
                         break
                     take(o, n)
-                    if key is renamed and o["leaf"] != n["leaf"]:
+                    if key is renamed and o["leaf"] != n["leaf"] and not (o.get("made") and n.get("made")):
                         o["renamed"] = True
                     progress = True
-                if not progress or tol is not None:
+                if not progress or t is not None:
                     break
+    _made_assemblies(old, new, pairs, take, used_old, used_new, move_tolerance)
     return pairs
+
+
+def _made_assemblies(old, new, pairs, take, used_old, used_new, tol) -> None:
+    """An assembly with a name the mesh reader made ("Node 3") that no rule matched: it pairs with the new assembly
+    that holds the most of its matched parts, in the same place (task 0139). Level by level, from the parts up."""
+    rec_of = {r["ob"].name: r for r in old + new if "ob" in r}
+    if not rec_of:
+        return
+    while True:
+        votes: dict = {}
+        for o, n in pairs:
+            po, pn = build.logical_parent(o["ob"]), build.logical_parent(n["ob"])
+            ro, rn = (rec_of.get(po.name) if po else None), (rec_of.get(pn.name) if pn else None)
+            if ro is None or rn is None or id(ro) in used_old or id(rn) in used_new:
+                continue
+            if not (ro.get("made") or rn.get("made")) or ro["kind"] != rn["kind"]:
+                continue
+            votes[(id(ro), id(rn))] = votes.get((id(ro), id(rn)), 0) + 1
+        ranked = sorted(votes.items(), key=lambda kv: -kv[1])
+        by_id = {id(r): r for r in old + new}
+        progress = False
+        for (io, jn), _count in ranked:
+            ro, rn = by_id[io], by_id[jn]
+            if id(ro) in used_old or id(rn) in used_new or (ro["pos"] - rn["pos"]).length > tol:
+                continue
+            take(ro, rn)
+            progress = True
+        if not progress:
+            return
 
 
 def _model_objects_of(root, tree) -> list:
@@ -484,9 +521,10 @@ def _carry_over(context, st) -> dict:
     _repoint(scene, {o.name: None for o in old_objs if o.name not in matched}, notes)   # their part is gone
     old_name = old_collections[0].name if old_collections else None
     bpy.data.batch_remove([ob for ob in old_objs])
-    for me in old_meshes:
-        if me.users == 0:
-            bpy.data.meshes.remove(me)
+    bpy.data.batch_remove([me for me in old_meshes if me.users == 0])  # one by one was quadratic (0131 row 15)
+    from . import hover, mesh_import
+    mesh_import.release_materials()              # the old revision's file materials (0131 row 4)
+    hover.clear()                                # its meshes' names may come back on new meshes (0131 row 16c)
     aside, st.aside = st.aside, []
     for col in old_collections:
         if len(col.objects) == 0 and len(col.children) == 0:
