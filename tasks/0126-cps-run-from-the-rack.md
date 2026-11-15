@@ -97,7 +97,7 @@ The quadrant sequence itself (0082, 0125). The site. Glow markers, sediment.
   passed (193 rollers); `test_demo_project.py` (new tests for shot 8b and the haul-in; counts, stage order, length).
 
 - GitHub: 3 full runs on the branch, all green – 43765129282 (25.7 min), then 43767623115 (25.9 min) after merging
-  `main` again (task 0136 had taken 0.2.106: renumbered to 0.2.107), then a third after task 0140 took 0.2.107 (renumbered to 0.2.108).
+  `main` again (task 0136 had taken 0.2.106: renumbered to 0.2.107), then a third after task 0140 took 0.2.107 (renumbered to 0.2.108): 43770223664 (32.6 min); `main` fast-forwarded to it with the task list.
 
 **Owner's check list (RTX 3090):** Help > Make demo project, then play shot 8b (after "Into the sea"): (1) the set on
 the top shelf next to the orange ramp slides down the ramp, restrictors first, and onto the rollers of side B; (2) it
