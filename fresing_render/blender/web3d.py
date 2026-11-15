@@ -405,6 +405,7 @@ class Baker:
         else:                                   # nothing renders with Cycles yet: no preview can be running with it
             sc = bpy.data.scenes.new(BAKE_NAME)
             sc.render.engine = "CYCLES"
+        sc["fr_bake"] = True                    # a working copy, not a project scene (task 0136)
         sc.cycles.samples = BAKE_SAMPLES
         sc.cycles.device = "CPU"
         sc.cycles.use_denoising = False
@@ -418,8 +419,10 @@ class Baker:
         for o in self.scene.objects:
             o.select_set(o is ob, view_layer=vl)
         vl.objects.active = ob
-        with bpy.context.temp_override(scene=self.scene, view_layer=vl, active_object=ob, object=ob,
-                                       selected_objects=[ob], selected_editable_objects=[ob]):
+        from . import handlers
+        with handlers.pause_live(), bpy.context.temp_override(
+                scene=self.scene, view_layer=vl, active_object=ob, object=ob,
+                selected_objects=[ob], selected_editable_objects=[ob]):
             res = bpy.ops.object.bake(type="EMIT", margin=0, use_clear=True)
         if res != {"FINISHED"}:
             raise RuntimeError(f"baking the looks failed ({res})")

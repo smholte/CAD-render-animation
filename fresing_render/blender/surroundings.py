@@ -172,6 +172,8 @@ def ensure(scene, s, replace: bool = False) -> None:
         root = root_object()
     _update_live(scene, s, root)
     _vessel().after_surroundings(scene)              # task 0085: the deck (maybe new) moves with the vessel
+    from . import marine_looks
+    marine_looks.sync(scene)                         # task 0136: marine growth follows the sea (water level, deck)
 
 
 def _only_added(root, key: str, models: str, replace: bool, scene) -> bool:
