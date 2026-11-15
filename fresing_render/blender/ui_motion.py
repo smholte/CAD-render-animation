@@ -679,7 +679,7 @@ def _draw_camera_step(context, box, b) -> None:
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
-              "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE"}
+              "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE", "CAD": "LOOP_BACK"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -763,8 +763,9 @@ def _draw_sequence(context, box, b) -> None:
             wrap(box, context, f"{plural(b.seq_left_out, 'hose or chain link', 'hoses or chain links')} left out: "
                                "they follow the parts they hang on", icon="INFO", inset=12)
         if b.seq_riders:
-            wrap(box, context, f"{plural(b.seq_riders, 'part rides', 'parts ride')} along on the part a joint "
-                               "puts them on", icon="INFO", inset=12)
+            wrap(box, context, f"{plural(b.seq_riders, 'part rides', 'parts ride')} on another part (a joint "
+                               f"carries {'it' if b.seq_riders == 1 else 'them'}) and "
+                               f"{'leaves' if b.seq_riders == 1 else 'leave'} before it", icon="INFO", inset=12)
     sub = box.row(align=True)
     sub.prop(b, "seq_preview", text="Preview", slider=True)
     if b.seq_preview > 0.0:
@@ -774,6 +775,17 @@ def _draw_sequence(context, box, b) -> None:
         hint = wrap(box, context, "Moving the preview takes the built animation off (Build again after)",
                     icon="INFO", inset=12)
         hint.active = False
+
+
+def _draw_cad(context, box, b) -> None:
+    """The settings of a Back to CAD step (task 0129)."""
+    box.prop(b, "cad_whole", text="Whole model")
+    if not b.cad_whole:
+        row = box.row(align=True)
+        row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")
+        row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
+    wrap(box, context, "Every joint goes back to its CAD value (a motor to its nearest whole turn) and moved parts "
+                       "to their places, over the step's duration", icon="INFO", inset=12).active = False
 
 
 class FRESING_UL_anims(bpy.types.UIList):
@@ -973,6 +985,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 _draw_camera_step(context, box, b)
             elif b.kind == "WEATHER":
                 _draw_weather(context, box, scene, a, b)
+            elif b.kind == "CAD":
+                _draw_cad(context, box, b)
             else:
                 row = box.row(align=True)
                 row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")

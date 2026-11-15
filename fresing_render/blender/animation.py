@@ -18,6 +18,8 @@ Block kinds
              weather channels
     SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
             follows from the number of parts, the time per part and the overlap
+    CAD     back to CAD (task 0129): every joint of the model (or of one subassembly) to its CAD value – a motor to
+            its nearest whole turn – and every moved part to its CAD place, eased as Go to pose (``cad_targets``)
 
 "Build" turns the blocks into keys (joint values, part positions, an animation
 camera, visibility). Keys are owned by the app: building again replaces them,
@@ -116,7 +118,38 @@ def block_label(b, scene=None) -> str:
     if b.kind == "SEQUENCE":
         from . import sequence
         return sequence.label(b)
+    if b.kind == "CAD":
+        return "Back to CAD" if b.cad_whole or not b.target_name else f"Back to CAD: {b.target_name}"
     return f"{'Show' if b.kind == 'SHOW' else 'Hide'} {target}"
+
+
+def cad_targets(scene, b, jstate: dict, ostate: dict, tree=None, uids=None):
+    """What a Back to CAD step moves (task 0129): ({joint name: value}, [object names]) – every joint that is not a
+    follower and every moved part of the whole model (``cad_whole``), else those of the picked subassembly (a joint
+    belongs to it when it moves a part of it). A motor goes to its nearest whole turn (it looks the same as CAD and
+    does not spin back through every turn it made). None when the subassembly is not found."""
+    s = scene.fresing
+    scope = None
+    if not b.cad_whole:
+        uids = uids if uids is not None else states.by_uid(scene)
+        sub = uids.get(b.target_uid) if b.target_uid else None
+        if sub is None:
+            return None
+        tree = tree or logic.Tree(scene)
+        scope = {sub.name} | {o.name for o in tree.descendants(sub)}
+    values = {}
+    for j in s.joints:
+        if j.follows or j.name not in jstate:
+            continue
+        if scope is not None and not any(m.obj is not None and m.obj.name in scope for m in j.members):
+            continue
+        v = 0.0
+        if joints.is_motor(j):
+            turn = 2.0 * math.pi
+            v = round(jstate[j.name] / turn) * turn
+        values[j.name] = v
+    objs = [n for n in ostate if scope is None or n in scope]
+    return values, objs
 
 
 def fade_ends(b) -> tuple[float, float]:
@@ -817,6 +850,21 @@ def bake(scene, anim) -> dict:
         elif b.kind == "SEQUENCE":
             sequence.bake_step(scene, b, f0, sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray,
                                                             seq_home, _merge, warnings, uids, tree))
+        elif b.kind == "CAD":
+            got = cad_targets(scene, b, jstate, ostate, tree, uids)
+            if got is None:
+                warnings.append(f"'{block_label(b)}': pick a subassembly (or tick Whole model)" if not b.target_uid
+                                else f"'{block_label(b)}': subassembly not found")
+                continue
+            values, objs = got
+            for name, v in values.items():
+                if abs(v - jstate[name]) > 1e-9:
+                    joint_move(s.joints[name], jstate[name], v, f0, f1, b.easing)
+            for name in objs:
+                d_from = ostate.get(name, ident)
+                if any(abs(d_from[r][c] - ident[r][c]) > 1e-9 for r in range(4) for c in range(4)):
+                    object_move(name, d_from, ident, f0, f1, b.easing)
+                seq_home.pop(name, None)            # (a part an Assembly sequence took apart is home again)
 
     if wx_blocks:
         from . import weather

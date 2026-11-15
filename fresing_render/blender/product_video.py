@@ -3,7 +3,10 @@
 Builds (or updates) the animation "Product video" from what the project already has, with ordinary steps the owner
 can change in 6 Animation: title card -> one turn round the machine -> the machine's joints (each to its far limit and
 back, a camera that watches the moving part) -> saved poses -> an Assembly sequence (take apart, hold, put together)
-on one subassembly -> close-ups from saved cameras -> end card. Pieces the project has no material for are left out,
+on one subassembly -> close-ups -> end card. After the saved poses a Back to CAD step brings the machine home (task
+0129). Close-ups: the saved cameras; with none, spots the app picks (``pick_spots``: type plates and other decals,
+then the moving parts round each joint), framed as 5 Scene & Render frames a selection. Pieces the project has no
+material for are left out,
 and the status line says which and why. The animation is tagged ``fr_product_video``; pressing again replaces its
 steps (the operator asks first when the owner changed them: ``changed``). No other animation is touched.
 """
@@ -11,6 +14,8 @@ steps (the operator asks first when the owner changed them: ``changed``). No oth
 from __future__ import annotations
 
 import math
+
+import numpy as np
 
 from ..core import presets, sequence as seq_core
 from . import animation, build, cameras, joints, logic, sequence, states
@@ -24,6 +29,9 @@ LENGTHS = (30, 60, 90)
 MIN_PARTS = 5                 # a subassembly worth taking apart
 CARD_S = 3.0
 HOLD_S = 1.5                  # the sequence stands apart this long
+CLOSE_UPS = 2
+SPOT_MARGIN = 1.6             # a close-up frames its spot this much larger (some of the machine round it shows)
+SPOT_VIEWS = ("ISO", "ISO_LEFT", "ISO_BACK", "HIGH", "FRONT", "SIDE")    # tried in this order; the one that sees most
 
 
 def find_animation(scene):
@@ -105,6 +113,26 @@ def saved_cameras(scene) -> list:
             if not c.get("fr_anim_camera") and not c.get(CAM_TAG) and not c.get("fr_turntable")]
 
 
+def shows_whole_model(scene, cam) -> bool:
+    """True when the camera has the whole model in its picture (the view the import makes, a beauty shot): not a
+    close-up (task 0129)."""
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+    pts = cameras._points(scene)                  # what a view of the model is fitted to: every part's box
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    keep = [p for p in pts if np.any(np.isclose(p, lo, atol=1e-6) | np.isclose(p, hi, atol=1e-6))]   # the outside
+    for p in keep or pts:
+        v = world_to_camera_view(scene, cam, Vector(tuple(p)))
+        if not (-0.02 <= v.x <= 1.02 and -0.02 <= v.y <= 1.02 and v.z > 0.0):
+            return False
+    return True
+
+
+def closeup_cameras(scene) -> list:
+    """The saved cameras that show a part of the machine close (not the whole model), at most CLOSE_UPS."""
+    return [c for c in saved_cameras(scene) if not shows_whole_model(scene, c)][:CLOSE_UPS]
+
+
 # ---------------------------------------------------------------------------
 # the plan: a list of steps (plain dicts), made before anything is written
 # ---------------------------------------------------------------------------
@@ -133,9 +161,10 @@ def plan(scene, seconds: int | None = None) -> dict:
             sub, why = None, "its parts would not move (hoses and chain links are drawn by the app)"
     if sub is None:
         left.append(f"the take-apart ({why})")
-    closeups = saved_cameras(scene)[:2]
-    if not closeups:
-        left.append("close-ups (no saved cameras)")
+    closeups = closeup_cameras(scene)
+    spots = [] if closeups else pick_spots(scene, usable_joints(scene, diag), tree)
+    if not closeups and not spots:
+        left.append("close-ups (no saved cameras, and no joint or decal to show close)")
 
     # shares of the body time, then re-scaled to the pieces that exist
     shares = {"orbit": 0.22}
@@ -143,7 +172,7 @@ def plan(scene, seconds: int | None = None) -> dict:
         shares["motion"] = 0.36
     if sub is not None:
         shares["seq"] = 0.32
-    if closeups:
+    if closeups or spots:
         shares["close"] = 0.10
     k = 1.0 / sum(shares.values())
     t = {name: body * v * k for name, v in shares.items()}
@@ -160,7 +189,7 @@ def plan(scene, seconds: int | None = None) -> dict:
     clock += t["orbit"]
 
     if js or poses:
-        n = len(js) + len(poses)
+        n = len(js) + len(poses) + (1 if poses else 0)
         each = t["motion"] / n
         for j in js:
             lo, hi = joints.limits(j)
@@ -182,6 +211,9 @@ def plan(scene, seconds: int | None = None) -> dict:
         for p in poses:
             add(kind="POSE", label=f"Pose {p.name}", pose=p.name, duration=each, easing="SMOOTH")
             clock += each
+        if poses:                                   # a saved pose stays where it ends: home again (task 0129)
+            add(kind="CAD", label="Back to CAD", duration=each, easing="SMOOTH")
+            clock += each
 
     if sub is not None:
         n = len(parts)
@@ -202,8 +234,147 @@ def plan(scene, seconds: int | None = None) -> dict:
         for c in closeups:
             add(kind="CAMERA", label=c.name, camera_mode="MOVE", camera_obj=c.name, duration=each, easing="SMOOTH")
             clock += each
+    elif spots:
+        each = t["close"] / len(spots)
+        for k, sp in enumerate(spots):
+            add(kind="CAMERA", label=f"Close-up: {sp['label']}", camera_mode="MOVE", spot=k, duration=each,
+                easing="SMOOTH")
+            clock += each
 
-    return {"steps": steps, "left_out": left, "sub": sub, "seconds": clock + cards, "body": clock}
+    return {"steps": steps, "left_out": left, "sub": sub, "seconds": clock + cards, "body": clock, "spots": spots}
+
+
+# ---------------------------------------------------------------------------
+# close-ups the app picks (task 0129)
+# ---------------------------------------------------------------------------
+
+def _box(objs) -> np.ndarray | None:
+    pts = []
+    for o in objs:
+        if o.type != "MESH" or o.data is None:
+            continue
+        mw = np.array(o.matrix_world)
+        bb = np.array([list(c) + [1.0] for c in o.bound_box])
+        pts.append((mw @ bb.T).T[:, :3])
+    return np.concatenate(pts) if pts else None
+
+
+def moving_parts(scene, j, tree=None) -> list:
+    """The parts a joint moves (its members and everything on them; visible, not left out)."""
+    tree = tree or logic.Tree(scene)
+    out = []
+    for m in j.members:
+        ob = m.obj
+        if ob is None:
+            continue
+        for o in [ob] + list(tree.descendants(ob)):
+            if (o.get(build.PROP_KIND) == "part" and o.type == "MESH" and not o.get(build.PROP_EXCLUDED)
+                    and not o.hide_render and o not in out):
+                out.append(o)
+    return out
+
+
+def _joint_spot(scene, j, tree, model_diag: float) -> dict | None:
+    """The moving parts round the joint's axis: their boxes cut to a cube round the axis's origin (a boom is
+    framed at its hinge, not as a whole), or their whole box when the axis lies away from them."""
+    parts = moving_parts(scene, j, tree)
+    pts = _box(parts)
+    if pts is None or j.frame is None:
+        return None
+    origin = np.array(j.frame.matrix_world.translation)
+    size = float(np.linalg.norm(pts.max(axis=0) - pts.min(axis=0)))
+    r = min(max(0.3 * size, 0.05 * model_diag), 0.35 * model_diag)
+    lo, hi = np.maximum(pts.min(axis=0), origin - r), np.minimum(pts.max(axis=0), origin + r)
+    if np.any(hi <= lo):
+        lo, hi = pts.min(axis=0), pts.max(axis=0)
+    box = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+    near = sorted(parts, key=lambda o: float(np.linalg.norm(np.array(o.matrix_world.translation) - origin)))
+    return {"label": j.name, "points": box, "objects": parts, "focus": near[0] if near else None,
+            "normal": None}
+
+
+def _decal_spots(scene) -> list:
+    """Type plates first, then other decals: their own box with some of the part round it."""
+    from . import decals
+    out = []
+    for ob in scene.objects:
+        if not decals.is_decal(ob) or ob.hide_render or ob.type != "MESH" or not len(ob.data.vertices):
+            continue
+        item = decals.find(ob.get(decals.PROP_KEY, ""))
+        plate = item is not None and item.kind == "STICKER" and item.sticker == "TYPE_PLATE"
+        pts = _box([ob])
+        part = ob.parent
+        n = np.zeros(3)
+        mw3 = np.array(ob.matrix_world.to_3x3())
+        for poly in ob.data.polygons[:64]:
+            n += mw3 @ np.array(poly.normal) * poly.area
+        n = n / (np.linalg.norm(n) or 1.0)
+        label = (item.name if item is not None and item.name else "decal")
+        out.append((0 if plate else 1, {"label": label, "points": pts, "objects": [part] if part else [ob],
+                                        "focus": part, "normal": n}))
+    out.sort(key=lambda x: x[0])
+    return [d for _k, d in out]
+
+
+def _visible_share(scene, points: np.ndarray, direction, objects) -> float:
+    """How much of a spot a camera looking along -``direction`` sees: rays from 9 points of the spot towards the
+    camera; a ray that reaches no part but the spot's own counts."""
+    import bpy
+    from mathutils import Vector
+    deps = bpy.context.evaluated_depsgraph_get()
+    own = {o.name for o in objects}
+    lo, hi = points.min(axis=0), points.max(axis=0)
+    mid = (lo + hi) / 2
+    samples = [mid] + [mid + (hi - lo) * 0.35 * np.array(s) for s in
+                       ((1, 1, 1), (-1, 1, 1), (1, -1, 1), (-1, -1, 1), (1, 1, -1), (-1, 1, -1), (1, -1, -1),
+                        (-1, -1, -1))]
+    d = Vector(tuple(direction)).normalized()
+    reach = float(np.linalg.norm(hi - lo)) * 50 + 10.0
+    seen = 0
+    for p in samples:
+        start = Vector(tuple(p)) + d * 1e-3
+        hit, _loc, _n, _i, ob, _m = scene.ray_cast(deps, start, d, distance=reach)
+        if not hit or ob is None or ob.name in own:
+            seen += 1
+    return seen / len(samples)
+
+
+def pick_spots(scene, js: list | None = None, tree=None, n: int = CLOSE_UPS) -> list:
+    """Up to ``n`` close-up spots when there are no saved cameras: a type plate (or another decal) first, then the
+    moving parts round each joint (longest travel first). Each: {label, points (world box corners), objects (what it
+    shows), focus (a part), direction (from the spot towards the camera)}."""
+    tree = tree or logic.Tree(scene)
+    mn, mx = logic.update_bounds(scene)
+    model_diag = float(math.dist(mn, mx)) or 1.0
+    if js is None:
+        js = usable_joints(scene, model_diag)
+    cands = _decal_spots(scene)[:1]
+    for j in js:
+        sp = _joint_spot(scene, j, tree, model_diag)
+        if sp is not None:
+            cands.append(sp)
+    cands += _decal_spots(scene)[1:]
+    out = []
+    for sp in cands:
+        if len(out) >= n:
+            break
+        views = [cameras.VIEWS[v][1] for v in SPOT_VIEWS]
+        if sp["normal"] is not None:                   # a decal: from in front of it first, a little from above
+            nv = np.asarray(sp["normal"], dtype=float) + np.array((0.0, 0.0, 0.35))
+            views.insert(0, tuple(nv / (np.linalg.norm(nv) or 1.0)))
+        best, best_share = None, -1.0
+        for v in views:
+            share = _visible_share(scene, sp["points"], v, sp["objects"])
+            if share > best_share + 1e-9:
+                best, best_share = v, share
+            if share >= 0.999:
+                break
+        if best_share <= 0.0:
+            continue
+        sp["direction"] = best
+        sp["seen"] = best_share
+        out.append(sp)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +450,11 @@ def make(scene) -> dict:
         if info["sub"] is not None:
             sub_objs = logic.descendants(info["sub"], tree)
             cam_sub = _frame_camera(scene, f"{NAME} {info['sub'].name}", _bounds_points(sub_objs), "ISO", 1.9)
+        spot_cams = []
+        for sp in info.get("spots", []):
+            cam = _frame_camera(scene, f"{NAME} close-up {sp['label']}", sp["points"], "ISO", SPOT_MARGIN)
+            cameras.fit(cam, scene, sp["direction"], margin=SPOT_MARGIN, points=sp["points"])
+            spot_cams.append(cam)
     finally:
         render.apply_output(scene, s)
 
@@ -309,6 +485,8 @@ def make(scene) -> dict:
                 b.from_dist, b.to_dist = st["from_value"], st["to_value"]
         elif st["kind"] == "POSE":
             b.pose = st["pose"]
+        elif st["kind"] == "CAD":
+            b.cad_whole = True
         elif st["kind"] == "SEQUENCE":
             b.target_uid, b.target_name = st["uid"], st["name"]
             b.seq_id = __import__("uuid").uuid4().hex[:12]
@@ -324,6 +502,8 @@ def make(scene) -> dict:
                 b.aim_uid, b.aim_name = st["aim_uid"], st["aim_name"]
             elif st.get("camera_for"):
                 b.camera = cam_sub
+            elif "spot" in st:
+                b.camera = spot_cams[st["spot"]]
             else:
                 b.camera = scene.objects.get(st["camera_obj"])
     # the sequence steps' length follows from their parts: keep what the plan set (count() would re-set it)

@@ -592,6 +592,7 @@ if MODE == "panels":
         ("panel_6_camera_ride", [("FRESING_PT_animation", False, True)]),   # a Ride along camera step (task 0087)
         ("panel_6_sequence", [("FRESING_PT_animation", False, True)]),      # an Assembly sequence step (task 0100)
         ("panel_6_product_video", [("FRESING_PT_animation", False, True)]),     # Make a product video (task 0101)
+        ("panel_6_back_to_cad", [("FRESING_PT_animation", False, True)]),       # a Back to CAD step (task 0129)
         ("panel_6_camera_path", [("FRESING_PT_animation", False, True)]),   # a Fly a path camera step (task 0087)
         ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
@@ -689,6 +690,18 @@ if MODE == "panels":
             elif name == "panel_6_product_video":       # the fold open, the video made (task 0101)
                 mod("blender.ui")._OPEN_FOLDS = True
                 mod("blender.product_video").make(sc)
+            elif name == "panel_6_back_to_cad":         # a Back to CAD step after a pose, only the boom (task 0129)
+                if not sc.fresing.animations:
+                    sc.fresing.animations.add().name = "Animation"
+                a = sc.fresing.animations[0]
+                b = a.blocks.add()
+                boom = ob("BOOM.ASM")
+                b.kind, b.start, b.duration, b.easing = "CAD", 4.0, 1.5, "SMOOTH"
+                b.cad_whole = False
+                b.target_uid, b.target_name = boom["fr_uid"], "BOOM.ASM"
+                a.blocks_index = len(a.blocks) - 1
+                sc.fresing.animations_index = 0
+                mod("blender.ui")._OPEN_FOLDS = False
             elif name == "panel_6_sequence":            # Take apart the boom, outside in, along its +Z, trail lines
                 if not sc.fresing.animations:
                     sc.fresing.animations.add().name = "Animation"

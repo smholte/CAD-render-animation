@@ -19,15 +19,25 @@ Direction
     AXIS        along one axis of the subassembly (+ or -), every part the same way
     UP          straight up in the world
 
-Distance: a set length, or "by size": far enough to clear the whole subassembly (its length along the axis, or its
-radius from the centre). Along an axis or up, parts that would end up in each other's way are stacked: a part ends
-beyond every part that leaves *after* it in the same direction and lies across it (``GAP`` apart). So the last part
-goes the set distance and the first one furthest: no part ever flies through the place where an earlier one waits.
+Distance: a set length, or "by size": far enough to clear the whole subassembly (its length along the part's way,
+or its radius from the centre). Parts that would end up in each other's way are stacked: a part ends beyond every part
+that leaves *after* it going nearly the same way (``NEAR``) and whose way lies across its own (``GAP`` apart). So the
+last part goes the set distance and the first one furthest: no part ever flies through the place where an earlier one
+waits. Task 0129: "Away from the centre" stacks too (parts nested in each other went the same way, the same distance).
+
+Parts outside the subassembly (task 0129, ``obstacle``): a part whose way runs into one goes another way – the
+subassembly's other axes, most like the wanted way first, the opposite last – that is clear of them and of the parts
+still in place when it leaves; the order is then worked out again (at most ``ROUNDS`` times).
+
+Riders (task 0129, ``carried``): a part a joint carries on another part of the subassembly leaves before its carrier
+(any order); Blender keeps it where it flew while the carrier flies out under it.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+import math
 
 import numpy as np
 
@@ -35,7 +45,9 @@ ORDERS = ("OUTSIDE_IN", "TREE", "REVERSE")
 DIRECTIONS = ("CENTRE", "AXIS", "UP")
 GAP = 0.05                  # stacked parts: this share of the distance between them (at least MIN_GAP)
 MIN_GAP = 0.002             # m
-SAME_WAY = 0.999            # two directions closer than this (cos) count as one for stacking
+SAME_WAY = 0.999            # two directions closer than this (cos) count as one
+NEAR = math.cos(math.radians(25.0))   # parts going closer to one way than this (cos) are stacked (task 0129)
+ROUNDS = 4                  # other ways tried round a part outside the subassembly: plans worked out at most
 UP = np.array((0.0, 0.0, 1.0))
 
 
@@ -63,6 +75,7 @@ class Settings:
     part_time: float = 1.0              # s each part takes
     overlap: float = 0.5                # 0 … 0.9: share of a part's time the next one starts early
     put_together: bool = False
+    frame: tuple | None = None          # the subassembly's X, Y, Z axes (world): the other ways a blocked part tries
 
 
 @dataclass
@@ -121,14 +134,16 @@ def _span(corners, u) -> tuple[float, float]:
     return float(d.min()), float(d.max())
 
 
-def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.ndarray], blocked=None) -> list[int]:
+def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.ndarray], blocked=None,
+          carried: dict | None = None) -> list[int]:
     """Indices of ``parts`` in the order they leave when taken apart. ``blocked(i, j)``: True when part i, leaving
-    along its direction, runs into part j standing in its place (asked only for parts that lie across i's way)."""
+    along its direction, runs into part j standing in its place (asked only for parts that lie across i's way).
+    ``carried[i]``: the parts that ride on part i; i never leaves before them (task 0129)."""
     by_tree = sorted(range(len(parts)), key=lambda i: parts[i].index)
     if st.order == "TREE":
-        return by_tree
+        return _carriers_last(by_tree, carried)
     if st.order == "REVERSE":
-        return by_tree[::-1]
+        return _carriers_last(by_tree[::-1], carried)
 
     def out_key(i):
         if st.direction == "CENTRE":
@@ -141,7 +156,7 @@ def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.nda
     rest = sorted((i for i in by_tree if not parts[i].fastener), key=lambda i: (-key[i], rank[i]))
     wish = fast + rest
     if blocked is None or len(wish) < 2:
-        return wish
+        return _carriers_last(wish, carried)
     boxes = _corner_array(parts)
     pos = np.empty(len(parts), dtype=int)
     pos[wish] = np.arange(len(wish))
@@ -155,11 +170,27 @@ def order(parts: list[Part], st: Settings, centre: np.ndarray, dirs: list[np.nda
         if (i, j) not in seen:
             seen[(i, j)] = bool(blocked(i, j))
         return seen[(i, j)]
+    carried = carried or {}
     left = list(wish)
     out = []
     while left:
         here = set(left)
-        pick = next((i for i in left if not any(j in here and stopped(i, j) for j in ahead[i])), left[0])
+        free = [i for i in left if not any(r in here for r in carried.get(i, ()))]
+        pick = next((i for i in free if not any(j in here and stopped(i, j) for j in ahead[i])), free[0])
+        out.append(pick)
+        left.remove(pick)
+    return out
+
+
+def _carriers_last(seq: list[int], carried: dict | None) -> list[int]:
+    """``seq`` with every carrier moved behind the parts it carries (otherwise the same order)."""
+    if not carried:
+        return seq
+    left = list(seq)
+    out = []
+    while left:
+        here = set(left)
+        pick = next(i for i in left if not any(r in here for r in carried.get(i, ())))
         out.append(pick)
         left.remove(pick)
     return out
@@ -215,52 +246,149 @@ def _across(a, b, u) -> bool:
     return True
 
 
-def base_distance(parts: list[Part], st: Settings, centre: np.ndarray) -> float:
+def base_distance(parts: list[Part], st: Settings, centre: np.ndarray, u=None) -> float:
+    """How far a part flies: the set distance, or by size the subassembly's length along ``u`` (default: the step's
+    way) or its radius from the centre."""
     if not st.by_size:
         return max(0.0, float(st.distance))
     pts = np.concatenate([np.asarray(p.corners, dtype=float) for p in parts]) if parts else np.zeros((1, 3))
     if st.direction == "CENTRE":
         return float(np.max(np.linalg.norm(pts - centre, axis=1)))
-    u = _unit(st.up) if st.direction == "UP" else _unit(st.axis)
+    if u is None:
+        u = _unit(st.up) if st.direction == "UP" else _unit(st.axis)
     lo, hi = _span(pts, u)
     return hi - lo
 
 
-def plan(parts: list[Part], st: Settings, blocked=None) -> list[Move]:
-    """One Move per part, in the order they leave (take apart) – or come in (put together). ``blocked``: see
-    ``order``; it gets the indices into ``parts`` and the directions as ``plan.dirs`` (set before it is asked)."""
+def other_ways(want, st: Settings) -> list[np.ndarray]:
+    """The ways a part may take instead of ``want``: the subassembly's ±X, ±Y, ±Z and world up, the most like
+    ``want`` first (the opposite last); ``want`` itself is not in the list."""
+    want = _unit(want)
+    axes = [np.asarray(a, dtype=float) for a in (st.frame or ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]
+    cands = []
+    for a in axes + [np.asarray(st.up, dtype=float)]:
+        for sgn in (1.0, -1.0):
+            v = _unit(sgn * a)
+            if float(v @ want) >= SAME_WAY or any(float(v @ c) >= SAME_WAY for c in cands):
+                continue
+            cands.append(v)
+    order_ = sorted(range(len(cands)), key=lambda k: (-round(float(cands[k] @ want), 6), k))
+    return [cands[k] for k in order_]
+
+
+def _across_rows(box: np.ndarray, others: np.ndarray, u) -> np.ndarray:
+    """For each row of ``others`` (m, k, 3): do its points and ``box`` (8, 3) overlap seen along ``u``?"""
+    ok = np.ones(len(others), dtype=bool)
+    for e in _frame(u):
+        lo_a, hi_a = _span(box, e)
+        d = others @ e
+        ok &= ~((hi_a <= d.min(axis=1) + 1e-6) | (d.max(axis=1) <= lo_a + 1e-6))
+    return ok
+
+
+def _travels(boxes: np.ndarray, seq: list[int], dirs: list[np.ndarray], bases: np.ndarray, gap: float) -> np.ndarray:
+    """How far each part flies: its base distance, or further to end beyond every part that leaves after it going
+    nearly the same way (``NEAR``) and whose way – start box to end box – lies across its own way (``gap`` beyond the
+    furthest such end). The last to leave is worked out first."""
+    n = len(boxes)
+    dir_arr = np.asarray(dirs, dtype=float)
+    went = np.zeros(n)
+    later = np.zeros(n, dtype=bool)
+    for rank in range(len(seq) - 1, -1, -1):
+        i = seq[rank]
+        u = dir_arr[i]
+        t = float(bases[i])
+        if later.any():
+            m = later & (dir_arr @ u >= NEAR)
+            if m.any():
+                idx = np.flatnonzero(m)
+                ends = boxes[idx] + (dir_arr[idx] * went[idx, None])[:, None, :]
+                way = np.concatenate([boxes[idx], ends], axis=1)
+                hit = _across_rows(boxes[i], way, u)
+                if hit.any():
+                    hi_end = (ends[hit] @ u).max(axis=1)
+                    lo_i = float((boxes[i] @ u).min())
+                    t = max(t, float(hi_end.max()) + gap - lo_i)
+        went[i] = t
+        later[i] = True
+    return went
+
+
+def plan(parts: list[Part], st: Settings, blocked=None, obstacle=None, carried: dict | None = None) -> list[Move]:
+    """One Move per part, in the order they leave (take apart) – or come in (put together).
+
+    ``blocked``: see ``order``; it gets the indices into ``parts`` and the directions as ``blocked.dirs`` (set before
+    it is asked, changed in place when a part takes another way). Its optional ``hit(i, j, u, dist)`` tells whether
+    part i, flying ``dist`` along ``u``, runs into part j in its place (to choose another way that is clear).
+    ``obstacle(i, u, dist)``: True when part i, flying ``dist`` m along ``u``, runs into a part outside the
+    subassembly: it then takes another way (``other_ways``). ``carried[i]``: the parts that ride on part i."""
     if not parts:
         return []
     centre = centre_of(parts)
     dirs = directions(parts, st, centre)
     if blocked is not None:
         blocked.dirs = dirs
-    seq = order(parts, st, centre, dirs, blocked)
-    base = base_distance(parts, st, centre)
-    gap = max(MIN_GAP, GAP * base)
+    boxes = _corner_array(parts)
+    base0 = base_distance(parts, st, centre)
+    gap = max(MIN_GAP, GAP * base0)
+    hit = getattr(blocked, "hit", None) if blocked is not None else None
+    want = [d.copy() for d in dirs]
+    failed: dict[int, list] = {}
+    stuck: set = set()
+
+    def base_for(i):
+        if st.direction == "CENTRE" or not st.by_size or float(dirs[i] @ want[i]) >= SAME_WAY:
+            return base0
+        return base_distance(parts, st, centre, dirs[i])
+
+    def way_blocked(i, u, dist, later):
+        if obstacle is not None and obstacle(i, u, dist):
+            return True
+        if hit is None or not len(later):
+            return False
+        near = np.flatnonzero(_in_way_all(boxes, i, u))
+        return any(hit(i, int(j), u, dist) for j in near if int(j) in later)
+
+    for _round in range(ROUNDS):
+        seq = order(parts, st, centre, dirs, blocked, carried)
+        bases = np.array([base_for(i) for i in range(len(parts))])
+        travel = _travels(boxes, seq, dirs, bases, gap)
+        if obstacle is None:
+            break
+        changed = False
+        for r, i in enumerate(seq):
+            if i in stuck or not obstacle(i, dirs[i], float(travel[i])):
+                continue
+            later = set(seq[r + 1:])
+            failed.setdefault(i, []).append(dirs[i])
+            pick = fallback = None
+            for u in [want[i]] + other_ways(want[i], st):
+                if any(float(u @ f) >= SAME_WAY for f in failed[i]):
+                    continue
+                d = base0 if not st.by_size or st.direction == "CENTRE" else base_distance(parts, st, centre, u)
+                if obstacle(i, u, d):
+                    continue
+                if fallback is None:
+                    fallback = u
+                if not way_blocked(i, u, d, later):
+                    pick = u
+                    break
+            pick = pick if pick is not None else fallback
+            if pick is None:                                # every way runs into something: keep the wanted one
+                pick = want[i]
+                stuck.add(i)
+            if float(pick @ dirs[i]) < SAME_WAY:
+                dirs[i] = np.asarray(pick, dtype=float)
+                changed = True
+        if not changed:
+            break
+
     step = interval(len(parts), st.part_time, st.overlap)
     total = duration(len(parts), st.part_time, st.overlap)
-    travel: dict[int, float] = {}
-    boxes = _corner_array(parts) if st.direction != "CENTRE" else None
-    dir_arr = np.asarray(dirs, dtype=float)
-    went = np.zeros(len(parts))                             # travel of the parts already worked out
-    later = np.zeros(len(parts), dtype=bool)                # … which are the parts that leave after this one
-    for rank in range(len(seq) - 1, -1, -1):                # the last to leave first: it goes the base distance
-        i = seq[rank]
-        u = dirs[i]
-        t = base
-        if boxes is not None and later.any():              # stack: end beyond the parts that leave after it
-            lo, hi = _spans_all(boxes, u)
-            m = later & (dir_arr @ u >= SAME_WAY) & _across_all(boxes, i, u)
-            if m.any():
-                t = max(t, float(np.max(hi[m] + went[m])) + gap - float(lo[i]))
-        travel[i] = t
-        went[i] = t
-        later[i] = True
     moves = []
     for rank, i in enumerate(seq):
         u = dirs[i]
-        t = travel[i]
+        t = float(travel[i])
         t0 = rank * step
         t1 = t0 + max(0.0, float(st.part_time))
         if st.put_together:

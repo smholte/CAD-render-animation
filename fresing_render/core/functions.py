@@ -274,7 +274,11 @@ fn(id="animation.fade", title="Fade out and fade in", family="animation", panel=
 fn(id="animation.trails", title="Trail lines", family="animation", panel="FRESING_PT_trails",
    button="fresing.trail_add", guide="trails", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="animation.sequence", title="Assembly sequence", family="animation", panel="FRESING_PT_animation",
-   button="fresing.block_add", guide="sequence", tour=("sequence",), pccheck=("animation.sequence",), since="0.2.79")
+   button="fresing.block_add", guide="sequence", tour=("sequence", "sequenceframe"),
+   pccheck=("animation.sequence", "animation.sequence_frame"), since="0.2.79")
+fn(id="animation.back_to_cad", title="Back to CAD step", family="animation", panel="FRESING_PT_animation",
+   button="fresing.block_add", guide="back-to-cad", tour=("backtocad",), pccheck=("animation.back_to_cad",),
+   since="0.2.102")
 fn(id="animation.weather_step", title="Weather & time step", family="animation", panel="FRESING_PT_animation",
    prop="wx_preset", guide="weather", tour=("weather_step",), pccheck=("weather.step",), since="0.2.88")
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="animation",

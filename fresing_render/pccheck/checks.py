@@ -49,6 +49,7 @@ TRACKS = os.path.join(DATA, "test_tracks.step")
 SEA_CABLE = os.path.join(DATA, "test_sea.step")
 MOVING_CABLE = os.path.join(DATA, "test_moving.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
+SEQUENCE_FRAME = os.path.join(DATA, "test_sequence_frame.step")
 MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
 
 LINES: list[Line] = []
@@ -1484,6 +1485,53 @@ def animation_product_video(ctx):
     ctx.metric("build", time.time() - t0, "s")
     _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
     return tour.check_product_video(scene)
+
+
+@line("animation.sequence_frame", "Assembly sequence round a frame, a part riding on another", "0.2.102",
+      what="A slide unit under a portal frame comes apart 'Up': the parts under the frame's beam go sideways instead "
+           "of through it, the gripper block (it rides on the carriage) leaves first from where the carriage put it; "
+           "put together, every part ends within 0.01 mm of its place, and the clash check finds nothing")
+def animation_sequence_frame(ctx):
+    from ..blender import animation, clash, tour
+    scene = ctx.fresh(SEQUENCE_FRAME)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = tour.FRAME_ANIM, 0.0, "25"
+    tour.frame_steps(scene, a)
+    t0 = time.time()
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warns: " + "; ".join(res["warnings"]))
+    note = tour.check_frame(scene)
+    run = clash.check(scene)
+    _check(not run.rows, f"{len(run.rows)} clashes on the way: " + "; ".join(clash.core.row_text(r)
+                                                                           for r in run.rows[:3]))
+    return note + "; no clash"
+
+
+@line("animation.back_to_cad", "Back to CAD step", "0.2.102",
+      what="A Go to pose step slides the carriage and the gripper out, then a Back to CAD step brings both joints "
+           "back to 0 over one second (eased)")
+def animation_back_to_cad(ctx):
+    from ..blender import animation, states, tour
+    scene = ctx.fresh(SEQUENCE_FRAME)
+    slide, lift = tour.frame_rig(scene)
+    from ..blender import joints
+    joints.set_value(slide, 0.06)
+    joints.set_value(lift, 0.02)
+    import bpy
+    bpy.context.view_layer.update()
+    pose = states.save_pose(scene, "Slid out")
+    joints.set_value(slide, 0.0)
+    joints.set_value(lift, 0.0)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = tour.BACK_ANIM, 0.0, "25"
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    p = a.blocks.add()
+    p.kind, p.pose, p.start, p.duration = "POSE", pose.name, 0.0, 1.0
+    _check(bpy.ops.fresing.block_add(kind="CAD") == {"FINISHED"}, "Add step > Back to CAD did not finish")
+    c = a.blocks[-1]
+    c.start, c.duration = 1.5, 1.0
+    return tour.check_back_to_cad(scene)
 
 
 @line("couplings.motor", "Coupling + motor + Run motor step", "0.2.18",

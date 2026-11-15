@@ -1282,6 +1282,10 @@ def _walk(scene, b, jstate: dict) -> None:
         for j in s.joints:
             if not j.follows and j.name in values:
                 jstate[j.name] = joints.clamp(j, values[j.name])
+    elif b.kind == "CAD":                                   # Back to CAD (task 0129)
+        got = animation.cad_targets(scene, b, jstate, {})
+        if got is not None:
+            jstate.update(got[0])
 
 
 def _offsets(scene, mach, sch) -> dict:
