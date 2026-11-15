@@ -1525,41 +1525,45 @@ def _vessel_at(d: Demo, frames) -> "list":
     return out
 
 
-def set_down_depth(d: Demo, t0: float, t1: float, guess: float) -> float:
-    """How far the A&R winch lowers the D (m of 'Quadrant lower', tipped flat) so that from ``t0`` to ``t1`` of the
-    animation its lowest point, heaving with the vessel, comes down to ``SET_DOWN_CLEAR`` over the seabed at the
-    deepest moment and never lower (measured on its mesh points)."""
+def set_down_depth(d: Demo, t0: float, t1: float, guess: float, l_from: float, secs: float) -> float:
+    """How far the A&R winch lowers the D (m of 'Quadrant lower', tipped flat) in its step from ``t0`` (``secs`` long,
+    eased, from ``l_from``) so that up to ``t1`` its lowest point, heaving with the vessel, comes down to
+    ``SET_DOWN_CLEAR`` over the seabed at the deepest moment and never lower (measured on its mesh points, at every
+    frame, with the value the step gives it then)."""
     import numpy as np
 
     from . import animation, paths_sea
     q = d.sheet("route")["quadrant"]
     frames = np.arange(animation.frame_of(d.animation, t0), animation.frame_of(d.animation, t1) + 1)
+    fps = animation.fps_of(d.animation)
+    share = np.array([animation.ease("SMOOTH", min(1.0, max(0.0, (f - frames[0]) / (secs * fps)))) for f in frames])
     V = _vessel_at(d, frames)
     R0 = np.array(d.root().matrix_basis)
     bed = paths_sea.waterline(d.scene) - SEA_DEPTH
     base = {TRAVEL: q["travel"][1] / 1000.0, TILT: math.radians(q["lower_tilt"]), TIP: math.radians(-q["lower_tilt"])}
     pose = _Pose(d)
-
-    def low(lv: float) -> float:
-        pts = pose.points(dict(base, **{LOWER: lv}), every=2) / 1000.0
-        w = pts @ R0[:3, :3].T + R0[:3, 3]
-        z = np.einsum("fj,nj->fn", V[:, 2, :3], w) + V[:, 2, 3][:, None]
-        return float(z.min())
-
     try:
-        lv = float(guess)
-        for _ in range(4):                     # (the lowering is a straight slide: one or two steps hit it)
-            z0, z1 = low(lv), low(lv + 0.5)
-            slope = (z1 - z0) / 0.5
-            if abs(slope) < 1e-6:
-                break
-            step = (bed + SET_DOWN_CLEAR - z0) / slope
-            lv += step
-            if abs(step) < 1e-4:
-                break
+        def world(lv):
+            pts = pose.points(dict(base, **{LOWER: lv}), every=2) / 1000.0
+            return pts @ R0[:3, :3].T + R0[:3, 3]
+        w0 = world(float(guess))
+        way = (world(float(guess) + 1.0) - w0).mean(axis=0)          # the lowering: a straight slide, per metre
     finally:
         pose.put_back()
-    return lv
+
+    def low(l2: float) -> float:
+        lv = l_from + (l2 - l_from) * share                          # (F,): the value at each frame
+        z = np.einsum("fj,nj->fn", V[:, 2, :3], w0) + V[:, 2, 3][:, None]
+        z += ((lv - float(guess)) * (V[:, 2, :3] @ way))[:, None]
+        return float(z.min())
+
+    lo, hi = float(l_from), float(guess) + 20.0
+    if low(hi) > bed + SET_DOWN_CLEAR:
+        return hi
+    for _ in range(60):                                              # deeper lowering: lower point (monotone)
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if low(mid) > bed + SET_DOWN_CLEAR else (lo, mid)
+    return lo
 
 
 @stage("shot_tip", "Shot 11: near the seabed the D tips, the cable lies on the seabed and is let go", after="shot_lower")
@@ -1579,7 +1583,7 @@ def shot_tip(d: Demo):
     t += secs
     # task 0125: lowered until the D, heaving with the vessel, just touches the seabed at its deepest (measured on its
     # mesh at every frame it stands there) – no longer to where the cable round the gutter would lie on the seabed
-    l2 = set_down_depth(d, t, t + 3.0 + LET_GO_AFTER + 0.5, l2)
+    l2 = set_down_depth(d, t, t + 3.0 + LET_GO_AFTER + 0.5, l2, l1, 3.0)
     d.quadrant["lower_2"] = round(l2, 3)
     d.notes.append(f"shot 11: the D set down at {l2:.2f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the seabed "
                    "at the deepest heave")

@@ -133,3 +133,20 @@ def test_settle_zero_keeps_it_where_it_was(built):
         assert np.linalg.norm(p1 - p0) < 1e-3
     finally:
         _cable(sc).sea_settle = paths.MOVING_SETTLE
+
+
+def test_keep_tight_payout_has_no_step_where_the_hang_off_changes():
+    """Task 0125: a keep-tight sea cable's free length jumps where it leaves the horn for the quadrant; its winch
+    takes that up over ``paths.RAMP`` (here 25 frames) instead of in one frame. Before and after the ramp the payout
+    is what keeping it tight needs; the trend through the change is kept."""
+    F = 200
+    trend = 0.01 * np.arange(F)
+    hang = np.where(np.arange(F) < 80, 1, 0)
+    v = trend + np.where(np.arange(F) < 80, 0.0, -2.5)          # 2.5 m less free length from frame 80 on
+    out = paths.ramp_steps(v, hang, 25)
+    steps = np.abs(np.diff(out))
+    assert steps.max() < 0.2                                     # no jump: about 2.5 m / 25 frames x 1.5 at most
+    assert np.allclose(out[:80], v[:80]) and np.allclose(out[105:], v[105:])
+    assert np.all(np.diff(out[80:105]) <= 0.01 + 1e-12)          # it goes one way through the ramp
+    same = paths.ramp_steps(trend, np.zeros(F, dtype=int), 25)   # no change of hang-off: nothing changes
+    assert np.allclose(same, trend)

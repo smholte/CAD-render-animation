@@ -1976,11 +1976,48 @@ def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
         if seconds > 0.0:
             group = {w: k for w, (f, k) in kept_all.items() if f == f0}
             e = settle_share((frames[after] - f0) / fps, seconds)
-            place = settle(kept, group, _sea_bottom(scene, item), e)
+            bottom = _sea_bottom(scene, item)
+            if "a" in group or "b" in group:    # an end with a CPS on it: the CPS lies on the seabed, not in it
+                bottom += _rider_lift(scene, item)
+            place = settle(kept, group, bottom, e)
             v = values[which]
             v[after] = _from_hold_each(place, hold[after])
         else:
             values[which][after] = _from_hold(kept, None if hold is None else hold[after], n)
+
+
+def _rider_lift(scene, item) -> float:
+    """m: how much higher the middle of a cable lies where a thing fitted on it (a CPS set, task 0081) rests on the
+    seabed: its widest part's radius less the height of the middle of the bare cable lying there (0 without one)."""
+    from . import paths_sea as _sea
+    parts = [p.part for r in item.riders if r.enabled for p in r.parts if p.part is not None and p.part.data]
+    if not parts or item.part is None:
+        return 0.0
+    key = ("lift", item.name, tuple(sorted(o.name for o in parts)))
+    got = _STATE.setdefault("lift", {}).get(key)
+    if got is None:
+        memo: dict = {}
+        inv = np.linalg.inv(_cad(item.part, memo))
+        scale = _scale(_cad(item.part, memo))
+        reach = 0.0
+        for r in item.riders:
+            if not r.enabled:
+                continue
+            o, a = np.array(r.origin, dtype=float), _unit(np.array(r.axis, dtype=float))
+            for rp in r.parts:
+                ob = rp.part
+                if ob is None or ob.data is None or not hasattr(ob.data, "vertices"):
+                    continue
+                co = np.empty(len(ob.data.vertices) * 3)
+                ob.data.vertices.foreach_get("co", co)
+                M = inv @ _cad(ob, memo)
+                v = co.reshape(-1, 3) @ M[:3, :3].T + M[:3, 3] - o
+                d = v - np.outer(v @ a, a)
+                if len(d):
+                    reach = max(reach, float(np.linalg.norm(d, axis=1).max()) * scale)
+        got = max(0.0, reach - (_sea.bottom_z(scene, item) + _sea.depth(scene, item)))
+        _STATE["lift"][key] = got
+    return got
 
 
 def _sea_bottom(scene, item) -> float:
@@ -3493,6 +3530,7 @@ def forget() -> None:
     _STATE["arrays"].clear()
     _STATE["inputs"].clear()
     _STATE["rest"].clear()
+    _STATE.pop("lift", None)
     from . import paths_sea as _sea
     _sea.forget()
 
