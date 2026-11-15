@@ -752,7 +752,8 @@ def _cps_store(p, S: Scene, root: Asm) -> None:
     S.handles["cps_run_line"] = [root.add(Part("CPS RUN LINE", g.route_solid(run, CPS_LINE_R), m.CABLE_BLACK),
                                           T(0, 0, 0), "CPS RUN LINE")]
     ramp_len = route.segments[0].length
-    ramp, _ = dk.trough_along(route, 0.0, ramp_len, R0, twist_deg=30.0)
+    Rr = rt.cps_reach_r(p)                               # (the troughs: for the sets' widest round, task 0126)
+    ramp, _ = dk.trough_along(route, 0.0, ramp_len, Rr, twist_deg=30.0)
     root.add(Part("CPS RAMP", ramp, dk.ORANGE), T(0, 0, 0), "CPS RAMP")
     # the slide: the arcs, ending where it is clear of side B's cradles – and of the D-quadrant's room (task 0081: a big
     # cable's CPS trough is wide; at Ø 500 its end reached into the room the D sweeps on its way aft)
@@ -763,12 +764,12 @@ def _cps_store(p, S: Scene, root: Asm) -> None:
         if abs(q[1] - pos["side_b_y"]) < clear:
             s_end = s
             break
-    slide, pts = dk.trough_along(route, ramp_len, s_end, R0, step=300.0)
+    slide, pts = dk.trough_along(route, ramp_len, s_end, Rr, step=300.0)
     root.add(Part("CPS SLIDE", slide, dk.ORANGE), T(0, 0, 0), "CPS SLIDE")
     # supports from the deck every ~3 m under ramp and slide
     for k, s in enumerate(np.arange(1500.0, s_end, 3000.0)):
         _i, q, _t = _where(route, s)
-        h = q[2] - dk.trough_depth(R0)[1] - p.deck_z
+        h = q[2] - dk.trough_depth(Rr)[1] - p.deck_z
         root.add(Part("RAMP SUPPORT", g.fuse(g.box(-120, -120, 0, 240, 240, h + 20),
                                              g.box(-300, -300, 0, 600, 600, 30)), m.YELLOW), T(q[0], q[1], p.deck_z),
                  f"RAMP SUPPORT {k + 1}")

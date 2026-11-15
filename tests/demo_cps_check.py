@@ -110,7 +110,7 @@ def measure(scene, d, frames, pieces, others, every: int = 1, clash_every: int =
         M = R0 @ np.array(ob.matrix_world)
         vm = v @ M[:3, :3].T + M[:3, 3]                 # (metres: the clash module's tolerances are in metres)
         env.append((ob.name, clash.Mesh(vm, t, oriented=True), vm.min(0), vm.max(0)))
-    out = {"line": 0.0, "line_at": None, "depth": 0.0, "depth_at": None, "frames": 0}
+    out = {"line": 0.0, "line_at": None, "depth": 0.0, "depth_at": None, "frames": 0, "over_1mm": {}}
     for n, f in enumerate(frames[::every]):
         sc.frame_set(f)
         dg = __import__("bpy").context.evaluated_depsgraph_get()
@@ -141,6 +141,8 @@ def measure(scene, d, frames, pieces, others, every: int = 1, clash_every: int =
                 if inside.any():
                     d2, _g = piece.depths(mesh.v[inside])
                     deep = max(deep, float(d2.max()))
+                if deep > 1e-3:
+                    out["over_1mm"][name] = max(out["over_1mm"].get(name, 0.0), 1000.0 * deep)
                 if 1000.0 * deep > out["depth"]:
                     out["depth"], out["depth_at"] = 1000.0 * deep, (f, ob.name, name)
         out["frames"] += 1

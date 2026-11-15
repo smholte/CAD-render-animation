@@ -63,11 +63,14 @@ def _cradle_rollers(p):
     return out
 
 
+CPS_REST_GAP = 3.0                      # mm over the flanges: a set resting exactly on them showed 1.8 mm of facets in them
+
+
 def cps_lift(p) -> float:
     """How much higher a CPS set's middle lies on a lane's V cradle than the cable's (task 0126): the lowest height at
     which its widest round (``route.cps_reach_r``) clears both rollers – their raised ends (the flanges that keep the
     cable in the middle) included: a big round rests on the inner flanges, not on the rollers' waists."""
-    R = cps_reach_r(p)
+    R = cps_reach_r(p) + CPS_REST_GAP
     prof = Kit.roller_profile(CRADLE_RR, CRADLE_LEN - 120.0)
     lift = 0.0
     for ctr, ax, _n in _cradle_rollers(p):
@@ -771,7 +774,8 @@ def cps_rack(x0: float, x1: float, rows_y: list, levels_z: list, deck_z: float, 
     return Part("CPS RACK", g.fuse(*parts), YELLOW)
 
 
-TROUGH_GAP = 15.0                       # the CPS's underside over the trough's bottom (task 0126: it cut 5 mm into it)
+TROUGH_GAP = 25.0                       # the CPS's underside over the trough's bottom (task 0126: it cut 5 mm into it; over
+#                                         the ramp's edge its way bends 10 mm under the trough's line, its pieces' chords 8 mm)
 
 
 def trough_depth(R0: float) -> tuple[float, float]:

@@ -388,7 +388,7 @@ def test_shot_8b_runs_a_cps_set_from_the_rack(made):
     res = chk.measure(sc, d, list(range(f0, f9 + 1)), pieces, chk.near_parts(sc, d), clash_every=2)
     assert res["frames"] == f9 - f0 + 1
     assert res["line"] <= 20.0, res
-    assert res["depth"] <= 1.0, res
+    assert res["depth"] <= 0.5, res                                # (the clash check's own depth, core.clash.DEPTH)
     # at the end: its pull head at the D's lane-B bar end (where the gutter starts), the second end shown in its place
     sc.frame_set(f9 - 1)
     head = next(o for o in pieces if o.get(build.PROP_NAME) == "PULL HEAD")
