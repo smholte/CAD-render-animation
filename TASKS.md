@@ -80,9 +80,10 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
+| 0141 | Study (findings only): why the demo's Build depends on the frame shown – cause of 0131 row 6, smallest repeat case, fix plan for 0138 | worker (web, 15 Nov) | Fable · High | **running** (findings only; scratch branch `task/0141-demo-build-frame-study`, `[skip ci]`) | tasks/0141-demo-build-frame-study.md |
 | 0136 | Fix: web 3D export crashes with a moving cable not built; marine growth follows the sea (0131 rows) | worker | Sonnet · Medium | **open – can start now** | tasks/0136-export-crash-waterline.md |
 | 0137 | Cable fixes: swivel and let-go kept, renames carried, sea cable re-worked after a vessel change, old projects (0131 rows) | worker | Opus · Medium | waiting – after 0126 | tasks/0137-cable-data-kept.md |
-| 0138 | Fix: the demo's Build gives a different result depending on the frame shown (0131 rows) | worker | Opus · High | waiting – after 0137 | tasks/0138-demo-build-any-frame.md |
+| 0138 | Fix: the demo's Build gives a different result depending on the frame shown (0131 rows) | worker | Opus · High | waiting – after 0137 (cause found first by study 0141) | tasks/0138-demo-build-any-frame.md |
 | 0139 | Mesh import fixes: updates keep work on the right piece, file materials kept, side files noticed, faster updates (0131 rows) | worker | Opus · Medium | **open – next free slot** | tasks/0139-mesh-import-fixes.md |
 | 0140 | Assembly sequence fixes: nested sequences, stable order, preview not saved, hidden parts left out (0131 rows) | worker (web, 15 Nov) | Opus · Medium | **running** (branch `claude/confident-cannon-e9dcg5`) | tasks/0140-sequence-fixes.md |
 | 0134 | Web 3D player: settings menu (surroundings on/off, quality override, fps, graphics card, auto-turn, sun, remember), spacebar + play/time slider/speed, saved views, fullscreen/reset/screenshot/link/key help, clean look, loading bar, "no graphics card" warning, ≤ 60 fps and no drawing when still | worker | Opus · Medium | **open – after 0136 is merged** (same lane: `web3d.py`; 0128 merged as 0.2.105) | tasks/0134-web-player.md |
