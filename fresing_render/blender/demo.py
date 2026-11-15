@@ -183,6 +183,7 @@ class Demo:
         self.stage = ""
         self.timings: dict[str, float] = {}
         self.notes: list[str] = []
+        self.set_down = None                     # (t0, t1) of the D set down on the seabed (task 0125)
         self.t = 0.0
         self._sheets: dict = {}
 
@@ -261,6 +262,30 @@ class Demo:
             a.name, a.tail, a.fps = ANIM, 0.5, "25"
             a.quality, a.out_resolution, a.out_format, a.video = "preview", "hd", "presentation", "MP4"
         return a
+
+    def set_down_error(self, t0: float, t1: float) -> float:
+        """m: how much lower the A&R winch should lower the D for its lowest point (its mesh, every frame from ``t0`` to
+        ``t1`` of the built animation, vessel motion and all) to come to ``SET_DOWN_CLEAR`` over the seabed."""
+        import numpy as np
+
+        from . import animation, paths_sea
+        sc = self.scene
+        bed = paths_sea.waterline(sc) - SEA_DEPTH
+        parts = lowered_parts(sc)
+        pts = []
+        for o in parts:
+            co = np.empty(len(o.data.vertices) * 3)
+            o.data.vertices.foreach_get("co", co)
+            pts.append(co.reshape(-1, 3)[::2])
+        low = 1e9
+        keep = sc.frame_current
+        for f in range(animation.frame_of(self.animation, t0), animation.frame_of(self.animation, t1) + 1):
+            sc.frame_set(f)
+            for o, p in zip(parts, pts):
+                M = np.array(o.matrix_world)
+                low = min(low, float((p @ M[2, :3] + M[2, 3]).min()))
+        sc.frame_set(keep)
+        return low - (bed + SET_DOWN_CLEAR)
 
     def joint(self, joint: str, start: float, seconds: float, to: float, slide: bool = False, label: str = "",
               easing: str = "SMOOTH"):
@@ -1497,6 +1522,7 @@ def shot_lower(d: Demo):
 
 
 LET_GO_AFTER = 2.0                    # s after the D is set down: the second end is let go, the hoist begins
+SET_DOWN_TOL = 0.01                   # m: the D as built this far off its set-down height: its step is corrected
 SET_DOWN_CLEAR = 0.02                 # m: the D's lowest point over the seabed at the deepest heave
 
 
@@ -1588,6 +1614,7 @@ def shot_tip(d: Demo):
     d.notes.append(f"shot 11: the D set down at {l2:.2f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the seabed "
                    "at the deepest heave")
     d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
+    d.set_down = (t, t + 3.0 + LET_GO_AFTER)            # (checked on the built animation: ``finish``)
     _pulley(d, t, 3.0, l2)
     t += 3.0
     sc = d.scene
@@ -1655,6 +1682,17 @@ def finish(d: Demo):
     d.progress("Animation")
     t0 = time.time()
     r = animation.bake(sc, a)
+    if getattr(d, "set_down", None):            # task 0125: the D set down on the seabed, as built (heave and all)
+        off = d.set_down_error(*d.set_down)
+        if abs(off) > SET_DOWN_TOL:             # (the step's depth worked out before Build missed: once more)
+            blk = next(b for b in a.blocks if b.joint == LOWER and abs(b.start - d.set_down[0]) < 1e-6)
+            blk.to_dist = float(blk.to_dist) + off
+            r = animation.bake(sc, a)
+            d.quadrant["lower_2"] = round(float(blk.to_dist), 3)
+        d.notes.append(f"shot 11 as built: the D's lowest point {SET_DOWN_CLEAR * 1000 - off * 1000:.0f} mm over the "
+                       f"seabed at the deepest heave (corrected by {off * 1000:.0f} mm)" if abs(off) > SET_DOWN_TOL else
+                       f"shot 11 as built: the D's lowest point {SET_DOWN_CLEAR * 1000 - off * 1000:.0f} mm over the "
+                       "seabed at the deepest heave")
     d.timings["build"] = time.time() - t0
     if r["warnings"]:
         d.notes.append("animation: " + "; ".join(r["warnings"][:3]))

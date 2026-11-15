@@ -675,7 +675,13 @@ def _notes(item, sea, ok, laid_down=None) -> list:
         out.append((k, "is so tight that it lifts its end off the seabed"))
     # (a cable that leaves a chute a hair beyond its end goes on in a free bend of the chute's radius: no fault; more
     # than STEEP_NOTE beyond it is worth a word, task 0125)
-    k = first(np.asarray(sea["steep"], dtype=bool) & ~calm & (np.asarray(sea["kink"]) > STEEP_NOTE))
+    steep = np.asarray(sea["steep"], dtype=bool) & ~calm & (np.asarray(sea["kink"]) > STEEP_NOTE)
+    if float(item.mbr) > 0.0 and steep.any():   # beyond the end it bends at the wheel's radius: a fault only when
+        paths = _paths()                        # that is tighter than the cable may bend
+        radius = np.array([paths.radius_of(item, wheels[int(h)]) if 0 <= int(h) < len(wheels) else 0.0
+                           for h in (hangs if len(hangs) == len(ok) else np.full(len(ok), len(wheels) - 1))])
+        steep &= radius < float(item.mbr) - 1e-6
+    k = first(steep)
     if k >= 0:
         out.append((k, f"bends over the end of '{name(k)}' – more bottom tension or a longer chute"))
     k = first(np.asarray(sea["short"], dtype=bool) & ~calm)
