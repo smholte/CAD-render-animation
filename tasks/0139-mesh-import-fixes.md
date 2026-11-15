@@ -23,8 +23,8 @@ The rows below are from bug hunt 0131 (report on `main`): each row has the place
 
 ## Done when
 
-- [ ] Every row above fixed, each with a test that failed before the fix (the row's proof as a test).
-- [ ] Tooltips, guide sentence where the owner sees a change, function list / PC-check / tour stop only if something
+- [x] Every row above fixed, each with a test that failed before the fix (the row's proof as a test).
+- [x] Tooltips, guide sentence where the owner sees a change, function list / PC-check / tour stop only if something
       visible changes; GitHub run green; merged; version (CLAUDE.md section 7); report (short list for the owner).
 
 ## Not in this task
@@ -35,10 +35,34 @@ Other rows of 0131 (they have their own tasks: 0136–0140); the files of runnin
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 15 Nov 2026 · version 0.2.108 · no subagents (Medium task; each fix small)
 
 **What changed:**
+- Row 3: the mesh reader marks names it makes (split pieces "WELDMENT 3", "Node k") in tree.json (`made_name`), the
+  build stores `fr_made_name`; `reimport.match` matches those by shape + place first (rule 1b), a made name in rule 2
+  needs the same place, made assemblies follow their matched parts (`_made_assemblies`); a renumbered piece is not
+  reported as renamed.
+- Row 4: file materials get `use_fake_user`; `mesh_import.release_materials()` (called after an update) removes file
+  materials no mesh names any more.
+- Row 13: the reader lists the side files it read or looked for (MTL, textures, .bin, licence text) with size + mtime
+  in tree.json (`side_files`); `runner.cache_is_valid` reads the model again when one changed or a missing one came.
+- Row 15: old meshes in one `batch_remove`. **Cause of the rest** (found with py-spy): for every deleted ID Blender
+  scans the whole window-notifier queue (`WM_main_remove_notifier_reference`), and the update's own build filled that
+  queue, so deleting the old model stays (parts x parts) inside Blender.
+- Row 16b: radius measured across the axis (`joints.axis_from_hit`). 16c: hover caches keyed by `session_uid`,
+  `hover.clear()` after an update. 16d: OBJ/MTL/licence text falls back to cp1252. 16e: glTF without `"scene"` takes
+  the first scene with nodes.
+- Guide: one paragraph under "Update to new revision…" (Mesh models). No new function, PC-check line or tour stop.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine):
+- `tests/test_mesh_import_fixes.py`, 12 tests: 11 failed on the old code, all pass now (row 15's is a timing guard
+  that passed before too). Area tests (hover, mesh import/reader/independent, model update, phase2, stacked joints,
+  facets): 228 passed.
+- Mesh model update, N boxes glTF, same file new date (bpy module): 750 / 1,500 / 3,000 parts: before 4.6 / 10.4 /
+  36.6 s, now 3.2 / 7.5 / 24 s (the import itself 3.2 / 5.0 / 8.4 s). At 3,000, 10.8 s of the 24 s is Blender's delete.
 
 **Open points / follow-up tasks:**
+- Row 15 rest: a 3,000-part mesh update still takes ~3x its import. A fix would delete the old model after the
+  notifier queue was handled (a later step of the modal import) – changes the all-or-nothing flow, so a lead decision.
+- A model deleted by hand in Blender (no app button) keeps its file materials until the next update.
+- GitHub runs: see TASKS.md row.
