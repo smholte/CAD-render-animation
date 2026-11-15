@@ -1,6 +1,6 @@
 # 0134 – Web 3D player: settings menu, playback controls, "no graphics card" warning, lighter on PC
 
-**Who:** worker · **Status:** open – starts **after 0128 is merged** (0128 re-makes `site/media/test_atc.page.html`)
+**Who:** worker · **Status:** open – starts **after 0136 is merged** (0136 fixes the export crash in `web3d.py`; 0128 merged as 0.2.105)
 · **Branch:** `task/0134-web-player`
 **Started by:** lead chat, 15 Nov 2026 (owner's wishes, 15 Nov evening) · **Model:** Opus · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
