@@ -58,7 +58,8 @@
   "tests/test_coolant_core.py": 0.0,
   "tests/test_queue_delayed.py": 5.6,
   "tests/test_gcode_rotary_core.py": 0.0,
-  "tests/test_clash.py": 267.1,
+  "tests/test_clash.py": 60.0,
+  "tests/test_tour_clash.py": 230.0,
   "tests/test_doublearm_core.py": 0.0,
   "tests/test_doublearm.py": 9.9,
   "tests/test_clash_core.py": 2.9,
@@ -421,9 +422,14 @@
    0.0
   ],
   "tests/test_clash.py": [
-   199.0,
-   267.1,
-   177.5
+   45.0,
+   60.0,
+   45.0
+  ],
+  "tests/test_tour_clash.py": [
+   170.0,
+   230.0,
+   145.0
   ],
   "tests/test_doublearm_core.py": [
    0.0,

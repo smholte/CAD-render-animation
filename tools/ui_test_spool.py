@@ -536,6 +536,16 @@ def s_drum_added():
 @step
 def s_click_follow():
     mark = find_marker()
+    spot = button_spot(mark) if mark is not None else None
+    # the side panel can still change its layout after the redraw above: twice on GitHub (runs 43469849219,
+    # 43621844399) the button was read 3–4 rows lower than where it was a moment later, and the click missed it
+    # (task 0127). Click only when two reads in a row, a second apart, put it on the same spot.
+    reads = STATE["follow_reads"] = STATE.get("follow_reads", 0) + 1
+    if (spot is None or spot != STATE.get("follow_seen")) and reads < 10:
+        STATE["follow_seen"] = spot
+        redraw()
+        return "wait"
+    log("follow button read", reads, "times")
     check("the button 'This joint follows the layer' is found in the side panel", mark is not None)
     if mark is not None:
         x, y = button_spot(mark)
