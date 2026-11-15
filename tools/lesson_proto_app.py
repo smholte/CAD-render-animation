@@ -185,6 +185,10 @@ def s_show3_point():
     seq = [ph for _t, mode, k, ph in S["history"] if mode == "SHOW" and k == 2]
     check(S["step"] == 2 and seq[:1] == ["point"], f"Show me points at step {S['step'] + 1} first: {seq}")
     check(S["found"] is not None, f"'Add rotate joint' glows: {S['found']}")
+    win, area, region, sb = areas()
+    box = S.get("box")
+    check(box is not None and box[2] - box[0] < 0.55 * sb.width,
+          f"task 0133: the look sits on 'Add rotate joint' only, not on the aligned 'Add slide joint' too: {box}")
     shot("3_show_joint_point.jpg")
     return 2.0
 
@@ -307,6 +311,7 @@ def s_costs():
     log(f"3D view redraw: {1000 * L['view_before']:.2f} ms without a lesson, {1000 * during:.2f} ms with part glow "
         f"and card ({region.width}x{region.height})")
     log("notes:", S.get("note") or "none")
+    check(not S.get("note"), "task 0133: no drawing error noted (looks " + str(L["les"].LOOKS) + ")")
     return 0.5
 
 

@@ -15,6 +15,13 @@ What the prototype proves (the study's report has the numbers):
   Show me runs ``do`` after the highlight has been seen; Build it yourself waits for ``done``. Where the lesson is is
   worked out from the scene (the first step not done), so undo, Back, saving half-way and reopening need no own state.
 
+**Task 0133 – looks to compare.** The magenta frame is gone. One switch, ``set_look(kind, key)`` (or the environment
+variables ``FR_LESSON_LOOK`` / ``FR_LESSON_SECTION`` / ``FR_LESSON_PART``), picks one of six button looks A–F
+(``BUTTON_LOOKS``), three closed-section markers 1–3 (``SECTION_LOOKS``) and three part looks 1–3 (``PART_LOOKS``),
+in the Fresing palette (and Blender's blue for F). The marker icons are painted over with the button's own colour;
+``button_box`` finds the button's own edges, so of two aligned buttons only the target is marked.
+``tools/lesson_looks_app.py`` pictures them all.
+
 Nothing here runs unless a lesson is started: no handler, no wrapped draw, no timer.
 """
 
@@ -41,9 +48,49 @@ SHOW_DELAY = 1.6                            # Show me: seconds the highlight is 
 DONE_PAUSE = 1.4                            # Build it yourself: seconds the "Well done" stays before the next step
 PULSE_HZ = 20.0
 
+# --- task 0133: highlight looks to compare (the owner picks one; the build task keeps only that one) ---
+GREEN = (0.278, 0.608, 0.161)               # Fresing Green #479B29 (site/style.css)
+BRIGHT = (0.361, 0.749, 0.216)              # Fresing Green Bright #5CBF37
+CHARCOAL = (0.102, 0.125, 0.153)            # Deep Charcoal #1A2027
+BLUE = (0.278, 0.447, 0.702)                # Blender's selection blue (default dark theme, #4772B3)
+BUTTON_LOOKS = {
+    "A": "Soft green glow round the button, breathes slowly (one breath in 2 s)",
+    "B": "Thin steady green outline, an arrow at the panel's edge that moves gently, the step's number on the button",
+    "C": "Spotlight: the rest of the side panel dimmed, the button clear with a thin outline",
+    "D": "Green bar on the button's left edge, the button tinted green, breathing",
+    "E": "Corner brackets that close in once, then stay",
+    "F": "Blender-blue outline with a light that runs round it (once in 2 s)",
+}
+SECTION_LOOKS = {
+    "1": "A green dot in the header with a ring that grows from it",
+    "2": "The whole header tinted green, breathing",
+    "3": "A ring round the fold triangle and the word 'Open' at the header's end",
+}
+PART_LOOKS = {
+    "1": "Glow: the part covered in see-through green, breathing",
+    "2": "Outline: the part's edges drawn in green, seen through other parts",
+    "3": "The rest faded: everything else greyed, the part clear on top",
+}
+LOOKS = {"button": os.environ.get("FR_LESSON_LOOK", "A"), "section": os.environ.get("FR_LESSON_SECTION", "1"),
+         "part": os.environ.get("FR_LESSON_PART", "1")}
+
+
+def set_look(kind: str, key: str) -> None:
+    """The one switch: set_look("button", "C"), set_look("section", "2"), set_look("part", "3")."""
+    table = {"button": BUTTON_LOOKS, "section": SECTION_LOOKS, "part": PART_LOOKS}[kind]
+    if key not in table:
+        raise KeyError(f"{kind} look {key!r}: one of {', '.join(table)}")
+    LOOKS[kind] = key
+    _S["t_look"] = time.time()                  # E's brackets close in again, fades start again
+    try:
+        redraw()
+    except Exception:  # noqa: BLE001
+        pass
+
 _S: dict = {"lesson": None, "mode": "SHOW", "step": 0, "phase": "", "t": 0.0, "more": False, "handles": [],
             "wrapped": [], "icons": None, "found": None, "found_header": None, "timer": False, "note": "",
-            "scrolls": 0, "stats": {"reads": 0, "read_s": 0.0, "draws": 0, "draw_s": 0.0}}
+            "scrolls": 0, "t_look": 0.0, "box": None, "hbox": None,
+            "stats": {"reads": 0, "read_s": 0.0, "draws": 0, "draw_s": 0.0, "look": {}}}
 
 
 # ---------------------------------------------------------------------------
@@ -255,8 +302,14 @@ def _icons():
 # drawing: the glow in the side panel, the part and its card in the view
 # ---------------------------------------------------------------------------
 
-def _pulse() -> float:
-    return 0.5 + 0.5 * math.sin((time.time() - _S["t"]) * 2.0 * math.pi * 0.9)
+def _pulse(hz: float = 0.5) -> float:
+    """0 … 1, a slow breath (0.5 Hz: one in 2 s – calm, never faster than 1 per second)."""
+    return 0.5 + 0.5 * math.sin((time.time() - _S["t"]) * 2.0 * math.pi * hz)
+
+
+def _age() -> float:
+    """Seconds since the target or the look last changed (for things that happen once: E's brackets, C's fade)."""
+    return time.time() - max(_S.get("t_look", 0.0), _S.get("t_phase", 0.0), _S["t"])
 
 
 def _find(pixels, colour):
@@ -270,32 +323,269 @@ def _find(pixels, colour):
     return int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())
 
 
-def _button_right(px, y, x):
-    """The button's right edge: along a row of the button just below the marker icon (no text there), walk right from
-    the icon until the colour changes – the panel's background or the thin line between two aligned buttons."""
+def _walk(line, start: int, step: int, own) -> int:
+    """From ``start`` along a line of pixels, the last index that still has the colour ``own`` (one pixel that
+    differs ends it: the line between two aligned buttons is one pixel wide)."""
     import numpy as np
-    row = px[min(max(y, 0), px.shape[0] - 1), :, :3].astype(np.int16)
-    own = row[min(x + 3, row.shape[0] - 1)]
-    for i in range(x + 4, row.shape[0] - 2):
-        if np.abs(row[i] - own).max() > 10 and np.abs(row[i + 1] - own).max() > 10:
-            return i
-    return row.shape[0] - 10
+    seg = line[start::step] if step > 0 else line[start::-1]
+    off = np.nonzero(np.abs(seg - own).max(axis=1) > 8)[0]
+    n = (off[0] - 1) if len(off) else len(seg) - 1
+    return start + step * int(n)
 
 
-def _frame(x0, y0, x1, y1, colour, alpha, width):
+def button_box(px, found):
+    """The marked button's own rectangle (x0, y0, x1, y1) in the region's pixels, y up.
+
+    From the button's background just left of the marker icon, walk down and up (the button's bottom and top edge),
+    then left and right along a row just above the bottom edge (no text there – a descender of 'j' or 'p' reaches
+    the row below the icon). Aligned buttons are separated by a one-pixel line: the walk stops there (task 0123's
+    frame covered *Add rotate joint* and *Add slide joint* together, it needed two pixels)."""
+    import numpy as np
+    x0, y0, x1, y1 = found
+    h, w = px.shape[:2]
+    cx, cy = max(x0 - 3, 0), min(max((y0 + y1) // 2, 0), h - 1)
+    col = px[:, cx, :3].astype(np.int16)            # only the column and the row walked: the whole picture as
+    own = col[cy]                                   # int16 cost 2.5 ms
+    bottom = _walk(col, cy, -1, own)
+    top = _walk(col, cy, 1, own)
+    row = px[min(bottom + 2, top), :, :3].astype(np.int16)
+    left = _walk(row, cx, -1, own)
+    right = _walk(row, min(x1 + 3, w - 1), 1, own)
+    if right - left < (x1 - x0) or top - bottom < (y1 - y0):      # not a plain button round the icon: the icon
+        return x0 - 4, y0 - 4, x1 + 80, y1 + 4
+    return int(left), int(bottom), int(right), int(top)
+
+
+def _button_right(px, y, x):
+    """Kept for the 0123 script: the button's right edge (now from ``button_box``)."""
+    return _S["box"][2] if _S.get("box") else x + 80
+
+
+# --- small drawing helpers (region pixels, y up) ---
+
+def _shader(name="UNIFORM_COLOR"):
+    import gpu
+    return gpu.shader.from_builtin(name)
+
+
+def _tris2d(pts, rgba, kind="TRIS"):
+    from gpu_extras.batch import batch_for_shader
+    sh = _shader()
+    sh.uniform_float("color", rgba)
+    batch_for_shader(sh, kind, {"pos": pts}).draw(sh)
+
+
+def _rect(x0, y0, x1, y1, rgba):
+    _tris2d([(x0, y0), (x1, y0), (x1, y1), (x0, y0), (x1, y1), (x0, y1)], rgba)
+
+
+def _lines(pts, rgba, width, kind="LINE_STRIP"):
     import gpu
     from gpu_extras.batch import batch_for_shader
     vp = gpu.state.viewport_get()
-    sh = gpu.shader.from_builtin("POLYLINE_UNIFORM_COLOR")
+    sh = _shader("POLYLINE_UNIFORM_COLOR")
     sh.uniform_float("viewportSize", (vp[2], vp[3]))
     sh.uniform_float("lineWidth", width)
-    sh.uniform_float("color", (*colour, alpha))
-    pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
-    batch_for_shader(sh, "LINE_STRIP", {"pos": pts}).draw(sh)
+    sh.uniform_float("color", rgba)
+    batch_for_shader(sh, kind, {"pos": pts}).draw(sh)
+
+
+def _frame(x0, y0, x1, y1, colour, alpha, width):
+    _lines([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], (*colour, alpha), width)
+
+
+def _disc(cx, cy, r, rgba, n=24):
+    pts = []
+    for i in range(n):
+        a0, a1 = 2 * math.pi * i / n, 2 * math.pi * (i + 1) / n
+        pts += [(cx, cy), (cx + r * math.cos(a0), cy + r * math.sin(a0)), (cx + r * math.cos(a1), cy + r * math.sin(a1))]
+    _tris2d(pts, rgba)
+
+
+def _ring(cx, cy, r, rgba, width, n=32):
+    _lines([(cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)],
+           rgba, width)
+
+
+def _text(x, y, text, size, rgba, centre=False):
+    import blf
+    scale = bpy.context.preferences.system.ui_scale or 1.0
+    blf.size(0, size * scale)
+    w, h = blf.dimensions(0, text)
+    blf.color(0, *rgba)
+    blf.position(0, x - (w / 2 if centre else 0), y - (h / 2 if centre else 0), 0)
+    blf.draw(0, text)
+    return w
+
+
+def _cover_marker(px, found, box) -> None:
+    """The marker icon is only for finding the button: paint it over with the button's own colour and put a small
+    calm sign in its place (the same for every look, so a colour-blind user still sees "this one")."""
+    x0, y0, x1, y1 = found
+    bx = max(box[0] + 2, x0 - 3)
+    c = px[min(max((y0 + y1) // 2, 0), px.shape[0] - 1), bx, :3] / 255.0
+    _rect(x0 - 1, y0 - 1, x1 + 2, y1 + 2, (*c, 1.0))
+
+
+def _sign(found, colour) -> None:
+    x0, y0, x1, y1 = found
+    cy, s = (y0 + y1) / 2, (y1 - y0) * 0.38
+    cx = (x0 + x1) / 2
+    _tris2d([(cx - s * 0.8, cy - s), (cx - s * 0.8, cy + s), (cx + s * 0.9, cy)], (*colour, 1.0))
+
+
+# --- the six button looks: draw(box, region width, region height, colour while pointing) ---
+
+def _look_a(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    p = _pulse(0.5)
+    for d in range(1, 9):                          # a soft halo: rings fading outwards, breathing together
+        a = (0.55 * (1 - d / 9) ** 1.6) * (0.35 + 0.65 * p)
+        _frame(x0 - d, y0 - d, x1 + d, y1 + d, col, a, 1.6)
+    _rect(x0, y0, x1, y1, (*col, 0.06 + 0.08 * p))
+
+
+def _look_b(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    _frame(x0 - 2, y0 - 2, x1 + 2, y1 + 2, col, 1.0, 1.6)
+    cy = (y0 + y1) / 2
+    off = 2.5 * math.sin((time.time() - _S["t"]) * 2 * math.pi * 0.8)       # moves 2.5 px, 0.8 times a second
+    tip = max(x0 - 4 + off, 6)
+    hs = 6
+    _tris2d([(tip, cy), (tip - 9, cy + hs), (tip - 9, cy - hs)], (*col, 1.0))
+    if tip - 9 > 1:
+        _rect(1, cy - 2, tip - 8, cy + 2, (*col, 1.0))
+    k = _S["step"] + 1                             # the step's number on a badge in the icon's place
+    f = _S.get("found") or box
+    r = min((y1 - y0) * 0.40, 9.0)
+    bx, by = (f[0] + f[2]) / 2, (f[1] + f[3]) / 2
+    _disc(bx, by, r + 1.2, (*CHARCOAL, 1.0))
+    _disc(bx, by, r, (*col, 1.0))
+    _text(bx, by, str(k), 10, (1, 1, 1, 1), centre=True)
+    _S["no_sign"] = True
+
+
+def _look_c(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    a = 0.62 * min(1.0, _age() / 0.4)              # fades in over 0.4 s, then steady
+    m = 3
+    dim = (*CHARCOAL, a)
+    _rect(0, 0, rw, y0 - m, dim)                   # below, above, left, right of the button
+    _rect(0, y1 + m, rw, rh, dim)
+    _rect(0, y0 - m, x0 - m, y1 + m, dim)
+    _rect(x1 + m, y0 - m, rw, y1 + m, dim)
+    _frame(x0 - 2, y0 - 2, x1 + 2, y1 + 2, col, 0.9, 1.3)
+
+
+def _look_d(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    p = _pulse(0.5)
+    _rect(x0, y0, x1, y1, (*GREEN, 0.18 + 0.20 * p))
+    _rect(x0, y0, x0 + 4, y1, (*col, 1.0))
+
+
+def _look_e(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    t = min(1.0, _age() / 0.7)                     # closes in once over 0.7 s, then stays
+    ease = 1 - (1 - t) ** 3
+    d = 3 + 22 * (1 - ease)
+    a = (0.25 + 0.75 * ease) * (0.8 + 0.2 * _pulse(0.5))
+    L = min(10.0, (y1 - y0) * 0.6)
+    for cx, cy, sx, sy in ((x0 - d, y0 - d, 1, 1), (x1 + d, y0 - d, -1, 1), (x1 + d, y1 + d, -1, -1),
+                           (x0 - d, y1 + d, 1, -1)):
+        _lines([(cx + sx * L, cy), (cx, cy), (cx, cy + sy * L)], (*col, a), 2.6)
+
+
+def _look_f(box, rw, rh, col):
+    x0, y0, x1, y1 = box
+    x0, y0, x1, y1 = x0 - 2, y0 - 2, x1 + 2, y1 + 2
+    _frame(x0, y0, x1, y1, BLUE, 0.85, 1.4)
+    per = 2 * ((x1 - x0) + (y1 - y0))
+    corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+
+    def at(s):
+        s %= per
+        for (ax, ay), (bx, by) in zip(corners, corners[1:]):
+            seg = abs(bx - ax) + abs(by - ay)
+            if s <= seg:
+                f = s / seg if seg else 0
+                return ax + (bx - ax) * f, ay + (by - ay) * f
+            s -= seg
+        return corners[0]
+    head = ((time.time() - _S["t"]) / 2.0 % 1.0) * per          # once round in 2 s
+    n = 14
+    pts = [at(head - per * 0.16 * i / n) for i in range(n + 1)]
+    for i in range(n):                               # a bright head with a fading tail
+        _lines([pts[i], pts[i + 1]], (0.55, 0.75, 1.0, 1.0 - i / n), 3.0, "LINES")
+
+
+_BUTTON_DRAW = {"A": _look_a, "B": _look_b, "C": _look_c, "D": _look_d, "E": _look_e, "F": _look_f}
+
+
+# --- the three closed-section markers ---
+
+def _header_box(px, header, rw):
+    """The header row round the header marker: its bottom and top from the colour above and below the marker."""
+    import numpy as np
+    x0, y0, x1, y1 = header
+    cx, cy = max(x0 - 2, 0), (y0 + y1) // 2
+    col = px[:, cx, :3].astype(np.int16)
+    own = col[cy]
+    bottom, top = _walk(col, cy, -1, own), _walk(col, cy, 1, own)
+    row = px[min(bottom + 1, top), :, :3].astype(np.int16)
+    left = _walk(row, cx, -1, own)
+    right = _walk(row, cx, 1, own)
+    if top - bottom < (y1 - y0):
+        bottom, top = y0 - 5, y1 + 5
+    return int(left), int(bottom), int(right if right > x1 + 20 else rw - 8), int(top)
+
+
+def _section_1(hb, marker, rw, rh, col):
+    x0, y0, x1, y1 = marker
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    ph = ((time.time() - _S["t"]) / 1.6) % 1.0     # a ring grows from the dot every 1.6 s
+    _ring(cx, cy, 5 + 9 * ph, (*col, 0.8 * (1 - ph)), 2.0)
+    _disc(cx, cy, 5, (*col, 1.0))
+
+
+def _section_2(hb, marker, rw, rh, col):
+    l, b, r, t = hb
+    p = _pulse(0.5)
+    _rect(l, b, r, t, (*GREEN, 0.22 + 0.22 * p))
+    _frame(l, b, r, t, col, 0.9, 1.3)
+
+
+def _section_3(hb, marker, rw, rh, col):
+    l, b, r, t = hb
+    h = t - b
+    cx, cy = l + h * 0.55, (b + t) / 2              # Blender's fold triangle sits about half a row in
+    p = _pulse(0.5)
+    _ring(cx, cy, h * 0.42 + 1.5 * p, (*col, 0.7 + 0.3 * p), 2.2)
+    w = _text(0, -100, "Open", 11, (0, 0, 0, 0))
+    tx = r - w - 30
+    _rect(tx - 6, b + 3, tx + w + 6, t - 3, (*col, 0.9))
+    _text(tx, cy - 4, "Open", 11, (1, 1, 1, 1))
+
+
+_SECTION_DRAW = {"1": _section_1, "2": _section_2, "3": _section_3}
+
+
+def _cover_header_marker(px, header):
+    x0, y0, x1, y1 = header
+    c = px[(y0 + y1) // 2, max(x0 - 2, 0), :3] / 255.0
+    _rect(x0 - 1, y0 - 1, x1 + 2, y1 + 2, (*c, 1.0))
+
+
+def _timed(key, fn, *a):
+    t = time.perf_counter()
+    fn(*a)
+    st = _S["stats"]["look"].setdefault(key, [0, 0.0])
+    st[0] += 1
+    st[1] += time.perf_counter() - t
 
 
 def _draw_sidebar() -> None:
-    """Side panel (region UI), after Blender drew it: find the markers in its pixels, glow round them."""
+    """Side panel (region UI), after Blender drew it: find the markers in its pixels, draw the chosen look."""
     if current() is None or step() is None:
         return
     try:
@@ -310,27 +600,37 @@ def _draw_sidebar() -> None:
         px = np.array(buf, dtype=np.uint8).reshape(vp[3], vp[2], 4)
         found = _find(px, MARK_BUTTON)
         header = _find(px, MARK_HEADER)
+        box = button_box(px, found) if found is not None else None
+        hbox = _header_box(px, header, region.width) if header is not None else None
         _S["stats"]["reads"] += 1
         _S["stats"]["read_s"] += time.perf_counter() - t
-        _S["found"], _S["found_header"] = found, header
+        _S["found"], _S["found_header"], _S["box"], _S["hbox"] = found, header, box, hbox
+        if box is not None:
+            _S["found_right"] = box[2]
+        if os.environ.get("FR_LESSON_DUMP"):
+            np.save(os.environ["FR_LESSON_DUMP"], px)
         _S["region"] = (region.x, region.y, region.width, region.height)
         _S["drawn"] = True
-        p = _pulse()
-        col = OK if _S["phase"] == "done" else MAGENTA
+        col = OK if _S["phase"] == "done" else BRIGHT
         gpu.state.blend_set("ALPHA")
+        if header is not None:
+            _cover_header_marker(px, header)
         if found is not None:
-            x0, y0, x1, y1 = found
-            right = _button_right(px, y0 - 2, x1)             # y grows upwards: y0 - 2 is just below the icon
-            _S["found_right"] = right
-            pad = 5
-            for w, a in ((9.0, 0.10 + 0.15 * p), (5.0, 0.25 + 0.25 * p), (2.0, 0.65 + 0.35 * p)):
-                _frame(x0 - pad - 4, y0 - pad, right + 2, y1 + pad, col, a, w)
-        elif header is not None:                     # the section is closed: its header glows
-            x0, y0, x1, y1 = header
-            _frame(6, y0 - 6, region.width - 10, y1 + 6, col, 0.35 + 0.65 * p, 2.0 + 3.0 * p)
+            _cover_marker(px, found, box)
+            look = LOOKS["button"]
+            if look == "F" and _S["phase"] != "done":
+                col = BLUE
+            _S["no_sign"] = False
+            _timed("button " + look, _BUTTON_DRAW[look], box, region.width, region.height, col)
+            if not _S["no_sign"]:
+                _sign(found, col)
+        elif header is not None:                     # the section is closed: its header shows the way
+            look = LOOKS["section"]
+            _timed("section " + look, _SECTION_DRAW[look], hbox, header, region.width, region.height, col)
         gpu.state.blend_set("NONE")
     except Exception as e:  # noqa: BLE001 - drawing must never break the panel
-        _S["note"] = f"sidebar draw: {e}"
+        import traceback
+        _S["note"] = f"sidebar draw: {e} {traceback.format_exc(limit=2)}"
 
 
 _BATCH: dict = {}
@@ -346,7 +646,8 @@ def _part_objects(scene, names):
     return [o for o in dict.fromkeys(out) if o.type == "MESH" and o.visible_get()]
 
 
-def _tris(ob):
+def _mesh(ob):
+    """Once per mesh: its triangles' corners, each triangle's normal and its outline edges (object space)."""
     import numpy as np
     me = ob.data
     key = (me.name, len(me.polygons))
@@ -355,11 +656,119 @@ def _tris(ob):
         me.calc_loop_triangles()
         co = np.empty(len(me.vertices) * 3, np.float32)
         me.vertices.foreach_get("co", co)
+        co = co.reshape(-1, 3)
         tri = np.empty(len(me.loop_triangles) * 3, np.int32)
         me.loop_triangles.foreach_get("vertices", tri)
-        hit = co.reshape(-1, 3)[tri]
+        tri = tri.reshape(-1, 3)
+        corners = co[tri]
+        n = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+        n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+        # outline: edges with one triangle (open border) or whose two triangles meet at more than 30 degrees
+        e = np.sort(np.concatenate([tri[:, [0, 1]], tri[:, [1, 2]], tri[:, [2, 0]]]), axis=1)
+        owner = np.tile(np.arange(len(tri)), 3)
+        order = np.lexsort((e[:, 1], e[:, 0]))
+        e, owner = e[order], owner[order]
+        same = np.all(e[1:] == e[:-1], axis=1)
+        keep = np.ones(len(e), bool)
+        pair = np.nonzero(same)[0]                    # e[i] and e[i+1] are one edge of two triangles
+        sharp = np.einsum("ij,ij->i", n[owner[pair]], n[owner[pair + 1]]) < math.cos(math.radians(30))
+        keep[pair + 1] = False
+        keep[pair[~sharp]] = False
+        edges = co[e[keep]].reshape(-1, 3)
+        hit = {"tris": corners.reshape(-1, 3), "n": n, "edges": edges}
         _BATCH[key] = hit
     return hit
+
+
+def _tris(ob):
+    return _mesh(ob)["tris"]
+
+
+def _part_colour(ob):
+    m = ob.active_material
+    if m is not None:
+        return tuple(m.diffuse_color[:3])
+    return (0.7, 0.7, 0.7)
+
+
+def _part_1(obs, col):
+    from gpu_extras.batch import batch_for_shader
+    import gpu
+    sh = _shader()
+    p = _pulse(0.5)
+    gpu.state.depth_test_set("NONE")
+    for ob in obs:
+        gpu.matrix.push()
+        gpu.matrix.multiply_matrix(ob.matrix_world)
+        sh.uniform_float("color", (*col, 0.14 + 0.24 * p))
+        batch_for_shader(sh, "TRIS", {"pos": _tris(ob)}).draw(sh)
+        gpu.matrix.pop()
+
+
+def _part_2(obs, col):
+    import gpu
+    from gpu_extras.batch import batch_for_shader
+    vp = gpu.state.viewport_get()
+    sh = _shader("POLYLINE_UNIFORM_COLOR")
+    sh.uniform_float("viewportSize", (vp[2], vp[3]))
+    p = _pulse(0.5)
+    for depth, width, alpha in (("NONE", 1.5, 0.45 + 0.2 * p), ("LESS_EQUAL", 3.0, 1.0)):
+        gpu.state.depth_test_set(depth)              # hidden edges faint, seen edges bold
+        sh.uniform_float("lineWidth", width)
+        sh.uniform_float("color", (*col, alpha))
+        for ob in obs:
+            gpu.matrix.push()
+            gpu.matrix.multiply_matrix(ob.matrix_world)
+            batch_for_shader(sh, "LINES", {"pos": _mesh(ob)["edges"]}).draw(sh)
+            gpu.matrix.pop()
+    gpu.state.depth_test_set("NONE")
+
+
+def _part_3(obs, col):
+    """Everything greyed by a see-through sheet over the whole view, then the parts drawn again on top in their own
+    colour with simple light (their depth starts afresh: the sheet hides the rest, the part hides only itself)."""
+    import gpu
+    import numpy as np
+    from gpu_extras.batch import batch_for_shader
+    a = 0.68 * min(1.0, _age() / 0.4)
+    gpu.state.depth_test_set("NONE")
+    gpu.matrix.push()
+    gpu.matrix.push_projection()
+    from mathutils import Matrix
+    gpu.matrix.load_identity()
+    gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+    _rect(-1, -1, 1, 1, (0.23, 0.24, 0.25, a))
+    gpu.matrix.pop_projection()
+    gpu.matrix.pop()
+    if a < 0.05:
+        return
+    fb = gpu.state.active_framebuffer_get()
+    fb.clear(depth=1.0)
+    gpu.state.depth_test_set("LESS_EQUAL")
+    gpu.state.depth_mask_set(True)
+    sh = _shader("SMOOTH_COLOR")
+    light = np.array([0.35, -0.55, 0.76])
+    rv3d = bpy.context.region_data
+    view = np.array(rv3d.view_rotation @ __import__("mathutils").Vector((0, 0, 1)))
+    for ob in obs:
+        m = _mesh(ob)
+        rot = np.array(ob.matrix_world.to_3x3().normalized())
+        nw = m["n"] @ rot.T
+        if np.isfinite(nw).all():
+            shade = 0.30 + 0.45 * np.abs(nw @ light) + 0.25 * np.abs(nw @ view)
+        else:
+            shade = np.ones(len(nw))
+        c = np.clip(np.outer(shade, _part_colour(ob)), 0, 1)
+        rgba = np.repeat(np.hstack([c, np.ones((len(c), 1))]), 3, axis=0).astype(np.float32)
+        gpu.matrix.push()
+        gpu.matrix.multiply_matrix(ob.matrix_world)
+        batch_for_shader(sh, "TRIS", {"pos": m["tris"], "color": rgba}).draw(sh)
+        gpu.matrix.pop()
+    gpu.state.depth_mask_set(False)
+    gpu.state.depth_test_set("NONE")
+
+
+_PART_DRAW = {"1": _part_1, "2": _part_2, "3": _part_3}
 
 
 def _draw_parts() -> None:
@@ -368,21 +777,15 @@ def _draw_parts() -> None:
         return
     try:
         import gpu
-        from gpu_extras.batch import batch_for_shader
-        sh = gpu.shader.from_builtin("UNIFORM_COLOR")
-        p = _pulse()
-        col = OK if _S["phase"] == "done" else MAGENTA
+        col = OK if _S["phase"] == "done" else BRIGHT
         gpu.state.blend_set("ALPHA")
-        gpu.state.depth_test_set("NONE")
-        for ob in _part_objects(bpy.context.scene, st.parts):
-            gpu.matrix.push()
-            gpu.matrix.multiply_matrix(ob.matrix_world)
-            sh.uniform_float("color", (*col, 0.12 + 0.22 * p))
-            batch_for_shader(sh, "TRIS", {"pos": _tris(ob)}).draw(sh)
-            gpu.matrix.pop()
+        obs = _part_objects(bpy.context.scene, st.parts)
+        look = LOOKS["part"]
+        _timed("part " + look, _PART_DRAW[look], obs, col)
         gpu.state.blend_set("NONE")
     except Exception as e:  # noqa: BLE001
-        _S["note"] = f"part draw: {e}"
+        import traceback
+        _S["note"] = f"part draw: {e} {traceback.format_exc(limit=2)}"
 
 
 def card_lines(st: Step, more: bool, phase: str, width: int = 44) -> list:
@@ -471,7 +874,7 @@ def _draw_card() -> None:
         _S["card"] = (x, y, w, h, box)
         flat = gpu.shader.from_builtin("UNIFORM_COLOR")
         gpu.state.blend_set("ALPHA")
-        col = OK if _S["phase"] == "done" else MAGENTA
+        col = OK if _S["phase"] == "done" else (BLUE if LOOKS["button"] == "F" else BRIGHT)
         if obs:                                       # the line from the card to the part
             bx = box[2] if x > box[2] else (box[0] if x + w < box[0] else (box[0] + box[2]) / 2)
             by = (box[1] + box[3]) / 2 if (x > box[2] or x + w < box[0]) else (box[3] if y > box[3] else box[1])
