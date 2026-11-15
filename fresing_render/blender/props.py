@@ -1200,6 +1200,7 @@ class FRAnimBlock(bpy.types.PropertyGroup):
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)
     seq_riders: IntProperty(default=0)
+    seq_hidden: IntProperty(default=0)      # parts hidden in 2 Structure, left out (task 0140)
     # Back to CAD (task 0129)
     cad_whole: BoolProperty(
         name="Whole model", default=True,

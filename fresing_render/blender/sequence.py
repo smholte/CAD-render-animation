@@ -62,6 +62,7 @@ class Movers:
     parts: list = field(default_factory=list)       # objects that fly, model-tree order (riders too, task 0129)
     riders: dict = field(default_factory=dict)       # carrier name -> parts that ride on it (directly or further up)
     left_out: list = field(default_factory=list)     # hoses, chain links (drawn by the app)
+    hidden: list = field(default_factory=list)       # hidden with the eye in 2 Structure (task 0140)
     carriers: dict = field(default_factory=dict)     # rider name -> the movers that carry it (nearest first)
 
     def carried(self) -> dict:
@@ -80,18 +81,32 @@ def movers(scene, ob, tree=None) -> Movers:
     except Exception:
         drawn = set()
     order: list = []
+    hidden: set = set()
 
-    def walk(node):
+    def walk(node, off):
         kids = sorted(tree.children(node), key=lambda o: o.name)
         for c in kids:
             order.append(c)
-            walk(c)
+            c_off = off or logic.is_hidden(c)
+            if c_off:
+                hidden.add(c.name)
+            walk(c, c_off)
+    off = False                                        # hidden with the eye in 2 Structure: takes no part (0140)
+    p = ob
+    while p is not None and not off:
+        off = logic.is_hidden(p)
+        p = build.logical_parent(p)
     if ob.get(build.PROP_KIND) == "part":
         order.append(ob)
-    walk(ob)
+        if off:
+            hidden.add(ob.name)
+    walk(ob, off)
     parts = []
     for o in order:
         if o.get(build.PROP_KIND) != "part" or o.get(build.PROP_EXCLUDED) or o.type != "MESH":
+            continue
+        if o.name in hidden:
+            out.hidden.append(o)
             continue
         if o.name in drawn or o.get("fr_flex"):
             out.left_out.append(o)
@@ -125,6 +140,7 @@ def count(scene, b) -> None:
     b.seq_fasteners = sum(1 for o in m.parts if is_fastener(o))
     b.seq_left_out = len(m.left_out)
     b.seq_riders = len(m.carriers)
+    b.seq_hidden = len(m.hidden)
     sync_duration(b)
 
 
@@ -269,12 +285,33 @@ class Keys:
     vkeys: dict
     fkeys: dict
     fxray: dict
-    home: dict                    # name -> delta before a Take apart step moved it
+    home: dict                    # name -> stack of deltas: where each Take apart step found it (task 0140)
     merge: object
     warnings: list
     uids: dict
     tree: object = None
     jumps: dict | None = None     # frame -> names of parts a step puts somewhere else at once (task 0132, clash check)
+
+
+def home_top(home: dict, name: str, default=None):
+    """Where the last Take apart step that moved ``name`` found it (``default`` when none has)."""
+    stack = home.get(name)
+    return stack[-1] if stack else default
+
+
+def _home_push(home: dict, name: str, delta) -> None:
+    home.setdefault(name, []).append(delta)
+
+
+def _home_pop(home: dict, name: str):
+    """A Put together takes a part back to where the last Take apart found it (nested sequences, task 0140)."""
+    stack = home.get(name)
+    if not stack:
+        return None
+    d = stack.pop()
+    if not stack:
+        del home[name]
+    return d
 
 
 def label(b) -> str:
@@ -296,7 +333,9 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
     ident = Matrix.Identity(4)
     together = b.seq_mode == "TOGETHER"
     start = {o.name: k.ostate.get(o.name, ident) for o in m.parts}
-    home = {n: (k.home.get(n, d) if together else d) for n, d in start.items()}
+    # put together: back to where the last Take apart found each part (a stack: nested sequences, task 0140); it is
+    # planned there (the exact reverse of that Take apart) and comes in from where it is when the step starts
+    home = {n: home_top(k.home, n, d) if together else d for n, d in start.items()}
     deltas = dict(k.ostate)
     deltas.update(home)
     hidden = {n for n, keys in k.vkeys.items() if keys and _value_at(keys, f_start)}
@@ -319,25 +358,27 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
         f0, f1 = frames[mv.name]
         d_home = home[mv.name]
         d_out = _offset_delta(d_home, worlds[mv.name], mv.offset)
+        if together and mv.name in k.home and _differs(start[mv.name], d_home, 1e-6):
+            d_out = start[mv.name]                          # out already (a Take apart before): from there, no jump
         keys = k.okeys.setdefault(mv.name, [(1, k.ostate.get(mv.name, ident), "CONSTANT", "AUTO")])
         if mv.name in m.carriers:
             _rider_keys(b, mv, moves, m.carriers[mv.name], frames, worlds[mv.name], d_home, f_start, keys, merge)
             k.ostate[mv.name] = keys[-1][1]
             if together:
-                k.home.pop(mv.name, None)
+                _home_pop(k.home, mv.name)
             else:
-                k.home.setdefault(mv.name, start[mv.name])
+                _home_push(k.home, mv.name, start[mv.name])
         elif together:
             merge(keys, f_start, d_out, "CONSTANT")         # out from the step's start, then each comes in
             merge(keys, f0, d_out, interp, ez)
             merge(keys, f1, d_home, "CONSTANT")
             k.ostate[mv.name] = d_home
-            k.home.pop(mv.name, None)
+            _home_pop(k.home, mv.name)
         else:
             merge(keys, f0, start[mv.name], interp, ez)
             merge(keys, f1, d_out, "CONSTANT")
             k.ostate[mv.name] = d_out
-            k.home.setdefault(mv.name, start[mv.name])
+            _home_push(k.home, mv.name, start[mv.name])
         if together and k.jumps is not None and _differs(_value_at(keys, f_start), start[mv.name]):
             k.jumps.setdefault(f_start, set()).add(mv.name)     # out at once at the step's first frame: not a motion
         _visibility(b, [ob], f_start, f0, f1, k, interp, ez)
@@ -748,7 +789,8 @@ def _box_centre(ob) -> tuple:
 
 
 def tidy_trails(scene) -> int:
-    """Remove the trail lines of Assembly sequence steps that are gone, off, or no longer want them."""
+    """Remove the trail lines of Assembly sequence steps that are gone, off, or no longer want them, and those whose
+    part is gone (a model update removed it: Build makes the step's trails again, task 0140)."""
     from . import trails
     s = scene.fresing
     want = {b.seq_id for a in s.animations for b in a.blocks
@@ -756,7 +798,7 @@ def tidy_trails(scene) -> int:
     n = 0
     for i in range(len(s.trails) - 1, -1, -1):
         t = s.trails[i]
-        if t.seq_owner and t.seq_owner not in want:
+        if t.seq_owner and (t.seq_owner not in want or t.part is None):
             trails.remove(scene, i)
             n += 1
     return n
@@ -789,13 +831,20 @@ def end_preview(scene) -> None:
 
 
 def _plan_key(scene, b, sub, parts: list) -> tuple:
-    """What the preview's plan depends on: (the step's settings and the part names, every place as numbers). The
-    places are compared within 1 µm (``_same_plan``): parts put back from the preview come back with float32 noise,
-    which made the plan be worked out a second time at the slider's second step (found in task 0129)."""
+    """What the preview's plan depends on: (the step's settings, the part names, the other parts that can stand in
+    the way – names and whether they show –, every place as numbers). The places are compared within 1 µm
+    (``_same_plan``): parts put back from the preview come back with float32 noise, which made the plan be worked out
+    a second time at the slider's second step (found in task 0129). The step by its ``seq_id``, never by its memory
+    address (task 0140)."""
     names = ("seq_mode", "seq_direction", "seq_axis", "seq_distance", "seq_by_size", "seq_order", "seq_part_time",
              "seq_overlap", "target_uid")
-    ident = (scene.name, b.as_pointer(), tuple(getattr(b, n) for n in names), sub.name, tuple(o.name for o in parts))
-    places = np.array([list(sub.matrix_world)] + [list(o.matrix_world) for o in parts], dtype=float).ravel()
+    mine = {o.name for o in parts}
+    others = [o for o in scene.objects if o.type == "MESH" and o.get(build.PROP_KIND) == "part"
+              and o.name not in mine]
+    look = tuple((o.name, bool(o.hide_render), bool(o.get(build.PROP_EXCLUDED))) for o in others)
+    ident = (scene.name, b.seq_id, tuple(getattr(b, n) for n in names), sub.name, tuple(o.name for o in parts), look)
+    places = np.array([list(sub.matrix_world)] + [list(o.matrix_world) for o in parts]
+                      + [list(o.matrix_world) for o in others], dtype=float).ravel()
     return ident, places
 
 

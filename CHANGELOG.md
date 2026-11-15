@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.107 – 15 Nov 2026 – house format 1.0.1 (task 0130)
+## 0.2.108 – 15 Nov 2026 – house format 1.0.1 (task 0130)
 
 - **House round trip follows format 1.0.1:** the app now checks its House packages against the final tag `v1.0.1`
   (a package name made of plain letters is accepted with or without the zip's UTF-8 mark; a name with accents or other
@@ -14,6 +14,18 @@ installer of that version was built from.
   sun instead of being worked out from an upward-facing one (which multiplied the noise at a low evening sun). The
   numbers agree with the old way within 1 % at 35°, 12° and 4.8°; by day under a full overcast the sun is written as
   zero, and "none" only where there is no separate sun (night, a 360° photo, a studio).
+## 0.2.107 – 15 Nov 2026 – Assembly sequence fixes (task 0140)
+
+- **Steps inside steps:** take a subassembly apart, then the whole machine, and put them together in the reverse order:
+  no part jumps any more. Each Put together brings the parts back to where the matching Take apart found them.
+- **Same order every time:** two parts that sit flush no longer swap places between Builds, the render queue and the
+  product video.
+- **Preview not stored:** Save pose, Save scene and Make product video while the sequence Preview is above 0 % put
+  the parts back first.
+- **Hidden parts stay out:** a part hidden with the eye in 2 Structure takes no part in the sequence and stays hidden
+  (the step's box counts it).
+- A sequence's trail line of a part a model update removed is dropped without a warning; the Preview works the plan
+  out again when a part round the subassembly is hidden, shown or moved.
 ## 0.2.106 – 15 Nov 2026 – Export web 3D model no longer crashes; marine growth follows the sea (task 0136)
 
 - **Fixed a crash:** *Export web 3D model* closed Blender (and lost unsaved work) when the project had a moving cable
