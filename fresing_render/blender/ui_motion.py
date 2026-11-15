@@ -6,6 +6,8 @@ selected list item right under the list, rarely used settings folded away.
 
 from __future__ import annotations
 
+import math
+
 import bpy
 
 from . import animation, build, cylinders, joints, linkages, paths, queue
@@ -16,6 +18,27 @@ from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, 
 # =============================================================================
 # 4 Motion
 # =============================================================================
+
+
+def value_text(j, label: str = "") -> str:
+    """A joint's value as the panel shows it: "12.5°" or "40.0 mm" (task 0132). For a follower it is worked out
+    from the top joint of its chain (``joints.get_value``): the copy its driver writes into ``fr_value`` can be one
+    step behind right after a change (task 0127), so the panel never shows that copy for a follower."""
+    v = joints.get_value(j)
+    text = f"{math.degrees(v):.1f}°" if j.kind == "ROTATE" else f"{v * 1000.0:.1f} mm"
+    return f"{label}: {text}" if label else text
+
+
+def _value_row(layout, j, label: str):
+    """The value field of a joint: a field to drag or type for a joint moved by hand, the worked-out value (greyed)
+    for a follower."""
+    if j.follows:
+        row = layout.row(align=True)
+        row.enabled = False
+        row.label(text=value_text(j, label))
+        return row
+    layout.prop(j.motion, f'["{joints.VALUE}"]', text=label)
+    return layout
 
 
 def joint_icon(j) -> str:
@@ -38,8 +61,10 @@ class FRESING_UL_joints(bpy.types.UIList):
             row.label(text="", icon="LINKED")
         sub = row.row(align=True)
         sub.ui_units_x = 4.2                   # room for "-1234 mm"; the name gets the rest of the row
-        if item.motion is not None:
-            sub.enabled = not item.follows
+        if item.motion is not None and item.follows:
+            sub.enabled = False
+            sub.label(text=value_text(item))        # worked out: the driver's copy can be a step behind
+        elif item.motion is not None:
             sub.prop(item.motion, f'["{joints.VALUE}"]', text="")
         else:
             sub.label(text="(broken)", icon="ERROR")
@@ -149,8 +174,7 @@ def _draw_joints(context, layout, s):
         lead = joints.leader(scene, j)
         row = box.row(align=True)
         row.scale_y = BIG
-        row.enabled = not j.follows
-        row.prop(j.motion, f'["{joints.VALUE}"]', text="Angle" if j.kind == "ROTATE" else "Distance")
+        _value_row(row, j, "Angle" if j.kind == "ROTATE" else "Distance")
         if joints.is_motor(j):
             box.label(text=f"= {joints.get_value(j) / joints.TURN:.2f} turns", icon="FORCE_VORTEX")
         if j.follows:
@@ -504,8 +528,7 @@ def _draw_mechanism(context, layout, scene, mech) -> None:
         lo, hi = linkages.height_range(scene, mech)
         wrap(box, context, f"Height {_mm(lo)} … {_mm(hi)} (pin to pin, within the drive joint's limits)", inset=12)
     row = box.row(align=True)
-    row.enabled = not j.follows
-    row.prop(j.motion, f'["{joints.VALUE}"]', text="Drive angle" if j.kind == "ROTATE" else "Drive")
+    _value_row(row, j, "Drive angle" if j.kind == "ROTATE" else "Drive")
     row.operator("fresing.mechanism_drive_joint", text="", icon="CON_PIVOT")
     if j.follows:
         wrap(box, context, f"'{j.name}' follows '{j.follows}': move that one", icon="LINKED", inset=12)
@@ -786,6 +809,12 @@ def _draw_cad(context, box, b) -> None:
         row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
     wrap(box, context, "Every joint goes back to its CAD value (a motor to its nearest whole turn) and moved parts "
                        "to their places, over the step's duration", icon="INFO", inset=12).active = False
+    s = context.scene.fresing
+    anim = s.animations[s.animations_index] if 0 <= s.animations_index < len(s.animations) else None
+    apart = animation.apart_before(anim, b) if anim is not None else None
+    if apart is not None:
+        wrap(box, context, f"Right after '{animation.block_label(apart)}': plays it backwards first (last part out "
+                           "first in), so no part flies through another", icon="LOOP_BACK", inset=12).active = False
 
 
 class FRESING_UL_anims(bpy.types.UIList):

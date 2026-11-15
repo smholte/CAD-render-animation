@@ -2887,6 +2887,10 @@ the other steps).
    the joints that move its parts (and its moved parts) go back; the rest stays where it is.
 3. A motor (a joint that turns without end) goes to its nearest whole turn: it looks the same as in CAD and does not
    spin back through every turn it made.
+4. **Right after a Take apart** of the same subassembly (or with Whole model ticked), Back to CAD plays that Take
+   apart backwards, as Put together would: the same paths, the last part out comes in first, so no bolt flies through
+   a cover. The box says so. Joints that also have to go back move after that (the last 30 % of the step). In every
+   other case all parts go home together on straight lines.
 
 The step only writes keys on the joints, as a Move joint step does: it works with scripts switched off and in the
 render queue.
@@ -2988,6 +2992,9 @@ What counts:
   left out.
 - Fast moves (G-code rapids, a turning arm) are checked between frames too, so a part cannot jump through
   another one in one frame step.
+- A step that puts parts somewhere else at once on purpose is a cut, not a move: a **Put together** with nothing
+  taken apart before it puts its parts out at its first frame, and that jump is not checked as a path through the
+  other parts. Every frame itself is still checked.
 - **Parts that turn in place** – rollers, sheaves, drums, a coil, a shaft or a pin in its bore – fill the same room
   at every angle. The check finds them by itself: a part that turns about an axis that stays put (against the world,
   or against the carriage it rides on) and is round about that axis is held where it is and only moves with what

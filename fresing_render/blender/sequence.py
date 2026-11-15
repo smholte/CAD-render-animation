@@ -17,7 +17,9 @@ direction and the distance of every part and the times. Here:
 - the preview: the slider in the step's box moves the parts in the view without building.
 
 Put together = the exact reverse of take apart: the same lines and times played backwards, ending at the place the
-part had before a Take apart step moved it (or where it is when the step starts).
+part had before a Take apart step moved it (or where it is when the step starts). A Put together whose parts are not
+out when it starts puts them out at once at its first frame; Build tells the clash check (``Keys.jumps`` ->
+``scene["fr_jumps"]``), which does not sweep that jump as a motion (task 0132).
 """
 
 from __future__ import annotations
@@ -272,6 +274,7 @@ class Keys:
     warnings: list
     uids: dict
     tree: object = None
+    jumps: dict | None = None     # frame -> names of parts a step puts somewhere else at once (task 0132, clash check)
 
 
 def label(b) -> str:
@@ -335,9 +338,15 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
             merge(keys, f1, d_out, "CONSTANT")
             k.ostate[mv.name] = d_out
             k.home.setdefault(mv.name, start[mv.name])
+        if together and k.jumps is not None and _differs(_value_at(keys, f_start), start[mv.name]):
+            k.jumps.setdefault(f_start, set()).add(mv.name)     # out at once at the step's first frame: not a motion
         _visibility(b, [ob], f_start, f0, f1, k, interp, ez)
     if b.seq_trails:
         _trails(scene, k.anim, b, m.parts)
+
+
+def _differs(a: Matrix, b: Matrix, eps: float = 1e-9) -> bool:
+    return any(abs(a[r][c] - b[r][c]) > eps for r in range(4) for c in range(4))
 
 
 def _value_at(keys: list, frame: int):
