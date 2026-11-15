@@ -33,7 +33,12 @@ be continued if it stops.
      70 %"); optional **max temperature** (off / 70–85 °C).
    - **Models**: tick list from `models.ini` with each one's expected time; all ticked by default.
    - **Start**: now / at a time (the existing start later); **when done**: nothing / sleep / shut down.
-   - Remembers the last choices (a small file next to the kit).
+   - **Quiet hours** (owner, 15 Nov 23:48): a time window (e.g. 22:00–07:00) with its own load % and max
+     temperature (e.g. 60 %, 70 °C); outside it the normal load (e.g. 100 %). The expected time counts both.
+   - **Saved as the standard** (owner): the choices (load, temperature, quiet hours, when done) are kept as the
+     defaults for every next run – also after a new kit is downloaded: keep them outside the kit folder (e.g.
+     `%LOCALAPPDATA%\Fresing Render\site_kit.json`, the folder the app already uses), with a "Back to standard"
+     button.
 2. **Resume:** a run that stopped (PC restarted, closed) shows "Continue the run of <date> (<n> of <m> done)" – it
    skips finished pictures/clips. A **run list** only if more than one unfinished run exists (owner: only if needed).
 3. **While it runs:** a small status window or console line – model, frame, % done, load %, temperature, expected
