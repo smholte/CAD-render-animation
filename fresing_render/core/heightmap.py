@@ -712,14 +712,15 @@ class HeightMap:
                     # node - a rib of top between them; not elsewhere: at the corners of walls and at creases
                     # between two cuts more vertices folded the walls)
                     rib = (~fa & ~fb)[sel] | rimmed[sel] | (one & ~wall & ((pa < 0) | (pb < 0)))
+                    no = np.zeros(len(pa), bool)
                     places.append((Ai, Aj, Bi, Bj, pxA, pyA, hA, np.where(wantA & (rndA | rib), pa, -9), uA,
-                                   rndA))
+                                   rndA, rib & ~rndA))
                     places.append((Ai, Aj, Bi, Bj, pxB, pyB, hB, np.where(wantB & (rndB | rib), pb, -9), uB,
-                                   rndB))
+                                   rndB, rib & ~rndB))
                     places.append((Ai, Aj, Bi, Bj, 0.5 * (x0 + pxA), 0.5 * (y0 + pyA), hmA,
-                                   np.where(rndA, pa, -9), 0.5 * uA, np.zeros(len(pa), bool)))
+                                   np.where(rndA, pa, -9), 0.5 * uA, no, no))
                     places.append((Ai, Aj, Bi, Bj, 0.5 * (x0 + dx + pxB), 0.5 * (y0 + dy + pyB), hmB,
-                                   np.where(rndB, pb, -9), 0.5 * (1.0 + uB), np.zeros(len(pa), bool)))
+                                   np.where(rndB, pb, -9), 0.5 * (1.0 + uB), no, no))
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue
@@ -787,7 +788,7 @@ class HeightMap:
         if not places:
             return None
         cols = [np.concatenate(c) for c in zip(*places)]
-        Ai, Aj, Bi, Bj, px, py, pz, q, u, foot = cols
+        Ai, Aj, Bi, Bj, px, py, pz, q, u, foot, pin = cols
         want = (q > -9) & np.isfinite(pz)
         tiny = 1e-9
         # the foot of a wall over a rounded strip next to a node of its edge that stands on the wall over it
@@ -821,7 +822,7 @@ class HeightMap:
         key = np.concatenate([key, np.round(xyz / 1e-9)], axis=1)
         _u, first = np.unique(key, axis=0, return_index=True)
         first = np.sort(first)
-        return a[first], b[first], xyz[first], q[k][first], u[k][first], on_line[k][first]
+        return a[first], b[first], xyz[first], q[k][first], u[k][first], on_line[k][first], pin[k][first]
 
     def set_part(self, top: np.ndarray) -> None:
         """The finished part seen from above (task 0167): per node the height of its highest point there (``-inf``
@@ -837,7 +838,7 @@ class HeightMap:
         the vertex before it, numbered ``(t + 1)² + j`` -, (xyz (k, 3), move (k,))) or (None, None)."""
         if extra is None:
             return None, None
-        a, b, xyz, q, u, on_line = extra
+        a, b, xyz, q, u, on_line, pin = extra
         a, b = a - 1, b - 1                             # (window -> tile)
         ok = (a >= 0).all(axis=1) & (a <= t).all(axis=1) & (b >= 0).all(axis=1) & (b <= t).all(axis=1)
         # (on the tile's border both tiles must decide alike: only where the nodes stayed on the edge)
@@ -847,7 +848,7 @@ class HeightMap:
         if not ok.any():
             return None, None
         a, b, xyz, q, u = a[ok], b[ok], xyz[ok], q[ok], u[ok]
-        border = border[ok]
+        border, pin = border[ok], pin[ok]
         n = t + 1
         na, nb = a[:, 0] * n + a[:, 1], b[:, 0] * n + b[:, 1]
         # one edge's vertices in order from its first node
@@ -855,6 +856,10 @@ class HeightMap:
         uu = np.where(na <= nb, u, 1.0 - u)
         order = np.lexsort((uu, hi, lo))
         lo, hi, xyz, q = lo[order], hi[order], xyz[order], q[order]
+        # (a rim on the block's top lies where the uncut nodes lie, a hair over the top)
+        on_top = xyz[:, 2] >= self.top - 1e-9
+        xyz = np.column_stack([xyz[:, :2], np.where(on_top, self.uncut, xyz[:, 2])])
+        q = np.where(on_top, -1, q)
         if self.part is not None:
             pv = self._part_at(xyz[:, 0], xyz[:, 1])
             z, _l = self._lifted(xyz[:, 2], pv, np.isfinite(pv) & (q >= 0))
@@ -864,7 +869,10 @@ class HeightMap:
         same[1:] = (lo[1:] == lo[:-1]) & (hi[1:] == hi[:-1])
         idx = n * n + np.arange(len(lo))
         start[same] = idx[np.flatnonzero(same) - 1]
-        return np.stack([start, hi], axis=1), (xyz, q.astype(np.int64), border[order])
+        # (each one's place in the grid, for ``heightmesh.insert_points``)
+        ra, rb = np.stack(np.divmod(lo, n), axis=1), np.stack(np.divmod(hi, n), axis=1)
+        param = ra + uu[order][:, None] * (rb - ra)
+        return np.stack([start, hi], axis=1), (xyz, q.astype(np.int64), border[order], param, pin[order])
 
     def _part_at(self, X, Y):
         """The finished part's height under places (the four nodes round each: the highest)."""
@@ -956,6 +964,9 @@ class HeightMap:
             sunk = None
             if self.part is not None:
                 Z, foot, sunk = self._lift(X, Y, Z, ow, foot)
+            # (task 0167: nothing in the block's top plane itself - a face lying in it beside the block's own top
+            # face got slivers of the top named after a move: what is on the top lies where the uncut nodes lie)
+            Z = np.where(np.abs(Z - self.top) < 1e-9, self.uncut, Z)
             P = np.stack([X[1:-1, 1:-1], Y[1:-1, 1:-1], Z[1:-1, 1:-1]], axis=-1).reshape(-1, 3)
             o = own.reshape(-1)
             cls = np.where(o >= 0, self.cls[np.maximum(o, 0)], -1)
@@ -966,15 +977,20 @@ class HeightMap:
                 ridges = np.where(sunk[1:-1, 1:-1].reshape(-1), 0.0, ridges)
             Q[:, 2] -= ridges
             n = t + 1
-            pins = _hmesh.pins_of(edges, n) if edges is not None else None
+            # (the ends of a rib's edge are kept, so the rib's second rim goes into that very edge; the other extra
+            # vertices go into whatever triangle holds them - keeping all their edges cost 10,000 more triangles
+            # on the toolpath test model)
+            pins = _hmesh.pins_of(edges[ex[4]], n) if edges is not None and ex[4].any() else None
             strips = _hmesh.own(P.reshape(n, n, 3), Q.reshape(n, n, 3), cls.reshape(n, n), self.thin,
                                 strips=bool(self._done[J, I]), pins=pins)
             need = strips["need"]
             flank, foot = flank[1:-1, 1:-1].reshape(-1).copy(), foot[1:-1, 1:-1].reshape(-1).copy()
             if edges is not None:                       # (the extra vertices after the nodes)
                 strips["edges"] = edges
-                exyz, eq, eborder = ex
+                exyz, eq, eborder, eparam, epin = ex
                 strips["edges_border"] = eborder
+                strips["eparam"] = eparam
+                strips["einsert"] = exyz[:, 2] < self.top - 1e-7      # (into a triangle only under the top)
                 o = np.concatenate([o, eq])
                 cls = np.concatenate([cls, np.where(eq >= 0, self.cls[np.maximum(eq, 0)], -1)])
                 P = np.concatenate([P, exyz])
@@ -1053,9 +1069,8 @@ class HeightMap:
         nt = len(top)
         ring = tab["ring"]
         ring = ring[used[ring]]                         # the border once round, the kept nodes only
-        edges = strips.get("edges")
-        if edges is not None and len(P) > n * n:        # (extra vertices on the border: in the ring, in order)
-            ring = self._ring_extras(ring, edges, used, n)
+        if strips.get("eparam") is not None and len(P) > n * n:    # (extra vertices on the border: in the ring)
+            ring = self._ring_extras(ring, strips["eparam"], used, n)
         nb = len(ring)
         nxt = np.roll(np.arange(nb), -1)
         # Where a wall runs along the border, the border's nodes are on the wall and the tile's side there IS the
@@ -1092,29 +1107,33 @@ class HeightMap:
         return tuple(out[1:5])
 
     @staticmethod
-    def _ring_extras(ring: np.ndarray, edges: np.ndarray, used: np.ndarray, n: int) -> np.ndarray:
-        """The ring of border nodes with the extra vertices that lie on a piece of it put in."""
-        nn = n * n
-        # each extra vertex: the two nodes of the grid edge it lies on (following a chain of extras on one edge)
-        first = edges[:, 0].copy()
-        for j in range(len(edges)):
-            if first[j] >= nn:
-                first[j] = first[first[j] - nn]
-        after: dict = {}
-        for j in range(len(edges)):
-            if used[nn + j]:
-                after.setdefault((int(first[j]), int(edges[j, 1])), []).append(nn + j)
-        if not after:
+    def _ring_extras(ring: np.ndarray, eparam: np.ndarray, used: np.ndarray, n: int) -> np.ndarray:
+        """The ring of border nodes with the extra vertices on the border put in, by their place along it."""
+        nn, m = n * n, n - 1
+
+        def along(r, c):
+            """The place along the border, counter-clockwise from the corner (0, 0); nan off the border."""
+            out = np.full(np.shape(r), np.nan)
+            e = 1e-9
+            out = np.where(np.abs(c - 0) < e, 3 * m + (m - r), out)
+            out = np.where(np.abs(r - m) < e, 2 * m + (m - c), out)
+            out = np.where(np.abs(c - m) < e, m + r, out)
+            out = np.where(np.abs(r - 0) < e, c, out)
+            return np.where(out >= 4 * m - 1e-9, out - 4 * m, out)
+        rr, cc = np.divmod(ring, n)
+        pos = along(rr.astype(float), cc.astype(float))
+        ex = np.flatnonzero(used[nn:nn + len(eparam)])
+        if not len(ex):
             return ring
-        out = []
-        for k in range(len(ring)):
-            u, v = int(ring[k]), int(ring[(k + 1) % len(ring)])
-            out.append(u)
-            if (u, v) in after:
-                out.extend(after[(u, v)])
-            elif (v, u) in after:
-                out.extend(after[(v, u)][::-1])
-        return np.array(out, np.int64)
+        ep = along(eparam[ex, 0], eparam[ex, 1])
+        on = np.isfinite(ep)
+        if not on.any():
+            return ring
+        ids = np.concatenate([ring, nn + ex[on]])
+        key = np.concatenate([pos, ep[on]])
+        # (the ring starts at its first node: keep that start)
+        key = np.where(key < pos[0] - 1e-9, key + 4 * m, key)
+        return ids[np.argsort(key, kind="stable")]
 
     def surface(self, J: int, I: int) -> tuple:     # noqa: E741
         """Only the top of ``mesh``: (verts, tris, move)."""

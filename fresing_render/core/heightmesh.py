@@ -566,6 +566,11 @@ def triangles(me: dict, forced: np.ndarray | None, P: np.ndarray | None = None) 
             tri, need = _fan_in(tri, np.flatnonzero(extra), n), need | forced
     if me.get("edges") is not None:                     # the extra vertices (task 0167, ``split_edges``)
         tri, done = split_edges(tri, me["edges"], n * n, P, me.get("edges_border"))
+        if not done.all() and me.get("eparam") is not None:
+            ins = me.get("einsert")
+            skip = ~ins if ins is not None else np.zeros(len(done), bool)
+            tri, d2 = insert_points(tri, me["eparam"], n, done | skip, P, me.get("edges_border"))
+            done = d2 & ~(skip & ~done)
         STATS["extras"] += len(done)
         STATS["extras_lost"] += int((~done).sum())
     return tri, need
@@ -674,3 +679,83 @@ def split_edges(tri: np.ndarray, edges: np.ndarray, first: int, P=None, keep=Non
             for p, q, kk in ((a, e, k), (e, c, k), (e, c, n2), (e, b, n2)):
                 where.setdefault((min(p, q), max(p, q)), []).append(kk)
     return np.array(out, np.int64).reshape(-1, 3), done
+
+
+def _on_side(P, u, v, e) -> bool:
+    """Whether vertex ``e`` lies on the side ``u`` - ``v`` seen from above (at the real places)."""
+    a, b, p = P[u][:2], P[v][:2], P[e][:2]
+    ab = b - a
+    L2 = float(ab @ ab)
+    if L2 < 1e-24:
+        return False
+    t = float((p - a) @ ab) / L2
+    d = p - (a + t * ab)
+    return -1e-6 <= t <= 1.0 + 1e-6 and float(d @ d) <= 1e-6 * L2
+
+
+def _holds(P, t, e) -> bool:
+    """Whether vertex ``e`` lies inside triangle ``t`` seen from above (at the real places)."""
+    a, b, c, p = P[t[0]], P[t[1]], P[t[2]], P[e]
+    d = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])
+    if abs(d) < 1e-18:
+        return False
+    l1 = ((p[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (p[1] - a[1])) / d
+    l2 = ((b[0] - a[0]) * (p[1] - a[1]) - (p[0] - a[0]) * (b[1] - a[1])) / d
+    return l1 >= -1e-6 and l2 >= -1e-6 and l1 + l2 <= 1.0 + 1e-6
+
+
+def insert_points(tri: np.ndarray, eparam: np.ndarray, n: int, done: np.ndarray, P=None, keep=None) -> tuple:
+    """The extra vertices ``split_edges`` could not put in (the thinning went across their edge), put into the
+    triangle that holds each (``eparam``: their places in the grid, (row, column) floats): on one of its sides, the
+    side is cut in the triangles on both sides of it; inside it, the triangle in three. With ``P`` as in
+    ``split_edges``. Returns (triangles, done)."""
+    nn = n * n
+    done = done.copy()
+    tri = np.asarray(tri, np.int64)
+    rc = np.concatenate([np.stack(np.divmod(np.arange(nn), n), axis=1).astype(float), eparam])
+    for j in np.flatnonzero(~done):
+        e = nn + j
+        p = eparam[j]
+        a, b, c = rc[tri[:, 0]], rc[tri[:, 1]], rc[tri[:, 2]]
+        v0, v1 = b - a, c - a
+        w = p[None, :] - a
+        den = v0[:, 0] * v1[:, 1] - v0[:, 1] * v1[:, 0]
+        ok = np.abs(den) > 1e-12
+        den = np.where(ok, den, 1.0)
+        l1 = (w[:, 0] * v1[:, 1] - w[:, 1] * v1[:, 0]) / den
+        l2 = (v0[:, 0] * w[:, 1] - v0[:, 1] * w[:, 0]) / den
+        l0 = 1.0 - l1 - l2
+        eps = 1e-7
+        inside = ok & (l0 >= -eps) & (l1 >= -eps) & (l2 >= -eps)
+        ks = np.flatnonzero(inside)
+        if not len(ks):
+            continue
+        k = int(ks[0])
+        bary = (l0[k], l1[k], l2[k])
+        t = tri[k]
+        span = rc[t].max(axis=0) - rc[t].min(axis=0)
+        if span.max() > 2.0 + 1e-9:                     # (a long strip: the fan would lean across it)
+            continue
+        zero = [i for i in range(3) if abs(bary[i]) <= eps]
+        if len(zero) >= 2:                              # (on a corner: nothing to put in)
+            continue
+        if zero:                                        # on a side: the side across from the zero corner
+            i = zero[0]
+            u, v = int(t[(i + 1) % 3]), int(t[(i + 2) % 3])
+            if P is not None and not _on_side(P, u, v, e):
+                continue
+            new, d = split_edges(tri, np.array([[u, v]]), e, P, None if keep is None else np.array([keep[j]]))
+            if d[0]:
+                tri, done[j] = new, True
+            continue
+        t0, t1, t2 = (int(x) for x in t)
+        parts = [(t0, t1, e), (t1, t2, e), (t2, t0, e)]
+        if P is not None and not _holds(P, (t0, t1, t2), e):
+            continue                                    # (seen from above it lies elsewhere: nodes moved)
+        if P is not None and not (keep is not None and keep[j]):
+            from_ = min(_turns(P, q) for q in parts)
+            if from_ < -1e-6 < _turns(P, (t0, t1, t2)):
+                continue
+        tri = np.concatenate([np.delete(tri, k, axis=0), np.array(parts, np.int64)])
+        done[j] = True
+    return tri, done
