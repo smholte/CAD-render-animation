@@ -72,6 +72,7 @@ CELLS_PER_RADIUS = 4.0            # the smallest bit's radius is at least this m
 RIDGE = 2.5                       # ridges between passes lower than this x the tolerance are left out of the mesh
 RIDGE_CELLS = 3                   # ... when they are narrower than about twice this many cells
 REACH = RIDGE_CELLS               # a tile's mesh reads this many nodes past its border
+PROBES = (0.125, 0.375, 0.625, 0.875)     # where on an edge the lowest move is looked for
 
 FLAT, BALL, BULL, CONE, PROFILE = "FLAT", "BALL", "BULL", "CONE", "PROFILE"
 
@@ -349,6 +350,7 @@ class HeightMap:
         self._mesh: dict = {}                           # (J, I) -> [signature, serial, verts, tris, move]
         self._serial = 0
         self._overlay: list = []                        # (i0, i1, j0, j1, h, owner) to put back
+        self._slots: list = []                          # the half-done moves stamped now (their places in the table)
         self.stats = dict(stamped=0, meshed=0, seconds_stamp=0.0, seconds_mesh=0.0)
 
     # -- the moves ---------------------------------------------------------------
@@ -403,6 +405,7 @@ class HeightMap:
         self.k = 0
         self.snapshots = {}
         self._overlay = []
+        self._slots = []
         self.dirty[:] = True
         self._own.clear()
         self._mesh.clear()
@@ -462,6 +465,7 @@ class HeightMap:
                 arr[i0:i1, j0:j1] = old
             self._mark(i0, i1, j0, j1)
         self._overlay = []
+        self._slots = []
         k = max(0, min(int(k), self.n))
         if k < self.k:
             self._mark_moves(k, self.k)
@@ -493,6 +497,7 @@ class HeightMap:
             if i1 <= i0 or j1 <= j0:
                 continue
             keep = tuple(arr[i0:i1, j0:j1].copy() for arr in self._arrays())
+            self._slots.append(s)
             self._stamp(s)
             diff = np.argwhere(keep[1] != self.owner[i0:i1, j0:j1])       # (a stamp that changes a node owns it)
             if len(diff):
@@ -549,13 +554,14 @@ class HeightMap:
         ix = np.ix_(ii, jj)
         return self.h[ix], self.owner[ix], self.shape[ix], gi, gj
 
-    def _snap(self, hw, ow, gi, gj) -> tuple:
+    def _snap(self, hw, ow, gi, gj, moves) -> tuple:
         """Step 1 of ``mesh``: the nodes of a window (a tile and one node round it; ``ow``: the move whose
         surface each lies on, ``self.shape``) moved onto the places where two surfaces meet. Returns (X, Y, Z).
 
         Every edge of the finest triangles is looked at: along x, along y, and the one diagonal each cell has in
         the hierarchy. So a triangle that reaches across a wall has all its corners on the wall and stands
-        upright; with the grid's own edges alone every other cell kept a corner on the floor (a ramp)."""
+        upright; with the grid's own edges alone every other cell kept a corner on the floor (a ramp).
+        ``moves``: the moves stamped so far whose footprint reaches the window."""
         c, t, tol = self.cell, self.tile, self.tol
         X = np.broadcast_to((self.x0 + gj * c)[None, :], hw.shape).copy()
         Y = np.broadcast_to((self.y0 + gi * c)[:, None], hw.shape).copy()
@@ -583,7 +589,6 @@ class HeightMap:
                 ni, nj = ni[u], nj[u]
                 X[ni, nj], Y[ni, nj], Z[ni, nj], best[ni, nj] = px[u], py[u], z[u], dist[u]
 
-        top_i, top_j = hw.shape[0] - 1, hw.shape[1] - 1
         wtol = max(tol, 1e-6)
         for ei, ej, fi, fj, length in families:
             first, second = ow[ei, ej], ow[fi, fj]
@@ -638,13 +643,6 @@ class HeightMap:
                     x0, y0 = xa[sel], ya[sel]
                     dx, dy = xb[sel] - x0, yb[sel] - y0
                     n = len(pa)
-                    near = [pa, pb]
-                    for ni, nj in ((Ai, Aj), (Bi, Bj)):
-                        for di in (-1, 0, 1):
-                            for dj in (-1, 0, 1):
-                                if di or dj:
-                                    near.append(ow[np.clip(ni + di, 0, top_i), np.clip(nj + dj, 0, top_j)])
-                    C = np.stack(near, axis=1)          # (edges, candidates): columns 0 and 1 are A's and B's
 
                     def heights(cols, u, rim=False):
                         """The candidates' surfaces at the places ``u`` (edges, places) along the edges:
@@ -655,12 +653,29 @@ class HeightMap:
                         q = np.repeat(cols[:, None, :], m, axis=1).ravel()
                         return self.height_of(q, x, y, rim=rim).reshape(n, m, kk)
 
-                    # (only the candidates that are the lowest somewhere on some edge count: tried at 3 places)
-                    probe = heights(C, np.tile(np.array([0.25, 0.5, 0.75]), (n, 1)))
-                    pair = np.minimum(probe[:, :, 0], probe[:, :, 1])
-                    keep = np.any(probe < (pair - TIE)[:, :, None], axis=(0, 1))
-                    keep[:2] = True
-                    C = C[:, keep]
+                    # The candidates: A's and B's moves, and whichever move is the lowest at one of a few places
+                    # on the edge - of all the moves whose footprint reaches the edge, also those that own no
+                    # node (a step of a roughed wall is often narrower than a cell).
+                    C = [pa, pb]
+                    if len(moves):
+                        r0, r1 = np.minimum(gi[Ai], gi[Bi]), np.maximum(gi[Ai], gi[Bi])
+                        c0, c1 = np.minimum(gj[Aj], gj[Bj]), np.maximum(gj[Aj], gj[Bj])
+                        pm = self.patch[moves]
+                        hit = (pm[None, :, 0] <= r1[:, None]) & (pm[None, :, 1] > r0[:, None]) & \
+                            (pm[None, :, 2] <= c1[:, None]) & (pm[None, :, 3] > c0[:, None])
+                        e, m_ = np.nonzero(hit)
+                        if len(e):
+                            q = moves[m_]
+                            for u in PROBES:
+                                h = self.height_of(q, x0[e] + u * dx[e], y0[e] + u * dy[e])
+                                order = np.lexsort((h, e))              # per edge: the lowest first
+                                se = e[order]
+                                top = order[np.concatenate([[True], se[1:] != se[:-1]])]
+                                ok = np.isfinite(h[top])
+                                col = pa.copy()
+                                col[e[top][ok]] = q[top][ok]
+                                C.append(col)
+                    C = np.stack(C, axis=1)             # (edges, candidates): columns 0 and 1 are A's and B's
                     lo, hi = np.zeros((n, 2)), np.ones((n, 2))       # for A (from A) and for B (from B)
                     for _k in range(SNAP_STEPS):
                         t = 0.5 * (lo + hi)
@@ -723,6 +738,13 @@ class HeightMap:
             put(bi, bj, px, py, z, (1.0 - s) * length, ok & (s > 0.5))
         return X, Y, Z
 
+    def _moves_at(self, r0: int, r1: int, c0: int, c1: int) -> np.ndarray:
+        """The moves stamped so far (and the half-done ones) whose footprint reaches rows r0 .. r1, columns
+        c0 .. c1."""
+        live = np.concatenate([np.arange(self.k), np.array(self._slots, dtype=np.int64)]).astype(np.int64)
+        p = self.patch[live]
+        return live[(p[:, 0] <= r1) & (p[:, 1] > r0) & (p[:, 2] <= c1) & (p[:, 3] > c0) & (p[:, 1] > p[:, 0])]
+
     def _ridges(self, J: int, I: int) -> np.ndarray:     # noqa: E741
         """How far each node of the tile stands above (or below) the surface without its fine ridges: its height
         minus the mean of the nodes ``RIDGE_CELLS`` each way. A plane gives 0 whatever its slope; where the
@@ -761,7 +783,7 @@ class HeightMap:
         if not self.active[J, I]:                       # nothing cut here or next to it
             hit = dict(serial=self._serial, need=None)
         else:
-            X, Y, Z = self._snap(hw, sw, gi, gj)
+            X, Y, Z = self._snap(hw, sw, gi, gj, self._moves_at(gi[0], gi[-1], gj[0], gj[-1]))
             P = np.stack([X[1:-1, 1:-1], Y[1:-1, 1:-1], Z[1:-1, 1:-1]], axis=-1).reshape(-1, 3)
             o = own.reshape(-1)
             cls = np.where(o >= 0, self.cls[np.maximum(o, 0)], -1)
