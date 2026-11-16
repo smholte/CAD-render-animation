@@ -655,20 +655,22 @@ def _look_i(box, rw, rh, col):
 
 
 def _look_j(box, rw, rh, col):
+    """A pointing hand below the button, fingertip up, that taps the button's bottom edge slowly."""
     x0, y0, x1, y1 = box
     _frame(x0 - 1, y0 - 1, x1 + 1, y1 + 1, col, 0.9, 1.3)
-    cy = (y0 + y1) / 2
     u = (y1 - y0) / 22.0
     tap = 0.5 - 0.5 * math.cos(2 * math.pi * (_now() - _S["t"]) / BEAT)   # 0 = lifted, 1 = touching
-    tip = x1 - 44 * u - 4 + 6 * u * tap
+    cx = min(x1 - 26 * u, x1 - 14)
+    tip = y0 - 1 + 7 * u * (tap - 1.0) - 1.0                              # fingertip height
 
-    def hand(grow, rgba):
-        g = grow
-        _rect(tip - g, cy - 3.5 * u - g, tip + 20 * u + g, cy + 3.5 * u + g, rgba)          # the pointing finger
-        _disc(tip, cy, 3.5 * u + g, rgba, 12)
-        _rect(tip + 20 * u - g, cy - 9 * u - g, tip + 38 * u + g, cy + 8 * u + g, rgba)     # the palm
-        _rect(tip + 22 * u - g, cy + 7 * u, tip + 32 * u + g, cy + 13 * u + g, rgba)         # the thumb
-    hand(1.6, (*CHARCOAL, 1.0))
+    def hand(g, rgba):
+        _rect(cx - 3 * u - g, tip - 14 * u - g, cx + 3 * u + g, tip - 2 * u + g, rgba)          # index finger
+        _disc(cx, tip - 2 * u, 3 * u + g, rgba, 14)                                              # its rounded tip
+        _rect(cx - 10 * u - g, tip - 27 * u - g, cx + 9 * u + g, tip - 13 * u + g, rgba)         # palm
+        _rect(cx - 15 * u - g, tip - 22 * u - g, cx - 9 * u + g, tip - 14 * u + g, rgba)         # thumb
+        for dx in (-5.5, 0.0, 5.5):                                                              # three folded fingers
+            _disc(cx + dx * u + 3 * u, tip - 13 * u, 3.2 * u + g, rgba, 10)
+    hand(1.8, (*CHARCOAL, 1.0))
     hand(0.0, (0.96, 0.96, 0.96, 1.0))
 
 
