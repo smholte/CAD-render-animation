@@ -1114,21 +1114,24 @@ into the group "Power cables", "Served cables" or "Wire ropes" for it.
 **Served cable (yarn)**
 
 Large export and array cables have an outer layer of black polypropylene yarn wound almost straight round the
-cable, with pairs of yellow marker bands painted on it every metre or so. The look **Served cable (yarn)** draws
-that: fine grooves round the cable, some strands a little darker or lighter, a little dust between them, and the
-painted bands with ragged edges. Like the stripes, the bands and the yarn run along with the cable – also on its
-drum or carousel. The cable's part goes into the group "Served cables".
+cable, with two yellow marker lines painted on it. The lines run side by side as one spiral round the whole cable,
+once round per metre. The look **Served cable (yarn)** draws that: fine grooves round the cable, some strands a
+little darker or lighter, a little dust between them, and the painted lines with ragged edges. Like the stripes,
+the lines and the yarn run along with the cable – also on its drum or carousel. The cable's part goes into the
+group "Served cables".
 
 | Setting | What it does |
 | --- | --- |
-| **Band distance** | From one group of bands to the next, along the cable (1250 mm). |
-| **Bands** | **Pairs** (two bands with a gap) or **Single**. |
-| **Band width**, **Band gap** | The width of one band (35 mm) and the black gap between the two of a pair (30 mm). |
+| **Marker lines** | **Spiral** (default): continuous lines that wind round the cable. **Rings**: separate rings, as projects made with 0.2.116 have them. |
+| **Pitch (one turn)** | The length of cable for one full turn of the spiral (1000 mm). With Rings: **Ring distance**, from one pair to the next. |
+| **Hand** | **Right** (default): like a normal screw thread; held upright, the lines on the near side lean like the middle stroke of a Z. **Left**: the other way. |
+| **Lines** | **Two lines** (side by side) or **One line**. |
+| **Band width**, **Band gap** | The width of one line (35 mm) and the black gap between the two (30 mm). |
 | **Band colour** | Traffic yellow; click it to pick another colour. |
 | **Paint wear** | 0 = fresh paint with clean edges. Higher: ragged edges, paint gone from the grooves, black smudges. |
 | **Yarn** (fold) | **Yarn pitch**: how far apart the strands lie (2.5 mm). **Lay angle**: 90° = straight round the cable (82°). **Yarn colour**. **Wear**: 0 = new, higher = dusty with lint between the strands. |
 
-<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable leaving a carousel: black yarn grooves and a pair of yellow bands">
+<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable leaving a carousel: black yarn grooves and two yellow marker lines winding round it">
 
 The grooves are 2–3 mm apart: from far away they blend into a dark grey surface; close up they show. The demo
 project's power cable has this look. The web 3D model draws it too.

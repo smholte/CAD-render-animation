@@ -560,7 +560,7 @@ def look_for_page(kind: str, look, d: dict, srgb_to_linear, served: dict | None 
         return {"kind": "SERVED", "pitch": float(v.get("distance", d["pitch"])),
                 "width": float(v.get("width", d["width"])), "count": int(v.get("count", d["count"])),
                 "gap": float(v.get("gap", d["gap"])), "yarn_pitch": float(v.get("yarn_pitch", d["yarn_pitch"])),
-                "yarn_starts": int(v.get("starts", 0)), "radius": float(v.get("radius", 0.5 * d["diameter"])),
+                "yarn_starts": int(v.get("starts", 0)), "band_starts": int(v.get("band_starts", d.get("band_starts", 0))), "radius": float(v.get("radius", 0.5 * d["diameter"])),
                 "wear": float(v.get("wear", d["wear"])), "band_wear": float(v.get("band_wear", d["band_wear"])),
                 "yarn": rgb("yarn_rgb", "yarn"), "band": rgb("band_rgb", "band"), "dust": lin(d["dust"]),
                 "variation": float(d["variation"]), "fibres": float(d["fibres"]), "rag": float(d["rag"]),

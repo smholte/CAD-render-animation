@@ -731,7 +731,7 @@ v, props = B._served_tube(pay=0.123, distance=0.25, width=0.04, gap=0.025)
 v.camera()
 px = B.render({out!r} + "/served.exr")
 s, phi = v.seen()
-want = CL.bands(s, 0.123, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+want = CL.bands(s, 0.123, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
 q = px[:, :, 0] - px[:, :, 2]
 print("SERVED", float(q[want == 1.0].mean() - q[want == 0.0].mean()))
 v.probe()
@@ -775,7 +775,7 @@ def test_served_library_and_properties():
     p = CL.served_props(0.3)                                                         # the library's settings
     d = CL.defaults("SERVED")
     assert set(p) == set(CL.PROPS) and all(isinstance(v, float) for vs in p.values() for v in vs)
-    assert p[CL.LOOK] == [1.25, 0.0, 0.035, 3.0] and p[CL.BAND][:3] == [2.0, 0.03, d["band_wear"]]
+    assert p[CL.LOOK] == [1.0, 0.0, 0.035, 3.0] and p[CL.BAND][:3] == [2.0, 0.03, d["band_wear"]]
     # strands round the cable from the lay angle: π · d / (pitch · tan α), whole, signed
     assert p[CL.YARN][:3] == [0.0025, float(math.floor(PI * 0.3 / (0.0025 * math.tan(d["lay_angle"])) + 0.5)), 0.15]
     assert CL.served_props(0.3, yarn_pitch=0.003, lay_angle=math.radians(-80))[CL.YARN][1] == -55.0     # 55.4
@@ -856,7 +856,7 @@ def test_served_nodes_are_the_formula(scene, tmp_path):
         s, phi = t.seen()
         t.probe(CL.NODE_PATTERN)
         got = render(tmp_path / "bands.exr", samples=16)[:, :, 0]
-        want = CL.bands(s, 0.21, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+        want = CL.bands(s, 0.21, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
         clear = (want == 0.0) | (want == 1.0)
         assert clear.mean() > 0.8 and np.abs(got - want)[clear].max() < 0.06, view
         assert abs(got.mean() - want.mean()) < 0.02 and want.mean() > 0.2, view
@@ -878,7 +878,7 @@ def test_served_look_in_the_real_material(scene, tmp_path):
     for paid in (0.0, 0.1):
         t.pay(paid)
         px = render(tmp_path / "served.exr", samples=16)
-        want = CL.bands(s, paid, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+        want = CL.bands(s, paid, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
         mid = slice(H // 2 - 6, H // 2 + 6)
         q = (px[:, :, 0] - px[:, :, 2])[mid]
         on, off = want[mid] == 1.0, want[mid] == 0.0
@@ -895,7 +895,7 @@ def test_served_look_in_the_real_material(scene, tmp_path):
     for k, v in CL.served_props(0.12, 0.25, 0.04, 2, 0.025, wear=1.0, band_wear=1.0).items():
         t.ob[k] = v
     worn = render(tmp_path / "w.exr", samples=16)
-    want = CL.bands(s, 0.1, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+    want = CL.bands(s, 0.1, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
     assert worn[want == 0.0].mean() > yarn_new[want == 0.0].mean()                  # dust
     yq = lambda p: (p[:, :, 0] - p[:, :, 2])[want == 1.0].mean()                    # noqa: E731
     assert yq(worn) < yq(yarn_new)                                                  # paint worn off
@@ -905,7 +905,7 @@ def test_served_look_in_the_real_material(scene, tmp_path):
     t.look([0.0, 0.0, 0.0, 0.0])
     t.probe(CL.NODE_PATTERN)
     got = render(tmp_path / "lib.exr", samples=16)[:, :, 0]
-    lib = CL.bands(s, 0.1, None, None).mean(axis=2)
+    lib = CL.bands(s, 0.1, None, None, phi=phi).mean(axis=2)
     assert np.abs(got - lib)[(lib == 0) | (lib == 1)].max() < 0.06
 
 
@@ -918,3 +918,37 @@ def test_served_coil_and_spool_copy_every_property():
     assert "cable_looks.PROPS" in inspect.getsource(paths._apply_look) and "cable_looks.PROPS" in inspect.getsource(
         paths._strip)
     assert paths.GROUPS["SERVED"] == "Served cables" and "SERVED" in inspect.getsource(web3d_drawn.look_of)
+
+
+def test_served_band_spiral_formula():
+    """Task 0164: the marker lines as a spiral – one turn per pitch, parallel lines, the hand, travel, rings kept."""
+    look, pair = [1.0, 0, 0.035, 3.0], [2.0, 0.03, 0.35, -1.0]           # right hand (see the docstring)
+    s = np.linspace(0.0, 3.0, 30001)
+    pi2 = 2.0 * math.pi
+    # one full turn round the cable per pitch: the pattern at (s, φ) equals the one at (s + pitch, φ + 2π)
+    # and a mark keeps its place on the cable when it is paid out (s − paid out)
+    assert np.array_equal(CL.bands(s, 0.0, look, pair, phi=0.7), CL.bands(s + 0.37, 0.37, look, pair, phi=0.7))
+    # a line moves by exactly one pitch of s per turn of φ: on the line at φ = 0, s0, the line at φ is at s0 − hand·p·φ/2π
+    on = np.flatnonzero(CL.bands(s, 0.0, look, pair, phi=0.0) == 1.0)
+    s0 = s[on[0]] + 0.0005
+    for turns in (0.25, 0.5, 0.9):
+        want = s0 + 1.0 * turns                                              # φ turns right-handed about s: −1 → +
+        assert CL.bands(want, 0.0, look, pair, phi=turns * pi2) == 1.0, turns
+        assert CL.bands(want + 0.05, 0.0, look, pair, phi=turns * pi2) == 0.0
+    # right hand: along a line s grows while φ grows (starts −1); left hand the other way
+    left = [2.0, 0.03, 0.35, 1.0]
+    assert CL.bands(s0 - 0.25, 0.0, look, left, phi=0.25 * pi2) == 1.0
+    # the two lines of a pair stay width + gap apart (along s at a fixed φ) and are as wide as set
+    row = CL.bands(s, 0.0, look, pair, phi=1.3)
+    edges = np.flatnonzero(np.diff(row) != 0)
+    first = s[edges[:4]]
+    assert abs((first[1] - first[0]) - 0.035) < 2e-4 and abs((first[2] - first[1]) - 0.03) < 2e-4
+    assert abs((first[3] - first[2]) - 0.035) < 2e-4
+    # rings (starts 0, what 0.2.116 saved): the angle changes nothing
+    rings = [2.0, 0.03, 0.35, 0.0]
+    assert np.array_equal(CL.bands(s, 0.0, look, rings, phi=0.0), CL.bands(s, 0.0, look, rings, phi=2.1))
+    # the default of a served cable is the right-hand spiral; a part with no band property gets it too
+    assert CL.served_props(0.12)[CL.BAND][3] == -1.0 and CL.served_props(0.12, band_starts=0)[CL.BAND][3] == 0.0
+    assert CL.served_props(0.12)[CL.LOOK][0] == 1.0
+    assert np.array_equal(CL.bands(s, 0.0, None, None, phi=0.9), CL.bands(s, 0.0, [1.0, 0, 0.035, 3.0],
+                                                                          [2.0, 0.03, 0.35, -1.0], phi=0.9))
