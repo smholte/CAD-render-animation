@@ -2937,6 +2937,9 @@ line. You work for your own company and for others, so there is one kit per comp
 one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
 shared library it is in your Documents folder, under Fresing Render).
 
+The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
+be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
+
 1. Type a name in **Kit** (the company).
 2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
    best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
@@ -2954,10 +2957,14 @@ shared library it is in your Documents folder, under Fresing Render).
 
 <img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
 
-Words across the picture, for a draft you send before the final render.
+Words or a logo across the picture, for a draft you send before the final render.
 
-1. **Words**: **DRAFT**, **CONFIDENTIAL** or **Own text**. **Size** is how tall the letters are,
-   **See-through** how strong they are (1 = solid).
+1. **Watermark**: the words **DRAFT**, **CONFIDENTIAL** or **Own text**, or a logo: **Fresing logo** or
+   **Brand kit logo** (the logo of the kit above). **Size** is how tall the letters are (for a logo: how big it
+   is), **See-through** how strong it is (1 = solid).
+   A logo has two more choices. **Place**: **Centre** (one logo in the middle), **Tiled** (a pattern of logos
+   across the whole picture, turned like the words) or a small one in a **corner**. **Logo colour**: **Colour**
+   (as it is), **White** (for dark pictures) or **Dark** (for light pictures).
 2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
    while it is on gets the watermark; the job remembers it (its name says "with watermark").
 3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The

@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.134 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
+
+- **The Fresing logo as a watermark:** in 5 Scene & Render > Watermark you can now pick **Fresing logo** (or **Brand kit
+  logo**, the logo of your own kit) instead of words. **Place** it in the **Centre**, **Tiled** across the whole picture
+  (turned like the words) or small in a **corner**, and choose its colour: **Colour**, **White** (for dark pictures) or
+  **Dark** (for light pictures). Size and See-through work as before. It goes on stills, videos, the render queue and the
+  product video, the same as the words. Old projects keep their DRAFT or CONFIDENTIAL words.
+- **A ready-made "Fresing" brand kit** comes with the app: Fresing's logo (sharp in 4K) and colours. It is always in the
+  list of kits, cannot be changed or deleted, and you can load it, give it another name and save a copy of your own.
+
 ## 0.2.133 – 16 Nov 2026 – The Fresing icon and start-up screen (task 0169)
 
 - **Fresing Render now looks like Fresing everywhere in Windows:** the Desktop shortcut, the Start menu, the window and

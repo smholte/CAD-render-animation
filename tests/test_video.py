@@ -428,19 +428,19 @@ def test_kit_goes_to_the_library_and_back(tmp_path, monkeypatch):
     sc = _scene(tmp_path)
     s = sc.fresing
     assert not bpy.ops.fresing.brand_save.poll(), "a kit needs a name"
-    s.brand_name = "Fresing"
+    s.brand_name = "Acme"
     s.brand_logo = _logo(tmp_path)
     s.brand_color1 = brand.rgb_linear("#336699")
     s.brand_color2 = brand.rgb_linear("#FFCC00")
     s.brand_contact = "fresing.nl"
     assert bpy.ops.fresing.brand_save() == {"FINISHED"}
     folder = str(tmp_path / "lib" / "Brand kits")
-    assert os.path.isfile(os.path.join(folder, "Fresing_logo.png")) and s.brand_logo.startswith(folder)
+    assert os.path.isfile(os.path.join(folder, "Acme_logo.png")) and s.brand_logo.startswith(folder)
     s.brand_color1 = (0.0, 0.0, 0.0)
     s.brand_contact = ""
     s.brand_name = "Other"
-    assert bpy.ops.fresing.brand_load(name="Fresing") == {"FINISHED"}
-    assert (s.brand_name, s.brand_contact) == ("Fresing", "fresing.nl")
+    assert bpy.ops.fresing.brand_load(name="Acme") == {"FINISHED"}
+    assert (s.brand_name, s.brand_contact) == ("Acme", "fresing.nl")
     assert brand.linear_to_hex(s.brand_color1) == "#336699" and brand.linear_to_hex(s.brand_color2) == "#FFCC00"
     with pytest.raises(RuntimeError, match="cannot be read"):
         bpy.ops.fresing.brand_load(name="Nothing here")
@@ -448,9 +448,9 @@ def test_kit_goes_to_the_library_and_back(tmp_path, monkeypatch):
     assert (fin.color1, fin.color2, fin.end_text) == ("#336699", "#FFCC00", "fresing.nl")
     assert bpy.ops.fresing.brand_delete.poll()
     assert bpy.ops.fresing.brand_delete("EXEC_DEFAULT") == {"FINISHED"}
-    assert brand.load_kit(folder, "Fresing") is None and not os.path.exists(os.path.join(folder, "Fresing_logo.png"))
+    assert brand.load_kit(folder, "Acme") is None and not os.path.exists(os.path.join(folder, "Acme_logo.png"))
     assert not bpy.ops.fresing.brand_delete.poll(), "nothing left to delete"
-    assert s.brand_name == "Fresing", "the project keeps its own settings"
+    assert s.brand_name == "Acme", "the project keeps its own settings"
 
 
 def _anim(sc):
