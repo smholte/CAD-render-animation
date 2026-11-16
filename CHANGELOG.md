@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.114 – 16 Nov 2026 – The sea cut-away also cuts the ground (task 0148)
+
+- **The cut goes on into the ground.** With the cut-away on, the seabed opens inside the box and shows a soil section:
+  layers from sand to clay down to 5 m under the lowest part of the machine. A pile below the seabed is seen down to
+  its toe; outside the box the seabed still hides it. New setting **Show the ground in the cut-away** (5 Scene &
+  Render > Surroundings): it goes on by itself when a part reaches below the seabed, and stays off in older projects.
+  The panel now also has **Water depth**, **Water clarity** and **Cut-away behind the stern**.
+- **Wind turbine for the site:** the 45 m of monopile in the ground is no longer hidden; the "Seabed" shot looks at it
+  from inside the ground.
+
 ## 0.2.113 – 16 Nov 2026 – Build gives the same animation at any frame (task 0138)
 
 - **Build no longer depends on the frame shown.** Pressing Build at a late frame of the demo put the second end and

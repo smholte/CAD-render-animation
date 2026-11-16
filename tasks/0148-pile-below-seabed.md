@@ -1,6 +1,6 @@
 # 0148 – Sea cut-away also cuts the seabed: the monopile visible down to its toe
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0148-pile-below-seabed`
+**Who:** worker · **Status:** done (0.2.114) · **Branch:** `task/0148-pile-below-seabed`
 **Started by:** lead chat, 16 Nov 2026 (open point of 0128) · **Model:** Sonnet · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Scene & Render – sea):** `blender/surroundings.py` (the seabed and `_cutaway`), `core/surroundings.py` /
@@ -41,10 +41,20 @@ done; the sea lane is free.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026 (Sonnet).
 
-**What changed:**
+**What changed:** the seabed is see-through inside the cut-away box and a soil section (`core/sea.py` `SOIL_LAYERS`,
+material "soil section", `surroundings._soil_mesh`) shows the box's walls and floor, as deep as the lowest part + 5 m.
+Setting `sea_cut_ground` (goes on by itself in `_sea_cutaway_changed` when water level > water depth; off for old
+projects; settings key unchanged when off). UI rows for water depth, clarity, cut-away, ground. Turbine sheet: the pile
+below the seabed shown, water level 75 m, `cutaway.ground`, "Seabed" camera inside the ground. Guide, function list,
+PC-check line `scene.sea_ground` (MIN_LINES_FULL 83). Picture: `tasks/img/0148_seabed_shot.png` (stand-in turbine, Cycles
+CPU draft, dark because the pit only gets sky light through the box).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, invented vessel + red pile; stand-in turbine): `tests/test_sea_cutaway.py`
+18 passed (pile 30 m in the ground visible in the cut, hidden with the ground off and behind the wall outside the box;
+soil colours per layer = `core.sea.soil_colour`; old key unchanged); site turbine tests 88 passed; tooltip check, function
+and guide tests passed. The PC-check line and the full GitHub run were not run locally.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the kit run on `site-kit` has to be started for the owner's renders; the pit is dark
+in the Seabed shot (the owner may want a work light there).
