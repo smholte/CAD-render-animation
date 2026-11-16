@@ -57,9 +57,10 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 317                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
+    assert len(sheet) == 319                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
     #                                                    none under the CPS slide's last bend onto side B; task 0153: the
-    #                                                    vessel's 4 propellers, 2 steers, 2 radars, the crane's slew + luff
+    #                                                    vessel's 4 propellers, 2 steers, 2 radars, the crane's slew + luff;
+    #                                                    task 0174: the crane's hoist drum and head sheave
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
     # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
@@ -67,7 +68,11 @@ def test_every_joint_of_the_sheet(made):
              + tuple(n for _k, n in demo.TIP_ITEMS)]
     park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
     assert len(park) == 19 and all(j["name"] in by for j in park)
-    assert len(by) == len(sheet) + 2 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    # task 0174: the wire speeds of handling winch 2, the two tipping winches' drums and the crane's hoist
+    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL] + [demo.TIP_TRAVEL.format(KEY=k.upper())
+                                                                      for k, _n in demo.TIP_ITEMS]
+    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    assert all(t in by for t in travels)
     cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
@@ -89,7 +94,8 @@ def test_every_joint_of_the_sheet(made):
         drive = row["drive"]
         if j.couple_table:                                          # follows its spool's layer by table (task 0080)
             assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}",
-                                      f"spool:{demo.AR_SPOOL}"), row["name"]
+                                      f"spool:{demo.AR_SPOOL}", "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}",
+                                      *[f"spool:{demo.TIP_SPOOL.format(key=k)}" for k, _n in demo.TIP_ITEMS]), row["name"]
             spooled += 1
         elif j.follows in wires:                                    # turned by a tipping wire (task 0082)
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
@@ -99,6 +105,8 @@ def test_every_joint_of_the_sheet(made):
             assert not j.follows, row["name"]                       # turned to its wire (Swivel, task 0125)
         elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
             assert "Fairlead" in row["name"], row["name"]
+        elif j.follows == demo.CRANE_TRAVEL:                        # turned by the crane's hoist wire (task 0174)
+            assert row["name"].endswith("Head sheave turn"), row["name"]
         elif drive.get("by") == "follows":
             assert j.follows == drive["follows"] and math.isclose(j.couple_ratio, drive["ratio"], rel_tol=1e-5)
         elif drive.get("by") in ("cable", "carousel"):
@@ -117,7 +125,8 @@ def test_every_joint_of_the_sheet(made):
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
     assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
     #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 6       # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082)
+    assert spooled == 11      # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
+    #                           task 0174: handling winch 2's drum + level wind, both tipping drums, the crane's hoist drum
 
 
 def test_a_coupling_turns_at_its_ratio(made):

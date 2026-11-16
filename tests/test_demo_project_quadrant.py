@@ -211,9 +211,14 @@ def test_the_wires_of_the_quadrant_operation(made):
     for key, name in demo.TIP_ITEMS:
         it = paths.find(sc, name)
         assert it.keep_tight and paths.tight_skipped(sc, it) == "", name
-        for jn in (f"QUADRANT SYSTEM: Swivel sheave {key} foot sheave turn",
-                   f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn", f"QUADRANT SYSTEM: Swivel sheave {key} turn"):
+        for jn in (f"QUADRANT SYSTEM: Swivel sheave {key} foot sheave turn", f"QUADRANT SYSTEM: Swivel sheave {key} turn"):
             assert s.joints[jn].follows == it.joint, jn
+        # task 0174: the winch drum holds its wire in layers – it turns by its spool's table on the drum wire's speed,
+        # which follows the tipping wire's one to one
+        drum = s.joints[f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn"]
+        travel = demo.TIP_TRAVEL.format(KEY=key.upper())
+        assert drum.couple_table == f"spool:{demo.TIP_SPOOL.format(key=key)}" and drum.follows == travel
+        assert s.joints[travel].follows == it.joint and abs(abs(s.joints[travel].couple_ratio) - 1.0) < 1e-9
         # task 0125: the head sheave turns to the wire (Swivel), no longer with the handler's tilt by a ratio
         head = [c for c in it.contacts if c.kind == "SHEAVE"]
         assert len(head) == 1 and head[0].swivel == f"QUADRANT SYSTEM: Swivel sheave {key} swivel"
