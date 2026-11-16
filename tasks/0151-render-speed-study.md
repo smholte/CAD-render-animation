@@ -1,6 +1,6 @@
 # 0151 – Study: faster 4K renders of big assemblies on one RTX 3090 (findings only)
 
-**Who:** worker · **Status:** open – can start now (findings only: no app code, starts no test run) · **Branch:** none
+**Who:** worker · **Status:** running (findings only: no app code, starts no test run) · **Branch:** none
 (report on `main`, touching only `tasks/`)
 **Started by:** lead chat, 16 Nov 2026 (owner picked the research) · **Model:** Opus · effort Medium · **Place:** a **new chat in the claude.ai project "STEP rendering App"** (it must open web pages; CLAUDE.md section 2, as 0113); the owner runs the test plan on his PC afterwards
 
