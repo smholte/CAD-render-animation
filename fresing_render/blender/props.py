@@ -165,6 +165,11 @@ def _sea_cutaway_changed(self, context):
     _world_changed(self, context)
 
 
+def _operator_shown(self, context):
+    from . import tc_person
+    tc_person.apply_visible(context.scene)
+
+
 def _props_shown(self, context):
     from . import surroundings
     surroundings.set_props_visible(context.scene, self.props_visible)
@@ -920,6 +925,18 @@ def _seq_preview_changed(self, context):
     sequence.preview(context.scene, self, self.seq_preview / 100.0)
 
 
+def _operator_get(self) -> int:
+    """Who changes the tool (task 0156): read from the two stored switches, so projects from before keep their hand."""
+    if self.get("gcode_person"):
+        return 2
+    return 1 if self.get("gcode_hand") else 0
+
+
+def _operator_set(self, value: int) -> None:
+    self.gcode_person = value == 2
+    self.gcode_hand = value == 1
+
+
 def _gcode_step_changed(self, context):
     """A G-code step's file or speed changed: its length follows from the program."""
     if context is None or context.scene is None or self.get("_busy"):
@@ -1218,6 +1235,18 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         description="At a manual tool change a gloved hand reaches in, takes the old tool out of the spindle, "
                     "puts the new one in and leaves. It needs 2.8 seconds: a shorter pause grows to that (the "
                     "step's Details say so)")
+    gcode_person: BoolProperty(default=False, update=_gcode_step_changed)
+    gcode_operator: EnumProperty(
+        name="Who changes the tool", get=_operator_get, set=_operator_set,
+        items=[("NONE", "Nobody", "The tools swap in the pause without anyone shown"),
+               ("HAND", "Hand", "A gloved hand reaches in, takes the old tool out of the spindle, puts the new one "
+                                "in and leaves. It needs 2.8 seconds: a shorter pause grows to that"),
+               ("PERSON", "Person", "A whole person walks up to the machine before the change, opens the door (if "
+                                    "it has one), takes the old tool out, lays it on a tool trolley, puts the new one "
+                                    "in, closes the door and walks away after the last change. The pause grows to "
+                                    "what the person needs (about 6 seconds, the door on top)")],
+        description="Who changes the tool at a manual tool change (M6): nobody shown, a gloved hand, or a whole "
+                    "person at the machine. The step's Details say how long each change takes")
     gcode_tc_caption: BoolProperty(
         name="Caption at tool changes", default=False, update=_gcode_step_changed,
         description="Shows a caption such as 'Tool change: T3 Ø50 face mill' at every tool change of a video, in "
@@ -2269,6 +2298,40 @@ class FRCnc(bpy.types.PropertyGroup):
         name="Show air", default=False, update=_air_changed,
         description="Shows the jet as a faint cone while the air blows (in the view and in renders). Off by "
                     "default: real air cannot be seen")
+
+    # ---- the operator at a manual tool change (task 0156) ----
+    op_height: EnumProperty(name="Height", default="1.75", items=_HEIGHT_ITEMS, update=_cnc_changed,
+                            description="How tall the operator who changes the tools is. Build the animation again "
+                                        "to see it")
+    op_outfit: EnumProperty(
+        name="Clothes", default="WORKSHOP", update=_cnc_changed,
+        items=[(i, n, d, k) for k, (i, n, d) in enumerate(_pd.OUTFIT_ITEMS)],
+        description="What the operator wears: workshop overalls, an offshore coverall or office clothes with a "
+                    "high-visibility vest. The operator always wears work gloves")
+    op_helmet: BoolProperty(name="Helmet", default=False, update=_cnc_changed,
+                            description="A safety helmet on the operator's head (off: usual in a machine shop)")
+    op_door: StringProperty(
+        name="Door", update=_cnc_changed,
+        description="The joint (made in 4 Motion) that opens the machine's door: a slide joint for a sliding door, a "
+                    "rotate joint for a hinged one. The operator opens it before the change and closes it after. "
+                    "Empty: the machine has no door")
+    op_door_open: FloatProperty(
+        name="Door opens by", unit="LENGTH", default=0.47, min=0.0, soft_max=2.0, update=_cnc_changed,
+        description="How far the sliding door moves to be open (from where it is in the CAD model, which is "
+                    "closed). A negative joint direction: turn the joint's arrow round in 4 Motion")
+    op_door_angle: FloatProperty(
+        name="Door opens by", subtype="ANGLE", default=math.radians(90.0), soft_min=-math.pi, soft_max=math.pi,
+        update=_cnc_changed,
+        description="How far the hinged door turns to be open (from where it is in the CAD model, which is closed)")
+    op_trolley_side: EnumProperty(
+        name="Trolley", default="RIGHT", update=_cnc_changed,
+        items=[("RIGHT", "Right", "The tool trolley stands on the operator's right"),
+               ("LEFT", "Left", "The tool trolley stands on the operator's left")],
+        description="On which side of the operator the tool trolley stands, with the tools lying on its top")
+    op_button: BoolProperty(
+        name="Press the release button", default=True, update=_cnc_changed,
+        description="The operator's left hand presses the drawbar button on the head while the right hand takes the "
+                    "tool out and puts the new one in. Off: the left hand stays down")
 
 
 def _show_joints_changed(self, context):
@@ -3901,6 +3964,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     env_show_in_view: BoolProperty(name="Show in the view", default=True, update=_env_view_changed,
                                    description="Show the surroundings in the 3D view while you work. Renders "
                                                "always include them")
+    operator_visible: BoolProperty(
+        name="Show the operator", default=True, update=_operator_shown,
+        description="Show the operator who changes the tools, its trolley and the tools it carries (a step with "
+                    "'Who changes the tool: Person'). Saved with a scene: hide it for one shot. Hidden, the tools "
+                    "swap in the spindle without anyone")
     props_visible: BoolProperty(name="Show props", default=True, update=_props_shown,
                                 description="Show or hide all props for scale (person, container, pallet, "
                                             "barrier) in the view and in renders")

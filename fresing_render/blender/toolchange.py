@@ -32,6 +32,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 from ..core import toolchange as TC
+from ..core.words import plural
 from . import build, gcode, joints
 
 MM = 0.001
@@ -353,7 +354,11 @@ def changer(scene, anim, b, mach=None) -> TC.Changer:
     c = settings(scene)
     arm = c.changer == "ARM"
     atc = c.changer == "ATC" or arm
-    ch = TC.Changer(atc=atc, pause=min(TC.PAUSE_MAX, max(0.0, float(b.gcode_tc_time))), hand=bool(b.gcode_hand),
+    from . import tc_person
+    person = tc_person.is_on(b)
+    ch = TC.Changer(atc=atc, pause=min(TC.PAUSE_MAX, max(0.0, float(b.gcode_tc_time))),
+                    hand=bool(b.gcode_hand) and not person, person=person,
+                    door=tc_person.door_time(scene) if person else 0.0,
                     speed=float(b.gcode_changer_speed), turn_time=float(c.pocket_time),
                     approach=float(c.atc_lift) / MM, start_tool=start_tool(scene))
     if c.change_mode == "Z":
@@ -418,6 +423,14 @@ def notes(scene, sch) -> list[str]:
     if ch.hand and any(c.hand for c in sch.changes) and ch.pause < TC.HAND_MIN - 1e-9:
         out.append(f"Tool change pause: {TC.HAND_MIN:.1f} s, not {ch.pause:.1f} s – the hand needs "
                    f"{TC.HAND_MIN:.1f} s")
+    if ch.person and any(c.person for c in sch.changes):           # task 0156: the time per change
+        need = ch.operator_min()
+        if ch.pause < need - 1e-9:
+            out.append(f"Tool change pause: {need:.1f} s, not {ch.pause:.1f} s – the operator needs {need:.1f} s"
+                       + (" (the door included)" if ch.door > 0 else ""))
+        n = sum(1 for c in sch.changes if c.person)
+        each = max((c.hand[1] for c in sch.changes if c.person and c.hand), default=need)
+        out.append(f"The operator changes {plural(n, 'tool')}, {each:.1f} s each at the machine")
     seen = set()
     for c in sch.changes:
         if c.note and c.note not in seen:
@@ -713,12 +726,18 @@ def tool_keys_plain(scene, mach, prog, sch, f0, fps, vkeys, jkeys, jstate, busy_
 
     rig = None
     cur = start
+    if any(c.person and c.hand is not None for c in sch.changes):     # task 0156: a whole person changes them
+        from . import tc_person
+        tc_person.start_step(scene, f0, numbers, start, show, spindle, key, prog)
     for c in sch.changes:
         if c.length <= 0 and c.old == c.tool:
             continue
         old = c.old if c.old else cur
         fd, fs = f0 + c.drop * fps, f0 + c.swap * fps
-        if c.hand is not None:
+        if c.hand is not None and c.person:
+            tc_person.change(scene, mach, c, old, f0, fps, key, jkeys, jstate, busy_until, merge,
+                             (f0 - 1.0) / fps)
+        elif c.hand is not None:
             if rig is None:
                 rig = _Hand(scene, mach, col)
             for n in (old, c.tool):

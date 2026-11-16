@@ -1,6 +1,6 @@
 # 0156 – Manual tool change: a realistic hand, and a full human doing the change
 
-**Who:** worker · **Status:** open – can start (0157 merged, 0.2.128: use its rig) · **Branch:** `task/0156-human-tool-change`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:** `claude/affectionate-archimedes-rugvto` (the session's name)
 **Started by:** lead chat, 16 Nov 2026 (owner: props, hand and human more detailed and realistic; a full human doing a
 manual tool change) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation".
 Subagents allowed (CLAUDE.md section 2).
@@ -42,6 +42,32 @@ A manual tool change looks like a real operator doing it: a detailed gloved hand
 - [ ] Tooltips, guide (with new pictures of its section), PC-check line / tour stop, function list; GitHub run green;
       merged; version (CLAUDE.md section 7); report with small before/after pictures in `tasks/img/0156_*`, triangles
       and zip size before/after.
+
+## Design (worker, 16 Nov – the brief of the independent tester)
+
+The person is built with 0157's rig (`core/person_rig.py`: `Figure.arm_ik`, `look`; `blender/person_rig.py`:
+`key_poses`) and walks with `core/people.py` (`plan`, `_sample_person`), not with Blender IK constraints.
+
+- `core/toolchange.py`: `Changer.person` / `Changer.door` (seconds the door takes); `PERSON_MOVES`, `person_moves(door)`,
+  `person_min(door)`, `person_keys(t0, length, door)` → [(start, end, move)], `person_events` → (old tool out = end of
+  "release", new tool in = end of "clamp"). The pause grows to `person_min` (`Changer.operator_min`). `Change.person`,
+  `Change.door`; `Change.hand` = (start, length) of the pause also for the person.
+- `core/tc_person.py` (no Blender): `Floor` (occupancy grid + 10 cm height slices; `add_triangles`, `free(r)`,
+  `clear_at(p, r, half_h)`, `way(a, b, r)` = A* pulled tight), `way_to`, `walkable`, `stand_spot` (in front of the holder,
+  `WORK_ROOM`), `trolley_spot`, `place_tools` (tools lying across the trolley), `Door` (SLIDE/ROTATE, `move(v)`, `at`),
+  `Station` (one change: pause, holder frame `spindle` 4x4 with z into the spindle, tool copies' world matrices, the
+  button), `Trolley`, `grip_hand` / `press_hand` (hand frames), `Operator(height, start, stand, way, stations, trolley,
+  floor_z, door, floor=)`: `plan()` (walk in so it stands at the machine `ARRIVE` s before the first pause, stays,
+  walks out after the last), `sample(times)` → [(root, Pose, {T: carried tool world 4x4}, door value)], `misses`.
+- `blender/tc_person.py`: the operator object (person prop of 0155 in collection "FR operator", tag `fr_tc_operator`),
+  the trolley, the tool copies (carried: `fr_cnc_hold`, lying: `fr_cnc_trolley`), `start_step` / `change` (called from
+  `toolchange.tool_keys_plain`: visibility keys + the door joint's keys), `bake` (end of Build: reads the holder per
+  pause, the floor, plans, keys), `apply_visible` (`scene.fresing.operator_visible`, saved with a shot), the clash hook
+  (the body without arms: `clash.CLASH_MESH`), `show_spots` (empties "FR operator stand" / "FR operator start").
+- Settings: step `gcode_operator` (NONE / HAND / PERSON over the stored `gcode_hand` + `gcode_person`), CNC
+  `op_height`, `op_outfit`, `op_helmet`, `op_door`, `op_door_open`, `op_door_angle`, `op_trolley_side`, `op_button`.
+- Test model `tests/data/test_mill_cabinet.step` (`tools/make_test_mill_cabinet.py`): the test mill on a cabinet, an
+  enclosure with a sliding door (joint "Door" in the tour set) and a release button on the head. Tour set `operator`.
 
 ---
 

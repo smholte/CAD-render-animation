@@ -417,6 +417,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     weather.after_clear(scene)                     # the weather of the panel again (task 0109)
     from . import people
     people.after_clear(scene)                      # people and items back where they stand (task 0157)
+    from . import tc_person
+    tc_person.after_clear(scene)                   # the operator back where it stood (task 0156)
     from . import vessel_work
     vessel_work.after_clear(scene)                 # what the vessel does: the panel's setting again (task 0154)
     if was_baked:
@@ -628,6 +630,8 @@ def bake(scene, anim) -> dict:
     people.end_preview(scene)            # people a preview moved go back too (task 0157)
     clear_keys(scene)
     warnings: list[str] = []
+    from . import tc_person
+    tc_person.begin(scene)               # the operator's tool changes are collected while the steps are built (0156)
 
     # remember the static state so 'Clear keys' can put it back
     states.capture_pose(scene, s.anim_restore_pose)
@@ -1130,6 +1134,8 @@ def bake(scene, anim) -> dict:
     from . import spool
     warnings += spool.bake(scene, anim)            # drums and carousels (task 0080): empty, full, fleet angle
     warnings += people.bake(scene, anim)           # people walk and act (task 0157): keys per frame
+    from . import tc_person
+    warnings += tc_person.bake(scene, anim)        # the operator who changes the tools (task 0156): keys per frame
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
 
