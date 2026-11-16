@@ -608,6 +608,8 @@ SOIL_WOBBLE = 1.2                                 # m: the layer boundaries wand
 GROUND_MARGIN = 5.0                               # m of soil shown under the lowest part
 GROUND_MIN = 8.0                                  # m: the least soil the cut shows
 GROUND_MAX = 300.0
+GROUND_TOP = 0.15                                 # m: the section's walls reach this far over the flat seabed
+#                                                   (its ripples and swell, so no gap shows at the box's rim)
 
 
 def soil_layer(depth, wobble=0.0) -> int:

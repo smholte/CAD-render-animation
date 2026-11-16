@@ -636,6 +636,12 @@ def test_ground_setting_goes_on_by_itself_only_when_a_part_reaches_below_the_sea
     pit = soil[0]["fr_soil_depth"]
     assert pit == pytest.approx(35.0, abs=0.2)                       # 30 m of pile in the ground + 5 m
     assert soil[0]["fr_soil_top"] == pytest.approx(WATER - 30.0)
+    # the walls reach GROUND_TOP over the seabed (its ripples leave no gap at the rim) and the water ring stops there
+    zs = [soil[0].matrix_world @ v.co for v in soil[0].data.vertices]
+    assert max(z.z for z in zs) == pytest.approx(WATER - 30.0 + sea.GROUND_TOP, abs=1e-3)
+    ring = _env("sea_cut")[0]
+    assert min((ring.matrix_world @ v.co).z for v in ring.data.vertices) == pytest.approx(
+        WATER - 30.0 + sea.GROUND_TOP, abs=1e-3)
     s.sea_cut_ground = False
     _apply(scene)
     assert not _env("soil")

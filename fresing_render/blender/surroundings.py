@@ -2244,12 +2244,12 @@ def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed
 
 
 def _soil_mesh(name: str, box, offset_xy, depth: float, pit: float) -> bpy.types.Mesh:
-    """The soil section (task 0148): the box's four walls from the seabed down ``pit`` m and its floor, faces into the
-    box. In the water ring's frame (z 0 = the water's surface)."""
+    """The soil section (task 0148): the box's four walls from ``GROUND_TOP`` over the seabed (its ripples) down to
+    ``pit`` m under it and its floor, faces into the box. In the water ring's frame (z 0 = the water's surface)."""
     o, u, v = _box_frame(box, offset_xy)
     length, width = float(box["length"]), float(box["width"])
     c = _rect(o, u, v, length, width)
-    z0, z1 = -float(depth), -float(depth) - float(pit)
+    z0, z1 = -float(depth) + sea_core.GROUND_TOP, -float(depth) - float(pit)
     pts = np.array([(*p, z) for z in (z0, z1) for p in c], float)            # 0..3 top, 4..7 bottom
     faces = [(4 + i, i, (i + 1) % 4, 4 + (i + 1) % 4) for i in range(4)]       # walls: into the box
     faces.append((4, 5, 6, 7))                                                  # floor: up (corners go anticlockwise)
@@ -2384,7 +2384,8 @@ def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near:
         if ob.get(TAG) == "hull_foam":
             _set_cut_attrs(ob, box)
     ring = _new_object("FR Sea: cut-away water", _ring_mesh("FR Sea: cut-away water", box, offset, s.sea_clarity,
-                                                            depth, detailed, 0.0 if ground else 2.0), "sea_cut", col, root)
+                                                            depth, detailed,
+                                                            -sea_core.GROUND_TOP if ground else 2.0), "sea_cut", col, root)
     ring.data.materials.append(_cut_water_material(s.sea_clarity, _weather_on(s)))
     ring.location = sea_ob.location
     # only what the camera sees through the walls: no shadows, no light bounced off it
