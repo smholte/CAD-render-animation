@@ -1,6 +1,6 @@
 # 0154 – Water effects of a working vessel: wake, bow wave, propeller wash, thruster jets
 
-**Who:** worker · **Status:** running · **Branch:** `claude/nifty-mendel-78lbia`
+**Who:** worker · **Status:** done (0.2.127) · **Branch:** `claude/nifty-mendel-78lbia`
 **Started by:** lead chat, 16 Nov 2026 (owner: "more details to the ship itself") · **Model:** Opus · effort High ·
 **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Sea lane: `core/sea.py`, `blender/surroundings.py` (the sea, its foam/white caps), `blender/vessel_motion.py` (speed, heading, a manoeuvre setting), the propeller / thruster joints' drive from that setting, their tests, the guide's sea and vessel sections.
@@ -113,7 +113,7 @@ shown here too and no longer needing Weather & time on) · Sideways (DP: push to
   No geometry: 0 extra triangles, import time unchanged; frame change with the channels keyed 41 ms (demo, Blender as
   a program); the tour set's sea build 5 s.
 
-**Runs:** RUNS_RESULT
+**Runs:** 1 full run, green (43909644214, 20.6 min; no version clash), then a docs run for the merge of main's TASKS.md edits.
 
 **Open points / follow-up tasks:**
 - Bump only: the waves and the bow wave have no real height (from low over the water they look flat); Detailed could
