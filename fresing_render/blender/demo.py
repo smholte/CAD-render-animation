@@ -1915,12 +1915,50 @@ def turning_joints(d: Demo) -> list[tuple[str, float]]:
     return out
 
 
-@stage("propulsion", "The propellers and radars turn", after="shot_back")
+# task 0154: what the vessel does – she arrives at 6 knots (shots 1 and 2: a wake, her waves, a bow wave), then holds
+# her place on the cable route on her thrusters (DP, gently to starboard) from shot 3 on; the propellers follow
+TRANSIT_KNOTS = 6.0
+DP_THRUST = 0.35
+DP_CHANGE = 3.0                       # s: the change from sailing to DP, ending as shot 3 starts
+
+
+def _shot_start(d: Demo, camera: str) -> float:
+    for b in sorted(d.animation.blocks, key=lambda x: x.start):
+        if b.kind == "CAMERA" and b.camera is not None and b.camera.name == camera:
+            return float(b.start)
+    raise RuntimeError(f"the animation has no camera step to '{camera}'")
+
+
+@stage("propulsion", "The vessel at work: sailing in, then on DP; the propellers and radars turn", after="shot_back")
 def propulsion(d: Demo):
+    import json
+
+    from . import states, vessel_work
+    sc, s = d.scene, d.s
     for name, rpm in turning_joints(d):
+        if name.endswith("Propeller turn"):
+            continue                                   # (Vessel at work turns them)
         blk = d.animation.blocks.add()
         blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", name, 0.0, d.t, "LINEAR"
         blk.speed_rpm = rpm
+    vessel_work.find(sc)
+    for r in s.vessel_work.thrusters:
+        r.rpm = next(v for k, v in PROPELLER_RPM.items() if k in r.joint)
+    s.weather.vessel_speed = TRANSIT_KNOTS
+    s.vessel_work.mode = "AHEAD"
+    # the start scene ("Overview") puts back what it saved: it saves this setting too now
+    shot = s.shots.get(d.animation.start_shot)
+    if shot is not None:
+        data = json.loads(shot.world or "{}")
+        data.setdefault("weather", {})["vessel_speed"] = TRANSIT_KNOTS
+        data["vessel_work"] = json.loads(states.settings_json(s, ("vessel_work",)))["vessel_work"]
+        shot.world = json.dumps(data)
+    t = _shot_start(d, "Carousel") - DP_CHANGE
+    blk = d.animation.blocks.add()
+    blk.kind, blk.start, blk.duration, blk.easing = "VESSEL", t, DP_CHANGE, "SMOOTH"
+    blk.vw_mode, blk.vw_side, blk.vw_thrust = "DP", "STBD", DP_THRUST
+    d.notes.append(f"vessel at work: {len(s.vessel_work.thrusters)} thrusters; ahead {TRANSIT_KNOTS:g} kn, DP from "
+                   f"{t + DP_CHANGE:.1f} s")
 
 
 @stage("finish", "Animation")

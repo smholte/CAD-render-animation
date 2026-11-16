@@ -183,6 +183,11 @@ fn(id="offshore.spool", title="Drums and carousels", family="offshore", panel="F
    button="fresing.spool_add", guide="drums", tour=("spool",), pccheck=("motion.spool",), since="0.2.85")
 fn(id="offshore.vessel_motion", title="Vessel motion at sea", family="offshore", panel="FRESING_PT_vessel_motion",
    prop="enabled", guide="vessel-motion", tour=("vessel",), pccheck=("scene.vessel_motion",), since="0.2.65")
+fn(id="offshore.vessel_work", title="Vessel at work: wake, waves, thruster jets", family="offshore",
+   panel="FRESING_PT_vessel_work", prop="mode", guide="vessel-work", tour=("vessel_work",),
+   pccheck=("scene.vessel_work",), since="0.2.125")
+fn(id="offshore.thrusters", title="The vessel's thrusters", family="offshore", panel="FRESING_PT_vessel_work",
+   fold="fr_vessel_thrusters", button="fresing.vessel_thrusters_find", guide="vessel-work", since="0.2.125")
 
 # ----- 4 Motion: CNC machine -----
 fn(id="cnc.machine", title="CNC machine set-up", family="cnc", panel="FRESING_PT_cnc", button="fresing.cnc_find_axes",
@@ -300,6 +305,8 @@ fn(id="animation.back_to_cad", title="Back to CAD step", family="animation", pan
    since="0.2.102")
 fn(id="animation.weather_step", title="Weather & time step", family="animation", panel="FRESING_PT_animation",
    prop="wx_preset", guide="weather", tour=("weather_step",), pccheck=("weather.step",), since="0.2.88")
+fn(id="animation.vessel_step", title="Vessel at work step", family="animation", panel="FRESING_PT_animation",
+   prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.125")
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="animation",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", title="Picture cards in a video", family="animation", panel="FRESING_PT_cards",

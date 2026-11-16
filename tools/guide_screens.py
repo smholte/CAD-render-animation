@@ -55,6 +55,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
   house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
       imported and one moment baked, task 0114).
+  vessel_work_panel   5 Scene & Render > Vessel at work (panel_5_vessel_work; as "panels", on test_thrusters.step, task
+      0154: Sideways, the Thrusters fold open).
   sea_panel   4 Motion > Cables and paths with the fold "Into the sea" open (panel_cable_sea; as "panels", on
       test_sea.step, task 0081).
   sea   the sea cable test model through the cut-away: the cable from the horn down to the seabed, the CPS set on it
@@ -997,7 +999,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel", "tracks_panel", "sea_panel"):
+              "spools_panel", "tracks_panel", "sea_panel", "vessel_work_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -1012,7 +1014,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
                 "spools_panel": os.path.join(DATA, "test_spool.step"),
                 "tracks_panel": os.path.join(DATA, "test_tracks.step"),
-                "sea_panel": os.path.join(DATA, "test_sea.step")}[MODE]
+                "sea_panel": os.path.join(DATA, "test_sea.step"),
+                "vessel_work_panel": os.path.join(DATA, "test_thrusters.step")}[MODE]
 
     step(_start)
     step(lambda: _import(mod_name))
@@ -1111,6 +1114,22 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_sea_setup)
         _grab("panel_cable_sea", [("FRESING_PT_cables", False, True)])
+
+    elif MODE == "vessel_work_panel":
+        # task 0154: 5 Scene & Render > Vessel at work on the thrusters test model, Sideways, Thrusters open
+        def _vw_setup():
+            sc = bpy.context.scene
+            with override():
+                mod("blender.vessel_work").set_up_test_model(sc)
+            mod("blender.ui")._OPEN_FOLDS = True
+            v = sc.fresing.vessel_work
+            v.mode, v.side, v.thrust = "DP", "STBD", 0.6
+            v.thrusters_index = 0
+            sc.fresing.last_message = ""
+            select_only()
+            return 1.0
+        step(_vw_setup)
+        _grab("panel_5_vessel_work", [("FRESING_PT_vessel_work", False, True)])
 
     elif MODE == "spools_panel":
         # task 0080: 4 Motion > Drums and carousels on the spooling test model, the drum chosen, More open

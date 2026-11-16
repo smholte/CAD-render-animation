@@ -49,7 +49,7 @@ LANE_OF_PANEL = {
     "4 Motion": "Motion lane", "Poses & exploded views": "Motion lane", "6 Animation": "Motion lane",
     "7 Render queue": "Motion lane", "Saved scenes": "Motion lane",
     "5 Scene & Render": "Scene & Render lane", "Image size & render": "Scene & Render lane",
-    "Props for scale": "Scene & Render lane", "Vessel motion": "Sea lane",
+    "Props for scale": "Scene & Render lane", "Vessel motion": "Sea lane", "Vessel at work": "Sea lane",
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
     "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane", "Hoses and drag chains": "Flex parts lane",
@@ -68,6 +68,7 @@ OWNER_TYPES = {
     "cnc": "FRCnc", "tl": "FRCncTool",                        # 4 Motion > CNC machine (ui_gcode.py)
     "cut": "FRCut",                                           # 3 Looks > Cutaway (ui_section.py)
     "v": "FRVessel",                                          # 5 Scene & Render > Vessel motion (task 0085)
+    "vw": "FRVesselWork", "th": "FRVesselThruster",           # 5 Scene & Render > Vessel at work (task 0154)
     "cb": "FRCable", "ct": "FRCableContact",                   # 4 Motion > Cables and paths (task 0078)
     "rd": "FRCableRider",                                     # … > Into the sea: things on the cable (task 0081)
     "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
@@ -85,7 +86,7 @@ ITEM_TYPES = {
     "FRESING_UL_mill_bits": "FRMillBit", "FRESING_UL_cylinders": "FRCylinder",
     "FRESING_UL_mechanisms": "FRMechanism", "FRESING_UL_cnc_tools": "FRCncTool",
     "FRESING_UL_cnc_pockets": "FRCncPocket", "FRESING_UL_cuts": "FRCut", "FRESING_UL_vessel_still": "FRVesselStill",
-    "FRESING_UL_flex": "FRFlex",
+    "FRESING_UL_flex": "FRFlex", "FRESING_UL_vessel_thrusters": "FRVesselThruster",
     "FRESING_UL_cables": "FRCable", "FRESING_UL_cable_contacts": "FRCableContact",
 }
 

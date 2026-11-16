@@ -20,6 +20,7 @@ def _classes():
     from .blender import ops_section                # task 0086: 3 Looks > Cutaway
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
+    from .blender import ops_vessel_work                # task 0154: 5 Scene & Render > Vessel at work
     from .blender import ops_flex, ui_flex          # task 0058: 4 Motion > Hoses and drag chains
     from .blender import ops_paths, ui_paths        # task 0078: 4 Motion > Cables and paths (after Hoses and drag chains)
     from .blender import ops_paths_sea              # task 0081: … > Into the sea, things on the cable
@@ -51,7 +52,7 @@ def _classes():
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
+            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
             + ops_house.CLASSES)
 
 

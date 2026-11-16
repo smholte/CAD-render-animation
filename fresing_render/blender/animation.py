@@ -16,6 +16,8 @@ Block kinds
             length follows from the program; tool changes can play the tool changer's animation
     WEATHER  change the weather and the time of day over the step (task 0109, weather.py): keys on the scene's
              weather channels
+    VESSEL   change what the vessel does (still, ahead, sideways, turning; task 0154, vessel_work.py): keys on the
+             scene's ``fr_vw_*`` channels, the propellers' and the azimuths' steer joints
     SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
             follows from the number of parts, the time per part and the overlap
     CAD     back to CAD (task 0129): every joint of the model (or of one subassembly) to its CAD value – a motor to
@@ -113,6 +115,9 @@ def block_label(b, scene=None) -> str:
     if b.kind == "WEATHER":
         from . import weather
         return weather.step_label(b)
+    if b.kind == "VESSEL":
+        from . import vessel_work
+        return vessel_work.step_label(b)
     target = b.target_name or "?"
     if b.kind == "FADE_OUT":
         return f"Fade {target} to X-ray" if b.fade_xray else f"Fade out {target}"
@@ -407,6 +412,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     paths.after_clear(scene)                       # cables follow their sheaves live again (task 0078)
     from . import weather
     weather.after_clear(scene)                     # the weather of the panel again (task 0109)
+    from . import vessel_work
+    vessel_work.after_clear(scene)                 # what the vessel does: the panel's setting again (task 0154)
     if was_baked:
         from . import linkages
         linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
@@ -852,6 +859,7 @@ def bake(scene, anim) -> dict:
 
     cam_blocks = []
     wx_blocks = []                           # Weather & time steps (task 0109): keyed after the loop
+    vw_blocks = []                           # Vessel at work steps (task 0154): keyed after the loop
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
     last_key = 0.0
     for b in sorted(blocks + atc_blocks, key=lambda b: b.start):
@@ -907,6 +915,8 @@ def bake(scene, anim) -> dict:
             fade_step(b, f0, f1)
         elif b.kind == "WEATHER":
             wx_blocks.append(b)
+        elif b.kind == "VESSEL":
+            vw_blocks.append(b)
         elif b.kind == "SEQUENCE":
             sequence.bake_step(scene, b, f0, sequence.Keys(anim, jstate, ostate, okeys, vkeys, fkeys, fxray,
                                                             seq_home, _merge, warnings, uids, tree, jumps))
@@ -957,6 +967,10 @@ def bake(scene, anim) -> dict:
     if wx_blocks:
         from . import weather
         warnings += weather.bake(scene, anim, wx_blocks, lambda t: frame_of(anim, t), ease)
+    if vw_blocks or len(s.vessel_work.thrusters):
+        from . import vessel_work            # task 0154: the propellers turn, the channels follow the steps
+        warnings += vessel_work.bake(scene, anim, vw_blocks, lambda t: frame_of(anim, t), ease, jkeys, jstate,
+                                     f_end, fps)
 
     if last_key > f_end + 1e-6:             # a program step ran a little longer than worked out first
         f_end = int(math.ceil(last_key - 1e-6))

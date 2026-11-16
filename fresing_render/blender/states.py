@@ -271,7 +271,9 @@ WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_
               # weather of the sky (task 0017)
               "sky_weather",
               # weather and time of day (task 0109): the whole Weather & time panel
-              "weather")
+              "weather",
+              # what the vessel does (task 0154): Vessel at work's setting (not its thruster list)
+              "vessel_work")
 OUTPUT_KEYS = ("out_format", "out_resolution", "out_orientation", "out_dpi", "out_use_bleed", "out_bleed_mm",
                "out_custom_w", "out_custom_h", "out_file_type", "quality")
 CURRENT = "__current__"      # "use what the scene shows now" (stored inside the scene item)
@@ -291,9 +293,13 @@ WEATHER_KEYS = ("enabled", "preset", "hour", "use_date", "day", "latitude", "nor
                 "floodlights", "flood_strength", "spray", "flag", "vessel_speed")
 
 
+VESSEL_WORK_KEYS = ("mode", "side", "thrust")
+
+
 def settings_json(s, keys) -> str:
     return json.dumps({k: ({w: _plain(getattr(s.weather, w)) for w in WEATHER_KEYS} if k == "weather"
-                           else _plain(getattr(s, k))) for k in keys})
+                           else {w: _plain(getattr(s.vessel_work, w)) for w in VESSEL_WORK_KEYS}
+                           if k == "vessel_work" else _plain(getattr(s, k))) for k in keys})
 
 
 def _apply_weather(w, data) -> None:
@@ -330,6 +336,19 @@ def apply_settings_json(scene, text: str) -> None:
         for k, v in data.items():
             if k == "weather":
                 _apply_weather(s.weather, v)
+                continue
+            if k == "vessel_work":
+                if isinstance(v, dict):
+                    for w, x in v.items():
+                        if w in VESSEL_WORK_KEYS:
+                            try:
+                                s.vessel_work[w] = s.vessel_work.bl_rna.properties[w].enum_items[x].value \
+                                    if w in ("mode", "side") else float(x)
+                            except (KeyError, TypeError, ValueError):
+                                pass
+                    from . import vessel_work
+                    vessel_work.sync(scene)
+                    vessel_work.pose(scene)
                 continue
             if hasattr(s, k):
                 try:

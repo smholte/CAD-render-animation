@@ -1,10 +1,11 @@
-"""Side panel: 5 Scene & Render > Vessel motion (task 0085). Same layout rules as ui.py."""
+"""Side panel: 5 Scene & Render > Vessel motion (task 0085) and Vessel at work (task 0154). Same layout rules as
+ui.py."""
 
 from __future__ import annotations
 
 import bpy
 
-from . import vessel_motion
+from . import vessel_motion, vessel_work
 from .ui import _has_model, _Panel, fold, header_status, list_rows, split_props, steps, wrap
 
 
@@ -101,5 +102,83 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
                 row.operator("fresing.vessel_still_remove", text="", icon="X")
 
 
-PANELS = (FRESING_PT_vessel_motion,)
-CLASSES = (FRESING_UL_vessel_still,) + PANELS
+class FRESING_UL_vessel_thrusters(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        icon = {"AZIMUTH": "ORIENTATION_GIMBAL", "TUNNEL": "ARROW_LEFTRIGHT", "SHAFT": "FORWARD"}.get(item.kind,
+                                                                                                    "BLANK1")
+        row = layout.row(align=True)
+        ok = bool(item.joint) and context.scene.fresing.joints.get(item.joint) is not None
+        row.label(text=item.name or item.joint or "?", icon=icon if ok else "ERROR")
+        sub = row.row(align=True)
+        sub.alignment = "RIGHT"
+        sub.label(text=item.bl_rna.properties["kind"].enum_items[item.kind].name)
+
+
+class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
+    bl_label = "Vessel at work"
+    bl_parent_id = "FRESING_PT_scene"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="MOD_OCEAN")
+
+    def draw_header_preset(self, context):
+        if context.scene.fresing.background in vessel_motion.KINDS:
+            header_status(self.layout, vessel_work.header(context.scene), limit=14)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        vw = s.vessel_work
+        if s.background not in vessel_motion.KINDS:
+            wrap(layout, context, "The vessel works on the Open sea or the Vessel deck: pick one under Background & "
+                 "surroundings above.", icon="INFO")
+            return
+        if not len(vw.thrusters):
+            steps(layout, context, ["Find thrusters: the propellers among the joints",
+                                    "Pick what the vessel does: Ahead, Sideways or Turning",
+                                    "A Vessel at work step in 6 Animation changes it during a video"])
+        # -- what the vessel does
+        layout.row(align=True).prop(vw, "mode", expand=True)
+        col = split_props(layout)
+        if vw.mode == "AHEAD":
+            col.prop(s.weather, "vessel_speed", text="Speed (kn)")
+        elif vw.mode in ("DP", "TURN"):
+            col.row(align=True).prop(vw, "side", text="Bow to" if vw.mode == "TURN" else "Push to", expand=True)
+            col.prop(vw, "thrust", text="Thrust", slider=True)
+        wrap(layout, context, vessel_work.words(scene), icon="INFO")
+        if not s.sea_foam:
+            wrap(layout, context, "Tick 'Foam' (Background & surroundings) to see the wake and the jets.",
+                 icon="ERROR")
+
+        # -- the thrusters
+        n = len(vw.thrusters)
+        body = fold(layout, "fr_vessel_thrusters", f"Thrusters ({n})" if n else "Thrusters", "FORCE_VORTEX")
+        if body:
+            row = body.row(align=True)
+            row.operator("fresing.vessel_thrusters_find", text="Find thrusters", icon="VIEWZOOM")
+            row.operator("fresing.vessel_thruster_add", text="", icon="ADD")
+            row.operator("fresing.vessel_thruster_remove", text="", icon="REMOVE")
+            if n:
+                body.template_list("FRESING_UL_vessel_thrusters", "", v, "thrusters", vw, "thrusters_index",
+                                   rows=list_rows(n, 2, 6))
+                if 0 <= vw.thrusters_index < n:
+                    th = vw.thrusters[vw.thrusters_index]
+                    col = split_props(body)
+                    col.prop_search(th, "joint", s, "joints", text="Propeller")
+                    col.prop(th, "kind", text="Kind")
+                    if th.kind == "AZIMUTH":
+                        col.prop_search(th, "steer", s, "joints", text="Steer joint")
+                    col.prop(th, "rpm", text="Full speed (rpm)")
+                    col.prop(th, "reverse", text="Turns the other way")
+            else:
+                wrap(body, context, "Or pick a propeller's joint in 4 Motion > Joints and press +.", icon="INFO")
+
+
+PANELS = (FRESING_PT_vessel_motion, FRESING_PT_vessel_work)
+CLASSES = (FRESING_UL_vessel_still, FRESING_UL_vessel_thrusters) + PANELS
