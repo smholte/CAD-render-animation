@@ -1,6 +1,6 @@
 # 0145 – Split the demo project's tests: one GitHub job is near the 40-minute limit
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0145-split-demo-tests`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-task-0145-spnzfk`
 **Started by:** lead chat, 16 Nov 2026 (from 0134's report) · **Model:** Opus · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Test machinery lane):** `tests/test_demo_project.py` (and new `tests/test_demo_*.py` files split from it),
