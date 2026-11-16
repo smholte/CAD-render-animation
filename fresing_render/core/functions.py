@@ -233,7 +233,7 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", since="0.2.17")
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
-   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.114")
+   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115")
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
@@ -263,6 +263,8 @@ fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", 
    since="0.2.86")
 fn(id="web.light", title="Web 3D model with baked light", family="web", panel="FRESING_PT_web3d", prop="light",
    guide="web3d-light", tour=("web3d_light",), pccheck=("web3d.bake",), since="0.2.89")
+fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move with their looks", family="web",
+   panel="FRESING_PT_web3d", prop="animation", guide="web3d-moving", pccheck=("web3d.moving",), since="0.2.114")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
    button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
 
