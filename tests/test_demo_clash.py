@@ -39,9 +39,10 @@ pytest.importorskip("OCP")
 import addon_utils  # noqa: E402
 
 import fresing_render  # noqa: E402
+import demo_made  # noqa: E402  (the made demo project, shared: tests/demo_made.py)
 from fresing_render.blender import demo  # noqa: E402
 
-VERSION = "9.9.9"
+VERSION = demo_made.VERSION
 WORKERS = 4                       # processes at once (GitHub's runners and the web machines have 4 cores)
 WINDOWS = 36                      # windows of frames, taken one at a time by whichever worker is free (task 0108: the
                                   # cost per frame differs 100-fold along the animation: 6 s to 820 s per 155 frames)
@@ -71,12 +72,12 @@ def addon():
 
 @pytest.fixture(scope="module")
 def made(tmp_path_factory):
+    """The demo project made once for every demo test file (``tests/demo_made.py``, task 0145), opened here."""
+    info = demo_made.read(demo_made.ensure(str(tmp_path_factory.getbasetemp())))
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
-    folder = str(tmp_path_factory.mktemp("demo") / "Demo é")
-    out = demo.build_project(folder, VERSION, small=True)
-    bpy.ops.wm.open_mainfile(filepath=out["path"])
-    return {"folder": folder, "out": out}
+    bpy.ops.wm.open_mainfile(filepath=info["out"]["path"])
+    return info
 
 
 def test_no_clash_in_the_animation(made, tmp_path):

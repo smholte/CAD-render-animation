@@ -263,8 +263,22 @@ def test_pytest_groups_hold_every_file_once_and_are_balanced():
     assert sum(g["selftest"] for g in groups) == 1
     assert max(g["secs"] for g in groups) <= 300 + 1e-9                    # the biggest file alone sets the pace
     assert groups == ci_groups.pytest_groups(list(reversed(files)), secs, n=4, selftest_secs=100)   # same split
-    m = ci_groups.matrix_pytest()
+    m = ci_groups.matrix_pytest() + ci_groups.matrix_demo()
     assert sorted(f for g in m for f in g["files"].split()) == ci_groups.test_files()
+
+
+def test_demo_files_have_groups_of_their_own():
+    """Task 0145: the files that open the made demo project run in the demo groups (after the one job that makes it),
+    never in a plain group (which would have no made demo and make it again); demo groups have no packaged self-test."""
+    import ci_groups
+    demo = ci_groups.matrix_demo()
+    files = [f for g in demo for f in g["files"].split()]
+    assert "tests/test_demo_clash.py" in files and any(f.startswith("tests/test_demo_project") for f in files)
+    assert "tests/test_demo_cable_lay.py" not in files                     # the maker's own tests need no made demo
+    assert all(g["name"].startswith("demo ") and not g["selftest"] for g in demo)
+    plain = {f for g in ci_groups.matrix_pytest() for f in g["files"].split()}
+    assert not plain & set(files)
+    assert sum(g["selftest"] for g in ci_groups.matrix_pytest()) == 1
 
 
 def test_docs_only_changes():
