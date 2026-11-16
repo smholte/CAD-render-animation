@@ -137,5 +137,8 @@ graphics card's name; 2. Space and the time line; 3. the view buttons; 4. L, the
 stay near 0 %.
 
 **Open points:** the sun slider is greyed for a 360° photo light too ("The light comes from the project's 360°
-picture"); fullscreen is not offered where the browser has none (iPhone Safari). GitHub runs: see TASKS.md.
+picture"); fullscreen is not offered where the browser has none (iPhone Safari). GitHub runs: 7 on the branch – 1 real failure (`test_lightbake` still expected model-viewer), 1 Windows PC-check
+failure (the headless browser stopped before the player's self-test answered: it now runs the moment the page is
+ready, the check retries once and counts a missing answer as "not counted"), 4 more because other tasks took
+0.2.108–0.2.111 first; the last green run 43790944832; `main` then only had task-list commits on top.
 
