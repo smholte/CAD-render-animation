@@ -610,13 +610,14 @@ def test_sheet_numbers_and_notes(converted, variant):
     assert abs(m["overhang_m"]["value"] - SI.OVERHANG_M) < 1e-3
     assert sheet["frame"]["z_shift_mm"] == SHIFT[variant]
     if variant == "offshore":
-        assert sheet["scene"]["water_level_m"] == 30.0
+        assert sheet["scene"]["water_level_m"] == 75.0           # task 0148: above the pile's toe; seabed 30 m down
+        assert sheet["scene"]["sea_depth_m"] == 30.0
     else:
         assert sheet["scene"] == {"floor_offset_m": -0.4}        # the slab reaches 0.4 m into the ground: ground z 0
     hidden = {h["part"] for h in sheet["hide"]}
     assert {"MAIN BEARING SRB", "MAIN BEARING TDO", "HUB CENTRE MARK"} | {f"BLADE {i} ROOT DISC" for i in (1, 2, 3)} \
         <= hidden
-    assert ("MONOPILE BELOW SEABED" in hidden) == (variant == "offshore")
+    assert "MONOPILE BELOW SEABED" not in hidden                 # task 0148: seen in the sea's soil section
     notes = " ".join(sheet["notes"])
     assert "mirrored" in notes and "+15 m" in notes
     assert "1 extra solids" in notes                         # the bedplate's sliver, left out

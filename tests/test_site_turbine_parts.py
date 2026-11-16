@@ -503,9 +503,10 @@ def test_cameras(built):
         assert cams["Work boat"]["target"][2] > e[2] + 10000      # looking up
         sb = cams["Seabed"]                                        # task 0128: on the seabed, inside the cut-away box
         half = 0.5 * 1000.0 * 90.0                                 # (the sheet's scene.cutaway: 90 m square round the pile)
-        assert fit["seabed_z"] + 2000 < sb["eye"][2] < fit["seabed_z"] + 15000
+        assert fit["seabed_z"] + 15000 < sb["eye"][2] < fit["seabed_z"] + 60000      # task 0148: above the box ...
         assert 20000 < np.hypot(sb["eye"][0], sb["eye"][1]) < half - 3000 and abs(sb["eye"][0]) < half
-        assert sb["target"][2] > fit["seabed_z"] and np.hypot(sb["target"][0], sb["target"][1]) < 1.0
+        assert sb["target"][2] < fit["seabed_z"] and np.hypot(sb["target"][0], sb["target"][1]) < 1.0   # ... looking into
+        assert sb["target"][2] > fit["seabed_z"] - 45000                                                   # the ground
     else:
         e = np.asarray(cams["From the field"]["eye"])        # far enough to see all 256 m of it
         assert e[2] == pytest.approx(fit["ground_z"] + 1700.0) and 250000 < np.hypot(e[0], e[1]) < 400000

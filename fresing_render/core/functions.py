@@ -228,6 +228,8 @@ fn(id="looks.light_look", title="Light look", family="scene", panel="FRESING_PT_
    text="Product studio", guide="light-look", tour=("looks",), pccheck=("scene.looks",), since="0.2.17")
 fn(id="scene.surroundings", title="Background & surroundings", family="scene", panel="FRESING_PT_scene",
    prop="background", guide="surroundings", tour=("sea",), pccheck=("scene.sea", "scene.hall"), since="0.2.12")
+fn(id="scene.sea_ground", title="Ground in the sea cut-away", family="scene", panel="FRESING_PT_scene",
+   prop="sea_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.114")
 fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", prop="lighting", guide="light",
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",

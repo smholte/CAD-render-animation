@@ -108,6 +108,8 @@ def _settings_key(s, kind: str) -> dict:
         key["depth"] = round(float(s.sea_depth), 2)        # task 0081: the seabed (always on the open sea)
         if s.sea_cutaway:                                  # the cut-away's settings only when it is on
             key["cut"] = _cut_key(s)
+            if s.sea_ground:                               # task 0148 (absent for a project that has it off)
+                key["ground"] = 1
     if kind == "PHOTO":
         key.update(photo=_photo_path(s), height=round(s.photo_height, 3))
     return key
@@ -1803,7 +1805,8 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
 # volume that absorbs and glows in the water's colour, ``core/sea.py``) fades whatever is seen through its walls.
 
 SEABED_MOTION = "FR seabed motion"         # the empty the seabed follows (made and driven by the sea cables: paths_sea)
-UNDER_ROLES = ("seabed", "stones", "sea_cut")
+GROUND_STAMP = "fr_ground_ver"             # on the root: the sea was built with the ground setting (task 0148)
+UNDER_ROLES = ("seabed", "stones", "sea_cut", "soil")
 CUT_ATTRS = ("fr_seacut_o", "fr_seacut_u", "fr_seacut_s")
 STONES = 420
 STONES_NEAR = 0.6                          # share of the stones within 12 m of the box (the rest within 250 m)
@@ -1990,10 +1993,11 @@ def _ripples_socket(b: _NB, x, y):
     return b.math("MULTIPLY_ADD", r, sea_core.RIPPLE_HEIGHT, swell), r
 
 
-def _seabed_material() -> bpy.types.Material:
+def _seabed_material(ground: bool = False) -> bpy.types.Material:
     """Sand and silt: patches of colour, silt in the ripples' troughs, the ripples (shading only where the mesh is
-    flat: object attribute ``fr_seabed_bump`` 1) and a fine grain."""
-    name = MAT_PREFIX + "seabed"
+    flat: object attribute ``fr_seabed_bump`` 1) and a fine grain. ``ground`` (task 0148): see-through inside the
+    cut-away box, where the soil section shows what lies under it."""
+    name = MAT_PREFIX + "seabed" + (" ground" if ground else "")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -2027,13 +2031,15 @@ def _seabed_material() -> bpy.types.Material:
     shader = _principled(t, col, 0.92, normal=fine.outputs["Normal"])
     out = t.node("ShaderNodeOutputMaterial")
     t.link(shader, out.inputs["Surface"])
+    if ground:
+        _add_box_cut(mat)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "seabed"
     return mat
 
 
-def _stone_material() -> bpy.types.Material:
-    name = MAT_PREFIX + "seabed stones"
+def _stone_material(ground: bool = False) -> bpy.types.Material:
+    name = MAT_PREFIX + "seabed stones" + (" ground" if ground else "")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -2051,6 +2057,8 @@ def _stone_material() -> bpy.types.Material:
     shader = _principled(t, col, _ramp(t, n, 0.6, 0.9), normal=_bump(t, _noise(t, 6.0, 4.0, 0.6, co), 0.5, 0.02))
     out = t.node("ShaderNodeOutputMaterial")
     t.link(shader, out.inputs["Surface"])
+    if ground:
+        _add_box_cut(mat)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "stones"
     return mat
@@ -2134,6 +2142,71 @@ def _stones_mesh(name: str, box, offset_xy, seed: int = 81) -> bpy.types.Mesh:
         pts += (cx[i], cy[i], float(ground[i]) - 0.35 * sz)
         m._add(pts, faces, 0, smooth=True)
     return m.to_mesh(name)
+
+
+# ---- the ground in the cut-away (task 0148) ----------------------------------------------------------------
+
+
+def ground_reach(scene, s, root, level: float, depth: float) -> float:
+    """How far (m) the model reaches below the seabed: its lowest point against the seabed (both in the
+    surroundings' frame); 0 when nothing does."""
+    mn = root.get("fr_min")
+    if mn is None:
+        return 0.0
+    low = float(mn[2]) - float(root.location.z)
+    return max(0.0, (float(level) - float(depth)) - low)
+
+
+def _soil_mesh(name: str, box, offset_xy, depth: float) -> bpy.types.Mesh:
+    """The soil section: the box's four walls from just over the seabed down ``depth`` m and its floor, all facing
+    into the box (the pit the camera looks into). Local z: 0 = the flat seabed."""
+    o, u, v = _box_frame(box, offset_xy)
+    length, width = float(box["length"]), float(box["width"])
+    c = _rect(o, u, v, length, width)                       # anticlockwise from above
+    top, bot = sea_core.GROUND_TOP, -float(depth)
+    pts = [(p[0], p[1], z) for z in (top, bot) for p in c]
+    area = sum(c[k][0] * c[(k + 1) % 4][1] - c[(k + 1) % 4][0] * c[k][1] for k in range(4))
+    ccw = area > 0                                                         # (a mirrored frame turns the loop)
+    walls = [(k, (k + 1) % 4, 4 + (k + 1) % 4, 4 + k) for k in range(4)]   # into the box when anticlockwise
+    faces = [w if ccw else w[::-1] for w in walls]
+    faces.append((4, 5, 6, 7) if ccw else (7, 6, 5, 4))                    # the floor: up
+    m = _Mesh()
+    m._add(pts, faces, 0)
+    return m.to_mesh(name)
+
+
+def _soil_material() -> bpy.types.Material:
+    """Layered soil on the section's faces: the colour follows the depth under the seabed (the object's own z = the
+    seabed), the boundaries wobble with noise, a little grain; ``core.sea.soil_colour`` is the same formula."""
+    name = MAT_PREFIX + "soil"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    b = _NB(t.nt)
+    co = b.new("ShaderNodeTexCoord").outputs["Object"]
+    xyz = b.sep(co)
+    depth = b.math("MULTIPLY", xyz["Z"], -1.0)
+    wobble = b.math("MULTIPLY", b.math("SUBTRACT", _noise(t, 0.12, 3.0, 0.6, co), 0.5), 1.6)
+    d = b.math("ADD", depth, wobble)
+    col = sea_core.SOIL_LAYERS[0][1]
+    half = sea_core.SOIL_BLEND / 2
+    for (end, _c, _n), (_e2, nxt, _n2) in zip(sea_core.SOIL_LAYERS, sea_core.SOIL_LAYERS[1:]):
+        col = _mix_color(t, b.ramp(d, end - half, end + half, 0.0, 1.0), col, nxt)
+    grain = _noise(t, 7.0, 3.0, 0.6, co)
+    col = _mix_color(t, b.ramp(grain, 0.3, 0.7, 0.0, 0.3), col, tuple(c * 0.7 for c in sea_core.SOIL_LAYERS[1][1]))
+    shader = _principled(t, col, 0.95, normal=_bump(t, _noise(t, 5.0, 4.0, 0.6, co), 0.4, 0.03))
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(shader, out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "soil"
+    return mat
 
 
 # ---- the ring of water round the box -----------------------------------------
@@ -2281,22 +2354,34 @@ def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near:
     scene = s.id_data
     depth = float(s.sea_depth)
     cut = bool(s.sea_cutaway)
+    root[GROUND_STAMP] = 1                         # built by an app that knows the ground setting (task 0148)
     box = _box_for(scene, s, root) if cut else None
     offset = (float(root.location.x), float(root.location.y))
     rich = detailed and cut
+    reach = ground_reach(scene, s, root, level, depth) if cut else 0.0
+    ground = cut and bool(s.sea_ground) and reach > 0.0           # task 0148: the soil section in the box
     me = _seabed_mesh("FR Sea: seabed", box, offset, rich)
-    me.materials.append(_seabed_material())
+    me.materials.append(_seabed_material(ground))
     bed = _new_object("FR Sea: seabed", me, "seabed", col, root)
     bed.location.z = level - depth
     bed["fr_seabed_bump"] = 0.0 if rich else 1.0
     follow_seabed_motion(bed)
     if rich:
         st = _new_object("FR Sea: stones", _stones_mesh("FR Sea: stones", box, offset), "stones", col, root)
-        st.data.materials.append(_stone_material())
+        st.data.materials.append(_stone_material(ground))
         st.location.z = level - depth
         follow_seabed_motion(st)
+        if ground:
+            _set_cut_attrs(st, box)
     if not cut:
         return
+    if ground:
+        _set_cut_attrs(bed, box)
+        soil = _new_object("FR Sea: soil", _soil_mesh("FR Sea: soil", box, offset, sea_core.ground_depth(reach)),
+                           "soil", col, root)
+        soil.data.materials.append(_soil_material())
+        soil.location.z = level - depth
+        soil["fr_ground_depth"] = float(sea_core.ground_depth(reach))
     _set_cut_attrs(sea_ob, box)
     for ob in col.objects:
         if ob.get(TAG) == "hull_foam":
@@ -2552,3 +2637,14 @@ def put_props_on_floor(scene) -> None:
     z = floor_height(scene)
     for ob in props(scene):
         ob.location.z = z
+
+
+def upgrade_ground(scene) -> None:
+    """A project saved before task 0148 has the ground setting off: its cut-away looks as it did (new projects have
+    it on, and a part that reaches below the seabed then shows its ground)."""
+    root = root_object()
+    if root is None or root.get("fr_kind") != "SEA" or root.get(GROUND_STAMP) is not None:
+        return
+    root[GROUND_STAMP] = 1
+    if scene.fresing.sea_cutaway:
+        scene.fresing.sea_ground = False

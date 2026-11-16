@@ -108,9 +108,10 @@ def test_decals_cameras_scene_and_hidden_parts(model):
     assert "WARN_GENERAL" in stickers
     if model == "iea15_offshore":
         assert {"N 0°", "E 90°", "S 180°", "W 270°"} <= texts and "WARN_LOAD" in stickers
-        assert s["scene"]["water_level_m"] == 30.0                    # the sea at z 0: 30 m above the cut pile
+        assert s["scene"]["water_level_m"] == 75.0                    # the sea at z 0: 75 m above the pile's toe
+        assert s["scene"]["sea_depth_m"] == 30.0                      # task 0148: ... on a 30 m seabed, 45 m of pile in it
         assert "Work boat" in {c["name"] for c in s["cameras"]}
-        assert any(h["part"] == "MONOPILE BELOW SEABED" for h in s["hide"])
+        assert not any(h["part"] == "MONOPILE BELOW SEABED" for h in s["hide"])    # shown in the soil section
     for d in s["decals"]:
         assert d["kind"] in ("TEXT", "STICKER") and d["part"] and len(d["point"]) == 3
         n = d["normal"]

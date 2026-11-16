@@ -1920,6 +1920,37 @@ def scene_sea(ctx):
     return f"rendered in {info['seconds']} s"
 
 
+@line("scene.sea_ground", "Sea cut-away: the ground in the cut", "0.2.114",
+      what="The crane stands 2 m into the seabed (water 3 m, depth 1 m) with the cut-away on: the seabed is cut open "
+           "inside the box and a soil section (layers, walls, floor) shows the ground; with 'Show the ground' off "
+           "there is none; rendered small from above (task 0148)")
+def scene_sea_ground(ctx):
+    from ..blender import cameras, surroundings
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.env_detail = "SIMPLE"
+    s.background, s.water_level, s.sea_depth = "SEA", 3.0, 1.0
+    s.sea_cutaway, s.sea_cut_auto, s.sea_ground = True, False, True
+    s.sea_cut_start, s.sea_cut_length, s.sea_cut_width = -4.0, 40.0, 30.0
+
+    def roles(role):
+        return [o for o in scene.objects if o.get(surroundings.TAG) == role]
+
+    soil = roles("soil")
+    _check(len(soil) == 1, f"{len(soil)} soil sections (1 expected)")
+    depth = float(soil[0].get("fr_ground_depth", 0.0))
+    _check(depth >= 10.0, f"the soil section is {depth:.1f} m deep (10 m at least)")
+    _check(roles("seabed") and "fr_seacut_o" in roles("seabed")[0], "the seabed is not cut open inside the box")
+    s.sea_ground = False
+    _check(not roles("soil"), "the soil stays with the setting off")
+    s.sea_ground = True
+    _small_output(s)
+    scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Ground view")
+    info = _cpu_still(ctx, scene, "sea_ground", "The soil section in the sea cut-away (processor, draft)",
+                      model_check=False)
+    return f"{depth:.1f} m of ground, rendered in {info['seconds']} s"
+
+
 # ---------------------------------------------------------------------------
 # weather and time of day (task 0109)
 # ---------------------------------------------------------------------------

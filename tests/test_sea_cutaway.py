@@ -556,3 +556,179 @@ def test_render_clarity_fades_what_is_behind_a_wall(scene, tmp_path):
     night = px[12:20, 20:28].mean(axis=(0, 1))
     want = sea.seen_through(np.ones(3), 5.0, 5.0, light)
     assert np.allclose(night, want, atol=0.003, rtol=0.03), (night, want)
+
+
+# ---------------------------------------------------------------------------
+# the ground in the cut-away (task 0148)
+# ---------------------------------------------------------------------------
+
+
+def test_soil_layers_and_depth_numbers():
+    layers = sea.SOIL_LAYERS
+    assert [n for _, _, n in layers] == ["sand", "silty sand", "stiff clay", "dark clay"]
+    assert layers[-1][0] is None and all(e is not None for e, _, _ in layers[:-1])
+    ends = [e for e, _, _ in layers[:-1]]
+    assert ends == sorted(ends)
+    # in the middle of each layer its own colour; across a boundary the colour changes over SOIL_BLEND metres
+    start = 0.0
+    for (end, col, _n) in layers:
+        mid = start + 1.0 if end is None else (start + end) / 2
+        assert sea.soil_colour(mid) == pytest.approx(col)
+        start = end if end is not None else start
+    a, b = sea.soil_colour(ends[0] - 0.5), sea.soil_colour(ends[0] + 0.5)
+    assert a != b
+    half = sea.soil_colour(ends[0])
+    assert np.allclose(half, (np.array(layers[0][1]) + np.array(layers[1][1])) / 2)
+    assert sea.soil_colour(ends[0] - 2.0, wobble=2.0) == pytest.approx(half)      # the noise moves the boundary
+    # the section is deeper than the pile's toe, never shallower than GROUND_MIN
+    assert sea.ground_depth(0.0) == sea.GROUND_MIN
+    assert sea.ground_depth(30.0) == pytest.approx(30.0 * 1.15 + 5.0)
+    assert sea.ground_depth(30.0) > 30.0 and sea.ground_depth(100.0) > 100.0
+
+
+def _pile(name, x, y, z0, z1, parent=None):
+    """A thin red part (emission) standing in the ground: z0 (its toe) … z1."""
+    me = bpy.data.meshes.new(name)
+    r = 1.0
+    v = [(x + dx * r, y + dy * r, z) for z in (z0, z1) for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    f = [(3, 2, 1, 0), (4, 5, 6, 7)] + [(i, (i + 1) % 4, 4 + (i + 1) % 4, 4 + i) for i in range(4)]
+    me.from_pydata(v, [], f)
+    me.update()
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (1.0, 0.0, 0.0, 1.0)
+    em.inputs["Strength"].default_value = 5.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = bpy.data.objects["Invented vessel"]
+    ob["fr_kind"] = "part"
+    ob["fr_uid"] = name
+    return ob
+
+
+@pytest.fixture()
+def piles(scene):
+    """Two piles 34 m into the ground (the seabed lies 30 m under the water), one in the cut-away box, one outside."""
+    _pile("Pile A", -30.0, 42.0, -60.0, 3.0)
+    _pile("Pile B", -30.0, 90.0, -60.0, 3.0)
+    s = scene.fresing
+    s.water_level = 64.0                                   # from the lowest point (the piles' toes): the water at z = 4
+    s.sea_cutaway = True
+    s.sea_cut_auto = False
+    s.sea_cut_start = -30.0
+    s.sea_cut_length, s.sea_cut_width = 60.0, 24.0
+    bpy.context.view_layer.update()
+    return scene
+
+
+def test_ground_objects_follow_the_setting(piles):
+    s = piles.fresing
+    _apply(piles)
+    assert s.sea_ground                                      # on for a new project
+    box = surroundings.sea_cut_box(piles)
+    assert box["origin"][0] == pytest.approx(-1.0) and box["origin"][1] == pytest.approx(42.0)
+    soil = _env("soil")
+    assert len(soil) == 1
+    reach = surroundings.seabed_z(piles) - (-60.0)
+    assert soil[0]["fr_ground_depth"] == pytest.approx(sea.ground_depth(reach))
+    assert soil[0]["fr_ground_depth"] > reach
+    bed = _env("seabed")[0]
+    assert bed.data.materials[0].name.endswith("ground") and "fr_seacut_o" in bed
+    # the section's walls face into the box, its floor faces up and lies under the pile's toe
+    me = soil[0].data
+    assert len(me.polygons) == 5
+    centre = np.array([-31.0, 42.0, 0.0])
+    z = [soil[0].matrix_world @ v.co for v in me.vertices]
+    assert min(p.z for p in z) < -60.0 and max(p.z for p in z) > surroundings.seabed_z(piles)
+    for p in me.polygons:
+        n = np.array(p.normal)
+        c = np.array(soil[0].matrix_world @ p.center)
+        if abs(n[2]) > 0.9:
+            assert n[2] > 0
+        else:
+            assert np.dot(n[:2], centre[:2] - c[:2]) > 0
+    mat = soil[0].data.materials[0]
+    assert mat["fr_env"] == "soil"
+    key = surroundings.root_object()["fr_key"]
+    # off: no section, a closed seabed, the key as before this task
+    s.sea_ground = False
+    _apply(piles)
+    assert not _env("soil")
+    bed = _env("seabed")[0]
+    assert not bed.data.materials[0].name.endswith("ground") and "fr_seacut_o" not in bed
+    assert "ground" not in json.loads(surroundings.root_object()["fr_key"])["cut"] and \
+        "ground" in json.loads(key)
+    # no cut-away: no section either
+    s.sea_ground = True
+    s.sea_cutaway = False
+    _apply(piles)
+    assert not _env("soil")
+
+
+def test_no_ground_when_nothing_reaches_below_the_seabed(scene):
+    s = scene.fresing
+    s.sea_cutaway = True
+    _apply(scene)
+    assert not _env("soil")                                  # the vessel's hull stands in the water
+    assert s.sea_ground
+    assert not _env("seabed")[0].data.materials[0].name.endswith("ground")
+    s.sea_depth = 2.0                                        # now the hull's keel is under the seabed
+    s.water_level = 6.0
+    _apply(scene)
+    assert len(_env("soil")) == 1
+
+
+def test_old_project_keeps_its_closed_seabed(piles):
+    s = piles.fresing
+    _apply(piles)
+    root = surroundings.root_object()
+    del root[surroundings.GROUND_STAMP]                      # as saved before this task
+    surroundings.upgrade_ground(piles)
+    assert s.sea_ground is False and root[surroundings.GROUND_STAMP] == 1
+    s.sea_ground = True                                      # the owner turns it on again: stays on
+    surroundings.upgrade_ground(piles)
+    assert s.sea_ground is True
+    # a sea without the cut-away keeps the new default
+    s.sea_cutaway = False
+    del root[surroundings.GROUND_STAMP]
+    surroundings.upgrade_ground(piles)
+    assert s.sea_ground is True
+
+
+def _red(px):
+    return int(((px[..., 0] > 0.5) & (px[..., 1] < 0.2) & (px[..., 2] < 0.2)).sum())
+
+
+def _look_at_pile(scene, y, path):
+    _camera(scene, (-30.0, y - 10.0, 80.0), (-30.0, y, -30.0), lens=80.0)
+    return _render(scene, path, size=(96, 96))
+
+
+def test_render_pile_to_its_toe_in_the_cut_and_hidden_outside(piles, tmp_path):
+    s = piles.fresing
+    s.sea_ground = False
+    _apply(piles)
+    off = _red(_look_at_pile(piles, 42.0, tmp_path / "a_off.exr"))     # the water's cut away: the part above the seabed
+    s.sea_ground = True
+    _apply(piles)
+    on = _red(_look_at_pile(piles, 42.0, tmp_path / "a_on.exr"))
+    assert off > 20
+    assert on > 1.5 * off, (on, off)                                   # the 34 m under the seabed show too
+    # outside the box the seabed still hides the pile's foot (and the water its whole length)
+    outside = _red(_look_at_pile(piles, 90.0, tmp_path / "b_on.exr"))
+    assert outside == 0
+    for ob in _env("sea") + _env("sea_cut"):                          # without the water: only the seabed hides it
+        ob.hide_render = True
+    b_dry = _red(_look_at_pile(piles, 90.0, tmp_path / "b_dry.exr"))
+    s.sea_ground = False
+    _apply(piles)
+    for ob in _env("sea") + _env("sea_cut"):
+        ob.hide_render = True
+    a_dry_off = _red(_look_at_pile(piles, 42.0, tmp_path / "a_dry_off.exr"))
+    assert b_dry == pytest.approx(a_dry_off, rel=0.2) and b_dry < 0.7 * on

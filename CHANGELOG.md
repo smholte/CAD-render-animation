@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.114 – 16 Nov 2026 – The sea cut-away also cuts the ground (task 0148)
+
+- **The pile of an offshore turbine is seen down to its toe.** With **Cut-away behind the stern** on, the box is now
+  taken out of the ground too: the seabed is open inside it and a soil section – the box's four walls and its floor,
+  in layers from sand to clay – shows what stands in the ground. Outside the box the seabed stays closed and hides
+  everything under it.
+- **New setting "Show the ground"** (5 Scene & Render > Background & surroundings, under the cut-away; on by default). It
+  only does something when a part reaches below the seabed (set **Water level** and **Water depth** for it). A
+  project saved before this version has it off, so its pictures stay as they were.
+- The cut-away, **Water depth** and **Water clarity** are now in the panel, not only in scripts.
+- The offshore turbine of the site kit shows its 45 m of monopile in the ground, and its "Seabed" shot looks down into
+  the pit.
+- PC check: one new line, "Sea cut-away: the ground in the cut".
+
+**Test this:** open the Scene & Render panel, background Open sea, tick Cut-away behind the stern; set the water
+level and water depth so a part of your model is below the seabed. You should see a pit with layered walls and the
+part standing in it to its lowest point.
+
 ## 0.2.113 – 16 Nov 2026 – Build gives the same animation at any frame (task 0138)
 
 - **Build no longer depends on the frame shown.** Pressing Build at a late frame of the demo put the second end and

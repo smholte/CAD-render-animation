@@ -1229,6 +1229,17 @@ waterline, the seabed further away, the cable beyond the box.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
+<a id="sea-ground"></a>
+**The ground in the cut-away.** When a part reaches below the seabed (a wind turbine's monopile: set **Water level**
+and **Water depth** so the seabed lies above the pile's toe), the cut-away takes the box out of the ground too. The
+seabed is open inside the box and a soil section shows its four walls and its floor in layers – sand, silty sand,
+stiff clay, dark clay – so you see the pile down to its toe, with the scour protection on top. Outside the box the
+seabed stays closed and hides everything under it. The section goes a little deeper than the lowest part. **Show the
+ground** (under **Cut-away behind the stern**, on by default) turns it off; a project saved before this setting
+existed has it off, so its pictures stay as they were. The layers are a look, not a soil survey.
+
+<img class="wide" src="img/view_sea_ground.jpg" alt="A pile standing in the cut-away: the soil section's layered walls and floor, the pile seen down to its toe">
+
 <a id="moving-cable"></a>
 #### A cable on a moving part
 

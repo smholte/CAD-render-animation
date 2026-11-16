@@ -3527,6 +3527,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         name="Cut-away behind the stern", default=False, update=_world_changed,
         description="Takes a box of water away behind the stern so you see the cable hang down to the seabed. "
                     "Its walls show the water's colour and clarity")
+    sea_ground: BoolProperty(
+        name="Show the ground in the cut-away", default=True, update=_world_changed,
+        description="Takes the box out of the ground too: the seabed is cut open inside the cut-away and a soil "
+                    "section (sand, clay) shows what stands in the ground, such as the pile of a wind turbine down "
+                    "to its toe. Only when a part reaches below the seabed. Off: the seabed stays closed")
     sea_cut_auto: BoolProperty(
         name="Place it by the cable", default=True, update=_world_changed,
         description="On: the box reaches from the stern to past the touch-down of the cable into the sea. Off: "

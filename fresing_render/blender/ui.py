@@ -829,6 +829,11 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
             row.prop(s, "sea_state", text="Sea", expand=True)
             if bg == "SEA":
                 col.prop(s, "water_level", text="Water level")
+                col.prop(s, "sea_depth", text="Water depth")
+                col.prop(s, "sea_cutaway", text="Cut-away behind the stern")
+                if s.sea_cutaway:
+                    col.prop(s, "sea_clarity", text="Water clarity")
+                    col.prop(s, "sea_ground", text="Show the ground")
             row = col.row(heading="Waves")
             row.prop(s, "sea_foam", text="Foam")
             row.prop(s, "sea_moving", text="Moving")

@@ -385,10 +385,6 @@
   {
    "part": "BLADE 3 ROOT DISC",
    "why": "a disc 2 m across and 10 mm thick at the blade root in the source (a modelling aid, no part of a turbine)"
-  },
-  {
-   "part": "MONOPILE BELOW SEABED",
-   "why": "the 45 m of the monopile in the ground below the 30 m deep seabed: the app's seabed is a surface you cannot see into, so the pile would only stick out of its underside (task 0128)"
   }
  ],
  "poses": [
@@ -901,18 +897,18 @@
    "eye": [
     -36252.311481466,
     16904.730469627983,
-    -21000.0
+    2000.0
    ],
    "target": [
     0.0,
     0.0,
-    -27000.0
+    -52000.0
    ],
    "lens": 26.0
   }
  ],
  "scene": {
-  "water_level_m": 30.0,
+  "water_level_m": 75.0,
   "sea_depth_m": 30.0,
   "cutaway": {
    "centre_m": [

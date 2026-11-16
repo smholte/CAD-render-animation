@@ -934,9 +934,10 @@ def cameras(fit: dict, variant: str) -> list[dict]:
                 _cam("Whole turbine", _radial(145.0) * 520000.0 + np.array([0.0, 0.0, fit["msl_z"] + 40000.0]),
                      (0.0, hub[1], fit["msl_z"] + 122000.0), 32.0),
                 # task 0128: at the seabed inside the cut-away box (``scene.cutaway``): the pile's foot and the
-                # rock bed round it, 45 m of pile below the seabed stay hidden under it
-                _cam("Seabed", _radial(AZ_LADDER + 160.0) * 40000.0 + np.array([0.0, 0.0, fit["seabed_z"] + 9000.0]),
-                     (0.0, 0.0, fit["seabed_z"] + 3000.0), 26.0)]
+                # rock bed round it; task 0148: from above the box, looking down into the soil section at the 45 m
+                # of pile below the seabed
+                _cam("Seabed", _radial(AZ_LADDER + 160.0) * 40000.0 + np.array([0.0, 0.0, fit["seabed_z"] + 32000.0]),
+                     (0.0, 0.0, fit["seabed_z"] - 22000.0), 26.0)]
     g = float(fit.get("ground_z", 0.0))
     door = _radial(AZ_DOOR)
     side = np.cross([0.0, 0.0, 1.0], door)

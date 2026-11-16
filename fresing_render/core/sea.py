@@ -594,3 +594,38 @@ def seabed_ripples(x, y):
     r = np.sin(k * (0.96 * x + 0.28 * y) + bend)
     swell = 0.12 * np.sin(0.23 * x + 0.9) * np.sin(0.17 * y + 0.3)
     return RIPPLE_HEIGHT * r + swell
+
+
+# ---- the ground in the cut-away (task 0148) ------------------------------------------------------------------
+#
+# With the cut-away the box is taken out of the ground too: the seabed is see-through inside it, and a soil section
+# (the box's four walls and its floor) shows layers from sand to clay, so a pile standing in the ground is seen down
+# to its toe. The layers are a look, not a survey.
+
+SOIL_LAYERS = (                            # (depth under the seabed where the layer ENDS in m, linear RGB, name)
+    (3.0, (0.20, 0.165, 0.11), "sand"),
+    (9.0, (0.13, 0.105, 0.075), "silty sand"),
+    (20.0, (0.17, 0.14, 0.115), "stiff clay"),
+    (None, (0.075, 0.07, 0.065), "dark clay"),
+)
+SOIL_BLEND = 0.35                          # m: how sharp the boundary between two layers is
+GROUND_MARGIN = (0.15, 5.0)                # the section reaches this share of the reach + this many m below the toe
+GROUND_MIN = 10.0                          # m: at least this deep
+GROUND_TOP = 0.15                          # m: the walls reach this far above the flat seabed (the ripples)
+
+
+def soil_colour(depth: float, wobble: float = 0.0) -> tuple[float, float, float]:
+    """The soil's colour ``depth`` metres under the seabed (``wobble`` moves the boundaries, m: the material feeds it
+    noise). Layers blend over ``SOIL_BLEND`` – the shader's formula."""
+    d = float(depth) + float(wobble)
+    col = np.array(SOIL_LAYERS[0][1], float)
+    for (end, _c, _n), (_e2, nxt, _n2) in zip(SOIL_LAYERS, SOIL_LAYERS[1:]):
+        k = min(max((d - (end - SOIL_BLEND / 2)) / SOIL_BLEND, 0.0), 1.0)
+        col = col * (1.0 - k) + np.array(nxt, float) * k
+    return tuple(float(c) for c in col)
+
+
+def ground_depth(reach: float) -> float:
+    """How deep the soil section goes (m under the seabed) for a part that reaches ``reach`` m below it (0: none)."""
+    r = max(float(reach), 0.0)
+    return max(GROUND_MIN, r * (1.0 + GROUND_MARGIN[0]) + GROUND_MARGIN[1])

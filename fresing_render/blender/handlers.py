@@ -159,7 +159,11 @@ def _upgrade_steps():
         from . import gcode
         gcode.upgrade_accel(sc)          # older projects: a CNC machine keeps its timing without acceleration (0103)
 
-    return (("acceleration", accel), ("matrices", build.ensure_bases), ("part IDs", build.repair_uids), ("paint faces", faces_off),
+    def ground(sc):
+        from . import surroundings
+        surroundings.upgrade_ground(sc)  # before task 0148: a cut-away keeps its closed seabed
+
+    return (("sea ground", ground), ("acceleration", accel), ("matrices", build.ensure_bases), ("part IDs", build.repair_uids), ("paint faces", faces_off),
             ("joint drivers", drivers), ("looks", looks), ("rule set", rules), ("tool changer", changer))
 
 
