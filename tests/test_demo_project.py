@@ -251,18 +251,22 @@ def _keys(sc):
 
 
 def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
-    from fresing_render.blender import animation
+    from fresing_render.blender import animation, paths_sea
     sc = _scene()
     a = sc.fresing.animations[demo.ANIM]
-    animation.bake(sc, a)
+    out = animation.bake(sc, a)
     first = _keys(sc)
+    marks = {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)}
     assert len(first) > 15                  # the moved joints, the camera, the fades (followers are drivers)
     path = str(tmp_path / "again.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
     bpy.ops.wm.open_mainfile(filepath=path)
     sc = _scene()
-    animation.bake(sc, sc.fresing.animations[demo.ANIM])
+    sc.frame_set(sc.frame_end)              # task 0138: Build with the last frame shown gives the same (was +114 m)
+    again_out = animation.bake(sc, sc.fresing.animations[demo.ANIM])
     again = _keys(sc)
+    assert {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)} == pytest.approx(marks, abs=1e-6)
+    assert again_out["warnings"] == out["warnings"]
     assert set(again) == set(first)
     for k, v in first.items():
         assert v.shape == again[k].shape and np.allclose(v, again[k], atol=1e-5), k

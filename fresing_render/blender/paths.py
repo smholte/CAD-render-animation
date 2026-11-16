@@ -257,7 +257,9 @@ def _unit(v) -> np.ndarray:
 
 
 def _scale(m: np.ndarray) -> float:
-    return float(np.cbrt(abs(np.linalg.det(m[:3, :3])))) or 1.0
+    """The part's units to metres. Six digits: read from a world matrix that vessel motion turns, the 7th digit
+    changes with the frame and picked another catenary for a D hanging just over the seabed (task 0138)."""
+    return float(f"{float(np.cbrt(abs(np.linalg.det(m[:3, :3])))):.6g}") or 1.0
 
 
 def _world(ob) -> np.ndarray:

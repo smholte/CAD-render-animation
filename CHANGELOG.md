@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.113 – 16 Nov 2026 – Build gives the same animation at any frame (task 0138)
+
+- **Build no longer depends on the frame shown.** Pressing Build at a late frame of the demo put the second end and
+  its CPS up to 114 m off in shots 9–12 and warned "98 m more cable than the water is deep". The start scene set the
+  water level again, and every cable into the sea set its touch-down again in the pose of the frame shown (where
+  let go and the sailing seabed had already moved things). Now Build always starts from frame 1, the same water set
+  again changes nothing, and the touch-down is always worked out at the animation's first frame. The render queue
+  benefits too: a project saved at a late frame gives the right video.
+- **Set the touch-down here** works at the animation's first frame (the pose shown when nothing is built).
+
 ## 0.2.112 – 16 Nov 2026 – Web 3D page becomes a player (task 0134)
 
 - **Settings on the page** (the gear, or M): switch the sea, vessel motion, sky, haze, rain and sun shadows on and

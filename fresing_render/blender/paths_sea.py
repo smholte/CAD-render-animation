@@ -713,9 +713,29 @@ def lay_direction(scene, item) -> np.ndarray:
     return _unit(rho)
 
 
+def _first_rel(scene, item, slots):
+    """((1, K, 4, 4), frame): the slots at the animation's first frame – from the places read at Build when they hold
+    it, else the pose shown with the timeline on that frame for a moment (the clock and let go follow the frame even
+    without keys; task 0138, study 0141)."""
+    paths = _paths()
+    f0 = int(scene.frame_start)
+    stored = paths._stored_places(scene, item, slots) if paths._baked(scene) else None
+    if stored is not None and stored[1] <= f0 < stored[1] + len(stored[0]):
+        return stored[0][f0 - stored[1]][None], f0
+    here, sub = int(scene.frame_current), float(scene.frame_subframe)
+    if here == f0 and not sub:
+        return paths._rel_now(item, slots)[None], f0
+    scene.frame_set(f0)
+    try:
+        return paths._rel_now(item, slots)[None], f0
+    finally:
+        scene.frame_set(here, subframe=sub)
+
+
 def anchor(scene, item) -> list[str]:
-    """Set the touch-down at the pose shown: from the layback or the bottom tension, ``sea_laid`` on the seabed
-    behind it. Writes ``sea_start``, ``sea_mark`` (and ``sea_dir`` when ``direction``)."""
+    """Set the touch-down at the animation's first frame (the pose shown when nothing is built): from the layback or
+    the bottom tension, ``sea_laid`` on the seabed behind it. Writes ``sea_start``, ``sea_mark`` (and ``sea_dir``
+    when ``direction``)."""
     paths = _paths()
     wheels, slots, _w, _a, _b = paths._inputs_of(item)
     if not wheels:
@@ -725,8 +745,8 @@ def anchor(scene, item) -> list[str]:
         bpy.context.view_layer.update()
     except Exception:
         pass
-    rel = paths._rel_now(item, slots)[None]
-    parts = paths._solve_parts(scene, item, rel, slots)
+    rel, f0 = _first_rel(scene, item, slots)
+    parts = paths._solve_parts(scene, item, rel, slots, first=f0)
     ar = _Arrive(scene, item, rel, slots, *parts)
     if not ar.res["ok"].all():
         return [f"Cable '{paths.label(item)}': {ar.res['problems'].get(0, 'no path')}"]
@@ -802,15 +822,21 @@ def water_changed(scene) -> None:
         bpy.context.view_layer.update()         # (a sea just made again has no world place before an update)
     except Exception:
         pass
+    ob = bed(scene, create=False)
+    was = None if ob is None else float(ob.location.z)
     sync_bed(scene)
+    same_line = was is not None and abs(waterline(scene) - was) < 1e-6
     for i, it in enumerate(scene.fresing.cables):
         if it.b_kind == "SEA" and it.enabled:
+            # the same water set again (a saved scene, Build's start scene): the touch-down stays (task 0138)
+            if same_line and abs(float(it.sea_start[2]) - bottom_z(scene, it)) < 1e-5:
+                continue
             changed(scene, scene.fresing.cables[i])
 
 
 def changed(scene, item) -> None:
-    """A sea-end setting changed: the touch-down is set again at the pose shown, the seabed follows, the cable is
-    drawn again."""
+    """A sea-end setting changed: the touch-down is set again (at the animation's first frame, ``anchor``), the seabed
+    follows, the cable is drawn again."""
     paths = _paths()
     if paths._STATE["busy"] or paths.index_of(scene, item) < 0 or not is_sea(item):
         return

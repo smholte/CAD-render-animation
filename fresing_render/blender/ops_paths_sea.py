@@ -53,15 +53,16 @@ class FRESING_OT_cable_sea_remove(_NeedsSea, bpy.types.Operator):
 
 
 class FRESING_OT_cable_sea_reset(_NeedsSea, bpy.types.Operator):
-    """Sets the touch-down again in the pose shown: from the layback or the bottom tension you typed. Use it after
-    you paid out cable or moved the vessel's machines by hand and want the numbers to hold here"""
+    """Sets the touch-down again from the layback or the bottom tension you typed, in the pose at the animation's
+    first frame (the pose shown when nothing is built), whatever frame is shown. Use it after you paid out cable or
+    moved the vessel's machines by hand"""
 
     bl_idname = "fresing.cable_sea_reset"
     bl_label = "Set the touch-down here"
 
     def execute(self, context):
         paths_sea.changed(context.scene, _item(context))
-        _say(context, self, "Touch-down set again in the pose shown")
+        _say(context, self, "Touch-down set again, at the animation's first frame")
         return {"FINISHED"}
 
 

@@ -607,6 +607,10 @@ def _weather_note(shot: str, before: str, after: str) -> str:
 def bake(scene, anim) -> dict:
     """Turn the blocks of ``anim`` into keyframes. Returns {'frames', 'seconds', 'warnings'}."""
     s = scene.fresing
+    # Build reads everything at the animation's first frame, whatever frame is shown (task 0138): let go and the
+    # clock (vessel motion, a seabed that sails) follow the frame even after Clear keys. Build ends there anyway.
+    if scene.frame_current != 1 or scene.frame_subframe:
+        scene.frame_set(1)
     from . import sequence
     sequence.end_preview(scene)          # parts an Assembly sequence preview moved go back first (task 0100)
     clear_keys(scene)

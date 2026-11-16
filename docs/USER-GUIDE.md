@@ -1195,7 +1195,9 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
    same distance behind it; or **Vessel speed of Weather & time** – the speed the wake shows: the touch-down then
    comes nearer or moves further back when the speeds differ.
 
-The touch-down is set in the pose shown. **Touch-down here** sets it again (after you paid out cable by hand).
+The touch-down is set in the pose at the animation's first frame (with nothing built: the pose shown), whatever
+frame is shown, so **Build** gives the same animation at any frame. **Touch-down here** sets it again (after you
+paid out cable by hand).
 
 **What moves.** The scene keeps the vessel where it is; the **seabed moves aft** under it, with the cable lying on
 it – its yellow stripes stand still there, while they run down the curve. With **Vessel motion** on, the horn rides
