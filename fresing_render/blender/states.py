@@ -356,7 +356,8 @@ def start_scene_changes(scene, shot_name: str, keys=None) -> list[tuple]:
     return out
 
 
-SEEN = "fr_world_seen"       # on the scene: the sea / weather values at the last Build or scene switch (task 0160)
+_SEEN: dict = {}             # (file, scene) -> the sea / weather values at the last Build or scene switch (task 0160;
+#                              kept in this session only: switching a saved scene leaves no trace on the scene)
 
 
 def _tracked(scene) -> dict:
@@ -369,16 +370,15 @@ def _tracked(scene) -> dict:
 def remember_seen(scene) -> None:
     """The sea and weather values now are not the owner's own changes (a Build, a saved scene switched to)."""
     try:
-        scene[SEEN] = json.dumps(_tracked(scene))
+        _SEEN[(bpy.data.filepath, scene.name)] = _tracked(scene)
     except Exception:  # noqa: BLE001 - only a note for the next Build's warning
         pass
 
 
 def set_since_seen(scene, changes) -> list[tuple]:
     """Of ``changes``, those the owner made since the last Build or scene switch (all when nothing is known)."""
-    try:
-        seen = json.loads(scene.get(SEEN, ""))
-    except (TypeError, ValueError):
+    seen = _SEEN.get((bpy.data.filepath, scene.name))
+    if seen is None:
         return list(changes)
     return [c for c in changes if c[0] not in seen or _differs(c[2], seen[c[0]])]
 
