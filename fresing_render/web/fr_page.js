@@ -1353,6 +1353,14 @@
     }
   }
 
+  // task 0135: the drawn tubes' centre lines for the part tools (their shape is made on the graphics card: a ray
+  // cannot hit their triangles); cp in the node's coordinates (three's axes), r in metres
+  page.tubeLines = function () {
+    return tubes.map(function (tb) {
+      return { node: tb.node, mesh: tb.mesh, cp: tb.cp, count: tb.count, r: tb.uniforms.uFrR.value, shown: tb.mesh.visible };
+    });
+  };
+
   // tests (?tubes=1): every drawn tube's centre line now, Blender world coordinates (m), at most 64 points each
   function tubeProbe() {
     var out = [], v = new T.Vector3();
@@ -1569,16 +1577,18 @@
   if (ST.shadows) page.items.push('shadows');
   if (UW) page.items.push('under', 'dive');      // task 0143: Under the sea, Camera under water
   var offList = Q.has('off') ? Q.get('off').split(',') : (PREF.off || []);
-  var underKept = Q.has('off') || !!PREF.off;     // the visitor chose the items: Auto leaves Under the sea alone
+  // the visitor chose Under the sea (link, or switched it): Auto leaves it alone (task 0135: a saved "off: []" from
+  // another choice no longer counts)
+  var underKept = Q.has('off') || (PREF.chose || []).indexOf('under') >= 0 || (PREF.off || []).indexOf('under') >= 0;
   page.items.forEach(function (n) { on[n] = offList.indexOf(n) < 0; });
   // 0147 row 21d: what the page itself switched off (no graphics card: shadows; Auto: Under the sea) is not the
   // visitor's choice – the link to the view leaves it out (the receiver's own browser decides)
-  var pageOff = {}, chosen = {};
-  (PREF.chose || []).forEach(function (n) { chosen[n] = true; });
-  if (page.warned && !Q.has('off') && on.shadows !== false && !chosen.shadows) { on.shadows = false; pageOff.shadows = true; }
+  var pageOff = {}, switched = {};
+  (PREF.chose || []).forEach(function (n) { switched[n] = true; });
+  if (page.warned && !Q.has('off') && on.shadows !== false && !switched.shadows) { on.shadows = false; pageOff.shadows = true; }
   page.visitorOff = function () { return page.items.filter(function (n) { return on[n] === false && !pageOff[n]; }); };
-  page.chosenItems = function () { return Object.keys(chosen); };
-  page.resetChosen = function () { chosen = {}; };
+  page.chosenItems = function () { return Object.keys(switched); };
+  page.resetChosen = function () { switched = {}; };
   page.on = on;
   var PLAIN_BG = new T.Color('#F1F3F5'), bgKeep = null;
   function lightGround(yes) {             // dark text on a light ground (the plain form, or the sky switched off)
@@ -1641,7 +1651,7 @@
   page.setItem = function (name, value, byPage) {
     if (page.items.indexOf(name) < 0) return;
     on[name] = !!value;
-    if (byPage && !value) pageOff[name] = true; else { delete pageOff[name]; if (!byPage) chosen[name] = true; }
+    if (byPage && !value) pageOff[name] = true; else { delete pageOff[name]; if (!byPage) switched[name] = true; }
     if (name === 'under') underKept = true;
     applyItems();
     if (!moving()) chain = false;
@@ -1997,7 +2007,7 @@
     if (!page.warned && !page.gpu && level === 'PHONE' && page.fps < 15 && Q.get('soft') !== '0') {
       page.warned = 'probably';
       page.cap = 30;
-      if (on.shadows && !Q.has('off') && !PREF.off) page.setItem('shadows', false, true);
+      if (on.shadows && !Q.has('off') && !switched.shadows) page.setItem('shadows', false, true);
       changed('warned');
       mark();
     }

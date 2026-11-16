@@ -361,15 +361,23 @@ def test_hide_names_long_press_and_hover(tmp_path):
     for name in (b"Block", b"Shaft", b"Pin"):
         assert name not in glb, name                        # no part name anywhere in the model
     steps = [{"eval": CAM}, {"wait": 300}, {"eval": at("shaft_side")}]
-    out = probe(path, steps)
+    out = probe(path, steps, size="480x640", mobile=True)
     x, y = out["out"][2]
-    steps += [{"press": [x, y, 800]}, {"eval": "frPage.partTools.state().card"},               # 3, 4: long press
-              {"key": "d"}, {"move": [x, y]}, {"eval": "frPage.partTools.state().hover"}]      # 5-7: hover a face
-    out = probe(path, steps)
+    steps += [{"touch": [x, y, 900]}, {"eval": "frPage.partTools.state().card"},               # 3, 4: long press
+              {"key": "Escape"}, {"key": "i"}, {"touch": [x, y, 80]},                         # 5-7: a tap with Info
+              {"eval": "frPage.partTools.state().card"}]                                       # 8
+    out = probe(path, steps, size="480x640", mobile=True)
     assert out["ok"], out
     o = out["out"]
     assert o[4]["text"] == "Steel" and "Ø 40.0 mm" in o[4]["face"]              # the group, never the part name
-    assert ":" in o[7]                                                           # a face is lit (mesh:first triangle)
+    assert o[8] and o[8]["text"] == "Steel"
+    # mouse: a press held long is a click (no card); hovering while measuring lights a face
+    out = probe(path, [{"eval": CAM}, {"wait": 300}, {"eval": at("shaft_side")}])
+    x, y = out["out"][2]
+    out = probe(path, [{"eval": CAM}, {"wait": 300}, {"press": [x, y, 900]}, {"eval": "frPage.partTools.state().card"},
+                       {"key": "d"}, {"move": [x, y]}, {"eval": "frPage.partTools.state().hover"}])
+    assert out["out"][3] is None
+    assert ":" in out["out"][6]                                                   # a face is lit (mesh:first triangle)
 
 
 @browser_test
@@ -433,3 +441,105 @@ def test_the_link_leaves_out_what_the_page_switched_off(tmp_path):
     assert out["out"][0] == ["software", False]
     assert "off=" not in out["out"][1]
     assert "off=shadows" in out["out"][2]                   # the visitor's own choice is in the link
+
+
+# ---------------------------------------------------------------------------
+# what the independent tester found (task 0135): each a test that failed before the fix
+# ---------------------------------------------------------------------------
+
+def test_shallow_cones_and_small_fillets_are_not_cylinders():
+    """A cone from Ø2000 to Ø1996.8 read as "Ø 1998.4 mm", an R0.35 fillet on a Ø400 edge as "Ø 400.60 mm"."""
+    a = np.linspace(0, 2 * np.pi, 64, endpoint=False)
+    for r0, r1 in ((1.0, 0.9984), (0.2, 0.20035)):
+        pts = np.array([[r0 * np.cos(x), r0 * np.sin(x), 0.0] for x in a] + [[r1 * np.cos(x), r1 * np.sin(x), 0.05]
+                                                                             for x in a])
+        tri = np.array([[i, (i + 1) % 64, 64 + (i + 1) % 64] for i in range(64)] +
+                       [[i, 64 + (i + 1) % 64, 64 + i] for i in range(64)])
+        rows = wf.classify(pts, tri, np.zeros(128, int), [0, 0, 0, 0, 0, 1, r0], [0, 128, 0])
+        assert rows[0][0] == wf.AXIS, (r0, r1)
+    # a true cylinder far from its part's origin (32-bit points) stays round
+    pts, _n, tri, starts, axes, af = cylinder(1.0, 0.5)
+    pts = (pts + [20.0, 0, 0]).astype(np.float32).astype(np.float64)
+    axes = [20.0, 0, 0, 0, 0, 1, 1.0]
+    rows = wf.classify(pts, tri, wf.face_of_triangles(len(tri), starts), axes, af)
+    assert rows[0][0] == wf.ROUND and abs(rows[0][7] - 1.0) < 1e-5
+
+
+def tube_model() -> bytes:
+    """A block, a red cable drawn by the page (task 0142) in front of it, and a sticker (decal) on the block's top."""
+    from fresing_render.core import web3d_tubes as TT
+    g = web3d.Gltf()
+    look = g.material({"pbrMetallicRoughness": {"baseColorFactor": [0.6, 0.62, 0.65, 1], "metallicFactor": 0},
+                       "doubleSided": True})
+    red = g.material({"pbrMetallicRoughness": {"baseColorFactor": [0.9, 0.05, 0.05, 1], "metallicFactor": 0},
+                      "doubleSided": True})
+    root = g.node({"name": "Model", "rotation": list(web3d.Z_UP_TO_Y_UP)})
+    pts, nrm, tri, starts, _a, _f = box(0, 0, 0, 0.4, 0.2, 0.1)
+    m = g.mesh("Block", pts, web3d.quantize_normals(nrm), None, [(look, tri)])
+    g.place_mesh({"name": "Block", "extras": {"fr_card": "Block"}}, m, root)
+    sp, sn, st_, _s, _a, _f = box(0.15, 0.05, 0.1, 0.25, 0.15, 0.1002)
+    ms = g.mesh("Sticker", sp, web3d.quantize_normals(sn), None, [(red, st_)])
+    g.place_mesh({"name": "Decal 3", "extras": {"fr_decal": 1}}, ms, root)
+    line = np.array([[x, -0.15, 0.05] for x in np.linspace(-0.1, 0.5, 13)])
+    tp, tn, tt, _s, _a, _f = box(0, -0.16, 0.04, 0.02, -0.14, 0.06)
+    mc = g.mesh("Cable", tp, web3d.quantize_normals(tn), None, [(red, tt)])
+    spec = {"v": TT.VERSION, "sides": 12, "r": 0.02, "unit": 1.0, "n": len(line), "k": 1,
+            "lo": g.accessor(line.astype(np.float32), "VEC3"),
+            "n0": g.accessor(np.array([[0, 0, 1.0]], np.float32), "VEC3"),
+            "s0": g.accessor(np.array([0.0], np.float32), "SCALAR")}
+    g.place_mesh({"name": "Cable", "extras": {"fr_card": "Cable", "fr_tube": spec}}, mc, root)
+    return g.glb()
+
+
+def screen_eval(p, then="return [s.x, s.y];"):
+    return f"(function () {{ var s = frPage.partTools.screenOf({json.dumps(p)}); {then} }})()"
+
+
+@browser_test
+def test_cables_drawn_by_the_page_stickers_cut_faces_and_fade(tmp_path):
+    st = env.settings(dict(env.default_choice(), shadows=False, auto=False), [-0.1, -0.2, 0.0], [0.5, 0.2, 0.1],
+                      sky={"kind": "SKY", "sun": env.sun_vector(40, 30)}, plain=True)
+    path = str(tmp_path / "tube.html")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(env.page_html("Tubes", tube_model(), st))
+    pick = "return frPage.partTools.pickAt(s.x, s.y);"
+    steps = [{"eval": "frPage.setCamera([0.2, 0.15, 0.9], [0.2, 0.05, 0.0])"}, {"wait": 300},
+             {"eval": screen_eval([0.3, -0.15, 0.05], pick)},                       # 2: the cable, not the block
+             {"eval": screen_eval([0.2, 0.1, 0.1002], pick)},                        # 3: the sticker: its part
+             {"key": "t"}, {"eval": screen_eval([0.05, 0.1, 0.1], "return frPage.partTools.click(s.x, s.y).fade;")},
+             {"eval": "(function () { var t = null; frPage.three.top.traverse(function (o) { if (o.userData.frTube) t = o; });"
+                      " return [t.material.transparent, !!t.material.onBeforeCompile && t.material.onBeforeCompile.toString().length > 50]; })()"},
+             {"key": "Escape"},                                                       # 7
+             {"eval": "frPage.partTools.setCut(true, 'X', 0.5)"},                     # 8: cut, then fade, then move
+             {"eval": screen_eval([0.05, 0.1, 0.1], "return frPage.partTools.click(s.x, s.y).fade;")},
+             {"eval": "frPage.partTools.setCut(true, 'X', 0.9)"}, {"eval": "frPage.partTools.state()"},   # 10, 11
+             {"key": "Escape"}, {"key": "t"}, {"key": "d"},                           # 12-14
+             {"eval": "frPage.partTools.setCut(true, 'X', 0.4, true)"},              # 15: keep x > 0.14
+             {"eval": "frPage.setCamera([-0.6, 0.3, 0.3], [0.2, 0.05, -0.1])"}, {"wait": 300},
+             {"eval": screen_eval([0.14, 0.1, 0.05], "return frPage.partTools.click(s.x, s.y).result;")},   # 18
+             ]
+    out = probe(path, steps)
+    assert out["ok"], out
+    o = out["out"]
+    assert o[2] and o[2]["card"] == "Cable", o[2]
+    assert o[3] and o[3]["card"] == "Block", o[3]
+    assert o[5] == "Block" and o[6] == [True, True]          # the faded cable is still drawn, see-through
+    assert o[11]["fade"] == "Block" and o[11]["stale"] == 0 and o[11]["clipped"] >= 3
+    r = o[18]
+    assert r["picks"][0]["kind"] == "flat" and abs(r["picks"][0]["p"][0] - 0.14) < 1e-6, r   # on the red cut face
+
+
+@browser_test
+def test_a_slow_mouse_click_measures_and_esc_closes_the_help_first(tmp_path):
+    path, _g = write(tmp_path / "slow.html")
+    out = probe(path, [{"eval": CAM}, {"wait": 300}, {"key": "d"}, {"eval": at("shaft_side")}])
+    x, y = out["out"][3]
+    out = probe(path, [{"eval": CAM}, {"wait": 300}, {"key": "d"}, {"press": [x, y, 1200]},
+                       {"eval": "frPage.partTools.state()"},                                       # 4
+                       {"key": "?"}, {"key": "Escape"}, {"eval": "[frPage.helpOpen, frPage.partTools.state().picks]"},
+                       {"eval": "frPage.fileName('Kabelføring Größe – Ø 40 Æble')"}])
+    assert out["ok"], out
+    o = out["out"]
+    assert o[4]["picks"] == 1 and o[4]["card"] is None
+    assert o[7] == [False, 1]
+    assert o[8] == "Kabelforing Grosse - O 40 AEble"

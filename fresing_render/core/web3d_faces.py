@@ -30,7 +30,8 @@ FLAT, ROUND, AXIS = 1, 2, 3
 ROW = 8
 NONE = 0xFFFFFFFF
 FLAT_MM = 0.005          # mm: a flat CAD face's points lie on one plane (+ 1e-6 of its size)
-ROUND_SHARE = 0.002      # a cylinder's points lie on one radius (+ 0.005 mm); more spread: a cone or a torus
+ROUND_MM = 0.002         # mm: a cylinder's points lie on one radius (+ 32-bit rounding: 1e-6 of their distance
+#                          from the part's origin); more spread: a cone or a torus (0.35 mm fillets, shallow cones)
 
 
 def face_of_triangles(n_tri: int, starts) -> np.ndarray:
@@ -81,7 +82,8 @@ def classify(points: np.ndarray, tri: np.ndarray, face: np.ndarray, axes=None, a
             rel = v - o
             dist = np.linalg.norm(rel - np.outer(rel @ d, d), axis=1)
             r = float(np.median(dist))
-            kind = ROUND if float(dist.max() - dist.min()) <= ROUND_SHARE * r + FLAT_MM * 1e-3 else AXIS
+            tol = ROUND_MM * 1e-3 + 1e-6 * float(np.abs(v).max())
+            kind = ROUND if float(dist.max() - dist.min()) <= tol else AXIS
             rows[f] = [float(kind), *o.tolist(), *d.tolist(), r if kind == ROUND else 0.0]
             continue
         a, b, c = p[tri[block, 0]], p[tri[block, 1]], p[tri[block, 2]]

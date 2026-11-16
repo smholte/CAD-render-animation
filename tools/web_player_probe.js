@@ -18,6 +18,7 @@
 //   {"tap": [x, y]}                  a mouse click at a pixel of the view (task 0135: the part tools)
 //   {"press": [x, y, ms]}            a press held for ms at a pixel, then let go (a long press)
 //   {"move": [x, y]}                 the mouse moved to a pixel (hover)
+//   {"touch": [x, y, ms]}            a finger on a pixel for ms (a tap; 600 ms or more: a long press), with --mobile
 //   {"shot": "<file.png>"}           a screenshot of the page
 //   {"reload": true}                 load the page again (same address: the remembered choices stay)
 // Prints {"ok", "errors", "out": [...], "state": {...frPage}}; ok is false when the page reported an error.
@@ -89,6 +90,12 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
     } else if (s.press != null) {
       await page.mouse.move(s.press[0], s.press[1]); await page.mouse.down();
       await page.waitForTimeout(s.press[2] || 700); await page.mouse.up(); await page.waitForTimeout(80); out.push(null);
+    } else if (s.touch != null) {
+      const cdp = await context.newCDPSession(page);
+      const tp = (type) => cdp.send('Input.dispatchTouchEvent', { type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x: s.touch[0], y: s.touch[1] }] });
+      await tp('touchStart'); await page.waitForTimeout(s.touch[2] || 80); await tp('touchEnd');
+      await page.waitForTimeout(80); out.push(null);
     } else if (s.move != null) {
       await page.mouse.move(s.move[0], s.move[1]); await page.waitForTimeout(150); out.push(null);
     } else if (s.shot != null) {                        // a big model drawn in software takes a while (task 0142)

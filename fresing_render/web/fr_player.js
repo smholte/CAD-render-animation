@@ -217,6 +217,11 @@
   function fileName(title) {
     var t = String(title || 'view');
     try { t = t.normalize('NFKD'); } catch (e) { /* old browser: as it is */ }
+    var SPELL = { '\u00f8': 'o', '\u00d8': 'O', '\u00e6': 'ae', '\u00c6': 'AE', '\u00df': 'ss', '\u0153': 'oe',
+                  '\u0152': 'OE', '\u0142': 'l', '\u0141': 'L', '\u0111': 'd', '\u0110': 'D', '\u00fe': 'th',
+                  '\u00de': 'Th', '\u00f0': 'd', '\u00d0': 'D', '\u0131': 'i' };
+    t = t.replace(/[\u00f8\u00d8\u00e6\u00c6\u00df\u0153\u0152\u0142\u0141\u0111\u0110\u00fe\u00de\u00f0\u00d0\u0131]/g,
+                  function (c) { return SPELL[c]; });
     t = t.replace(/[\u2010-\u2015]/g, '-').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]+/g, '')
       .replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
     return t || 'view';

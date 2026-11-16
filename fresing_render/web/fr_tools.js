@@ -70,7 +70,8 @@
     '#fr-card span { color: #D5DBE0; font-size: 12px; }',
     'html.fr-clean #fr-parts, html.fr-clean #fr-tpanel { display: none !important; }',
     '@media (max-width: 600px) { #fr-parts { top: calc(var(--fr-top, 0px) + 70px); left: 8px; }',
-    '  #fr-tpanel { left: 8px; right: 8px; width: auto; top: auto; bottom: 8px; max-height: 42%; z-index: 5; } }',
+    '  #fr-tpanel { left: 8px; right: 56px; width: auto; top: auto; bottom: 8px; max-height: 38%; z-index: 5;',
+    '    background: rgba(20,28,34,.96); } }',
     '@media (max-height: 480px) { #fr-parts { top: calc(var(--fr-top, 0px) + 44px); gap: 4px; }',
     '  #fr-parts .fr-btn { width: 34px; height: 34px; min-height: 34px; min-width: 34px; }',
     '  #fr-tpanel { left: 54px; top: calc(var(--fr-top, 0px) + 44px); max-height: calc(100% - var(--fr-top, 0px) - 52px); } }'
@@ -199,7 +200,21 @@
     }
     pressed();
     refresh();
+    placePanel();
   }
+  // a phone: the panel sits above the saved views and the play bar (it covered them), left of the right-hand buttons
+  function placePanel() {
+    if (window.innerWidth > 600 || panel.style.display === 'none') { panel.style.bottom = ''; return; }
+    var bottom = document.getElementById('fr-bottom'), top = window.innerHeight;
+    if (bottom) {
+      [].forEach.call(bottom.children, function (c) {
+        var r = c.getBoundingClientRect();
+        if (r.height > 0 && c.offsetParent !== null && !c.classList.contains('note')) top = Math.min(top, r.top);
+      });
+    }
+    panel.style.bottom = Math.max(8, window.innerHeight - top + 8) + 'px';
+  }
+  window.addEventListener('resize', placePanel);
 
   // ---------------------------------------------------------------- the 3D side (once the page is ready)
   var facesLoaded = null;
@@ -273,16 +288,52 @@
     three.camera.updateMatrixWorld();            // before the first picture the camera's matrix is not set yet
     ray.setFromCamera(new T.Vector2(x / w * 2 - 1, -(y / h) * 2 + 1), three.camera);
     three.scene.updateMatrixWorld();
-    var hits = ray.intersectObjects(targets(), false);
+    var hits = ray.intersectObjects(targets(), false).concat(tubeHits());
+    hits.sort(function (a, b) { return a.distance - b.distance; });
     for (var i = 0; i < hits.length; i++) {
       var hit = hits[i];
-      if (st.cut.on && cutPlane.distanceToPoint(hit.point) < 0) continue;      // in the part cut away
+      if (st.cut.on && cutPlane.distanceToPoint(hit.point) < -1e-6) continue;      // in the part cut away
       if (!shown(hit.object)) continue;
       var part = partOf(hit.object);
-      if (!part) continue;
-      return { mesh: hit.object, point: hit.point.clone(), faceIndex: hit.faceIndex, part: part };
+      if (!part || part.userData.fr_decal) continue;      // a decal is a thin sticker on its part: look through it
+      var out = { mesh: hit.object, point: hit.point.clone(), faceIndex: hit.faceIndex, part: part, tube: !!hit.tube };
+      // the inside of a cut part seen through the cut: the visitor sees the red cap, i.e. the cut plane itself
+      if (st.cut.on && hit.face && !hit.tube) {
+        var nW = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+        if (hit.object.matrixWorld.determinant() < 0) nW.negate();
+        if (nW.dot(ray.ray.direction) > 0) {
+          var at = ray.ray.intersectPlane(cutPlane, new T.Vector3());
+          if (at) { out.point = at; out.cap = true; }
+        }
+      }
+      return out;
     }
     return null;
+  }
+  // the page's drawn cables, ropes and hoses (task 0142): their shape is made on the graphics card, so the ray is
+  // tested against their centre lines and radius
+  function tubeHits() {
+    var out = [];
+    if (!page.tubeLines) return out;
+    var a = new T.Vector3(), b = new T.Vector3(), onRay = new T.Vector3(), onSeg = new T.Vector3();
+    page.tubeLines().forEach(function (tl) {
+      if (!tl.shown || !tl.count || !shown(tl.mesh)) return;
+      tl.node.updateWorldMatrix(true, false);
+      var m = tl.node.matrixWorld, best = null;
+      for (var i = 0; i + 1 < tl.count; i++) {
+        a.set(tl.cp[3 * i], tl.cp[3 * i + 1], tl.cp[3 * i + 2]).applyMatrix4(m);
+        b.set(tl.cp[3 * i + 3], tl.cp[3 * i + 4], tl.cp[3 * i + 5]).applyMatrix4(m);
+        var d2 = ray.ray.distanceSqToSegment(a, b, onRay, onSeg);
+        if (d2 <= tl.r * tl.r) {
+          var dist = onRay.distanceTo(ray.ray.origin) - Math.sqrt(Math.max(tl.r * tl.r - d2, 0));
+          if (dist > 0 && (!best || dist < best.distance)) {
+            best = { distance: dist, point: ray.ray.at(dist, new T.Vector3()), object: tl.mesh, tube: true };
+          }
+        }
+      }
+      if (best) out.push(best);
+    });
+    return out;
   }
 
   // the row of the file's face data under a hit: null for a face without data (or a page without)
@@ -326,13 +377,17 @@
   // a stored click (mesh, its own point, its face) -> the measuring pick now (the part may have moved)
   function pickNow(k) {
     var w = k.mesh.localToWorld(k.local.clone());
+    if (k.cap) {                          // the cut face: a flat face in the cut plane
+      var n = cutLocal.normal;
+      return { kind: 'flat', p: toModel(w), n: [-n.x, n.z, -n.y], face: 1, cap: true };
+    }
     var p = M.fromRow(k.run ? k.run.row : null, modelMatrix(k.mesh).elements, toModel(w));
     p.face = k.run ? k.run.row[0] : 0;
     return p;
   }
   function keep(hit) {
-    return { mesh: hit.mesh, local: hit.mesh.worldToLocal(hit.point.clone()), part: hit.part,
-             run: runOf(hit.mesh, hit.faceIndex) };
+    return { mesh: hit.mesh, local: hit.mesh.worldToLocal(hit.point.clone()), part: hit.part, cap: !!hit.cap,
+             run: hit.cap || hit.tube ? null : runOf(hit.mesh, hit.faceIndex) };
   }
 
   // ---------------------------------------------------------------- highlights
@@ -398,6 +453,9 @@
     var f = fadeClones.get(m);
     if (!f) {
       f = m.clone();
+      f.onBeforeCompile = m.onBeforeCompile;          // the drawn tubes and the baked light are made there
+      f.customProgramCacheKey = m.customProgramCacheKey;
+      f.clippingPlanes = null;                        // a copy of the plane would stay where it was: set by clip()
       f.transparent = true;
       f.opacity = 0.12;
       f.depthWrite = false;
@@ -439,12 +497,13 @@
     return Array.from(set);
   }
   function clip(list) {
+    var want = st.cut.on ? [cutPlane] : null;
     list.forEach(function (m) {
-      var want = st.cut.on ? [cutPlane] : null;
-      if ((m.clippingPlanes && m.clippingPlanes.length ? 1 : 0) !== (want ? 1 : 0)) {
-        m.clippingPlanes = want;
+      var had = m.clippingPlanes && m.clippingPlanes.length ? 1 : 0;
+      if (want ? !(had && m.clippingPlanes[0] === cutPlane) : had) {
+        m.clippingPlanes = want;                       // always the one live plane (never a copy of it)
         m.clipShadows = !!want;
-        m.needsUpdate = true;
+        if (had !== (want ? 1 : 0)) m.needsUpdate = true;
       }
     });
   }
@@ -487,6 +546,7 @@
   function closeCard() { st.card = null; card.style.display = 'none'; page.wake(); }
 
   function faceText(p) {
+    if (p.cap) return 'Cut face';
     if (p.kind === 'round') return 'Round face Ø ' + M.mm(2 * p.r);
     if (p.kind === 'axis') return 'Round face (cone or rounded edge)';
     if (p.kind === 'flat') return 'Flat face';
@@ -671,6 +731,7 @@
       if (nDown > 1) { press = null; return; }
       var p = local(e);
       press = { x: p.x, y: p.y, t: performance.now(), button: e.button, long: false };
+      if (e.pointerType === 'mouse') return;          // a slow mouse click is a click (a long press is for touch)
       longTimer = setTimeout(function () {
         if (press && nDown === 1) { press.long = true; onLongPress(press.x, press.y); }
       }, 550);
@@ -687,7 +748,7 @@
       press = null;
       if (!pr || pr.moved || pr.long || pr.button !== 0 || e.type === 'pointercancel') return;
       var p = local(e);
-      if (Math.hypot(p.x - pr.x, p.y - pr.y) > 6 || performance.now() - pr.t > 700) return;
+      if (Math.hypot(p.x - pr.x, p.y - pr.y) > 6) return;
       onClick(p.x, p.y);
     };
     c.addEventListener('pointerup', up);
@@ -721,10 +782,10 @@
     else if (k === 't' || k === 'T') setTool('fade');
     else if (k === 'c' || k === 'C') setCut(!st.cut.on);
     else if ((k === 'x' || k === 'X') && st.tool === 'measure') { setXyz(!st.xyz); fillPanel(); }
-    else if (k === 'Escape') escape();
+    else if (k === 'Escape') { if (page.helpOpen || page.menuOpen) done = false; else escape(); }   // closes those first
     else done = false;
     if (done) { e.preventDefault(); page.lastKey = k; }
-  });
+  }, true);                                // before the player's own keys (it closes the help on Esc)
   function escape() {
     if (st.picks.length) clearMeasure();
     else if (st.card) closeCard();
@@ -748,7 +809,10 @@
                              picks: r.picks.map(function (p) { return { kind: p.kind, r: p.r || 0, p: p.p }; }) } : null,
                lines: lines ? lines.visible : false,
                labels: labelEls.filter(function (e) { return e.style.display !== 'none'; }).map(function (e) { return e.textContent; }),
-               clipped: ready ? materials().filter(function (m) { return m.clippingPlanes && m.clippingPlanes.length; }).length : 0 };
+               clipped: ready ? materials().filter(function (m) { return m.clippingPlanes && m.clippingPlanes.length; }).length : 0,
+               // every cut material uses the one live plane (not a copy left where the slider was)
+               stale: ready ? materials().filter(function (m) {
+                 return m.clippingPlanes && m.clippingPlanes.length && m.clippingPlanes[0] !== cutPlane; }).length : 0 };
     },
     // a point of the model (Blender's world, metres) on the screen (CSS pixels of the view)
     screenOf: function (a) { three.scene.updateMatrixWorld(); return screenOfWorld(toWorld(a)); },

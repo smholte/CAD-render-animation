@@ -1184,6 +1184,8 @@ class Job:
             card = "" if is_decal else self._card(ob, labels)
             if card:                           # task 0135: the part's card in the page
                 node.setdefault("extras", {})["fr_card"] = card
+            if is_decal:                       # task 0135: the page's tools look through a sticker to its part
+                node.setdefault("extras", {})["fr_decal"] = 1
             self._nodes.append((ob, self.gltf.place_mesh(node, mesh, root)))
             if k % 20 == 0:
                 self.text = f"Writing part {k + 1} of {len(everything)}"
