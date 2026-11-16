@@ -113,7 +113,7 @@ shown here too and no longer needing Weather & time on) · Sideways (DP: push to
   No geometry: 0 extra triangles, import time unchanged; frame change with the channels keyed 41 ms (demo, Blender as
   a program); the tour set's sea build 5 s.
 
-**Runs:** 1 full run, green (43909644214, 20.6 min; no version clash), then a docs run for the merge of main's TASKS.md edits.
+**Runs:** 1 full run, green (43909644214, 20.6 min; no version clash), then the full run on main (43913541189, 23.5 min, green: released and offered to the apps).
 
 **Open points / follow-up tasks:**
 - Bump only: the waves and the bow wave have no real height (from low over the water they look flat); Detailed could
