@@ -536,14 +536,46 @@ def changed(scene, sea: bool = False) -> None:
         from . import world
         world.apply(scene, scene.fresing)
     sync(scene)                          # (after world.apply too: the hoses below need the new rig)
-    hoses_follow(scene)
+    follow(scene)
 
 
-def hoses_follow(scene) -> None:
-    """The vessel moves another way now: a built animation's hoses and drag chains were solved for the old motion.
-    (Cables keep their shapes in their own coordinates and need nothing.)"""
-    from . import flex
-    flex.motion_changed(scene)
+def follow(scene, force: bool = True) -> None:
+    """The one route for every change of how the vessel or the seabed moves (task 0137): a built animation's hoses
+    and drag chains, and its cables into the sea, were worked out for the old motion and are worked out again.
+    ``force`` False (the surroundings were made again, Weather & time changed): only when the motion really differs
+    from the one they were built with (``motion_key``). Cables that do not reach the sea keep their shapes in their
+    own coordinates and need nothing."""
+    from . import flex, paths
+    flex.motion_changed(scene, force=force)
+    paths.motion_changed(scene, force=force)
+
+
+hoses_follow = follow                    # (its name before task 0137)
+
+
+def motion_key(scene, seabed: bool = True) -> str:
+    """What decides how the deck and the seabed move (task 0137): the vessel rig's settings (sea state, heading,
+    strength, bow, wind, the still/level picks; '' with vessel motion off) and, with ``seabed``, Weather & time's
+    vessel speed (it moves only the seabed)."""
+    try:
+        v = rig("vessel") if effective(scene) else None
+    except Exception:
+        v = None
+    w = getattr(scene.fresing, "weather", None)
+    speed = round(float(w.vessel_speed), 4) if seabed and w is not None and w.enabled else 0.0
+    return json.dumps([str(v.get("fr_key", "")) if v is not None else "", speed])
+
+
+def remember(scene, prop: str, seabed: bool = True) -> None:
+    """A Build (or a re-bake) worked its shapes out for the motion there is now."""
+    scene[prop] = motion_key(scene, seabed)
+
+
+def moved_since(scene, prop: str, seabed: bool = True) -> bool:
+    """The motion differs from the one remembered under ``prop`` (False when nothing was remembered: a project
+    built before task 0137)."""
+    was = scene.get(prop)
+    return was is not None and str(was) != motion_key(scene, seabed)
 
 
 def after_surroundings(scene) -> None:
@@ -552,6 +584,10 @@ def after_surroundings(scene) -> None:
         sync(scene)
     except Exception as exc:                 # never stop a render over this
         print("Fresing Render: vessel motion not set up:", exc)
+    try:
+        follow(scene, force=False)           # sea state, bow, preset … (task 0137: one route for every change)
+    except Exception as exc:
+        print("Fresing Render: hoses and cables not worked out again:", exc)
 
 
 def after_model_update(scene, mapping: dict) -> list[str]:
@@ -693,5 +729,5 @@ def add_marks(scene, objs, mode: str) -> int:
         m.mode = mode
         m.label = ob.get(build.PROP_NAME, ob.name)
     sync(scene)
-    hoses_follow(scene)
+    follow(scene)
     return n

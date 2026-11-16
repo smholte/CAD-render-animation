@@ -1616,6 +1616,8 @@ def rename(scene, j, old: str) -> None:
     gcode.renamed_joint(scene, old, j.name)        # the CNC machine's axes (task 0026)
     from . import waycover                        # the way cover keeps following the same joints (task 0034)
     waycover.joint_renamed(scene, old, j.name)
+    from . import paths                           # cables, their contacts and swivels (task 0137)
+    paths.joint_renamed(scene, old, j.name)
 
 
 def reset_all(scene) -> None:
