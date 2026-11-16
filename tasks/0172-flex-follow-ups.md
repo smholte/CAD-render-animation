@@ -1,6 +1,6 @@
 # 0172 – Flex follow-ups from 0125: shot 11's bend past the gutter, lifted sheaves stand still, the D's depth right before Build, a swivel to test
 
-**Who:** worker · **Status:** open · **Branch:** `task/0172-flex-follow-ups` (a web session may name its own)
+**Who:** worker · **Status:** running · **Branch:** `claude/confident-archimedes-takeq0`
 **Started by:** lead chat, 16 Nov 2026 (open points 3–6 of task 0125) · **Model:** Opus · effort High · **Place:** Claude
 Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Flex parts lane: `core/paths.py`, `core/catenary.py`, `blender/paths*.py` (`paths_sea.py`, `paths_rollers.py`,
