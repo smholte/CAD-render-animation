@@ -426,17 +426,21 @@ def _zip_tris(z: Zip, axis: str, n: int) -> np.ndarray:
     return (tri[:, :, 1] * n + tri[:, :, 0])[:, ::-1].astype(np.int64)    # (transposed: every turn flips)
 
 
-def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int = 0) -> dict:
+STRIPS_FROM = 160                 # a tile tries strips only when the right triangles need more than this
+
+
+def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int = 0, strips: bool = True) -> dict:
     """A tile's own thinning, without its neighbours: ``P``, ``Q`` (n, n, 3) the nodes (``Q``: as judged, without
     the fine ridges), ``cls`` (n, n) mark classes. Of the right triangles (task 0146) and the strips along x or y,
-    the one with the fewest triangles. Returns ``kind`` ("rtin", "x" or "y"), ``tri`` (m, 3) node numbers of the
+    the one with the fewest triangles (strips only where the right triangles need more than ``STRIPS_FROM``, and
+    not with ``strips=False``: a tile the tool is still working on is thinned the quick way). Returns ``kind`` ("rtin", "x" or "y"), ``tri`` (m, 3) node numbers of the
     tile, counter-clockwise seen from above, and ``need`` (n * n bool: the nodes they use)."""
     n = Q.shape[0]
     tab = rtin(n - 1)
     need = rtin_needed(tab, Q.reshape(-1, 3), cls.reshape(-1), tol)
     tri = rtin_triangles(tab, need)
     best = dict(kind="rtin", tri=tri, need=need)
-    if len(tri) <= 2:
+    if len(tri) <= STRIPS_FROM or not strips:
         return best
     cands = []
     for axis in ("x", "y"):
@@ -449,7 +453,9 @@ def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int =
     for est, axis, R, K in cands:
         if est >= len(best["tri"]):
             break
-        R, K = _checked(_frame(Q, axis), _frame(cls, axis), R, K, tol, parity)
+        R, K = _checked(_frame(Q, axis), _frame(cls, axis), R, K, tol, parity, limit=len(best["tri"]))
+        if R is None:                                   # (more triangles already than the best so far)
+            continue
         R, K, z = _unfolded(P, Q, cls, tol, R, K, axis, parity)
         tri = _zip_tris(z, axis, n)
         if len(tri) < len(best["tri"]):
@@ -498,12 +504,15 @@ def _unfolded(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, R, K, a
     return R, K, Zip(K, R, parity)
 
 
-def _checked(q, c, R, K, tol, parity):
-    """Rows and nodes after checking the zip against the finest triangles and keeping more where it is off."""
+def _checked(q, c, R, K, tol, parity, limit: int | None = None):
+    """Rows and nodes after checking the zip against the finest triangles and keeping more where it is off.
+    (None, None) as soon as the zip has ``limit`` triangles or more."""
     n = q.shape[0]
     K = K.copy()
     for _round in range(CHECK_ROUNDS + 1):
         z = Zip(K, R, parity)
+        if limit is not None and len(z.s) >= limit:
+            return None, None
         rows_add, nodes_add = _check(q, K, R, z, tol, parity)
         if not rows_add and not len(nodes_add):
             return R, K

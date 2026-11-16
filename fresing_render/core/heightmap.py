@@ -277,6 +277,8 @@ class HeightMap:
         self.snapshots: dict = {}
         self.every = SNAPSHOT_MIN
         self.dirty = np.zeros((self.ty, self.tx), bool)  # tiles whose nodes changed since their mesh was made
+        self.last = np.full((self.ty, self.tx), -1, np.int64)   # the last move that can change each tile
+        self._done = np.ones((self.ty, self.tx), bool)  # tiles no move to come can change: thinned with strips
         self._own: dict = {}                            # (J, I) -> what a tile knows without its neighbours
         self._mesh: dict = {}                           # (J, I) -> [signature, serial, verts, tris, move]
         self._serial = 0
@@ -307,6 +309,13 @@ class HeightMap:
         self._patches(np.arange(n))
         per = 20.0 * self.nx * self.ny                  # bytes of one kept state
         self.every = max(SNAPSHOT_MIN, int(math.ceil(n / max(1.0, SNAPSHOT_BYTES / per))))
+        # the last move that can change each tile (task 0167: until then it is thinned the quick way)
+        self.last = np.full((self.ty, self.tx), -1, np.int64)
+        t, r = self.tile, REACH
+        for q, (i0, i1, j0, j1) in enumerate(self.patch[:n].tolist()):
+            if i1 > i0 and j1 > j0:
+                self.last[max(0, (i0 - 1 - r) // t):min(self.ty, (i1 - 1 + r) // t + 1),
+                          max(0, (j0 - 1 - r) // t):min(self.tx, (j1 - 1 + r) // t + 1)] = q
         self.reset()
 
     def _patches(self, q) -> None:
@@ -434,6 +443,11 @@ class HeightMap:
             if len(diff):
                 (r0, c0), (r1, c1) = diff.min(axis=0), diff.max(axis=0) + 1
                 self._overlay.append((i0 + r0, i0 + r1, j0 + c0, j0 + c1, tuple(a[r0:r1, c0:c1] for a in keep)))
+        done = self.last < self.k
+        changed = done != self._done
+        if changed.any():                               # (a tile that is finished, or no longer, is thinned anew)
+            self.dirty |= changed
+            self._done = done
         self.stats["seconds_stamp"] += time.perf_counter() - t0
 
     # -- heights of given moves at given points --------------------------------
@@ -782,7 +796,8 @@ class HeightMap:
                 ridges = np.where(sunk[1:-1, 1:-1].reshape(-1), 0.0, ridges)
             Q[:, 2] -= ridges
             n = t + 1
-            strips = _hmesh.own(P.reshape(n, n, 3), Q.reshape(n, n, 3), cls.reshape(n, n), self.thin)
+            strips = _hmesh.own(P.reshape(n, n, 3), Q.reshape(n, n, 3), cls.reshape(n, n), self.thin,
+                                strips=bool(self._done[J, I]))
             need = strips["need"]
             hit = dict(serial=self._serial, need=need, strips=strips, P=P, Q=Q, owner=o.copy(), cls=cls,
                        flank=flank[1:-1, 1:-1].reshape(-1).copy(), foot=foot[1:-1, 1:-1].reshape(-1).copy())
