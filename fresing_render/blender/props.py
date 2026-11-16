@@ -2814,9 +2814,18 @@ class FRSpoolFollower(bpy.types.PropertyGroup):
     note: StringProperty(default="")
 
 
+def _spool_renamed(self, context):
+    """A drum or carousel was renamed (double-click in the list): what it drew and the tables it wrote follow
+    (task 0174)."""
+    from . import spool
+    spool.renamed(self.id_data, self)
+
+
 class FRSpool(bpy.types.PropertyGroup):
     """A drum or carousel the cable comes off (task 0080). See blender/spool.py."""
-    name: StringProperty(name="Name", description="Name of this drum or carousel. Double-click to rename it")
+    name: StringProperty(name="Name", description="Name of this drum or carousel. Double-click to rename it",
+                         update=_spool_renamed)
+    name_was: StringProperty(default="")                   # the name its drawn objects and tables know (task 0174)
     enabled: BoolProperty(
         name="On", default=True, update=_spool_changed,
         description="On: the cable comes off the drum or carousel layer by layer, and the drum or carousel turns "

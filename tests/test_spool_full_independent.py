@@ -527,7 +527,7 @@ def test_cable_diameter_changes_the_layers(made):
         sp = spool.find(sc, "Drum")
         path = spool.path_of(sc, sp)
         assert path.layer_count != n0
-        # FAULT: the cable's Diameter (4 Motion > Cables and paths) goes through paths.changed -> paths._rebuild, which
+        # FAULT (fixed by the worker: spool.after_draw draws the spool again when its numbers changed): the cable's Diameter (4 Motion > Cables and paths) goes through paths.changed -> paths._rebuild, which
         # never calls spool.changed / spool._draw: the layer objects keep the old count, stretches and tube radius
         # (and the moving rope's Start steps and radius stay the old diameter's) until something else redraws the spool.
         # Measured: Ø20 -> Ø30 mm wire: 7 layer objects for a 5-layer path, rings still 10 mm, layer 1 drawn 0-18.06 m
@@ -615,7 +615,7 @@ def test_renamed_spool_leaves_no_second_drawing(made):
     sp = spool.find(sc, "Winch drum")
     names = {s.name for s in sc.fresing.spools}
     orphans = [o.name for o in bpy.data.objects if o.get(spool.TAG) and o.get(spool.TAG) not in names]
-    # FAULT: a spool's objects are found by the spool's name (spool.TAG == sp.name: _made, layer_objects) and nothing
+    # FAULT (fixed by the worker: FRSpool.name has an update, spool.renamed): a spool's objects are found by the spool's name (spool.TAG == sp.name: _made, layer_objects) and nothing
     # follows a rename (FRSpool.name has no update callback, unlike the cable's since task 0160): the next drawing makes
     # a new rope and new layer objects, the old name's stay – with their drivers still live, so every full layer is
     # drawn twice (and on remove they are left for good). The rope had this before 0174; the layer objects add n more.

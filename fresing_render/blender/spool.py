@@ -146,6 +146,23 @@ def cable_renamed(scene, old: str, new: str) -> None:
             sp["cable"] = new
 
 
+def renamed(scene, sp) -> None:
+    """``sp`` was renamed: its drawn objects (tagged with its name) and the joints that follow it by table
+    ("spool:<name>") take the new name (task 0174; before, a rename left the old drawing standing – with every layer
+    drawn, the whole coil twice). Written without the update callbacks."""
+    new = sp.name
+    old = sp.get("name_was", "") or (sp.owner.get(TAG, "") if sp.owner is not None else "")
+    if old and old != new and not any(x.name == old for x in scene.fresing.spools if x != sp):
+        for ob in bpy.data.objects:
+            if ob.get(TAG) == old:
+                ob[TAG] = new
+                ob.name = ob.name.replace(old, new) if old in ob.name else ob.name
+        for j in scene.fresing.joints:
+            if j.couple_table == f"spool:{old}":
+                j["couple_table"] = f"spool:{new}"
+    sp["name_was"] = new
+
+
 def _cable(scene, sp):
     from . import paths
     return paths.find(scene, sp.cable) if sp.cable else None
@@ -1365,6 +1382,7 @@ def _draw(scene, sp) -> None:
     _materials(scene, sp, rope)
     rope.update_tag()
     rope["fr_spool_draw"] = DRAW
+    rope["fr_draw_key"] = repr(_key(scene, sp))     # (a cable's new diameter: ``after_draw`` draws it again)
     # every full layer below: a static object each (task 0174); a solid of an older project goes
     old = _made(scene, sp, "solid")
     if old is not None:
@@ -1559,6 +1577,7 @@ def add(scene, kind: str, part, cable: str, axis=None, name: str = "", coil=None
     i = len(s.spools) - 1
     with flex._quiet(sp):
         sp.name = _unique(scene, name or ("Carousel" if kind == "CAROUSEL" else "Drum"))
+        sp["name_was"] = sp.name
         sp.kind = kind
         sp.cable = it.name
         sp.part = part
@@ -1857,6 +1876,16 @@ def after_draw(scene, item) -> None:
     """paths.py drew the cable again (a pose, a frame of a built animation): its spool's state follows."""
     sp = of_cable(scene, item)
     if sp is not None and not _STATE["busy"]:
+        rope = _made(scene, sp, "rope")
+        if rope is not None and rope.get("fr_draw_key", "") != repr(_key(scene, sp)) and sp.enabled:
+            # its numbers changed outside the spool's own settings (the cable's diameter, task 0174): the tables,
+            # the rope and every layer again (paths draws the cable again once more from there)
+            try:
+                _setup(scene, sp)
+            except (SpoolError, RuntimeError) as exc:
+                with flex._quiet(sp):
+                    sp.problem = str(exc)
+            return
         try:
             status(scene, sp)
             p = payout(scene, sp)
