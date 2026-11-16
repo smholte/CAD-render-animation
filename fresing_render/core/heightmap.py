@@ -562,7 +562,6 @@ class HeightMap:
         Z = hw.copy()
         gx, gy = X.copy(), Y.copy()                     # the nodes' own places
         best = np.full(hw.shape, np.inf)
-        stay_x = stay_y = np.zeros(hw.shape, bool)      # (a node of two tiles is worked out the same in both)
         kinked = np.array([s.kind in (CONE, PROFILE) for s in self.shapes] + [False])
         # a cell's diagonal runs from its first corner up to the right where row + column is even, else from its
         # second corner up to the left (the hierarchy's finest triangles; the same in every tile)
@@ -571,21 +570,22 @@ class HeightMap:
         mi, mj = np.nonzero(~even)
         rows, cols = np.indices(hw.shape)
         families = (
-            (rows[:, :-1].ravel(), cols[:, :-1].ravel(), rows[:, 1:].ravel(), cols[:, 1:].ravel(), stay_x, c),
-            (rows[:-1, :].ravel(), cols[:-1, :].ravel(), rows[1:, :].ravel(), cols[1:, :].ravel(), stay_y, c),
-            (ni, nj, ni + 1, nj + 1, stay_x | stay_y, c * math.sqrt(2.0)),
-            (mi, mj + 1, mi + 1, mj, stay_x | stay_y, c * math.sqrt(2.0)),
+            (rows[:, :-1].ravel(), cols[:, :-1].ravel(), rows[:, 1:].ravel(), cols[:, 1:].ravel(), c),
+            (rows[:-1, :].ravel(), cols[:-1, :].ravel(), rows[1:, :].ravel(), cols[1:, :].ravel(), c),
+            (ni, nj, ni + 1, nj + 1, c * math.sqrt(2.0)),
+            (mi, mj + 1, mi + 1, mj, c * math.sqrt(2.0)),
         )
 
-        def put(stay, ni, nj, px, py, z, dist, take):
-            u = take & ~stay[ni, nj] & (dist < best[ni, nj])
+        def put(ni, nj, px, py, z, dist, take):
+            """A node goes to the nearest of the places found for it (a node of two tiles: the same in both)."""
+            u = take & (dist < best[ni, nj])
             if u.any():
                 ni, nj = ni[u], nj[u]
                 X[ni, nj], Y[ni, nj], Z[ni, nj], best[ni, nj] = px[u], py[u], z[u], dist[u]
 
         top_i, top_j = hw.shape[0] - 1, hw.shape[1] - 1
         wtol = max(tol, 1e-6)
-        for ei, ej, fi, fj, stay, length in families:
+        for ei, ej, fi, fj, length in families:
             first, second = ow[ei, ej], ow[fi, fj]
             # -- two moves: a wall, a rim, a crease -------------------------------------------------------
             k = np.flatnonzero(first != second)
@@ -624,8 +624,8 @@ class HeightMap:
                     px, py = x0 + s * dx, y0 + s * dy
                     z = self.height_of(pa, px, py)
                     z = np.where(np.isfinite(z), z, np.minimum(za[sel], zb[sel]))
-                    put(stay, A[0], A[1], px, py, z, s * length, s <= 0.5)
-                    put(stay, B[0], B[1], px, py, z, (1.0 - s) * length, s > 0.5)
+                    put(A[0], A[1], px, py, z, s * length, s <= 0.5)
+                    put(B[0], B[1], px, py, z, (1.0 - s) * length, s > 0.5)
                 sel = np.flatnonzero((fa ^ fb) | (crease & ~same))
                 if len(sel):
                     # A wall, a rim, the edge of another tool's cut. The surface between the two nodes is the lowest
@@ -690,8 +690,8 @@ class HeightMap:
                     # nothing to lose; the node in the cut keeps its place on the steep face), unless the crease
                     # is right next to the lower one
                     a_goes = np.where(za[sel] >= zb[sel], mid <= 0.8, mid < 0.2)
-                    put(stay, Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes))
-                    put(stay, Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
+                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes))
+                    put(Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
                         there & (~one | wall | ~a_goes))
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
@@ -719,8 +719,8 @@ class HeightMap:
             z = self.height_of(qa, x0 + s * dx, y0 + s * dy)
             ok = np.isfinite(z) & (s > 1e-3) & (s < 1.0 - 1e-3)
             px, py = x0 + s * dx, y0 + s * dy
-            put(stay, ai, aj, px, py, z, s * length, ok & (s <= 0.5))
-            put(stay, bi, bj, px, py, z, (1.0 - s) * length, ok & (s > 0.5))
+            put(ai, aj, px, py, z, s * length, ok & (s <= 0.5))
+            put(bi, bj, px, py, z, (1.0 - s) * length, ok & (s > 0.5))
         return X, Y, Z
 
     def _ridges(self, J: int, I: int) -> np.ndarray:     # noqa: E741
