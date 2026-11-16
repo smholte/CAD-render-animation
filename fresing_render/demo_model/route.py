@@ -451,7 +451,10 @@ def positions(p) -> dict:
     z0 = p.coil_top_z + cr
     pos["coil_z"] = z0
     rim_top = p.turntable_t + p.rim_h
-    pos["arch_z"] = max(p.arch_h, z0 + 2 * R + 1000.0, rim_top + R + 1500.0)
+    # the guide's vertical leg (between the cage's bend and the arch's) holds both pairs of guide rollers: the lower
+    # pair 1150 mm up it, the upper 600 mm under its top, 250 apart (task 0159: a full coil left only 1 m, and the
+    # lower pair stood in the arch's bend)
+    pos["arch_z"] = max(p.arch_h, z0 + 2 * R + 2000.0, rim_top + R + 1500.0)
     pos["coil_in"], pos["coil_out"] = coil_in, coil_out
     # the hull's length follows the carousel; the deckhouse and the bow forward of it
     pos["length"] = max(p.length, xc + rc_out + 900.0 + 41100.0)

@@ -497,18 +497,20 @@ def wound_at(path: Path, a, r):
 # drawing
 # ---------------------------------------------------------------------------------------------------------
 
-def _curvature(path: Path, i: int) -> float:
-    """The largest curvature of piece i (at its two ends and its middle)."""
+def _curvature(path: Path, i):
+    """The largest curvature of piece(s) i (at their two ends and their middles). Vectorised (task 0159: a full
+    carousel has some 60,000 pieces; one at a time took seconds at every Build)."""
+    i = np.asarray(i)
     dphi = path.phi1[i] - path.phi0[i]          # derivatives by u: the curvature does not depend on the parameter
     da = path.a1[i] - path.a0[i]
     dr = path.r1[i] - path.r0[i]
-    worst = 0.0
+    worst = np.zeros(i.shape)
     for u in (0.0, 0.5, 1.0):
         r = path.r0[i] + (path.r1[i] - path.r0[i]) * u
-        d1 = np.array([dr, r * dphi, da])           # in the (radial, round, axis) frame at that point
-        d2 = np.array([-r * dphi * dphi, 2.0 * dr * dphi, 0.0])
-        worst = max(worst, float(np.linalg.norm(np.cross(d1, d2)) / np.linalg.norm(d1) ** 3))
-    return worst
+        d1 = np.stack([dr, r * dphi, da], axis=-1)              # in the (radial, round, axis) frame at that point
+        d2 = np.stack([-r * dphi * dphi, 2.0 * dr * dphi, np.zeros(i.shape)], axis=-1)
+        worst = np.fmax(worst, np.linalg.norm(np.cross(d1, d2), axis=-1) / np.linalg.norm(d1, axis=-1) ** 3)
+    return worst if worst.ndim else float(worst)
 
 
 def polyline(path: Path, L_lo: float, L_hi: float, sag: float):
@@ -527,20 +529,23 @@ def polyline(path: Path, L_lo: float, L_hi: float, sag: float):
         return xyz(phi, a, r), np.array([L_lo, L_lo])
     first = int(_index(path, L_lo)[0])
     last = int(_index(path, L_hi, upper=True)[0])
-    grids = []
-    for i in range(first, last + 1):
-        lo, hi = max(path.L0[i], L_lo), min(path.L1[i], L_hi)
-        if hi - lo <= _TINY:
-            continue
-        kappa = _curvature(path, i)
-        h = math.sqrt(8.0 * sag / kappa) if kappa > 0.0 else hi - lo     # one segment's length
-        m = max(1, int(math.ceil((hi - lo) / (2.0 * h))))               # pairs of segments
-        Ls = lo + (hi - lo) * np.arange(2 * m + 1) / (2 * m)
-        Ls[-1] = hi
-        grids.append((i, Ls if not grids else Ls[1:]))
-    L = np.concatenate([g for _, g in grids])
+    # every piece at once (task 0159): 2 m + 1 points of equal steps in L per piece, its last one exactly at its end,
+    # the first one dropped after the first piece (it is the piece before's last)
+    idx = np.arange(first, last + 1)
+    lo, hi = np.maximum(path.L0[idx], L_lo), np.minimum(path.L1[idx], L_hi)
+    keep = hi - lo > _TINY
+    idx, lo, hi = idx[keep], lo[keep], hi[keep]
+    kappa = np.atleast_1d(_curvature(path, idx))
+    h = np.where(kappa > 0.0, np.sqrt(8.0 * sag / np.where(kappa > 0.0, kappa, 1.0)), hi - lo)  # one segment's length
+    m = np.maximum(1, np.ceil((hi - lo) / (2.0 * h))).astype(np.int64)                         # pairs of segments
+    count = 2 * m + 1
+    k = np.repeat(np.arange(len(idx)), count)
+    j = np.arange(len(k)) - np.repeat(np.cumsum(count) - count, count)
+    L = lo[k] + (hi[k] - lo[k]) * j / (2 * m[k])
+    L[j == 2 * m[k]] = hi[k[j == 2 * m[k]]]
+    drop = (j == 0) & (k > 0)
+    L, piece = L[~drop], idx[k[~drop]]
     L[0], L[-1] = L_lo, L_hi
-    piece = np.concatenate([np.full(len(g), i) for i, g in grids])
     phi, a, r = _eval(path, piece, L)
     # a point that ends a piece is worked out on that piece (the same point as on the next, to rounding)
     pts = xyz(phi, a, r)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.117 – 16 Nov 2026 – The demo vessel in detail (task 0153)
+## 0.2.119 – 16 Nov 2026 – The demo vessel in detail (task 0153)
 
 - **The demo's vessel looks like a real offshore vessel close up.** A shaped hull: a raked bow with flare and a bulbous
   bow, the deck rising towards the bow, a flat transom with a skeg, bilge keels, a rubbing strake along each side.
@@ -23,6 +23,52 @@ installer of that version was built from.
   the bow). Making the demo takes about 12 % longer.
 - **Test tour:** the demo stop's check now expects the animation's real length (about 2 ½ minutes).
 
+## 0.2.118 – 16 Nov 2026 – Full carousel, faster cables (task 0159)
+
+- **The demo's carousel is full.** The coil now fills the carousel up to its rim: 23 full layers and the top layer,
+  partly paid out as before – 43.5 km of cable instead of 28.8 km. The loading arch stands 1.2 m higher (room for its
+  guide rollers above the fuller coil) and the carousel shot's camera looks a little higher; the other shots are as
+  before. Make the demo project again (Help > Make demo project) to see it.
+- **Build is faster.** Build's pass through the frames for hoses and cables now lets Blender work out only the parts
+  it reads and what they hang on, not the whole model at every frame: on the demo the Build takes 48–50 s instead of
+  68–72 s on the 4-core test machine (making the demo 250 → 210 s), with exactly the same shapes and keys as before.
+- **Moving a cable that hangs into the sea by hand is faster:** one step of "Cable travel" on the demo 133–153 →
+  87–106 ms on the test machine.
+- **A drum's or carousel's rope is set up faster:** the full carousel's whole wound path 3.0 → 1.1 s.
+- Playback, renders and memory cost the same with the full carousel as with the part-filled one: the full layers are
+  one light solid, only the top layer is drawn as rope.
+
+## 0.2.117 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
+
+- **Fast 3-axis** (4 Motion > Milling, under Detail; on by itself, also in older projects). A long program that
+  cuts straight from above – a finishing program from CAM, or the app's own **Make a toolpath** – is now worked out
+  as a height map (the lowest point the tool reached above every spot of the block) instead of one exact cut per
+  move. Measured on the 4-core test machine, Detail Normal:
+  - a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in **3.5 s
+    instead of 2.4 minutes**, 30,000 faces instead of 256,000; one frame further while playing 38 ms instead of
+    53 ms, one frame back 72 ms instead of 235 ms;
+  - a dome (3,750 moves, passes 0.5 mm apart): 1.6 s instead of 32 s, 21,000 faces instead of 62,000;
+  - the toolpath test model (7,243 moves, roughing and finishing): 8 s instead of about 2 minutes – but 146,000
+    faces instead of 97,000: on walls and steps the map needs more faces than the exact cut.
+- **What goes into it:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
+  together (a short, thinly spread program is quicker and lighter cut exactly); of those the moves where the tool
+  points straight at the block along one of its own axes, with a flat, ball or corner-radius mill that reaches above
+  the block's top.
+- **What is cut exactly as before:** short programs; V-bits, chamfer mills and drills; side cuts with a T-slot cutter
+  (any bit that undercuts); tilted and rotary moves (4th and 5th axis); a tool so short that it tunnels. One program
+  can have both kinds: they are joined in the block. The clash check, the chips, the cut faces' look, the tool marks
+  and "Finish at the CAD part" work as before.
+- **Same look, not the same to the hundredth.** Walls stand upright with their outline where the tool went, rims
+  are sharp, cut faces know the move that made them (tool marks). At Detail Normal (a 0.2 mm grid) surfaces and
+  walls are within 0.03 mm of the exact cut. What differs: the fine ridges between two finishing passes are left
+  out when lower than 0.012 mm (the face is smooth there and shows the tool marks); the steep rounded strip under
+  a rim or at the foot of a wall (a ball cutting deeper than two thirds of its radius, a corner radius' fillet) can
+  be 0.2 mm off and look a little streaky in a close-up; a sharp outside corner of a wall, or a rib or slot
+  thinner than 0.4 mm, can be up to 0.3 mm off. All of it halves at Detail Fine. Untick **Fast 3-axis** to cut
+  every move exactly.
+- The line under the Milling settings says how many moves went into the height map and how fine its grid is.
+- **PC check:** the new Full line "Milling: a long finishing program as a height map" cuts one program both ways
+  and compares them; the new Heavy line "Milling: a long finishing program (height map)" times 40,000 points.
 ## 0.2.116 – 16 Nov 2026 – Served cable look: black yarn with yellow marker bands (task 0158)
 
 - **New cable look "Served cable (yarn)"** in 4 Motion > Cables and paths > Look, next to Power cable and Steel wire

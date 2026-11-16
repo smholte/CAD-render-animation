@@ -1065,7 +1065,7 @@ def _timeline(scene):
     s = settings(scene)
     rt = runtime(scene)
     items = cut_items(scene)
-    key = (s.path_sig, _stock_key(s, workpiece(scene)), tuple(c.key() for c in items))
+    key = (s.path_sig, _stock_key(s, workpiece(scene)), tuple(c.key() for c in items), bool(s.fast_map))
     if rt.get("key") == key and rt.get("timeline") is not None:
         _feeds_to(scene, rt["timeline"], items)        # (a new Build can change the feeds and nothing else)
         return rt["timeline"]
@@ -1083,7 +1083,8 @@ def _timeline(scene):
             if inside.any():
                 p = core.Path(p.t, p.o, p.d, np.where(inside, core.TURN_ANGLE_TOL, core.ANGLE_TOL))
         paths.append(p)
-    tl = core.Timeline(wpc, cutters, paths, s.detail) if paths else None
+    # (task 0146: a long program that cuts from above goes into a height map, when the setting is on)
+    tl = core.Timeline(wpc, cutters, paths, s.detail, fast=bool(s.fast_map)) if paths else None
     rt["timeline"], rt["key"], rt["shown"] = tl, key, None
     _feeds_to(scene, tl, items)
     return tl
@@ -1275,8 +1276,9 @@ def refresh(scene, frame: float | None = None, force: bool = False, quick: bool 
             lock_interface(scene)
         _show_chips(scene, T)
         st = tl.stats
+        fast = st.extra.get("map_moves", 0)             # (task 0146: how many of them the height map took)
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
-                        f"({st.cutting_segments} cutting moves)")
+                        f"({st.cutting_segments} cutting moves" + (f", {fast} as height map, {st.extra.get('map_cell', 0.0) * 1000:.2g} mm grid)" if fast else ")"))
         rt.pop("error", None)
         return True
     except core.SolidError:

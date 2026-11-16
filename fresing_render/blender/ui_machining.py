@@ -131,6 +131,7 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             layout.separator()
             col = split_props(layout)
             col.prop(m, "detail", text="Detail")
+            col.prop(m, "fast_map", text="Fast 3-axis")
             col.prop(m, "enabled", text="Cut material")
             col.prop(m, "cut_look", text="Cut faces")
             if m.cut_look == "PICK":

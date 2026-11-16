@@ -371,7 +371,9 @@ fresing_render/            the Blender extension (Python package)
                            live in one hidden mesh "FR flex shapes" (frames x points, world coordinates; the modifiers
                            pick the frame's slice with Scene Time -> Sample Index). Live: a depsgraph handler solves when
                            an end moved (one frame); Build animation reads the ends at every frame and solves them all at
-                           once (``bake``; nothing runs in Python while playing or rendering). Ends sit on the parts
+                           once (``bake``; nothing runs in Python while playing or rendering; the pass through the
+                           frames, ``read_places``, is shared with the cables and works out only what the places read
+                           depend on, task 0159). Ends sit on the parts
                            they touch in the CAD pose; flex parts are left out of the clash check (clash.HOOKS);
                            ``set_up_test_hoses`` / ``set_up_test_chains`` (test_flex_*.step from tools/make_test_flex.py);
                            ops_flex.py, ui_flex.py (4 Motion > Hoses and drag chains)
@@ -462,7 +464,9 @@ site/                      the landing page https://smholte.github.io/CAD-render
                            site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
                            "site-kit" (on main when the kit or its makers change; by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
+tools/                     build_release.py, release_tools.py (release job), measure_cables.py (task 0159: what cables,
+                           spools and tracks cost on the made demo – Build by module, playback, live posing, memory),
+                           test-model makers (task 0122: details from
                            model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
                            guide blocks, servo motors, clamps – each part one solid), real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
@@ -1062,3 +1066,17 @@ the release → Delete); the next run on `main` publishes it again.
   got the 5-axis tool's tip (same name, mesh name and point count, 40 mm apart): the bar was left uncut on 3 GitHub runs
   (task 0127). Key on the content (`gcode._shape_sig`) and drop such caches in `load_post` (`gcode.forget`). Tests that
   clear a module's cache by hand before each model hide this: the PC check opens many projects in one Blender.
+- A pass through the frames that reads a few objects' places (`flex.read_places`: Build's pass for hoses and cables)
+  paid for the whole scene: ~12 ms a frame on the demo, 54 s for its 3,806 frames. Blender works out a hidden object
+  only when something shown depends on it, so the pass hides everything the read objects do not depend on
+  (`flex.depends_on`: parents, constraint targets, the objects drivers read) – and mutes its visibility keys meanwhile:
+  Build keys `hide_viewport` for Show / Hide / Fade, and a key showed a hidden object again at every frame (task 0159:
+  31 s, the places bit for bit the same). What is left (~7 ms a frame even with every object hidden) is Blender's own
+  update of the scene's ~400 datablocks.
+- NumPy costs ~1–2 µs per call however small the array: a bisection of 64–128 rounds on arrays of ONE moment (posing a
+  cable into the sea solves one moment, many times per step) took 2.8 ms a catenary, the same on plain floats 0.4 ms
+  (`core/catenary.SMALL`, task 0159). Keep the array form for many moments (Build) and give one moment plain numbers.
+- A carousel's layers alternate: layer 1 is wound from the core outwards, layer 2 from the rim inwards … The demo's route
+  leaves the partly paid-out top layer at its innermost turn, so that layer must be an even one (an odd number of full
+  layers): with 24 full layers the top layer ran the other way, paying out moved the cable towards the core and it left
+  the arch's guide-cage rollers (found by the demo's joint-sheet check, task 0159).

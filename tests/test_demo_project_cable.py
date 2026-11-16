@@ -122,7 +122,11 @@ def test_shot_3_pays_out_the_carousel_and_the_arch_follows(made):
     sc = _scene()
     car = spool.find(sc, demo.SPOOL_ITEM)
     assert car is not None and car.kind == "CAROUSEL" and car.enabled and not car.problem, car and car.problem
-    assert 20000.0 < car.wound < 40000.0                            # 15 full layers of 24 m and the top one
+    # task 0159: full to the rim – the cable leaves the top layer the carousel holds or the one below it, an even
+    # layer (index odd: wound from the rim inwards, as the route and the guide cage expect), with over 40 km on it
+    path = spool.path_of(sc, car)
+    top = int(S.at(path, car.wound)[3])
+    assert top % 2 == 1 and top >= path.layer_count - 2 and 40000.0 < car.wound < path.total, (top, car.wound)
     assert joints.find(sc, car.joint).couple_table == f"spool:{demo.SPOOL_ITEM}"
     assert sorted(f.mode for f in car.followers) == ["ALONG", "ARM"]
     win = spool.find(sc, demo.WINCH_SPOOL)

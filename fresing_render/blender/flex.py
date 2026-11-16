@@ -1523,6 +1523,47 @@ def drop_read() -> None:
     _STATE["read"] = None
 
 
+def _hide_curves(ob) -> list:
+    """The object's keys on its visibility in the view (Build writes them for Show / Hide / Fade steps)."""
+    ad = ob.animation_data
+    if ad is None or ad.action is None or getattr(ad, "action_slot", None) is None:
+        return []
+    from bpy_extras import anim_utils
+    cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
+    return [fc for fc in cb.fcurves if fc.data_path == "hide_viewport"] if cb is not None else []
+
+
+def depends_on(obs) -> set:
+    """The names of these objects and of every object their places depend on: parents, constraint targets, the
+    objects their drivers read (and so on). Task 0159: reading the places, Blender works out only these – an object
+    hidden in the view is left out of the scene's evaluation unless something shown depends on it."""
+    seen: set = set()
+    todo = [ob for ob in obs if ob is not None]
+    while todo:
+        ob = todo.pop()
+        if ob.name in seen:
+            continue
+        seen.add(ob.name)
+        if ob.parent is not None:
+            todo.append(ob.parent)
+        for c in getattr(ob, "constraints", ()):
+            for attr in ("target", "pole_target"):
+                t = getattr(c, attr, None)
+                if isinstance(t, bpy.types.Object):
+                    todo.append(t)
+            for t in getattr(c, "targets", ()):         # (an Armature constraint's list)
+                t = getattr(t, "target", None)
+                if isinstance(t, bpy.types.Object):
+                    todo.append(t)
+        ad = ob.animation_data
+        for fc in (ad.drivers if ad is not None else ()):
+            for v in fc.driver.variables:
+                for t in v.targets:
+                    if isinstance(t.id, bpy.types.Object):
+                        todo.append(t.id)
+    return seen
+
+
 def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, also=(), keep: bool = False) -> dict:
     """Step through ``frames`` frames from ``first`` and read where these objects are: name -> (frames, 4, 4), world.
 
@@ -1545,10 +1586,19 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, al
         return {n: out[n] for n in names}
     keep_at = (scene.frame_current, scene.frame_subframe)
     needed = set(names) if keep_shown else set()
-    shy = [o for o in scene.objects if not o.hide_viewport and o.name not in needed
-           and any(m.type == "NODES" for m in getattr(o, "modifiers", ()))]
-    for o in shy:                               # only drawn (hoses, links, toolpath, chips): not worked out per frame
-        o.hide_viewport = True
+    used = depends_on(every.values()) if _STATE.get("closure", True) else None
+    # only drawn (hoses, links, toolpath, chips), or nothing read depends on it: not worked out per frame. Task 0159:
+    # whatever no read place depends on stays hidden, also where Build keyed it shown (its visibility keys are muted
+    # meanwhile) – the demo's pass through its 3,806 frames went from 54 to ~20 s, the places read exactly the same
+    shy = [(o, o.hide_viewport) for o in scene.objects if o.name not in needed
+           and (used is not None and o.name not in used or any(m.type == "NODES" for m in getattr(o, "modifiers", ())))
+           and (not o.hide_viewport or used is not None)]
+    muted = [fc for o, _h in shy if used is not None for fc in _hide_curves(o) if not fc.mute]
+    for fc in muted:
+        fc.mute = True
+    for o, _h in shy:
+        if not o.hide_viewport:
+            o.hide_viewport = True
     try:
         with clash._Guard():
             for k in range(frames):
@@ -1557,8 +1607,11 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, al
                 for n, ob in every.items():
                     out[n][k] = _np(_world(ob))
     finally:
-        for o in shy:
-            o.hide_viewport = False
+        for fc in muted:
+            fc.mute = False
+        for o, h in shy:
+            if o.hide_viewport != h:
+                o.hide_viewport = h
         scene.frame_set(keep_at[0], subframe=keep_at[1])
     if keep:
         _STATE["read"] = ((scene.name, int(first), int(frames)), out)
