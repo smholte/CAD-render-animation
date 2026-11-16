@@ -41,10 +41,24 @@ done; the sea lane is free.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 16 Nov 2026 – branch `task/0148-pile-below-seabed`, version 0.2.114. NOT merged:
+the lead's note on `main` says two sessions ran this task by mistake and a review session picks one.
 
-**What changed:**
+**What changed:** the cut-away box is also taken out of the seabed: the seabed material is see-through inside the box
+and a soil section (4 walls + floor, layers sand / silty sand / stiff clay / dark clay by depth, noise on the
+boundaries; `core/sea.soil_colour` is the formula) shows the ground, deeper than the lowest part (`sea.ground_depth`).
+New setting `sea_ground` "Show the ground" (default on; only acts when a part reaches below the seabed; a project saved
+before gets it off by `surroundings.upgrade_ground`, a stamp on the root). Water depth, cut-away and clarity now have
+rows in 5 Scene & Render. Turbine sheet: the 45 m of monopile is shown (no hidden note), water level 75 m, depth 30 m,
+"Seabed" camera looks down into the pit (hand-edited in `iea15_offshore.json`, same as the maker's output; not re-made
+with the owner's STEP). PC-check line `scene.sea_ground`, function `scene.sea_ground`, guide section `sea-ground`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** `tests/test_sea_cutaway.py` (18 tests, bpy module, Cycles CPU 96 px): a 34 m pile in the box
+shows 1.5x or more red pixels with the ground on than off; a pile outside the box stays hidden (0 px with water, same as
+the seabed-only count without); old-project upgrade; settings key unchanged with it off. Site-turbine tests updated.
+GitHub run 43826862436 on e00077b: all green (full mode, 32.7 min). Picture: `tasks/img/0148_pile_in_the_ground.jpg`
+(stand-in pile, not the turbine). Not run: real Blender locally (download refused), the site-kit run, a render of the
+real turbine's Seabed shot.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the cut-away settings had no panel rows before; I added them (reviewer may want them
+elsewhere). The pit is dark in a narrow box (sun only from above). Release not made (not merged).
