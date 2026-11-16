@@ -1366,8 +1366,14 @@ while the carousel turns, and the loading arm swings along with the turn being p
    how much cable is on it from where the CAD cable leaves it.
 
 From now on the app draws the cable on the drum or carousel itself; the CAD solid of the rope or the coil is hidden.
-Move the cable's joint ("Cable <name>", the metres paid out) in 4 Motion, or let a **Run motor** step run it in 6
-Animation: the drum turns, the rope comes off, and the free cable always starts where the rope leaves the drum.
+**Every layer is cable**: one cable from where it is fixed at the core or the flange, layer on layer – on a drum with
+its climbs at the flanges and, on a Lebus drum, the crossovers on every layer – up to where it leaves. Move the
+cable's joint ("Cable <name>", the metres paid out) in 4 Motion, or let a **Run motor** step run it in 6 Animation:
+the drum turns, the rope comes off, and the free cable always starts where the rope leaves the drum. Pay it **all
+out** and the layers come off one by one down to the bare drum or core (the free cable then starts where it is fixed
+there); haul it **all in** and they go on again until the drum or carousel is full.
+
+<img class="wide" src="img/view_spools_full.jpg" alt="The test model wound full and paid out: left the drum full to its flanges, every layer wire rope with its climbs at the flanges; right the carousel paid out down to its last layers, every layer cable">
 
 The line under the list says how much is on it now, on which layer the cable leaves and how much it holds:
 "49.6 m on it, layer 3 of 8; holds 201.5 m".
@@ -1424,9 +1430,11 @@ A problem shows in red under the list, as "check" in the list line and in the pa
 - The tick box in the list switches a drum or carousel off: the coil shows as in the CAD file again, nothing
   turns with the cable and the cable starts where it is drawn in the CAD file. Switch it on again and all is back.
 - **−** takes it off the list (the joint the app made for it goes too); the arrow button selects its part.
-- On a drum the top two layers are drawn as cable, on a carousel the top layer; the full layers under them are one
-  solid that gets smaller layer by layer (a whole coil drawn as cable would make the project very slow). The cable
-  on the drum has the cable's look, but its stripes or strands stand still on the drum.
+- The layer being paid out is drawn again at every frame; each full layer under it is drawn once and only shown or
+  hidden as the payout reaches it, so even a carousel of 40 km costs little per frame. The cable on the drum has the
+  cable's look, its stripes or strands running on from layer to layer, but they stand still on the drum.
+- The web 3D model (5 Scene & Render) shows the layer being paid out and, under it, one solid for the full layers
+  (the whole coil as cable would make the page far too big).
 - The turn of the drum, the level wind and the arm are worked out once, as a table with one piece per layer (a few
   per turn on a carousel): they work in the render queue and with scripts switched off, like every joint.
 - The clash check (6 Animation) leaves the CAD coil out.

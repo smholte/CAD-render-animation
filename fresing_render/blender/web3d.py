@@ -940,11 +940,14 @@ class Job:
                 rest.__exit__(None, None, None)
 
     def _steps(self):
+        from . import spool
+        self._spool_solids = spool.web_begin(self.scene)    # task 0174: the full layers as one solid on the page
         try:
             yield from self._steps_inner()
         finally:
             if self._drawn is not None:
                 self._drawn.close()
+            spool.web_end(self.scene, self._spool_solids)
 
     def _steps_inner(self):
         scene = self.scene

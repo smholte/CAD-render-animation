@@ -430,7 +430,7 @@ LOOKS = [
       "QUADRANT FRAME", "QUADRANT GUTTER", "HANDLER FRAME", "RAIL TRESTLE", "RAIL BOGIE", "SHEAVE POST",
       "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME",
       "CRADLE LIFT FRAME", "A&R PAD EYE", "PAD EYE", "HANDLER TOP PULLEY", "TIPPING SHEAVE", "FOOT SHEAVE",
-      "CRANE PEDESTAL", "CRANE HOUSE", "CRANE BOOM"), ()),
+      "CRANE PEDESTAL", "CRANE HOUSE", "CRANE BOOM", "HOIST BEARING", "BOOM HEAD SHEAVE", "HEAD SHEAVE BRACKET"), ()),
     ("Demo: non-slip deck", "powder_coat", "RAL 7037", ("MAIN DECK", "HATCH COVER"), ()),
     ("Demo: deck grey", "paint_marine", "RAL 7037", ("CAROUSEL WELL",), ()),
     # the vessel (task 0153): hull paint above the boot top with run-down streaks, the black boot top and the red
@@ -456,7 +456,7 @@ LOOKS = [
                                        "QUADRANT RAIL"), ()),
     ("Demo: rollers", "steel_machined", "", ("CABLE ROLLER", "GUIDE ROLLER", "SUPPORT ROLLER", "RAIL WHEEL"), ()),
     ("Demo: power cable", "cable_black", "", ("CABLE", "CABLE COIL", "CABLE END"), ()),
-    ("Demo: wire rope", "galvanized", "", ("WIRE ROPE", "A&R WIRE", "TIPPING WIRE"), ()),
+    ("Demo: wire rope", "galvanized", "", ("WIRE ROPE", "A&R WIRE", "TIPPING WIRE", "HOIST WIRE"), ()),
 ]
 
 
@@ -794,30 +794,7 @@ def spool_stage(d: Demo):
     # handling winch 1: its wire (the fairlead rope) on a speed joint of its own, the Lebus drum spools it
     t1 = time.time()
     d.progress("Handling winch 1's drum")
-    root = d.root()
-    from . import build, logic
-    unit = joints.members(joints.find(sc, "HANDLING WINCH 1: Drum turn"))[0]      # the drum unit (turns)
-    winch = build.logical_parent(unit)
-    turning = {o.name for o in logic.descendants(unit)}
-    parts = [o for o in logic.descendants(winch) if o.get(build.PROP_KIND) == "part"]
-    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in turning)
-    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM" and o.name in turning)
-    on_drum = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
-    deck = d.part("MAIN DECK", root=root)
-    with joints._batch(sc):
-        j = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=WINCH_TRAVEL,
-                          base=deck, allow_empty=True)
-    j.use_limits = False
-    item = paths.add_cable(sc, WINCH_WIRE, joint=WINCH_TRAVEL)
-    paths.read_cad(sc, item, rope)
-    item = paths.find(sc, WINCH_WIRE)
-    item.look = "ROPE"
-    spool.add(sc, "DRUM", drum, WINCH_WIRE, coil=on_drum, name=WINCH_SPOOL)
-    sp = spool.find(sc, WINCH_SPOOL)
-    sp.groove = "LEBUS"
-    # its level wind follows the layer (task 0081): the fairlead sheave stays in line with the wrap, no fleet angle
-    spool.add_follower(sc, spool.find(sc, WINCH_SPOOL), "HANDLING WINCH 1: Level wind", "ACROSS")
-    d.notes.append("spool: " + spool.summary(sc, spool.find(sc, WINCH_SPOOL)))
+    _handling_winch(d, 1)
     d.timings["spool winch"] = time.time() - t1
 
 
@@ -1050,6 +1027,163 @@ def make_wires(d: Demo):
     it.angle, it.stripe = math.radians(45.0), 0.3
     d.notes.append("second end: " + (notes[0] if notes else "read"))
     d.timings["wires"] = time.time() - t0
+
+
+# ---------------------------------------------------------------------------
+# every winch with its wire on its drum (task 0174)
+# ---------------------------------------------------------------------------
+
+WINCH_SPOOLS = {}                     # filled by the stage: spool name -> what it is (the report and the tests read it)
+
+
+def _winch_parts(d: Demo, drum_joint: str):
+    """(drum, the CAD wire on the drum, every part of the winch, the winch's assembly) of the winch whose drum turns
+    with ``drum_joint``."""
+    from . import build, joints, logic
+    unit = joints.members(joints.find(d.scene, drum_joint))[0]
+    winch = build.logical_parent(unit)
+    turning = {o.name for o in logic.descendants(unit)}
+    parts = [o for o in logic.descendants(winch) if o.get(build.PROP_KIND) == "part"]
+    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM" and o.name in turning)
+    on_drum = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
+    return drum, on_drum, parts, winch
+
+
+def _handling_winch(d: Demo, k: int) -> None:
+    """Handling winch ``k``: its fairlead rope as a cable on a speed joint of its own, spooled on its Lebus drum, its
+    level wind following the layer (task 0080 for winch 1; 0174 the same for winch 2)."""
+    from mathutils import Vector
+
+    from . import build, joints, paths, spool
+    sc = d.scene
+    name, wire, travel = f"Handling winch {k}", f"Handling wire {k}", f"HANDLING WINCH {k}: Wire travel"
+    drum, on_drum, parts, _winch = _winch_parts(d, f"HANDLING WINCH {k}: Drum turn")
+    turning = {on_drum.name, drum.name}
+    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in turning)
+    deck = d.part("MAIN DECK", root=d.root())
+    with joints._batch(sc):
+        j = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=travel,
+                          base=deck, allow_empty=True)
+    j.use_limits = False
+    item = paths.add_cable(sc, wire, joint=travel)
+    paths.read_cad(sc, item, rope)
+    item = paths.find(sc, wire)
+    item.look = "ROPE"
+    spool.add(sc, "DRUM", drum, wire, coil=on_drum, name=name)
+    sp = spool.find(sc, name)
+    sp.groove = "LEBUS"
+    # its level wind follows the layer (task 0081): the fairlead sheave stays in line with the wrap, no fleet angle
+    spool.add_follower(sc, spool.find(sc, name), f"HANDLING WINCH {k}: Level wind", "ACROSS")
+    d.notes.append("spool: " + spool.summary(sc, spool.find(sc, name)))
+    WINCH_SPOOLS[name] = f"handling winch {k}: fairlead wire on its Lebus drum, level wind follows"
+
+
+TIP_SPOOL = "Tipping winch {key}"          # the drum: 4 Motion > Drums and carousels
+TIP_DRUM_WIRE = "Tipping drum wire {key}"   # its fixed lead (drum -> foot sheave -> post top) as a cable
+TIP_TRAVEL = "TIPPING WINCH {KEY}: Wire travel"
+CRANE_SPOOL = "Crane hoist"
+CRANE_WIRE = "Crane hoist wire"
+CRANE_TRAVEL = "DECK CRANE: Hoist wire travel"
+
+
+@stage("winch_wires", "Every winch with its wire rope on its drum", after="wires")
+def winch_wires(d: Demo):
+    """Task 0174: every winch drum of the vessel holds its wire as a cable in layers (4 Motion > Drums and carousels),
+    the steel wire rope look:
+
+    - handling winch 2 as handling winch 1 (stage "spool"): its fairlead rope a cable on a speed joint of its own;
+    - each tipping winch: its fixed lead in the CAD (drum -> foot sheave -> up the swivel post) becomes a cable spooled
+      on the drum; its speed follows the tipping wire's (kept tight, stage "wires") one to one, so the drum pays out
+      what the tipping wire takes – the drum turns by the spool's table instead of a ratio;
+    - the A&R winch and handling winch 1 are spooled already (stages "wires", "spool")."""
+    import numpy as np
+    from mathutils import Vector
+
+    from . import build, joints, logic, paths, spool
+    sc = d.scene
+    t0 = time.time()
+    WINCH_SPOOLS.clear()
+    WINCH_SPOOLS[WINCH_SPOOL] = "handling winch 1: fairlead wire on its Lebus drum, level wind follows (0080)"
+    WINCH_SPOOLS[AR_SPOOL] = "A&R winch: the A&R wire on its drum, kept tight (0082)"
+    d.progress("Handling winch 2's drum")
+    _handling_winch(d, 2)
+    deck = d.part("MAIN DECK", root=d.root())
+    for key, tip_item in TIP_ITEMS:
+        d.progress(f"The tipping winch {key}'s drum")
+        drum_joint = f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn"
+        drum, on_drum, parts, winch = _winch_parts(d, drum_joint)
+        mine = {o.name for o in logic.descendants(winch)}
+        centre = np.array(joints.find(sc, drum_joint).frame.matrix_world.translation)
+
+        def gap(o):
+            n = len(o.data.vertices)
+            if not n:
+                return 1e9
+            co = np.empty(3 * n, np.float32)
+            o.data.vertices.foreach_get("co", co)
+            m = np.array(o.matrix_world)
+            v = co.reshape(-1, 3).astype(float) @ m[:3, :3].T + m[:3, 3]
+            return float(np.linalg.norm(v - centre, axis=1).min())
+        leads = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in mine]
+        lead = min(leads, key=gap)
+        if gap(lead) > 2.0:
+            raise RuntimeError(f"tipping winch {key}: no wire lead found at its drum")
+        name, wire, travel = (TIP_SPOOL.format(key=key), TIP_DRUM_WIRE.format(key=key),
+                              TIP_TRAVEL.format(KEY=key.upper()))
+        with joints._batch(sc):
+            j = joints.create(sc, "SLIDE", [], Vector(centre), Vector((0.0, 0.0, 1.0)), name=travel, base=deck,
+                              allow_empty=True)
+        j.use_limits = False
+        item = paths.add_cable(sc, wire, joint=travel)
+        with paths._quiet(item):
+            item.look = "ROPE"
+        item["look_was"] = "ROPE"
+        paths.read_cad(sc, item, lead)
+        spool.add(sc, "DRUM", drum, wire, coil=on_drum, name=name)
+        # its speed: the tipping wire's, one to one (both counted as paid out)
+        tip = paths.find(sc, tip_item)
+        mine_it = paths.find(sc, wire)
+        ratio = (-1.0 if tip.reverse else 1.0) * (-1.0 if mine_it.reverse else 1.0)
+        joints.set_follows(sc, joints.find(sc, travel), tip.joint, ratio=ratio)
+        sp = spool.find(sc, name)
+        # the lead to the foot sheave is short (the winch stands 2.6 m from its post): its fleet angle is some 6.5°,
+        # more than the usual 1.5° – the demo's tipping winches have no level wind; the warning is set just above it
+        lo, hi = spool.fleet(sc, sp)
+        if max(lo, hi) > float(sp.fleet_limit):
+            sp.fleet_limit = math.radians(math.ceil(math.degrees(max(lo, hi))) + 0.5)
+            sp = spool.find(sc, name)
+            d.notes.append(f"tipping winch {key}: fleet angle {math.degrees(max(lo, hi)):.1f}° (short lead, no level "
+                           f"wind): its warning set to {math.degrees(sp.fleet_limit):.1f}°")
+        spool.status(sc, sp)
+        sp = spool.find(sc, name)
+        if sp.problem:
+            raise RuntimeError(f"tipping winch {key}: {sp.problem}")
+        d.notes.append("spool: " + spool.summary(sc, sp))
+        WINCH_SPOOLS[name] = (f"tipping winch {key}: its lead (drum, foot sheave, up the post) on its drum, paying out "
+                              f"what the kept-tight tipping wire takes")
+    # the deck crane's hoist (an invented drum at the boom's foot, task 0174): its wire to the hook block, parked
+    d.progress("The deck crane's hoist")
+    drum_joint = _joint_ending(d, "DECK CRANE: Hoist drum turn")
+    drum, on_drum, parts, _crane = _winch_parts(d, drum_joint)
+    wire_part = next(o for o in parts if o.get(build.PROP_NAME) == "HOIST WIRE")
+    hook = next(o for o in parts if o.get(build.PROP_NAME) == "HOOK BLOCK")
+    with joints._batch(sc):
+        j = joints.create(sc, "SLIDE", [], Vector(np.array(joints.find(sc, drum_joint).frame.matrix_world.translation)),
+                          Vector((0.0, 0.0, 1.0)), name=CRANE_TRAVEL, base=deck, allow_empty=True)
+    j.use_limits = False
+    item = paths.add_cable(sc, CRANE_WIRE, joint=CRANE_TRAVEL)
+    with paths._quiet(item):
+        item.look = "ROPE"
+    item["look_was"] = "ROPE"
+    paths.read_cad(sc, item, wire_part)
+    spool.add(sc, "DRUM", drum, CRANE_WIRE, coil=on_drum, name=CRANE_SPOOL)
+    _end_on(d, CRANE_WIRE, hook)
+    sp = spool.find(sc, CRANE_SPOOL)
+    if sp.problem:
+        raise RuntimeError(f"deck crane: {sp.problem}")
+    d.notes.append("spool: " + spool.summary(sc, sp))
+    WINCH_SPOOLS[CRANE_SPOOL] = "deck crane: its hoist wire on an invented drum at the boom's foot, to the hook block"
+    d.timings["winch wires"] = time.time() - t0
 
 
 CPS_RUN_ITEM = "CPS run"              # the line a CPS set runs along from the rack (hidden), task 0126

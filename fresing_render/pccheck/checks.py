@@ -733,13 +733,16 @@ def motion_paths(ctx):
 @line("motion.spool", "A drum and a carousel spool their cable layer by layer", "0.2.85",
       what="A winch drum with a level wind and a carousel with a slewing arm: each cable comes off its spool layer by "
            "layer; the drum and the carousel turn by table with the cable speed, the level wind and the arm follow "
-           "the layer, and the cable leaves its spool on the circle of its layer")
+           "the layer, and the cable leaves its spool on the circle of its layer. Every layer is cable (task 0174): "
+           "the drum is wound fully in and out again, the carousel emptied and filled, one cable from the anchor to "
+           "where it leaves")
 def motion_spool(ctx):
     from ..blender import animation, cameras, render, spool, tour
     scene = ctx.fresh(SPOOL)
     s = scene.fresing
     t0 = time.time()
     made = spool.set_up_test_model(scene)
+    spool.add_full_range_steps(scene, made["animation"])      # task 0174: a full spool emptied and filled
     ctx.metric("set up the drum and the carousel", time.time() - t0, "s")
     for name in made["spools"]:
         sp = spool.find(scene, name)

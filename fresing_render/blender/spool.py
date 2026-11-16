@@ -1122,6 +1122,113 @@ def _write_layers(scene, sp, path, M, scale: float, top, k: float, c: float, sig
         _materials(scene, sp, ob)
 
 
+def _solid_mesh(sp, path, scene) -> bpy.types.Mesh:
+    """(The web page's stand-in for the full layers, task 0174; the app drew it until 0.2.13x.) A unit sleeve (drum: radius 1 between the flanges) or a unit ring (carousel: height 1 from the coil's
+    bottom), in its own frame: scaling it in x, y (drum) or z (carousel) gives the full layers' solid."""
+    d = diameter(scene, sp)
+    n = 96
+    t = np.linspace(0.0, 2.0 * math.pi, n, endpoint=False)
+    if sp.kind == "DRUM":
+        z0, z1 = float(sp.a_lo), float(sp.a_hi)
+        rings = [(1.0, z0), (1.0, z1)]
+        inner = 0.0
+    else:
+        z0, z1 = 0.0, 1.0
+        r_lo, r_hi = S.ring_radii(core_spool(scene, sp))      # (an Archimedean spiral leaves half a band free)
+        rings = [(r_hi, z0), (r_hi, z1)]
+        inner = r_lo
+    verts = []
+    for r, z in rings:
+        verts += [(r * math.cos(a), r * math.sin(a), z) for a in t]
+    if inner > 0.0:
+        for z in (z1, z0):
+            verts += [(inner * math.cos(a), inner * math.sin(a), z) for a in t]
+    faces = []
+    for k in range(n):
+        k2 = (k + 1) % n
+        faces.append((k, k2, n + k2, n + k))                     # outside
+    if inner > 0.0:
+        for k in range(n):
+            k2 = (k + 1) % n
+            faces.append((n + k, n + k2, 2 * n + k2, 2 * n + k))         # top
+            faces.append((2 * n + k, 2 * n + k2, 3 * n + k2, 3 * n + k))  # inside
+            faces.append((3 * n + k, 3 * n + k2, k2, k))                   # bottom
+    else:
+        faces.append(tuple(range(n - 1, -1, -1)))
+        faces.append(tuple(range(n, 2 * n)))
+    me = bpy.data.meshes.new(f"FR spool solid {label(sp)}")
+    me.from_pydata(verts, [], faces)
+    me.shade_flat()
+    me.update()
+    return me
+
+
+# ---------------------------------------------------------------------------
+# the web 3D model (task 0174): the moving top layer + a solid for the full layers below
+# ---------------------------------------------------------------------------
+
+def web_begin(scene) -> list:
+    """For a web 3D export: the full layers' static objects would be the whole coil in the file (the demo's carousel:
+    over a million points, tens of MB), so the page shows the moving rope on its layer and, below it, one solid for
+    the full layers as they are at the frame shown (a sleeve on a drum, a ring on a carousel) – as the app drew them
+    before task 0174. Makes those solids (role "solid", shown) and returns their names; ``web_end`` removes them."""
+    made = []
+    for ob in [o for o in bpy.data.objects if o.get(TAG) and o.get("fr_spool_role") == "solid"]:
+        _remove_object(ob)                          # (one left from an export before)
+    for sp in scene.fresing.spools:
+        if not sp.enabled or _joint(scene, sp) is None or not _alive(scene, sp.part) or _made(scene, sp, "rope") is None:
+            continue
+        path = path_of(scene, sp)
+        W0 = float(sp.wound)
+        _L_low, size = S.stack(path, W0, np.array([payout(scene, sp)]), DRAWN[sp.kind])
+        size = float(np.asarray(size).reshape(-1)[0])
+        if size <= 0.0:
+            continue
+        memo: dict = {}
+        M = _owner_matrix(scene, sp, memo)
+        scale = float(np.cbrt(abs(np.linalg.det(M[:3, :3])))) or 1.0
+        ob = _new_made(scene, sp, "solid", sp.part, _solid_mesh(sp, path, scene))
+        for prop in ("hide_viewport", "hide_render"):
+            try:
+                ob.driver_remove(prop)
+            except TypeError:
+                pass
+        F = M.copy()
+        if sp.kind == "CAROUSEL":
+            F = M @ np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, float(sp.a_bot)], [0, 0, 0, 1.0]])
+        loc, rot, _sc = Matrix([list(r) for r in F]).decompose()
+        ob.matrix_basis = Matrix.LocRotScale(loc, rot, None)
+        if sp.kind == "DRUM":
+            ob.scale = (size / scale, size / scale, 1.0 / scale)
+        else:
+            ob.scale = (1.0 / scale, 1.0 / scale, size / scale)
+        ob.hide_viewport = ob.hide_render = bool(sp.part.hide_render)
+        _materials(scene, sp, ob)
+        made.append(ob.name)
+    if made:
+        bpy.context.view_layer.update()
+    return made
+
+
+def web_end(scene, made: list) -> None:
+    """The export is done: its solids are hidden at once and removed a moment later (the export's own lists still
+    name them while it finishes); a solid left over (a file saved meanwhile) goes at the next drawing or opening."""
+    for name in made or ():
+        ob = bpy.data.objects.get(name)
+        if ob is not None and ob.get("fr_spool_role") == "solid":
+            ob.hide_viewport = ob.hide_render = True
+    names = list(made or ())
+
+    def later():
+        for name in names:
+            ob = bpy.data.objects.get(name)
+            if ob is not None and ob.get("fr_spool_role") == "solid":
+                _remove_object(ob)
+        return None
+    if names and not bpy.app.background:
+        bpy.app.timers.register(later, first_interval=0.5)
+
+
 def follow_look(scene, item) -> None:
     """The cable's look changed (paths.py): its spool's rope and full layers take it at once (task 0158)."""
     sp = of_cable(scene, item)
@@ -1999,4 +2106,41 @@ def set_up_test_model(scene) -> dict:
         b.to_dist = 6.0
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     out.update(spools=["Drum", "Carousel"], cables=["Wire", "Power cable"], animation=TEST_ANIMATION)
+    return out
+
+
+FULL_RANGE_SECONDS = 4.0
+
+
+def add_full_range_steps(scene, anim_name: str = TEST_ANIMATION) -> dict:
+    """Task 0174 (the test tour's stop and the PC check): after the 8 s of ``set_up_test_model``'s animation, the drum
+    winds its wire fully in (full: every layer) and pays it all out again (empty: its anchor), and the carousel pays its
+    cable all out and winds it back to where it started – ``FULL_RANGE_SECONDS`` each, fast. (The test carousel is
+    not filled past its start: its guide sheave does not lift over a higher coil.) Returns {cable: [the joint's value
+    at each step's end]}."""
+    from . import paths
+    a = scene.fresing.animations[anim_name]
+    end = max((b.start + b.duration for b in a.blocks), default=0.0)
+    out = {}
+    plan = (("Drum", "Wire", lambda W0, total: (W0 - total + 0.05, W0 - 0.05)),
+            ("Carousel", "Power cable", lambda W0, total: (W0 - 0.05, 0.0)))
+    for name, cable, ends in plan:
+        sp = find(scene, name)
+        it = paths.find(scene, cable)
+        if sp is None or it is None:
+            continue
+        sign = -1.0 if it.reverse else 1.0
+        total = float(path_of(scene, sp).total)
+        at = [sign * p for p in ends(float(sp.wound), total)]
+        prev = None
+        for k, to in enumerate(at):
+            b = a.blocks.add()
+            b.kind, b.joint, b.easing = "JOINT", it.joint, "LINEAR"
+            b.start, b.duration = end + k * FULL_RANGE_SECONDS, FULL_RANGE_SECONDS
+            b.use_from = prev is None
+            if prev is not None:
+                b.from_dist = prev
+            b.to_dist = to
+            prev = to
+        out[cable] = at
     return out

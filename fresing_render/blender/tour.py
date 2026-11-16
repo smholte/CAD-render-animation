@@ -1552,6 +1552,7 @@ def build_spool(b: Build):
     _look("PRODUCT")
     made = spool.set_up_test_model(sc)
     _check(made["animation"] == SPOOL_ANIM, f"the animation is called '{made['animation']}'")
+    spool.add_full_range_steps(sc, SPOOL_ANIM)          # task 0174: the drum filled and emptied, the carousel emptied
     for name in made["spools"]:
         sp = spool.find(sc, name)
         _check(sp is not None and not sp.problem, f"'{name}': {sp.problem if sp is not None else 'missing'}")
@@ -1918,15 +1919,61 @@ def _check_spool(scene):
             seen[sp.name].append([p, joints.get_value(joints.find(scene, sp.joint))] +
                                  [joints.get_value(joints.find(scene, fl.joint)) for fl in sp.followers])
     drum, car = np.array(seen["Drum"]), np.array(seen["Carousel"])
-    _check(drum[-1, 0] > 5.9 and car[-1, 0] > 5.9, "the cables did not pay out 6 m")
-    _check(abs(drum[-1, 1]) > 30.0, f"the drum turned only {math.degrees(abs(drum[-1, 1])):.0f}°")
-    _check(np.ptp(drum[:, 2]) > 0.1, "the level wind did not go along the drum")
-    _check(abs(car[-1, 1]) > 6.0, f"the carousel turned only {math.degrees(abs(car[-1, 1])):.0f}°")
-    _check(np.ptp(car[:, 2]) > 0.05, "the arm did not swing out with the layer")
+    six = int(np.argmin(np.abs(np.array([f for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25))
+                                                            | {scene.frame_end})]) - (scene.frame_start + 200))))
+    _check(drum[six, 0] > 5.9 and car[six, 0] > 5.9, "the cables did not pay out 6 m")
+    _check(abs(drum[six, 1]) > 30.0, f"the drum turned only {math.degrees(abs(drum[six, 1])):.0f}°")
+    _check(np.ptp(drum[:six + 1, 2]) > 0.1, "the level wind did not go along the drum")
+    _check(abs(car[six, 1]) > 6.0, f"the carousel turned only {math.degrees(abs(car[six, 1])):.0f}°")
+    _check(np.ptp(car[:six + 1, 2]) > 0.05, "the arm did not swing out with the layer")
     _check(off < 5e-4, f"a cable leaves its spool {off * 1000:.2f} mm off the circle of its layer")
-    return (f"drum {math.degrees(abs(drum[-1, 1])) / 360.0:.1f} turns, level wind {np.ptp(drum[:, 2]) * 1000:.0f} mm, "
-            f"carousel {math.degrees(abs(car[-1, 1])):.0f}°, arm {math.degrees(np.ptp(car[:, 2])):.1f}°; "
-            f"leave points on their layer to {off * 1000:.2f} mm")
+    full = _check_full_spools(scene, sps)
+    return (f"drum {math.degrees(abs(drum[six, 1])) / 360.0:.1f} turns, level wind {np.ptp(drum[:, 2]) * 1000:.0f} mm, "
+            f"carousel {math.degrees(abs(car[six, 1])):.0f}°, arm {math.degrees(np.ptp(car[:, 2])):.1f}°; "
+            f"leave points on their layer to {off * 1000:.2f} mm; {full}")
+
+
+def _check_full_spools(scene, sps) -> str:
+    """Task 0174: every layer is cable – at frames through the fill and the emptying (``spool.add_full_range_steps``)
+    the full layers shown are the right ones and, with the moving rope, one cable from the anchor to the leave point
+    (no gap of more than 1 mm); the drum full shows every layer, both empty show none."""
+    import numpy as np
+
+    from ..core import spool as S
+    from . import spool
+    worst, most = 0.0, {sp.name: 0 for sp in sps}
+    fewest = {sp.name: 10**9 for sp in sps}
+    for f in sorted(set(range(scene.frame_start + 200, scene.frame_end + 1, 10)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        for sp in sps:
+            path = spool.path_of(scene, sp)
+            p = spool.payout(scene, sp)
+            want = S.shown_layers(path, float(sp.wound), np.array([p]))[0]
+            layers = spool.layer_objects(scene, sp)
+            got = np.array([not ob.hide_viewport for ob in layers], bool)
+            _check(len(layers) == path.layer_count - 1 and np.array_equal(want, got),
+                   f"'{sp.name}' at frame {f}: layers shown {got.astype(int).tolist()}, wanted "
+                   f"{want.astype(int).tolist()}")
+            on = min(max(float(sp.wound) - p, 0.0), float(path.total))
+            spans = [(float(lo), float(hi)) for (lo, hi), shown in zip(S.layer_spans(path)[:-1], got) if shown]
+            spans.append((float(S.drawn_from(path, float(sp.wound), np.array([p]))[0]), on))
+            reach = 0.0
+            for lo, hi in sorted(spans):
+                worst = max(worst, lo - reach)
+                reach = max(reach, hi)
+            if on > 1e-3:
+                worst = max(worst, abs(reach - on))
+            most[sp.name] = max(most[sp.name], int(got.sum()))
+            fewest[sp.name] = min(fewest[sp.name], int(got.sum()))
+    drum = next(sp for sp in sps if sp.name == "Drum")
+    n_drum = spool.path_of(scene, drum).layer_count - 1
+    _check(worst < 1e-3, f"the drawn cable has a gap of {worst * 1000:.1f} mm")
+    _check(most["Drum"] == n_drum and fewest["Drum"] == 0, f"the drum showed {fewest['Drum']} … {most['Drum']} of "
+           f"its {n_drum} full layers (wanted all when full, none when empty)")
+    _check(fewest["Carousel"] == 0, "the carousel was not emptied")
+    return (f"drum filled ({n_drum + 1} layers) and emptied, carousel emptied and filled ({most['Carousel']} full "
+            f"layers), one cable to {worst * 1000:.2f} mm")
 
 
 @tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step")
@@ -3353,7 +3400,10 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
-     "towards the rim) and the arm swings out so its guide stays over the turn being paid out.",
+     "towards the rim) and the arm swings out so its guide stays over the turn being paid out. Then, fast: the drum "
+     "winds its wire fully in – every layer is wire, with its climbs at the flanges – and pays it all out to its "
+     "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
+     "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
      auto="clip")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",

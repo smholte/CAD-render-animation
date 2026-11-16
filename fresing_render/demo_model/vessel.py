@@ -37,6 +37,7 @@ WHITE = (0.93, 0.93, 0.91)
 GLASS = (0.10, 0.14, 0.18)
 GALV = (0.60, 0.61, 0.62)
 ORANGE = (0.95, 0.42, 0.05)
+ROPE_GREY = (0.45, 0.46, 0.47)          # as machines.ROPE_GREY (the hoist wire, task 0174)
 YELLOW = (0.976, 0.659, 0.0)
 BRONZE = (0.80, 0.55, 0.35)
 LAMP = (1.0, 0.95, 0.8)
@@ -468,9 +469,25 @@ def deck_crane() -> Asm:
                       for x in np.linspace(1500.0, L - 800.0, 8)],
                     g.box(L - 700.0, -450.0, -400.0, 1000.0, 900.0, 800.0))
     boom.add(Part("CRANE BOOM", bshape, YELLOW))
+    # task 0174: the hoist – a drum between the boom's chords at its foot, the wire along under the boom to a sheave
+    # hung under the boom head, and down plumb to the hook block (boom coordinates: x along the boom, z square to it)
+    hz = hoist()
+    cd = boom.add(hz["drum"], T(HOIST_X, 0.0, hz["drum_z"]))
+    inner = 800.0 - 550.0 * HOIST_X / L - 175.0         # the chords' inner faces at the drum
+    bearing = Part("HOIST BEARING", g.cyl(120.0, inner - HOIST_HALF - 50.0 + 5.0, (0, HOIST_HALF + 50.0, 0), (0, 1, 0)),
+                   YELLOW)                              # one each side, from the chord to just off the flange
+    for turn in (0.0, 180.0):
+        boom.add(bearing, T(HOIST_X, 0.0, hz["drum_z"]) @ Rot((0, 0, 1), turn))
+    cs_ = boom.add(Part("BOOM HEAD SHEAVE", g.xform(g.sheave(HOIST_SHEAVE_R, HOIST_ROPE_D / 2 + 1.0, holes=4),
+                                                    Rot((1, 0, 0), 90)), YELLOW), T(*hz["sheave_c"]))
+    sc_ = hz["sheave_c"]
+    boom.add(Part("HEAD SHEAVE BRACKET", g.fuse(
+        *[g.box(sc_[0] - 120.0, sy0, sc_[2] - 60.0, 240.0, 30.0, -400.0 - sc_[2] + 60.0 + 1.0) for sy0 in (30.0, -60.0)],
+        g.rod((sc_[0], -60.0, sc_[2]), (sc_[0], 60.0, sc_[2]), hz["pin_r"])), YELLOW))
+    boom.add(Part("HOIST WIRE", g.route_solid(hz["route"], HOIST_ROPE_D / 2), ROPE_GREY))
     boom.add(Part("HOOK BLOCK", g.fuse(g.box(-350.0, -250.0, -1500.0, 700.0, 500.0, 900.0),
                                        g.rod((0, 0, -1500.0), (0, 0, -2100.0), 120.0)), ORANGE),
-             T(*(tip + [0.0, 0.0, -400.0])) @ Rot((0, 1, 0), CRANE_LUFF))
+             T(*hz["hook_origin"]) @ Rot((0, 1, 0), CRANE_LUFF))
     cb = slew.add(boom, T(*pin) @ Rot((0, 1, 0), -CRANE_LUFF))
     cs = a.add(slew)
     a.joint("Slew", "rotate", [cs], (0, 0, 0), (0, 0, 1), None,
@@ -478,8 +495,61 @@ def deck_crane() -> Asm:
     a.joint("Luff", "rotate", [[cs, cb]], pin, (0, -1, 0), [-55.0, 10.0],
             {"by": "operator", "note": f"luffs the boom (0 = parked at {CRANE_LUFF:.0f}° up; negative lowers it)"},
             rides_on="Slew")
+    B = T(*pin) @ Rot((0, 1, 0), -CRANE_LUFF)           # boom coordinates -> the crane's
+    dc = (B @ np.array([HOIST_X, 0.0, hz["drum_z"], 1.0]))[:3]
+    a.joint("Hoist drum turn", "rotate", [[cs, cb, cd]], dc, (0, -1, 0), None,
+            {"by": "winch", "rope_centre_radius": round(hz["rope_rc"], 3),
+             "note": "the hoist drum (task 0174): positive pays out (the wire leaves the drum's underside towards the "
+                     "boom head)"}, rides_on="Luff")
+    shc = (B @ np.array([*sc_, 1.0]))[:3]
+    a.joint("Head sheave turn", "rotate", [[cs, cb, cs_]], shc, (0, 1, 0), None,
+            {"by": "winch", "note": "turned by the hoist wire (task 0174)"}, rides_on="Luff")
     a.info["tip_z"] = float(pin[2] + L * math.sin(math.radians(CRANE_LUFF)))
+    a.info["hoist"] = {"drum_centre": dc.tolist(), "sheave_centre": shc.tolist(), "rope_d": HOIST_ROPE_D}
     return a
+
+
+HOIST_ROPE_D = 28.0           # the crane's hoist wire Ø (task 0174, invented)
+HOIST_X = 2900.0              # the hoist drum's middle along the boom (between its first two cross beams)
+HOIST_HALF = 350.0            # half the drum's length between its flanges
+HOIST_RC = 220.0              # the rope's middle on the first layer
+HOIST_LAYERS = 4
+HOIST_SHEAVE_R = 300.0        # the head sheave: the rope's middle round it
+HOIST_DROP = 1200.0           # the wire from the head sheave down to the hook block's top
+
+
+def hoist() -> dict:
+    """The crane's hoist (task 0174): a grooveless drum with its wire wound full width in ``HOIST_LAYERS`` layers (one
+    solid), the wire leaving its underside along under the boom (boom z = -450) to the head sheave hung under the
+    boom head, round it and down plumb (the boom parked at ``CRANE_LUFF``) to the hook block. Boom coordinates."""
+    from .route import rope_route
+    d = HOIST_ROPE_D
+    rr = d / 2.0
+    r_out = HOIST_RC + (HOIST_LAYERS - 1) * d * math.cos(math.radians(30.0))     # the outer layer's rope middle
+    under = -450.0                                      # the wire's middle along under the boom
+    drum_z = under + r_out
+    flange_r = HOIST_RC + rr + (HOIST_LAYERS + 1.5) * d * 0.9
+    drum = Asm("HOIST DRUM UNIT")
+    drum.add(Part("WINCH DRUM", g.cyl(HOIST_RC - rr, 2 * HOIST_HALF + 2.0, (0, -HOIST_HALF - 1.0, 0), (0, 1, 0)),
+                  YELLOW))
+    for sy in (-1.0, 1.0):
+        drum.add(Part("DRUM FLANGE", g.cyl(flange_r, 40.0, (0, sy * HOIST_HALF, 0), (0, sy, 0)), YELLOW))
+    drum.add(Part("WIRE ROPE", g.tube(r_out + rr, HOIST_RC - rr - 0.5, 2 * HOIST_HALF - 1.0, (0, -HOIST_HALF + 0.5, 0),
+                                      (0, 1, 0)), ROPE_GREY))
+    L = CRANE_BOOM
+    sc = np.array([L - 300.0, 0.0, under - HOIST_SHEAVE_R])
+    a = math.radians(-CRANE_LUFF)                      # the rope leaves the sheave plumb (world down in boom terms)
+    tp = sc[[0, 2]] + HOIST_SHEAVE_R * np.array([math.cos(a), math.sin(a)])
+    down = np.array([-math.sin(math.radians(CRANE_LUFF)), -math.cos(math.radians(CRANE_LUFF))])
+    hook_top = tp + HOIST_DROP * down
+    route = rope_route("hoist wire", d, 0.0, [
+        ("sheave", (HOIST_X, drum_z), r_out, +1, {"name": "drum"}),
+        ("sheave", (sc[0], sc[2]), HOIST_SHEAVE_R, -1, {"name": "head sheave"}),
+        ("point", tuple(hook_top))])
+    origin = hook_top - 600.0 * down                    # the hook block's frame: its top 600 below it, plumb
+    return {"drum": drum, "drum_z": drum_z, "sheave_c": sc.tolist(), "route": route, "rope_rc": r_out,
+            "hook_origin": [float(origin[0]), 0.0, float(origin[1])], "pin_r": 0.45 * max(0.18 * HOIST_SHEAVE_R,
+                                                                                           rr * 2.5) - 3.0}
 
 
 def bollard() -> Part:
@@ -663,7 +733,7 @@ def vessel(p, pos, kit=None) -> Asm:
     yk = CRANE_Y * f
     pin_z = p.deck_z + 3230.0 + 3200.0
     outfit["DECK CRANE"] = [[xk - 2700.0, xk + 1600.0, yk - 2700.0, yk + 1600.0, p.deck_z, pin_z + 600.0],
-                            [xk + 1700.0, xk + 700.0 + CRANE_BOOM * math.cos(math.radians(CRANE_LUFF)) + 800.0,
+                            [xk + 1700.0, xk + 700.0 + CRANE_BOOM * math.cos(math.radians(CRANE_LUFF)) + 1700.0,
                              yk - 1100.0, yk + 1100.0, pin_z - 600.0, p.deck_z + crane.info["tip_z"]]]
     # bollards, hatches, windlasses, hawse pipes and anchors
     bl = bollard()

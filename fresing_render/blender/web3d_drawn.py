@@ -43,8 +43,8 @@ def _on(ob) -> bool:
 
 
 def spool_objects(scene) -> list:
-    """The ropes and full-layer solids spools draw (kind ``spool``), shown now or shown by the animation: they are
-    parts of the web model as well."""
+    """The ropes spools draw (kind ``spool``) and, while a web 3D export runs, the solid that stands for the full
+    layers on the page (``spool.web_begin``, task 0174), shown now: they are parts of the web model as well."""
     mod, kind, _tag = _spool_mod()
     out = []
     for ob in scene.objects:

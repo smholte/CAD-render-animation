@@ -66,7 +66,8 @@ TEST.SPOOL                                                    35 parts, 25 diffe
   CAROUSEL.ASM             origin (3000, 0, 0); turns about +Z through it (paying out: clockwise seen from above)
     TURNTABLE              disc r 1000, z 100..140
     INNER CORE             tube r 270..300, z 140..520
-    RIM FENCE              tube r 970..1000, z 140..420
+    RIM FENCE              tube r 970..1000, z 140..250 (task 0174: below the guide sheave's rim, z 260, so the arm
+                           swings its guide out over the rim when the carousel is emptied)
     CABLE COIL             the stored cable (Ø40) as one revolved solid: rope-middle radii 340..840 (12.5 turns a
                            layer, 40 apart); layers 1-3 full: r 320..860, z 140..260 (layer 1 laid from the core out,
                            2 back in, 3 out again); layer 4 (z 260..300), laid from the rim inwards, still covers
@@ -233,7 +234,7 @@ POST_R, POST_TOP = 100.0, 1000.0
 PLINTH_R = 900.0
 TURNTABLE = (1000.0, 100.0, 140.0)              # radius, z from, z to
 CORE = (270.0, 300.0, 140.0, 520.0)             # r in, r out, z from, z to
-RIM = (970.0, 1000.0, 140.0, 420.0)
+RIM = (970.0, 1000.0, 140.0, 250.0)             # (task 0174: was 420 – the guide sheave hit it over the rim)
 SHEAVE_NOTCH = (570.0, -115.0, 260.0, 632.0, 115.0, 305.0)     # the coil's notch under the guide sheave (carousel x, y)
 
 

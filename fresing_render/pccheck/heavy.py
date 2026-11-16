@@ -948,3 +948,68 @@ def heavy_mesh(ctx):
     _check(st.get("round_faces", 0) >= count, f"only {st.get('round_faces', 0)} round faces for {count} cylinders")
     _memory(ctx)
     return f"{tris:,} triangles, {len(parts)} parts, faces in {st.get('seconds_faces', 0.0):.1f} s"
+
+
+@line("heavy.spool", "Big coil: a carousel of kilometres, every layer cable", "0.2.999", (H,), expected=120,
+      what="The test carousel given a thin cable (Ø 10 mm: some 7 km in 38 layers, like the demo's full carousel; "
+           "scaled down Ø 20 mm): every layer drawn as cable; the cable is paid out by hand, built, played, and the "
+           "carousel emptied and filled again",
+      shows="Whether a big coil keeps playback and posing quick on this PC: ms per frame and per step, memory",
+      not_shown="Drawing the 3D view on your screen (the check runs without a window)")
+def heavy_spool(ctx):
+    import bpy
+
+    from ..blender import animation, joints, paths, spool
+    from ..core import spool as S
+    from .checks import SPOOL
+    d = 0.02 if small() else 0.01
+    scene = ctx.fresh(SPOOL)
+    t0 = time.time()
+    made = spool.set_up_test_model(scene)
+    it = paths.find(scene, "Power cable")
+    it.diameter = d
+    sp = spool.find(scene, "Carousel")
+    path = spool.path_of(scene, sp)
+    sp.wound = 0.8 * float(path.total)                 # (redraws it: every layer up to there)
+    sp = spool.find(scene, "Carousel")
+    _check(not sp.problem, f"the big carousel: {sp.problem}")
+    path = spool.path_of(scene, sp)
+    layers = spool.layer_objects(scene, sp)
+    _check(len(layers) == path.layer_count - 1, f"{len(layers)} layer objects for {path.layer_count} layers")
+    ctx.metric("set up", time.time() - t0, "s")
+    ctx.metric("cable on it", round(float(sp.wound) / 1000.0, 2), "km")
+    # live: the cable's joint stepped by hand (a layer's worth over 10 steps)
+    j = joints.find(scene, it.joint)
+    step = float(path.total) / path.layer_count / 10.0
+    sign = -1.0 if it.reverse else 1.0
+    dg = bpy.context.evaluated_depsgraph_get()
+    t0 = time.time()
+    for k in range(1, 11):
+        joints.set_value(j, sign * step * k, use_limits=False)
+        dg.update()
+    ctx.metric("live, per step", 1000.0 * (time.time() - t0) / 10.0, "ms")
+    shown = sum(not ob.hide_viewport for ob in spool.layer_objects(scene, sp))
+    want = int(S.shown_layers(path, float(sp.wound), np.array([step * 10.0]))[0].sum())
+    _check(shown == want, f"{shown} full layers shown, {want} expected")
+    joints.set_value(j, 0.0, use_limits=False)
+    spool.add_full_range_steps(scene, made["animation"])
+    a = scene.fresing.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    spool_warn = [w for w in info["warnings"] if "runs empty" in w or "overfills" in w]
+    _check(not spool_warn, "; ".join(spool_warn[:2]))
+    frames = list(range(scene.frame_start, scene.frame_end + 1, 4))
+    t0 = time.time()
+    for f in frames:
+        scene.frame_set(f)
+    ctx.metric("playback, per frame", 1000.0 * (time.time() - t0) / len(frames), "ms")
+    tris = 0
+    dg = bpy.context.evaluated_depsgraph_get()
+    for ob in spool.layer_objects(scene, sp) + [sp.owner]:
+        me = ob.evaluated_get(dg).data
+        tris += 2 * len(me.vertices)
+    ctx.metric("triangles of the coil", round(tris / 1e6, 2), "M")
+    _memory(ctx)
+    return (f"{float(sp.wound) / 1000.0:.1f} km in {path.layer_count} layers (Ø {d * 1000:.0f} mm), "
+            f"{len(layers)} full layers drawn once")

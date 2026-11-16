@@ -70,6 +70,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       (view_tracks.jpg; Cycles on the processor, as "render").
   spools   the spooling test model after 5 m of wire and 8 m of cable have run: the drum with its level wind and the
       carousel with its arm, side by side (view_spools.jpg; Cycles on the processor, as "render").
+  spools_full   the same test model, the drum wound full and the carousel paid out to its 2nd layer: every layer
+      drawn as cable (view_spools_full.jpg, task 0174).
 
 GUIDE_ONLY=panel_3_decals,panel_3_faces (comma-separated) makes only those pictures in the "panels" run.
 
@@ -1999,9 +2001,10 @@ def render_flex():
         "view_flex_chains")
 
 
-def render_spools():
+def render_spools(full: bool = False):
     """Task 0080: the spooling test model after 5 m of wire and 8 m of cable: the drum and the carousel, each in a
-    render of its own, side by side."""
+    render of its own, side by side. ``full`` (task 0174, view_spools_full.jpg): the drum wound full to its flanges
+    and the carousel paid out down to its second layer – every layer is cable."""
     import addon_utils
     import numpy as np
     addon_utils.enable(pkg(), default_set=True)
@@ -2011,8 +2014,14 @@ def render_spools():
     joints, cams, paths, spool = mod("blender.joints"), mod("blender.cameras"), mod("blender.paths"), \
         mod("blender.spool")
     spool.set_up_test_model(sc)
-    for cable, metres in (("Wire", 5.0), ("Power cable", 8.0)):
-        joints.set_value(joints.find(sc, paths.find(sc, cable).joint), metres)
+    pays = (("Wire", 5.0), ("Power cable", 8.0))
+    if full:
+        drum, car = spool.find(sc, "Drum"), spool.find(sc, "Carousel")
+        pays = (("Wire", float(drum.wound) - float(spool.path_of(sc, drum).total) + 0.05),
+                ("Power cable", float(car.wound) - 70.0))
+    for cable, metres in pays:
+        it = paths.find(sc, cable)
+        joints.set_value(joints.find(sc, it.joint), -metres if it.reverse else metres, use_limits=False)
     bpy.context.view_layer.update()
     paths.refresh(sc)
     bpy.context.view_layer.update()
@@ -2032,11 +2041,14 @@ def render_spools():
         return np.concatenate(pts)
 
     tiles = []
-    for name, view, parts, label in (
-            ("drum", "ISO_LEFT", ("WINCH DRUM", "FAIRLEAD SHEAVE", "LEVEL WIND CARRIAGE"),
-             "Drum: the wire comes off layer 3, the level wind follows"),
-            ("carousel", "ISO", ("TURNTABLE", "ARM", "RIM FENCE"),
-             "Carousel: the top layer gets smaller, the arm follows")):
+    shots = (("drum", "ISO_LEFT", ("WINCH DRUM", "FAIRLEAD SHEAVE", "LEVEL WIND CARRIAGE"),
+              "Drum: the wire comes off layer 3, the level wind follows"),
+             ("carousel", "ISO", ("TURNTABLE", "ARM", "RIM FENCE"),
+              "Carousel: the top layer gets smaller, the arm follows"))
+    if full:
+        shots = ((shots[0][0], shots[0][1], shots[0][2], "Drum wound full: every layer is wire"),
+                 (shots[1][0], shots[1][1], shots[1][2], "Carousel paid out to its 2nd layer: every layer cable"))
+    for name, view, parts, label in shots:
         cam = cams.add_camera(sc, view, 50.0, name=f"Guide {name}", points=corners(*parts))
         sc.camera = cam
         mod("blender.render").apply_output(sc, s)
@@ -2046,11 +2058,11 @@ def render_spools():
         path = os.path.join(SCRATCH, f"spool_{name}.png")
         shutil.copy(s.last_render, path)
         tiles += ["-label", label, path]
-    out = os.path.join(OUT, "view_spools.jpg")
+    out = os.path.join(OUT, "view_spools_full.jpg" if full else "view_spools.jpg")
     subprocess.run(["montage", *tiles, "-tile", "2x1", "-geometry", "+6+6", "-pointsize", "18",
                     "-background", "white", out], check=True)
     subprocess.run(["convert", out, "-strip", "-quality", "86", out], check=True)
-    log("saved view_spools", f"{os.path.getsize(out) // 1024} KB")
+    log("saved", os.path.basename(out), f"{os.path.getsize(out) // 1024} KB")
 
 
 def render_tracks():
@@ -2139,9 +2151,9 @@ elif MODE == "tracks":
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)
-elif MODE == "spools":
+elif MODE in ("spools", "spools_full"):
     try:
-        render_spools()
+        render_spools(full=MODE == "spools_full")
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

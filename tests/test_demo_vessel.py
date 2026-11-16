@@ -63,14 +63,15 @@ def test_part_counts(ves):
                     ("PROPELLER", 4), ("THRUSTER NOZZLE", 2), ("THRUSTER TUNNEL", 2), ("ACCOMMODATION", 1),
                     ("BRIDGE", 1), ("FUNNEL", 2), ("FUNNEL TOP", 2), ("MAST", 1), ("RADAR SCANNER", 2),
                     ("LIFEBOAT", 2), ("DAVIT", 4), ("CRANE BOOM", 1), ("HOOK BLOCK", 1), ("BOLLARD", 6),
-                    ("FAIRLEAD", 4), ("HATCH COVER", 3), ("WINDLASS", 2), ("HAWSE PIPE", 2), ("ANCHOR", 2)):
+                    ("FAIRLEAD", 4), ("HATCH COVER", 3), ("WINDLASS", 2), ("HAWSE PIPE", 2), ("ANCHOR", 2),
+                    ("HOIST WIRE", 1), ("BOOM HEAD SHEAVE", 1), ("WINCH DRUM", 1), ("DRUM FLANGE", 2)):
         assert count(name) == n, name
     assert count("RAILING") >= 5 and count("WINDOW") >= 6 and count("BRIDGE WINDOW") == 3
 
 
 def test_joints_of_the_propulsion_radars_and_crane(ves):
     js = ves["joints"]
-    assert len(js) == 10
+    assert len(js) == 12                         # (task 0174: the crane's hoist drum and head sheave)
     for side in ("PS", "SB"):
         steer, prop = js[f"AZIMUTH THRUSTER {side}: Steer"], js[f"AZIMUTH THRUSTER {side}: Propeller turn"]
         assert np.allclose(steer["axis"]["direction"], [0, 0, 1])
@@ -84,7 +85,9 @@ def test_joints_of_the_propulsion_radars_and_crane(ves):
     for k in (1, 2):
         assert np.allclose(js[f"SUPERSTRUCTURE: Radar {k} turn"]["axis"]["direction"], [0, 0, -1])
     turning = {n for n, j in js.items() if j.get("motor")}           # turn without end (the app's Motor)
-    assert turning == set(js) - {"DECK CRANE: Luff"}
+    assert turning == set(js) - {"DECK CRANE: Luff", "DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn"}
+    for name in ("DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn"):
+        assert js[name]["rides_on"] == "DECK CRANE: Luff" and js[name]["drive"]["by"] == "winch"
     assert js["DECK CRANE: Luff"]["rides_on"] == "DECK CRANE: Slew" and js["DECK CRANE: Luff"]["limits"] == [-55.0, 10.0]
 
 
