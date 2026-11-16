@@ -772,7 +772,8 @@ class Job:
         # task 0142: what modifiers draw (cables, ropes, hoses, spools, track and chain links) as Blender draws it
         from . import web3d_drawn
         parts = parts + [ob for ob in web3d_drawn.spool_objects(scene) if ob not in parts]
-        self._drawn = web3d_drawn.Drawn(scene, parts)
+        from . import animation as _anim
+        self._drawn = web3d_drawn.Drawn(scene, parts, animated=self.animation and _anim.has_keys(scene))
         parts = [ob for ob in parts if self._drawn.kind(ob) != web3d_drawn.HIDDEN]
         self._modes = {}
         if self.surroundings is None:          # 0107 / 0134: the plain page, the project's light
@@ -1172,7 +1173,11 @@ class Job:
         finally:
             scene.frame_set(keep)
         for j, it in rigid.items():            # task 0142: a link moved by its modifier: the move on its place
-            mats[:, j] = (mats[:, j].astype(np.float64) @ web3d_drawn.moves(it)).astype(np.float32)
+            mv = web3d_drawn.moves(it)
+            if mv is None:                     # its modifier changes its shape, not only its place
+                mv = np.tile(it.move, (len(frames), 1, 1))
+                self.result.setdefault("drawn_still", []).append(it.name)
+            mats[:, j] = (mats[:, j].astype(np.float64) @ mv).astype(np.float32)
         for j in np.where(~shown.all(axis=0))[0]:  # hidden at the start: the place where it first shows
             first = int(np.argmax(shown[:, j])) if shown[:, j].any() else 0
             mats[:first, j] = mats[first, j]
@@ -1299,6 +1304,10 @@ class Job:
                                light_items=len(lit.items), light_problems=list(lit.problems),
                                light_timing={k: round(v, 1) for k, v in lit.timing.items()})
             self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
+        if self.result.get("drawn_still"):              # task 0142: what the page could not move
+            from ..core.words import plural
+            self.result["text"] += (f" · {plural(len(self.result['drawn_still']), 'part')} whose modifier changes "
+                                    "its shape stay as at the frame shown")
         return self.result
 
     def run(self) -> dict:

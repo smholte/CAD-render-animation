@@ -923,8 +923,8 @@
       if (tb.last !== null && (!tb.moves || tb.last === t)) continue;
       tb.at(t);
       var d = tb.fill();
-      tb.buffer.set(d);
-      tb.texture.needsUpdate = true;
+      tb.mesh.visible = !tb.empty;
+      if (!tb.empty) { tb.buffer.set(d); tb.texture.needsUpdate = true; }
       tb.uniforms.uFrPay.value = tb.pay;
       tb.last = t;
     }

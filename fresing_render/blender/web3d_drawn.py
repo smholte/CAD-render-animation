@@ -143,7 +143,7 @@ class Item:
 class Drawn:
     """The drawn objects among ``obs`` (parts and spool objects), sorted at the frame shown."""
 
-    def __init__(self, scene, obs: list):
+    def __init__(self, scene, obs: list, animated: bool = False):
         self.scene = scene
         self.items: dict = {}
         self.copies: list = []
@@ -163,6 +163,41 @@ class Drawn:
             self.items[ob.name] = self._sort(ob, dg)
         if later:
             self._sort_later(later)
+        mod, _kind, _tag = _spool_mod()
+        empty = [it.ob for it in self.items.values() if it.kind == HIDDEN and it.ob.modifiers.get(mod) is not None]
+        if empty and animated:
+            self._sort_empty(empty)
+
+    def _sort_empty(self, obs: list) -> None:
+        """A spool's rope that holds nothing at the frame shown (all paid out) but is drawn at other frames of the
+        animation: sorted at the first such frame (looked for in steps, then frame by frame back)."""
+        sc = self.scene
+        keep = sc.frame_current
+        frames = list(range(sc.frame_start, sc.frame_end + 1))
+        step = max(1, len(frames) // 64)
+        try:
+            for ob in obs:
+                found = None
+                for k in range(0, len(frames), step):
+                    sc.frame_set(frames[k])
+                    me = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+                    if me is not None and len(me.vertices):
+                        found = k
+                        break
+                if found is None:
+                    continue
+                for k in range(found, max(found - step, -1), -1):      # back to the first frame it is drawn
+                    sc.frame_set(frames[k])
+                    me = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+                    if me is None or not len(me.vertices):
+                        break
+                    found = k
+                sc.frame_set(frames[found])
+                it = self._sort(ob, bpy.context.evaluated_depsgraph_get())
+                if it.kind != HIDDEN:
+                    self.items[ob.name] = it
+        finally:
+            sc.frame_set(keep)
 
     # -- sorting
     def _copy(self, ob, dg):
@@ -306,8 +341,10 @@ class Drawn:
 
     def _spool_now(self, it: Item, ev, me):
         L = _attr(me, "fr_L")
-        if L is None or len(L) < 2 * it.sides:
-            return None
+        if L is None or len(L) < 2 * it.sides:          # nothing on the spool: a cut that keeps no point
+            end = float(it.spool_path[1][-1]) + 1.0
+            last = it.frames[-1] if it.frames and it.frames[-1] is not None else None
+            return (end, end, last[2] if last is not None else np.array([0.0, 0.0, 1.0]), _pay(ev))
         co = np.array([tuple(me.vertices[k].co) for k in range(it.sides)], np.float64)
         c = co.mean(axis=0)
         n0 = co[0] - c
@@ -327,12 +364,20 @@ class Drawn:
 # what the export asks
 # ---------------------------------------------------------------------------
 
-def moves(it: Item) -> np.ndarray:
-    """A RIGID item's move at every frame read (F, 4, 4), fitted from its 4 points."""
+def moves(it: Item) -> np.ndarray | None:
+    """A RIGID item's move at every frame read (F, 4, 4), fitted from its 4 points; None when at some frame they no
+    longer lie as on the part (its modifier changes its shape, not only its place): it then keeps its move of the
+    frame shown."""
     pts = _filled(it.frames)
     if not pts or pts[0] is None:
         return np.tile(np.eye(4), (len(pts), 1, 1))
-    return T.fit_rigid_many(it.base, np.stack(pts).astype(np.float64))
+    b = np.stack(pts).astype(np.float64)
+    m = T.fit_rigid_many(it.base, b)
+    left = np.linalg.norm(np.einsum("fij,kj->fki", m[:, :3, :3], it.base) + m[:, None, :3, 3] - b, axis=2).max()
+    size = float(np.linalg.norm(it.base.max(axis=0) - it.base.min(axis=0))) or 1.0
+    if left > 10.0 * T.RIGID_TOL * max(size, 1.0):
+        return None
+    return m
 
 
 def _kind(self, ob) -> str:
@@ -427,14 +472,16 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
         del parts
         keep = T.thin_frames(x, tol, times) if len(frames) > 1 else np.arange(1)
         del x
-        lo, step, slo, sstep, q = T.pack(pts[keep], sa[keep] if own_s else None)
+        lo, step, slo, sstep, q = T.pack(pts[keep], sa[keep] if own_s else None, max_step=T.POS_TOL / unit)
+        wide = q is not None and q.dtype == np.float32           # 32-bit numbers (a point travelling far)
         spec.update(n=int(pts.shape[1]), k=int(len(keep)))
         if len(keep) > 1:
             spec["times"] = acc(times[keep].astype(np.float32), "SCALAR")
             spec["step"] = acc(step, "SCALAR")
             # x, y, z (and s) as 16-bit numbers, moment after moment
-            spec["q"] = gltf.accessor(q.reshape(-1, 4), "VEC4", core.USHORT, pack=True)
-            spec["tmin"] = float(32.0 * float(step.max()))          # pieces shorter than that: looked past
+            spec["q"] = gltf.accessor(q.reshape(-1, 4), "VEC4", core.FLOAT if wide else core.USHORT, pack=True)
+            if not wide:
+                spec["tmin"] = float(32.0 * float(step.max()))      # pieces shorter than that: looked past
         spec["lo"] = acc(lo, "VEC3")
         spec["n0"] = acc(n0[keep].astype(np.float32), "VEC3")
         spec["s0"] = acc(s0[keep].astype(np.float32), "SCALAR")

@@ -30,6 +30,7 @@ import numpy as np
 POS_TOL = 0.001          # m: a kept moment may be off by this much (points, the ring's turn at the radius)
 S_TOL = 0.002            # m: ... the length along the cable and the metres paid out (the look's stripes)
 NODE_TOL = 0.001         # m: a moving part's place (at the far end of the part from its origin)
+CUT_EPS = 1e-6           # relative: a spool's cut this close to a point of its path is on it (float32 lengths)
 TURN_TOL = math.radians(3.0)   # the page's own ring turn may be this far off the app's (only the looks' angle)
 SIDES_MAX = 64           # most sides a ring is looked for with
 FIT = 4                  # points a rigid move is fitted from
@@ -394,7 +395,7 @@ def thin_node(t, q, s=None, reach: float = 1.0, tol: float = NODE_TOL, frames=No
 # into the file
 # ---------------------------------------------------------------------------
 
-def pack(points, s=None):
+def pack(points, s=None, max_step: float | None = None):
     """Kept centre lines (K, n, 3) and, when given, the lengths along the cable (K, n) -> (lo (n, 3) float32, step
     (n,) float32, slo (n,) float32 or None, sstep (n,) or None, q (K, n, 4) uint16 or None when K == 1). Each point
     has its own range over time (a point that hardly moves keeps micrometres); the page works out ``lo + step * q``
@@ -414,6 +415,16 @@ def pack(points, s=None):
 
     lo = p.min(axis=0).astype(np.float32)
     step = ranged(p, lo)
+    if max_step is not None and float(step.max()) > max_step:
+        # a point travels too far for 16 bits within the tolerance (over ~65 m): 32-bit numbers, step 1
+        q = np.zeros((k, n, 4), np.float32)
+        q[..., :3] = p - lo.astype(np.float64)[None]
+        slo = sstep = None
+        if sa is not None:
+            slo = sa.min(axis=0).astype(np.float32)
+            sstep = np.ones(n, np.float32)
+            q[..., 3] = sa - slo.astype(np.float64)[None]
+        return lo, np.ones(n, np.float32), slo, sstep, q
     q = np.zeros((k, n, 4), np.uint16)
     safe = np.where(step > 0.0, step.astype(np.float64), 1.0)
     q[..., :3] = np.clip(np.round((p - lo.astype(np.float64)[None]) / safe[None, :, None]), 0, 65535)
@@ -454,7 +465,8 @@ def blend_at(times, values, t: float):
         return values[-1]
     k = int(np.searchsorted(times, t, side="right")) - 1
     w = (t - times[k]) / max(times[k + 1] - times[k], 1e-12)
-    return values[k] * (1.0 - w) + values[k + 1] * w
+    a, b = values[k], values[k + 1]
+    return np.where(a == b, a, a * (1.0 - w) + b * w)          # equal moments: exactly that value
 
 
 def _point_at(p, s, x):
@@ -470,16 +482,14 @@ def trimmed(p, s, lo: float, hi: float):
     """The part of a poly line (p, s) a spool draws between lengths lo and hi, as ``spool._build_tree`` cuts it: a
     point is dropped when it lies before lo or when its piece starts past hi; a kept point past hi is moved back
     along its piece onto hi (the rope ends exactly there, and starts at a point of the wound path). (points,
-    lengths)."""
+    lengths): none or one point when the spool holds nothing or a cut inside one piece (the app then draws nothing
+    either)."""
     p = np.asarray(p, np.float64)
     s = np.asarray(s, np.float64)
     prev = np.concatenate([s[:1], s[:-1]])
-    keep = ~((s < lo) | (prev > hi))
+    eps = CUT_EPS * max(1.0, abs(lo), abs(hi))                 # (a cut on a point of the path keeps that point)
+    keep = ~((s < lo - eps) | (prev > hi + eps))
     idx = np.where(keep)[0]
-    if len(idx) < 2:
-        a, _ja, _wa, _ = _point_at(p, s, lo)
-        b, _jb, _wb, _ = _point_at(p, s, hi)
-        return np.stack([a, b]), np.array([lo, hi])
     pts = p[idx].copy()
     ss = s[idx].copy()
     past = ss > hi
@@ -520,7 +530,9 @@ def at(spec: dict, arrays: dict, t: float) -> dict:
         if arrays.get("trim_n0") is not None:
             n0 = blend_at(np.zeros(1) if tt is None else tt, np.asarray(arrays["trim_n0"], np.float64).reshape(-1, 3), t)
     tg = tangents(p, float(spec.get("tmin", 0.0)))
-    if arrays.get("nq") is not None:            # the app's own ring turns (a line the page cannot carry them along)
+    if len(p) == 0:
+        nr = np.zeros((0, 3))
+    elif arrays.get("nq") is not None:            # the app's own ring turns (a line the page cannot carry them along)
         nk = oct_decode(np.asarray(arrays["nq"]).reshape(k, -1, 2))
         nr = blend_at(times, nk, t)
         nr = nr - tg * (nr * tg).sum(axis=1, keepdims=True)

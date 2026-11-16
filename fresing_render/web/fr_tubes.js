@@ -24,7 +24,10 @@
   // a channel: a number or numbers per kept moment, blended; ``dim`` numbers each
   function channel(times, values, dim, t, out) {
     var s = seek(times, t), a = s[0] * dim, b = s[1] * dim, w = s[2];
-    for (var c = 0; c < dim; c++) out[c] = values[a + c] * (1 - w) + values[b + c] * w;
+    for (var c = 0; c < dim; c++) {         // equal moments: exactly that value
+      var va = values[a + c], vb = values[b + c];
+      out[c] = va === vb ? va : va * (1 - w) + vb * w;
+    }
     return out;
   }
 
@@ -105,9 +108,10 @@
     if (a.trim) {
       var tr = channel(a.trim_t || null, a.trim, 2, t, [0, 0]), lo = tr[0], hi = tr[1];
       if (a.trim_n0) channel(a.trim_t || null, a.trim_n0, 3, t, n0);
+      var eps = 1e-6 * Math.max(1, Math.abs(lo), Math.abs(hi));   // as core.web3d_tubes.CUT_EPS
       for (i = 0; i < n; i++) {
         var prev = s[i > 0 ? i - 1 : 0];
-        if (s[i] < lo || prev > hi) continue;
+        if (s[i] < lo - eps || prev > hi + eps) continue;
         if (s[i] > hi) {
           j = i > 0 ? i - 1 : 0;
           var ln = s[i] - s[j], ww = ln <= 1e-9 ? 0 : Math.min(1, Math.max(0, (hi - s[j]) / ln));
@@ -168,13 +172,10 @@
       tg[i * 3] = NaN;
     }
     if (lastGood < 0) { for (i = 0; i < m; i++) { tg[i * 3] = 0; tg[i * 3 + 1] = 0; tg[i * 3 + 2] = 1; } return; }
-    for (i = 0; i < m; i++) {
+    for (i = 0; i < m; i++) {            // the first good one ahead, else the last good one (as core.tangents)
       if (tg[i * 3] === tg[i * 3]) continue;
-      var nb = -1;
-      for (var r = 1; r < m && nb < 0; r++) {
-        if (i + r < m && tg[(i + r) * 3] === tg[(i + r) * 3]) nb = i + r;
-        else if (i - r >= 0 && tg[(i - r) * 3] === tg[(i - r) * 3]) nb = i - r;
-      }
+      var nb = lastGood;
+      for (var r = i + 1; r < m; r++) if (tg[r * 3] === tg[r * 3]) { nb = r; break; }
       for (c = 0; c < 3; c++) tg[i * 3 + c] = tg[nb * 3 + c];
     }
   };
@@ -230,6 +231,8 @@
   // the rings for the shader: ring 0 = the first point, rings 1 … count = the points, the rest = the last point
   Tube.prototype.fill = function () {
     var d = this.data, m = this.count, r, src;
+    this.empty = m < 2;                    // a spool that holds nothing (or a cut inside one piece): nothing drawn
+    if (this.empty) return d;
     for (r = 0; r < this.rings; r++) {
       src = r === 0 ? 0 : Math.min(r - 1, m - 1);
       var o = r * 12;
