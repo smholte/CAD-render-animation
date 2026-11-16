@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.123 – 16 Nov 2026 – Served cable: the yellow lines run as a spiral (task 0164)
+
+- **Served cable (yarn):** the two yellow marker lines now wind round the whole cable as one continuous spiral, once
+  round per metre, right-hand like a normal screw thread – as on a real export cable (before: separate rings). New
+  settings **Marker lines** (Spiral or Rings), **Pitch (one turn)** and **Hand** (Right or Left). Same in the
+  renders, the live view, the coil on a drum or carousel and the web 3D model.
+- Projects saved with 0.2.116 to 0.2.122 keep their rings; new served cables and the demo get the spiral.
+
 ## 0.2.122 – 16 Nov 2026 – House packages checked the same on Windows, site kit fixes (task 0163)
 
 - **House packages:** a file name with a backslash or a hidden NUL character inside a House package is now refused on
