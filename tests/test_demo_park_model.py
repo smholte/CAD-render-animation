@@ -183,3 +183,43 @@ def test_demo_options_leave_the_site_parts_alone():
     n = tp._radial(tb.CORRIDOR[0])
     assert tp._in_corridor(tb.CORRIDOR, *(n[:2] * 9000.0), 500.0)
     assert not tp._in_corridor(tb.CORRIDOR, *(-n[:2] * 9000.0), 500.0)
+
+
+def _mesh(shape, tol=50.0):
+    from OCP.BRep import BRep_Tool
+    from OCP.BRepMesh import BRepMesh_IncrementalMesh
+    from OCP.TopAbs import TopAbs_FACE
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopLoc import TopLoc_Location
+    from OCP.TopoDS import TopoDS
+    BRepMesh_IncrementalMesh(shape, tol, False, 0.3, True)
+    out = []
+    e = TopExp_Explorer(shape, TopAbs_FACE)
+    while e.More():
+        f = TopoDS.Face(e.Current()) if not hasattr(TopoDS, "Face_s") else TopoDS.Face_s(e.Current())
+        tri = BRep_Tool.Triangulation_s(f, TopLoc_Location())
+        if tri is not None:
+            out += [[tri.Node(i).X(), tri.Node(i).Y(), tri.Node(i).Z()] for i in range(1, tri.NbNodes() + 1)]
+        e.Next()
+    return np.array(out)
+
+
+def test_the_rotor_has_room_to_turn():
+    """The demo's clash check leaves the nacelles and rotors out (demo_park._clash_hook): here, over a whole turn, the
+    blades stay 2 m clear of the tower, the spinner 1 m clear of the nacelle cover's front, the shaft inside the
+    cover's neck opening."""
+    pts = _mesh(tb.blade())
+    F = tb.blade_frame(0.0)
+    P = pts @ F[:3, :3].T + F[:3, 3]
+    worst = 1e9
+    for ang in range(0, 360, 5):
+        R = g.Rot(tb.DOWN, float(ang), tb.HUB)
+        Q = P @ R[:3, :3].T + R[:3, 3]
+        low = Q[Q[:, 2] < tb.TOWER_TOP + 500.0]
+        if len(low):
+            clear = np.hypot(low[:, 0], low[:, 1]) - np.array([tb.tower_radius(z) for z in low[:, 2]])
+            worst = min(worst, float(clear.min()))
+    assert worst > 2000.0, worst
+    sp = _mesh(tb.spinner())
+    assert sp[:, 1].max() < tp.COVER_YF - 1000.0
+    assert tb.SHAFT_R < tp.NECK_R

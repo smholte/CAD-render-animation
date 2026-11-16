@@ -15,6 +15,13 @@ seabed); shots 9–12 lay the second end beside turbine B, 1.2 km further. One f
 "Move joint" step of the park's slide joint "Park: on to turbine B" takes the park the rest of the way (the payout
 stands still in shots 9–12, so B stays beside the vessel); Build re-times it with the animation.
 
+**Clash check.** The parts far from anything that moves are left out of it (``clash.HOOKS``, ``_clash_hook``):
+every nacelle with its rotor (they only turn in place, 150 m up: nine turning rotors made the demo's check four to five
+times slower – the blade tips move 4 m a frame, so it looks between frames ten times as often), the seven turbines
+that never come near the vessel, and the substation. Turbine A's and B's foundations, towers and platforms and A's
+cable piece stay in: they pass the vessel, the cable and the D. The rotors' room is checked in
+``tests/test_demo_park_model.py`` instead.
+
 **Lights.** The red aviation lights on the nacelles and the yellow marine lights on the platforms and the substation's
 corners flash together: one simple-expression driver per group material on its emission strength (``fmod`` of the
 time). The substation's deck lights are steady.
@@ -62,8 +69,51 @@ FLASH = {"Demo: aviation lights": (2.0, 1.0, 150.0),   # medium-intensity red, ~
          "Demo: marine lights": (2.5, 0.5, 80.0)}       # yellow, "Fl Y 2.5s"
 
 
+KEEP = "fr_park_clash"                # on the park root: the turbines (and parts) the clash check keeps
+KEEP_OUT = ("NACELLE",)               # … but not these subassemblies of theirs (nacelle and rotor)
+
+
 def root(d: Demo):
     return d.root(PARK)
+
+
+def park_root(scene):
+    """The park's model root in a demo project (None elsewhere)."""
+    from . import build
+    for r in build.model_roots(scene):
+        if r.get(KEEP) is not None:
+            return r
+    return None
+
+
+def _clash_hook(scene):
+    """(add, leave out) for the clash check: see the module docstring."""
+    r = park_root(scene) if demo.is_demo(scene) else None
+    if r is None:
+        return (), ()
+    from . import build, logic
+    keep = set(r.get(KEEP))
+    leave = []
+    for ob in logic.descendants(r):
+        if ob.get(build.PROP_KIND) != "part":
+            continue
+        names = [ob.get(build.PROP_NAME, "")]
+        p = build.logical_parent(ob)
+        while p is not None and p is not r:
+            names.append(p.get(build.PROP_NAME, ""))
+            p = build.logical_parent(p)
+        if not (keep.intersection(names) and not set(KEEP_OUT).intersection(names)):
+            leave.append(ob)
+    return (), leave
+
+
+def _register_hook():
+    from . import clash
+    if _clash_hook not in clash.HOOKS:
+        clash.HOOKS.append(_clash_hook)
+
+
+_register_hook()
 
 
 def sheet(d: Demo) -> dict:
@@ -219,6 +269,7 @@ def park_stage(d: Demo):
     d.timings["park import"] = time.time() - t0
     sc.frame_set(sc.frame_start)
     place(d)
+    root(d)[KEEP] = [turbine(d, "A")["name"], turbine(d, "B")["name"], "CABLE FIRST END"]
     n = joints_(d)
     k = looks(d)
     lights(d)
