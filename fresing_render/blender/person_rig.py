@@ -217,20 +217,24 @@ def _shape_keys(ob, settings: dict, arm) -> None:
 
 
 def _bones(arm, fig: core.Figure) -> None:
-    """(Re)make the bones in edit mode at the rest pose of ``fig``."""
+    """(Re)make the bones in edit mode at the rest pose of ``fig``. The mode switches get their own context (a timer,
+    the test tour's build and a background run have no active object of their own)."""
     view = bpy.context.view_layer
     keep_active = view.objects.active
-    keep_mode = bpy.context.mode
-    if keep_mode != "OBJECT" and keep_active is not None:
+    if bpy.context.mode != "OBJECT" and keep_active is not None:
         try:
-            bpy.ops.object.mode_set(mode="OBJECT")
+            with bpy.context.temp_override(active_object=keep_active, object=keep_active):
+                bpy.ops.object.mode_set(mode="OBJECT")
         except Exception:
             pass
     hidden = arm.hide_viewport
     arm.hide_viewport = False
     arm.hide_set(False)
     view.objects.active = arm
-    bpy.ops.object.mode_set(mode="EDIT")
+    over = dict(active_object=arm, object=arm, edit_object=arm, selected_objects=[arm],
+                selected_editable_objects=[arm], view_layer=view)
+    with bpy.context.temp_override(**over):
+        bpy.ops.object.mode_set(mode="EDIT")
     try:
         eb = arm.data.edit_bones
         for b in list(eb):
@@ -248,7 +252,8 @@ def _bones(arm, fig: core.Figure) -> None:
                 eb[name].parent = eb[par]
                 eb[name].use_connect = False
     finally:
-        bpy.ops.object.mode_set(mode="OBJECT")
+        with bpy.context.temp_override(**over):
+            bpy.ops.object.mode_set(mode="OBJECT")
         view.objects.active = keep_active
         arm.hide_viewport = hidden
     for pb in arm.pose.bones:
