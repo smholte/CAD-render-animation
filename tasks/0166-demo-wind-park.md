@@ -1,6 +1,6 @@
 # 0166 – Demo: a wind park round the cable-lay vessel – turbines, a substation, the cable from turbine to turbine, night lights
 
-**Who:** worker · **Status:** waiting – starts **after 0160 is merged** (the sea cable code `paths_sea.py`) ·
+**Who:** worker · **Status:** done (0.2.130) ·
 **Branch:** `task/0166-demo-wind-park` (a session branch `claude/…` is fine – say which in the report)
 **Started by:** lead chat, 16 Nov 2026 (owner's wish "add windmills to the cable-lay demo – a wind park"; his answers
 below) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation".
@@ -242,4 +242,8 @@ First park build: the blades were spline lofts, 261 k triangles each (7 M placed
 - The demo 2 job (clash check half + rebake + park) takes 16–19 min on GitHub; main's own runs after 0154 already took
   16–17 min (clash halves 450–764 s there, 543 / 678 s here): the park adds nothing measurable to the check now.
 
-**GitHub runs:** RUNS
+**GitHub runs:** 6 runs on the branch: (1) parts without a colour (the substation railing) + the drums/carousels
+click test (its own test model; green on every later run); (2) cancelled by a push; (3) with the whole park in the clash
+check: clash halves 26–30 min and one false row at the park's move; (4) far park parts left out: green, halves still
+15 min; (5) after merging main (0.2.127–0.2.129): 0154's vessel-at-work check read DP at a fixed 20 s; (6) green
+(43943183766). Main: full run 43948267742 (the task-list commits on main meant no tree to reuse).
