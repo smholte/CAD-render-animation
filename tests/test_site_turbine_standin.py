@@ -610,13 +610,14 @@ def test_sheet_numbers_and_notes(converted, variant):
     assert abs(m["overhang_m"]["value"] - SI.OVERHANG_M) < 1e-3
     assert sheet["frame"]["z_shift_mm"] == SHIFT[variant]
     if variant == "offshore":
-        assert sheet["scene"]["water_level_m"] == 30.0
+        assert sheet["scene"]["water_level_m"] == 75.0           # over the pile's tip: 30 m water + 45 m of pile
+        assert sheet["scene"]["sea_depth_m"] == 30.0 and sheet["scene"]["cutaway"]["ground"] is True
     else:
         assert sheet["scene"] == {"floor_offset_m": -0.4}        # the slab reaches 0.4 m into the ground: ground z 0
     hidden = {h["part"] for h in sheet["hide"]}
     assert {"MAIN BEARING SRB", "MAIN BEARING TDO", "HUB CENTRE MARK"} | {f"BLADE {i} ROOT DISC" for i in (1, 2, 3)} \
         <= hidden
-    assert ("MONOPILE BELOW SEABED" in hidden) == (variant == "offshore")
+    assert "MONOPILE BELOW SEABED" not in hidden               # task 0148: shown, the cut-away cuts the ground
     notes = " ".join(sheet["notes"])
     assert "mirrored" in notes and "+15 m" in notes
     assert "1 extra solids" in notes                         # the bedplate's sliver, left out
@@ -625,8 +626,8 @@ def test_sheet_numbers_and_notes(converted, variant):
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_scene_level_puts_the_sea_and_ground_at_their_heights(converted, trees, variant):
     """The app puts the floor at the lowest visible point (less the floor gap) and the sea ``water_level`` above it
-    (hidden parts do not count): offshore the lowest visible point must be the seabed cut (-30 m), so the sea lands
-    at MSL; onshore the ground (z 0) must be the lowest visible point less the sheet's floor gap. FAULT found
+    (hidden parts do not count): offshore the lowest visible point is the pile tip (-75 m, task 0148: shown in the ground), so the
+    sea lands at MSL; onshore the ground (z 0) must be the lowest visible point less the sheet's floor gap. FAULT found
     (onshore, with the real turbine_parts): the buried CONCRETE SLAB reaches 400 mm below the ground and the sheet's
     ``floor_offset_m`` is 0, so the app's ground lies 0.4 m too low - the slab and the stair's foot stand 0.4 m out
     of the ground (iea15.convert: ``"scene": {"floor_offset_m": 0.0}``)."""

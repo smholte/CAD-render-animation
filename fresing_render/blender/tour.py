@@ -3132,7 +3132,7 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "grooves, some strands darker or lighter, a little dust – and every 1.25 m a pair of yellow painted bands with "
      "ragged edges, the paint thinner in the grooves. Played, the bands run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.115", check=_check_served, auto="clip")
+     since="0.2.116", check=_check_served, auto="clip")
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)

@@ -325,6 +325,8 @@ def apply_scene(pkg, scene, m: Model) -> dict:
         # the box starts at the model's lowest x minus "from the stern" and runs towards -x: its front at cx + length/2
         s.sea_cut_start = float(mn[0]) - (cx + length / 2.0)
         s.sea_cut_side = cy - float(mn[1] + mx[1]) / 2.0
+        if "ground" in cut:                      # task 0148: the cut goes on into the ground (a pile below the seabed)
+            s.sea_cut_ground = bool(cut["ground"])
     return dict(sc)
 
 

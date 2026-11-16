@@ -372,10 +372,15 @@ def test_served_cable_look_on_the_page(tmp_path):
         assert lk["yarn"] == pytest.approx(list(it.yarn_color), abs=1e-6) and len(lk["band"]) == 3
     assert specs["WIRE ROPE"]["look"]["kind"] == "ROPE"
     browser = env.find_browser()
-    if not browser:
+    got = None
+    if browser:
+        try:                                    # (GitHub's machines: the browser may not start – as the test above)
+            got = env.read_page(out["html"], browser, "auto=0&frames=2&t=0&tubes=1", seconds=180)
+        except RuntimeError:
+            got = None
+    if got is None:
         if NODE:
             subprocess.run([NODE, "--check", os.path.join(core.WEB_DIR, env.PAGE_FILE)], check=True)
         return
-    got = env.read_page(out["html"], browser, "auto=0&frames=2&t=0&tubes=1", seconds=180)
     assert got["state"].startswith("ready"), got["state"]
     assert got["tubes"] and len(got["tubes"]) == 4

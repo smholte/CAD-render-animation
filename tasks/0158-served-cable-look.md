@@ -68,7 +68,7 @@ PC-check line `looks.served_cable`, function `cables.served_look`, guide.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 16 Nov 2026 (branch `ccr-4f850d4d-er64e3`), version 0.2.115.
+**Chat / date:** worker, Claude Code on the web, 16 Nov 2026 (branch `ccr-4f850d4d-er64e3`), version 0.2.116.
 
 **What changed:**
 - New look **SERVED** "Served cable (yarn)" (`blender/cable_looks.py`, material `cable_served`, uid 56, group
