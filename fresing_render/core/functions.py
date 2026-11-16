@@ -165,7 +165,7 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 # ----- 4 Motion: cables, drums; the sea -----
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80")
-fn(id="offshore.served_cable", title="Served cable look: yarn and marker bands", family="offshore",
+fn(id="offshore.served_cable", title="Served cable look: yarn and marker spirals", family="offshore",
    panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
    pccheck=("looks.served_cable",), since="0.2.116")
 fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
@@ -244,7 +244,7 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
 fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
-   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.123")
+   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.124")
 fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88")
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",

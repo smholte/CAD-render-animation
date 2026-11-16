@@ -3140,8 +3140,9 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
            "streaks; Concrete)", since="0.2.94", check=_check_marine)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
-     "grooves, some strands darker or lighter, a little dust – and every 1.25 m a pair of yellow painted bands with "
-     "ragged edges, the paint thinner in the grooves. Played, the bands run along with the cable, also on the coil.",
+     "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
+     "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
+     "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
      since="0.2.116", check=_check_served, auto="clip")
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
@@ -3165,7 +3166,7 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
      "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
      "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
      "here: the tour's weather video starts from a clear day).", where="5 Scene & Render > Weather & time",
-     since="0.2.123", shot="Weather: grey North Sea", check=_check_start_scene)
+     since="0.2.124", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)

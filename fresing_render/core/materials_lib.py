@@ -180,9 +180,9 @@ MATERIALS: dict[str, dict] = {
                       roughness=0.4, cable=dict(kind="ROPE", pitch=0.16, starts=6, width=0.0)),
     # task 0158: a large export / array cable's outer serving: black polypropylene yarn served almost square to the
     # cable (fibres, a slight sheen along the strands, dust), pairs of yellow bands painted on it every 1.25 m
-    "cable_served": dict(label="Served cable, black yarn with yellow bands", category="Plastic & rubber",
+    "cable_served": dict(label="Served cable, black yarn with yellow marker spirals", category="Plastic & rubber",
                          base_color=(0.032, 0.032, 0.034), roughness=0.82, sheen=0.5, sheen_roughness=0.35,
-                         cable=dict(kind="SERVED", pitch=1.25, starts=0, width=0.035)),
+                         cable=dict(kind="SERVED", pitch=1.0, starts=0, width=0.035)),
 
     # ---- task 0116: offshore structures (wind turbine foundations, J-tubes, boat landings) --------------------
     # cast concrete: light warm grey, matte, a calm tone variation over metres, fine pores

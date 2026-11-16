@@ -466,8 +466,11 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         elif cb.look == "ROPE":
             col.prop(cb, "pitch", text="Lay length")
         elif cb.look == "SERVED":                  # (task 0158)
-            col.prop(cb, "pitch", text="Band distance")
-            col.prop(cb, "band_count", text="Bands")
+            col.prop(cb, "band_style", text="Marker lines")
+            col.prop(cb, "pitch", text="Pitch (one turn)" if cb.band_style == "SPIRAL" else "Ring distance")
+            if cb.band_style == "SPIRAL":
+                col.prop(cb, "band_hand", text="Hand")
+            col.prop(cb, "band_count", text="Lines")
             col.prop(cb, "band_width", text="Band width")
             if cb.band_count == "PAIR":
                 col.prop(cb, "band_gap", text="Band gap")

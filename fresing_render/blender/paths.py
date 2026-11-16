@@ -2552,7 +2552,8 @@ def look_props(item) -> dict:
         return cable_looks.served_props(
             float(item.diameter), float(item.pitch), float(item.band_width), 2 if item.band_count == "PAIR" else 1,
             float(item.band_gap), float(item.yarn_pitch), HAND * float(item.yarn_angle), float(item.wear),
-            float(item.band_wear), tuple(item.yarn_color), tuple(item.band_color))
+            float(item.band_wear), tuple(item.yarn_color), tuple(item.band_color),
+            0 if item.band_style == "RINGS" else (-1 if item.band_hand == "RIGHT" else 1))
     return {cable_looks.LOOK: cable_looks.look_values(item.look, float(item.diameter), float(item.pitch),
                                                       HAND * float(item.angle), float(item.stripe))}
 
@@ -2799,7 +2800,7 @@ def cable_renamed(scene, item) -> None:
 
 
 def version_names(scene) -> None:
-    """Cables of a project made before 0.2.123 have no ``name_was``: they know their own name from now on."""
+    """Cables of a project made before 0.2.124 have no ``name_was``: they know their own name from now on."""
     if not hasattr(scene, "fresing"):
         return
     for it in scene.fresing.cables:

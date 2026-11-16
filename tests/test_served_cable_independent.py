@@ -123,11 +123,17 @@ def test_yarn_phase_is_continuous_once_round():
 def test_paths_look_props_for_a_cable_item():
     item = SimpleNamespace(look="SERVED", diameter=0.12, pitch=1.25, band_width=0.035, band_count="PAIR",
                            band_gap=0.03, yarn_pitch=0.0025, yarn_angle=math.radians(82), wear=0.35,
-                           band_wear=0.35, yarn_color=(0.0045, 0.0045, 0.0049), band_color=(0.879, 0.546, 0.0))
+                           band_wear=0.35, yarn_color=(0.0045, 0.0045, 0.0049), band_color=(0.879, 0.546, 0.0),
+                           band_style="SPIRAL", band_hand="RIGHT")
     p = paths.look_props(item)
     assert set(p) == set(CL.PROPS) and paths.look_of(item) == p[CL.LOOK]
     assert p[CL.YARN][1] < 0 and p[CL.BAND][0] == 2.0
     assert p[CL.YARN_RGB] == pytest.approx([0.0045, 0.0045, 0.0049])
+    assert p[CL.BAND][3] == -1.0                                   # task 0164: right-hand spiral
+    item.band_hand = "LEFT"
+    assert paths.look_props(item)[CL.BAND][3] == 1.0
+    item.band_style = "RINGS"
+    assert paths.look_props(item)[CL.BAND][3] == 0.0
     item.band_count = "SINGLE"
     assert paths.look_props(item)[CL.BAND][0] == 1.0
     item.look = "POWER"
@@ -159,7 +165,7 @@ def test_nodes_equal_the_formula_for_hands_rings_and_negative_pay(scene, tmp_pat
         s, phi = t.seen()
         t.probe(CL.NODE_PATTERN)
         got = render(tmp_path / "b.exr", samples=16)[:, :, 0]
-        want = CL.bands(s, pay, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+        want = CL.bands(s, pay, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
         clear = (want == 0.0) | (want == 1.0)
         assert np.abs(got - want)[clear].max() < 0.06, (angle, pay, view)
         t.probe(CL.NODE_YARN)
@@ -192,9 +198,9 @@ def test_missing_colour_properties_give_the_librarys_colours(scene, tmp_path):
     del t.ob[CL.BAND_RGB]
     del t.ob[CL.YARN_RGB]
     t.camera(PI / 2)
-    s, _ = t.seen()
+    s, phi = t.seen()
     px = render(tmp_path / "c.exr", samples=16)
-    want = CL.bands(s, 0.0, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+    want = CL.bands(s, 0.0, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
     mid = slice(H // 2 - 6, H // 2 + 6)
     q = (px[:, :, 0] - px[:, :, 2])[mid]
     assert q[want[mid] == 1.0].mean() > 0.2, q[want[mid] == 1.0].mean()
@@ -214,10 +220,10 @@ def test_paint_edges_with_pay_at_a_period_boundary(scene, tmp_path):
     """The paid-out length puts a band edge exactly on a pixel border and on a period boundary: no hole, no double."""
     t, props = served_tube(pay=0.25, distance=0.25, width=0.04, gap=0.025)
     t.camera(PI / 2)
-    s, _ = t.seen()
+    s, phi = t.seen()
     t.probe(CL.NODE_PATTERN)
     got = render(tmp_path / "e.exr", samples=16)[:, :, 0]
-    want = CL.bands(s, 0.25, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+    want = CL.bands(s, 0.25, props[CL.LOOK], props[CL.BAND], phi=phi).mean(axis=2)
     assert np.abs(got - want).mean() < 0.02
 
 

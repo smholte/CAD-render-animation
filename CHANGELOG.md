@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.123 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
+## 0.2.124 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
 
 - **Renaming no longer loses a drum, carousel or track.** A renamed drum or carousel joint, layer follower (level
   wind, arm), track speed joint or wheel joint, or a renamed cable, is kept everywhere it is used: after a model
@@ -25,6 +25,14 @@ installer of that version was built from.
   at Build. Foam and moving waves are named too when Build puts them back.
 - **No more one-frame twitch** of a let-go cable settling onto the seabed (0.8 m and back), and two Builds give the
   same shape.
+## 0.2.123 – 16 Nov 2026 – Served cable: the yellow lines run as a spiral (task 0164)
+
+- **Served cable (yarn):** the two yellow marker lines now wind round the whole cable as one continuous spiral, once
+  round per metre, right-hand like a normal screw thread – as on a real export cable (before: separate rings). New
+  settings **Marker lines** (Spiral or Rings), **Pitch (one turn)** and **Hand** (Right or Left). Same in the
+  renders, the live view, the coil on a drum or carousel and the web 3D model.
+- Projects saved with 0.2.116 to 0.2.122 keep their rings; new served cables and the demo get the spiral.
+
 ## 0.2.122 – 16 Nov 2026 – House packages checked the same on Windows, site kit fixes (task 0163)
 
 - **House packages:** a file name with a backslash or a hidden NUL character inside a House package is now refused on

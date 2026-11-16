@@ -17,7 +17,9 @@ The contract with the geometry side (``blender/paths.py``)
                    material itself decides what it draws; the number is there for the geometry side). Served cable:
                    ``[band distance m, 0, band width m, 3]``.
 ``fr_cable_yarn``  served cable only (4 floats): ``[yarn pitch m, yarn starts, cable radius m, wear 0 … 1]``.
-``fr_cable_band``  served cable only (4 floats): ``[bands in a group 1 | 2, gap m, paint wear 0 … 1, 0]``.
+``fr_cable_band``  served cable only (4 floats): ``[bands in a group 1 | 2, gap m, paint wear 0 … 1, band starts]``.
+                   Band starts (task 0164) = 0 draws rings (what 0.2.116 saved), ±1 one pair of lines that runs as
+                   a spiral round the cable, once round per ``pitch`` of cable; the sign is the hand (below).
 ``fr_cable_yarn_rgb``, ``fr_cable_band_rgb``  served cable only: the yarn's and the paint's colour (scene linear).
                    Missing served-cable properties (zeros): the library entry's own settings. An object without it gives zeros:
                    a pitch of 0 means "no look given" and the library entry's own pitch, starts and width are drawn.
@@ -41,7 +43,8 @@ wire lines fade with the distance (a strand or a wire smaller than a few pixels 
 distance from one strand to the next along the cable; yarn starts from the lay angle as a power cable's stripes from
 theirs). Across a strand ``x = 2 · fract(g) − 1``, its height ``sqrt(1 − x²)`` (``yarn``); each strand
 (``floor(g)``) a little darker or lighter, fibres = noise stretched along the strand, dust in the grooves. The
-marker bands: ``x = (s − paid out) mod distance``; the first band covers ``[0, w)``, the second (a pair)
+marker bands: ``x = (s − paid out + band starts · θ · pitch) mod pitch`` (task 0164: with band starts ±1 the pair is
+a spiral, one turn per ``pitch`` – the same ``x`` as 0158 for starts 0 = rings, ``pitch`` the distance); the first band covers ``[0, w)``, the second (a pair)
 ``[w + gap, 2 w + gap)`` (``bands``: the clean bands). Drawn with ragged edges (noise, a few mm), the paint thinner
 in the grooves and smudged black – both more with wear.
 
@@ -106,8 +109,9 @@ DEFAULTS = {
                  wire_height=0.1,                    # relief of a wire as a share of the strand radius
                  bump=0.7),                          # strength of the Bump node
     # task 0158: black polypropylene yarn served almost square to the cable, pairs of yellow bands painted on it
-    "SERVED": dict(pitch=1.25,                       # band distance: from one band group to the next, m
+    "SERVED": dict(pitch=1.0,                        # task 0164: one full turn of the band spiral, m (rings: distance)
                    starts=0, width=0.035,            # (no stripes) the width of one band, m
+                   band_starts=-1,                   # spiral: -1 = right hand (see the docstring), 1 = left, 0 = rings
                    count=2, gap=0.03,                # bands in a group, the gap between the two, m
                    yarn_pitch=0.0025,                # from one strand to the next along the cable, m
                    lay_angle=math.radians(82.0),     # between a strand and the cable (90° = rings)
@@ -240,9 +244,11 @@ def wires(s, phi, paid_out, look=None, count: float | None = None, slant: float 
 
 def served_props(diameter: float = 0.0, distance: float = 0.0, width: float | None = None, count: int | None = None,
                  gap: float | None = None, yarn_pitch: float = 0.0, lay_angle: float | None = None,
-                 wear: float | None = None, band_wear: float | None = None, yarn_rgb=None, band_rgb=None) -> dict:
+                 wear: float | None = None, band_wear: float | None = None, yarn_rgb=None, band_rgb=None,
+                 band_starts: int | None = None) -> dict:
     """Every property a served cable's object carries: {name: list of floats}. Lengths in metres, ``lay_angle``
     (rad) between a strand and the cable (negative = the other hand), colours scene linear (None: the library's).
+    ``band_starts`` (task 0164): -1 = the marker pair as a right-hand spiral (the default), 1 = left hand, 0 = rings.
     0 or None for a setting: the library entry's."""
     d = defaults("SERVED")
     pick = lambda v, key: float(d[key]) if v is None else float(v)        # noqa: E731
@@ -256,7 +262,8 @@ def served_props(diameter: float = 0.0, distance: float = 0.0, width: float | No
     return {LOOK: look,
             YARN: [yp, float(n), 0.5 * dia, min(1.0, max(0.0, pick(wear, "wear")))],
             BAND: [float(1 if cnt <= 1 else 2), max(0.0, pick(gap, "gap")),
-                   min(1.0, max(0.0, pick(band_wear, "band_wear"))), 0.0],
+                   min(1.0, max(0.0, pick(band_wear, "band_wear"))),
+                   float(max(-1, min(1, int(d["band_starts"] if band_starts is None else band_starts))))],
             YARN_RGB: lin(yarn_rgb) if yarn_rgb is not None else [ral.srgb_to_linear(c) for c in d["yarn"]],
             BAND_RGB: lin(band_rgb) if band_rgb is not None else [ral.srgb_to_linear(c) for c in d["band"]]}
 
@@ -285,9 +292,11 @@ def _served(look=None, yarn=None, band=None) -> dict:
         out.update(yarn_pitch=float(yarn[0]), starts=int(math.floor(float(yarn[1]) + 0.5)),
                    radius=float(yarn[2]) if float(yarn[2]) > 1e-6 else out["radius"],
                    wear=min(1.0, max(0.0, float(yarn[3]))))
+    out["band_starts"] = int(d["band_starts"])
     if band is not None and len(band) >= 3 and float(band[0]) > 0.5:
         out.update(count=1 if float(band[0]) < 1.5 else 2, gap=max(0.0, float(band[1])),
-                   band_wear=min(1.0, max(0.0, float(band[2]))))
+                   band_wear=min(1.0, max(0.0, float(band[2]))),
+                   band_starts=int(math.floor(float(band[3]) + 0.5)) if len(band) >= 4 else 0)
     return out
 
 
@@ -305,13 +314,15 @@ def yarn(s, phi, paid_out, yarn=None):
     return float(out) if np.ndim(out) == 0 else out
 
 
-def bands(s, paid_out, look=None, band=None, edge: float = 0.0):
-    """The served cable's marker bands as clean rings: 1.0 on a band, 0.0 on the yarn (``edge`` > 0: the softened
+def bands(s, paid_out, look=None, band=None, edge: float = 0.0, phi=0.0):
+    """The served cable's marker bands: 1.0 on a band, 0.0 on the yarn (``edge`` > 0: the softened
     edge the nodes' ``FR cable pattern`` draws, in metres – its 50 % point is where the hard edge is). A mark at s₀
-    with nothing paid out is at s₀ + paid out later."""
+    with nothing paid out is at s₀ + paid out later. ``phi`` = the angle round the cable; it matters with band starts
+    ±1 (a spiral: one turn per pitch), not for rings."""
     v = _served(look=look, band=band)
     dist, w, gap = v["distance"], v["width"], v["gap"]
-    x = np.mod(np.asarray(s, float) - paid_out, dist)
+    x = np.mod(np.asarray(s, float) - paid_out + v["band_starts"] * dist * np.asarray(phi, float) / (2.0 * math.pi),
+               dist)
     starts = [0.0] if v["count"] == 1 else [0.0, w + gap]
     out = np.zeros(np.shape(x))
     for a in starts:
@@ -488,6 +499,8 @@ def _served_nodes(b, d: dict, color, metallic, rough, normal):
              x=x0 + 700, y=y - 1850)
     gap = b.mix("FLOAT", b_given, v["gap"], bv.outputs[1], x=x0 + 550, y=y - 2000)
     pwear = b.mix("FLOAT", b_given, v["band_wear"], bv.outputs[2], x=x0 + 550, y=y - 2150)
+    bstarts = m("ROUND", b.mix("FLOAT", b_given, float(v["band_starts"]), bn.outputs["Alpha"], x=x0 + 550, y=y - 2300),
+                x=x0 + 700, y=y - 2300)
     # a colour property that is missing reads (0, 0, 0): the library's colour then (so pure black means "the library's")
     def colour(name, lib, yy):
         c = obj(name, yy).outputs
@@ -544,7 +557,9 @@ def _served_nodes(b, d: dict, color, metallic, rough, normal):
     pixel = m("MAXIMUM", m("MULTIPLY", cam.outputs["View Distance"], PIXEL_ANGLE, x=x0 + 200, y=y - 2300), 1e-5,
               x=x0 + 350, y=y - 2300)
     half = m("MULTIPLY", i["width"], 0.5, x=x0, y=y - 1700)
-    xb = m("FLOORED_MODULO", sp, i["pitch"], x=x0 + 150, y=y - 1800)
+    xs_b = m("ADD", sp, m("MULTIPLY", m("MULTIPLY", bstarts, i["turns"], x=x0, y=y - 1750), i["pitch"],
+                          x=x0 + 100, y=y - 1750), x=x0 + 150, y=y - 1780)         # + starts · θ · pitch (task 0164)
+    xb = m("FLOORED_MODULO", xs_b, i["pitch"], x=x0 + 150, y=y - 1800)
     centre2 = m("ADD", m("ADD", i["width"], gap, x=x0 + 150, y=y - 1950), half, x=x0 + 300, y=y - 1950)
 
     def ring(x, centre, xx, yy):

@@ -64,7 +64,7 @@ The other rows of 0147 (0161, 0162, 0163); the files of running tasks named abov
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `claude/epic-babbage-1kvjwd`, the session's branch name;
-released as 0.2.123 – 0.2.121 and 0.2.122 were taken by 0161 and 0163 meanwhile).
+released as 0.2.124 – 0.2.121 to 0.2.123 were taken by 0161, 0163 and 0164 meanwhile).
 
 **In short (for the owner):**
 1. A renamed drum, carousel, level wind, arm, track speed joint, track wheel or cable is kept – after a model update
