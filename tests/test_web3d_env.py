@@ -214,6 +214,20 @@ def test_page_is_one_offline_file():
     assert page.count("<script") == page.count("</script>")
 
 
+def test_settings_block_escapes_every_lt():
+    """Task 0161 (0147 row 15): a camera name with "<!--" and then "<script" (Hide part names off) left the settings
+    block open in the browser (script data double-escaped state): the page stayed at "Loading the 3D model …"."""
+    st = env.settings(env.default_choice(), [0, 0, 0], [2, 1, 1])
+    st["views"] = [{"name": "<!-- <script", "eye": [1, 2, 3], "target": [0, 0, 0], "vfov": 30, "hfov": 50},
+                   {"name": "a </script> b <", "eye": [1, 2, 3], "target": [0, 0, 0], "vfov": 30, "hfov": 50}]
+    page = env.page_html("M", b"glTF", st)
+    start = page.index('id="fr-env">') + len('id="fr-env">')
+    block = page[start:page.index("</script>", start)]
+    assert "<" not in block
+    assert [v["name"] for v in env.page_settings(page)["views"]] == ["<!-- <script", "a </script> b <"]
+    assert json.loads(block)["views"][0]["name"] == "<!-- <script"      # what JSON.parse in the page reads
+
+
 def test_model_viewer_page_stays_for_the_site():
     """Task 0134: the exports all use the player; model-viewer's page stays for a bare .glb on the website."""
     plain = web3d.viewer_html("M", glb=b"x", script_text="/*mv*/")

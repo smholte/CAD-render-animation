@@ -3165,7 +3165,7 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
      "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
      "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
      "here: the tour's weather video starts from a clear day).", where="5 Scene & Render > Weather & time",
-     since="0.2.121", shot="Weather: grey North Sea", check=_check_start_scene)
+     since="0.2.122", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)

@@ -384,3 +384,24 @@ def test_saved_cameras_go_on_the_page_as_views(tmp_path):
     st = env.page_settings(open(out["html"], encoding="utf-8").read())
     n = len(names)
     assert [x["name"] for x in st["views"]] == [f"View {k + 1}" for k in range(n)] and out["views"] == n
+
+
+def test_isometric_view_keeps_its_frame_on_the_page():
+    """Task 0161 (0147 row 14): an orthographic camera (Isometric) became a perspective view from its lens, 1.96 x too
+    wide. The page's angle must show ortho_scale across the frame at the target's distance, as the app does."""
+    import math
+
+    from fresing_render.blender import cameras
+    sc = fresh()
+    iso = cameras.add_camera(sc, "ISOMETRIC", name="Iso view")
+    assert iso.data.type == "ORTHO"
+    bpy.context.view_layer.update()
+    v = next(x for x in web3d.views(sc, hide_names=False) if x["name"] == "Iso view")
+    dist = float(np.linalg.norm(np.array(v["target"]) - np.array(v["eye"])))
+    r = sc.render
+    aspect = r.resolution_x / r.resolution_y
+    across = 2 * dist * math.tan(math.radians(v["hfov"]) / 2)
+    high = 2 * dist * math.tan(math.radians(v["vfov"]) / 2)
+    wide = across if aspect >= 1 else high
+    assert abs(wide / iso.data.ortho_scale - 1.0) < 1e-3, (wide, iso.data.ortho_scale)
+    assert abs(across / high - aspect) < 1e-3

@@ -67,6 +67,66 @@ def mb(n: int) -> str:
     return f"{n / 1e6:.0f} MB"
 
 
+# -- looks baked on a part's own UVs (task 0161, 0147 row 10) ---------------------------------------------------
+OWN_PADDING = 4                    # px round each chart of a part's own bake (2 x this between two charts)
+OWN_MARGIN = 6                     # px the bake extends each chart's edge (JPG blocks and mipmaps stay in its colour)
+OWN_FILL = 0.5                     # first guess: the charts fill this share of the picture
+OWN_DETAIL_MM = 10.0               # coarser than this per pixel: the marine looks' fine streaks and barnacles are lost
+OWN_M = 1.0                        # texels per metre of a part's own bake = texture size / this (1024 -> 1 mm)
+OWN_BUDGET = 8_000_000             # texels of all parts' own bakes together, per channel (two pictures of 2048 px)
+
+
+def own_tpm(texture_size: int, area_m2: float) -> float:
+    """Texels per metre for the parts baked on their own: the texture size's (``OWN_M``), fewer when their surface
+    together (``area_m2``, world m²) would take more than ``OWN_BUDGET`` texels."""
+    tpm = float(texture_size) / OWN_M
+    if area_m2 > 0:
+        tpm = min(tpm, math.sqrt(OWN_BUDGET / float(area_m2)))
+    return tpm
+
+
+def own_atlas(sizes_m: np.ndarray, area_m2: float, wanted_tpm: float, max_px: int = ATLAS_MAX,
+              padding: int = OWN_PADDING) -> tuple[float, int, np.ndarray]:
+    """The picture of one part's own bake: ``sizes_m`` (k, 2) its charts in metres (``lightmap.unwrap``), ``area_m2``
+    its surface, ``wanted_tpm`` texels per metre asked for. Returns (texels per metre, side in px – a power of two
+    up to ``max_px`` –, places (k, 3) from ``lightmap.pack``). A part too big for ``wanted_tpm`` in ``max_px`` gets
+    fewer texels per metre (the caller says so)."""
+    from . import lightmap as lm
+    sizes_m = np.asarray(sizes_m, np.float64).reshape(-1, 2)
+    if not len(sizes_m):
+        return float(wanted_tpm), 16, np.zeros((0, 3), np.int64)
+    tpm = float(min(wanted_tpm, math.sqrt(OWN_FILL * max_px * max_px / max(float(area_m2), 1e-12))))
+    longest = float(sizes_m.max())
+    if longest > 0:                                  # one chart longer than the picture: as long as it may be
+        tpm = min(tpm, (max_px - 2 * padding - 2) / longest)
+    for _ in range(200):
+        px = lm.chart_pixels(sizes_m, tpm, padding)
+        if lm.fits(px, max_px):
+            break
+        tpm *= 0.92
+    else:
+        raise ValueError("a part's charts do not fit one picture")
+    side = 16
+    while side < max_px and not lm.fits(px, side):
+        side *= 2
+    return tpm, side, lm.pack([px], side)[0]
+
+
+def own_line(parts: int, finest_mm: float, coarsest_mm: float) -> str:
+    """The export line's words for the parts baked on their own (marine looks)."""
+    from .words import plural
+    if parts <= 0:
+        return ""
+    if abs(coarsest_mm - finest_mm) < 0.05 * max(coarsest_mm, 1e-9):
+        size = f"{coarsest_mm:.0f} mm" if coarsest_mm >= 1.5 else f"{coarsest_mm:.1f} mm"
+    else:
+        size = f"{finest_mm:.1f}–{coarsest_mm:.0f} mm"
+    text = f"marine looks baked on {plural(parts, 'part')} ({size} per pixel"
+    if coarsest_mm > OWN_DETAIL_MM:
+        text += "; the largest are too big for the fine streaks and barnacles at this size"
+    return text + ")"
+
+
 def result_line(size: int, triangles: int, textures: int, seconds: float, compressed: bool = False) -> str:
     from .words import plural
     tri = f"{triangles:,} triangle" + ("" if triangles == 1 else "s")

@@ -244,7 +244,7 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
 fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
-   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.121")
+   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.122")
 fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88")
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",
