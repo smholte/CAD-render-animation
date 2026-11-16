@@ -1,6 +1,6 @@
 # 0174 – Spools full of real cable: every layer drawn as one continuous cable on carousels and drums, wound fully in and out; every winch of the demo with its steel wire rope
 
-**Who:** worker · **Status:** open · **Branch:** `task/0174-full-spools` (a web session may name its own)
+**Who:** worker (web session) · **Status:** running · **Branch:** `task/0174-full-spools` (a web session may name its own)
 **Started by:** lead chat, 17 Nov 2026 (owner's wish, 16 Nov 23:59, with a screenshot of the demo's carousel) ·
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents
 allowed (CLAUDE.md section 2).
