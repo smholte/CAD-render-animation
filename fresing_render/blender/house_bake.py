@@ -482,7 +482,10 @@ class HouseBake:
                             maps[ly.id] = it.values
                 a, b = span(1)
                 sun_light = None
-                if rec.light == "SOFT" and not night and main is not None and main.sun_separate:
+                what = hs.sun_light_rule(rec.light, night, float(m.clouds), main is not None and main.sun_separate)
+                if what == "zero":
+                    sun_light = [0.0, 0.0, 0.0]          # a measured direct sun of nothing, not null (FORMAT 8.3)
+                elif what == "measure":
                     sun_light = yield from self._sun_light(light, lamps, sky, a, b, label)
                 reference = tuple(float(v) for v in (main.reference if main is not None else (0.0, 0.0, 0.0)))
                 self.writer.add_moment(m.id, maps, opens, reference=reference,
@@ -508,7 +511,7 @@ class HouseBake:
             self._restore()
 
     def _sun_light(self, light, lamps, sky, f0, f1, label):
-        """The sun's direct light on a white matte surface facing it, in L: a tiny bake with the sun (``ALL``) –
+        """The sun's direct light on a white matte surface turned straight at it, in L: a tiny bake with the sun (``ALL``) –
         its open probe minus the sky alone (0107's ``reference`` - ``reference_sky``)."""
         me = bpy.data.meshes.new(NAME)
         me.from_pydata([(0, 0, 0), (0.1, 0, 0), (0, 0.1, 0)], [], [(0, 1, 2)])
@@ -516,17 +519,20 @@ class HouseBake:
         self.scene.collection.objects.link(ob)
         ob.hide_render = ob.hide_viewport = True
         self._temp.append(ob)
+        # the probe faces the sun (FORMAT 8.3 / 1.0.1: normal incidence, no division by sin(elevation) – at 4.8° that
+        # multiplied the noise by 12): scene azimuth of the sky texture's sun = 90° - sun_rotation (weather_sky)
+        el = math.radians(float(sky["sun_height"]))
+        az = math.radians(90.0 - float(sky["sun_direction"]))
+        face = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
         b = lightbake.Bake([ob], "ALL", sky=sky, occluders=[], lamps=[], uv="VERTEX", quality=self.quality,
-                           samples=64, device=self.device, scene=self.scene)    # (an 8 px probe: cheap)
+                           samples=64, device=self.device, scene=self.scene,
+                           probe_normal=face)                                   # (an 8 px probe: cheap)
         for f in b.steps():
             self.text = f"{label}: the sun's strength"
             yield f0 + (f1 - f0) * float(f)
         res = b.result
         sun = [max(0.0, float(a) - float(s)) for a, s in zip(res.reference, res.reference_sky)]
-        # (the probe faces up: the sun's light on a surface facing it is that over sin(elevation))
-        el = float(sky["sun_height"])
-        k = 1.0 / max(math.sin(math.radians(max(el, 0.5))), 1e-3)
-        return [v * k for v in sun]
+        return sun
 
     # ------------------------------------------------------------------ photos and videos
     def _camera(self, cam: dict):

@@ -1,7 +1,7 @@
 """The surface hash ``hp-hash/1`` of the house scene format (task 0114; FORMAT.md section 5 of
-github.com/smholte/house-scene-format, tag v1.0). No Blender.
+github.com/smholte/house-scene-format, tag v1.0.1). No Blender.
 
-Source: the function ``surface_hash`` of ``hsf/surface.py`` at tag ``v1.0`` (commit 52c0352), written here with NumPy
+Source: the function ``surface_hash`` of ``hsf/surface.py`` at tag ``v1.0.1``, written here with NumPy
 over arrays instead of a glTF reader, so the importer, the snow layers (``core/house_snow.py``) and the bake writer
 (``core/house_scene.py``) share one copy. ``tests/test_house_scene.py`` compares it with the pinned checker's own
 function on every surface of the sample.
