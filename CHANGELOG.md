@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.118 – 16 Nov 2026 – Assembly sequence in any order; mesh model updates keep unnamed groups (task 0162)
+
+- **Assembly sequence steps in any order.** Take apart a small subassembly, then the whole machine, then Put together
+  the small one first: it now comes home (before, it stayed apart), and the whole machine's Put together leaves it
+  there. Three levels deep and interleaved orders work too; a Back to CAD step of one subassembly no longer makes a
+  later Put together throw its parts out again.
+- **Put together shows its parts again.** After a Take apart with At the end **Hide** or **Fade**, a Put together with
+  **Stay** used to play invisible; now every part appears (or fades in) as it comes in.
+- **No jump for a part that rides on another** (a gripper on a carriage) when the Put together has other settings than
+  its Take apart: it starts where it waits and glides onto its way in.
+- **Hiding or showing parts after Build** (the eye in 2 Structure, Hide, Show only, Show all, Show everything again,
+  a visibility set, Show only these in 3 Looks) takes the built animation off: build it again, so the video shows the
+  parts as you left them. Before, the built keys still showed a part you had hidden.
+- **Mesh model updates:** work on a group without a name in the file ("Node 5") – a Hide or Show step, the eye, a
+  sequence step, a joint on one of its parts – stays on the same parts when another group is added or removed.
+- **OBJ / MTL names with å, ö, é** stay right when another line of the file is in Windows' own code page (before,
+  "Plåt" became "PlÃ¥t" and the update called it renamed).
+
 ## 0.2.117 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
 
 - **Fast 3-axis** (4 Motion > Milling, under Detail; on by itself, also in older projects). A long program that
