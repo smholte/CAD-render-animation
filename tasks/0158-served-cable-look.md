@@ -1,6 +1,6 @@
 # 0158 – Cable look: yarn-served power cable with fibre texture and double marker bands
 
-**Who:** worker · **Status:** running (16 Nov) · **Branch:** `ccr-4f850d4d-er64e3`
+**Who:** worker · **Status:** done (16 Nov, 0.2.116) · **Branch:** `ccr-4f850d4d-er64e3`
 **Started by:** lead chat, 16 Nov 2026 (owner, with photos of a real cable – described below in words; the photos are
 **not** committed: CLAUDE.md section 6) · **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment
 "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
@@ -106,6 +106,8 @@ PC-check line `looks.served_cable`, function `cables.served_look`, guide.
   Served (+12 %); demo coil 9.8 → 13.4 s (+37 %, the coil fills the picture), demo chute 9.7 → 10.4 s (+7 %).
   Pictures: `tasks/img/0158_test_power.jpg`, `0158_test_served.jpg`, `0158_demo_coil.jpg`, `0158_demo_chute.jpg`,
   `0158_demo_chute_power_before.jpg`.
+
+**GitHub runs:** 2 full runs. The first was red in one test: my new page test had no fall-back for GitHub's headless browser, which cannot start there; it now falls back as the older page test does. Then 0148 took 0.2.115, so I renumbered to 0.2.116 and the second run was green (20 min). Subagent: one independent tester (Sonnet) wrote `tests/test_served_cable_independent.py` and found 3 faults, which I fixed myself (listed above).
 
 **Open points / follow-up tasks:**
 - The page's yarn and dust noise is its own (value noise), not Blender's numbers: same look, other blotches.
