@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.125 – 16 Nov 2026 – Web 3D: Marine detail Normal or Fine (task 0165)
+
+- New choice **Marine detail** in 5 Scene & Render > Web 3D model (shown when a marine look is in use). **Normal** is
+  the small page as before (the same file). **Fine** gives the marine looks four times the pixels, so the run-down
+  streaks and barnacles show on a part as big as a turbine tower: on a 90 m tower 11.6 mm per pixel instead of 52 mm.
+- The panel says before you export how fine it gets and what Fine costs (file size, bake time); the line under the
+  button suggests Fine when a part is coarser than 10 mm per pixel. Fine is heavier on phones and bakes slower.
+
 ## 0.2.124 – 16 Nov 2026 – Props for scale and people in detail (task 0155)
 
 - **People:** the grey mannequin is now a person in work clothes with a face (nobody's likeness), hands with fingers,

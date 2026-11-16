@@ -1,6 +1,6 @@
 # 0165 – Web 3D export: a "Marine detail" choice (Normal / Fine) for the marine looks on big parts
 
-**Who:** worker · **Status:** open – can start (beside 0164 and 0155; 0143 waits for it) · **Branch:** `task/0165-web-marine-detail`
+**Who:** worker · **Status:** done (0.2.125) · **Branch:** `task/0165-web-marine-detail`
 (a session branch `claude/…` is fine – say which in the report)
 **Started by:** lead chat, 16 Nov 2026 (owner's wish after 0161's report: "yes, I want this") ·
 **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation".
@@ -67,3 +67,19 @@ the smaller-file proposals of study 0149 (later, after 0143 / 0135).
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 16 Nov 2026, session branch `claude/eager-einstein-7fw0ht`.
+
+**What changed:** new per-export setting `marine_detail` (Normal / Fine, saved with the project; old projects = Normal).
+Fine: own bakes use pictures of 4096 px (`OWN_MAX_PX`; every other bake stays at 2048), a budget of 32 M texels
+(`OWN_BUDGETS`), charts packed to 75 % first guess, and a chart longer than 0.3 picture is cut into pieces
+(`core/web3d.cut_charts`) – without the cut a 90 m strip is capped by its length (26 mm at 4096 px). Panel: Marine
+detail row + an estimate line (pixel size, file, time; "Fine: … +MB, +s" while Normal is chosen). Export line suggests Fine.
+Function entry `web.marine_detail`, guide section `web3d-marine`, tour stop "web3d" checks the setting.
+
+**Measured** (90 m tower, 3 m radius, texture 256, 4-core web machine; plain growth look, not the real turbine):
+Normal 52.2 mm per pixel, 0.37 MB, 14.8 s; Fine 11.6 mm per pixel, 2.01 MB, 146 s. Normal's file is byte-identical
+to a second Normal export and to before (same code path). Page: colour below/above the waterline right at Fine.
+**Not measured:** the real IEA turbine and the demo vessel (no model here); the estimate's bytes per texel (0.12) comes from
+a plain look – streaks/barnacles will compress worse, so real files may be bigger. 10 mm was not reached (11.6 mm):
+4096 px pictures allow no finer on 1,700 m² in one picture; spending texels on the splash band only is an open point.
+**Subagents:** none. **Review skipped** (no Windows-only code). Runs: see below.
