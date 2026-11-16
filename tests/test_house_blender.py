@@ -1,5 +1,5 @@
 """A house from House Planner in Blender (task 0114): File > Import > House Planner scene (the made-up sample of
-house-scene-format v1.0), Preview a moment (0109's sun where House Planner's stands), Bake and export at 4 samples,
+house-scene-format v1.0.1), Preview a moment (0109's sun where House Planner's stands), Bake and export at 4 samples,
 and the pinned checker (`check.py <bake> --scene <hpscene>`) on the package: no ERROR. Then what the light must look
 like: the table darkens the floor under the ceiling lamp, open storeys hold only their own surfaces, snow only on the
 roof and the plot, sun_light by day and not at night; and the project is as it was after the bake."""
@@ -24,7 +24,7 @@ from fresing_render.core import house_scene as hs  # noqa: E402
 from fresing_render.core import weather as wcore  # noqa: E402
 
 HERE = os.path.dirname(__file__)
-PIN = os.path.join(HERE, "data", "house", "hsf-v1.0")
+PIN = os.path.join(HERE, "data", "house", "hsf-v1.0.1")
 SAMPLE = os.path.join(PIN, "samples", "sample-house.hpscene")
 SAMPLES = 4
 

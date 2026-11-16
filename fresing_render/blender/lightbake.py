@@ -170,7 +170,7 @@ class Bake:
 
     def __init__(self, objects, light="SOFT", *, world=None, sky=None, occluders=(), lamps=None, ids=None,
                  uv="AUTO", quality="NORMAL", texels_per_m=None, samples=None, device="AUTO", progress=None,
-                 scene=None, denoise=True, sizes=None):
+                 scene=None, denoise=True, sizes=None, probe_normal=None):
         self.light = choice_id(light)
         self.objects = [ob for ob in objects if ob is not None and ob.type == "MESH" and ob.data is not None]
         self.scene = scene or (self.objects[0].users_scene[0] if self.objects and self.objects[0].users_scene
@@ -192,6 +192,7 @@ class Bake:
         self.device = device
         self.progress = progress
         self.denoise = denoise
+        self.probe_normal = None if probe_normal is None else tuple(float(v) for v in probe_normal)  # None = up
         self.text = "Starting"
         self.result = Result(light=self.light, samples=self.samples)
         self._plan = None
@@ -587,6 +588,7 @@ class Bake:
             sc = self._baker.scene
             sc.name = NAME
             sc.cycles.samples = self.samples
+            sc.cycles.seed = self.scene.cycles.seed       # (the project's seed: repeated bakes can differ)
             sc.cycles.use_denoising = False
             self._device(sc)
             bk = sc.render.bake
@@ -804,6 +806,12 @@ class Bake:
                      "visible_volume_scatter"):
             if hasattr(o, attr):
                 setattr(o, attr, False)
+        if self.probe_normal is not None:             # a probe turned to face a direction (the sun: normal incidence)
+            from mathutils import Vector
+            n = Vector(self.probe_normal)
+            if n.length > 1e-9:
+                o.rotation_mode = "QUATERNION"
+                o.rotation_quaternion = Vector((0.0, 0.0, 1.0)).rotation_difference(n.normalized())
         self._baker.scene.collection.objects.link(o)
         self._baker.ids.append(o)
         return o

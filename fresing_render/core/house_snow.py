@@ -1,5 +1,5 @@
 """Snow layers for a House Planner bake (task 0114; FORMAT.md section 8.6 of github.com/smholte/house-scene-format,
-tag v1.0). No Blender.
+tag v1.0.1). No Blender.
 
 House Planner cannot run 0109's snow (a material layer traced by Cycles), so a bake package brings the snow as new
 geometry: per season with snow, one ``snow/<season>.glb`` with one **layer** per surface that holds snow. The layers
