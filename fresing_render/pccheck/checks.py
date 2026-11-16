@@ -1961,7 +1961,7 @@ def scene_sea_ground(ctx):
     bpy.context.view_layer.update()
     mn, mx = surroundings._model_box(scene)
     s.sea_depth = 30.0
-    s.water_level = float(low + 1.0 - float(mn[2]))    # the water 1 m over the crane's lowest point
+    s.water_level = float(low - float(mn[2]) + 30.0)   # the water 30 m over the pile's foot: the seabed at the crane's foot
     s.sea_cut_auto = False
     s.sea_cut_length = s.sea_cut_width = 30.0
     s.sea_cut_start = float(mn[0]) - 15.0
