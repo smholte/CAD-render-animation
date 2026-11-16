@@ -1803,7 +1803,7 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
 # volume that absorbs and glows in the water's colour, ``core/sea.py``) fades whatever is seen through its walls.
 
 SEABED_MOTION = "FR seabed motion"         # the empty the seabed follows (made and driven by the sea cables: paths_sea)
-UNDER_ROLES = ("seabed", "stones", "sea_cut")
+UNDER_ROLES = ("seabed", "stones", "sea_cut", "soil")
 CUT_ATTRS = ("fr_seacut_o", "fr_seacut_u", "fr_seacut_s")
 STONES = 420
 STONES_NEAR = 0.6                          # share of the stones within 12 m of the box (the rest within 250 m)
@@ -1912,9 +1912,24 @@ def _box_for(scene, s, root, cable: bool = True) -> dict:
     return box
 
 
+def ground_wanted(s) -> bool:
+    """The cut-away also cuts the ground (task 0148): the soil section shows and the seabed is open in the box."""
+    return bool(s.sea_cutaway) and bool(s.sea_cut_ground)
+
+
+def ground_depth_now(root, level: float, depth: float) -> float:
+    """How deep the soil section goes: ``core.sea.ground_depth`` from the model's lowest point and the seabed. ``level``
+    is the water's height in the root's frame, whose z 0 lies ``floor_offset`` under the model's lowest point."""
+    mn = root.get("fr_min")
+    low = float(mn[2]) - float(root.location.z) if mn is not None else float(level) - float(depth)
+    return sea_core.ground_depth(low, float(level) - float(depth))
+
+
 def _cut_key(s) -> dict:
     """What decides the cut-away (only when it is on: a sea without it keeps its key)."""
     key = {"clarity": round(float(s.sea_clarity), 2)}
+    if s.sea_cut_ground:                     # task 0148 (only when on: an old project keeps its key)
+        key["ground"] = 1
     box = _cable_box(s.id_data) if s.sea_cut_auto else None
     if box is not None:
         key["box"] = [round(v, 2) for v in (*box["origin"], *box["dir"], box["length"], box["width"])]
@@ -1990,10 +2005,11 @@ def _ripples_socket(b: _NB, x, y):
     return b.math("MULTIPLY_ADD", r, sea_core.RIPPLE_HEIGHT, swell), r
 
 
-def _seabed_material() -> bpy.types.Material:
+def _seabed_material(ground: bool = False) -> bpy.types.Material:
     """Sand and silt: patches of colour, silt in the ripples' troughs, the ripples (shading only where the mesh is
-    flat: object attribute ``fr_seabed_bump`` 1) and a fine grain."""
-    name = MAT_PREFIX + "seabed"
+    flat: object attribute ``fr_seabed_bump`` 1) and a fine grain. ``ground`` (task 0148): see-through inside the
+    cut-away box, where the soil section shows instead."""
+    name = MAT_PREFIX + "seabed" + (" ground cut" if ground else "")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -2029,11 +2045,13 @@ def _seabed_material() -> bpy.types.Material:
     t.link(shader, out.inputs["Surface"])
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "seabed"
+    if ground:
+        _add_box_cut(mat)
     return mat
 
 
-def _stone_material() -> bpy.types.Material:
-    name = MAT_PREFIX + "seabed stones"
+def _stone_material(ground: bool = False) -> bpy.types.Material:
+    name = MAT_PREFIX + "seabed stones" + (" ground cut" if ground else "")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -2053,6 +2071,42 @@ def _stone_material() -> bpy.types.Material:
     t.link(shader, out.inputs["Surface"])
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "stones"
+    if ground:
+        _add_box_cut(mat)
+    return mat
+
+
+def _soil_material() -> bpy.types.Material:
+    """The soil section the cut-away shows under the seabed (task 0148): layers from sand to clay by the depth under
+    the seabed (``core.sea.SOIL_LAYERS``, boundaries wandering by ``SOIL_WOBBLE`` with a noise), a grain and a
+    little bump. The seabed's world height comes from the object's property ``fr_soil_top``."""
+    name = MAT_PREFIX + "soil section"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
+        return mat
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    try:
+        mat.use_nodes = True
+    except Exception:
+        pass
+    t = _NT(mat)
+    b = _NB(t.nt)
+    pos = b.new("ShaderNodeNewGeometry").outputs["Position"]               # world
+    top = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_soil_top").outputs["Fac"]
+    depth = b.math("SUBTRACT", top, b.sep(pos)["Z"])
+    wob = b.math("MULTIPLY", b.math("SUBTRACT", _noise(t, 0.12, 3.0, 0.5, pos), 0.5), 2.0 * sea_core.SOIL_WOBBLE)
+    d = b.math("ADD", depth, wob)
+    col = sea_core.SOIL_LAYERS[0][1]
+    for start, c in sea_core.SOIL_LAYERS[1:]:
+        col = _mix_color(t, b.ramp(d, start - 0.12, start + 0.12), col, c)
+    grain = _noise(t, 7.0, 4.0, 0.6, pos)
+    col = _mix_color(t, b.ramp(grain, 0.3, 0.7, 0.0, 0.2), col, (0.0, 0.0, 0.0))
+    shader = _principled(t, col, 0.95, normal=_bump(t, grain, 0.25, 0.05))
+    out = t.node("ShaderNodeOutputMaterial")
+    t.link(shader, out.inputs["Surface"])
+    mat["fr_env_version"] = MAT_VERSION
+    mat["fr_env"] = "soil"
     return mat
 
 
@@ -2147,9 +2201,10 @@ def _rect(o, u, v, length: float, width: float) -> list:
     return corners
 
 
-def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed: bool) -> bpy.types.Mesh:
+def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed: bool,
+               under: float = 2.0) -> bpy.types.Mesh:
     """The water round the box: a closed ring (outer box = the box grown by ``CUT_GROW`` x the clarity, the box as
-    its hole) from under the seabed to ``CUT_TOP`` under the water, normals out of the water. Point attribute
+    its hole) from ``under`` m under the seabed to ``CUT_TOP`` under the water, normals out of the water. Point attribute
     ``fr_dtop`` = metres under the ring's top, face attribute ``fr_inner`` = 1 on the box's walls."""
     o, u, v = _box_frame(box, offset_xy)
     length, width = float(box["length"]), float(box["width"])
@@ -2166,7 +2221,7 @@ def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed
         loops_o.append(a2 + (b2 - a2) * f)
     ri, ro = np.concatenate(loops_i), np.concatenate(loops_o)
     n = len(ri)
-    top, bot = -sea_core.CUT_TOP, -float(depth) - 2.0
+    top, bot = -sea_core.CUT_TOP, -float(depth) - under
     pts = np.concatenate([np.column_stack([ro, np.full(n, top)]), np.column_stack([ri, np.full(n, top)]),
                           np.column_stack([ro, np.full(n, bot)]), np.column_stack([ri, np.full(n, bot)])])
     OT, IT, OB, IB = 0, n, 2 * n, 3 * n
@@ -2186,6 +2241,21 @@ def _ring_mesh(name: str, box, offset_xy, clarity: float, depth: float, detailed
     fa = me.attributes.new("fr_inner", "FLOAT", "FACE")
     fa.data.foreach_set("value", np.array(inner_flag, np.float32))
     return me
+
+
+def _soil_mesh(name: str, box, offset_xy, depth: float, pit: float) -> bpy.types.Mesh:
+    """The soil section (task 0148): the box's four walls from the seabed down ``pit`` m and its floor, faces into the
+    box. In the water ring's frame (z 0 = the water's surface)."""
+    o, u, v = _box_frame(box, offset_xy)
+    length, width = float(box["length"]), float(box["width"])
+    c = _rect(o, u, v, length, width)
+    z0, z1 = -float(depth), -float(depth) - float(pit)
+    pts = np.array([(*p, z) for z in (z0, z1) for p in c], float)            # 0..3 top, 4..7 bottom
+    faces = [(4 + i, i, (i + 1) % 4, 4 + (i + 1) % 4) for i in range(4)]       # walls: into the box
+    faces.append((4, 5, 6, 7))                                                  # floor: up (corners go anticlockwise)
+    m = _Mesh()
+    m._add(pts, faces, 0)
+    return m.to_mesh(name)
 
 
 def _cut_water_material(clarity: float, weather: bool) -> bpy.types.Material:
@@ -2284,25 +2354,37 @@ def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near:
     box = _box_for(scene, s, root) if cut else None
     offset = (float(root.location.x), float(root.location.y))
     rich = detailed and cut
+    ground = ground_wanted(s) and cut
     me = _seabed_mesh("FR Sea: seabed", box, offset, rich)
-    me.materials.append(_seabed_material())
+    me.materials.append(_seabed_material(ground))
     bed = _new_object("FR Sea: seabed", me, "seabed", col, root)
     bed.location.z = level - depth
     bed["fr_seabed_bump"] = 0.0 if rich else 1.0
     follow_seabed_motion(bed)
     if rich:
         st = _new_object("FR Sea: stones", _stones_mesh("FR Sea: stones", box, offset), "stones", col, root)
-        st.data.materials.append(_stone_material())
+        st.data.materials.append(_stone_material(ground))
         st.location.z = level - depth
         follow_seabed_motion(st)
     if not cut:
         return
     _set_cut_attrs(sea_ob, box)
+    pit = ground_depth_now(root, level, depth) if ground else None
+    if ground:                                    # task 0148: the cut goes on into the ground
+        _set_cut_attrs(bed, box)
+        if rich:
+            _set_cut_attrs(st, box)
+        sm = _soil_mesh("FR Sea: soil section", box, offset, depth, pit)
+        sm.materials.append(_soil_material())
+        soil = _new_object("FR Sea: soil section", sm, "soil", col, root)
+        soil.location = sea_ob.location
+        soil["fr_soil_top"] = float(root.location.z + level - depth)      # world z of the seabed
+        soil["fr_soil_depth"] = float(pit)
     for ob in col.objects:
         if ob.get(TAG) == "hull_foam":
             _set_cut_attrs(ob, box)
     ring = _new_object("FR Sea: cut-away water", _ring_mesh("FR Sea: cut-away water", box, offset, s.sea_clarity,
-                                                            depth, detailed), "sea_cut", col, root)
+                                                            depth, detailed, 0.0 if ground else 2.0), "sea_cut", col, root)
     ring.data.materials.append(_cut_water_material(s.sea_clarity, _weather_on(s)))
     ring.location = sea_ob.location
     # only what the camera sees through the walls: no shadows, no light bounced off it

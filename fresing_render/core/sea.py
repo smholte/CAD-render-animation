@@ -594,3 +594,39 @@ def seabed_ripples(x, y):
     r = np.sin(k * (0.96 * x + 0.28 * y) + bend)
     swell = 0.12 * np.sin(0.23 * x + 0.9) * np.sin(0.17 * y + 0.3)
     return RIPPLE_HEIGHT * r + swell
+
+
+# ---- the ground in the cut-away (task 0148) -------------------------------------
+# The soil section the cut-away shows under the seabed: layers from sand to clay, a look, not a soil report.
+# ``(depth below the seabed where the layer starts (m), linear RGB)``.
+SOIL_LAYERS = ((0.0, (0.21, 0.175, 0.12)),        # wet sand (the seabed's own colour)
+               (4.0, (0.16, 0.135, 0.095)),       # dense sand
+               (10.0, (0.095, 0.09, 0.075)),      # silt
+               (18.0, (0.060, 0.068, 0.072)),     # soft grey clay
+               (30.0, (0.115, 0.080, 0.058)))     # stiff brown clay
+SOIL_WOBBLE = 1.2                                 # m: the layer boundaries wander up and down by this much (noise)
+GROUND_MARGIN = 5.0                               # m of soil shown under the lowest part
+GROUND_MIN = 8.0                                  # m: the least soil the cut shows
+GROUND_MAX = 300.0
+
+
+def soil_layer(depth, wobble=0.0) -> int:
+    """Index of the layer at ``depth`` m under the seabed (``wobble`` m: the noise moving the boundary)."""
+    d = float(depth) + float(wobble)
+    return sum(1 for start, _c in SOIL_LAYERS[1:] if d > start)
+
+
+def soil_colour(depth, wobble=0.0) -> tuple:
+    """The soil's colour (linear RGB) at ``depth`` under the seabed: the shader's steps in plain Python."""
+    return SOIL_LAYERS[soil_layer(depth, wobble)][1]
+
+
+def ground_depth(lowest_z: float, seabed_z: float) -> float:
+    """How deep the cut shows the ground (m under the seabed): to ``GROUND_MARGIN`` under the lowest point of the
+    model, at least ``GROUND_MIN``, at most ``GROUND_MAX``."""
+    return float(min(max(float(seabed_z) - float(lowest_z) + GROUND_MARGIN, GROUND_MIN), GROUND_MAX))
+
+
+def reaches_ground(lowest_z: float, seabed_z: float) -> bool:
+    """A part reaches below the seabed (more than 5 cm: the ripples are not a pile)."""
+    return float(lowest_z) < float(seabed_z) - 0.05

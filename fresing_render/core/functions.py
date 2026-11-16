@@ -232,6 +232,8 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", since="0.2.17")
+fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
+   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.114")
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
