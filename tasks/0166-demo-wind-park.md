@@ -99,6 +99,57 @@ Pulling the second end into turbine B; the export cable to the substation laid b
 page (Web 3D lane, later – the owner decides when the demo goes on the site); the sea reaching the horizon (0154's
 area – open point if needed); floating turbines.
 
+## Design (worker, 16 Nov 2026 – written before the code)
+
+**Files.** The maker writes a fourth model file `demo_park.step` (`layout.FILES["park"]`), imported as its own model
+(root "DEMO WIND PARK") in the `park` stage, also in the small (PC check / GitHub) form. Its joints go into the joint
+sheet's `machine_files["demo_park.step"]`, its numbers into the route sheet's `park`.
+
+- `demo_model/occ.py`, `demo_model/turbine_parts.py`: moved from `tools/site_projects/` (unchanged output); the old
+  modules there are aliases (`sys.modules[__name__] = …`), so the site's converter, its tests and sheets stay as they
+  are. Two options with the site's values as defaults: `_jtubes(bell_z=…)` (the demo's J-tubes end over the rock, not
+  in it) and `_scour(corridor=…)` (no boulder where the cable comes over the rock).
+- `demo_model/turbine.py`: the IEA 15 MW public numbers (tower profile, hub, tilt, blade stations – also read by
+  `iea15_standin.py`), tower + monopile, hub with spinner, three CLOSED blades with a round root whose leading edge
+  leads a CLOCKWISE turn seen from the front, the nacelle and the foot from `turbine_parts`, yellow marine lights on the
+  platform; `turbine(name, turn, phase)` = an Asm per turbine (shared Parts: one mesh per part in the app).
+- `demo_model/substation.py`: jacket (4 legs, X braces, piles), topside with three decks, cladding, helideck,
+  pedestal crane, cable deck with J-tubes, boat landing + ladder, deck lights, yellow corner lights.
+- `demo_model/park.py`: the park in **park coordinates** (mm): origin = where the first end's CAD piece meets the
+  seabed lay line (the end of the app's laid cable), +x along the lay line towards the vessel, z = 0 the waterline,
+  seabed at -SEA_DEPTH. A 3 x 3 grid (1.2 km along the rows, 1.5 km between them), turbine A in the middle with its
+  J-tube 1 towards +x, turbine B the next one along the row, 50 m to starboard of the lay line, the substation between
+  the rows; every rotor faces the same wind (from -y: rotor planes along x, never over the vessel), each at its own
+  phase. The CAD piece "CABLE (FIRST END)" runs from A's J-tube bell-mouth over the scour rock down to the seabed.
+  Joints (root level): "Park: on to turbine B" (slide, moves the whole park), per turbine "WTG xx: Yaw" (rides on it)
+  and "WTG xx: Rotor" (rides on the yaw, a motor, axis = downwind along the shaft: + = clockwise seen from the front).
+
+**Motion scheme (scripts off).** The park root gets, in this order: a Child Of "FR park on the seabed" on
+`paths_sea.BED` ("FR seabed motion": payout x lay direction + the waterline; the seabed's own driver – nothing new
+drives anything), then vessel motion's own pair "FR vessel motion" + "FR vessel still" (the park marked **Still** with
+the button's operator): the pair cancels exactly (still pivot = inverse of the vessel pivot), so the park is
+BED @ basis at every frame, never heaving. The root's basis puts the park origin on the Power cable's `sea_start`
+along -`sea_dir`. Shots 1–8b: the park joint at 0 – turbine A's cable piece meets the app's laid cable exactly.
+**Per shot:** one frame before shot 9's cut a "Move joint" step of one frame takes "Park: on to turbine B" to the
+distance that puts B abeam the stern, 45 m from where the second end is laid (the payout stands still in shots
+9–12, so B stays there). A Build re-times it with the animation (no hand keys).
+
+**Model size.** A 3 km park would become "the model's size" (floor, sea, vessel motion's hull, the clash check's
+boxes): parts of a root marked `fr_scenery` are left out of `build.world_bounds` when the list holds other parts too
+(build.py, additive; the demo marks the park).
+
+**Stages / shots.** `park` after `sea`: import, place, Still mark + Child Of, joints, looks (groups "Demo: turbine
+…"), lights (aviation red on the nacelles and marine yellow on the platforms / substation corners flash together:
+one simple-expression driver each on the group material's emission). Shots: "Beside turbine A" after shot 2 (the
+vessel 120 m off A, the cable from its J-tube; payout 0 there), "Park overview" after shot 8 (high, the vessel laying,
+x 30 time-lapse), "Park at night" after shot 12 (a Weather & time step to Night shift, the lights flashing, turbine B
+beside the vessel). The rotors run as Run motor steps through the whole animation (7.5 rpm).
+
+**Tests.** `tests/test_demo_park_model.py` (the maker: one solid per part, names, joints, clockwise blades, the
+cable piece clear of rock/pile/seabed); `tests/test_demo_project_park.py` (the made demo: feet on the seabed and
+moving with it at every frame, never heaving; A's piece meets the laid cable in shots 1–8b; B near the second end;
+rotors clockwise and facing one wind; the light drivers simple and flashing together; the bounds without the park).
+
 ---
 
 ## Report (filled in by the chat that did the task)
