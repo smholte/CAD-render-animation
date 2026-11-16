@@ -293,7 +293,12 @@ and the web 3D model.
 
 **Update to new revision…** under a mesh model's name reads a new version of the same file. Parts are matched by
 their names; a part renamed in the new file is found by its shape and place, keeps its work and is named in the
-report ("BOOM is now called MAIN BOOM").
+report ("BOOM is now called MAIN BOOM"). Names the app makes itself – the numbers of split pieces
+("WELDMENT 3") and "Node 7" for a node without a name – change when a piece is added or removed, so those parts are
+matched by their shape and place, never by that number. A change to the files next to the model – the OBJ's material
+file (.mtl), a picture or a glTF's .bin – is noticed too: the model is read again, also by a new import. The file's
+own looks stay in the project when no part shows them (a group with another look), so **From file** always brings
+them back.
 
 > **Projects on a shared drive:** when someone else has the project open, a red box "In use by
 > *name* on *computer*" appears here. Save your changes under another name (File > Save As).

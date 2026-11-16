@@ -262,7 +262,7 @@ fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", 
 fn(id="web.light", title="Web 3D model with baked light", family="web", panel="FRESING_PT_web3d", prop="light",
    guide="web3d-light", tour=("web3d_light",), pccheck=("web3d.bake",), since="0.2.89")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
-   button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.111")
+   button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",

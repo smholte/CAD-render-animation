@@ -88,6 +88,9 @@ def _make_material(spec: dict, cache_dir: str):
     name = MAT_PREFIX + str(spec.get("name") or "material")
     mat = bpy.data.materials.new(name)
     mat["fr_file_material"] = True
+    # kept when no part shows it (a group with another look): "From file" must find it after a save (0131 row 4);
+    # ``release_materials`` lets it go once no part of any model names it
+    mat.use_fake_user = True
     mat["fr_material"] = "file"
     try:
         mat.use_nodes = True
@@ -175,6 +178,23 @@ def _make_material(spec: dict, cache_dir: str):
 # ---------------------------------------------------------------------------
 # after an import
 # ---------------------------------------------------------------------------
+
+def release_materials() -> list[str]:
+    """File materials that no mesh names any more (their model was updated or deleted): removed when nothing else
+    uses them, else no longer kept by a fake user. Returns the names removed."""
+    named = {me.get(PROP_FILE_MATERIAL) for me in bpy.data.meshes if me.users and me.get(PROP_FILE_MATERIAL)}
+    gone = []
+    for mat in list(bpy.data.materials):
+        if not mat.get("fr_file_material") or mat.name in named:
+            continue
+        mat.use_fake_user = False
+        if mat.users == 0:
+            gone.append(mat)
+    names = [m.name for m in gone]
+    if gone:
+        bpy.data.batch_remove(gone)
+    return names
+
 
 def take_root_info(root, info: dict) -> None:
     """Keep what a mesh model's cache says about its file on the model root."""
