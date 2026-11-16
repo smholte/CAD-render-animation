@@ -47,7 +47,7 @@ CABLE = "Cable travel"                # the slide joint (m of cable paid out) ev
 SEA_SHOT = "Open sea"
 QUAY_SHOT = "Loading at the quay"
 TAG = "fr_demo"                       # on the scene of the demo project: the version
-MODEL_KEYS = ("assembly", "quay_loading")
+MODEL_KEYS = ("assembly", "quay_loading", "park")    # task 0166: the wind park round the vessel
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
@@ -354,7 +354,7 @@ def _run_maker(d: Demo) -> None:
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     log = os.path.join(d.model_dir, "maker log.txt")
-    keys = MODEL_KEYS if d.quay else ("assembly",)
+    keys = MODEL_KEYS if d.quay else ("assembly", "park")
     os.makedirs(d.model_dir, exist_ok=True)
     with open(log, "w", encoding="utf-8", errors="replace") as fh:
         proc = subprocess.Popen([import_runner.python_executable(), script, d.model_dir, "--only", ",".join(keys),
@@ -1174,6 +1174,7 @@ def surroundings(d: Demo):
 SEA_DEPTH = 30.0                      # m of water at the lay site
 SEA_LAYBACK = 32.0                    # m from horn A to the touch-down: 0083's numbers for 30 m (26–39 m at 20–50 m)
 SEA_LAID = 120.0                      # m already on the seabed behind the touch-down when the animation starts
+SEA_LAID_FIRST = 60.0                 # task 0166: the lay cable's (from turbine A's J-tube: the vessel ~130 m off it)
 SEA_CLARITY = 12.0                    # m: water clarity in the cut-away's walls
 SEA_SHOT_SECONDS = 10.0
 INTO_SEA = "Into the sea"             # the saved camera of shot 8
@@ -1192,7 +1193,7 @@ def sea_stage(d: Demo):
     s = d.s
     s.sea_depth = SEA_DEPTH
     item = paths.find(sc, CABLE_ITEM)
-    item.sea_depth, item.sea_layback, item.sea_laid, item.sea_mode = 0.0, SEA_LAYBACK, SEA_LAID, "LAYBACK"
+    item.sea_depth, item.sea_layback, item.sea_laid, item.sea_mode = 0.0, SEA_LAYBACK, SEA_LAID_FIRST, "LAYBACK"
     notes = paths_sea.add_sea_end(sc, paths.find(sc, CABLE_ITEM))
     item = paths.find(sc, CABLE_ITEM)
     if item.problem:
@@ -2101,3 +2102,6 @@ def build_main(folder: str = "", small: bool = False) -> int:
     _write_json(result_path(folder), res)
     print(f"Demo project: {json.dumps(res)[:1500]}", flush=True)
     return code
+
+
+from . import demo_park  # noqa: E402,F401  (task 0166: registers the wind park's stages)

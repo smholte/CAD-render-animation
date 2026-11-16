@@ -33,25 +33,24 @@ import numpy as np
 from . import occ
 
 # --- the owner's file, measured in the turbine frame (mm; ~/iea/work/measure.json, 13 Nov 2026) -------------------
-TILT_DEG = 6.0
-HUB = np.array([0.0, -11210.318451936466, 150488.0631820485])          # hub centre: on the shaft axis
-UPWIND = np.array([0.0, -math.cos(math.radians(TILT_DEG)), math.sin(math.radians(TILT_DEG))])
-DOWN = -UPWIND
+# Task 0166: the numbers both this stand-in and the demo project's turbine need live in the shipped package
+# (``fresing_render/demo_model/turbine.py``); the ones only the stand-in needs stay here.
+import os as _os  # noqa: E402
+import sys as _sys  # noqa: E402
+
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from fresing_render.demo_model.turbine import (  # noqa: E402,F401
+    BLADE_LENGTH, DOWN, HUB, HUB_TO_BLADE, N_SECTION, PREBEND, ROOT_OFF, ROOT_R, ROOT_WOBBLE, STATIONS, TILT_DEG,
+    TOWER_PROFILE, TOWER_TOP, TOWER_WALL, UPWIND, prebend_x)
+from fresing_render.demo_model import turbine as _shared  # noqa: E402
+
 BLADE_DIRS = [np.array(d) for d in (
     (0.9737887828691113, 0.023775370720865045, 0.22620817426737796),
     (-0.6838754940020739, 0.0762637684636728, 0.7256019200106479),
     (-0.2899132888670343, -0.10003933634557552, -0.9518100735555578))]
-HUB_TO_BLADE = 3000.0
 HUB_R_OUT, HUB_R_IN, HUB_BALL_R, HUB_BACK_R = 3970.0, 3880.0, 100.0, 1625.0
-BLADE_LENGTH = 117000.0
-PREBEND = 4000.0
-ROOT_R = 2543.0                   # the root is not quite round (the owner's: r 2543, centre 62 mm off the axis)
-ROOT_WOBBLE, ROOT_OFF = 40.0, (30.0, 50.0)
-TOWER_TOP = 144582.0
-TOWER_WALL = 55.0
-TOWER_PROFILE = [(-75000.0, 5000.0), (28000.0, 5000.0), (41000.0, 4963.0), (54000.0, 4721.5), (67000.0, 4416.5),
-                 (80000.0, 4075.5), (93000.0, 3695.0), (106000.0, 3454.5), (119000.0, 3374.0), (132000.0, 3286.0),
-                 (TOWER_TOP, 3250.0)]
 YAW_BEARING = (3000.0, 3250.0, TOWER_TOP, TOWER_TOP + 380.0)           # r in, r out, z0, z1
 DRUM = (1000.0, TOWER_TOP + 380.0, TOWER_TOP + 1380.0)                  # misc_equipment: r, z0, z1
 # drivetrain: (r in, r out, s0, s1) along the shaft, s = mm downwind of the hub's centre (the owner's parts' extents)
@@ -166,38 +165,12 @@ def bedplate():
 
 # --- the blade, in its own frame -------------------------------------------------------------------------------------
 
-# span stations: (z mm, chord mm, thickness / chord, share of the airfoil (0 round, 1 airfoil), twist deg)
-STATIONS = [(0.0, 0.0, 0.0, 0.0, 0.0), (4000.0, 0.0, 0.0, 0.0, 0.0), (20000.0, 5800.0, 0.40, 0.6, 12.0),
-            (35000.0, 5500.0, 0.30, 1.0, 8.0), (60000.0, 4500.0, 0.24, 1.0, 3.0), (90000.0, 3000.0, 0.21, 1.0, 0.5),
-            (110000.0, 1600.0, 0.20, 1.0, 0.0)]
-N_SECTION = 40
 LE_SIGN = +1.0                  # the leading edge on the blade's +y side: it leads an anticlockwise turn (front view)
 
 
-def prebend_x(z: float) -> float:
-    """The blade's centre line off its own z axis (towards -x, upwind): 0 to 30 m, then a parabola to -4 m."""
-    return -PREBEND * max(0.0, (z - 30000.0) / (BLADE_LENGTH - 30000.0)) ** 2
-
-
 def section_points(z, chord, tc, share, twist_deg, le_sign=LE_SIGN, flatback=0.0) -> np.ndarray:
-    """N points of a section (blade coordinates), starting at the trailing edge: a not quite round circle (r ROOT_R)
-    blended with a NACA-00xx airfoil whose chord lies along y (leading edge at le_sign * 0.3 chord) and thickness
-    along x."""
-    th = np.linspace(0.0, 2 * math.pi, N_SECTION, endpoint=False)
-    rr = ROOT_R + ROOT_WOBBLE * np.cos(2 * th)
-    circ = np.c_[rr * np.sin(th) + ROOT_OFF[0], -rr * np.cos(th) + ROOT_OFF[1]]
-    xi = (1.0 + np.cos(th)) / 2.0                         # 1 at the trailing edge (th 0), 0 at the leading edge
-    half = 5.0 * tc * chord * (0.2969 * np.sqrt(xi) - 0.126 * xi - 0.3516 * xi ** 2 + 0.2843 * xi ** 3
-                               - 0.1036 * xi ** 4)
-    half = half + flatback * chord * xi ** 2               # a thick (flat-back) trailing edge
-    air = np.c_[np.sign(np.sin(th)) * half, chord * (0.3 - xi)]
-    xy = (1.0 - share) * circ + share * air
-    xy[:, 1] *= le_sign
-    a = math.radians(twist_deg)
-    R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
-    xy = xy @ R.T
-    xy[:, 0] += prebend_x(z)
-    return np.c_[xy, np.full(len(xy), z)]
+    """The shared section (``demo_model/turbine.section_points``) with the owner's not quite round root."""
+    return _shared.section_points(z, chord, tc, share, twist_deg, le_sign, flatback, ROOT_WOBBLE, ROOT_OFF)
 
 
 def _periodic_edge(pts: np.ndarray):
