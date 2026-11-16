@@ -68,8 +68,11 @@ def _feet_report(pl, fps=30.0, ground=_flat):
                 p = ft.on_floor(t)
                 if p is None:
                     continue
-                F = np.array((math.sin(p.yaw), -math.cos(p.yaw), 0.0))
-                base = p.pos - np.array((0.0, 0.0, P.ANKLE_H * k))
+                F0 = np.array((math.sin(p.yaw), -math.cos(p.yaw), 0.0))
+                sl = getattr(p, "slope", 0.0)                           # the sole lies on a tilted floor
+                F = F0 * math.cos(sl) + np.array((0.0, 0.0, math.sin(sl)))
+                U = np.array((0.0, 0.0, math.cos(sl))) - F0 * math.sin(sl)
+                base = p.pos - U * (P.ANKLE_H * k)
                 heel, toe = base + F * C.HEEL_AT * k, base + F * C.TOE_AT * k
                 if p.roll_in > 0 and t < p.down + p.roll_in:            # heel roll: the heel stays
                     d = np.linalg.norm(sp["heel"] - heel)

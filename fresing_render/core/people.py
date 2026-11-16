@@ -115,7 +115,7 @@ ITEMS = {
     "CRATE": ItemKind("Crate", "A grey plastic crate, carried in both hands", (0.56, 0.38, 0.3), "BOTH", "FRONT", True),
     "SPANNER": ItemKind("Spanner", "A big open-ended spanner, held in the right hand", (0.32, 0.06, 0.016), "R",
                         "SIDE"),
-    "HOSE": ItemKind("Hose", "A coil of black hose, carried by its top", (0.06, 0.42, 0.42), "R", "SIDE"),
+    "HOSE": ItemKind("Hose", "A coil of black hose, carried by its top", (0.42, 0.08, 0.42), "R", "SIDE"),
 }
 ITEM_ITEMS = tuple((k, v.label, v.desc) for k, v in ITEMS.items())
 
@@ -210,6 +210,23 @@ def inv4(M) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
+SHARP = math.radians(110)          # a corner turning more than this is walked as two walks with a turn between
+
+
+def sharp_turn(a, b, c, limit: float = SHARP) -> bool:
+    u, w = np.asarray(b, float) - np.asarray(a, float), np.asarray(c, float) - np.asarray(b, float)
+    nu, nw = float(np.linalg.norm(u)), float(np.linalg.norm(w))
+    if nu < 1e-9 or nw < 1e-9:
+        return False
+    return math.acos(max(-1.0, min(1.0, float(np.dot(u, w)) / (nu * nw)))) > limit
+
+
+def _rounded(pts, radius) -> list:
+    if len(pts) < 3:
+        return list(pts)
+    return [np.asarray(p[:2], float) for p in P.rounded_path([(p[0], p[1], 0.0) for p in pts], radius, 8)]
+
+
 class Path:
     """A walk along points (x, y): inner corners rounded with ``radius``, run through by arc length ``s``."""
 
@@ -220,9 +237,14 @@ class Path:
             if np.linalg.norm(p - keep[-1]) > 1e-4:
                 keep.append(p)
         pts = keep
-        if len(pts) > 2:
-            pts3 = P.rounded_path([(p[0], p[1], 0.0) for p in pts], radius, 8)
-            pts = [np.asarray(p[:2], float) for p in pts3]
+        if len(pts) > 2:                  # round the corners, but not one that turns (nearly) straight back
+            out, run = [], [pts[0]]
+            for i in range(1, len(pts)):
+                run.append(pts[i])
+                if i < len(pts) - 1 and sharp_turn(pts[i - 1], pts[i], pts[i + 1]):
+                    out += _rounded(run, radius)[:-1]
+                    run = [pts[i]]
+            pts = out + _rounded(run, radius)
         self.pts = np.asarray(pts, float).reshape(-1, 2)
         seg = np.linalg.norm(np.diff(self.pts, axis=0), axis=1) if len(self.pts) > 1 else np.zeros(0)
         self.s = np.concatenate([[0.0], np.cumsum(seg)])
@@ -273,6 +295,7 @@ class Plant:
     roll_in: float = 0.0
     roll_out: float = 0.0
     lift: float = 0.07            # how high the swing to the next plant rises
+    slope: float = 0.0            # the floor's tilt along the foot (toes up > 0): the sole lies on it
 
 
 class Foot:
@@ -286,12 +309,13 @@ class Foot:
     def last(self) -> Plant:
         return self.plants[-1]
 
-    def step_to(self, pos, yaw, t_up, t_down, roll_out, roll_in, lift):
+    def step_to(self, pos, yaw, t_up, t_down, roll_out, roll_in, lift, slope=0.0):
         last = self.plants[-1]
         last.up = t_up
         last.roll_out = roll_out
         last.lift = lift
-        self.plants.append(Plant(np.asarray(pos, float), float(yaw), t_down, math.inf, roll_in, 0.0, lift))
+        self.plants.append(Plant(np.asarray(pos, float), float(yaw), t_down, math.inf, roll_in, 0.0, lift,
+                                 float(slope)))
 
     def state(self, t: float, k: float):
         """(ankle position, yaw, pitch (toes up > 0)) at time ``t``; ``k`` = the person's size factor."""
@@ -307,17 +331,17 @@ class Foot:
         if t <= p.up:                     # standing on it (perhaps rolling)
             if p.roll_in > 0 and t < p.down + p.roll_in:
                 u = (t - p.down) / p.roll_in
-                return _roll(p.pos, p.yaw, HEEL_ROLL * (1 - smooth01(u)), "heel", k)
+                return _roll(p.pos, p.yaw, HEEL_ROLL * (1 - smooth01(u)), "heel", k, p.slope)
             if p.roll_out > 0 and t > p.up - p.roll_out:
                 u = (t - (p.up - p.roll_out)) / p.roll_out
-                return _roll(p.pos, p.yaw, -TOE_ROLL * smooth01(u) ** 1.3, "ball", k)
-            return p.pos.copy(), p.yaw, 0.0
+                return _roll(p.pos, p.yaw, -TOE_ROLL * smooth01(u) ** 1.3, "ball", k, p.slope)
+            return p.pos.copy(), p.yaw, p.slope
         if lo + 1 >= len(pl):
-            return p.pos.copy(), p.yaw, 0.0
+            return p.pos.copy(), p.yaw, p.slope
         q = pl[lo + 1]                    # swinging from p to q
         u = (t - p.up) / max(1e-6, q.down - p.up)
-        a_pos, _y, a_pitch = _roll(p.pos, p.yaw, -TOE_ROLL if p.roll_out > 0 else 0.0, "ball", k)
-        b_pos, _y, b_pitch = _roll(q.pos, q.yaw, HEEL_ROLL if q.roll_in > 0 else 0.0, "heel", k)
+        a_pos, _y, a_pitch = _roll(p.pos, p.yaw, -TOE_ROLL if p.roll_out > 0 else 0.0, "ball", k, p.slope)
+        b_pos, _y, b_pitch = _roll(q.pos, q.yaw, HEEL_ROLL if q.roll_in > 0 else 0.0, "heel", k, q.slope)
         e = smooth01(u)
         pos = a_pos + (b_pos - a_pos) * e
         pos[2] += p.lift * k * math.sin(math.pi * min(1.0, max(0.0, u))) ** 1.2
@@ -333,10 +357,13 @@ class Foot:
         return None
 
 
-def _roll(flat_ankle, yaw, pitch, pivot, k):
-    """The ankle of a foot turned ``pitch`` (toes up > 0) about its heel or its ball, which stay on the floor."""
-    F = np.array((math.sin(yaw), -math.cos(yaw), 0.0))
-    U = np.array((0.0, 0.0, 1.0))
+def _roll(flat_ankle, yaw, pitch, pivot, k, slope=0.0):
+    """The ankle of a foot turned ``pitch`` (toes up > 0) about its heel or its ball, which stay on the floor (tilted
+    by ``slope``). Returns (ankle, yaw, the foot's whole pitch)."""
+    F0 = np.array((math.sin(yaw), -math.cos(yaw), 0.0))
+    Z = np.array((0.0, 0.0, 1.0))
+    cs, ss = math.cos(slope), math.sin(slope)
+    F, U = F0 * cs + Z * ss, Z * cs - F0 * ss
     base = flat_ankle - U * (P.ANKLE_H * k)
     piv = base + F * ((HEEL_AT if pivot == "heel" else TOE_AT) * k)
     v = flat_ankle - piv
@@ -344,7 +371,7 @@ def _roll(flat_ankle, yaw, pitch, pivot, k):
     c, s = math.cos(pitch), math.sin(pitch)
     # toes up (pitch > 0) turns the foot's front up: a point ahead of the pivot rises
     na, nb = a * c - b * s, a * s + b * c
-    return piv + F * na + U * nb, yaw, pitch
+    return piv + F * na + U * nb, yaw, pitch + slope
 
 
 def foot_frame(yaw: float, pitch: float) -> np.ndarray:
@@ -401,13 +428,13 @@ def item_shapes(kind: str) -> list:
             s.append(P.rbox("item_steel", x, 0, 0, 0.07, 0.06, H, 0.008, 1))
             s.append(Box("item_dark", x + sg * 0.02, 0, 0.0, 0.035, 0.03, H + 0.001))
     elif kind == "HOSE":
-        r = W / 2 - 0.02
-        ring = [(0.0, r * math.sin(a), W / 2 + r * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 33)]
+        r = L / 2 - 0.02                            # the coil stands in the walking direction (x, z)
+        ring = [(r * math.sin(a), -0.015, H / 2 + r * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 33)]
         s.append(P.sweep("item_hose", ring, 0.02, 10, False))
-        ring2 = [(0.025, (r - 0.03) * math.sin(a), W / 2 + (r - 0.03) * math.cos(a)) for a in
+        ring2 = [((r - 0.03) * math.sin(a), 0.015, H / 2 + (r - 0.03) * math.cos(a)) for a in
                  np.linspace(0, 2 * math.pi, 33)]
         s.append(P.sweep("item_hose", ring2, 0.02, 10, False))
-        s.append(Box("item_red", 0.0, 0.0, W - 0.03, 0.08, 0.06, 0.035))
+        s.append(Box("item_red", 0.0, 0.0, H - 0.03, 0.06, 0.08, 0.035))
     return s
 
 
@@ -423,18 +450,19 @@ def hand_in_item(kind: str, side: str, k: float) -> np.ndarray:
     L, W, H = it.size
     if kind in ("TOOLBOX", "HOSE"):
         Rh = R.rz(math.radians(90))            # hanging hand, item along the walk
-        handle = np.array((0.0, 0.0, H - 0.005)) if kind == "TOOLBOX" else np.array((0.0, 0.0, W - 0.02))
+        handle = np.array((0.0, 0.0, H - 0.005)) if kind == "TOOLBOX" else np.array((0.0, 0.0, H - 0.02))
     elif kind == "HARD_HAT":
         Rh = R.rz(math.radians(90))
         handle = np.array((-0.125, 0.0, 0.03))
     elif kind == "SPANNER":
-        Rh = np.column_stack(((0.0, 1.0, 0.0), (0.0, 0.0, -1.0), (-1.0, 0.0, 0.0)))   # spanner hangs down
-        handle = np.array((-0.06, 0.0, H / 2))
-    elif it.style == "EDGE":                   # pinch the near edge, palm down, fingers over the top
+        Rh = R.rz(math.radians(90))            # the shaft in the fist, along the walk
+        handle = np.array((-0.07, 0.0, H / 2))
+    elif it.style == "EDGE":                   # pinch the near edge, palm down, fingers over the top and down
         Rh = np.column_stack(((0.0, 0.0, 1.0), (-1.0, 0.0, 0.0), (0.0, -1.0, 0.0)))
         handle = np.array((0.0, -W / 2 + 0.02, H))
         if side == "r":
             Rh = np.column_stack(((0.0, 0.0, -1.0), (1.0, 0.0, 0.0), (0.0, -1.0, 0.0)))
+        Rh = R.rx(math.radians(-50)) @ Rh          # the wrist above the board, not on it
     else:                                      # FRONT: a hand at each end, fingers forward (item y = backwards)
         Rh = R.rx(math.radians(-90))
         x = -L / 2 - 0.01 if side == "r" else L / 2 + 0.01
@@ -471,7 +499,8 @@ def carry_item_frame(kind: str, fig: R.Figure, pose: R.Pose, fk=None) -> np.ndar
     sd = -1.0 if side == "r" else 1.0
     sh = fk[f"{side}_arm"][0]
     Rp = fk["pelvis"][1]
-    wrist = sh + Rp @ (np.array((sd * 0.07, 0.01, -(R.Figure.ARM + R.Figure.FOREARM) * 0.985)) * k)
+    out = 0.06 + it.size[1] * 0.25                    # a wide item is held further out, clear of the leg
+    wrist = sh + Rp @ (np.array((sd * out, 0.01, -(R.Figure.ARM + R.Figure.FOREARM) * 0.985)) * k)
     hand = m4(Rp @ R.ry(math.radians(-6 * sd)), wrist)
     return hand @ inv4(hand_in_item(kind, side, k))
 
@@ -563,6 +592,7 @@ def plan(people: list, items: list = (), ground=None, iterations: int = 40) -> P
     ctx = _Ctx([p.name for p in people])
     _SPECS.clear()
     _SPECS.update({p.name: p for p in people})
+    ctx.circle = _circles(people)
     stable = False
     for _it in range(iterations):
         before = (dict(ctx.known), dict(ctx.pairs))
@@ -578,13 +608,90 @@ def plan(people: list, items: list = (), ground=None, iterations: int = 40) -> P
         if _it > 0 and _same(before, (ctx.known, ctx.pairs)):
             stable = True
             break
-    if not stable and people:
+    if ctx.circle:
+        pl.warnings.append("Some people wait for each other in a circle (A waits for B, B for A): those waits are "
+                           "left out – check them")
+    elif not stable and people:
         pl.warnings.append("Some people wait for each other in a circle (A waits for B, B for A): their times may "
                            "not line up – check the waits")
     for it in items:
         pl.item_states[it.name].sort(key=lambda s: s.t)
     pl.length = max([p.end for p in pl.people.values()] + [0.0])
     return pl
+
+
+def plural_steps(n: int) -> str:
+    return f"{n} step" if n == 1 else f"{n} steps"
+
+
+def _circles(people) -> set:
+    """Steps (person, index) whose waits or meetings go round in a circle and could never start: found on the graph
+    'this step can only start after that step' (its own step before, the step waited for, and for a Greet or Talk
+    the step before the other person's matching one)."""
+    names = {p.name for p in people}
+    edges: dict = {}
+    for p in people:
+        counts: dict = {}
+        for i, a in enumerate(p.actions):
+            out = edges.setdefault((p.name, i), [])
+            if i:
+                out.append((p.name, i - 1))
+            if a.wait_person in names and a.wait_person != p.name:
+                other = next(q for q in people if q.name == a.wait_person)
+                n = max(1, int(a.wait_step))
+                if n <= len(other.actions):
+                    out.append((a.wait_person, n - 1))
+            if a.kind in NEEDS_OTHER and a.other in names and a.other != p.name:
+                n = counts.get((a.kind, a.other), 0)
+                counts[(a.kind, a.other)] = n + 1
+                other = next(q for q in people if q.name == a.other)
+                js = [j for j, b in enumerate(other.actions) if b.kind == a.kind and b.other == p.name]
+                if n < len(js) and js[n] > 0:
+                    out.append((a.other, js[n] - 1))
+    # Tarjan's strongly connected components
+    index, low, stack, on, comps = {}, {}, [], set(), []
+    counter = [0]
+
+    def visit(v):
+        work = [(v, iter(edges.get(v, ())))]
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        on.add(v)
+        while work:
+            node, it = work[-1]
+            nxt = next(it, None)
+            if nxt is not None:
+                if nxt not in index:
+                    index[nxt] = low[nxt] = counter[0]
+                    counter[0] += 1
+                    stack.append(nxt)
+                    on.add(nxt)
+                    work.append((nxt, iter(edges.get(nxt, ()))))
+                elif nxt in on:
+                    low[node] = min(low[node], index[nxt])
+                continue
+            work.pop()
+            if work:
+                low[work[-1][0]] = min(low[work[-1][0]], low[node])
+            if low[node] == index[node]:
+                comp = []
+                while True:
+                    w = stack.pop()
+                    on.discard(w)
+                    comp.append(w)
+                    if w == node:
+                        break
+                comps.append(comp)
+
+    for v in list(edges):
+        if v not in index:
+            visit(v)
+    out = set()
+    for comp in comps:
+        if len(comp) > 1:
+            out |= set(comp)
+    return out
 
 
 class _Ctx:
@@ -596,6 +703,7 @@ class _Ctx:
         self.pairs: dict = {}             # (kind, a, b, n) -> when a is ready for its n-th GREET / TALK with b
         self.prev: dict = {}              # person -> Person of the round before
         self.prev_items: dict = {}
+        self.circle: set = set()          # steps in a circle of waits: their waits and meetings are left out
 
     def where(self, name: str, t: float, specs=None):
         """Where another person stands at ``t`` (x, y), from the round before (None: not known yet)."""
@@ -637,15 +745,31 @@ class _State:
         wl = 0.1 * self.k
         L = left_of(self.h)
         for side, sg in (("l", 1.0), ("r", -1.0)):
-            pos = self.ankle(self.xy + L * sg * wl)
-            person.feet[side] = Foot(side, Plant(pos, self.h, -math.inf, math.inf))
+            pos, slope = self.plant_at(self.xy + L * sg * wl, self.h)
+            person.feet[side] = Foot(side, Plant(pos, self.h, -math.inf, math.inf, slope=slope))
         z0 = self.z
         xy0, h0 = self.xy.copy(), self.h
         person.roots.append((0.0, self.t, lambda t, a=(xy0[0], xy0[1], z0, h0): a))
 
     def ankle(self, xy) -> np.ndarray:
-        z = float(self.ground(float(xy[0]), float(xy[1]), self.z))
-        return np.array((xy[0], xy[1], z + P.ANKLE_H * self.k))
+        return self.plant_at(xy, self.h)[0]
+
+    def plant_at(self, xy, yaw):
+        """(ankle, slope) of a foot standing at ``xy`` facing ``yaw``: heel and toe on the surface below them."""
+        k = self.k
+        F = np.array((math.sin(yaw), -math.cos(yaw)))
+        xy = np.asarray(xy, float)
+        hp, tp = xy + F * (HEEL_AT * k), xy + F * (TOE_AT * k)
+        zh = float(self.ground(float(hp[0]), float(hp[1]), self.z))
+        zt = float(self.ground(float(tp[0]), float(tp[1]), self.z))
+        if abs(zt - zh) > 0.12 * k:                  # a step or an edge under the foot: stand on the higher part
+            zh = zt = max(zh, zt)
+        L = (TOE_AT - HEEL_AT) * k
+        slope = math.atan2(zt - zh, L)
+        z_sole = zh + (zt - zh) * (-HEEL_AT * k) / L
+        F3 = np.array((F[0], F[1], 0.0))
+        U = np.array((0.0, 0.0, 1.0)) * math.cos(slope) - F3 * math.sin(slope)
+        return np.array((xy[0], xy[1], z_sole)) + U * (P.ANKLE_H * k), slope
 
     def hold(self, t0: float, t1: float, kind: str = "STOP", **data) -> None:
         if t1 > t0 + 1e-9:
@@ -662,7 +786,12 @@ def _schedule(pl: Plan, spec: PersonSpec, ctx: _Ctx) -> Person:
     st = _State(person, pl.ground)
     pts = [np.asarray(spec.place[:2], float)] + [np.asarray(p[:2], float) for p in spec.path]
     if spec.carry:
-        _hold_item(pl, person, spec.carry, 0.0, warn=True)
+        other = next((x.person for x in pl.item_states.get(spec.carry, []) if x.state == "HELD" and x.t == 0.0
+                      and x.person != spec.name), "")
+        if other:
+            pl.warnings.append(f"{spec.name} and {other} both hold '{spec.carry}' at the start – only {other} does")
+        else:
+            _hold_item(pl, person, spec.carry, 0.0, warn=True)
     counts: dict = {}
     for i, a in enumerate(spec.actions):
         kind = a.kind if a.kind in ACTIONS else "STOP"
@@ -672,9 +801,16 @@ def _schedule(pl: Plan, spec: PersonSpec, ctx: _Ctx) -> Person:
                 pl.warnings.append(f"{spec.name}, step {i + 1}: waits for '{a.wait_person}', who is not in the scene")
             elif a.wait_person == spec.name:
                 pl.warnings.append(f"{spec.name}, step {i + 1}: waits for itself")
+            elif (spec.name, i) in ctx.circle:
+                pass                                         # part of a circle of waits: left out (warned once)
             else:
                 n = max(1, int(a.wait_step))
-                t_ready = max(t_ready, ctx.known.get((a.wait_person, n - 1), 0.0))
+                theirs = len(_SPECS[a.wait_person].actions) if a.wait_person in _SPECS else 0
+                if n > theirs:
+                    pl.warnings.append(f"{spec.name}, step {i + 1}: waits for step {n} of {a.wait_person}, who has "
+                                       f"{plural_steps(theirs)} – the wait is left out")
+                else:
+                    t_ready = max(t_ready, ctx.known.get((a.wait_person, n - 1), 0.0))
         if kind == "WALK":
             if t_ready > st.t:
                 st.hold(st.t, t_ready, "WAIT", who=a.wait_person)
@@ -692,8 +828,10 @@ def _schedule(pl: Plan, spec: PersonSpec, ctx: _Ctx) -> Person:
         t_ready = max(t_ready, st.t)
         n_kind = counts.get((kind, a.other), 0)
         counts[(kind, a.other)] = n_kind + 1
+        if kind in NEEDS_OTHER and a.other == spec.name:
+            pl.warnings.append(f"{spec.name}, step {i + 1}: {kind.lower()}s with itself – pick another person")
         paired = (kind in NEEDS_OTHER and bool(a.other) and a.other in ctx.names and a.other != spec.name
-                  and _answers(a.other, spec.name, kind, n_kind, ctx))
+                  and (spec.name, i) not in ctx.circle and _answers(a.other, spec.name, kind, n_kind, ctx))
         if paired:
             ctx.pairs[(kind, spec.name, a.other, n_kind)] = t_ready
             t_ready = max(t_ready, ctx.pairs.get((kind, a.other, spec.name, n_kind), t_ready))
@@ -756,11 +894,20 @@ def _answers(other: str, me: str, kind: str, n: int, ctx: _Ctx) -> bool:
 
 def _walk(pl: Plan, person: Person, st: _State, pts: list, target: int, gait_id: str) -> None:
     """Walk from the point the person stands on to point ``target`` along the clicked points (backwards when it
-    lies behind)."""
+    lies behind). A corner that turns back sharply splits the walk: the person stops there and turns."""
     if target == st.point:
         return
     idx = list(range(st.point, target + 1)) if target > st.point else list(range(st.point, target - 1, -1))
     way = [st.xy] + [pts[j] for j in idx[1:]]
+    for n in range(1, len(way) - 1):
+        if sharp_turn(way[n - 1], way[n], way[n + 1]) and np.linalg.norm(way[n] - way[n - 1]) > 1e-4:
+            _walk_way(pl, person, st, way[:n + 1], idx[n], gait_id)
+            _walk(pl, person, st, pts, target, gait_id)
+            return
+    _walk_way(pl, person, st, way, target, gait_id)
+
+
+def _walk_way(pl: Plan, person: Person, st: _State, way: list, target: int, gait_id: str) -> None:
     path = Path(way)
     if path.length < 0.05:
         st.point = target
@@ -815,7 +962,7 @@ def _walk(pl: Plan, person: Person, st: _State, pts: list, target: int, gait_id:
         tan = path.tangent(s_k, 0.2)
         h = heading_of(tan)
         sg = 1.0 if side == "l" else -1.0
-        pos = st.ankle(xy + left_of(h) * sg * wl)
+        pos, slope = st.plant_at(xy + left_of(h) * sg * wl, h)
         t_up = t0 + max(0.0, j - 1 + d) / f
         t_down = t0 + min(m + 1.0, j - d) / f
         last = j == m + 1
@@ -823,7 +970,7 @@ def _walk(pl: Plan, person: Person, st: _State, pts: list, target: int, gait_id:
         prev = ft.last
         stood = t_up - max(prev.down, t0 - 1.0)
         r_out = max(0.0, min(roll_out, 0.6 * stood, 0.3 / f if j <= 2 else roll_out))
-        ft.step_to(pos, h, t_up, t_down, r_out, 0.0 if last else roll_in, g.lift)
+        ft.step_to(pos, h, t_up, t_down, r_out, 0.0 if last else roll_in, g.lift, slope)
     _check_ground(pl, person, path)
     end = path.at(path.length)
     st.xy = np.asarray(end, float)
@@ -891,9 +1038,9 @@ def _turn(pl: Plan, person: Person, st: _State, h_new: float, speed_deg: float =
     for n, side in enumerate(order):
         sg = 1.0 if side == "l" else -1.0
         h = h0 + dh * (0.6 if n == 0 else 1.0)
-        pos = st.ankle(xy + left_of(h) * sg * wl)
+        pos, slope = st.plant_at(xy + left_of(h) * sg * wl, h)
         a, b = t0 + T * (0.05 + 0.45 * n), t0 + T * (0.45 + 0.45 * n)
-        person.feet[side].step_to(pos, h, a, b, 0.0, 0.0, 0.045)
+        person.feet[side].step_to(pos, h, a, b, 0.0, 0.0, 0.045, slope)
     person.segs.append(Seg("TURN", t0, t0 + T, {"from": h0, "to": h0 + dh}))
     st.h = h0 + dh
     st.t = t0 + T
@@ -941,15 +1088,29 @@ def _drop_item(pl: Plan, person: Person, name: str, t: float, world: np.ndarray)
     person.held.append((t, ""))
 
 
+def _put_offset(it: ItemKind, k: float) -> tuple:
+    """(ahead, to the left) of an item put down, from where the person stands: SIDE items beside the foot of the hand
+    they hang from, the others in front."""
+    side = {"R": -1.0, "L": 1.0, "BOTH": 0.0}[it.hands]
+    if it.style == "SIDE":
+        return 0.28 * k, side * (0.17 * k + it.size[1] / 2)
+    return 0.32 * k + it.size[1] / 2, side * 0.1 * k
+
+
+def _put_heading(it: ItemKind, h: float) -> float:
+    """The item's turn about z when a person facing ``h`` puts it down."""
+    return h - math.pi / 2 if it.style == "SIDE" else (h + math.pi if it.style == "EDGE" else h)
+
+
 def _put_spot(pl: Plan, st: _State, kind: str) -> np.ndarray:
     """Where a person puts an item down: in front (a little to the side of the hand it is in), on whatever is there."""
     it = ITEMS[kind]
     k = st.k
     F, Lf = facing(st.h), left_of(st.h)
-    side = {"R": -1.0, "L": 1.0, "BOTH": 0.0}[it.hands]
-    xy = st.xy + F * (0.42 * k + it.size[1] / 2) + Lf * side * 0.12 * k
+    fwd, lat = _put_offset(it, k)
+    xy = st.xy + F * fwd + Lf * lat
     z = float(pl.ground(xy[0], xy[1], st.z + 1.2))
-    h = st.h - math.pi / 2 if it.style == "SIDE" else st.h
+    h = _put_heading(it, st.h)   # SIDE items lie along the walk as they hung; EDGE items edge towards the person
     return m4(R.rz(h), (xy[0], xy[1], z))
 
 
@@ -1047,15 +1208,25 @@ def _act(pl: Plan, person: Person, st: _State, a: Action, kind: str, i: int, pai
         if person.holding(st.t):
             pl.warnings.append(f"{name}, step {i + 1}: already carries '{person.holding(st.t)}' – put it down first")
             return
+        holder = _holder_at(pl, ctx, a.item, st.t)
+        if holder and holder != name:
+            pl.warnings.append(f"{name}, step {i + 1}: '{a.item}' is in {holder}'s hands then – {holder} must put it "
+                               "down first (a wait helps)")
+            return
         world = _item_world_at(pl, ctx, a.item, st.t)
-        _face(pl, person, st, world[:2, 3])
         dist = float(np.linalg.norm(world[:2, 3] - st.xy))
+        if dist <= 2.5:                              # a step or two up to it, the way it would have been put down
+            _step_up_to(pl, person, st, world, it.kind)
+            dist = float(np.linalg.norm(world[:2, 3] - st.xy))
+        else:
+            _face(pl, person, st, world[:2, 3])
         if dist > 0.95 * k:
             pl.warnings.append(f"{name}, step {i + 1}: '{a.item}' lies {dist:.2f} m away – too far to reach; put it "
                                "within about 0.6 m of the person's point")
         T = 2.2
         t0 = st.t
         st.hold(t0, t0 + T, "PICK_UP", item=a.item, world=world, grab=t0 + T * 0.45)
+        _calibrate(pl, person, person.segs[-1], i)
         _hold_item(pl, person, a.item, t0 + T * 0.45)
         return
     if kind == "PUT_DOWN":
@@ -1068,8 +1239,64 @@ def _act(pl: Plan, person: Person, st: _State, a: Action, kind: str, i: int, pai
         T = 2.2
         t0 = st.t
         st.hold(t0, t0 + T, "PUT_DOWN", item=held, world=world, grab=t0 + T * 0.45)
+        _calibrate(pl, person, person.segs[-1], i)
         _drop_item(pl, person, held, t0 + T * 0.45, world)
         return
+
+
+def _holder_at(pl: Plan, ctx: _Ctx, name: str, t: float) -> str:
+    """Who holds an item at ``t`` ('' = it lies somewhere), from this round and the round before."""
+    best = None
+    for s in pl.item_states.get(name, []) + ctx.prev_items.get(name, []):
+        if s.t <= t + 1e-9 and (best is None or s.t >= best.t):
+            best = s
+    return best.person if best is not None and best.state == "HELD" else ""
+
+
+def stand_for(kind: str, world: np.ndarray, k: float) -> tuple:
+    """(where, heading) a person stands to pick up an item lying at ``world``: as if it had just put it down there."""
+    it = ITEMS[kind]
+    yaw = math.atan2(world[1, 0], world[0, 0])
+    h = yaw + math.pi / 2 if it.style == "SIDE" else (yaw - math.pi if it.style == "EDGE" else yaw)
+    fwd, lat = _put_offset(it, k)
+    return world[:2, 3] - facing(h) * fwd - left_of(h) * lat, h
+
+
+def _step_up_to(pl: Plan, person: Person, st: _State, world: np.ndarray, kind: str) -> None:
+    """A few slow steps to where the item can be reached, then face the way to take it."""
+    spot, h = stand_for(kind, world, st.k)
+    if np.linalg.norm(spot - st.xy) > 0.05:
+        point = st.point
+        _walk_way(pl, person, st, [st.xy, spot], point, "STROLL")
+    _turn(pl, person, st, st.h + wrap(h - st.h))
+
+
+def _calibrate(pl: Plan, person: Person, seg: Seg, i: int) -> None:
+    """How deep a person bends for a Pick up / Put down: the least that brings the hands onto the item at the
+    moment of the grab (so the item never jumps), at most a deep squat; warned when even that does not reach."""
+    it = pl.items[seg.data["item"]]
+    fig = person.fig
+    k = fig.k
+    t = seg.data["grab"]
+    root = person.root(t)
+    M = _rot4_to_fig(root, seg.data["world"])
+    rest_z = float(fig.rest().pelvis[2])
+    best = (math.inf, 1.0)
+    for depth in np.linspace(0.15, 2.8, 36):
+        seg.data["depth"] = float(depth)
+        want, cap = _pelvis_limits(pl, person, t, root, seg, rest_z)
+        pose = _pose(pl, person, t, root, seg, min(want, cap))
+        fk = fig.fk(pose)
+        err = max(float(np.linalg.norm(fk[f"{side}_hand"][0] - (M @ hand_in_item(it.kind, side, k))[:3, 3]))
+                  for side in holding_hands(it.kind))
+        if err < best[0] - 1e-4:
+            best = (err, float(depth))
+        if err < 0.004:
+            break
+    seg.data["depth"] = best[1]
+    if best[0] > 0.03:
+        pl.warnings.append(f"{person.spec.name}, step {i + 1}: cannot reach '{it.name}' there (the hand stays "
+                           f"{best[0] * 100:.0f} cm off) – put it closer to the person's point")
 
 
 def _item_world_at(pl: Plan, ctx: _Ctx, name: str, t: float) -> np.ndarray:
@@ -1086,25 +1313,32 @@ def _item_world_at(pl: Plan, ctx: _Ctx, name: str, t: float) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
+SMOOTH = ((-0.06, 1.0), (-0.03, 2.0), (0.0, 3.0), (0.03, 2.0), (0.06, 1.0))   # pelvis height: seconds, weights
+
+
 def _sample_person(pl: Plan, person: Person, times: list) -> list:
     fig = person.fig
-    rest = fig.rest()
-    rest_pelvis_z = float(rest.pelvis[2])
+    rest_pelvis_z = float(fig.rest().pelvis[2])
+    memo: dict = {}
+
+    def limits(t):
+        key = round(t, 6)
+        if key not in memo:
+            memo[key] = _pelvis_limits(pl, person, t, person.root(t), _seg_at(person, t), rest_pelvis_z)
+        return memo[key]
+
     out = []
-    raw = []
     for t in times:
         root = person.root(t)
         seg = _seg_at(person, t)
-        raw.append((t, root, seg))
-    # the pelvis height: what the gait wants, lowered where a planted foot would not be reached, then smoothed
-    want, cap = [], []
-    for t, root, seg in raw:
-        w, c = _pelvis_limits(pl, person, t, root, seg, rest_pelvis_z)
-        want.append(w)
-        cap.append(c)
-    z = _smooth_under(np.asarray(want), np.asarray(cap))
-    for n, (t, root, seg) in enumerate(raw):
-        out.append((root, _pose(pl, person, t, root, seg, float(z[n]))))
+        # the pelvis height: what the gait wants, lowered where a foot would not be reached, averaged over a few
+        # hundredths of a second (the same at any frame rate), never above the reach at this moment
+        acc = 0.0
+        for dt, w in SMOOTH:
+            want, cap = limits(max(0.0, t + dt))
+            acc += w * min(want, cap)
+        z = min(acc / sum(w for _dt, w in SMOOTH), limits(t)[1])
+        out.append((root, _pose(pl, person, t, root, seg, z)))
     return out
 
 
@@ -1113,18 +1347,6 @@ def _seg_at(person: Person, t: float):
         if s.t0 - 1e-9 <= t <= s.t1 + 1e-9:
             return s
     return None
-
-
-def _smooth_under(want: np.ndarray, cap: np.ndarray) -> np.ndarray:
-    z = np.minimum(want, cap)
-    if len(z) < 5:
-        return z
-    ker = np.array((1, 2, 3, 2, 1), float)
-    ker /= ker.sum()
-    for _ in range(2):
-        zp = np.pad(z, 2, mode="edge")
-        z = np.minimum(np.convolve(zp, ker, mode="valid"), cap)
-    return z
 
 
 def _to_fig(root, p) -> np.ndarray:
@@ -1165,8 +1387,8 @@ def _pelvis_limits(pl, person, t, root, seg, rest_z):
         want = rest_z - g.drop * k * w - 0.012 * k * w * (1 + math.cos(2 * math.pi * p)) / 2
         if gid == "RUN":
             want += 0.03 * k * w * math.sin(math.pi * (p % 1.0))
-    crouch = _crouch(person, t, seg)
-    want -= crouch * 0.32 * k
+    crouch = _crouch(person, t, seg) * (seg.data.get("depth", 1.0) if seg is not None else 1.0)
+    want -= min(0.68, crouch * 0.3) * k              # down to a deep squat for things on the floor
     reach = (fig.THIGH + fig.SHIN) * k * 0.997
     cap = math.inf
     for side, ft in person.feet.items():
@@ -1176,7 +1398,7 @@ def _pelvis_limits(pl, person, t, root, seg, rest_z):
         hx, hy = hip_off[0], hip_off[1]
         dx, dy = a[0] - hx, a[1] - hy
         hz2 = reach * reach - dx * dx - dy * dy
-        if ft.on_floor(t) is not None and hz2 > 0:
+        if hz2 > 0:                       # planted or swinging: every foot must stay within the leg's reach
             cap = min(cap, a[2] + math.sqrt(hz2) - hip_off[2])
     return want, cap
 
@@ -1217,9 +1439,9 @@ def _pose(pl: Plan, person: Person, t: float, root, seg, pelvis_z: float) -> R.P
         if seg is not None and seg.kind in ("IDLE", "WAIT", "TALK", "STOP"):
             sway = 0.012 * k * math.sin(2 * math.pi * t / 7.3 + len(person.spec.name))
     pose = fig._pose_of(ang, 0.0)
-    crouch = _crouch(person, t, seg)
+    crouch = _crouch(person, t, seg) * (seg.data.get("depth", 1.0) if seg is not None else 1.0)
     if crouch > 0:
-        bend = crouch * 38.0
+        bend = min(85.0, crouch * 40.0)
         pose.local["spine"] = pose.local["spine"] @ R.rx(math.radians(bend * 0.55))
         pose.local["chest"] = pose.local["chest"] @ R.rx(math.radians(bend * 0.45))
         pose.local["head"] = pose.local["head"] @ R.rx(math.radians(-bend * 0.3))
@@ -1269,17 +1491,16 @@ def _upper(pl: Plan, person: Person, t: float, root, seg, pose: R.Pose) -> None:
     if kind == "HANDSHAKE":
         mid = seg.data["mid"]
         fk = fig.fk(pose)
-        target = _to_fig(root, np.array((mid[0], mid[1], root[2] + 1.0 * seg.data.get("hz", k))))
+        target = _to_fig(root, np.array((mid[0], mid[1], root[2] + 1.1 * seg.data.get("hz", k))))
         hand_R = fk["pelvis"][1] @ R.rx(math.radians(-90))
         palm_off = hand_R @ _grip_local("r", k)
         reach_e = smooth01(min(1.0, (t - seg.t0) / 0.6)) * smooth01(min(1.0, (seg.t1 - t) / 0.6))
-        shake = 0.025 * k * math.sin(2 * math.pi * 2.4 * (t - seg.t0 - 0.6)) if 0.6 < t - seg.t0 < 1.8 else 0.0
+        shake = 0.025 * seg.data.get("hz", k) * math.sin(2 * math.pi * 2.4 * (t - seg.t0 - 0.6)) if 0.6 < t - seg.t0 < 1.8 else 0.0
         wrist = target - palm_off + np.array((0.0, 0.0, shake))
         pose.local["chest"] = pose.local["chest"] @ R.rx(math.radians(5 * reach_e))
+        fig.look(pose, target + np.array((0, 0, 0.55 * k)) - fig.fk(pose)["head"][0], 0.7 * ease, chest_share=0.0)
         _reach(fig, pose, "r", wrist, hand_R, reach_e)
         pose.fingers["r"] = 0.35 + 0.3 * reach_e
-        fk = fig.fk(pose)
-        fig.look(pose, target + np.array((0, 0, 0.55 * k)) - fk["head"][0], 0.7 * ease)
     if kind == "TALK":
         _talk(pl, fig, person, t, root, seg, pose, ease)
     if kind in ("LOOK", "POINT"):
@@ -1306,6 +1527,7 @@ def _upper(pl: Plan, person: Person, t: float, root, seg, pose: R.Pose) -> None:
         lean = max(0.0, min(30.0, (dist - 0.42 * k) / (0.3 * k) * 30.0)) * ease
         pose.local["spine"] = pose.local["spine"] @ R.rx(math.radians(lean * 0.5))
         pose.local["chest"] = pose.local["chest"] @ R.rx(math.radians(lean * 0.5))
+        fig.look(pose, target - fig.fk(pose)["head"][0], ease, chest_share=0.0)    # before the arms: they stay
         fk = fig.fk(pose)
         for side, sd in (("l", 1.0), ("r", -1.0)):
             press = 0.012 * k * max(0.0, math.sin(2 * math.pi * 0.9 * (t - seg.t0) + (0 if side == "r" else 2.1)))
@@ -1318,21 +1540,19 @@ def _upper(pl: Plan, person: Person, t: float, root, seg, pose: R.Pose) -> None:
             wrist = spot - hand_R @ (np.array((-sd * 0.0, 0.0, -0.075)) * k) + np.array((0, 0, 0.02 * k))
             _reach(fig, pose, side, wrist, hand_R, ease)
             pose.fingers[side] = 0.35 - 0.2 * ease
-        fig.look(pose, target - fig.fk(pose)["head"][0], ease)
     if kind in ("PICK_UP", "PUT_DOWN"):
         name = seg.data["item"]
         it = pl.items[name]
         world = seg.data["world"]
         reach_e = _crouch(person, t, seg)
         reach_e = smooth01(min(1.0, reach_e * 1.6))
-        fk = fig.fk(pose)
         M = _rot4_to_fig(root, world)
+        fig.look(pose, M[:3, 3] - fig.fk(pose)["head"][0], 0.8 * ease, chest_share=0.0)   # first: the chest stays
         for side in holding_hands(it.kind):
             H = M @ hand_in_item(it.kind, side, k)
             hand_R, wrist = H[:3, :3], H[:3, 3]
             _reach(fig, pose, side, wrist, hand_R, reach_e)
             pose.fingers[side] = 0.35 + 0.5 * reach_e
-        fig.look(pose, M[:3, 3] - fig.fk(pose)["head"][0], 0.8 * ease)
 
 
 def _rot4_to_fig(root, M) -> np.ndarray:

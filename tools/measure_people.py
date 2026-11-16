@@ -14,8 +14,8 @@ import time
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
+import bpy  # noqa: E402,I001  (bpy first: it puts Blender's own modules on the path)
 import addon_utils  # noqa: E402
-import bpy  # noqa: E402
 
 import fresing_render  # noqa: E402
 
