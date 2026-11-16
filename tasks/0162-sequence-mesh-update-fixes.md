@@ -53,7 +53,7 @@ The other rows of 0147 (0160, 0161, 0163); the files of running tasks named abov
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus, effort Medium), 16 Nov 2026. Version 0.2.118.
+**Chat / date:** Claude Code on the web (Opus, effort Medium), 16 Nov 2026. Version 0.2.119.
 
 **What changed:**
 - Row 7 (`sequence.py`): the home stack holds (subassembly, place). A Put together undoes the newest Take apart of its

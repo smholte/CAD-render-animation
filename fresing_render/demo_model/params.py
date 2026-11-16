@@ -43,7 +43,7 @@ class Params:
     carousel_d: float = 24000.0     # outer Ø
     rim_h: float = 5000.0
     turntable_t: float = 400.0
-    coil_layers: int = 15           # full flat layers of cable in the carousel (the top layer is partly paid out)
+    coil_layers: int = 0            # full flat layers (odd; the top one on them partly paid out); 0 = up to the rim
     coil_r: float = 8000.0          # radius where the cable leaves the coil (the arch's guide, rest pose)
 
     # cable line
@@ -87,6 +87,9 @@ class Params:
         # the arch's hanging guide (a bend radius out from where the cable lifts off) must stay inside the rim
         self.carousel_d = max(self.carousel_d, 2.0 * (core + 3000.0 + self.bend_r + 700.0))
         self.coil_r = core + 0.5 * (self.carousel_d / 2.0 - 300.0 - core)
+        if self.coil_layers <= 0:       # task 0159: full – the partly paid-out top layer at most level with the rim;
+            n = max(1, int(self.rim_h // self.cable_d) - 1)     # an odd count, so the top layer is wound from the rim
+            self.coil_layers = n if n % 2 else n - 1            # inwards as before (the route leaves its inner turn)
         # the lanes and the lower path must fit the beam (a thick cable widens the vessel)
         self.beam = max(self.beam, 2.0 * (self.lane_y + self.lower_off + 2300.0), self.carousel_d + 3000.0)
 
