@@ -74,6 +74,8 @@ NODES = {"FINE": 8.0e6, "NORMAL": 3.0e6, "FAST": 1.2e6}
 CELL_MIN = 0.02 * MM
 CELLS_PER_RADIUS = 4.0            # the smallest bit's radius is at least this many cells
 RIDGE = 2.5                       # ridges between passes lower than this x the tolerance are left out of the mesh
+ROUNDED = 8.0                     # a node stays off a wall when a chord to it would miss a rounded strip by more
+#                                   than this x the tolerance (0.04 mm at Normal; task 0167)
 RIDGE_CELLS = 3                   # ... when they are narrower than about twice this many cells
 REACH = RIDGE_CELLS               # a tile's mesh reads this many nodes past its border
 PROBES = (0.125, 0.375, 0.625, 0.875)     # where on an edge the lowest move is looked for
@@ -592,6 +594,7 @@ class HeightMap:
                 else:
                     rimmed = np.zeros(len(k), bool)
                 # (neither surface reaching the other node: something lies between them - the top, a rib)
+                only_nn = (~fa & ~fb) & ~((fa ^ fb) | (crease & ~same) | rimmed)
                 sel = np.flatnonzero((fa ^ fb) | (crease & ~same) | rimmed | (~fa & ~fb))
                 if len(sel):
                     # A wall, a rim, the edge of another tool's cut. The surface between the two nodes is the lowest
@@ -662,6 +665,15 @@ class HeightMap:
                     hA = np.where(one & ~wall, low, zA)
                     hB = np.where(one & ~wall, low, zB)
                     there = (ua < 1.0 - 1e-3) | (ub > 1e-3)      # (else: nothing changes between the two)
+                    # (task 0167: both lowest over a stretch - two passes on one floor, equally deep: nothing meets
+                    # there; taken for a crease halfway, it pulled a node off its place with a wall on a grid line)
+                    there &= ~(ub < ua - 0.02)
+                    # (an edge whose surfaces both end before the other node is a rib only when something
+                    # higher than both nodes lies between them - else two passes on one floor)
+                    nn = only_nn[sel]
+                    if nn.any():
+                        hmid = heights(C, np.full((n, 1), 0.5)).min(axis=2)[:, 0]
+                        there &= ~nn | (hmid > np.maximum(za[sel], zb[sel]) + tol)
                     # a crease takes one node: the higher one (at a rim: the node on the uncut top, which has
                     # nothing to lose; the node in the cut keeps its place on the steep face), unless the crease
                     # is right next to the lower one
@@ -680,12 +692,20 @@ class HeightMap:
                         kk = cols.shape[1]
                         hh = self.height_of(cols.reshape(-1), np.repeat(x, kk), np.repeat(y, kk)).reshape(n, kk)
                         return hh.min(axis=1)
-                    rndA, hmA = self._rounded(pa, Ai, Aj, Bi, Bj, pxA, pyA, hA, hw, ow, gx, gy, tol, lowest)
-                    rndB, hmB = self._rounded(pb, Bi, Bj, Ai, Aj, pxB, pyB, hB, hw, ow, gx, gy, tol, lowest)
+                    rndA, hmA = self._rounded(pa, Ai, Aj, Bi, Bj, pxA, pyA, hA, hw, ow, gx, gy, ROUNDED * self.tol, lowest)
+                    rndB, hmB = self._rounded(pb, Bi, Bj, Ai, Aj, pxB, pyB, hB, hw, ow, gx, gy, ROUNDED * self.tol, lowest)
                     rndA &= wantA
                     rndB &= wantB
-                    put(Ai, Aj, pxA, pyA, hA, uA * length, wantA & ~rndA, whose + (Bi, Bj))
-                    put(Bi, Bj, pxB, pyB, hB, (1.0 - uB) * length, wantB & ~rndB, whose + (Ai, Aj))
+                    # (task 0167: along a cell's diagonal a node does not go onto the other node itself - a wall
+                    # exactly on a line of the grid: that node's neighbour along the line puts the wall there,
+                    # and two nodes moved onto one place gave the wall's faces twice, some turned over)
+                    if length > 1.2 * c:
+                        wantA_ = wantA & (uA < 1.0 - 1e-3)
+                        wantB_ = wantB & (uB > 1e-3)
+                    else:
+                        wantA_, wantB_ = wantA, wantB
+                    put(Ai, Aj, pxA, pyA, hA, uA * length, wantA_ & ~rndA, whose + (Bi, Bj))
+                    put(Bi, Bj, pxB, pyB, hB, (1.0 - uB) * length, wantB_ & ~rndB, whose + (Ai, Aj))
                     # the places wanted on this edge: each node's, and halfway to a place a node left alone
                     # (a place a node did not take is kept only when the node stayed because its surface is
                     # rounded, at a rim on the uncut top, or on an edge where neither surface reaches the other
@@ -749,8 +769,12 @@ class HeightMap:
         Pi, Pj = np.clip(Pi, 0, hw.shape[0] - 1), np.clip(Pj, 0, hw.shape[1] - 1)
         h2 = self.height_of(q, 0.5 * (gx[Pi, Pj] + px), 0.5 * (gy[Pi, Pj] + py))
         out |= cut & inw & (ow[Pi, Pj] == q) & np.isfinite(h2) & (np.abs(h2 - 0.5 * (hw[Pi, Pj] + pz)) > tol)
-        # (only where the place is not the node's own: a place on the node itself is nothing to keep)
+        # (only where the place is not the node's own: a place on the node itself is nothing to keep; and not
+        # on the finished part, where the map lies over it and the part's faces decide - ``_lift``)
         far = (np.abs(px - xa) + np.abs(py - ya)) > 1e-3 * self.cell
+        if self.part is not None:
+            pv = self._part_at(xa, ya)
+            far &= ~(np.isfinite(pv) & (hw[Ai, Aj] < pv + 3.0 * self.lift))
         return out & far, hm
 
     @staticmethod
@@ -1050,11 +1074,16 @@ class HeightMap:
         x0, y0, x1, y1 = self.box(J, I)
         verts = np.concatenate([top, mid, base, [[0.5 * (x0 + x1), 0.5 * (y0 + y1), self.bottom]]])
         fm, fb = nt + np.arange(nb), nt + nb + np.arange(nb)
+        # (where no wall stands the foot is the node itself: the piece between them has no area and is left out)
+        fm = np.where(is_top, fm, ring)
         upper = np.concatenate([np.stack([ring, fm, fm[nxt]], axis=1), np.stack([ring, fm[nxt], ring[nxt]], axis=1)])
+        uside = np.concatenate([side, side])
+        whole = (upper[:, 0] != upper[:, 1]) & (upper[:, 1] != upper[:, 2]) & (upper[:, 0] != upper[:, 2])
+        upper, uside = upper[whole], uside[whole]
         lower = np.concatenate([np.stack([fm, fb, fb[nxt]], axis=1), np.stack([fm, fb[nxt], fm[nxt]], axis=1)])
         floor = np.stack([np.full(nb, nt + 2 * nb), fb[nxt], fb], axis=1)
         tris = np.concatenate([new[tri], upper, lower, floor]).astype(np.int32)
-        move = np.concatenate([move, side, side, np.full(2 * nb + len(floor), -2, np.int64)])
+        move = np.concatenate([move, uside, np.full(2 * nb + len(floor), -2, np.int64)])
         self._serial += 1
         out = [sig, self._serial, verts, tris, move, len(tri)]
         self._mesh[(J, I)] = out

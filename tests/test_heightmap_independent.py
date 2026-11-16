@@ -744,10 +744,6 @@ def test_surfaces_and_walls_within_3_hundredths(name):
         assert abs((xa * MM - hm.x0) / (hm.tile * hm.cell) - 1.0) < 1e-9
     far, where = worst(r.cmp)
     limit = SURFACE * scale(r)
-    if name == "pocket_on_a_line":
-        # KNOWN FAULT (finding 4 of the second report): a wall that stands exactly on a line of the map's grid and
-        # on a tile's border (rare: the grid is off the round numbers) is 0.048 mm off. Stated: 0.03.
-        limit = 0.06 * MM
     assert far <= limit, (f"{name}: the fast cut is {far / MM:.3f} mm off the exact one (stated: {limit / MM:.3f}). "
                           f"{where}")
 
@@ -784,13 +780,9 @@ def test_steep_flank_of_a_deep_ball_groove():
     under the rim."""
     r = run("ball_grooves")
     far, where = worst(r.cmp)
-    # KNOWN FAULT (finding 1 of the second report): towards x = 27 the rims of the second and the third groove come
-    # within 0.04 mm of each other (y = 13), and the strip of top between them is lost where it is thinner than two
-    # cells: 0.289 mm there (0.3 mm is stated for features that thin). Everywhere else the steep strip is within
-    # its 0.2 mm.
-    assert far <= 0.3 * MM, f"{far / MM:.3f} mm off (0.3 for a feature thinner than two cells). {where}"
-    rest, where = worst(r.cmp, lambda P: ~((np.abs(P[:, 1] - 13 * MM) < 0.45 * MM) & (P[:, 0] > 15 * MM)))
-    assert rest <= STEEP, f"{rest / MM:.3f} mm off (stated: 0.2 on the steep strip under the rim). {where}"
+    # (task 0167: towards x = 27 the rims of the second and the third groove come within 0.04 mm of each other
+    # (y = 13); the strip of top between them is kept now - it was lost, 0.289 mm off)
+    assert far <= STEEP, f"{far / MM:.3f} mm off (stated: 0.2 on the steep strip under the rim). {where}"
 
 
 def test_corner_radius_pocket_with_ramps():
@@ -973,10 +965,7 @@ def test_every_face_that_can_be_seen_is_the_stocks_or_a_moves(name):
     seen, area = r.cmp["bare"] / MM, r.cmp["bare_mm2"]
     where = "" if not len(seen) else (f"between {np.round(seen.min(axis=0), 2).tolist()} and "
                                       f"{np.round(seen.max(axis=0), 2).tolist()} mm, e.g. {np.round(seen[0], 3).tolist()}")
-    # KNOWN FAULT (finding 3 of the second report): where the wall of a through hole crosses a tile's border a
-    # little wall names no move (no tool marks there): 1.7 mm2 on the 10 through holes of "plunges". Stated: none.
-    limit = 2.5 if name == "plunges" else 0.05
-    assert area < limit, f"{name}: about {area:.1f} mm2 of faces without a label can be seen ({len(seen)} points), {where}"
+    assert area < 0.05, f"{name}: about {area:.1f} mm2 of faces without a label can be seen ({len(seen)} points), {where}"
 
 
 # ---------------------------------------------------------------------------
@@ -1354,9 +1343,7 @@ def test_a_pockets_walls_are_there_once(name):
     R = r.sc["tools"][0].radius / MM
     want = (2 * (xb - xa - 2 * R) + 2 * (yb - ya - 2 * R) + 2 * math.pi * R) * 3.0
     walls = f.cut & (f.c[:, 2] < -1e-6) & (f.c[:, 2] > -3.0 + 1e-6)
-    # KNOWN FAULT (finding 4 of the second report): with a wall exactly on a grid line and a tile's border some
-    # wall faces lie there twice: 233.6 mm2 for 217.7. Stated: once (1 %).
-    assert f.area[walls].sum() == pytest.approx(want, rel=0.09 if name == "pocket_on_a_line" else 0.01), (
+    assert f.area[walls].sum() == pytest.approx(want, rel=0.01), (
         f"{name}: {f.area[walls].sum():.1f} mm2 of wall faces name a move; the pocket has {want:.1f} mm2 of wall")
 
 
@@ -1399,14 +1386,11 @@ def test_walls_of_plunged_holes_face_into_the_hole():
     turned_in = np.flatnonzero(wall)[away > 0]
     folded, true = float(f.area[turned_in].sum()), 4 * math.pi * (10 * 2 + 10 * 4 + 10 * 6)
     per_hole = np.bincount(k[turned_in], weights=f.area[turned_in], minlength=len(holes))
-    # KNOWN FAULT (finding 2 of the second report): on these 4 mm holes about 3 % of the wall faces lie folded over
-    # their neighbours (49 mm2 of 1,508; the wall faces add up to 1,606 mm2). The shape is right to 0.007 mm.
-    # Stated: under 1 mm2 and 0.5 %.
-    assert folded <= 0.045 * true, (
+    assert folded <= 1.0 and folded <= 0.005 * true, (
         f"{len(turned_in)} wall faces, {folded:.1f} mm2 of {true:.0f} mm2 of wall, are turned inside out (their normal "
         f"points away from the hole's axis, into the material) on {int((per_hole > 0).sum())} of 30 holes, up to "
         f"{per_hole.max():.1f} mm2 on one; the wall faces add up to {f.area[wall].sum():.0f} mm2")
-    assert f.area[wall].sum() == pytest.approx(true, rel=0.08)
+    assert f.area[wall].sum() == pytest.approx(true, rel=0.02)
 
 
 @pytest.mark.parametrize("name", ["pocket", "pocket_on_a_line"])
