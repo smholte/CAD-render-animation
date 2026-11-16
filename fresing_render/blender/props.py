@@ -2242,6 +2242,12 @@ def _cable_changed(self, context):
     paths.changed(context.scene, self)
 
 
+def _cable_renamed(self, context):
+    """A cable was renamed (double-click in the list): what names it by name follows (task 0160)."""
+    from . import paths
+    paths.cable_renamed(self.id_data, self)
+
+
 def _cable_contact_changed(self, context):
     """A setting of one contact changed (turns or not): the cable it belongs to is brought up to date."""
     if context is None or context.scene is None or self.get("_busy"):
@@ -2357,7 +2363,9 @@ class FRCableRider(bpy.types.PropertyGroup):
 
 class FRCable(bpy.types.PropertyGroup):
     """A cable or wire rope on its path (task 0078). See blender/paths.py."""
-    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it")
+    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it",
+                         update=_cable_renamed)
+    name_was: StringProperty(default="")                   # the name the things that name it by name know (task 0160)
     enabled: BoolProperty(
         name="On", default=True, update=_cable_changed,
         description="On: the app draws the cable on its path and it moves with the cable speed. Off: the cable "

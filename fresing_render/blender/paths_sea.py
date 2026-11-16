@@ -387,6 +387,12 @@ def _hang_of(scene, item, a, idx, h: int, prev, F: int):
     """``core.catenary.hang_off`` for the moments ``idx`` hanging from wheel ``h`` (``a``: their _Arrive)."""
     W = len(_paths()._wheels(item))
     L0 = float(item.sea_mark) + a.pay - a.s_arrive
+    if F > 1:
+        # along an animation each moment keeps to the answer of the one before, never to the last Build's (task 0160:
+        # two Builds gave twitches on different frames)
+        return C.hang_off_steady(a.centre, a.axis, a.radius, a.side, a.arrive, a.wmax,
+                                 np.array(item.sea_start, dtype=float), np.array(item.sea_dir, dtype=float),
+                                 bottom_z(scene, item), L0, frames=idx)
     psi0 = None
     if prev is not None and len(prev["psi"]) == F and \
             (np.asarray(prev.get("hang", np.full(F, W - 1)))[idx] == h).all():
@@ -713,13 +719,14 @@ def lay_direction(scene, item) -> np.ndarray:
     return _unit(rho)
 
 
-def _first_rel(scene, item, slots):
+def _first_rel(scene, item, slots, live: bool = False):
     """((1, K, 4, 4), frame): the slots at the animation's first frame – from the places read at Build when they hold
     it, else the pose shown with the timeline on that frame for a moment (the clock and let go follow the frame even
-    without keys; task 0138, study 0141)."""
+    without keys; task 0138, study 0141). ``live``: always the pose (a Build in progress: the places stored are the
+    last Build's)."""
     paths = _paths()
     f0 = int(scene.frame_start)
-    stored = paths._stored_places(scene, item, slots) if paths._baked(scene) else None
+    stored = paths._stored_places(scene, item, slots) if paths._baked(scene) and not live else None
     if stored is not None and stored[1] <= f0 < stored[1] + len(stored[0]):
         return stored[0][f0 - stored[1]][None], f0
     here, sub = int(scene.frame_current), float(scene.frame_subframe)
@@ -732,10 +739,10 @@ def _first_rel(scene, item, slots):
         scene.frame_set(here, subframe=sub)
 
 
-def anchor(scene, item) -> list[str]:
+def anchor(scene, item, live: bool = False) -> list[str]:
     """Set the touch-down at the animation's first frame (the pose shown when nothing is built): from the layback or
     the bottom tension, ``sea_laid`` on the seabed behind it. Writes ``sea_start``, ``sea_mark`` (and ``sea_dir``
-    when ``direction``)."""
+    when ``direction``). ``live``: read the pose, never the places of the last Build."""
     paths = _paths()
     wheels, slots, _w, _a, _b = paths._inputs_of(item)
     if not wheels:
@@ -745,7 +752,7 @@ def anchor(scene, item) -> list[str]:
         bpy.context.view_layer.update()
     except Exception:
         pass
-    rel, f0 = _first_rel(scene, item, slots)
+    rel, f0 = _first_rel(scene, item, slots, live=live)
     parts = paths._solve_parts(scene, item, rel, slots, first=f0)
     ar = _Arrive(scene, item, rel, slots, *parts)
     if not ar.res["ok"].all():
@@ -826,22 +833,30 @@ def water_changed(scene) -> None:
     was = None if ob is None else float(ob.location.z)
     sync_bed(scene)
     same_line = was is not None and abs(waterline(scene) - was) < 1e-6
+    moved = False
     for i, it in enumerate(scene.fresing.cables):
         if it.b_kind == "SEA" and it.enabled:
             # the same water set again (a saved scene, Build's start scene): the touch-down stays (task 0138)
             if same_line and abs(float(it.sea_start[2]) - bottom_z(scene, it)) < 1e-5:
                 continue
-            changed(scene, scene.fresing.cables[i])
+            changed(scene, scene.fresing.cables[i], live=not same_line)
+            moved = True
+    paths = _paths()
+    if (moved or not same_line) and paths._baked(scene) and not paths._STATE["busy"]:
+        # a built animation drew the cables on the old seabed at every frame (task 0160, bug hunt 0147 row 8): they
+        # are worked out again for the new water, as after a change of vessel motion
+        paths.motion_changed(scene, force=True)
 
 
-def changed(scene, item) -> None:
+def changed(scene, item, live: bool = False) -> None:
     """A sea-end setting changed: the touch-down is set again (at the animation's first frame, ``anchor``), the seabed
-    follows, the cable is drawn again."""
+    follows, the cable is drawn again. ``live``: from the pose at that frame, never the places of the last Build (the
+    water moved: they hold the old seabed, task 0160)."""
     paths = _paths()
     if paths._STATE["busy"] or paths.index_of(scene, item) < 0 or not is_sea(item):
         return
     sync_bed(scene)
-    anchor(scene, item)
+    anchor(scene, item, live=live)
     paths.changed(scene, item)
 
 

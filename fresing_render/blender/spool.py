@@ -114,6 +114,29 @@ def of_cable(scene, item):
     return None
 
 
+def joint_renamed(scene, old: str, new: str) -> None:
+    """A joint was renamed (``joints.rename``): the drums and carousels that turn with it, or have it as a follower,
+    name it by its new name (task 0160; before, a model update switched the drum off). Written without the update
+    callbacks: nothing else changed."""
+    if not old or old == new:
+        return
+    for sp in scene.fresing.spools:
+        if sp.joint == old:
+            sp["joint"] = new
+        for f in sp.followers:
+            if f.joint == old:
+                f["joint"] = new
+
+
+def cable_renamed(scene, old: str, new: str) -> None:
+    """A cable was renamed: the drums and carousels it comes off name it by its new name (task 0160)."""
+    if not old or old == new:
+        return
+    for sp in scene.fresing.spools:
+        if sp.cable == old:
+            sp["cable"] = new
+
+
 def _cable(scene, sp):
     from . import paths
     return paths.find(scene, sp.cable) if sp.cable else None

@@ -827,6 +827,8 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
         if offshore:
             row = col.row(align=True)
             row.prop(s, "sea_state", text="Sea", expand=True)
+            from .ops_scene import draw_start_scene         # Build puts the start scene's sea back (task 0160)
+            draw_start_scene(col, context, ["sea_state", "water_level"])
             if bg == "SEA":
                 col.prop(s, "water_level", text="Water level")
                 col.prop(s, "sea_depth", text="Water depth")

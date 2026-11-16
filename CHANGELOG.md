@@ -5,6 +5,27 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.121 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
+
+- **Renaming no longer loses a drum, carousel or track.** A renamed drum or carousel joint, layer follower (level
+  wind, arm), track speed joint or wheel joint, or a renamed cable, is kept everywhere it is used: after a model
+  update the drum, the level wind and the pulleys turn exactly as before (they used to stand still, and a track got a
+  new speed joint at 0).
+- **Changing the sea after Build gives what Build gives, at any frame shown.** The cables are worked out again from
+  the animation's first frame; with a late frame shown the demo's second end was up to 8 m off. The sea itself is made
+  again at the first frame too (it came 0.24 m lower at the demo's last frame).
+- **A changed water level after Build** works the cables out again on the new seabed (they lay 1 m under it).
+- **That work is a job with progress and Cancel** (4 Motion > Cables and paths and the status bar) instead of a
+  minute-long freeze. Cancel (or Esc) takes the built animation off: press Build again.
+- **Build never puts the start scene's sea or weather back silently.** Its warnings name what it changed ("Vessel
+  speed 6 kn → 3 kn"), and the Sea, Vessel motion and Weather & time panels show **Save into start scene** when the
+  value you set differs from the start scene's.
+- **Older projects:** one saved built after a Build at a late frame with 0.2.104 – 0.2.112 gets its touch-down set
+  again at the first frame when it opens (Build once more); a scene appended from an older file is brought up to date
+  at Build. Foam and moving waves are named too when Build puts them back.
+- **No more one-frame twitch** of a let-go cable settling onto the seabed (0.8 m and back), and two Builds give the
+  same shape.
+
 ## 0.2.120 – 16 Nov 2026 – The demo vessel in detail (task 0153)
 
 - **The demo's vessel looks like a real offshore vessel close up.** A shaped hull: a raked bow with flare and a bulbous
