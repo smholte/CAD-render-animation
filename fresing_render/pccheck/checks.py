@@ -2203,6 +2203,75 @@ def _player_check(page_path: str, ctx) -> str:
     return f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}) in {os.path.basename(browser)}"
 
 
+@line("web3d.moving", "Web 3D model: cables, ropes and coils move with their looks", "0.2.114",
+      what="The spool test model (a winch drum and a carousel, a wire rope and a power cable) built and saved as a web "
+           "3D model with its animation: the free cables, the rope on the drum and the coil on the carousel are drawn "
+           "by the page with their looks and move as in the app (checked at three moments within 3 mm), the CAD "
+           "coils the spools hide are left out; the page is opened in Edge or Chrome without a window")
+def web3d_moving(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import animation, spool, web3d
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from ..core import web3d_tubes as T
+    scene = ctx.fresh(SPOOL)
+    made = spool.set_up_test_model(scene)
+    animation.bake(scene, scene.fresing.animations[made["animation"]])
+    scene.frame_set(scene.frame_start)
+    job = web3d.Job(scene, os.path.join(ctx.work, "web3d", "Spools web 3D.glb"), size=512, animation=True)
+    out = job.run()
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    _check(out["drawn"] == {"HIDDEN": 2, "TUBE": 2, "SPOOL": 2}, f"drawn parts read as {out['drawn']}")
+    doc, binary = core.read_glb(data)
+    node_ob = {node: ob for ob, node in job._nodes}
+    specs = {node_ob[k].name: nd["extras"]["fr_tube"] for k, nd in enumerate(doc["nodes"])
+             if (nd.get("extras") or {}).get("fr_tube")}
+    _check(len(specs) == 4 and all(sp.get("look") for sp in specs.values()), "not every cable has its look on the page")
+    fps = scene.render.fps / scene.render.fps_base
+    worst = 0.0
+    for f in (scene.frame_start, (scene.frame_start + scene.frame_end) // 2, scene.frame_end - 1):
+        scene.frame_set(f)
+        dg = bpy.context.evaluated_depsgraph_get()
+        for name, sp in specs.items():
+            arr = {}
+            for k in ("times", "lo", "step", "q", "n0", "s0", "trim_t", "trim", "trim_n0", "s", "slo", "sstep",
+                      "nq", "pay_t", "pay"):
+                if isinstance(sp.get(k), int) and not isinstance(sp.get(k), bool):
+                    a = core.accessor_array(doc, binary, sp[k])
+                    arr[k] = a.reshape(-1) if k in ("times", "step", "s0", "trim_t", "s", "slo", "sstep",
+                                                    "pay_t", "pay") else a
+            page = T.at(sp, arr, (f - scene.frame_start) / fps)
+            me = bpy.data.objects[name].evaluated_get(dg).data
+            co = np.empty(len(me.vertices) * 3, np.float32)
+            me.vertices.foreach_get("co", co)
+            cen = co.reshape(-1, sp["sides"], 3).mean(axis=1)
+            _check(len(cen) == len(page["points"]), f"'{name}' at frame {f}: {len(page['points'])} rings on the page, "
+                                                    f"{len(cen)} in the app")
+            worst = max(worst, float(np.linalg.norm(cen - page["points"], axis=1).max()))
+    _check(worst < 0.003, f"a cable on the page is {worst * 1000:.1f} mm away from the app's")
+    ctx.metric("export", out["seconds"], "s")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    note = f"{out['text']}; 4 cables and ropes move with their looks, at most {worst * 1000:.1f} mm from the app"
+    browser = env.find_browser()
+    if browser and out.get("html"):
+        try:
+            got = env.read_page(out["html"], browser, "auto=0&frames=2&t=4&tubes=1", seconds=120)
+        except RuntimeError as exc:
+            return note + f"; the page gave no answer ({exc}); not counted"
+        if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+            return note + "; no WebGL in the browser without a window: not counted"
+        _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+        if got.get("tubes") is not None:
+            _check(len(got["tubes"]) == 4, f"the page draws {len(got['tubes'])} cables (4 in the file)")
+            note += "; the page draws all 4"
+    return note
+
+
 @line("web3d.bake", "Web 3D model with baked light", "0.2.89",
       what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
            "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "

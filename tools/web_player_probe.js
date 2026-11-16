@@ -81,7 +81,9 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
       for (let k = 1; k <= 10; k++) await page.mouse.move(x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10);
       await page.mouse.up();
       out.push(null);
-    } else if (s.shot != null) { await page.screenshot({ path: s.shot }); out.push(s.shot); }
+    } else if (s.shot != null) {                        // a big model drawn in software takes a while (task 0142)
+      await page.screenshot({ path: s.shot, timeout: 300000 }); out.push(s.shot);
+    }
     else if (s.reload) { await page.reload(); await ready(); out.push(null); }
     else out.push('unknown step');
   }

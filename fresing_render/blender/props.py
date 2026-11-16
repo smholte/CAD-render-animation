@@ -3063,8 +3063,9 @@ class FRWeb3D(bpy.types.PropertyGroup):
                     "numbers. Off: the parts keep the names they have in the app")
     animation: BoolProperty(
         name="Include animation", default=False,
-        description="Puts the motion of the built animation into the file: the page plays it in a loop. Only "
-                    "parts that move as a whole (no milling, chips, coolant or hoses). Makes the export slower")
+        description="Puts the motion of the built animation into the file: the page plays it in a loop. Cables, "
+                    "wire ropes, hoses, the rope on drums and carousels and track links move too, with their looks. "
+                    "Milling, chips and coolant stay as at the frame shown. Makes the export slower")
     compress: BoolProperty(
         name="Smaller file", default=True,
         description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
