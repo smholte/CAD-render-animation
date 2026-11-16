@@ -1,6 +1,6 @@
 # 0139 – Mesh import fixes: updates keep work on the right piece, file materials kept, side files noticed, faster updates
 
-**Who:** worker · **Status:** running · **Branch:** `claude/affectionate-ritchie-rn1qgs`
+**Who:** worker · **Status:** done (0.2.111) · **Branch:** `claude/affectionate-ritchie-rn1qgs`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Import lane (+ small fixes in `joints.axis_from_hit` and `hover.py`)):** `importer/mesh_reader.py`, `importer/runner.py`, `blender/mesh_import.py`, `blender/reimport.py` (match rules, `_carry_over`), `joints.axis_from_hit`, `hover.py`, their tests.
@@ -65,4 +65,5 @@ Other rows of 0131 (they have their own tasks: 0136–0140); the files of runnin
 - Row 15 rest: a 3,000-part mesh update still takes ~3x its import. A fix would delete the old model after the
   notifier queue was handled (a later step of the modal import) – changes the all-or-nothing flow, so a lead decision.
 - A model deleted by hand in Blender (no app button) keeps its file materials until the next update.
-- GitHub runs: see TASKS.md row.
+- GitHub runs: 4 full runs, all green – 1 for the work, 3 for version clashes (0126, 0130, 0137 released while it ran:
+  0.2.108 → 0.2.111). Release run on main: see the release link.
