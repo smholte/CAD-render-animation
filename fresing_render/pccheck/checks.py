@@ -3063,6 +3063,118 @@ def milling_toolpath(ctx):
             f"{worst:.3f} mm of the part; undercut reported")
 
 
+def _finish_depth(x: float, y: float) -> float:
+    """How deep (mm, below the block's top) the finishing program of ``_finish_scene`` runs at (x, y) mm."""
+    return 2.0 + 0.8 * math.sin(x / 9.0) * math.cos(y / 7.0)
+
+
+def _finish_scene(ctx, xs, ys):
+    """The test mill with a finishing program as a user would run it (task 0146): T1, a Ø10 ball (the part in the
+    spindle, with the tool list's sizes), follows a wavy surface 1.2 to 2.8 mm deep in a zigzag over the points
+    ``xs`` x ``ys`` (mm from the work zero, the middle of the block's top). A G-code step, built; milling is set
+    up. Returns (scene, frames, block)."""
+    import bpy
+    from mathutils import Vector
+
+    from ..blender import animation, gcode, joints, machining, tools
+    from ..core import machining as core
+    if not core.available():
+        raise RuntimeError("the Manifold library did not load: run Install.bat again")
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(MILL)
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _ob(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    tool, stock = _ob(scene, "END MILL D10"), _ob(scene, "STOCK 200x200x40")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, stock)
+    _check(gcode.problem(scene) == "", f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    for ob, op in ((tool, bpy.ops.fresing.mill_add_bit), (stock, bpy.ops.fresing.mill_set_workpiece)):
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        _check(op() == {"FINISHED"}, f"'{ob.name}' could not be picked for milling")
+    ball = tools.add_row(scene, "BALL", 1)
+    ball.diameter, ball.length, ball.flute_length = 0.010, 0.040, 0.025
+    tools.use_part(scene, tools.row_of(scene, 1), tool)
+    rows = ["(FINISHING RASTER)", "G21 G90 G94 G17 G54", "T1 M6", "S12000 M3",
+            f"G0 X{xs[0]:.3f} Y{ys[0]:.3f} Z5", f"G1 Z{-_finish_depth(xs[0], ys[0]):.4f} F1200"]
+    for k, y in enumerate(ys):
+        for x in (xs if k % 2 == 0 else xs[::-1]):
+            rows.append(f"G1 X{x:.3f} Y{y:.3f} Z{-_finish_depth(x, y):.4f}")
+    rows += ["G0 Z10", "M5", "M30", ""]
+    path = os.path.join(ctx.work, "pccheck_finish.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(rows))
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "Finish", 0.0
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", 6.0, False
+    b.gcode_file = path
+    gcode.step_changed(scene, b)
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    return scene, r["frames"], stock
+
+
+def _top_of(stock):
+    """A function (x, y in mm from the middle of the block) -> the height of the milled block's top there, in mm
+    below its uncut top (the block's own mesh: 200 x 200 x 40, its top at 70 mm)."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    me = stock.data
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+
+    def depth(x, y):
+        hit = bvh.ray_cast(Vector((x * 0.001, y * 0.001, 0.2)), Vector((0, 0, -1)))
+        _check(hit[0] is not None, f"nothing under ({x:.1f}, {y:.1f}) mm")
+        return 70.0 - hit[0].z * 1000.0
+    return depth
+
+
+@line("milling.fast_map", "Milling: a long finishing program as a height map", "0.2.114",
+      what="The test mill runs a finishing program of about 500 short moves (a Ø10 ball follows a wavy surface). "
+           "The block is worked out as a height map (Fast 3-axis passes, on by itself) and, for comparison, with an "
+           "exact cut per move: both must show the same surface, at the depth the program says. The time and the "
+           "number of faces of both")
+def milling_fast_map(ctx):
+    from ..blender import machining
+    xs = [-30.0 + 2.0 * k for k in range(31)]
+    ys = [-9.0 + 1.2 * k for k in range(16)]
+    scene, frames, stock = _finish_scene(ctx, xs, ys)
+    machining.sample(scene)
+    m = machining.settings(scene)
+    _check(m.fast_map, "Fast 3-axis passes is not on in a new project")
+    probes = [(xs[i], ys[j]) for i in (3, 9, 15, 21, 27) for j in (2, 7, 12)]
+    got = {}
+    for fast in (True, False):
+        m.fast_map = fast
+        t0 = time.time()
+        _check(machining.refresh(scene, frame=float(frames), force=True),
+               machining.status(scene) or "the block does not show its cut")
+        seconds = time.time() - t0
+        used = "height map" in machining.status(scene)
+        _check(used == fast, ("the long program was not worked out as a height map" if fast else
+                              "Fast 3-axis passes is off, but the height map was still used")
+               + f": '{machining.status(scene)}'")
+        depth = _top_of(stock)
+        got[fast] = (seconds, len(stock.data.polygons), [depth(x, y) for x, y in probes])
+    m.fast_map = True
+    ctx.metric("height map", got[True][0], "s")
+    ctx.metric("exact cuts", got[False][0], "s")
+    ctx.metric("faces, height map", got[True][1], "")
+    ctx.metric("faces, exact", got[False][1], "")
+    apart = max(abs(a - b) for a, b in zip(got[True][2], got[False][2]))
+    _check(apart < 0.03, f"the height map and the exact cut are {apart:.3f} mm apart (more than 0.03 mm)")
+    off = max(abs(d - _finish_depth(x, y)) for d, (x, y) in zip(got[True][2], probes))
+    _check(off < 0.05, f"the cut is {off:.3f} mm away from the depth the program says")
+    return (f"{got[True][0]:.1f} s and {got[True][1]:,} faces as a height map, {got[False][0]:.1f} s and "
+            f"{got[False][1]:,} faces cut exactly; the two surfaces {apart:.3f} mm apart at most")
+
+
 # ---------------------------------------------------------------------------
 # renders and the queue
 # ---------------------------------------------------------------------------

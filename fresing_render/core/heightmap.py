@@ -60,7 +60,7 @@ MM = 0.001
 TILE = 32                         # cells along a tile's side (a power of two: the triangle hierarchy)
 PAD = 0.02 * MM                   # a node nobody cut lies this far above the stock's top
 TIE = 1e-9                        # heights closer than this are equal: the later move owns the node
-SNAP_STEPS = 14                   # halvings when looking for the place two surfaces meet (cell / 16,000)
+SNAP_STEPS = 9                    # halvings when looking for the place two surfaces meet (cell / 500)
 SNAPSHOT_BYTES = 192e6            # memory for the kept states (going back in time)
 SNAPSHOT_MIN = 64                 # ... never closer together than this many moves
 
@@ -148,14 +148,18 @@ def shape_of(tool, profile=None) -> Shape | None:
     z = np.array([p[0] for p in profile], float)
     r = np.array([p[1] for p in profile], float)
     z = z - z[0]
-    if np.any(np.diff(z) < -1e-9) or np.any(np.diff(r) < -1e-9):
+    dz, dr = np.diff(z), np.diff(r)
+    if np.any(dz < -1e-9) or np.any(dr < -1e-9):
         return None                                    # narrower higher up: an undercut
+    step = (np.abs(dz) > 1e-9) | (np.abs(dr) > 1e-9)
+    dz, dr = dz[step], dr[step]
+    # one convex piece: the outline never turns outwards on its way up (its slope dr / dz only falls). A step out
+    # higher up (a shank wider than the cutter) would be a second piece
+    slope = np.where(dz > 1e-9, dr / np.maximum(dz, 1e-30), np.inf)
+    if np.any(np.diff(np.arctan(slope)) > 1e-7):
+        return None
     keep = np.concatenate([[True], np.diff(r) > 1e-9])      # (a cylinder above: the lowest point of each radius)
     rk, zk = r[keep], z[keep]
-    if len(rk) >= 3:
-        s = np.diff(zk) / np.diff(rk)
-        if np.any(np.diff(s) < -1e-6 * max(1.0, float(np.abs(s).max()))):
-            return None                                # bulges in: not one convex piece
     if len(rk) == 1:
         return Shape(FLAT, float(rk[0]), float(z.max()))
     return Shape(PROFILE, float(rk[-1]), float(z.max()), rk=rk, zk=zk)
@@ -579,6 +583,8 @@ class HeightMap:
                 ni, nj = ni[u], nj[u]
                 X[ni, nj], Y[ni, nj], Z[ni, nj], best[ni, nj] = px[u], py[u], z[u], dist[u]
 
+        top_i, top_j = hw.shape[0] - 1, hw.shape[1] - 1
+        wtol = max(tol, 1e-6)
         for ei, ej, fi, fj, stay, length in families:
             first, second = ow[ei, ej], ow[fi, fj]
             # -- two moves: a wall, a rim, a crease -------------------------------------------------------
@@ -596,57 +602,98 @@ class HeightMap:
                 with np.errstate(invalid="ignore"):
                     dev = np.where(fa & fb, ga0 * gb0 / np.maximum(ga0 + gb0, 1e-30), np.inf)
                 # (a ridge between two passes of one mark class is left out up to ``ridge``: see ``_tile``)
-                same = self.cls[np.maximum(qa, 0)] == self.cls[np.maximum(qb, 0)]
-                crease = fa & fb & (dev > np.where(same & (qa >= 0) & (qb >= 0), max(tol, self.ridge), tol))
-                wall = (fa ^ fb)
-                for kind, sel in (("crease", crease), ("wall", wall)):
-                    if not sel.any():
-                        continue
-                    A = (ai[sel], aj[sel])
-                    B = (bi[sel], bj[sel])
+                same = (self.cls[np.maximum(qa, 0)] == self.cls[np.maximum(qb, 0)]) & (qa >= 0) & (qb >= 0)
+                crease = fa & fb & (dev > np.where(same, max(tol, self.ridge), tol))
+                ridge = crease & same
+                if ridge.any():                         # two passes side by side: where they cross (false position)
+                    sel = ridge
+                    A, B = (ai[sel], aj[sel]), (bi[sel], bj[sel])
                     pa, pb = qa[sel], qb[sel]
-                    x0, y0, x1, y1 = xa[sel], ya[sel], xb[sel], yb[sel]
-                    dx, dy = x1 - x0, y1 - y0
-                    if kind == "crease":                # both surfaces go on: where they cross (false position)
-                        lo, hi = np.zeros(len(pa)), np.ones(len(pa))
-                        glo, ghi = ga0[sel], -gb0[sel]  # g = B's surface - A's: >= 0 at A, <= 0 at B
-                        s = glo / np.maximum(glo - ghi, 1e-30)
-                        for _k in range(3):
-                            g = self.height_of(pb, x0 + s * dx, y0 + s * dy) - self.height_of(pa, x0 + s * dx, y0 + s * dy)
-                            g = np.where(np.isfinite(g), g, 0.0)
-                            pos = g > 0.0
-                            lo, glo = np.where(pos, s, lo), np.where(pos, g, glo)
-                            hi, ghi = np.where(pos, hi, s), np.where(pos, ghi, g)
-                            s = np.clip(lo + (hi - lo) * glo / np.maximum(glo - ghi, 1e-30), lo, hi)
-                        z = self.height_of(pa, x0 + s * dx, y0 + s * dy)
-                        z = np.where(np.isfinite(z), z, np.minimum(za[sel], zb[sel]))
-                        px, py = x0 + s * dx, y0 + s * dy
-                        put(stay, A[0], A[1], px, py, z, s * length, s <= 0.5)
-                        put(stay, B[0], B[1], px, py, z, (1.0 - s) * length, s > 0.5)
-                        continue
-                    ends_b = ~fa[sel]                   # B's move ends between the two (else A's)
-                    low = np.where(ends_b, pb, pa)      # the move whose footprint ends: the wall is its flank
-                    lo, hi = np.zeros(len(pa)), np.ones(len(pa))     # lo: outside the footprint, hi: inside
-                    for _k in range(SNAP_STEPS):
-                        s = 0.5 * (lo + hi)
-                        f = np.where(ends_b, s, 1.0 - s)             # from A when B's ends, from B when A's
-                        inside = np.isfinite(self.height_of(low, x0 + f * dx, y0 + f * dy))
-                        hi = np.where(inside, s, hi)
-                        lo = np.where(inside, lo, s)
-                    f_in, f_out = np.where(ends_b, hi, 1.0 - hi), np.where(ends_b, lo, 1.0 - lo)
-                    foot = self.height_of(low, x0 + f_in * dx, y0 + f_in * dy, rim=True)     # the wall's foot
-                    other = np.where(ends_b, pa, pb)
-                    head = self.height_of(other, x0 + f_out * dx, y0 + f_out * dy)   # the surface it stands in
-                    z_out = np.where(ends_b, za[sel], zb[sel])
-                    head = np.where(np.isfinite(head), head, z_out)
-                    foot = np.where(np.isfinite(foot), foot, np.where(ends_b, zb[sel], za[sel]))
-                    s = 0.5 * (f_in + f_out)            # along the edge from A
+                    x0, y0 = xa[sel], ya[sel]
+                    dx, dy = xb[sel] - x0, yb[sel] - y0
+                    lo, hi = np.zeros(len(pa)), np.ones(len(pa))
+                    glo, ghi = ga0[sel], -gb0[sel]      # g = B's surface - A's: >= 0 at A, <= 0 at B
+                    s = glo / np.maximum(glo - ghi, 1e-30)
+                    for _k in range(3):
+                        g = self.height_of(pb, x0 + s * dx, y0 + s * dy) - self.height_of(pa, x0 + s * dx, y0 + s * dy)
+                        g = np.where(np.isfinite(g), g, 0.0)
+                        pos = g > 0.0
+                        lo, glo = np.where(pos, s, lo), np.where(pos, g, glo)
+                        hi, ghi = np.where(pos, hi, s), np.where(pos, ghi, g)
+                        s = np.clip(lo + (hi - lo) * glo / np.maximum(glo - ghi, 1e-30), lo, hi)
                     px, py = x0 + s * dx, y0 + s * dy
-                    real = np.abs(head - foot) > max(tol, 1e-6)      # a wall: both nodes; else the nearer one
-                    zA, zB = np.where(ends_b, head, foot), np.where(ends_b, foot, head)
-                    put(stay, A[0], A[1], px, py, np.where(real, zA, np.minimum(zA, zB)), s * length, real | (s <= 0.5))
-                    put(stay, B[0], B[1], px, py, np.where(real, zB, np.minimum(zA, zB)), (1.0 - s) * length,
-                        real | (s > 0.5))
+                    z = self.height_of(pa, px, py)
+                    z = np.where(np.isfinite(z), z, np.minimum(za[sel], zb[sel]))
+                    put(stay, A[0], A[1], px, py, z, s * length, s <= 0.5)
+                    put(stay, B[0], B[1], px, py, z, (1.0 - s) * length, s > 0.5)
+                sel = np.flatnonzero((fa ^ fb) | (crease & ~same))
+                if len(sel):
+                    # A wall, a rim, the edge of another tool's cut. The surface between the two nodes is the lowest
+                    # of ALL the moves that reach it - not only the two that own the nodes: the pass next door often
+                    # cuts a little further (pass ends, overlapping passes). So: how far from A the surface stays
+                    # A's move's, how far from B it stays B's, judged against every move that owns a node next to
+                    # the edge. Where the two places are one, it is a wall (the two heights differ) or a crease;
+                    # where a third move's surface lies between, each node goes to the end of its own.
+                    Ai, Aj, Bi, Bj, pa, pb = ai[sel], aj[sel], bi[sel], bj[sel], qa[sel], qb[sel]
+                    x0, y0 = xa[sel], ya[sel]
+                    dx, dy = xb[sel] - x0, yb[sel] - y0
+                    cands = [pa, pb]
+                    # (the others only count where they are the lowest somewhere on the edge: tried at 3 places)
+                    us = np.repeat(np.array([0.25, 0.5, 0.75]), len(pa))
+                    x3, y3 = np.tile(x0, 3) + us * np.tile(dx, 3), np.tile(y0, 3) + us * np.tile(dy, 3)
+                    low3 = np.minimum(self.height_of(np.tile(pa, 3), x3, y3), self.height_of(np.tile(pb, 3), x3, y3))
+                    seen = [pa, pb]
+                    for ni, nj in ((Ai, Aj), (Bi, Bj)):
+                        for di in (-1, 0, 1):
+                            for dj in (-1, 0, 1):
+                                q = ow[np.clip(ni + di, 0, top_i), np.clip(nj + dj, 0, top_j)]
+                                if any(np.array_equal(q, old) for old in seen):
+                                    continue
+                                seen.append(q)
+                                h3 = self.height_of(np.tile(q, 3), x3, y3)
+                                if np.any(h3 < low3 - TIE):
+                                    cands.append(q)
+                                    low3 = np.minimum(low3, h3)
+
+                    def reach(q, flip):
+                        """(last place the surface is still q's, first place it is not), along the edge from A."""
+                        lo, hi = np.zeros(len(q)), np.ones(len(q))
+                        for _k in range(SNAP_STEPS):
+                            t = 0.5 * (lo + hi)
+                            u = 1.0 - t if flip else t
+                            x, y = x0 + u * dx, y0 + u * dy
+                            mine = self.height_of(q, x, y)
+                            other = np.full(len(q), np.inf)
+                            for c in cands:
+                                if c is not q:
+                                    other = np.minimum(other, self.height_of(c, x, y))
+                            on = mine <= other + TIE
+                            lo = np.where(on, t, lo)
+                            hi = np.where(on, hi, t)
+                        return (1.0 - lo, 1.0 - hi) if flip else (lo, hi)
+
+                    def end_height(q, u_on, u_off, fallback):
+                        x, y = x0 + u_on * dx, y0 + u_on * dy
+                        ends = ~np.isfinite(self.height_of(q, x0 + u_off * dx, y0 + u_off * dy))   # its footprint ends
+                        z = np.where(ends, self.height_of(q, x, y, rim=True), self.height_of(q, x, y))
+                        return np.where(np.isfinite(z), z, fallback)
+
+                    ua, ua_off = reach(pa, False)
+                    ub, ub_off = reach(pb, True)
+                    zA = end_height(pa, ua, ua_off, za[sel])
+                    zB = end_height(pb, ub, ub_off, zb[sel])
+                    one = ub - ua < 0.05                # one place: a wall or a crease
+                    mid = 0.5 * (ua + ub)
+                    wall = np.abs(zA - zB) > wtol
+                    low = np.minimum(zA, zB)
+                    uA, uB = np.where(one, mid, ua), np.where(one, mid, ub)
+                    hA = np.where(one & ~wall, low, zA)
+                    hB = np.where(one & ~wall, low, zB)
+                    there = (ua < 1.0 - 1e-3) | (ub > 1e-3)      # (else: nothing changes between the two)
+                    put(stay, Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length,
+                        there & (~one | wall | (mid <= 0.5)))
+                    put(stay, Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
+                        there & (~one | wall | (mid > 0.5)))
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue

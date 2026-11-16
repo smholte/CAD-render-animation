@@ -1521,6 +1521,30 @@ Good to know
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
   ball Ø10, about 11 ms for a round pocket made of short pieces.
 
+<a id="milling-fast"></a>
+#### Long programs: Fast 3-axis
+
+A finishing program from CAM (or from **Make a toolpath**) is thousands of short moves. Cut exactly, one
+move after the other, such a program took minutes to work out. With **Fast 3-axis** ticked (4 Motion >
+**Milling**, under **Detail**; on by itself, also in projects from an older version) a long program is worked
+out as a height map instead: the lowest point the tool reached above every spot of the block.
+
+- **What it takes:** programs of 300 moves or more, the moves where the tool points straight at the block
+  along one of the block's own axes, with a flat, ball, corner-radius, V or drill bit that reaches above the
+  block's top.
+- **What stays exact, as before:** short programs; side cuts with a T-slot cutter or any bit that undercuts;
+  tilted and rotary moves (4th and 5th axis); a tool so short that it would tunnel under the surface. One
+  program can have both kinds of moves: they are joined.
+- **What you see:** the same block, the same cut faces and tool marks. Measured on the 4-core test machine
+  with a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in
+  3 seconds instead of 2.4 minutes, 27,000 faces instead of 256,000. The line under the settings says how
+  many moves went into the height map ("… 14,008 cutting moves, 14,008 as height map").
+- **How exact:** surfaces and walls within 0.03 mm of the exact cut at Detail **Normal**. The fine ridges
+  between two passes are left out when they are lower than 0.012 mm (Normal; 0.005 mm at Fine): the face is
+  smooth there and shows the tool marks. A sharp outside corner of a wall, or a rib thinner than 0.2 mm
+  (0.1 mm at Fine), can be up to that much off. For a close-up of such a corner pick Detail **Fine** or untick
+  **Fast 3-axis**: every move is then cut exactly again.
+
 <a id="tool-marks"></a>
 #### Tool marks
 

@@ -1211,9 +1211,14 @@ class _MapSide:
         fid = np.where(q >= 0, hm.tag[np.maximum(q, 0)] + 2, 1).astype(np.uint32)
         rid = _mf.Manifold.reserve_ids(1)
         self.tl.wp.map_ids.add(int(rid))
-        mesh = _mf.Mesh(vert_properties=np.asarray(m.vert_properties[:, :3], dtype=np.float32), tri_verts=tr,
-                        merge_from_vert=m.merge_from_vert, merge_to_vert=m.merge_to_vert, face_id=fid,
-                        run_original_id=np.array([rid], np.uint32), run_index=np.array([0, 3 * len(tr)], np.uint32))
+        kw = {}                                         # (copies: arrays read back from a Manifold are read-only)
+        if len(m.merge_from_vert):                      # (vertices that are one place with two sets of numbers)
+            kw = dict(merge_from_vert=np.array(m.merge_from_vert, dtype=np.uint32),
+                      merge_to_vert=np.array(m.merge_to_vert, dtype=np.uint32))
+        mesh = _mf.Mesh(vert_properties=np.array(m.vert_properties[:, :3], dtype=np.float32),
+                        tri_verts=np.array(tr, dtype=np.uint32), face_id=fid,
+                        run_original_id=np.array([int(rid)], np.uint32),
+                        run_index=np.array([0, 3 * len(tr)], np.uint32), **kw)
         out = _mf.Manifold(mesh)
         return part if out.status() != _mf.Error.NoError else out
 
