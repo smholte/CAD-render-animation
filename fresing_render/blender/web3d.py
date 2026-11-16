@@ -30,6 +30,7 @@ import mathutils
 import numpy as np
 
 from ..core import web3d as core
+from ..core import web3d_tubes as tubes_core
 from . import build, decals
 
 SOCKETS = {"color": "Base Color", "alpha": "Alpha", "rough": "Roughness", "metal": "Metallic", "normal": "Normal",
@@ -716,6 +717,8 @@ class Job:
         self.gltf = core.Gltf()
         self.result: dict = {}
         self._baker = None
+        self._drawn = None                     # task 0142: web3d_drawn.Drawn
+        self._tubes_done = False
 
     # -- names
     def _name(self, ob, k: int, what: str = "Part") -> str:
@@ -749,6 +752,13 @@ class Job:
                 rest.__exit__(None, None, None)
 
     def _steps(self):
+        try:
+            yield from self._steps_inner()
+        finally:
+            if self._drawn is not None:
+                self._drawn.close()
+
+    def _steps_inner(self):
         scene = self.scene
         self.text = "Reading the model"
         parts, marks = objects(scene)
@@ -759,6 +769,11 @@ class Job:
             from . import animation
             if animation.has_keys(scene):      # task 0111: tool copies and parts the animation shows later
                 parts = parts + appearing(scene, parts)
+        # task 0142: what modifiers draw (cables, ropes, hoses, spools, track and chain links) as Blender draws it
+        from . import web3d_drawn
+        parts = parts + [ob for ob in web3d_drawn.spool_objects(scene) if ob not in parts]
+        self._drawn = web3d_drawn.Drawn(scene, parts)
+        parts = [ob for ob in parts if self._drawn.kind(ob) != web3d_drawn.HIDDEN]
         self._modes = {}
         if self.surroundings is None:          # 0107 / 0134: the plain page, the project's light
             from . import surroundings
@@ -877,7 +892,8 @@ class Job:
         # -- meshes and parts
         unique = {}
         for ob in parts + marks:
-            unique.setdefault(ob.data.name_full, ob.data)
+            me = self._drawn.mesh(ob)
+            unique.setdefault(me.name_full, me)
         tri_total = sum(len(me.loop_triangles) for me in unique.values())
         packed = tri_total >= core.COMPRESS_FROM if self.compress is None else bool(self.compress)
         self.gltf.compress = packed
@@ -893,7 +909,7 @@ class Job:
         triangles = 0
         everything = [(ob, False) for ob in parts] + [(ob, True) for ob in marks]
         for k, (ob, is_decal) in enumerate(everything):
-            me = ob.data
+            me = self._drawn.mesh(ob)
             if is_decal:
                 mats = (mat_index.get(f"decal:{ob.name}", -1),)
             else:
@@ -909,7 +925,7 @@ class Job:
             if light is not None:
                 mesh = self._lit_mesh(ob, mesh, light)
             triangles += tris
-            mw = ob.matrix_world
+            mw = self._drawn.place(ob)
             node = {"name": self._name(ob, k + 1, "Decal" if is_decal else "Part")}
             if not _is_identity(mw):
                 node["matrix"] = _matrix_list(mw)
@@ -927,7 +943,11 @@ class Job:
             from . import animation
             if animation.has_keys(scene):
                 anim = yield from self._motion()
-        self.result.update(triangles=triangles, parts=len(parts), decals=len(marks), animated=anim)
+        if not self._tubes_done:               # task 0142: the drawn tubes at the frame shown (their looks' stripes)
+            self._drawn.read(bpy.context.evaluated_depsgraph_get(), {})
+            self._tubes(np.zeros(1))
+        self.result.update(triangles=triangles, parts=len(parts), decals=len(marks), animated=anim,
+                           drawn=self._drawn.counts())
         yield 1.0
 
     def _material(self, lk: Look, label: str, tiles: dict, flat: dict, cache: dict) -> dict:
@@ -1131,28 +1151,39 @@ class Job:
         mats = np.empty((len(frames), len(obs), 4, 4), np.float32)
         curves = [visibility_curve(ob) for ob in obs]
         shown = np.ones((len(frames), len(obs)), bool)     # task 0111: keyed visibility (tool copies)
+        from . import web3d_drawn
+        rigid = {j: self._drawn.items[ob.name] for j, ob in enumerate(obs)
+                 if self._drawn.kind(ob) == web3d_drawn.RIGID}
         try:
             for i, f in enumerate(frames):
                 scene.frame_set(f)
+                now = {}
                 for j, ob in enumerate(obs):
                     if curves[j] is not None and not shown_at(curves[j], f):
                         shown[i, j] = False    # hidden: not worked out by Blender, its place is held below
-                        mats[i, j] = mats[i - 1, j] if i else np.array(ob.matrix_world)
+                        now[ob.name] = False
+                        mats[i, j] = mats[i - 1, j] if i else np.array(self._drawn.place(ob))
                         continue
                     mats[i, j] = np.array(ob.matrix_world)
+                self._drawn.read(bpy.context.evaluated_depsgraph_get(), now)
                 if i % 10 == 0:
                     self.text = f"Reading the motion: frame {f} of {frames[-1]}"
                     yield 0.9 + 0.08 * i / len(frames)
         finally:
             scene.frame_set(keep)
+        for j, it in rigid.items():            # task 0142: a link moved by its modifier: the move on its place
+            mats[:, j] = (mats[:, j].astype(np.float64) @ web3d_drawn.moves(it)).astype(np.float32)
         for j in np.where(~shown.all(axis=0))[0]:  # hidden at the start: the place where it first shows
             first = int(np.argmax(shown[:, j])) if shown[:, j].any() else 0
             mats[:first, j] = mats[first, j]
         blink = ~shown.all(axis=0)
         moving = np.where((np.abs(mats - mats[:1]).max(axis=(0, 2, 3)) > 1e-6) | blink)[0]
+        times = (np.array(frames, np.float64) - frames[0]) / fps
+        tubes = self._tubes(times)
         if not len(moving):
-            return False
+            return tubes
         tracks = []
+        kept = 0
         for j in moving:
             ob, node = self._nodes[j]
             t, q, s = core.decompose(mats[:, j])
@@ -1167,15 +1198,52 @@ class Job:
                 nd["scale"] = [float(v) for v in s[here]]
             if blink[j]:
                 nd["scale"] = [float(v) for v in s[here]]
-            tracks.append((node, "translation", t))
-            tracks.append((node, "rotation", q))
+            scaled = not blink[j] and np.abs(s - s[:1]).max() > 1e-5
+            # task 0142: only the moments a straight blend cannot give (1 mm at the part's far end)
+            k = tubes_core.thin_node(t, q, s if scaled else None, reach=self._reach(ob), frames=times)
+            kept += len(k)
+            tracks.append((node, "translation", t[k], "LINEAR", times[k]))
+            tracks.append((node, "rotation", q[k], "LINEAR", times[k]))
             if blink[j]:
                 tracks.append((node, "scale", s, "STEP"))
-            elif np.abs(s - s[:1]).max() > 1e-5:
-                tracks.append((node, "scale", s))
-        times = (np.array(frames, np.float64) - frames[0]) / fps
+            elif scaled:
+                tracks.append((node, "scale", s[k], "LINEAR", times[k]))
+        self.result["motion_keys"] = (kept, len(moving) * len(frames))
         self.gltf.animation(scene.fresing.anim_baked or "Animation", times, tracks)
         return True
+
+    def _reach(self, ob) -> float:
+        """How far the part reaches from its own origin (m): a turn by an angle moves its far end that much more."""
+        it = self._drawn.items.get(ob.name) if self._drawn is not None else None
+        if it is not None and it.kind == "RIGID":
+            return it.reach
+        me = self._drawn.mesh(ob) if self._drawn is not None else ob.data
+        m = np.array(ob.matrix_world)[:3, :3]
+        sc = float(np.cbrt(abs(np.linalg.det(m)))) or 1.0
+        try:                                   # the mesh written (a spool's rope: its drawn copy; its own is empty)
+            co = np.empty(len(me.vertices) * 3, np.float32)
+            me.vertices.foreach_get("co", co)
+        except (AttributeError, ReferenceError):
+            return 1.0
+        return float(np.linalg.norm(co.reshape(-1, 3), axis=1).max()) * sc if len(co) else 1.0
+
+    def _tubes(self, times: np.ndarray) -> bool:
+        """``extras.fr_tube`` on every drawn tube and spool rope (task 0142) from what was read at ``times``. True
+        when one of them moves."""
+        from . import web3d_drawn
+        self._tubes_done = True
+        node_of = {ob.name: node for ob, node in self._nodes}
+        moved = False
+        for name, it in self._drawn.items.items():
+            if it.kind not in (web3d_drawn.TUBE, web3d_drawn.SPOOL) or name not in node_of:
+                continue
+            spec = web3d_drawn.tube_spec(self.gltf, it, times)
+            if spec is None:
+                continue
+            nd = self.gltf.doc["nodes"][node_of[name]]
+            nd.setdefault("extras", {})["fr_tube"] = spec
+            moved |= int(spec.get("k", 1)) > 1 or "pay_t" in spec or "trim_t" in spec
+        return moved
 
     def finish(self) -> dict:
         """Writes ``<name>.glb`` (and ``<name>.html``) next to each other; returns the numbers."""

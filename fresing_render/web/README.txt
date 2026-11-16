@@ -15,6 +15,7 @@ three-viewer.min.js      three.js r180 (https://threejs.org, npm three@0.180.0) 
                          FRTHREE) by tools/build_web_viewer.py with esbuild. Licence: MIT (LICENSE-three.txt);
                          meshoptimizer's decoder: MIT, Arseny Kapoulkine.
 fr_math.js               our own: the sea's height and the vessel's motion (the app's formulas).
+fr_tubes.js              our own: moving cables, ropes, hoses and spool ropes (task 0142; the export's maths).
 fr_page.js               our own: the page (sea, sky, clouds, haze, rain, spray, sun shadows, quality, Auto, drawing
                          only on a change, saved views, the "no graphics card" check).
 fr_player.js             our own (task 0134): the controls – settings menu, playback, views, view tools, keys.

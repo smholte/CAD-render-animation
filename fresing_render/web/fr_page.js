@@ -9,6 +9,7 @@
 // Task 0134 (the player; fr_player.js draws its controls): ?at=<x>,<y>,<z> (the point the view turns about, three's
 // coordinates, m) ?time=<s> (the moment to start at) ?paused=1 ?speed=0.5|1|2 ?off=sea,haze,… (items switched off)
 // ?turn=1 (auto-turn) ?soft=0 (tests: never judge the browser as drawing without a graphics card) ?fov=<deg>.
+// Task 0142: ?tubes=1 (the drawn cables' centre lines after each frame into data-fr-tubes, Blender world, for tests).
 //
 // Drawing (task 0134): at most 60 pictures a second (30 without a graphics card); a picture only when something
 // changed – the view moves, the animation, sea, vessel or rain plays, a menu choice, the window's size – and none
@@ -136,6 +137,7 @@
   page.quality = auto ? 'AUTO' : level;
   var frozen = Q.has('t') && isFinite(parseFloat(Q.get('t'))) ? parseFloat(Q.get('t')) : null;
   var maxFrames = Q.has('frames') ? parseInt(Q.get('frames'), 10) || 0 : 0;
+  var wantTubes = Q.get('tubes') === '1';      // tests: the drawn tubes' centre lines into data-fr-tubes (task 0142)
   function L() { return ST.levels[level]; }
 
   // ---------------------------------------------------------------- the sun
@@ -682,6 +684,267 @@
     return {};
   }
 
+  // ---------------------------------------------------------------- moving cables, ropes, hoses (task 0142)
+  // A part with userData.fr_tube is drawn by the page: fr_tubes.js works out its rings at the time shown, a float
+  // texture (3 texels a ring) carries them to the vertex shader, which builds each ring (Blender's: ring point j at
+  // angle 2πj/sides, centre + r (cos N + sin (T x N))). The file's own mesh of it (the frame shown) is not drawn. The
+  // cable looks (cable_looks.py) are a patch of the part's own material: the power cable's stripes, the wire rope's
+  // strands, wires and grease, from s (metres along the cable), the angle round it and the metres paid out.
+  var tubes = [];
+  var TUBE_HEAD = [
+    'uniform highp sampler2D uFrTube;',
+    'uniform int uFrW;',
+    'uniform float uFrR;',
+    'uniform float uFrSides;',
+    'uniform float uFrLast;',
+    'attribute vec3 frRing;',
+    'varying vec2 vFrSt;',
+    'vec4 frTex( int i ) { return texelFetch( uFrTube, ivec2( i % uFrW, i / uFrW ), 0 ); }',
+    'void frTubePoint( out vec3 p, out vec3 n ) {',
+    '  int ri = int( frRing.x + 0.5 );',
+    '  vec4 a = frTex( ri * 3 );',
+    '  vec3 N = frTex( ri * 3 + 1 ).xyz;',
+    '  vec3 Tg = frTex( ri * 3 + 2 ).xyz;',
+    '  vec3 B = cross( Tg, N );',
+    '  float th = frRing.y / uFrSides;',
+    '  float ph = 6.283185307179586 * th;',
+    '  vec3 radial = cos( ph ) * N + sin( ph ) * B;',
+    '  p = a.xyz + ( frRing.z > 1.5 ? vec3( 0.0 ) : uFrR * radial );',
+    '  n = frRing.z > 0.5 ? ( frRing.x < 0.5 ? -Tg : Tg ) : radial;',
+    '  vFrSt = vec2( a.w, th );',
+    '}'].join('\n');
+  var LOOK_HEAD = [
+    'varying vec2 vFrSt;',
+    'uniform float uFrPay;',
+    'uniform float uFrPitch;',
+    'uniform float uFrStarts;',
+    'uniform float uFrWidth;',
+    'uniform vec3 uFrStripe;',
+    'uniform float uFrStripeRough;',
+    'uniform float uFrEdge;',
+    'uniform float uFrWires;',
+    'uniform float uFrSlant;',
+    'uniform vec3 uFrGrease;',
+    'uniform float uFrGreaseAmount;',
+    'uniform float uFrGreaseMetal;',
+    'uniform float uFrGreaseRough;',
+    'uniform float uFrWireDark;',
+    'uniform float uFrStrandR;',
+    'uniform float uFrWireH;',
+    'uniform float uFrBump;',
+    // a height (m) on the surface -> the normal it gives (screen-space derivatives, like a Bump node)
+    'vec3 frBumped( vec3 pos, vec3 nrm, float h, float strength ) {',
+    '  vec3 sx = dFdx( pos ), sy = dFdy( pos );',
+    '  vec3 r1 = cross( sy, nrm ), r2 = cross( nrm, sx );',
+    '  float det = dot( sx, r1 );',
+    '  vec3 grad = sign( det ) * ( dFdx( h ) * r1 + dFdy( h ) * r2 );',
+    '  vec3 bumped = normalize( abs( det ) * nrm - grad );',
+    '  return normalize( mix( nrm, bumped, strength ) );',
+    '}'].join('\n');
+  var POWER_COLOR = [
+    '  float frU = ( vFrSt.x - uFrPay ) / uFrPitch;',
+    '  float frPh = frU + floor( uFrStarts + 0.5 ) * vFrSt.y;',
+    '  float frHalf = 0.5 * uFrWidth;',
+    '  float frDist = abs( fract( frPh - frHalf + 0.5 ) - 0.5 );',
+    '  float frE = max( max( min( uFrEdge, min( uFrWidth, 1.0 - uFrWidth ) ), 1e-6 ), 0.75 * fwidth( frPh ) );',
+    '  float frLook = clamp( ( frHalf - frDist ) / frE + 0.5, 0.0, 1.0 );',
+    '  diffuseColor.rgb = mix( diffuseColor.rgb, uFrStripe, frLook );'].join('\n');
+  var ROPE_COLOR = [
+    '  float frN = max( abs( floor( uFrStarts + 0.5 ) ), 1.0 );',
+    '  float frU = ( vFrSt.x - uFrPay ) / uFrPitch;',
+    '  float frNu = frN * frU;',
+    '  float frPh = frNu + floor( uFrStarts + 0.5 ) * vFrSt.y;',
+    '  float frF = fract( frPh );',
+    '  float frX = 2.0 * frF - 1.0;',
+    '  float frH = sqrt( max( 1.0 - frX * frX, 0.0 ) );',
+    '  float frWire = abs( sin( ( frF - frNu * ( 1.0 + uFrSlant ) ) * uFrWires * 3.141592653589793 ) );',
+    '  float frPx = 1.0 / max( fwidth( frPh ), 1e-6 );',                // pixels per strand
+    '  float frFadeS = smoothstep( 1.5, 4.0, frPx );',
+    '  float frFadeW = smoothstep( 1.5, 4.0, frPx / max( uFrWires, 1.0 ) );',
+    '  float frGreaseK = clamp( clamp( ( 0.7 - frH ) / 0.5, 0.0, 1.0 ) * uFrGreaseAmount, 0.0, 1.0 );',
+    '  float frLine = clamp( ( 1.0 - frWire ) * frFadeW * uFrWireDark, 0.0, 1.0 );',
+    '  diffuseColor.rgb = mix( mix( diffuseColor.rgb, vec3( 0.0 ), frLine ), uFrGrease, frGreaseK );',
+    '  float frLook = frGreaseK;',
+    '  float frRelief = ( frH * frFadeS + frWire * frFadeW * uFrWireH ) * uFrPitch * uFrStrandR;'].join('\n');
+
+  function tubeMaterial(src, tb) {
+    var look = tb.spec.look || null, kind = look ? look.kind : 'PLAIN';
+    var m = src.clone();
+    if (src.userData && src.userData.frWet) {          // rain on/off in the menu reaches the copy too
+      m.userData.frWet = true;
+      m.userData.frDry = { roughness: src.userData.frDry.roughness, color: src.userData.frDry.color.clone() };
+      wet.push(m);
+    }
+    var u = tb.uniforms;
+    m.onBeforeCompile = function (sh) {
+      Object.assign(sh.uniforms, u);
+      var v = sh.vertexShader;
+      if (v.indexOf('#include <beginnormal_vertex>') < 0 || v.indexOf('#include <begin_vertex>') < 0) {
+        page.errors.push('tubes: three.js shader has changed (vertex)'); mark();
+      }
+      sh.vertexShader = TUBE_HEAD + '\n' + v
+        .replace('#include <beginnormal_vertex>', 'vec3 frP; vec3 frNr; frTubePoint( frP, frNr );\nvec3 objectNormal = frNr;')
+        .replace('#include <begin_vertex>', 'vec3 transformed = frP;');
+      if (kind === 'PLAIN') return;
+      var f = sh.fragmentShader;
+      ['#include <color_fragment>', '#include <roughnessmap_fragment>', '#include <metalnessmap_fragment>',
+       '#include <normal_fragment_maps>'].forEach(function (inc) {
+        if (f.indexOf(inc) < 0) { page.errors.push('tubes: three.js shader has changed (' + inc + ')'); mark(); }
+      });
+      f = LOOK_HEAD + '\n' + f.replace('#include <color_fragment>', '#include <color_fragment>\n' +
+                                       (kind === 'ROPE' ? ROPE_COLOR : POWER_COLOR));
+      if (kind === 'ROPE') {
+        f = f.replace('#include <roughnessmap_fragment>',
+                      '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, uFrGreaseRough, frLook );')
+             .replace('#include <metalnessmap_fragment>',
+                      '#include <metalnessmap_fragment>\nmetalnessFactor = mix( metalnessFactor, uFrGreaseMetal, frLook );')
+             .replace('#include <normal_fragment_maps>',
+                      '#include <normal_fragment_maps>\nnormal = frBumped( - vViewPosition, normal, frRelief, uFrBump );');
+      } else {
+        f = f.replace('#include <roughnessmap_fragment>',
+                      '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, uFrStripeRough, frLook );');
+      }
+      sh.fragmentShader = f;
+    };
+    m.customProgramCacheKey = function () { return 'fr-tube-' + kind; };
+    m.needsUpdate = true;
+    return m;
+  }
+
+  function depthMaterial(tb) {
+    var d = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking });
+    d.onBeforeCompile = function (sh) {
+      Object.assign(sh.uniforms, tb.uniforms);
+      sh.vertexShader = TUBE_HEAD + '\n' + sh.vertexShader.replace('#include <begin_vertex>',
+        'vec3 frP; vec3 frNr; frTubePoint( frP, frNr );\nvec3 transformed = frP;');
+    };
+    d.customProgramCacheKey = function () { return 'fr-tube-depth'; };
+    return d;
+  }
+
+  // the tube's triangles: (sides + 1) points a ring (the seam twice: the angle runs 0 … 1), a cap at both ends
+  function tubeGeometry(rings, sides) {
+    var wall = rings * (sides + 1), cap = sides + 2, nv = wall + 2 * cap;
+    var ring = new Float32Array(nv * 3), idx = [], r, j, o;
+    for (r = 0; r < rings; r++) {
+      for (j = 0; j <= sides; j++) { o = (r * (sides + 1) + j) * 3; ring[o] = r; ring[o + 1] = j; ring[o + 2] = 0; }
+    }
+    for (r = 0; r < rings - 1; r++) {
+      for (j = 0; j < sides; j++) {
+        var a = r * (sides + 1) + j, b = a + 1, c = a + sides + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    [0, rings - 1].forEach(function (rr, e) {
+      var base = wall + e * cap;
+      o = base * 3; ring[o] = rr; ring[o + 1] = 0; ring[o + 2] = 2;               // the cap's middle
+      for (j = 0; j <= sides; j++) { o = (base + 1 + j) * 3; ring[o] = rr; ring[o + 1] = j; ring[o + 2] = 1; }
+      for (j = 0; j < sides; j++) {
+        if (e === 0) idx.push(base, base + 2 + j, base + 1 + j); else idx.push(base, base + 1 + j, base + 2 + j);
+      }
+    });
+    var g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(new Float32Array(nv * 3), 3));
+    g.setAttribute('frRing', new T.BufferAttribute(ring, 3));
+    g.setIndex(idx);
+    return g;
+  }
+
+  function lookUniforms(look) {
+    var L0 = look || {};
+    var c = function (v) { return new T.Vector3(v[0], v[1], v[2]); };
+    return {
+      uFrPay: { value: 0 }, uFrPitch: { value: +L0.pitch || 1 }, uFrStarts: { value: +L0.starts || 0 },
+      uFrWidth: { value: +L0.width || 0 }, uFrStripe: { value: c(L0.stripe || [1, 1, 0]) },
+      uFrStripeRough: { value: L0.stripe_rough != null ? +L0.stripe_rough : 0.4 }, uFrEdge: { value: +L0.edge || 0.01 },
+      uFrWires: { value: +L0.wires || 6 }, uFrSlant: { value: +L0.slant || 0 }, uFrGrease: { value: c(L0.grease || [0, 0, 0]) },
+      uFrGreaseAmount: { value: +L0.grease_amount || 0 }, uFrGreaseMetal: { value: +L0.grease_metallic || 0 },
+      uFrGreaseRough: { value: +L0.grease_rough || 0.5 }, uFrWireDark: { value: +L0.wire_dark || 0 },
+      uFrStrandR: { value: +L0.strand_radius || 0 }, uFrWireH: { value: +L0.wire_height || 0 },
+      uFrBump: { value: +L0.bump || 0 } };
+  }
+
+  // the parts with extras.fr_tube: their arrays read from the file, then the drawn tube put in place of the mesh
+  function setupTubes(gltf) {
+    var holders = [];
+    gltf.scene.traverse(function (o) { if (o.userData && o.userData.fr_tube) holders.push(o); });
+    if (!holders.length || !window.FRTubes) return Promise.resolve();
+    var parser = gltf.parser;
+    return Promise.all(holders.map(function (o) {
+      var spec = o.userData.fr_tube, keys = window.FRTubes.KEYS.filter(function (k) {
+        return typeof spec[k] === 'number' && spec[k] === Math.floor(spec[k]) && (k !== 'pay' || spec.pay_t != null);
+      });
+      return Promise.all(keys.map(function (k) { return parser.getDependency('accessor', spec[k]); })).then(function (got) {
+        var a = {};
+        keys.forEach(function (k, i) { a[k] = got[i].array; });
+        var tb = window.FRTubes.make(spec, a);
+        var w = Math.min(tb.rings * 3, 2048), h = Math.ceil(tb.rings * 3 / w);
+        var buf = new Float32Array(w * h * 4);
+        var tex = new T.DataTexture(buf, w, h, T.RGBAFormat, T.FloatType);
+        tex.minFilter = tex.magFilter = T.NearestFilter;
+        tex.generateMipmaps = false;
+        tb.texture = tex;
+        tb.buffer = buf;
+        tb.uniforms = Object.assign({ uFrTube: { value: tex }, uFrW: { value: w }, uFrR: { value: +spec.r || 0.01 },
+                                      uFrSides: { value: +spec.sides || 12 }, uFrLast: { value: tb.rings - 1 } },
+                                    lookUniforms(spec.look));
+        var src = null;
+        o.traverse(function (c) {
+          if (c.isMesh && !c.userData.frTube) {
+            if (!src) src = Array.isArray(c.material) ? c.material[0] : c.material;
+            c.geometry.setDrawRange(0, 0);          // the file's own shape of it (the frame shown): not drawn
+            c.castShadow = false;
+          }
+        });
+        var mesh = new T.Mesh(tubeGeometry(tb.rings, +spec.sides || 12),
+                              tubeMaterial(src || new T.MeshStandardMaterial({ color: 0x222222 }), tb));
+        mesh.userData.frTube = true;
+        mesh.frustumCulled = false;
+        mesh.castShadow = mesh.receiveShadow = !!ST.shadows;
+        mesh.customDepthMaterial = depthMaterial(tb);
+        mesh.name = (o.name || 'tube') + ' (drawn)';
+        o.add(mesh);
+        tb.mesh = mesh;
+        tb.node = o;
+        tb.last = null;
+        tubes.push(tb);
+      });
+    })).then(function () {
+      page.info.tubes = tubes.length;
+      tubes.forEach(function (tb) { page.duration = Math.max(page.duration, tb.duration); });
+      page.animated = !!ST.animated && page.duration > 0;
+      updateTubes(0);
+    });
+  }
+
+  function updateTubes(t) {
+    for (var i = 0; i < tubes.length; i++) {
+      var tb = tubes[i];
+      if (tb.last !== null && (!tb.moves || tb.last === t)) continue;
+      tb.at(t);
+      var d = tb.fill();
+      tb.buffer.set(d);
+      tb.texture.needsUpdate = true;
+      tb.uniforms.uFrPay.value = tb.pay;
+      tb.last = t;
+    }
+  }
+
+  // tests (?tubes=1): every drawn tube's centre line now, Blender world coordinates (m), at most 64 points each
+  function tubeProbe() {
+    var out = [], v = new T.Vector3();
+    tubes.forEach(function (tb) {
+      tb.node.updateWorldMatrix(true, false);
+      var pts = [], step = Math.max(1, Math.ceil(tb.count / 64));
+      for (var i = 0; i < tb.count; i += step) {
+        v.set(tb.cp[i * 3], tb.cp[i * 3 + 1], tb.cp[i * 3 + 2]).applyMatrix4(tb.node.matrixWorld);
+        pts.push([+v.x.toFixed(5), +(-v.z).toFixed(5), +v.y.toFixed(5)]);
+      }
+      out.push({ name: tb.node.name, count: tb.count, pay: tb.pay, points: pts });
+    });
+    document.documentElement.dataset.frTubes = JSON.stringify(out);
+  }
+
   // ?probe=: the colours of a few pixels of the frame just drawn (tests)
   function probe() {
     var w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(4);
@@ -1098,6 +1361,12 @@
     }
     if (camera.position.y < lowest) camera.position.y = lowest;
     if (mixer) mixer.setTime(ST.animated ? t : 0);
+    if (tubes.length) {            // the moment the mixer shows: the animation repeats (t = its length is its start)
+      var tt = ST.animated ? t : 0;
+      if (page.duration > 0) tt = tt % page.duration;
+      updateTubes(tt);
+      if (wantTubes) tubeProbe();
+    }
     var vOn = ST.vessel && on.vessel !== false;
     if (ST.vessel) {
       vesselGroup.matrix.copy(vOn ? toThree(M.vesselMatrix(ST.vessel, tScene)) : ONE);
@@ -1274,7 +1543,10 @@
     var go = function () {
       try {
         loader.parse(buf.buffer, '', function (gltf) {
-          try { prepare(gltf); resize(); oneLess(); } catch (e) { bad(e); }
+          try {
+            prepare(gltf);
+            setupTubes(gltf).then(function () { resize(); oneLess(); }, bad);   // task 0142
+          } catch (e) { bad(e); }
         }, bad);
       } catch (e) { bad(e); }
     };

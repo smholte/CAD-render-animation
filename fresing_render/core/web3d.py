@@ -499,16 +499,26 @@ class Gltf:
         return k
 
     def animation(self, name: str, times: np.ndarray, tracks: list[tuple[int, str, np.ndarray]]) -> int | None:
-        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4)[, interpolation]): LINEAR unless
-        a fourth item says "STEP" (a part shown and hidden by its scale, task 0111)."""
+        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4)[, interpolation[, times]]):
+        LINEAR unless a fourth item says "STEP" (a part shown and hidden by its scale, task 0111); a fifth item is
+        the track's own times (its kept moments, task 0142), else ``times``. Equal time lists share one accessor."""
         if not tracks:
             return None
-        t_acc = self.accessor(np.asarray(times, np.float32), "SCALAR", FLOAT, minmax=True)
+        inputs: dict = {}
+
+        def time_input(tm):
+            a = np.asarray(tm, np.float32)
+            key = (len(a), a.tobytes())
+            if key not in inputs:
+                inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True)
+            return inputs[key]
+
         anim = {"name": name, "samplers": [], "channels": []}
         for track in tracks:
             node, path, values = track[:3]
             kind = "VEC4" if path == "rotation" else "VEC3"
-            anim["samplers"].append({"input": t_acc, "interpolation": track[3] if len(track) > 3 else "LINEAR",
+            src = time_input(track[4] if len(track) > 4 and track[4] is not None else times)
+            anim["samplers"].append({"input": src, "interpolation": track[3] if len(track) > 3 else "LINEAR",
                                      "output": self.accessor(np.asarray(values, np.float32), kind, FLOAT)})
             anim["channels"].append({"sampler": len(anim["samplers"]) - 1, "target": {"node": node, "path": path}})
         self.doc.setdefault("animations", []).append(anim)
