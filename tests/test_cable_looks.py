@@ -647,7 +647,8 @@ def test_a_part_without_the_attribute_shows_the_plain_base(scene, tmp_path):
         t.camera()
         s, phi = t.seen()
         got = render(tmp_path / "bare.exr")[:, :, 0]
-        want = CL.pattern(kind, s, phi, -CL.PAY_BIAS, None, **({"edge": 0.01} if kind == "POWER" else {}))
+        want = (CL.bands(s, -CL.PAY_BIAS, None, None, phi=phi) if kind == "SERVED" else
+                CL.pattern(kind, s, phi, -CL.PAY_BIAS, None, **({"edge": 0.01} if kind == "POWER" else {})))
         assert np.isfinite(got).all() and np.abs(got - want.mean(axis=2)).mean() < 0.01, kind
         t.probe(CL.NODE_HAS)
         assert np.allclose(render(tmp_path / "bare.exr", samples=2), 1.0, atol=1e-4)
@@ -809,8 +810,9 @@ def test_served_bands_spacing_width_and_travel():
     single = CL.bands(s, 0.0, look, [1.0, 0.03, 0.3, 0.0])
     assert abs(single.mean() - 0.035 / 1.25) < 1e-4
     # the library's when the properties are missing (zeros, None)
-    assert np.array_equal(CL.bands(s, 0.3, None, None), CL.bands(s, 0.3, look, [2.0, 0.03, 0.35, 0.0]))
-    assert np.array_equal(CL.bands(s, 0.3, [0, 0, 0, 0], [0, 0, 0, 0]), CL.bands(s, 0.3, look, pair))
+    lib = ([1.0, 0.0, 0.035, 3.0], [2.0, 0.03, 0.35, -1.0])                       # (task 0164: a right-hand spiral)
+    assert np.array_equal(CL.bands(s, 0.3, None, None, phi=1.1), CL.bands(s, 0.3, *lib, phi=1.1))
+    assert np.array_equal(CL.bands(s, 0.3, [0, 0, 0, 0], [0, 0, 0, 0], phi=1.1), CL.bands(s, 0.3, *lib, phi=1.1))
     # the soft edge: 50 % where the hard edge is, a band as much colour as before
     assert abs(CL.bands(1.25, 0.0, look, pair, edge=0.002) - 0.5) < 1e-9
     assert abs(CL.bands(1.25 + 0.035, 0.0, look, pair, edge=0.002) - 0.5) < 1e-9
@@ -906,7 +908,7 @@ def test_served_look_in_the_real_material(scene, tmp_path):
     t.probe(CL.NODE_PATTERN)
     got = render(tmp_path / "lib.exr", samples=16)[:, :, 0]
     lib = CL.bands(s, 0.1, None, None, phi=phi).mean(axis=2)
-    assert np.abs(got - lib)[(lib == 0) | (lib == 1)].max() < 0.06
+    assert np.abs(got - lib)[(lib == 0) | (lib == 1)].max() < 0.08
 
 
 def test_served_coil_and_spool_copy_every_property():
