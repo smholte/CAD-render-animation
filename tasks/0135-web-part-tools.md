@@ -122,6 +122,13 @@ Everything 0134 does; weather on the page (0115).
 - Existing tests run locally: test_web_player, test_web3d, test_web3d_core, test_web3d_env, test_web3d_under,
   test_web3d_light_page, test_site, test_functions, test_user_guide; tooltip report 820/820; precheck.
 
+**GitHub runs:** 2. The first (run 43946227785, pushed early so the run went while the independent tester worked)
+failed only in `test_updates` – the CHANGELOG already had the new heading while the version was not raised yet, as
+expected. The second (run 43949283676, 0.2.131 after merging `main`, which 0166 had taken 0.2.130 on) green;
+`main` fast-forwarded to it with only `TASKS.md` / `tasks/` on top (docs mode).
+
+**Subagents:** one independent tester (findings above); no writers.
+
 **Open points / follow-up tasks:**
 - The measurement's numbers and the card are page elements: a Screenshot (S) shows the lines, not the numbers.
 - The link to a view (L) does not carry the tools' state (cut, measurement).
