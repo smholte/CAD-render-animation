@@ -1,80 +1,80 @@
 {
  "_about": "Recorded times for the automatic tests (task 0036). pytest_files: seconds per test file, used by tools/ci_groups.py to balance the parallel pytest groups. jobs: minutes per job, ci_status.py flags a job that takes more than 1.5 x its time. Update both from a green full run: python3 tools/ci_status.py --run <id> --record",
- "recorded_from": "run 43848592354 (ccr-5bfdc6c9-l2tm60 @ 3c4bb7d, 2026-11-16)",
+ "recorded_from": "run 43971629369 (task/0167-heightmap-follow-ups @ 41338c4, 2026-11-16)",
  "pytest_files": {
   "tests/test_joint_batch.py": 10.3,
-  "tests/test_blender.py": 16.4,
-  "tests/test_chips.py": 129.8,
+  "tests/test_blender.py": 20.1,
+  "tests/test_chips.py": 162.0,
   "tests/test_chips_core.py": 5.1,
   "tests/test_ci_tools.py": 1.8,
   "tests/test_core.py": 0.0,
   "tests/test_couplings.py": 33.3,
   "tests/test_cylinders.py": 27.5,
   "tests/test_cylinders_core.py": 0.0,
-  "tests/test_decals.py": 35.1,
-  "tests/test_decals_core.py": 2.4,
-  "tests/test_faces.py": 24.0,
+  "tests/test_decals.py": 35.0,
+  "tests/test_decals_core.py": 2.7,
+  "tests/test_faces.py": 24.4,
   "tests/test_fasteners.py": 0.0,
   "tests/test_importer.py": 10.5,
-  "tests/test_linkages.py": 16.6,
+  "tests/test_linkages.py": 20.3,
   "tests/test_linkages_core.py": 0.4,
   "tests/test_machining.py": 213.3,
-  "tests/test_machining_core.py": 2.4,
+  "tests/test_machining_core.py": 2.2,
   "tests/test_panels.py": 11.3,
-  "tests/test_part_types.py": 1.8,
-  "tests/test_part_types_blender.py": 4.5,
+  "tests/test_part_types.py": 2.5,
+  "tests/test_part_types_blender.py": 4.7,
   "tests/test_pccheck.py": 1.9,
   "tests/test_phase2.py": 311.2,
   "tests/test_rule_sets.py": 26.7,
-  "tests/test_stacked_joints.py": 12.4,
+  "tests/test_stacked_joints.py": 13.8,
   "tests/test_step_meta.py": 1.2,
-  "tests/test_studio_cameras.py": 110.3,
+  "tests/test_studio_cameras.py": 103.2,
   "tests/test_surroundings.py": 82.1,
-  "tests/test_updates.py": 13.7,
-  "tests/test_updates_blender.py": 0.0,
-  "tests/test_user_guide.py": 0.4,
+  "tests/test_updates.py": 13.9,
+  "tests/test_updates_blender.py": 0.1,
+  "tests/test_user_guide.py": 0.5,
   "tests/test_video.py": 201.6,
   "tests/test_video_labels.py": 404.6,
-  "tests/test_waycover.py": 24.2,
+  "tests/test_waycover.py": 32.6,
   "packaged self-test": 143.0,
   "tests/test_air.py": 677.0,
   "tests/test_air_core.py": 3.0,
-  "tests/test_idprops.py": 283.1,
+  "tests/test_idprops.py": 286.3,
   "tests/test_gcode.py": 36.5,
   "tests/test_gcode_core.py": 1.8,
-  "tests/test_looks_fixes.py": 4.1,
+  "tests/test_looks_fixes.py": 4.2,
   "tests/test_site.py": 12.4,
   "tests/test_tools_core.py": 0.0,
   "tests/test_model_update.py": 22.1,
   "tests/test_toolchange_core.py": 0.0,
-  "tests/test_same_step_twice.py": 7.7,
+  "tests/test_same_step_twice.py": 10.2,
   "tests/test_tools.py": 22.3,
   "tests/test_materials_look.py": 11.0,
-  "tests/test_toolchange.py": 16.1,
+  "tests/test_toolchange.py": 22.6,
   "tests/test_web_setup.py": 0.0,
   "tests/test_queue_fixes.py": 13.6,
   "tests/test_tour.py": 412.3,
-  "tests/test_coolant.py": 12.3,
+  "tests/test_coolant.py": 13.1,
   "tests/test_coolant_core.py": 0.0,
   "tests/test_queue_delayed.py": 5.9,
   "tests/test_gcode_rotary_core.py": 0.0,
   "tests/test_clash.py": 71.7,
-  "tests/test_tour_clash.py": 331.9,
+  "tests/test_tour_clash.py": 417.5,
   "tests/test_doublearm_core.py": 0.0,
-  "tests/test_doublearm.py": 8.9,
+  "tests/test_doublearm.py": 10.6,
   "tests/test_clash_core.py": 19.6,
   "tests/test_rotary.py": 40.2,
-  "tests/test_fade.py": 16.4,
+  "tests/test_fade.py": 16.0,
   "tests/test_toolpath_core.py": 22.8,
   "tests/test_demo_cable_lay.py": 249.4,
   "tests/test_machining_fixes.py": 22.3,
-  "tests/test_queue_safety.py": 8.6,
-  "tests/test_toolpath.py": 119.8,
+  "tests/test_queue_safety.py": 8.1,
+  "tests/test_toolpath.py": 123.7,
   "tests/test_facets.py": 3.5,
   "tests/test_queue_schemes.py": 7.4,
   "tests/test_section.py": 28.9,
-  "tests/test_hover.py": 3.1,
-  "tests/test_camera_ride.py": 16.1,
+  "tests/test_hover.py": 4.1,
+  "tests/test_camera_ride.py": 12.6,
   "tests/test_vessel_motion.py": 63.0,
   "tests/test_demo_project.py": 176.5,
   "tests/test_flex_panel.py": 17.8,
@@ -89,154 +89,174 @@
   "tests/test_web3d.py": 18.2,
   "tests/test_flex_core.py": 18.2,
   "tests/test_paths_independent.py": 30.7,
-  "tests/test_toolmarks_done.py": 45.0,
-  "tests/test_clash_turning.py": 3.7,
-  "tests/test_flex_chain_core.py": 12.2,
+  "tests/test_toolmarks_done.py": 43.5,
+  "tests/test_clash_turning.py": 4.7,
+  "tests/test_flex_chain_core.py": 6.5,
   "tests/test_paths_core.py": 121.6,
-  "tests/test_toolmarks.py": 9.6,
-  "tests/test_cable_looks.py": 7.7,
+  "tests/test_toolmarks.py": 12.5,
+  "tests/test_cable_looks.py": 12.0,
   "tests/test_flex.py": 46.2,
   "tests/test_paths.py": 159.1,
   "tests/test_sequence.py": 23.9,
-  "tests/test_demo_clash.py": 514.2,
+  "tests/test_demo_clash.py": 545.5,
   "tests/test_spool_model.py": 9.2,
   "tests/test_meshopt.py": 0.0,
   "tests/test_spool_core.py": 2.7,
   "tests/test_spool.py": 8.5,
-  "tests/test_joint_table.py": 4.7,
-  "tests/test_spool_independent.py": 38.1,
+  "tests/test_joint_table.py": 5.1,
+  "tests/test_spool_independent.py": 44.0,
   "tests/test_gcode_accel.py": 2.3,
   "tests/test_site_projects.py": 409.3,
-  "tests/test_render_kit.py": 551.6,
+  "tests/test_render_kit.py": 544.3,
   "tests/test_site_take.py": 0.0,
   "tests/test_paths_sea_independent.py": 63.6,
   "tests/test_weather.py": 15.4,
   "tests/test_fixes_0120.py": 10.5,
-  "tests/test_lightbake.py": 43.2,
+  "tests/test_lightbake.py": 39.7,
   "tests/test_mesh_import.py": 12.2,
-  "tests/test_sea.py": 27.4,
+  "tests/test_sea.py": 31.0,
   "tests/test_weather_core.py": 0.1,
   "tests/test_functions.py": 8.6,
   "tests/test_lightbake_break.py": 113.2,
-  "tests/test_mesh_independent.py": 6.9,
-  "tests/test_sea_cutaway.py": 18.1,
-  "tests/test_weather_fx.py": 12.3,
+  "tests/test_mesh_independent.py": 7.3,
+  "tests/test_sea_cutaway.py": 27.2,
+  "tests/test_weather_fx.py": 14.4,
   "tests/test_house_pinned.py": 0.0,
   "tests/test_make_test_moving.py": 9.3,
   "tests/test_motion_fixes.py": 19.8,
   "tests/test_site_turbine_standin.py": 279.5,
   "tests/test_weather_sky.py": 25.9,
   "tests/test_catenary.py": 0.6,
-  "tests/test_house_scene.py": 1.7,
+  "tests/test_house_scene.py": 1.8,
   "tests/test_marine_looks.py": 1.4,
   "tests/test_paths_moving_independent.py": 88.8,
   "tests/test_tracks_core.py": 0.3,
   "tests/test_web3d_env_blender.py": 31.8,
-  "tests/test_house_independent.py": 43.1,
+  "tests/test_house_independent.py": 55.9,
   "tests/test_lightmap.py": 5.3,
   "tests/test_model_update_cables.py": 17.3,
-  "tests/test_site_turbine_parts.py": 15.1,
+  "tests/test_site_turbine_parts.py": 15.5,
   "tests/test_weather_look.py": 3.7,
-  "tests/test_house_sample_bake.py": 0.3,
+  "tests/test_house_sample_bake.py": 0.4,
   "tests/test_make_test_sea.py": 13.7,
   "tests/test_paths_moving.py": 29.8,
   "tests/test_tracks.py": 4.1,
   "tests/test_web3d_env.py": 0.9,
   "tests/test_house_blender.py": 181.1,
-  "tests/test_lightbake_sizes.py": 3.3,
+  "tests/test_lightbake_sizes.py": 4.3,
   "tests/test_mesh_reader.py": 3.9,
   "tests/test_site_turbine.py": 0.0,
   "tests/test_weather_independent.py": 85.8,
-  "tests/test_clash_faster.py": 39.4,
+  "tests/test_clash_faster.py": 40.4,
   "tests/test_house_snow.py": 1.1,
-  "tests/test_mesh_faces.py": 2.3,
-  "tests/test_paths_sea.py": 16.2,
-  "tests/test_tracks_independent.py": 19.6,
+  "tests/test_mesh_faces.py": 2.5,
+  "tests/test_paths_sea.py": 18.9,
+  "tests/test_tracks_independent.py": 20.2,
   "tests/test_web3d_light_page.py": 14.8,
   "tests/test_paths_rollers.py": 4.8,
   "tests/test_kit_window.py": 3.3,
-  "tests/test_mesh_import_fixes.py": 21.4,
+  "tests/test_mesh_import_fixes.py": 25.2,
   "tests/test_blade_erosion.py": 0.3,
   "tests/test_paths_swivel.py": 2.5,
-  "tests/test_web3d_bake_safe.py": 8.6,
+  "tests/test_web3d_bake_safe.py": 42.6,
   "tests/test_paths_kept.py": 22.1,
   "tests/test_paths_settle.py": 6.7,
-  "tests/test_motion_extras_independent.py": 30.4,
+  "tests/test_motion_extras_independent.py": 33.6,
   "tests/test_house_sun_light.py": 26.5,
   "tests/test_web_player.py": 5.0,
   "tests/test_demo_project_cable.py": 155.6,
   "tests/test_demo_project_cps.py": 223.8,
-  "tests/test_demo_project_quadrant.py": 205.0,
-  "tests/test_demo_project_lowering.py": 446.5,
+  "tests/test_demo_project_quadrant.py": 195.9,
+  "tests/test_demo_project_lowering.py": 357.0,
   "tests/test_build_any_frame.py": 35.1,
   "tests/test_demo_clash_b.py": 545.2,
   "tests/test_web3d_tubes_core.py": 2.1,
-  "tests/test_web3d_moving_break.py": 72.6,
+  "tests/test_web3d_moving_break.py": 92.2,
   "tests/test_heightmap.py": 24.6,
-  "tests/test_heightmap_independent.py": 183.3,
-  "tests/test_web3d_moving.py": 46.0
+  "tests/test_heightmap_independent.py": 192.7,
+  "tests/test_web3d_moving.py": 46.0,
+  "tests/test_cable_speed.py": 5.9,
+  "tests/test_sea_after_build.py": 56.4,
+  "tests/test_cable_renames.py": 34.8,
+  "tests/test_read_places.py": 0.3,
+  "tests/test_web3d_under_blender.py": 6.2,
+  "tests/test_heightmesh.py": 0.3,
+  "tests/test_served_cable_independent.py": 4.1,
+  "tests/test_people_independent.py": 16.6,
+  "tests/test_web3d_own_bake.py": 202.7,
+  "tests/test_demo_vessel.py": 45.2,
+  "tests/test_seq_mesh_0162_independent.py": 32.8,
+  "tests/test_people.py": 8.2,
+  "tests/test_vessel_work.py": 38.3,
+  "tests/test_heightmesh_independent.py": 31.7,
+  "tests/test_task0163_fixes.py": 0.1,
+  "tests/test_people_blender_independent.py": 24.6,
+  "tests/test_vessel_work_independent.py": 77.6,
+  "tests/test_props_scale.py": 1.7,
+  "tests/test_web3d_under.py": 0.7,
+  "tests/test_demo_project_rebake.py": 241.2
  },
  "jobs": {
-  "Precheck (version, counts, groups; picks the mode)": 0.5,
-  "Linux - test suite 1": 7.4,
-  "Linux - real app pccheck": 10.3,
-  "Linux - real app motion": 7.0,
-  "Linux - test suite 2": 11.7,
-  "Build the Windows installer zip": 0.7,
-  "Linux - test suite 4": 12.5,
-  "Linux - test suite 3 + packaged self-test": 10.8,
-  "Linux - real app ui": 8.0,
-  "Linux - real app callouts": 6.7,
-  "Linux - real app scenes": 7.0,
-  "Windows - install + self-test": 18.6,
+  "Precheck (version, counts, groups; picks the mode)": 0.3,
+  "Linux - test suite 1": 15.3,
+  "Linux - real app pccheck": 13.9,
+  "Linux - real app motion": 7.1,
+  "Linux - test suite 2": 14.8,
+  "Build the Windows installer zip": 1.4,
+  "Linux - test suite 4": 13.8,
+  "Linux - test suite 3 + packaged self-test": 13.4,
+  "Linux - real app ui": 7.7,
+  "Linux - real app callouts": 7.0,
+  "Linux - real app scenes": 7.9,
+  "Windows - install + self-test": 12.6,
   "Linux - test suite 4 + packaged self-test": 9.2,
   "Linux - test suite 3": 9.7,
-  "Linux - real app paths-heavy": 10.3,
+  "Linux - real app paths-heavy": 10.0,
   "Linux - test suite 2 + packaged self-test": 15.8,
-  "Linux - real app tour": 6.8,
+  "Linux - real app tour": 9.7,
   "Publish the release (new version on main)": 0.2,
   "Windows - an installed old version updates itself from the release": 0.9,
   "Offer the release to the apps (make it the newest release)": 0.1,
   "Landing page (GitHub Pages, task 0047) / Build and publish the landing page": 0.3,
-  "Linux - real app pccheck-b": 8.1,
-  "Linux - test suite 5": 23.2,
+  "Linux - real app pccheck-b": 9.1,
+  "Linux - test suite 5": 10.9,
   "Linux - test suite 6 + packaged self-test": 10.5,
-  "Linux - test suite 7": 14.9,
-  "Linux - real app machines": 9.2,
-  "Linux - test suite 6": 8.6,
+  "Linux - test suite 7": 11.5,
+  "Linux - real app machines": 7.8,
+  "Linux - test suite 6": 17.1,
   "Linux - test suite 7 + packaged self-test": 6.1,
   "Linux - test suite 5 + packaged self-test": 7.8,
   "Tests - verdict": 0.1,
-  "Linux - test suite 8": 12.7,
-  "Linux - real app tour-b": 6.1,
-  "Linux - test suite 9": 15.7,
+  "Linux - test suite 8": 20.5,
+  "Linux - real app tour-b": 6.5,
+  "Linux - test suite 9": 13.4,
   "Linux - test suite 8 + packaged self-test": 16.1,
-  "Linux - make the demo project": 5.0,
-  "Linux - test suite demo 1": 5.8,
-  "Linux - test suite demo 2": 12.1,
-  "Linux - test suite demo 3": 11.8,
-  "Linux - test suite demo 4": 7.5
+  "Linux - make the demo project": 3.7,
+  "Linux - test suite demo 1": 9.0,
+  "Linux - test suite demo 2": 14.0,
+  "Linux - test suite demo 3": 7.3,
+  "Linux - test suite demo 4": 8.8
  },
  "pytest_history": {
   "tests/test_air.py": [
-   373.8,
    377.2,
-   677.0
+   677.0,
+   612.4
   ],
   "tests/test_blender.py": [
-   15.8,
    16.4,
-   15.2
+   15.2,
+   20.1
   ],
   "tests/test_chips_core.py": [
-   2.7,
    5.1,
-   3.4
+   3.4,
+   4.6
   ],
   "tests/test_ci_tools.py": [
-   0.8,
    1.2,
-   1.8
+   1.8,
+   1.1
   ],
   "tests/test_core.py": [
    0.0,
@@ -244,9 +264,9 @@
    0.0
   ],
   "tests/test_cylinders.py": [
-   20.6,
    27.5,
-   27.2
+   27.2,
+   26.5
   ],
   "tests/test_cylinders_core.py": [
    0.0,
@@ -254,9 +274,9 @@
    0.0
   ],
   "tests/test_decals_core.py": [
-   2.4,
    1.9,
-   1.7
+   1.7,
+   2.7
   ],
   "tests/test_fasteners.py": [
    0.0,
@@ -264,28 +284,28 @@
    0.0
   ],
   "tests/test_gcode.py": [
-   25.1,
    36.0,
-   36.5
+   36.5,
+   26.4
   ],
   "tests/test_linkages.py": [
-   16.6,
    15.5,
-   16.2
+   16.2,
+   20.3
   ],
   "tests/test_queue_delayed.py": [
-   4.8,
    4.7,
-   5.9
+   5.9,
+   4.7
   ],
   "tests/test_same_step_twice.py": [
-   7.5,
    7.7,
-   6.3
+   6.3,
+   10.2
   ],
   "tests/test_step_meta.py": [
-   0.9,
    1.2,
+   1.0,
    1.0
   ],
   "tests/test_toolchange_core.py": [
@@ -301,7 +321,7 @@
   "tests/test_updates_blender.py": [
    0.0,
    0.0,
-   0.0
+   0.1
   ],
   "tests/test_web_setup.py": [
    0.0,
@@ -309,79 +329,79 @@
    0.0
   ],
   "packaged self-test": [
-   83.0,
    143.0,
-   84.0
+   84.0,
+   85.0
   ],
   "tests/test_chips.py": [
-   87.9,
    108.7,
-   129.8
+   129.8,
+   162.0
   ],
   "tests/test_coolant.py": [
-   10.5,
    9.6,
-   12.3
+   12.3,
+   13.1
   ],
   "tests/test_couplings.py": [
-   24.2,
    23.6,
-   33.3
+   33.3,
+   32.8
   ],
   "tests/test_decals.py": [
-   35.1,
    35.0,
-   24.7
+   24.7,
+   24.1
   ],
   "tests/test_importer.py": [
-   7.9,
    10.5,
-   10.5
+   10.5,
+   10.0
   ],
   "tests/test_linkages_core.py": [
-   0.3,
    0.4,
-   0.4
+   0.4,
+   0.3
   ],
   "tests/test_looks_fixes.py": [
    4.1,
-   4.1,
-   3.3
+   3.3,
+   4.2
   ],
   "tests/test_machining.py": [
-   165.3,
    118.5,
-   213.3
+   213.3,
+   212.0
   ],
   "tests/test_materials_look.py": [
-   8.7,
    11.0,
-   6.3
+   6.3,
+   8.3
   ],
   "tests/test_model_update.py": [
-   17.2,
    22.1,
-   17.8
+   17.8,
+   17.5
   ],
   "tests/test_part_types.py": [
    1.5,
-   1.5,
-   1.8
+   1.8,
+   2.5
   ],
   "tests/test_tour.py": [
-   322.3,
    412.3,
-   296.8
+   296.8,
+   321.9
   ],
   "tests/test_video.py": [
-   156.7,
    199.4,
-   201.6
+   201.6,
+   108.9
   ],
   "tests/test_air_core.py": [
-   2.0,
    1.8,
-   3.0
+   3.0,
+   1.7
   ],
   "tests/test_coolant_core.py": [
    0.0,
@@ -389,104 +409,104 @@
    0.0
   ],
   "tests/test_machining_core.py": [
-   2.4,
    2.2,
-   1.7
+   1.7,
+   2.2
   ],
   "tests/test_part_types_blender.py": [
-   3.3,
    4.2,
-   4.5
+   4.5,
+   4.7
   ],
   "tests/test_rule_sets.py": [
-   20.0,
    23.6,
-   26.7
+   26.7,
+   26.5
   ],
   "tests/test_stacked_joints.py": [
-   12.0,
    12.4,
-   10.6
+   10.6,
+   13.8
   ],
   "tests/test_studio_cameras.py": [
-   110.3,
    75.1,
-   74.5
+   74.5,
+   103.2
   ],
   "tests/test_toolchange.py": [
-   15.4,
    16.1,
-   13.8
+   13.8,
+   22.6
   ],
   "tests/test_updates.py": [
    13.7,
-   13.7,
-   12.7
+   12.7,
+   13.9
   ],
   "tests/test_user_guide.py": [
    0.4,
-   0.4,
-   0.2
+   0.2,
+   0.5
   ],
   "tests/test_video_labels.py": [
-   216.3,
    404.6,
-   224.6
+   224.6,
+   215.8
   ],
   "tests/test_faces.py": [
-   15.3,
    24.0,
-   14.9
+   14.9,
+   24.4
   ],
   "tests/test_gcode_core.py": [
-   1.1,
    1.8,
-   0.8
+   0.8,
+   1.4
   ],
   "tests/test_idprops.py": [
-   151.4,
    154.7,
-   283.1
+   283.1,
+   286.3
   ],
   "tests/test_panels.py": [
-   9.3,
    9.7,
-   11.3
+   11.3,
+   11.2
   ],
   "tests/test_pccheck.py": [
-   1.4,
    1.9,
-   1.9
+   1.9,
+   1.5
   ],
   "tests/test_phase2.py": [
-   176.2,
    239.5,
-   311.2
+   311.2,
+   173.1
   ],
   "tests/test_queue_fixes.py": [
-   9.8,
    8.7,
-   13.6
+   13.6,
+   9.5
   ],
   "tests/test_site.py": [
-   7.8,
    12.4,
-   8.7
+   8.7,
+   11.6
   ],
   "tests/test_surroundings.py": [
-   68.7,
    82.1,
-   56.5
+   56.5,
+   69.2
   ],
   "tests/test_tools.py": [
-   21.6,
    16.0,
-   22.3
+   22.3,
+   21.5
   ],
   "tests/test_waycover.py": [
-   24.1,
    24.2,
-   24.2
+   24.2,
+   32.6
   ],
   "tests/test_gcode_rotary_core.py": [
    0.0,
@@ -494,14 +514,14 @@
    0.0
   ],
   "tests/test_clash.py": [
-   45.7,
    71.7,
-   71.4
+   71.4,
+   48.0
   ],
   "tests/test_tour_clash.py": [
-   255.5,
    331.9,
-   207.6
+   207.6,
+   417.5
   ],
   "tests/test_doublearm_core.py": [
    0.0,
@@ -509,94 +529,94 @@
    0.0
   ],
   "tests/test_doublearm.py": [
-   7.6,
    7.9,
-   8.9
+   8.9,
+   10.6
   ],
   "tests/test_clash_core.py": [
-   11.5,
    17.4,
-   19.6
+   19.6,
+   17.5
   ],
   "tests/test_rotary.py": [
-   29.9,
    37.5,
-   40.2
+   40.2,
+   30.4
   ],
   "tests/test_fade.py": [
-   16.4,
    15.9,
-   13.9
+   13.9,
+   16.0
   ],
   "tests/test_toolpath_core.py": [
-   22.3,
    22.8,
-   22.8
+   22.8,
+   22.4
   ],
   "tests/test_demo_cable_lay.py": [
-   215.7,
    248.6,
-   249.4
+   249.4,
+   245.8
   ],
   "tests/test_machining_fixes.py": [
-   21.4,
    22.3,
-   21.0
+   21.0,
+   20.0
   ],
   "tests/test_queue_safety.py": [
-   8.6,
    6.8,
-   6.0
+   6.0,
+   8.1
   ],
   "tests/test_toolpath.py": [
-   100.0,
    102.7,
-   119.8
+   119.8,
+   123.7
   ],
   "tests/test_facets.py": [
-   3.3,
    3.5,
-   1.5
+   1.5,
+   2.5
   ],
   "tests/test_queue_schemes.py": [
-   6.4,
    7.4,
-   5.4
+   5.4,
+   7.3
   ],
   "tests/test_section.py": [
-   27.3,
    28.9,
-   22.0
+   22.0,
+   26.5
   ],
   "tests/test_hover.py": [
-   3.1,
    1.9,
-   1.9
+   1.9,
+   4.1
   ],
   "tests/test_camera_ride.py": [
-   16.1,
    12.6,
-   8.5
+   8.5,
+   12.2
   ],
   "tests/test_vessel_motion.py": [
-   45.5,
    63.0,
-   47.2
+   47.2,
+   53.6
   ],
   "tests/test_demo_project.py": [
-   115.6,
    176.5,
-   166.5
+   166.5,
+   104.1
   ],
   "tests/test_flex_panel.py": [
-   13.6,
    16.9,
-   17.8
+   17.8,
+   11.5
   ],
   "tests/test_product_video.py": [
    6.1,
-   6.1,
-   7.3
+   7.3,
+   6.1
   ],
   "tests/test_web3d_core.py": [
    0.0,
@@ -604,108 +624,109 @@
    0.0
   ],
   "tests/test_flex_fit.py": [
-   11.6,
    16.8,
-   16.2
+   16.2,
+   14.0
   ],
   "tests/test_paths_model.py": [
-   5.5,
    8.0,
-   4.0
+   4.0,
+   7.2
   ],
   "tests/test_toolmarks_moves.py": [
-   4.0,
    8.4,
-   4.6
+   4.6,
+   4.1
   ],
   "tests/test_cut_normals.py": [
-   3.3,
    4.4,
-   1.9
+   1.9,
+   2.6
   ],
   "tests/test_flex_independent.py": [
-   32.9,
    34.0,
-   33.8
+   33.8,
+   28.3
   ],
   "tests/test_paths_panel.py": [
-   19.9,
    34.7,
-   15.9
+   15.9,
+   28.1
   ],
   "tests/test_web3d.py": [
-   13.9,
    18.2,
-   13.0
+   13.0,
+   12.5
   ],
   "tests/test_flex_core.py": [
-   12.7,
    18.2,
-   11.5
+   11.5,
+   12.2
   ],
   "tests/test_paths_independent.py": [
-   20.0,
    30.7,
-   20.0
+   20.0,
+   20.7
   ],
   "tests/test_toolmarks_done.py": [
-   45.0,
    37.2,
-   36.2
+   36.2,
+   43.5
   ],
   "tests/test_clash_turning.py": [
-   3.6,
    3.1,
-   3.7
+   3.7,
+   4.7
   ],
   "tests/test_flex_chain_core.py": [
-   12.2,
    6.5,
-   5.7
+   5.7,
+   6.5
   ],
   "tests/test_paths_core.py": [
-   76.2,
    99.8,
-   121.6
+   121.6,
+   87.3
   ],
   "tests/test_toolmarks.py": [
-   9.6,
    9.4,
-   8.7
+   8.7,
+   12.5
   ],
   "tests/test_cable_looks.py": [
-   5.5,
    5.6,
-   7.7
+   7.7,
+   12.0
   ],
   "tests/test_flex.py": [
-   34.1,
    34.7,
-   46.2
+   46.2,
+   33.7
   ],
   "tests/test_joint_batch.py": [
-   8.1,
    10.3,
-   7.1
+   7.1,
+   10.1
   ],
   "tests/test_paths.py": [
-   127.8,
    159.1,
-   98.8
+   98.8,
+   139.8
   ],
   "tests/test_sequence.py": [
-   19.2,
    23.9,
-   14.3
+   14.3,
+   23.1
   ],
   "tests/test_demo_clash.py": [
    296.4,
-   514.2
+   514.2,
+   545.5
   ],
   "tests/test_spool_model.py": [
-   8.1,
    8.3,
-   9.2
+   9.2,
+   8.3
   ],
   "tests/test_meshopt.py": [
    0.0,
@@ -713,94 +734,94 @@
    0.0
   ],
   "tests/test_spool_core.py": [
-   2.0,
    2.4,
-   2.7
+   2.7,
+   1.5
   ],
   "tests/test_spool.py": [
-   8.3,
    8.1,
-   8.5
+   8.5,
+   7.7
   ],
   "tests/test_joint_table.py": [
-   4.7,
    3.5,
-   2.5
+   2.5,
+   5.1
   ],
   "tests/test_spool_independent.py": [
-   35.3,
    38.1,
-   33.6
+   33.6,
+   44.0
   ],
   "tests/test_gcode_accel.py": [
-   1.5,
    1.6,
-   2.3
+   2.3,
+   1.4
   ],
   "tests/test_paths_sea_independent.py": [
-   44.4,
    61.8,
-   63.6
+   63.6,
+   51.3
   ],
   "tests/test_weather.py": [
-   14.1,
    15.4,
-   11.4
+   11.4,
+   14.5
   ],
   "tests/test_fixes_0120.py": [
-   7.4,
    10.5,
-   8.6
+   8.6,
+   9.0
   ],
   "tests/test_lightbake.py": [
-   43.2,
    39.7,
-   33.1
+   33.1,
+   33.9
   ],
   "tests/test_mesh_import.py": [
-   11.9,
    8.6,
-   12.2
+   12.2,
+   8.6
   ],
   "tests/test_sea.py": [
-   26.5,
    27.4,
-   27.3
+   27.3,
+   31.0
   ],
   "tests/test_weather_core.py": [
    0.1,
-   0.1,
+   0.0,
    0.0
   ],
   "tests/test_functions.py": [
-   5.7,
    6.8,
-   8.6
+   8.6,
+   6.4
   ],
   "tests/test_lightbake_break.py": [
-   83.2,
    113.2,
-   74.8
+   74.8,
+   83.1
   ],
   "tests/test_mesh_independent.py": [
    5.2,
-   5.2,
-   6.9
+   6.9,
+   7.3
   ],
   "tests/test_render_kit.py": [
-   551.6,
    220.8,
-   225.8
+   225.8,
+   544.3
   ],
   "tests/test_sea_cutaway.py": [
-   18.1,
    17.9,
-   12.2
+   12.2,
+   27.2
   ],
   "tests/test_weather_fx.py": [
-   9.0,
    12.3,
-   10.9
+   10.9,
+   14.4
   ],
   "tests/test_house_pinned.py": [
    0.0,
@@ -808,99 +829,99 @@
    0.0
   ],
   "tests/test_make_test_moving.py": [
-   6.2,
    9.3,
-   5.4
+   5.4,
+   6.2
   ],
   "tests/test_motion_fixes.py": [
-   16.8,
    19.8,
-   12.2
+   12.2,
+   18.3
   ],
   "tests/test_site_projects.py": [
-   388.2,
    409.3,
-   327.6
+   327.6,
+   391.6
   ],
   "tests/test_site_turbine_standin.py": [
-   234.2,
    279.5,
-   278.9
+   278.9,
+   198.4
   ],
   "tests/test_weather_sky.py": [
-   23.9,
    25.9,
-   25.3
+   25.3,
+   25.8
   ],
   "tests/test_catenary.py": [
    0.4,
-   0.4,
-   0.6
+   0.6,
+   0.2
   ],
   "tests/test_house_scene.py": [
-   1.7,
    1.2,
-   0.8
+   0.8,
+   1.8
   ],
   "tests/test_marine_looks.py": [
-   1.2,
    1.4,
+   1.2,
    1.2
   ],
   "tests/test_paths_moving_independent.py": [
-   71.1,
    88.8,
-   55.5
+   55.5,
+   63.5
   ],
   "tests/test_tracks_core.py": [
-   0.3,
    0.0,
+   0.3,
    0.3
   ],
   "tests/test_web3d_env_blender.py": [
-   28.9,
    31.3,
-   31.8
+   31.8,
+   29.2
   ],
   "tests/test_house_independent.py": [
-   43.1,
    41.7,
-   31.2
+   31.2,
+   55.9
   ],
   "tests/test_lightmap.py": [
-   5.2,
    4.3,
-   5.3
+   5.3,
+   4.0
   ],
   "tests/test_model_update_cables.py": [
-   12.2,
    16.9,
-   17.3
+   17.3,
+   10.8
   ],
   "tests/test_site_turbine_parts.py": [
-   10.7,
    11.0,
-   15.1
+   15.1,
+   15.5
   ],
   "tests/test_weather_look.py": [
-   3.6,
+   3.7,
    3.7,
    3.7
   ],
   "tests/test_house_sample_bake.py": [
    0.3,
    0.3,
-   0.3
+   0.4
   ],
   "tests/test_make_test_sea.py": [
-   13.6,
+   13.7,
    13.7,
    13.7
   ],
   "tests/test_paths_moving.py": [
-   23.9,
    29.8,
-   19.8
+   19.8,
+   21.2
   ],
   "tests/test_site_take.py": [
    0.0,
@@ -908,29 +929,29 @@
    0.0
   ],
   "tests/test_tracks.py": [
-   4.0,
    4.1,
-   2.9
+   2.9,
+   4.1
   ],
   "tests/test_web3d_env.py": [
-   0.2,
    0.3,
-   0.9
+   0.9,
+   0.3
   ],
   "tests/test_house_blender.py": [
-   118.3,
    181.1,
-   139.5
+   139.5,
+   118.0
   ],
   "tests/test_lightbake_sizes.py": [
-   2.7,
    3.3,
-   2.7
+   2.7,
+   4.3
   ],
   "tests/test_mesh_reader.py": [
-   3.4,
    2.9,
-   3.9
+   3.9,
+   3.7
   ],
   "tests/test_site_turbine.py": [
    0.0,
@@ -938,59 +959,59 @@
    0.0
   ],
   "tests/test_weather_independent.py": [
-   84.4,
    85.8,
-   84.1
+   84.1,
+   82.4
   ],
   "tests/test_clash_faster.py": [
-   39.4,
    23.6,
-   23.9
+   23.9,
+   40.4
   ],
   "tests/test_house_snow.py": [
-   0.7,
+   1.1,
    1.1,
    1.1
   ],
   "tests/test_mesh_faces.py": [
-   1.9,
    2.3,
-   1.8
+   1.8,
+   2.5
   ],
   "tests/test_paths_sea.py": [
-   13.9,
    16.2,
-   14.2
+   14.2,
+   18.9
   ],
   "tests/test_tracks_independent.py": [
-   12.0,
    15.6,
-   19.6
+   19.6,
+   20.2
   ],
   "tests/test_web3d_light_page.py": [
-   8.5,
    14.8,
-   5.5
+   5.5,
+   11.4
   ],
   "tests/test_paths_rollers.py": [
-   3.5,
    4.8,
-   3.5
+   3.5,
+   3.3
   ],
   "tests/test_kit_window.py": [
-   0.9,
    3.3,
-   3.0
+   3.0,
+   3.2
   ],
   "tests/test_mesh_import_fixes.py": [
-   13.7,
    21.4,
-   14.2
+   14.2,
+   25.2
   ],
   "tests/test_blade_erosion.py": [
    0.3,
    0.3,
-   0.3
+   0.2
   ],
   "tests/test_paths_swivel.py": [
    2.5,
@@ -1000,76 +1021,142 @@
   "tests/test_web3d_bake_safe.py": [
    8.6,
    8.6,
-   8.6
+   42.6
   ],
   "tests/test_paths_kept.py": [
-   14.1,
    14.6,
-   22.1
+   22.1,
+   13.8
   ],
   "tests/test_paths_settle.py": [
-   3.7,
    4.7,
-   6.7
+   6.7,
+   3.5
   ],
   "tests/test_motion_extras_independent.py": [
-   23.9,
    30.4,
-   23.7
+   23.7,
+   33.6
   ],
   "tests/test_house_sun_light.py": [
-   26.2,
    23.5,
-   26.5
+   26.5,
+   21.3
   ],
   "tests/test_web_player.py": [
-   1.6,
    5.0,
-   4.7
+   4.7,
+   3.2
   ],
   "tests/test_demo_project_cable.py": [
-   116.8,
    102.9,
-   155.6
+   155.6,
+   80.3
   ],
   "tests/test_demo_project_cps.py": [
-   210.8,
    206.4,
-   223.8
+   223.8,
+   199.2
   ],
   "tests/test_demo_project_quadrant.py": [
-   205.0,
    186.5,
-   195.9
+   195.9,
+   164.7
   ],
   "tests/test_demo_project_lowering.py": [
-   446.5,
    357.0,
-   296.5
+   296.5,
+   327.6
   ],
   "tests/test_build_any_frame.py": [
-   24.6,
    35.1,
-   33.6
+   33.6,
+   19.5
   ],
   "tests/test_demo_clash_b.py": [
    334.1,
-   545.2
+   545.2,
+   509.5
   ],
   "tests/test_web3d_tubes_core.py": [
-   2.1
+   2.1,
+   0.0
   ],
   "tests/test_web3d_moving_break.py": [
-   72.6
+   72.6,
+   92.2
   ],
   "tests/test_heightmap.py": [
-   24.6
+   24.6,
+   23.5
   ],
   "tests/test_heightmap_independent.py": [
-   183.3
+   183.3,
+   192.7
   ],
   "tests/test_web3d_moving.py": [
-   46.0
+   46.0,
+   38.7
+  ],
+  "tests/test_cable_speed.py": [
+   5.9
+  ],
+  "tests/test_sea_after_build.py": [
+   56.4
+  ],
+  "tests/test_cable_renames.py": [
+   34.8
+  ],
+  "tests/test_read_places.py": [
+   0.3
+  ],
+  "tests/test_web3d_under_blender.py": [
+   6.2
+  ],
+  "tests/test_heightmesh.py": [
+   0.3
+  ],
+  "tests/test_served_cable_independent.py": [
+   4.1
+  ],
+  "tests/test_people_independent.py": [
+   16.6
+  ],
+  "tests/test_web3d_own_bake.py": [
+   202.7
+  ],
+  "tests/test_demo_vessel.py": [
+   45.2
+  ],
+  "tests/test_seq_mesh_0162_independent.py": [
+   32.8
+  ],
+  "tests/test_people.py": [
+   8.2
+  ],
+  "tests/test_vessel_work.py": [
+   38.3
+  ],
+  "tests/test_heightmesh_independent.py": [
+   31.7
+  ],
+  "tests/test_task0163_fixes.py": [
+   0.1
+  ],
+  "tests/test_people_blender_independent.py": [
+   24.6
+  ],
+  "tests/test_vessel_work_independent.py": [
+   77.6
+  ],
+  "tests/test_props_scale.py": [
+   1.7
+  ],
+  "tests/test_web3d_under.py": [
+   0.7
+  ],
+  "tests/test_demo_project_rebake.py": [
+   241.2
   ]
  }
 }
