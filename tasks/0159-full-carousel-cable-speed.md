@@ -1,6 +1,6 @@
 # 0159 – Full carousel and faster cables: measure and speed up cables, paths and spools
 
-**Who:** worker · **Status:** waiting – starts after 0145 is merged (it splits the demo tests this task changes) · **Branch:** `task/0159-full-carousel-cable-speed`
+**Who:** worker · **Status:** running (worker, 16 Nov) · **Branch:** `ccr-1c319ad6-mm2xz8` (the web session's branch)
 **Started by:** lead chat, 16 Nov 2026 (owner, with photos of a real cable – described below in words; the photos are
 **not** committed: CLAUDE.md section 6) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment
 "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
