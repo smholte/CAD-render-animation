@@ -270,6 +270,7 @@
   function pickAt(x, y) {
     if (!ready) return null;
     var c = three.canvas, w = c.clientWidth || 1, h = c.clientHeight || 1;
+    three.camera.updateMatrixWorld();            // before the first picture the camera's matrix is not set yet
     ray.setFromCamera(new T.Vector2(x / w * 2 - 1, -(y / h) * 2 + 1), three.camera);
     three.scene.updateMatrixWorld();
     var hits = ray.intersectObjects(targets(), false);
@@ -317,6 +318,7 @@
     return new T.Vector3(a[0], a[2], -a[1]).applyMatrix4(three.vessel.matrixWorld);
   }
   function screenOfWorld(v) {
+    three.camera.updateMatrixWorld();
     var p = v.clone().project(three.camera), c = three.canvas;
     return { x: (p.x + 1) / 2 * c.clientWidth, y: (1 - p.y) / 2 * c.clientHeight, behind: p.z > 1 };
   }
