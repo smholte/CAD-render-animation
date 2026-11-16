@@ -532,7 +532,9 @@ def add_cable(scene, name: str = "", joint: str = ""):
     if not joint:
         made = _new_cable_joint(scene, name).name
     scene[SETTLE_STAMP] = 1                    # (a new cable: "Settles in" means what it says, task 0137)
+    scene[ANCHOR_STAMP] = 1                    # (its touch-down is set at the first frame from the start, 0160)
     item = s.cables.add()
+    item["name_was"] = name                    # (first: the rename callback sees nothing renamed, task 0160)
     with _quiet(item):
         item.name = name
         item.joint = joint or made
@@ -2762,6 +2764,50 @@ def changed(scene, item) -> None:
         _riders.sync(scene, item)
 
 
+def cable_renamed(scene, item) -> None:
+    """The cable ``item`` has a new name (``FRCable.name``'s update; task 0160, bug hunt 0147 row 2): the drums and
+    carousels it comes off, the joints the app made for it, its riders' run and its shapes mesh follow. The name they
+    knew is ``name_was`` (set when the cable is made and when an older project opens)."""
+    if scene is None or not hasattr(scene, "fresing"):
+        return
+    old, new = item.name_was, item.name
+    if old == new:
+        return
+    if new and any(it.name == new for it in scene.fresing.cables if it != item):
+        item.name = _unique(scene, new)         # (two cables of one name: their drums could not tell them apart; the
+        return                                  # callback runs again with the free name)
+    item["name_was"] = new
+    if not old:                                 # (a cable of an appended older scene: the one name nothing has)
+        names = {it.name for it in scene.fresing.cables}
+        lost = {sp.cable for sp in scene.fresing.spools if sp.cable and sp.cable not in names}
+        old = lost.pop() if len(lost) == 1 else ""
+    if not old or not new:
+        return
+    from . import paths_riders, spool
+    spool.cable_renamed(scene, old, new)
+    for j in scene.fresing.joints:
+        if j.motion is not None and j.motion.get(TAG) == old:
+            j.motion[TAG] = new
+    run = bpy.data.objects.get(f"{paths_riders.RUN} {old}")
+    if run is not None and run.get(paths_riders.TAG) is not None:
+        run.name = f"{paths_riders.RUN} {new}"
+        run[paths_riders.TAG] = new
+    for ob in scene.objects:
+        if ob.get(paths_riders.TAG) == old:
+            ob[paths_riders.TAG] = new
+    if item.shapes is not None and item.shapes.name.startswith(SHAPES):
+        item.shapes.name = f"{SHAPES} {new}"
+
+
+def version_names(scene) -> None:
+    """Cables of a project made before 0.2.125 have no ``name_was``: they know their own name from now on."""
+    if not hasattr(scene, "fresing"):
+        return
+    for it in scene.fresing.cables:
+        if it.name_was != it.name:
+            it["name_was"] = it.name
+
+
 def joint_renamed(scene, old: str, new: str) -> None:
     """A joint was renamed (joints.rename): the cables' speed joints, the contacts' turn and swivel joints and the
     couplings put aside at Build (swivels, rollers) name it by its new name (task 0137)."""
@@ -3377,6 +3423,10 @@ def bake(scene, anim) -> list[str]:
         flex.drop_read()
         return []
     forget()
+    try:
+        version_scene(scene, live=True)         # an appended older scene: as when it is opened (task 0160)
+    except Exception as exc:                    # a Build never fails over a cable
+        print("Fresing Render: cables not brought up to date:", exc)
     _STATE["busy"] += 1
     try:
         out = _bake(scene)
@@ -3414,39 +3464,28 @@ def motion_changed(scene, force: bool = True) -> None:
     if bpy.app.background:
         _motion_bake(scene)
         return
-    _STATE["motion_scene"] = scene.name
-    _STATE["motion_force"] = force or _STATE.get("motion_force", False)
-    if bpy.app.timers.is_registered(_motion_timer):
-        bpy.app.timers.unregister(_motion_timer)
-    bpy.app.timers.register(_motion_timer, first_interval=flex.MOTION_WAIT)
+    from . import rebake                        # in the window: a long job with progress and Cancel (task 0160)
+    rebake.request(scene, "paths", force)
 
 
-def _motion_bake(scene) -> list[str]:
-    forget()
-    _STATE["busy"] += 1
-    try:
-        out = _bake(scene)
-        _remember_motion(scene)
-        return out
-    except Exception as exc:                    # never break the UI over a cable
-        print("Fresing Render: cables not worked out again:", exc)
-        return []
-    finally:
-        _STATE["busy"] -= 1
-        flex.drop_read()
-
-
-def _motion_timer():
-    try:
-        scene = bpy.data.scenes.get(_STATE.pop("motion_scene", None) or "")
-        force = _STATE.pop("motion_force", False)
-        from . import vessel_motion
-        if scene is not None and _baked(scene) and (force or vessel_motion.moved_since(scene, MOTION_KEY)):
-            _motion_bake(scene)
-            flex._redraw_views()
-    except Exception as exc:
-        print("Fresing Render: cables not worked out again:", exc)
-    return None
+def _motion_bake(scene, kept: bool = False) -> list[str]:
+    """Work the built sea cables out again for a new vessel or seabed motion, from the animation's first frame as
+    Build does (task 0160, bug hunt 0147 row 6: at the last frame shown the second end came out up to 8 m off).
+    ``kept``: the places were read for this re-bake already (the re-bake job). The frame shown comes back once the
+    cables are not busy any more, so it is drawn from the new shapes."""
+    with flex.at_first_frame(scene):
+        forget()
+        _STATE["busy"] += 1
+        try:
+            out = _bake(scene)
+            _remember_motion(scene)
+            return out
+        except Exception as exc:                # never break the UI over a cable
+            print("Fresing Render: cables not worked out again:", exc)
+            return []
+        finally:
+            _STATE["busy"] -= 1
+            flex.drop_read()
 
 
 def after_clear(scene) -> None:
@@ -3727,12 +3766,54 @@ def _on_load(_dummy=None):
     forget()
     for sc in bpy.data.scenes:
         try:
-            version_settle(sc)
+            version_scene(sc)
         except Exception as exc:                # never stop a project from opening
             print("Fresing Render: cables not brought up to date:", exc)
 
 
 SETTLE_STAMP = "fr_cable_settle"        # on the scene: opened (or a cable made) with 0.2.110 or newer (task 0137)
+
+
+ANCHOR_STAMP = "fr_cable_anchor"       # on the scene: its sea cables' touch-down set at the first frame (task 0160)
+
+
+def version_scene(scene, live: bool = False) -> None:
+    """Bring an older project's cables up to date, once per scene: when it opens (``load_post``) and at Build – a
+    scene appended from an older file builds the same in every session (task 0160, bug hunt 0147 row 20).
+    ``live``: Build is running (the places stored are the last Build's)."""
+    version_names(scene)
+    version_anchor(scene, live=live)            # (before the settle: it reads whether the scene is older than 0.2.110)
+    version_settle(scene)
+
+
+def version_anchor(scene, live: bool = False) -> int:
+    """A project last built at a late frame by 0.2.104 – 0.2.112 kept a touch-down set in that frame's pose, and since
+    0.2.113 the same water set again keeps it for good (bug hunt 0147 row 5: up to 73 m off on the demo). Every cable
+    into the sea gets its touch-down at the animation's first frame once (from its layback or tension, as a Build in
+    0.2.113 and newer sets it), then the scene is stamped. Returns how many cables were set."""
+    if scene.get(ANCHOR_STAMP) or not hasattr(scene, "fresing") or scene.get("fr_bake"):
+        return 0
+    # only where the old fault can be: a built animation when it opens (the touch-down a late Build set), and at Build
+    # a scene older than 0.2.110 (never opened since). A touch-down kept on purpose in a pose moved by hand (not built)
+    # is left alone (found by the independent tester).
+    old = not scene.get(SETTLE_STAMP)
+    built = bool(scene.fresing.anim_baked)
+    scene[ANCHOR_STAMP] = 1
+    if not (old if live else built):
+        return 0
+    from . import paths_sea as _sea
+    n = 0
+    for i, it in enumerate(scene.fresing.cables):
+        if not (it.enabled and it.b_kind == "SEA" and _wheels(it)):
+            continue
+        try:
+            if not _sea.anchor(scene, scene.fresing.cables[i], live=live):
+                n += 1
+        except Exception as exc:                # never stop a project from opening or a Build over it
+            print("Fresing Render: touch-down not set again:", exc)
+    if n:
+        forget()
+    return n
 
 
 def version_settle(scene) -> int:

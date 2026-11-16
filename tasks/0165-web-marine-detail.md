@@ -1,6 +1,6 @@
 # 0165 – Web 3D export: a "Marine detail" choice (Normal / Fine) for the marine looks on big parts
 
-**Who:** worker · **Status:** done (0.2.125) · **Branch:** `task/0165-web-marine-detail`
+**Who:** worker · **Status:** done (0.2.126) · **Branch:** `task/0165-web-marine-detail`
 (a session branch `claude/…` is fine – say which in the report)
 **Started by:** lead chat, 16 Nov 2026 (owner's wish after 0161's report: "yes, I want this") ·
 **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation".

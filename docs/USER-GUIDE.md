@@ -1313,10 +1313,18 @@ quadrant or block starts to come up again, so the cable sinks while its carrier 
 A project saved with version 0.2.109 or older opens with **Settles in** at 0 for a cable that was let go and never had
 it set, so it stays where it was let go, as it did then; set it again to let the cable sink.
 
-When you change the vessel motion, the sea state, the bow or the vessel speed (Weather & time) after **Build
-animation**, the hoses and the cables into the sea are worked out again for the new motion by themselves (in a moment,
-once the slider rests). Swivel and Let go of a sheave stay through a model update, **From CAD cable** again and **Add
-contact**, and a renamed joint keeps its place in the cable's settings.
+When you change the vessel motion, the sea state, the bow, the vessel speed (Weather & time) or the water level after
+**Build animation**, the hoses and the cables into the sea are worked out again for the new motion by themselves, from
+the animation's first frame as Build does – whatever frame is shown, the result is what a Build gives. Once the slider
+rests it starts; 4 Motion > Cables and paths and the status bar show how far it is (on the small demo about a minute).
+**Cancel** (or Esc) stops it and takes the built animation off: press **Build animation** again. Swivel and Let go of a
+sheave stay through a model update, **From CAD cable** again and **Add contact**, and a renamed joint keeps its place in
+the cable's settings – also a drum's or carousel's joint, a layer follower's joint, a track's speed or wheel joint;
+a renamed cable keeps its drum or carousel.
+
+A project saved built after a Build at a late frame with 0.2.104 – 0.2.112 opens with its touch-down set again at the
+first frame (it was set in the pose of the frame shown then): Build it once more and the video is right. If such a
+project was saved with Clear keys, type its layback again once.
 
 <a id="swivel"></a>
 #### A sheave on a swivel
@@ -2837,6 +2845,13 @@ camera, background and image size.
    or one of your saved schemes, poses or sets.
 3. **Use** switches to the scene; ↻ overwrites it with what you see now.
 4. **Queue this** or **Queue all** put the scene(s) in 7 Render queue: a set of pictures overnight.
+
+<a id="start-scene"></a>
+**An animation's start scene** (6 Animation > Starts from) is put back at every **Build animation**: also its sea
+state, water level and Weather & time (vessel speed included). When you change one of these after saving that scene,
+the panel where you set it shows "Build puts back the start scene '…': Sea Rough → Calm" with the button **Save into
+start scene**: click it to keep your value. Without it, Build puts the scene's value back and names it in its
+warnings ("Build put back from the start scene 'Overview': Vessel speed 6 kn → 3 kn").
 
 <a id="animation"></a>
 ## 6 Animation – make a video

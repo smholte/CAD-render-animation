@@ -291,6 +291,139 @@ WEATHER_KEYS = ("enabled", "preset", "hour", "use_date", "day", "latitude", "nor
                 "floodlights", "flood_strength", "spray", "flag", "vessel_speed")
 
 
+# what Build puts back from the start scene and says so when it differs (task 0160, bug hunt 0147 row 12): the sea,
+# the water and Weather & time (vessel speed included). Key -> its name in a warning.
+BUILD_KEYS = {"sea_state": "Sea", "water_level": "Water level", "sea_foam": "Foam", "sea_moving": "Moving waves"}
+WEATHER_NAMES = {"enabled": "Weather", "preset": "Weather", "hour": "Time of day", "use_date": "Date", "day": "Day",
+                 "latitude": "Latitude", "north": "North", "clouds": "Clouds", "low_clouds": "Low clouds",
+                 "visibility": "Visibility", "rain": "Rain", "drop_size": "Drop size", "wet": "Wet surfaces",
+                 "snow": "Snow", "snow_cover": "Snow cover", "wind": "Wind", "wind_from": "Wind from",
+                 "wind_ref": "Wind measured", "floodlights": "Floodlights", "flood_strength": "Floodlight strength",
+                 "spray": "Spray", "flag": "Flag", "vessel_speed": "Vessel speed"}
+
+
+def _shown_value(key: str, v) -> str:
+    if isinstance(v, bool):
+        return "on" if v else "off"
+    if isinstance(v, float):
+        text = f"{v:.4g}"
+        return text + (" m" if key == "water_level" else " kn" if key == "weather.vessel_speed" else "")
+    if isinstance(v, list):
+        return ", ".join(f"{x:.3g}" for x in v)
+    return str(v).replace("_", " ").title() if isinstance(v, str) and v.isupper() else str(v)
+
+
+def _differs(a, b) -> bool:
+    if isinstance(a, float) or isinstance(b, float):
+        try:
+            return abs(float(a) - float(b)) > 1e-5
+        except (TypeError, ValueError):
+            return True
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) != len(b) or any(abs(float(x) - float(y)) > 1e-5 for x, y in zip(a, b))
+    return a != b
+
+
+def start_scene_changes(scene, shot_name: str, keys=None) -> list[tuple]:
+    """[(key, name, now, in the start scene)]: the sea, water and weather values that the start scene ``shot_name``
+    would put back at Build because they differ from what is set now (task 0160). ``keys``: only these (``sea_state``,
+    ``water_level``, ``weather`` or ``weather.<name>``); default: all of them. [] when the scene stores none."""
+    s = scene.fresing
+    shot = s.shots.get(shot_name) if shot_name else None
+    if shot is None or not shot.world:
+        return []
+    try:
+        data = json.loads(shot.world)
+    except ValueError:
+        return []
+    out = []
+    for k, name in BUILD_KEYS.items():
+        if k in data and (keys is None or k in keys) and _differs(_plain(getattr(s, k)), data[k]):
+            out.append((k, name, _plain(getattr(s, k)), data[k]))
+    w = data.get("weather")
+    if isinstance(w, dict):
+        now_on = bool(s.weather.enabled)
+        then_on = bool(w.get("enabled", now_on))
+        for k in WEATHER_KEYS:
+            full = f"weather.{k}"
+            if k not in w or (keys is not None and full not in keys and "weather" not in keys):
+                continue
+            if k != "enabled" and not (now_on and then_on):
+                continue                         # (weather off on either side: its settings change nothing seen)
+            now = _plain(getattr(s.weather, k))
+            if _differs(now, w[k]):
+                out.append((full, WEATHER_NAMES.get(k, k.replace("_", " ").capitalize()), now, w[k]))
+    return out
+
+
+_SEEN: dict = {}             # (file, scene) -> the sea / weather values at the last Build or scene switch (task 0160;
+#                              kept in this session only: switching a saved scene leaves no trace on the scene)
+
+
+def _tracked(scene) -> dict:
+    s = scene.fresing
+    out = {k: _plain(getattr(s, k)) for k in BUILD_KEYS}
+    out.update({f"weather.{k}": _plain(getattr(s.weather, k)) for k in WEATHER_KEYS})
+    return out
+
+
+def remember_seen(scene) -> None:
+    """The sea and weather values now are not the owner's own changes (a Build, a saved scene switched to)."""
+    try:
+        _SEEN[(bpy.data.filepath, scene.name)] = _tracked(scene)
+    except Exception:  # noqa: BLE001 - only a note for the next Build's warning
+        pass
+
+
+def set_since_seen(scene, changes) -> list[tuple]:
+    """Of ``changes``, those the owner made since the last Build or scene switch (all when nothing is known)."""
+    seen = _SEEN.get((bpy.data.filepath, scene.name))
+    if seen is None:
+        return list(changes)
+    return [c for c in changes if c[0] not in seen or _differs(c[2], seen[c[0]])]
+
+
+def start_scene_words(changes) -> str:
+    """'Sea Rough → Calm, Vessel speed 6 kn → 3 kn'."""
+    parts = [f"{name} {_shown_value(k, now)} → {_shown_value(k, then)}" for k, name, now, then in changes]
+    if len(parts) > 4:
+        parts = parts[:4] + [f"and {len(parts) - 4} more"]
+    return ", ".join(parts)
+
+
+def start_scene_note(shot_name: str, changes) -> str:
+    """The Build warning when the start scene put back values set after the last Build (task 0160)."""
+    return (f"Build put back from the start scene '{shot_name}': {start_scene_words(changes)}. To keep your values: "
+            f"set them again and press 'Save into start scene' (where you set them), then Build again")
+
+
+def save_into_start_scene(scene, shot_name: str, keys=None) -> list[str]:
+    """Write the sea, water and weather values set now into the start scene ``shot_name`` (only those that differ;
+    ``keys`` as in ``start_scene_changes``). Returns the names of what was saved."""
+    s = scene.fresing
+    shot = s.shots.get(shot_name) if shot_name else None
+    if shot is None:
+        return []
+    changes = start_scene_changes(scene, shot_name, keys)
+    if not changes:
+        return []
+    try:
+        data = json.loads(shot.world) if shot.world else {}
+    except ValueError:
+        data = {}
+    if any(k == "weather.enabled" for k, *_r in changes):  # (switched on: every weather value, not only the tick)
+        data["weather"] = {w: _plain(getattr(s.weather, w)) for w in WEATHER_KEYS}
+        changes = [c for c in changes if not c[0].startswith("weather.")] + \
+            [c for c in changes if c[0] == "weather.enabled"]
+    for k, _name, now, _then in changes:
+        if k.startswith("weather."):
+            data.setdefault("weather", {})[k.split(".", 1)[1]] = now
+        else:
+            data[k] = now
+    shot.world = json.dumps(data)
+    return [name for _k, name, _n, _t in changes]
+
+
 def settings_json(s, keys) -> str:
     return json.dumps({k: ({w: _plain(getattr(s.weather, w)) for w in WEATHER_KEYS} if k == "weather"
                            else _plain(getattr(s, k))) for k in keys})
@@ -428,6 +561,7 @@ def apply_shot(scene, name: str) -> list[str]:
     section.apply_saved(scene, shot.cuts)           # cuts on/off (task 0086); where they are is the pose
     s.active_shot = shot.name
     s.bounds_valid = False
+    remember_seen(scene)                            # (the scene's values: not the owner's own change, task 0160)
     return warnings
 
 

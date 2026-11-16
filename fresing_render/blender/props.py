@@ -2286,6 +2286,12 @@ def _cable_changed(self, context):
     paths.changed(context.scene, self)
 
 
+def _cable_renamed(self, context):
+    """A cable was renamed (double-click in the list): what names it by name follows (task 0160)."""
+    from . import paths
+    paths.cable_renamed(self.id_data, self)
+
+
 def _look_changed(self, context):
     """The look changed: a served cable's band pitch starts at one metre (one turn of the spiral), not the stripe
     distance's default (task 0164); then as any cable setting."""
@@ -2413,7 +2419,9 @@ class FRCableRider(bpy.types.PropertyGroup):
 
 class FRCable(bpy.types.PropertyGroup):
     """A cable or wire rope on its path (task 0078). See blender/paths.py."""
-    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it")
+    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it",
+                         update=_cable_renamed)
+    name_was: StringProperty(default="")                   # the name the things that name it by name know (task 0160)
     enabled: BoolProperty(
         name="On", default=True, update=_cable_changed,
         description="On: the app draws the cable on its path and it moves with the cable speed. Off: the cable "
