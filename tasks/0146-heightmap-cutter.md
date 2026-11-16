@@ -1,6 +1,6 @@
 # 0146 – Faster milling for dense 3-axis programs: a height-map cutter (study 0069 #8)
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0146-heightmap-cutter`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:** `ccr-5bfdc6c9-l2tm60` (the session's branch)
 **Started by:** lead chat, 16 Nov 2026 (owner: start large tasks, a Fable task) · **Model:** Fable · effort High ·
 **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2):
 interfaces first; an independent tester that did not write the cutter.
