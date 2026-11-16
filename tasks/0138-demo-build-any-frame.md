@@ -1,6 +1,6 @@
 # 0138 – Fix: the demo's Build gives a different result depending on the frame shown
 
-**Who:** worker · **Status:** waiting – starts after 0137 is merged (same files) · **Branch:** `task/0138-demo-build-any-frame`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:** `task/0138-demo-build-any-frame`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Opus · effort Medium (cause found by study 0141) · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Flex parts lane / Demo models lane):** what the second end, its CPS, the riders and let go read at Build (`paths*.py`, `demo.py` stages only if the cause is there), their tests.
