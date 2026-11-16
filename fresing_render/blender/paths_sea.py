@@ -791,6 +791,8 @@ def weather_changed(scene) -> None:
     if any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" for it in scene.fresing.cables):
         sync_bed(scene)
         _paths().refresh(scene)
+        from . import vessel_motion             # a built animation: worked out again for the new speed (task 0137)
+        vessel_motion.follow(scene, force=False)
 
 
 def water_changed(scene) -> None:
