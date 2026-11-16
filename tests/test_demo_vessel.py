@@ -1,0 +1,208 @@
+"""Task 0153: the demo's vessel in detail (fresing_render/demo_model/vessel.py) – hull, superstructure, propulsion,
+outfitting. OpenCascade only (the vessel is built alone, ~10 s); the whole spread's checks (the outfitting keeps clear
+of it, part counts, triangles) are in tests/test_demo_cable_lay.py, the app's side (looks, marks, cameras, the
+propellers turning, clash check) in tests/test_demo_project*.py.
+"""
+
+import math
+import os
+import sys
+
+import numpy as np
+import pytest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
+
+pytest.importorskip("OCP")
+
+from fresing_render.demo_model import geom as g  # noqa: E402
+from fresing_render.demo_model import machines as m  # noqa: E402
+from fresing_render.demo_model import route as rt  # noqa: E402
+from fresing_render.demo_model import vessel as vs  # noqa: E402
+from fresing_render.demo_model.params import Params  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def ves():
+    p = Params()
+    pos = rt.positions(p)
+    a = vs.vessel(p, pos, m.Kit(p))
+    parts = [(node, uid, W) for node, uid, W, _l, _p in g.walk(a) if isinstance(node, g.Part)]
+    return {"p": p, "pos": pos, "a": a, "parts": parts, "joints": {j["name"]: j for j in g.resolve_joints(a)}}
+
+
+def _named(ves, name):
+    return [(n, u, W) for n, u, W in ves["parts"] if n.name == name]
+
+
+def _placed(node, W):
+    return g.xform(node.shape, W)
+
+
+def _bbox(shape):
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    b = Bnd_Box()
+    BRepBndLib.AddOptimal_s(shape, b, False, False)
+    lo, hi = b.CornerMin(), b.CornerMax()
+    return np.array([lo.X(), lo.Y(), lo.Z()]), np.array([hi.X(), hi.Y(), hi.Z()])
+
+
+def test_every_part_is_one_solid_and_the_file_is_written(ves, tmp_path):
+    bad = [u for n, u, _W in ves["parts"] if g.solids(n.shape) != 1]
+    assert not bad
+    g.write_step(ves["a"], str(tmp_path / "v.step"))           # refuses parts of several solids (no colour)
+    assert os.path.getsize(tmp_path / "v.step") > 100_000
+
+
+def test_part_counts(ves):
+    count = lambda name: len(_named(ves, name))  # noqa: E731
+    for name, n in (("HULL", 1), ("HULL BOTTOM", 1), ("BOOT TOP", 1), ("MAIN DECK", 1), ("BULWARK", 1), ("SKEG", 1),
+                    ("BILGE KEEL", 2), ("RUBBING STRAKE", 2), ("NAME BOARD", 2), ("DRAFT MARK BOARD", 4),
+                    ("PROPELLER", 4), ("THRUSTER NOZZLE", 2), ("THRUSTER TUNNEL", 2), ("ACCOMMODATION", 1),
+                    ("BRIDGE", 1), ("FUNNEL", 2), ("FUNNEL TOP", 2), ("MAST", 1), ("RADAR SCANNER", 2),
+                    ("LIFEBOAT", 2), ("DAVIT", 4), ("CRANE BOOM", 1), ("HOOK BLOCK", 1), ("BOLLARD", 6),
+                    ("FAIRLEAD", 4), ("HATCH COVER", 3), ("WINDLASS", 2), ("HAWSE PIPE", 2), ("ANCHOR", 2)):
+        assert count(name) == n, name
+    assert count("RAILING") >= 5 and count("WINDOW") >= 6 and count("BRIDGE WINDOW") == 3
+
+
+def test_joints_of_the_propulsion_radars_and_crane(ves):
+    js = ves["joints"]
+    assert len(js) == 10
+    for side in ("PS", "SB"):
+        steer, prop = js[f"AZIMUTH THRUSTER {side}: Steer"], js[f"AZIMUTH THRUSTER {side}: Propeller turn"]
+        assert np.allclose(steer["axis"]["direction"], [0, 0, 1])
+        assert prop["rides_on"] == f"AZIMUTH THRUSTER {side}: Steer"
+        assert all(any(q.startswith(s) for s in steer["parts"]) for q in prop["parts"])   # it rides on the steer
+        assert np.allclose(prop["axis"]["direction"], [-1, 0, 0])
+        assert prop["drive"]["by"] == "operator" and steer["limits"] is None
+    for k in (1, 2):
+        j = js[f"BOW THRUSTER {k}: Propeller turn"]
+        assert np.allclose(np.abs(j["axis"]["direction"]), [0, 1, 0]) and j["axis"]["point"][2] < -2000.0
+    for k in (1, 2):
+        assert np.allclose(js[f"SUPERSTRUCTURE: Radar {k} turn"]["axis"]["direction"], [0, 0, -1])
+    turning = {n for n, j in js.items() if j.get("motor")}           # turn without end (the app's Motor)
+    assert turning == set(js) - {"DECK CRANE: Luff"}
+    assert js["DECK CRANE: Luff"]["rides_on"] == "DECK CRANE: Slew" and js["DECK CRANE: Luff"]["limits"] == [-55.0, 10.0]
+
+
+def test_the_propellers_turn_free_of_their_nozzles_pods_and_tunnels(ves):
+    """Each propeller turned about its own joint never meets the parts round it: the nozzle's inside and the tunnel
+    lie outside its swept disc, the pod and gearbox outside its hub's end."""
+    js = ves["joints"]
+    by_uid = {u: (n, W) for n, u, W in ves["parts"]}
+    for name, j in js.items():
+        if not name.endswith("Propeller turn"):
+            continue
+        uid = j["parts"][0] if j["parts"][0] in by_uid else next(u for u in by_uid if u.startswith(j["parts"][0]) and
+                                                                    by_uid[u][0].name == "PROPELLER")
+        node, W = by_uid[uid]
+        prop = _placed(node, W)
+        group = uid.rsplit("/", 2)[0] if "AZIMUTH" in uid else uid.rsplit("/", 1)[0]
+        others = [_placed(n, Wo) for u, (n, Wo) in by_uid.items() if (u.startswith(group) and u != uid)
+                  or n.name == "HULL BOTTOM"]
+        assert len(others) >= 3, name
+        c, d = np.array(j["axis"]["point"]), np.array(j["axis"]["direction"])
+        for ang in (0.0, 17.0, 45.0, 71.0):
+            turned = g.xform(prop, g.Rot(d, ang, c))
+            for o in others:
+                assert g.volume(g.common(turned, o)) < 1.0, (name, ang)
+        # the swept disc stays inside the nozzle / tunnel: every corner of the propeller within the inside radius
+        lo, hi = _bbox(prop)
+        corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+        r = corners - c
+        r -= np.outer(r @ d, d)
+        R = vs.AZ_PROP_R if "AZIMUTH" in name else vs.BOW_PROP_R
+        assert np.linalg.norm(r, axis=1).max() < math.sqrt(2) * R + 50.0
+
+
+def test_the_thrusters_are_under_water_and_under_the_hull(ves):
+    for node, uid, W in ves["parts"]:
+        if node.name in ("PROPELLER", "THRUSTER NOZZLE", "THRUSTER POD", "THRUSTER STRUT", "TUNNEL GEARBOX"):
+            lo, hi = _bbox(_placed(node, W))
+            assert hi[2] < -1500.0, uid
+    hull = [_placed(n, W) for n, u, W in ves["parts"] if n.name == "HULL BOTTOM"][0]
+    for node, uid, W in _named(ves, "THRUSTER NOZZLE") + _named(ves, "THRUSTER STRUT"):
+        assert g.volume(g.common(_placed(node, W), hull)) < 1.0, uid
+
+
+def test_the_bow_tunnels_go_through_the_hull(ves):
+    L = ves["pos"]["length"]
+    bottom = [_placed(n, W) for n, u, W in ves["parts"] if n.name == "HULL BOTTOM"][0]
+    for xb in vs.BOW_TUNNELS:
+        hole = g.cyl(vs.BOW_TUNNEL_R - 5.0, 40000.0, (L - xb, -20000.0, vs.BOW_Z), (0, 1, 0))
+        assert g.volume(g.common(hole, bottom)) < 1.0
+        # and there is hull round it (the tunnel runs through the bow, not under it)
+        ring = g.tube(vs.BOW_TUNNEL_R + 600.0, vs.BOW_TUNNEL_R + 100.0, 2000.0, (L - xb, -1000.0, vs.BOW_Z), (0, 1, 0))
+        assert g.volume(g.common(ring, bottom)) > 0.9 * g.volume(ring)
+
+
+def test_hull_shape_sheer_stem_bulb_and_paint_bands(ves):
+    p, L = ves["p"], ves["pos"]["length"]
+    st = vs.stations(p, L)
+    flat = [s for s in st if s[0] <= L - vs.SHEER_LEN]
+    assert all(s[5] == p.deck_z for s in flat)                     # the spread's deck stays level
+    assert st[-1][5] == pytest.approx(p.deck_z + vs.SHEER)          # the sheer at the stem
+    assert all(b[5] >= a[5] for a, b in zip(st, st[1:]))
+    assert st[-1][3] > 0.0 > st[-2][3]                              # raked stem: its foot above the waterline
+    parts = {n.name: _placed(n, W) for n, u, W in ves["parts"] if n.name in ("HULL", "BOOT TOP", "HULL BOTTOM",
+                                                                             "MAIN DECK")}
+    lo, hi = _bbox(parts["BOOT TOP"])
+    assert lo[2] < -500.0 and hi[2] > 500.0                         # the band spans the waterline
+    lo, hi = _bbox(parts["HULL BOTTOM"])
+    assert hi[2] <= vs.BOOT_LO + 1.0 and hi[0] > L - 1500.0          # the bulb's nose forward of the forefoot
+    lo, hi = _bbox(parts["HULL"])
+    assert lo[2] >= vs.BOOT_HI - 1.0
+    # the deck plate follows the sheer: DECK_T thick at the stem's top
+    lo, hi = _bbox(parts["MAIN DECK"])
+    assert hi[2] == pytest.approx(p.deck_z + vs.SHEER, abs=5.0)
+    assert g.volume(parts["MAIN DECK"]) == pytest.approx(vs.DECK_T * _deck_area(ves), rel=0.08)
+
+
+def _deck_area(ves):
+    """The deck outline's area less the carousel well (mm²)."""
+    pts = np.array(ves["a"].info["deck_outline"])
+    x, y = pts[:, 0], pts[:, 1]
+    area = 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+    well_r = ves["p"].carousel_d / 2 + 900.0
+    return area - math.pi * well_r ** 2
+
+
+def test_superstructure_and_outfitting_stand_on_the_deck_inside_the_hull(ves):
+    """Everything on deck stands inside the deck outline (lifeboats and the bridge's wings may reach out over it by
+    their own width only), the outfitting's boxes do not overlap each other."""
+    from matplotlib.path import Path
+    outline = Path(np.array(ves["a"].info["deck_outline"]))
+    p = ves["p"]
+    for node, uid, W in ves["parts"]:
+        if node.name in ("ACCOMMODATION", "FUNNEL", "LIFEBOAT", "BOLLARD", "HATCH COVER", "WINDLASS", "CRANE PEDESTAL",
+                         "DAVIT"):
+            lo, hi = _bbox(_placed(node, W))
+            for x in (lo[0], hi[0]):
+                for y in (lo[1], hi[1]):
+                    assert outline.contains_point((x, y)), uid
+            assert lo[2] >= p.deck_z - 1.0, uid
+    boxes = [(k, np.array(b)) for k, bs in ves["a"].info["outfit"].items() for b in bs]
+    for i, (k1, b1) in enumerate(boxes):
+        for k2, b2 in boxes[i + 1:]:
+            apart = b1[1] <= b2[0] or b2[1] <= b1[0] or b1[3] <= b2[2] or b2[3] <= b1[2] or b1[5] <= b2[4] \
+                or b2[5] <= b1[4]
+            assert apart or {k1, k2} == {"SUPERSTRUCTURE", "LIFEBOAT"}, (k1, k2)
+
+
+def test_boards_lie_on_the_hull_side(ves):
+    hull = {n.name: _placed(n, W) for n, u, W in ves["parts"] if n.name in ("HULL", "BOOT TOP")}
+    boards = ves["a"].info["boards"]
+    assert len(boards) == 6
+    for b in boards:
+        c, n = np.array(b["centre"]), np.array(b["normal"])
+        assert n[1] * b["side"] > 0.6                              # facing outboard (the bow flares)
+        # a point just outside the board's face is outside the hull, one 100 mm in is inside it
+        from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+        from OCP.TopAbs import TopAbs_IN
+        key = "HULL" if c[2] > vs.BOOT_HI + 100.0 else "BOOT TOP"
+        out = BRepClass3d_SolidClassifier(hull[key], g.P(c + 20.0 * n), 1e-3)
+        inn = BRepClass3d_SolidClassifier(hull[key], g.P(c - 100.0 * n), 1e-3)
+        assert out.State() != TopAbs_IN and inn.State() == TopAbs_IN, b["name"]

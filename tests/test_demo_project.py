@@ -57,8 +57,9 @@ def test_every_joint_of_the_sheet(made):
     root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 307                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
-    #                                                    none under the CPS slide's last bend onto side B
+    assert len(sheet) == 317                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
+    #                                                    none under the CPS slide's last bend onto side B; task 0153: the
+    #                                                    vessel's 4 propellers, 2 steers, 2 radars, the crane's slew + luff
     by = {j.name: j for j in sc.fresing.joints}
     # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
     # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
@@ -327,3 +328,55 @@ def test_help_menu_buttons_have_tooltips(made):
     assert not ops_demo.running() and ops_demo.progress_text() == ""
     assert bpy.ops.fresing.demo_cancel.poll() is False                 # nothing to cancel
     assert ops_demo.kill_tree(0) is None                                # no program: nothing happens
+
+
+def test_the_vessel_in_detail(made):
+    """Task 0153: the vessel's looks (antifouling with growth, boot top, glass …), its name and draft marks as decals,
+    the two new cameras, and the propellers and radars turning (motors) through the whole animation."""
+    from fresing_render.blender import build, decals, joints, marine_looks
+    sc = _scene()
+    by_name = {}
+    for o in build.iter_parts(sc):
+        by_name.setdefault(o.get(build.PROP_NAME), []).append(o)
+    groups = {g.name: g for g in sc.fresing.groups}
+    for name, group, material in (("HULL BOTTOM", "Demo: antifouling", "paint_marine_growth"),
+                                  ("BOOT TOP", "Demo: boot top", "paint_marine_growth"),
+                                  ("HULL", "Demo: hull", "paint_marine_streaks"),
+                                  ("PROPELLER", "Demo: propellers", "bronze"),
+                                  ("WINDOW", "Demo: glass", "glass_tinted"),
+                                  ("MAIN DECK", "Demo: non-slip deck", "powder_coat")):
+        assert groups[group].material == material, group
+        for o in by_name[name]:
+            assert o.get("fr_group_manual") == group, (name, o.name)
+    assert marine_looks.nodes_of(by_name["HULL BOTTOM"][0].active_material)       # the growth's nodes are there
+    assert groups["Demo: deck fittings"].wear > 0.5
+    # the name on both bows, three draft marks on each of the four boards
+    texts = {}
+    for o in by_name["NAME BOARD"] + by_name["DRAFT MARK BOARD"]:
+        texts[o.name] = sorted(it.text for it in decals.items_of(o))
+    assert sorted(t for t in texts.values() if t == [demo.VESSEL_NAME]) == [[demo.VESSEL_NAME]] * 2
+    assert sum(1 for t in texts.values() if t == ["5M", "6M", "7M"]) == 4
+    # the new cameras: one under water at the stern, one along the side
+    wl = marine_looks.waterline(sc)
+    cam = sc.objects[demo.STERN_THRUSTERS]
+    assert cam.type == "CAMERA" and cam.matrix_world.translation.z < wl - 3.0
+    assert sc.objects[demo.HULL_SIDE].type == "CAMERA"
+    # propellers and radars: motors, turning at their speed the whole animation
+    a = sc.fresing.animations[demo.ANIM]
+    end = max(b.start + b.duration for b in a.blocks)
+    names = [n for n, _rpm in demo.turning_joints(demo.Demo(sc, made["folder"], VERSION, small=True))]
+    assert len(names) == 6
+    t0, t1 = 20.0, 26.0
+    f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
+    for n in names:
+        j = joints.find(sc, n)
+        assert joints.is_motor(j), n
+        blk = [b for b in a.blocks if b.kind == "MOTOR" and b.joint == n]
+        assert len(blk) == 1 and blk[0].start == 0.0 and blk[0].start + blk[0].duration == pytest.approx(end, abs=0.6)
+        sc.frame_set(f0)
+        v0 = joints.get_value(j)
+        sc.frame_set(f1)
+        v1 = joints.get_value(j)
+        fps = sc.render.fps / sc.render.fps_base
+        want = 2 * math.pi * blk[0].speed_rpm / 60.0 * (f1 - f0) / fps
+        assert v1 - v0 == pytest.approx(want, rel=0.02), n

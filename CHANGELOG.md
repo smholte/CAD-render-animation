@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.117 – 16 Nov 2026 – The demo vessel in detail (task 0153)
+
+- **The demo's vessel looks like a real offshore vessel close up.** A shaped hull: a raked bow with flare and a bulbous
+  bow, the deck rising towards the bow, a flat transom with a skeg, bilge keels, a rubbing strake along each side.
+  A proper superstructure: three tiers with rows of windows, a bridge with wings, two funnels, a mast with two radars,
+  antennas and lights, lifeboats in davits, railings. On deck: a crane parked with its boom up, bollards, fairleads,
+  hatches, windlasses with their anchors in the hawse pipes. Still invented: no real vessel's design or name.
+- **Propulsion you can see turning:** two azimuth thrusters at the stern (a propeller in a nozzle, each turns about
+  its upright axis) and two bow tunnel thrusters. Each propeller, each thruster's steering, the radars and the crane
+  (slew, luff) have their own joint in 4 Motion; in "What it can do today" the propellers and radars keep turning.
+- **Paint and wear:** dark blue hull with light run-down streaks, a black boot-top band round the waterline, red
+  antifouling with marine growth below the waterline, the name "DEMO LAYER" on both bows and draft marks fore and aft
+  (decals), a non-slip deck, white superstructure with tinted glass, galvanised railings, orange lifeboats, bronze
+  propellers; the rubbing strake and the deck fittings worn to bare steel at their edges.
+- **Two new saved cameras:** "Stern thrusters" (under water) and "Hull side" (along the starboard side from ahead of
+  the bow). Making the demo takes about 12 % longer.
+- **Test tour:** the demo stop's check now expects the animation's real length (about 2 ½ minutes).
+
 ## 0.2.115 – 16 Nov 2026 – The sea cut-away also cuts the ground (task 0148)
 
 - **The cut goes on into the ground.** With the cut-away on, the seabed opens inside the box and shows a soil section:

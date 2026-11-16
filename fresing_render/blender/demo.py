@@ -51,7 +51,7 @@ MODEL_KEYS = ("assembly", "quay_loading")
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
-MIN_JOINTS = 308                      # the joint sheet's 307 + Cable travel (the quay's come on top)
+MIN_JOINTS = 318                      # the joint sheet's 317 + Cable travel (the quay's come on top)
 
 
 class Cancelled(Exception):
@@ -213,7 +213,7 @@ class Demo:
         return self._sheets[which]
 
     def progress(self, text: str = "", done: int = 0, total: int = 0) -> None:
-        """Status line for the app ("Joints 120/307") and the moment Cancel gets in."""
+        """Status line for the app ("Joints 120/317") and the moment Cancel gets in."""
         if os.path.isfile(cancel_path(self.folder, self.version)):
             raise Cancelled()
         if self._progress:
@@ -422,15 +422,34 @@ LOOKS = [
      ("TENSIONER BASE FRAME", "TOP TRACK FRAME", "CABLE ENGINE FRAME", "TOP WHEEL FRAME", "WINCH BASE FRAME",
       "HYDRAULIC MOTOR", "PLANETARY GEARBOX", "DRIVE BRACKET", "WINCH PEDESTAL"), ()),
     ("Demo: orange", "paint_marine", "RAL 2004",
-     ("RIM FENCE", "TURNTABLE", "BARREL", "TOP TRACK LIFT FRAME", "CPS RAMP", "CPS SLIDE", "INNER CORE",
+     ("HOOK BLOCK", "RIM FENCE", "TURNTABLE", "BARREL", "TOP TRACK LIFT FRAME", "CPS RAMP", "CPS SLIDE", "INNER CORE",
       "WINCH DRUM", "DRUM FLANGE", "LEBUS RISER"), ()),
     ("Demo: yellow structure", "paint_marine", "RAL 1003",
      ("ROLLER CRADLE", "ROLLER STAND", "ROLLER TRESTLE", "TOWER COLUMN", "ARCH", "ARCH FRAME", "GUIDE CAGE",
       "GUIDE FRAME", "SLEW HOUSING", "RADIUS CONTROLLER", "CHUTE", "CHUTE SUPPORT", "RAMP SUPPORT", "CPS RACK",
       "QUADRANT FRAME", "QUADRANT GUTTER", "HANDLER FRAME", "RAIL TRESTLE", "RAIL BOGIE", "SHEAVE POST",
       "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME",
-      "CRADLE LIFT FRAME", "A&R PAD EYE", "PAD EYE", "HANDLER TOP PULLEY", "TIPPING SHEAVE", "FOOT SHEAVE"), ()),
-    ("Demo: deck grey", "paint_marine", "RAL 7037", ("MAIN DECK", "CAROUSEL WELL"), ()),
+      "CRADLE LIFT FRAME", "A&R PAD EYE", "PAD EYE", "HANDLER TOP PULLEY", "TIPPING SHEAVE", "FOOT SHEAVE",
+      "CRANE PEDESTAL", "CRANE HOUSE", "CRANE BOOM"), ()),
+    ("Demo: non-slip deck", "powder_coat", "RAL 7037", ("MAIN DECK", "HATCH COVER"), ()),
+    ("Demo: deck grey", "paint_marine", "RAL 7037", ("CAROUSEL WELL",), ()),
+    # the vessel (task 0153): hull paint above the boot top with run-down streaks, the black boot top and the red
+    # antifouling with marine growth below the waterline, white superstructure, glass, galvanised outfitting
+    ("Demo: hull", "paint_marine_streaks", "RAL 5003", ("HULL", "BULWARK", "NAME BOARD"), ()),
+    ("Demo: boot top", "paint_marine_growth", "RAL 9005", ("BOOT TOP", "DRAFT MARK BOARD"), ()),
+    ("Demo: antifouling", "paint_marine_growth", "RAL 3009",
+     ("HULL BOTTOM", "SKEG", "BILGE KEEL", "THRUSTER HOUSING", "THRUSTER STRUT", "THRUSTER POD", "THRUSTER NOZZLE",
+      "THRUSTER TUNNEL", "TUNNEL GEARBOX"), ()),
+    ("Demo: propellers", "bronze", "", ("PROPELLER",), ()),
+    ("Demo: superstructure", "paint_marine_streaks", "RAL 9010",
+     ("ACCOMMODATION", "BRIDGE", "MAST", "FUNNEL", "RADAR PEDESTAL", "RADAR SCANNER", "CRANE CAB"), ()),
+    ("Demo: funnel tops", "paint_marine", "RAL 9005", ("FUNNEL TOP",), ()),
+    ("Demo: glass", "glass_tinted", "#3A4650", ("WINDOW", "BRIDGE WINDOW", "CAB WINDOW"), ()),
+    ("Demo: galvanised", "galvanized", "", ("RAILING", "DAVIT", "ANTENNA"), ()),
+    ("Demo: lifeboats", "plastic_gloss", "RAL 2004", ("LIFEBOAT",), ()),
+    ("Demo: deck fittings", "paint_marine", "RAL 9005",
+     ("BOLLARD", "FAIRLEAD", "WINDLASS", "HAWSE PIPE", "ANCHOR", "RUBBING STRAKE"), ()),
+    ("Demo: lights", "emission_light", "RAL 9016", ("MAST LIGHT",), ()),
     ("Demo: walkways", "paint_marine", "RAL 6011", ("GRATING WALKWAY",), ()),
     ("Demo: rubber pads", "rubber_black", "", ("TRACK PAD", "CABLE ENGINE WHEEL"), ()),
     ("Demo: steel", "steel_raw", "", ("PAD BACK PLATE", "TRACK CHAIN LINK", "DRIVE SPROCKET", "IDLER SPROCKET",
@@ -439,6 +458,11 @@ LOOKS = [
     ("Demo: power cable", "cable_black", "", ("CABLE", "CABLE COIL", "CABLE END"), ()),
     ("Demo: wire rope", "galvanized", "", ("WIRE ROPE", "A&R WIRE", "TIPPING WIRE"), ()),
 ]
+
+
+WEAR = {"Demo: deck fittings": 0.8, "Demo: hull": 0.35, "Demo: non-slip deck": 0.4, "Demo: yellow structure": 0.25}
+#: the wear of a group (edge wear and dirt in its corners; task 0153: the rubbing strake where the fenders touch the
+#: side is worn down to bare steel, the deck fittings too)
 
 
 @stage("looks", "Groups and looks")
@@ -459,9 +483,80 @@ def looks(d: Demo):
         g.material = mat
         if col:
             g.color = col
+        g.wear = WEAR.get(group, 0.0)
     logic.apply_rules(d.scene)
     logic.refresh_group_materials(d.scene)
     d.notes.append(f"looks: {n} parts in {len(LOOKS)} demo groups")
+
+
+# ---------------------------------------------------------------------------
+# the vessel's name and draft marks (task 0153): text decals on its name and draft-mark boards
+# ---------------------------------------------------------------------------
+
+VESSEL_NAME = "DEMO LAYER"            # invented (demo_model/vessel.py NAME)
+DRAFT_MARKS = (("7M", 1.0), ("6M", 0.0), ("5M", -1.0))     # draft from the keel (6 m at the waterline), height (m)
+WHITE_INK = (0.85, 0.85, 0.83)
+
+
+def _outer_face(ob):
+    """(face, point, normal) in the part's coordinates: the face of a board that faces most away from the vessel's
+    centre line (its outer face)."""
+    from mathutils import Vector
+
+    from . import decals, faces
+    me = ob.data
+    starts = faces.face_starts(me)
+    root = ob
+    while root.parent is not None:
+        root = root.parent
+    centre = ob.matrix_world @ Vector(_mean_co(ob))
+    side = 1.0 if (root.matrix_world.inverted() @ centre).y > 0 else -1.0
+    side_w = (root.matrix_world.to_3x3() @ Vector((0.0, side, 0.0))).normalized()
+    best = None
+    for k in range(max(0, len(starts) - 1)):
+        pos, nrm = decals.face_triangles(me, k)
+        if not len(pos):
+            continue
+        nl = Vector(nrm.reshape(-1, 3).mean(axis=0)).normalized()
+        n = (ob.matrix_world.to_3x3() @ nl).normalized()
+        score = n.dot(side_w)                 # the side flares: its normal leans down at the bow
+        if score > 0.5 and (best is None or score > best[3]):
+            best = (k, Vector(pos.reshape(-1, 3).mean(axis=0)), nl, score)
+    if best is None:
+        raise RuntimeError(f"the board {ob.name} has no face looking outboard")
+    return best[:3]
+
+
+def _mean_co(ob):
+    import numpy as np
+    co = np.empty(len(ob.data.vertices) * 3)
+    ob.data.vertices.foreach_get("co", co)
+    return co.reshape(-1, 3).mean(axis=0)
+
+
+@stage("marks", "The vessel's name and draft marks", after="looks")
+def vessel_marks(d: Demo):
+    from mathutils import Vector
+
+    from . import build, decals
+    root = d.root()
+    n = 0
+    for ob in [o for o in _descendants(root) if o.get(build.PROP_NAME) in ("NAME BOARD", "DRAFT MARK BOARD")]:
+        face, pt, nrm = _outer_face(ob)
+        if ob.get(build.PROP_NAME) == "NAME BOARD":
+            it = decals.add(ob, face, tuple(pt), tuple(nrm), "TEXT", text=VESSEL_NAME, only_copy=True)
+            it.ink_color = WHITE_INK
+            decals.fit(it)
+            n += 1
+            continue
+        up = (ob.matrix_world.inverted().to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+        up = (up - up.dot(nrm) * nrm).normalized()
+        for text, dz in DRAFT_MARKS:
+            it = decals.add(ob, face, tuple(pt + up * dz), tuple(nrm), "TEXT", text=text, only_copy=True)
+            it.ink_color = WHITE_INK
+            it.height = 0.45
+            n += 1
+    d.notes.append(f"marks: {n} decals (name and draft marks)")
 
 
 # ---------------------------------------------------------------------------
@@ -533,6 +628,8 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
                 joints.set_follows(sc, jt, prefix + drive["follows"], ratio=float(drive["ratio"]))
             elif drive.get("by") in ("cable", "carousel") and cable and "deg_per_mm" in drive:
                 joints.set_follows(sc, jt, cable, ratio=float(drive["deg_per_mm"]))
+            if j.get("motor"):                          # turns without end (task 0153: propellers, radars, steers)
+                joints.set_motor(sc, jt, True)
             joints.apply_limits(jt, joints._model_size(sc))
     return total
 
@@ -1110,6 +1207,9 @@ def sea_stage(d: Demo):
 # saved cameras (model mm: x to the bow, transom at 0, y to port, z up)
 # ---------------------------------------------------------------------------
 
+STERN_THRUSTERS = "Stern thrusters"
+HULL_SIDE = "Hull side"
+
 VIEWS = {
     "Overview": ((-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), 30.0),
     "Deck from above": ((50000.0, -45000.0, 135000.0), (52000.0, 0.0, 3000.0), 30.0),
@@ -1124,6 +1224,8 @@ VIEWS = {
     "At the seabed": ((-24000.0, -6000.0, -12000.0), (-4000.0, 0.0, -28500.0), 32.0),        # shot 11, under water
     "CPS rack": ((11000.0, 23000.0, 14000.0), (24000.0, 6500.0, 5200.0), 26.0),              # shot 8b (0126)
     "CPS on the D": ((49000.0, 12500.0, 14500.0), (35500.0, 0.0, 5000.0), 28.0),
+    STERN_THRUSTERS: ((-9000.0, -15000.0, -9500.0), (6000.0, 0.0, -5500.0), 24.0),    # task 0153: under water
+    HULL_SIDE: ((132000.0, -26000.0, 3500.0), (70000.0, -12000.0, 1500.0), 35.0),     # along the starboard side
 }
 
 
@@ -1789,6 +1891,32 @@ def shot_back(d: Demo):
         d.joint(lead, t, 1.5, 0.0, slide=True)
     d.t = t + 3.5 + 1.0
     del paths
+
+
+# the vessel's propellers and radars turn through the whole animation (task 0153; 0154's water effects read the
+# propellers' joints): rev/min in video time
+PROPELLER_RPM = {"AZIMUTH THRUSTER": 30.0, "BOW THRUSTER": 40.0}
+RADAR_RPM = 24.0
+
+
+def turning_joints(d: Demo) -> list[tuple[str, float]]:
+    """(joint, rev/min) of every propeller and radar of the sheet."""
+    out = []
+    for j in d.sheet("joints")["joints"]:
+        n = j["name"]
+        if n.endswith("Propeller turn"):
+            out.append((n, next(v for k, v in PROPELLER_RPM.items() if k in n)))
+        elif n.startswith("VESSEL: SUPERSTRUCTURE: Radar"):
+            out.append((n, RADAR_RPM))
+    return out
+
+
+@stage("propulsion", "The propellers and radars turn", after="shot_back")
+def propulsion(d: Demo):
+    for name, rpm in turning_joints(d):
+        blk = d.animation.blocks.add()
+        blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", name, 0.0, d.t, "LINEAR"
+        blk.speed_rpm = rpm
 
 
 @stage("finish", "Animation")

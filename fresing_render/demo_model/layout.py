@@ -27,6 +27,7 @@ from . import deck as dk
 from . import geom as g
 from . import machines as m
 from . import route as rt
+from . import vessel as vs
 from .geom import Asm, Part, Rot, T
 from .params import Params
 
@@ -173,7 +174,7 @@ def build(p: Params | None = None, with_lebus: bool = True) -> Scene:
     t0 = time.time()
     root = Asm(ROOT)
     # ---- vessel
-    ves = m.vessel(p, pos)
+    ves = vs.vessel(p, pos, kit)
     S.handles["vessel"] = [root.add(ves, instance="VESSEL")]
     S.files["vessel"] = ves
     S.timings["vessel"] = time.time() - t0

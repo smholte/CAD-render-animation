@@ -3258,14 +3258,14 @@ and bigger pictures.
 
 The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
 vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
-engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,250 parts). It is
+engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts). It is
 **not** a real vessel or anyone's design: the app draws it itself, from general sizes.
 
 <img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
 
 **Make it (once per version)**
 1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/314", "Animation"). You can keep
+   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/317", "Animation"). You can keep
    working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
@@ -3275,8 +3275,21 @@ It goes to **Documents\Fresing Render\Demo\<version>**: the project "Demo cable-
 folder "model" with the STEP files the app drew. Making it again replaces the demo of this version.
 
 **What is in it** – set up the way you would, with the app's own buttons:
-- **Looks:** machinery deep blue, accents orange, structure yellow, a grey deck, rubber pads, a black cable.
-- **4 Motion:** 307 joints on the vessel and 108 on the quay. Every roller, sprocket and wheel the cable runs over
+- **The vessel itself:** a shaped hull – a raked bow with flare and a bulbous bow, a sheer forward, a flat transom
+  with a skeg, bilge keels –, an accommodation block with rows of windows, a bridge with wings, two funnels, a mast
+  with two radars, antennas and lights, lifeboats in davits, railings, a deck crane parked with its boom up,
+  bollards, fairleads, hatches, windlasses with their anchors in the hawse pipes, and a rubbing strake along each
+  side. Under water: two **azimuth thrusters** at the stern (a propeller in a nozzle, each turns about its upright
+  axis) and two **bow tunnel thrusters** (openings through the bow, a propeller inside each).
+- **Looks:** machinery deep blue, accents orange, structure yellow, rubber pads, a black cable; the hull dark blue
+  with light run-down streaks, a black boot-top band round the waterline, red antifouling below with **marine
+  growth** under the waterline, the name "DEMO LAYER" on both bows and draft marks fore and aft (text decals), a
+  non-slip deck, a white superstructure with tinted glass, galvanised railings and davits, orange lifeboats, bronze
+  propellers; the rubbing strake and the deck fittings are worn down to bare steel at their edges.
+- **4 Motion:** 317 joints on the vessel and 108 on the quay. The vessel's own: each azimuth thruster's **Steer** and
+  **Propeller turn** (riding on the steer), each bow thruster's **Propeller turn**, the two radars' turn, and the deck
+  crane's **Slew** and **Luff** (0 = parked; negative lowers the boom). In the animation the propellers and radars
+  turn the whole time. Every roller, sprocket and wheel the cable runs over
   follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
   support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
   **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
@@ -3299,7 +3312,8 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   curved slide, along side B's roller cradles (higher in the V than the cable: it is twice as thick), round the D's
   gutter (on its floor, against its guide rollers) and down side A. Its pieces follow the line round every bend.
 - **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
-  each shot and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
+  each shot, **Stern thrusters** (under water, looking at the azimuth thrusters) and **Hull side** (along the
+  starboard side from ahead of the bow), and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
 - **6 Animation > What it can do today** (about 2 ½ minutes with the title and end card): a flight round the vessel that

@@ -723,6 +723,44 @@ def test_joint_axes_sit_on_their_parts(made):
     assert checked >= 150
 
 
+def test_vessel_outfitting_keeps_clear_of_the_spread(made):
+    """Task 0153: nothing of the vessel's new outfitting (superstructure, crane, lifeboats, bollards, hatches,
+    windlasses, thrusters, boards …) comes within 100 mm of a part of the cable-lay spread (boxes)."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+
+    from fresing_render.demo_model import geom as g
+    cache = {}
+
+    def box(node, W):
+        if id(node) not in cache:
+            b = Bnd_Box()
+            BRepBndLib.Add_s(node.shape, b, False)
+            lo, hi = b.CornerMin(), b.CornerMax()
+            cache[id(node)] = (lo.X(), lo.Y(), lo.Z(), hi.X(), hi.Y(), hi.Z())
+        lo, hi = cache[id(node)][:3], cache[id(node)][3:]
+        c = np.array([[x, y, z, 1.0] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]) @ W.T
+        return c[:, :3].min(axis=0), c[:, :3].max(axis=0)
+
+    hullish = {"HULL", "HULL BOTTOM", "BOOT TOP", "MAIN DECK", "BULWARK", "CAROUSEL WELL", "RUBBING STRAKE", "SKEG",
+               "BILGE KEEL"}
+    vessel, spread = [], []
+    for node, uid, W, _label, _path in g.walk(made["S"].root):
+        if not isinstance(node, g.Part):
+            continue
+        if "/VESSEL#1/" in uid:
+            if node.name not in hullish:
+                vessel.append((uid, *box(node, W)))
+        else:
+            spread.append((uid, *box(node, W)))
+    assert len(vessel) > 80 and len(spread) > 1000
+    lo2 = np.array([s[1] for s in spread])
+    hi2 = np.array([s[2] for s in spread])
+    for uid, lo, hi in vessel:
+        near = np.all(lo < hi2 + 100.0, axis=1) & np.all(lo2 < hi + 100.0, axis=1)
+        assert not near.any(), (uid, [spread[i][0] for i in np.nonzero(near)[0][:3]])
+
+
 def test_triangles_under_budget(made):
     info, arrays = made["trees"]["assembly"]
     placed = sum(len(arrays[f"t{n['mesh']}"]) for n in _parts(info))

@@ -3408,7 +3408,7 @@ def _check_demo(scene):
     info = demo.read_summary(folder, __version__)
     _check(info.get("joints", 0) >= demo.MIN_JOINTS,
            f"the demo project has {info.get('joints', 0)} joints, not {demo.MIN_JOINTS}")
-    _check(60.0 <= info.get("seconds", 0) <= 80.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
+    _check(120.0 <= info.get("seconds", 0) <= 200.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
     with open(demo.project_path(folder, __version__), "rb") as fh:
         head = fh.read(7)
     _check(head == b"BLENDER" or head[:4] == b"\x28\xb5\x2f\xfd", "the demo project file is not a Blender file")
@@ -3450,10 +3450,12 @@ stop("house", OUT, "house", "House from House Planner",
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
-     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 422 joints "
-     "(314 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay', and 6 Animation "
-     "> 'What it can do today' plays a video of about 75 s (Build & play). This stop only checks that the demo is "
-     "there.",
+     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "
+     "(324 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay' and the saved "
+     "cameras 'Stern thrusters' (under water: two azimuth thrusters, their propellers in nozzles) and 'Hull side' (the "
+     "bow with its name, draft marks and the black boot top), and 6 Animation > 'What it can do today' plays a video "
+     "of about 2 ½ minutes (Build & play) in which the propellers and radars keep turning. This stop only checks that "
+     "the demo is there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
      auto=lambda ctx, scene, st: "")
 

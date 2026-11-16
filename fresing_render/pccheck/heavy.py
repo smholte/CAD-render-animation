@@ -799,6 +799,11 @@ def heavy_demo(ctx):
         _check(tilt is not None and tilt.use_limits and abs(math.degrees(tilt.rot_max) - 70.0) < 0.01,
                f"{name}'s top track does not tilt out 70°")
         _check(s.joints.get(f"{name}: Top track lift") is not None, f"{name}'s top track does not lift")
+    for n, _rpm in demo.turning_joints(demo.Demo(scene, folder, "pccheck", small=small())):   # task 0153
+        j = s.joints.get(n)
+        _check(j is not None and j.is_motor, f"the vessel's '{n}' is not there or does not turn without end")
+    for cam in (demo.STERN_THRUSTERS, demo.HULL_SIDE):
+        _check(scene.objects.get(cam) is not None, f"the demo has no saved camera '{cam}'")
     a = s.animations.get(demo.ANIM)
     _check(a is not None, f"the demo has no animation '{demo.ANIM}'")
     t0 = time.time()
