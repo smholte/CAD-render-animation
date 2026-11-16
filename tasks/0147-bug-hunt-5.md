@@ -1,6 +1,6 @@
 # 0147 – Bug hunt round 5: everything merged 15–16 Nov (findings only)
 
-**Who:** worker · **Status:** open – can start now (findings only: no app code, starts no test run) · **Branch:**
+**Who:** worker · **Status:** running (findings only: no app code, starts no test run) · **Branch:**
 `task/0147-bug-hunt-5` (report only)
 **Started by:** lead chat, 16 Nov 2026 – 11 releases in one night, most of them merged unattended · **Model:** Opus ·
 effort High · **Place:** Claude Code on the web, environment "CAD-render-animation"
