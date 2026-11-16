@@ -1,6 +1,6 @@
 # 0146 – Faster milling for dense 3-axis programs: a height-map cutter (study 0069 #8)
 
-**Who:** worker · **Status:** running (16 Nov) · **Branch:** `ccr-5bfdc6c9-l2tm60` (the session's branch)
+**Who:** worker · **Status:** done 16 Nov (0.2.117) · **Branch:** `ccr-5bfdc6c9-l2tm60` (the session's branch)
 **Started by:** lead chat, 16 Nov 2026 (owner: start large tasks, a Fable task) · **Model:** Fable · effort High ·
 **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2):
 interfaces first; an independent tester that did not write the cutter.
@@ -193,7 +193,12 @@ clash for the toolpath set (the tour's program runs on the map), precheck, toolt
   numbers) and the steep-strip bound from 0.15 to 0.2 mm (0.159 measured). They were strict expected failures
   first; GitHub's summary counts those as skipped tests (one allowed per group) and the run went red.
 
-**GitHub runs:** see the last lines of this report (filled in after the merge).
+**GitHub runs:** 3 full runs. (1) 43844477737 red: every test passed, but the five known faults were strict
+expected failures, which the summary counts as skipped tests (one allowed per group) – now bounded tests. (2)
+43848592354 green, 23.9 min (the new independent test file stretched group 5 to 23 min); meanwhile task 0158 took
+0.2.116, so the fast-forward was refused. (3) 43852505333 green, 20.4 min, version 0.2.117, with the test times of
+run 2 recorded (`tools/ci_times.json`) so the groups are balanced again. Then `main` got one task-list commit: merged
+with this report and `TASKS.md` (task files only).
 
 **Open points / follow-up tasks**
 
