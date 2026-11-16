@@ -1,6 +1,6 @@
 # 0137 – Cable fixes: swivel and let-go kept, renames carried, sea cable re-worked after a vessel change, old projects
 
-**Who:** worker · **Status:** waiting – starts after 0126 is merged (same files) · **Branch:** `task/0137-cable-data-kept`
+**Who:** worker · **Status:** running · **Branch:** `task/0137-cable-data-kept`
 **Started by:** lead chat, 15 Nov 2026 (rows of bug hunt 0131, report in `tasks/0131-bug-hunt-4.md`) ·
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Flex parts lane – cable paths):** `blender/paths.py`, `paths_swivel.py`, `paths_rollers.py`, `paths_sea.py`, `joints.rename`, `vessel_motion.hoses_follow` / `flex.motion_changed`, a `load_post` versioning step, their tests.

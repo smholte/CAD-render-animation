@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "fresing_render"
-version = "0.2.109"
+version = "0.2.110"
 name = "Fresing Render"
 tagline = "Photo-realistic renders of large STEP assemblies"
 maintainer = "Fresing"

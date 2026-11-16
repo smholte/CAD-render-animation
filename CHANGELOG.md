@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.109 – 15 Nov 2026 – mesh model updates keep work on the right piece (task 0139)
+## 0.2.110 – 16 Nov 2026 – mesh model updates keep work on the right piece (task 0139)
 
 - **Fixed (lost work):** updating a glTF/OBJ/FBX model moved joints, looks and stickers onto the wrong piece when a
   split mesh gained or lost a piece (the piece numbers "WELDMENT 3", "Node 7" shift). Names the app made itself are
@@ -19,6 +19,15 @@ installer of that version was built from.
   part's outline after two updates; OBJ/MTL files from older Windows programs (å, ö, ø) keep their names and find
   their pictures; a glTF with several scenes and no default reads the first one with something in it.
 
+## 0.2.109 – 15 Nov 2026 – house format 1.0.1 (task 0130)
+
+- **House round trip follows format 1.0.1:** the app now checks its House packages against the final tag `v1.0.1`
+  (a package name made of plain letters is accepted with or without the zip's UTF-8 mark; a name with accents or other
+  special characters without it is refused).
+- **The sun's strength in a baked house is cleaner at a low sun:** it is now measured on a surface turned straight at the
+  sun instead of being worked out from an upward-facing one (which multiplied the noise at a low evening sun). The
+  numbers agree with the old way within 1 % at 35°, 12° and 4.8°; by day under a full overcast the sun is written as
+  zero, and "none" only where there is no separate sun (night, a 360° photo, a studio).
 ## 0.2.108 – 15 Nov 2026 – the demo: a CPS set from the rack onto the cable end (task 0126)
 
 - **Demo, new shot 8b:** after the cable has gone into the sea, a **CPS set** (cable protection) slides from the rack's
