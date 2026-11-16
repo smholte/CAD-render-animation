@@ -602,8 +602,8 @@ CABLE_ITEM = "Power cable"            # the cable in 4 Motion > Cables and paths
 @stage("cable", "Cable on its path", after="joints")
 def cable_on_its_path(d: Demo):
     """The CAD cable becomes a cable on its path (4 Motion > Cables and paths, as the button "Add cable" does): its
-    centreline is read, the bends and the rollers it rests on are found, and it gets the power-cable look whose
-    yellow stripes run with "Cable travel" – the joint every cable-turned roller already follows. It stays as drawn
+    centreline is read, the bends and the rollers it rests on are found, and it gets the served-cable look (task
+    0158: black yarn, pairs of yellow marker bands) whose bands run with "Cable travel" – the joint every cable-turned roller already follows. It stays as drawn
     (``still``): its turn round the D-quadrant's gutter does not travel with the quadrant yet (task 0082)."""
     from . import paths
     sc = d.scene
@@ -615,7 +615,9 @@ def cable_on_its_path(d: Demo):
     item = paths.find(sc, CABLE_ITEM)
     item.still = True
     item.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
-    item.pitch, item.angle, item.stripe = 0.6, math.radians(45.0), 0.3
+    item.look = "SERVED"        # task 0158: black yarn, pairs of yellow marker bands (Power cable stays a choice)
+    item = paths.find(sc, CABLE_ITEM)
+    item.angle, item.stripe = math.radians(45.0), 0.3       # (the power cable's stripes, if the look is switched)
     d.timings["cable"] = time.time() - t0
     d.notes.append("cable: " + (notes[0] if notes else "read"))
     for n in notes[1:4]:
@@ -859,7 +861,7 @@ def make_wires(d: Demo):
       once the D hangs from it).
     - The tipping wires: read from the CAD wires (post top, over the head sheave, to the D's bar ends), "Winch keeps it
       tight"; the head sheave follows each wire (the app), the foot sheave and the winch drum follow its speed joint.
-    - The second end: read from CABLE END (round the D's gutter, side A, horn A), the power cable look; its sea end and
+    - The second end: read from CABLE END (round the D's gutter, side A, horn A), the served-cable look; its sea end and
       its CPS are added after shot 8 (stage "quadrant_ops")."""
     import numpy as np
 
@@ -946,7 +948,9 @@ def make_wires(d: Demo):
     # the lay cable's metres, moves the seabed aft; just before shot 9 it takes Cable travel's value there, so the
     # second end's touch-down lies behind the vessel as it was set in the CAD pose (0082 made it follow Cable travel)
     it.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
-    it.pitch, it.angle, it.stripe = 0.6, math.radians(45.0), 0.3
+    it.look = "SERVED"          # as the lay cable (task 0158)
+    it = paths.find(sc, SECOND_ITEM)
+    it.angle, it.stripe = math.radians(45.0), 0.3
     d.notes.append("second end: " + (notes[0] if notes else "read"))
     d.timings["wires"] = time.time() - t0
 

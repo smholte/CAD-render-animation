@@ -360,6 +360,32 @@ def looks_marine(ctx):
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
 
 
+@line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
+      what="The test carousel's power cable with Look = Served cable (yarn): black yarn served almost straight round "
+           "it and pairs of yellow painted bands, on the cable and on its coil; built, the bands run with the cable. "
+           "A close-up is rendered small (processor, draft): judge the fine grooves, the darker and lighter strands, "
+           "the ragged band edges")
+def looks_served_cable(ctx):
+    from ..blender import animation, render, tour
+    scene = ctx.fresh(SPOOL)
+    s = scene.fresing
+    made = tour.served_demo(scene)
+    tour.served_camera(scene)
+    a = s.animations[made["animation"]]
+    info = animation.bake(scene, a)
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_served(scene)
+    scene.frame_set(scene.frame_start)
+    _small_output(s)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "served_cable.png")
+    t0 = time.time()
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.metric("render the served cable close-up", time.time() - t0, "s")
+    ctx.picture(path, "served_cable", "The served cable leaving the carousel: yarn and yellow bands (processor, draft)")
+    return note
+
+
 @line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
@@ -3287,7 +3313,7 @@ def _top_of(scene, stock):
     return depth
 
 
-@line("milling.fast_map", "Milling: a long finishing program as a height map", "0.2.116",
+@line("milling.fast_map", "Milling: a long finishing program as a height map", "0.2.117",
       what="The test mill runs a finishing program of 1,300 short moves (a Ø10 ball follows a wavy surface, passes "
            "0.6 mm apart). "
            "The block is worked out as a height map (Fast 3-axis passes, on by itself) and, for comparison, with an "

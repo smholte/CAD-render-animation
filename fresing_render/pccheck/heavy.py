@@ -518,7 +518,7 @@ def heavy_milling(ctx):
     return f"{frames} frames, {len(me.polygons)} faces in the block"
 
 
-@line("heavy.milling_finish", "Milling: a long finishing program (height map)", "0.2.116", (H,), expected=30,
+@line("heavy.milling_finish", "Milling: a long finishing program (height map)", "0.2.117", (H,), expected=30,
       what="The test mill runs a finishing program of 40,000 points (a Ø10 ball follows a wavy surface over "
            "100 x 60 mm, passes 0.3 mm apart) as a G-code step; the block is worked out to the end as a height map "
            "(Fast 3-axis passes), then 20 frames one after the other",

@@ -348,3 +348,39 @@ def test_page_draws_the_moving_cables(tmp_path):
             pts = np.array(tb["points"])
             d = np.linalg.norm(pts[:, None] - cen[None], axis=2).min(axis=1)
             assert d.max() < 0.003, (name, f, d.max())
+
+
+def test_served_cable_look_on_the_page(tmp_path):
+    """Task 0158: the power cable and its carousel coil with the served look: the page gets the yarn and the bands
+    (the app's numbers), and the page draws them (its shader compiles: the state is "ready", no error)."""
+    from fresing_render.blender import cable_looks
+    sc, _out = fresh("test_spool.step", spool.set_up_test_model, tmp_path)
+    it = next(i for i in paths.items(sc) if i.part.get("fr_name") == "POWER CABLE")
+    it.look = "SERVED"
+    it = next(i for i in paths.items(sc) if i.part.get("fr_name") == "POWER CABLE")
+    it.wear, it.band_count = 0.6, "SINGLE"
+    sc.frame_set(sc.frame_start)
+    job, out, doc, binary = export(sc, tmp_path, "page.glb", animation=False, page=True)
+    specs = tubes_of(job, doc)
+    want = cable_looks._served(*(list(it.part[k]) for k in (cable_looks.LOOK, cable_looks.YARN, cable_looks.BAND)))
+    for name in ("POWER CABLE", "FR spool Carousel"):
+        lk = specs[name]["look"]
+        assert lk["kind"] == "SERVED", name
+        assert lk["yarn_starts"] == want["starts"] and lk["count"] == 1 and lk["wear"] == pytest.approx(0.6), name
+        assert lk["pitch"] == pytest.approx(want["distance"]) and lk["width"] == pytest.approx(want["width"])
+        assert lk["yarn_pitch"] == pytest.approx(want["yarn_pitch"]) and lk["radius"] == pytest.approx(want["radius"])
+        assert lk["yarn"] == pytest.approx(list(it.yarn_color), abs=1e-6) and len(lk["band"]) == 3
+    assert specs["WIRE ROPE"]["look"]["kind"] == "ROPE"
+    browser = env.find_browser()
+    got = None
+    if browser:
+        try:                                    # (GitHub's machines: the browser may not start – as the test above)
+            got = env.read_page(out["html"], browser, "auto=0&frames=2&t=0&tubes=1", seconds=180)
+        except RuntimeError:
+            got = None
+    if got is None:
+        if NODE:
+            subprocess.run([NODE, "--check", os.path.join(core.WEB_DIR, env.PAGE_FILE)], check=True)
+        return
+    assert got["state"].startswith("ready"), got["state"]
+    assert got["tubes"] and len(got["tubes"]) == 4

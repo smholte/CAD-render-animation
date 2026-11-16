@@ -119,7 +119,7 @@ brief by an agent that did not write the cutter, findings sent back to the worke
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `ccr-5bfdc6c9-l2tm60`). Version **0.2.116**.
+**Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `ccr-5bfdc6c9-l2tm60`). Version **0.2.117**.
 
 **What changed**
 

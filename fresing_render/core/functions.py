@@ -165,6 +165,9 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 # ----- 4 Motion: cables, drums; the sea -----
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80")
+fn(id="offshore.served_cable", title="Served cable look: yarn and marker bands", family="offshore",
+   panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
+   pccheck=("looks.served_cable",), since="0.2.116")
 fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", button="fresing.cable_sea_add", guide="into-the-sea", tour=("sea_cable",),
    pccheck=("motion.sea_cable",), since="0.2.91")
@@ -219,7 +222,7 @@ fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel=
    guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
-   pccheck=("milling.fast_map",), since="0.2.116")
+   pccheck=("milling.fast_map",), since="0.2.117")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
    guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
