@@ -123,7 +123,13 @@ Owner's question (16 Nov): "does the Fresing Render app icon show as the Fresing
   shortcuts are turned back into the pre-0169 kind (Blender icon, no ID, icon file deleted), the app's refresh runs and
   everything is read back again; on a window of its own the icon (WM_GETICON) and the window's ID are read back, and the
   process ID. No Blender window exists there (background), so the hook's timer itself is not run on GitHub.
-- Independent review of the Windows code: see below.
+- Independent review of the Windows code by a helper agent that did not write it (read-only): no crash-class fault in
+  the COM/ctypes code (vtable indices, GUIDs, PROPVARIANT, Release/CoInitialize balance checked). Fixed after it: the
+  icon file was copied by two writers at the first start after an update (now once, on the main thread, unique temp
+  name); only this thread's windows are taken (a console window could block); an empty icon path is never written;
+  a pinned plain-Blender icon is left alone (only pins that start the app are changed). Left: the hook's GUI timer is
+  not run on GitHub (no Blender window there); an old pin may show as a second button until the next sign-in; Windows'
+  own window properties are not cleared at close (harmless at exit).
 
 **Open points / follow-up tasks:**
 - Only the owner's PC can show the taskbar and a pinned icon for real (steps for the owner below).

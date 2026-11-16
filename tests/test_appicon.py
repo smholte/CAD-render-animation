@@ -200,3 +200,21 @@ def test_the_icon_ships_inside_the_extension():
     init = open(os.path.join(ROOT, "fresing_render", "__init__.py"), encoding="utf-8").read()
     assert "appicon.startup()" in init
     assert os.path.isfile(ai.SHIPPED_ICON)
+
+
+def test_a_pinned_plain_blender_keeps_its_icon():
+    plain = info(target=EXE, arguments="")
+    assert ai.plan(plain, INST, ICON, pinned=True) == {"icon": False, "app_id": ""}
+    assert ai.plan(info(), INST, ICON, pinned=True) == {"icon": True, "app_id": ai.APP_ID}
+    assert ai.is_pinned(os.path.join("C:", "AppData", ai.PINNED, "Fresing Render.lnk"))
+    assert not ai.is_pinned(os.path.join("C:", "Desktop", "Fresing Render.lnk"))
+
+
+def test_no_icon_file_writes_nothing(tmp_path):
+    assert ai.refresh_shortcuts(str(tmp_path), "", ["x.lnk"]) == []
+    assert ai.refresh_shortcuts(str(tmp_path), str(tmp_path / "missing.ico"), ["x.lnk"]) == []
+
+
+def test_ensure_icon_leaves_no_temp_file(tmp_path):
+    ai.ensure_icon(str(tmp_path))
+    assert os.listdir(tmp_path) == [ai.ICON_FILE]

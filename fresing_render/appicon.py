@@ -73,10 +73,14 @@ def ensure_icon(folder: str, shipped: str = SHIPPED_ICON) -> str:
             with open(dst, "rb") as fh:
                 old = fh.read()
         if old != new:
-            tmp = dst + ".new"
-            with open(tmp, "wb") as fh:
-                fh.write(new)
-            os.replace(tmp, dst)
+            tmp = f"{dst}.{os.getpid()}.{threading.get_ident()}.new"
+            try:
+                with open(tmp, "wb") as fh:
+                    fh.write(new)
+                os.replace(tmp, dst)
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
         return dst
     except OSError as exc:
         log("could not copy the icon:", exc)
@@ -102,11 +106,16 @@ def is_app_shortcut(arguments: str) -> bool:
     return APP_ARGS in " ".join((arguments or "").split())
 
 
-def plan(info: dict, folder: str, icon: str) -> dict:
+def is_pinned(path: str) -> bool:
+    return os.path.normcase(os.path.normpath(PINNED)) in _norm(path)
+
+
+def plan(info: dict, folder: str, icon: str, pinned: bool = False) -> dict:
     """What one shortcut needs. ``info``: target, arguments, icon (path), icon_index, app_id as read.
     Returns {"icon": bool, "app_id": str or ""}: nothing for a shortcut whose target is outside the install folder
-    (never touch someone else's shortcut)."""
-    if not is_inside(info.get("target", ""), folder):
+    (never touch someone else's shortcut). A pinned taskbar icon is changed only when it starts the app: a pin of
+    plain Blender from this folder keeps Blender's icon, since it starts Blender, not Fresing Render."""
+    if not is_inside(info.get("target", ""), folder) or (pinned and not is_app_shortcut(info.get("arguments", ""))):
         return {"icon": False, "app_id": ""}
     wrong_icon = _norm(info.get("icon", "")) != _norm(icon) or int(info.get("icon_index") or 0) != 0
     want_id = APP_ID if is_app_shortcut(info.get("arguments", "")) and info.get("app_id", "") != APP_ID else ""
@@ -163,6 +172,8 @@ class _Win:
         self.shell32 = ctypes.WinDLL("shell32")
         self.user32 = ctypes.WinDLL("user32")
         self.kernel32 = ctypes.WinDLL("kernel32")
+        self.kernel32.GetCurrentProcessId.restype = wt.DWORD
+        self.kernel32.GetCurrentThreadId.restype = wt.DWORD
         o, s, u = self.ole32, self.shell32, self.user32
         o.CoInitializeEx.argtypes = [ctypes.c_void_p, wt.DWORD]
         o.CoInitializeEx.restype = ctypes.c_long
@@ -311,12 +322,15 @@ class _Win:
         """The visible top-level windows of this process that no other window owns."""
         ct, u = self.ct, self.user32
         me = self.kernel32.GetCurrentProcessId()
+        thread = self.kernel32.GetCurrentThreadId()
         found: list[int] = []
 
         def each(hwnd, _lparam):
             pid = self.wt.DWORD()
-            u.GetWindowThreadProcessId(hwnd, ct.byref(pid))
-            if pid.value == me and u.IsWindowVisible(hwnd) and not u.GetWindow(hwnd, 4):     # GW_OWNER
+            # this thread's own windows only: Blender's windows belong to its main thread (where this runs); a
+            # console window reports its client process but belongs to conhost - a message to it could block
+            tid = u.GetWindowThreadProcessId(hwnd, ct.byref(pid))
+            if pid.value == me and tid == thread and u.IsWindowVisible(hwnd) and not u.GetWindow(hwnd, 4):  # GW_OWNER
                 found.append(hwnd)
             return True
 
@@ -363,7 +377,7 @@ def fix_shortcut(path: str, folder: str, icon: str) -> str:
     w = _win()
     link, pf = w.open_link(path, write=True)
     try:
-        todo = plan(w.read_link(link), folder, icon)
+        todo = plan(w.read_link(link), folder, icon, pinned=is_pinned(path))
         if not (todo["icon"] or todo["app_id"]):
             return ""
         done = []
@@ -387,7 +401,11 @@ def fix_shortcut(path: str, folder: str, icon: str) -> str:
 
 
 def refresh_shortcuts(folder: str, icon: str, paths: list[str]) -> list[str]:
-    """Windows: ``fix_shortcut`` on every path; one fault does not stop the others. Returns "<name>: <what>"."""
+    """Windows: ``fix_shortcut`` on every path; one fault does not stop the others. Returns "<name>: <what>".
+    Without an icon file nothing is written (an empty icon path would take the icon away)."""
+    if not icon or not os.path.isfile(icon):
+        log("no icon file: shortcuts left as they are")
+        return []
     w = _win()
     undo = w.com_init()
     out = []
@@ -413,13 +431,14 @@ def known_folders() -> tuple[str, str, str]:
             runner._known_folder("3EB685DB-65F9-4CF6-A03A-E3EF65729F3D"))        # FOLDERID_RoamingAppData
 
 
-def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", appdata: str = "") -> list[str]:
+def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", appdata: str = "",
+                      icon: str = "") -> list[str]:
     """Windows: the icon file into the install folder and every shortcut of this install refreshed (the installer
     calls this after making them; the app at start for PCs installed before 0169)."""
     folder = install_dir(binary_path)
     if not folder:
         return []
-    icon = ensure_icon(folder)
+    icon = icon or ensure_icon(folder)
     if not icon:
         return []
     if not (desktop and programs):
@@ -523,10 +542,16 @@ def _template() -> str:
         return ""
 
 
-def _apply_windows(binary_path: str) -> bool:
+def _icon_for(binary_path: str) -> str:
+    """The icon in the install folder (copied there if needed), else the one inside the extension."""
+    folder = install_dir(binary_path)
+    icon = ensure_icon(folder) if folder else ""
+    return icon if icon and os.path.isfile(icon) else SHIPPED_ICON
+
+
+def _apply_windows(binary_path: str, icon: str) -> bool:
     """Set the icon on the app's windows once one exists. True when done (or given up)."""
     folder = install_dir(binary_path)
-    icon = ensure_icon(folder) if folder else SHIPPED_ICON
     if not os.path.isfile(icon):
         return True
     hwnds = own_windows()
@@ -545,7 +570,7 @@ def startup() -> bool:
     import bpy
     if sys.platform != "win32" or bpy.app.background or os.environ.get("FRESING_NO_APPICON"):
         return False
-    tries = {"n": 0}
+    tries = {"n": 0, "icon": ""}
 
     def tick():
         tries["n"] += 1
@@ -554,8 +579,11 @@ def startup() -> bool:
                 return None
             if tries["n"] == 1:
                 set_process_app_id()                 # windows made from now on
-                threading.Thread(target=_shortcuts, args=(bpy.app.binary_path,), daemon=True).start()
-            if _apply_windows(bpy.app.binary_path) or tries["n"] >= 30:
+                # the icon file is copied here, once, before the shortcut thread starts (no two writers)
+                tries["icon"] = _icon_for(bpy.app.binary_path)
+                if install_dir(bpy.app.binary_path) and tries["icon"] != SHIPPED_ICON:
+                    threading.Thread(target=_shortcuts, args=(bpy.app.binary_path, tries["icon"]), daemon=True).start()
+            if _apply_windows(bpy.app.binary_path, tries["icon"]) or tries["n"] >= 30:
                 return None
         except Exception as exc:  # noqa: BLE001 - never stop the app from starting
             STATE["error"] = str(exc)
@@ -567,9 +595,9 @@ def startup() -> bool:
     return True
 
 
-def _shortcuts(binary_path: str) -> None:
+def _shortcuts(binary_path: str, icon: str) -> None:
     try:
-        done = refresh_installed(binary_path)
+        done = refresh_installed(binary_path, icon=icon)
         STATE["shortcuts"] = "; ".join(done)
         if done:
             log("shortcuts refreshed:", "; ".join(done))
