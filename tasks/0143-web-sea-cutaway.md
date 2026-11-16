@@ -1,6 +1,6 @@
 # 0143 – Web 3D model: under the sea – seabed, the cable in the water, the sea cut-away, the camera under water
 
-**Who:** worker · **Status:** waiting – starts **after 0142 is merged** (same files) · **Branch:**
+**Who:** worker · **Status:** waiting – starts **after 0148 and 0158 are merged** (0142 done; 0158 edits `fr_page.js` too; 0148 adds the seabed cut the page must show) **and after 0161** (same files: `web3d.py`, `web3d_env.py`) · **Branch:**
 `task/0143-web-sea-cutaway`
 **Started by:** lead chat, 15 Nov 2026 (owner: "cutout is not visible in web 3D model") · **Model:** Opus · effort
 Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
@@ -19,6 +19,13 @@ touch-down, and the app's **sea cut-away** box (the see-through window in the se
   ripples, the power cable and the A&R wire going down to the touch-down. On the page the sea is one opaque surface:
   nothing under it, no cut-away (the panel says "Not in the web model: … the cutaway").
 - 0142 makes the cables move on the page; this task makes the water let you see them.
+
+- **Bug hunt 0147 row 11 (added by the lead, 16 Nov):** a saved view below the water (sea page) or below the floor
+  (plain page) is pushed up by the `lowest` clamp in `fr_page.js` (~line 1095), so 0128's "Seabed" camera can never be
+  shown. With the dive under water this task builds: no clamp while the camera is on a saved view (until the visitor
+  drags), and the Seabed view of the offshore turbine page shows the seabed and 0148's cut. Test as the row's proof.
+- **0148 (seabed cut) and 0161 (web export fixes) are merged before this starts:** show 0148's soil section and the
+  monopile to its toe on the page too (read 0148's report and the sea section of the guide).
 
 ## What to build
 

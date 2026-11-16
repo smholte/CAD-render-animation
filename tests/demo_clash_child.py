@@ -121,6 +121,66 @@ def hold_whole(clash, cls, scene) -> dict:
             "round_memo": full.round_memo, "band_memo": full.band_memo, "names": list(full.names)}
 
 
+def windows(f0: int, f1: int, n: int) -> list:
+    """n windows of frames f0 … f1 that overlap by one frame: every step k → k+1 lies inside one of them."""
+    cuts = sorted({f0, f1} | {f0 + round((f1 - f0) * i / n) for i in range(1, n)})
+    return [(a, b) for a, b in zip(cuts, cuts[1:])]
+
+
+def check_in_windows(scene, blend: str, folder: str, n: int, workers: int = 4, timeout: float = 3600) -> list:
+    """Task 0145: the clash check of the scene's built animation as windows of frames in ``workers`` processes at once,
+    as ``tests/test_demo_clash.py`` checks the whole demo (same child, same proof). ``blend``: this scene saved built
+    (the workers open it); ``folder``: an empty folder for the claims and logs. The scene's own reading of the whole
+    animation (``hold_whole``) is handed to the workers. Proves that the workers checked this very build and that the
+    windows together hold every moment and every step between two moments; returns the windows' results."""
+    import pickle
+    import subprocess
+
+    from fresing_render.blender import clash, vessel_motion
+    f0, f1 = int(scene.frame_start), int(scene.frame_end)
+    win = windows(f0, f1, n)
+    claims = os.path.join(folder, "claims")
+    os.makedirs(claims)
+    whole_file = os.path.join(folder, "whole.pickle")
+    procs = []
+    for w in range(workers):
+        out = os.path.join(folder, f"worker{w}.json")
+        log = open(os.path.join(folder, f"worker{w}.log"), "w", encoding="utf-8")
+        cmd = [sys.executable, os.path.abspath(__file__), blend, out, claims, whole_file, *[f"{a}-{b}" for a, b in win]]
+        procs.append((subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=os.path.dirname(HERE)), out, log, w))
+    try:
+        saved, whole = clash.build_signature(scene), clash.sample_times(scene)
+        with vessel_motion.at_rest(scene):
+            w_all = hold_whole(clash, make_class(clash), scene)
+        with open(whole_file + ".part", "wb") as fh:
+            pickle.dump(w_all, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(whole_file + ".part", whole_file)
+        del w_all
+        results = []
+        for p, out, log, w in procs:
+            code = p.wait(timeout=timeout)
+            log.flush()
+            with open(os.path.join(folder, f"worker{w}.log"), encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+            assert code == 0, f"worker {w} stopped ({code}):\n{text[-4000:]}"
+            with open(out, encoding="utf-8") as fh:
+                results.append(json.load(fh))
+    finally:
+        for p, _out, log, _w in procs:              # a failed check here: no worker left running
+            if p.poll() is None:
+                p.kill()
+            log.close()
+    done = [x for r in results for x in r["windows"]]
+    assert all(r["whole"] == whole for r in results)               # each worker checks the animation built here
+    assert all(r["signature"] == saved for r in results)
+    assert sorted(tuple(x["window"]) for x in done) == win
+    seen = sorted({t for x in done for t in x["times"]})           # every moment of the whole check …
+    assert seen == whole
+    for t0, t1 in zip(whole, whole[1:]):                           # … and every step between two of them
+        assert any(t0 in x["times"] and t1 in x["times"] for x in done), (t0, t1)
+    return done
+
+
 def main(argv: list[str]) -> int:
     blend, out, claims, whole_file = argv[0], argv[1], argv[2], argv[3]
     windows = [tuple(int(x) for x in w.split("-")) for w in argv[4:]]
@@ -171,6 +231,7 @@ def main(argv: list[str]) -> int:
                 assert run.names == names, "the parts checked differ from the window's first read"
                 result["windows"].append({"window": [a, b], "times": list(run.times), "seconds": time.perf_counter() - t0,
                                           "rows": [core.row_text(r) for r in run.rows],
+                                          "kinds": [r.kind for r in run.rows],
                                           "stats": {k: v for k, v in run.stats.items() if isinstance(v, (int, float))}})
             finally:
                 clash.sample_times = real_times

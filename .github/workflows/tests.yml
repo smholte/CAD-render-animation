@@ -57,6 +57,7 @@ jobs:
       artifacts_run: ${{ steps.pre.outputs.artifacts_run }}
       pytest: ${{ steps.pre.outputs.pytest }}
       realapp: ${{ steps.pre.outputs.realapp }}
+      demo: ${{ steps.pre.outputs.demo }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -154,6 +155,122 @@ jobs:
             test-results/
             ~/Desktop/Fresing Render self-test/
             ~/Fresing Render self-test/
+          retention-days: 14
+
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Test suite group ${{ matrix.group.name }}: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Task 0145: the demo project is made ONCE per run and handed to the demo's test groups as an artifact (they unpack
+  # it at the same place: the saved project's paths stay right). Why not GitHub's cache: it would be keyed on all the
+  # app's code, which nearly every push changes, and on a miss every group would make it again at once.
+  demo-make:
+    name: Linux - make the demo project
+    needs: precheck
+    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (a venv, by the hash of tools/requirements-dev.txt)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: Make the demo project (tests/demo_made.py, scaled-down form)
+        run: ~/venv/bin/python tests/demo_made.py "$RUNNER_TEMP/demo-made"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: demo-made
+          path: ${{ runner.temp }}/demo-made
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 1
+
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Make the demo project: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
+  demo:
+    name: Linux - test suite ${{ matrix.group.name }}
+    needs: [precheck, demo-make]
+    if: ${{ !cancelled() && needs.precheck.outputs.mode == 'full' && needs.demo-make.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.precheck.outputs.demo) }}
+    steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (a venv, by the hash of tools/requirements-dev.txt)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: Use the venv
+        run: echo "$HOME/venv/bin" >> "$GITHUB_PATH"
+
+      - name: The made demo project (from the job that made it)
+        uses: actions/download-artifact@v8
+        with:
+          name: demo-made
+          path: ${{ runner.temp }}/demo-made
+
+      - name: Test suite (pytest, this group's files)
+        env:
+          FILES: ${{ matrix.group.files }}
+          FRESING_DEMO_MADE: ${{ runner.temp }}/demo-made
+        run: >
+          python -m pytest $FILES -q -rfE --durations=10 --disable-warnings -p no:cacheprovider
+          --junitxml=test-results/pytest.xml
+
+      - name: Test suite verdict
+        if: ${{ !cancelled() }}
+        run: python tools/ci_pytest_summary.py test-results/pytest.xml --max-skipped 1 --title "group ${{ matrix.group.name }}"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-test-suite-${{ matrix.group.name }}
+          path: test-results/
           retention-days: 14
 
       - name: Minutes
@@ -425,7 +542,7 @@ jobs:
 
   verdict:
     name: Tests - verdict
-    needs: [precheck, suite, real-app, build, windows]
+    needs: [precheck, suite, demo-make, demo, real-app, build, windows]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -436,14 +553,15 @@ jobs:
           ART: ${{ needs.precheck.outputs.artifacts_run }}
           PRE: ${{ needs.precheck.result }}
           SUITE: ${{ needs.suite.result }}
+          DEMO: ${{ needs.demo.result }}
           REAL: ${{ needs.real-app.result }}
           BUILD: ${{ needs.build.result }}
           WIN: ${{ needs.windows.result }}
         run: |
-          echo "mode=$MODE precheck=$PRE suite=$SUITE real-app=$REAL build=$BUILD windows=$WIN"
+          echo "mode=$MODE precheck=$PRE suite=$SUITE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN"
           ok=false
           case "$MODE" in
-            full)  [ "$PRE$SUITE$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccess" ] && ok=true ;;
+            full)  [ "$PRE$SUITE$DEMO$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccesssuccess" ] && ok=true ;;
             docs)  [ "$PRE$BUILD" = "successsuccess" ] && ok=true ;;
             reuse) [ "$PRE" = "success" ] && ok=true ;;
           esac

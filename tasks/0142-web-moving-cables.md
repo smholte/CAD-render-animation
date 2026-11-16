@@ -1,6 +1,6 @@
 # 0142 – Web 3D model: cables, ropes, coils, hoses and tracks move and keep their looks on the page
 
-**Who:** worker · **Status:** running (16 Nov) · **Branch:**
+**Who:** worker · **Status:** done (16 Nov, 0.2.114) · **Branch:**
 `claude/cad-render-animation-0142-qdgqzy` (the web session's branch)
 **Started by:** lead chat, 15 Nov 2026 (owner compared the demo in the app and on the page, 15 Nov 23:28) ·
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation"
@@ -144,7 +144,9 @@ texture upload; the rings are built on the graphics card.
   300 m were 2.4 mm off; a part whose modifier changes its shape was taken for rigid; the spool rope lost its first
   ring on 15 of 402 frames (equal moments blended a hair past the path's point). All fixed and covered by its tests.
 - Local: the web-3D, player, site, function-list, guide and update tests (208 passed); PC-check line web3d.moving OK
-  (11 s). GitHub runs: see below.
+  (11 s). GitHub: 2 full runs, both green – the branch (run 43828114550, 35.9 min) and main once more because main had
+  moved (task-list files only; run 43832999637, 26.2 min); release 0.2.114 published, the old-version update check
+  and the offer to the apps green.
 
 **Open points / follow-up tasks:**
 - The export on the demo is ~2 min longer (frame stepping is shared, but every cable and link is read per frame).
