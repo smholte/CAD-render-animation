@@ -42,6 +42,7 @@ import math
 
 import numpy as np
 
+STATS = {"extras": 0, "extras_lost": 0}     # extra vertices put in, and those whose edge the thinning lost
 CHECK_ROUNDS = 6                  # rounds of check and fix before the strips that are still off are kept whole
 
 
@@ -429,7 +430,22 @@ def _zip_tris(z: Zip, axis: str, n: int) -> np.ndarray:
 STRIPS_FROM = 160                 # a tile tries strips only when the right triangles need more than this
 
 
-def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int = 0, strips: bool = True) -> dict:
+def pins_of(edges: np.ndarray, n: int) -> np.ndarray:
+    """(n * n) bool: the nodes kept so that every edge of ``edges`` (node numbers; numbers past n² are extra
+    vertices, skipped) is an edge of the thinned mesh: its ends, and for a cell's diagonal the cell's corners."""
+    pins = np.zeros(n * n, bool)
+    e = edges[(edges < n * n).all(axis=1)]
+    pins[e.reshape(-1)] = True
+    r, c = e // n, e % n
+    diag = (r[:, 0] != r[:, 1]) & (c[:, 0] != c[:, 1])
+    if diag.any():
+        pins[r[diag, 0] * n + c[diag, 1]] = True
+        pins[r[diag, 1] * n + c[diag, 0]] = True
+    return pins
+
+
+def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int = 0, strips: bool = True,
+        pins: np.ndarray | None = None) -> dict:
     """A tile's own thinning, without its neighbours: ``P``, ``Q`` (n, n, 3) the nodes (``Q``: as judged, without
     the fine ridges), ``cls`` (n, n) mark classes. Of the right triangles (task 0146) and the strips along x or y,
     the one with the fewest triangles (strips only where the right triangles need more than ``STRIPS_FROM``, and
@@ -437,17 +453,18 @@ def own(P: np.ndarray, Q: np.ndarray, cls: np.ndarray, tol: float, parity: int =
     tile, counter-clockwise seen from above, and ``need`` (n * n bool: the nodes they use)."""
     n = Q.shape[0]
     tab = rtin(n - 1)
-    need = rtin_needed(tab, Q.reshape(-1, 3), cls.reshape(-1), tol)
+    need = rtin_needed(tab, Q.reshape(-1, 3), cls.reshape(-1), tol, pins)
     tri = rtin_triangles(tab, need)
     best = dict(kind="rtin", tri=tri, need=need)
+    pin = np.zeros((n, n), bool) if pins is None else pins.reshape(n, n)
     if len(tri) <= STRIPS_FROM or not strips:
         return best
     cands = []
     for axis in ("x", "y"):
-        q, c = _frame(Q, axis), _frame(cls, axis)
-        R = np.flatnonzero(_rows_kept(q, c, tol))
+        q, c, pf = _frame(Q, axis), _frame(cls, axis), _frame(pin, axis)
+        R = np.flatnonzero(_rows_kept(q, c, tol) | pf.any(axis=1))
         K = np.zeros((n, n), bool)
-        K[R] = _prune(q[R], c[R], _chains(q[R], c[R], tol, np.zeros((len(R), n), bool)), tol)
+        K[R] = _prune(q[R], c[R], _chains(q[R], c[R], tol, pf[R]), tol) | pf[R]
         cands.append((_estimate(K, R), axis, R, K))
     cands.sort(key=lambda x: x[0])
     for est, axis, R, K in cands:
@@ -535,20 +552,23 @@ def _checked(q, c, R, K, tol, parity, limit: int | None = None):
     return R, K
 
 
-def triangles(me: dict, forced: np.ndarray | None) -> tuple:
+def triangles(me: dict, forced: np.ndarray | None, P: np.ndarray | None = None) -> tuple:
     """The triangles of a tile (node numbers, counter-clockwise seen from above) and the nodes they use: ``me``
     from ``own``, ``forced`` (n * n bool or None) the nodes on the border its neighbours keep. A forced node the
     tile does not keep itself lies on the side of one of its triangles along the border: that triangle becomes a
     fan from its corner across. So a forced node never makes the tile keep another one: tiles meet node for node,
     also where three or four meet."""
     tri, need = me["tri"], me["need"]
-    if forced is None:
-        return tri, need
-    extra = forced & ~need
-    if not extra.any():
-        return tri, need
     n = int(round(math.sqrt(len(need))))
-    return _fan_in(tri, np.flatnonzero(extra), n), need | forced
+    if forced is not None:
+        extra = forced & ~need
+        if extra.any():
+            tri, need = _fan_in(tri, np.flatnonzero(extra), n), need | forced
+    if me.get("edges") is not None:                     # the extra vertices (task 0167, ``split_edges``)
+        tri, done = split_edges(tri, me["edges"], n * n, P, me.get("edges_border"))
+        STATS["extras"] += len(done)
+        STATS["extras_lost"] += int((~done).sum())
+    return tri, need
 
 
 def _fan_in(tri: np.ndarray, nodes: np.ndarray, n: int) -> np.ndarray:
@@ -596,12 +616,23 @@ def _fan_in(tri: np.ndarray, nodes: np.ndarray, n: int) -> np.ndarray:
     return np.concatenate([tri[~drop]] + out)
 
 
-def split_edges(tri: np.ndarray, edges: np.ndarray, first: int) -> tuple:
+def _turns(P, t) -> float:
+    """The signed area of triangle ``t`` seen from above, over its longest side squared."""
+    a, b, c = P[t[0]], P[t[1]], P[t[2]]
+    ar = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])
+    L = max((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2, (c[0] - a[0]) ** 2 + (c[1] - a[1]) ** 2,
+            (c[0] - b[0]) ** 2 + (c[1] - b[1]) ** 2, 1e-300)
+    return ar / L
+
+
+def split_edges(tri: np.ndarray, edges: np.ndarray, first: int, P=None, keep=None) -> tuple:
     """Extra vertices on edges of a triangulation (task 0167: the foot of a wall above a rounded strip, the second
     rim of a rib): ``edges`` (k, 2) node numbers - vertex ``first + j`` lies on the straight edge ``edges[j]``
     (several on one edge: in order from ``edges[j, 0]``). Every triangle with such an edge is cut in two through
-    the vertex. Returns (triangles, done): ``done[j]`` False where no triangle has that edge (the thinning went
-    across it)."""
+    the vertex. With ``P`` (the places, nodes then extra vertices): a vertex whose triangles would lie turned over
+    seen from above is left out, unless ``keep[j]`` (on the tile's border the neighbour puts it in too). Returns
+    (triangles, done): ``done[j]`` False where no triangle has that edge (the thinning went across it) or the
+    vertex was left out."""
     tri = np.asarray(tri, np.int64)
     done = np.zeros(len(edges), bool)
     if not len(edges):
@@ -614,11 +645,23 @@ def split_edges(tri: np.ndarray, edges: np.ndarray, first: int) -> tuple:
             where.setdefault((min(t[i], t[(i + 1) % 3]), max(t[i], t[(i + 1) % 3])), []).append(k)
     for j, (u, v) in enumerate(edges.tolist()):
         key = (min(u, v), max(u, v))
-        ks = where.pop(key, [])
+        ks = where.get(key, [])
         if not ks:
             continue
-        done[j] = True
         e = first + j
+        if P is not None and not (keep is not None and keep[j]):
+            bad = False
+            for k in ks:
+                t = out[k]
+                i = next(i for i in range(3) if {t[i], t[(i + 1) % 3]} == {u, v})
+                a, b, c = t[i], t[(i + 1) % 3], t[(i + 2) % 3]
+                if min(_turns(P, (a, e, c)), _turns(P, (e, b, c))) < -1e-6 < _turns(P, (a, b, c)):
+                    bad = True
+                    break
+            if bad:
+                continue
+        where.pop(key)
+        done[j] = True
         for k in ks:
             t = out[k]
             i = next(i for i in range(3) if {t[i], t[(i + 1) % 3]} == {u, v})
