@@ -15,12 +15,13 @@ seabed); shots 9–12 lay the second end beside turbine B, 1.2 km further. One f
 "Move joint" step of the park's slide joint "Park: on to turbine B" takes the park the rest of the way (the payout
 stands still in shots 9–12, so B stays beside the vessel); Build re-times it with the animation.
 
-**Clash check.** The parts far from anything that moves are left out of it (``clash.HOOKS``, ``_clash_hook``):
-every nacelle with its rotor (they only turn in place, 150 m up: nine turning rotors made the demo's check four to five
-times slower – the blade tips move 4 m a frame, so it looks between frames ten times as often), the seven turbines
-that never come near the vessel, and the substation. Turbine A's and B's foundations, towers and platforms and A's
-cable piece stay in: they pass the vessel, the cable and the D. The rotors' room is checked in
-``tests/test_demo_park_model.py`` instead.
+**Clash check.** The park is left out of the demo's clash check (``clash.HOOKS``, ``_clash_hook``): with it the
+check took three to five times as long – nine turning rotors whose blade tips move 4 m a frame, and turbines A and B
+(one rigid body with the park, a box 1.2 km long round the vessel) moving with the seabed up to 0.6 m a frame in the
+time-lapse shots made it look between frames all the time; and the park's 879 m one-frame move is one screw step
+between two frames (with a turning rotor: a false row). The park never comes near the vessel; its clearances are
+tested directly instead (``tests/test_demo_project_park.py``: the vessel against every turbine's platform and rotor,
+the lowered D against turbine B's scour rock; ``tests/test_demo_park_model.py``: the rotors' room).
 
 **Lights.** The red aviation lights on the nacelles and the yellow marine lights on the platforms and the substation's
 corners flash together: one simple-expression driver per group material on its emission strength (``fmod`` of the
@@ -69,8 +70,7 @@ FLASH = {"Demo: aviation lights": (2.0, 1.0, 150.0),   # medium-intensity red, ~
          "Demo: marine lights": (2.5, 0.5, 80.0)}       # yellow, "Fl Y 2.5s"
 
 
-KEEP = "fr_park_clash"                # on the park root: the turbines (and parts) the clash check keeps
-KEEP_OUT = ("NACELLE",)               # … but not these subassemblies of theirs (nacelle and rotor)
+KEEP = "fr_park"                      # on the park's model root (what the clash hook looks for)
 
 
 def root(d: Demo):
@@ -87,24 +87,12 @@ def park_root(scene):
 
 
 def _clash_hook(scene):
-    """(add, leave out) for the clash check: see the module docstring."""
+    """(add, leave out) for the clash check: the whole park (see the module docstring)."""
     r = park_root(scene) if demo.is_demo(scene) else None
     if r is None:
         return (), ()
     from . import build, logic
-    keep = set(r.get(KEEP))
-    leave = []
-    for ob in logic.descendants(r):
-        if ob.get(build.PROP_KIND) != "part":
-            continue
-        names = [ob.get(build.PROP_NAME, "")]
-        p = build.logical_parent(ob)
-        while p is not None and p is not r:
-            names.append(p.get(build.PROP_NAME, ""))
-            p = build.logical_parent(p)
-        if not (keep.intersection(names) and not set(KEEP_OUT).intersection(names)):
-            leave.append(ob)
-    return (), leave
+    return (), [ob for ob in logic.descendants(r) if ob.get(build.PROP_KIND) == "part"]
 
 
 def _register_hook():
@@ -269,7 +257,7 @@ def park_stage(d: Demo):
     d.timings["park import"] = time.time() - t0
     sc.frame_set(sc.frame_start)
     place(d)
-    root(d)[KEEP] = [turbine(d, "A")["name"], turbine(d, "B")["name"], "CABLE FIRST END"]
+    root(d)[KEEP] = True
     n = joints_(d)
     k = looks(d)
     lights(d)

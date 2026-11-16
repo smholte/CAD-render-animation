@@ -185,14 +185,15 @@ hull heaves; the monopiles' feet stay 3 m in the seabed (every 25th frame + roun
 
 **Decisions**
 - No new function the owner can see (demo content): no PC-check line, no tour stop, no function-list entry.
-- **Clash check:** first run with everything in: 0 real rows, but each half of the demo's check took 26–30 min on
-  GitHub (was 6–12): the nine rotors' blade tips move 4 m a frame and the check looked between frames ten times as
-  often (376,668 moments between frames in one half); and the park's 879 m one-frame move gave a false row (shaft vs
-  nacelle cover: the step between two frames is one screw motion, a jump plus a turn). Left out of the check
-  (`demo_park._clash_hook`): every nacelle and rotor, the seven turbines that never come near the vessel, the
-  substation (635 parts). Kept: turbine A's and B's foundations, towers and platforms and A's cable piece (127 parts).
-  The rotors' room is tested in the maker instead (blades 2 m clear of the tower over a turn, spinner 1 m off the
-  cover, shaft inside the neck).
+- **Clash check** (measured on GitHub, each half of the demo's check, test call): with the whole park in, 1,518 s
+  and 0 real rows (was ~5 min); the nine rotors' blade tips move 4 m a frame, so the check looked between frames ten
+  times as often (376,668 moments in one half), and the park's 879 m one-frame move gave one false row (shaft vs
+  nacelle cover: a jump plus a turn is one screw step between two frames). With nacelles, rotors, the seven far
+  turbines and the substation left out: 924 / 905 s – still 3 x, because turbines A and B are one rigid body with the
+  park (a box 1.2 km long round the vessel) moving with the seabed up to 0.6 m a frame in the time-lapse. So the whole
+  park is left out of the clash check (`demo_park._clash_hook`, demo projects only) and its clearances are tested
+  directly: every vessel part against every turbine's platform (+2 m) and rotor disc, the lowered D against turbine
+  B's scour rock (`test_the_park_keeps_clear_of_the_vessel_and_the_d`); the rotors' room in the maker.
 - Weather & time is on in the demo from the park stage (from the project's own sky, the first switch-on), so the
   start scene keeps it and the night step leads from it.
 - Marking (plain knowledge, not checked on web pages): offshore turbines carry red medium-intensity aviation lights on

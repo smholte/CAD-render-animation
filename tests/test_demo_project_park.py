@@ -238,3 +238,61 @@ def test_shots(made):
     shift = [b for b in a.blocks if b.kind == "JOINT" and b.joint == demo_park.SHIFT]
     assert len(shift) == 1 and shift[0].start + shift[0].duration == pytest.approx(t9)
     assert animation.frame_of(a, shift[0].start) == animation.frame_of(a, t9) - 1
+
+
+def test_the_park_keeps_clear_of_the_vessel_and_the_d(made):
+    """The park is left out of the demo's clash check (``demo_park._clash_hook``: it made the check 3–5 x slower), so
+    its clearances are checked here, every 20th frame and round the park's move: every part of the vessel's model stays
+    clear of every turbine's platform (its corners further from the tower axis than the platform's edge + 2 m) and,
+    above 25 m, of every rotor's disc (2 m off the rotor plane or outside its radius + 2 m); the parts lowered to the
+    seabed in shots 10–12 stay outside turbine B's scour rock."""
+    from fresing_render.blender import clash, logic
+    sc = _scene()
+    root = _park(sc)
+    a = sc.fresing.animations[demo.ANIM]
+    f9 = animation.frame_of(a, _t9(a))
+    assert not [o for o in clash.objects(sc) if o.get(build.PROP_SCENERY)]          # (left out of the check)
+    sheet = demo_park.sheet_of(os.path.join(made["models"], "demo_cable_route.json"))
+    ship = [o for r in build.model_roots(sc) if r is not root for o in logic.descendants(r)
+            if o.get(build.PROP_KIND) == "part" and o.type == "MESH"]
+    low = demo.lowered_parts(sc)
+    park = _asm(root, "WIND PARK")
+    plat = sheet["platform_r"] / 1000.0 + 2.0
+    rr = sheet["rotor_r"] / 1000.0 + 2.0
+    b = next(t for t in sheet["turbines"] if t["role"] == "B")
+    corners = np.array([[x, y, z, 1.0] for x in (0, 1) for y in (0, 1) for z in (0, 1)], float)
+
+    def boxes(objs):
+        out = []
+        for o in objs:
+            bb = np.array([list(c) + [1.0] for c in o.bound_box])
+            out.append((np.array(o.matrix_world) @ bb.T).T[:, :3])
+        return np.concatenate(out)
+    del corners
+    frames = sorted(set(range(int(sc.frame_start), int(sc.frame_end) + 1, 20)) | {f9 - 1, f9})
+    worst = {"platform": 1e9, "rotor": 1e9, "scour": 1e9}
+    for f in frames:
+        sc.frame_set(f)
+        P = boxes(ship)
+        W = np.array(park.matrix_world)
+        for t in sheet["turbines"]:
+            ax = W @ np.r_[np.array(t["xy"]) / 1000.0, 0.0, 1.0]
+            d = np.hypot(P[:, 0] - ax[0], P[:, 1] - ax[1])
+            worst["platform"] = min(worst["platform"], float(d.min() - plat))
+            hub = W @ np.r_[np.array(t["hub"]) / 1000.0, 1.0]
+            dn = W[:3, :3] @ np.array(t["down"])
+            hi = P[P[:, 2] > 25.0]
+            if len(hi):
+                v = hi - hub[:3]
+                off = np.abs(v @ dn)
+                rad = np.linalg.norm(v - np.outer(v @ dn, dn), axis=1)
+                ok = (off > 2.0) | (rad > rr)
+                worst["rotor"] = min(worst["rotor"], float(np.where(ok, 1.0, -1.0).min()))
+        if f >= f9 and low:
+            Q = boxes(low)
+            ax = W @ np.r_[np.array(b["xy"]) / 1000.0, 0.0, 1.0]
+            deep = Q[Q[:, 2] < paths_sea.waterline(sc) - 20.0]
+            if len(deep):
+                d = np.hypot(deep[:, 0] - ax[0], deep[:, 1] - ax[1]) - sheet["scour_r"] / 1000.0
+                worst["scour"] = min(worst["scour"], float(d.min()))
+    assert worst["platform"] > 0.0 and worst["rotor"] > 0.0 and 0.0 < worst["scour"] < 1e8, worst
