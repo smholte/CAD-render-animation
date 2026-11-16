@@ -324,3 +324,64 @@ def test_a_gltf_without_a_default_scene_reads_the_first_scene_with_nodes(tmp_pat
     (tmp_path / "two.glb").write_bytes(g.glb())
     info = mesh_reader.read_mesh(str(tmp_path / "two.glb"), str(tmp_path / "c"))
     assert [n["name"] for n in info["nodes"] if n["kind"] == "part"] == ["BOX"]
+
+
+# ---- 0147 row 21b (task 0162): a file mostly UTF-8 with one cp1252 line ---------------------------------------------
+
+def test_a_utf8_obj_with_one_cp1252_line_keeps_its_names(tmp_path):
+    assert mesh_reader._decode("o Plåt\n".encode() + "# från\n".encode("cp1252") + "usemtl Stål".encode()) == \
+        "o Plåt\n# från\nusemtl Stål"
+    assert mesh_reader._decode("o Plåt".encode()[:-1] + b"") == "o Plå"     # (plain UTF-8 untouched)
+    assert mesh_reader._decode("# a\no Pl".encode() + "å".encode()[:1], cut=True) == "# a\no Pl"   # a read cut in a letter
+    obj = ("# Exported by Ritprogrammet för Windows\n".encode("cp1252")
+           + "o Plåt\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n".encode())
+    (tmp_path / "mixed.obj").write_bytes(obj)
+    info = mesh_reader.read_mesh(str(tmp_path / "mixed.obj"), str(tmp_path / "c"), units="m")
+    assert [n["name"] for n in info["nodes"] if n["kind"] == "part"] == ["Plåt"]
+
+
+# ---- 0147 row 3 (task 0162): unnamed groups ("Node k") all at the model's origin ---------------------------------------
+
+def unnamed_groups(groups=("A", "B", "C")) -> bytes:
+    """Unnamed group nodes at the origin (the reader names them "Node k"), each with two named boxes of its own."""
+    g = maker.Gltf()
+    grey = g.material("Grey", (0.5, 0.5, 0.5))
+    x0 = {"A": -1.0, "B": 0.0, "C": 1.0}
+    for name in groups:
+        grp = g.node("")
+        for k in (1, 2):
+            s = maker.Shape()
+            x = x0[name] + 0.3 * k
+            s.box((x, 0.0, 0.0), (x + 0.2, 0.2 + 0.05 * k, 0.2))
+            g.node(f"{name}{k}", g.mesh(f"{name}{k}", [(s, grey)]), parent=grp)
+    return g.glb()
+
+
+def test_unnamed_groups_keep_their_work_when_one_is_removed(tmp_path):
+    from fresing_render.blender import logic, states
+    src = tmp_path / "groups.glb"
+    src.write_bytes(unnamed_groups())
+    sc = fresh(tmp_path, src)
+
+    def group_of(part_name):
+        p = next(o for o in parts(sc) if o.get(build.PROP_NAME) == part_name)
+        return build.logical_parent(p)
+
+    b = group_of("B1")
+    assert b.get(build.PROP_MADE_NAME) and b == group_of("B2")
+    logic.set_hidden(b, True)
+    a = sc.fresing.animations.add()
+    step = a.blocks.add()
+    step.kind, step.target_uid, step.target_name = "HIDE", b[build.PROP_UID], b[build.PROP_NAME]
+    src.write_bytes(unnamed_groups(("B", "C")))              # A is gone: "Node 2" is now "Node 1"
+    update(sc, src)
+    b = group_of("B1")
+    assert b == group_of("B2")
+    tgt = states.by_uid(sc).get(step.target_uid)
+    assert tgt == b, (tgt and tgt.get(build.PROP_NAME), b.get(build.PROP_NAME))
+    assert logic.is_hidden(b) and not logic.is_hidden(group_of("C1"))
+    src.write_bytes(unnamed_groups())                        # A back in front: the numbers shift the other way
+    update(sc, src)
+    b = group_of("B1")
+    assert states.by_uid(sc).get(step.target_uid) == b == group_of("B2")
+    assert logic.is_hidden(b) and not logic.is_hidden(group_of("A1")) and not logic.is_hidden(group_of("C1"))

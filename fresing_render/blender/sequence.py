@@ -293,25 +293,59 @@ class Keys:
     jumps: dict | None = None     # frame -> names of parts a step puts somewhere else at once (task 0132, clash check)
 
 
-def home_top(home: dict, name: str, default=None):
-    """Where the last Take apart step that moved ``name`` found it (``default`` when none has)."""
+def home_top(home: dict, name: str, default=None, owns=None):
+    """Where the Take apart step that a Put together undoes found ``name`` (``default`` when none has moved it).
+    ``owns(uid)``: is the subassembly ``uid`` the Put together's own or one inside it? The newest entry such a step
+    pushed is the one it undoes (task 0162: steps in any order); none (or no ``owns``): the newest entry."""
     stack = home.get(name)
-    return stack[-1] if stack else default
+    if not stack:
+        return default
+    return stack[_home_index(stack, owns)][1]
 
 
-def _home_push(home: dict, name: str, delta) -> None:
-    home.setdefault(name, []).append(delta)
+def _home_index(stack: list, owns) -> int:
+    if owns is not None:
+        for i in range(len(stack) - 1, -1, -1):
+            if owns(stack[i][0]):
+                return i
+    return len(stack) - 1
 
 
-def _home_pop(home: dict, name: str):
-    """A Put together takes a part back to where the last Take apart found it (nested sequences, task 0140)."""
+def _home_push(home: dict, name: str, delta, uid: str = "") -> None:
+    home.setdefault(name, []).append((uid, delta))
+
+
+def _home_pop(home: dict, name: str, owns=None):
+    """A Put together takes a part back to where its own Take apart found it (nested sequences, task 0140; any
+    order, task 0162; an entry of another subassembly stays). Entries above it were pushed by subassemblies round it,
+    taken apart later: they found the
+    part where this Take apart had left it – once this step has put it together, they find it where it ends now."""
     stack = home.get(name)
     if not stack:
         return None
-    d = stack.pop()
+    i = _home_index(stack, owns)
+    if owns is not None and not owns(stack[i][0]):
+        # none of its own (a Put together of a subassembly inside one taken apart as a whole): it brings the part to
+        # where that Take apart found it and leaves the entry, so that one's own Put together finds it home already
+        return stack[i][1]
+    _uid, d = stack.pop(i)
+    for j in range(i, len(stack)):
+        stack[j] = (stack[j][0], d)
     if not stack:
         del home[name]
     return d
+
+
+def _owns(sub, uids: dict):
+    """owns(uid): is the subassembly ``uid`` ``sub`` itself or one inside it?"""
+    def owns(uid, sub=sub):
+        ob = uids.get(uid) if uid else None
+        while ob is not None:
+            if ob == sub:
+                return True
+            ob = build.logical_parent(ob)
+        return False
+    return owns
 
 
 def label(b) -> str:
@@ -335,7 +369,8 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
     start = {o.name: k.ostate.get(o.name, ident) for o in m.parts}
     # put together: back to where the last Take apart found each part (a stack: nested sequences, task 0140); it is
     # planned there (the exact reverse of that Take apart) and comes in from where it is when the step starts
-    home = {n: home_top(k.home, n, d) if together else d for n, d in start.items()}
+    owns = _owns(sub, k.uids)
+    home = {n: home_top(k.home, n, d, owns) if together else d for n, d in start.items()}
     deltas = dict(k.ostate)
     deltas.update(home)
     hidden = {n for n, keys in k.vkeys.items() if keys and _value_at(keys, f_start)}
@@ -358,30 +393,40 @@ def bake_step(scene, b, f_start: int, k: Keys) -> None:
         f0, f1 = frames[mv.name]
         d_home = home[mv.name]
         d_out = _offset_delta(d_home, worlds[mv.name], mv.offset)
-        if together and mv.name in k.home and _differs(start[mv.name], d_home, 1e-6):
+        taken = together and mv.name in k.home              # a Take apart before moved it
+        if taken and not _differs(start[mv.name], d_home, 1e-6):
+            # home already (its own Put together came first, task 0162): it stays, it is only shown again
+            _home_pop(k.home, mv.name, owns)
+            _show_again(b, ob, f_start, f0, f1, k, interp, ez)
+            continue
+        if taken:
             d_out = start[mv.name]                          # out already (a Take apart before): from there, no jump
         keys = k.okeys.setdefault(mv.name, [(1, k.ostate.get(mv.name, ident), "CONSTANT", "AUTO")])
         if mv.name in m.carriers:
-            _rider_keys(b, mv, moves, m.carriers[mv.name], frames, worlds[mv.name], d_home, f_start, keys, merge)
+            _rider_keys(b, mv, moves, m.carriers[mv.name], frames, worlds[mv.name], d_home, f_start, keys, merge,
+                        start[mv.name] if taken else None)
             k.ostate[mv.name] = keys[-1][1]
             if together:
-                _home_pop(k.home, mv.name)
+                _home_pop(k.home, mv.name, owns)
             else:
-                _home_push(k.home, mv.name, start[mv.name])
+                _home_push(k.home, mv.name, start[mv.name], b.target_uid)
         elif together:
             merge(keys, f_start, d_out, "CONSTANT")         # out from the step's start, then each comes in
             merge(keys, f0, d_out, interp, ez)
             merge(keys, f1, d_home, "CONSTANT")
             k.ostate[mv.name] = d_home
-            _home_pop(k.home, mv.name)
+            _home_pop(k.home, mv.name, owns)
         else:
             merge(keys, f0, start[mv.name], interp, ez)
             merge(keys, f1, d_out, "CONSTANT")
             k.ostate[mv.name] = d_out
-            _home_push(k.home, mv.name, start[mv.name])
+            _home_push(k.home, mv.name, start[mv.name], b.target_uid)
         if together and k.jumps is not None and _differs(_value_at(keys, f_start), start[mv.name]):
             k.jumps.setdefault(f_start, set()).add(mv.name)     # out at once at the step's first frame: not a motion
-        _visibility(b, [ob], f_start, f0, f1, k, interp, ez)
+        if together and b.seq_end == "STAY":
+            _show_again(b, ob, f_start, f0, f1, k, interp, ez)
+        else:
+            _visibility(b, [ob], f_start, f0, f1, k, interp, ez)
     if b.seq_trails:
         _trails(scene, k.anim, b, m.parts)
 
@@ -419,9 +464,11 @@ def _rider_offset(b, mv, by_name: dict, carriers: list, t: float) -> Vector:
 
 
 def _rider_keys(b, mv, moves: list, carriers: list, frames: dict, world: Matrix, d_home: Matrix, f_start: int,
-                keys: list, merge) -> None:
+                keys: list, merge, d_start: Matrix | None = None) -> None:
     """A rider's keys: one on every frame while it or a part that carries it flies (LINEAR in between), so it is
-    exactly where it flew to on every frame while its carrier flies out under it (or comes in, put together)."""
+    exactly where it flew to on every frame while its carrier flies out under it (or comes in, put together).
+    ``d_start`` (put together, out already): where it is when the step starts. It starts there and blends to its
+    line while it comes in, as the other parts do (task 0162), instead of jumping to the line's start."""
     from . import animation
     by_name = {x.name: x for x in moves}
     carriers = carriers[:1]          # the nearest carrier's world motion is its own flight (it is kept so itself)
@@ -442,12 +489,42 @@ def _rider_keys(b, mv, moves: list, carriers: list, frames: dict, world: Matrix,
             if cm is not None:
                 x -= Vector(tuple(cm.offset)) * share_at(cm, f)
         return x
+    fix = Vector((0.0, 0.0, 0.0))
+    if b.seq_mode == "TOGETHER" and d_start is not None:
+        # the world offset that puts it where it is: d_start = d_home @ W^-1 @ T(o) @ W
+        m = world @ d_home.inverted() @ d_start @ world.inverted()
+        if not _differs(m.to_3x3().to_4x4(), Matrix.Identity(4), 1e-6):
+            fix = m.translation - offset_at(f_start)
+    g0, g1 = frames[mv.name]
+
+    def blended(f):
+        if fix.length == 0.0:
+            return offset_at(f)
+        p = min(max((f - g0) / max(1, g1 - g0), 0.0), 1.0)
+        return offset_at(f) + fix * (1.0 - animation.ease(b.easing, p))
     if b.seq_mode == "TOGETHER":
-        merge(keys, f_start, _offset_delta(d_home, world, offset_at(f_start)), "CONSTANT")
+        merge(keys, f_start, _offset_delta(d_home, world, blended(f_start)), "CONSTANT")
     for f in sorted(want):
-        merge(keys, f, _offset_delta(d_home, world, offset_at(f)), "LINEAR")
+        merge(keys, f, _offset_delta(d_home, world, blended(f)), "LINEAR")
     last = max(want)
     keys[-1] = (last, keys[-1][1], "CONSTANT", "AUTO")
+
+
+def _show_again(b, ob, f_start: int, f0: int, f1: int, k: Keys, interp: str, ez: str) -> None:
+    """Put together with At the end Stay (task 0162): a part a step before hid or faded shows from its come-in on
+    (faded: it fades in on its way in), whatever hid it."""
+    keys = k.vkeys.get(ob.name)
+    if keys and _value_at(keys, f_start):
+        k.merge(keys, f0, False, "CONSTANT")
+    from . import fade
+    for o in [ob] + fade.decals_of(ob):
+        fk = k.fkeys.get(o.name)
+        if not fk:
+            continue
+        v = float(_value_at(fk, f_start))
+        if v > 0.0:
+            k.merge(fk, f0, v, interp, ez)
+            k.merge(fk, f1, 0.0, "CONSTANT")
 
 
 def _visibility(b, group: list, f_start: int, f0: int, f1: int, k: Keys, interp: str, ez: str) -> None:

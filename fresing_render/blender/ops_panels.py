@@ -73,8 +73,9 @@ class FRESING_OT_tree_row(bpy.types.Operator):
         return {"SELECT": "Select it in the view. Shift or Ctrl-click: add to the selection",
                 "ADD": "Select this too (adds it to what is selected)",
                 "FRAME": "Select it and zoom the view onto it",
-                "HIDE": "Hide or show it (also in renders)",
-                "ONLY": "Show only this, hide everything else (Show all brings it back)"}[properties.action]
+                "HIDE": "Hide or show it (also in renders). After Build it takes the built animation off: Build again",
+                "ONLY": "Show only this, hide everything else (Show all brings it back). After Build it takes the "
+                        "built animation off: Build again"}[properties.action]
 
     def invoke(self, context, event):
         self.extend = event.shift or event.ctrl
@@ -88,6 +89,9 @@ class FRESING_OT_tree_row(bpy.types.Operator):
         item = s.tree[self.index]
         t = logic.Tree(scene)
         objs = tree_mod.row_objects(scene, item, t)
+        if self.action in ("HIDE", "ONLY"):
+            from .ops_main import _take_build_off
+            _take_build_off(self, context)                 # the built keys would still show it (task 0162)
         if self.action == "HIDE":
             hidden = not logic.is_hidden(item.obj)
             if item.is_part:
@@ -108,33 +112,38 @@ class FRESING_OT_tree_row(bpy.types.Operator):
 
 
 class FRESING_OT_show_only_selected(bpy.types.Operator):
-    """Show only the selected parts and subassemblies; Show all brings everything back"""
+    """Show only the selected parts and subassemblies; Show all brings everything back. After Build it takes the built animation off: Build again"""
 
     bl_idname = "fresing.show_only_selected"
     bl_label = "Show only selected"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        t = logic.Tree(context.scene)
-        keep = []
-        for ob in context.selected_objects:
-            if ob.get(build.PROP_KIND) in build.MODEL_KINDS:
-                keep += [ob] + t.descendants(ob)
-        if not keep:
+        sel = list(context.selected_objects)
+        if not any(ob.get(build.PROP_KIND) in build.MODEL_KINDS for ob in sel):
             self.report({"WARNING"}, "Select something first (click it in the view or in the list)")
             return {"CANCELLED"}
+        from .ops_main import _take_build_off
+        _take_build_off(self, context)
+        t = logic.Tree(context.scene)
+        keep = []
+        for ob in sel:
+            if ob.get(build.PROP_KIND) in build.MODEL_KINDS:
+                keep += [ob] + t.descendants(ob)
         tree_mod.show_only(context.scene, keep, "the selection")
         return {"FINISHED"}
 
 
 class FRESING_OT_show_only_end(bpy.types.Operator):
-    """Show everything that Show only hid (parts you hid yourself stay hidden)"""
+    """Show everything that Show only hid (parts you hid yourself stay hidden). After Build it takes the built animation off: Build again"""
 
     bl_idname = "fresing.show_only_end"
     bl_label = "Back to everything"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        from .ops_main import _take_build_off
+        _take_build_off(self, context)
         tree_mod.end_show_only(context.scene)
         return {"FINISHED"}
 
@@ -291,7 +300,7 @@ class FRESING_OT_rule_from_subassembly(bpy.types.Operator):
 
 
 class FRESING_OT_show_only_group(bpy.types.Operator):
-    """Shows only the parts of one group and hides the rest"""
+    """Shows only the parts of one group and hides the rest. After Build it takes the built animation off: Build again"""
 
     bl_idname = "fresing.show_only_group"
     bl_label = "Show only these"
@@ -303,9 +312,9 @@ class FRESING_OT_show_only_group(bpy.types.Operator):
     def description(cls, context, properties):
         if not properties.group:
             return ("Shows only the parts no rule could sort ('Unsorted'), so you see what still needs a group. "
-                    "Show everything again (2 Structure) brings the rest back")
+                    "Show everything again (2 Structure) brings the rest back. After Build it takes the built animation off: Build again")
         return ("Shows only the parts of this group and hides the rest. Show everything again (2 Structure) "
-                "brings them back")
+                "brings them back. After Build it takes the built animation off: Build again")
 
     def execute(self, context):
         scene = context.scene
@@ -318,6 +327,8 @@ class FRESING_OT_show_only_group(bpy.types.Operator):
         if not objs:
             self.report({"INFO"}, "No parts")
             return {"CANCELLED"}
+        from .ops_main import _take_build_off
+        _take_build_off(self, context)
         tree_mod.show_only(scene, objs, label)
         return {"FINISHED"}
 

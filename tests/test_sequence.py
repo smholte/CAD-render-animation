@@ -909,3 +909,144 @@ def test_preview_plans_again_when_a_part_outside_changes(fr):
     named(sc, "PORTAL FRAME").location.z += 0.01
     bpy.context.view_layer.update()
     assert not sequence._same_plan(k1, sequence._plan_key(sc, b, unit, parts))
+
+
+# ---------------------------------------------------------------------------
+# task 0162: the sequence rows of bug hunt 0147
+# ---------------------------------------------------------------------------
+
+def test_home_stack_any_order():
+    """0147 row 7: a Put together undoes the newest Take apart of its own subassembly (or one inside it), whatever
+    came between; Take aparts of subassemblies round it, made later, then find the part where it ends now."""
+    A, B, C = "A", "B", "C"                             # A holds B, B holds C
+    inside = {A: {A, B, C}, B: {B, C}, C: {C}}
+    owns = {s: (lambda uid, s=s: uid in inside[s]) for s in inside}
+    h: dict = {}
+    for sub, d in ((C, "cad"), (B, "c_out"), (A, "b_out")):          # take apart C, then B, then A
+        sequence._home_push(h, "p", d, sub)
+    assert sequence.home_top(h, "p", None, owns[B]) == "c_out"
+    assert sequence._home_pop(h, "p", owns[B]) == "c_out"           # B first: C stays apart, A finds it at c_out
+    assert h["p"] == [(C, "cad"), (A, "c_out")]
+    assert sequence._home_pop(h, "p", owns[C]) == "cad"             # then C: home, A finds it home
+    assert h["p"] == [(A, "cad")]
+    assert sequence._home_pop(h, "p", owns[A]) == "cad" and "p" not in h
+    for sub, d in ((C, "cad"), (A, "c_out")):
+        sequence._home_push(h, "p", d, sub)
+    assert sequence._home_pop(h, "p", owns[B]) == "cad"             # B holds C: undoes C's take apart
+    assert h["p"] == [(A, "cad")]
+    assert sequence.home_top(h, "p", "x") == "cad" and sequence.home_top({}, "p", "x") == "x"
+    h = {"p": [(C, "cad")]}
+    assert sequence._home_pop(h, "p", owns[A]) == "cad"             # none of its own: the newest
+
+
+def _end_of(a, b):
+    return animation.frame_of(a, b.start + b.duration) + 1
+
+
+def test_nested_steps_in_any_order(fr):
+    """0147 row 7: Take apart the slide unit, Take apart the whole model, Put together the slide unit, Put together
+    the whole model: the 3rd step puts the slide unit together (its parts at home, not left at its take-apart
+    place), the 4th finds them home and leaves them there; nothing jumps or clashes. (The portal frame and the base
+    plate are hidden: in this order the slide unit would come home through the base plate that the whole model's
+    Take apart has lifted over it – the clash check shows that; it is not a fault of the steps.)"""
+    from fresing_render.blender import logic
+    sc = fr
+    logic.set_hidden(named(sc, "PORTAL FRAME"), True)
+    logic.set_hidden(named(sc, "BASE PLATE"), True)
+    a = add_anim(sc, "Any order")
+    s1 = add_frame_seq(sc, a, start=0.0, seq_part_time=1.5)
+    t = s1.duration + 0.2
+    s2 = _whole_seq(sc, a, start=t, seq_part_time=1.5)
+    t += s2.duration + 0.2
+    s3 = add_frame_seq(sc, a, start=t, seq_mode="TOGETHER", seq_part_time=1.5)
+    t += s3.duration + 0.2
+    s4 = _whole_seq(sc, a, start=t, seq_mode="TOGETHER", seq_part_time=1.5)
+    unit_parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    every = sequence.movers(sc, named(sc, "TEST.SEQUENCE.FRAME")).parts
+    home = worlds(sc, every, 1)
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+    car = named(sc, "CARRIAGE")
+    z = []
+    for s in (s1, s2, s3, s4):
+        sc.frame_set(_end_of(a, s))
+        z.append(round((car.matrix_world.translation - home[car.name].translation).length * 1000, 1))
+    assert z[0] > 50 and z[1] > z[0] and z[2] < 0.01 and z[3] < 0.01, z
+    assert not [n for n, kf in [(o.name, key_frames(o)) for o in unit_parts]
+                if any(f > _end_of(a, s3) for f in kf)], "the last step moved parts that were home"
+    w3 = worlds(sc, unit_parts, _end_of(a, s3))
+    for o in unit_parts:                                  # the slide unit is together after its own Put together
+        assert (w3[o.name].translation - home[o.name].translation).length < TOL, o.get(build.PROP_NAME)
+    end = worlds(sc, every, sc.frame_end)
+    for n in home:
+        assert (end[n].translation - home[n].translation).length < TOL, n
+    assert _jumps(sc, every, 1, sc.frame_end) == []
+    run = clash.check(sc)
+    assert not run.rows, [(r.a, r.b, round(r.depth * 1000, 2)) for r in run.rows]
+
+
+@pytest.mark.parametrize("end", ["HIDE", "FADE"])
+def test_put_together_stay_shows_what_take_apart_hid(sc, end):
+    """0147 row 9: Take apart with Hide or Fade, then Put together with Stay: every part shows again from its come-in
+    on (12 of 12 render at the last frame, none before its own come-in)."""
+    from fresing_render.blender import fade
+    a = add_anim(sc)
+    b1 = add_seq(sc, a, seq_end=end)
+    b2 = add_seq(sc, a, start=b1.duration + 0.5, seq_mode="TOGETHER", seq_end="STAY")
+    parts = sequence.movers(sc, unit(sc)).parts
+    assert len(parts) == 12
+    info = animation.bake(sc, a)
+    assert not info["warnings"], info["warnings"]
+
+    def shows(o):
+        return not o.hide_render and float(o.get(fade.FADE, 0.0)) < 1e-6
+    sc.frame_set(animation.frame_of(a, b2.start) - 1)
+    assert not any(shows(o) for o in parts)             # still hidden / faded while they wait out there
+    sc.frame_set(sc.frame_end)
+    assert sum(shows(o) for o in parts) == 12
+
+
+def test_a_rider_comes_in_from_where_it_is(fr):
+    """0147 row 13: a rider in a Put together whose settings differ from its Take apart starts where it is and blends
+    to its line, as the other parts do: no jump in one frame (before: 137.9 mm)."""
+    sc = fr
+    rig(sc)
+    a = add_anim(sc, "Riders differ")
+    b1 = add_frame_seq(sc, a, seq_distance=0.1)
+    add_frame_seq(sc, a, start=b1.duration + 0.3, seq_mode="TOGETHER", seq_direction="CENTRE")
+    info = animation.bake(sc, a)
+    parts = sequence.movers(sc, named(sc, "SLIDE.UNIT")).parts
+    riders = {named(sc, "CARRIAGE").name, named(sc, "GRIPPER BLOCK").name}
+    step = {}
+    sc.frame_set(1)
+    last = {o.name: o.matrix_world.translation.copy() for o in parts}
+    for f in range(2, sc.frame_end + 1):
+        sc.frame_set(f)
+        for o in parts:
+            p = o.matrix_world.translation.copy()
+            step[o.name] = max(step.get(o.name, 0.0), (p - last[o.name]).length)
+            last[o.name] = p
+    others = max(v for n, v in step.items() if n not in riders)
+    assert all(step[n] <= others * 1.05 + 1e-4 for n in riders), (
+        {named_n: round(v * 1000, 1) for named_n, v in step.items()}, info["warnings"])
+
+
+def test_hiding_a_part_after_build_takes_the_build_off(sc):
+    """0147 row 21c: a part hidden with the eye in 2 Structure after Build: the built animation is taken off (Build
+    again), and built again the part stays hidden at every frame."""
+    a = add_anim(sc)
+    add_seq(sc, a)
+    animation.bake(sc, a)
+    assert animation.has_keys(sc)
+    cover = named(sc, "COVER")
+    bpy.ops.fresing.tree_refresh()
+    i = next(k for k, it in enumerate(sc.fresing.tree) if it.obj == cover)
+    assert bpy.ops.fresing.tree_row(index=i, action="HIDE") == {"FINISHED"}
+    assert not animation.has_keys(sc) and "Build again" in sc.fresing.last_message
+    assert cover.hide_render
+    animation.bake(sc, a)
+    for f in range(1, sc.frame_end + 1, 3):
+        sc.frame_set(f)
+        assert cover.hide_render, f
+    assert bpy.ops.fresing.show_all() == {"FINISHED"}             # Show all after Build: off again, then shown
+    assert not animation.has_keys(sc) and not cover.hide_render

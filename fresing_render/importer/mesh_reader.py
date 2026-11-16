@@ -561,7 +561,7 @@ def read_credit_files(model: Model, path: str) -> None:
     for name in pick[:3]:
         try:
             with open(os.path.join(folder, name), "rb") as fh:
-                text = _decode(fh.read(CREDIT_MAX * 4))
+                text = _decode(fh.read(CREDIT_MAX * 4), cut=True)
             _side(os.path.join(folder, name))
         except OSError:
             continue
@@ -598,15 +598,28 @@ def _credit_line_from_text(text: str) -> str:
 # OBJ / MTL
 # ---------------------------------------------------------------------------
 
-def _decode(raw: bytes) -> str:
-    """UTF-8 (with or without its mark); a file that is not UTF-8 is read as Windows' Western code page (cp1252), as
-    older Windows programs write OBJ / MTL files ("Plåt", "stål.png"; 0131 row 16d)."""
+def _decode(raw: bytes, cut: bool = False) -> str:
+    """UTF-8 (with or without its mark); a line that is not UTF-8 is read as Windows' Western code page (cp1252), as
+    older Windows programs write OBJ / MTL files ("Plåt", "stål.png"; 0131 row 16d). Line by line (task 0162): one
+    cp1252 byte in a comment no longer turns every UTF-8 name of the file into "PlÃ¥t". ``cut``: ``raw`` is the start
+    of a file (the credit line): its last line may end in the middle of a UTF-8 letter."""
     if raw.startswith(b"\xef\xbb\xbf"):
-        return raw[3:].decode("utf-8", "replace")
+        raw = raw[3:]
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
-        return raw.decode("cp1252", "replace")
+        pass
+    out = []
+    lines = raw.splitlines(keepends=True)
+    for ln in lines:
+        try:
+            out.append(ln.decode("utf-8"))
+        except UnicodeDecodeError as e:
+            if cut and e.reason == "unexpected end of data" and e.end == len(ln) and ln is lines[-1]:
+                out.append(ln.decode("utf-8", "ignore"))     # a read cut in the middle of a letter (the credit)
+            else:
+                out.append(ln.decode("cp1252", "replace"))
+    return "".join(out)
 
 
 def _text_lines(path: str) -> list[str]:

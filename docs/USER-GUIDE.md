@@ -295,7 +295,10 @@ and the web 3D model.
 their names; a part renamed in the new file is found by its shape and place, keeps its work and is named in the
 report ("BOOM is now called MAIN BOOM"). Names the app makes itself – the numbers of split pieces
 ("WELDMENT 3") and "Node 7" for a node without a name – change when a piece is added or removed, so those parts are
-matched by their shape and place, never by that number. A change to the files next to the model – the OBJ's material
+matched by their shape and place, never by that number. A group without a name ("Node 5") follows its parts: work
+on it – a Hide or Show step, the eye in 2 Structure, an Assembly sequence – stays on the same parts when another group
+is added or removed. Names with letters such as å or ö stay as they are, also when another line of an older OBJ file
+is in Windows' own code page. A change to the files next to the model – the OBJ's material
 file (.mtl), a picture or a glTF's .bin – is noticed too: the model is read again, also by a new import. The file's
 own looks stay in the project when no part shows them (a group with another look), so **From file** always brings
 them back.
@@ -321,7 +324,9 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
 - **Find in the tree**: type part of a name. The tree shows the matches with the subassemblies above
   them.
 - Click a row to select it in the view. The arrow at the end of a row adds it to the selection, so you
-  can select several. The eye hides or shows it (also in renders).
+  can select several. The eye hides or shows it (also in renders). After **Build animation** the eye, **Hide**,
+  **Show only**, **Show all** and a visibility set take the built animation off (a line in 1 Import says so): build it again, so
+  the video shows the parts as you left them.
 - Click a part in the view: the tree opens down to it and marks its row.
 - Identical parts next to each other are one row ("× 4"). Identical subassemblies get a number at the
   end (":1", ":2"). The coloured ball is the part's material.
@@ -2984,7 +2989,8 @@ from there and go together, instead of many Show, Hide and pose steps.
 6. **Per part** (seconds each part takes) and **Overlap** (50 % = the next part starts half way through the one
    before). The step's length follows from these.
 7. **At the end**: **Stay**, **Hide** (each part disappears once it is out; put together: it appears as it starts
-   to come in) or **Fade**. **Trail lines** draws each part's path as a thin blue line (one trail line per part; change
+   to come in) or **Fade**. A Put together always shows its parts again as they come in, also with **Stay**, when a
+   Take apart before hid or faded them. **Trail lines** draws each part's path as a thin blue line (one trail line per part; change
    their look in **Trail lines** below).
 8. Drag **Preview** to see the step in the view without building; back to 0 % (or **Build & play**) puts the parts
    back. A built animation is taken off when you start dragging (the box says so): build it again when done.
@@ -2997,7 +3003,11 @@ while the Preview is above 0 % puts the parts back first: the preview is never s
 
 **Steps inside steps.** You can take a subassembly apart, then the whole machine, and put them together in the
 reverse order: each Put together brings the parts back to where the matching Take apart found them, so the
-subassembly's parts wait outside where its own Take apart left them until its own Put together. Parts that sit flush
+subassembly's parts wait outside where its own Take apart left them until its own Put together. Any other order works
+too: a Put together always undoes the Take apart of its own subassembly (or of one inside it), so Put together of the
+small subassembly first brings it home, and the later Put together of the whole machine leaves it there. Mind what the
+parts come home through: a part that stays out (a base plate the whole machine's Take apart lifted) can be in the
+way – the **Clash check** shows it. Parts that sit flush
 keep the same order at every Build, in the render queue and in the product video.
 
 **Parts round the subassembly.** The rest of the model counts too: a part whose way out would run through a frame,
@@ -3009,7 +3019,9 @@ same way: pick another order or direction. Check the result with the **Clash che
 
 **Parts that ride on another part.** A part a joint carries on another part of the subassembly (a gripper block on a
 carriage, a block in a robot's gripper) flies on its own: it leaves before the part it rides on, from where that part
-has put it, and stays where it flew while the part it rode on flies out under it. Put together, it comes back last.
+has put it, and stays where it flew while the part it rode on flies out under it. Put together, it comes back last –
+from where it waits, also when the Put together has other settings than its Take apart (it glides onto its new way
+in, no jump).
 The box counts them ("… ride on another part and leave before it").
 
 <a id="back-to-cad"></a>

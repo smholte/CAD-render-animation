@@ -727,7 +727,7 @@ class FRESING_OT_vis_save(bpy.types.Operator):
 
 
 class FRESING_OT_vis_apply(bpy.types.Operator):
-    """Show and hide parts as saved in this set"""
+    """Show and hide parts as saved in this set. After Build it takes the built animation off: Build again"""
 
     bl_idname = "fresing.vis_apply"
     bl_label = "Use visibility set"
@@ -736,6 +736,10 @@ class FRESING_OT_vis_apply(bpy.types.Operator):
     name: StringProperty(options={"SKIP_SAVE"})
 
     def execute(self, context):
+        if self.name not in context.scene.fresing.visibility_sets:
+            return {"CANCELLED"}
+        from .ops_main import _take_build_off
+        _take_build_off(self, context)
         return {"FINISHED"} if states.apply_visibility(context.scene, self.name) else {"CANCELLED"}
 
 
