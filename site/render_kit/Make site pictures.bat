@@ -82,7 +82,7 @@ if defined START set "START=%START:"=%"
 echo.
 echo You can keep working; close this window to stop.
 echo.
-"%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--start-at=%START%"
+"%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--start-at=%START%" --ask-resume
 set "CODE=%ERRORLEVEL%"
 if exist "%OUT%\run_result.txt" set /p CODE=<"%OUT%\run_result.txt"
 goto finished
@@ -93,7 +93,7 @@ if exist "%OUT%\status.json" del "%OUT%\status.json"
 start "Fresing status" powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File "%KIT%kit_window.ps1" -Mode status -Out "%OUT%"
 echo.
 echo Running. The small status window shows how far it is and has Pause and Stop.
-echo You can keep working; closing this black window stops the run too (double-click again to continue it).
+echo You can keep working; closing this black window stops the run too (double-click again: it offers to continue it).
 echo.
 "%BLENDER%" --background --python-exit-code 3 --python "%KIT%make_site_pictures.py" -- "%MODELS%" "%OUT%" "%KIT%models.ini" "--choices=%CHOICES%"
 set "CODE=%ERRORLEVEL%"
@@ -111,11 +111,11 @@ if "%CODE%"=="0" (
     echo Done. The output folder opens now: upload site_pictures_^<date^>.zip ^(README.txt, step 7^).
 ) else if "%CODE%"=="4" (
     echo Stopped. What is done is in the output folder. Double-click this file again and tick
-    echo "Continue the run" to make the rest.
+    echo "Continue the run" to make the rest ^(in this console: answer Y when it asks^).
 ) else if defined KNOWN (
     echo Finished with problems ^(code %CODE%^): see log.txt in the output folder. The zip holds what was made.
 ) else (
-    echo Blender stopped unexpectedly ^(code %CODE%^). Double-click this file again to continue the run, or
+    echo Blender stopped unexpectedly ^(code %CODE%^). Double-click this file again: it offers to continue the run, or
     echo upload output\log.txt ^(README.txt, step 7^) and blender.crash.txt from the folder "%TEMP%" if it is there.
 )
 if exist "%OUT%\" start "" explorer "%OUT%"

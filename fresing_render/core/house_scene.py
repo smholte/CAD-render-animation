@@ -129,6 +129,9 @@ def read_zip(src) -> dict[str, bytes]:
             data = fh.read()
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
+    except UnicodeDecodeError:
+        raise FormatError("The package has a file name that is not UTF-8 text (FORMAT 2 allows UTF-8 names only).") \
+            from None
     except (zipfile.BadZipFile, OSError, ValueError):
         raise FormatError("This is not a zip package (the file is damaged or of another kind).") from None
     infos = zf.infolist()
@@ -136,7 +139,8 @@ def read_zip(src) -> dict[str, bytes]:
         raise FormatError(f"The package holds more than {MAX_FILES} files.")
     total, files = 0, {}
     for info in infos:
-        name = info.filename
+        # the raw name: ``filename`` has a NUL cut off and, on Windows, '\\' turned into '/' (task 0163)
+        name = info.orig_filename
         if not info.flag_bits & 0x800 and any(b >= 0x80 for b in name.encode("cp437")):
             # no UTF-8 flag: zipfile read the name as cp437; FORMAT 2 allows UTF-8 names only
             raise FormatError(f"The package's file '{_shown(name)}' has a name that is not UTF-8 text.")

@@ -367,7 +367,7 @@ function Show-StartWindow {
         $start.Enabled = $true
         $wall = Get-WallSeconds $gpu $cpu $begin $load.Value $qOn $qStart.Value.ToString("HH\:mm") $qEnd.Value.ToString("HH\:mm") ([int]$qLoad.Value)
         $end = $begin.AddSeconds($wall)
-        $text = "Expected: about " + (Format-Duration $wall) + " - done at about " + $end.ToString("ddd HH\:mm")
+        $text = "Expected: about " + (Format-Duration $wall) + " - done at about " + $end.ToString("ddd HH\:mm", [System.Globalization.CultureInfo]::InvariantCulture)
         if ((Get-TempBox $maxTemp) -gt 0 -or ($qOn -and (Get-TempBox $qTemp) -gt 0)) { $text += ", plus any waits for the temperature" }
         $expected.Text = $text + "."
     }
@@ -459,7 +459,9 @@ function Show-StatusWindow {
 
     $form.add_FormClosing({
         param($sender, $e)
-        if ($pause.Enabled -and $pause.Text -eq "Resume") {
+        $asked = ""
+        try { $asked = (Get-Content -LiteralPath $control -Raw).Trim().ToLower() } catch { }
+        if ($pause.Enabled -and ($pause.Text -eq "Resume" -or $asked -eq "pause")) {
             $a = [System.Windows.Forms.MessageBox]::Show(
                 "The run is paused and nothing could resume it once this window is closed. Resume the run and close?",
                 "Fresing site pictures", [System.Windows.Forms.MessageBoxButtons]::YesNo,
@@ -495,6 +497,9 @@ function Show-StatusWindow {
             "finished" { $head = "Done" }
             "stopped" { $head = "Stopped - what is done is kept" }
         }
+        if ($word -eq "pause" -and $state -ne "paused" -and $state -ne "finished" -and $state -ne "stopped") {
+            $head = "Pausing - after the picture being made"     # the run reads Pause only between frames
+        }
         $line1.Text = $head
         $line2.Text = [string]$s.step
         if ($s.pct -ne $null) { $bar.Value = [int][math]::Min(1000, [math]::Max(0, [double]$s.pct * 10)) }
@@ -504,7 +509,8 @@ function Show-StatusWindow {
         if ($s.temp -ne $null) { $bits += ("{0:0} $Deg" -f [double]$s.temp) + "C" }
         if ($s.end) { $bits += "done at about $($s.end)" }
         $line3.Text = $bits -join "   |   "
-        if ($state -eq "paused") { $pause.Text = "Resume" } elseif ($state -ne "stopped") { $pause.Text = "Pause" }
+        # control.txt says what was asked: the run is slow to show "paused" (a long still), the button must not flip back
+        if ($state -eq "paused" -or $word -eq "pause") { $pause.Text = "Resume" } elseif ($state -ne "stopped") { $pause.Text = "Pause" }
         if ($state -eq "finished" -or $state -eq "stopped") { $pause.Enabled = $false; $stop.Enabled = $false }
     })
     $timer.Start()
