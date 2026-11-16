@@ -66,7 +66,7 @@ BEND_MIN = 1e-4                 # rad: a smaller kink is left as it is (no free 
 BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's turn
 FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
 BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
-BED_BAND = 0.5                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
+BED_BAND = 2.0                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
 SNAKE = 4.0                     # m: wavelength of cable piled on the seabed (only drawn in the warned case)
 _TINY = 1e-9
 
@@ -464,7 +464,7 @@ def _way(res: dict, k) -> np.ndarray:
     on the seabed (the lay direction ``u``, from the touch-down towards S), fully that where it lies flat. A cable
     hanging straight down past a flat wheel has no direction in the wheel's plane worth the name: its sideways part
     moved the leave point from one end of the gutter to its middle and back."""
-    d = res["direction"]
+    d = np.where((res["kind"] == PILED)[:, None], np.array([0.0, 0.0, -1.0]), res["direction"])
     d_in = d - (d * k).sum(1, keepdims=True) * k
     u = res["u"]
     u_in = u - (u * k).sum(1, keepdims=True) * k

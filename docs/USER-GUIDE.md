@@ -1347,6 +1347,10 @@ so the wire leaves the sheave in the sheave's own plane – live while you pose,
 the animation (one key per frame on the swivel). A coupling the swivel had is put aside while the animation is
 built and comes back with **Clear keys**. A step in 6 Animation that moves the swivel wins (the app says so).
 
+Try it in the test tour ("Sheave turns to follow its wire"): a deck davit slews while its wire runs from a
+fairlead on the deck over the swivelling sheave at the arm's tip; the head turns so the wire always runs straight
+into the groove.
+
 
 <a id="drums"></a>
 ### Drums and carousels

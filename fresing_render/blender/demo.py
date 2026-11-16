@@ -1790,12 +1790,17 @@ def set_down_shares(d: Demo, t0: float, secs: float, up_at: float, up_secs: floa
     import numpy as np
 
     from . import animation
-    fps = animation.fps_of(d.animation)
-    f0, fu = animation.frame_of(d.animation, t0), animation.frame_of(d.animation, up_at)
+    a = d.animation
+    # (from the frame each step starts on to the frame it ends on, as Build keys them – a step that starts between
+    # frames is one frame shorter or longer than secs x fps: the independent tester of task 0172 – with its start and
+    # length as the step stores them, 32-bit numbers)
+    t0, secs, up_at, up_secs = (float(np.float32(x)) for x in (t0, secs, up_at, up_secs))
+    f0, f1 = animation.frame_of(a, t0), animation.frame_of(a, t0 + secs)
+    fu, fu1 = animation.frame_of(a, up_at), animation.frame_of(a, up_at + up_secs)
     out = []
     for f in frames:
-        down = animation.ease("SMOOTH", min(1.0, max(0.0, (f - f0) / (secs * fps))))
-        up = animation.ease("SMOOTH", min(1.0, max(0.0, (f - fu) / (up_secs * fps)))) if f > fu else 0.0
+        down = animation.ease("SMOOTH", min(1.0, max(0.0, (f - f0) / max(f1 - f0, 1))))
+        up = animation.ease("SMOOTH", min(1.0, max(0.0, (f - fu) / max(fu1 - fu, 1)))) if f > fu else 0.0
         out.append(down * (1.0 - up))
     return np.array(out, dtype=float)
 
