@@ -158,7 +158,9 @@ a full run takes about 12 minutes alone (parallel jobs, task 0108; more while ot
   commit, then fast-forward `main` to exactly that commit (`git push origin HEAD:main`) – no new merge commit,
   no changes after the green run. GitHub then sees that this git tree already ran green (mode **reuse**), runs
   no tests again, and publishes the release with that run's installer in a few minutes. If `main` moved
-  meanwhile, the fast-forward is refused: merge once more and accept one more run.
+  meanwhile, the fast-forward is refused: merge once more. When `main` moved only by documents (the task list,
+  briefs, reports), that merge + report push gets a docs run (~3 min, task 0170): the precheck finds the branch's
+  own green commit inside the push and sees that only documents differ from it. If `main` brought code: a full run.
 - **Several tasks at the same time:** the one that finishes first merges first; the others take the next
   version and merge `main` then. A lead sentence for a new task never fixes a version number in advance.
 - **A red run:** read the failing step with `ci_status.py` (do not re-run blindly), fix, push once. A run that
@@ -585,8 +587,12 @@ animation's first frame so it is as strict as one whole check). The first job,
 - **full** – every job below.
 - **docs** – the push changes only `docs/`, `site/`, `tools/build_site.py`, `tests/test_site.py`, `CHANGELOG.md`,
   `CLAUDE.md`, `README.md`, `TASKS.md`, `tasks/` and at most the version line of the two version files, compared with
-  a commit whose run is green: only precheck, build, tooltip check, guide build and their tests (`test_user_guide.py`,
-  `test_updates.py`, `test_ci_tools.py`, `test_site.py`).
+  a commit whose run is proven green (build + verdict green; a reuse run proves nothing by itself): only precheck,
+  build, tooltip check, guide build and their tests (`test_user_guide.py`, `test_updates.py`, `test_ci_tools.py`,
+  `test_site.py`). The commits looked at (task 0170): every commit the push brings, all parents (so a branch's green
+  commit under "merge main + report"), then the old head and its first parents; a docs run of such a commit still
+  going is waited for up to 6 min, a full one is not. `python3 tools/ci_replay_mode.py <run id>` replays the
+  decision of a past run.
 - **reuse** – a push to `main` whose git tree already has a green run (the fast-forward of section 2): no tests;
   the release jobs take that run's installer files after `release_tools.py verify-run` checked it again.
 
