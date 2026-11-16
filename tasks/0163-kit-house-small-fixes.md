@@ -53,10 +53,22 @@ The other rows of 0147 (0160, 0161, 0162); the files of running tasks named abov
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026.
 
-**What changed:**
+**What changed:** Kit console route asks "Continue the run of … (Y/n)" (`--ask-resume`, `make_site_pictures.ask_resume`) and
+the messages say so (row 4). Status window keeps "Resume" while `control.txt` says pause, shows "Pausing – after the
+picture being made", and closing asks first (row 17). "Done at about" in invariant culture (21g). `house_scene.read_zip`
+checks the raw names (`orig_filename`): backslash and NUL refused, a non-UTF-8 name gets its own message (row 18).
+`iea15.check_worn_edge` refuses a blade whose leading edge is not within ~45° of EROSION's `edge_dir`. Version 0.2.122.
+Tests: `tests/test_task0163_fixes.py` (7; all failed before the fix).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** On the 4-core web machine: new tests, `test_kit_window`, `test_house_scene`, `test_site_turbine_standin`
+(31 passed, 236 s). GitHub run 43881074669 on the branch: green, 1 run needed, full mode, 18.8 min. A helper that did not
+write the Windows lines reviewed the .ps1/.bat/Python changes: no faults (cosmetic: the Resume text stays on a finished run
+while the button is disabled). PowerShell itself not run here.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** For the House Planner lead: the pinned format checker (`smholte/house-scene-format`,
+`hsf/package.py`) has the same gap – on Windows `light\a.png` becomes `light/a.png` and is accepted, and a NUL cuts a name short;
+it should check the raw names. Not changed here. The site-kit workflow rebuilds the kit on the draft release after this push to
+main (check it is green before the owner downloads the kit). Blade check "both mirror settings" is covered by the check function
+(mirrored side passes, unmirrored side refuses), not by a mirror switch – the converter has none.
