@@ -109,7 +109,7 @@ shown here too and no longer needing Weather & time on) · Sideways (DP: push to
   `img/0154_demo_still.jpg`, `img/0154_demo_ahead.jpg` (6 kn, 1.6 s), `img/0154_demo_dp.jpg` (40 s) – the demo
   in its scaled-down test form, camera Overview.
 - Cost on the demo (scaled-down form, camera Overview, 640×360): Cycles processor 8 samples **5.6–5.8 s per frame
-  without, 6.6–7.0 s with** the vessel's water (+19 %; the sea fills most of that picture). EEVEE: EEVEE_RESULT.
+  without, 6.6–7.0 s with** the vessel's water (+19 %; the sea fills most of that picture). EEVEE (software graphics under xvfb, so only the ratio means anything; the first render of each includes compiling its shaders): 149 s without, 150 s with on the second render (+1 %).
   No geometry: 0 extra triangles, import time unchanged; frame change with the channels keyed 41 ms (demo, Blender as
   a program); the tour set's sea build 5 s.
 
