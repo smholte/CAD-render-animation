@@ -1,6 +1,6 @@
 # 0150 – Study: Fresing Render compared with other render / visualisation tools (findings only)
 
-**Who:** worker · **Status:** open – can start now (findings only: no app code, starts no test run) · **Branch:** none
+**Who:** worker · **Status:** running (Claude Code web, 16 Nov; findings only: no app code, starts no test run) · **Branch:** none
 (report on `main`, touching only `tasks/`)
 **Started by:** lead chat, 16 Nov 2026 (owner picked the research) · **Model:** Opus · effort Medium · **Place:** a **new chat in the claude.ai project "STEP rendering App"** (it must open web pages; CLAUDE.md section 2, as 0113)
 
