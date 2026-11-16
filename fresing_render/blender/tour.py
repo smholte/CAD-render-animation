@@ -3177,7 +3177,7 @@ stop("props", LOOK, "props", "Props for scale and people",
      "yellow vest – then a container with ribbed walls, a pallet of taped boxes, a red and white barrier, an IBC "
      "tank in its cage, a rack of four gas bottles and a red tool trolley. Faces, fingers and shoe soles show close "
      "up; nothing floats or sinks into the floor.",
-     where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.123",
+     where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.124",
      check=_check_props)
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",

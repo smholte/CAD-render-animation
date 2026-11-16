@@ -2323,7 +2323,7 @@ anybody's likeness. Click the person in the view and choose under **Selected per
 light one for props further than **Light beyond** (30 m) from the camera, so a quay full of props stays quick, and
 the detailed one close up. **Always detailed** or **Always light** overrides it for every prop.
 
-Projects made before version 0.2.123 get the new props by themselves when you open them: same names, same places.
+Projects made before version 0.2.124 get the new props by themselves when you open them: same names, same places.
 
 <a id="vessel-motion"></a>
 ### Vessel motion

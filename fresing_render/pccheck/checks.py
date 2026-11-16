@@ -2557,7 +2557,7 @@ def scene_hall(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("scene.props", "Props for scale and people in detail", "0.2.123",
+@line("scene.props", "Props for scale and people in detail", "0.2.124",
       what="Every prop beside the crane and three people in other poses and clothes (task 0155): all on the floor, "
            "detailed near the camera and light far away, rendered small (processor, draft)")
 def scene_props(ctx):
