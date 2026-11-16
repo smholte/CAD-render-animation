@@ -1131,7 +1131,7 @@ group "Served cables".
 | **Paint wear** | 0 = fresh paint with clean edges. Higher: ragged edges, paint gone from the grooves, black smudges. |
 | **Yarn** (fold) | **Yarn pitch**: how far apart the strands lie (2.5 mm). **Lay angle**: 90° = straight round the cable (82°). **Yarn colour**. **Wear**: 0 = new, higher = dusty with lint between the strands. |
 
-<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable leaving a carousel: black yarn grooves and two yellow marker lines winding round it">
+<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable: black yarn and two yellow marker lines winding round it as one spiral">
 
 The grooves are 2–3 mm apart: from far away they blend into a dark grey surface; close up they show. The demo
 project's power cable has this look. The web 3D model draws it too.
