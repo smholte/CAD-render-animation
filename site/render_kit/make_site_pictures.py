@@ -1115,6 +1115,20 @@ def show_estimate(models_dir: str, settings: str, only: str = "", json_path: str
     return 0
 
 
+def ask_resume(out: str, ask=input) -> bool:
+    """The console route (no start window, task 0163): a run that stopped can be continued here too. Enter or Y =
+    continue it; N = start afresh (the finished pictures in send/ are deleted). A closed console counts as Y: a
+    night's work is never thrown away by accident."""
+    res = kit_run.resume_info(out)
+    if not res:
+        return False
+    try:
+        a = ask(f"{kit_run.resume_text(res)}? Y = continue it, N = start again and delete it (Y/n): ")
+    except (EOFError, OSError):
+        return True
+    return a.strip().lower() not in ("n", "no")
+
+
 def main(argv: list[str]) -> int:
     args = argv[argv.index("--") + 1:] if "--" in argv else argv[1:]
     small = "--small" in args
@@ -1122,9 +1136,10 @@ def main(argv: list[str]) -> int:
     resume = "--resume" in args
     only = start_at = json_path = choices = ""
     estimate_only = "--estimate-only" in args
+    ask_for_resume = "--ask-resume" in args
     rest = []
     for a in args:
-        if a in ("--estimate-only", "--resume"):
+        if a in ("--estimate-only", "--resume", "--ask-resume"):
             continue
         if a.startswith("--only="):
             only = a.split("=", 1)[1]
@@ -1139,12 +1154,14 @@ def main(argv: list[str]) -> int:
     if len(rest) < 2:
         print("usage: make_site_pictures.py <models folder> <output folder> [models.ini] [--small] [--cpu] "
               "[--only=a,b] [--start-at=HH:MM] [--estimate-only | --estimate-json=<file>] [--choices=<file>] "
-              "[--resume]")
+              "[--resume] [--ask-resume]")
         return 2
     settings = rest[2] if len(rest) > 2 else os.path.join(HERE, "models.ini")
     if estimate_only:
         return show_estimate(os.path.abspath(rest[0]), os.path.abspath(settings), only,
                              os.path.abspath(json_path) if json_path else "", os.path.abspath(rest[1]))
+    if ask_for_resume and not resume and not choices:
+        resume = ask_resume(os.path.abspath(rest[1]))
     if choices:
         c = kit_run.load_choices(os.path.abspath(choices))
         start_at = start_at or c.get("start_at", "") or ""

@@ -351,3 +351,29 @@ def test_viewer_page_switches_the_built_in_decoder_on_before_the_model():
     assert ' src="../media' not in site                     # never an attribute: the viewer would start too early
     js = core.viewer_script()
     assert "meshopt_decodeVertexBuffer" in js and "setMeshoptDecoderLocation" in js     # the decoder is in there
+
+
+def test_own_atlas_fits_and_shrinks_big_parts():
+    """Task 0161 (0147 row 10): a part's own bake – the texels asked for when they fit one picture, fewer when the
+    part is too big; the side a power of two; every chart inside it and none over another."""
+    from fresing_render.core import lightmap as lm
+    rng = np.random.default_rng(1)
+    small = rng.uniform(0.02, 0.3, (40, 2))                    # a small part: 40 charts up to 0.3 m
+    tpm, side, places = core.own_atlas(small, float((small[:, 0] * small[:, 1]).sum()), 500.0)
+    assert tpm == pytest.approx(500.0) and side & (side - 1) == 0 and side <= core.ATLAS_MAX
+    px = lm.chart_pixels(small, tpm, core.OWN_PADDING)
+    assert (places[:, 1:] + px <= side).all() and (places[:, 0] == 0).all()
+    big = np.array([[90.0, 19.0], [6.0, 6.0]])                  # a tower: far too big for 500 texels per metre
+    tpm, side, places = core.own_atlas(big, 90 * 19 + 36, 500.0)
+    assert tpm < 500.0 / 10 and side == core.ATLAS_MAX
+    px = lm.chart_pixels(big, tpm, core.OWN_PADDING)
+    assert (places[:, 1:] + px <= side).all()
+    assert core.own_tpm(1024, 1.0) == pytest.approx(1024.0)
+    assert core.own_tpm(1024, 1.0e4) == pytest.approx(math.sqrt(core.OWN_BUDGET / 1.0e4))
+
+
+def test_own_line_says_when_parts_are_too_big():
+    assert core.own_line(0, 1, 1) == ""
+    assert core.own_line(1, 2.0, 2.0) == "marine looks baked on 1 part (2 mm per pixel)"
+    t = core.own_line(3, 0.8, 31.0)
+    assert t.startswith("marine looks baked on 3 parts (0.8–31 mm per pixel") and "too big" in t

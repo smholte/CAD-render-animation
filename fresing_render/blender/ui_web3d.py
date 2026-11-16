@@ -70,6 +70,9 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
                               "the cutaway, milling, chips and coolant (as at the frame shown)"
                               + (", the halls and the quay." if w.env_mode == "PROJECT" else
                                  ", the surroundings (see Surroundings on the page)."), icon="INFO")
+        if web3d.has_marine_looks():              # task 0161: those parts are baked one by one
+            wrap(layout, context, "Marine looks (growth, streaks, worn blade edge) are baked part by part where the "
+                                  "parts stand: slower, a bigger file; the line above says how fine.", icon="INFO")
 
     PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
         ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),

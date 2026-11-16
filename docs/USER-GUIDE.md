@@ -2561,6 +2561,13 @@ the machine himself, or for your website.
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
 
+**Marine looks** (marine growth, run-down streaks, the worn blade edge) depend on the height above the water, the
+world's up and the part's own axes, so they cannot be a pattern that repeats over the part like the other looks. Each
+part with one of them is baked **on its own**, where it stands in the view: the page shows the growth band at the
+waterline as the app does. The line under the button says on how many parts and how fine ("… mm per pixel"); a very
+big part (a tower, a monopile) gets coarser pixels – the band and the streaks show, the finest streaks and barnacles
+may not ("too big for the fine streaks and barnacles"). These parts make the export slower and the file bigger.
+
 <a id="web3d-moving"></a>
 #### Cables, ropes, hoses and tracks on the page
 
@@ -2595,7 +2602,8 @@ title and these controls:
 - **Playback** (a page with an animation): **Space** plays and pauses, the time line can be dragged to any moment
   (also on a phone), speed **½×, 1×, 2×**, the arrow keys jump two seconds.
 - **Saved views**: one button per camera of the project (keys **1 … 9**); the view flies there. The buttons carry
-  the cameras' names – with **Hide part names** on they are View 1, View 2 …
+  the cameras' names – with **Hide part names** on they are View 1, View 2 … An **Isometric** camera (no
+  perspective in the app) shows the same frame on the page, with the page's own slight perspective.
 - **Fullscreen** (F), **Reset view** (R), **Screenshot** (S: a PNG of the view, without the buttons), **Copy link to
   this view** (L: the address then opens the same view, moment and settings), **Keyboard help** (?).
 - **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in

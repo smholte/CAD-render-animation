@@ -182,6 +182,24 @@ def leading_edge_side(skin_shape) -> np.ndarray:
     return np.array([side[0], side[1], 0.0])
 
 
+WORN_EDGE_MIN = 0.7            # cosine: the leading edge must lie within ~45 degrees of the worn-edge look's edge_dir
+
+
+def check_worn_edge(side, index="") -> None:
+    """Task 0163: the worn-edge look (``marine_looks`` EROSION) paints the strip on the side of the blade that faces its
+    ``edge_dir`` (blade coordinates, nothing else ties them): refuse when the blade's own leading edge (``side`` =
+    ``leading_edge_side`` of the blade as the app gets it) is not there, or the strip would land on the trailing edge."""
+    from fresing_render.blender.marine_looks import DEFAULTS
+    want = np.array(DEFAULTS["EROSION"]["edge_dir"], dtype=float)
+    side = np.asarray(side, dtype=float)
+    cos = float(side @ want) / (float(np.linalg.norm(side)) * float(np.linalg.norm(want)) or 1.0)
+    if cos < WORN_EDGE_MIN:
+        raise RuntimeError(f"blade {index}: its leading edge faces {np.round(side, 2).tolist()} in the blade's own "
+                           f"coordinates, but the worn-edge look wears the side that faces "
+                           f"{np.round(want, 2).tolist()} (cosine {cos:.2f}): the wear would land on the wrong edge. "
+                           "Mirror the blade the other way or change EROSION's edge_dir in marine_looks.py.")
+
+
 LIGHT_GRID = (121, 161)          # points round the airfoil x along the span sampled from the source blade
 LIGHT_TOL = 3.0                 # mm: the light blade's surface stays this close to the sampled points
 
@@ -332,7 +350,9 @@ def joints(fit: dict, leaves, T: S.TFrame, variant: str, extra: list[dict]) -> l
     W = _shift(variant) @ T.M
     for (skin, _disc), b in zip(S.blades(leaves), fit["blades"]):
         G = W @ skin.M
-        le = G[:3, :3] @ leading_edge_side(_mirrored(skin.shape))      # leading edge, in the frame
+        side = leading_edge_side(_mirrored(skin.shape))
+        check_worn_edge(side, b["index"])
+        le = G[:3, :3] @ side                                          # leading edge, in the frame
         z = np.array(b["direction"])
         motion = np.cross(down, np.array(b["point"]) - np.array(rot["point"]))   # clockwise from the front
         if float(le @ motion) < 0:

@@ -479,7 +479,8 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
         data.append(f'<script type="application/octet-stream" id="fr-pic-{html.escape(pid, quote=True)}" '
                     f'data-type="{html.escape(mime, quote=True)}" data-bytes="{len(raw)}">'
                     + base64.b64encode(raw).decode("ascii") + "</script>")
-    text = json.dumps(st, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
+    # every "<" escaped (task 0161, 0147 row 15): a name holding "<!--" and then "<script" kept the block open
+    text = json.dumps(st, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
     return _PAGE.format(title=title_h, note=note, settings=text, data="\n".join(data),
                         three=_inline(_read(THREE_FILE)), math=_inline(_read(MATH_FILE)),
                         tubes=_inline(_read(TUBES_FILE)), page=_inline(_read(PAGE_FILE)),
@@ -489,7 +490,7 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
 def page_settings(page: str) -> dict:
     """The settings block of a page written by ``page_html`` (tests, PC check)."""
     start = page.index('id="fr-env">') + len('id="fr-env">')
-    return json.loads(page[start:page.index("</script>", start)].replace("<\\/", "</"))
+    return json.loads(page[start:page.index("</script>", start)])   # "\\u003c" and older pages' "<\\/" are JSON
 
 
 def cost(page_bytes: int, glb_bytes: int, plain_page_bytes: int) -> int:
