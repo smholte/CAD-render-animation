@@ -288,6 +288,9 @@ fn(id="web.under", title="Web 3D model under the sea: seabed, sea cut-away, came
    panel="FRESING_PT_web3d", prop="env_mode", guide="web3d-under", pccheck=("web3d.under",), since="0.2.129")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
    button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
+fn(id="web.tools", title="Web 3D page: part info, measure, cutaway, fade the rest", family="web",
+   panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",), pccheck=("web3d.export",),
+   since="0.2.131")
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",

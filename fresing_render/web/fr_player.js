@@ -92,7 +92,16 @@
     '#quality { bottom: 10px; }',
     '@media (max-width: 600px) { #fr-tools { top: calc(var(--fr-top, 0px) + 70px); right: 8px; }',
     '  .fr-menu { right: 56px; top: calc(var(--fr-top, 0px) + 70px); }',
-    '  #fr-playbar { font-size: 12px; } .fr-hide-small { display: none; } }'
+    '  #fr-playbar { font-size: 12px; } .fr-hide-small { display: none; } }',
+    // 0147 row 21e: a phone held sideways (844 x 390) – the buttons smaller so they stay one column, the menu
+    // higher and longer; on a phone the help is a sheet from the bottom (it covered the tool column and the title)
+    '@media (max-height: 480px) { header { padding: 8px 14px; } h1 { font-size: 15px; }',
+    '  #fr-tools { top: calc(var(--fr-top, 0px) + 44px); gap: 4px; max-height: calc(100% - var(--fr-top, 0px) - 52px); }',
+    '  #fr-tools .fr-btn { width: 34px; height: 34px; min-height: 34px; min-width: 34px; }',
+    '  .fr-menu { right: 54px; top: calc(var(--fr-top, 0px) + 8px); max-height: calc(100% - var(--fr-top, 0px) - 16px); } }',
+    '@media (max-width: 600px), (max-height: 480px) { #fr-help { left: 0; right: 0; top: auto; bottom: 0; transform: none;',
+    '  border-radius: 12px 12px 0 0; max-height: 45%; overflow: auto; min-width: 0; z-index: 7; } }',
+    '@media (max-height: 480px) { #fr-help { right: 54px; max-height: 70%; } }'
   ].join('\n');
   var style = document.createElement('style');
   style.textContent = css;
@@ -129,14 +138,19 @@
 
   // ---------------------------------------------------------------- remembered choices
   function save() {
-    var p = { quality: page.quality, off: page.items.filter(function (n) { return page.on[n] === false; }),
-              turn: !!page.turn, speed: page.speed };
+    // 0147 row 21d: only what the visitor switched (the page's own "no shadows without a graphics card" is not kept)
+    var p = { quality: page.quality, off: page.visitorOff(), chose: page.chosenItems(), turn: !!page.turn,
+              speed: page.speed };
+    if (page.toolPrefs) p.tools = page.toolPrefs();                   // task 0135: the part tools' choices
     try { window.localStorage.setItem(page.prefKey, JSON.stringify(p)); page.saved = true; } catch (e) { page.saved = false; }
   }
+  page.savePrefs = save;                     // task 0135: the part tools' choices are kept with the rest
   function forget() {
     try { window.localStorage.removeItem(page.prefKey); } catch (e) { /* private window: nothing was kept */ }
     page.setQuality(page.settings.auto ? 'AUTO' : page.settings.quality);
-    page.items.forEach(function (n) { page.setItem(n, n === 'shadows' && page.warned ? false : true); });
+    page.resetChosen();
+    page.items.forEach(function (n) { page.setItem(n, n === 'shadows' && page.warned ? false : true, true); });
+    if (page.resetTools) page.resetTools();                            // task 0135
     page.setTurn(false);
     page.setSpeed(1);
     if (page.sunLive) page.setSunHour(13, true);
@@ -191,13 +205,28 @@
   }
   function screenshot() {
     var url = page.screenshot();
-    var a = el('a', { href: url, download: (document.title || 'view').replace(/[\\/:*?"<>|]+/g, ' ') + '.png' });
+    var a = el('a', { href: url, download: fileName(document.title) + '.png' });
     document.body.appendChild(a);
     a.click();
     a.remove();
     page.lastScreenshot = url.length;
     toast('Screenshot saved to your downloads');
   }
+  // 0147 row 21f: a title with letters outside ASCII ("… – Fresing Render", "Plåt") saved as "download" without .png
+  // in Chrome: the name folded to plain letters
+  function fileName(title) {
+    var t = String(title || 'view');
+    try { t = t.normalize('NFKD'); } catch (e) { /* old browser: as it is */ }
+    var SPELL = { '\u00f8': 'o', '\u00d8': 'O', '\u00e6': 'ae', '\u00c6': 'AE', '\u00df': 'ss', '\u0153': 'oe',
+                  '\u0152': 'OE', '\u0142': 'l', '\u0141': 'L', '\u0111': 'd', '\u0110': 'D', '\u00fe': 'th',
+                  '\u00de': 'Th', '\u00f0': 'd', '\u00d0': 'D', '\u0131': 'i' };
+    t = t.replace(/[\u00f8\u00d8\u00e6\u00c6\u00df\u0153\u0152\u0142\u0141\u0111\u0110\u00fe\u00de\u00f0\u00d0\u0131]/g,
+                  function (c) { return SPELL[c]; });
+    t = t.replace(/[\u2010-\u2015]/g, '-').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]+/g, '')
+      .replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return t || 'view';
+  }
+  page.fileName = fileName;
   function copyLink() {
     var url = page.viewLink();
     page.lastLink = url;
@@ -324,19 +353,26 @@
   }
 
   // ---------------------------------------------------------------- keyboard help
-  var KEYS = [['Drag', 'turn'], ['Right-drag / two fingers', 'move'], ['Scroll / pinch', 'zoom']];
+  var TOUCH = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  page.touch = TOUCH;
+  var KEYS = TOUCH ? [['One finger', 'turn'], ['Two fingers', 'move'], ['Pinch', 'zoom'],
+                      ['Tap', 'with a part tool on: pick a part or a face'], ['Long press', 'what a part is']]
+    : [['Drag', 'turn'], ['Right-drag / two fingers', 'move'], ['Scroll / pinch', 'zoom']];
   var help = el('div', { id: 'fr-help', role: 'dialog', 'aria-label': 'Keyboard help' });
   document.body.appendChild(help);
   function fillHelp() {
     var rows = KEYS.slice();
     if (page.animated) rows.push(['Space', 'play / pause'], ['← →', 'two seconds back / on']);
-    if (page.views.length) rows.push(['1 … ' + Math.min(9, page.views.length), 'saved views']);
+    if (page.views.length) rows.push([page.views.length > 1 ? '1 … ' + Math.min(9, page.views.length) : '1',
+                                      page.views.length > 1 ? 'saved views' : 'the saved view']);
     rows.push(['M', 'settings']);
     if (canFull) rows.push(['F', 'fullscreen']);
     rows.push(['R', 'reset view'], ['S', 'screenshot (PNG)'], ['L', 'copy link to this view'],
-              ['H', 'hide / show the controls'], ['?', 'this help'], ['Esc', 'close']);
+              ['H', 'hide / show the controls']);
+    (page.toolKeys || []).forEach(function (r) { rows.push(r); });      // task 0135: the part tools
+    rows.push(['?', 'this help'], ['Esc', 'close']);
     help.innerHTML = '<h2>Keys</h2><table>' + rows.map(function (r) {
-      return '<tr><td>' + r[0].split(' / ').map(function (k) { return k.length < 8 ? '<kbd>' + k + '</kbd>' : k; })
+      return '<tr><td>' + r[0].split(' / ').map(function (k) { return /^(Space|Esc|[A-Z?]|← →|\d( … \d)?)$/.test(k) ? '<kbd>' + k + '</kbd>' : k; })
         .join(' / ') + '</td><td>' + r[1] + '</td></tr>';
     }).join('') + '</table>';
     page.helpKeys = rows.length;
@@ -432,7 +468,9 @@
     if (what !== 'time' || page.frames % 20 === 0) refreshMenu();
   });
   var hint = document.querySelector('header .hint');
-  if (hint) hint.textContent = hint.textContent + ' · ? for keys';
+  // 0147 row 21e: a phone has no right button and no keys
+  if (hint) hint.textContent = TOUCH ? 'Drag to turn · pinch to zoom · two fingers to move · tools on the left'
+    : hint.textContent + ' · ? for keys';
   if (page.ready) { buildBottom(); showWarn(); }
 
   // ---------------------------------------------------------------- self-test (PC check, headless)

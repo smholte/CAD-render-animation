@@ -2225,7 +2225,8 @@ def house_bake(ctx):
            "one-file page; the file is read back, checked against the glTF rules (part names hidden) and opened by "
            "Blender's own glTF importer. The page's player (task 0134) is opened in Edge or Chrome without a window: "
            "its settings menu, keys help and link, Space pauses a page with motion, and it says it draws without the "
-           "graphics card")
+           "graphics card. Task 0135: the part tools on the mill's page – a click picks a part and shows its card, "
+           "two clicks measure, Fade the rest and the cutaway work, and the file carries the faces for measuring")
 def web3d_export(ctx):
     from ..blender import build, web3d
     from ..core import web3d as core
@@ -2296,15 +2297,19 @@ def _player_check(page_path: str, ctx) -> str:
         if not got.get("selftest"):
             return (f"the player gave no answer in {os.path.basename(browser)} without a window (page: "
                     f"{got['state'][:40]}); not counted")
-        r = got["selftest"]
+        r = dict(got["selftest"], tools=got.get("tools"))
         _check(r.get("menu"), "the page's settings menu did not open")
         _check(r.get("help") and r.get("link"), "the page's keys help or its link to the view does not work")
         found.append(r)
     _check(found[1].get("space") is True, "Space did not pause and play the page's motion")
+    tools = found[0].get("tools") or {}                 # task 0135: the part tools on the exported page
+    _check(tools.get("faces"), "the page has no faces for measuring (Faces for measuring is on by default)")
+    _check(tools.get("ok"), f"the page's part tools did not work: {tools}")
     warned = found[0].get("warned")
     _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
                          "has none)")
-    return f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}) in {os.path.basename(browser)}"
+    return (f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}); part tools: card, measure, "
+            f"fade, cutaway in {os.path.basename(browser)}")
 
 
 @line("web3d.moving", "Web 3D model: cables, ropes and coils move with their looks", "0.2.114",

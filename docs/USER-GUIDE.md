@@ -116,7 +116,7 @@ Fresing Render.
    **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
 3. Start **Fresing Render** from the Desktop: the shortcut, the Start menu, the window and the taskbar show the
    green and white Fresing **F**, and the start-up screen carries the Fresing logo. Right-click the taskbar icon
-   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.131 gets the new icon at the first
+   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.132 gets the new icon at the first
    start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
@@ -2623,6 +2623,9 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
+   **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
+   measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
+   tenth more file.
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
@@ -2699,6 +2702,8 @@ title and these controls:
 - **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in
   the bottom right corner (or H again) brings them back.
 - A **loading bar** shows how many MB of the model have come in.
+- **Part tools** on the left: Part info, Measure, Cutaway, Fade the rest – see
+  [below](#web3d-tools).
 
 **Light on the computer:** the page draws a picture only when something changes – the view moves, the animation,
 sea, vessel or rain plays, a setting changes – at most 60 a second, and nothing while its tab is hidden. A machine
@@ -2709,6 +2714,43 @@ raises it again when there is room.
 draws in software (Chrome or Edge after a graphics-card driver reset do this until they are closed completely). The
 fix is in the bar: type `chrome://restart` (Edge: `edge://restart`) in the address bar; still slow: Settings →
 System → "Use graphics acceleration when available" on, then restart. Meanwhile the page uses its lightest settings.
+
+<a id="web3d-tools"></a>
+#### On the page: part info, measure, cutaway, fade the rest
+
+Four buttons on the **left** of the page work on the parts. A click is a press and release without dragging, so
+turning the view never picks a part. On a phone or tablet a **tap** is a click, and a **long press** (half a second)
+on a part shows its card whatever tool is on. With the mouse, the part (or, while measuring, the face) under the
+pointer lights up.
+
+- **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
+  Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
+  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+- **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:
+  - two **flat faces** – parallel (within 1°): the **distance between the planes**; not parallel: the **angle**
+    between them and how far the two points lie apart;
+  - one **round face** (a hole, a shaft, a bore) – its **diameter** at once (Ø … mm);
+  - two **round faces** – **centre to centre**: the distance between their axes (axes not parallel: the shortest
+    distance between them and their angle);
+  - a **flat face and a round face** – from the plane to the axis (**face to centre**).
+
+  **Points** measures the straight distance between the two clicked points. **X / Y / Z parts as arrows** (X) shows
+  the measurement's X, Y and Z parts as three arrows in the axis colours (X red, Y green, Z blue, as in Blender), each
+  with its number. A third click starts a new measurement; empty space or Esc clears it. The clicked points stay on
+  their parts: on a page with motion the number follows the animation.
+- **Cutaway** (C): one plane across **X**, **Y** or **Z**, moved by the slider; **Flip** keeps the other side. The cut
+  faces show the app's red cap colour. Only the machine is cut – the sea, the sky and the seabed stay – and the plane
+  moves with the vessel. Measuring and Part info work on what is left; a click on the red cut face measures on the
+  cut itself (a flat face).
+- **Fade the rest** (T): click a part – it stays solid and everything else goes see-through, as the app's Fade.
+  Click another part to switch, empty space or Esc to bring the rest back.
+
+The page measures on the exact faces of the CAD model: the export puts each part's flat faces (their planes) and
+round faces (axis and radius, each face its own radius) into the file. **Faces for measuring** (on by default,
+under Hide part names) does that; it adds about a tenth to the file (test crane: 17 KB on 164 KB). Off: the page
+measures between clicked points only and says so. Lengths are in mm with one decimal (two below 10 mm). Cables,
+ropes and hoses the page draws can be clicked too (they measure from points); a sticker (decal) is looked through to
+the part it is on.
 
 <a id="web3d-surroundings"></a>
 #### Surroundings on the page
