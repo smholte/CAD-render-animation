@@ -1139,6 +1139,13 @@ def test_carousel_is_full_to_the_rim(d):
     assert p.coil_layers % 2 == 1
     assert rim_top - 2.0 * d < p.coil_top_z + d <= rim_top
     assert Params(cable_d=d, coil_layers=15).coil_layers == 15            # a count typed in stays
+    # the arch's guide leg (straight up from the cage's bend to the arch's bend) holds both pairs of guide rollers,
+    # Ø180, the lower pair 1150 mm up it, the upper 600 mm under its top: with the full coil the leg was 1 m long and
+    # the lower pair stood in the arch's bend, 3 mm off the cable (found by test_paths_core's roller check)
+    pos = rt.positions(p)
+    leg = pos["arch_z"] - pos["coil_z"] - 2.0 * p.bend_r
+    lower, upper = 1150.0, leg - 600.0
+    assert lower + 90.0 <= leg and upper - lower >= 180.0 + 50.0, (d, leg)
 
 
 def test_carousel_coil_layers_and_cable_end_through_the_core(made):
