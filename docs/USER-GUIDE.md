@@ -2131,9 +2131,9 @@ change:
    in the spindle at the start is not there; the trolley holds about 6 tools), takes the new one from the trolley,
 4. pushes it into the spindle, lets go of the button, closes the door and stands back.
 
-After the last change it walks back to where it came from. The pause grows to what the person needs: about 6.5
+After the last change it walks back to where it came from. The pause grows to what the person needs: about 6
 seconds, plus the door (twice its travel time and the reach for its handle). The step's **Details** say how long
-each change takes ("The operator changes 1 tool, 9.2 s each at the machine").
+each change takes ("The operator changes 1 tool, 9.7 s each at the machine").
 
 <img src="img/toolchange_person.jpg" alt="The test mill in its cabinet: the operator leans into the open door and pulls the end mill out of the spindle by its holder">
 

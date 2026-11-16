@@ -13,7 +13,7 @@ installer of that version was built from.
   door by its handle, presses the drawbar's release button with the left hand, takes the old tool out of the spindle
   by its holder, lays it on small cradles on a tool trolley beside it, takes the new tool, pushes it in, closes the
   door, and walks away after the last change. Feet planted, no sliding (the walking of task 0157).
-- The pause at M6 grows to what the person needs (about 6.5 s, plus the door); the step's Details say how long each
+- The pause at M6 grows to what the person needs (about 6 s, plus the door); the step's Details say how long each
   change takes.
 - Settings in 4 Motion > CNC machine > Tool changes > **Person at the machine**: height, clothes, helmet, the
   **door's joint** and how far it opens, the release button, **Show the spots** (move where the operator stands and
