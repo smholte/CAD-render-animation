@@ -163,3 +163,23 @@ class Params:
     @property
     def chute_r(self) -> float:
         return self.bend_r
+
+
+@dataclass
+class ParkParams:
+    """The wind park round the vessel (task 0166), in the park's own coordinates (``park.py``): mm, origin = where the
+    first end's CAD piece meets the seabed lay line, +x along the lay line towards the vessel, z 0 the waterline."""
+    water_depth: float = 30000.0        # the demo's sea depth (demo.SEA_DEPTH)
+    along: float = 1200000.0            # turbines 1.2 km apart along a row …
+    across: float = 1500000.0           # … rows 1.5 km apart
+    rows: int = 3
+    cols: int = 3
+    first: tuple = (1, 1)               # (row, col) of turbine A (the cable's first end goes up its J-tube)
+    b_off: float = -42000.0             # turbine B (the next one along A's row) lies this far to port (+) / starboard (-)
+    #                                     of the lay line: the rows run at a small angle to it
+    substation: tuple = (-0.5, 0.5)     # the substation's place in grid steps from turbine A (along, across)
+    wind_from: float = 180.0            # compass in the park's frame (0 = +y): from starboard, so the rotors' planes
+    #                                     lie along the lay line, never over the vessel
+    rpm: float = 7.5                    # rotor speed in video time (the IEA turbine's rated 7.56)
+    b_end: float = 45000.0              # planned: the second end is laid this far from turbine B's J-tube bell-mouth
+    join_run: float = 1500.0            # the CAD piece runs this straight on the seabed before it meets the app's cable
