@@ -60,6 +60,8 @@ MM = 0.001
 TILE = 32                         # cells along a tile's side (a power of two: the triangle hierarchy)
 PAD = 0.02 * MM                   # a node nobody cut lies this far above the stock's top
 TIE = 1e-9                        # heights closer than this are equal: the later move owns the node
+EDGE = 5e-8                       # a bit's footprint is this much wider than the bit: a cut that ends exactly on
+#                                   the block's side (CAM programs do) goes a hair past it and leaves no skin there
 SNAP_STEPS = 8                    # halvings when looking for the place two surfaces meet (cell / 250)
 SNAPSHOT_BYTES = 192e6            # memory for the kept states (going back in time)
 SNAPSHOT_MIN = 64                 # ... never closer together than this many moves
@@ -185,10 +187,11 @@ def sweep_height(shape: Shape, ax, ay, bx, by, z0, z1, px, py, depth: bool = Fal
     u = np.where(still, 0.0, dx * ux + dy * uy)        # the point along the move ...
     w2 = np.maximum(dx * dx + dy * dy - u * u, 0.0)    # ... and beside it, squared
     R = shape.R
-    e = np.sqrt(np.maximum(R * R - w2, 0.0))
+    Rf = R + EDGE
+    e = np.sqrt(np.maximum(Rf * Rf - w2, 0.0))
     lo = np.maximum(-u, -e)                            # x = (the tip's place) - u, while the bit is above the point
     hi = np.minimum(np.where(still, 0.0, L) - u, e)
-    ok = (w2 <= R * R) & (lo <= hi)
+    ok = (w2 <= Rf * Rf) & (lo <= hi)
     m = np.where(still, 0.0, (z1 - z0) / Ls)           # the slope
     base = np.where(still, np.minimum(z0, z1), z0)
     level = not np.any(m != 0.0)
@@ -213,7 +216,7 @@ def sweep_height(shape: Shape, ax, ay, bx, by, z0, z1, px, py, depth: bool = Fal
     x = np.where(ok, x, 0.0)
     r = np.minimum(np.sqrt(x * x + w2), R)
     H = np.where(ok, base + m * (u + x) + shape.f(r), np.inf)
-    return (H, R - r) if depth else H
+    return (H, Rf - np.sqrt(x * x + w2)) if depth else H
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +530,7 @@ class HeightMap:
                              self.z0[g], self.z1[g], x[sel], y[sel], depth=rim)
             if rim:
                 H, D = H
-                H = H + shape.rim - shape.f(shape.R - D)
+                H = H + shape.rim - shape.f(np.clip(shape.R + EDGE - D, 0.0, shape.R))
             out[sel] = H
         return out
 
@@ -568,6 +571,8 @@ class HeightMap:
         Z = hw.copy()
         gx, gy = X.copy(), Y.copy()                     # the nodes' own places
         best = np.full(hw.shape, np.inf)
+        flank = np.full(hw.shape, -1, np.int64)         # for a node on a wall: the move whose flank the wall is
+        foot = np.full(hw.shape, np.inf)                # ... and for the wall's top node the height of its foot
         kinked = np.array([s.kind in (CONE, PROFILE) for s in self.shapes] + [False])
         # a cell's diagonal runs from its first corner up to the right where row + column is even, else from its
         # second corner up to the left (the hierarchy's finest triangles; the same in every tile)
@@ -582,12 +587,14 @@ class HeightMap:
             (mi, mj + 1, mi + 1, mj, c * math.sqrt(2.0)),
         )
 
-        def put(ni, nj, px, py, z, dist, take):
+        def put(ni, nj, px, py, z, dist, take, wall=None):
             """A node goes to the nearest of the places found for it (a node of two tiles: the same in both)."""
             u = take & (dist < best[ni, nj])
             if u.any():
                 ni, nj = ni[u], nj[u]
                 X[ni, nj], Y[ni, nj], Z[ni, nj], best[ni, nj] = px[u], py[u], z[u], dist[u]
+                flank[ni, nj] = -1 if wall is None else wall[0][u]
+                foot[ni, nj] = np.inf if wall is None else wall[1][u]
 
         wtol = max(tol, 1e-6)
         for ei, ej, fi, fj, length in families:
@@ -705,9 +712,11 @@ class HeightMap:
                     # nothing to lose; the node in the cut keeps its place on the steep face), unless the crease
                     # is right next to the lower one
                     a_goes = np.where(za[sel] >= zb[sel], mid <= 0.8, mid < 0.2)
-                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes))
+                    # (a wall is the flank of the lower of the two moves)
+                    whose = (np.where(one & wall, np.where(zA <= zB, pa, pb), -1), np.minimum(zA, zB))
+                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes), whose)
                     put(Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
-                        there & (~one | wall | ~a_goes))
+                        there & (~one | wall | ~a_goes), whose)
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue
@@ -736,7 +745,7 @@ class HeightMap:
             px, py = x0 + s * dx, y0 + s * dy
             put(ai, aj, px, py, z, s * length, ok & (s <= 0.5))
             put(bi, bj, px, py, z, (1.0 - s) * length, ok & (s > 0.5))
-        return X, Y, Z
+        return X, Y, Z, flank, foot
 
     def _moves_at(self, r0: int, r1: int, c0: int, c1: int) -> np.ndarray:
         """The moves stamped so far (and the half-done ones) whose footprint reaches rows r0 .. r1, columns
@@ -783,14 +792,15 @@ class HeightMap:
         if not self.active[J, I]:                       # nothing cut here or next to it
             hit = dict(serial=self._serial, need=None)
         else:
-            X, Y, Z = self._snap(hw, sw, gi, gj, self._moves_at(gi[0], gi[-1], gj[0], gj[-1]))
+            X, Y, Z, flank, foot = self._snap(hw, sw, gi, gj, self._moves_at(gi[0], gi[-1], gj[0], gj[-1]))
             P = np.stack([X[1:-1, 1:-1], Y[1:-1, 1:-1], Z[1:-1, 1:-1]], axis=-1).reshape(-1, 3)
             o = own.reshape(-1)
             cls = np.where(o >= 0, self.cls[np.maximum(o, 0)], -1)
             Q = P.copy()                                # the nodes as they are judged: without the fine ridges
             Q[:, 2] -= self._ridges(J, I).reshape(-1)
             need = _needed(self.tab, Q, cls, self.tol)
-            hit = dict(serial=self._serial, need=need, P=P, Q=Q, owner=o.copy(), cls=cls)
+            hit = dict(serial=self._serial, need=need, P=P, Q=Q, owner=o.copy(), cls=cls,
+                       flank=flank[1:-1, 1:-1].reshape(-1).copy(), foot=foot[1:-1, 1:-1].reshape(-1).copy())
         self._own[key] = hit
         return hit
 
@@ -798,7 +808,8 @@ class HeightMap:
         """The tile as a closed solid: ``(serial, verts, tris, move)``. ``verts`` float64 (n, 3) in the map's
         frame, ``tris`` int32 (m, 3) with the normals pointing out, ``move`` int64 (m,): the ``tag`` of the move
         that made a triangle of the top surface, -1 for the top where nobody cut, -2 for the sides and the
-        bottom (the tile's box; inside the material). ``serial`` changes whenever the mesh does."""
+        bottom (seams inside the material) - but a piece of the side that is a wall (a wall that runs along the
+        tile's border) carries the wall's move. ``serial`` changes whenever the mesh does."""
         import time
         t0 = time.perf_counter()
         me = self._tile(J, I)
@@ -826,17 +837,18 @@ class HeightMap:
         sig = tuple(sig)
         hit = self._mesh.get((J, I))
         if hit is not None and hit[0] == sig:
-            return tuple(hit[1:])
+            return tuple(hit[1:5])
         if me["need"] is None:                          # flat and uncut: the plain top
             P = np.zeros((n * n, 3))
             P[:, 0] = np.tile(self.xs[I * self.tile:I * self.tile + n], n)
             P[:, 1] = np.repeat(self.ys[J * self.tile:J * self.tile + n], n)
             P[:, 2] = self.uncut
             owner = np.full(n * n, -1, np.int64)
-            cls = owner
+            cls = flank = owner
+            wall_foot = np.full(n * n, np.inf)
             need = _needed(tab, P, cls, self.tol, forced) if forced is not None else np.zeros(n * n, bool)
         else:
-            P, owner, cls = me["P"], me["owner"], me["cls"]
+            P, owner, cls, flank, wall_foot = me["P"], me["owner"], me["cls"], me["flank"], me["foot"]
             need = me["need"] if forced is None else _needed(tab, me["Q"], cls, self.tol, forced)
         tri = _triangles(tab, need)
         z = P[:, 2][tri]
@@ -849,29 +861,41 @@ class HeightMap:
         top = P[used]
         nt = len(top)
         ring = tab["ring"]
-        ring = new[ring[used[ring]]]                    # the border once round, the kept nodes only
+        ring = ring[used[ring]]                         # the border once round, the kept nodes only
         nb = len(ring)
-        foot = top[ring].copy()
-        foot[:, 2] = self.bottom
-        x0, y0, x1, y1 = self.box(J, I)
-        verts = np.concatenate([top, foot, [[0.5 * (x0 + x1), 0.5 * (y0 + y1), self.bottom]]])
-        fb = nt + np.arange(nb)
         nxt = np.roll(np.arange(nb), -1)
-        skirt = np.concatenate([np.stack([ring, fb, fb[nxt]], axis=1), np.stack([ring, fb[nxt], ring[nxt]], axis=1)])
-        floor = np.stack([np.full(nb, nt + nb), fb[nxt], fb], axis=1)
-        tris = np.concatenate([new[tri], skirt, floor]).astype(np.int32)
-        move = np.concatenate([move, np.full(len(skirt) + len(floor), -2, np.int64)])
+        # Where a wall runs along the border, the border's nodes are on the wall and the tile's side there IS the
+        # wall, from the nodes down to the wall's foot (the tile on the other side has nothing between the two):
+        # that piece of the side carries the move whose flank the wall is. The rest of the side is a seam inside
+        # the material.
+        fz = np.maximum(wall_foot[ring], self.bottom)
+        is_top = (flank[ring] >= 0) & (fz < P[ring, 2] - 1e-9)
+        walled = is_top & is_top[nxt]
+        side = np.where(walled, self.tag[np.maximum(flank[ring], 0)], -2)
+        ring = new[ring]
+        base = top[ring].copy()
+        base[:, 2] = self.bottom
+        mid = top[ring].copy()                          # the wall's foot under each border node (else: the node)
+        mid[:, 2] = np.where(is_top, fz, mid[:, 2])
+        x0, y0, x1, y1 = self.box(J, I)
+        verts = np.concatenate([top, mid, base, [[0.5 * (x0 + x1), 0.5 * (y0 + y1), self.bottom]]])
+        fm, fb = nt + np.arange(nb), nt + nb + np.arange(nb)
+        upper = np.concatenate([np.stack([ring, fm, fm[nxt]], axis=1), np.stack([ring, fm[nxt], ring[nxt]], axis=1)])
+        lower = np.concatenate([np.stack([fm, fb, fb[nxt]], axis=1), np.stack([fm, fb[nxt], fm[nxt]], axis=1)])
+        floor = np.stack([np.full(nb, nt + 2 * nb), fb[nxt], fb], axis=1)
+        tris = np.concatenate([new[tri], upper, lower, floor]).astype(np.int32)
+        move = np.concatenate([move, side, side, np.full(2 * nb + len(floor), -2, np.int64)])
         self._serial += 1
-        out = [sig, self._serial, verts, tris, move]
+        out = [sig, self._serial, verts, tris, move, len(tri)]
         self._mesh[(J, I)] = out
         self.stats["meshed"] += 1
         self.stats["seconds_mesh"] += time.perf_counter() - t0
-        return tuple(out[1:])
+        return tuple(out[1:5])
 
     def surface(self, J: int, I: int) -> tuple:     # noqa: E741
         """Only the top of ``mesh``: (verts, tris, move)."""
         _s, v, t, m = self.mesh(J, I)
-        keep = m > -2
+        keep = np.arange(len(t)) < self._mesh[(J, I)][5]
         return v, t[keep], m[keep]
 
 

@@ -1531,20 +1531,26 @@ out as a height map instead: the lowest point the tool reached above every spot 
 
 - **What it takes:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
   together; of those the moves where the tool points straight at the block along one of the block's own axes,
-  with a flat, ball, corner-radius, V or drill bit that reaches above the block's top.
-- **What stays exact, as before:** short programs; side cuts with a T-slot cutter or any bit that undercuts;
-  tilted and rotary moves (4th and 5th axis); a tool so short that it would tunnel under the surface. One
-  program can have both kinds of moves: they are joined.
+  with a flat, ball or corner-radius mill that reaches above the block's top.
+- **What stays exact, as before:** short programs; V-bits, chamfer mills and drills; side cuts with a T-slot
+  cutter or any bit that undercuts; tilted and rotary moves (4th and 5th axis); a tool so short that it would
+  tunnel under the surface. One program can have both kinds of moves: they are joined.
 - **What you see:** the same block, the same cut faces and tool marks. Measured on the 4-core test machine
   with a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in
   3 seconds instead of 2.4 minutes, 27,000 faces instead of 256,000. The line under the settings says how
-  many moves went into the height map ("… 14,008 cutting moves, 14,008 as height map").
-- **How exact:** surfaces and walls within 0.03 mm of the exact cut at Detail **Normal**. The fine ridges
-  between two passes are left out when they are lower than 0.012 mm (Normal; 0.005 mm at Fine): the face is
-  smooth there and shows the tool marks. The steep strip right under a rim, where a ball cuts deeper than two
-  thirds of its radius, can be 0.08 mm off (0.02 mm at Fine). A sharp outside corner of a wall, or a rib
-  thinner than 0.2 mm (0.1 mm at Fine), can be up to that much off. For a close-up of such a spot pick Detail
-  **Fine** or untick **Fast 3-axis**: every move is then cut exactly again.
+  many moves went into the height map ("… 14,008 cutting moves, 14,008 as height map, 0.2 mm grid"). A program
+  with many walls and steps (roughing) is as much faster, but gets more faces than the exact cut.
+- **How exact** (Detail **Normal**, a grid of 0.2 mm; all of it halves at **Fine**; a block larger than about
+  0.3 × 0.4 m gets a coarser grid, the line says which):
+  - surfaces and walls are within 0.03 mm of the exact cut; walls stand upright where the tool went;
+  - the fine ridges between two finishing passes are left out when they are lower than 0.012 mm: the face is
+    smooth there and shows the tool marks;
+  - the steep, rounded strip under a rim or at the foot of a wall (a ball cutting deeper than two thirds of
+    its radius, the fillet a corner-radius mill leaves) can be 0.15 mm off, and in a close-up such a wall can
+    look a little streaky where the exact cut shows even level lines;
+  - a sharp outside corner of a wall, and a rib or slot thinner than 0.4 mm, can be up to 0.3 mm off.
+
+  For a close-up of such a spot pick Detail **Fine** or untick **Fast 3-axis**: every move is then cut exactly.
 
 <a id="tool-marks"></a>
 #### Tool marks

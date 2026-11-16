@@ -803,6 +803,7 @@ class Timeline:
         # the height map for the moves that cut straight from above (task 0146), or None
         self.map = _MapSide.plan(self) if fast and _mf is not None else None
         self.stats.extra["map_moves"] = 0 if self.map is None else self.map.hm.n
+        self.stats.extra["map_cell"] = 0.0 if self.map is None else self.map.hm.cell
 
     def _moves(self) -> Moves:
         n = len(self.segs)
@@ -1092,7 +1093,7 @@ class _MapSide:
     """The height-map part of a timeline: which moves it takes, the map, and how its tiles are joined with the
     solids the booleans made.
 
-    A move is a **map move** when it cuts (``Moves.cuts``), its bit has a ``heightmap.Shape`` (no undercut), the
+    A move is a **map move** when it cuts (``Moves.cuts``), its bit is a flat, ball or corner-radius mill, the
     tool's axis is the workpiece axis most such moves share (within 2 x ``ANGLE_TOL``), and the bit's top stays at
     or above the stock's top - then the move takes away everything above its bottom, which is all a height map
     can say. A program has a map when it has ``FAST_MANY_MOVES`` of them, or ``FAST_MIN_MOVES`` lying close
@@ -1110,6 +1111,7 @@ class _MapSide:
         self.pieces: dict = {}            # (id(tile solid), J, I) -> (tile solid, serial, Tile)
         self.rests: dict = {}             # id(tile solid) -> (tile solid, cut set, Tile or None)
         self.boxes: dict = {}             # the cut set -> the union of its boxes
+        self.columns: dict = {}           # (J, I) -> (serial, the tile's outline as a tall solid)
 
     @classmethod
     def plan(cls, tl):
@@ -1118,6 +1120,9 @@ class _MapSide:
         if n < FAST_MIN_MOVES:
             return None
         shapes = [hmap.shape_of(c.tool, c.profile) for c in tl.cutters]
+        # (a V-bit or a drill leaves grooves and ridges as steep as itself, often narrower than a cell of the map:
+        # they are cut exactly, as are custom outlines)
+        shapes = [s if s is not None and s.kind in (hmap.FLAT, hmap.BALL, hmap.BULL) else None for s in shapes]
         has = np.array([s is not None for s in shapes] + [False])[mk.bit]
         rows = np.arange(n)
         big = np.argmax(np.abs(mk.d), axis=1)
@@ -1144,9 +1149,11 @@ class _MapSide:
         if cell > 0.6 * smallest:                       # a big block and a tiny bit: the grid would be too coarse
             return None
         span = hmap.TILE * cell
-        hm = hmap.HeightMap(lo[0] - 2 * cell, lo[1] - 2 * cell, cell,
-                            int(math.ceil((hi[0] - lo[0] + 4 * cell) / span)),
-                            int(math.ceil((hi[1] - lo[1] + 4 * cell) / span)),
+        # (the nodes a little off the round numbers CAM programs use: a wall that runs exactly through a row of
+        # nodes has them inside and outside the cut by rounding, one this way, the next that way)
+        hm = hmap.HeightMap(lo[0] - 2.3713 * cell, lo[1] - 2.6181 * cell, cell,
+                            int(math.ceil((hi[0] - lo[0] + 5 * cell) / span)),
+                            int(math.ceil((hi[1] - lo[1] + 5 * cell) / span)),
                             top=hi[2], bottom=lo[2] - 1 * MM, tol=tl.tol)
         seg_q = np.full(n, -1, dtype=np.int64)
         seg_q[sel] = np.arange(int(sel.sum()))
@@ -1193,6 +1200,7 @@ class _MapSide:
         self.pieces.clear()
         self.rests.clear()
         self.boxes.clear()
+        self.columns.clear()
         self.tl.wp.map_ids.clear()
         self.tl.wp.seam_ids.clear()
 
@@ -1217,16 +1225,34 @@ class _MapSide:
         hit = self.below[(J, I)] = (serial, _mf.Manifold(mesh), lo, hi)
         return hit
 
-    def _keep_piece(self, keep, J: int, I: int, lo, hi):      # noqa: E741
-        """The finished part inside a map tile, its faces named after the move that owns the map there (as a
-        boolean cut that stops at the finished part names them after its move)."""
-        part = keep ^ _box(lo, hi)
+    def _column(self, J: int, I: int):             # noqa: E741
+        """The map tile's own outline as a solid from the map's bottom to above its top (its border follows a
+        wall next to it, so it is not the tile's box)."""
+        serial, v, t, _mv = self.hm.mesh(J, I)
+        hit = self.columns.get((J, I))
+        if hit is not None and hit[0] == serial:
+            return hit[1]
+        up = np.array(v)
+        up[up[:, 2] > self.hm.bottom + 1e-9, 2] = self.hm.uncut + 1 * MM
+        solid = _mf.Manifold(_mf.Mesh(vert_properties=np.ascontiguousarray(up @ self.R, dtype=np.float32),
+                                      tri_verts=np.ascontiguousarray(t, dtype=np.uint32)))
+        if solid.status() != _mf.Error.NoError or solid.is_empty():
+            solid = _box(*self._span(J, I))
+        self.columns[(J, I)] = (serial, solid)
+        return solid
+
+    def _keep_piece(self, keep, below, J: int, I: int):   # noqa: E741
+        """What of the finished part the map would have cut away inside a map tile (the part of it above the
+        map's surface): it stays. Its faces are named after the move that owns the map there - the move that was
+        stopped at the finished part, as a boolean cut that stops there names them. (Where nothing was cut the
+        block's own faces show: they come with the block.)"""
+        part = (keep ^ self._column(J, I)) - below
         if part.is_empty():
             return None
         m = part.to_mesh()
-        v = np.asarray(m.vert_properties[:, :3], dtype=np.float64)
-        tr = np.asarray(m.tri_verts)
-        cen = v[tr].mean(axis=1) @ self.R.T                         # into the map's frame
+        v = np.array(m.vert_properties[:, :3], dtype=np.float32)      # (copies: read back from a Manifold they
+        tr = np.array(m.tri_verts, dtype=np.uint32)                   # are read-only)
+        cen = v[tr].astype(np.float64).mean(axis=1) @ self.R.T        # into the map's frame
         hm = self.hm
         i = np.clip(np.rint((cen[:, 1] - hm.y0) / hm.cell).astype(np.int64), 0, hm.ny - 1)
         j = np.clip(np.rint((cen[:, 0] - hm.x0) / hm.cell).astype(np.int64), 0, hm.nx - 1)
@@ -1234,13 +1260,11 @@ class _MapSide:
         fid = np.where(q >= 0, hm.tag[np.maximum(q, 0)] + 2, 1).astype(np.uint32)
         rid = _mf.Manifold.reserve_ids(1)
         self.tl.wp.map_ids.add(int(rid))
-        kw = {}                                         # (copies: arrays read back from a Manifold are read-only)
+        kw = {}
         if len(m.merge_from_vert):                      # (vertices that are one place with two sets of numbers)
             kw = dict(merge_from_vert=np.array(m.merge_from_vert, dtype=np.uint32),
                       merge_to_vert=np.array(m.merge_to_vert, dtype=np.uint32))
-        mesh = _mf.Mesh(vert_properties=np.array(m.vert_properties[:, :3], dtype=np.float32),
-                        tri_verts=np.array(tr, dtype=np.uint32), face_id=fid,
-                        run_original_id=np.array([int(rid)], np.uint32),
+        mesh = _mf.Mesh(vert_properties=v, tri_verts=tr, face_id=fid, run_original_id=np.array([int(rid)], np.uint32),
                         run_index=np.array([0, 3 * len(tr)], np.uint32), **kw)
         out = _mf.Manifold(mesh)
         return part if out.status() != _mf.Error.NoError else out
@@ -1254,7 +1278,7 @@ class _MapSide:
         t0 = time.perf_counter()
         solid = t.solid ^ below
         if t.keep is not None:
-            kept = self._keep_piece(t.keep, J, I, lo, hi)
+            kept = self._keep_piece(t.keep, below, J, I)
             if kept is not None:
                 solid = solid + kept
         st = self.tl.stats

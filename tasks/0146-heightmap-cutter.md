@@ -58,8 +58,8 @@ setting "Fast 3-axis", on by default; the core's default stays off). A *program*
 `FAST_MANY_MOVES` (3,000) *map moves* or more, or at least `FAST_MIN_MOVES` (300) that lie close together
 (`FAST_MIN_DENSITY`: 0.75 moves per mm² the paths cover – a thinly spread program would get more faces and a slower
 frame from the map than from the exact cut). A move is a map move when: its tool axis is one of the workpiece's six
-axis directions (the direction most cutting moves share; within `ANGLE_TOL`), its bit is a flat, ball, corner-radius,
-V or drill shape (or a custom outline that is one convex piece), and the bit's top stays at or above the stock's top
+axis directions (the direction most cutting moves share; within `ANGLE_TOL`), its bit is a flat, ball or
+corner-radius mill, and the bit's top stays at or above the stock's top
 (so the move takes away everything above its bottom: no tunnel). Everything else – rotary and tilted moves, T-slot /
 undercut cutters, a tool shorter than the cut is deep, short programs, a tiny bit on a big block – stays on Manifold
 exactly as before. Cuts commute (stock − A − B = stock − B − A), so the two parts are worked out side by side and
@@ -97,11 +97,17 @@ radius, grown so the grid stays under a node budget.
   face weighted by its corner angle; `cut_normals` is made for what booleans leave), and the corners on the border
   between two map tiles are worked out over both tiles (`heightmap.weld`), so no tile shows in a reflection.
 
-**Stated tolerance (map vs Manifold), at Normal:** the surface and straight / round walls within 0.03 mm
-(Manifold's own 40-sided bit is 0.009 mm off on Ø6); fine ridges between passes lower than 0.0125 mm are left out;
-the steep strip under a rim where a ball cuts deeper than 2/3 of its radius up to 0.08 mm (the nodes are 0.2 mm
-apart across a face that steep, 1 mm apart on it); sharp outside corners of walls and features thinner than a cell
-up to one cell. All of these halve (the steep strip: quarter) at Fine.
+**Stated tolerance (map vs Manifold), at Normal (a 0.2 mm grid; everything scales with the cell: half at Fine,
+more on a block so large that the grid is grown):** surfaces and straight / round walls within 0.03 mm (Manifold's own
+40-sided bit is 0.009 mm off on Ø6); fine ridges between passes lower than 0.0125 mm are left out; the steep rounded
+strip under a rim or at the foot of a wall (a ball deeper than 2/3 of its radius, a corner radius' fillet, where
+ramps of a flat bit start) up to 0.15 mm – nodes 0.2 mm apart across a face that steep are up to 1.5 mm apart on it;
+sharp outside corners of walls, and features thinner than two cells (0.4 mm), up to 0.3 mm. A few wall triangles at
+such corners can lie folded (under 1 mm² in the tests). Tiles meet vertex for vertex, but for a node near a tile's
+corner that one tile keeps because a third forced it (the gap there is under the thinning tolerance). A cut that ends
+exactly on the block's side leaves no skin (the footprint is 0.05 µm wider than the bit; slivers under 0.05 mm²).
+**V-bits, drills and custom outlines are not map moves** (independent tester, finding 3: their grooves and ridges are
+as steep as the bit and often narrower than a cell).
 
 **Files and owners.** Worker: `core/heightmap.py`, `core/machining.py`, `blender/machining.py`, `props.py`,
 `ui_machining.py`, PC check, guide, function list, version files. Subagents (never push, never touch `TASKS.md` or

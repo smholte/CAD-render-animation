@@ -18,20 +18,22 @@ installer of that version was built from.
   - the toolpath test model (7,243 moves, roughing and finishing): 7 s instead of about 2 minutes – but 146,000
     faces instead of 97,000: on walls and steps the map needs more faces than the exact cut.
 - **What goes into it:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
-  together (a short, thinly spread program is quicker and lighter cut exactly); of those the moves where the tool points straight at the block along one of its own axes, with a flat,
-  ball, corner-radius, V or drill bit that reaches above the block's top.
-- **What is cut exactly as before:** short programs; side cuts with a T-slot cutter (any bit that undercuts); tilted
-  and rotary moves (4th and 5th axis); a tool so short that it tunnels. One program can have both kinds: they are
-  joined in the block. The clash check, the chips, the cut faces' look and the tool marks work as before.
-- **Same look.** Walls stand upright with their outline where the tool went, rims and chamfer edges are sharp, cut
-  faces know the move that made them (tool marks). Surfaces and walls are within 0.03 mm of the exact cut at Detail
-  Normal. Three things differ: the fine ridges between two finishing passes are left out when they are lower than
-  0.012 mm (the face is smooth there and shows the tool marks); the steep strip right under a rim, where a ball cuts
-  deeper than two thirds of its radius, can be 0.08 mm off; a sharp outside corner of a wall, or a rib thinner than
-  0.2 mm, can be up to 0.2 mm off. All three halve at Detail Fine. In a close-up, a wall with a rounded foot (a
-  ball's fillet) can look a little streaky where the exact cut shows even level lines. Untick **Fast 3-axis** to
-  cut every move exactly.
-- The line under the Milling settings says how many moves went into the height map.
+  together (a short, thinly spread program is quicker and lighter cut exactly); of those the moves where the tool
+  points straight at the block along one of its own axes, with a flat, ball or corner-radius mill that reaches above
+  the block's top.
+- **What is cut exactly as before:** short programs; V-bits, chamfer mills and drills; side cuts with a T-slot cutter
+  (any bit that undercuts); tilted and rotary moves (4th and 5th axis); a tool so short that it tunnels. One program
+  can have both kinds: they are joined in the block. The clash check, the chips, the cut faces' look, the tool marks
+  and "Finish at the CAD part" work as before.
+- **Same look, not the same to the hundredth.** Walls stand upright with their outline where the tool went, rims
+  are sharp, cut faces know the move that made them (tool marks). At Detail Normal (a 0.2 mm grid) surfaces and
+  walls are within 0.03 mm of the exact cut. What differs: the fine ridges between two finishing passes are left
+  out when lower than 0.012 mm (the face is smooth there and shows the tool marks); the steep rounded strip under
+  a rim or at the foot of a wall (a ball cutting deeper than two thirds of its radius, a corner radius' fillet) can
+  be 0.15 mm off and look a little streaky in a close-up; a sharp outside corner of a wall, or a rib or slot
+  thinner than 0.4 mm, can be up to 0.3 mm off. All of it halves at Detail Fine. Untick **Fast 3-axis** to cut
+  every move exactly.
+- The line under the Milling settings says how many moves went into the height map and how fine its grid is.
 - **PC check:** the new Full line "Milling: a long finishing program as a height map" cuts one program both ways
   and compares them; the new Heavy line "Milling: a long finishing program (height map)" times 40,000 points.
 

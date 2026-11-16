@@ -1278,7 +1278,7 @@ def refresh(scene, frame: float | None = None, force: bool = False, quick: bool 
         st = tl.stats
         fast = st.extra.get("map_moves", 0)             # (task 0146: how many of them the height map took)
         rt["status"] = (f"Frame {T:g}: {st.triangles:,} triangles, {st.last_ms:.0f} ms "
-                        f"({st.cutting_segments} cutting moves" + (f", {fast} as height map)" if fast else ")"))
+                        f"({st.cutting_segments} cutting moves" + (f", {fast} as height map, {st.extra.get('map_cell', 0.0) * 1000:.2g} mm grid)" if fast else ")"))
         rt.pop("error", None)
         return True
     except core.SolidError:

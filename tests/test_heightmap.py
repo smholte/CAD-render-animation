@@ -367,7 +367,7 @@ def test_normals_of_the_map_are_flat_on_floors_and_level_on_walls(any_density):
     pts = zigzag_pocket()
     fast, _s = timeline(SHAPES["flat"], pts, fast=True)
     assert fast.map is not None
-    v, t, src, nrm = fast.mesh_at(float(len(pts)), normals=True)
+    v, t, src, mv, nrm = fast.mesh_at(float(len(pts)), moves=True, normals=True)
     assert np.isfinite(nrm).all()
     assert np.allclose(np.linalg.norm(nrm, axis=1), 1.0, atol=1e-4)
     p = v[t].astype(float)
@@ -378,7 +378,7 @@ def test_normals_of_the_map_are_flat_on_floors_and_level_on_walls(any_density):
     c = nrm.reshape(-1, 3, 3)
     floor = (src < 0) & (n[:, 2] > 0.999) & (np.abs(cen[:, 2] + 0.003) < 1e-6) & (area > 1e-10)
     assert np.all(c[floor][:, :, 2] > 0.99999)
-    wall = (src < 0) & (np.abs(n[:, 2]) < 0.02) & (area > 1e-10) & (cen[:, 2] < -0.0002) & (cen[:, 2] > -0.0028)
+    wall = (mv >= 0) & (np.abs(n[:, 2]) < 0.02) & (area > 1e-10) & (cen[:, 2] < -0.0002) & (cen[:, 2] > -0.0028)
     assert wall.sum() > 50
     assert np.abs(c[wall][:, :, 2]).max() < math.sin(math.radians(3.0))       # (2° at the cusp between two pass ends)
 
