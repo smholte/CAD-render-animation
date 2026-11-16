@@ -56,6 +56,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
       selected, task 0157).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
+  operator   the test mill in its cabinet: the operator takes the tool out of the spindle (toolchange_person.jpg) and
+      lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
   house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
       imported and one moment baked, task 0114).
   vessel_work_panel   5 Scene & Render > Vessel at work (panel_5_vessel_work; as "panels", on test_thrusters.step, task
@@ -1859,6 +1861,53 @@ def render_crane(with_decals: bool = False, with_cut: bool = False):
     log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
+def render_operator():
+    """Task 0156: the operator at the test mill in its cabinet, built, rendered as it takes the tool out of the
+    spindle and as it lays it on the trolley (processor)."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_mill_cabinet.step"),
+                                       quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    tc, animation, cams, TC = (mod("blender.tc_person"), mod("blender.animation"), mod("blender.cameras"),
+                               mod("core.toolchange"))
+    a = tc.set_up_test_model(sc, os.path.join(SCRATCH, "operator.ngc"))
+    s.background = "SKY"
+    s.floor = "VISIBLE"
+    s.floor_use_own_color = True
+    s.floor_color = (0.42, 0.42, 0.4)
+    s.props_detail = "DETAILED"
+    animation.bake(sc, a)
+    sc.frame_set(1)
+    gcode, core = mod("blender.gcode"), mod("core.gcode")
+    b = a.blocks[0]
+    mach = gcode.Machine(sc)
+    sch = core.Schedule(gcode.read_program(sc, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(sc, a, b, mach))
+    c = next(x for x in sch.changes if x.person)
+    keys = {n: (x, y) for x, y, n in TC.person_keys(*c.hand, c.door)}
+    fps = animation.fps_of(a)
+    s.out_format, s.out_resolution, s.use_gpu, s.out_folder = "presentation", "preview", False, SCRATCH
+    for name, t, aim, off in (("toolchange_person", keys["pull"][1], (0.05, -0.3, 1.2), (-1.25, -1.75, 0.45)),
+                              ("toolchange_person_trolley", keys["set"][0] + 0.2, (0.3, -0.55, 1.0),
+                               (-0.9, -2.0, 0.75))):
+        sc.frame_set(int(1 + t * fps))
+        cam = cams.add_camera(sc, "ISO", 40.0, name="Operator")
+        aim, off = Vector(aim), Vector(off)
+        cam.matrix_world = Matrix.Translation(aim + off) @ (-off).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+        sc.camera = cam
+        bpy.context.view_layer.update()
+        mod("blender.render").apply_output(sc, s)
+        sc.render.resolution_percentage = 100
+        t0 = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", s.last_render, f"{time.time() - t0:.0f} s")
+        path = os.path.join(OUT, name + ".jpg")
+        subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+        log("saved", name, f"{os.path.getsize(path) // 1024} KB")
+
+
 def render_people():
     """Task 0157: the example "two people meet" beside the crane, built, rendered at the handshake (processor)."""
     import addon_utils
@@ -2093,6 +2142,12 @@ elif MODE == "tracks":
 elif MODE == "spools":
     try:
         render_spools()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "operator":
+    try:
+        render_operator()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

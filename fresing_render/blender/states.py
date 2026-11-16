@@ -267,7 +267,7 @@ WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_
               "floor_color",
               # surroundings and props (task 0016)
               "env_detail", "sea_state", "sea_foam", "sea_moving", "water_level", "photo_ground", "photo_height",
-              "props_visible",
+              "props_visible", "operator_visible",
               # weather of the sky (task 0017)
               "sky_weather",
               # weather and time of day (task 0109): the whole Weather & time panel
@@ -508,6 +508,9 @@ def apply_settings_json(scene, text: str) -> None:
     if "props_visible" in data:
         from . import surroundings
         surroundings.set_props_visible(scene, s.props_visible)
+    if "operator_visible" in data:
+        from . import tc_person
+        tc_person.apply_visible(scene)
 
 
 def save_shot(scene, name: str, scheme: str = CURRENT, pose: str = CURRENT, visibility: str = CURRENT,

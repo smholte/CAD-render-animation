@@ -310,13 +310,43 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
         split_props(layout).prop(cnc, "changer", text="Changer")       # three kinds: a drop-down (labels fit)
         if cnc.changer == "MANUAL":
             draw_change_position(layout, context, cnc)
-            wrap(layout, context, "The pause, the hand and a caption are set in the step (6 Animation > Run G-code "
-                                  "program > Lines, tool changes …)", icon="INFO", inset=12)
+            wrap(layout, context, "The pause, who changes the tool (a hand or a person) and a caption are set in the "
+                                  "step (6 Animation > Run G-code program > Lines, tool changes …)", icon="INFO",
+                 inset=12)
+            draw_operator(layout, context, scene, cnc)
             return
         if cnc.changer == "ARM":
             draw_arm(layout, context, scene, cnc)
             return
         draw_atc(layout, context, scene, cnc)
+
+
+def draw_operator(layout, context, scene, cnc) -> None:
+    """The operator who changes the tools when a step picks 'Person' (task 0156)."""
+    from . import tc_person
+    body = fold(layout, "fr_cnc_operator", "Person at the machine", icon="ARMATURE_DATA")
+    if not body:
+        return
+    col = split_props(body)
+    col.prop(cnc, "op_height", text="Height")
+    col.prop(cnc, "op_outfit", text="Clothes")
+    col.prop_search(cnc, "op_door", scene.fresing, "joints", text="Door", icon="SNAP_FACE")
+    j = tc_person.door_joint(scene)
+    if j is not None and j.kind == "SLIDE":
+        col.prop(cnc, "op_door_open", text="Opens by")
+    elif j is not None:
+        col.prop(cnc, "op_door_angle", text="Opens by")
+    row = body.row(align=True)
+    row.prop(cnc, "op_button", text="Release button")
+    row.prop(cnc, "op_helmet", text="Helmet")
+    row = body.row(align=True)
+    row.operator("fresing.operator_spots", text="Show the spots", icon="EMPTY_SINGLE_ARROW")
+    if tc_person.spot(scene, "stand") is not None:
+        row.operator("fresing.operator_spots", text="", icon="X").remove = True
+    body.prop(scene.fresing, "operator_visible", text="Show the operator")
+    line = tc_person.words(scene)
+    if line:
+        wrap(body, context, line, icon="INFO", inset=12)
 
 
 def draw_change_position(layout, context, cnc) -> None:
@@ -652,9 +682,10 @@ def draw_step(context, box, scene, anim, b) -> None:
         col.prop(b, "gcode_path", text="Show toolpath")
         if b.gcode_path:
             col.prop(b, "gcode_path_render", text="Toolpath in renders")
-        row = body.row(align=True)
-        row.prop(b, "gcode_hand", text="Show hand")
-        row.prop(b, "gcode_tc_caption", text="Caption")
+        if cnc.changer == "MANUAL" or not cnc.pockets or cnc.changer == "ATC":
+            col = split_props(body)
+            col.prop(b, "gcode_operator", text="Changed by")
+        body.prop(b, "gcode_tc_caption", text="Caption at tool changes")
         for line in info.get("tool_changes", [])[:2]:
             wrap(body, context, line, icon="INFO", inset=12)
         row = body.row(align=True)

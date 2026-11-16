@@ -2993,6 +2993,29 @@ def _check_props(scene):
 PEOPLE_ANIM = "Two people meet"
 
 
+OPERATOR_ANIM = "A person changes the tool"
+
+
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step")
+def build_operator(b: Build):
+    """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
+    operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
+    away (task 0156; the set-up is shared with the PC check: ``tc_person.set_up_test_model``)."""
+    from . import cameras, tc_person
+    sc = b.scene
+    _look("PRODUCT")
+    a = tc_person.set_up_test_model(sc, b.file("Tour operator.ngc"))
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+    cam = cameras.add_camera(sc, "ISO", 40.0, "Tour operator", points=tc_person.test_camera_points())
+    sc.camera = cam
+    a.start_shot = _shot(b, "@operator").name
+
+
+def _check_operator(scene):
+    from . import tc_person
+    return tc_person.check_test_model(scene)
+
+
 @tour_set("people", "People walk and meet", "test_crane_a.step")
 def build_people(b: Build):
     from . import cameras, people
@@ -3422,6 +3445,14 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip")
+stop("operator", MACH, "operator", "A person changes the tool",
+     "On the test mill in its cabinet the operator walks up before the tool change, opens the sliding door with "
+     "the handle, presses the release button with the left hand and takes the end mill out by its BT30 holder, lays "
+     "it on the tool trolley, takes the ball mill, puts it in, closes the door and walks away after the program. "
+     "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine.",
+     where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
+           "Tool changes > Person at the machine", since="0.2.132", animation=OPERATOR_ANIM, at=0.45, play=True,
+     check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
      "toolpath is drawn as a thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",

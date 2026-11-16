@@ -29,6 +29,7 @@ CRANE_A = os.path.join(DATA, "test_crane_a.step")
 CRANE_B = os.path.join(DATA, "test_crane_b.step")
 FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
+MILL_CABINET = os.path.join(DATA, "test_mill_cabinet.step")
 TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
@@ -2699,6 +2700,57 @@ def scene_props(ctx):
     bpy.context.view_layer.update()
     _small_output(scene.fresing)
     info = _cpu_still(ctx, scene, "props", "Props for scale and people (processor, draft)", model_check=False)
+    return f"{words}; render {info['seconds']} s"
+
+
+@line("toolchange.person", "A person changes the tool", "0.2.132",
+      what="The test mill in its cabinet (task 0156): the operator walks up before the tool change, opens the sliding "
+           "door, takes T1 out, lays it on the trolley, puts T2 in, closes the door and walks away. Build, the pause "
+           "grown to what the person needs, the hand on the holder, the frame time, a small render (processor, draft)")
+def toolchange_person(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import animation, cameras, gcode, tc_person
+    from ..core import gcode as core
+    from ..core import toolchange as TC
+    scene = ctx.fresh(MILL_CABINET)
+    a = tc_person.set_up_test_model(scene, os.path.join(ctx.work, "pccheck_operator.ngc"))
+    t0 = time.time()
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warned: " + "; ".join(res["warnings"][:3]))
+    words = tc_person.check_test_model(scene)
+    scene.frame_set(1)
+    b = a.blocks[0]
+    mach = gcode.Machine(scene)
+    sch = core.Schedule(gcode.read_program(scene, b, mach, start=gcode.start_point(mach))[0],
+                        gcode.timing(scene, a, b, mach))
+    c = next((x for x in sch.changes if x.person), None)
+    _check(c is not None, "no tool change done by the person")
+    _check(c.hand[1] >= TC.person_min(c.door) - 1e-6, f"the pause is {c.hand[1]:.1f} s, shorter than the person "
+           f"needs ({TC.person_min(c.door):.1f} s)")
+    keys = {n: (x, y) for x, y, n in TC.person_keys(*c.hand, c.door)}
+    f_grip = 1 + keys["grip"][1] * 25.0
+    scene.frame_set(int(round(f_grip)))
+    op = tc_person.operator(scene)
+    from ..blender import person_rig
+    hand = person_rig.bone_world(op, "r_hand").translation
+    spindle = mach.tool
+    tip = tc_person._world(spindle) @ gcode.tool_frame(spindle).translation
+    d = float(np.hypot(hand.x - tip.x, hand.y - tip.y))
+    _check(d < 0.15, f"the right hand is {d * 100:.0f} cm beside the tool at the grip")
+    t0 = time.time()
+    n = 40
+    for f in range(int(f_grip) - 20, int(f_grip) + 20):
+        scene.frame_set(f)
+    ctx.metric("frame time with the operator", (time.time() - t0) / n * 1000.0, "ms")
+    cameras.add_camera(scene, "ISO", 40.0, "PC check operator", points=tc_person.test_camera_points())
+    scene.frame_set(int(f_grip))
+    bpy.context.view_layer.update()
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "operator", "The operator takes the tool out (processor, draft)",
+                      model_check=False)
     return f"{words}; render {info['seconds']} s"
 
 
