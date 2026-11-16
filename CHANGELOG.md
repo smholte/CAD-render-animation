@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.127 – 16 Nov 2026 – Vessel at work: wake, ship waves, bow wave and thruster jets (task 0154)
+
+- **What the vessel does shows in the water.** New panel 5 Scene & Render > **Vessel at work**: **Still**, **Ahead**
+  (at the vessel speed), **Sideways** (DP: the thrusters push it to port or starboard) or **Turning** on the spot.
+  - **Ahead:** a white wake behind the stern that fades and breaks up further back, the ship's waves fanning out
+    behind the bow in a wedge of 19.5° each side (their spacing follows the speed), white water rolling off the bow and
+    along the sides.
+  - **Sideways / Turning:** white, boiling jets stream out beside the hull where each thruster pushes its water, as
+    long and as white as the thrust makes them.
+  - Works in Cycles and EEVEE, with Auto Run Python Scripts off and in the render queue; needs Foam ticked.
+- **Thrusters:** **Find thrusters** reads the propellers from your joints (names with propeller, screw, schroef,
+  Schraube) and tells azimuths (with their steer joint), tunnel thrusters and shaft propellers apart. The azimuths
+  steer round at once; in a video every propeller turns as hard as it works.
+- **In a video:** a new step **Vessel at work** in 6 Animation changes what the vessel does over its time – it slows,
+  the wake fades, the azimuths swing round, the jets grow. Saved scenes keep the setting; Build tells you when the
+  start scene would put back another one (Save into start scene).
+- The vessel speed (Weather & time) now also works with Weather & time off.
+- **Demo project:** the vessel sails in at 6 knots in the first two shots, then holds its place on DP.
+- Test tour: new stop "Vessel at work: wake and jets"; PC check: new line "Vessel at work".
+
 ## 0.2.126 – 16 Nov 2026 – Web 3D: Marine detail Normal or Fine (task 0165)
 
 - New choice **Marine detail** in 5 Scene & Render > Web 3D model (shown when a marine look is in use). **Normal** is

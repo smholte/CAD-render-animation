@@ -2544,7 +2544,7 @@ def scene_vessel_motion(ctx):
     return (f"roll ±{r:.1f}° every {rs:.0f} s, pitch ±{q:.2f}°, heave ±{h:.2f} m; rendered in {info['seconds']} s")
 
 
-@line("scene.vessel_work", "Vessel at work: wake, waves, thruster jets", "0.2.125",
+@line("scene.vessel_work", "Vessel at work: wake, waves, thruster jets", "0.2.127",
       what="A workboat with two azimuths and a bow thruster (test model) on the open sea: sailing ahead at 8 knots "
            "(a wake, the waves 19.5° each side, a bow wave), then pushed sideways (the azimuths steer round, white "
            "jets beside the hull); the propellers' keys after Build. Both rendered small (processor, draft): judge "

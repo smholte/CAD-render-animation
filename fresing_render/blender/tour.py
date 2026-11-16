@@ -3334,7 +3334,7 @@ stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
      "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
      "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
      where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
-     since="0.2.125", check=_check_vessel_work, auto="clip")
+     since="0.2.127", check=_check_vessel_work, auto="clip")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
