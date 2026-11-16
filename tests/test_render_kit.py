@@ -116,11 +116,11 @@ def test_bat_asks_when_to_start():
     bat = open(os.path.join(KIT, "Make site pictures.bat"), "rb").read()
     assert b"\r\n" in bat and b"\n" not in bat.replace(b"\r\n", b"")
     text = bat.decode("utf-8")
-    assert "--estimate-only" in text and "set /p" in text and '"--start-at=%START%"' in text and 'if not "%ERRORLEVEL%"=="0"' in text
-    assert "site_pictures_^<date^>.zip" in text
+    assert "--estimate-json=" in text and "set /p" in text and '"--start-at=%START%"' in text and 'if not "%ERRORLEVEL%"=="0"' in text
+    assert "site_pictures_^<date^>.zip" in text and "kit_window.ps1" in text        # task 0144: the start window first
     readme = open(os.path.join(KIT, "README.txt"), encoding="utf-8").read()
     steps = [ln for ln in readme.splitlines() if ln[:2] in {f"{i}." for i in range(1, 10)}]
-    assert len(steps) == 6
+    assert len(steps) == 7                                              # task 0144: step 5 = continue a run
     assert "fresing_site_kit.zip" in readme and "site_pictures_<date>.zip" in readme and "Save draft" in readme
 
 
