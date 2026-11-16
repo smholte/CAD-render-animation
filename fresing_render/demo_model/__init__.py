@@ -14,4 +14,7 @@ real vessel, company or design: generic shapes from general engineering knowledg
   deck.py      the owner's deck (0084): loading tower + arch, V roller highways, walkways, radius controllers,
                D-quadrant, quadrant handler, rails, cable engine, swivel sheaves, CPS sets / rack / ramp, quay
   layout.py    everything placed on the vessel, the routes, the joint sheet, the files (incl. the quay file)
+  park.py      the wind park round the vessel (task 0166, its own file): turbine.py (an invented turbine sized from the
+               IEA 15 MW public numbers; its foot and nacelle from turbine_parts.py, shared with the site), substation.py
+  occ.py, turbine_parts.py   moved here from tools/site_projects/ (task 0166): the site's turbine uses them too
 """

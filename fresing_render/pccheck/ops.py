@@ -167,9 +167,9 @@ def _ps_quote(text: str) -> str:
     return "'" + re.sub("(['\u2018\u2019\u201a\u201b])", r"\1\1", text) + "'"
 
 
-def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str]) -> str:
+def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str], icon: str = "") -> str:
     """PowerShell that makes the missing PC-check shortcuts: "quick" / "full" in the Start-menu folder,
-    "desktop" on the Desktop (quick)."""
+    "desktop" on the Desktop (quick). ``icon``: the Fresing icon file (task 0169), else Blender's."""
     lines = ["$s = New-Object -ComObject WScript.Shell"]
     for mode in missing:
         path = os.path.join(desktop, DESKTOP_SHORTCUT) if mode == "desktop" else os.path.join(folder, SHORTCUTS.get(mode, ""))
@@ -180,7 +180,7 @@ def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str]) -> 
                   f"$l.TargetPath = {_ps_quote(exe)}",
                   f"$l.Arguments = {_ps_quote(shortcut_arguments(desktop, mode))}",
                   f"$l.WorkingDirectory = {_ps_quote(os.path.dirname(exe))}",
-                  f"$l.IconLocation = {_ps_quote(exe + ',0')}",
+                  f"$l.IconLocation = {_ps_quote((icon or exe) + ',0')}",
                   f"$l.Description = {_ps_quote(SHORTCUT_TEXT[mode])}",
                   "$l.Save()"]
     return "\n".join(lines)
@@ -221,7 +221,10 @@ def ensure_shortcuts() -> str:
     exe = bpy.app.binary_path
     if not missing or not exe or not os.path.isfile(exe):
         return ""
-    script = shortcut_script(folder, exe, desktop, missing)
+    from .. import appicon
+    inst = appicon.install_dir(exe)
+    icon = appicon.ensure_icon(inst) if inst else ""
+    script = shortcut_script(folder, exe, desktop, missing, icon)
 
     def work():
         import tempfile

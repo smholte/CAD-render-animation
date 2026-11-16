@@ -110,12 +110,56 @@ on `main`'s app code; the side-panel overhaul (0062).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker, Sonnet), 16 Nov 2026. Everything, this report included, is on branch
+**`claude/practical-heisenberg-jm99vr`** (made from `task/0133-highlight-looks`, pushed with `[skip ci]`, never merged).
+Nothing was pushed to `main` (the session was told "branch only"): the lead copies this file and the three stills
+(`tasks/img/0168_*.jpg`, 97 KB) to `main` if wanted.
 
 ### In short (for the owner)
 
+One page, **`tasks/0168_page/index.html`** on the branch (the lead publishes it): 29 looks, each a 3 s loop in all six
+colours (Fresing Green, Green Bright, Amber, Hi-vis orange, Cyan, White; F once, in Blender blue). Colour picker fixed top
+right, keys 1-6 too, "Side by side" shows your colour next to Fresing Green, pick ticks per group (two allowed), a **Copy**
+line at the bottom: `0168 pick: button K, section 6, part 8, colour Fresing Green`.
+New looks (round 1's A-F, 1-3 stay):
+- **Buttons:** G underline fills once - H light sweep every 3 s - I ring ripples out every 1.5 s - J pointing hand taps -
+  K outline + soft glow - L marching dashes - M softer spotlight (rest dimmed 30 %, Lesson panel kept clear) - N tag with the
+  step number, joined by a short line.
+- **Closed sections:** 4 bar on the left edge - 5 header tinted, fold arrow nods - 6 outline + breathing glow - 7 arrow at the
+  panel's edge with the step number.
+- **Parts:** 4 half see-through fill + edges - 5 breathing halo - 6 X-ray (rest as ghost lines, part solid + outline) -
+  7 outline + bold leader line with a moving dot - 8 outline + rest faded.
+Honest notes: M's dimming is subtle on this dark panel; N's tag sits **inside** the panel (the side panel cannot draw outside
+itself) and is small; J's hand covers part of the label. Breaths are now 1.5 s (so loops join at 3 s): a little quicker than
+0133's 2 s, still under 1 per second.
+
 ### What changed (on the branch only)
+
+| File | What |
+| --- | --- |
+| `fresing_render/blender/lesson.py` | colour is one setting (`set_colour`, `COLOURS`; "done" stays green); a clock the clip maker sets per picture (`begin_clip`, `set_clock`, `end_clip`; `_now()` everywhere, `_out()` fades once-only looks at the end so loops join); looks G-N, 4-7, 4-8; markers on the Lesson panel (header + last button, painted over) for look M; look 7's leader in the card |
+| `tools/lesson_clips_app.py` | new: real app, UI scale 2.0, 75 pictures per clip (25/s), H.264 (veryfast, CRF 27, yuv420p, faststart) + poster per clip, costs |
+| `tools/lesson_looks_page.py` | new: builds `tasks/0168_page/` (index.html, clips/, fonts/) |
+| `tasks/0168_page/` | the page + 169 clips + posters |
 
 ### Tested and measured
 
+Machine: web session, 4 cores, no graphics card, Blender 5.2.3 under xvfb (software GL), window 2000 x 1500 at UI scale 2.0
+(1600 x 1000 was too small: the target never came into view), test crane. Four Blender runs at once, ~45 min,
+**169 clips, 0 failed checks**; one grab took 0.3 s alone, 0.7 s with four running.
+- **Page folder 7.5 MB.** Opened in headless Chromium: no script errors, picker still in the top right corner after scrolling
+  (`0168_page.jpg`), a colour key swaps the clips, a pick shows in the Copy line. A phone-width screenshot was taken but not looked at.
+- **Cost per side-panel redraw** (drawing only, Python side, Fresing Green): G 0.05 - H 0.39 - I 0.08 - J 0.33 - K 0.21 -
+  L 1.25 - M 0.26 - N 0.83 ms; sections 4 0.06 - 5 0.14 - 6 0.22 - 7 0.92; parts (per 3D-view redraw) 4 0.42 - 5 0.75 -
+  6 **2.1** - 7 0.70 - 8 0.89 ms. Round 1: A 0.21, B 0.93, C 0.14, D 0.05, E 0.17, F 0.43; sections 0.16/0.13/0.99; parts
+  0.33/0.43/1.25. Colour does not change the cost (K in six colours 0.20-0.41 with four runs sharing the cores; part 6 1.96-2.26).
+  Finding the button now also looks for the Lesson panel's two markers (two more pixel searches per redraw, not timed separately).
+- `tools/lesson_proto_app.py`: 0 failed checks; `tools/lesson_looks_app.py`: 12 of 12 OK (both on this branch, scale 1.0).
+- Not tried on the owner's PC (graphics card, Windows scaling). No subagents, no GitHub run (all `[skip ci]`).
+
 ### Open points / follow-up tasks
+
+- Lead: publish `tasks/0168_page/` from the branch as a private artifact (multi-file publish); the pick goes into the 0062 brief.
+- Look 6 (X-ray) draws every other part's edges, the most expensive: fine on the crane, to check on a big model once chosen.
+- White and Amber with J's white hand / N's white text: readable here, recheck if chosen.
+- The branch carries `lesson.py` changes on top of 0133's; the build task keeps only the chosen looks.

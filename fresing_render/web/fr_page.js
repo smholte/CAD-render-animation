@@ -36,11 +36,25 @@
                                // task 0134: the player (fr_player.js reads and sets these)
                                raised: 0, speed: 1, duration: 0, animated: false, auto: false, quality: 'AUTO',
                                warned: '', gpu: '', cap: 60, items: [], on: {}, views: [], turn: false,
-                               turning: false, sunLive: false, sunHour: 13, sunWhy: '', listeners: [] };
+                               turning: false, sunLive: false, sunHour: 13, sunWhy: '', listeners: [],
+                               beforeDraw: [] };   // task 0135: the part tools' work before each picture
   // what the visitor chose last time on this page (fr_player.js writes it; the link's own choices come first)
   var PREF_KEY = 'fresing-player:' + (location.pathname || document.title);
   var PREF = {};
   try { PREF = JSON.parse(window.localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { PREF = {}; }
+  // 0147 row 16: a remembered field of the wrong type (a corrupt write, another version under the same key) stopped
+  // the page for good – every field is checked and a bad one dropped
+  PREF = (function (p) {
+    var ok = {};
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return ok;
+    if (typeof p.quality === 'string') ok.quality = p.quality;
+    if (Array.isArray(p.off)) ok.off = p.off.filter(function (x) { return typeof x === 'string'; });
+    if (Array.isArray(p.chose)) ok.chose = p.chose.filter(function (x) { return typeof x === 'string'; });
+    if (typeof p.turn === 'boolean') ok.turn = p.turn;
+    if (typeof p.speed === 'number' && isFinite(p.speed)) ok.speed = p.speed;
+    if (p.tools && typeof p.tools === 'object' && !Array.isArray(p.tools)) ok.tools = p.tools;   // task 0135
+    return ok;
+  })(PREF);
   page.prefKey = PREF_KEY;
   page.pref = PREF;
   function changed(what) {                  // tell the player (menu, time line) that something changed
@@ -1339,6 +1353,14 @@
     }
   }
 
+  // task 0135: the drawn tubes' centre lines for the part tools (their shape is made on the graphics card: a ray
+  // cannot hit their triangles); cp in the node's coordinates (three's axes), r in metres
+  page.tubeLines = function () {
+    return tubes.map(function (tb) {
+      return { node: tb.node, mesh: tb.mesh, cp: tb.cp, count: tb.count, r: tb.uniforms.uFrR.value, shown: tb.mesh.visible };
+    });
+  };
+
   // tests (?tubes=1): every drawn tube's centre line now, Blender world coordinates (m), at most 64 points each
   function tubeProbe() {
     var out = [], v = new T.Vector3();
@@ -1372,6 +1394,8 @@
     vesselGroup.add(root);
     root.updateMatrixWorld(true);
     var model = root.getObjectByName('Model') || root;
+    page.gltf = gltf;                  // task 0135: the part tools read the file's face data and its meshes
+    model.children.forEach(function (c) { c.userData.frPart = true; });    // a part's node: what a click picks
     var moves = [];
     model.traverse(function (o) {
       if (o.isMesh) {
@@ -1535,7 +1559,7 @@
     if (page.paused) p.push('paused=1');
     if (page.speed !== 1) p.push('speed=' + page.speed);
     if (!auto) p.push('quality=' + level, 'auto=0');
-    var off_ = page.items.filter(function (n) { return on[n] === false; });
+    var off_ = page.items.filter(function (n) { return on[n] === false && !pageOff[n]; });
     if (off_.length) p.push('off=' + off_.join(','));
     if (page.turn) p.push('turn=1');
     if (page.sunLive && Math.abs(page.sunHour - 13) > 0.01) p.push('sun=' + page.sunHour.toFixed(2));
@@ -1553,9 +1577,18 @@
   if (ST.shadows) page.items.push('shadows');
   if (UW) page.items.push('under', 'dive');      // task 0143: Under the sea, Camera under water
   var offList = Q.has('off') ? Q.get('off').split(',') : (PREF.off || []);
-  var underKept = Q.has('off') || !!PREF.off;     // the visitor chose the items: Auto leaves Under the sea alone
+  // the visitor chose Under the sea (link, or switched it): Auto leaves it alone (task 0135: a saved "off: []" from
+  // another choice no longer counts)
+  var underKept = Q.has('off') || (PREF.chose || []).indexOf('under') >= 0 || (PREF.off || []).indexOf('under') >= 0;
   page.items.forEach(function (n) { on[n] = offList.indexOf(n) < 0; });
-  if (page.warned && !Q.has('off') && !PREF.off) on.shadows = false;       // no graphics card: no shadows
+  // 0147 row 21d: what the page itself switched off (no graphics card: shadows; Auto: Under the sea) is not the
+  // visitor's choice – the link to the view leaves it out (the receiver's own browser decides)
+  var pageOff = {}, switched = {};
+  (PREF.chose || []).forEach(function (n) { switched[n] = true; });
+  if (page.warned && !Q.has('off') && on.shadows !== false && !switched.shadows) { on.shadows = false; pageOff.shadows = true; }
+  page.visitorOff = function () { return page.items.filter(function (n) { return on[n] === false && !pageOff[n]; }); };
+  page.chosenItems = function () { return Object.keys(switched); };
+  page.resetChosen = function () { switched = {}; };
   page.on = on;
   var PLAIN_BG = new T.Color('#F1F3F5'), bgKeep = null;
   function lightGround(yes) {             // dark text on a light ground (the plain form, or the sky switched off)
@@ -1615,9 +1648,10 @@
     wake();
     changed('items');
   }
-  page.setItem = function (name, value) {
+  page.setItem = function (name, value, byPage) {
     if (page.items.indexOf(name) < 0) return;
     on[name] = !!value;
+    if (byPage && !value) pageOff[name] = true; else { delete pageOff[name]; if (!byPage) switched[name] = true; }
     if (name === 'under') underKept = true;
     applyItems();
     if (!moving()) chain = false;
@@ -1921,6 +1955,9 @@
       sprayUniforms.uPix.value = renderer.getPixelRatio() * canvas.clientHeight / 800;
     }
     if (sun.castShadow) fitShadow();
+    for (var bd = 0; bd < page.beforeDraw.length; bd++) {      // task 0135: the part tools (cut plane, lines, card)
+      try { page.beforeDraw[bd](t); } catch (e) { page.errors.push('tools: ' + (e && e.message || e)); }
+    }
     renderer.render(scene, camera);
     page.frames++;
     if (probes.length) probe();
@@ -1970,7 +2007,7 @@
     if (!page.warned && !page.gpu && level === 'PHONE' && page.fps < 15 && Q.get('soft') !== '0') {
       page.warned = 'probably';
       page.cap = 30;
-      if (on.shadows && !Q.has('off') && !PREF.off) page.setItem('shadows', false);
+      if (on.shadows && !Q.has('off') && !switched.shadows) page.setItem('shadows', false, true);
       changed('warned');
       mark();
     }
@@ -1978,7 +2015,7 @@
     // task 0143: at Phone and still slow, Auto switches Under the sea off (once; not when the visitor chose it)
     if (page.fps < 0.9 * AUTO_FPS && k === 0 && UW && on.under !== false && !underKept) {
       underKept = true;
-      page.setItem('under', false);
+      page.setItem('under', false, true);
       note('Under the sea switched off to keep it smooth (settings: switch it on again)', 8);
       return;
     }
@@ -2035,6 +2072,9 @@
   window.addEventListener('pageshow', function () { chain = false; warm(1500); wake(); });
 
   function start() {
+    // task 0135: what the part tools (fr_tools.js) work with
+    page.three = { T: T, scene: scene, camera: camera, renderer: renderer, controls: controls, canvas: canvas,
+                   top: top, vessel: vesselGroup, B2T: B2T, T2B: T2B, box: box, R: R };
     var ld = document.getElementById('loading');
     if (ld) ld.style.display = 'none';
     page.ready = true;

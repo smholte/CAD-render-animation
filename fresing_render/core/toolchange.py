@@ -79,6 +79,60 @@ def hand_events(t0: float, length: float) -> tuple[float, float]:
     return grips[0], grips[1]
 
 
+#: the operator as a whole person (task 0156): the moves inside the pause, in order, seconds each. The door moves are
+#: there only when the machine has a door (their length follows the door's travel, ``person_moves``). The person waits
+#: for the rest of the pause before "take" (choosing the new tool on the trolley). Walking up to the machine and away
+#: from it happens outside the pause, while the machine still works.
+PERSON_MOVES = (("reach", 0.7), ("grip", 0.25), ("release", 0.35), ("pull", 0.45), ("away", 1.0), ("set", 0.35),
+                ("take", 0.35), ("fetch", 1.0), ("insert", 0.45), ("clamp", 0.35), ("leave", 0.7))
+DOOR_REACH = 0.6             # s: a hand to the door's handle (and back from it after closing)
+DOOR_LET_GO = 0.5            # s: the hand leaves the handle after opening (after closing)
+DOOR_MIN = 0.6               # s: the shortest a door's opening (or closing) takes
+PERSON_OUT = "release"       # the old tool leaves the spindle at the end of this move
+PERSON_IN = "clamp"          # the new tool is held by the spindle from the end of this move
+
+
+def person_moves(door: float = 0.0) -> tuple:
+    """The person's moves in a pause; ``door``: seconds the door takes to open (0: no door)."""
+    if door <= 0:
+        return PERSON_MOVES
+    d = max(DOOR_MIN, float(door))
+    return ((("to_door", DOOR_REACH), ("open", d), ("let_go", DOOR_LET_GO)) + PERSON_MOVES +
+            (("to_close", DOOR_REACH), ("close", d), ("let_go2", DOOR_LET_GO)))
+
+
+def person_min(door: float = 0.0) -> float:
+    """The shortest pause a person needs for one change (s)."""
+    return sum(d for _n, d in person_moves(door))
+
+
+def person_keys(t0: float, length: float, door: float = 0.0) -> list:
+    """[(start, end, move)] of the person's moves in a pause from ``t0`` lasting ``length``: at their own pace (all
+    a bit faster when the pause is shorter than ``person_min``), with a ``wait`` before ``take`` for the rest of the
+    pause."""
+    moves = person_moves(door)
+    need = sum(d for _n, d in moves)
+    k = 1.0 if length >= need else max(1e-3, length) / need
+    wait = max(0.0, length - need * k)
+    out = []
+    t = t0
+    for name, d in moves:
+        if name == "take" and wait > 0:
+            out.append((t, t + wait, "wait"))
+            t += wait
+        out.append((t, t + d * k, name))
+        t += d * k
+    return out
+
+
+def person_events(t0: float, length: float, door: float = 0.0) -> tuple[float, float]:
+    """(old tool out of the spindle, new tool in) of a person in a pause from ``t0`` lasting ``length``."""
+    keys = person_keys(t0, length, door)
+    out_t = next(b for _a, b, n in keys if n == PERSON_OUT)
+    in_t = next(b for _a, b, n in keys if n == PERSON_IN)
+    return out_t, in_t
+
+
 @dataclass
 class Changer:
     """How tool changes play.
@@ -86,7 +140,8 @@ class Changer:
     ``atc``: the machine has a tool changer. ``position``: (x, y, z) machine mm where a manual change (or an ATC change
     of a tool without a pocket) happens; None in a place: that axis stays; None: the head stays where it is.
     ``pause``: seconds of a manual change's pause; ``hand``: the operator's hand is shown (the pause grows to
-    HAND_MIN). ``seq`` / ``seq_swap``: length of the changer's own animation and when in it the tools swap (0: none).
+    HAND_MIN); ``person``: a whole person changes the tool (task 0156: the pause grows to ``person_min(door)``;
+    ``door``: seconds the machine's door takes to open, 0: no door). ``seq`` / ``seq_swap``: length of the changer's own animation and when in it the tools swap (0: none).
     ``speed``: the changer runs this many times faster (turns, its animation). ``pockets``: {T: pocket};
     ``stations``: {pocket: (x, y, z)} where the reference tip is with the spindle's gauge line in that pocket (a
     carousel: one station for every pocket; None in a place: that axis stays); ``carousel``: {pocket: value of the
@@ -97,6 +152,8 @@ class Changer:
     position: tuple | None = None
     pause: float = 1.0
     hand: bool = False
+    person: bool = False
+    door: float = 0.0
     seq: float = 0.0
     seq_swap: float = 0.0
     speed: float = 1.0
@@ -123,7 +180,16 @@ class Changer:
 
     def pause_length(self) -> float:
         p = max(0.0, float(self.pause))
-        return max(p, HAND_MIN) if self.hand else p
+        return max(p, self.operator_min())
+
+    def operator_min(self) -> float:
+        """The shortest pause the operator needs (0: nobody is shown)."""
+        if self.person:
+            return person_min(self.door)
+        return HAND_MIN if self.hand else 0.0
+
+    def shows_operator(self) -> bool:
+        return bool(self.person or self.hand)
 
     def has_pocket(self, n: int) -> bool:
         p = self.pockets.get(n)
@@ -154,6 +220,7 @@ class Phase:
     track: str = ""              # groups one after the other (-1: every phase after the one before)
     name: str = ""               # 'arm' phases: grip, pull, swap, push, back; 'tip': down, up
     pocket: int | None = None    # 'tip' / 'turn' of a double-arm change: the pot it moves to the station or tips
+    door: float = -1.0           # a 'pause' with a person (task 0156): seconds its door takes (0: none); -1: a hand
 
 
 @dataclass
@@ -171,7 +238,9 @@ class Change:
     out_end: float = 0.0         # the head has left the program's point (tool length offsets ramp in this time)
     back_start: float = 0.0
     moves: bool = False          # the head goes somewhere (else it stays where the program left it)
-    hand: tuple | None = None    # (start, length) of the hand's pause
+    hand: tuple | None = None    # (start, length) of the hand's pause (or the person's, task 0156)
+    person: bool = False         # task 0156: a whole person changes the tool in that pause
+    door: float = 0.0            # task 0156: seconds the person's door takes to open (0: no door)
     note: str = ""
     kind: str = ""               # 'arm': a double-arm change (task 0064)
     prep: list = field(default_factory=list)   # double-arm: the magazine's turn and the pot's tip at the Tn before
@@ -414,8 +483,8 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
             here = target
         else:                                          # the new tool is put in by hand
             pl = ch.pause_length()
-            ph.append(Phase("pause", pl, a=here, b=here, hand=ch.hand, after="swap",
-                            least=HAND_MIN if ch.hand else min(pl, MIN_PAUSE)))
+            ph.append(Phase("pause", pl, a=here, b=here, hand=ch.shows_operator(), after="swap",
+                            least=ch.operator_min() or min(pl, MIN_PAUSE), door=ch.door if ch.person else -1.0))
             c.note = f"T{new} has no pocket: it is put in by hand"
         if seq_b > 0:
             ph.append(Phase("seq", seq_b / speed, a=here, b=here, s0=seq_a, s1=ch.seq))
@@ -436,8 +505,8 @@ def plan(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, rapid
             ph.append(Phase("seq", seq_b / speed, a=where, b=where, s0=seq_a, s1=ch.seq))
         else:
             pl = ch.pause_length()
-            ph.append(Phase("pause", pl, a=where, b=where, hand=ch.hand, after="swap",
-                            least=HAND_MIN if ch.hand else min(pl, MIN_PAUSE)))
+            ph.append(Phase("pause", pl, a=where, b=where, hand=ch.shows_operator(), after="swap",
+                            least=ch.operator_min() or min(pl, MIN_PAUSE), door=ch.door if ch.person else -1.0))
         ph += _role(_to_program(_shift(_way(w_s, p_back, ch.rapid, rf), c.lift_mid), p), "back") if moves else []
         c.moves = moves
     c.phases = ph
@@ -458,7 +527,11 @@ def place(c: Change, start: float, scale: float = 1.0) -> Change:
         if ph.kind == "pause" and ph.after == "swap":
             if ph.hand and ph.dur > 0:              # the hand takes the old tool out, later puts the new one in
                 c.hand = (t, ph.dur)
-                out_t, in_t = hand_events(t, ph.dur)
+                if ph.door >= 0:                    # a whole person (task 0156)
+                    c.person, c.door = True, ph.door
+                    out_t, in_t = person_events(t, ph.dur, ph.door)
+                else:
+                    out_t, in_t = hand_events(t, ph.dur)
             else:                                   # half way through the pause
                 out_t = in_t = t + ph.dur / 2
             c.drop = out_t if c.drop is None else c.drop
@@ -591,7 +664,7 @@ def plan_arm(old: int, new: int, p: tuple, ch: Changer, carousel_value: float, p
     if old == new and old:
         return Change(tool=new, old=old), carousel_value
     if pn is None:
-        c = plan(old, new, p, Changer(position=ch.position, pause=ch.pause, hand=ch.hand, rapid=ch.rapid,
+        c = plan(old, new, p, Changer(position=ch.position, pause=ch.pause, hand=ch.shows_operator(), rapid=ch.rapid,
                                       lengths=ch.lengths), 0.0, rf, h_old=h_old, h_new=h_new)
         c.note = f"T{new} has no pot in the magazine: it is put in by hand"
         return c, carousel_value

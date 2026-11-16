@@ -114,7 +114,10 @@ Fresing Render.
 1. Unzip the installer folder (FresingRender-…-windows.zip) anywhere, for example in Downloads.
 2. Double-click **Install.bat**. If Windows says "Windows protected your PC", click **More info**, then
    **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
-3. Start **Fresing Render** from the Desktop.
+3. Start **Fresing Render** from the Desktop: the shortcut, the Start menu, the window and the taskbar show the
+   green and white Fresing **F**, and the start-up screen carries the Fresing logo. Right-click the taskbar icon
+   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.133 gets the new icon at the first
+   start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
    (see [Troubleshooting](#troubleshooting)).
@@ -2082,7 +2085,8 @@ spirals; a thread mill and a slot cutter make chips like an end mill.
 
 Every tool change (M6) in the program plays by itself – on a machine without a tool changer, on one with a
 carousel or umbrella tool changer (ATC), and on one with a double-arm tool changer. Set it up in 4 Motion > CNC machine > **Tool changes**; what the video shows (the
-pause, the hand, a caption, the changer's speed) is set in the program step in 6 Animation.
+pause, who changes the tool – a gloved hand or a whole person –, a caption, the changer's speed) is set in the
+program step in 6 Animation.
 
 **Manual** (no tool changer)
 
@@ -2102,19 +2106,76 @@ program's point counts as that point's height. **Head goes**:
 
 In the program step (6 Animation > **Run G-code program** > **Lines, tool changes, spindle, toolpath**):
 
-<img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Show hand and Caption ticked, a note that the hand needs 2.8 s">
+<img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Changed by Hand, Caption ticked, a note that the hand needs 2.8 s">
 
 - **Pause at M6**: 1 second by default, 0 to 5 s with the slider. A long pause is boring in a video; the travel to
   the change position comes on top.
-- **Show hand** (off by default): a gloved hand reaches in, takes the old tool out of the spindle, brings the new
-  one and pushes it in, and leaves. It needs 2.8 seconds: a shorter pause grows to that, and the step says so
-  ("Tool change pause: 2.8 s, not 1.0 s – the hand needs 2.8 s"; also under **Details**). With a longer pause the
-  hand waits outside while fetching the new tool.
+- **Changed by**: **Nobody** (the tools swap half way through the pause), **Hand** or **Person** (below).
+  - **Hand**: a blue nitrile glove reaches in with its fingers open, closes them round the holder, takes the old
+    tool out of the spindle, brings the new one and pushes it in, opens its fingers and leaves. It needs 2.8
+    seconds: a shorter pause grows to that, and the step says so ("Tool change pause: 2.8 s, not 1.0 s – the hand
+    needs 2.8 s"; also under **Details**). With a longer pause the hand waits outside while fetching the new tool.
+  - **Person**: a whole person does the change – see [A person changes the tool](#tool-change-person).
 - **Caption**: a caption such as "Tool change: T3 Ø50 face mill" during every change of a video, in the brand
   kit's caption look (6 Animation > Video finishing). A name typed in the tool's row is added: "Tool change: T3 Ø5
   drill (Gühring 5 mm)".
 
-<img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand holding the tool under the spindle at a manual tool change">
+<img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand, its fingers closed round the holder, pulling the tool out of the spindle at a manual tool change">
+
+<a id="tool-change-person"></a>
+#### A person changes the tool
+
+With **Changed by: Person** a whole person – the operator – changes the tools. Before the first change it walks up
+to the machine from a spot a few metres away (round everything that stands in the way: it never walks through the
+machine or a table), turns to the spindle and waits while the head goes to the change position. Then, at every
+change:
+
+1. it opens the machine's door by its handle (if you picked the door's joint, below),
+2. presses the drawbar's release button on the head with its left hand (when the head has a face beside the spindle
+   to press on) and takes the old tool out of the spindle by its holder with its right hand (palm forward, the
+   fingers round the holder below the spindle's nose),
+3. lays the old tool on a tool trolley at its right (the tools lie across the trolley on small rubber cradles; the one
+   in the spindle at the start is not there; the trolley holds about 6 tools), takes the new one from the trolley,
+4. pushes it into the spindle, lets go of the button, closes the door and stands back.
+
+After the last change it walks back to where it came from. The pause grows to what the person needs: about 6
+seconds, plus the door (twice its travel time and the reach for its handle). The step's **Details** say how long
+each change takes ("The operator changes 1 tool, 9.7 s each at the machine").
+
+<img src="img/toolchange_person.jpg" alt="The test mill in its cabinet: the operator leans into the open door and pulls the end mill out of the spindle by its holder">
+
+<img src="img/toolchange_person_trolley.jpg" alt="The operator lays the end mill on the red tool trolley beside it; the ball mill waits on the trolley">
+
+The person's settings are in 4 Motion > CNC machine > **Tool changes** > **Person at the machine**:
+
+- **Height** (1.65, 1.75 or 1.85 m) and **Clothes**; the operator always wears work gloves. **Helmet**: off by
+  default (a machine shop).
+- **Door**: the joint that opens the machine's door (make it in 4 Motion: a slide joint for a sliding door, a rotate
+  joint for a hinged one; closed as in your CAD model). **Opens by**: how far it slides or turns to be open. The
+  hand follows the handle as far as it reaches; a door that slides further runs on by itself. Empty: no door.
+- **Release button**: the left hand presses the button on the head while the right hand takes the tool out and puts
+  the new one in. Off: the left hand stays down.
+- **Show the spots**: two markers in the view – an arrow where the operator stands at the machine and a circle where
+  it comes from. The app picks them (the arrow in front of the spindle, on the machine's −Y side, as the hand comes
+  from); move them with G and build again. The **X** next to the button takes them away: the app picks the spots again.
+- **Show the operator**: off hides the operator, its trolley and the tools it carries (the tools then swap in the
+  spindle as with Nobody). It is saved with a scene: hide the operator for one shot only.
+
+Good to know:
+
+- The spindle may move during the pause (it rises before a longer tool goes in): the hands follow it – the old tool
+  is taken where it is when it comes out, the new one put where the spindle is when it goes in.
+- The operator stands in front of the spindle as close as its feet allow. A machine whose spindle is far behind its
+  door (more than about 60 cm from where the person can stand) is out of reach: the Build says "The operator's hand
+  stays … cm short of the tool – move the stand spot closer". Move the arrow closer, or the head's change position
+  forwards (4 Motion > CNC machine > Tool changes > Head goes).
+- It leans in as far as its head and chest stay out of the machine (a person leans its head into a large door, not
+  through a panel). Its arms pass through the door's opening, never through the table, the part or the head.
+- The clash check knows the operator: its body (without the arms, which reach into the machine on purpose) is
+  checked against the machine along its way.
+- **Clear keys** puts the operator back where it stood; a Build with another choice than Person hides it. It stays
+  in the project (collection "FR operator") so its height and clothes are kept.
+- Works in the render queue, in saved scenes and in the product video like any other animation.
 
 **Carousel / umbrella** (called **Tool changer (ATC)** before 0.2.51; it works as before)
 
@@ -2624,6 +2685,9 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
+   **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
+   measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
+   tenth more file.
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
@@ -2700,6 +2764,8 @@ title and these controls:
 - **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in
   the bottom right corner (or H again) brings them back.
 - A **loading bar** shows how many MB of the model have come in.
+- **Part tools** on the left: Part info, Measure, Cutaway, Fade the rest – see
+  [below](#web3d-tools).
 
 **Light on the computer:** the page draws a picture only when something changes – the view moves, the animation,
 sea, vessel or rain plays, a setting changes – at most 60 a second, and nothing while its tab is hidden. A machine
@@ -2710,6 +2776,43 @@ raises it again when there is room.
 draws in software (Chrome or Edge after a graphics-card driver reset do this until they are closed completely). The
 fix is in the bar: type `chrome://restart` (Edge: `edge://restart`) in the address bar; still slow: Settings →
 System → "Use graphics acceleration when available" on, then restart. Meanwhile the page uses its lightest settings.
+
+<a id="web3d-tools"></a>
+#### On the page: part info, measure, cutaway, fade the rest
+
+Four buttons on the **left** of the page work on the parts. A click is a press and release without dragging, so
+turning the view never picks a part. On a phone or tablet a **tap** is a click, and a **long press** (half a second)
+on a part shows its card whatever tool is on. With the mouse, the part (or, while measuring, the face) under the
+pointer lights up.
+
+- **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
+  Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
+  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+- **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:
+  - two **flat faces** – parallel (within 1°): the **distance between the planes**; not parallel: the **angle**
+    between them and how far the two points lie apart;
+  - one **round face** (a hole, a shaft, a bore) – its **diameter** at once (Ø … mm);
+  - two **round faces** – **centre to centre**: the distance between their axes (axes not parallel: the shortest
+    distance between them and their angle);
+  - a **flat face and a round face** – from the plane to the axis (**face to centre**).
+
+  **Points** measures the straight distance between the two clicked points. **X / Y / Z parts as arrows** (X) shows
+  the measurement's X, Y and Z parts as three arrows in the axis colours (X red, Y green, Z blue, as in Blender), each
+  with its number. A third click starts a new measurement; empty space or Esc clears it. The clicked points stay on
+  their parts: on a page with motion the number follows the animation.
+- **Cutaway** (C): one plane across **X**, **Y** or **Z**, moved by the slider; **Flip** keeps the other side. The cut
+  faces show the app's red cap colour. Only the machine is cut – the sea, the sky and the seabed stay – and the plane
+  moves with the vessel. Measuring and Part info work on what is left; a click on the red cut face measures on the
+  cut itself (a flat face).
+- **Fade the rest** (T): click a part – it stays solid and everything else goes see-through, as the app's Fade.
+  Click another part to switch, empty space or Esc to bring the rest back.
+
+The page measures on the exact faces of the CAD model: the export puts each part's flat faces (their planes) and
+round faces (axis and radius, each face its own radius) into the file. **Faces for measuring** (on by default,
+under Hide part names) does that; it adds about a tenth to the file (test crane: 17 KB on 164 KB). Off: the page
+measures between clicked points only and says so. Lengths are in mm with one decimal (two below 10 mm). Cables,
+ropes and hoses the page draws can be clicked too (they measure from points); a sticker (decal) is looked through to
+the part it is on.
 
 <a id="web3d-surroundings"></a>
 #### Surroundings on the page
@@ -3502,14 +3605,15 @@ and bigger pictures.
 
 The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
 vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
-engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts). It is
-**not** a real vessel or anyone's design: the app draws it itself, from general sizes.
+engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts),
+at work in an invented **offshore wind park** (nine turbines and a substation, about 760 parts more). It is **not** a
+real vessel, park or anyone's design: the app draws it itself, from general sizes.
 
 <img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
 
 **Make it (once per version)**
 1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/317", "Animation"). You can keep
+   of the window shows how far ("Writing the model 1/3", "Importing", "Joints 120/317", "Animation"). You can keep
    working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
@@ -3530,7 +3634,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   growth** under the waterline, the name "DEMO LAYER" on both bows and draft marks fore and aft (text decals), a
   non-slip deck, a white superstructure with tinted glass, galvanised railings and davits, orange lifeboats, bronze
   propellers; the rubbing strake and the deck fittings are worn down to bare steel at their edges.
-- **4 Motion:** 317 joints on the vessel and 108 on the quay. The vessel's own: each azimuth thruster's **Steer** and
+- **4 Motion:** 317 joints on the vessel, 108 on the quay and 19 in the wind park. The vessel's own: each azimuth thruster's **Steer** and
   **Propeller turn** (riding on the steer), each bow thruster's **Propeller turn**, the two radars' turn, and the deck
   crane's **Slew** and **Luff** (0 = parked; negative lowers the boom). In the animation the propellers and radars
   turn the whole time. Every roller, sprocket and wheel the cable runs over
@@ -3549,6 +3653,20 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   deck to the eye at the top of the D's curve and over the handler's top pulley once the handler tilts; the tipping
   wires come up the swivel posts, over their sheaves to the D's bottom corners (shown once they are connected).
   The winches pay out exactly what the D's motion needs.
+- **The wind park:** nine turbines on monopiles in three rows – 1.2 km apart along a row, 1.5 km between the rows –
+  and an offshore substation between the rows (a jacket on piles, three decks under cladding, a helideck, a crane,
+  J-tubes up to its cable deck, a boat landing). The turbines are sized from the IEA 15 MW reference turbine's public
+  numbers (240 m rotor, 150 m hub height); each has a transition piece with its platform, boat landing, ladder, davit
+  and J-tubes, and scour rock round its foot. They are their own model, **DEMO WIND PARK** (file demo_park.step),
+  that **stands on the seabed**: it moves aft with the seabed as the cable is laid, and **5 Scene & Render > Vessel
+  motion** keeps it **Still**, so it never heaves or rolls with the vessel. The cable's **first end** comes up the
+  J-tube of turbine **WTG 05** and runs over its scour rock down to the seabed, where the laid cable carries on to the
+  touch-down. 4 Motion: per turbine **WTG nn: Yaw** and **WTG nn: Rotor** (a motor; every rotor faces the same wind
+  and turns clockwise seen from the front, each at its own phase), and **Park: on to turbine B**: between shot 8b
+  and shot 9 it moves the park on (as if 1.2 km had been laid), so the second end is laid down beside turbine
+  **WTG 06**. The park is scenery: the model's size, the floor and vessel motion still measure the vessel.
+  **Lights:** red aviation lights on every nacelle and yellow marine lights on the platforms and the substation's
+  corners flash together; the substation's floodlights burn steadily.
 - **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
   gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
 - **CPS from the rack:** the set on the rack's top shelf next to the orange ramp rides on a hidden line, the cable
@@ -3560,13 +3678,15 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   starboard side from ahead of the bow), and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 2 ½ minutes with the title and end card): a flight round the vessel that
-  ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
+- **6 Animation > What it can do today** (about 3 minutes with the title and end card): a flight round the vessel that
+  ends riding with it on the swell, the deck from above, **beside turbine WTG 05** (shot 2b: its boat landing and
+  J-tube, the vessel laying away from it), the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
   **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
 from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
-(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. Then a **CPS set from the
+(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. The **park from above**
+(shot 8a, × 30 time-lapse): the vessel lays on through the rows, the substation beyond. Then a **CPS set from the
 rack** (shot 8b, × 15 time-lapse): it slides tail first down the orange ramp and the curved slide onto side B, runs
 round the D and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
 place in front of the cable end, which is connected to its rear end as the next shot begins. Then the **quadrant
@@ -3575,8 +3695,10 @@ aft between the tensioners onto the handler with the cable end on it, the tippin
 handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is
 lowered through the cut-away to near the seabed (10); it tips flat, the cable and its CPS are let go and lie on
 the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
-place, the tensioners close (12). The captions say where it runs faster than real. Click **Build & play**, or put
-it in the render queue.
+place, the tensioners close (12). Last, **the park at night** (shot 13): a Weather & time step to Night shift, turbine
+WTG 06 beside the vessel, the red and yellow lights flashing together across the park. The rotors and propellers
+turn all the time. The captions say where it runs faster than real. Click **Build & play**, or put it in the render
+queue.
 
 The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in

@@ -35,6 +35,7 @@ from . import build
 MARK = "Clash: "                        # timeline markers this check makes start with it
 RED = (1.0, 0.08, 0.05, 0.5)
 HOOKS: list = []                        # fn(scene) -> (objects to add, objects to leave out); see the docstring
+CLASH_MESH = "fr_clash_mesh"            # on an object: a mesh the check uses instead of its own (task 0156)
 _RUNTIME: dict = {}                     # per scene: the signature cache, the parts shown red, the progress
 _DRAW = {"handle": None, "batches": {}}
 
@@ -787,6 +788,9 @@ class Check:
             me = ob.data
             if self.mill is not None and ob is self.mill and mill_s.stock_mesh is not None:
                 me = mill_s.stock_mesh
+            own = ob.get(CLASH_MESH)                    # a stand-in shape for the check (task 0156: the operator's
+            if isinstance(own, bpy.types.Mesh) and len(own.vertices):        # body without its arms)
+                me = own
             if me.name not in self.meshes:
                 self.meshes[me.name] = _mesh_from(me)
             self.mesh_key.append(me.name)

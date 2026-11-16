@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.129"
+__version__ = "0.2.133"
 
 _modules = []
 
@@ -31,6 +31,7 @@ def _classes():
     from .blender import ops_weather, ui_weather  # task 0109: 5 Scene & Render > Weather & time (after Vessel motion)
     from .blender import ops_house, ui_house      # task 0114: 5 Scene & Render > House from House Planner
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
+    from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -54,7 +55,7 @@ def _classes():
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
-            + ops_house.CLASSES)
+            + ops_house.CLASSES + ops_tc_person.CLASSES)
 
 
 def register():
@@ -94,9 +95,16 @@ def register():
     tracks.register()                        # tracks and belts (task 0079): clash hook, caches
     from .blender import people
     people.register()                        # people (task 0157): clash hook, the paths' overlay
+    from .blender import tc_person
+    tc_person.register()                     # the operator at a tool change (task 0156): clash hook
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
+    try:
+        from . import appicon
+        appicon.startup()                    # task 0169: the Fresing icon on the windows, taskbar and shortcuts
+    except Exception as exc:  # noqa: BLE001 - never stop the app from starting
+        print("Fresing Render (icon):", exc)
     from .blender import ops_house
     ops_house.register_menu()                # task 0114: File > Import > House Planner scene (.hpscene)
     from .blender import ops_import
@@ -119,6 +127,8 @@ def unregister():
     hover.unregister()
     from .blender import people
     people.unregister()
+    from .blender import tc_person
+    tc_person.unregister()
     from .blender import tracks
     tracks.unregister()
     from .blender import spool
