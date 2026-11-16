@@ -1,6 +1,6 @@
 # 0157 – People in the scene: walk paths, carry items, actions and meetings
 
-**Who:** worker · **Status:** waiting – starts after 0155 is merged (uses its human figure and rig); may run beside 0156
+**Who:** worker · **Status:** done 16 Nov (0.2.128); was: waiting – starts after 0155 is merged (uses its human figure and rig); may run beside 0156
 if their files stay apart (say so in TASKS.md when starting) · **Branch:** `task/0157-people-paths-actions`
 **Started by:** lead chat, 16 Nov 2026 (owner) · **Model:** Opus · effort High · **Place:** Claude Code on the web,
 environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2): interfaces first, an independent tester.
@@ -153,7 +153,10 @@ after the arm was solved; the bend was too shallow); an item could be taken from
 people at the start; the toolbox hung 4 cm into the leg. One test helper was adjusted for the tilted feet (it measured
 heel/toe as if the foot were flat).
 
-**GitHub runs:** RUNS.
+**GitHub runs:** 4. Run 1 red: the real-app test tour's Make failed (`object.mode_set` had no active object when the
+rig made its bones in the tour build) – fixed with a context override. Run 2 green; then main had moved (0154 took 0.2.127):
+merged, renumbered to 0.2.128, run 3 green; main moved once more (a task file only), so main ran in full (run 4,
+43922154105): green, released, the old Windows install updated itself.
 
 **Open points / follow-up tasks:**
 - The person is still the 0155 lofted figure: linear-blend skinning shows creases at a deep squat and the shoulders
