@@ -2935,6 +2935,26 @@ def _check_props(scene):
     return props_scale.check_line_up(scene)
 
 
+# ----- people walk, carry and meet (task 0157) -----
+
+PEOPLE_ANIM = "Two people meet"
+
+
+@tour_set("people", "People walk and meet", "test_crane_a.step")
+def build_people(b: Build):
+    from . import cameras, people
+    _look("PRODUCT")
+    anna, ben, box = people.set_up_example(b.scene)
+    cameras.add_camera(b.scene, "ISO", 50.0, "Tour people", points=people.example_corners(b.scene))
+    a = _animation(b, PEOPLE_ANIM)
+    a.start_shot = _shot(b, "@people").name
+
+
+def _check_people(scene):
+    from . import people
+    return people.check_example(scene)
+
+
 @tour_set("weather", "Weather and time of day", "test_crane_a.step")
 def build_weather(b: Build):
     from . import weather
@@ -3320,6 +3340,12 @@ stop("backtocad", MOTION, "sequenceframe", "Back to CAD step",
      since="0.2.102", animation=BACK_ANIM, at=0.75, play=True, check=lambda scene: check_back_to_cad(scene),
      auto="clip")
 
+stop("people", MOTION, "people", "People walk, carry and meet",
+     "Beside the crane Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
+     "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
+     "nodding, taking turns, gesturing with their hands.",
+     where="6 Animation > People (Example: two people meet, then Build)", since="0.2.125", animation=PEOPLE_ANIM,
+     at=0.55, play=True, check=_check_people, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
      "toolpath is drawn as a thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",

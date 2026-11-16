@@ -3143,6 +3143,44 @@ a music file under it. Both only go into MP4 videos.
 Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
 plays everywhere.
 
+<a id="people"></a>
+**People: walk, carry and meet**
+
+<img class="panel" src="img/panel_6_people.png" alt="6 Animation > People: Anna selected, her path and four steps"> <img class="panel" src="img/people_meet.jpg" alt="Anna puts the toolbox down by Ben, they shake hands">
+
+People who walk along a path and do things: carry a toolbox in, put it down, shake hands, talk, point at the
+machine, work at a panel. **Build** turns it into keys like the rest of the animation.
+
+1. **Add person** and click on the floor (or the deck) where the person stands. Its **name**, height, clothes,
+   helmet, gloves and look are in the box below the list. **Example: two people meet** sets up a ready example
+   beside the machine (Anna with a toolbox and Ben) – a quick way to see how it works.
+2. **Draw path**: click the points the person walks through, then **Enter** (or right-click); **Backspace** takes
+   the last point back. The points are numbered in the view: **0** is where the person starts. **Edit points**
+   lets you drag points (**G**), add one between two (right-click > **Subdivide**) or delete one (**X**); click
+   **Done editing** when finished. Corners are walked round smoothly.
+3. **Steps** (the person does them from top to bottom; **+** adds one after the selected step):
+   - **Walk** to a point or to the path's end with a **gait**: **Stroll**, **Walk**, **Brisk**, **Carry-walk**
+     (something heavy in both hands; a plain Walk becomes it by itself) or **Run**. The step length goes with the
+     speed, so the feet never slide.
+   - **Stop**, **Idle** (shifts weight, looks round), **Turn to face** a part, a person or a point.
+   - **Pick up** an item lying within reach, **Put down** the carried item on whatever is in front – the floor, a
+     table, the top of a part.
+   - **Wave**, **Greet** (a handshake: both people need a Greet step with each other), **Talk** (they face each
+     other, take turns, nod and gesture), **Point at** and **Look at** a part, a person or a point, **Operate**
+     (both hands on a panel: **Pick point** and click on it).
+   - Every step can happen **where the person is**, **at a point** or **at the end** of its path – the person walks
+     there first.
+4. **Waiting for each other.** A Greet or a Talk starts when both people are there: whoever arrives first waits and
+   looks at the other. Any step can also **Wait for** another person's step (its number in that person's list).
+5. **Items**: **Add item** puts a toolbox, clipboard, tablet, hard hat, cable drum, crate, spanner or hose on the
+   floor in front of the selected person; move it like any object. **Holds** gives a person an item from the start.
+6. Drag **Preview** to see the people at any moment without building, then **Build & play** above.
+
+The people's own time counts in the animation's length: an animation shorter than the people's steps gets longer.
+Build warns when a path runs into a part (keep about 0.25 m clear on each side) or climbs over something, and the
+**Clash check** below checks people that act like parts. People are made with their bones (a rig): they keep the
+detail switch of props for scale (light far from the camera).
+
 <a id="clash"></a>
 **Clash check: parts that run into each other**
 

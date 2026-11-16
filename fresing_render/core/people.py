@@ -86,7 +86,7 @@ HAS_DURATION = ("STOP", "WAVE", "TALK", "POINT", "LOOK", "IDLE", "OPERATE")
 DEFAULT_DURATION = {"STOP": 1.5, "WAVE": 2.0, "TALK": 8.0, "POINT": 2.5, "LOOK": 2.0, "IDLE": 4.0, "OPERATE": 4.0}
 
 PLACE_ITEMS = (
-    ("HERE", "Where the person is", "Where the person stands after the step before"),
+    ("HERE", "Here", "Where the person stands after the step before"),
     ("POINT", "At a point", "Walk to a point of the path first (its number in the view)"),
     ("END", "At the end", "Walk to the end of the path first"),
 )
@@ -1025,7 +1025,8 @@ def _act(pl: Plan, person: Person, st: _State, a: Action, kind: str, i: int, pai
             pl.warnings.append(f"{name} and {a.other} stand {dist:.2f} m apart to shake hands – put their meeting "
                                "points about 0.8 m apart")
         mid = (np.asarray(oxy) + st.xy) / 2
-        st.hold(st.t, st.t + 2.4, "HANDSHAKE", mid=mid, other=a.other)
+        k_other = R.Figure(_SPECS[a.other].height).k if a.other in _SPECS else k
+        st.hold(st.t, st.t + 2.4, "HANDSHAKE", mid=mid, other=a.other, hz=0.5 * (k + k_other))
         return
     if kind == "TALK":
         oxy = _target_xy(pl, a, ctx, st.t + 0.5)[0] if a.other else None
@@ -1268,7 +1269,7 @@ def _upper(pl: Plan, person: Person, t: float, root, seg, pose: R.Pose) -> None:
     if kind == "HANDSHAKE":
         mid = seg.data["mid"]
         fk = fig.fk(pose)
-        target = _to_fig(root, np.array((mid[0], mid[1], root[2] + 1.0 * k)))
+        target = _to_fig(root, np.array((mid[0], mid[1], root[2] + 1.0 * seg.data.get("hz", k))))
         hand_R = fk["pelvis"][1] @ R.rx(math.radians(-90))
         palm_off = hand_R @ _grip_local("r", k)
         reach_e = smooth01(min(1.0, (t - seg.t0) / 0.6)) * smooth01(min(1.0, (seg.t1 - t) / 0.6))

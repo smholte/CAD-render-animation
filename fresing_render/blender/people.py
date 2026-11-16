@@ -8,7 +8,7 @@ the armature in ``blender/person_rig.py``. Here:
 * **The path** is a poly curve "FR path <name>" in the collection "FR people" (Blender's own edit mode moves, inserts
   and deletes its points); the person's own place is point 0, the curve's points are 1, 2, … An overlay draws the line
   from the person to point 1 and the point numbers.
-* **Items** ("FR item <kind>", ``fr_item`` = kind) lie on the floor or are carried: a Child Of "FR held <person> <hand>"
+* **Items** (named by their kind, "Toolbox", ``fr_item`` = kind) lie on the floor or are carried: a Child Of "FR held <person> <hand>"
   on the person's hand bone per holder, plus "FR placed" (the vessel's rig when the deck moves); their influences and
   the item's place are keyed at Build.
 * **Build** (``bake``, called by ``animation.bake`` after the drums): the plan (``plan``), a frame per frame of the
@@ -194,7 +194,7 @@ def add_item(scene, kind: str, location=None, heading: float = 0.0):
     """An item lying on the floor (default: in front of the active person, else beside the machine)."""
     from . import surroundings as sur_b
     me = item_mesh(kind)
-    ob = bpy.data.objects.new(f"FR item {core.ITEMS[kind].label}", me)
+    ob = bpy.data.objects.new(core.ITEMS[kind].label, me)
     _collection(scene).objects.link(ob)
     ob[ITEM_TAG] = kind
     ob.rotation_mode = "QUATERNION"
@@ -739,6 +739,19 @@ def set_up_example(scene):
     rest_state(scene)
     forget()
     return anna, ben, box
+
+
+def example_corners(scene) -> np.ndarray:
+    """Corners of the box round the example's people, path and toolbox (a camera fits itself to them)."""
+    pts = []
+    for ob in people(scene) + items(scene):
+        x, y, z, _h = home(ob)
+        pts.append((x, y, z))
+        if is_person(ob):
+            pts += [(p[0], p[1], p[2]) for p in path_points(ob)]
+    pts = np.asarray(pts, float)
+    lo, hi = pts.min(0) - 0.6, pts.max(0) + np.array((0.6, 0.6, 2.0))
+    return np.array([(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
 
 
 def _act(ps, kind, **kw):

@@ -53,6 +53,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
+  people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
+      selected, task 0157).
+  people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
   house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
       imported and one moment baked, task 0114).
   sea_panel   4 Motion > Cables and paths with the fold "Into the sea" open (panel_cable_sea; as "panels", on
@@ -83,7 +86,7 @@ import time
 import traceback
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "tests", "data")
@@ -1617,6 +1620,25 @@ elif MODE == "clash":
         return 0.5
     step(_clash_view_shot)
 
+elif MODE == "people_panel":
+    # task 0157: 6 Animation > People with the example set up on the crane, Anna selected, her third step selected
+    step(_start)
+    step(lambda: _import(CRANE))
+    step(_wait_import)
+
+    def _people_setup():
+        sc = bpy.context.scene
+        anna, _ben, _box = mod("blender.people").set_up_example(sc)
+        with override():
+            bpy.ops.fresing.anim_add()
+        anna.fresing_person.actions_index = 2
+        select_only(anna)
+        show_only([("FRESING_PT_people", False, True)])
+        wiggle()
+        return 2.5
+    step(_people_setup)
+    step(lambda: (shoot_sidebar("panel_6_people"), 0.5)[1])
+
 elif MODE == "house_panel":
     # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment
     # baked (4 samples). Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=house_panel.
@@ -1818,6 +1840,45 @@ def render_crane(with_decals: bool = False, with_cut: bool = False):
     log("saved", name, f"{os.path.getsize(path) // 1024} KB")
 
 
+def render_people():
+    """Task 0157: the example "two people meet" beside the crane, built, rendered at the handshake (processor)."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    people, animation, cams = mod("blender.people"), mod("blender.animation"), mod("blender.cameras")
+    anna, ben, _box = people.set_up_example(sc)
+    s.background = "SKY"
+    s.floor = "VISIBLE"
+    s.floor_use_own_color = True
+    s.floor_color = (0.42, 0.42, 0.4)
+    s.props_detail = "DETAILED"
+    assert bpy.ops.fresing.anim_add() == {"FINISHED"}
+    a = animation.active(sc)
+    animation.bake(sc, a)
+    pl = people.plan(sc, flat=True)
+    hs = next(x for x in pl.people["Anna"].segs if x.kind == "HANDSHAKE")
+    fps = animation.fps_of(a)
+    sc.frame_set(int((hs.t0 + 1.2) * fps) + 1)
+    mid = (Vector(ben.location) + Vector(pl.people["Anna"].root(hs.t0)[:3])) / 2
+    cam = cams.add_camera(sc, "ISO", 50.0, name="People")
+    aim = mid + Vector((0.0, 0.0, 0.85))
+    off = Vector((0.6, -5.8, 0.5))
+    cam.matrix_world = Matrix.Translation(aim + off) @ (-off).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    sc.camera = cam
+    bpy.context.view_layer.update()
+    s.out_format, s.out_resolution, s.use_gpu, s.out_folder = "presentation", "preview", False, SCRATCH
+    mod("blender.render").apply_output(sc, s)
+    sc.render.resolution_percentage = 100
+    t = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", s.last_render, f"{time.time() - t:.0f} s")
+    path = os.path.join(OUT, "people_meet.jpg")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+    log("saved people_meet", f"{os.path.getsize(path) // 1024} KB")
+
+
 def render_flex():
     """Task 0058: renders of the hoses model and the drag-chain gantry, and the before/after pair."""
     import addon_utils
@@ -2013,6 +2074,12 @@ elif MODE == "tracks":
 elif MODE == "spools":
     try:
         render_spools()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "people":
+    try:
+        render_people()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

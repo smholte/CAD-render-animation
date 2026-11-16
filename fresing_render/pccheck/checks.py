@@ -2583,6 +2583,39 @@ def scene_props(ctx):
     return f"{words}; render {info['seconds']} s"
 
 
+@line("people.walk", "People walk, carry and meet", "0.2.125",
+      what="Two people beside the crane (task 0157): Anna walks in with a toolbox, puts it down, they shake hands "
+           "and talk. Build, feet on the floor without sliding, the box on the floor, the frame time with them, a "
+           "small render (processor, draft)")
+def people_walk(ctx):
+    import bpy
+
+    from ..blender import animation, cameras, people
+    scene = ctx.fresh(CRANE_A)
+    t0 = time.time()
+    people.set_up_example(scene)
+    ctx.metric("add two people with their steps", time.time() - t0, "s")
+    a = scene.fresing.animations.add()
+    a.name, a.tail = "People", 0.0
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    t0 = time.time()
+    res = animation.bake(scene, a)
+    ctx.metric("build", time.time() - t0, "s")
+    _check(not res["warnings"], "Build warned: " + "; ".join(res["warnings"]))
+    words = people.check_example(scene)
+    t0 = time.time()
+    n = min(scene.frame_end, 60)
+    for f in range(1, n + 1):
+        scene.frame_set(f)
+    ctx.metric("frame time with two people", (time.time() - t0) / n * 1000.0, "ms")
+    cameras.add_camera(scene, "ISO", 50.0, "PC check people", points=people.example_corners(scene))
+    scene.frame_set(int(scene.frame_end * 0.55))
+    bpy.context.view_layer.update()
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "people", "People meet (processor, draft)", model_check=False)
+    return f"{words}; render {info['seconds']} s"
+
+
 @line("scene.looks", "Light looks", "0.2.17", what="All five light looks apply; Product studio rendered small")
 def scene_looks(ctx):
     import bpy

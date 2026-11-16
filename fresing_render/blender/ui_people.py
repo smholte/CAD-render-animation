@@ -29,7 +29,7 @@ def action_text(a) -> str:
     elif a.kind == "TALK":
         text = f"Talk with {other}"
     elif a.kind == "PICK_UP":
-        text = f"Pick up {a.item.name.replace('FR item ', '') if a.item is not None else '…'}"
+        text = f"Pick up {a.item.name if a.item is not None else '…'}"
     elif a.kind in ("TURN", "LOOK", "POINT"):
         what = {"PART": a.target_object.name if a.target_object is not None else "…",
                 "PERSON": other, "POINT": "a point" if a.target_set else "…"}[a.target_kind]
@@ -92,21 +92,21 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
         self._preview(layout, context)
 
     def _person(self, layout, context, ob):
-        ps = ob.fresing_person
+        person = ob.fresing_person
         box = layout.box()
         row = box.row(align=True)
         row.prop(ob, "name", text="", icon="USER")
         row.operator("fresing.person_remove", text="", icon="TRASH")
         col = split_props(box)
-        col.prop(ps, "height_choice")
-        col.prop(ps, "outfit")
+        col.prop(person, "height_choice")
+        col.prop(person, "outfit")
         row = box.row(align=True)
-        row.prop(ps, "helmet", toggle=True)
-        row.prop(ps, "gloves", toggle=True)
-        row.prop(ps, "look")
+        row.prop(person, "helmet", toggle=True)
+        row.prop(person, "gloves", toggle=True)
+        row.prop(person, "look")
         col = split_props(box)
-        col.prop(ps, "carry")
-        col.prop(ps, "start")
+        col.prop(person, "carry")
+        col.prop(person, "start")
         # the path
         box.label(text="Path", icon="CURVE_PATH")
         pts = people.path_points(ob)
@@ -123,48 +123,48 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
         # the steps
         box.label(text="Steps (top to bottom)", icon="SEQUENCE")
         row = box.row()
-        row.template_list("FRESING_UL_person_actions", "", ps, "actions", ps, "actions_index",
-                          rows=list_rows(len(ps.actions), 3, 8))
+        row.template_list("FRESING_UL_person_actions", "", person, "actions", person, "actions_index",
+                          rows=list_rows(len(person.actions), 3, 8))
         side = row.column(align=True)
         side.operator_menu_enum("fresing.person_action_add", "kind", text="", icon="ADD")
         side.operator("fresing.person_action_remove", text="", icon="REMOVE")
         side.separator()
         side.operator("fresing.person_action_move", text="", icon="TRIA_UP").direction = -1
         side.operator("fresing.person_action_move", text="", icon="TRIA_DOWN").direction = 1
-        if 0 <= ps.actions_index < len(ps.actions):
-            self._action(box, context, ps.actions[ps.actions_index])
+        if 0 <= person.actions_index < len(person.actions):
+            self._action(box, context, person.actions[person.actions_index])
 
-    def _action(self, layout, context, a):
+    def _action(self, layout, context, act):
         sub = layout.box()
         col = split_props(sub)
-        col.prop(a, "kind")
-        if a.kind == "WALK":
-            col.prop(a, "place", text="To")
+        col.prop(act, "kind")
+        if act.kind == "WALK":
+            col.prop(act, "place", text="To")
         else:
-            col.prop(a, "place")
-        if a.place == "POINT":
-            col.prop(a, "point")
-        if a.kind == "WALK" or a.place != "HERE":
-            col.prop(a, "gait")
-        if a.kind in core.NEEDS_OTHER:
-            col.prop(a, "other")
-        if a.kind in ("TURN", "LOOK", "POINT"):
-            col.prop(a, "target_kind")
-            if a.target_kind == "PART":
-                col.prop(a, "target_object")
-            elif a.target_kind == "PERSON":
-                col.prop(a, "other", text="Person")
-        if a.kind == "OPERATE" or (a.kind in ("TURN", "LOOK", "POINT") and a.target_kind == "POINT"):
+            col.prop(act, "place")
+        if act.place == "POINT":
+            col.prop(act, "point")
+        if act.kind == "WALK" or act.place != "HERE":
+            col.prop(act, "gait")
+        if act.kind in core.NEEDS_OTHER:
+            col.prop(act, "other")
+        if act.kind in ("TURN", "LOOK", "POINT"):
+            col.prop(act, "target_kind")
+            if act.target_kind == "PART":
+                col.prop(act, "target_object")
+            elif act.target_kind == "PERSON":
+                col.prop(act, "other", text="Person")
+        if act.kind == "OPERATE" or (act.kind in ("TURN", "LOOK", "POINT") and act.target_kind == "POINT"):
             sub.operator("fresing.person_pick_point", icon="EYEDROPPER",
-                         text="Pick point again" if a.target_set else "Pick point")
-        if a.kind == "PICK_UP":
-            col.prop(a, "item")
-        if a.kind in core.HAS_DURATION:
-            col.prop(a, "duration")
+                         text="Pick point again" if act.target_set else "Pick point")
+        if act.kind == "PICK_UP":
+            col.prop(act, "item")
+        if act.kind in core.HAS_DURATION:
+            col.prop(act, "duration")
         col = split_props(sub)
-        col.prop(a, "wait_person")
-        if a.wait_person is not None:
-            col.prop(a, "wait_step")
+        col.prop(act, "wait_person")
+        if act.wait_person is not None:
+            col.prop(act, "wait_step")
 
     def _items(self, layout, context):
         its = people.items(context.scene)

@@ -36,7 +36,7 @@ UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py
             "fresing_render/blender/ui_gcode.py", "fresing_render/blender/ui_section.py",
             "fresing_render/blender/ui_vessel_motion.py", "fresing_render/blender/ui_flex.py",
             "fresing_render/blender/ui_paths.py", "fresing_render/blender/ui_spool.py",
-            "fresing_render/blender/updates.py"]
+            "fresing_render/blender/ui_people.py", "fresing_render/blender/updates.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 # drawing functions called from a panel in another file: {file: {function: panel}}
 OTHER_FILE_HELPERS = {"fresing_render/blender/ui_gcode.py": {"draw_step": "6 Animation"}}
@@ -73,6 +73,8 @@ OWNER_TYPES = {
     "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
     "sp": "FRSpool", "fl": "FRSpoolFollower",                 # 4 Motion > Drums and carousels (task 0080)
     "person": "FRPersonSettings",                             # 5 Scene & Render > Props for scale (task 0155)
+    "act": "FRPersonAction",                                  # 6 Animation > People (task 0157)
+    "ob": "Object",                                           # 6 Animation > People: the person's name
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {

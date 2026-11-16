@@ -356,6 +356,12 @@ class FRESING_OT_person_action_move(bpy.types.Operator):
     direction: IntProperty(default=-1, options={"HIDDEN"})
 
     @classmethod
+    def description(cls, context, properties):
+        if properties.direction < 0:
+            return "Moves the selected step up: the person does it earlier (steps run from top to bottom)"
+        return "Moves the selected step down: the person does it later (steps run from top to bottom)"
+
+    @classmethod
     def poll(cls, context):
         ob = _active_person(context)
         return ob is not None and len(ob.fresing_person.actions) > 1
