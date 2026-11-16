@@ -1,6 +1,6 @@
 # 0156 – Manual tool change: a realistic hand, and a full human doing the change
 
-**Who:** worker · **Status:** running (16 Nov) · **Branch:** `claude/affectionate-archimedes-rugvto` (the session's name)
+**Who:** worker · **Status:** done 16 Nov (0.2.132) · **Branch:** `claude/affectionate-archimedes-rugvto` (the session's name)
 **Started by:** lead chat, 16 Nov 2026 (owner: props, hand and human more detailed and realistic; a full human doing a
 manual tool change) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation".
 Subagents allowed (CLAUDE.md section 2).
@@ -37,9 +37,9 @@ A manual tool change looks like a real operator doing it: a detailed gloved hand
 
 ## Done when
 
-- [ ] Tests (hand grip place on the holder, phases in order, IK reaches within a few mm, walking path clear, 0 clashes,
+- [x] Tests (hand grip place on the holder, phases in order, IK reaches within a few mm, walking path clear, 0 clashes,
       the pause grows); a short clip of one change with the full human (test mill), cropped small.
-- [ ] Tooltips, guide (with new pictures of its section), PC-check line / tour stop, function list; GitHub run green;
+- [x] Tooltips, guide (with new pictures of its section), PC-check line / tour stop, function list; GitHub run green;
       merged; version (CLAUDE.md section 7); report with small before/after pictures in `tasks/img/0156_*`, triangles
       and zip size before/after.
 
@@ -133,7 +133,9 @@ lay in each other (now left over with a warning). Its tests were adjusted where 
 cradles, the right-only trolley) – marked "(worker: …)" in the files. My own fixes afterwards: the thumb along the
 holder went up into the spindle (palm-forward grip now), the left elbow folded through the opening's edge.
 
-**GitHub runs:** see the last lines below (filled in after the run).
+**GitHub runs:** 2 full runs. Run 1 (a work-in-progress push, before the review's fixes) was not used. Run 2
+(43956757465, the finished code with version 0.2.132) green, 25.6 min; then a docs run for the report and guide
+numbers, and main fast-forwarded to that commit (reuse).
 
 **Open points / follow-up tasks:**
 - The person changes tools only on manual machines and for ATC tools without a pocket; on a double-arm changer a tool
