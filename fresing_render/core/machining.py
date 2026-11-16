@@ -1139,7 +1139,10 @@ class _MapSide:
                                                                                mk.o1[sel] @ R[:2].T) < FAST_MIN_DENSITY):
             return None
         used = sorted(set(mk.bit[sel].tolist()))
-        cell = hmap.cell_for(tl.detail_name, hi[0] - lo[0], hi[1] - lo[1], min(shapes[b].R for b in used))
+        smallest = min(shapes[b].R for b in used)
+        cell = hmap.cell_for(tl.detail_name, hi[0] - lo[0], hi[1] - lo[1], smallest)
+        if cell > 0.6 * smallest:                       # a big block and a tiny bit: the grid would be too coarse
+            return None
         span = hmap.TILE * cell
         hm = hmap.HeightMap(lo[0] - 2 * cell, lo[1] - 2 * cell, cell,
                             int(math.ceil((hi[0] - lo[0] + 4 * cell) / span)),

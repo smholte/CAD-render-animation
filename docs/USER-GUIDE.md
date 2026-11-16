@@ -1529,9 +1529,9 @@ move after the other, such a program took minutes to work out. With **Fast 3-axi
 **Milling**, under **Detail**; on by itself, also in projects from an older version) a long program is worked
 out as a height map instead: the lowest point the tool reached above every spot of the block.
 
-- **What it takes:** programs of 300 moves or more, the moves where the tool points straight at the block
-  along one of the block's own axes, with a flat, ball, corner-radius, V or drill bit that reaches above the
-  block's top.
+- **What it takes:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
+  together; of those the moves where the tool points straight at the block along one of the block's own axes,
+  with a flat, ball, corner-radius, V or drill bit that reaches above the block's top.
 - **What stays exact, as before:** short programs; side cuts with a T-slot cutter or any bit that undercuts;
   tilted and rotary moves (4th and 5th axis); a tool so short that it would tunnel under the surface. One
   program can have both kinds of moves: they are joined.
@@ -1541,9 +1541,10 @@ out as a height map instead: the lowest point the tool reached above every spot 
   many moves went into the height map ("… 14,008 cutting moves, 14,008 as height map").
 - **How exact:** surfaces and walls within 0.03 mm of the exact cut at Detail **Normal**. The fine ridges
   between two passes are left out when they are lower than 0.012 mm (Normal; 0.005 mm at Fine): the face is
-  smooth there and shows the tool marks. A sharp outside corner of a wall, or a rib thinner than 0.2 mm
-  (0.1 mm at Fine), can be up to that much off. For a close-up of such a corner pick Detail **Fine** or untick
-  **Fast 3-axis**: every move is then cut exactly again.
+  smooth there and shows the tool marks. The steep strip right under a rim, where a ball cuts deeper than two
+  thirds of its radius, can be 0.08 mm off (0.02 mm at Fine). A sharp outside corner of a wall, or a rib
+  thinner than 0.2 mm (0.1 mm at Fine), can be up to that much off. For a close-up of such a spot pick Detail
+  **Fine** or untick **Fast 3-axis**: every move is then cut exactly again.
 
 <a id="tool-marks"></a>
 #### Tool marks

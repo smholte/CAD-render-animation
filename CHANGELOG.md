@@ -5,6 +5,33 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.114 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
+
+- **Fast 3-axis** (4 Motion > Milling, under Detail; on by itself, also in older projects). A long program that
+  cuts straight from above – a finishing program from CAM, or the app's own **Make a toolpath** – is now worked out
+  as a height map (the lowest point the tool reached above every spot of the block) instead of one exact cut per
+  move. Measured on the 4-core test machine, Detail Normal:
+  - a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in **3 s
+    instead of 2.4 minutes**, 27,000 faces instead of 256,000; one frame further while playing 31 ms instead of
+    53 ms, one frame back 73 ms instead of 235 ms;
+  - a dome (3,750 moves, passes 0.5 mm apart): 1.3 s instead of 32 s, 19,000 faces instead of 62,000;
+  - the toolpath test model (7,243 moves, roughing and finishing): 6.5 s instead of about 100 s.
+- **What goes into it:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
+  together; of those the moves where the tool points straight at the block along one of its own axes, with a flat,
+  ball, corner-radius, V or drill bit that reaches above the block's top.
+- **What is cut exactly as before:** short programs; side cuts with a T-slot cutter (any bit that undercuts); tilted
+  and rotary moves (4th and 5th axis); a tool so short that it tunnels. One program can have both kinds: they are
+  joined in the block. The clash check, the chips, the cut faces' look and the tool marks work as before.
+- **Same look.** Walls stand upright with their outline where the tool went, rims and chamfer edges are sharp, cut
+  faces know the move that made them (tool marks). Surfaces and walls are within 0.03 mm of the exact cut at Detail
+  Normal. Three things differ: the fine ridges between two finishing passes are left out when they are lower than
+  0.012 mm (the face is smooth there and shows the tool marks); the steep strip right under a rim, where a ball cuts
+  deeper than two thirds of its radius, can be 0.08 mm off; a sharp outside corner of a wall, or a rib thinner than
+  0.2 mm, can be up to 0.2 mm off. All three halve at Detail Fine. Untick **Fast 3-axis** to cut every move exactly.
+- The line under the Milling settings says how many moves went into the height map.
+- **PC check:** the new Full line "Milling: a long finishing program as a height map" cuts one program both ways
+  and compares them; the new Heavy line "Milling: a long finishing program (height map)" times 40,000 points.
+
 ## 0.2.113 – 16 Nov 2026 – Build gives the same animation at any frame (task 0138)
 
 - **Build no longer depends on the frame shown.** Pressing Build at a late frame of the demo put the second end and
