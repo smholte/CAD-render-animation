@@ -118,6 +118,41 @@ def test_the_propellers_turn_free_of_their_nozzles_pods_and_tunnels(ves):
         assert np.linalg.norm(r, axis=1).max() < math.sqrt(2) * R + 50.0
 
 
+def test_every_turning_part_turns_free(ves):
+    """Every joint that turns without end (propellers, steers, radars, the crane's slew; found by the demo's clash
+    check: a radar scanner swept through the mast) turned at several angles never meets a part that stays."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    by_uid = {u: (n, W) for n, u, W in ves["parts"]}
+    for name, j in ves["joints"].items():
+        if not j.get("motor"):
+            continue
+        moving = {u for u in by_uid if any(u == q or u.startswith(q + "/") for q in j["parts"])}
+        assert moving, name
+        shapes = [_placed(*by_uid[u]) for u in moving]
+        c, d = np.array(j["axis"]["point"]), np.array(j["axis"]["direction"])
+        reach = 0.0
+        for sh in shapes:
+            lo, hi = _bbox(sh)
+            corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+            reach = max(reach, float(np.linalg.norm(corners - c, axis=1).max()))
+        others = []
+        for u, (n, W) in by_uid.items():
+            if u in moving:
+                continue
+            sh = _placed(n, W)
+            lo, hi = _bbox(sh)
+            near = np.clip(c, lo, hi)
+            if np.linalg.norm(near - c) < reach + 10.0:
+                others.append((u, sh))
+        for ang in (0.0, 31.0, 77.0, 133.0, 190.0, 260.0, 318.0):
+            for sh in shapes:
+                turned = g.xform(sh, g.Rot(d, ang, c))
+                for u, o in others:
+                    assert g.volume(g.common(turned, o)) < 1.0, (name, ang, u)
+    del Bnd_Box, BRepBndLib
+
+
 def test_the_thrusters_are_under_water_and_under_the_hull(ves):
     for node, uid, W in ves["parts"]:
         if node.name in ("PROPELLER", "THRUSTER NOZZLE", "THRUSTER POD", "THRUSTER STRUT", "TUNNEL GEARBOX"):

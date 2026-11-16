@@ -290,7 +290,8 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
-    assert ids[:4] == ["model", "looks", "hold", "joints"] and ids[-1] == "finish"      # hold: task 0082
+    assert ids[:5] == ["model", "looks", "hold", "marks", "joints"] and ids[-1] == "finish"   # hold: 0082, marks: 0153
+    assert ids[-2] == "propulsion"                       # task 0153: the propellers turn the whole animation
     assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
                                                        "shot_tensioner", "shot_drum", "shot_sea", "shot_cps", "shot_quadrant", "shot_lower",
                                                        "shot_tip", "shot_back"]

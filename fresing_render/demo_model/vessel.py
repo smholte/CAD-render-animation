@@ -79,6 +79,7 @@ CRANE_Y = 10300.0
 CRANE_BOOM = 22000.0
 CRANE_LUFF = 70.0             # the boom's angle above the horizontal as modelled (joint value 0)
 
+RADAR_Y = 2600.0              # the two radars this far either side of the mast (scanners 3.8 m and 2.6 m long)
 NAME = "DEMO LAYER"           # the invented name on the name boards (the app writes it as decals)
 
 
@@ -382,12 +383,12 @@ def superstructure(p, L: float) -> tuple[Asm, dict]:
     mast = g.fuse(g.rod((mx, 0, zr), (mx, 0, zr + 9500.0), 260.0),
                   g.rod((mx - 1600.0, -1800.0, zr), (mx, 0, zr + 4200.0), 120.0),
                   g.rod((mx - 1600.0, 1800.0, zr), (mx, 0, zr + 4200.0), 120.0),
-                  g.box(mx - 900.0, -2600.0, zr + 4200.0, 1800.0, 5200.0, 120.0),
+                  g.box(mx - 900.0, -3000.0, zr + 4200.0, 1800.0, 6000.0, 120.0),
                   g.rod((mx, -3200.0, zr + 7000.0), (mx, 3200.0, zr + 7000.0), 90.0))
     a.add(Part("MAST", mast, WHITE))
     radars = []
-    for k, ry in enumerate((-1700.0, 1700.0)):
-        a.add(Part("RADAR PEDESTAL", g.cyl(220.0, 550.0, (mx, ry, zr + 4320.0)), WHITE))
+    for k, ry in enumerate((-RADAR_Y, RADAR_Y)):       # their sweep clear of the mast's pole (r 260)
+        a.add(Part("RADAR PEDESTAL", g.cyl(220.0, 450.0, (mx, ry, zr + 4320.0)), WHITE))
         sc = a.add(Part("RADAR SCANNER", g.fuse(g.box(-1900.0 + 600.0 * k, -110.0, 0.0, 3800.0 - 1200.0 * k, 220.0,
                                                       260.0),
                                                 g.cyl(160.0, 120.0, (0.0, 0.0, -120.0))), WHITE),
@@ -630,7 +631,10 @@ def vessel(p, pos, kit=None) -> Asm:
     thr = []
     for side, label in ((1, "PS"), (-1, "SB")):
         y = side * AZ_Y * f
-        zb = min(_bottom_z(hull, AZ_X + dx, y + dy) for dx in (-1500.0, 0.0, 1500.0) for dy in (-1500.0, 1500.0))
+        # its housing's underside at the lowest point of the hull the thruster sweeps when it steers round (the bottom
+        # slopes down forward): the nozzle's top stays under the hull at every steering angle
+        zb = min(_bottom_z(hull, AZ_X + r * math.cos(t), y + r * math.sin(t)) for r in (0.0, 1500.0, 2700.0)
+                 for t in np.linspace(0.0, 2 * math.pi, 12, endpoint=False))
         c = a.add(az, T(AZ_X, y, zb - 30.0), f"AZIMUTH THRUSTER {label}")
         thr.append({"name": f"AZIMUTH THRUSTER {label}", "axis": [AZ_X, y, zb - 30.0], "path": [c]})
     for k, xb in enumerate(BOW_TUNNELS):
