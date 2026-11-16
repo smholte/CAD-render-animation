@@ -1703,7 +1703,9 @@ def bake(scene, anim) -> list[str]:
     forget()
     _STATE["busy"] += 1
     try:
-        return _bake(scene, step=True)
+        out = _bake(scene, step=True)
+        _remember_motion(scene)
+        return out
     except Exception as exc:                    # a Build never fails over a hose
         return [f"The hoses and drag chains could not be worked out ({exc or type(exc).__name__}): "
                 "they show as they were"]
@@ -1711,16 +1713,24 @@ def bake(scene, anim) -> list[str]:
         _STATE["busy"] -= 1
 
 
-def motion_changed(scene) -> None:
-    """Vessel motion changed after Build (vessel_motion.changed, task 0121): the end parts move another way at every
+MOTION_KEY = "fr_flex_motion_key"       # on the scene: the vessel motion the built shapes were worked out for (0137)
+
+
+def motion_changed(scene, force: bool = True) -> None:
+    """Vessel motion changed after Build (vessel_motion.follow, task 0121): the end parts move another way at every
     frame, so a built animation's shapes are worked out again – at once in the background, in the window once the
-    slider has rested ``MOTION_WAIT`` s (dragging it would step through the whole animation at every move)."""
+    slider has rested ``MOTION_WAIT`` s (dragging it would step through the whole animation at every move).
+    ``force`` False: only when the motion differs from the one of the Build (task 0137)."""
     if not len(scene.fresing.flex) or not _baked(scene) or _STATE["busy"]:
+        return
+    from . import vessel_motion
+    if not force and not vessel_motion.moved_since(scene, MOTION_KEY, seabed=False):
         return
     if bpy.app.background:
         _motion_bake(scene)
         return
     _STATE["motion_scene"] = scene.name
+    _STATE["motion_force"] = force or _STATE.get("motion_force", False)
     if bpy.app.timers.is_registered(_motion_timer):
         bpy.app.timers.unregister(_motion_timer)
     bpy.app.timers.register(_motion_timer, first_interval=MOTION_WAIT)
@@ -1730,7 +1740,9 @@ def _motion_bake(scene) -> list[str]:
     _STATE["busy"] += 1
     _STATE["read"] = None                       # places read before the change are the old motion's
     try:
-        return _bake(scene, step=True)
+        out = _bake(scene, step=True)
+        _remember_motion(scene)
+        return out
     except Exception as exc:                    # never break the UI over a hose
         print("Fresing Render: hoses not worked out again:", exc)
         return []
@@ -1739,11 +1751,22 @@ def _motion_bake(scene) -> list[str]:
         _STATE["busy"] -= 1
 
 
+def _remember_motion(scene) -> None:
+    try:
+        from . import vessel_motion
+        vessel_motion.remember(scene, MOTION_KEY, seabed=False)
+    except Exception:
+        pass
+
+
 def _motion_timer():
     try:
         scene = bpy.data.scenes.get(_STATE["motion_scene"] or "")
         _STATE["motion_scene"] = None
-        if scene is not None and len(scene.fresing.flex) and _baked(scene):
+        force = _STATE.pop("motion_force", False)
+        from . import vessel_motion
+        if scene is not None and len(scene.fresing.flex) and _baked(scene) and \
+                (force or vessel_motion.moved_since(scene, MOTION_KEY, seabed=False)):
             _motion_bake(scene)
             _redraw_views()
     except Exception as exc:

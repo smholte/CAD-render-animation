@@ -81,8 +81,8 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | # | Task | Who | Model · effort | Status | Branch / file |
 | --- | --- | --- | --- | --- | --- |
 | 0136 | Fix: web 3D export crashes with a moving cable not built; marine growth follows the sea (0131 rows) | worker | Sonnet · Medium | done 15 Nov – 0.2.106 (rows 1, 12 of 0131) | tasks/0136-export-crash-waterline.md |
-| 0137 | Cable fixes: swivel and let-go kept, renames carried, sea cable re-worked after a vessel change, old projects (0131 rows) | worker | Opus · Medium | **running** (branch `task/0137-cable-data-kept`) | tasks/0137-cable-data-kept.md |
-| 0138 | Fix: the demo's Build gives a different result depending on the frame shown (0131 rows) | worker | Opus · Medium | waiting – after 0137 (cause + fix plan from study 0141 in the brief) | tasks/0138-demo-build-any-frame.md |
+| 0137 | Cable fixes: swivel and let-go kept, renames carried, sea cable re-worked after a vessel change, old projects (0131 rows) | worker | Opus · Medium | done 15 Nov – 0.2.110 (rows 2, 5, 7, 14, 16a of 0131) | tasks/0137-cable-data-kept.md |
+| 0138 | Fix: the demo's Build gives a different result depending on the frame shown (0131 rows) | worker | Opus · Medium | **open – can start** (cause + fix plan from study 0141 in the brief) | tasks/0138-demo-build-any-frame.md |
 | 0139 | Mesh import fixes: updates keep work on the right piece, file materials kept, side files noticed, faster updates (0131 rows) | worker | Opus · Medium | **running** (branch `claude/affectionate-ritchie-rn1qgs`) | tasks/0139-mesh-import-fixes.md |
 | 0144 | Render kit: Fresing start window – graphics-card load limit (pauses between frames) + temperature guard, quiet hours, saved as the standard, model list, start time, sleep/shut down at the end, resume a stopped run, status with Pause/Stop | worker | Opus · Medium | **running** (branch `task/0144-kit-start-window`) | tasks/0144-kit-start-window.md |
 | 0142 | Web 3D model: cables, ropes, coils, hoses and track links move and keep their looks (stripes) on the page | worker | Opus · High | waiting – after 0134 | tasks/0142-web-moving-cables.md |

@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.110 – 15 Nov 2026 – cable fixes: settings kept, sea cables follow a vessel change (task 0137)
+
+- **Swivel and Let go kept:** a sheave's **Swivel** and **Let go** frame no longer vanish after a model update, **From
+  CAD cable** again, **Add contact** or a change the app had to refuse.
+- **Renamed joints:** renaming a joint is carried into the cables – their speed joint, a contact's turn and swivel
+  joint, and a coupling put aside at Build – so a swivel head keeps following its wire.
+- **Sea cables follow a vessel change after Build:** changing the vessel motion, sea state, bow or the vessel speed
+  (Weather & time) after **Build animation** works the cables into the sea out again for the new motion by themselves,
+  as the hoses already did (also for the sea state, bow and preset routes, which the hoses missed before).
+- **Older projects:** a let-go cable into the sea in a project saved with 0.2.109 or older, whose **Settles in** was
+  never set, opens with Settles in 0 – it stays where it was let go, as it did when the project was made. Set it again
+  to let it sink.
+- **Smoother payout when the hang-off changes twice in quick succession** (1–2 frames apart): no overshoot.
+
 ## 0.2.109 – 15 Nov 2026 – house format 1.0.1 (task 0130)
 
 - **House round trip follows format 1.0.1:** the app now checks its House packages against the final tag `v1.0.1`
