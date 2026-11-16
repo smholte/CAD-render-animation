@@ -475,6 +475,59 @@ def bend_points(res: dict, n: int):
     return pts, rb[:, None] * phi
 
 
+JUMP = 0.5                      # rad: the wrap of a frame this far from the frames round it is the other answer
+SPIKE = 2                       # frames: at most this many frames in a row on the other answer are put back
+
+
+def _rows(x, sel, F: int):
+    """The rows ``sel`` of an input of ``hang_off`` that has one row per moment; shared inputs as they are."""
+    a = np.asarray(x, dtype=float)
+    if a.ndim == 2 and a.shape[0] == F:
+        return a[sel]
+    if a.ndim == 1 and a.shape[0] == F:        # (only the per-moment inputs come here: start and aft never do)
+        return a[sel]
+    return x
+
+
+def hang_off_steady(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0,
+                    frames=None) -> dict:
+    """``hang_off`` along an animation, each moment kept on the answer of the moment before (task 0160, bug hunt 0147
+    row 21a). Where the wheel lies nearly flat (a sheave let go, settling onto the seabed) the wrap has two answers,
+    and a moment worked out on its own now and then took the other one: the cable slid 0.8 m for one frame and back.
+    A run of at most ``SPIKE`` moments whose wrap is more than ``JUMP`` from the moments on both sides (which agree)
+    is worked out again starting from the moment before; a moment that then lands near it takes that answer.
+    ``frames`` (F,): the frame number of each moment (only moments next to each other are compared)."""
+    res = hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0)
+    psi = res["psi"]
+    F = len(psi)
+    fr = np.arange(F) if frames is None else np.asarray(frames)
+    j = 1
+    while j < F - 1:
+        if fr[j] != fr[j - 1] + 1 or abs(psi[j] - psi[j - 1]) <= JUMP:
+            j += 1
+            continue
+        end = None
+        for e in range(j + 1, min(F, j + SPIKE + 1)):
+            if fr[e] != fr[e - 1] + 1:
+                break
+            if abs(psi[e] - psi[j - 1]) <= JUMP:
+                end = e
+                break
+        if end is None:
+            j += 1
+            continue
+        sel = np.arange(j, end)
+        sub = hang_off(*(_rows(x, sel, F) for x in (centre, axis, radius, side, arrive, wrap_max)), start, aft,
+                       bottom_z, _rows(length0, sel, F), psi0=np.full(len(sel), psi[j - 1]))
+        good = np.abs(sub["psi"] - psi[j - 1]) <= JUMP
+        if good.any():
+            for key, v in res.items():
+                if isinstance(v, np.ndarray) and v.shape[:1] == (F,) and key in sub:
+                    v[sel[good]] = sub[key][good]
+        j = end
+    return res
+
+
 def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0, psi0=None) -> dict:
     """Where the cable leaves its last wheel into the sea, and the catenary from there.
 

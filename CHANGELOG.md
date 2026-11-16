@@ -5,6 +5,34 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.126 – 16 Nov 2026 – Web 3D: Marine detail Normal or Fine (task 0165)
+
+- New choice **Marine detail** in 5 Scene & Render > Web 3D model (shown when a marine look is in use). **Normal** is
+  the small page as before (the same file). **Fine** gives the marine looks four times the pixels, so the run-down
+  streaks and barnacles show on a part as big as a turbine tower: on a 90 m tower 11.6 mm per pixel instead of 52 mm.
+- The panel says before you export how fine it gets and what Fine costs (file size, bake time); the line under the
+  button suggests Fine when a part is coarser than 10 mm per pixel. Fine is heavier on phones and bakes slower.
+
+## 0.2.125 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
+
+- **Renaming no longer loses a drum, carousel or track.** A renamed drum or carousel joint, layer follower (level
+  wind, arm), track speed joint or wheel joint, or a renamed cable, is kept everywhere it is used: after a model
+  update the drum, the level wind and the pulleys turn exactly as before (they used to stand still, and a track got a
+  new speed joint at 0).
+- **Changing the sea after Build gives what Build gives, at any frame shown.** The cables are worked out again from
+  the animation's first frame; with a late frame shown the demo's second end was up to 8 m off. The sea itself is made
+  again at the first frame too (it came 0.24 m lower at the demo's last frame).
+- **A changed water level after Build** works the cables out again on the new seabed (they lay 1 m under it).
+- **That work is a job with progress and Cancel** (4 Motion > Cables and paths and the status bar) instead of a
+  minute-long freeze. Cancel (or Esc) takes the built animation off: press Build again.
+- **Build never puts the start scene's sea or weather back silently.** Its warnings name what it changed ("Vessel
+  speed 6 kn → 3 kn"), and the Sea, Vessel motion and Weather & time panels show **Save into start scene** when the
+  value you set differs from the start scene's.
+- **Older projects:** one saved built after a Build at a late frame with 0.2.104 – 0.2.112 gets its touch-down set
+  again at the first frame when it opens (Build once more); a scene appended from an older file is brought up to date
+  at Build. Foam and moving waves are named too when Build puts them back.
+- **No more one-frame twitch** of a let-go cable settling onto the seabed (0.8 m and back), and two Builds give the
+  same shape.
 ## 0.2.124 – 16 Nov 2026 – Props for scale and people in detail (task 0155)
 
 - **People:** the grey mannequin is now a person in work clothes with a face (nobody's likeness), hands with fingers,

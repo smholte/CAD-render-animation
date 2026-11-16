@@ -1618,6 +1618,9 @@ def rename(scene, j, old: str) -> None:
     waycover.joint_renamed(scene, old, j.name)
     from . import paths                           # cables, their contacts and swivels (task 0137)
     paths.joint_renamed(scene, old, j.name)
+    from . import spool, tracks                   # drums, carousels, their followers; tracks (task 0160)
+    spool.joint_renamed(scene, old, j.name)
+    tracks.joint_renamed(scene, old, j.name)
 
 
 def reset_all(scene) -> None:

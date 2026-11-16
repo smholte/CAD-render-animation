@@ -377,3 +377,22 @@ def test_own_line_says_when_parts_are_too_big():
     assert core.own_line(1, 2.0, 2.0) == "marine looks baked on 1 part (2 mm per pixel)"
     t = core.own_line(3, 0.8, 31.0)
     assert t.startswith("marine looks baked on 3 parts (0.8–31 mm per pixel") and "too big" in t
+
+
+def test_cut_charts_splits_long_strips_and_keeps_every_triangle():
+    """Task 0165: a 90 m strip is cut into pieces of at most the given length; nothing else changes."""
+    from fresing_render.core import lightmap as lm
+    n = 40
+    x = np.repeat(np.arange(n, dtype=np.float64) * 2.25, 6)           # 40 quads' worth of triangles along 90 m
+    uv = np.zeros((n * 2 * 3, 2))
+    k = 0
+    for i in range(n):
+        for tri in (((0, 0), (2.25, 0), (2.25, 6)), ((0, 0), (2.25, 6), (0, 6))):
+            for cx, cy in tri:
+                uv[k] = (i * 2.25 + cx, cy)
+                k += 1
+    un = lm.Unwrap(uv, np.zeros(n * 2, np.int32), np.array([[90.0, 6.0]]), 1080.0)
+    cut = core.cut_charts(un, 15.0)
+    assert len(cut.size) == 6 and cut.size[:, 0].max() <= 15.0 + 2.25 + 1e-9 and len(cut.chart) == n * 2
+    assert np.allclose(cut.size[:, 1], 6.0) and cut.uv.min() >= 0.0
+    assert core.cut_charts(un, 100.0) is un                            # short enough: untouched

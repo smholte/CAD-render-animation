@@ -1573,6 +1573,18 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, al
     kept shown), not returned. ``keep``: everything read is remembered until ``drop_read`` or ``forget`` – a later
     call for the same frames whose objects were all read then is answered from that, without stepping (the hoses'
     pass at Build reads for the cables too: blender/paths.py)."""
+    gen = read_steps(scene, obs, first, frames, keep_shown=keep_shown, also=also, keep=keep)
+    while True:
+        try:
+            next(gen)
+        except StopIteration as stop:
+            return stop.value
+
+
+def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, also=(), keep: bool = False):
+    """``read_places`` as a generator (task 0160: the re-bake after a sea change runs as a long job with progress and
+    Cancel): yields how far it is (0 … 1) after each frame, returns the places. Closed early (Cancel), it puts the
+    visibility and the frame back and keeps nothing."""
     from . import clash
     ends = {ob.name: ob for ob in obs if ob is not None}
     names = sorted(ends)
@@ -1606,6 +1618,7 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, al
                 _STATE["steps"] += 1
                 for n, ob in every.items():
                     out[n][k] = _np(_world(ob))
+                yield (k + 1) / frames
     finally:
         for fc in muted:
             fc.mute = False
@@ -1782,26 +1795,45 @@ def motion_changed(scene, force: bool = True) -> None:
     if bpy.app.background:
         _motion_bake(scene)
         return
-    _STATE["motion_scene"] = scene.name
-    _STATE["motion_force"] = force or _STATE.get("motion_force", False)
-    if bpy.app.timers.is_registered(_motion_timer):
-        bpy.app.timers.unregister(_motion_timer)
-    bpy.app.timers.register(_motion_timer, first_interval=MOTION_WAIT)
+    from . import rebake                        # in the window: a long job with progress and Cancel (task 0160)
+    rebake.request(scene, "flex", force)
 
 
-def _motion_bake(scene) -> list[str]:
-    _STATE["busy"] += 1
-    _STATE["read"] = None                       # places read before the change are the old motion's
+@contextmanager
+def at_first_frame(scene):
+    """Show the animation's first frame meanwhile, then the frame shown before (task 0160, bug hunt 0147 row 6): a
+    re-bake after Build works everything out from the first frame, as Build does (task 0138) – let go, the clock of a
+    sailing seabed and what follows them read the frame shown."""
+    here, sub = int(scene.frame_current), float(scene.frame_subframe)
+    first = int(scene.frame_start)
+    moved = here != first or bool(sub)
+    if moved:
+        scene.frame_set(first)
     try:
-        out = _bake(scene, step=True)
-        _remember_motion(scene)
-        return out
-    except Exception as exc:                    # never break the UI over a hose
-        print("Fresing Render: hoses not worked out again:", exc)
-        return []
+        yield
     finally:
-        _STATE["read"] = None
-        _STATE["busy"] -= 1
+        if moved:
+            scene.frame_set(here, subframe=sub)
+
+
+def _motion_bake(scene, kept: bool = False) -> list[str]:
+    """Work the built shapes out again for a new vessel motion. ``kept``: the places were read for this re-bake
+    already (``read_places(keep=True)`` after the change, the re-bake job of task 0160)."""
+    with at_first_frame(scene):
+        _STATE["busy"] += 1
+        if not kept:
+            _STATE["read"] = None               # places read before the change are the old motion's
+        try:
+            out = _bake(scene, step=True)       # (``kept``: read_places answers from what the job read)
+            _remember_motion(scene)
+            return out
+        except Exception as exc:                # never break the UI over a hose
+            print("Fresing Render: hoses not worked out again:", exc)
+            return []
+        finally:
+            if not kept:
+                _STATE["read"] = None
+            _STATE["busy"] -= 1
 
 
 def _remember_motion(scene) -> None:
@@ -1810,21 +1842,6 @@ def _remember_motion(scene) -> None:
         vessel_motion.remember(scene, MOTION_KEY, seabed=False)
     except Exception:
         pass
-
-
-def _motion_timer():
-    try:
-        scene = bpy.data.scenes.get(_STATE["motion_scene"] or "")
-        _STATE["motion_scene"] = None
-        force = _STATE.pop("motion_force", False)
-        from . import vessel_motion
-        if scene is not None and len(scene.fresing.flex) and _baked(scene) and \
-                (force or vessel_motion.moved_since(scene, MOTION_KEY, seabed=False)):
-            _motion_bake(scene)
-            _redraw_views()
-    except Exception as exc:
-        print("Fresing Render: hoses not worked out again:", exc)
-    return None
 
 
 def after_clear(scene) -> None:
@@ -2149,7 +2166,8 @@ def unregister() -> None:
             lst.remove(fn)
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
-    for fn in (_settle, _motion_timer):
+    from . import rebake
+    for fn in (_settle, rebake._timer):
         if bpy.app.timers.is_registered(fn):
             bpy.app.timers.unregister(fn)
     forget()

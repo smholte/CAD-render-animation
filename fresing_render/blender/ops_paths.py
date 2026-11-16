@@ -624,7 +624,116 @@ class FRESING_OT_cable_let_go(_NeedsOn, bpy.types.Operator):
         return {"FINISHED"}
 
 
+
+class FRESING_OT_rebake(bpy.types.Operator):
+    """Works the built hoses, drag chains and cables into the sea out again after the sea, the vessel motion, its
+    speed or the water level changed. It starts by itself; press Cancel (or Esc) to stop it – the built animation is
+    then taken off and you press Build again"""
+
+    bl_idname = "fresing.rebake"
+    bl_label = "Work the cables out again"
+    bl_options = {"INTERNAL"}
+
+    flex: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
+    cables: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
+
+    _timer = None
+    _gen = None
+
+    TICK = 0.15                                 # s of work between two redraws
+
+    def _todo(self):
+        return {k: True for k, on in (("flex", self.flex), ("paths", self.cables)) if on}
+
+    def execute(self, context):
+        from . import rebake
+        notes = rebake.run_now(context.scene, self._todo())
+        for n in notes:
+            self.report({"WARNING"}, n)
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        from . import rebake
+        if rebake.running():
+            return {"CANCELLED"}
+        scene = context.scene
+        self._notes = []
+        self._gen = rebake.steps(scene, self._todo(), self._notes)
+        rebake._STATE.update(running=True, cancel=False, progress=0.0, scene=scene.name)
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.01, window=context.window)
+        wm.modal_handler_add(self)
+        self._status(context)
+        return {"RUNNING_MODAL"}
+
+    def _status(self, context, text=None) -> None:
+        from . import rebake
+        try:
+            context.workspace.status_text_set(text if text is not None else
+                                              f"Working the cables out again for the new sea: "
+                                              f"{100.0 * rebake.progress():.0f} % – Esc or Cancel to stop")
+        except Exception:  # noqa: BLE001 - (no workspace: no status line)
+            pass
+
+    def _stop(self, context) -> None:
+        from . import rebake
+        rebake._STATE.update(running=False, cancel=False, progress=0.0)
+        if self._timer is not None:
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+        try:
+            context.workspace.status_text_set(None)
+        except Exception:  # noqa: BLE001
+            pass
+        flex._redraw_views()
+
+    def modal(self, context, event):
+        import time
+
+        from . import longjob, rebake
+        if longjob.swallow_undo(self, context, event, "re-bake of the cables"):
+            return {"RUNNING_MODAL"}
+        if event.type == "ESC" or rebake._STATE["cancel"]:
+            self._gen.close()
+            self._stop(context)
+            rebake.cancelled(context.scene)
+            self.report({"WARNING"}, rebake.CANCELLED)
+            return {"CANCELLED"}
+        if event.type != "TIMER":
+            return {"PASS_THROUGH"}
+        t0 = time.perf_counter()
+        try:
+            while time.perf_counter() - t0 < self.TICK:
+                rebake._STATE["progress"] = next(self._gen)
+        except StopIteration:
+            self._stop(context)
+            msg = "Cables and hoses worked out again for the new sea"
+            context.scene.fresing.last_message = msg
+            for n in self._notes:
+                self.report({"WARNING"}, n)
+            return {"FINISHED"}
+        except Exception as exc:  # noqa: BLE001 - say what went wrong, never leave it "running"
+            self._stop(context)
+            rebake.cancelled(context.scene)
+            self.report({"ERROR"}, f"The cables could not be worked out again ({exc}): {rebake.CANCELLED}")
+            return {"CANCELLED"}
+        self._status(context)
+        flex._redraw_views()
+        return {"RUNNING_MODAL"}
+
+
+class FRESING_OT_rebake_cancel(bpy.types.Operator):
+    """Stops working the cables out again for the new sea. The built animation is taken off: press Build again"""
+
+    bl_idname = "fresing.rebake_cancel"
+    bl_label = "Cancel"
+
+    def execute(self, context):
+        from . import rebake
+        rebake._STATE["cancel"] = True
+        return {"FINISHED"}
+
 CLASSES = (FRESING_OT_cable_add, FRESING_OT_cable_add_all, FRESING_OT_cable_remove, FRESING_OT_cable_read,
            FRESING_OT_cable_select, FRESING_OT_cable_motor_step, FRESING_OT_cable_contact_add,
            FRESING_OT_cable_contact_remove, FRESING_OT_cable_contact_flip, FRESING_OT_cable_end,
-           FRESING_OT_cable_let_go)
+           FRESING_OT_cable_let_go, FRESING_OT_rebake, FRESING_OT_rebake_cancel)

@@ -250,6 +250,8 @@ fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene",
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
+fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
+   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125")
 fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88")
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",
@@ -274,6 +276,8 @@ fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d"
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
    since="0.2.86")
+fn(id="web.marine_detail", title="Web 3D model: Marine detail Normal / Fine", family="web", panel="FRESING_PT_web3d",
+   prop="marine_detail", guide="web3d-marine", tour=("web3d",), pccheck=("web3d.export",), since="0.2.126")
 fn(id="web.light", title="Web 3D model with baked light", family="web", panel="FRESING_PT_web3d", prop="light",
    guide="web3d-light", tour=("web3d_light",), pccheck=("web3d.bake",), since="0.2.89")
 fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move with their looks", family="web",

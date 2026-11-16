@@ -381,3 +381,21 @@ def test_render_shows_the_wake_and_the_jets(tmp_path):
     assert means["ahead"] > means["still"] * 1.15, means
     assert means["dp"] > means["still"] * 1.05, means
     del Vector
+
+
+def test_build_says_when_the_start_scene_puts_the_setting_back():
+    """Task 0160's warning covers what the vessel does: changed after the start scene was saved, Build puts it back
+    and says so; 'Save into start scene' keeps it."""
+    sc = fresh()
+    s = sc.fresing
+    shot = states.save_shot(sc, "Start")
+    a = s.animations.add()
+    a.start_shot = shot.name
+    _add_step(sc, a, 0.0, 2.0, "STILL")
+    s.vessel_work.mode = "DP"
+    ch_ = states.start_scene_changes(sc, shot.name, ["vessel_work"])
+    assert [(k, now, then) for k, _n, now, then in ch_] == [("vessel_work.mode", "DP", "AHEAD")]
+    assert states.save_into_start_scene(sc, shot.name, ["vessel_work"]) == ["The vessel"]
+    assert not states.start_scene_changes(sc, shot.name, ["vessel_work"])
+    animation.bake(sc, a)
+    assert s.vessel_work.mode == "DP"

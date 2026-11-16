@@ -15,6 +15,7 @@ Floor:      NONE | SHADOW (shadow catcher) | VISIBLE  (not used when a surroundi
 
 from __future__ import annotations
 
+import json
 import math
 import os
 
@@ -228,7 +229,15 @@ def apply(scene, settings) -> None:
     scene.view_settings.exposure = s.exposure
     from . import surroundings
     try:
-        surroundings.ensure(scene, s)
+        if _rebuilt_when_built(scene, s):
+            # task 0160: a built animation's surroundings are made again at its first frame, as Build makes them –
+            # measured at a late frame of the demo the sea came 0.24 m lower and the vessel's waves had another phase,
+            # so the cables worked out again for it were not what a Build gives
+            from . import flex
+            with flex.at_first_frame(scene):
+                surroundings.ensure(scene, s)
+        else:
+            surroundings.ensure(scene, s)
     except Exception as exc:            # a broken surrounding must never stop a render
         print("Fresing Render: surroundings not built:", exc)
     update_floor(scene, s)
@@ -236,6 +245,22 @@ def apply(scene, settings) -> None:
         weather.after_world(scene)
     except Exception as exc:
         print("Fresing Render: weather not set up:", exc)
+
+
+def _rebuilt_when_built(scene, s) -> bool:
+    """True when the animation is built and the surroundings are about to be made again (their settings changed)."""
+    if not getattr(s, "anim_baked", "") or scene.frame_current == scene.frame_start and not scene.frame_subframe:
+        return False
+    from . import surroundings
+    try:
+        kind = surroundings.wanted(s)
+        if not kind:
+            return False
+        root = surroundings.root_object()
+        key = json.dumps(surroundings._settings_key(s, kind), sort_keys=True)
+        return root is None or root.get("fr_key") != key
+    except Exception:  # noqa: BLE001 - when in doubt: at the first frame
+        return True
 
 
 # --------------------------------------------------------------------------

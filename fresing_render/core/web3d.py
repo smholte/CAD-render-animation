@@ -74,19 +74,76 @@ OWN_FILL = 0.5                     # first guess: the charts fill this share of 
 OWN_DETAIL_MM = 10.0               # coarser than this per pixel: the marine looks' fine streaks and barnacles are lost
 OWN_M = 1.0                        # texels per metre of a part's own bake = texture size / this (1024 -> 1 mm)
 OWN_BUDGET = 8_000_000             # texels of all parts' own bakes together, per channel (two pictures of 2048 px)
+# task 0165: "Marine detail" per export. Fine = pictures of 4096 px for these own bakes only (every other bake stays
+# at ATLAS_MAX), four times the texels, charts packed tighter. Normal is today's numbers, bit for bit.
+MARINE_DETAILS = ("NORMAL", "FINE")
+OWN_BUDGETS = {"NORMAL": OWN_BUDGET, "FINE": 4 * OWN_BUDGET}
+OWN_MAX_PX = {"NORMAL": ATLAS_MAX, "FINE": 2 * ATLAS_MAX}
+OWN_FILLS = {"NORMAL": OWN_FILL, "FINE": 0.75}
+OWN_BYTES_PER_TEXEL = 0.12         # file bytes per texel, all channels (measured on a plain growth tower: 0.10; streaks cost more)
+OWN_SECONDS_PER_MTEXEL = 8.0       # bake seconds per million texels, all channels (measured: 146 s for 16.8 M, 4 cores)
 
 
-def own_tpm(texture_size: int, area_m2: float) -> float:
+def own_tpm(texture_size: int, area_m2: float, detail: str = "NORMAL") -> float:
     """Texels per metre for the parts baked on their own: the texture size's (``OWN_M``), fewer when their surface
-    together (``area_m2``, world m²) would take more than ``OWN_BUDGET`` texels."""
+    together (``area_m2``, world m²) would take more than the budget of ``detail`` (``OWN_BUDGETS``)."""
     tpm = float(texture_size) / OWN_M
     if area_m2 > 0:
-        tpm = min(tpm, math.sqrt(OWN_BUDGET / float(area_m2)))
+        tpm = min(tpm, math.sqrt(OWN_BUDGETS.get(detail, OWN_BUDGET) / float(area_m2)))
     return tpm
 
 
+def own_estimate(area_m2: float, texture_size: int, detail: str = "NORMAL", longest_m: float = 0.0) -> dict:
+    """The panel's estimate before the export (task 0165): the marine looks' pixel size, file size and bake time for
+    ``area_m2`` of world surface. Picture sizes only: parts whose charts leave gaps come out a little bigger."""
+    tpm = own_tpm(texture_size, area_m2, detail)
+    fill = OWN_FILLS.get(detail, OWN_FILL)
+    max_px = OWN_MAX_PX.get(detail, ATLAS_MAX)
+    tpm = min(tpm, math.sqrt(fill * max_px * max_px / max(float(area_m2), 1e-12)))
+    if detail != "FINE" and longest_m > 0:           # Normal keeps a long chart whole: it must fit one picture
+        tpm = min(tpm, (max_px - 10) / longest_m)
+    texels = min(float(area_m2) * tpm * tpm / max(fill, 0.1), float(OWN_BUDGETS.get(detail, OWN_BUDGET)) * 2.0)
+    return {"mm": 1000.0 / tpm, "bytes": int(texels * OWN_BYTES_PER_TEXEL),
+            "seconds": texels / 1e6 * OWN_SECONDS_PER_MTEXEL}
+
+
+def cut_charts(un, max_m: float):
+    """Task 0165: a chart longer than ``max_m`` (a tower's whole strip, 90 m) is cut across its long side into equal
+    pieces, so a picture of 4096 px holds it at the pixel size its surface allows, not at 4096 / its length. The
+    triangles keep their corners (each has its own UV), so the cut runs along triangle edges; the bake's margin covers
+    the seam. Returns a new ``lightmap.Unwrap``."""
+    from . import lightmap as lm
+    size = np.asarray(un.size, np.float64).reshape(-1, 2)
+    if not len(size) or float(size.max()) <= max_m:
+        return un
+    m = len(un.chart)
+    uv = np.asarray(un.uv, np.float64).reshape(m, 3, 2)
+    chart = un.chart.astype(np.int64)
+    new_id = np.zeros(m, np.int64)
+    base = 0
+    for c in range(len(size)):
+        t = np.nonzero(chart == c)[0]
+        if not len(t):
+            continue
+        axis = int(np.argmax(size[c]))
+        n = max(1, int(math.ceil(size[c][axis] / max_m)))
+        pos = uv[t, :, axis].mean(1) / max(size[c][axis], 1e-12)
+        new_id[t] = base + np.minimum((pos * n).astype(np.int64), n - 1)
+        base += n
+    ids, inv = np.unique(new_id, return_inverse=True)       # drop empty pieces
+    inv = inv.ravel()
+    k = len(ids)
+    corner = np.repeat(inv, 3)
+    flat = uv.reshape(-1, 2)
+    lo = np.full((k, 2), np.inf)
+    hi = np.full((k, 2), -np.inf)
+    np.minimum.at(lo, corner, flat)
+    np.maximum.at(hi, corner, flat)
+    return lm.Unwrap(flat - lo[corner], inv.astype(np.int32), hi - lo, un.area)
+
+
 def own_atlas(sizes_m: np.ndarray, area_m2: float, wanted_tpm: float, max_px: int = ATLAS_MAX,
-              padding: int = OWN_PADDING) -> tuple[float, int, np.ndarray]:
+              padding: int = OWN_PADDING, fill: float = OWN_FILL) -> tuple[float, int, np.ndarray]:
     """The picture of one part's own bake: ``sizes_m`` (k, 2) its charts in metres (``lightmap.unwrap``), ``area_m2``
     its surface, ``wanted_tpm`` texels per metre asked for. Returns (texels per metre, side in px – a power of two
     up to ``max_px`` –, places (k, 3) from ``lightmap.pack``). A part too big for ``wanted_tpm`` in ``max_px`` gets
@@ -95,7 +152,7 @@ def own_atlas(sizes_m: np.ndarray, area_m2: float, wanted_tpm: float, max_px: in
     sizes_m = np.asarray(sizes_m, np.float64).reshape(-1, 2)
     if not len(sizes_m):
         return float(wanted_tpm), 16, np.zeros((0, 3), np.int64)
-    tpm = float(min(wanted_tpm, math.sqrt(OWN_FILL * max_px * max_px / max(float(area_m2), 1e-12))))
+    tpm = float(min(wanted_tpm, math.sqrt(fill * max_px * max_px / max(float(area_m2), 1e-12))))
     longest = float(sizes_m.max())
     if longest > 0:                                  # one chart longer than the picture: as long as it may be
         tpm = min(tpm, (max_px - 2 * padding - 2) / longest)
@@ -112,7 +169,7 @@ def own_atlas(sizes_m: np.ndarray, area_m2: float, wanted_tpm: float, max_px: in
     return tpm, side, lm.pack([px], side)[0]
 
 
-def own_line(parts: int, finest_mm: float, coarsest_mm: float) -> str:
+def own_line(parts: int, finest_mm: float, coarsest_mm: float, detail: str = "NORMAL") -> str:
     """The export line's words for the parts baked on their own (marine looks)."""
     from .words import plural
     if parts <= 0:
@@ -123,7 +180,8 @@ def own_line(parts: int, finest_mm: float, coarsest_mm: float) -> str:
         size = f"{finest_mm:.1f}–{coarsest_mm:.0f} mm"
     text = f"marine looks baked on {plural(parts, 'part')} ({size} per pixel"
     if coarsest_mm > OWN_DETAIL_MM:
-        text += "; the largest are too big for the fine streaks and barnacles at this size"
+        text += ("; the largest are too big for the fine streaks and barnacles at this size"
+                 + ("; Marine detail Fine makes them finer" if detail != "FINE" else ""))
     return text + ")"
 
 

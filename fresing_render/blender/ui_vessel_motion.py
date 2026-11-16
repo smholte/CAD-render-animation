@@ -53,6 +53,8 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         col = split_props(layout)
         row = col.row(align=True)
         row.prop(s, "sea_state", text="Sea", expand=True)
+        from .ops_scene import draw_start_scene             # Build puts the start scene's sea back (task 0160)
+        draw_start_scene(col, context, ["sea_state"])
         col.prop(v, "heading", text="Waves from")
         col.prop(v, "strength", text="Strength")
         text = vessel_motion.words(scene)
@@ -152,6 +154,8 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
             col.row(align=True).prop(vw, "side", text="Bow to" if vw.mode == "TURN" else "Push to", expand=True)
             col.prop(vw, "thrust", text="Thrust", slider=True)
         wrap(layout, context, vessel_work.words(scene), icon="INFO")
+        from .ops_scene import draw_start_scene             # task 0160: Build puts back the start scene's setting
+        draw_start_scene(layout, context, ["vessel_work", "weather.vessel_speed"])
         if not s.sea_foam:
             wrap(layout, context, "Tick 'Foam' (Background & surroundings) to see the wake and the jets.",
                  icon="ERROR")

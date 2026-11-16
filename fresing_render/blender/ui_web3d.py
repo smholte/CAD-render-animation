@@ -73,6 +73,18 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         if web3d.has_marine_looks():              # task 0161: those parts are baked one by one
             wrap(layout, context, "Marine looks (growth, streaks, worn blade edge) are baked part by part where the "
                                   "parts stand: slower, a bigger file; the line above says how fine.", icon="INFO")
+            layout.label(text="Marine detail")
+            layout.row(align=True).prop(w, "marine_detail", expand=True)
+            est = web3d.marine_estimate(context.scene)
+            if est:
+                n, f = est["NORMAL"], est["FINE"]
+                cur = est[w.marine_detail]
+                text = (f"{w.marine_detail.capitalize()}: about {cur['mm']:.0f} mm per pixel, file about "
+                        f"+{core.mb(cur['bytes'])}, bake about {cur['seconds']:.0f} s (estimate)")
+                if w.marine_detail == "NORMAL" and f["mm"] < n["mm"] * 0.8:
+                    text += (f". Fine: {f['mm']:.0f} mm per pixel, +{core.mb(f['bytes'] - n['bytes'])}, "
+                             f"+{f['seconds'] - n['seconds']:.0f} s; heavier on phones")
+                wrap(layout, context, text, inset=12, icon="TIME")
 
     PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
         ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),

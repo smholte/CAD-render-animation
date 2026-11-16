@@ -2310,6 +2310,12 @@ def _cable_changed(self, context):
     paths.changed(context.scene, self)
 
 
+def _cable_renamed(self, context):
+    """A cable was renamed (double-click in the list): what names it by name follows (task 0160)."""
+    from . import paths
+    paths.cable_renamed(self.id_data, self)
+
+
 def _look_changed(self, context):
     """The look changed: a served cable's band pitch starts at one metre (one turn of the spiral), not the stripe
     distance's default (task 0164); then as any cable setting."""
@@ -2437,7 +2443,9 @@ class FRCableRider(bpy.types.PropertyGroup):
 
 class FRCable(bpy.types.PropertyGroup):
     """A cable or wire rope on its path (task 0078). See blender/paths.py."""
-    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it")
+    name: StringProperty(name="Name", description="Name of this cable. Double-click to rename it",
+                         update=_cable_renamed)
+    name_was: StringProperty(default="")                   # the name the things that name it by name know (task 0160)
     enabled: BoolProperty(
         name="On", default=True, update=_cable_changed,
         description="On: the app draws the cable on its path and it moves with the cable speed. Off: the cable "
@@ -3287,6 +3295,15 @@ class FRWeb3D(bpy.types.PropertyGroup):
         name="Hide part names", default=True,
         description="On: the parts are called Part 1, Part 2 … in the file, so a customer does not see your part "
                     "numbers. Off: the parts keep the names they have in the app")
+    marine_detail: EnumProperty(
+        name="Marine detail", default="NORMAL",
+        description="How fine the marine looks (growth band, streaks, barnacles) are on the page. Normal: small page. "
+                    "Fine: pictures four times as big for these parts, so the streaks and barnacles show on a part "
+                    "as big as a turbine tower, but the file is bigger, the export slower and the page heavier on "
+                    "a phone. The panel says the size and time",
+        items=[("NORMAL", "Normal", "The marine looks' pictures as before: small file, quick export"),
+               ("FINE", "Fine", "Four times the pixels for the marine looks (pictures of 4096 px): streaks and "
+                                "barnacles on big parts; bigger file, slower export, heavier on phones")])
     animation: BoolProperty(
         name="Include animation", default=False,
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Cables, "
