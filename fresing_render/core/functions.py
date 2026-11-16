@@ -165,6 +165,9 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 # ----- 4 Motion: cables, drums; the sea -----
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80")
+fn(id="offshore.served_cable", title="Served cable look: yarn and marker bands", family="offshore",
+   panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
+   pccheck=("looks.served_cable",), since="0.2.116")
 fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", button="fresing.cable_sea_add", guide="into-the-sea", tour=("sea_cable",),
    pccheck=("motion.sea_cable",), since="0.2.91")
@@ -232,6 +235,8 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", since="0.2.17")
+fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
+   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115")
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")

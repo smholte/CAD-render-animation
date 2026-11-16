@@ -1,6 +1,6 @@
 # 0153 – Demo vessel: a detailed hull, superstructure, propulsion and its looks
 
-**Who:** worker · **Status:** waiting – starts after 0145 is merged (it re-splits the demo tests this task grows) · **Branch:** `task/0153-demo-vessel-details`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:** `ccr-82ef1269-tt9p0w` (the web session's branch)
 **Started by:** lead chat, 16 Nov 2026 (owner: "more details to the ship itself") · **Model:** Opus · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Demo models lane: `fresing_render/demo_model/` (params, geom, the hull and new parts), `demo.py` (looks, joints of the new parts, the stage list only where needed), `blender/marine_looks.py` (use, add only if needed), the demo's tests (as 0145 split them).

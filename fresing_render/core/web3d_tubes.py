@@ -548,15 +548,29 @@ def at(spec: dict, arrays: dict, t: float) -> dict:
     return {"points": p, "normals": nr, "tangents": tg, "s": s, "pay": pay}
 
 
-def look_for_page(kind: str, look, d: dict, srgb_to_linear) -> dict:
-    """The numbers the page's cable look needs: ``kind`` "POWER" | "ROPE", ``look`` the object's ``fr_cable_look``
-    (4 numbers or None), ``d`` the look's settings (``cable_looks.defaults``)."""
+def look_for_page(kind: str, look, d: dict, srgb_to_linear, served: dict | None = None) -> dict:
+    """The numbers the page's cable look needs: ``kind`` "POWER" | "ROPE" | "SERVED", ``look`` the object's
+    ``fr_cable_look`` (4 numbers or None), ``d`` the look's settings (``cable_looks.defaults``). Served cable (task
+    0158): ``served`` = ``cable_looks._served(...)`` of the object, with ``yarn_rgb`` / ``band_rgb`` (linear, or None:
+    the library's)."""
+    lin = lambda c: [round(float(srgb_to_linear(v)), 6) for v in c[:3]]   # noqa: E731
+    if kind == "SERVED":
+        v = served or {}
+        rgb = lambda key, lib: ([round(float(c), 6) for c in v[key][:3]] if v.get(key) else lin(d[lib]))  # noqa: E731
+        return {"kind": "SERVED", "pitch": float(v.get("distance", d["pitch"])),
+                "width": float(v.get("width", d["width"])), "count": int(v.get("count", d["count"])),
+                "gap": float(v.get("gap", d["gap"])), "yarn_pitch": float(v.get("yarn_pitch", d["yarn_pitch"])),
+                "yarn_starts": int(v.get("starts", 0)), "radius": float(v.get("radius", 0.5 * d["diameter"])),
+                "wear": float(v.get("wear", d["wear"])), "band_wear": float(v.get("band_wear", d["band_wear"])),
+                "yarn": rgb("yarn_rgb", "yarn"), "band": rgb("band_rgb", "band"), "dust": lin(d["dust"]),
+                "variation": float(d["variation"]), "fibres": float(d["fibres"]), "rag": float(d["rag"]),
+                "strand_height": float(d["strand_height"]), "bump": float(d["bump"]),
+                "yarn_rough": float(d["yarn_roughness"]), "paint_rough": float(d["paint_roughness"])}
     pitch, starts, width = float(d["pitch"]), int(d["starts"]), float(d.get("width", 0.0))
     if look is not None and len(look) >= 3 and float(look[0]) > 1e-6:
         pitch = float(look[0])
         starts = int(math.floor(float(look[1]) + 0.5))
         width = min(1.0, max(0.0, float(look[2])))
-    lin = lambda c: [round(float(srgb_to_linear(v)), 6) for v in c[:3]]   # noqa: E731
     if kind == "ROPE":
         return {"kind": "ROPE", "pitch": pitch, "starts": starts, "wires": float(d["wires"]),
                 "slant": float(d["slant"]), "grease": lin(d["grease"]), "grease_amount": float(d["grease_amount"]),

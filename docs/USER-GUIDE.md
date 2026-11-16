@@ -1095,7 +1095,7 @@ metres of cable paid out, so the same cable can be moved by hand in 4 Motion, li
 **The look**
 
 The setting **Look** says how the cable looks. The look is a material (see 3 Looks), and the cable's part is put
-into the group "Power cables" or "Wire ropes" for it.
+into the group "Power cables", "Served cables" or "Wire ropes" for it.
 
 | Look | Settings |
 | --- | --- |
@@ -1104,6 +1104,29 @@ into the group "Power cables" or "Wire ropes" for it.
 | **Plain** | The look the part has in 3 Looks. Nothing shows that the cable moves. |
 
 <img class="wide" src="img/view_cables_looks.jpg" alt="The wire rope on a sheave: left as steel strands, right with the power cable look">
+
+<a id="served-cable"></a>
+**Served cable (yarn)**
+
+Large export and array cables have an outer layer of black polypropylene yarn wound almost straight round the
+cable, with pairs of yellow marker bands painted on it every metre or so. The look **Served cable (yarn)** draws
+that: fine grooves round the cable, some strands a little darker or lighter, a little dust between them, and the
+painted bands with ragged edges. Like the stripes, the bands and the yarn run along with the cable – also on its
+drum or carousel. The cable's part goes into the group "Served cables".
+
+| Setting | What it does |
+| --- | --- |
+| **Band distance** | From one group of bands to the next, along the cable (1250 mm). |
+| **Bands** | **Pairs** (two bands with a gap) or **Single**. |
+| **Band width**, **Band gap** | The width of one band (35 mm) and the black gap between the two of a pair (30 mm). |
+| **Band colour** | Traffic yellow; click it to pick another colour. |
+| **Paint wear** | 0 = fresh paint with clean edges. Higher: ragged edges, paint gone from the grooves, black smudges. |
+| **Yarn** (fold) | **Yarn pitch**: how far apart the strands lie (2.5 mm). **Lay angle**: 90° = straight round the cable (82°). **Yarn colour**. **Wear**: 0 = new, higher = dusty with lint between the strands. |
+
+<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable leaving a carousel: black yarn grooves and a pair of yellow bands">
+
+The grooves are 2–3 mm apart: from far away they blend into a dark grey surface; close up they show. The demo
+project's power cable has this look. The web 3D model draws it too.
 
 **What it touches**
 
@@ -1228,6 +1251,16 @@ colour, and **Water clarity** (2 to 40 m) sets how far you see into the water pa
 waterline, the seabed further away, the cable beyond the box.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
+
+<a id="sea-ground"></a>
+**The ground in the cut-away.** The cut can go on into the ground. Under 5 Scene & Render > Surroundings, with the
+cut-away ticked, **Show the ground in the cut-away** opens the seabed inside the box and shows a soil section there:
+layers from sand to clay, their edges a little wavy, down to 5 m under the lowest part of the machine. A pile, a
+J-tube or any other part that reaches below the seabed is then seen down to its end – the water level over the
+machine's lowest point is more than the **Water depth**, so the lowest part lies in the ground. Outside the box the
+seabed stays closed and hides what lies under it. The setting goes on by itself when you tick the cut-away and a part
+reaches below the seabed; a project from an older version keeps it off. The offshore wind turbine of the site's kit
+uses it: its "Seabed" shot looks at the 45 m of monopile in the ground, with the scour protection on top.
 
 <a id="moving-cable"></a>
 #### A cable on a moving part

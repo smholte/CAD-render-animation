@@ -110,10 +110,15 @@ def look_of(ob) -> dict | None:
         nodes = cable_looks.nodes_of(mat) if mat is not None else {}
         if cable_looks.NODE_PATTERN not in nodes:
             continue
-        kind = "ROPE" if cable_looks.NODE_WIRES in nodes else "POWER"
-        look = ob.get(cable_looks.LOOK)
-        look = [float(v) for v in look] if look is not None else None
-        return T.look_for_page(kind, look, cable_looks.defaults(kind), ral.srgb_to_linear)
+        kind = "ROPE" if cable_looks.NODE_WIRES in nodes else "SERVED" if cable_looks.NODE_YARN in nodes else "POWER"
+        got = {k: ([float(v) for v in ob[k]] if k in ob else None) for k in cable_looks.PROPS}
+        served = None
+        if kind == "SERVED":                    # task 0158: the yarn and the bands (the library's where missing)
+            served = cable_looks._served(got[cable_looks.LOOK], got[cable_looks.YARN], got[cable_looks.BAND])
+            for key, prop in (("yarn_rgb", cable_looks.YARN_RGB), ("band_rgb", cable_looks.BAND_RGB)):
+                c = got[prop]                   # (as the nodes: missing or (0, 0, 0) = the library's colour)
+                served[key] = c if c and sum(v * v for v in c[:3]) > 1e-12 else None
+        return T.look_for_page(kind, got[cable_looks.LOOK], cable_looks.defaults(kind), ral.srgb_to_linear, served)
     return None
 
 

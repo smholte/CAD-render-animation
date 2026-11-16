@@ -689,7 +689,8 @@
   // texture (3 texels a ring) carries them to the vertex shader, which builds each ring (Blender's: ring point j at
   // angle 2πj/sides, centre + r (cos N + sin (T x N))). The file's own mesh of it (the frame shown) is not drawn. The
   // cable looks (cable_looks.py) are a patch of the part's own material: the power cable's stripes, the wire rope's
-  // strands, wires and grease, from s (metres along the cable), the angle round it and the metres paid out.
+  // strands, wires and grease, the served cable's yarn and marker bands (task 0158), from s (metres along the cable),
+  // the angle round it and the metres paid out.
   var tubes = [];
   var TUBE_HEAD = [
     'uniform highp sampler2D uFrTube;',
@@ -732,6 +733,35 @@
     'uniform float uFrStrandR;',
     'uniform float uFrWireH;',
     'uniform float uFrBump;',
+    // the served cable (task 0158)
+    'uniform float uFrCount;',
+    'uniform float uFrGap;',
+    'uniform float uFrYarnPitch;',
+    'uniform float uFrYarnStarts;',
+    'uniform float uFrRadius;',
+    'uniform float uFrWear;',
+    'uniform float uFrBandWear;',
+    'uniform vec3 uFrYarn;',
+    'uniform vec3 uFrBand;',
+    'uniform vec3 uFrDust;',
+    'uniform float uFrVariation;',
+    'uniform float uFrFibres;',
+    'uniform float uFrRag;',
+    'uniform float uFrStrandH;',
+    'uniform float uFrYarnRough;',
+    'uniform float uFrPaintRough;',
+    // value noise 0 … 1 (not Blender's numbers, the same kind of look)
+    'float frHash( vec3 p ) { p = fract( p * 0.3183099 + 0.1 ); p *= 17.0;',
+    '  return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) ); }',
+    'float frNoise( vec3 x ) { vec3 i = floor( x ), f = fract( x ); f = f * f * ( 3.0 - 2.0 * f );',
+    '  return mix( mix( mix( frHash( i ), frHash( i + vec3( 1, 0, 0 ) ), f.x ),',
+    '                   mix( frHash( i + vec3( 0, 1, 0 ) ), frHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),',
+    '              mix( mix( frHash( i + vec3( 0, 0, 1 ) ), frHash( i + vec3( 1, 0, 1 ) ), f.x ),',
+    '                   mix( frHash( i + vec3( 0, 1, 1 ) ), frHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z ); }',
+    'float frFbm( vec3 x ) { return 0.5 * frNoise( x ) + 0.3 * frNoise( 2.03 * x ) + 0.2 * frNoise( 4.01 * x ); }',
+    'float frBand( float x, float c, float hw, float px ) {',
+    '  float d = min( abs( x - c ), min( abs( x - c + uFrPitch ), abs( x - c - uFrPitch ) ) );',
+    '  return clamp( ( hw - d ) / px + 0.5, 0.0, 1.0 ); }',
     // a height (m) on the surface -> the normal it gives (screen-space derivatives, like a Bump node)
     'vec3 frBumped( vec3 pos, vec3 nrm, float h, float strength ) {',
     '  vec3 sx = dFdx( pos ), sy = dFdy( pos );',
@@ -767,6 +797,41 @@
     '  float frLook = frGreaseK;',
     '  float frRelief = ( frH * frFadeS + frWire * frFadeW * uFrWireH ) * uFrPitch * uFrStrandR;'].join('\n');
 
+  var SERVED_COLOR = [
+    '  float frSp = vFrSt.x - uFrPay;',
+    '  float frTh = 6.283185307179586 * vFrSt.y;',
+    '  vec2 frCs = vec2( cos( frTh ), sin( frTh ) );',
+    '  float frG = frSp / uFrYarnPitch + floor( uFrYarnStarts + 0.5 ) * vFrSt.y;',
+    '  float frX = 2.0 * fract( frG ) - 1.0;',
+    '  float frH = sqrt( max( 1.0 - frX * frX, 0.0 ) );',
+    '  float frNa = abs( floor( uFrYarnStarts + 0.5 ) );',
+    '  float frStrand = mod( floor( frG ), frNa > 0.5 ? frNa : 1.0e7 );',   // round the serving: no seam
+    '  float frGm = fract( frG ) + frStrand;',
+    '  float frShade = 1.0 + ( frHash( vec3( frStrand, 0.37, 1.7 ) ) - 0.5 ) * 2.0 * uFrVariation;',
+    '  float frAlong = uFrRadius / ( 4.0 * uFrYarnPitch );',
+    '  float frFibre = clamp( ( frNoise( vec3( frGm * uFrFibres, frCs * frAlong ) ) - 0.3 ) / 0.4, 0.0, 1.0 );',
+    '  vec3 frWhere = vec3( frSp, frCs * uFrRadius );',
+    '  float frLo = 0.75 - 0.3 * uFrWear;',
+    '  float frDust = clamp( clamp( ( frFbm( frWhere * 14.0 ) - frLo ) / max( 0.8 - frLo, 1e-3 ), 0.0, 1.0 )',
+    '                        * ( 1.2 - frH ) * ( 0.8 * uFrWear + 0.1 ), 0.0, 1.0 );',
+    '  float frPx = max( length( fwidth( vec2( frSp, frCs.x * uFrRadius ) ) ), 1e-5 );',
+    '  float frHalf = 0.5 * uFrWidth;',
+    '  float frXb = mod( frSp, uFrPitch );',
+    '  float frJag = ( frFbm( frWhere * 40.0 ) - 0.5 ) * 1.4 + ( frHash( vec3( frStrand, 5.1, 0.3 ) ) - 0.5 ) * 0.6;',
+    '  float frXr = frXb + frJag * 2.0 * uFrRag * ( 0.33 + 0.67 * uFrBandWear );',
+    '  float frC2 = uFrWidth + uFrGap + frHalf;',
+    '  float frDrawn = max( frBand( frXr, frHalf, frHalf, frPx ),',
+    '                       uFrCount > 1.5 ? frBand( frXr, frC2, frHalf, frPx ) : 0.0 );',
+    '  float frSLo = 0.62 - 0.18 * uFrBandWear;',
+    '  float frSmudge = clamp( clamp( ( frFbm( frWhere * 6.0 ) - frSLo ) / 0.12, 0.0, 1.0 ) * ( 0.8 * uFrBandWear + 0.1 ), 0.0, 1.0 );',
+    '  float frThin = ( 1.0 - frH ) * ( 1.0 - frH ) * uFrBandWear;',
+    '  float frLook = frDrawn * ( 1.0 - max( frSmudge, frThin ) );',
+    '  float frK = frShade * ( 1.0 + ( frFibre - 0.5 ) * 0.5 ) * ( 0.55 + 0.45 * frH );',
+    '  vec3 frYarnC = mix( uFrYarn * frK, uFrDust, frDust );',
+    '  diffuseColor.rgb = mix( frYarnC, uFrBand * ( 0.75 + 0.25 * frH ), frLook );',
+    '  float frFade = smoothstep( 1.5, 4.0, uFrYarnPitch / frPx );',
+    '  float frRelief = ( 0.85 * frH + 0.15 * frFibre ) * frFade * uFrYarnPitch * uFrStrandH;'].join('\n');
+
   function tubeMaterial(src, tb) {
     var look = tb.spec.look || null, kind = look ? look.kind : 'PLAIN';
     var m = src.clone();
@@ -792,8 +857,15 @@
         if (f.indexOf(inc) < 0) { page.errors.push('tubes: three.js shader has changed (' + inc + ')'); mark(); }
       });
       f = LOOK_HEAD + '\n' + f.replace('#include <color_fragment>', '#include <color_fragment>\n' +
-                                       (kind === 'ROPE' ? ROPE_COLOR : POWER_COLOR));
-      if (kind === 'ROPE') {
+                                       (kind === 'ROPE' ? ROPE_COLOR : kind === 'SERVED' ? SERVED_COLOR : POWER_COLOR));
+      if (kind === 'SERVED') {
+        f = f.replace('#include <roughnessmap_fragment>',
+                      '#include <roughnessmap_fragment>\nroughnessFactor = mix( uFrYarnRough, uFrPaintRough, frLook );')
+             .replace('#include <metalnessmap_fragment>',
+                      '#include <metalnessmap_fragment>\nmetalnessFactor = 0.0;')
+             .replace('#include <normal_fragment_maps>',
+                      '#include <normal_fragment_maps>\nnormal = frBumped( - vViewPosition, normal, frRelief, uFrBump );');
+      } else if (kind === 'ROPE') {
         f = f.replace('#include <roughnessmap_fragment>',
                       '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, uFrGreaseRough, frLook );')
              .replace('#include <metalnessmap_fragment>',
@@ -861,7 +933,16 @@
       uFrGreaseAmount: { value: +L0.grease_amount || 0 }, uFrGreaseMetal: { value: +L0.grease_metallic || 0 },
       uFrGreaseRough: { value: +L0.grease_rough || 0.5 }, uFrWireDark: { value: +L0.wire_dark || 0 },
       uFrStrandR: { value: +L0.strand_radius || 0 }, uFrWireH: { value: +L0.wire_height || 0 },
-      uFrBump: { value: +L0.bump || 0 } };
+      uFrBump: { value: +L0.bump || 0 },
+      uFrCount: { value: +L0.count || 1 }, uFrGap: { value: +L0.gap || 0 },
+      uFrYarnPitch: { value: +L0.yarn_pitch || 0.0025 }, uFrYarnStarts: { value: +L0.yarn_starts || 0 },
+      uFrRadius: { value: +L0.radius || 0.15 }, uFrWear: { value: +L0.wear || 0 },
+      uFrBandWear: { value: +L0.band_wear || 0 }, uFrYarn: { value: c(L0.yarn || [0.005, 0.005, 0.005]) },
+      uFrBand: { value: c(L0.band || [0.88, 0.55, 0]) }, uFrDust: { value: c(L0.dust || [0.1, 0.1, 0.09]) },
+      uFrVariation: { value: +L0.variation || 0 }, uFrFibres: { value: +L0.fibres || 5 },
+      uFrRag: { value: +L0.rag || 0 }, uFrStrandH: { value: +L0.strand_height || 0 },
+      uFrYarnRough: { value: L0.yarn_rough != null ? +L0.yarn_rough : 0.8 },
+      uFrPaintRough: { value: L0.paint_rough != null ? +L0.paint_rough : 0.6 } };
   }
 
   // the parts with extras.fr_tube: their arrays read from the file, then the drawn tube put in place of the mesh

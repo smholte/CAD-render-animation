@@ -156,6 +156,15 @@ def _world_changed(self, context):
             print("Fresing Render: background update failed:", exc)
 
 
+def _sea_cutaway_changed(self, context):
+    """The cut-away went on or off. Task 0148: when a part reaches below the seabed (the water level over the machine's
+    lowest point is more than the water depth) the ground is cut too: its setting goes on by itself."""
+    if self.sea_cutaway and not self.sea_cut_ground and self.water_level > self.sea_depth + 0.05:
+        self.sea_cut_ground = True               # (its own update builds the surroundings)
+        return
+    _world_changed(self, context)
+
+
 def _props_shown(self, context):
     from . import surroundings
     surroundings.set_props_visible(context.scene, self.props_visible)
@@ -2359,13 +2368,16 @@ class FRCable(bpy.types.PropertyGroup):
         name="Look", default="POWER", update=_cable_changed,
         description="How the cable looks. The pattern runs along with the cable, so you see it move",
         items=[("POWER", "Power cable", "Black with yellow stripes at an angle"),
+               ("SERVED", "Served cable (yarn)", "Black yarn served round the cable, with pairs of yellow marker "
+                "bands, as on large export and array cables"),
                ("ROPE", "Steel wire rope", "Twisted steel strands, as on a winch"),
                ("PLAIN", "Plain", "The look the part has in 3 Looks: nothing shows the cable moving")])
     pitch: FloatProperty(
         name="Stripe distance", unit="LENGTH", default=0.5, min=0.005, soft_max=5.0, precision=4,
         update=_cable_changed,
-        description="Power cable: the distance from one yellow stripe to the next along the cable, in mm. Steel "
-                    "wire rope: the length of one full twist of a strand (about 6 to 7 times the diameter)")
+        description="Power cable: the distance from one yellow stripe to the next along the cable, in mm. Served "
+                    "cable: the distance from one group of marker bands to the next. Steel wire rope: the length of "
+                    "one full twist of a strand (about 6 to 7 times the diameter)")
     angle: FloatProperty(
         name="Stripe angle", subtype="ANGLE", default=math.radians(45.0), min=math.radians(5.0),
         max=math.radians(90.0), update=_cable_changed,
@@ -2374,6 +2386,47 @@ class FRCable(bpy.types.PropertyGroup):
     stripe: FloatProperty(
         name="Stripe width", subtype="FACTOR", default=0.3, min=0.05, max=0.95, update=_cable_changed,
         description="How much of the cable is yellow: 0.3 = stripes a bit under a third of the distance wide")
+    # the served cable (task 0158): its yarn and its marker bands
+    yarn_pitch: FloatProperty(
+        name="Yarn pitch", unit="LENGTH", default=0.0025, min=0.0002, soft_max=0.02, precision=4,
+        update=_cable_changed,
+        description="Served cable: how far apart the yarn strands lie along the cable, in mm (2 to 3 mm on a large "
+                    "export cable). Smaller gives finer grooves")
+    yarn_angle: FloatProperty(
+        name="Lay angle", subtype="ANGLE", default=math.radians(82.0), min=math.radians(30.0),
+        max=math.radians(90.0), update=_cable_changed,
+        description="Served cable: the angle between a yarn strand and the cable. Near 90° the strands go almost "
+                    "straight round the cable, as on a real serving")
+    yarn_color: FloatVectorProperty(
+        name="Yarn colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(0.0045, 0.0045, 0.0049),
+        update=_cable_changed,
+        description="Served cable: the colour of the yarn. Black polypropylene by default; each strand is drawn a "
+                    "little darker or lighter")
+    wear: FloatProperty(
+        name="Wear", subtype="FACTOR", default=0.35, min=0.0, max=1.0, update=_cable_changed,
+        description="Served cable: how used the yarn looks. 0 = new and clean, 1 = dusty, with lint caught "
+                    "between the strands")
+    band_count: EnumProperty(
+        name="Bands", default="PAIR", update=_cable_changed,
+        description="Served cable: one marker band at each place, or two close together",
+        items=[("PAIR", "Pairs", "Two bands with a gap between them at each place"),
+               ("SINGLE", "Single", "One band at each place")])
+    band_width: FloatProperty(
+        name="Band width", unit="LENGTH", default=0.035, min=0.002, soft_max=0.2, precision=4,
+        update=_cable_changed,
+        description="Served cable: how wide one marker band is along the cable, in mm (30 to 40 mm on a large "
+                    "export cable)")
+    band_gap: FloatProperty(
+        name="Band gap", unit="LENGTH", default=0.03, min=0.0, soft_max=0.2, precision=4, update=_cable_changed,
+        description="Served cable: the black gap between the two bands of a pair, in mm")
+    band_color: FloatVectorProperty(
+        name="Band colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(0.879, 0.546, 0.0),
+        update=_cable_changed,
+        description="Served cable: the colour of the painted marker bands. Traffic yellow by default")
+    band_wear: FloatProperty(
+        name="Paint wear", subtype="FACTOR", default=0.35, min=0.0, max=1.0, update=_cable_changed,
+        description="Served cable: how worn the bands' paint is. 0 = fresh with clean edges, 1 = ragged edges, "
+                    "paint gone from the grooves and smudged black in places")
     mbr: FloatProperty(
         name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_changed,
         description="The tightest bend the cable may make (its minimum bend radius, MBR), in mm, measured to the "
@@ -3525,9 +3578,14 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         description="How far you can see through the water (m): 5 to 10 m is a usual North Sea, 30 to 40 m very "
                     "clear water. Things further away behind the water fade into the water's colour")
     sea_cutaway: BoolProperty(
-        name="Cut-away behind the stern", default=False, update=_world_changed,
+        name="Cut-away behind the stern", default=False, update=_sea_cutaway_changed,
         description="Takes a box of water away behind the stern so you see the cable hang down to the seabed. "
                     "Its walls show the water's colour and clarity")
+    sea_cut_ground: BoolProperty(
+        name="Show the ground in the cut-away", default=False, update=_world_changed,
+        description="The cut goes on into the ground: a soil section (layers from sand to clay) where the box cuts the "
+                    "seabed, so a pile or anything else below the seabed shows down to its end. It goes on by itself "
+                    "when a part reaches below the seabed. Off: the seabed stays closed")
     sea_cut_auto: BoolProperty(
         name="Place it by the cable", default=True, update=_world_changed,
         description="On: the box reaches from the stern to past the touch-down of the cable into the sea. Off: "

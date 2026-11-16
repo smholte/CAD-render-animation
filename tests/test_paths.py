@@ -536,6 +536,39 @@ def test_the_look_and_the_ropes_hand(rope):
     assert part["fr_group_manual"] == "My ropes" and part[build.PROP_GROUP] == "My ropes"
 
 
+def test_the_served_look(rope):
+    """Task 0158: Look = Served cable puts every look property on the part (the yarn's starts from its lay angle, with
+    the hand of the power cable's stripes), its group and material, the band distance as pitch; another look takes the
+    served properties off again."""
+    sc = rope
+    it = cable(sc)
+    part = it.part
+    it.look = "SERVED"
+    it = cable(sc)
+    assert part["fr_group_manual"] == "Served cables" and sc.fresing.groups["Served cables"].material == "cable_served"
+    assert it.pitch == pytest.approx(1.25)                               # the band distance, not from the diameter
+    want = cable_looks.served_props(it.diameter, 1.25, it.band_width, 2, it.band_gap, it.yarn_pitch,
+                                    -it.yarn_angle, it.wear, it.band_wear, tuple(it.yarn_color), tuple(it.band_color))
+    for key in cable_looks.PROPS:
+        assert list(part[key]) == pytest.approx(want[key]), key
+    assert paths.look_of(it) == pytest.approx(want[cable_looks.LOOK]) and want[cable_looks.LOOK][3] == 3.0
+    assert part[cable_looks.YARN][1] < 0                                 # the hand: as the stripes'
+    it.band_count, it.band_width, it.wear, it.yarn_pitch = "SINGLE", 0.05, 0.9, 0.003
+    it = cable(sc)
+    assert list(part[cable_looks.BAND])[0] == 1.0 and part[cable_looks.LOOK][2] == pytest.approx(0.05)
+    assert part[cable_looks.YARN][3] == pytest.approx(0.9) and part[cable_looks.YARN][0] == pytest.approx(0.003)
+    update()
+    mat = part.evaluated_get(bpy.context.evaluated_depsgraph_get()).material_slots[0].material
+    assert cable_looks.NODE_YARN in cable_looks.nodes_of(mat)
+    it.look = "POWER"
+    it = cable(sc)
+    assert all(k not in part for k in cable_looks.PROPS[1:]) and list(part[cable_looks.LOOK])[3] == 1.0
+    assert it.pitch == pytest.approx(0.1)                                # back to the usual stripe distance
+    it.look = "SERVED"
+    it.look = "PLAIN"
+    assert all(k not in part for k in cable_looks.PROPS)
+
+
 # ---------------------------------------------------------------------------
 # everything it touches turns
 # ---------------------------------------------------------------------------

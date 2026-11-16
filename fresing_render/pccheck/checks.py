@@ -360,6 +360,32 @@ def looks_marine(ctx):
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
 
 
+@line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
+      what="The test carousel's power cable with Look = Served cable (yarn): black yarn served almost straight round "
+           "it and pairs of yellow painted bands, on the cable and on its coil; built, the bands run with the cable. "
+           "A close-up is rendered small (processor, draft): judge the fine grooves, the darker and lighter strands, "
+           "the ragged band edges")
+def looks_served_cable(ctx):
+    from ..blender import animation, render, tour
+    scene = ctx.fresh(SPOOL)
+    s = scene.fresing
+    made = tour.served_demo(scene)
+    tour.served_camera(scene)
+    a = s.animations[made["animation"]]
+    info = animation.bake(scene, a)
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_served(scene)
+    scene.frame_set(scene.frame_start)
+    _small_output(s)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "served_cable.png")
+    t0 = time.time()
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.metric("render the served cable close-up", time.time() - t0, "s")
+    ctx.picture(path, "served_cable", "The served cable leaving the carousel: yarn and yellow bands (processor, draft)")
+    return note
+
+
 @line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
@@ -1917,6 +1943,84 @@ def scene_sea(ctx):
     _check(surroundings.root_object() is not None, "the sea was not built")
     _small_output(s)
     info = _cpu_still(ctx, scene, "sea", "Open sea (processor, draft)", model_check=False)
+    return f"rendered in {info['seconds']} s"
+
+
+@line("scene.sea_ground", "Sea cut-away: the ground and a pile below the seabed", "0.2.115",
+      what="The crane on the open sea with a bright red pile that goes 30 m into the ground; the cut-away box round the "
+           "pile also cuts the seabed: the soil section shows (layers) and the pile is seen down into it, rendered "
+           "small (processor, draft); with the ground off the same view shows no pile (task 0148)")
+def scene_sea_ground(ctx):
+    import bmesh
+    import bpy
+    import numpy as np
+
+    from ..blender import build, cameras, surroundings
+    from .runner import read_pixels
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.env_detail, s.background = "SIMPLE", "SEA"
+    root = build.model_roots(scene)[0]
+    low = float(build.world_bounds(list(build.iter_parts(scene)))[0][2])
+    foot = low - 30.0                                  # the pile's foot: 30 m under the crane's lowest point
+    me = bpy.data.meshes.new("Test pile")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=1.5, radius2=1.5, depth=40.0)
+    bmesh.ops.translate(bm, vec=(0.0, 0.0, foot + 20.0), verts=bm.verts)
+    bm.to_mesh(me)
+    bm.free()
+    mat = bpy.data.materials.new("Test pile red")
+    mat.diffuse_color = (1.0, 0.0, 0.0, 1.0)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (1.0, 0.0, 0.0, 1.0)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    me.materials.append(mat)
+    pile = bpy.data.objects.new("Test pile", me)
+    scene.collection.objects.link(pile)
+    pile.parent = root
+    pile[build.PROP_KIND] = "part"
+    pile[build.PROP_UID] = "test pile"
+    bpy.context.view_layer.update()
+    mn, mx = surroundings._model_box(scene)
+    s.sea_depth = 30.0
+    s.water_level = float(low - float(mn[2]) + 30.0)   # the water 30 m over the pile's foot: the seabed at the crane's foot
+    s.sea_cut_auto = False
+    s.sea_cut_length = s.sea_cut_width = 30.0
+    s.sea_cut_start = float(mn[0]) - 15.0
+    s.sea_cut_side = -float(mn[1] + mx[1]) / 2.0
+    s.sea_cutaway = True
+    _check(s.sea_cut_ground, "the ground did not go on by itself although a part reaches below the seabed")
+    soil = [o for o in bpy.data.objects if o.get(surroundings.TAG) == "soil"]
+    _check(len(soil) == 1, f"{len(soil)} soil sections were made (1 wanted)")
+    water = surroundings.waterline(scene)
+    _check(abs(soil[0]["fr_soil_depth"] - 35.0) < 1.0, f"the soil section is {soil[0]['fr_soil_depth']:.1f} m deep "
+                                                      "(the pile's 30 m and 5 m more wanted)")
+    _small_output(s, 192, 108)
+    cam = cameras.add_camera(scene, "ISO", 30.0, "Ground view")
+    from mathutils import Vector
+    eye, at = Vector((-12.0, 0.0, water + 14.0)), Vector((0.0, 0.0, water - 30.0 - 12.0))
+    cam.matrix_world = (at - eye).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    cam.matrix_world.translation = eye
+    cam.data.lens = 60.0
+    scene.camera = cam
+    info = _cpu_still(ctx, scene, "sea_ground", "The pile below the seabed in the cut-away (processor, draft)",
+                      model_check=False)
+    px = read_pixels(os.path.join(ctx.work, "sea_ground.png"))
+    h, w = px.shape[:2]
+    red = (px[..., 0] > 0.5) & (px[..., 1] < 0.15) & (px[..., 2] < 0.15)
+    _check(red[h // 2 - 6:h // 2 + 6, w // 2 - 6:w // 2 + 6].any(), "the pile below the seabed is not seen in the cut")
+    s.sea_cut_ground = False                           # the same view, the seabed closed
+    path = os.path.join(ctx.work, "sea_ground_off.png")
+    from ..blender import render
+    render.render_still(scene, s, "draft", filepath=path)
+    off = read_pixels(path)
+    shut = (off[..., 0] > 0.5) & (off[..., 1] < 0.15) & (off[..., 2] < 0.15)
+    _check(shut[h // 2 - 6:h // 2 + 6, w // 2 - 6:w // 2 + 6].sum() < red[h // 2 - 6:h // 2 + 6, w // 2 - 6:w // 2 + 6].sum()
+           // 2 + 1, "with the ground off the pile below the seabed is still seen")
     return f"rendered in {info['seconds']} s"
 
 

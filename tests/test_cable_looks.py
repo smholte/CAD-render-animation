@@ -36,7 +36,8 @@ def test_library_entries():
     assert m["wire_rope"]["category"] == "Metal" and m["wire_rope"]["cable"]["kind"] == "ROPE"
     assert materials_lib.UIDS["pom_black"] == 48                     # the last number before this task
     assert materials_lib.UIDS["cable_power"] == 49 and materials_lib.UIDS["wire_rope"] == 50
-    assert CL.MATERIALS == {"POWER": "cable_power", "ROPE": "wire_rope"} and CL.KINDS == {"POWER": 1.0, "ROPE": 2.0}
+    assert CL.MATERIALS == {"POWER": "cable_power", "ROPE": "wire_rope", "SERVED": "cable_served"}
+    assert CL.KINDS == {"POWER": 1.0, "ROPE": 2.0, "SERVED": 3.0}
     assert (CL.PAY, CL.LOOK, CL.ATTR, CL.PAY_BIAS) == ("fr_cable_pay", "fr_cable_look", "fr_cable", 2.0)
     # the sheath is the plain black cable's, the rope's base a grey metal
     black = m["cable_black"]
@@ -341,7 +342,8 @@ def test_material_is_built_by_the_apps_own_path(scene):
         assert t.ob.material_slots[0].material is mat
         nodes = CL.nodes_of(mat)
         want = {CL.NODE_ATTR, CL.NODE_PAY, CL.NODE_LOOK, CL.NODE_PATTERN, CL.NODE_HAS}
-        assert set(nodes) == want | ({CL.NODE_WIRES} if kind == "ROPE" else set())
+        own = {"ROPE": {CL.NODE_WIRES}, "SERVED": {CL.NODE_YARN, CL.NODE_PAINT}}.get(kind, set())
+        assert set(nodes) == want | own
         a, p, lk = nodes[CL.NODE_ATTR], nodes[CL.NODE_PAY], nodes[CL.NODE_LOOK]
         assert (a.attribute_type, a.attribute_name) == ("GEOMETRY", "fr_cable")
         assert (p.attribute_type, p.attribute_name) == ("OBJECT", "fr_cable_pay")
@@ -349,7 +351,7 @@ def test_material_is_built_by_the_apps_own_path(scene):
         _only_nodes_both_engines_know(mat)
         bsdf = next(n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
         assert bsdf.inputs["Base Color"].is_linked and bsdf.inputs["Roughness"].is_linked
-        assert bsdf.inputs["Normal"].is_linked == (kind == "ROPE")                 # a bump for the strands only
+        assert bsdf.inputs["Normal"].is_linked == (kind != "POWER")               # a bump for strands and yarn
         assert bsdf.inputs["Metallic"].is_linked == (kind == "ROPE")
         # no cable look: the hook leaves a material alone
         plain = bpy.data.materials.new("plain")
@@ -374,7 +376,8 @@ def _only_nodes_both_engines_know(mat):
     assert not any(n.bl_idname in ("ShaderNodeTexImage", "ShaderNodeTexEnvironment", "ShaderNodeGroup")
                    for n in nodes)
     assert mat.node_tree.animation_data is None                                   # no drivers inside the material
-    assert sum(n.bl_idname == "ShaderNodeAttribute" for n in nodes) == 3
+    served = CL.NODE_YARN in nodes                                                # + yarn, band, their colours
+    assert sum(n.bl_idname == "ShaderNodeAttribute" for n in nodes) == (7 if served else 3)
 
 
 def test_stripes_move_by_exactly_the_paid_out_length(scene, tmp_path):
@@ -723,6 +726,17 @@ p = B.Tube("cable_power", None, None, attr=False, name="plain")       # no attri
 p.camera()
 px = B.render({out!r} + "/plain.exr")
 print("PLAIN", float((px[:, :, 0] - px[:, :, 2]).max()))
+B.bpy.data.objects.remove(p.ob)
+v, props = B._served_tube(pay=0.123, distance=0.25, width=0.04, gap=0.025)
+v.camera()
+px = B.render({out!r} + "/served.exr")
+s, phi = v.seen()
+want = CL.bands(s, 0.123, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+q = px[:, :, 0] - px[:, :, 2]
+print("SERVED", float(q[want == 1.0].mean() - q[want == 0.0].mean()))
+v.probe()
+got = B.render({out!r} + "/served.exr")[:, :, 0]
+print("BANDS", float(np.abs(got - want)[(want == 0) | (want == 1)].mean()))
 """
 
 
@@ -735,15 +749,172 @@ def test_both_looks_in_eevee(tmp_path):
     here = os.path.dirname(os.path.abspath(__file__))
     code = EEVEE_CHILD.format(root=os.path.dirname(here), tests=here, out=str(tmp_path))
     p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=600)
-    names = ("EDGE", "POWER", "CROWN", "ROPE", "PLAIN")
+    names = ("EDGE", "POWER", "CROWN", "ROPE", "PLAIN", "SERVED", "BANDS")
     got = dict(line.split() for line in p.stdout.splitlines() if line.split(" ")[0] in names)
     if "EDGE" not in got and (p.returncode < 0 or p.returncode == 134):
         fresh()
         for mid in CL.MATERIALS.values():
             _only_nodes_both_engines_know(materials.ensure_material(f"EEVEE {mid}", mid))
         return
-    assert len(got) == 5, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
+    assert len(got) == 7, (p.returncode, p.stdout[-2000:], p.stderr[-2000:])
     print("\nEEVEE:", got)
     assert float(got["EDGE"]) < 1.0 and float(got["POWER"]) < 0.03, got            # EDGE in pixels
     assert float(got["ROPE"]) < 0.03 and float(got["CROWN"]) > 1.3, got
     assert float(got["PLAIN"]) < 0.02, got
+    assert float(got["SERVED"]) > 0.2 and float(got["BANDS"]) < 0.03, got                # task 0158
+
+
+# ---- the served cable (task 0158) ---------------------------------------------------------------------------------
+
+def test_served_library_and_properties():
+    m = materials_lib.MATERIALS["cable_served"]
+    assert m["category"] == "Plastic & rubber" and m["cable"]["kind"] == "SERVED" and materials_lib.UIDS[
+        "cable_served"] == 56
+    assert m["sheen"] > 0.3                                                          # the fuzz along the strands
+    assert CL.kind_name(3.0) == "SERVED" and CL.kind_name(2.0) == "ROPE" and CL.kind_name("served") == "SERVED"
+    p = CL.served_props(0.3)                                                         # the library's settings
+    d = CL.defaults("SERVED")
+    assert set(p) == set(CL.PROPS) and all(isinstance(v, float) for vs in p.values() for v in vs)
+    assert p[CL.LOOK] == [1.25, 0.0, 0.035, 3.0] and p[CL.BAND][:3] == [2.0, 0.03, d["band_wear"]]
+    # strands round the cable from the lay angle: π · d / (pitch · tan α), whole, signed
+    assert p[CL.YARN][:3] == [0.0025, float(math.floor(PI * 0.3 / (0.0025 * math.tan(d["lay_angle"])) + 0.5)), 0.15]
+    assert CL.served_props(0.3, yarn_pitch=0.003, lay_angle=math.radians(-80))[CL.YARN][1] == -55.0     # 55.4
+    assert CL.served_props(0.3, lay_angle=math.radians(90))[CL.YARN][1] == 0.0                # rings
+    assert CL.served_props(2.0, yarn_pitch=0.0002, lay_angle=0.05)[CL.YARN][1] == CL.YARN_STARTS_MAX
+    q = CL.served_props(0.2, 1.5, 0.05, 1, 0.02, 0.002, math.radians(85), 0.9, 0.1, (0.1, 0.2, 0.3), (1, 0, 0))
+    assert q[CL.LOOK] == [1.5, 0.0, 0.05, 3.0] and q[CL.YARN][2:] == [0.1, 0.9] and q[CL.BAND][:3] == [1.0, 0.02, 0.1]
+    assert q[CL.YARN_RGB] == [0.1, 0.2, 0.3] and q[CL.BAND_RGB] == [1.0, 0.0, 0.0]
+    assert CL.served_props(0.2, 1.0, 3.0)[CL.LOOK][2] == 1.0                        # a band no wider than the distance
+    assert CL.served_props(0.2, wear=4, band_wear=-1)[CL.YARN][3] == 1.0 and CL.served_props(
+        0.2, band_wear=-1)[CL.BAND][2] == 0.0
+
+
+def test_served_bands_spacing_width_and_travel():
+    look = [1.25, 0.0, 0.035, 3.0]
+    pair = [2.0, 0.03, 0.3, 0.0]
+    s = np.linspace(0.0, 50.0, 2_000_001)                       # 25 µm steps
+    for paid in (0.0, 0.37, -12.3, 1234.5):
+        on = CL.bands(s, paid, look, pair)
+        rises = s[1:][(on[1:] > 0.5) & (on[:-1] < 0.5)]
+        falls = s[1:][(on[1:] < 0.5) & (on[:-1] > 0.5)]
+        # pairs: a band at paid + k · 1.25, the second 0.035 + 0.03 later; each 35 mm wide
+        k = np.round((rises - paid) / 1.25)
+        off = rises - paid - 1.25 * k
+        assert np.all((np.abs(off) < 5e-5) | (np.abs(off - 0.065) < 5e-5)), paid
+        assert len(rises) == len(falls) and np.allclose(falls - rises if falls[0] > rises[0] else falls[1:] - rises[:-1],
+                                                          0.035, atol=5e-5)
+        assert abs(on.mean() - 2 * 0.035 / 1.25) < 1e-4
+        # a mark moves by exactly the paid-out length
+        assert (CL.bands(s + 7.25, paid + 7.25, look, pair) != on).mean() < 1e-4      # (rounding at edges)
+    single = CL.bands(s, 0.0, look, [1.0, 0.03, 0.3, 0.0])
+    assert abs(single.mean() - 0.035 / 1.25) < 1e-4
+    # the library's when the properties are missing (zeros, None)
+    assert np.array_equal(CL.bands(s, 0.3, None, None), CL.bands(s, 0.3, look, [2.0, 0.03, 0.35, 0.0]))
+    assert np.array_equal(CL.bands(s, 0.3, [0, 0, 0, 0], [0, 0, 0, 0]), CL.bands(s, 0.3, look, pair))
+    # the soft edge: 50 % where the hard edge is, a band as much colour as before
+    assert abs(CL.bands(1.25, 0.0, look, pair, edge=0.002) - 0.5) < 1e-9
+    assert abs(CL.bands(1.25 + 0.035, 0.0, look, pair, edge=0.002) - 0.5) < 1e-9
+    assert abs(CL.bands(s, 0.0, look, pair, edge=0.002).mean() - 2 * 0.035 / 1.25) < 1e-4
+    # a group longer than the distance comes round again from 0
+    assert CL.bands(0.01, 0.0, [0.08, 0, 0.035, 3], pair) == 1.0 and CL.bands(0.07, 0.0, [0.08, 0, 0.035, 3], pair) == 1.0
+
+
+def test_served_yarn_pitch_and_lay():
+    yarn = CL.served_props(0.3)[CL.YARN]
+    n = yarn[1]
+    s = np.linspace(10.0, 10.1, 400_001)
+    h = CL.yarn(s, 0.0, 0.0, yarn)
+    crowns = s[1:-1][(h[1:-1] > h[:-2]) & (h[1:-1] >= h[2:]) & (h[1:-1] > 0.99)]
+    assert np.allclose(np.diff(crowns), 0.0025, atol=1e-6)                         # a strand every 2.5 mm
+    # once round the cable: n strands further, the same strand (no seam)
+    g = CL.yarn_phase(3.3, -PI, 0.0, yarn)
+    assert CL.yarn_phase(3.3, PI, 0.0, yarn) - g == pytest.approx(n)
+    # along a strand the phase stays: it climbs one pitch per 1/n turn – the lay angle
+    d = CL.defaults("SERVED")
+    assert math.degrees(math.atan(PI * 0.3 / n / 0.0025)) == pytest.approx(math.degrees(d["lay_angle"]), abs=0.5)
+    assert CL.yarn_phase(3.3 - 0.0025 * n * 0.1, 0.1 * 2 * PI, 0.0, yarn) == pytest.approx(
+        CL.yarn_phase(3.3, 0.0, 0.0, yarn))
+    # the yarn travels with the paid-out length
+    assert np.allclose(CL.yarn(s + 3.0, 0.4, 3.0, yarn), CL.yarn(s, 0.4, 0.0, yarn))
+
+
+def _served_tube(pay=0.0, length=0.6, **kw):
+    props = CL.served_props(0.12, **kw)
+    t = Tube("cable_served", props[CL.LOOK], pay=pay, length=length)
+    for k, v in props.items():
+        t.ob[k] = v
+    return t, props
+
+
+def test_served_nodes_are_the_formula(scene, tmp_path):
+    """The clean bands and the yarn's height, shown as light, against ``bands`` and ``yarn`` (yarn coarse enough to
+    be seen at 2 mm a pixel), from two sides – one the side where the angle jumps."""
+    t, props = _served_tube(pay=0.21, distance=0.25, width=0.04, gap=0.025, yarn_pitch=0.03,
+                            lay_angle=math.radians(70))
+    for view in (PI / 2, PI):
+        t.camera(view)
+        s, phi = t.seen()
+        t.probe(CL.NODE_PATTERN)
+        got = render(tmp_path / "bands.exr", samples=16)[:, :, 0]
+        want = CL.bands(s, 0.21, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+        clear = (want == 0.0) | (want == 1.0)
+        assert clear.mean() > 0.8 and np.abs(got - want)[clear].max() < 0.06, view
+        assert abs(got.mean() - want.mean()) < 0.02 and want.mean() > 0.2, view
+        t.probe(CL.NODE_YARN)
+        got = render(tmp_path / "yarn.exr", samples=16)[:, :, 0]
+        want = CL.yarn(s, phi, 0.21, props[CL.YARN]).mean(axis=2)
+        assert np.abs(got - want).mean() < 0.03, (view, np.abs(got - want).mean())
+    assert t.width / W == pytest.approx(0.002)
+
+
+def test_served_look_in_the_real_material(scene, tmp_path):
+    """As the app builds it (Cycles): yellow on the bands, near black on the yarn; the bands go by exactly the paid-out
+    length; a bigger wear gives more dust on the yarn and less paint; a part without the yarn's properties shows the
+    library's served look."""
+    t, props = _served_tube(pay=0.0, distance=0.25, width=0.04, gap=0.025)
+    t.camera(PI / 2)
+    s, phi = t.seen()
+    cols = []
+    for paid in (0.0, 0.1):
+        t.pay(paid)
+        px = render(tmp_path / "served.exr", samples=16)
+        want = CL.bands(s, paid, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+        mid = slice(H // 2 - 6, H // 2 + 6)
+        q = (px[:, :, 0] - px[:, :, 2])[mid]
+        on, off = want[mid] == 1.0, want[mid] == 0.0
+        assert q[on].mean() > 0.2 and q[off].mean() < 0.02, (paid, q[on].mean(), q[off].mean())
+        assert px[mid][off].mean() < 0.06                                          # black yarn
+        # the edges (ragged by a few mm, a step per strand) lie where the formula has them
+        yel = (q > 0.5 * q[on].mean()).mean(axis=0)
+        cols.append(yel)
+        hit = ((yel > 0.5) == (want[mid].mean(axis=0) > 0.5)).mean()
+        assert hit > 0.9, (paid, hit)
+    assert np.argmax(np.correlate(cols[1], cols[0], "full")) - (W - 1) == round(0.1 / (t.width / W))
+    # wear: more dust on the yarn, less paint left
+    yarn_new = render(tmp_path / "w.exr", samples=16)
+    for k, v in CL.served_props(0.12, 0.25, 0.04, 2, 0.025, wear=1.0, band_wear=1.0).items():
+        t.ob[k] = v
+    worn = render(tmp_path / "w.exr", samples=16)
+    want = CL.bands(s, 0.1, props[CL.LOOK], props[CL.BAND]).mean(axis=2)
+    assert worn[want == 0.0].mean() > yarn_new[want == 0.0].mean()                  # dust
+    yq = lambda p: (p[:, :, 0] - p[:, :, 2])[want == 1.0].mean()                    # noqa: E731
+    assert yq(worn) < yq(yarn_new)                                                  # paint worn off
+    # no yarn / band properties (the look given to a part by hand): the library's
+    for k in CL.PROPS[1:]:
+        del t.ob[k]
+    t.look([0.0, 0.0, 0.0, 0.0])
+    t.probe(CL.NODE_PATTERN)
+    got = render(tmp_path / "lib.exr", samples=16)[:, :, 0]
+    lib = CL.bands(s, 0.1, None, None).mean(axis=2)
+    assert np.abs(got - lib)[(lib == 0) | (lib == 1)].max() < 0.06
+
+
+def test_served_coil_and_spool_copy_every_property():
+    """The spool's rope object carries the same look as its cable: every look property is copied (spool.py)."""
+    import inspect
+
+    from fresing_render.blender import paths, spool, web3d_drawn
+    assert "cable_looks.PROPS" in inspect.getsource(spool)
+    assert "cable_looks.PROPS" in inspect.getsource(paths._apply_look) and "cable_looks.PROPS" in inspect.getsource(
+        paths._strip)
+    assert paths.GROUPS["SERVED"] == "Served cables" and "SERVED" in inspect.getsource(web3d_drawn.look_of)
