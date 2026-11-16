@@ -1,7 +1,7 @@
 # 0142 – Web 3D model: cables, ropes, coils, hoses and tracks move and keep their looks on the page
 
-**Who:** worker · **Status:** waiting – starts **after 0134 is merged** (same files) · **Branch:**
-`task/0142-web-moving-cables`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:**
+`claude/cad-render-animation-0142-qdgqzy` (the web session's branch)
 **Started by:** lead chat, 15 Nov 2026 (owner compared the demo in the app and on the page, 15 Nov 23:28) ·
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Web 3D lane):** `blender/web3d.py` (what is exported for modifier-drawn parts), `core/web3d.py` (the file),
