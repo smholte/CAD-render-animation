@@ -1128,6 +1128,19 @@ def test_engine_on_the_lower_path_and_handling_winches_on_the_tensioner_lines(ma
         assert pos["quadrant_apex_x"] < Wk[0, 3] - 2500.0 < Wk[0, 3] + 1500.0 < pos["carousel_x"] - pos["well_r"]
 
 
+@pytest.mark.parametrize("d", [50.0, 100.0, 150.0, 200.0, 300.0, 400.0, 500.0])
+def test_carousel_is_full_to_the_rim(d):
+    """Task 0159: the carousel is full – the partly paid-out top layer lies at most one cable Ø below the rim's top –
+    and the number of full layers is odd, so the top layer is wound from the rim inwards, as the route that leaves
+    its innermost turn and the arch's guide cage expect (with an even number it ran the other way and the cable left
+    the cage's rollers)."""
+    p = Params(cable_d=d)
+    rim_top = p.turntable_t + p.rim_h
+    assert p.coil_layers % 2 == 1
+    assert rim_top - 2.0 * d < p.coil_top_z + d <= rim_top
+    assert Params(cable_d=d, coil_layers=15).coil_layers == 15            # a count typed in stays
+
+
 def test_carousel_coil_layers_and_cable_end_through_the_core(made):
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     from OCP.GeomAbs import GeomAbs_SurfaceType

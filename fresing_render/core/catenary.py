@@ -95,10 +95,36 @@ def suspended(a, h):
     return np.sqrt(h * h + 2.0 * a * h)
 
 
+SMALL = 8                       # this many moments or fewer: the bisections run on plain numbers (task 0159: posing a
+#                                 cable into the sea solved one moment with ~2,500 tiny array steps per catenary)
+
+
+def _acosh1p_1(q: float) -> float:
+    q = max(q, 0.0)
+    return math.log1p(q + math.sqrt(q * (q + 2.0)))
+
+
+def _a_for_span_1(X: float, h: float) -> float:
+    """``a_for_span`` for one moment, the same bisection on plain numbers."""
+    ratio = X / max(h, _TINY)
+    lo, hi = -80.0, 80.0
+    for _ in range(ROUNDS * 2):
+        mid = 0.5 * (lo + hi)
+        q = math.exp(mid)
+        if _acosh1p_1(q) / q > ratio:           # reaches further than wanted: q must grow
+            lo = mid
+        else:
+            hi = mid
+    return h / math.exp(0.5 * (lo + hi))
+
+
 def a_for_span(X, h):
     """The catenary parameter a whose touching-down catenary reaches X flat over the height h (bisection on
     ln(h / a); X/h falls from infinity to 0 as h/a grows)."""
     X, h = np.broadcast_arrays(np.asarray(X, dtype=float), np.asarray(h, dtype=float))
+    if X.size <= SMALL:
+        return np.array([_a_for_span_1(float(x), float(y)) for x, y in zip(X.reshape(-1), h.reshape(-1))]
+                        ).reshape(X.shape)
     ratio = X / np.maximum(h, _TINY)
     lo, hi = np.full(ratio.shape, -80.0), np.full(ratio.shape, 80.0)     # ln q
     for _ in range(ROUNDS * 2):
@@ -163,6 +189,20 @@ def _unit(v, fallback=None):
     return out
 
 
+def _a_normal_1(lo: float, hi: float, h: float, xi_c: float, eta: float, L: float) -> float:
+    """``hang``'s bisection on ln a for one moment, on plain numbers."""
+    for _ in range(ROUNDS):
+        mid = 0.5 * (lo + hi)
+        a = math.exp(mid)
+        X = a * _acosh1p_1(h / max(a, 1e-300))
+        x = xi_c - math.sqrt(max(X * X - eta * eta, 0.0))
+        if x + math.sqrt(h * h + 2.0 * a * h) > L:     # too long: a must grow
+            lo = mid
+        else:
+            hi = mid
+    return math.exp(0.5 * (lo + hi))
+
+
 def hang(top, start, aft, bottom_z, length) -> dict:
     """The cable from the hang-off points ``top`` (F, 3) down to its end lying on the seabed at ``start`` ((3,) or
     (F, 3); its z is not used), ``aft`` (3,) the flat direction the cable is laid in (from the vessel towards its
@@ -207,15 +247,18 @@ def hang(top, start, aft, bottom_z, length) -> dict:
     kind = np.where(L <= line + 1e-9, STRETCHED, kind)
     # NORMAL: bisection on ln a between a_flat (all laid) and a_full (nothing laid); x + s falls as a grows
     lo, hi = np.log(np.minimum(a_flat, a_full)), np.log(np.maximum(a_full, a_flat))
-    for _ in range(ROUNDS):
-        mid = 0.5 * (lo + hi)
-        a = np.exp(mid)
-        X = span(a, h)
-        x = xi_c - np.sqrt(np.maximum(X * X - eta * eta, 0.0))
-        long_ = x + suspended(a, h) > L                     # too long: a must grow
-        lo = np.where(long_, mid, lo)
-        hi = np.where(long_, hi, mid)
-    a_n = np.exp(0.5 * (lo + hi))
+    if F <= SMALL:
+        a_n = np.array([_a_normal_1(*v) for v in zip(lo, hi, h, xi_c, eta, L)])
+    else:
+        for _ in range(ROUNDS):
+            mid = 0.5 * (lo + hi)
+            a = np.exp(mid)
+            X = span(a, h)
+            x = xi_c - np.sqrt(np.maximum(X * X - eta * eta, 0.0))
+            long_ = x + suspended(a, h) > L                 # too long: a must grow
+            lo = np.where(long_, mid, lo)
+            hi = np.where(long_, hi, mid)
+        a_n = np.exp(0.5 * (lo + hi))
     X_n = span(a_n, h)
     x_n = np.clip(xi_c - np.sqrt(np.maximum(X_n * X_n - eta * eta, 0.0)), 0.0, None)
     s_n = suspended(a_n, h)
@@ -296,12 +339,12 @@ def points(res: dict, lam) -> np.ndarray:
         bb = beyond[pile]
         pts = np.zeros(bb.shape + (3,))
         side_all = np.cross(z_up, u[pile])
+        waves = np.maximum(1, np.round(np.maximum(xs, SNAKE) / SNAKE)).astype(np.int64)
+        amps = _snake_amplitudes(np.maximum(xs, 1e-6), total, waves)       # (all piled moments at once: task 0159)
+        t = np.linspace(0.0, 1.0, 2049)
         for i, (dist, ln) in enumerate(zip(xs, total)):
-            waves = max(1, int(round(max(dist, SNAKE) / SNAKE)))
-            amp = _snake_amplitude(max(dist, 1e-6), ln, waves)
-            t = np.linspace(0.0, 1.0, 2049)
             x = t * dist
-            y = amp * np.sin(2.0 * math.pi * waves * t)
+            y = amps[i] * np.sin(2.0 * math.pi * waves[i] * t)
             seg = np.hypot(np.diff(x), np.diff(y))
             arc = np.concatenate([[0.0], np.cumsum(seg)])
             arc *= ln / max(arc[-1], 1e-300)
@@ -332,21 +375,30 @@ def points(res: dict, lam) -> np.ndarray:
 
 def _snake_amplitude(dist: float, length: float, waves: int) -> float:
     """The amplitude of a flat sine with ``waves`` waves over ``dist`` whose length is ``length``."""
-    if length <= dist * (1.0 + 1e-12):
-        return 0.0
-    t = np.linspace(0.0, 1.0, 2049)
+    return float(_snake_amplitudes(np.array([dist], float), np.array([length], float), np.array([waves]))[0])
 
-    def arc(amp):
-        x, y = t * dist, amp * np.sin(2.0 * math.pi * waves * t)
-        return float(np.hypot(np.diff(x), np.diff(y)).sum())
-    lo, hi = 0.0, max(length, dist)
-    for _ in range(80):
-        mid = 0.5 * (lo + hi)
-        if arc(mid) < length:
-            lo = mid
-        else:
-            hi = mid
-    return 0.5 * (lo + hi)
+
+def _snake_amplitudes(dist, length, waves) -> np.ndarray:
+    """``_snake_amplitude`` for many moments at once (the same bisection, a row of 2,049 points per moment; in blocks
+    so a long animation stays light): a Build of the demo did 78,400 of these one at a time (task 0159)."""
+    dist, length = np.asarray(dist, dtype=float), np.asarray(length, dtype=float)
+    waves = np.asarray(waves)
+    out = np.zeros(len(dist))
+    t = np.linspace(0.0, 1.0, 2049)
+    for b in range(0, len(dist), 256):
+        d, ln, w = dist[b:b + 256], length[b:b + 256], waves[b:b + 256]
+        x = t[None, :] * d[:, None]
+        dx = np.diff(x, axis=1)
+        wave = np.sin(2.0 * math.pi * w[:, None] * t[None, :])
+        lo, hi = np.zeros(len(d)), np.maximum(ln, d)
+        for _ in range(80):
+            mid = 0.5 * (lo + hi)
+            arc = np.hypot(dx, np.diff(mid[:, None] * wave, axis=1)).sum(axis=1)
+            short = arc < ln
+            lo = np.where(short, mid, lo)
+            hi = np.where(short, hi, mid)
+        out[b:b + 256] = np.where(ln <= d * (1.0 + 1e-12), 0.0, 0.5 * (lo + hi))
+    return out
 
 
 # ---------------------------------------------------------------------------
