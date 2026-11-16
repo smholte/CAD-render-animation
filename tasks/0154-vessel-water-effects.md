@@ -73,10 +73,54 @@ shown here too and no longer needing Weather & time on) · Sideways (DP: push to
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 16 Nov 2026 – 0.2.127
 
 **What changed:**
+- New panel **5 Scene & Render > Vessel at work** (Still / Ahead / Sideways (DP) / Turning; push or bow to port /
+  starboard, thrust; the speed ahead = Weather & time's vessel speed, which now also counts with Weather & time off)
+  and a **Thrusters** fold (Find thrusters, +, −; per row propeller joint, kind Azimuth / Tunnel / Shaft, steer joint,
+  full rpm, reverse). New animation step **Vessel at work** (6 Animation). Saved scenes keep the setting; 0160's
+  "Build puts back the start scene" check and Save into start scene cover it too.
+- `core/vessel_work.py`: modes → per-thruster commands (load, jet angle), blending (azimuth the short way round, a
+  tunnel reversing through 0), steer angle, propeller rate and its integral; the effect formulas in plain Python
+  (Kelvin pattern from the closed-form stationary-phase roots, fade, foam trail = the old wake, bow wave, jets).
+- `blender/vessel_work.py`: channels `fr_vw_ahead`, `fr_vw_t0…5`, `fr_vw_a0…5` (scene custom properties, keyed at
+  Build like the weather's), live steer joints, Build keys for propellers (one key per frame while the rate changes)
+  and steer joints, Find thrusters, the shader nodes. `surroundings.py`: the water shader gets the Kelvin waves (bump)
+  and the jets (foam + boiling bump); the wake reads the speed channel and breaks up further back; the hull foam has a
+  bow wave and side wash by speed (`fr_u` along the hull). `MAT_VERSION` 4 → 5 (old projects rebuild their sea once).
+- Demo: shots 1–2 Ahead 6 kn, then (3 s before shot 3) a step to Sideways, starboard, 35 % (DP holding); the
+  propellers no longer have Run motor steps (the radars still do).
+- Test model `test_thrusters.step` (`tools/make_test_thrusters.py`: a 36 m workboat, two azimuths, a bow tunnel
+  thruster; one solid per part), tour set + stop `vessel_work`, PC-check line `scene.vessel_work`, function list
+  entries, guide section "Vessel at work" + picture `panel_5_vessel_work.png`, tooltips (783 ok, 0 missing).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no graphics card):
+- `tests/test_vessel_work.py` (28: wedge 19.47°, transverse wavelength = 2πV²/g within 1 %, fade, commands per mode,
+  blending, rates and integral; in Blender: thrusters found with kinds, channels and steer follow the setting, effects
+  off when still – the sea is then built exactly without them –, Build keys = the integral of the rate to 1e-3, a
+  joint another step moves is left alone with a warning, Clear keys, saved scenes, start-scene check, a Cycles render
+  whiter ahead / DP than still). Independent tester (subagent that did not write the code, Sonnet):
+  `tests/test_vessel_work_independent.py`, 44 tests; it found a real bug (the speed channel `ahead` was unwrapped
+  like an angle at Build: 12 → 0 kn keyed as −2.57) and two edge cases (a zero-length step at the last frame; a jet
+  along a wall from a thruster 1 mm from it), all fixed; all 71 pass. Demo project tests (13) pass with the new
+  propeller check; tour clash check of the new set: 0 clashes.
+- Pictures (Cycles, processor): `img/0154_test_ahead.jpg`, `img/0154_test_dp.jpg` (test model, 8 kn / sideways 60 %);
+  `img/0154_demo_still.jpg`, `img/0154_demo_ahead.jpg` (6 kn, 1.6 s), `img/0154_demo_dp.jpg` (40 s) – the demo
+  in its scaled-down test form, camera Overview.
+- Cost on the demo (scaled-down form, camera Overview, 640×360): Cycles processor 8 samples **5.6–5.8 s per frame
+  without, 6.6–7.0 s with** the vessel's water (+19 %; the sea fills most of that picture). EEVEE: EEVEE_RESULT.
+  No geometry: 0 extra triangles, import time unchanged; frame change with the channels keyed 41 ms (demo, Blender as
+  a program); the tour set's sea build 5 s.
+
+**Runs:** RUNS_RESULT
 
 **Open points / follow-up tasks:**
+- Bump only: the waves and the bow wave have no real height (from low over the water they look flat); Detailed could
+  displace the sea mesh near the hull by the same Kelvin formula. No bubble plume under water (the cut-away).
+- The demo's sea cut-away box behind the stern hides most of the wake from the Overview camera; a transit shot with
+  the cut-away off (or a camera from the bow quarter) would show it better – Demo models lane.
+- Turning is on the spot only (no curved wake while sailing and turning: the vessel does not yaw in the scene).
+- The Web 3D page does not show these effects yet (brief: a later task, Web 3D lane).
+- Cycles +19 % per frame on a sea-filled draft picture: if the owner's GPU renders show the same, the Kelvin nodes
+  could be skipped where the pattern's envelope is below a pixel's worth (a cheap mask first).
