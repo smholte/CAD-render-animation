@@ -2550,7 +2550,8 @@ def look_props(item) -> dict:
         return cable_looks.served_props(
             float(item.diameter), float(item.pitch), float(item.band_width), 2 if item.band_count == "PAIR" else 1,
             float(item.band_gap), float(item.yarn_pitch), HAND * float(item.yarn_angle), float(item.wear),
-            float(item.band_wear), tuple(item.yarn_color), tuple(item.band_color))
+            float(item.band_wear), tuple(item.yarn_color), tuple(item.band_color),
+            0 if item.band_style == "RINGS" else (-1 if item.band_hand == "RIGHT" else 1))
     return {cable_looks.LOOK: cable_looks.look_values(item.look, float(item.diameter), float(item.pitch),
                                                       HAND * float(item.angle), float(item.stripe))}
 

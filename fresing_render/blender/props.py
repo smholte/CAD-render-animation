@@ -2286,6 +2286,18 @@ def _cable_changed(self, context):
     paths.changed(context.scene, self)
 
 
+def _look_changed(self, context):
+    """The look changed: a served cable's band pitch starts at one metre (one turn of the spiral), not the stripe
+    distance's default (task 0164); then as any cable setting."""
+    if self.look == "SERVED" and abs(self.pitch - 0.5) < 1e-6 and not self.get("_busy"):
+        self["_busy"] = True
+        try:
+            self.pitch = 1.0
+        finally:
+            del self["_busy"]
+    _cable_changed(self, context)
+
+
 def _cable_contact_changed(self, context):
     """A setting of one contact changed (turns or not): the cable it belongs to is brought up to date."""
     if context is None or context.scene is None or self.get("_busy"):
@@ -2416,7 +2428,7 @@ class FRCable(bpy.types.PropertyGroup):
                     "thicker or thinner cable (it then lies higher or lower on its rollers)")
     cad_diameter: FloatProperty(default=0.0)
     look: EnumProperty(
-        name="Look", default="POWER", update=_cable_changed,
+        name="Look", default="POWER", update=_look_changed,
         description="How the cable looks. The pattern runs along with the cable, so you see it move",
         items=[("POWER", "Power cable", "Black with yellow stripes at an angle"),
                ("SERVED", "Served cable (yarn)", "Black yarn served round the cable, with pairs of yellow marker "
@@ -2427,7 +2439,8 @@ class FRCable(bpy.types.PropertyGroup):
         name="Stripe distance", unit="LENGTH", default=0.5, min=0.005, soft_max=5.0, precision=4,
         update=_cable_changed,
         description="Power cable: the distance from one yellow stripe to the next along the cable, in mm. Served "
-                    "cable: the distance from one group of marker bands to the next. Steel wire rope: the length of "
+                    "cable: the length of cable for one full turn of the yellow marker lines (about 1000 mm on a real export "
+                    "cable); with Rings, the distance from one pair of rings to the next. Steel wire rope: the length of "
                     "one full twist of a strand (about 6 to 7 times the diameter)")
     angle: FloatProperty(
         name="Stripe angle", subtype="ANGLE", default=math.radians(45.0), min=math.radians(5.0),
@@ -2457,11 +2470,22 @@ class FRCable(bpy.types.PropertyGroup):
         name="Wear", subtype="FACTOR", default=0.35, min=0.0, max=1.0, update=_cable_changed,
         description="Served cable: how used the yarn looks. 0 = new and clean, 1 = dusty, with lint caught "
                     "between the strands")
+    band_style: EnumProperty(
+        name="Marker lines", default="SPIRAL", update=_cable_changed,
+        description="Served cable: how the yellow marker lines run. A spiral goes round the whole cable in one "
+                    "piece, as on a real cable. Rings are separate rings round it, as older projects have them",
+        items=[("SPIRAL", "Spiral", "Continuous lines that wind round the cable, once round per Pitch of cable"),
+               ("RINGS", "Rings", "Separate rings straight round the cable, one pair every Pitch of cable")])
+    band_hand: EnumProperty(
+        name="Hand", default="RIGHT", update=_cable_changed,
+        description="Served cable: which way the spiral winds. Right hand is like a normal screw thread: held "
+                    "upright, the lines on the near side lean like the middle stroke of a Z",
+        items=[("RIGHT", "Right", "Like a normal screw thread"), ("LEFT", "Left", "The other way round")])
     band_count: EnumProperty(
-        name="Bands", default="PAIR", update=_cable_changed,
-        description="Served cable: one marker band at each place, or two close together",
-        items=[("PAIR", "Pairs", "Two bands with a gap between them at each place"),
-               ("SINGLE", "Single", "One band at each place")])
+        name="Lines", default="PAIR", update=_cable_changed,
+        description="Served cable: one marker line, or two close together side by side",
+        items=[("PAIR", "Two lines", "Two lines with a gap between them"),
+               ("SINGLE", "One line", "One line")])
     band_width: FloatProperty(
         name="Band width", unit="LENGTH", default=0.035, min=0.002, soft_max=0.2, precision=4,
         update=_cable_changed,

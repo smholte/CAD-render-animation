@@ -41,7 +41,14 @@ review). The owner starts them by hand. **The lead tells the owner when a task s
 chat and gives the exact sentence to paste, with where, which model and which effort**, for example:
 
 > **Claude Code on the web · Opus · effort High**
-> Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013.
+> Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013. You have my permission
+> to push to main: merge after a green GitHub run without asking me, then check that main really contains your commit.
+
+**The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
+own branch unless the owner says otherwise in the chat, and a worker that stops to ask waits unseen (0164 waited over
+an hour). Every start sentence the lead gives carries that line. A worker that still has to stop for the owner says so
+in one line starting **"WAITING FOR YOU:"**, and pushes its branch first, so the lead sees where it stands. The lead
+flags any running task with no push for about 45 minutes at each status check.
 
 **Where the chats run** (owner's decision, 5 Nov 2026):
 - **Lead:** a chat in the claude.ai project "STEP rendering App" – it keeps the progress note there

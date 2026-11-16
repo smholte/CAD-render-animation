@@ -1,6 +1,6 @@
 # 0164 – Served cable: the yellow marker lines are two continuous spirals (1 m pitch), not rings
 
-**Who:** worker · **Status:** open – can start when a code slot is free · **Branch:** `task/0164-served-spiral-bands`
+**Who:** worker · **Status:** done (0.2.123) · **Branch:** `task/0164-served-spiral-bands`
 **Started by:** lead chat, 16 Nov 2026 (owner's correction of 0158, with two photos) ·
 **Model:** Sonnet · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation".
 **Area (cable looks):** `blender/cable_looks.py` (the SERVED band part only: defaults, `served_props`, `bands`,
@@ -79,10 +79,29 @@ the page (0143 – it waits for this task because both edit `fr_page.js`). The o
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 16 Nov 2026. Branch `claude/stoic-tesla-bw0cms` (the session's own branch, not
+`task/0164-…`). No subagents.
 
-**What changed:**
+**What changed (0.2.123):**
+- `fr_cable_band[3]` = band starts: 0 = rings (what 0.2.116–0.2.122 saved, so old projects open unchanged), -1 = right-hand
+  spiral (new default), 1 = left. Right hand is **starts -1** (module docstring: with φ right-handed about growing s a
+  positive `starts` is a left-hand helix). Band phase `x = (s − paid out + starts · θ · pitch) mod pitch`, in the nodes
+  (`cable_looks._served_nodes`), in `bands(..., phi=)` and in the page shader (`uFrBandStarts`, `L0.band_starts`).
+  A part with no band property gets the library's right-hand spiral; library pitch 1.0 m.
+- Settings: **Marker lines** (Spiral/Rings), **Pitch (one turn)** / Ring distance, **Hand** (Right/Left), Lines
+  (two/one); switching a cable to the served look sets pitch 1.0 m when it was still the 0.5 m default. `paths.look_props`
+  passes the starts (3 lines in `paths.py`, though the brief said stay out – additive, merge with 0160 if it clashes).
+- Guide section and picture, tour and PC-check texts, function-list title. The demo gets the spiral through the default
+  (`demo.py` passes no band values).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test cable Ø0.12 m): tests/test_cable_looks.py, test_served_cable_independent.py,
+test_web3d_moving.py, test_functions.py, test_paths.py pass; new `test_served_band_spiral_formula` (one turn per pitch,
+parallel lines, hands, rings unchanged); node renders equal the formula (tolerance of the ragged-edge test for the library
+spiral raised 0.06 → 0.08). Seen in the render: stripes on the near side lean "/" when the cable is held upright, as in the
+owner's photos. Close-up Cycles 1000×300, 48 samples: rings 7.7 s, spiral 7.0 s (no change). Pictures:
+`tasks/img/0164_rings_before.jpg`, `0164_spiral_after.jpg` (test cable only; the demo's cable close-up was not rendered).
+`test_page_draws_the_moving_cables` failed once locally, then passed twice (probably flaky).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the demo cable's own close-up and the guide's old carousel picture were not redone (the
+guide now shows the test cable). The soft edge of a slanted line is one pixel measured along the cable, not across the
+line – looks fine, not tuned.

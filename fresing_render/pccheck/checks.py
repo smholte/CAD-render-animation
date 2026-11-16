@@ -362,7 +362,7 @@ def looks_marine(ctx):
 
 @line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
       what="The test carousel's power cable with Look = Served cable (yarn): black yarn served almost straight round "
-           "it and pairs of yellow painted bands, on the cable and on its coil; built, the bands run with the cable. "
+           "it and two yellow painted marker lines winding round it as a spiral, on the cable and on its coil; built, the bands run with the cable. "
            "A close-up is rendered small (processor, draft): judge the fine grooves, the darker and lighter strands, "
            "the ragged band edges")
 def looks_served_cable(ctx):

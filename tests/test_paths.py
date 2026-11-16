@@ -546,9 +546,9 @@ def test_the_served_look(rope):
     it.look = "SERVED"
     it = cable(sc)
     assert part["fr_group_manual"] == "Served cables" and sc.fresing.groups["Served cables"].material == "cable_served"
-    assert it.pitch == pytest.approx(1.25)                               # the band distance, not from the diameter
-    want = cable_looks.served_props(it.diameter, 1.25, it.band_width, 2, it.band_gap, it.yarn_pitch,
-                                    -it.yarn_angle, it.wear, it.band_wear, tuple(it.yarn_color), tuple(it.band_color))
+    assert it.pitch == pytest.approx(1.0)                               # the pitch, not from the diameter
+    want = cable_looks.served_props(it.diameter, 1.0, it.band_width, 2, it.band_gap, it.yarn_pitch,
+                                    -it.yarn_angle, it.wear, it.band_wear, tuple(it.yarn_color), tuple(it.band_color), -1)
     for key in cable_looks.PROPS:
         assert list(part[key]) == pytest.approx(want[key]), key
     assert paths.look_of(it) == pytest.approx(want[cable_looks.LOOK]) and want[cable_looks.LOOK][3] == 3.0
