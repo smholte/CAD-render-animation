@@ -177,7 +177,7 @@ class ParkParams:
     first: tuple = (1, 1)               # (row, col) of turbine A (the cable's first end goes up its J-tube)
     b_off: float = -42000.0             # turbine B (the next one along A's row) lies this far to port (+) / starboard (-)
     #                                     of the lay line: the rows run at a small angle to it
-    substation: tuple = (-0.5, 0.5)     # the substation's place in grid steps from turbine A (along, across)
+    substation: tuple = (0.5, 0.5)      # the substation's place in grid steps from turbine A (along, across)
     wind_from: float = 180.0            # compass in the park's frame (0 = +y): from starboard, so the rotors' planes
     #                                     lie along the lay line, never over the vessel
     rpm: float = 7.5                    # rotor speed in video time (the IEA turbine's rated 7.56)

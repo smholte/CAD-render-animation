@@ -53,13 +53,13 @@ LOOKS = [
     ("Demo: steel", "steel_raw", "", ("MAIN SHAFT", "TOWER FLANGE")),
     ("Demo: power cable", "cable_black", "", ("CABLE FIRST END",)),
     ("Demo: yellow structure", "paint_marine", "RAL 1003", ("CRANE",)),
-    ("Demo: aviation lights", "emission_light", "RAL 3026", ("LIGHT",)),
+    ("Demo: aviation lights", "emission_light", "RAL 3026", ("AVIATION LIGHT",)),
     ("Demo: marine lights", "emission_light", "RAL 1026", ("MARINE LIGHT",)),
     ("Demo: deck lights", "emission_light", "RAL 9016", ("DECK LIGHT",)),
 ]
 # flashing: group -> (period s, on s, strength): together, all of a kind (one driver per material)
-FLASH = {"Demo: aviation lights": (2.0, 1.0, 40.0),    # medium-intensity red, ~30 flashes a minute
-         "Demo: marine lights": (2.5, 0.5, 30.0)}       # yellow, "Fl Y 2.5s"
+FLASH = {"Demo: aviation lights": (2.0, 1.0, 150.0),   # medium-intensity red, ~30 flashes a minute
+         "Demo: marine lights": (2.5, 0.5, 80.0)}       # yellow, "Fl Y 2.5s"
 
 
 def root(d: Demo):
@@ -68,6 +68,13 @@ def root(d: Demo):
 
 def sheet(d: Demo) -> dict:
     return d.sheet("route")["park"]
+
+
+def sheet_of(route_json: str) -> dict:
+    """The park's numbers from a route sheet file (demo_cable_route.json)."""
+    import json
+    with open(route_json, encoding="utf-8") as fh:
+        return json.load(fh)["park"]
 
 
 def look_of(name: str) -> str:
@@ -198,8 +205,15 @@ def turbine(d: Demo, role: str) -> dict:
 
 @stage(PARK, "The wind park round the vessel: turbines, substation, on the seabed", after="sea")
 def park_stage(d: Demo):
+    """Import, place, Still, joints, looks, lights. Weather & time goes on here (from the project's own sky, as its
+    first switch-on does), before the saved cameras: the animation's start scene keeps it, and the night shot's Weather
+    & time step leads from it (Build would otherwise switch it off at the start and on again for the step)."""
+    from . import weather
     sc = d.scene
     t0 = time.time()
+    w = weather.settings(sc)
+    if not w.enabled:
+        w.enabled = True
     d.progress("Importing the wind park")
     demo._import(d, PARK)
     d.timings["park import"] = time.time() - t0
@@ -240,28 +254,28 @@ def park_cameras(d: Demo):
     # beside turbine A: off its boat landing side, low, looking past its foot to the vessel laying away from it
     side = (foot - vessel).normalized()
     port = Vector((side.y, -side.x, 0.0))              # (side points aft: this is to port, where its boat landing is)
-    _cam(d, BESIDE_A, foot + side * 55.0 + port * 38.0 + Vector((0, 0, 4.0)),
-         foot.lerp(vessel, 0.38) + Vector((0, 0, -2.0)), 26.0)
-    # the park overview: high over the starboard quarter, the vessel in front, the rows and the substation beyond
-    _cam(d, PARK_OVERVIEW, d.mm((-420000.0, -620000.0, 330000.0)), d.mm((380000.0, 250000.0, 0.0)), 30.0)
+    _cam(d, BESIDE_A, foot + side * 22.0 + port * 34.0 + Vector((0, 0, -3.0)),
+         foot.lerp(vessel, 0.42) + Vector((0, 0, 4.0)), 22.0)
+    # the park overview: high over the starboard row, looking across the rows to port – the rotors' fronts, the vessel
+    # laying in the middle row, the substation and the port row beyond
+    _cam(d, PARK_OVERVIEW, d.mm((150000.0, -2250000.0, 520000.0)), d.mm((450000.0, 350000.0, 0.0)), 30.0)
     sc.camera = sc.objects.get("Overview")
 
 
 def shift_value(d: Demo, t9: float) -> float:
     """m along the park's +x that takes turbine B to ``B_X`` (world x) at ``t9`` (the payout then stands still)."""
     import numpy as np
+    from mathutils import Vector
 
-    from . import paths, paths_sea
+    from . import paths
     it = paths.find(d.scene, demo.CABLE_ITEM)
     u = np.array(it.sea_dir[:2], dtype=float)
     u /= np.linalg.norm(u)
     pay = demo._cable_value_at(d, t9)
     b = turbine(d, "B")
-    B = np.array(park_matrix(d) @ __import__("mathutils").Vector((b["xy"][0] / 1000.0, b["xy"][1] / 1000.0, 0.0)))
-    bx = float(B[0] + pay * u[0])                       # the seabed has moved payout x the lay direction by then
-    ex = -u[0]                                          # the park's +x in the world (x part)
-    del paths_sea
-    return (B_X - bx) / ex
+    B = park_matrix(d) @ Vector((b["xy"][0] / 1000.0, b["xy"][1] / 1000.0, 0.0))
+    bx = float(B.x + pay * u[0])                        # the seabed has moved payout x the lay direction by then
+    return (B_X - bx) / -u[0]                           # (the park's +x is -u)
 
 
 @stage("park_shift", "The park moves on to turbine B (between shot 8b and shot 9)", after="shot_cps")
@@ -303,9 +317,6 @@ def shot_night(d: Demo):
 
     from . import weather
     sc = d.scene
-    w = weather.settings(sc)
-    if not w.enabled:
-        w.enabled = True                               # from the project's own sky (its first switch-on)
     b = turbine(d, "B")
     sc.frame_set(sc.frame_start)
     # where B stands in shots 9-12: its place now moved by the shift
@@ -316,8 +327,8 @@ def shot_night(d: Demo):
     from . import paths
     it = paths.find(sc, demo.CABLE_ITEM)
     foot += Vector((float(it.sea_dir[0]), float(it.sea_dir[1]), 0.0)) * pay
-    eye = d.mm((-170000.0, -160000.0, 32000.0))
-    cam = _cam(d, PARK_NIGHT, eye, foot.lerp(d.mm((60000.0, 0.0, 0.0)), 0.35) + Vector((0, 0, 35.0)), 24.0)
+    eye = foot + Vector((-70.0, -300.0, 35.0))         # 300 m to starboard of B, in front of its rotor
+    cam = _cam(d, PARK_NIGHT, eye, foot.lerp(d.mm((60000.0, 0.0, 0.0)), 0.3) + Vector((0, 0, 55.0)), 24.0)
     sc.camera = sc.objects.get("Overview")
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
     blk = d.animation.blocks.add()

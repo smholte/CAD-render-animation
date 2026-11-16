@@ -103,6 +103,8 @@ SPINNER_R = 3970.0
 SHAFT_R, SHAFT_BACK = 1400.0, 9000.0              # the main shaft stub: from the hub back into the nacelle
 MARINE_LIGHT_AZ = (45.0, 135.0, 225.0, 315.0)
 MARINE_LIGHT_POST = 1500.0        # the lantern's foot over the deck
+AVIATION_R = 300.0                # the demo's aviation lights (in place of the site's LIGHT 1, 2): a lantern big enough
+#                                   to show as a point of light across the park at night
 
 WHITE = (0.85, 0.86, 0.86)        # RAL 7035-ish: tower, nacelle, blades
 YELLOW = (0.93, 0.70, 0.05)       # RAL 1023: the transition piece and what is on it
@@ -149,63 +151,89 @@ def monopile():
 
 
 def tower():
-    """The tower from its foot to the top: a shell of TOWER_WALL with the door opening cut through it."""
+    """The tower from its foot to the top: flat-faced (``turbine_parts._polygons``, 72 sides: it meshes in two
+    triangles per face, a revolved cone of this size in tens of thousands), solid, the door opening cut into it."""
     prof = [(z, r) for z, r in TOWER_PROFILE if z > TOWER_BASE]
     prof = [(TOWER_BASE, tower_radius(TOWER_BASE))] + prof
-    out = [(z, r) for z, r in prof]
-    inner = [(z, r - TOWER_WALL) for z, r in reversed(prof)]
-    shell = g.revolve([(r, z) for z, r in out + inner])
-    return occ.one_solid(occ.cut(shell, tp.door_cut(FIT, "offshore")), "tower")
+    solid = tp._polygons([(r, z) for z, r in prof])
+    return occ.one_solid(occ.cut(solid, tp.door_cut(FIT, "offshore")), "tower")
 
 
 SPINNER_NOSE = 5600.0             # the spinner's nose this far upwind of the hub's centre
 
 
 def spinner():
-    """The hub under a spinner: round as the hub at the back, drawn out to a blunt nose upwind (one revolved solid)."""
-    prof = [(0.0, -SPINNER_R)]
+    """The hub under a spinner: round as the hub at the back, drawn out to a blunt nose upwind (flat-faced rings)."""
+    rings = []
     for k in range(1, 12):                                   # the back: a sphere of the hub's size
         a = math.pi * (1.0 - k / 24.0)
-        prof.append((SPINNER_R * math.sin(a), SPINNER_R * math.cos(a)))
-    for k in range(0, 13):                                   # the front: an ellipse out to the nose
+        rings.append((SPINNER_R * math.sin(a), SPINNER_R * math.cos(a)))
+    for k in range(0, 12):                                   # the front: an ellipse out to the nose
         a = math.pi / 2.0 * (1.0 - k / 12.0)
-        prof.append((SPINNER_R * math.sin(a) if k < 12 else 0.0, SPINNER_NOSE * math.cos(a)))
-    M = occ.frame(HUB, UPWIND)
-    return occ.one_solid(occ.moved(g.revolve(prof), M), "spinner")
+        rings.append((SPINNER_R * math.sin(a), SPINNER_NOSE * math.cos(a)))
+    rings.append((250.0, SPINNER_NOSE))
+    return occ.one_solid(occ.moved(tp._polygons(rings), occ.frame(HUB, UPWIND)), "spinner")
 
 
 def shaft():
     return g.cyl(SHAFT_R, SHAFT_BACK, HUB, DOWN)
 
 
-def _section_wire(pts):
-    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire
-    from OCP.collections import HArray1_gp_Pnt
-    from OCP.GeomAPI import GeomAPI_Interpolate
-    from OCP.gp import gp_Pnt
-    arr = HArray1_gp_Pnt(1, len(pts))
-    for i, p in enumerate(pts, start=1):
-        arr.SetValue(i, gp_Pnt(*map(float, p)))
-    it = GeomAPI_Interpolate(arr, True, 1e-6)
-    it.Perform()
-    return BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(it.Curve()).Edge()).Wire()
-
-
 TIP = (BLADE_LENGTH - 400.0, 260.0, 0.24, 1.0, 0.0)      # a small last section: the solid's tip (closed flat)
+BLADE_STEP = 5000.0               # sections every 5 m along the blade (linear between the stations)
+BLADE_POINTS = 48                 # points round a section
+
+
+def _stations():
+    """The stations every BLADE_STEP (and each given one), the numbers linear between them."""
+    st = STATIONS + [TIP]
+    zs = sorted({z for z, *_ in st} | set(np.arange(0.0, st[-1][0], BLADE_STEP).tolist()))
+    cols = np.array(st, float)
+    return [tuple([z] + [float(np.interp(z, cols[:, 0], cols[:, k])) for k in range(1, 5)]) for z in zs]
+
+
+def _sewn(sections):
+    """A solid through closed polygons (each (N, 3), the same N, in order): triangles between them (every face a
+    true plane: it meshes as it is), the first and last polygons as end caps."""
+    from OCP.BRepBuilderAPI import (BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeSolid,
+                                    BRepBuilderAPI_Sewing)
+    from OCP.gp import gp_Pnt
+    from OCP.TopAbs import TopAbs_SHELL
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopoDS import TopoDS
+
+    def face(points):
+        poly = BRepBuilderAPI_MakePolygon()
+        for q in points:
+            poly.Add(gp_Pnt(*map(float, q)))
+        poly.Close()
+        return BRepBuilderAPI_MakeFace(poly.Wire(), True).Face()
+
+    sew = BRepBuilderAPI_Sewing(1e-3)
+    n = len(sections[0])
+    for a, b in zip(sections[:-1], sections[1:]):
+        for k in range(n):
+            j = (k + 1) % n
+            sew.Add(face([a[k], a[j], b[j]]))
+            sew.Add(face([a[k], b[j], b[k]]))
+    sew.Add(face(sections[0][::-1]))
+    sew.Add(face(sections[-1]))
+    sew.Perform()
+    ex = TopExp_Explorer(sew.SewedShape(), TopAbs_SHELL)
+    solid = BRepBuilderAPI_MakeSolid(TopoDS.Shell(ex.Current()) if not hasattr(TopoDS, "Shell_s")
+                                     else TopoDS.Shell_s(ex.Current())).Solid()
+    if occ.volume(solid) < 0:
+        solid = solid.Reversed()
+    return solid
 
 
 def blade():
-    """One blade in its own frame (z along the blade from the hub's ring, x downwind): a closed solid lofted through
-    the stations, a round root (no wobble), the twist mirrored with the leading edge (``LE_SIGN``)."""
-    from OCP.BRepOffsetAPI import BRepOffsetAPI_ThruSections
-    loft = BRepOffsetAPI_ThruSections(True, False, 1e-6)
-    for z, c, tc, share, tw in STATIONS + [TIP]:
-        loft.AddWire(_section_wire(section_points(z, c, tc, share, tw * LE_SIGN, LE_SIGN, 0.0, 0.0, (0.0, 0.0))))
-    loft.CheckCompatibility(False)
-    loft.Build()
-    if not loft.IsDone():
-        raise RuntimeError("blade loft failed")
-    return occ.one_solid(loft.Shape(), "blade")
+    """One blade in its own frame (z along the blade from the hub's ring, x downwind): a closed, flat-faced solid
+    through sections every 5 m (a spline loft meshed in 260 k triangles), a round root (no wobble), the twist
+    mirrored with the leading edge (``LE_SIGN``)."""
+    secs = [section_points(z, c, tc, share, tw * LE_SIGN, LE_SIGN, 0.0, 0.0, (0.0, 0.0), n=BLADE_POINTS)
+            for z, c, tc, share, tw in _stations()]
+    return occ.one_solid(_sewn(secs), "blade")
 
 
 def blade_frame(angle: float) -> np.ndarray:
@@ -218,11 +246,17 @@ def blade_frame(angle: float) -> np.ndarray:
     return occ.frame(HUB + HUB_TO_BLADE * d, d, DOWN)
 
 
+def aviation_light():
+    """A red aviation lantern (made at the origin, foot at z 0): a short base and a globe."""
+    return occ.one_solid(g.fuse(g.cyl(160.0, 160.0, (0.0, 0.0, 0.0)), g.sphere(AVIATION_R, (0.0, 0.0, 159.0 + AVIATION_R))),
+                         "aviation light")
+
+
 def marine_light():
     """A yellow marine lantern on a short post (made at the origin, foot at z 0)."""
     post = g.cyl(45.0, MARINE_LIGHT_POST, (0.0, 0.0, 0.0))
-    body = g.cyl(150.0, 320.0, (0.0, 0.0, MARINE_LIGHT_POST - 1.0))
-    cap = g.cone(170.0, 40.0, 120.0, (0.0, 0.0, MARINE_LIGHT_POST + 318.0))
+    body = g.cyl(220.0, 420.0, (0.0, 0.0, MARINE_LIGHT_POST - 1.0))
+    cap = g.cone(240.0, 40.0, 140.0, (0.0, 0.0, MARINE_LIGHT_POST + 418.0))
     return occ.one_solid(g.fuse(post, body, cap), "marine light")
 
 
@@ -238,7 +272,12 @@ class Kit:
         shared = tp.make(FIT, "offshore", jtube_bell_z=JTUBE_BELL_Z, scour_corridor=CORRIDOR)
         self.fixed, self.nacelle, self.rotor = [], [], []
         eye = np.eye(4)
+        aviation = Part("AVIATION LIGHT", aviation_light(), RED)
         for p in shared:
+            if p.name.startswith("LIGHT "):                  # the site's small lights: bigger ones in their place
+                lo, hi = occ.bbox(p.shape)
+                self.nacelle.append((aviation, g.T((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2])))
+                continue
             c = _colour(p.name)
             part = Part(p.name, p.shape, c)
             (self.nacelle if p.body == "NACELLE" else self.fixed).append((part, eye))

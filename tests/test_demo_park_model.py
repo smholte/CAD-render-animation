@@ -40,7 +40,7 @@ def test_every_part_is_one_solid(built):
     # nine turbines share their parts: one mesh each in the app
     assert len(seen) < 160 and g.count_parts(root) > 700, (len(seen), g.count_parts(root))
     for n in ("TOWER", "MONOPILE", "BLADE", "SPINNER", "NACELLE COVER", "TP SLEEVE", "SCOUR PROTECTION", "J-TUBE 1",
-              "MARINE LIGHT", "LIGHT 1", "JACKET LEG", "HELIDECK", "CLADDING", "DECK LIGHT", pk.CABLE_PIECE):
+              "MARINE LIGHT", "AVIATION LIGHT", "JACKET LEG", "HELIDECK", "CLADDING", "DECK LIGHT", pk.CABLE_PIECE):
         assert n in names, n
 
 
@@ -168,6 +168,8 @@ def test_first_end_clear_of_pile_rock_and_seabed(built):
     assert np.allclose(pts[-1], piece["end"], atol=0.01) and np.allclose(piece["end"][:2], [0.0, 0.0])
     assert piece["end"][2] == pytest.approx(sb + (0.5 - 0.3) * p.cable_d)
     assert np.allclose(route.end_tangent, [1.0, 0.0, 0.0], atol=1e-6)
+    # from there the app's laid cable runs straight along +x to the touch-down: away from A, clear of its rock
+    assert np.hypot(*np.subtract([0.0, 0.0], a["xy"])) > info["scour_r"] + r + 1000.0
 
 
 def test_demo_options_leave_the_site_parts_alone():

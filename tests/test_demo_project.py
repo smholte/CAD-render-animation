@@ -204,8 +204,8 @@ def test_scenes_cameras_brand_and_the_animation(made):
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 180.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
-    #                                                            0126: shot 8b, ~24 s)
+    assert 60.0 <= body + cards <= 210.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
+    #                                                            0126: shot 8b, ~24 s; 0166: the park's 2b, 8a, 13, 26 s)
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
@@ -291,10 +291,12 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
     assert ids[:5] == ["model", "looks", "hold", "marks", "joints"] and ids[-1] == "finish"   # hold: 0082, marks: 0153
-    assert ids[-2] == "propulsion"                       # task 0153: the propellers turn the whole animation
-    assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
-                                                       "shot_tensioner", "shot_drum", "shot_sea", "shot_cps", "shot_quadrant", "shot_lower",
-                                                       "shot_tip", "shot_back"]
+    assert ids[-3:-1] == ["propulsion", "park_rotors"]   # tasks 0153, 0166: propellers and rotors turn all the time
+    assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_turbine_a", "shot_carousel",
+                                                       "shot_rollers", "shot_tensioner", "shot_drum", "shot_sea",
+                                                       "shot_park", "shot_cps", "shot_quadrant", "shot_lower",
+                                                       "shot_tip", "shot_back", "shot_night"]
+    assert ids.index("park") == ids.index("sea") + 1 and ids.index("park_shift") == ids.index("shot_quadrant") - 1
     saved = list(demo.STAGES)
     before = [s.id for s in demo.STAGES]
     try:

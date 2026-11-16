@@ -3384,14 +3384,15 @@ and bigger pictures.
 
 The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
 vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
-engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts). It is
-**not** a real vessel or anyone's design: the app draws it itself, from general sizes.
+engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts),
+at work in an invented **offshore wind park** (nine turbines and a substation, about 760 parts more). It is **not** a
+real vessel, park or anyone's design: the app draws it itself, from general sizes.
 
 <img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
 
 **Make it (once per version)**
 1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/2", "Importing", "Joints 120/317", "Animation"). You can keep
+   of the window shows how far ("Writing the model 1/3", "Importing", "Joints 120/317", "Animation"). You can keep
    working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
@@ -3412,7 +3413,7 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   growth** under the waterline, the name "DEMO LAYER" on both bows and draft marks fore and aft (text decals), a
   non-slip deck, a white superstructure with tinted glass, galvanised railings and davits, orange lifeboats, bronze
   propellers; the rubbing strake and the deck fittings are worn down to bare steel at their edges.
-- **4 Motion:** 317 joints on the vessel and 108 on the quay. The vessel's own: each azimuth thruster's **Steer** and
+- **4 Motion:** 317 joints on the vessel, 108 on the quay and 19 in the wind park. The vessel's own: each azimuth thruster's **Steer** and
   **Propeller turn** (riding on the steer), each bow thruster's **Propeller turn**, the two radars' turn, and the deck
   crane's **Slew** and **Luff** (0 = parked; negative lowers the boom). In the animation the propellers and radars
   turn the whole time. Every roller, sprocket and wheel the cable runs over
@@ -3431,6 +3432,20 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   deck to the eye at the top of the D's curve and over the handler's top pulley once the handler tilts; the tipping
   wires come up the swivel posts, over their sheaves to the D's bottom corners (shown once they are connected).
   The winches pay out exactly what the D's motion needs.
+- **The wind park:** nine turbines on monopiles in three rows – 1.2 km apart along a row, 1.5 km between the rows –
+  and an offshore substation between the rows (a jacket on piles, three decks under cladding, a helideck, a crane,
+  J-tubes up to its cable deck, a boat landing). The turbines are sized from the IEA 15 MW reference turbine's public
+  numbers (240 m rotor, 150 m hub height); each has a transition piece with its platform, boat landing, ladder, davit
+  and J-tubes, and scour rock round its foot. They are their own model, **DEMO WIND PARK** (file demo_park.step),
+  that **stands on the seabed**: it moves aft with the seabed as the cable is laid, and **5 Scene & Render > Vessel
+  motion** keeps it **Still**, so it never heaves or rolls with the vessel. The cable's **first end** comes up the
+  J-tube of turbine **WTG 05** and runs over its scour rock down to the seabed, where the laid cable carries on to the
+  touch-down. 4 Motion: per turbine **WTG nn: Yaw** and **WTG nn: Rotor** (a motor; every rotor faces the same wind
+  and turns clockwise seen from the front, each at its own phase), and **Park: on to turbine B**: between shot 8b
+  and shot 9 it moves the park on (as if 1.2 km had been laid), so the second end is laid down beside turbine
+  **WTG 06**. The park is scenery: the model's size, the floor and vessel motion still measure the vessel.
+  **Lights:** red aviation lights on every nacelle and yellow marine lights on the platforms and the substation's
+  corners flash together; the substation's floodlights burn steadily.
 - **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
   gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
 - **CPS from the rack:** the set on the rack's top shelf next to the orange ramp rides on a hidden line, the cable
@@ -3442,13 +3457,15 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   starboard side from ahead of the bow), and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
   brand kit "Demo".
 - **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 2 ½ minutes with the title and end card): a flight round the vessel that
-  ends riding with it on the swell, the deck from above, the carousel and the arch (× 10 time-lapse), the rollers
+- **6 Animation > What it can do today** (about 3 minutes with the title and end card): a flight round the vessel that
+  ends riding with it on the swell, the deck from above, **beside turbine WTG 05** (shot 2b: its boat landing and
+  J-tube, the vessel laying away from it), the carousel and the arch (× 10 time-lapse), the rollers
   turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
   squeezing, then X-ray with labels, a close-up of a winch's
   **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
 from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
-(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. Then a **CPS set from the
+(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. The **park from above**
+(shot 8a, × 30 time-lapse): the vessel lays on through the rows, the substation beyond. Then a **CPS set from the
 rack** (shot 8b, × 15 time-lapse): it slides tail first down the orange ramp and the curved slide onto side B, runs
 round the D and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
 place in front of the cable end, which is connected to its rear end as the next shot begins. Then the **quadrant
@@ -3457,8 +3474,10 @@ aft between the tensioners onto the handler with the cable end on it, the tippin
 handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is
 lowered through the cut-away to near the seabed (10); it tips flat, the cable and its CPS are let go and lie on
 the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
-place, the tensioners close (12). The captions say where it runs faster than real. Click **Build & play**, or put
-it in the render queue.
+place, the tensioners close (12). Last, **the park at night** (shot 13): a Weather & time step to Night shift, turbine
+WTG 06 beside the vessel, the red and yellow lights flashing together across the park. The rotors and propellers
+turn all the time. The captions say where it runs faster than real. Click **Build & play**, or put it in the render
+queue.
 
 The labels of the X-ray step also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
