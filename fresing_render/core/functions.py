@@ -219,7 +219,7 @@ fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel=
    guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
-   pccheck=("milling.fast_map",), since="0.2.114")
+   pccheck=("milling.fast_map",), since="0.2.115")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
    guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
@@ -264,6 +264,8 @@ fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", 
    since="0.2.86")
 fn(id="web.light", title="Web 3D model with baked light", family="web", panel="FRESING_PT_web3d", prop="light",
    guide="web3d-light", tour=("web3d_light",), pccheck=("web3d.bake",), since="0.2.89")
+fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move with their looks", family="web",
+   panel="FRESING_PT_web3d", prop="animation", guide="web3d-moving", pccheck=("web3d.moving",), since="0.2.114")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
    button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
 

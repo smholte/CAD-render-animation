@@ -518,7 +518,7 @@ def heavy_milling(ctx):
     return f"{frames} frames, {len(me.polygons)} faces in the block"
 
 
-@line("heavy.milling_finish", "Milling: a long finishing program (height map)", "0.2.114", (H,), expected=120,
+@line("heavy.milling_finish", "Milling: a long finishing program (height map)", "0.2.115", (H,), expected=30,
       what="The test mill runs a finishing program of 40,000 points (a Ø10 ball follows a wavy surface over "
            "100 x 60 mm, passes 0.3 mm apart) as a G-code step; the block is worked out to the end as a height map "
            "(Fast 3-axis passes), then 20 frames one after the other",
@@ -534,7 +534,7 @@ def heavy_milling_finish(ctx):
     else:
         xs, ys = [-50.0 + 0.5 * k for k in range(201)], [-30.0 + 0.3 * k for k in range(201)]
     t0 = time.time()
-    scene, frames, stock = _finish_scene(ctx, xs, ys)
+    scene, frames, stock = _finish_scene(ctx, xs, ys, seconds=max(6.0, len(xs) * len(ys) / 250.0))
     ctx.metric("build the step", time.time() - t0, "s")
     t0 = time.time()
     machining.sample(scene)

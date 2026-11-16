@@ -204,7 +204,7 @@ def check_groups() -> list[str]:
     import ci_pccheck_lines                      # the PC check (Full): Linux halves add up to every line (task 0063)
     problems += [f"tools/ci_pccheck_lines.py: {p}" for p in ci_pccheck_lines.problems()]
     files = ci_groups.test_files()
-    grouped = [f for g in ci_groups.matrix_pytest() for f in g["files"].split()]
+    grouped = [f for g in ci_groups.matrix_pytest() + ci_groups.matrix_demo() for f in g["files"].split()]
     if sorted(grouped) != files:
         problems.append("the pytest groups do not hold every tests/test_*.py file exactly once (tools/ci_groups.py)")
     return problems
@@ -404,7 +404,7 @@ def main(argv=None) -> int:
     problems += check_tasks(read("TASKS.md"))
 
     import ci_groups
-    pytest_m, real_m = ci_groups.matrix_pytest(), ci_groups.matrix_real_app()
+    pytest_m, real_m, demo_m = ci_groups.matrix_pytest(), ci_groups.matrix_real_app(), ci_groups.matrix_demo()
     mode, art_run, why = ("failed" if problems else "full"), args.run, "checks only"
     if args.github and not problems:
         mode, art_run, why = decide(args.event, ref, sha, args.before, args.run)
@@ -416,6 +416,7 @@ def main(argv=None) -> int:
         if mode == "full":
             out += [f"- pytest group {g['name']}: ~{g['minutes']} min" + (" + packaged self-test" if g["selftest"] else "")
                     for g in pytest_m]
+            out += [f"- pytest group {g['name']} (after the demo is made once): ~{g['minutes']} min" for g in demo_m]
             out += [f"- real-app group {g['name']}: {g['tests']}" for g in real_m]
     text = "\n".join(out) + "\n"
     print(text)
@@ -428,7 +429,7 @@ def main(argv=None) -> int:
     if args.github and os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
             fh.write(f"mode={mode}\nartifacts_run={art_run}\n")
-            fh.write(f"pytest={json.dumps(pytest_m)}\nrealapp={json.dumps(real_m)}\n")
+            fh.write(f"pytest={json.dumps(pytest_m)}\nrealapp={json.dumps(real_m)}\ndemo={json.dumps(demo_m)}\n")
     return 1 if problems else 0
 
 

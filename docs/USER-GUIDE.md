@@ -2509,7 +2509,8 @@ the machine himself, or for your website.
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
 5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
    page plays it in a loop. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
-   in or takes out come and go as in the animation. It makes the export slower.
+   in or takes out come and go as in the animation. Cables, wire ropes, hoses, the rope on drums and carousels, track
+   links and drag-chain links move as in the app ([below](#web3d-moving)). It makes the export slower.
 6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.
@@ -2518,6 +2519,25 @@ the machine himself, or for your website.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
+
+<a id="web3d-moving"></a>
+#### Cables, ropes, hoses and tracks on the page
+
+What the app draws itself – a cable or wire rope of **4 Motion > Cables and paths**, a hose of **Hoses and drag
+chains**, the rope on a drum or carousel of **Drums and carousels**, the links and pads of **Tracks and belts**,
+drag-chain links and a CPS set riding on a cable – goes to the page **as the app draws it**, not as the CAD part:
+
+- With **Include animation** they move with the animation: the cable follows the sheaves and the quadrant, the coil
+  on a carousel and the rope on a drum wind off layer by layer, hoses bend, links run round their wheels.
+- The **power cable look** (yellow stripes) and the **steel wire rope look** (strands, wires, grease) are drawn on
+  the page too, and run along the cable as it is paid out. On a drum or carousel the pattern stands still, as in the
+  app.
+- Without Include animation the page shows them at the frame shown, with their looks.
+- A CAD coil that a drum or carousel hides is left out, as in the app.
+
+The file stays small: the page gets each cable's centre line only at the moments it needs (in between it blends,
+at most 1 mm off) and draws the round tube itself; a part that moves as a whole keeps only the moments a straight
+blend cannot give. Other 3D programs that open the `.glb` on its own show these parts at the frame shown.
 
 <a id="web3d-player"></a>
 #### On the page: what the visitor can do

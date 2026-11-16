@@ -36,6 +36,15 @@ everything but one part – like the app's own tools, on PC and phone.
 5. Each tool in the settings menu / a small tool row, in the keyboard help (0134), working on phone (tap, long-press).
 6. Guide section, tooltips of the export settings, function list entry, PC-check / headless tests.
 
+- **Bug hunt 0147 rows 16 and 21d–f (added by the lead, 16 Nov; the player's settings and phone layout):** (16) a
+  remembered setting of the wrong type (e.g. `off` not a list under `fresing-player:<path>`) stops the page for good –
+  type-check every remembered field and drop bad ones; (21d) a software-rendering browser writes `off=shadows` into the
+  link – write only items the visitor switched; (21e) phone: portrait help covers the tool column, landscape 844×390
+  menu covers the 2nd tool column and help overlaps the title, help says "1 … 1" with one view, touch hint says
+  "right-drag … ? for keys" – a narrow-height layout, help as a bottom sheet, touch wording (this task adds tools, so
+  lay them out for phones from the start); (21f) a screenshot of a page with a non-ASCII title saves as "download"
+  without `.png` – fold the file name to ASCII. Proofs and numbers in `tasks/0147-bug-hunt-5.md`.
+
 ## Done when
 
 - [ ] 1–5 in the player; headless tests (a click at a known pixel gives the expected part / distance / plane distance /
