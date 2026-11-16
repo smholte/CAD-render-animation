@@ -374,13 +374,16 @@ def bake(scene, anim, blocks, frame_of, ease, jkeys: dict, jstate: dict, f_end: 
     lay = stored_layout(scene) or layout(scene)
     ths = thrusters(scene, lay)
     kinds = [t.kind for t in ths]
-    if len(ths) != len(rs):              # (a row whose joint is gone)
-        rs = [r for r in rs if _joint(scene, r.joint) is not None][:len(ths)]
+    if len(ths) != len(rs):              # (a row whose joint is gone: the layout as it is now, paired row by row)
+        lay = layout(scene)
+        ths = thrusters(scene, lay)
+        kinds = [t.kind for t in ths]
+        rs = [r for r in rs if _joint(scene, r.joint) is not None and _joint(scene, r.joint).frame is not None]
     base = setting(scene)
     steps = []
     for b in sorted(blocks, key=lambda x: x.start):
         f0, f1 = frame_of(b.start), frame_of(b.start + b.duration)
-        steps.append((b, f0, max(f1, f0 + 1)))
+        steps.append((b, f0, f1))
     if not steps and core.effective_mode(base) == "STILL":
         return warnings
     c_base = core.command(base, ths)
@@ -388,6 +391,10 @@ def bake(scene, anim, blocks, frame_of, ease, jkeys: dict, jstate: dict, f_end: 
     def at(f):
         c = c_base
         for b, f0, f1 in steps:
+            if f1 <= f0:                     # a step of no length: the new setting from its own frame on
+                if f >= f0:
+                    c = core.command(block_setting(b), ths)
+                continue
             if f <= f0:
                 continue
             c = core.mix(c, core.command(block_setting(b), ths), ease(b.easing, (f - f0) / (f1 - f0)), kinds)
@@ -404,8 +411,8 @@ def bake(scene, anim, blocks, frame_of, ease, jkeys: dict, jstate: dict, f_end: 
         for n, vals in ch_rows.items():
             if max(vals) - min(vals) < 1e-9:
                 continue
-            if n.startswith("a"):
-                vals = list(np.unwrap(vals))     # (an angle that goes round keys the short way)
+            if n[0] == "a" and n[1:].isdigit():
+                vals = list(np.unwrap(vals))     # (a jet's angle that goes round keys the short way; not "ahead")
             cb = cb or animation._channelbag(scene, "SCENE")
             keys = [(frames[i], vals[i], "LINEAR", "AUTO") for i in core.thin(vals)]
             keys[-1] = (keys[-1][0], keys[-1][1], "CONSTANT", "AUTO")

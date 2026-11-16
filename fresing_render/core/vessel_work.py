@@ -322,8 +322,8 @@ def exit_distance(u: float, v: float, jet: float, half_length: float, half_beam:
     """How far a jet from (u, v) going ``jet`` travels before it leaves the hull's box (|u| <= half_length,
     |v| <= half_beam): where it comes up beside or behind the hull."""
     cu, sv = math.cos(jet), math.sin(jet)
-    ru = (half_length - u * math.copysign(1.0, cu)) / max(abs(cu), TAN_MIN)
-    rv = (half_beam - v * math.copysign(1.0, sv)) / max(abs(sv), TAN_MIN)
+    ru = (half_length - u * math.copysign(1.0, cu)) / abs(cu) if abs(cu) > 1e-9 else math.inf
+    rv = (half_beam - v * math.copysign(1.0, sv)) / abs(sv) if abs(sv) > 1e-9 else math.inf
     return max(min(ru, rv), 0.0)
 
 
