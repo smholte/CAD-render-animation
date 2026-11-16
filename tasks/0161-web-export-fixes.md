@@ -54,10 +54,49 @@ The other rows of 0147 (0160, 0162, 0163; 11 → 0143; 16, 21d–f → 0135); th
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026 – branch `claude/relaxed-einstein-qn16gw` (the session's
+branch, not `task/0161-…`), version 0.2.121. No subagents (Medium task; the rows were small or one design).
 
 **What changed:**
+- **Row 1 (crash risk):** `lightbake.Bake._bake_call` runs `bpy.ops.object.bake` inside `handlers.pause_live()`
+  (Soft light, Everything baked, the House bake). Test `test_web3d_bake_safe.py::test_light_bake_keeps_the_live_handlers_away_from_the_copy`
+  (own process): moving cable not built, Soft light, the copy's `fr_bake` tag taken off, a spy handler; also a Cancel
+  in the middle. Before the fix: **segfault (signal 11)**; after: no handler sees the copy, handlers back both times.
+- **Row 10 (marine looks):** `web3d.needs_own_bake(ob)` = a part (no modifier) with a marine look (`marine_looks.nodes_of`).
+  Such parts are baked **on their own UVs** where they stand (`Baker.own`): `lightmap.unwrap` of the world-scaled mesh,
+  `core.own_atlas` (one square picture up to 2048 px, power of two, 4 px padding, bake margin 6 px EXTEND), a triangle
+  copy with the part's custom properties and the export scene's waterline; colour/roughness/metal/alpha by Emit (edge
+  wear and AO kept – it is the real shape), the normal by Cycles' **tangent-space Normal bake** (the growth's bumps).
+  Every slot of such a part reads the part's pictures (no `KHR_texture_transform`, CLAMP); the mesh gets its own
+  `TEXCOORD_0` (float) and keeps baked light (`TEXCOORD_1`). Texels: `core.own_tpm` = texture size per metre
+  (1024 → 1 mm), at most `OWN_BUDGET` 8 M texels for all such parts together. Export line: `core.own_line`
+  ("marine looks baked on N parts (X mm per pixel…)", "too big for the fine streaks and barnacles" above 10 mm).
+  Panel note when a material in use has a marine look; guide paragraph in the Web 3D section; CHANGELOG.
+  Tests: `test_web3d_own_bake.py` (an upright plate through the waterline: page colour below the band < 0.6 × above,
+  above = the yellow paint; fails on the tiles: 0.51 vs 0.51), `test_web3d_core.py` (`own_atlas`, `own_tpm`, `own_line`).
+- **Row 14:** `views()`: an ORTHO camera gets fov = 2·atan(ortho_scale / 2 / distance to the target). Test
+  `test_web3d.py::test_isometric_view_keeps_its_frame_on_the_page` (before: ×0.58 of the frame width on the mill's
+  camera set-up; after ×1.000).
+- **Row 15:** `page_html` escapes every `<` as `\u003c` (`page_settings` reads both forms). Test
+  `test_web3d_env.py::test_settings_block_escapes_every_lt` (fails before); the camera name `<!-- <script` read back
+  by `JSON.parse` in headless Chromium.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, CPU bake, no graphics card):
+
+| Model | Before (0.2.120) | After |
+| --- | --- | --- |
+| Test crane, every part marine growth, waterline 0.3 m, 512 px | 0.2 MB, 3 textures, 2.5 s, page plain yellow | 0.8 MB, 59 textures, 25.5 s (20 parts, 2 mm per pixel) |
+| Offshore turbine **stand-in** (monopile + tower −30 … +144 m with growth, transition piece with streaks, 3 blades 117 m with the worn edge), 1024 px | 0.6 MB, 5 textures, 10.1 s, no growth on the page | 2.3 MB, 15 textures, 86.5 s (6 parts, 32–75 mm per pixel, "too big for the fine streaks" said) |
+
+The owner's IEA 15 MW STEP is not on this machine (draft release `site-kit`), so the turbine numbers are of a stand-in
+of the same size, not of the real turbine. App render (Cycles) vs page (headless Chromium, SwiftShader), the crane
+from its saved view: the growth patches sit in the same places; the turbine stand-in shows the growth below the
+waterline on the page (before: plain paint). Local tests: the web 3D and light bake files (91 passed), tooltip check
+756/756 ok, precheck. GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- At the 8 M texel budget a turbine tower gets 3–7 cm per pixel: the band and patches show, streaks and barnacles do
+  not. A bigger budget doubles the file and bake time; owner decides (one number, `core.OWN_BUDGET`).
+- A marine part drawn by a modifier (none today) keeps the tiles; a marine part that moves keeps the band where it
+  was at the frame shown (the band is world height).
+- Not checked on the owner's turbine page (0128) – it needs the owner's STEP or his next kit run.
