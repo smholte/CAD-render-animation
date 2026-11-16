@@ -130,6 +130,18 @@ class Sphere:
 
 
 @dataclass
+class Loft:
+    """A skin through rings of points (task 0155: the detailed props and the person). Every ring has the same number
+    of points; ``closed`` rings wrap round (a tube), open ones make a strip (a corrugated wall). ``caps`` closes the
+    first and last closed ring with a fan to its centre. ``smooth`` shades it smooth."""
+    mat: str
+    rings: tuple
+    closed: bool = True
+    caps: bool = True
+    smooth: bool = True
+
+
+@dataclass
 class Quad:
     """A flat panel; its front side (normal by the right-hand rule of p0→p1→p2) is the visible side."""
     mat: str
@@ -159,6 +171,8 @@ def place(shapes, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0, rot: float 
             out.append(replace(s, c=_move_pt(s.c, dx, dy, dz, rot)))
         elif isinstance(s, Quad):
             out.append(replace(s, pts=tuple(_move_pt(p, dx, dy, dz, rot) for p in s.pts)))
+        elif isinstance(s, Loft):
+            out.append(replace(s, rings=tuple(tuple(_move_pt(p, dx, dy, dz, rot) for p in r) for r in s.rings)))
     return out
 
 
@@ -194,7 +208,8 @@ def footprint(shape) -> tuple[float, float, float, float, float, float]:
         x, y, z = shape.c
         r = shape.r
         return x - r, x + r, y - r, y + r, z - r, z + r
-    xs, ys, zs = zip(*shape.pts)
+    pts = [p for r in shape.rings for p in r] if isinstance(shape, Loft) else shape.pts
+    xs, ys, zs = zip(*pts)
     return min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)
 
 
@@ -202,11 +217,14 @@ def footprint(shape) -> tuple[float, float, float, float, float, float]:
 # props for scale (also used inside the surroundings)
 # ---------------------------------------------------------------------------
 
-PROPS = {
-    "PERSON": ("Person", "A grey mannequin, 1.8 m tall"),
+PROPS = {      # task 0155: the shapes are in core/props_detail.py (detailed and light); new kinds only at the end
+    "PERSON": ("Person", "A person in work clothes, 1.75 m tall. Select it to choose the pose, height and clothes"),
     "CONTAINER": ("20 ft container", "A 20 ft shipping container, 6.06 × 2.44 × 2.59 m"),
-    "PALLET": ("Euro pallet", "A euro pallet, 1.2 × 0.8 m, with a load of boxes"),
-    "BARRIER": ("Safety barrier", "A 2 m steel safety barrier"),
+    "PALLET": ("Euro pallet", "A euro pallet, 1.2 × 0.8 m, with two layers of taped boxes"),
+    "BARRIER": ("Safety barrier", "A 2 m steel safety barrier with a red and white panel"),
+    "IBC": ("IBC tank", "A 1,000 litre tank in a steel cage on a pallet, 1.2 × 1.0 × 1.16 m"),
+    "GAS_RACK": ("Gas bottle rack", "A rack with four gas bottles, about 1.1 × 0.5 × 1.5 m"),
+    "TOOL_TROLLEY": ("Tool trolley", "A workshop trolley with six drawers, 0.68 × 0.46 × 0.96 m"),
 }
 
 
@@ -289,7 +307,14 @@ def barrier() -> list:
     return s
 
 
-def prop_shapes(kind: str) -> list:
+def prop_shapes(kind: str, lod: str = "DETAILED", **settings) -> list:
+    """A prop's shapes (task 0155: ``core/props_detail.model``; the plain shapes below are its light versions)."""
+    from . import props_detail
+    return props_detail.model(kind, lod, **settings)
+
+
+def plain_prop_shapes(kind: str) -> list:
+    """The props of before task 0155 (the light container, pallet and barrier still use them)."""
     if kind == "PERSON":
         return person()
     if kind == "CONTAINER":
@@ -301,9 +326,9 @@ def prop_shapes(kind: str) -> list:
     raise KeyError(kind)
 
 
-def prop_size(kind: str) -> tuple[float, float, float]:
+def prop_size(kind: str, **settings) -> tuple[float, float, float]:
     xs, ys, zs = [], [], []
-    for sh in prop_shapes(kind):
+    for sh in prop_shapes(kind, **settings):
         x0, x1, y0, y1, z0, z1 = footprint(sh)
         xs += [x0, x1]
         ys += [y0, y1]

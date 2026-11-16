@@ -265,6 +265,10 @@ fresing_render/            the Blender extension (Python package)
                            family/panel/fold for 0062, button or setting, guide anchor, tour stops, PC-check lines,
                            lesson step; `problems()` + `read_repo()` = the precheck's check that every stop, Full line and
                            guide section is named and every entry is linked; media.json `functions` → the site's links)
+                           props_detail.py (props for scale in detail, task 0155: the person – a skeleton posed by joint
+                           angles, lofted skin, face without a likeness, hands, shoes, outfits; heights 1.65/1.75/1.85, put
+                           on the floor after posing – and the detailed container, pallet, barrier, IBC, gas rack, tool
+                           trolley; every prop in DETAILED and LIGHT; ``Loft`` shape in surroundings.py)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -426,6 +430,11 @@ fresing_render/            the Blender extension (Python package)
                            with rust streaks above it) and ``paint_marine_streaks``; the waterline is the scene property
                            ``fr_waterline_z`` (world z, m; ``sync`` copies the surroundings' sea into it; none = 0), read
                            by an Attribute node: no driver; ``growth``/``splash`` = the band in plain Python for the tests
+    props_scale.py         props for scale in detail (task 0155): one mesh per prop holding both levels (face attribute
+                           ``fr_lod`` 1/2), the Geometry Nodes modifier "FR prop detail" keeps one by the distance to the
+                           active camera or the scene's ``props_detail``; a person's ``Object.fresing_person`` settings
+                           rebuild its mesh in place; ``upgrade`` (load_post) gives older projects' props the new look;
+                           ``line_up`` / ``check_line_up`` shared by the tour stop "props" and the PC check's scene.props
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);

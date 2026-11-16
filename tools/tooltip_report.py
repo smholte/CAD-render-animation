@@ -72,6 +72,7 @@ OWNER_TYPES = {
     "rd": "FRCableRider",                                     # … > Into the sea: things on the cable (task 0081)
     "fx": "FRFlex",                                           # 4 Motion > Hoses and drag chains (task 0058)
     "sp": "FRSpool", "fl": "FRSpoolFollower",                 # 4 Motion > Drums and carousels (task 0080)
+    "person": "FRPersonSettings",                             # 5 Scene & Render > Props for scale (task 0155)
 }
 # list rows: the type of `item` in each UIList
 ITEM_TYPES = {
@@ -361,6 +362,7 @@ def fill_tooltips(items: list[Item]) -> None:
         _walk_structs(bpy.types.Scene.bl_rna.properties["fresing"].fixed_type)
         _walk_structs(bpy.types.Scene.bl_rna.properties["fresing_decal"].fixed_type)    # decals (task 0024)
         _walk_structs(bpy.types.Mesh.bl_rna.properties["fresing_decals"].fixed_type)
+        _walk_structs(bpy.types.Object.bl_rna.properties["fresing_person"].fixed_type)  # a person prop (task 0155)
         prop_types = dict(_STRUCTS)
         for it in items:
             if it.kind == "button":

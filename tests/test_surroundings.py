@@ -96,7 +96,7 @@ def test_halls_grow_with_the_machine():
 
 
 def test_prop_sizes():
-    w, d, h = S.prop_size("PERSON")
+    w, d, h = S.prop_size("PERSON")          # 1.75 m and a helmet (task 0155)
     assert 1.75 < h < 1.85 and w < 0.7 and d < 0.4
     w, d, h = S.prop_size("CONTAINER")
     assert abs(w - 6.058) < 0.1 and abs(d - 2.438) < 0.05 and abs(h - 2.591) < 0.01
@@ -104,11 +104,17 @@ def test_prop_sizes():
     assert abs(w - 1.2) < 0.01 and abs(d - 0.8) < 0.01 and h > S.PALLET_H
     w, d, h = S.prop_size("BARRIER")
     assert 1.9 < w < 2.1 and 0.9 < h < 1.1
+    w, d, h = S.prop_size("IBC")
+    assert abs(w - 1.2) < 0.02 and 1.0 <= d < 1.15 and 1.1 < h < 1.25
+    w, d, h = S.prop_size("GAS_RACK")
+    assert 1.0 < w < 1.2 and 1.4 < h < 1.6
+    w, d, h = S.prop_size("TOOL_TROLLEY")
+    assert 0.65 < w < 0.8 and 0.9 < h < 1.0
 
 
 def test_props_line_up_beside_the_machine():
     machine = (-1.0, 1.0, -0.5, 0.5)
-    sizes = [S.prop_size(k)[:2] for k in ("PERSON", "CONTAINER", "PALLET", "BARRIER")]
+    sizes = [S.prop_size(k)[:2] for k in S.PROPS]
     boxes = []
     for i, (sx, sy) in enumerate(sizes):
         x, y = S.prop_spot(i, machine, sizes)
@@ -405,13 +411,13 @@ def test_props_for_scale(scene):
     # surroundings come and go, props stay
     s.background = "QUAY"
     s.background = "COLOR"
-    assert len(surroundings.props(scene)) == 4
+    assert len(surroundings.props(scene)) == len(S.PROPS)
     # props stand on the surroundings' floor when it is lowered
     s.background = "FACTORY"
     s.floor_offset = 0.5
     assert bpy.ops.fresing.env_place() == {"FINISHED"}
     assert all(abs(p.location.z - (mn[2] - 0.5)) < 1e-5 for p in surroundings.props(scene))
-    assert surroundings.remove_props(scene) == 4 and not surroundings.props(scene)
+    assert surroundings.remove_props(scene) == len(S.PROPS) and not surroundings.props(scene)
 
 
 def _write_hdr(path, sky=(0.9, 1.0, 1.2), ground=(0.35, 0.25, 0.15)):

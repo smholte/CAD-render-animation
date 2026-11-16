@@ -1,6 +1,6 @@
 # 0154 – Water effects of a working vessel: wake, bow wave, propeller wash, thruster jets
 
-**Who:** worker · **Status:** waiting – starts after 0148 (same sea code) and 0153 (needs its thrusters) are merged · **Branch:** `task/0154-vessel-water-effects`
+**Who:** worker · **Status:** running · **Branch:** `claude/nifty-mendel-78lbia`
 **Started by:** lead chat, 16 Nov 2026 (owner: "more details to the ship itself") · **Model:** Opus · effort High ·
 **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Sea lane: `core/sea.py`, `blender/surroundings.py` (the sea, its foam/white caps), `blender/vessel_motion.py` (speed, heading, a manoeuvre setting), the propeller / thruster joints' drive from that setting, their tests, the guide's sea and vessel sections.
