@@ -599,14 +599,25 @@ def _credit_line_from_text(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _decode(raw: bytes) -> str:
-    """UTF-8 (with or without its mark); a file that is not UTF-8 is read as Windows' Western code page (cp1252), as
-    older Windows programs write OBJ / MTL files ("Plåt", "stål.png"; 0131 row 16d)."""
+    """UTF-8 (with or without its mark); a line that is not UTF-8 is read as Windows' Western code page (cp1252), as
+    older Windows programs write OBJ / MTL files ("Plåt", "stål.png"; 0131 row 16d). Line by line (task 0162): one
+    cp1252 byte in a comment no longer turns every UTF-8 name of the file into "PlÃ¥t"."""
     if raw.startswith(b"\xef\xbb\xbf"):
-        return raw[3:].decode("utf-8", "replace")
+        raw = raw[3:]
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
-        return raw.decode("cp1252", "replace")
+        pass
+    out = []
+    for ln in raw.splitlines(keepends=True):
+        try:
+            out.append(ln.decode("utf-8"))
+        except UnicodeDecodeError as e:
+            if e.reason == "unexpected end of data" and e.end == len(ln):
+                out.append(ln.decode("utf-8", "ignore"))     # a read cut in the middle of a letter (the credit)
+            else:
+                out.append(ln.decode("cp1252", "replace"))
+    return "".join(out)
 
 
 def _text_lines(path: str) -> list[str]:

@@ -73,8 +73,9 @@ class FRESING_OT_tree_row(bpy.types.Operator):
         return {"SELECT": "Select it in the view. Shift or Ctrl-click: add to the selection",
                 "ADD": "Select this too (adds it to what is selected)",
                 "FRAME": "Select it and zoom the view onto it",
-                "HIDE": "Hide or show it (also in renders)",
-                "ONLY": "Show only this, hide everything else (Show all brings it back)"}[properties.action]
+                "HIDE": "Hide or show it (also in renders). After Build it takes the built animation off: Build again",
+                "ONLY": "Show only this, hide everything else (Show all brings it back). After Build it takes the "
+                        "built animation off: Build again"}[properties.action]
 
     def invoke(self, context, event):
         self.extend = event.shift or event.ctrl
@@ -88,6 +89,9 @@ class FRESING_OT_tree_row(bpy.types.Operator):
         item = s.tree[self.index]
         t = logic.Tree(scene)
         objs = tree_mod.row_objects(scene, item, t)
+        if self.action in ("HIDE", "ONLY"):
+            from .ops_main import _take_build_off
+            _take_build_off(self, context)                 # the built keys would still show it (task 0162)
         if self.action == "HIDE":
             hidden = not logic.is_hidden(item.obj)
             if item.is_part:

@@ -84,8 +84,19 @@ class FRESING_OT_toggle_lock(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _take_build_off(self, context) -> None:
+    """Showing or hiding parts after Build (task 0162): the built keys would still show or hide them as they were,
+    so the built animation is taken off first (as other changes after Build do); the owner builds again."""
+    from . import animation
+    if animation.has_keys(context.scene):
+        animation.clear_keys(context.scene)
+        msg = "The built animation was taken off (it still showed the parts as before): Build again"
+        context.scene.fresing.last_message = msg
+        self.report({"INFO"}, msg)
+
+
 class FRESING_OT_toggle_hide(bpy.types.Operator):
-    """Show or hide a subassembly (also in renders)"""
+    """Show or hide a subassembly (also in renders). After Build it takes the built animation off: Build again"""
 
     bl_idname = "fresing.toggle_hide"
     bl_label = "Show / hide"
@@ -97,21 +108,26 @@ class FRESING_OT_toggle_hide(bpy.types.Operator):
         ob = bpy.data.objects.get(self.name)
         if ob is None:
             return {"CANCELLED"}
-        logic.set_hidden(ob, not logic.is_hidden(ob))
+        hide = not logic.is_hidden(ob)
+        _take_build_off(self, context)
+        logic.set_hidden(ob, hide)
         context.scene.fresing.bounds_valid = False
         return {"FINISHED"}
 
 
 class FRESING_OT_hide_selected(bpy.types.Operator):
-    """Hide the selected parts (also in renders). Use Show all to bring them back"""
+    """Hide the selected parts (also in renders). Use Show all to bring them back. After Build it takes the built
+    animation off: Build again"""
 
     bl_idname = "fresing.hide_selected"
     bl_label = "Hide selected"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        sel = list(context.selected_objects)
+        _take_build_off(self, context)
         tree = logic.Tree(context.scene)
-        for ob in context.selected_objects:
+        for ob in sel:
             if ob.get(build.PROP_KIND) in build.MODEL_KINDS:
                 logic.set_hidden(ob, True, tree)
         context.scene.fresing.bounds_valid = False
@@ -119,13 +135,15 @@ class FRESING_OT_hide_selected(bpy.types.Operator):
 
 
 class FRESING_OT_show_all(bpy.types.Operator):
-    """Show every hidden part again (parts removed with Clean-up stay hidden)"""
+    """Show every hidden part again (parts removed with Clean-up stay hidden). After Build it takes the built
+    animation off: Build again"""
 
     bl_idname = "fresing.show_all"
     bl_label = "Show all"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        _take_build_off(self, context)
         from .tree import ISO_HIDDEN
         for ob in context.scene.objects:      # every object once, no recursion
             if ob.get(build.PROP_KIND) in build.MODEL_KINDS and not ob.get(build.PROP_EXCLUDED):

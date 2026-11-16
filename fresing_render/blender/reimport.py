@@ -71,6 +71,7 @@ def records(objs) -> list[dict]:
             "kind": ob.get(build.PROP_KIND),
             "key_a": tuple(inst) if all(inst) else None,
             "made": any(c.get(build.PROP_MADE_NAME) for c in chain),     # a name the mesh reader made (task 0139)
+            "made_self": bool(ob.get(build.PROP_MADE_NAME)),
             "key_b": tuple(_norm(c.get(build.PROP_NAME, c.name)) for c in chain),
             "leaf": _norm(ob.get(build.PROP_NAME, ob.name)),
             "pos": cad_matrix(ob).translation.copy(),
@@ -139,10 +140,16 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
     # 2. name path, nearest first (a made name only in the same place); 3. same name anywhere, only if it did not
     #    move; 4. renamed: the same shape in the same place (task 0117), reported
     renamed = (lambda r: (r["kind"], r["shape"]) if r.get("shape") else None)
+
+    def free(recs, used):
+        # an assembly whose own name the reader made ("Node 5") says nothing by its name, and its origin is mostly
+        # the model's: "the same place" paired the wrong groups once one was added or removed (0147 row 3). Those
+        # pair only through their parts (``_made_assemblies``).
+        return [r for r in recs if id(r) not in used and not (r.get("made_self") and r["kind"] != "part")]
     for key, tol in ((made, move_tolerance), (lambda r: (r["kind"], r["key_b"]), None),
                      (lambda r: (r["kind"], r["leaf"]), move_tolerance), (renamed, move_tolerance)):
-        go = by(key, [r for r in old if id(r) not in used_old])
-        gn = by(key, [r for r in new if id(r) not in used_new])
+        go = by(key, free(old, used_old))
+        gn = by(key, free(new, used_new))
         for k, olds in go.items():
             news = gn.get(k, [])
             if not news:
