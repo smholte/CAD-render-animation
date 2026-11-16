@@ -1,6 +1,6 @@
 # 0167 – Height-map cutter follow-ups: fewer faces on walls, true steep flanks, the five known faults
 
-**Who:** worker · **Status:** open · **Branch:** `task/0167-heightmap-follow-ups`
+**Who:** worker · **Status:** running · **Branch:** `task/0167-heightmap-follow-ups`
 **Started by:** lead chat, 16 Nov 2026 (open points of 0146) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Machining lane: `core/heightmap.py`, the map side of `core/machining.py` (`_MapSide`, the tile join),
