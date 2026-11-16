@@ -125,7 +125,7 @@ Everything 0134 does; weather on the page (0115).
 **GitHub runs:** 2. The first (run 43946227785, pushed early so the run went while the independent tester worked)
 failed only in `test_updates` – the CHANGELOG already had the new heading while the version was not raised yet, as
 expected. The second (run 43949283676, 0.2.131 after merging `main`, which 0166 had taken 0.2.130 on) green;
-`main` fast-forwarded to it with only `TASKS.md` / `tasks/` on top (docs mode).
+`main` got it with 0166's report merged on top; GitHub ran the full suite there (run 43954671134): the scaled-down Heavy PC check (paths-heavy) ran out of its 15 minutes on a slow runner (every line ~1.6 x slower than on the branch, the web 3D lines fine), the failed job re-run once: green, released, the old Windows install updated itself.
 
 **Subagents:** one independent tester (findings above); no writers.
 
