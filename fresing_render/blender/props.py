@@ -1476,6 +1476,13 @@ class FRMilling(bpy.types.PropertyGroup):
         items=[("FINE", "Fine", "64 corners on the bit's circle, follows curves to 0.002 mm"),
                ("NORMAL", "Normal", "40 corners on the bit's circle, follows curves to 0.005 mm"),
                ("FAST", "Fast", "24 corners on the bit's circle, follows curves to 0.01 mm")])
+    fast_map: BoolProperty(
+        name="Fast 3-axis passes", default=True, update=_mill_detail_changed,
+        description="A long program that cuts straight from above with a flat, ball or corner-radius mill, such "
+                    "as a finishing program from CAM, is worked out as a height map: seconds instead of minutes. "
+                    "V-bits and drills, side cuts, tilted and rotary moves and short programs are cut exactly as "
+                    "before. Switch off to cut every move exactly: with the map, sharp outside corners of walls "
+                    "and steep rounded flanks can be 0.1 to 0.3 mm off at Detail Normal (half at Fine)")
     enabled: BoolProperty(
         name="Cut material", default=True, update=_mill_enabled_changed,
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "

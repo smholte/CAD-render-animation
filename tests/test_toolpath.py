@@ -120,6 +120,9 @@ def test_cut_never_into_the_part(made):
     wp, fin = m.workpiece, m.finished
     rel = machining._cad_world(wp).inverted() @ machining._cad_world(fin)
     machining.set_finished(sc, None, update=False)
+    # (task 0146: this test measures the PROGRAM to 0.01 mm with the milled block as its gauge, so every move is cut
+    # exactly; the height map of Fast 3-axis is within 0.03 mm, and up to 0.3 mm at steps thinner than its grid)
+    m.fast_map = False
     a, _b = toolpath.step(sc)
     r = animation.bake(sc, a)
     assert not r["warnings"], r["warnings"]

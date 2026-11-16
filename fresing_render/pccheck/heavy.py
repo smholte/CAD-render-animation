@@ -518,6 +518,54 @@ def heavy_milling(ctx):
     return f"{frames} frames, {len(me.polygons)} faces in the block"
 
 
+@line("heavy.milling_finish", "Milling: a long finishing program (height map)", "0.2.117", (H,), expected=30,
+      what="The test mill runs a finishing program of 40,000 points (a Ø10 ball follows a wavy surface over "
+           "100 x 60 mm, passes 0.3 mm apart) as a G-code step; the block is worked out to the end as a height map "
+           "(Fast 3-axis passes), then 20 frames one after the other",
+      shows="How long a real finishing program takes: building the step, reading the motion, working out the whole "
+            "cut (the exact cut per move took minutes), ms per frame while playing, faces in the block",
+      not_shown="Roughing with side cuts, tilted and rotary moves (they are cut exactly, move by move, as before); "
+                "the same program with Fast 3-axis passes off (minutes)")
+def heavy_milling_finish(ctx):
+    from ..blender import machining
+    from .checks import _finish_depth, _finish_scene, _top_of
+    if small():
+        xs, ys = [-30.0 + 1.0 * k for k in range(61)], [-6.0 + 0.6 * k for k in range(21)]
+    else:
+        xs, ys = [-50.0 + 0.5 * k for k in range(201)], [-30.0 + 0.3 * k for k in range(201)]
+    t0 = time.time()
+    scene, frames, stock = _finish_scene(ctx, xs, ys, seconds=max(6.0, len(xs) * len(ys) / 250.0))
+    ctx.metric("build the step", time.time() - t0, "s")
+    t0 = time.time()
+    machining.sample(scene)
+    ctx.metric("read motion", time.time() - t0, "s")
+    t0 = time.time()
+    _check(machining.refresh(scene, frame=float(frames), force=True),
+           machining.status(scene) or "the block does not show its cut")
+    whole = time.time() - t0
+    ctx.metric("whole cut", whole, "s")
+    status = machining.status(scene)
+    _check("height map" in status, f"the long program was not worked out as a height map: '{status}'")
+    faces = len(stock.data.polygons)
+    depth = _top_of(scene, stock)
+    probes = [(xs[i], ys[j]) for i in (len(xs) // 5, len(xs) // 2, 4 * len(xs) // 5)
+              for j in (len(ys) // 4, len(ys) // 2, 3 * len(ys) // 4)]
+    off = max(abs(depth(x, y) - _finish_depth(x, y)) for x, y in probes)
+    _check(off < 0.05, f"the cut is {off:.3f} mm away from the depth the program says")
+    first = max(1, frames // 2)
+    shown = list(range(first, min(frames, first + 20) + 1))
+    machining.refresh(scene, frame=float(shown[0]), force=True)
+    t0 = time.time()
+    for f in shown[1:]:
+        _check(machining.refresh(scene, frame=float(f), force=True), machining.status(scene))
+    per = (time.time() - t0) * 1000.0 / max(1, len(shown) - 1)
+    ctx.metric("per frame", per, "ms/frame")
+    ctx.metric("block faces", faces, "")
+    ctx.metric("moves", len(xs) * len(ys), "")
+    _memory(ctx)
+    return f"{len(xs) * len(ys):,} points: the whole cut in {whole:.1f} s, {faces:,} faces, {per:.0f} ms per frame"
+
+
 @line("heavy.playback", "Big machine: playback under load", "0.2.32", (H,), requires=("heavy.import",), expected=60,
       what="Three joints with a coupling move the 3,000-part machine through a 10 s animation; every frame is set "
            "and evaluated one after the other",

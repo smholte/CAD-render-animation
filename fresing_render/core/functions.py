@@ -220,6 +220,9 @@ fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", pan
    prop="cut_look", guide="milling", tour=("cut_look",), pccheck=("milling.cut_look",), since="0.2.43")
 fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel="FRESING_PT_milling", prop="marks",
    guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
+fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
+   panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
+   pccheck=("milling.fast_map",), since="0.2.117")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
    guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
