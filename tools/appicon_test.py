@@ -45,8 +45,9 @@ def main():
     desktop, programs, appdata = ai.known_folders()
     paths = ai.shortcut_paths(desktop, programs, appdata)
     check("shortcuts found", len(paths) >= 5, f"{len(paths)}: " + ", ".join(os.path.basename(p) for p in paths))
-    before = {os.path.basename(p): ai.read_shortcut(p) for p in paths}
-    old = [n for n, i in before.items() if "blender.exe" in i["icon"].lower()]
+    before = {p: ai.read_shortcut(p) for p in paths}
+    old = sorted({os.path.basename(p) for p, i in before.items()
+                  if "blender.exe" in i["icon"].lower() and ai.is_inside(i["target"], folder)})
     check("an older install's shortcuts are there to refresh", old, ", ".join(old))
 
     done = ai.refresh_installed(exe)
@@ -57,6 +58,9 @@ def main():
     for p in paths:
         info = ai.read_shortcut(p)
         name = os.path.basename(p)
+        if not ai.is_inside(before[p]["target"], folder):        # someone else's (the runner's pinned Edge)
+            check(f"{name}: not ours, left as it was", info == before[p], info["icon"])
+            continue
         check(f"{name}: Fresing icon", os.path.normcase(info["icon"]) == os.path.normcase(icon)
               and info["icon_index"] == 0, f'{info["icon"]},{info["icon_index"]}')
         if ai.is_app_shortcut(info["arguments"]):
