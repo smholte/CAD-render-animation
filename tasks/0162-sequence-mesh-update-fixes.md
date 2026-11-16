@@ -1,6 +1,6 @@
 # 0162 – Fix: assembly sequence in any order, Put together shows its parts, riders without a jump; mesh model updates keep unnamed groups
 
-**Who:** worker · **Status:** open – can start when a code slot is free · **Branch:** `task/0162-sequence-mesh-fixes`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-task-0162-ow4q95`
 **Started by:** lead chat, 16 Nov 2026 (rows of bug hunt 0147, report in `tasks/0147-bug-hunt-5.md`) ·
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents
 allowed (CLAUDE.md section 2), including an independent tester.
