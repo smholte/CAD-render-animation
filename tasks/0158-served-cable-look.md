@@ -1,6 +1,6 @@
 # 0158 – Cable look: yarn-served power cable with fibre texture and double marker bands
 
-**Who:** worker · **Status:** waiting – starts after 0142 is merged (0142 ports the cable looks to the web page; this look must go there too) · **Branch:** `task/0158-served-cable-look`
+**Who:** worker · **Status:** running (16 Nov) · **Branch:** `ccr-4f850d4d-er64e3`
 **Started by:** lead chat, 16 Nov 2026 (owner, with photos of a real cable – described below in words; the photos are
 **not** committed: CLAUDE.md section 6) · **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment
 "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
