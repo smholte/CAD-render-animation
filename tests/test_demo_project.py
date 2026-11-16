@@ -65,7 +65,9 @@ def test_every_joint_of_the_sheet(made):
     # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
     wires = [paths.find(sc, n).joint for n in (demo.AR_ITEM, demo.SECOND_ITEM, demo.CPS_RUN_ITEM)
              + tuple(n for _k, n in demo.TIP_ITEMS)]
-    assert len(by) == len(sheet) + 2 + 5 and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
+    assert len(park) == 19 and all(j["name"] in by for j in park)
+    assert len(by) == len(sheet) + 2 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
