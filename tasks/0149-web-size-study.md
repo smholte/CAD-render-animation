@@ -1,6 +1,6 @@
 # 0149 – Study: smaller web 3D files – from 76 MB to about 15–20 MB for the demo (findings only)
 
-**Who:** worker · **Status:** open – can start now (findings only: no app code, starts no test run) · **Branch:** none
+**Who:** worker · **Status:** running (Claude Code web, 16 Nov; findings only: no app code, starts no test run) · **Branch:** none
 (report on `main`, touching only `tasks/`)
 **Started by:** lead chat, 16 Nov 2026 (owner picked the research) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation" (measures with the real app; reads public docs it can reach)
 
