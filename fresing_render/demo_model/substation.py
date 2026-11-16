@@ -228,7 +228,7 @@ def substation(marine_light: Part | None = None) -> Asm:
     landing, ladder = _boat_landing()
     a.add(Part("BOAT LANDING SUBSTATION", landing, YELLOW))
     a.add(Part("LADDER SUBSTATION", ladder, YELLOW))
-    a.add(Part("RAIL SUBSTATION", _railing(DECKS[0])))
+    a.add(Part("RAIL SUBSTATION", _railing(DECKS[0]), GREY))
     lamp = Part("DECK LIGHT", _floodlight(), WHITE)
     hx, hy = TOP_HALF
     for x in (-hx + 3000.0, 0.0, hx - 3000.0):

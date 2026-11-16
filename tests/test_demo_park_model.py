@@ -36,6 +36,7 @@ def test_every_part_is_one_solid(built):
             seen[id(node)] = node
     bad = [p.name for p in seen.values() if g.solids(p.shape) != 1]
     assert not bad, bad
+    assert not [p.name for p in seen.values() if not p.color]          # (a part without a colour reads uncoloured)
     names = [p.name for p in seen.values()]
     # nine turbines share their parts: one mesh each in the app
     assert len(seen) < 160 and g.count_parts(root) > 700, (len(seen), g.count_parts(root))

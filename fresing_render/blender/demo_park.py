@@ -254,8 +254,8 @@ def park_cameras(d: Demo):
     # beside turbine A: off its boat landing side, low, looking past its foot to the vessel laying away from it
     side = (foot - vessel).normalized()
     port = Vector((side.y, -side.x, 0.0))              # (side points aft: this is to port, where its boat landing is)
-    _cam(d, BESIDE_A, foot + side * 22.0 + port * 34.0 + Vector((0, 0, -3.0)),
-         foot.lerp(vessel, 0.42) + Vector((0, 0, 4.0)), 22.0)
+    _cam(d, BESIDE_A, foot + side * 40.0 + port * 45.0 + Vector((0, 0, -2.0)),
+         foot.lerp(vessel, 0.15) + Vector((0, 0, 6.0)), 22.0)
     # the park overview: high over the starboard row, looking across the rows to port – the rotors' fronts, the vessel
     # laying in the middle row, the substation and the port row beyond
     _cam(d, PARK_OVERVIEW, d.mm((150000.0, -2250000.0, 520000.0)), d.mm((450000.0, 350000.0, 0.0)), 30.0)
