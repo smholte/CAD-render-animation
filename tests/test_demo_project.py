@@ -65,7 +65,9 @@ def test_every_joint_of_the_sheet(made):
     # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
     wires = [paths.find(sc, n).joint for n in (demo.AR_ITEM, demo.SECOND_ITEM, demo.CPS_RUN_ITEM)
              + tuple(n for _k, n in demo.TIP_ITEMS)]
-    assert len(by) == len(sheet) + 2 + 5 and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
+    assert len(park) == 19 and all(j["name"] in by for j in park)
+    assert len(by) == len(sheet) + 2 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     cable_turned = spooled = 0
     for row in sheet:
         j = by.get(row["name"])
@@ -204,8 +206,8 @@ def test_scenes_cameras_brand_and_the_animation(made):
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 180.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
-    #                                                            0126: shot 8b, ~24 s)
+    assert 60.0 <= body + cards <= 210.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
+    #                                                            0126: shot 8b, ~24 s; 0166: the park's 2b, 8a, 13, 26 s)
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
@@ -291,10 +293,12 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
     assert ids[:5] == ["model", "looks", "hold", "marks", "joints"] and ids[-1] == "finish"   # hold: 0082, marks: 0153
-    assert ids[-2] == "propulsion"                       # task 0153: the propellers turn the whole animation
-    assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_carousel", "shot_rollers",
-                                                       "shot_tensioner", "shot_drum", "shot_sea", "shot_cps", "shot_quadrant", "shot_lower",
-                                                       "shot_tip", "shot_back"]
+    assert ids[-3:-1] == ["propulsion", "park_rotors"]   # tasks 0153, 0166: propellers and rotors turn all the time
+    assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_turbine_a", "shot_carousel",
+                                                       "shot_rollers", "shot_tensioner", "shot_drum", "shot_sea",
+                                                       "shot_park", "shot_cps", "shot_quadrant", "shot_lower",
+                                                       "shot_tip", "shot_back", "shot_night"]
+    assert ids.index("park") == ids.index("sea") + 1 and ids.index("park_shift") == ids.index("shot_quadrant") - 1
     saved = list(demo.STAGES)
     before = [s.id for s in demo.STAGES]
     try:
@@ -375,7 +379,10 @@ def test_the_vessel_in_detail(made):
     v = sc.fresing.vessel_work
     assert len(v.thrusters) == 4 and sorted(r.kind for r in v.thrusters) == ["AZIMUTH", "AZIMUTH", "TUNNEL", "TUNNEL"]
     steps = [b for b in a.blocks if b.kind == "VESSEL"]
-    assert len(steps) == 1 and steps[0].vw_mode == "DP" and steps[0].start + steps[0].duration < t0
+    assert len(steps) == 1 and steps[0].vw_mode == "DP"
+    t0 = steps[0].start + steps[0].duration + 0.5            # (task 0166: shot 2b puts shot 3 at 22 s)
+    t1 = t0 + 6.0
+    f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
     assert vessel_work.setting(sc).mode == "AHEAD" and vessel_work.setting(sc).speed == demo.TRANSIT_KNOTS
     ths = vessel_work.thrusters(sc)
     cmd = vw_core.command(vessel_work.block_setting(steps[0]), ths)

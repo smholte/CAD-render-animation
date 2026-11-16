@@ -32,6 +32,13 @@ CAD not licensed, Open-MiRoREA – non-commercial).
 | CEB brick press (hydraulic cylinders) | Open Source Ecology | CC BY-SA 4.0 (`LICENSE.md`) | https://github.com/goscommons/CEB-Press – FreeCAD, converted to STEP in this session (246 parts) | CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0) |
 | IEA 15 MW wind turbine, offshore (monopile) and on land | IEA Wind TCP Task 37 (Gaertner et al., NREL / DTU / UMaine, 2020) | Apache-2.0 (`LICENSE`; no NOTICE file in the repository) | https://github.com/IEAWindSystems/IEA-15-240-RWT – its SolidWorks model (`CAD/deprecated/IEA-15-240-RWT_Solidworks.zip`), exported to STEP by the owner in Fusion (task 0116) | IEA 15 MW Reference Wind Turbine (IEA-15-240-RWT) by IEA Wind TCP Task 37, Apache-2.0; nacelle cover, doors, platforms, monopile details, looks and motion added by Fresing |
 
+**Demo project's wind park (task 0166).** The nine turbines and the offshore substation round the demo cable-lay vessel
+are invented by Fresing (`fresing_render/demo_model/turbine.py`, `substation.py`, `park.py`). The turbines are sized from
+the IEA 15 MW Reference Wind Turbine's public numbers (IEA Wind TCP Task 37, Gaertner et al. 2020: 240 m rotor, 150 m
+hub height, 6° shaft tilt, 10 m monopile) – no file of the IEA model is used; their platforms, boat landing, door,
+nacelle cover and scour rock are the same invented parts as the site's turbine above. Credit line: "Wind turbines sized
+from the IEA 15 MW Reference Wind Turbine (IEA Wind TCP Task 37); modelled by Fresing".
+
 Not used: anything from GrabCAD (its terms do not allow it), MPCNC / LowRider (non-commercial licence), PrintNC
 (CAD moved off the licensed repository), and models whose licence could not be confirmed.
 

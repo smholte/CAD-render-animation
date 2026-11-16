@@ -3582,8 +3582,13 @@ def _check_web3d(scene):
     with open(out["html"], encoding="utf-8") as fh:
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
+    faces = wf.read(data)
+    _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
+    _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
+           open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views")
+            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes")
 
 
 def _check_web3d_env(scene):
@@ -3664,7 +3669,10 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun), then Fullscreen, Reset "
      "view, Screenshot, Copy link, keys (?) and the eye that hides every control; bottom left one button per saved "
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
-     "draws without the graphics card.",
+     "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
+     "and Round face Ø … for a pin or a hole), Measure (click the boom pin: Ø 40.0 mm; two flat faces: the distance "
+     "between them), Cutaway (a slider cuts the crane, the cut faces red) and Fade the rest (click a part: the rest "
+     "goes see-through).",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d)
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",

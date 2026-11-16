@@ -746,6 +746,46 @@ def _textured(mat: dict) -> bool:
                 or "clearcoatNormalTexture" in (mat.get("extensions", {}).get("KHR_materials_clearcoat") or {}))
 
 
+def part_labels(scene) -> dict:
+    """{part object name: the text of its first label that is on} (task 0025's labels; task 0135's cards)."""
+    out: dict = {}
+    for c in getattr(scene.fresing, "callouts", []):
+        if c.enabled and c.part is not None and c.text.strip() and c.part.name not in out:
+            out[c.part.name] = c.text.strip()
+    return out
+
+
+def face_data(me, co: np.ndarray, tri: np.ndarray, mi: np.ndarray, dq=None):
+    """Task 0135: (runs, rows) of a CAD mesh's flat and round faces in the order its triangles are written (one
+    primitive per material slot, ``sorted(set(mi))``), in the coordinates they are written in (``dq``: the 16-bit
+    points' (centre, step)); None for a mesh without CAD faces (a milled part, a drawn tube, a mesh model)."""
+    from ..core import web3d_faces as wf
+    starts = me.get("fr_face_starts") if me is not None else None
+    if starts is None or not len(tri):
+        return None
+    lt = me.loop_triangles
+    poly = np.empty(len(lt), np.int64)
+    lt.foreach_get("polygon_index", poly)
+    starts = np.asarray(list(starts), np.int64)
+    if len(starts) < 2 or int(starts[-1]) != len(me.polygons):
+        return None                                   # the mesh was changed after the import
+    face = wf.face_of_triangles(len(me.polygons), starts)[poly]
+    axes = list(me["fr_axes"]) if "fr_axes" in me else None
+    axis_faces = list(me["fr_axis_faces"]) if "fr_axis_faces" in me else None
+    if axis_faces:                                    # counted in the import's triangles (= polygons): in loop triangles
+        first_lt = np.full(len(me.polygons) + 1, -1, np.int64)
+        first_lt[poly[::-1]] = np.arange(len(poly))[::-1]
+        af = np.asarray(axis_faces, np.int64).reshape(-1, 3).copy()
+        af = af[(af[:, 0] >= 0) & (af[:, 0] < len(me.polygons))]
+        af[:, 0] = first_lt[af[:, 0]]
+        axis_faces = af[af[:, 0] >= 0].ravel().tolist()
+    rows = wf.classify(co, tri, face, axes, axis_faces)
+    if not rows:
+        return None
+    rows = wf.to_written(rows, *(dq if dq else (None, None)))
+    return wf.pack([face[mi == slot] for slot in sorted(set(mi.tolist()))], rows)
+
+
 def mesh_arrays(me, own_uv: bool = False, uv: bool = True):
     """(points (n, 3), corner vertex (m*3), corner normals (m*3, 3), corner UVs (m*3, 2) or None, material index of
     each triangle (m))."""
@@ -825,7 +865,8 @@ class Job:
     def __init__(self, scene, path: str, size: int = core.DEFAULT_SIZE, hide_names: bool = True,
                  animation: bool = False, page: bool = True, compress: bool | None = None,
                  surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
-                 light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL"):
+                 light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL",
+                 faces: bool = True):
         from . import lightbake
         self.scene = scene
         self.marine_detail = marine_detail if marine_detail in core.MARINE_DETAILS else "NORMAL"
@@ -843,6 +884,8 @@ class Job:
             self.path += ".glb"
         self.size = int(size)
         self.hide_names = bool(hide_names)
+        self.faces = bool(faces)               # task 0135: flat and round faces for measuring in the page
+        self._faces: dict = {}                 # written mesh -> (runs, rows) of core/web3d_faces.py
         self.animation = bool(animation)
         self.page = bool(page)
         self.compress = compress               # None: from core.COMPRESS_FROM triangles on (the panel's tick)
@@ -860,6 +903,16 @@ class Job:
         if self.hide_names:
             return f"{what} {k}"
         return str(ob.get(build.PROP_NAME) or ob.name)
+
+    def _card(self, ob, labels: dict) -> str:
+        """Task 0135: what the page's card says about a clicked part – its label's text (task 0025: the owner's own
+        words for showing), else its name; with Hide part names its material group's name, never a part name."""
+        text = labels.get(ob.name, "")
+        if text:
+            return text
+        if not self.hide_names:
+            return str(ob.get(build.PROP_NAME) or ob.name)
+        return str(ob.get(build.PROP_GROUP) or "")
 
     def steps(self):
         rest = None
@@ -1094,6 +1147,7 @@ class Job:
         self._nodes = []                       # (object, node index)
         triangles = 0
         everything = [(ob, False) for ob in parts] + [(ob, True) for ob in marks]
+        labels = part_labels(scene)
         for k, (ob, is_decal) in enumerate(everything):
             me = self._drawn.mesh(ob)
             own = self._own.get(ob.name) if not is_decal else None
@@ -1114,8 +1168,11 @@ class Job:
                 mesh_of[key] = self._mesh(me, mats, is_decal, need_uv, len(mesh_of) + 1,
                                           light["first_uv"].get(me.name_full) if light else None, own_uv=own)
             mesh, tris = mesh_of[key]
+            src_mesh = mesh
             if light is not None:
                 mesh = self._lit_mesh(ob, mesh, light)
+            if mesh != src_mesh and src_mesh in self._faces:          # a baked copy keeps its mesh's triangles
+                self._faces[mesh] = self._faces[src_mesh]
             triangles += tris
             mw = self._drawn.place(ob)
             node = {"name": self._name(ob, k + 1, "Decal" if is_decal else "Part")}
@@ -1124,6 +1181,11 @@ class Job:
             mode = self._modes.get(ob.name)
             if mode:                           # task 0106: stays still / level while the vessel moves
                 node["extras"] = {"fr_vm": mode}
+            card = "" if is_decal else self._card(ob, labels)
+            if card:                           # task 0135: the part's card in the page
+                node.setdefault("extras", {})["fr_card"] = card
+            if is_decal:                       # task 0135: the page's tools look through a sticker to its part
+                node.setdefault("extras", {})["fr_decal"] = 1
             self._nodes.append((ob, self.gltf.place_mesh(node, mesh, root)))
             if k % 20 == 0:
                 self.text = f"Writing part {k + 1} of {len(everything)}"
@@ -1140,6 +1202,7 @@ class Job:
             self._tubes(np.zeros(1))
         self.result.update(triangles=triangles, parts=len(parts), decals=len(marks), animated=anim,
                            drawn=self._drawn.counts())
+        self._write_faces()
         yield 1.0
 
     def _material(self, lk: Look, label: str, tiles: dict, flat: dict, cache: dict) -> dict:
@@ -1254,7 +1317,16 @@ class Job:
         step = core.POS_STEP if (is_decal or me.name_full in self._decal_meshes) else core.POS_STEP_BIG
         k = self.gltf.mesh(name, co[vidx], qn, uvw, groups, max_step=step, tiled_uv=not (is_decal or own_uv))
         self._welded[k] = (first, inverse)
+        if self.faces and not is_decal:
+            got = face_data(me, co, vert.reshape(-1, 3), mi, self.gltf.dequantize[k])
+            if got is not None:
+                self._faces[k] = got
         return k, len(tri)
+
+    def _write_faces(self) -> None:
+        """Task 0135: the face data of every written mesh (core/web3d_faces.py ``write``)."""
+        from ..core import web3d_faces as wf
+        self.result["face_bytes"] = wf.write(self.gltf, self._faces)
 
     # -- baked light (task 0107)
     def _bake_light(self, parts, marks):

@@ -3451,6 +3451,11 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Cables, "
                     "wire ropes, hoses, the rope on drums and carousels and track links move too, with their looks. "
                     "Milling, chips and coolant stay as at the frame shown. Makes the export slower")
+    measure_faces: BoolProperty(
+        name="Faces for measuring", default=True,
+        description="Puts the flat and round faces of the parts into the file, so a visitor can measure on the page "
+                    "between planes, read a hole's diameter and measure centre to centre (Measure on the page's "
+                    "left). Adds about a tenth to the file. Off: the page measures between clicked points only")
     compress: BoolProperty(
         name="Smaller file", default=True,
         description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "

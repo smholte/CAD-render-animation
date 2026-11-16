@@ -5,6 +5,43 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.131 – 16 Nov 2026 – Web 3D page: part info, measure, cutaway, fade the rest (task 0135)
+
+- **Four part tools on the left of the web page** (on PC and phone):
+  - **Part info** (I): click a part – a card says what it is: its label's text, else its name. With **Hide part
+    names** the card shows the part's material group, never a part name. Below it: Flat face or Round face Ø … mm.
+  - **Measure** (D): click two faces. Two flat faces – the **distance between the planes** (parallel within 1°) or
+    the **angle** between them; one round face (hole, shaft, bore) – its **diameter**; two round faces – **centre to
+    centre**; a flat and a round face – **face to centre**. **Points** measures straight between two clicked points.
+    **X / Y / Z parts** (X) shows the measurement's three parts as red, green and blue arrows, each with its number.
+  - **Cutaway** (C): a plane across X, Y or Z moved by a slider, **Flip** for the other side, the cut faces in the
+    app's red cap colour. Only the machine is cut, not the sea; the cut moves with the vessel.
+  - **Fade the rest** (T): click a part – it stays solid, the rest goes see-through; empty space or Esc brings it back.
+  Phone: tap = click, a long press shows a part's card. With the mouse the part (or face) under the pointer lights up.
+- The page measures on the **exact CAD faces**: the export now puts each part's flat and round faces into the file
+  (new tick **Faces for measuring**, on by default; about a tenth more file – test crane +17 KB, demo vessel +356 KB
+  on 4.4 MB). A hole on the same axis as a bigger round face keeps its own diameter.
+- Page fixes (bug hunt 0147): a damaged remembered setting no longer stops the page; a browser drawing without the
+  graphics card no longer writes "off=shadows" into a copied link; on a phone the keys help is a sheet from the
+  bottom (it covered the buttons), the buttons fit one column when the phone is held sideways, the hint speaks of
+  fingers, not keys; the help says "1" with one saved view; a screenshot of a page whose title has letters like "å"
+  or "–" now saves as a .png.
+
+## 0.2.130 – 16 Nov 2026 – Demo: a wind park round the cable-lay vessel (task 0166)
+
+- **The demo project now works inside an offshore wind park:** nine turbines on monopiles in three rows (1.2 km apart
+  along a row, 1.5 km between the rows) and an offshore substation between the rows. The turbines are invented, sized
+  from the IEA 15 MW reference turbine's public numbers (240 m rotor, 150 m hub height), with their platforms, boat
+  landings, J-tubes and scour rock; the substation has a jacket, three decks, a helideck, a crane and J-tubes.
+- **The park stands on the seabed:** it moves aft with the seabed as the cable is laid and never heaves or rolls with
+  the vessel. The cable's first end comes up the J-tube of turbine WTG 05 and runs over its scour rock down to the
+  seabed; shots 9–12 lay the second end down beside turbine WTG 06.
+- **The rotors turn** (clockwise seen from the front, all facing one wind, each at its own phase).
+- **Three new shots:** beside turbine WTG 05 (its boat landing and J-tube, the vessel laying away from it), the park
+  from above (the vessel laying on through the rows), and the park at night: red aviation lights on the nacelles and
+  yellow marine lights on the platforms flash together, the substation's floodlights burn.
+- Making the demo takes about two minutes longer; the animation is about 26 s longer.
+
 ## 0.2.129 – 16 Nov 2026 – Web 3D page: under the sea (task 0143)
 
 - **The web page shows what lies under the water**, as the app does, when the project is on the **Open sea** and
