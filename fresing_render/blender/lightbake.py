@@ -824,8 +824,12 @@ class Bake:
             o.select_set(True, view_layer=vl)
         vl.objects.active = objs[0]
         sc.render.bake.target = target
-        with bpy.context.temp_override(scene=sc, view_layer=vl, active_object=objs[0], object=objs[0],
-                                       selected_objects=objs, selected_editable_objects=objs):
+        from . import handlers
+        # task 0161 (0147 row 1): the app's live handlers stay out while Cycles bakes the working copy, as in the
+        # looks bake (0136): one acting on the copy crashed Blender
+        with handlers.pause_live(), bpy.context.temp_override(
+                scene=sc, view_layer=vl, active_object=objs[0], object=objs[0],
+                selected_objects=objs, selected_editable_objects=objs):
             res = bpy.ops.object.bake(type="DIFFUSE", pass_filter=set(pf), margin=self.padding, margin_type="EXTEND",
                                       use_clear=True, target=target)
         if res != {"FINISHED"}:

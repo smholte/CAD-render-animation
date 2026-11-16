@@ -18,6 +18,7 @@ read, never given a UV layer.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -221,6 +222,7 @@ class Look:
     def __init__(self, mat, decal: bool = False):
         self.mat = mat
         self.decal = decal
+        self.own = False                       # task 0161: baked on the part's own UVs (not tiled, not a decal)
         self.bsdf = principled(mat)
         self.const: dict = {}
         self.src: dict = {}                    # channel -> tile key
@@ -356,8 +358,25 @@ def _flatten_shape_nodes(nt) -> None:
         nt.nodes.remove(nd)
 
 
-def _bake_material(src_mat, socket_name: str, kind: str, image) -> bpy.types.Material:
-    """A copy of the look that shows one input as light (Emission), for an Emit bake into ``image``."""
+def needs_own_bake(ob) -> bool:
+    """Task 0161 (0147 row 10): a part with a marine look (growth band, streaks, worn blade edge) – they follow world
+    height, up and the part's own axes, which a flat 0.2 m tile cannot carry: it is baked on its own UVs. Parts drawn
+    by a modifier (cables, hoses) keep the tiles."""
+    if ob.type != "MESH" or len(ob.modifiers):
+        return False
+    from . import marine_looks
+    return any(sl.material is not None and marine_looks.nodes_of(sl.material) for sl in ob.material_slots)
+
+
+def has_marine_looks() -> bool:
+    """A material in use has a marine look (the panel's note, task 0161). Reads the materials, not the parts."""
+    from . import marine_looks
+    return any(m.users and marine_looks.nodes_of(m) for m in bpy.data.materials)
+
+
+def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = True) -> bpy.types.Material:
+    """A copy of the look that shows one input as light (Emission), for an Emit bake into ``image``. ``flatten``:
+    edge wear and corner dirt as on a flat tile (a part's own bake keeps them: it is the real shape)."""
     m = src_mat.copy()
     m.name = BAKE_NAME
     nt = m.node_tree
@@ -378,7 +397,8 @@ def _bake_material(src_mat, socket_name: str, kind: str, image) -> bpy.types.Mat
         nt.links.new(from_sock, em.inputs["Color"])
     nt.links.new(em.outputs[0], out.inputs["Surface"])
     _prune(nt, out)
-    _flatten_shape_nodes(nt)
+    if flatten:
+        _flatten_shape_nodes(nt)
     out.is_active_output = True
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = image
@@ -414,9 +434,10 @@ class Baker:
         sc.render.bake.margin = 0
         sc.render.bake.use_clear = True
         self.scene = sc
+        self._source = scene if scene is not None else sc
         self.ids: list = []
 
-    def _run(self, ob) -> None:
+    def _run(self, ob, kind: str = "EMIT", margin: int = 0) -> None:
         vl = self.scene.view_layers[0]
         for o in self.scene.objects:
             o.select_set(o is ob, view_layer=vl)
@@ -425,7 +446,11 @@ class Baker:
         with handlers.pause_live(), bpy.context.temp_override(
                 scene=self.scene, view_layer=vl, active_object=ob, object=ob,
                 selected_objects=[ob], selected_editable_objects=[ob]):
-            res = bpy.ops.object.bake(type="EMIT", margin=0, use_clear=True)
+            if kind == "NORMAL":
+                res = bpy.ops.object.bake(type="NORMAL", normal_space="TANGENT", margin=margin,
+                                          margin_type="EXTEND", use_clear=True)
+            else:
+                res = bpy.ops.object.bake(type="EMIT", margin=margin, margin_type="EXTEND", use_clear=True)
         if res != {"FINISHED"}:
             raise RuntimeError(f"baking the looks failed ({res})")
 
@@ -510,6 +535,110 @@ class Baker:
             out[ch] = px[..., :3] if ch == "color" else px[..., 0]
             self.scene.collection.objects.unlink(tmp)
         return out
+
+    def own(self, ob, me, mw, looks: list, wanted_tpm: float) -> dict:
+        """Task 0161 (0147 row 10): the looks of one part baked on its own UVs, with the part where it stands
+        (``mw``): marine growth, streaks and the worn blade edge depend on world height, up and the part's own axes,
+        which a flat tile cannot carry. ``looks``: a Look (or None) per material slot. Returns {"uv": (m*3, 2) per
+        corner of ``me``'s triangles (Blender's v up), "channels": {ch: (side, side, 4) floats, row 0 at the
+        bottom}, "tpm": texels per metre, "side": px}."""
+        from ..core import lightmap as lm
+        from . import lightbake, marine_looks
+        md = lightbake._read_mesh(me)
+        m3 = np.array([[mw[r][c] for c in range(3)] for r in range(3)], np.float64)
+        un = lm.unwrap(md.points @ m3.T, md.tris)               # charts in metres of the world (the part's scale)
+        tpm, side, places = core.own_atlas(un.size, un.area, wanted_tpm)
+        uv, _atlas = lm.place_uv(un, tpm, places, core.OWN_PADDING, side)
+        # a triangle copy of the part (its own coordinates, corner normals, UV layers), the bake UVs active
+        bme = bpy.data.meshes.new(BAKE_NAME)
+        self.ids.append(bme)
+        n_v, n_t = len(md.points), len(md.tris)
+        bme.vertices.add(n_v)
+        bme.vertices.foreach_set("co", md.points.astype(np.float32).ravel())
+        bme.loops.add(n_t * 3)
+        bme.loops.foreach_set("vertex_index", md.tris.astype(np.int32).ravel())
+        bme.polygons.add(n_t)
+        bme.polygons.foreach_set("loop_start", np.arange(0, n_t * 3, 3, dtype=np.int32))
+        bme.polygons.foreach_set("material_index", md.mat)
+        bme.update(calc_edges=True)
+        a = bme.attributes.new("custom_normal", "FLOAT_VECTOR", "CORNER")
+        a.data.foreach_set("vector", md.normals.astype(np.float32).ravel())
+        for name in list(md.uvs)[:7]:
+            layer = bme.uv_layers.new(name=name)
+            layer.data.foreach_set("uv", md.uvs[name].astype(np.float32).ravel())
+        if md.active_render and md.active_render in bme.uv_layers:
+            bme.uv_layers[md.active_render].active_render = True
+        layer = bme.uv_layers.new(name="FR own")
+        layer.data.foreach_set("uv", uv.astype(np.float32).ravel())
+        bme.uv_layers.active = layer
+        if md.active_render and md.active_render in bme.uv_layers:
+            bme.uv_layers[md.active_render].active_render = True
+        bob = bpy.data.objects.new(BAKE_NAME, bme)
+        bob[build.PROP_KIND] = "bake"
+        for k in ob.keys():                     # what the looks read from the part (Attribute nodes of type Object)
+            v = ob[k]
+            if hasattr(v, "to_list") and len(v) <= 16:
+                v = v.to_list()
+            if isinstance(v, (int, float, str)) or (isinstance(v, list) and all(isinstance(x, (int, float)) for x in v)):
+                try:
+                    bob[k] = v
+                except (TypeError, ValueError, OverflowError):
+                    pass
+        bob.matrix_world = mw
+        self.scene.collection.objects.link(bob)
+        self.ids.append(bob)
+        wl = marine_looks.WATERLINE           # the growth's band: the export scene's waterline
+        if wl in self._source:
+            self.scene[wl] = float(self._source[wl])
+        chans = []
+        for lk in looks:
+            for ch in (lk.src if lk is not None else ()):
+                if ch not in chans and ch != "coat_normal":
+                    chans.append(ch)
+        out = {}
+        for ch in chans:
+            img = self._image(side, side)
+            bme.materials.clear()
+            for lk in looks:
+                bme.materials.append(self._own_material(lk, ch, img))
+            self._run(bob, "NORMAL" if ch == "normal" else "EMIT", core.OWN_MARGIN)
+            px = np.empty(side * side * 4, np.float32)
+            img.pixels.foreach_get(px)
+            out[ch] = px.reshape(side, side, 4)
+        return {"uv": uv, "channels": out, "tpm": tpm, "side": side}
+
+    def _own_material(self, lk, ch: str, img):
+        """One slot's material for baking channel ``ch`` of a part's own bake into ``img``."""
+        if lk is not None and ch in lk.src and ch != "normal":
+            m = _bake_material(lk.mat, SOCKETS[ch], KIND[ch], img, flatten=False)
+        elif ch == "normal":                    # Cycles' normal bake reads the look's own normal (its bumps)
+            m = lk.mat.copy() if lk is not None and lk.mat is not None and lk.mat.node_tree is not None else None
+            if m is None:
+                m = bpy.data.materials.new(BAKE_NAME)
+                m.use_nodes = True
+            m.name = BAKE_NAME
+            tex = m.node_tree.nodes.new("ShaderNodeTexImage")
+            tex.image = img
+            m.node_tree.nodes.active = tex
+        else:                                   # this slot has a number for the channel: that number everywhere
+            v = (lk.const.get(ch) if lk is not None else None)
+            if v is None:
+                v = {"color": (0.8, 0.8, 0.8), "alpha": 1.0, "rough": 0.5, "metal": 0.0}.get(ch, 0.0)
+            m = bpy.data.materials.new(BAKE_NAME)
+            m.use_nodes = True
+            nt = m.node_tree
+            for nd in list(nt.nodes):
+                nt.nodes.remove(nd)
+            out = nt.nodes.new("ShaderNodeOutputMaterial")
+            em = nt.nodes.new("ShaderNodeEmission")
+            c = tuple(v)[:3] if isinstance(v, (tuple, list)) else (float(v),) * 3
+            em.inputs["Color"].default_value = (*c, 1.0)
+            nt.links.new(em.outputs[0], out.inputs["Surface"])
+            tex = nt.nodes.new("ShaderNodeTexImage")
+            tex.image = img
+            nt.nodes.active = tex
+        self.ids.append(m)
+        return m
 
     def close(self) -> None:
         for idb in reversed(self.ids):
@@ -791,8 +920,13 @@ class Job:
         yield 0.02
 
         # -- looks
+        # task 0161 (0147 row 10): parts with a marine look are baked on their own UVs; the rest share the tiles
+        own_objs = [ob for ob in parts if needs_own_bake(ob)]
+        own_set = {ob.name for ob in own_objs}
         looks: dict = {}
         for ob in parts:
+            if ob.name in own_set:
+                continue
             for slot in ob.material_slots:
                 if slot.material is not None and slot.material.name not in looks:
                     looks[slot.material.name] = Look(slot.material)
@@ -809,7 +943,7 @@ class Job:
                     jobs.append((key, lk.mat, sock, KIND[ch]))
         tiles: dict = {}
         flat: dict = {}
-        if jobs or decal_looks:
+        if jobs or decal_looks or own_objs:
             self._baker = Baker(scene)
         if jobs:                       # a quick look first: inputs that come out as one number need no full bake
             self.text = f"Looking at {len(jobs)} baked inputs"
@@ -828,7 +962,7 @@ class Job:
                     keep.append(job)
             jobs = keep
         per_atlas = max(1, (core.ATLAS_MAX // self.size) ** 2)
-        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks)
+        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + len(own_objs)
         done = 0
         for start in range(0, len(jobs), per_atlas):
             batch = jobs[start:start + per_atlas]
@@ -861,6 +995,50 @@ class Job:
                 else:
                     tiles[key] = pack_tile(t, kind)
             done += 1
+        own_looks: dict = {}                   # look name -> Look (one per slot of each part baked on its own)
+        own_labels: dict = {}
+        self._own: dict = {}                   # part name -> (bake UVs per corner, look name per slot)
+        own_mm = []
+        t_own = time.perf_counter()
+        if own_objs:
+            from . import lightbake
+            area = sum(lightbake._world_area(lightbake._read_mesh(self._drawn.mesh(ob)), self._drawn.place(ob))
+                       for ob in own_objs)
+            own_tpm = core.own_tpm(self.size, area)
+        for i, ob in enumerate(own_objs):
+            self.text = f"Baking the marine looks of part {i + 1} of {len(own_objs)}"
+            yield 0.05 + 0.45 * done / max(n_bakes, 1)
+            lks = [Look(sl.material) if sl.material is not None else None for sl in ob.material_slots] or [None]
+            got = self._baker.own(ob, self._drawn.mesh(ob), self._drawn.place(ob), lks, own_tpm)
+            own_mm.append(1000.0 / got["tpm"])
+            keys = {}
+            for ch, arr in got["channels"].items():
+                kind = KIND[ch]
+                key = f"own:{ob.name}:{ch}"
+                keys[ch] = key
+                covered = arr[arr[..., 3] > 0.5].reshape(1, -1, 4)       # the texels on the part (alpha 1)
+                if not covered.size or finish_tile(covered, kind, decal=True) is None:
+                    flat[key] = flat_value(covered if covered.size else arr, kind)
+                else:
+                    tiles[key] = pack_tile(finish_tile(arr, kind, decal=True), kind)
+            names = []
+            for k, lk in enumerate(lks):
+                if lk is None:
+                    names.append(None)
+                    continue
+                c = copy.copy(lk)
+                c.own = True
+                c.src = dict(keys)             # every slot reads the part's pictures (a slot's numbers are baked in)
+                name = f"own:{ob.name}:{k}"
+                own_looks[name] = c
+                own_labels[name] = f"{lk.mat.name} · {ob.get(build.PROP_NAME) or ob.name}"
+                names.append(name)
+            self._own[ob.name] = (got["uv"], names)
+            done += 1
+        if own_objs:
+            self.result["own"] = {"parts": len(own_objs), "finest_mm": round(min(own_mm), 2),
+                                  "coarsest_mm": round(max(own_mm), 2),
+                                  "seconds": round(time.perf_counter() - t_own, 2)}
         if self._baker is not None:
             self._baker.close()
             self._baker = None
@@ -875,8 +1053,9 @@ class Job:
         mat_index: dict = {}
         cache: dict = {}
         own_uv: set = set()                    # task 0117: materials with a mesh model's own picture
-        for k, (name, lk) in enumerate(list(looks.items()) + [(f"decal:{n}", lk) for n, lk in decal_looks.items()]):
-            label = (f"Look {k + 1}" if self.hide_names else
+        for k, (name, lk) in enumerate(list(looks.items()) + list(own_looks.items())
+                                       + [(f"decal:{n}", lk) for n, lk in decal_looks.items()]):
+            label = (f"Look {k + 1}" if self.hide_names else own_labels.get(name) or
                      (name[3:] if name.startswith("FR ") else name).replace("decal:", "Decal "))
             mat = self._material(lk, label, tiles, flat, cache)
             same = json.dumps({k: v for k, v in mat.items() if k != "name"}, sort_keys=True)
@@ -911,12 +1090,18 @@ class Job:
         everything = [(ob, False) for ob in parts] + [(ob, True) for ob in marks]
         for k, (ob, is_decal) in enumerate(everything):
             me = self._drawn.mesh(ob)
+            own = self._own.get(ob.name) if not is_decal else None
             if is_decal:
                 mats = (mat_index.get(f"decal:{ob.name}", -1),)
+            elif own is not None:              # task 0161: its own looks, on its own UVs
+                mats = tuple(mat_index.get(n, -1) if n is not None else -1 for n in own[1])
             else:
                 mats = tuple(mat_index.get(s.material.name, -1) if s.material is not None else -1
                              for s in ob.material_slots) or (-1,)
-            key = (me.name_full, mats, is_decal)
+            key = (me.name_full, mats, is_decal, ob.name if own is not None else "")
+            if own is not None and key not in mesh_of:
+                mesh_of[key] = self._mesh(me, mats, False, True, len(mesh_of) + 1,
+                                          light["first_uv"].get(me.name_full) if light else None, bake_uv=own[0])
             if key not in mesh_of:
                 need_uv = is_decal or any(_textured(self.gltf.doc["materials"][m]) for m in mats if m >= 0)
                 own = not is_decal and any(m in own_uv for m in mats) and me.uv_layers.active is not None
@@ -968,11 +1153,11 @@ class Job:
         coat_n = get("coat_normal", None)
         pbr: dict = {}
         mat: dict = {"name": label, "pbrMetallicRoughness": pbr, "doubleSided": True}
-        wrap = core.CLAMP if lk.decal else core.REPEAT
+        wrap = core.CLAMP if (lk.decal or lk.own) else core.REPEAT
 
         def tex_info(index):                    # tiled looks: the parts' UVs are 16-bit, in 1/UV_Q tile
             info = {"index": index}
-            if not lk.decal:
+            if not (lk.decal or lk.own):
                 info["extensions"] = json.loads(json.dumps(core.UV_TRANSFORM))
             return info
 
@@ -1046,9 +1231,13 @@ class Job:
         return mat
 
     def _mesh(self, me, mats: tuple, is_decal: bool, need_uv: bool, number: int,
-              light_uv: np.ndarray | None = None, own_uv: bool = False) -> tuple[int, int]:
-        """``own_uv``: the mesh's own UVs (a mesh model's picture, task 0117), not the tiles' box UVs."""
-        co, vert, nrm, uv, mi = mesh_arrays(me, own_uv=is_decal or own_uv, uv=need_uv)
+              light_uv: np.ndarray | None = None, own_uv: bool = False,
+              bake_uv: np.ndarray | None = None) -> tuple[int, int]:
+        """``own_uv``: the mesh's own UVs (a mesh model's picture, task 0117), not the tiles' box UVs. ``bake_uv``:
+        the UVs of a part's own bake (task 0161), per corner of the mesh's triangles."""
+        co, vert, nrm, uv, mi = mesh_arrays(me, own_uv=is_decal or own_uv, uv=need_uv and bake_uv is None)
+        if bake_uv is not None:
+            uv, own_uv = np.asarray(bake_uv, np.float32), True
         vidx, qn, uvw, inverse, first = core.weld(vert, nrm, uv, light_uv, corners=True)
         tri = inverse.reshape(-1, 3)
         groups = []
@@ -1304,6 +1493,9 @@ class Job:
                                light_items=len(lit.items), light_problems=list(lit.problems),
                                light_timing={k: round(v, 1) for k, v in lit.timing.items()})
             self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
+        if self.result.get("own"):                       # task 0161: the marine looks baked on the parts themselves
+            o = self.result["own"]
+            self.result["text"] += " · " + core.own_line(o["parts"], o["finest_mm"], o["coarsest_mm"])
         if self.result.get("drawn_still"):              # task 0142: what the page could not move
             from ..core.words import plural
             self.result["text"] += (f" · {plural(len(self.result['drawn_still']), 'part')} whose modifier changes "
@@ -1334,7 +1526,12 @@ def views(scene, hide_names: bool = True) -> list[dict]:
         except Exception:  # noqa: BLE001 - a camera without a model in front: a few metres on
             dist = 5.0
         target = eye + fwd * max(dist, 0.01)
-        fov = 2 * math.atan(cam.sensor_width / 2 / max(cam.lens, 1e-3))   # across the wider side (sensor fit Auto)
+        if cam.type == "ORTHO":
+            # task 0161 (0147 row 14): the page has only perspective views; the angle that shows ortho_scale at the
+            # target's distance gives the same frame there (the Isometric view came out 1.96 x too wide)
+            fov = 2 * math.atan(cam.ortho_scale / 2 / max(dist, 0.01))
+        else:
+            fov = 2 * math.atan(cam.sensor_width / 2 / max(cam.lens, 1e-3))   # across the wider side (Auto fit)
         if cam.sensor_fit == "VERTICAL" or (cam.sensor_fit == "AUTO" and aspect < 1):
             vfov, hfov = fov, 2 * math.atan(math.tan(fov / 2) * aspect)
         else:
