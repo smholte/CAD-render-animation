@@ -1,6 +1,6 @@
 # 0169 – The Fresing logo as the app's icon and on the splash screen
 
-**Who:** worker · **Status:** running · **Branch:** `claude/eager-pasteur-w3w05t` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.133) · **Branch:** `claude/eager-pasteur-w3w05t` (the web session's branch)
 **Started by:** lead, 16 Nov 2026 · **Model:** Opus · effort Medium (Windows-only code)
 **Area:** `installer/` (Install / Uninstall scripts), `app_template/fresing_render/` (splash, start-up), a new icon
 file, a small Windows-only start-up hook in the extension (window/taskbar icon), its tests, guide line, CHANGELOG
@@ -130,6 +130,10 @@ Owner's question (16 Nov): "does the Fresing Render app icon show as the Fresing
   a pinned plain-Blender icon is left alone (only pins that start the app are changed). Left: the hook's GUI timer is
   not run on GitHub (no Blender window there); an old pin may show as a second button until the next sign-in; Windows'
   own window properties are not cleared at close (harmless at exit).
+
+**GitHub runs:** 5 full runs. 1 real failure (my Windows test also judged the runner's own pinned Edge/Explorer icons,
+which the app rightly leaves alone; fixed), 3 version clashes (0166, 0135, 0156 merged first: renumbered 0.2.130 →
+0.2.131 → 0.2.132 → 0.2.133). Green branch run 43962917731; main fast-forwarded after merging two task-list commits.
 
 **Open points / follow-up tasks:**
 - Only the owner's PC can show the taskbar and a pinned icon for real (steps for the owner below).
