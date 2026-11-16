@@ -2703,7 +2703,7 @@ def scene_props(ctx):
     return f"{words}; render {info['seconds']} s"
 
 
-@line("toolchange.person", "A person changes the tool", "0.2.130",
+@line("toolchange.person", "A person changes the tool", "0.2.132",
       what="The test mill in its cabinet (task 0156): the operator walks up before the tool change, opens the sliding "
            "door, takes T1 out, lays it on the trolley, puts T2 in, closes the door and walks away. Build, the pause "
            "grown to what the person needs, the hand on the holder, the frame time, a small render (processor, draft)")

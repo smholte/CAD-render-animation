@@ -5,6 +5,27 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.132 – 16 Nov 2026 – A person changes the tool (task 0156)
+
+- **A whole person can do a manual tool change.** In the program step (6 Animation > Run G-code program > Lines, tool
+  changes …) **Changed by** is now Nobody, Hand or **Person**. With Person the operator walks up to the machine before
+  the first change (round everything that stands in the way – never through the machine or a table), opens the
+  door by its handle, presses the drawbar's release button with the left hand, takes the old tool out of the spindle
+  by its holder, lays it on small cradles on a tool trolley beside it, takes the new tool, pushes it in, closes the
+  door, and walks away after the last change. Feet planted, no sliding (the walking of task 0157).
+- The pause at M6 grows to what the person needs (about 6.5 s, plus the door); the step's Details say how long each
+  change takes.
+- Settings in 4 Motion > CNC machine > Tool changes > **Person at the machine**: height, clothes, helmet, the
+  **door's joint** and how far it opens, the release button, **Show the spots** (move where the operator stands and
+  where it comes from), **Show the operator** (saved with a scene: hide it for one shot). The trolley stands on the
+  operator's right (the hand that carries the tools).
+- The clash check knows the operator (its body along its way); the arms reach into the machine only through the
+  door's opening.
+- **The gloved hand looks real now:** fingers with joints and knuckles, a thumb, a gauntlet cuff, a nitrile coating;
+  the fingers are open as it reaches in and close round the holder.
+- New test model: the test mill on a cabinet with an enclosure, a sliding door and a release button (test tour stop
+  "A person changes the tool", PC check line "A person changes the tool").
+
 ## 0.2.131 – 16 Nov 2026 – Web 3D page: part info, measure, cutaway, fade the rest (task 0135)
 
 - **Four part tools on the left of the web page** (on PC and phone):

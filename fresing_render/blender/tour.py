@@ -3451,7 +3451,7 @@ stop("operator", MACH, "operator", "A person changes the tool",
      "it on the tool trolley, takes the ball mill, puts it in, closes the door and walks away after the program. "
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Operator", since="0.2.130", animation=OPERATOR_ANIM, at=0.45, play=True,
+           "Tool changes > Person at the machine", since="0.2.132", animation=OPERATOR_ANIM, at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
