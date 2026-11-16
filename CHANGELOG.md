@@ -11,11 +11,11 @@ installer of that version was built from.
   cuts straight from above – a finishing program from CAM, or the app's own **Make a toolpath** – is now worked out
   as a height map (the lowest point the tool reached above every spot of the block) instead of one exact cut per
   move. Measured on the 4-core test machine, Detail Normal:
-  - a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in **3 s
-    instead of 2.4 minutes**, 27,000 faces instead of 256,000; one frame further while playing 40 ms instead of
-    53 ms, one frame back 59 ms instead of 235 ms;
-  - a dome (3,750 moves, passes 0.5 mm apart): 1.3 s instead of 32 s, 19,000 faces instead of 62,000;
-  - the toolpath test model (7,243 moves, roughing and finishing): 7 s instead of about 2 minutes – but 146,000
+  - a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in **3.5 s
+    instead of 2.4 minutes**, 30,000 faces instead of 256,000; one frame further while playing 38 ms instead of
+    53 ms, one frame back 72 ms instead of 235 ms;
+  - a dome (3,750 moves, passes 0.5 mm apart): 1.6 s instead of 32 s, 21,000 faces instead of 62,000;
+  - the toolpath test model (7,243 moves, roughing and finishing): 8 s instead of about 2 minutes – but 146,000
     faces instead of 97,000: on walls and steps the map needs more faces than the exact cut.
 - **What goes into it:** programs of 3,000 moves or more, and shorter ones (from 300 moves) whose passes lie close
   together (a short, thinly spread program is quicker and lighter cut exactly); of those the moves where the tool

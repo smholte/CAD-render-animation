@@ -1537,7 +1537,7 @@ out as a height map instead: the lowest point the tool reached above every spot 
   tunnel under the surface. One program can have both kinds of moves: they are joined.
 - **What you see:** the same block, the same cut faces and tool marks. Measured on the 4-core test machine
   with a finishing program of 40,000 points (ball Ø6, 100 × 60 mm, passes 0.3 mm apart): the whole cut in
-  3 seconds instead of 2.4 minutes, 27,000 faces instead of 256,000. The line under the settings says how
+  3.5 seconds instead of 2.4 minutes, 30,000 faces instead of 256,000. The line under the settings says how
   many moves went into the height map ("… 14,008 cutting moves, 14,008 as height map, 0.2 mm grid"). A program
   with many walls and steps (roughing) is as much faster, but gets more faces than the exact cut.
 - **How exact** (Detail **Normal**, a grid of 0.2 mm; all of it halves at **Fine**; a block larger than about
