@@ -87,7 +87,7 @@ name instead of `task/0155-…`). Note: task 0163's finishing commit (338742b) h
   268 (268), pallet 1,888 / 252 (252), barrier 1,032 / 180 (180), IBC 2,832 / 64, gas rack 1,784 / 396, trolley
   1,668 / 196. A prop beyond 30 m costs what the old one did.
 - Size: the two new modules + the two guide pictures are 118 KB zipped (aim ≤ 5 MB); no meshes or textures shipped.
-- GitHub runs: see below.
+- GitHub runs: 1 full run, green (43891030276, 19.5 min; the tour job slower than usual, 12.1 min); then `main` with only the task list on top.
 
 Pictures: `tasks/img/0155_before.jpg`, `tasks/img/0155_after.jpg` (person, pallet, barrier), the full sheets in
 `docs/img/props_lineup.jpg` and `docs/img/props_people.jpg` (every pose in all three outfits, same scale).
