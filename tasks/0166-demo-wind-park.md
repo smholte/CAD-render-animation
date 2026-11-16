@@ -236,5 +236,10 @@ First park build: the blades were spline lofts, 261 k triangles each (7 M placed
   water, not seen; for 0154 if a cut-away ever shows them). The sea surface (40 km) reaches every turbine.
 - The Web 3D export of the demo would now hold the park (Web 3D lane, later).
 - Rotor speed is in video time (7.5 rpm) also in the time-lapse shots.
+- 0154 (merged meanwhile) has the vessel sail in at 6 knots in shots 1–2 and go on DP as shot 3 starts: shot 2b
+  (beside turbine A, between them) shows her still sailing with a wake while the cable already runs from A's J-tube.
+  For the lead: start DP before shot 2b (`demo.DP_CHANGE` / `_shot_start(d, "Beside turbine A")`), or keep.
+- The demo 2 job (clash check half + rebake + park) takes 16–19 min on GitHub; main's own runs after 0154 already took
+  16–17 min (clash halves 450–764 s there, 543 / 678 s here): the park adds nothing measurable to the check now.
 
 **GitHub runs:** RUNS
